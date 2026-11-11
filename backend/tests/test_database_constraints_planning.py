@@ -413,6 +413,8 @@ CASCADES = {
     "fk_task_link_predecessor_id_node",
     "fk_task_link_successor_id_node",
     "fk_tracking_entry_timeline_id_timeline",
+    # The facet estimate line with its node (EP-07, "Tables et migrations").
+    "fk_estimate_line_project_id_node",
 }
 
 

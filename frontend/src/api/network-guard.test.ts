@@ -299,6 +299,46 @@ describe("the network guard", { timeout: 60_000 }, () => {
     }
   });
 
+  it("lets the proxy of the bench reach node:http, and nothing else of the network", async () => {
+    const BENCH = "bench/contract-proxy.ts";
+    expect(await lint('import * as http from "node:http";\nexport default http;', BENCH)).toEqual(
+      [],
+    );
+    await refused(
+      'export const answer = fetch("/api/v1/projects");',
+      "no-restricted-globals",
+      BENCH,
+    );
+    await refused(
+      'import * as client from "axios";\nexport default client;',
+      "no-restricted-imports",
+      BENCH,
+    );
+    await refused(
+      'import * as client from "node:https";\nexport default client;',
+      "no-restricted-imports",
+      BENCH,
+    );
+    for (const name of ["jose", "ioredis"]) {
+      await refused(
+        `import * as client from "${name}";\nexport default client;`,
+        "no-restricted-imports",
+        BENCH,
+        SESSION_NETWORK,
+      );
+    }
+    const http = 'import * as http from "node:http";\nexport default http;';
+    expect(await lint(http, "bench/contract-proxy.test.ts")).toEqual([]);
+    // Another file of bench/ does not exist: the typed rules cannot parse it, so the untyped
+    // instance reads it, and the rules of the guard are the same.
+    const [other] = await actions.lintText(http, { filePath: "bench/other.ts" });
+    expect(other?.messages.map((m) => [m.ruleId, m.severity, m.message])).toContainEqual([
+      "no-restricted-imports",
+      2,
+      expect.stringContaining(NETWORK),
+    ]);
+  });
+
   it.each(SESSION_CLIENTS)(
     "refuses %s outside the modules of the session that wrap it, statically or not",
     async (name) => {

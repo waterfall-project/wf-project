@@ -44,10 +44,10 @@ describe("the summary of the remaining to commit", () => {
   it("shows the currency of the installation with each amount, in each language [WF-REF-0140-A]", () => {
     const indicators = example("remaining_indicators") as RemainingIndicators;
     expect(text(renderSummary(indicators, "en", "EUR"))).toContain(
-      "Remaining to commit €67,470,133.69 Margin on the reference budget -€641,534.68",
+      "Remaining to commit €67,497,090.97 Margin on the reference budget €1,406,335.39 Deviation from the previous review -€1,803,418.08",
     );
     expect(text(renderSummary(indicators, "fr", "EUR"))).toMatch(
-      /Marge sur le budget de référence -641\s534,68\s€/,
+      /Marge sur le budget de référence 1\s406\s335,39\s€ Écart à la revue précédente -1\s803\s418,08\s€/,
     );
   });
 
@@ -56,18 +56,23 @@ describe("the summary of the remaining to commit", () => {
     const indicators = example("remaining_indicators") as RemainingIndicators;
     const html = text(renderSummary({ ...indicators, delta_to_previous_revision: null }));
     expect(html).toContain(
-      "Remaining to commit 67,470,133.69 Margin on the reference budget -641,534.68 By cost type",
+      "Remaining to commit 67,497,090.97 Margin on the reference budget 1,406,335.39 By cost type",
     );
     expect(html).not.toContain("previous review");
   });
 
   it("names the gap to the reference budget a margin, negative once overrun, in French too [WF-RAE-0020-A]", () => {
-    // Les écarts sont présents et signés : le reste à engager parle de marge (#466).
+    // Les écarts sont présents et signés : le reste à engager parle de marge (#466). Le témoin
+    // tient son budget ; sa variante en dépassement ne dépasse que hors sous-projet.
     const indicators = example("remaining_indicators") as RemainingIndicators;
     const html = text(renderSummary(indicators, "fr"));
-    expect(html).toMatch(/Marge sur le budget de référence -641\s534,68/);
-    expect(html).toMatch(/Poste de commande\s: 23\s314\s197,74, marge -64\s699,75/);
+    expect(html).toMatch(/Marge sur le budget de référence 1\s406\s335,39/);
+    expect(html).toMatch(/Poste de commande\s: 23\s322\s741,24, marge 632\s968,59/);
     expect(html).not.toContain("Écart au budget");
+    const over = example("remaining_indicators_over_budget") as RemainingIndicators;
+    expect(text(renderSummary(over, "fr"))).toMatch(
+      /Hors sous-projet\s: 23\s598\s581,18, marge -88\s694,68/,
+    );
   });
 
   it("says a share too small to show below the smallest shown, in the words of each language, a nil one « 0 % » (#626)", () => {
@@ -117,7 +122,7 @@ describe("the summary of the remaining to commit", () => {
     const empty = text(renderSummary({ ...indicators, by_cost_type: [], by_subproject: [] }));
     expect(empty).not.toContain("By cost type");
     expect(empty).not.toContain("by sub-project");
-    expect(empty).toContain("Remaining to commit 67,470,133.69");
+    expect(empty).toContain("Remaining to commit 67,497,090.97");
     expect(empty).toContain("Risk coverage");
     const some = text(renderSummary({ ...indicators, by_cost_type: [] }));
     expect(some).not.toContain("By cost type");

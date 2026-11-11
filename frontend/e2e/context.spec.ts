@@ -10,9 +10,10 @@ import { rowAt } from "./scroll";
 
 // The reading context of the screens of a project, against the fake back and, tagged `@shared`,
 // against the service. The service plays the banner on the screens it serves: those of a project
-// created, its settings, its revisions and, since EP-06 (US-1470), its planning. The screens of the
-// remaining to commit, the risks and the indicators wait for their EPIC, each lifting its own entry.
-const BEFORE_THE_REMAINING = "EP-09 serves the remaining to commit, EP-08 the risks";
+// created, its settings, its revisions, its planning (EP-06, US-1470), its estimate (EP-07, US-1560)
+// and its remaining to commit (EP-09). The screens of the risks and of the indicators wait for their
+// EPIC, each lifting its own entry.
+const BEFORE_THE_RISKS = "EP-08 serves the risks";
 const BEFORE_THE_INDICATORS = "EP-10 serves the indicators the banner filters";
 const BEFORE_THE_DIFFERENTIALS = "EP-08 serves the differential structures of a revision";
 
@@ -35,8 +36,9 @@ test("each screen of the data of a project names the project and the revision sh
   page,
 }) => {
   // Against the service, the planning alone: the page of a project leads to the planning of its
-  // revision in progress, which names the project and the revision (the last path below).
-  test.skip(inService, BEFORE_THE_REMAINING);
+  // revision in progress, which names the project and the revision (the last path below). This
+  // one goes through the risks, which EP-08 serves.
+  test.skip(inService, BEFORE_THE_RISKS);
   // The risks, a screen of its own reached by a click, and the planning the page of the project
   // leads to, compiled first (`e2e/compile.ts`).
   await compile(page.request, `${IN_REVISION}/risks`, `${IN_REVISION}/planning`);
@@ -170,4 +172,22 @@ test("the planning of a project created names the project and the revision in pr
   await expect(page.getByRole("treegrid", { name: "Grille de planning" })).toBeVisible({
     timeout: WORKING,
   });
+});
+
+test("the estimate of a project created names the project and the revision in progress, in the reading context, and shows no note of the mock-up, as the service keeps them @shared [WF-IHM-0020-A]", async ({
+  page,
+}) => {
+  test.skip(!inService, "the fake back keeps nothing of the project it is asked to create");
+  test.slow();
+  const own = await createOwnProject(page, "Contexte du devis");
+  await openRevision(page, own);
+  const revision = new URL(page.url()).searchParams.get("revision_id");
+  expect(revision, "the revision opened").not.toBeNull();
+  await openHydrated(page, `${own.path}/revisions/${revision ?? ""}/estimate`);
+  await expect(banner(page).getByRole("definition").first()).toHaveText(own.label);
+  await expect(banner(page)).toContainText("Révision en cours");
+  await expect(page.getByRole("treegrid", { name: "Grille de devis" })).toBeVisible({
+    timeout: WORKING,
+  });
+  await expect(page.getByRole("main").getByRole("note")).toHaveCount(0);
 });

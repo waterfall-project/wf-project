@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
+import type { Problem } from "@/api/problem";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
@@ -55,9 +56,11 @@ const DESKS = 3;
 const TASK_ALONE = ["progress", "finish"];
 
 /** Serve the fake back, and give it back to read its calls. */
-function serve(): FakeClient {
+function serve(
+  answer: Parameters<typeof fakeClient>[0][typeof REMAINING] = "remaining_reestimated",
+): FakeClient {
   const client = fakeClient({
-    [REMAINING]: "remaining_reestimated",
+    [REMAINING]: answer,
     [NODES]: "nodes_estimate",
     // A header that sorts keeps the sort in the preferences of the account.
     "PATCH /me/preferences": "preferences",
@@ -112,6 +115,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("the grid of the remaining to commit", () => {
@@ -258,7 +262,7 @@ describe("the grid of the remaining to commit", () => {
     );
     // The totals of the answer, never a sum of the rows.
     expect(within(table).getAllByRole("row").at(-1)).toHaveTextContent(
-      /^Total — 6 tâches, 5 lignes.*252\s234,56.*12,5.*502\s434,56$/,
+      /^Total — 6 tâches, 5 lignes.*252\s271,60.*12,5.*502\s434,56$/,
     );
     await expectAccessible(container);
   });
@@ -301,6 +305,148 @@ describe("the grid of the remaining to commit", () => {
     expect(screen.getByRole("treegrid").querySelector("tfoot")).not.toHaveTextContent(
       /121\s334,56/,
     );
+  });
+
+  it("marks the lines that bear a deactivated object, as the server says it, and keeps them readable [WF-REF-0010-A]", () => {
+    // Après désactivation d'un rôle de ressource, les lignes qui le portent sont signalées dans la
+    // grille de reste à engager, et restent lisibles.
+    serve();
+    const read = structuredClone(example("nodes_estimate") as NodeList);
+    const labour = read.items[LABOUR]?.estimate_line;
+    if (labour !== undefined && labour !== null) {
+      labour.uses_inactive_object = true;
+    }
+    render(grid(read));
+    expect(screen.getByRole("columnheader", { name: "Objet désactivé" })).toBeInTheDocument();
+    expect(
+      within(cell(LABOUR, "inactive_object")).getByRole("img", {
+        name: "Emploie un objet désactivé",
+      }),
+    ).toBeInTheDocument();
+    expect(cell(DISBURSEMENT, "inactive_object")).toBeEmptyDOMElement();
+    expect(cell(LABOUR, "hours")).toHaveTextContent(/^12,5$/);
+  });
+
+  it("asks the date when the entry completes the task, and replays it with the date given [WF-RAE-0040-A]", async () => {
+    // La saisie d'un reste à engager nul sur toutes les lignes d'une tâche non démarrée la termine :
+    // the service refuses it without the date (`COMPLETION_DATE_REQUIRED`), nothing written; the grid
+    // asks the date and replays the entry from the same version.
+    const problem = example("remaining_completion_date_required") as Problem & {
+      readonly status: 422;
+    };
+    const client = serve([{ problem }, "remaining_reestimated"]);
+    render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.clear(screen.getByRole("textbox", { name: "Charge (h)" }));
+    await userEvent.keyboard("0{Enter}");
+    const dialog = await screen.findByRole("dialog", { name: "Terminer la tâche" });
+    const date = within(dialog).getByLabelText("Date de terminaison");
+    await userEvent.clear(date);
+    await userEvent.type(date, "2026-07-02");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Terminer la tâche" }));
+    await vi.waitFor(() => {
+      expect(written(client)).toHaveLength(2);
+    });
+    expect(written(client)).toEqual([
+      { reestimated_amount_basis: { hours: "0" }, lock_version: 1 },
+      {
+        reestimated_amount_basis: { hours: "0" },
+        lock_version: 1,
+        completed_on: "2026-07-02",
+      },
+    ]);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("asks the date on a page without `crypto.randomUUID`, served over HTTP outside a secure context [WF-RAE-0040-A]", async () => {
+    // #2818: the dialog of the date is named by a counter, not by an identifier a secure context
+    // alone provides.
+    vi.stubGlobal("crypto", {});
+    const problem = example("remaining_completion_date_required") as Problem & {
+      readonly status: 422;
+    };
+    serve([{ problem }, "remaining_reestimated"]);
+    render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.clear(screen.getByRole("textbox", { name: "Charge (h)" }));
+    await userEvent.keyboard("0{Enter}");
+    expect(await screen.findByRole("dialog", { name: "Terminer la tâche" })).toBeInTheDocument();
+  });
+
+  it("gives the entry up when the date is not given, and tells the refusal at the cell [WF-RAE-0040-A]", async () => {
+    const problem = example("remaining_completion_date_required") as Problem & {
+      readonly status: 422;
+    };
+    const client = serve({ problem });
+    render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.clear(screen.getByRole("textbox", { name: "Charge (h)" }));
+    await userEvent.keyboard("0{Enter}");
+    const dialog = await screen.findByRole("dialog", { name: "Terminer la tâche" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Abandonner la saisie" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Cette saisie termine la tâche : indiquez la date de sa terminaison.",
+    );
+    expect(written(client)).toHaveLength(1);
+  });
+
+  it("tells at the cell the second refusal, a date before the start of the task, and asks no second date [WF-PLA-0130-A]", async () => {
+    // A completion never precedes the start of its task: the service refuses the date given on
+    // `/completed_on` (`VALUE_OUT_OF_RANGE`, `minimum` the start), which is not a missing date.
+    const missing = example("remaining_completion_date_required") as Problem & {
+      readonly status: 422;
+    };
+    const before: Problem & { readonly status: 422 } = {
+      ...missing,
+      fields: [
+        { pointer: "/completed_on", code: "VALUE_OUT_OF_RANGE", params: { minimum: "2026-06-15" } },
+      ],
+    };
+    const client = serve([{ problem: missing }, { problem: before }]);
+    render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.clear(screen.getByRole("textbox", { name: "Charge (h)" }));
+    await userEvent.keyboard("0{Enter}");
+    const dialog = await screen.findByRole("dialog", { name: "Terminer la tâche" });
+    const date = within(dialog).getByLabelText("Date de terminaison");
+    await userEvent.clear(date);
+    await userEvent.type(date, "2026-06-01");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Terminer la tâche" }));
+    // The refusal of the second write, not the first (`COMPLETION_DATE_REQUIRED`): the sentence of
+    // the code the service gave, said once in the alert of the grid, beside the grid, which a
+    // replay that kept the first refusal would say otherwise (#2817).
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("La valeur sort des limites admises.");
+    expect(alert).not.toHaveTextContent("indiquez la date de sa terminaison");
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    // Above the grid, which it does not replace: the alert comes before the treegrid, both on the page.
+    const treegrid = screen.getByRole("treegrid", { name: "Grille de reste à engager" });
+    expect(alert.compareDocumentPosition(treegrid) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(written(client)).toHaveLength(2);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("resolves the entry waiting for a date when the grid goes while the dialog is open, without a call nor an alert [WF-RAE-0040-A]", async () => {
+    const problem = example("remaining_completion_date_required") as Problem & {
+      readonly status: 422;
+    };
+    const client = serve({ problem });
+    const { unmount } = render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.clear(screen.getByRole("textbox", { name: "Charge (h)" }));
+    await userEvent.keyboard("0{Enter}");
+    await screen.findByRole("dialog", { name: "Terminer la tâche" });
+    unmount();
+    await Promise.resolve();
+    expect(written(client)).toHaveLength(1);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("re-estimates a quantity, and a unit disbursement emptied, each figure alone", async () => {

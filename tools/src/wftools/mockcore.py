@@ -35,19 +35,25 @@ from wftools.mockcalendar import (
 from wftools.mockdating import (
     Amounts,
     Dated,
+    Span,
     awaiting_own_lines,
     float_of,
     payment_delay,
-    price,
+    price_spread,
     progress_at,
     schedule,
+    span_of,
     tasks_in_order,
 )
 from wftools.mockids import universe
 from wftools.mockstructure import (
     LABOUR_RATES,
+    WITNESS,
+    WITNESS_PRICING,
     JsonObject,
     JsonValue,
+    Pricing,
+    Projection,
     charged_subprojects,
     computable,
     decimal,
@@ -153,8 +159,9 @@ class _Emitter:
     labels: Mapping[str, str]
     today: date
     rates: Mapping[str, Decimal] = field(default_factory=lambda: dict(LABOUR_RATES))
+    projection: Projection = WITNESS
     previous: Mapping[int, Line] = field(default_factory=dict[int, Line])
-    previous_years: Mapping[int, int] = field(default_factory=dict[int, int])
+    previous_spans: Mapping[int, Span] = field(default_factory=dict[int, Span])
     rows: list[Row] = field(default_factory=list[Row])
     row_of: dict[int, int] = field(default_factory=dict[int, int])
     charged: frozenset[str] = field(default_factory=charged_subprojects)
@@ -195,7 +202,7 @@ class _Emitter:
         return amounts
 
     def _line(self, line: Line, place: Place, *, progress: str) -> Amounts:
-        """Append a line of a task, consumed in the year its task starts; return its amounts.
+        """Append a line of a task, its amount spread over its task's years; return its amounts.
 
         A line of a task started or completed does not leave a subproject charged with actual
         costs (WF-PRJ-0050): it does not name it among the fields it accepts. A line of a task
@@ -206,8 +213,16 @@ class _Emitter:
         task = place.bearing
         completed = progress == "completed"
         held = progress != "not_started" and line.subproject in self.charged
-        year = self.dated[task.number].start.day.year
-        amounts = price(line, year, self.rates, budget_year=self.previous_years.get(line.number))
+        placed = self.dated[task.number]
+        span = span_of(placed, line)
+        amounts = price_spread(
+            line,
+            span,
+            self.rates,
+            budget_span=self.previous_spans.get(line.number),
+            projection=self.projection,
+        )
+        year = span.year(amounts.base)
         facet: JsonObject = {
             "label": line.label,
             "cost_category_id": line.category,
@@ -221,7 +236,8 @@ class _Emitter:
             "subproject_id": line.subproject,
             "subproject_label": None if line.subproject is None else self.labels[line.subproject],
             **amounts.rendered(),
-            **self._previous(line.number, year),
+            **self._previous(line.number, span),
+            "remaining_reason": line.reason,
             "consumption_year": year,
             "is_computed": line.is_provision,
             "uses_inactive_object": False,
@@ -253,7 +269,7 @@ class _Emitter:
         )
         return amounts
 
-    def _previous(self, number: int, year: int) -> JsonObject:
+    def _previous(self, number: int, span: Span) -> JsonObject:
         """Return the quantities of a line at the previous review and its amount re-estimated.
 
         Null before the first review, and for a line added since, as the merged ones; the hours
@@ -263,8 +279,8 @@ class _Emitter:
         before = self.previous.get(number)
         if before is None:
             return dict.fromkeys(PREVIOUS)
-        on = self.previous_years.get(number, year)
-        amounts = price(before, on, self.rates)
+        kept = self.previous_spans.get(number, span)
+        amounts = price_spread(before, kept, self.rates, projection=self.projection)
         return {
             "previous_quantity": decimal(before.quantity),
             "previous_hours": None if before.hours is None else decimal(before.hours),
@@ -487,40 +503,39 @@ def rows_of(roots: Iterable[Task]) -> dict[int, int]:
 def core(
     roots: Iterable[Task] = CORE,
     today: date = READ_ON,
-    rates: Mapping[str, Decimal] = LABOUR_RATES,
+    pricing: Pricing = WITNESS_PRICING,
     previous: Iterable[Task] = (),
     start: date = PLANNING_START,
 ) -> list[Row]:
     """Date, price and emit the core: its nodes in the order of the plan, rows numbered from one.
 
-    Its labour lines at the hourly rates given, those of the reference year of the revision; each
-    with its quantities in the previous review described, if any, and the amount they gave. The
-    previous review of the witness is its reference 101: a line it bore keeps its budget projected
-    on the year the reference consumed it, wherever a write moves its task (WF-DEV-0020,
-    WF-RAE-0010). Every revision is projected from 2026, the offer of 2025 included: a
-    simplification, which keeps in the reference the budget the offer fixed (#467). A structure
-    is read once at a day, at some rates, after a previous review, from a planning start — the
-    witness's unless a write moves it (WF-PLA-0020) —: the readings, the writes and the indicators
-    read the same one again and again. Its nodes are shared by every reading of it: a caller that
-    changes one copies it first.
+    Its labour lines at the hourly rates given, those of the reference year of the revision, and
+    projected from that year (``pricing``: of 2026 by default, of 2025 for the offer, #1628); each
+    with its quantities in the previous review described, if
+    any, and the amount they gave. The previous review of the witness is its reference 101: a line
+    it bore keeps its budget projected on the year the reference consumed it, wherever a write
+    moves its task (WF-DEV-0020, WF-RAE-0010). A structure is read once at a day, at some rates,
+    after a previous review, from a planning start — the witness's unless a write moves it
+    (WF-PLA-0020) —: the readings, the writes and the indicators read the same one again and
+    again. Its nodes are shared by every reading of it: a caller that changes one copies it first.
     """
-    return list(_core(tuple(roots), today, tuple(sorted(rates.items())), tuple(previous), start))
+    return list(_core(tuple(roots), today, pricing, tuple(previous), start))
 
 
 @functools.cache
 def _core(
     roots: tuple[Task, ...],
     today: date,
-    rates: tuple[tuple[str, Decimal], ...],
+    pricing: Pricing,
     previous: tuple[Task, ...],
     start: date,
 ) -> tuple[Row, ...]:
     before = {line.number: line for task in tasks_in_order(previous) for line in task.lines}
-    years: dict[int, int] = {}
+    spans: dict[int, Span] = {}
     if previous:
         dated = schedule(previous)
-        years = {
-            line.number: dated[task.number].start.day.year
+        spans = {
+            line.number: span_of(dated[task.number], line)
             for task in tasks_in_order(previous)
             for line in task.lines
         }
@@ -528,9 +543,10 @@ def _core(
         schedule(roots, start),
         labels(),
         today,
-        dict(rates),
+        pricing.by_category(),
+        pricing.projection,
         before,
-        years,
+        spans,
         row_of=rows_of(roots),
     )
     for rank, root in enumerate(roots, start=1):

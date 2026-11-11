@@ -80,6 +80,8 @@ from waterfall.core.users.personal import (
 )
 from waterfall.core.users.provider import (
     NAME_MAX_LENGTH,
+    Admission,
+    Followed,
     HeldAccount,
     NotAdmitted,
     NotFollowed,
@@ -128,9 +130,13 @@ __all__ = [
     "AccountPage",
     "AccountSort",
     "AccountState",
+    "Admission",
+    "Admitted",
+    "AttachedAccount",
     "Author",
     "Avatar",
     "CommandAvailability",
+    "Followed",
     "HeldAccount",
     "Identity",
     "IdentityChange",
@@ -146,6 +152,7 @@ __all__ = [
     "SyncReport",
     "account_commands",
     "active_accounts",
+    "active_accounts_in_nodes",
     "add_account_of_provider",
     "address_holder",
     "address_taken",
@@ -216,6 +223,15 @@ class Author:
 
     user_id: UUID
     display_name: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class AttachedAccount:
+    """An active account and the node of the organisation it is attached to (WF-ADM-0030)."""
+
+    user_id: UUID
+    display_name: str | None
+    org_node_id: UUID
 
 
 @dataclass(frozen=True, slots=True)
@@ -325,25 +341,64 @@ def active_accounts(session: Session, user_ids: Collection[UUID]) -> frozenset[U
     return frozenset(find_active_accounts(session, user_ids)) if user_ids else frozenset()
 
 
+def active_accounts_in_nodes(
+    session: Session, node_ids: Collection[UUID]
+) -> tuple[AttachedAccount, ...]:
+    """Give the active accounts attached to one of the nodes given, by name then identifier.
+
+    Attached to the node itself, not to one of its descendants: a service is the node a role is
+    under (WF-PRJ-0070). An account attached to none is left out.
+    """
+    if not node_ids:
+        return ()
+    rows = session.execute(
+        select(
+            UserAccount.id, UserAccount.first_name, UserAccount.last_name, UserAccount.org_node_id
+        )
+        .where(UserAccount.org_node_id.in_(set(node_ids)), UserAccount.state == "active")
+        .order_by(UserAccount.last_name, UserAccount.first_name, UserAccount.id)
+    )
+    return tuple(
+        AttachedAccount(user_id, display_name(first_name, last_name), node_id)
+        for user_id, first_name, last_name, node_id in rows
+        if node_id is not None
+    )
+
+
 def read_account_of_subject(session: Session, subject: str) -> Account | None:
     """Read the account the identity provider knows by ``subject``, or ``None`` if there is none."""
     account = find_account_of_subject(session, subject)
     return None if account is None else _account(session, account)
 
 
+@dataclass(frozen=True, slots=True)
+class Admitted:
+    """The account of a person the provider holds, and what her admission did of it (#2243).
+
+    ``created``; ``updated``, attached by her address (#707); ``unchanged``, found as a concurrent
+    admission of hers left it.
+    """
+
+    account: Account
+    followed: Admission
+
+
 def add_account_of_provider(
     session: Session, provider: ProviderAccount, at: datetime
-) -> Account | NotAdmitted:
+) -> Admitted | NotAdmitted:
     """Give the account of a person the provider holds and Waterfall not yet (``provider``).
 
     Created without any role, or attached by her address if she comes from the directory, the
-    platform its author, and inscribed in the journal of audit (#703, #707). When the provider does
-    not admit the person (``origin_of``), when she lacks a name or an address, or when her address
-    is held by another account and she comes from an external provider, nothing is written, and
-    why is said.
+    platform its author, and inscribed in the journal of audit (#703, #707), with what the
+    admission did of it. When the provider does not admit the person (``origin_of``), when she
+    lacks a name or an address, or when her address is held by another account and she comes from
+    an external provider, nothing is written, and why is said.
     """
     admitted = admit(session, provider, at)
-    return admitted if isinstance(admitted, NotAdmitted) else _account(session, admitted[0])
+    if isinstance(admitted, NotAdmitted):
+        return admitted
+    account, followed = admitted
+    return Admitted(_account(session, account), followed)
 
 
 def create_local_account(

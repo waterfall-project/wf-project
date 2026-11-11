@@ -55,6 +55,11 @@ DATA = {
     "ContributorSuggestion.display_name": "a name",
     "ContributorSuggestion.org_node_label": "a label",
     "ContributorSuggestion.resource_role_labels": "labels",
+    # What the workload of a project names: the label of a role and of the node asked, and the
+    # scope of a calculation (``project``, ``unassigned`` or the identifier of a subproject).
+    "WorkloadPlan.roles.label": "a label",
+    "WorkloadPlan.org_node_label": "a label",
+    "CalculationContext.scope": "a scope",
     # The label a person gave an element of the work breakdown, and that of the task that bears it.
     "WorkPackageReading.label": "a label",
     "OrderItemReading.label": "a label",
@@ -128,6 +133,20 @@ DATA = {
     # A category of labour without an hourly rate, by its label, as the reference names it
     # (``ProblemParams.missing_rates``, ``MissingRate``, HOURLY_RATE_MISSING; US-0702/L1).
     "MissingRate.label": "a label",
+    # What the ventilations of the indicators of an estimate name: the key of a part — a nature, a
+    # subproject, a work package, by its identifier, or ``unassigned`` — and the label a person gave
+    # it (``getEstimateIndicators``, US-1510; the scope asked is ``CalculationContext.scope``).
+    "ComputableAmountByKey.key": "an identifier, or a key of the ventilation",
+    "ComputableAmountByKey.label": "a label",
+    # The same of the ventilations of the indicators of the remaining to commit, by nature and by
+    # subproject (``getRemainingIndicators``, US-1600).
+    "AmountByKey.key": "an identifier, or a key of the ventilation",
+    "AmountByKey.label": "a label",
+    "SubprojectBalance.key": "an identifier, or a key of the ventilation",
+    "SubprojectBalance.label": "a label",
+    # The same of the differences of amounts of a comparison of two revisions (US-1530).
+    "RevisionComparison.amount_deltas.key": "an identifier, or a key of the ventilation",
+    "RevisionComparison.amount_deltas.label": "a label",
     # The category of a row of the grid of the hourly rates, by the code and the label a person
     # gave it (``getHourlyRateGrid``, US-0830).
     "HourlyRateRow.code": "a code",
@@ -150,6 +169,16 @@ DATA = {
     "Project.client": "a name",
     # The label of a subproject, as its project manager gave it (its code is a value pattern-bound).
     "Subproject.label": "a label",
+    # What a line of the actual costs holds as the ERP gave it, and the reason a person gave when
+    # she excluded it: the document and its item, the code read in the WBS element, the label of the
+    # subproject it names, the columns kept of the file and their values (US-1620/L1).
+    "ActualCostLine.document_number": "a number of a document",
+    "ActualCostLine.document_item": "a number of an item",
+    "ActualCostLine.subproject_code": "a code",
+    "ActualCostLine.subproject_label": "a label",
+    "ActualCostLine.excluded_reason": "a reason",
+    "ActualCostLine.passthrough[*]": "values of the file",
+    "ActualCostListMeta.passthrough_columns": "names of the columns of the file",
     # The label of a timeline, as the person who named it gave it (US-1400/L1).
     "Timeline.label": "a label",
     # The label and the description of a task, as the person who wrote it gave them, the identifier
@@ -165,6 +194,8 @@ DATA = {
     "EstimateLineFacet.cost_category_label": "a label",
     "EstimateLineFacet.resource_role_label": "a label",
     "EstimateLineFacet.subproject_label": "a label",
+    # The reason a person sent with the last re-estimate of a line, kept as she wrote it (#2420).
+    "EstimateLineFacet.remaining_reason": "a reason",
     # The same, of the facets of a node that a reading of ``listNodes`` projects (#2485).
     "ComparedTaskFacet.label": "a label",
     "ComparedTaskFacet.description": "a text",
@@ -175,6 +206,9 @@ DATA = {
     "ComparedEstimateLineFacet.cost_category_label": "a label",
     "ComparedEstimateLineFacet.resource_role_label": "a label",
     "ComparedEstimateLineFacet.subproject_label": "a label",
+    "ComparedEstimateLineFacet.remaining_reason": "a reason",
+    # The label of a category whose rate the update of the rates proposes (US-1500/L1).
+    "RateUpdateProposal.categories.label": "a label",
     "DependencyRow.label": "a label",
     "RowNumberResolution.label": "a label",
     # The name of version and the description a revision was marked with, and its source's; the

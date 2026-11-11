@@ -1,0 +1,10 @@
+{
+  "summary": "Un projet de budget 1 000, de coût réel 500 et de reste à engager 550 : la marge sur le budget de référence vaut -50 ; le reste à engager passé de 600 à 550 depuis la revue précédente donne un écart de -50 (WF-RAE-0020).",
+  "examples": ["WF-RAE-0020-A#05bb86431330"],
+  "budget": "1000.00",
+  "actual_cost": "500.00",
+  "remaining": "550.00",
+  "previous_remaining": "600.00",
+  "delta_to_reference": "-50.00",
+  "delta_to_previous_revision": "-50.00"
+}

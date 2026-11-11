@@ -4,26 +4,31 @@
 
 ``revisions.json`` for the revisions, ``project_state_transitions.json`` for their order and their
 instants (``timeline``): the revision 100 opened (Created to Pricing), its marking, the 101 opened,
-the designation of 100 tried and refused, the code entered, the 101 marked, the 102 opened. The
-witness abandons none.
+the update of its rates accepted, the designation of 100, the code entered, the 101 marked, the 102
+opened. The witness abandons none.
 
 Each write is made through the interface of its module, by the rules of the API, at the instant of
 its event (``Act.at``; WF-CYC-0130), its author the platform. The revisions are opened by the rules
 of the opening (#1402) and marked by the very transaction of the worker (``load_marking``). A marked
 revision bears the name of version and the description of ``revisions.json``, the object the
 contract answers, which the chronology only orders: its ``version_name`` must be the one of the
-event, « Offre v1.0 ». The designation is tried by the project manager of the witness and is
-refused for the lack of tasks and lines (``revision_has_tasks_and_lines``; of lines alone once the
-tasks are loaded, until EP-07 registers them), which the loader notes
-(``witness.designation_refused``) — a designation that succeeds, or any other refusal, is a defect
-that stops the command. The code is entered by the same project manager, through the change of a
-project. The state a transition write names is checked against the transitions the writes before it
-left.
+event, « Offre v1.0 ». The update of the rates is accepted at the counter the revision holds
+(``apply_rate_update``), for the categories the event names. The designation is made by the project
+manager of the witness, at the instant of its event, and must succeed, the lines being loaded: a
+refusal, whatever its cause, is a defect that stops the command (``witness.reference_designated``).
+The code is entered by the same project manager, with the day the order was received, through the
+change of a project, and the project must then have moved from Pricing to In progress at the
+instant of the event (WF-CYC-0030). The inflation rate and the win probability of ``project.json``
+are given to the project at its creation, before any revision is priced: the amounts of the lines
+are those of the rate (WF-PRJ-0040), and the probability is frozen once the project is In progress.
+The state a transition write names is checked against the transitions the writes before it left.
 
 The content of a revision is written between its opening and the next event, by the fillers
-registered (``register_revision_filler``, EP-06): the tasks (``witness.tasks``), then EP-07's
-lines, each reconciling what the copy gave the revision with what the witness describes of it,
-before its marking comes.
+registered (``register_revision_filler``, EP-06): the tasks (``witness.tasks``), then the lines
+(``witness.estimate_lines``), each reconciling what the copy gave the revision with what the witness
+describes of it, before its marking comes. The actual costs come after the lines, at the instants of
+their events (``witness.costs``, EP-09): the imports applied, the line excluded and the extraction
+expired, by the project manager, the account an import is requested by.
 """
 
 from dataclasses import dataclass
@@ -32,6 +37,7 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel
 
 from waterfall.api.contract.models import ContributorList, Project, Revision
+from waterfall.core.estimate.interface import RateUpdate, apply_rate_update
 from waterfall.core.projects.interface import (
     ProjectChange,
     Viewer,
@@ -44,22 +50,27 @@ from waterfall.core.revisions.interface import (
     designate_reference,
     load_marking,
     load_revision,
+    read_revision,
     revisions_present,
 )
 from waterfall.platform.errors import (
-    STATE_FORBIDS_OPERATION,
     VALIDATION_FAILED,
-    ConflictError,
     FieldError,
     UnprocessableError,
 )
 from waterfall.platform.logs import get_logger
 from waterfall.platform.registry import Registry
-from waterfall.witness import timeline
+from waterfall.witness import costs, timeline
 from waterfall.witness.description import is_loaded
+from waterfall.witness.filling import number_of
 from waterfall.witness.timeline import (
     CodeEntered,
+    CostImportApplied,
+    CostLineExcluded,
     DesignationAttempted,
+    ImportExpired,
+    ProjectCreated,
+    RateUpdateApplied,
     RevisionMarked,
     RevisionOpened,
     StateTransition,
@@ -76,11 +87,13 @@ if TYPE_CHECKING:
     from waterfall.witness.timeline import Event, Write
 
 REVISIONS_FILE = "revisions.json"
+PROJECT_FILE = "project.json"
 PROJECTS_FILE = "projects.json"
 CONTRIBUTORS_FILE = "contributors.json"
 MANAGER = "project_manager"
 VALUE_REQUIRED = "VALUE_REQUIRED"
-NO_TASKS_AND_LINES = "revision_has_tasks_and_lines"
+PRICING = "pricing"
+IN_PROGRESS = "in_progress"
 
 logger = get_logger(__name__)
 
@@ -118,12 +131,6 @@ class Projects(BaseModel):
     items: list[Project]
 
 
-def _numbered(revision: UUID) -> int | None:
-    """Give the number an identifier of the witness ends with, ``None`` if it is not a number."""
-    last = str(revision).rsplit("-", 1)[1]
-    return int(last) if last.isdecimal() else None
-
-
 class _Walk:
     """What the walk of the chronology reads of the description, and writes event by event."""
 
@@ -136,10 +143,13 @@ class _Walk:
             if project.code is not None
         }
         self.numbered = {
-            (revision.project_id.root, _numbered(revision.revision_id.root)): revision
+            (revision.project_id.root, number_of(revision.revision_id.root)): revision
             for revision in witness.read(REVISIONS_FILE, Revisions).items
         }
         self.manager = self._manager(witness)
+        self.designated: set[UUID] = set()
+        # What the slice of the costs reads of the description, at its first write.
+        self.costs: costs.Costs | None = None
 
     @staticmethod
     def _manager(witness: Witness) -> Viewer:
@@ -157,7 +167,9 @@ class _Walk:
             raise ValueError(message)
         return self.codes[code]
 
-    def revision(self, write: RevisionOpened | RevisionMarked | DesignationAttempted) -> Revision:
+    def revision(
+        self, write: RevisionOpened | RevisionMarked | RateUpdateApplied | DesignationAttempted
+    ) -> Revision:
         """Give the revision of a write, as ``revisions.json`` describes it; or refuse the file."""
         found = self.numbered.get((self.project(write.project), write.revision))
         if found is None:
@@ -177,9 +189,11 @@ class _Walk:
         }
 
     def write(self, event: Event, write: Write) -> None:
-        """Make a write of the chronology at its event's instant; the others are passed over."""
+        """Make each write of the chronology at its event's instant."""
         act = timeline.at(self.witness, event.occurred_at)
         match write:
+            case ProjectCreated():
+                self._configure(write, act)
             case RevisionOpened():
                 revision = self.revision(write)
                 load_revision(
@@ -189,14 +203,27 @@ class _Walk:
                     fill(self.session, self.witness, OpenedRevision(revision, act))
             case RevisionMarked():
                 self._mark(write, act)
+            case RateUpdateApplied():
+                self._rates(write, act)
             case DesignationAttempted():
                 self._designate(write, act)
             case CodeEntered():
                 self._enter(write, act)
             case StateTransition():
                 self._check(write, event)
-            case _:
-                pass
+            case CostImportApplied() | CostLineExcluded() | ImportExpired():
+                self._cost(write, act)
+
+    def _cost(self, write: CostImportApplied | CostLineExcluded | ImportExpired, act: Act) -> None:
+        """Make a write of the actual costs at its instant, by the project manager (EP-09).
+
+        An import is requested by an account, which the platform is not: the manager of the
+        witness applies the imports and excludes the line, as he enters the code.
+        """
+        if self.costs is None:
+            self.costs = costs.Costs.read(self.witness)
+        made = costs.CostWrite(self.project(write.project), self.manager.user_id, act.at)
+        costs.write(self.session, self.costs, write, made)
 
     def _mark(self, write: RevisionMarked, act: Act) -> None:
         revision = self.revision(write)
@@ -211,42 +238,70 @@ class _Walk:
         load_marking(self.session, revision.revision_id.root, name, revision.description, act)
 
     def _designate(self, write: DesignationAttempted, act: Act) -> None:
-        """Try the designation of a revision: refused for want of tasks and lines, then noted."""
+        """Designate a revision the reference, by the project manager, at the instant of the event.
+
+        It must succeed, the tasks and the lines being loaded: a refusal, whatever its cause, is a
+        defect of the description that stops the command. The project moves from Pricing to In
+        progress once the code is entered (WF-CYC-0030), which ``_enter`` observes.
+        """
         revision = self.revision(write)
         project_id = revision.project_id.root
         designated = ReferenceToDesignate(
-            revision.revision_id.root, stored_lock_version(self.session, project_id)
+            revision.revision_id.root, stored_lock_version(self.session, project_id), act.at
         )
-        try:
-            designate_reference(
-                self.session,
-                project_id,
-                designated,
-                act,
-                self.manager,
-            )
-        except ConflictError as refused:
-            condition = refused.params.get("missing_condition")
-            if refused.code != STATE_FORBIDS_OPERATION or condition != NO_TASKS_AND_LINES:
-                raise
-            logger.info(
-                "witness.designation_refused",
-                project=write.project,
-                revision=write.revision,
-                missing_condition=condition,
-            )
+        designate_reference(self.session, project_id, designated, act, self.manager)
+        self.designated.add(project_id)
+        logger.info("witness.reference_designated", project=write.project, revision=write.revision)
+
+    def _rates(self, write: RateUpdateApplied, act: Act) -> None:
+        """Accept the update of the rates of a revision in progress, for the categories named."""
+        revision = self.revision(write)
+        project_id = revision.project_id.root
+        revision_id = revision.revision_id.root
+        read = read_revision(self.session, project_id, revision_id, self.manager)
+        update = RateUpdate(revision_id, read.lock_version, tuple(write.cost_category_ids))
+        apply_rate_update(self.session, project_id, update, act)
+
+    def _configure(self, write: ProjectCreated, act: Act) -> None:
+        """Give the project the inflation rate and the win probability it is described with.
+
+        By the project manager, at the instant of the creation, before any revision is priced:
+        the amounts of the lines are those of the rate (WF-PRJ-0040), and the probability can no
+        longer change once the project is in progress. ``project.json`` describes the project of
+        the witness alone.
+        """
+        project_id = self.project(write.project)
+        described = self.witness.read(PROJECT_FILE, Project)
+        if described.project_id.root != project_id:
             return
-        message = f"the designation of revision {write.revision} was not refused"
-        raise ValueError(message)
+        values = {
+            "inflation_rate": described.inflation_rate.root,
+            "win_probability": described.win_probability.root,
+        }
+        change = ProjectChange(values, stored_lock_version(self.session, project_id))
+        update_project(self.session, project_id, change, act, self.manager)
 
     def _enter(self, write: CodeEntered, act: Act) -> None:
-        """Enter the code of a project, through the change of a project by its manager."""
+        """Enter the code of a project, and the day its order was received, by its manager.
+
+        A project whose reference is designated moves from Pricing to In progress by it, at the
+        instant of the event: the transitions say so, or the description is at fault.
+        """
         project_id = self.project(write.project)
         if write.code != write.project:
             message = f"the code {write.code} entered is not the one of {write.project}"
             raise ValueError(message)
-        change = ProjectChange({"code": write.code}, stored_lock_version(self.session, project_id))
+        values: dict[str, object] = {"code": write.code}
+        described = self.witness.read(PROJECT_FILE, Project)
+        if described.project_id.root == project_id and described.order_received_on is not None:
+            values["order_received_on"] = described.order_received_on.root
+        change = ProjectChange(values, stored_lock_version(self.session, project_id))
         update_project(self.session, project_id, change, act, self.manager)
+        if project_id in self.designated:
+            last = list_state_transitions(self.session, project_id)[-1]
+            if (last.from_state, last.to_state, last.occurred_at) != (PRICING, IN_PROGRESS, act.at):
+                message = f"the code of {write.project} entered did not move it to In progress"
+                raise ValueError(message)
 
     def _check(self, write: StateTransition, event: Event) -> None:
         """Check that the writes before it moved the project as the transition says."""

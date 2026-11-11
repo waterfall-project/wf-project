@@ -63,7 +63,7 @@ def test_each_risk_the_matrix_reads_is_a_point_and_its_cells_count_the_identifie
     # of the budget the cells class, and the zone of its cell. The cells count the identified
     # alone, as the bubbles draw them, the server counting (#1395); the totals of the provisions
     # stay over the three states (WF-RIS-0040).
-    budget = Decimal("68241569.21")
+    budget = Decimal("70288695.96")
     items = history["risks"]["items"]
     matrix = history["risk_matrix"]
     points = matrix["points"]
@@ -101,12 +101,12 @@ def test_each_risk_the_matrix_reads_is_a_point_and_its_cells_count_the_identifie
         ratio = Decimal(point["severity_ratio"]["value"])
         assert ratio == mockstructure.share(Decimal(item["severity"]) / budget)
         assert mockhistory.level(ratio, _bounds(matrix)) == item["matrix_cell"]["severity_level"]
-    # 1.83 %, under a hundredth of a percent given to its first digit, 17.58 % (README, « Une
+    # 1.78 %, under a hundredth of a percent given to its first digit, 17.07 % (README, « Une
     # part… »).
     assert [point["severity_ratio"]["value"] for point in points] == [
-        "0.0183",
+        "0.0178",
         "0.000003",
-        "0.1758",
+        "0.1707",
     ]
 
 

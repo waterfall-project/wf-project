@@ -63,6 +63,9 @@ WRITERS = {
     "waterfall.core.access_roles.attributions",
     "waterfall.core.access_roles.roles",
     "waterfall.core.backups.interface",
+    # The exclusion and the reinstatement of a line of cost, tried in test_actual_costs_scope.py,
+    # which excludes one by the service: their object says them in full, no parameter.
+    "waterfall.core.costs.scoping",
     # The application of an import, tried in test_imports_application.py, which applies one by
     # the worker, its parameters read by the closed model of the contract.
     "waterfall.core.exchanges.running",
@@ -158,7 +161,7 @@ def write_every_action(database: Database, queue: TaskQueue) -> UUID:
             attached = add_account_of_provider(session, lea, platform.at)
         assert not isinstance(attached, NotAdmitted)
         with database.transaction() as session:
-            held = HeldAccount(attached.user_id, "kc-lea-2")
+            held = HeldAccount(attached.account.user_id, "kc-lea-2")
             assert deactivate_unheld(session, held, platform.at)
         with database.transaction() as session:
             delete_role(session, pilot.access_role_id, updated.lock_version, act)

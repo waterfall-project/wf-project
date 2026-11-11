@@ -154,10 +154,13 @@ CommandCondition:
     entries (WF-REV-0010); `createRevision` names it in its 409 (J-01, #1795).
     `reference_revision_designated` is missing, as long as the project has no reference
     revision, for the declaration of an occurred risk (`declare_risk_occurrence`, WF-RIS-0060);
-    and `reference_revision_designated` and `project_code_set`, as long as the project has no
-    project code, are the conditions of the passage to In progress, which the next state names
-    one by one, in the order of the enumeration (`NextState.missing_conditions`,
-    `getProjectNextState`, WF-CYC-0030, WF-CYC-0050, WF-PRJ-0010; J-11, US-0702/L1).
+    and `reference_revision_designated`, `project_code_set`, as long as the project has no
+    project code, and `revision_has_tasks_and_lines`, as long as no marked revision bears an
+    estimate line, are the conditions of the passage to In progress, which the next state names
+    one by one, in Pricing only: in the order of the passage (the code, the lines, the
+    reference), which is not that of the enumeration; in Created, the passage to Pricing names
+    none, the first revision being its only fact (`NextState.missing_conditions`,
+    `getProjectNextState`, WF-CYC-0030, WF-CYC-0050, WF-PRJ-0010; J-11, US-0702/L1; #2634).
     `undo_history_not_empty` is missing for undo when the caller's history on the revision is
     empty, `redo_history_not_empty` for redo when no undo is left to redo: `undoLastChange` and
     `redoLastUndo` name them in their 409, no command stating them in advance —

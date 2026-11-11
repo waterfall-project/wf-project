@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 
+from waterfall.core.cost_settings.refusals import REFERENCE_SETTINGS, not_bootstrapped
 from waterfall.core.cost_settings.tables import LABEL_LENGTH, SINGLE_ROW, ReferenceSetting
 from waterfall.core.users.interface import Author, read_author
 from waterfall.platform.errors import (
@@ -27,10 +28,7 @@ from waterfall.platform.errors import (
     VALIDATION_FAILED,
     FieldError,
     PreconditionFailedError,
-    UnavailableError,
 )
-from waterfall.platform.installation import COMPONENT_UNAVAILABLE
-from waterfall.platform.logs import get_logger
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -53,8 +51,6 @@ FIELD_PERMISSIONS: dict[str, str] = {
     "max_weeks_between_reviews": "indicator_settings.write",
 }
 NOT_BLANK = re.compile(r"\S")
-
-logger = get_logger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,11 +194,6 @@ def reference_settings_installed(session: Session) -> bool:
     return session.get(ReferenceSetting, SINGLE_ROW) is not None
 
 
-def _not_bootstrapped() -> UnavailableError:
-    logger.warning("reference_settings.not_bootstrapped")
-    return UnavailableError(COMPONENT_UNAVAILABLE, {"component": "database"})
-
-
 def read_reference_settings(session: Session) -> ReferenceSettingsView:
     """Read the settings; refused while the bootstrap has not written them (503).
 
@@ -215,7 +206,7 @@ def read_reference_settings(session: Session) -> ReferenceSettingsView:
         .execution_options(populate_existing=True)
     ).one_or_none()
     if row is None:
-        raise _not_bootstrapped()
+        raise not_bootstrapped(REFERENCE_SETTINGS)
     return ReferenceSettingsView(
         currency_code=row.currency_code,
         company_name=row.company_name,
@@ -275,6 +266,6 @@ def write_reference_settings(
     if taken is None:
         current = session.execute(select(ReferenceSetting.lock_version)).scalar_one_or_none()
         if current is None:
-            raise _not_bootstrapped()
+            raise not_bootstrapped(REFERENCE_SETTINGS)
         raise PreconditionFailedError(STALE_LOCK_VERSION, {"expected_lock_version": current})
     return read_reference_settings(session)

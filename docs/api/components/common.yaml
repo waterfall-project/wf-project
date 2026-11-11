@@ -113,6 +113,7 @@ Year:
 LockVersion:
   type: integer
   minimum: 0
+  maximum: 2147483647
   description: >-
     Write counter of the object. Every modification carries it and requires it, a
     creation has none; a stale value is refused with 412, which makes
@@ -220,8 +221,9 @@ Problem:
         reviews, at most `104` weeks, the hours of a day of a calendar, at most `24`, the hours
         of a work instant sent (`/start/hours`, `/finish/hours` of `updateTaskFacet`), at most
         the hours the task's calendar grants that day, never `0` — a day without a working hour
-        is refused by its date, `NON_WORKING_DAY` (#1244, #1271) —, or the day of a weekly
-        backup, at most `7`), `component` (a `PlatformComponent`, WF-EXP-0040),
+        is refused by its date, `NON_WORKING_DAY` (#1244, #1271) —, the day of a weekly
+        backup, at most `7`, or the write counter of an object, at most `2147483647`, in the
+        body as `/lock_version` or as a parameter as `/query/lock_version`, #2232), `component` (a `PlatformComponent`, WF-EXP-0040),
         `expected_format` (an `ExchangeKind`) and `expected_version` (a string) for an import
         file whose format or version is not recognised (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070)
         — absent for an uploaded backup whose archive cannot be read (`uploadFile`,
@@ -378,14 +380,30 @@ Problem:
         WF-REF-0190; EP-16/US-0620); `rows`, the row numbers, as an array of integers, of the
         other lines of the file that carry the same document and the same item as a rejected
         line of an actual cost extraction (`DUPLICATE_COST_LINE`, `ImportRejection.params`,
-        WF-INTF-0140; EP-16/US-0630); `wbs_element`, the WBS element of a rejected line of an
+        WF-INTF-0140; EP-16/US-0630); `lines`, the tab and the row number of the other lines of the
+        file that carry the same lineage as a rejected line of an estimate or of a remaining to
+        commit, as an array of objects (`sheet`, `row`), in the order of the file
+        (`DUPLICATE_LINEAGE`, `ImportRejection.params`, WF-INTF-0100, WF-INTF-0120; #2798);
+        `wbs_element`, the WBS element of a rejected line of an
         actual cost extraction, as the file carries it, and `project_code`, the project code it
         carries when it is that of another project, everything before the slash, dots included
         (`WBS_ELEMENT_INVALID`,
         `WBS_ELEMENT_OUTSIDE_PROJECT`, `ImportRejection.params`, WF-CRE-0020); `value`, the
         value of the cell as the file carries it, of a line of an estimate or of a remaining to
         commit that cites an unknown task, role or subproject (`UNKNOWN_TASK`,
-        `UNKNOWN_RESOURCE_ROLE`, `UNKNOWN_SUBPROJECT`, `ImportRejection.params`, WF-INTF-0100);
+        `UNKNOWN_RESOURCE_ROLE`, `UNKNOWN_SUBPROJECT`, `ImportRejection.params`, WF-INTF-0100),
+        and of a cell of a column of numbers of an estimate that carries a text (`NUMBER_INVALID`,
+        `ImportRejection.params`); `header`, the header of the column of the workbook of an
+        estimate that carries the refused cell, as the workbook carries it, for `NUMBER_INVALID`
+        and the reason of a field of an imported line (`ImportRejection.params`, annex B; #2609)
+        — and `column`, which names instead a column of an actual cost extraction, by its
+        identifier (`ActualCostSourceColumn`), in every refusal of a cell of a line of such an
+        extraction (`VALUE_REQUIRED`, `VALUE_TOO_LONG`, `VALUE_OUT_OF_RANGE`, `NUMBER_INVALID`,
+        `DATE_INVALID`, `ImportRejection.params`, WF-CRE-0020; #2722), where `minimum` and
+        `maximum` are the bounds of the amount, `-999999999999.99` and `999999999999.99`, as
+        strings (`VALUE_OUT_OF_RANGE`, `column` at `amount`), and `max_length` the largest number
+        of characters of the document number, `200`, or of the subproject code of the WBS
+        element, `50` (`VALUE_TOO_LONG`, `column` at `document_number` or `wbs_element`);
         `label`, the label of a task that several tasks carry, with `tasks` those that carry it
         (`AMBIGUOUS_TASK_LABEL`, `ImportRejection.params`, annex B); `start` and `finish`, the
         dates that an MS Project planning gives to a summary task in manual mode, imported in
@@ -765,6 +783,12 @@ ErrorCode:
     # same document and the same item, null included (`ImportRejection`, WF-INTF-0140, D-4;
     # EP-16/US-0630): each is rejected, `params.rows` naming the row numbers of the others.
     - DUPLICATE_COST_LINE
+    # A line of an estimate or of a remaining to commit whose lineage — the « ID ligne » column —
+    # another line of the same file carries, on the same tab or on another (`ImportRejection`,
+    # WF-INTF-0100, WF-INTF-0120; #2798): each is rejected, none is preferred, and the line of the
+    # revision that the lineage names is left as it is; `params.lines` names the tab and the row of
+    # the others.
+    - DUPLICATE_LINEAGE
     # 5xx — component unavailable, `params.component` (WF-EXP-0040, 503 `ServiceUnavailable`), or
     # unexpected error, traced by its `correlation_id` (WF-OBS-0020, 500 `InternalError`, which
     # every operation declares; J-07, US-0702/L1).
@@ -861,9 +885,11 @@ ProblemParams:
         (`ImportDifference`) and may concern a project without a current revision, of which no node
         exists yet (WF-INTF-0090; #768, point 2). Likewise, by their lineage and their label,
         the tasks that carry the ambiguous label an imported line cites
-        (`AMBIGUOUS_TASK_LABEL`, annex B).
+        (`AMBIGUOUS_TASK_LABEL`, annex B). Each task follows one form only: both are closed,
+        and each requires what the other does not declare — `project_id` and `node_id`, or
+        `lineage_id` (#2635).
       items:
-        anyOf:
+        oneOf:
           - $ref: '#/ProblemTask'
           - $ref: '#/ProblemImportedTask'
     estimate_lines:
@@ -935,10 +961,12 @@ ProblemProject:
 
 ProblemTask:
   type: object
+  additionalProperties: false
   required: [project_id, node_id, label]
   description: >-
     A task named by the refusal of an entry, a paste or a merge, the author consulting
-    its project (`ProblemParams.tasks`).
+    its project (`ProblemParams.tasks`). Closed: no lineage beside its node, which would make
+    it an imported task as well (`ProblemImportedTask`, #2635).
   properties:
     project_id: { $ref: '#/Uuid' }
     node_id: { $ref: '#/Uuid' }
@@ -946,10 +974,13 @@ ProblemTask:
 
 ProblemImportedTask:
   type: object
+  additionalProperties: false
   required: [lineage_id, label]
   description: >-
     A task named by the reason for an imported line (`ImportRejection.params.tasks`), by its
-    lineage, as `ImportDifference` names the objects of an import (#768, point 2).
+    lineage, as `ImportDifference` names the objects of an import (#768, point 2). Closed: no
+    project nor node beside its lineage, which would make it a task of an entry as well
+    (`ProblemTask`, #2635).
   properties:
     lineage_id: { $ref: '#/Uuid' }
     label: { type: string }

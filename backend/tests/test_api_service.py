@@ -8,13 +8,14 @@ the test, and the chain with it (WF-ARC-0060). The paths played against the serv
 answers they traverse to the same contract, by Prism as a proxy (``make e2e-service``).
 """
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
+from jsonschema_path import default_handlers
 from openapi_core import OpenAPI
 from openapi_core.templating.paths.exceptions import PathNotFound
 from openapi_core.templating.responses.exceptions import ResponseNotFound
@@ -23,10 +24,12 @@ from support import (
     BEARER_JWT,
     PLATFORM_SECRETS,
     SESSION_COOKIE,
+    UNRESOLVED,
     AmbiguousCompositionError,
     ContractClient,
     Logs,
     UndeclaredPropertyError,
+    documents,
     found_in,
     operations,
 )
@@ -35,9 +38,24 @@ from waterfall.api.app import create_app
 from waterfall.platform.correlation import FORM
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from starlette.routing import BaseRoute
 
     from waterfall.api.authentication import Services
+
+
+def xml_bodies(node: object) -> Iterator[dict[str, Any]]:
+    """Give each ``application/xml`` body a document declares, at any depth, but in its examples."""
+    if isinstance(node, dict):
+        for key, value in cast("dict[str, Any]", node).items():
+            if key == "application/xml" and isinstance(value, dict):
+                yield cast("dict[str, Any]", value)
+            elif key not in UNRESOLVED:
+                yield from xml_bodies(value)
+    elif isinstance(node, list):
+        for each in cast("list[object]", node):
+            yield from xml_bodies(each)
 
 
 def test_the_liveness_probe_answers_ok_as_the_contract_says(client: ContractClient) -> None:
@@ -397,6 +415,114 @@ def test_a_nullable_object_stays_closed() -> None:
     assert rejected.value.pointers == ["/c/hint"]
 
 
+TEXT = {"type": "string"}
+
+
+def closed_object(required: list[str], **properties: object) -> dict[str, object]:
+    """Give an object that declares every property it may hold, requiring some of them."""
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": required,
+        "properties": properties,
+    }
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+def test_an_object_of_closed_branches_apart_follows_the_one_whose_own_properties_it_carries() -> (
+    None
+):
+    # ``ProblemParams.tasks`` (#2635): a task of an entry requires its node, a task of an import
+    # its lineage, and neither declares the other's. Each element is held to its branch alone, so
+    # a sentence below it is still found.
+    node = {"type": "object", "properties": {"id": {"type": "string"}}}
+    schema: dict[str, object] = {
+        "type": "array",
+        "items": {
+            "oneOf": [
+                closed_object(["node", "label"], node=node, label=TEXT),
+                closed_object(["lineage", "label"], lineage=TEXT, label=TEXT),
+            ]
+        },
+    }
+    app = FastAPI()
+
+    @app.get("/api/v1/health")
+    def health() -> JSONResponse:
+        return JSONResponse(
+            [
+                {"lineage": "l", "label": "Essais"},
+                {"node": {"id": "n", "hint": "Phrase"}, "label": "Câblage"},
+            ]
+        )
+
+    with pytest.raises(UndeclaredPropertyError) as rejected:
+        ContractClient(TestClient(app), minimal_contract(schema)).get("/api/v1/health")
+    assert rejected.value.pointers == ["/1/node/hint"]
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+@pytest.mark.parametrize(
+    ("objects", "body"),
+    [
+        (
+            [closed_object(["a"], a=TEXT), closed_object(["a"], a=TEXT)],
+            {"a": "x"},
+        ),
+        (
+            [
+                closed_object(["a"], a=TEXT),
+                {"type": "object", "required": ["b"], "properties": {"b": TEXT}},
+            ],
+            {"b": "y"},
+        ),
+        (
+            [closed_object(["a"], a=TEXT, b=TEXT), closed_object(["b"], b=TEXT)],
+            {"a": "x", "b": "y"},
+        ),
+    ],
+    ids=["closed, the same required", "one closed, one open", "a required the other declares"],
+)
+def test_closed_branches_an_object_may_follow_both_of_are_refused(
+    objects: list[dict[str, object]], body: dict[str, str]
+) -> None:
+    # Closing is not enough: each branch must be closed and require what no other declares, or a
+    # value of one would be read as both.
+    app = FastAPI()
+
+    @app.get("/api/v1/health")
+    def health() -> JSONResponse:
+        return JSONResponse(body)
+
+    with pytest.raises(AmbiguousCompositionError):
+        ContractClient(TestClient(app), minimal_contract({"anyOf": objects})).get("/api/v1/health")
+
+
+@pytest.mark.requirement("WF-ARC-0060-A")
+@pytest.mark.parametrize(
+    "body",
+    [{"a": "x", "b": "y"}, {}],
+    ids=["the own properties of both branches", "the own properties of none"],
+)
+def test_an_object_of_closed_branches_apart_that_fits_not_exactly_one_is_refused_by_the_schema(
+    body: dict[str, str],
+) -> None:
+    # ``apart`` follows the one branch whose own properties a value carries; a value carrying those
+    # of both, or of none, is refused before the walk, by the validation of the answer against the
+    # schema. Were that validation skipped, the walk would follow both branches.
+    schema: dict[str, object] = {
+        "oneOf": [closed_object(["a"], a=TEXT), closed_object(["b"], b=TEXT)]
+    }
+    app = FastAPI()
+
+    @app.get("/api/v1/health")
+    def health() -> JSONResponse:
+        return JSONResponse(body)
+
+    with pytest.raises(InvalidData):
+        ContractClient(TestClient(app), minimal_contract(schema)).get("/api/v1/health")
+
+
 @pytest.mark.requirement("WF-ARC-0060-A")
 def test_an_answer_to_an_operation_the_contract_does_not_declare_is_rejected(
     contract: OpenAPI,
@@ -416,3 +542,74 @@ def test_a_path_with_a_query_string_is_validated_as_the_application_serves_it(
 ) -> None:
     response = client.get("/api/v1/health?x=1&x=2")
     assert (response.status_code, response.json()) == (200, {"status": "ok"})
+
+
+@pytest.mark.requirement("WF-ARC-0060-A")
+def test_an_xml_answer_the_contract_declares_binary_is_validated_as_its_bytes() -> None:
+    # The file of MS Project (#2675): openapi-core would parse it into a tree of XML, then refuse
+    # the tree as no string; its bytes are the string the contract declares.
+    content = "<?xml version='1.0'?><Project><Name>Études</Name></Project>".encode()
+    schema: dict[str, object] = {"type": "string", "format": "binary"}
+    declared = cast("dict[str, Any]", minimal_contract(schema).spec.read_value())
+    answer = declared["paths"]["/health"]["get"]["responses"]["200"]
+    answer["content"] = {"application/xml": {"schema": schema}}
+    app = FastAPI()
+
+    @app.get("/api/v1/health")
+    def health() -> Response:
+        return Response(content, media_type="application/xml")
+
+    response = ContractClient(TestClient(app), OpenAPI.from_dict(declared)).get("/api/v1/health")
+    assert (response.status_code, response.content) == (200, content)
+
+
+def test_every_xml_body_of_the_contract_is_a_binary_string(contract: OpenAPI) -> None:
+    # ``BINARY_TYPES`` reads every ``application/xml`` body as the text of its bytes: that holds
+    # while the contract declares no such body but a binary string (the MS Project export).
+    declared = cast("dict[str, Any]", contract.spec.read_value())
+    root = contract.spec.base_uri
+    found = documents(root, declared)
+    binary = {"type": "string", "format": "binary"}
+    bodies = [(address, node) for address, each in found.items() for node in xml_bodies(each)]
+    # A positive control: the walk reaches the export of MS Project, or it would pass on nothing.
+    assert any(address.endswith("/paths/system.yaml") for address, _ in bodies)
+    assert [address for address, node in bodies if node.get("schema") != binary] == []
+
+
+def test_an_answer_is_validated_without_reading_a_document_of_the_contract_again(
+    contract: OpenAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The documents the schemas of the contract reach are read once, when a client is first given
+    # it (#2720): the validation of a refusal, held to ``common.yaml#/Problem`` through
+    # ``responses.yaml``, reads none of them again, nor does a second client.
+    app = FastAPI()
+
+    @app.get("/api/v1/health")
+    def health() -> JSONResponse:
+        refusal = {"code": "COMPONENT_UNAVAILABLE", "status": 503, "correlation_id": "front-7f3a"}
+        return JSONResponse(refusal, status_code=503, media_type="application/problem+json")
+
+    first = ContractClient(TestClient(app), contract)
+    read: list[str] = []
+    reading = default_handlers["file"]
+
+    def counted(address: str) -> object:
+        read.append(address)
+        return reading(address)
+
+    monkeypatch.setitem(default_handlers, "file", counted)
+    second = ContractClient(TestClient(app), contract)
+    assert second.get("/api/v1/health").status_code == 503
+    assert read == []
+    assert second.contract is first.contract
+    # The other way round, to prove the listener hears what it should: the contract as it was
+    # given, not resolved, reads the documents it reaches when it is asked for them.
+    asked = contract.spec / "paths" / "/health" / "get" / "responses" / "503" / "content"
+    assert asked.exists()
+    assert any(address.endswith("responses.yaml") for address in read)
+    read.clear()
+    # An example, which no validation resolves, is not held: it is read when it is asked for.
+    examples = second.contract.spec / "paths" / "/health" / "get" / "responses" / "200"
+    examples = examples / "content" / "application/json" / "examples"
+    assert (examples / "ok" / "value").read_value() == {"status": "ok"}
+    assert [address.rpartition("/")[2] for address in read] == ["liveness.json"]

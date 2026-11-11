@@ -955,7 +955,8 @@ travaille, sans table à plat.
   montant budgété ne présente aucun écart de montant réestimé. » : EP-07.
 - écart : `WF-REV-0080-A` — « Entre deux révisions d’années de référence différentes, les montants
   réestimés diffèrent en outre sur chaque ligne dont le taux a été mis à jour ou projeté jusqu’à la
-  nouvelle année de référence (WF-REV-0060) ; les tâches et les montants budgétés restent ceux du
+  nouvelle année de référence (WF-REV-0060), et sur chaque ligne de débours, dont le montant est
+  projeté de même (WF-DEV-0030) ; les tâches et les montants budgétés restent ceux du
   différentiel. » : EP-07.
 - `WF-REV-0100-A` — « Deux structures différentielles coexistent dans une même révision, et la
   fusion de l'une laisse l'autre intacte. » : le choix de la structure liste chaque différentiel de
@@ -1170,7 +1171,10 @@ de plusieurs années comme une tâche de quelques jours, et présenter une chron
 - écart : `WF-PLA-0140-A` — « Deux chronologies d’un même projet portent des sélections distinctes
   et se retrouvent d’une session à l’autre. » : les sélections sont du service — EP-06 ; la
   disposition des couloirs, elle, se retrouve d'une session à l'autre par les préférences
-  (`DisplayPreferences.timelines`), contre le service d'EP-03.
+  (`DisplayPreferences.timelines`), contre le service d'EP-03 ;
+- `WF-PLA-0140-A` — « La disposition en couloirs qu’un utilisateur a donnée à une chronologie se
+  retrouve d’une session à l’autre. » : `DisplayPreferences.timelines`, réalisé par US-0570/L1 ;
+  spécification 1.0.4, #2871.
 - propre à l'US : la colonne du Gantt est épinglée à droite, une poignée de séparation sur son bord
   gauche règle sa largeur — à la souris et au clavier, Maj et les flèches — entre un minimum et la
   largeur du cadre moins les colonnes épinglées en tête et la plus large colonne affichée entre

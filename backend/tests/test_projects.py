@@ -111,8 +111,13 @@ def test_a_project_is_born_created_without_a_code_and_its_creator_manages_it(
         "complete": ["project_in_progress"],
         "lose": ["project_in_pricing"],
         "abandon": [],
+        # The mapping of an extraction is still empty on a new installation (WF-REF-0190).
+        "import_actual_costs": ["project_in_progress", "actual_cost_mapping_complete"],
+        "exclude_cost_lines": ["project_in_progress"],
         "generate_skeleton": [],
         "import_planning": [],
+        "import_estimate": [],
+        "import_remaining": ["project_in_progress"],
     }
     read = api.get(f"{PROJECTS}/{project['project_id']}", headers=stage.manager.headers)
     assert (read.status_code, read.json()) == (200, project)

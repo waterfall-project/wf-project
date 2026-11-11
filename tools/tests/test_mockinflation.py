@@ -19,9 +19,10 @@ from wftools import mockcore, mockdating, mockindicators, mockstructure, mockwit
 from wftools.mockstructure import CENT, REFERENCE_YEAR, Projection, described
 from wftools.mockwitness import Line, Task
 
-LINES_OF_2028 = 1_608
-"""The lines of estimate, none a provision, that the witness dates in 2028, two years after its
-reference year: the number the drawn structure gives, fixed by its seed."""
+LINES_OF_2028 = 1_581
+"""The lines of estimate, none a provision, that the witness consumes in 2028, two years after its
+reference year, the year of the largest part of the hours of their task: the number the drawn
+structure gives, fixed by its seed."""
 
 PRICED_TWO_YEARS_ON = {
     1002755: ("5080.00", "5389.37"),
@@ -94,8 +95,10 @@ def test_a_task_not_started_counts_its_reestimate_at_the_rates_the_revision_keep
     # Vérif : « une tâche non démarrée […] compte pour sa charge au taux de 2027, et non au taux de
     # 2026 corrigé d'une année d'inflation ». In the witness, the revision 102 keeps the rates of
     # 2026 its update accepted; a drawn labour line of a task not started, re-estimated by nobody,
-    # keeps the budget the offer fixed at the rates of 2025 (#467): it counts its hours at the rate
-    # of 2026, projected on its year of consumption — its re-estimate —, not its budget.
+    # keeps the budget the offer fixed at the rates of 2025, projected from 2025 (#467, #1628): it
+    # counts its hours at the rate of 2026, projected on its year of consumption — its re-estimate
+    # —, not its budget, the rate of 2025 corrected by a year of inflation, 78.50 x 1.03 = 80.855
+    # for the electrical engineering, above the 80.00 of 2026.
     reading = mockindicators.today()
     lines = [
         line
@@ -108,8 +111,10 @@ def test_a_task_not_started_counts_its_reestimate_at_the_rates_the_revision_keep
     for line in lines:
         facet = reading.facet(line)
         rate = mockstructure.LABOUR_RATES[cast("str", facet["cost_category_id"])]
-        year = cast("int", facet["consumption_year"])
+        task = reading.bearer(line)
+        (drawn,) = [each for each in task.task.lines if each.number == line.number]
+        span = mockdating.span_of(task, drawn)
         counted = mockindicators.remaining_of(reading, line)
         assert counted == line.amounts.reestimated
-        assert counted == mockstructure.inflated(line.hours * rate, year)
-        assert counted > line.amounts.budgeted
+        assert counted == span.projected(line.hours * rate, mockstructure.WITNESS)
+        assert counted < line.amounts.budgeted

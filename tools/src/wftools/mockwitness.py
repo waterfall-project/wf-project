@@ -135,6 +135,10 @@ COST_IMPORTS = tuple(
         (date(2026, 6, 3), time(8, 30)),
     )
 )
+RECEPTION_EXCLUDED = Event(date(2026, 4, 6), "Exclusion de la réception du client", time(9, 15))
+"""The line of the reception of the customer, imported on 3 April, is excluded from the tracked
+scope three days later (WF-CRE-0030): the event of the exclusion, which the loader of the costs
+writes (EP-09, « Le chargeur du témoin »)."""
 PLANNING_IMPORT_ABANDONED = Event(date(2026, 5, 20), "Import de planning, abandonné")
 APRIL_EXTRACTION_REPLAYED = Event(
     date(2026, 6, 2), "Extraction d'avril rejouée et analysée ; expirée le lendemain", time(9, 1)
@@ -161,6 +165,7 @@ CHRONOLOGY = tuple(
             RISK_752_OCCURRED,
             STUDIES_STARTED,
             *COST_IMPORTS,
+            RECEPTION_EXCLUDED,
             PLANNING_IMPORT_ABANDONED,
             ESTIMATE_IMPORT_ANALYSED,
             APRIL_EXTRACTION_REPLAYED,
@@ -296,6 +301,8 @@ class Line:
     knew, counted to the reserve, never to the budget (WF-RIS-0050); the offer's for a line the
     amendment 1 did not designate (#467). Its payment delay, nought unless said (WF-IND-0100).
     ``origin_risk``, the risk whose occurrence merged it (`Node.origin_risk_id`, #1761).
+    ``reason``, the reason sent with its last re-estimate (`EstimateLineFacet.remaining_reason`,
+    #2420), none unless said.
     """
 
     number: int
@@ -310,6 +317,7 @@ class Line:
     payment_delay_days: int = 0
     quantity: Decimal = Decimal(1)
     origin_risk: int | None = None
+    reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -482,6 +490,21 @@ TRACKED = (N.STUDIES_RECEIVED, N.FACTORY_ACCEPTANCE)
 follows (WF-PLA-0060, WF-IND-0090)."""
 
 
+OFFER_BUDGETS = {
+    N.STUDIES_LINE: Decimal("103000.00"),
+    N.BLOCKS: Decimal("1271.5968"),
+    N.WIRING_ON_SITE: Decimal("9702.60"),
+    N.COMMISSIONING_LINE: Decimal("6056.40"),
+}
+"""The budgets the offer fixed to the lines of the core the amendment 1 did not designate, as a
+revision of 2026 keeps them: the detailed studies, 100,000.00, the terminal blocks, 1,234.56, the
+wiring on site, 120 hours at the rate of 2025, 78.50 — 9,420.00 —, and the commissioning, 80 hours
+at 73.50 — 5,880.00 —, each carried from 2025 to 2026 at the 3 % of the witness, unrounded, as
+``mockstructure.offer_budget`` carries those of the lines drawn: projected from 2026 by the
+revisions that keep them, they are the offer's budgeted amounts to the cent, the offer projecting
+from its own reference year, 2025 (#1628). They keep them, the merge changing the budgets of the
+lines it designates alone (WF-REV-0050, #467), their amounts at the rates of 2026 (WF-DEV-0020)."""
+
 STUDIES = Task(
     N.STUDIES,
     "Études",
@@ -497,6 +520,7 @@ STUDIES = Task(
                     SUBCONTRACTING,
                     unit=Decimal("100000.00"),
                     payment_delay_days=PAYMENT_DELAY,
+                    budgeted=OFFER_BUDGETS[N.STUDIES_LINE],
                 ),
             ),
         ),
@@ -555,6 +579,7 @@ CONTROL_STATION = Task(
                     unit=Decimal("1234.56"),
                     subproject=SUBPROJECT_CONTROL,
                     payment_delay_days=PAYMENT_DELAY,
+                    budgeted=OFFER_BUDGETS[N.BLOCKS],
                 ),
                 Line(
                     N.PROVISION,
@@ -619,11 +644,6 @@ placed with its subordinates last under the task that bore the provision, after 
 acceptance, which stands at the end of the wiring — its lines of 120 and 80 budgeted nothing, the
 reminder, without a predecessor in the own estimate, in manual mode at the dates it had there —,
 each of its nodes bearing the risk it comes from (WF-RIS-0060; H-03, #1788, #1761)."""
-
-OFFER_BUDGETS = {N.WIRING_ON_SITE: Decimal("9420.00"), N.COMMISSIONING_LINE: Decimal("5880.00")}
-"""The budgets the offer fixed to the lines the amendment 1 did not designate, at the rates of 2025
-(``mockhistory.offer``): they keep them, the merge changing the budgets of the lines it designates
-alone (WF-REV-0050, #467), their amounts at the one rate of 2026 of their category (WF-DEV-0020)."""
 
 INSTALLATION = Task(
     N.INSTALLATION,

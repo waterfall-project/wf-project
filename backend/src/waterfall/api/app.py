@@ -15,12 +15,17 @@ from waterfall import __version__, schema
 from waterfall.api import (
     access_roles,
     actual_cost_mapping,
+    actual_costs,
     audit,
     avatars,
     backups,
     calendars,
+    comparison,
     contributors,
+    cost_imports,
     cost_types,
+    estimate_indicators,
+    estimate_lines,
     exports,
     history,
     hourly_rates,
@@ -32,13 +37,17 @@ from waterfall.api import (
     org_nodes,
     progress,
     projects,
+    rate_update,
     reference,
     reference_settings,
+    remaining_indicators,
+    remaining_lines,
     resource_roles,
     restores,
     revisions,
     scheduling,
     skeleton,
+    startable_tasks,
     subprojects,
     system,
     tasks,
@@ -46,10 +55,13 @@ from waterfall.api import (
     uploads,
     users,
     work_breakdown,
+    workload,
 )
 from waterfall.api.maintenance import MaintenanceMiddleware
 from waterfall.api.middleware import CorrelationMiddleware
 from waterfall.api.problems import install_problem_handlers
+from waterfall.core.costs import interface as costs_interface
+from waterfall.core.estimate import interface as estimate_interface
 from waterfall.core.exchanges import interface as exchanges_interface
 from waterfall.core.history import interface as history_interface
 from waterfall.core.planning import interface as planning_interface
@@ -61,8 +73,14 @@ if TYPE_CHECKING:
 PREFIX = "/api/v1"
 # The modules that fill the registries of the others at the import of their interface (#2180):
 # imported here whether or not a route reads them yet, so that no revision is copied, closed or
-# designated, and no reference changed, without their part.
-EXTENDING = (exchanges_interface, history_interface, planning_interface)
+# designated, no reference changed and no import opened, without their part.
+EXTENDING = (
+    costs_interface,
+    estimate_interface,
+    exchanges_interface,
+    history_interface,
+    planning_interface,
+)
 
 
 def create_app(services: Services) -> FastAPI:
@@ -108,6 +126,9 @@ def create_app(services: Services) -> FastAPI:
         actual_cost_mapping.router,
     ):
         app.include_router(reference_router, prefix=PREFIX)
+    # The comparison of two revisions (US-1530) before the revisions: its path, ``/comparison``,
+    # would else be read as the identifier of a revision by ``getRevision``.
+    app.include_router(comparison.router, prefix=PREFIX)
     # The projects and their revisions (EP-04): a router per story, each registered here from the
     # start.
     for project_router in (
@@ -132,4 +153,23 @@ def create_app(services: Services) -> FastAPI:
         skeleton.router,
     ):
         app.include_router(planning_router, prefix=PREFIX)
+    # The estimate (EP-07): a router per story, each registered here from the start, the comparison
+    # above.
+    for estimate_router in (
+        estimate_lines.router,
+        rate_update.router,
+        estimate_indicators.router,
+        workload.router,
+    ):
+        app.include_router(estimate_router, prefix=PREFIX)
+    # The remaining to commit and the actual costs (EP-09): a router per story, each registered here
+    # from the start.
+    for costs_router in (
+        remaining_lines.router,
+        startable_tasks.router,
+        remaining_indicators.router,
+        cost_imports.router,
+        actual_costs.router,
+    ):
+        app.include_router(costs_router, prefix=PREFIX)
     return app

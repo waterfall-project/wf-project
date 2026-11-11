@@ -101,12 +101,12 @@ const FRENCH: Language = {
   // French separates thousands with a narrow no-break space (U+202F), and the currency of the
   // installation, the euro, from its amount with a no-break one (U+00A0).
   figures: [
-    ["Reste à engager", "67\u202f470\u202f133,69\u00a0€"],
-    ["Budget de référence", "68\u202f241\u202f569,21\u00a0€"],
-    ["Valeur planifiée", "1\u202f671\u202f458,13\u00a0€"],
-    ["Écart de délai", "-221\u202f599,80\u00a0€"],
+    ["Reste à engager", "67\u202f497\u202f090,97\u00a0€"],
+    ["Budget de référence", "70\u202f316\u202f396,56\u00a0€"],
+    ["Valeur planifiée", "1\u202f721\u202f585,56\u00a0€"],
+    ["Écart de délai", "-228\u202f231,37\u00a0€"],
     ["Indice de délai", "0,8674"],
-    ["Indice de coût", "1,0261"],
+    ["Indice de coût", "1,0569"],
   ],
   computedOn: "Calculé le 3 juin 2026, 16:05",
 };
@@ -139,12 +139,12 @@ const ENGLISH: Language = {
     backToProject: "Back to the project",
   },
   figures: [
-    ["Remaining to commit", "€67,470,133.69"],
-    ["Reference budget", "€68,241,569.21"],
-    ["Planned value", "€1,671,458.13"],
-    ["Schedule variance", "-€221,599.80"],
+    ["Remaining to commit", "€67,497,090.97"],
+    ["Reference budget", "€70,316,396.56"],
+    ["Planned value", "€1,721,585.56"],
+    ["Schedule variance", "-€228,231.37"],
     ["Schedule index", "0.8674"],
-    ["Cost index", "1.0261"],
+    ["Cost index", "1.0569"],
   ],
   computedOn: "Computed on 3 Jun 2026, 10:05",
 };

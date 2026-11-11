@@ -3,6 +3,7 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
 import { columnsOf } from "./columns";
+import { seedEstimate } from "./estimate-seed";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 import { SEEDED, seedPlanning } from "./planning-seed";
@@ -15,6 +16,10 @@ import { edgesBetween, rowAt, scroller, withinBox } from "./scroll";
 // the server computes; six thousand rows in all.
 //
 // Every gesture is a key: the grid is reached by Tab, as a user who never takes the mouse.
+//
+// The paths tagged `@shared` are played against the service too, on the witness it holds (US-1570).
+// Two read what it does not: the provision of row 12, which EP-08 gives the witness, and the six
+// thousandth row of the volume, which EP-13 does (#2696): they keep to the fake back.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
@@ -75,7 +80,7 @@ function times(key: string, count: number): string[] {
   return Array.from({ length: count }, () => key);
 }
 
-test("is one stop of the tabulation, and reaches the header by the arrows, which sorts its column by Enter [WF-IHM-0100-A]", async ({
+test("is one stop of the tabulation, and reaches the header by the arrows, which sorts its column by Enter @shared [WF-IHM-0100-A]", async ({
   page,
 }) => {
   const { grid, at } = await tabIntoGrid(page);
@@ -160,7 +165,7 @@ test("keeps the active cell in the window, clear of the header and the totals, f
 test.describe("on a narrow window", () => {
   test.use({ viewport: { width: 700, height: 500 } });
 
-  test("keeps the active cell clear of the pinned columns as it goes back along the row", async ({
+  test("keeps the active cell clear of the pinned columns as it goes back along the row @shared", async ({
     page,
   }) => {
     const { grid, at } = await tabIntoGrid(page);
@@ -178,7 +183,7 @@ test.describe("on a narrow window", () => {
     }
   });
 
-  test("brings each header into view sideways as the arrows move along the header, the rows left where they are", async ({
+  test("brings each header into view sideways as the arrows move along the header, the rows left where they are @shared", async ({
     page,
   }) => {
     const { grid, at } = await tabIntoGrid(page);
@@ -210,7 +215,7 @@ test.describe("on a narrow window", () => {
 test.describe("on a window lower than the floor of the grid", () => {
   test.use({ viewport: { width: 700, height: 300 } });
 
-  test("brings a cell of a pinned column into the window as the arrows move it down (#183)", async ({
+  test("brings a cell of a pinned column into the window as the arrows move it down (#183) @shared", async ({
     page,
   }) => {
     const { grid } = await tabIntoGrid(page);
@@ -277,4 +282,50 @@ test("moves through the planning of the service by the keys alone, stops on the 
   await expect(grid.getByRole("gridcell", { name: "Études détaillées" })).toBeVisible({
     timeout: WORKING,
   });
+});
+
+test("moves through the estimate of the service by the keys alone, stops on the amounts it computes without entering them, and enters a label @shared [WF-IHM-0100-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  test.skip(!inService, "the estimate the path writes lives in the service alone");
+  test.slow();
+  const seeded = await seedEstimate(page, browser, request, manager, "Clavier devis");
+  await openHydrated(page, seeded.estimate);
+  const grid = page.getByRole("treegrid", { name: "Grille de devis" });
+  const at = await columnsOf(grid, COLUMNS);
+  await expect(cellAt(grid, 3, at.label)).toContainText("Tâche du devis", {
+    timeout: WORKING,
+  });
+
+  // A click gives the grid its active cell, the arrows move it, Control+End reaches the last row.
+  await cellAt(grid, 1, at.label).click();
+  await expect(cellAt(grid, 1, at.label)).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(cellAt(grid, 2, at.label)).toBeFocused();
+  await press(page, "Control+End");
+  await expect(page.locator(":focus")).toHaveAttribute("data-row", "2");
+  await press(page, "Control+Home");
+  await expect(page.locator(":focus")).toHaveAttribute("data-row", "0");
+  // Control+Home reaches the first column of the grid: the arrows count from there to the label.
+  await press(page, ...times("ArrowRight", at.label));
+  await expect(cellAt(grid, 1, at.label)).toBeFocused();
+
+  // The amount of the line is computed: the arrows stop on it, which opens no entry, a try is refused.
+  await press(page, "ArrowDown", "ArrowDown", ...times("ArrowRight", at.reference - at.label));
+  await expect(cellAt(grid, 3, at.reference)).toBeFocused();
+  await expect(cellAt(grid, 3, at.reference)).toHaveAttribute("aria-readonly", "true");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog", { name: "Valeur calculée" })).toBeVisible();
+  await expect(grid.getByRole("textbox")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(cellAt(grid, 3, at.reference)).toBeFocused();
+
+  // The label is entered from the keyboard, written by the service and shown as it answered.
+  await press(page, ...times("ArrowLeft", at.reference - at.label), "F2");
+  await grid.getByRole("textbox", { name: "Libellé" }).fill("Câbles");
+  await page.keyboard.press("Enter");
+  await expect(grid.getByRole("gridcell", { name: "Câbles" })).toBeVisible({ timeout: WORKING });
 });

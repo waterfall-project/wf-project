@@ -26,7 +26,6 @@ import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
 import { LEAF_ICONS } from "@/components/shell/function-display";
-import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import {
   BASIS_REFUSED,
@@ -111,16 +110,16 @@ async function readWorkload({ revision }: GridAddress, asked: WorkloadAsked) {
 }
 
 /**
- * The bases the project admits (WF-DEV-0070): on a project without a reference revision, the
- * revision under way alone; the remaining of a marked revision, only when the project has one.
+ * The bases the project admits (WF-DEV-0070): the budget of the reference, only with a reference
+ * revision; the remaining of a marked revision, only when the project has one; the revision under
+ * way, always — alone on a project with neither.
  */
 function offeredBases(reading: ProjectReading, marked: readonly Revision[]): WorkloadBasis[] {
-  if (reading.project.reference_revision_id === null) {
-    return ["current_remaining"];
-  }
-  return marked.length === 0
-    ? ["reference_budget", "current_remaining"]
-    : ["reference_budget", "marked_remaining", "current_remaining"];
+  return [
+    ...(reading.project.reference_revision_id === null ? [] : (["reference_budget"] as const)),
+    ...(marked.length === 0 ? [] : (["marked_remaining"] as const)),
+    "current_remaining",
+  ];
 }
 
 /** The parameters of the address as Next hands them, the first value of each. */
@@ -148,7 +147,6 @@ function WorkloadScreen({
   return (
     <Screen density="airy">
       <PageHeader title={t("functions.workload")} icon={LEAF_ICONS["FBS-4.4.4"]} density="airy" />
-      <MockupNotice lists />
       <WorkloadSection
         workload={read.workload}
         asked={asked}

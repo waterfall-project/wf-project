@@ -181,6 +181,19 @@ la revue.
 coûte au démarrage et aux cycles. *Contrôle* : Ruff (`TC`, `UP`, `FA`) ; `make test-back` pour
 l'import qu'une route lit à l'exécution.
 
+### Une bibliothèque sans stubs
+
+Une bibliothèque qui ne livre pas ses types reçoit des stubs locaux dans
+`backend/typings/<paquet>/` — le `stubPath` par défaut de Pyright —, aux signatures réelles des
+fonctions que le code appelle, jamais `*args: object` à leur place. Sauf si un paquet
+`types-<paquet>` est publié : il se préfère aux stubs locaux.
+XlsxWriter en est le premier (`backend/typings/xlsxwriter/`, US-1550/L1).
+
+*Pourquoi* : Pyright strict refuse un module sans stubs (`reportMissingTypeStubs`), et un stub
+qui ouvre ses signatures laisse passer l'appel faux qu'il devait refuser ; un paquet publié est
+tenu par d'autres, et suit la bibliothèque (#2599). *Contrôle* : `make typecheck-back` pour le
+module sans stubs ; les signatures, la revue.
+
 ## Défauts déjà rencontrés
 
 Chacun a été trouvé dans du code réel, souvent par une revue automatique, et se
@@ -223,8 +236,8 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     `resource_settings` ne dépend d'aucun autre module du noyau, et les auteurs d'un objet
     se nomment dans `api/`, qui lit les deux. Le contrat `layers` de `backend/pyproject.toml`
     la tient : le haut importe le bas, jamais l'inverse (`access_roles`, `backups`,
-    `indicator_settings`, `risk_settings` > `planning` > `exchanges`, `history` > `revisions` >
-    `projects` > `cost_settings` > `users` > `resource_settings`),
+    `indicator_settings`, `risk_settings` > `estimate` > `costs`, `planning` > `exchanges`,
+    `history` > `revisions` > `projects` > `cost_settings` > `users` > `resource_settings`),
     et `make imports-back` refuse l'import contraire, par l'interface comme autrement. Un
     module nouveau se range dans la couche que ses imports imposent ; un test des outils
     (`tools/tests/test_chain.py`) échoue en le nommant tant qu'il n'est dans aucune.

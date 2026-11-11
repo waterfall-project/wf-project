@@ -437,21 +437,6 @@ def estimate_line(stage: Scene, tree: Tree, task: dict[str, Any]) -> UUID:
     return cast("UUID", row["id"])
 
 
-@pytest.mark.requirement("WF-IHM-0050-A")
-def test_a_row_on_a_line_is_refused_whole_and_the_rows_past_it_create_tasks_beside_it(
-    tree: Tree, stage: Scene, who: Person
-) -> None:
-    # The line is the last node of the structure, the anchor: the rows past it create tasks of
-    # its parent, after it (#2559); the empty row between them writes and creates nothing.
-    task = tree.made("Étude", who=who)
-    estimate_line(stage, tree, task)
-    plan = planned(
-        tree, task, "label", [["Étude 2"], ["Une ligne"], ["Au-delà"], [""], ["Au-delà"]], who
-    )
-    assert (plan["accepted"], plan["created"]) == (3, 2)
-    assert reasons(plan) == [(1, None, "FIELD_NOT_ACCEPTED")]
-
-
 # --- The rows past the last node: the paste that creates (#2559) ---------------------------------
 
 
@@ -572,24 +557,6 @@ def test_a_cell_refused_on_a_row_past_the_last_node_refuses_the_row_as_an_entry_
     )
     assert created["duration"] == {"value": "2", "unit": "d"}
     assert tree.node(first["node_id"])["task"]["label"] == "Étude"
-
-
-@pytest.mark.requirement("WF-IHM-0050-A")
-def test_a_block_aimed_at_a_line_creates_no_task_its_rows_past_the_last_node_being_refused(
-    tree: Tree, stage: Scene, who: Person
-) -> None:
-    # Critère d'US-1450 : une ligne au-delà crée un nœud du genre du nœud visé ; ce service ne crée
-    # que des tâches (la ligne de devis est servie par EP-07, US-1560) — le nœud visé est une
-    # ligne, la ligne au-delà est refusée comme celle de la ligne, FIELD_NOT_ACCEPTED.
-    task = tree.made("Étude", who=who)
-    line = estimate_line(stage, tree, task)
-    plan = planned(tree, {"node_id": str(line)}, "label", [["Une"], ["Deux"]], who)
-    assert (plan["accepted"], plan["created"]) == (0, 0)
-    assert reasons(plan) == [(0, None, "FIELD_NOT_ACCEPTED"), (1, None, "FIELD_NOT_ACCEPTED")]
-    body = applied(tree, plan, who)
-    assert (body["nodes"], reasons(body)) == ([], reasons(plan))
-    assert [each["node_id"] for each in tree.items()] == [task["node_id"], str(line)]
-    assert body["totals"]["task_count"] == 1
 
 
 @pytest.mark.requirement("WF-IHM-0050-A")
@@ -805,7 +772,7 @@ def test_a_plan_is_applied_once_by_the_account_that_previewed_it_on_its_structur
     assert labels_of(tree) == ["Études"]
 
 
-@pytest.mark.requirement("WF-DAT-0020-A")
+@pytest.mark.requirement("WF-REV-0020-A")
 def test_a_paste_confirmed_on_a_revision_marked_since_is_refused_by_the_state(
     tree: Tree, stage: Scene, who: Person
 ) -> None:
@@ -882,7 +849,9 @@ def test_a_paste_is_the_act_of_an_account_never_of_the_platform(tree: Tree, stag
     project, revision = UUID(stage.project["project_id"]), UUID(tree.revision["revision_id"])
     where = Place(project, revision, UUID(tree.structure_id))
     with stage.database.transaction() as session, pytest.raises(RuntimeError):
-        preview_paste(session, where, block, Writer(Act(None, utc_now()), None))
+        preview_paste(
+            session, where, block, Writer(Act(None, utc_now()), None), ("planning.write",)
+        )
 
 
 class _Recorder:

@@ -175,8 +175,8 @@ def test_the_filters_retain_tasks_with_their_ancestors_and_count_only_those_reta
     lines = tree.read("?kinds=estimate_line")
     assert lines.json()["items"] == []
     assert lines.json()["totals"]["task_count"] == 4
-    # The filters of the line retain lines, which EP-07 brings: none of the tasks goes.
-    assert len(tree.items("?quantity_min=1&quantity_max=5&base_amount_min=0.00")) == 4
+    # The filters of the line retain lines (EP-07), with their tasks: a tree without one gives none.
+    assert tree.items("?quantity_min=1&quantity_max=5&base_amount_min=0.00") == []
     assert tree.items(f"?subtree_of={uuid4()}") == []
     assert site["node_id"] not in {item["node_id"] for item in tree.items("?is_critical=false")}
 

@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import pytest
+from estimate_support import Lines, add_role, costing
 from nodes_support import (
     CHANGE,
     CONSULT,
@@ -27,27 +28,21 @@ from nodes_support import (
     refusal,
     signed_in,
 )
-from planning_support import DAY, insert_link, node_row
+from planning_support import DAY, insert_link
 from projects_support import PROJECTS, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
-from sqlalchemy import func, insert, select
+from sqlalchemy import func, select
 
+from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.history.tables import UndoEntry
-from waterfall.core.planning.interface import FacetHooks, calendar_of, register_facet
+from waterfall.core.planning.interface import calendar_of, facets, register_facet
 from waterfall.core.planning.tables import Node, Task, TaskLink
-from waterfall.core.resource_settings.interface import CalendarContent, WeeklyHours, create_calendar
-from waterfall.platform.audit import Act
-from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection
-
     from realm import TestRealm
     from sqlalchemy import Engine
-    from sqlalchemy.orm import Session
     from support import ContractClient
 
-    from waterfall.core.revisions.interface import RevisionCopy
     from waterfall.platform.database import Database
 
 
@@ -66,7 +61,7 @@ def tree(api: ContractClient, stage: Scene) -> Tree:
 # --- The state and the rights ------------------------------------------------------------------
 
 
-@pytest.mark.requirement("WF-DAT-0020-A")
+@pytest.mark.requirement("WF-REV-0020-A")
 def test_a_marked_revision_reads_as_the_current_one_and_refuses_every_write(
     tree: Tree, stage: Scene
 ) -> None:
@@ -216,56 +211,41 @@ def test_the_abandonment_of_a_full_revision_leaves_no_node_no_facet_no_link(
             assert session.scalar(select(func.count()).select_from(table)) == 0, table
 
 
-def spy(
-    copied: list[tuple[UUID, UUID]], deleted: list[tuple[UUID, set[UUID]]]
-) -> Callable[[], None]:
-    """Register the facet of the lines with hooks that note the copies and the deletions."""
-
-    def copy(copy: RevisionCopy) -> None:
-        copied.append((copy.source, copy.target))
-
-    def delete(session: Session, project: UUID, node_ids: Collection[UUID]) -> None:
-        del session
-        deleted.append((project, set(node_ids)))
-
-    def read(*_: object) -> dict[UUID, object]:
-        return {}
-
-    def calendars(*_: object) -> set[UUID]:
-        return set()
-
-    return register_facet("estimate_line", FacetHooks(read, copy, delete, calendars))
+def lines_of_revision(stage: Scene, revision_id: str) -> int:
+    """Count the facets of the lines of a revision the base keeps."""
+    with stage.database.transaction() as session:
+        return (
+            session.scalar(
+                select(func.count())
+                .select_from(EstimateLine)
+                .join(Node, Node.id == EstimateLine.node_id)
+                .where(Node.revision_id == UUID(revision_id))
+            )
+            or 0
+        )
 
 
 @pytest.mark.requirement("WF-DAT-0010-A")
-def test_the_copy_of_a_revision_and_the_abandonment_of_another_call_the_hooks_of_a_facet(
+def test_the_copy_of_a_revision_and_the_abandonment_of_another_take_the_facets_of_their_lines(
     api: ContractClient, tree: Tree, stage: Scene
 ) -> None:
-    project_id, revision_id = UUID(stage.project["project_id"]), UUID(tree.revision["revision_id"])
-    copied: list[tuple[UUID, UUID]] = []
-    deleted: list[tuple[UUID, set[UUID]]] = []
-    tree.made("Câblage")
-    withdraw = spy(copied, deleted)
-    try:
-        mark(stage, tree.revision)
-        successor = opened(api, stage)
-        assert copied == [(revision_id, UUID(successor["revision_id"]))]
-        assert deleted == []
-        structure_id = UUID(Tree(api, stage, successor).structure_id)
-        line = node_row(
-            project_id, UUID(successor["revision_id"]), structure_id, kind="estimate_line", rank=1
-        )
-        with stage.owner.begin() as connection:
-            connection.execute(insert(Node).values(**line))
-        path = f"{PROJECTS}/{stage.project['project_id']}/revisions/{successor['revision_id']}"
-        current = api.get(path, headers=stage.manager.headers).json()
-        gone = api.delete(
-            f"{path}?lock_version={current['lock_version']}", headers=stage.manager.headers
-        )
-        assert gone.status_code == 204, gone.text
-    finally:
-        withdraw()
-    assert deleted == [(project_id, {line["id"]})]
+    # The planning copies and deletes the facet of the lines by the hooks the estimate registers
+    # (``register_facet``, US-1490/L3): the next revision holds the line, its abandonment none.
+    costs = costing(stage.database)
+    task = tree.made("Câblage")
+    worked = {"quantity": "1", "resource_role_id": str(costs.role), "hours": "8"}
+    Lines(tree).made(task, **worked)
+    mark(stage, tree.revision)
+    successor = opened(api, stage)
+    assert lines_of_revision(stage, successor["revision_id"]) == 1
+    path = f"{PROJECTS}/{stage.project['project_id']}/revisions/{successor['revision_id']}"
+    current = api.get(path, headers=stage.manager.headers).json()
+    gone = api.delete(
+        f"{path}?lock_version={current['lock_version']}", headers=stage.manager.headers
+    )
+    assert gone.status_code == 204, gone.text
+    assert lines_of_revision(stage, successor["revision_id"]) == 0
+    assert lines_of_revision(stage, tree.revision["revision_id"]) == 1
 
 
 @pytest.mark.requirement("WF-DAT-0010-A")
@@ -397,39 +377,27 @@ def test_a_task_is_on_the_default_calendar_or_on_the_calendars_its_facets_name_i
 ) -> None:
     # « Une tâche sans ligne de main-d'œuvre est planifiée sur le calendrier par défaut. » The
     # calendars of the roles of its lines are EP-07's, which names them by its facet
-    # (``register_facet``); a facet of a test names them here, and the task is placed on the
-    # fewest hours of each day, a calendar of no identifier.
+    # (``register_facet``): a line of a role on its own calendar places the task on it, a second
+    # line of a role on the default one on the fewest hours of each day, a calendar of no
+    # identifier. A kind has one facet.
+    costs = costing(stage.database)
     node = tree.made("Câblage")
     project_id, task_id = UUID(stage.project["project_id"]), UUID(node["node_id"])
     week = (Decimal(6), Decimal(8), Decimal(8), Decimal(8), Decimal(4), Decimal(0), Decimal(0))
     with stage.database.transaction() as session:
-        content = CalendarContent("Atelier", WeeklyHours(*week))
-        short = create_calendar(session, content, Act(None, utc_now())).calendar_id
         default = calendar_of(session, project_id, task_id)
     assert default.calendar_id == UUID(node["task"]["calendar_id"])
     assert default.calendar.week == (*[Decimal(8)] * 5, Decimal(0), Decimal(0))
-    named: set[UUID] = {short}
-
-    def calendars(session: Session, project: UUID, task: UUID) -> set[UUID]:
-        del session
-        return named if (project, task) == (project_id, task_id) else set()
-
-    def read(*_: object) -> dict[UUID, object]:
-        return {}
-
-    def nothing(*_: object) -> None:
-        return None
-
-    hooks = FacetHooks(read, nothing, nothing, calendars)
-    withdraw = register_facet("estimate_line", hooks)
-    try:
-        with pytest.raises(ValueError, match="registered already"):
-            register_facet("estimate_line", hooks)
-        with stage.database.transaction() as session:
-            own = calendar_of(session, project_id, task_id)
-            named.add(default.calendar_id or short)
-            both = calendar_of(session, project_id, task_id)
-    finally:
-        withdraw()
-    assert (own.calendar_id, own.calendar.week) == (short, week)
+    short = add_role(stage.database, "ATEL", (6, 8, 8, 8, 4, 0, 0))
+    lines = Lines(tree)
+    lines.made(node, quantity="1", resource_role_id=str(short), hours="8")
+    with stage.database.transaction() as session:
+        own = calendar_of(session, project_id, task_id)
+    lines.made(node, quantity="1", resource_role_id=str(costs.role), hours="8")
+    with stage.database.transaction() as session:
+        both = calendar_of(session, project_id, task_id)
+    assert own.calendar.week == week
+    assert own.calendar_id not in {None, default.calendar_id}
     assert (both.calendar_id, both.calendar.week) == (None, week)
+    with pytest.raises(ValueError, match="registered already"):
+        register_facet("estimate_line", facets()["estimate_line"])

@@ -18,7 +18,7 @@ from access_rows import account, anonymized_account, role
 from fastapi.testclient import TestClient
 from realm import KEY, TestRealm
 from sqlalchemy import func, select
-from support import ContractClient, Watching, bearer, nowhere
+from support import ContractClient, Logs, Watching, bearer, nowhere
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
@@ -333,6 +333,32 @@ def test_an_invitation_sent_again_is_answered_empty_and_inscribed_once_after_its
     assert (entry.action, entry.object_id, entry.params) == ("password_link_create", user_id, {})
     assert entry.actor_display_name == "Camille Martin"
     assert entry.actor_user_id is not None
+
+
+@pytest.mark.requirement("WF-ADM-0140-A")
+def test_an_invitation_of_an_account_the_provider_holds_as_no_local_one_is_refused_as_its_link(
+    inviting_client: ContractClient,
+    database: Database,
+    headers: dict[str, str],
+    inviting: Inviting,
+    logs: Logs,
+) -> None:
+    # #2226: a local account the provider has linked since to an identity of an external provider.
+    # Waterfall still holds it as local; the extension refuses it as not local. The invitation is
+    # refused as its link is (createPasswordSetupLink), nothing inscribed, and the log says no
+    # invitation failed.
+    inviting.outcome = "not_local"
+    user_id = account(database, "Montgolfier", "Jeanne")
+    response = invitation_of(inviting_client, headers, user_id)
+    assert refusal(response) == (
+        409,
+        "STATE_FORBIDS_OPERATION",
+        {"missing_condition": "is_local_account"},
+    )
+    assert inviting.held == [("send_invitation", 0)]
+    assert journal(database) == []
+    assert logs.named("account.invitation_not_sent") == []
+    assert logs.named("account.invitation_sent") == []
 
 
 @pytest.mark.parametrize("outcome", ["not_sent", "no_mail_server", "provider_unavailable"])

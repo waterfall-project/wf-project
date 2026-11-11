@@ -5,8 +5,8 @@
 ``designateReferenceRevision`` on a project its manager created (``projects_support``), every
 answer checked against the contract. A revision is marked by the transaction of the worker
 (``mark_revision``); that it bears tasks and lines, which EP-06 and EP-07 answer, is put by a task
-written around the service before its marking, which the planning answers (``revision_has_tasks``),
-and by a fixture for the lines (``register_tasks_and_lines``), which EP-07 answers.
+and a line under it written around the service before its marking, which the planning and the
+estimate answer (``revision_has_tasks``, ``revision_has_lines``, US-1490/L3).
 """
 
 from concurrent.futures import ThreadPoolExecutor
@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
+from estimate_support import give_a_line
 from fastapi.testclient import TestClient
 from planning_support import give_a_task
 from projects_support import MANAGING, PROJECTS, Scene, create, person, put_in_state
@@ -25,8 +26,13 @@ from support import ContractClient, nowhere, wait_for_a_lock
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.core.projects.interface import Viewer
 from waterfall.core.projects.tables import Project, ProjectStateTransition
-from waterfall.core.revisions.interface import mark_revision, register_tasks_and_lines
+from waterfall.core.revisions.interface import (
+    ReferenceToDesignate,
+    designate_reference,
+    mark_revision,
+)
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import utc_now
@@ -37,8 +43,6 @@ from waterfall.worker.marking import mark as run_mark
 from waterfall.worker.runner import Timing, Worker
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
-
     from openapi_core import OpenAPI
     from realm import TestRealm
     from sqlalchemy import Engine
@@ -81,14 +85,6 @@ def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRea
     return make_scene(api, owner, database, realm)
 
 
-@pytest.fixture
-def lines() -> Iterator[None]:
-    """Make every revision bear lines, as EP-07 will answer; its tasks are given at its marking."""
-    withdraw = register_tasks_and_lines("lines", lambda _session, _revision: True)
-    yield
-    withdraw()
-
-
 def project_path(stage: Scene) -> str:
     """Give the path of the project of the stage."""
     return f"{PROJECTS}/{stage.project['project_id']}"
@@ -109,25 +105,40 @@ def open_revision(api: ContractClient, stage: Scene) -> dict[str, Any]:
 
 
 def mark(
-    stage: Scene, revision: dict[str, Any], name: str, at: datetime = EARLY, *, tasks: bool = True
+    stage: Scene,
+    revision: dict[str, Any],
+    name: str,
+    at: datetime = EARLY,
+    *,
+    holds: str = "lines",
 ) -> None:
-    """Mark a revision by the transaction of the worker, at ``at``, a task given to it first."""
+    """Mark a revision by the worker's transaction, at ``at``, what it ``holds`` given first.
+
+    ``nothing``, a task (``tasks``), or a task and a line under it (``lines``).
+    """
     with (
         logging_context(correlation_id="marking"),
         Session(stage.owner) as session,
         session.begin(),
     ):
-        if tasks:
-            give_a_task(session.connection(), UUID(revision["revision_id"]))
+        if holds != "nothing":
+            task = give_a_task(session.connection(), UUID(revision["revision_id"]))
+            if holds == "lines":
+                give_a_line(session.connection(), task)
         mark_revision(session, UUID(revision["revision_id"]), name, None, Act(None, at))
 
 
 def marked(
-    api: ContractClient, stage: Scene, name: str, at: datetime = EARLY, *, tasks: bool = True
+    api: ContractClient,
+    stage: Scene,
+    name: str,
+    at: datetime = EARLY,
+    *,
+    holds: str = "lines",
 ) -> dict[str, Any]:
     """Open the current revision, mark it under ``name`` at ``at``, and give it as it is read."""
     opened = open_revision(api, stage)
-    mark(stage, opened, name, at, tasks=tasks)
+    mark(stage, opened, name, at, holds=holds)
     return read(api, stage, opened["revision_id"])
 
 
@@ -212,9 +223,9 @@ def test_a_designation_without_tasks_and_lines_is_refused_naming_the_condition(
 ) -> None:
     # « La désignation d'une révision marquée sans tâche, ou sans ligne de devis, est refusée et la
     # condition manquante est nommée ; le projet n'a pas de référence. » The revision bears no
-    # task, or tasks without a line: none registers the lines before EP-07, and the tasks alone
-    # never make the designation pass.
-    revision = marked(api, stage, "v1.0", tasks=tasks)
+    # task, or tasks without a line: the estimate answers for the lines (US-1490/L3), and the tasks
+    # alone never make the designation pass.
+    revision = marked(api, stage, "v1.0", holds="tasks" if tasks else "nothing")
     before = project_row(stage)
     answer = designate(api, stage, revision["revision_id"])
     assert refusal(answer) == (
@@ -230,7 +241,6 @@ def test_a_designation_without_tasks_and_lines_is_refused_naming_the_condition(
 
 
 @pytest.mark.requirement("WF-CYC-0030-A")
-@pytest.mark.usefixtures("lines")
 def test_the_first_condition_the_command_lacks_is_told(
     api: ContractClient, stage: Scene, queue: TaskQueue
 ) -> None:
@@ -254,7 +264,6 @@ def test_the_first_condition_the_command_lacks_is_told(
 @pytest.mark.requirement("WF-REV-0040-A")
 @pytest.mark.requirement("WF-DAT-0020-A")
 @pytest.mark.requirement("WF-SEC-0030-A")
-@pytest.mark.usefixtures("lines")
 def test_a_marked_revision_is_designated_the_reference_and_the_designation_is_inscribed(
     api: ContractClient, stage: Scene
 ) -> None:
@@ -288,7 +297,6 @@ def test_a_marked_revision_is_designated_the_reference_and_the_designation_is_in
 
 @pytest.mark.requirement("WF-CYC-0030-A")
 @pytest.mark.requirement("WF-CYC-0020-A")
-@pytest.mark.usefixtures("lines")
 def test_the_designation_then_the_code_move_the_project_to_in_progress_at_the_code(
     api: ContractClient, stage: Scene
 ) -> None:
@@ -307,7 +315,6 @@ def test_the_designation_then_the_code_move_the_project_to_in_progress_at_the_co
 
 @pytest.mark.requirement("WF-CYC-0030-A")
 @pytest.mark.requirement("WF-CYC-0020-A")
-@pytest.mark.usefixtures("lines")
 def test_the_code_then_the_designation_move_the_project_to_in_progress_at_the_designation(
     api: ContractClient, stage: Scene
 ) -> None:
@@ -324,6 +331,47 @@ def test_the_code_then_the_designation_move_the_project_to_in_progress_at_the_de
     assert [item["to_state"] for item in transitions(api, stage)].count("in_progress") == 1
 
 
+@pytest.mark.requirement("WF-CYC-0130-A")
+@pytest.mark.requirement("WF-REV-0040-A")
+def test_the_designation_is_inscribed_at_the_instant_imposed_or_else_the_one_taken_under_the_lock(
+    api: ContractClient, stage: Scene
+) -> None:
+    # ``ReferenceToDesignate.at``: the loader of the witness imposes the instant of the event, a
+    # request leaves it to the service, which takes it under the lock of the project.
+    first = marked(api, stage, "v1.0")
+    second = marked(api, stage, "v2.0", EARLY + timedelta(days=1))
+    imposed = EARLY + timedelta(days=30)
+    project_id = UUID(stage.project["project_id"])
+
+    def designated(revision: dict[str, Any], at: datetime | None) -> None:
+        counter = project_of(api, stage)["lock_version"]
+        to_designate = ReferenceToDesignate(UUID(revision["revision_id"]), counter, at)
+        with (
+            logging_context(correlation_id="designation"),
+            stage.database.transaction() as session,
+        ):
+            designate_reference(
+                session,
+                project_id,
+                to_designate,
+                Act(None, EARLY),
+                Viewer(stage.manager.user_id, ()),
+            )
+
+    designated(first, imposed)
+    [entry] = journal(stage)
+    assert entry.occurred_at == imposed
+    assert read(api, stage, first["revision_id"])["audit"]["updated_at"] == (
+        imposed.isoformat().replace("+00:00", "Z")
+    )
+    before = utc_now()
+    designated(second, None)
+    after = utc_now()
+    taken = max(journal(stage), key=lambda each: each.occurred_at)
+    assert before <= taken.occurred_at <= after
+    assert taken.object_label == "v2.0"
+
+
 def transitions(api: ContractClient, stage: Scene) -> list[dict[str, Any]]:
     """Read the transitions of the project of the stage, as its manager does."""
     response = api.get(f"{project_path(stage)}/state-transitions", headers=stage.manager.headers)
@@ -332,7 +380,6 @@ def transitions(api: ContractClient, stage: Scene) -> list[dict[str, Any]]:
 
 
 @pytest.mark.requirement("WF-REV-0040-A")
-@pytest.mark.usefixtures("lines")
 def test_a_revision_marked_since_the_designation_closes_the_correction(
     api: ContractClient, stage: Scene
 ) -> None:
@@ -349,7 +396,6 @@ def test_a_revision_marked_since_the_designation_closes_the_correction(
 
 
 @pytest.mark.requirement("WF-REV-0040-A")
-@pytest.mark.usefixtures("lines")
 def test_a_revision_marked_by_the_worker_after_the_designation_closes_the_correction(
     api: ContractClient, stage: Scene, worker: Worker
 ) -> None:
@@ -376,7 +422,6 @@ def test_a_revision_marked_by_the_worker_after_the_designation_closes_the_correc
 
 
 @pytest.mark.requirement("WF-REV-0040-A")
-@pytest.mark.usefixtures("lines")
 def test_designating_the_reference_again_answers_without_writing(
     api: ContractClient, stage: Scene
 ) -> None:
@@ -397,7 +442,6 @@ def test_designating_the_reference_again_answers_without_writing(
 
 
 @pytest.mark.requirement("WF-REV-0040-A")
-@pytest.mark.usefixtures("lines")
 def test_a_reference_designated_by_mistake_is_corrected_and_stays_alone(
     api: ContractClient, stage: Scene
 ) -> None:
@@ -416,7 +460,6 @@ def test_a_reference_designated_by_mistake_is_corrected_and_stays_alone(
 
 
 @pytest.mark.requirement("WF-REV-0040-A")
-@pytest.mark.usefixtures("lines")
 def test_the_designation_is_refused_unconfirmed_unknown_or_at_a_stale_counter(
     api: ContractClient, stage: Scene
 ) -> None:
@@ -444,7 +487,6 @@ def test_the_designation_is_refused_unconfirmed_unknown_or_at_a_stale_counter(
 
 @pytest.mark.requirement("WF-ADM-0100-A")
 @pytest.mark.requirement("WF-PRJ-0060-A")
-@pytest.mark.usefixtures("lines")
 def test_the_designation_is_reserved_to_the_managers_holding_its_permission(
     api: ContractClient, stage: Scene, realm: TestRealm
 ) -> None:
@@ -469,7 +511,6 @@ def test_the_designation_is_reserved_to_the_managers_holding_its_permission(
 
 @pytest.mark.requirement("WF-ARC-0070-A")
 @pytest.mark.requirement("WF-CYC-0100-A")
-@pytest.mark.usefixtures("lines")
 @pytest.mark.parametrize("state", ["completed", "lost", "abandoned"])
 def test_a_terminal_project_refuses_the_designation_before_any_other_condition(
     api: ContractClient, stage: Scene, state: str
@@ -483,7 +524,6 @@ def test_a_terminal_project_refuses_the_designation_before_any_other_condition(
 
 @pytest.mark.requirement("WF-REV-0040-A")
 @pytest.mark.requirement("WF-IHM-0110-A")
-@pytest.mark.usefixtures("lines")
 def test_two_designations_at_once_designate_once(api: ContractClient, stage: Scene) -> None:
     # « deux désignations concurrentes ne passent pas l'une sur l'autre, même quand aucune
     # révision n'a été marquée entre elles »: both read the counter, the second finds it moved.
@@ -515,7 +555,6 @@ def test_two_designations_at_once_designate_once(api: ContractClient, stage: Sce
 
 
 @pytest.mark.requirement("WF-CYC-0020-A")
-@pytest.mark.usefixtures("lines")
 def test_the_designation_of_a_project_already_in_progress_writes_no_transition(
     api: ContractClient, stage: Scene
 ) -> None:

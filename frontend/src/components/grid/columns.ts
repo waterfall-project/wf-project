@@ -230,6 +230,8 @@ export interface Choice {
   readonly active: boolean;
   /** The code that names it before its label in a list — a sub-project's —, if it has one. */
   readonly code?: string | undefined;
+  /** The type of the cost of a category, which the creation of a line chooses by (WF-DEV-0020). */
+  readonly kind?: components["schemas"]["CostTypeKind"] | undefined;
 }
 
 /**
@@ -440,6 +442,12 @@ export interface GridConfig<Row, Sort extends string, Totals> {
    */
   readonly lifts?: boolean;
   readonly columns: readonly GridColumn<Row, Sort, Totals>[];
+  /**
+   * What the rows a block pasted creates are: the tasks of a planning — the default —, or the lines
+   * of an estimate; it words the preview of the paste (#2753). The word is the configuration's, never
+   * read from the name of the grid, which only titles it.
+   */
+  readonly creates?: "tasks" | "lines";
   /** How a block pasted from a spreadsheet is written; none, and the grid takes no paste. */
   readonly paste?: GridPaste<Row, Sort, Totals> | undefined;
   /**

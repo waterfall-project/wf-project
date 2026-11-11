@@ -215,7 +215,7 @@ def patch_subproject(
 def remove_subproject(
     project_id: UUID,
     subproject_id: UUID,
-    lock_version: Annotated[int, Query(ge=0)],
+    lock_version: Annotated[int, Query(ge=0, le=2147483647)],
     actor: Acting,
     session: Transaction,
 ) -> Response:

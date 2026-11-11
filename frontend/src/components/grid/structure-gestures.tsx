@@ -58,6 +58,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -78,6 +79,7 @@ import { MenuCommand } from "@/components/commands/menu-command";
 import { useHeldCommand } from "@/components/commands/held";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { OutcomeNotice, refusalDescription } from "@/components/commands/outcome-notice";
+import { taskRemainingHref } from "@/components/remaining/address";
 import { type Said, useSaid } from "@/components/notices/said";
 import { Button } from "@/components/ui/button";
 import { ContextMenuItem } from "@/components/ui/context-menu";
@@ -262,7 +264,8 @@ function GestureDialog<Row extends GridNode>({
             created={gesture === "line" ? "line" : "task"}
             title={title}
             under={under}
-            categories={scope.categories ?? []}
+            categories={scope.categories}
+            roles={scope.roles}
             pending={writing}
             onCreate={onCreate}
             onCancel={onClose}
@@ -270,6 +273,52 @@ function GestureDialog<Row extends GridNode>({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Whether an outcome is the refusal of the deletion of a task that is not not started. */
+function refusesStarted(outcome: Outcome<unknown> | undefined): boolean {
+  return (
+    outcome !== undefined &&
+    "problem" in outcome &&
+    outcome.problem.code === "STATE_FORBIDS_OPERATION" &&
+    outcome.problem.params?.missing_condition === "task_not_started"
+  );
+}
+
+/**
+ * The link a refusal to delete a task started carries: to its line in the grid of the remaining to
+ * commit, where its remaining is brought to zero (`task_not_started`, WF-PLA-0070); none for another
+ * refusal, nor for a task completed, which the grid of the started tasks does not show and which is
+ * not re-estimated. For a summary task, whose refusal does not name the subordinate, the grid shows
+ * the tasks started and completed, none searched (#2819). The grids of the planning, of the
+ * estimate and of the remaining to commit all tell it.
+ */
+function startedRefusal<Row extends GridNode>(
+  refusal: Refusal<Row> | undefined,
+  structure: { readonly project_id: string; readonly revision_id: string },
+  label: string,
+): ReactNode {
+  const subject = refusal?.subject;
+  if (subject === undefined || !refusesStarted(refusal?.outcome)) {
+    return undefined;
+  }
+  const task = refusal?.row?.task;
+  const summary = task?.is_summary === true;
+  if (!summary && task != null && "progress" in task && task.progress === "completed") {
+    return undefined;
+  }
+  return (
+    <Link
+      href={taskRemainingHref(
+        structure.project_id,
+        structure.revision_id,
+        summary ? undefined : subject,
+      )}
+      className="inline-flex items-center gap-1.5 font-medium underline"
+    >
+      {label}
+    </Link>
   );
 }
 
@@ -282,9 +331,11 @@ function GestureNotice<Row extends GridNode>({
   told,
   said,
   id,
+  structure,
   onClear,
 }: {
   readonly told: Told<Row> | undefined;
+  readonly structure: { readonly project_id: string; readonly revision_id: string };
   readonly said: Said | undefined;
   readonly id: string;
   readonly onClear: () => void;
@@ -309,6 +360,7 @@ function GestureNotice<Row extends GridNode>({
     <>
       <OutcomeNotice
         id={id}
+        follow={startedRefusal(refusal, structure, t("toRemaining"))}
         outcome={refusal?.outcome}
         subject={refusal?.subject}
         lead={lead()}
@@ -711,6 +763,7 @@ export function useStructureGestures<Row extends GridNode>(
           told={shown}
           said={said}
           id={noticeId}
+          structure={scope.structure}
           onClear={() => {
             setTold(undefined);
           }}

@@ -316,6 +316,7 @@
       "refusedAt": "Refusé à la ligne {number}, « {label} » :",
       "refusedAtRow": "Refusé à la ligne {number} :",
       "refusedCreating": "Création de « {label} » refusée :",
+      "toRemaining": "Mettre son reste à engager à zéro",
       "onRow": "Ligne {number}, « {label} »",
       "timelines": "Chronologies",
       "milestoneTracking": "Suivi temps/temps",
@@ -328,10 +329,12 @@
       "subprojectSet": "{others, plural, =0 {Sous-projet de « {label} » mis à jour.} one {Sous-projet de « {label} » et d’une autre ligne mis à jour.} other {Sous-projet de « {label} » et de # autres lignes mis à jour.}}",
       "underHint": "{under}. {hint}",
       "labelField": "Libellé",
-      "categoryField": "Catégorie",
+      "entryField": "Rôle ou catégorie",
+      "rolesGroup": "Rôles (main-d’œuvre)",
+      "expensesGroup": "Catégories de débours",
       "quantityField": "Quantité",
       "taskHint": "Nommez la tâche. Elle est créée feuille, en mode automatique, d'un jour, sans prédécesseur.",
-      "lineHint": "Choisissez la catégorie et la quantité de la ligne. Les autres champs se saisissent dans la grille.",
+      "lineHint": "Choisissez le rôle ou la catégorie de débours, et la quantité de la ligne. Les autres champs se saisissent dans la grille.",
       "composedLabel": "Facultatif : à défaut, le libellé de la tâche qui porte la ligne, suivi de celui de son rôle.",
       "busy": "Attend la fin de l’écriture en cours."
     },
@@ -358,6 +361,7 @@
       "reading": "Lecture du compte rendu…",
       "accepted": "{count, plural, =0 {Aucune ligne ne sera écrite.} one {# ligne sera écrite.} other {# lignes seront écrites.}}",
       "created": "{count, plural, one {# tâche sera créée} other {# tâches seront créées}} à la suite de la dernière tâche.",
+      "createdLines": "{count, plural, one {# ligne sera créée} other {# lignes seront créées}} sous la dernière tâche.",
       "noneRejected": "Aucune ligne n’est refusée.",
       "partial": "Confirmé, le collage écrit les lignes valides, et non les lignes refusées ; abandonné, il ne modifie aucune ligne.",
       "rejected": "{count, plural, one {# ligne est refusée :} other {# lignes sont refusées :}}",
@@ -479,6 +483,12 @@
     }
   },
   "remainingGrid": {
+    "completionTitle": "Terminer la tâche",
+    "completionHint": "Cette saisie met à zéro le reste à engager de la dernière ligne ouverte de la tâche : elle la termine. Indiquez la date de sa terminaison.",
+    "completionDate": "Date de terminaison",
+    "completionRequired": "Indiquez la date de terminaison.",
+    "completionCancel": "Abandonner la saisie",
+    "completionConfirm": "Terminer la tâche",
     "finishOverdue": "Tâche démarrée dont la fin est dépassée",
     "ownLinesOpen": "Lignes propres ouvertes",
     "showNotStarted": "Montrer aussi les tâches non démarrées",
@@ -1249,6 +1259,9 @@
     "attachUser": {
       "help": "Rattache le compte à un nœud actif de l’organigramme, ou retire son rattachement : le rattachement ne donne aucun droit."
     },
+    "setAccessRoles": {
+      "help": "Attribue au compte un ou plusieurs rôles de l’installation : ils lui donnent ses permissions."
+    },
     "activeUser": {
       "help": "Active ou désactive le compte : un compte désactivé ne peut plus se connecter."
     },
@@ -1489,6 +1502,9 @@
       },
       "ownLinesOpen": {
         "help": "Marque une récapitulative dont toutes les subordonnées sont terminées et qui attend ses seules lignes propres, et ces lignes, hors provision, qui gardent un reste à engager."
+      },
+      "inactiveObject": {
+        "help": "Marque une ligne qui emploie un objet désactivé du référentiel, resté lisible."
       },
       "budgetedAmount": {
         "help": "Montant budgété de la ligne, tel que le budget de référence l’a figé."
@@ -2289,12 +2305,17 @@
       "title": "Compte non admis",
       "explanation": "Waterfall n’admet pas ce compte : l’écran n’est pas accessible. Contactez un administrateur."
     },
+    "componentUnavailable": {
+      "title": "Composant indisponible",
+      "explanation": "Un composant du service est indisponible : l’écran n’a pas pu lire ses données. Réessayez quand il sera rétabli."
+    },
     "unexpected": {
       "title": "Erreur inattendue",
       "explanation": "L’écran n’a pas pu s’afficher. Si l’erreur persiste, transmettez sa référence à l’exploitant."
     },
     "signInUnreachable": "Le service ne répond pas : la connexion n’a pas pu se faire. Réessayez dans un instant.",
     "reference": "Référence : {reference}",
+    "component": "Composant indisponible : {component}",
     "retry": "Réessayer",
     "signOut": "Se déconnecter"
   },
@@ -2320,7 +2341,8 @@
       "deactivate": "Désactiver « {name} »",
       "deactivateShort": "Désactiver",
       "deactivationUnavailable": "La désactivation de « {name} » est indisponible. {unmet}",
-      "designationUnavailable": "La désignation de « {name} » par défaut est indisponible. {unmet}"
+      "designationUnavailable": "La désignation de « {name} » par défaut est indisponible. {unmet}",
+      "rolesUnavailable": "L’attribution des rôles de « {name} » est indisponible. {unmet}"
     },
     "inactive": {
       "show": "Afficher aussi les désactivés",
@@ -2500,7 +2522,7 @@
     "actualCostMapping": {
       "form": "Correspondance de l’extraction des coûts réels",
       "summary": "Les intitulés sous lesquels l’extraction de l’ERP nomme les colonnes que Waterfall lit, et les colonnes qu’il conserve à titre d’information. Un intitulé se compare à l’en-tête du fichier, et aux autres intitulés, sans égard à la casse, aux accents ni aux espaces en bout.",
-      "complete": "La correspondance est complète : une extraction de coûts réels peut être importée.",
+      "complete": "La correspondance est complète : l’import des coûts réels n’est plus refusé pour elle, il lit les colonnes de l’extraction sous ces intitulés.",
       "missing": "{count, plural, one {Colonne exigée sans intitulé} other {Colonnes exigées sans intitulé}} : {columns}. L’import des coûts réels est refusé tant que la correspondance est incomplète.",
       "required": "(exigée)",
       "optional": "(facultative)",
@@ -2988,6 +3010,7 @@
     "PROJECT_CODE_INVALID": "Le code du projet ne peut pas contenir de barre oblique.",
     "DUPLICATE_COLUMN_LABEL": "Cet intitulé de colonne figure déjà dans la correspondance, sans égard à la casse, aux accents ni aux espaces en bout : chacun ne désigne qu’une colonne.",
     "DUPLICATE_COST_LINE": "Cette ligne partage sa pièce et son poste, poste vide compris, avec d’autres lignes du fichier : toutes sont rejetées, aucune n’est préférée. Corrigez ou retirez les doublons dans le fichier.",
+    "DUPLICATE_LINEAGE": "Cette ligne porte un identifiant de ligne (« ID ligne ») que d’autres lignes du fichier portent aussi : toutes sont rejetées, aucune n’est préférée, et la ligne de la révision est laissée telle quelle. Retirez ou corrigez les copies dans le fichier.",
     "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",
     "INTERNAL_ERROR": "Erreur inattendue du service.",
     "ACCOUNT_DEACTIVATED": "Ce compte est désactivé ; contactez un administrateur.",

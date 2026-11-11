@@ -77,24 +77,40 @@ class Restoring:
     ``restored`` are the objects to bring back as they were; ``removed`` those to delete, which
     the entry undone created, or the entry redone deleted; ``node_ids`` and ``kind`` what the
     answer names, ``remaining_depth`` what remains to undo — or to redo — after this one.
+    Both are read from ``written``, the entry as the write kept it — its objects before, then after
+    it —, which way ``undoing`` turns it; the planning judges the permission of the write on it
+    (#2774).
     """
 
-    __slots__ = ("_present", "kind", "node_ids", "remaining_depth", "removed", "restored")
+    __slots__ = (
+        "_present",
+        "kind",
+        "node_ids",
+        "remaining_depth",
+        "removed",
+        "restored",
+        "written",
+    )
 
     def __init__(
         self,
         kind: UndoneKind,
         node_ids: tuple[UUID, ...],
-        restored: Snapshot,
-        removed: tuple[UUID, ...],
+        written: tuple[Snapshot, Snapshot],
         remaining_depth: int,
+        *,
+        undoing: bool,
     ) -> None:
         """Open the frame on an entry judged."""
+        before, after = written
+        expected, restored = (after, before) if undoing else (before, after)
+        kept = {state.object_id for state in restored}
         self.kind: UndoneKind = kind
         self.node_ids = node_ids
         self.restored = restored
-        self.removed = removed
+        self.removed = tuple(state.object_id for state in expected if state.object_id not in kept)
         self.remaining_depth = remaining_depth
+        self.written = written
         self._present: Snapshot | None = None
 
     def keep_present(self, snapshot: Snapshot) -> None:
@@ -179,14 +195,13 @@ def _turned(
     expected, restored = decoded(left), decoded(wanted)
     lock(expected + restored)
     _judge(expected, read)
-    kept = {state.object_id for state in restored}
     available = depth(session, stack)
     restoring = Restoring(
         kind=cast("UndoneKind", entry.kind),
         node_ids=tuple(entry.node_ids),
-        restored=restored,
-        removed=tuple(state.object_id for state in expected if state.object_id not in kept),
+        written=(restored, expected) if undoing else (expected, restored),
         remaining_depth=(available.undoable if undoing else available.redoable) - 1,
+        undoing=undoing,
     )
     yield restoring
     present = restoring.present()

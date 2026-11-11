@@ -96,8 +96,18 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "attachments",
         "skeleton",
         "days",
+        "estimate_facts",
     },
-    "revisions": {"revisions", "structures", "marking", "reference", "shared", "closing"},
+    # ``rates``: the update of the rates a revision frames (US-1500/L1).
+    "revisions": {
+        "revisions",
+        "structures",
+        "marking",
+        "reference",
+        "shared",
+        "closing",
+        "rates",
+    },
 }
 # The modules of the planning, the history and the exchanges (EP-06), one file per story or
 # subject, laid by the socle (US-1380/L1) so that no later story opens their ``__init__``.
@@ -109,6 +119,7 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         "loading",
         "msproject",
         "nodes",
+        "open_lines",
         "paste",
         "predecessors",
         "progress",
@@ -122,7 +133,7 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         "work_breakdown",
     },
     "history": {"closing", "plans", "purge", "recording", "undo"},
-    "exchanges": {"exports", "imports", "purge", "xml"},
+    "exchanges": {"exports", "imports", "loading", "purge", "xml"},
 }
 # What the design names of each (EP-04, "Modules"), declared from US-0910/L1 on, which the other
 # stories call before theirs fill them.

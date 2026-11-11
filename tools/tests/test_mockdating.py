@@ -41,6 +41,7 @@ from wftools import (
     mockwitness,
     mockwrites,
 )
+from wftools.mockcalendar import Calendar, Instant
 from wftools.mockwitness import Line, Task
 
 
@@ -72,8 +73,9 @@ def test_a_labour_line_is_priced_by_its_hours_and_the_rate_of_the_reference_year
     assert (provision["is_computed"], provision["base_amount"]) == (True, "500000.00")
     # The provision of 751 today, 1,250,000 at 40 %, budgeted at the 250,000 the reference 101
     # knew — 1,000,000 at 25 % — which the reserve for risks counts, never the reference budget
-    # (WF-RIS-0050): the budgeted total of the wiring is 252,234.56, not the 502,234.56 of its
-    # lines (751 at the scale of the structure, EP-14/L45b).
+    # (WF-RIS-0050): the budgeted total of the wiring is 252,271.60, not the 502,234.56 of its
+    # lines (751 at the scale of the structure, EP-14/L45b), the terminal blocks keeping the budget
+    # the offer fixed, 1,234.56 of 2025 projected on 2026, 1,271.60 (#467, #1628).
     assert provision["budgeted_amount"] == str(mockwitness.REFERENCE_PROVISION_751)
     # The last review before the reference 101 was marked (1 February) is what justifies it.
     reviews = cast("list[dict[str, str]]", mockwitness.fixture("risk_reviews"))
@@ -84,7 +86,7 @@ def test_a_labour_line_is_priced_by_its_hours_and_the_rate_of_the_reference_year
     ]
     known = max(before, key=lambda review: review["reviewed_on"])
     assert Decimal(known["severity"]) * Decimal(known["probability"]) == Decimal("250000.00")
-    assert facet(estimate[WIRING])["budgeted_amount"] == "252234.56"
+    assert facet(estimate[WIRING])["budgeted_amount"] == "252271.60"
 
 
 def test_the_progress_is_read_at_the_day_given() -> None:
@@ -300,3 +302,26 @@ def test_a_summary_whose_own_line_keeps_no_remaining_completes() -> None:
     # its last subordinate and says nothing (WF-RAE-0040).
     nought = Line(2, "Avoir", mockwitness.EQUIPMENT, unit=Decimal("500.00"), quantity=Decimal(0))
     assert _awaiting(nought) == ("completed", False)
+
+
+def test_an_amount_is_spread_over_the_years_of_a_task_by_the_hours_worked_in_each() -> None:
+    # The generator shares an amount as the service does (WF-DEV-0040, #2838): a task from Monday
+    # 28 December 2026 to Friday 8 January 2027 works four days in 2026 and six in 2027 on a week
+    # of five days of eight hours, so a thousand falls 400 on the first year and 600 on the second;
+    # each part is projected at the 3 % of the witness on its year, the sum rounded once.
+    week = Calendar("standard", tuple(Decimal(hours) for hours in (8, 8, 8, 8, 8, 0, 0)))
+    span = mockdating.Span(week, Instant(date(2026, 12, 28)), Instant(date(2027, 1, 8), Decimal(8)))
+    assert span.years(Decimal(1000)) == {2026: Decimal(400), 2027: Decimal(600)}
+    assert span.year(Decimal(1000)) == 2027
+    assert span.projected(Decimal(1000), mockstructure.WITNESS) == Decimal("1018.00")
+    # The parts add up to the amount whatever the shares: the last takes what the others leave.
+    third = mockdating.Span(
+        week, Instant(date(2026, 12, 29)), Instant(date(2027, 1, 4), Decimal(8))
+    )
+    assert sum(third.years(Decimal("100.00")).values(), Decimal(0)) == Decimal("100.00")
+    # A task within one year is projected on it, as the whole line was before.
+    within = mockdating.Span(week, Instant(date(2027, 3, 1)), Instant(date(2027, 3, 5), Decimal(8)))
+    assert within.years(Decimal(500)) == {2027: Decimal(500)}
+    assert within.projected(Decimal(500), mockstructure.WITNESS) == mockstructure.inflated(
+        Decimal(500), 2027
+    )

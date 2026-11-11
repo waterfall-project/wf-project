@@ -244,14 +244,15 @@ class Creating(Watching):
     """The administration client of the API, as a provider that creates what it is asked.
 
     The realm of test serves no administration API: each account asked is noted, as the provider
-    would hold it, under a subject of its own, and its invitation said sent. Every call is noted
-    (``held``): what else the provider would be asked shows there.
+    would hold it, under a subject of its own, and its invitation said sent, or not as told. Every
+    call is noted (``held``): what else the provider would be asked shows there.
     """
 
     def __init__(self, keycloak: Keycloak, settings: ServiceSettings, database: Database) -> None:
-        """No account is created yet."""
+        """No account is created yet; each invitation leaves unless told otherwise."""
         super().__init__(keycloak, settings, database)
         self.created: dict[str, LocalIdentity] = {}
+        self.invitation: InvitationFailure | None = None
 
     def create_account(self, identity: LocalIdentity) -> str | None:
         """Note, then hold the account under a subject of its own."""
@@ -261,10 +262,10 @@ class Creating(Watching):
         return subject
 
     def send_invitation(self, subject: str) -> InvitationFailure | None:
-        """Note, then say the invitation sent."""
+        """Note, then say the invitation sent, or why it did not leave as told."""
         del subject
         self._note("send_invitation")
-        return None
+        return self.invitation
 
 
 @pytest.fixture
@@ -363,6 +364,32 @@ def test_who_changes_the_accounts_alone_creates_one_and_gives_it_no_role(
     assert holders(database) == {CALLER}
     assert [entry.action for entry in journal(database)] == ["user_create"]
     assert provider.held == [("create_account", 0), ("send_invitation", 0)]
+
+
+@pytest.mark.requirement("WF-ADM-0140-A")
+def test_an_account_the_provider_holds_as_no_local_one_once_created_is_said_not_invited(
+    creating: tuple[ContractClient, Creating],
+    database: Database,
+    headers: dict[str, str],
+    logs: Logs,
+) -> None:
+    # #2226: the provider links the account just created to an identity of an external provider
+    # before its invitation; the extension refuses it as not local. The account exists, its
+    # invitation did not leave, which the answer and the log say — never as an error.
+    api, provider = creating
+    provider.invitation = "not_local"
+    created = api.post(USERS, headers=headers, json=JEANNE)
+    assert created.status_code == 201, created.text
+    body = created.json()
+    assert body["invitation_sent"] is False
+    assert provider.held == [("create_account", 0), ("send_invitation", 0)]
+    assert [entry.action for entry in journal(database)] == ["user_create"]
+    (record,) = logs.named("account.invitation_not_sent")
+    assert (record["user_id"], record["reason"], record["level"]) == (
+        body["user_id"],
+        "not_local",
+        "warning",
+    )
 
 
 @pytest.fixture

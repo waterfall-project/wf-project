@@ -512,10 +512,11 @@ StructureCommand:
     `edit_remaining` is never listed: only the main structure has a remaining to commit
     (WF-RAE-0040).
 
-    The phase condition comes first, specific to the command; then the revision's state
-    conditions, as the revision's command of the same name names them — `revision_draft` on
-    a marked revision, `no_background_task_running` during a background task that writes
-    into the current revision or freezes it —, in the same order. On a closed project, none is
+    The quality condition comes first, `is_contributor`, which the caller lacks when they
+    take no part in the project; then the phase condition, specific to the
+    command; then the revision's state conditions, as the revision's command of the same name
+    names them — `revision_draft` on a marked revision, `no_background_task_running` during a
+    background task that writes into the current revision or freezes it —, in the same order. On a closed project, none is
     listed (US-0702/L3). The revision's commands keep what does not read a structure: the
     skeleton, the marking, the exports, the risks (C-358, #1067).
 
@@ -888,10 +889,11 @@ KanbanCommand:
     non-provision line, and on it only — it is the gesture that completes it, `complete` there
     lacking `task_without_lines`, or that re-estimates it even before it starts.
 
-    After the gesture's own conditions come those of the entry of the remaining to commit of
-    the main structure (`StructureCommand.edit_remaining`), in the same order:
-    `project_in_progress` outside the In progress state, `no_background_task_running` during a
-    background task that writes into the current revision or freezes it.
+    After the gesture's own conditions come all those of the entry of the remaining to commit
+    of the main structure (`StructureCommand.edit_remaining`), in the same order:
+    `is_contributor`, `project_in_progress` outside the In progress state, `revision_draft`
+    on a marked revision, `no_background_task_running` during a background task that writes
+    into the current revision or freezes it.
 
 KanbanCommandAvailability:
   type: object
@@ -1226,7 +1228,8 @@ NodeTotals:
     `base_amount`, inflation included for the budgeted and re-estimated amounts (WF-DEV-0020,
     WF-DEV-0050). `budgeted_amount` sums the budgeted amounts of the retained lines, provision
     lines included: it is not the reference budget, reduced by the provisions according to
-    WF-RIS-0050.
+    WF-RIS-0050. Under a filter of the line, `task_count` is 0: the tasks that bear the retained
+    lines are not counted (#2699).
   properties:
     task_count: { type: integer, minimum: 0 }
     estimate_line_count: { type: integer, minimum: 0 }
@@ -1808,6 +1811,13 @@ EstimateLineFacet:
         remaining-to-commit grid presents next to the current one (WF-RAE-0040), with the
         figures from which it was computed (`previous_quantity`, `previous_hours`,
         `previous_unit_disbursement`); null before the first review.
+    remaining_reason:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Reason sent with the last re-estimate of the line (`RemainingUpdate.reason`), which the
+        remaining-to-commit grid can present next to the previous remaining to commit
+        (WF-RAE-0040); overwritten by each re-estimate, null when the last one sent none, and
+        before the first.
     consumption_year:
       anyOf: [{ $ref: ../common.yaml#/Year }, { type: 'null' }]
       description: >-
@@ -2286,8 +2296,9 @@ RemainingUpdate:
     reason:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        Free text accepted and ignored: no requirement reads it, the server keeps nothing of it
-        and returns it nowhere. A client need not send it.
+        Free reason of the re-estimate, kept with the line and returned by its reading
+        (`EstimateLineFacet.remaining_reason`), overwritten by the next re-estimate; absent or
+        null, the line keeps none. A client need not send it.
     completed_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
       description: >-
@@ -2416,9 +2427,10 @@ PastePreview:
     elsewhere than where the user clicked (decision of the author, reframing of EP-16, #1361).
     A cell that falls on a column that its row
     does not accept is refused, the row and the column named (`PastePlan.rejected`), unless
-    it is empty, which writes nothing — a field computed for this node with `COMPUTED_VALUE`, a
-    field that its kind refuses or a column that no write carries, like the amounts,
-    with `FIELD_NOT_ACCEPTED` (EP-14/L42s); the subproject of a line that cannot leave it,
+    it is empty, which writes nothing — a field computed for this node with `COMPUTED_VALUE`, like
+    the amounts and the year of consumption of an estimate line, a field that its kind refuses
+    or a column that no write carries, like the `previous_*` columns of a line, with
+    `FIELD_NOT_ACCEPTED` (EP-14/L42s); the subproject of a line that cannot leave it,
     with `SUBPROJECT_HAS_ACTUAL_COSTS` (`PasteRejection`); any column of a line of
     the main structure whose task is completed, which accepts none, with
     `STATE_FORBIDS_OPERATION`, `params.missing_condition` at `task_not_completed`, the line not
@@ -2439,7 +2451,10 @@ PastePreview:
     first take the values of a creation (`createNode`: for a task, the automatic mode, one day,
     no predecessor; WF-DEV-0050), then are judged in the order of `NodeColumn` with the refusals
     of an entry, as the cells of an existing node are; a row one of whose cells is refused is
-    refused whole, and nothing is created for it. A task row whose anchor is under a milestone is
+    refused whole, and nothing is created for it. An estimate line created is placed under the task
+    that bears the last node (its parent): with no task to bear it, as when the last node is a
+    task at the root, the whole row is refused with `UNKNOWN_TASK`, `column` null
+    (`PasteRejection`). A task row whose anchor is under a milestone is
     refused with `MILESTONE_HAS_NO_SUBTASK` (`PasteRejection`).
   properties:
     target_node_id: { $ref: ../common.yaml#/Uuid }

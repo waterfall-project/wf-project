@@ -455,7 +455,7 @@ def test_a_depth_below_the_first_level_is_refused_naming_the_bound(
 
 @pytest.mark.requirement("WF-CYC-0110-A")
 def test_the_command_of_the_kind_is_present_without_condition_or_absent_and_refuses_naming_it(
-    api: ContractClient, stage: Scene, owner: Engine
+    api: ContractClient, stage: Scene, owner: Engine, database: Database, realm: TestRealm
 ) -> None:
     revision_id, _ = opened(api, stage)
     path = f"{PROJECTS}/{stage.project['project_id']}/revisions/{revision_id}"
@@ -465,16 +465,26 @@ def test_the_command_of_the_kind_is_present_without_condition_or_absent_and_refu
         return {each["command"]: each["missing_conditions"] for each in listed}
 
     assert commands()["export_planning"] == []
-    # The estimate and the remaining to commit are EP-07's and EP-09's: their commands are absent.
-    for kind, permission in (("estimate", "estimate.read"), ("remaining", "remaining.read")):
-        assert refusal(ask(api, stage, revision_id, kind=kind)) == (
-            403,
-            "PERMISSION_MISSING",
-            {"missing_permission": permission},
-        )
+    assert commands()["export_estimate"] == []
+    assert commands()["export_remaining"] == []
+    # One who holds ``planning.read`` alone lacks the command of the remaining to commit (US-1630).
+    planning = person(database, realm, "planning.read", name="Zoé")
+    contribute(database, stage.project["project_id"], planning, "contributor")
+    asking = f"{PROJECTS}/{stage.project['project_id']}/exports"
+    body = {"kind": "remaining", "revision_id": revision_id}
+    assert refusal(api.post(asking, headers=planning.headers, json=body)) == (
+        403,
+        "PERMISSION_MISSING",
+        {"missing_permission": "remaining.read"},
+    )
     # The exports remain on a project that ended, where no other command does.
     put_in_state(owner, stage.project["project_id"], "completed")
-    assert commands() == {"export_planning": [], "export_task_tree_image": []}
+    assert commands() == {
+        "export_planning": [],
+        "export_estimate": [],
+        "export_remaining": [],
+        "export_task_tree_image": [],
+    }
     assert ask(api, stage, revision_id).status_code == 202
 
 
@@ -483,15 +493,17 @@ def test_the_permission_of_the_kind_is_judged_by_its_command_not_by_the_route(
     api: ContractClient, stage: Scene, database: Database, realm: TestRealm
 ) -> None:
     # A contributor who holds ``estimate.read`` alone is not refused for ``planning.read``, which
-    # the route no longer asks for: the command ``export_estimate`` is absent (EP-07's), and the
-    # refusal names the permission of its kind.
+    # the route no longer asks for: the command ``export_estimate`` is hers (US-1550); one who
+    # holds ``planning.read`` alone lacks it, and the refusal names the permission of its kind.
     estimating = person(database, realm, "estimate.read", name="Léa")
-    contribute(database, stage.project["project_id"], estimating, "contributor")
+    planning = person(database, realm, "planning.read", name="Zoé")
+    for who in (estimating, planning):
+        contribute(database, stage.project["project_id"], who, "contributor")
     revision_id, _ = opened(api, stage)
     path = f"{PROJECTS}/{stage.project['project_id']}/exports"
-    answer = api.post(
-        path, headers=estimating.headers, json={"kind": "estimate", "revision_id": revision_id}
-    )
+    body = {"kind": "estimate", "revision_id": revision_id}
+    assert api.post(path, headers=estimating.headers, json=body).status_code == 202
+    answer = api.post(path, headers=planning.headers, json=body)
     assert refusal(answer) == (403, "PERMISSION_MISSING", {"missing_permission": "estimate.read"})
 
 
@@ -502,6 +514,14 @@ def test_the_exports_are_listed_to_whoever_may_consult_the_planning_and_to_no_ot
     )
     reading = revision_commands(("planning.read",), None, "in_progress", revision)
     assert reading == [("export_planning", ()), ("export_task_tree_image", ())]
+    estimating = revision_commands(("estimate.read",), None, "in_progress", revision)
+    assert estimating == [("export_estimate", ())]
+    both = revision_commands(("estimate.read", "planning.read"), None, "in_progress", revision)
+    assert [command for command, _ in both] == [
+        "export_planning",
+        "export_estimate",
+        "export_task_tree_image",
+    ]
     assert revision_commands((), None, "in_progress", revision) == []
     assert revision_commands(("planning.read",), None, "lost", revision) == [
         ("export_planning", ()),

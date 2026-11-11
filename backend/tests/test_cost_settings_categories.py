@@ -126,18 +126,34 @@ def test_the_commands_of_a_category_are_those_of_a_caller_who_changes_the_cost_s
     ]
     # The witness rates every category of labour and attaches roles to two of them (US-0850): the
     # labour categories keep their kind for their rates, MO-001 and MO-002 for their roles too, the
-    # others can leave it.
+    # others can leave it. Its lines (US-1570) employ some categories, which keep their kind too.
+    employed = {line["cost_category_id"] for line in example("witness_lines")["lines"]}
+    unused = "cost_category_unused"
     rated = [available[0], ("change_cost_type", False, ["cost_category_unrated"])]
     bound = [
         available[0],
         ("change_cost_type", False, ["cost_category_unrated", "cost_category_without_role"]),
     ]
     assert len(managed) == 201
+    held = 0
     for item in managed:
+        used = item["cost_category_id"] in employed
+        held += used
         if item["code"] in {"MO-001", "MO-002"}:
-            assert commands(item) == bound
+            assert commands(item) == [
+                bound[0],
+                ("change_cost_type", False, [*([unused] if used else []), *bound[1][2]]),
+            ]
+        elif item["cost_type_kind"] == "labor":
+            assert commands(item) == [
+                rated[0],
+                ("change_cost_type", False, [*([unused] if used else []), *rated[1][2]]),
+            ]
         else:
-            assert commands(item) == (rated if item["cost_type_kind"] == "labor" else available)
+            assert commands(item) == (
+                [available[0], ("change_cost_type", False, [unused])] if used else available
+            )
+    assert held == len(employed) > 0
     assert sum(item["cost_type_kind"] == "labor" for item in managed) == 150
 
 
@@ -166,6 +182,32 @@ def test_the_categories_are_filtered_searched_sorted_and_paged_by_the_server(
     assert codes(api, headers, "sort_by=code&sort_order=desc&limit=2") == ["PRV-001", "PROV-001"]
     page = listed(api, headers, "limit=10&offset=195&search=-")
     assert (len(page["items"]), page["meta"]["total"]) == (6, 201)
+
+
+@pytest.mark.requirement("WF-IHM-0060-A")
+def test_categories_of_natures_of_one_label_sorted_by_nature_come_by_code_then_identifier(
+    api: ContractClient, sessions: PartSessions
+) -> None:
+    headers = sessions.changing
+    natures: dict[str, str] = {}
+    for code in ("A", "B"):
+        made = api.post(
+            TYPES,
+            headers=headers,
+            json={"code": f"ZN-{code}", "label": "Main-d'œuvre", "kind": "labor"},
+        )
+        assert made.status_code == 201
+        natures[code] = made.json()["cost_type_id"]
+    # C-2 under the nature of the lower code, C-1 under the other: the code of the nature
+    # does not decide, the contract has the code of the category.
+    for code, nature in (("ZQ-2", "A"), ("ZQ-1", "B")):
+        assert (
+            api.post(CATEGORIES, headers=headers, json=sent(code, natures[nature])).status_code
+            == 201
+        )
+    for order in ("asc", "desc"):
+        found = codes(api, headers, f"search=ZQ-&sort_by=cost_type&sort_order={order}")
+        assert found == ["ZQ-1", "ZQ-2"], order
 
 
 @pytest.mark.requirement("WF-REF-0040-A")

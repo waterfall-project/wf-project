@@ -5,11 +5,15 @@
 A write of the nodes of a structure judges the state of its revision under the lock of the
 revision, read ``FOR SHARE`` (``revision_draft``): refused on a terminal project
 (``project_not_terminal``), on a marked revision (``revision_draft``), while a background task
-writes in the project (``no_background_task_running``), in that order (409, WF-CYC-0100,
-WF-DAT-0020, WF-IHM-0090). It then opens its entry of the history (``history.recording``), which
+other than the writer's own — the application of an import — writes in the project
+(``no_background_task_running``), in that order (409, WF-CYC-0100, WF-DAT-0020, WF-IHM-0090).
+It then opens its entry of the history (``history.recording``), which
 locks the stack of its writer, and only then locks its structure (``cost_structure`` ``FOR
 UPDATE``) and reads the tree under that lock: the locks come in one order — the revision, the
-stack, the structure — whatever the write, an undoing included.
+stack, the structure — whatever the write, an undoing included. Before them all, the facets of the
+other kinds take what they must hold first (``FacetHooks.before_lock``): the estimate shares the
+lock of the natures of cost, which a change of a nature takes before the structures it prices again
+(#2615).
 
 Under the lock, the write hands the history the nodes it touches as they are (``snapshot``),
 writes, replays the engine on the whole structure and keeps what it computes (``dating``), moves
@@ -27,6 +31,7 @@ from typing import TYPE_CHECKING
 from waterfall.core.history import interface as history
 from waterfall.core.history.interface import RecordedChange, Recording, UndoStack
 from waterfall.core.planning.dating import conflicts_of
+from waterfall.core.planning.interface.facets import facets
 from waterfall.core.planning.rescheduling import Blamed, Holding, replayed
 from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tree import read_links, read_tree
@@ -51,11 +56,13 @@ from waterfall.platform.errors import (
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Generator
+    from decimal import Decimal
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
     from waterfall.core.history.interface import UndoneKind
+    from waterfall.core.planning.interface.facets import Amounts
     from waterfall.core.planning.scheduling import Origin
     from waterfall.core.planning.tree import Tree
     from waterfall.core.revisions.interface import StructureFacts
@@ -73,10 +80,33 @@ class Place:
 
 @dataclass(frozen=True, slots=True)
 class Writer:
-    """Who writes, and when: the act, and the session of sign-in its stack is kept by."""
+    """Who writes, and when: the act, and the session of sign-in its stack is kept by.
+
+    ``running`` is the background task that writes, the application of an import, which does not
+    suspend its own writes; none for a write of a request.
+    """
 
     act: Act
     session_id: str | None
+    running: UUID | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class InflationView:
+    """The amounts of a node a write priced again without writing it (``NodeInflation``)."""
+
+    node_id: UUID
+    budgeted: Decimal
+    reestimated: Decimal
+    consumption_year: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class StructureTotals:
+    """The totals of a whole structure (``NodeTotals``): its lines counted, their figures summed."""
+
+    line_count: int
+    amounts: Amounts
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,7 +114,9 @@ class NodesWritten:
     """What a write of the tree gives back (``NodesWritten``), the totals of the structure.
 
     ``nodes`` the nodes written, ``ancestors`` the summaries above them and above the tasks it
-    redated, ``rescheduled`` the other tasks it redated, each in the order of the plan.
+    redated, ``rescheduled`` the other tasks it redated, ``reinflated`` the nodes of the other kinds
+    and the tasks whose amounts it changed without writing them, each in the order of the plan;
+    ``totals`` none for a write that read no structure (a paste that writes nothing).
     """
 
     nodes: tuple[NodeView, ...]
@@ -92,6 +124,8 @@ class NodesWritten:
     rescheduled: tuple[ScheduleView, ...]
     task_count: int
     structure_lock_version: int
+    reinflated: tuple[InflationView, ...] = ()
+    totals: StructureTotals | None = None
 
 
 def facts_of(session: Session, place: Place, *, lock: bool) -> StructureFacts:
@@ -102,12 +136,14 @@ def facts_of(session: Session, place: Place, *, lock: bool) -> StructureFacts:
     return facts
 
 
-def judge_revision(session: Session, project_id: UUID, revision_id: UUID) -> None:
+def judge_revision(
+    session: Session, project_id: UUID, revision_id: UUID, running: UUID | None = None
+) -> None:
     """Refuse a write the state forbids, the first missing condition named (409).
 
     The revision is read under ``FOR SHARE``: its marking and its abandonment wait for the write,
     and the project of a current revision cannot leave its cycle meanwhile (``exitProject`` asks
-    it to have none).
+    it to have none). ``running`` is the background task that writes, which is not counted.
     """
     try:
         revision_draft(session, revision_id)
@@ -117,7 +153,7 @@ def judge_revision(session: Session, project_id: UUID, revision_id: UUID) -> Non
                 STATE_FORBIDS_OPERATION, {"missing_condition": PROJECT_NOT_TERMINAL}
             ) from None
         raise
-    if not no_background_task_running(session, project_id):
+    if not no_background_task_running(session, project_id, running):
         raise ConflictError(
             STATE_FORBIDS_OPERATION, {"missing_condition": NO_BACKGROUND_TASK_RUNNING}
         )
@@ -155,6 +191,7 @@ class Write:
         self.frame = frame
         self.facts = facts_of(session, place, lock=True)
         self.tree = read_tree(session, place.project_id, place.structure_id)
+        self.touched: set[UUID] = set()
         self.conflicts = conflicts_of(read_links(session, place.project_id, place.structure_id))
 
     def name(self, node_ids: tuple[UUID, ...]) -> None:
@@ -163,20 +200,29 @@ class Write:
 
     def before(self, node_ids: Collection[UUID]) -> None:
         """Hand the history the nodes the write touches, as they are before it."""
+        self.touched.update(node_ids)
         self.frame.keep_before(taken(self.session, self.place.project_id, node_ids))
 
-    def redate(self, blamed: tuple[UUID | None, str] | None, origin: Origin = None) -> Redated:
+    def redate(
+        self,
+        blamed: tuple[UUID | None, str] | None,
+        origin: Origin = None,
+        repriced: Collection[UUID] = (),
+    ) -> Redated:
         """Replay the engine on the structure written, keep what it computes, advance it.
 
         Beyond the horizon (WF-PLA-0150), refused naming the task written — its node, null for a
         task created, and its label (422 ``PROJECT_HORIZON_EXCEEDED``) —, or, for a write that
         writes no task (``blamed`` none), the task that finishes last; a loop of links named from
         ``origin`` (422 ``LINK_CYCLE``). Nothing is written. The facts of the structure read under
-        its lock are handed to the replay, not read again (#2492).
+        its lock are handed to the replay, not read again (#2492). The nodes of the other kinds the
+        tasks ``repriced`` bear are priced again with those of the tasks redated, and those of the
+        nodes it touches (``before``): a task written, or the task a line written is under.
         """
         named = None if blamed is None else Blamed(*blamed, origin)
         held = (self.facts, named, self.conflicts)
-        return redated_structure(self.session, self.place, self.writer.act, held)
+        priced = (*repriced, *self.touched)
+        return redated_structure(self.session, self.place, self.writer.act, held, priced)
 
     def after(self, node_ids: Collection[UUID]) -> None:
         """Hand the history the nodes the write touched, as they are after it, redated."""
@@ -188,38 +234,45 @@ def redated_structure(
     place: Place,
     act: Act,
     held: tuple[StructureFacts, Blamed | None, Collection[tuple[UUID, UUID]]],
+    repriced: Collection[UUID] = (),
 ) -> Redated:
     """Replay the engine on a structure its caller holds the lock of; give it as it now stands.
 
     What a write of the tree does once it has written (``Write.redate``), and an undoing or a
     redoing, whose frame holds the lock of the structure (``history.undo``). ``held`` is the facts
     of the structure read under that lock, what the caller names if the engine refuses, and the
-    links in conflict read before the write.
+    links in conflict read before the write; ``repriced`` the tasks whose nodes of the other kinds
+    are priced again, whether they moved or not.
     """
     facts, named, conflicts = held
-    done = replayed(
-        session, place.project_id, place.structure_id, act.at, Holding(facts, named, conflicts)
-    )
+    holding = Holding(facts, named, conflicts, repriced)
+    done = replayed(session, place.project_id, place.structure_id, act.at, holding)
     reading = Reading(
         session, (place.project_id, act.at, facts.is_main), done.tree, done.links, done.calendars
     )
-    return Redated(reading, done.moved, done.counter)
+    return Redated(reading, done.moved, done.counter, done.reinflated)
 
 
 @dataclass(frozen=True, slots=True)
 class Redated:
-    """A structure written and redated: its reading, the tasks moved, its counter."""
+    """A structure written and redated: its reading, the tasks moved, its counter, what it priced.
+
+    ``reinflated`` the nodes of the other kinds whose amounts or year their hooks changed.
+    """
 
     reading: Reading
     moved: frozenset[UUID]
     counter: int
+    reinflated: frozenset[UUID] = frozenset()
 
     def written(self, node_ids: Collection[UUID], former: Collection[UUID] = ()) -> NodesWritten:
         """Give what the write gives back: its nodes, their ancestors and the tasks it moved.
 
         The ancestors are those of the nodes written and of the tasks moved, and ``former`` — the
         ancestors a deletion or a move left, still in the structure —, but the written; the moved
-        are the tasks, not summaries nor ancestors, it redated without writing them.
+        are the tasks, not summaries nor ancestors, it redated without writing them. The reinflated
+        are the nodes of the other kinds priced again without being written, and the leaves that
+        bear them, but the written and the ancestors; the totals those of the whole structure.
         """
         tree: Tree = self.reading.tree
         written = set(node_ids)
@@ -234,13 +287,45 @@ class Redated:
             if ancestor not in written
         }
         reading = self.reading
+        priced = {each for each in self.reinflated if each in tree.nodes and each not in written}
+        bearing = {
+            parent
+            for each in priced
+            if (parent := tree.nodes[each].parent_id) is not None
+            and parent not in written | above
+            and not tree.is_summary(parent)
+        }
+        reading.prefetch([*written, *above])
+        lines = [each for each in tree.nodes if each not in tree.tasks]
         return NodesWritten(
             nodes=tuple(reading.node(each) for each in tree.ordered(written)),
             ancestors=tuple(reading.node(each) for each in tree.ordered(above)),
             rescheduled=tuple(reading.schedule(each) for each in tree.ordered(rescheduled)),
             task_count=len(tree.tasks),
             structure_lock_version=self.counter,
+            reinflated=tuple(self._inflation(each) for each in tree.ordered(priced | bearing)),
+            totals=StructureTotals(len(lines), reading.totals(lines)),
         )
+
+    def _inflation(self, node_id: UUID) -> InflationView:
+        """Give the amounts of a node priced again: a line's own, a task's summed."""
+        reading = self.reading
+        if node_id in reading.tree.tasks:
+            summed = reading.sums[node_id]
+            return InflationView(node_id, summed.budgeted, summed.reestimated, None)
+        own = reading.figures[node_id]
+        return InflationView(node_id, own.budgeted, own.reestimated, own.consumption_year)
+
+
+def hold_before_lock(session: Session) -> None:
+    """Take what the facets of the other kinds hold before the lock of a structure (#2615).
+
+    Taken by every write of the tree, not only by those of a line: the lock is shared, so cheap
+    when nothing changes a nature, and a single order of locks (the natures, then the structure)
+    leaves no write to guess whether it may reach a line — a deletion of a task does.
+    """
+    for hooks in facets().values():
+        hooks.before_lock(session)
 
 
 @contextmanager
@@ -250,10 +335,12 @@ def writing(
     """Frame a write of the tree: judged, recorded, under the lock of its structure.
 
     The structure named is read first (404), the revision judged under its lock (409), the entry
-    of the history opened, then the structure locked and its tree read. The block hands the
+    of the history opened, then the structure locked and its tree read; what the facets hold
+    before the structure is taken first (``FacetHooks.before_lock``, #2615). The block hands the
     snapshots (``Write.before``, ``Write.after``); a block that raises keeps nothing.
     """
+    hold_before_lock(session)
     facts_of(session, place, lock=False)
-    judge_revision(session, place.project_id, place.revision_id)
+    judge_revision(session, place.project_id, place.revision_id, writer.running)
     with _recorded(session, place, writer, change) as frame:
         yield Write(session, place, writer, frame)

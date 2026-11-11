@@ -68,8 +68,8 @@ describe("an amount", () => {
     const total = nodes.totals.budgeted_amount;
     const french = formatMoney(total, "fr");
     const english = formatMoney(total, "en");
-    expect(plain(french)).toBe("100 000,00");
-    expect(english).toBe("100,000.00");
+    expect(plain(french)).toBe("103 000,00");
+    expect(english).toBe("103,000.00");
     expect(readBack(french, ",")).toBe(total);
     expect(readBack(english, ".")).toBe(total);
   });
@@ -252,7 +252,7 @@ describe("a share", () => {
   });
 
   it("says below the smallest shown the share of the contract that rounds to nil while it is not", () => {
-    // « Lot 1 » of the offer v1.0: 2 019,56 of 68 238 704,21, which the contract gives to its first
+    // « Lot 1 » of the offer v1.0: 2 080,15 of 70 285 865,01, which the contract gives to its first
     // significant digit, never nil (EP-14/L42o, #694).
     const indicators = example("estimate_indicators_breakdown") as Schemas["EstimateIndicators"];
     const item = indicators.by_work_package[0];

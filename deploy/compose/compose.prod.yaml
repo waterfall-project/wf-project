@@ -134,6 +134,10 @@ services:
   # starts, listens on the socket alone (US-1130).
   postgres:
     image: *postgres-image
+    # One partition of each partitioned table per project: the restoration drops the schema, and
+    # pg_restore makes it again, in one transaction that locks every one of them. The default of 64
+    # locks per transaction refuses it ("out of shared memory") from a few hundred projects.
+    command: ["postgres", "-c", "max_locks_per_transaction=1024"]
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${WATERFALL_POSTGRES_ADMIN_PASSWORD:?set WATERFALL_POSTGRES_ADMIN_PASSWORD in .env}

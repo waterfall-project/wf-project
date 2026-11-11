@@ -227,8 +227,8 @@ def test_the_estimate_today_sums_the_lines_of_the_whole_structure(today: dict[st
     whole: Any = mockcore.whole(mockcore.current())["totals"]
     core: Any = mockcore.whole(mockcore.alone())["totals"]
     total = _amount(estimate["total"])
-    assert total == Decimal(whole["reestimated_amount"]) == Decimal("68923691.77")
-    assert Decimal(core["reestimated_amount"]) == Decimal("621034.56")
+    assert total == Decimal(whole["reestimated_amount"]) == Decimal("68950649.05")
+    assert Decimal(core["reestimated_amount"]) == Decimal("621052.56")
     for parts in (estimate["by_cost_type"], estimate["by_subproject"]):
         assert sum(_amount(part["amount"]) for part in parts) == total
         assert sum(_amount(part["share"]) for part in parts) == 1
@@ -311,8 +311,9 @@ def test_the_estimate_the_offer_kept_has_neither_gap_nor_provision(today: dict[s
     assert offer["delta_to_previous_revision"] is None
     assert offer["provisions_identified"] == "0.00"
     assert [part["label"] for part in offer["by_cost_type"]] == ["Main-d'œuvre", "Débours"]
-    # Priced at the rates of 2025: 10 h of the connection at 78.50.
-    assert _amount(offer["by_work_package"][0]["amount"]) == Decimal("785.00") + Decimal("1234.56")
+    # Priced at the rates of 2025: 10 h of the connection at 78.50, and the terminal blocks, both
+    # consumed in 2026 and projected a year from 2025, the offer's reference year (#1628).
+    assert _amount(offer["by_work_package"][0]["amount"]) == Decimal("808.55") + Decimal("1271.60")
 
 
 def test_a_rate_missing_leaves_out_what_its_lines_touch(today: dict[str, Any]) -> None:
@@ -342,10 +343,14 @@ def test_a_rate_missing_leaves_out_what_its_lines_touch(today: dict[str, Any]) -
     assert estimate["delta_to_reference"]["reason"] == "hourly_rate_missing"
 
 
+@pytest.mark.requirement("WF-REV-0060-A")
 def test_the_rate_update_proposes_the_rates_of_the_grid_for_2026(today: dict[str, Any]) -> None:
     # #232, C15: the revision 101, created in 2026 from the offer of 2025, is proposed for each
-    # labour category of the offer the rate the grid of the rates gives for 2026, its rate of
-    # 2025 beside — those at which the comparison prices the offer and the reference.
+    # labour category of the offer the rate the grid of the rates gives for 2026. Beside it, the
+    # rate it keeps: created by an entry of a risk, it applied the rates of 2025 projected to 2026
+    # (WF-REV-0060), « le taux de 2026 corrigé d'une année d'inflation » of the Vérif one year
+    # earlier — `previous_amount` the projected rate, as the design of EP-07 says (« L'instantané
+    # et les taux »), 78.50 x 1.03 = 80.855 and 73.50 x 1.03 = 75.705, to the cent.
     grid: Any = mockdata.hourly_rate_grid()
     cells = {
         row["cost_category_id"]: dict(zip(grid["years"], row["cells"], strict=True))
@@ -357,11 +362,12 @@ def test_the_rate_update_proposes_the_rates_of_the_grid_for_2026(today: dict[str
         (entry["cost_category_id"], entry["previous_amount"], entry["proposed_amount"])
         for entry in proposal["categories"]
     ]
-    assert found == [
-        (category, cells[category][2025]["amount"], cells[category][2026]["amount"])
-        for category in (ELECTRICAL_ENGINEERING, COMMISSIONING)
-    ]
-    assert [entry[1:] for entry in found] == [("78.50", "80.00"), ("73.50", "75.00")]
+    assert [entry[0] for entry in found] == [ELECTRICAL_ENGINEERING, COMMISSIONING]
+    assert [
+        (cells[category][2025]["amount"], cells[category][2026]["amount"])
+        for category, _, _ in found
+    ] == [("78.50", "80.00"), ("73.50", "75.00")]
+    assert [entry[1:] for entry in found] == [("80.86", "80.00"), ("75.71", "75.00")]
     assert {entry["source"] for entry in proposal["categories"]} == {"reference_rate"}
 
 
@@ -381,7 +387,7 @@ def test_the_remaining_counts_each_line_by_the_state_of_its_task(today: dict[str
         "started": Decimal("416710.83"),
         "provision": Decimal("500000.00"),
         "merged": Decimal("200.00"),
-        "not_started": Decimal("66553222.86"),
+        "not_started": Decimal("66580180.14"),
     }
     # The core alone counts as it did before the structure was summed (EP-02/L24).
     core = mockindicators.today(CORE)
@@ -396,7 +402,7 @@ def test_the_remaining_counts_each_line_by_the_state_of_its_task(today: dict[str
     assert sum(Decimal(part["share"]["value"]) for part in left["by_cost_type"]) == 1
 
 
-def test_the_balances_sum_to_the_project_and_signal_the_one_over_its_budget(
+def test_the_balances_sum_to_the_project_and_signal_a_scope_by_the_sign_of_its_margin(
     today: dict[str, Any],
 ) -> None:
     left = today["remaining_indicators"]
@@ -409,24 +415,51 @@ def test_the_balances_sum_to_the_project_and_signal_the_one_over_its_budget(
         assert entry["is_over_budget"] is (Decimal(entry["variance"]) < 0)
         assert entry["zone"] == ("alert" if entry["is_over_budget"] else "nominal")
     # The invoice of the screens is the one cost of the control station, whose drawn lots follow
-    # the factory acceptance and have not started; its budget is overrun by the invoice and by its
-    # drawn labour, budgeted at the rates of 2025 of the offer and counted at those of 2026 the
-    # revision keeps, both inflation included on the same years (WF-DEV-0020, WF-RAE-0010).
+    # the factory acceptance and have not started; its budget is not overrun: its drawn lines keep
+    # the budget of the offer, projected from 2025, and its labour is counted at the rates of 2026
+    # the revision keeps, projected from 2026, below those of 2025 projected a year (WF-DEV-0020,
+    # WF-RAE-0010, #1628).
     assert (balances[CONTROL]["actual_cost"], balances[CONTROL]["variance"]) == (
         "2400.00",
-        "-64699.75",
+        "632968.59",
     )
+    assert [entry["zone"] for entry in balances.values()] == ["nominal"] * 3
     assert Decimal(balances[TESTS]["actual_cost"]) == sum(
         line.amount for line in mockcosts.drawn() if line.code == "SP-ESS"
     )
     assert left["coverage"] == {
         key: value for key, value in today_coverage().items() if key != "context"
     }
-    # The sequel of the re-estimate made today: 200 less to commit on the control station.
-    over = {
-        entry["key"]: entry for entry in today["remaining_indicators_over_budget"]["by_subproject"]
-    }
-    assert Decimal(over[CONTROL]["remaining"]) == Decimal(balances[CONTROL]["remaining"]) - 200
+
+
+@pytest.mark.requirement("WF-RAE-0020-A")
+def test_the_variant_over_budget_signals_the_scope_its_worsened_risk_overruns_the_others_not(
+    today: dict[str, Any], examples: dict[str, Any]
+) -> None:
+    # Vérif : « Un sous-projet dont le coût réel augmenté du reste à engager dépasse son budget est
+    # signalé par la couleur, les autres non. » The variant is a counterfactual of its own: the
+    # risk of rework re-examined today at 60 % instead of 40 %, its severity of 1,250,000 kept.
+    # Its provision, which no subproject bears, goes from 500,000 to 750,000 (WF-RIS-0010): 250,000
+    # more to commit outside the subprojects, beyond their margin of 161,110.91, which is overrun
+    # by 88,889.09. The subprojects, whose budgets and costs are untouched, keep their margins.
+    witness = {entry["key"]: entry for entry in today["remaining_indicators"]["by_subproject"]}
+    over = today["remaining_indicators_over_budget"]
+    balances = {entry["key"]: entry for entry in over["by_subproject"]}
+    assert [entry["zone"] for entry in balances.values()] == ["nominal", "nominal", "alert"]
+    assert [entry["is_over_budget"] for entry in balances.values()] == [False, False, True]
+    for key in (CONTROL, TESTS):
+        assert balances[key] == witness[key]
+    outside = balances["unassigned"]
+    assert Decimal(outside["remaining"]) - Decimal(witness["unassigned"]["remaining"]) == 250000
+    assert (witness["unassigned"]["variance"], outside["variance"]) == ("161305.32", "-88694.68")
+    assert over["coverage"]["remaining_provisions"] == "750000.00"
+    assert Decimal(over["total"]) == Decimal(today["remaining_indicators"]["total"]) + 250000
+    # Declared a counterfactual, and saying the overrun it signals.
+    summary = str(examples["remaining_indicators_over_budget.json"]["summary"])
+    assert summary.startswith("Variante contrefactuelle : ")
+    assert "60 % au lieu de 40 %" in summary
+    overrun = mocktext.amount(Decimal("88694.68"))
+    assert f"l'ensemble hors sous-projet, en alerte, dépasse son budget de {overrun}" in summary
 
 
 def test_the_gaps_of_the_remaining_to_the_budget_have_one_sense(
@@ -434,7 +467,8 @@ def test_the_gaps_of_the_remaining_to_the_budget_have_one_sense(
 ) -> None:
     # #466: the gap to the reference budget is the budget less the actual cost and the
     # remaining, as each balance of a subproject is: the balances sum to it, negative once the
-    # budget is overrun — as the witness is since the invoice of the studies (EP-02/L25).
+    # budget is overrun. The witness is not: its lines keep the budget of the offer, projected
+    # from 2025, and are counted at the rates of 2026 projected from 2026 (#1628).
     for name in ("remaining_indicators", "remaining_indicators_over_budget"):
         left = today[name]
         balances = left["by_subproject"]
@@ -444,13 +478,14 @@ def test_the_gaps_of_the_remaining_to_the_budget_have_one_sense(
             Decimal(entry["budget"]) - Decimal(entry["actual_cost"]) - Decimal(entry["remaining"])
             for entry in balances
         )
-        assert gap < 0
-    # The re-estimate made today commits 200 less: the margin grows by as much.
+        assert gap > 0
+    # The risk worsened in the variant commits 250,000 more: the margin shrinks by as much, and
+    # stays positive, the subprojects' margins covering the overrun outside them.
     gaps = [
         Decimal(today[name]["delta_to_reference"])
         for name in ("remaining_indicators", "remaining_indicators_over_budget")
     ]
-    assert gaps[1] - gaps[0] == 200
+    assert gaps[0] - gaps[1] == 250000
     # The summaries name the one a margin and the other a gap (review 2 of EP-02/L35).
     for name, gap in zip(
         ("remaining_indicators", "remaining_indicators_over_budget"), gaps, strict=True
@@ -477,15 +512,16 @@ def test_the_indicators_of_the_scopes_sum_to_those_of_the_project() -> None:
         assert sum(Decimal(each[field]) for each in found.values()) == Decimal(project[field])
     # The studies, completed on 10 April, earn their budget, and each drawn task completed its
     # own; the occurrence earns nothing. The actual cost is the invoices of the tracked scope.
-    assert project["earned_value"] == "1449858.33"
+    assert project["earned_value"] == "1493354.19"
     assert project["actual_cost"] == "1412970.20"
-    assert project["reference_budget"] == "68241569.21"
+    assert project["reference_budget"] == "70316396.56"
     drawn = sum(
         line.amounts.budgeted
         for line in witness.lines
         if line.number >= GENERATED and witness.progress(line) == "completed"
     )
-    assert Decimal(project["earned_value"]) == Decimal("100000.00") + drawn
+    # The studies earn the budget the offer fixed them, 100,000 of 2025 projected on 2026.
+    assert Decimal(project["earned_value"]) == Decimal("103000.00") + drawn
 
 
 def test_the_marked_reference_keeps_its_indicators_at_its_marking(today: dict[str, Any]) -> None:
@@ -504,10 +540,11 @@ def test_the_marked_reference_keeps_its_indicators_at_its_marking(today: dict[st
     reestimated = sum(line.amounts.reestimated for line in mockindicators.budgeted(base))
     reserve = mockhistory.reserve(mockhistory.reference_rows())
     assert reserve == Decimal("850060.00")
-    assert Decimal(marked["remaining"]) == reestimated + reserve == Decimal("69273551.77")
-    # Over the budget: the drawn labour budgeted at the rates of the offer counts those of 2026.
-    assert Decimal(marked["remaining"]) > Decimal(marked["reference_budget"]) + reserve
-    assert marked["reference_budget"] == "68241569.21"
+    assert Decimal(marked["remaining"]) == reestimated + reserve == Decimal("69300509.05")
+    # Under the budget: the lines keep the budget of the offer, projected from 2025, and count
+    # the rates of 2026 projected from 2026 (#1628).
+    assert Decimal(marked["remaining"]) < Decimal(marked["reference_budget"]) + reserve
+    assert marked["reference_budget"] == "70316396.56"
     assert marked["schedule_index"]["value"]["reason"] == "no_planned_value"
 
 
@@ -524,7 +561,7 @@ def test_the_marks_the_review_journey_reads(today: dict[str, Any]) -> None:
         project["schedule_variance"],
         project["schedule_index"]["value"]["value"],
         project["cost_index"]["value"]["value"],
-    ) == ("67470133.69", "68241569.21", "1671458.13", "-221599.80", "0.8674", "1.0261")
+    ) == ("67497090.97", "70316396.56", "1721585.56", "-228231.37", "0.8674", "1.0569")
     assert (project["schedule_index"]["zone"], project["cost_index"]["zone"]) == (
         "watch",
         "nominal",
@@ -557,11 +594,13 @@ def test_an_amendment_steps_the_budget_by_two_points_at_its_date(today: dict[str
         assert step["cause"] == "amendment"
         if step["date"] == "2026-03-10":
             # During the studies: what the new reference had planned more by that day.
-            assert (before, after) == ("23333.33", "26833.33")
+            assert (before, after) == ("24033.33", "26833.33")
         else:
             assert before == after == "0.00"
-    assert [step["amount"] for step in curve["steps"]] == ["2865.00", "15000.00"]
-    assert budget[-1]["amount"] == "68256569.21"
+    # The amendment 1, and the counterfactual one, which budgets the studies at their amount of
+    # 2026, 115,000, in place of the 103,000 the offer fixed (#1628).
+    assert [step["amount"] for step in curve["steps"]] == ["2830.95", "12000.00"]
+    assert budget[-1]["amount"] == "70328396.56"
 
 
 def test_the_amendment_of_the_curve_is_another_than_the_amendment_2_of_the_witness(

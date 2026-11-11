@@ -10,18 +10,20 @@ function, then dropped, so that the database of the tests keeps none of them.
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from uuid import UUID, uuid4
 
-from sqlalchemy import delete, func, insert, select, table, text
+from sqlalchemy import CheckConstraint, delete, func, insert, select, table, text
 
+from waterfall.core.estimate.tables import EstimateLine
+from waterfall.core.planning.tables import Node, Task
 from waterfall.core.projects.tables import Project
 from waterfall.core.revisions.tables import CostStructure, Revision
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from sqlalchemy import Engine
+    from sqlalchemy import Engine, Table
     from sqlalchemy.engine import Connection
     from sqlalchemy.sql import Executable
 
@@ -77,6 +79,20 @@ def structure_row(project_id: UUID, revision_id: UUID, **overrides: object) -> d
     }
 
 
+def delete_structure(owner: Engine, structure_id: UUID) -> None:
+    """Remove a structure a test wrote, with its nodes, its tasks and its lines, as the owner.
+
+    The one place that knows what hangs from a structure: a test that wrote one by hand calls it in
+    its ``finally``, and a table that comes to depend on the nodes is added here, not in each test.
+    """
+    with owner.begin() as connection:
+        nodes = select(Node.id).where(Node.structure_id == structure_id)
+        connection.execute(delete(EstimateLine).where(EstimateLine.node_id.in_(nodes)))
+        connection.execute(delete(Task).where(Task.node_id.in_(nodes)))
+        connection.execute(delete(Node).where(Node.structure_id == structure_id))
+        connection.execute(delete(CostStructure).where(CostStructure.id == structure_id))
+
+
 def insert_project(**overrides: object) -> Executable:
     """Give the insertion of a project."""
     return insert(Project).values(**project_row(**overrides))
@@ -98,8 +114,19 @@ def partition_of(project_id: UUID) -> str:
 
 
 # The revised tables, each before the tables its keys name: the partition of a table that another
-# names is dropped after the other's.
-REVISED = ("task_link", "task", "node", "cost_structure")
+# names is dropped after the other's. The rates and the images of the estimate name a revision
+# alone, which is no partitioned table.
+REVISED = (
+    "estimate_line",
+    "revision_rate",
+    "revision_role",
+    "revision_calendar",
+    "revision_category",
+    "task_link",
+    "task",
+    "node",
+    "cost_structure",
+)
 PARTITIONS_OF = text(
     "SELECT child.relname FROM pg_inherits JOIN pg_class AS child ON child.oid = inhrelid "
     "JOIN pg_class AS parent ON parent.oid = inhparent WHERE parent.relname = :parent "
@@ -133,6 +160,46 @@ def drop_partitions(connection: Connection, project_id: UUID | None = None) -> N
                 connection.execute(delete(table(name)))
                 connection.execute(text(f'ALTER TABLE "{parent}" DETACH PARTITION "{name}"'))
                 connection.execute(text(f'DROP TABLE "{name}"'))
+
+
+KIND_CHECK = "ck_cost_structure_kind_known"
+
+
+def _kind_predicate() -> str:
+    """Give the predicate of the check on the kind of a structure, as the model says."""
+    structures = cast("Table", CostStructure.__table__)
+    for constraint in structures.constraints:
+        if isinstance(constraint, CheckConstraint) and constraint.name == KIND_CHECK:
+            return str(constraint.sqltext)
+    message = f"{KIND_CHECK} is not on the model of the cost structures"
+    raise LookupError(message)
+
+
+@contextmanager
+def lifted_kind_check(owner: Engine) -> Generator[None]:
+    """Lift the check on the kind of a structure, as the owner, and restore it whatever happens.
+
+    No differential is written before EP-08, and the kind is checked: a test that needs one lifts
+    the check and removes the rows it wrote in the body's own ``finally``. The check comes back
+    ``NOT VALID`` in a ``finally`` and a transaction of its own, which no row left can refuse: it
+    holds for every row written after, and the error of the body comes up as it was. Only a body
+    that ends well has the rows it left validated, so that one it forgot fails the test.
+    """
+    predicate = _kind_predicate()
+    with owner.begin() as connection:
+        connection.execute(text(f"ALTER TABLE cost_structure DROP CONSTRAINT {KIND_CHECK}"))
+    try:
+        yield
+    finally:
+        with owner.begin() as connection:
+            connection.execute(
+                text(
+                    f"ALTER TABLE cost_structure ADD CONSTRAINT {KIND_CHECK} "
+                    f"CHECK ({predicate}) NOT VALID"
+                )
+            )
+    with owner.begin() as connection:
+        connection.execute(text(f"ALTER TABLE cost_structure VALIDATE CONSTRAINT {KIND_CHECK}"))
 
 
 @contextmanager

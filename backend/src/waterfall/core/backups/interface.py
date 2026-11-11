@@ -228,11 +228,12 @@ def write_back_after_restoration(
 ) -> list[str]:
     """Write back, in the restored database, what ``keep_for_restoration`` kept, then forget it.
 
-    The tasks first, which the backups name, in their state kept (#987); the backups and the
-    inscriptions the restored database lacks, by their identifier — an inscription made while the
-    database was dumped is in the dump already, and is not written twice —; the deposits kept in
-    place of those of the source, without their account where the restored database lacks it, so
-    that none names an object of another installation; the tasks restored
+    The tasks first, which the backups name, in their state kept (#987); the backups, which the
+    restored database holds only as kept, so that none names an archive of another installation
+    (#2230); the inscriptions the restored database lacks, by their identifier — an inscription
+    made while the database was dumped is in the dump already, and is not written twice —; the
+    deposits kept in place of those of the source, without their account where the restored
+    database lacks it, so that none names an object of another installation; the tasks restored
     pending fail (#892); the accounts the journal says anonymised since the backup are anonymised
     again (#988), and the role of the service gets its rights back. ``at`` ends the tasks that
     fail. Gives the subjects of the local accounts anonymised again, which the caller removes from
@@ -243,7 +244,7 @@ def write_back_after_restoration(
     columns of a table, or the table itself — until its migrations have run.
     """
     write_back_tasks(connection, restoration, at)
-    write_back(connection, Backup)
+    replace_by_kept(connection, Backup)
     write_back(connection, AuditEntry)
     replace_by_kept(connection, FileUpload, unsure={"uploaded_by"})
     with Session(bind=connection) as session:

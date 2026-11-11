@@ -16,10 +16,12 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
+from estimate_support import Lines, add_role, costing
 from fastapi.testclient import TestClient
 from imports_trial import deposited, path, read, run
 from lxml import etree
-from nodes_support import mark, opened
+from nodes_support import Tree, mark, opened
+from planning_support import give_a_task, insert_link
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from sqlalchemy import select, update
@@ -29,16 +31,13 @@ from test_msproject_import import Timing, link, links, planning, task
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.cost_settings.interface import read_reference_settings
-from waterfall.core.planning.interface import FacetHooks, register_facet
+from waterfall.core.planning import exporting, importing
 from waterfall.core.planning.msproject import read_project
-from waterfall.core.planning.tables import TaskLink
+from waterfall.core.planning.tables import Node, Task, TaskLink
 from waterfall.core.planning.tree import read_tree
 from waterfall.core.projects.tables import Project
-from waterfall.core.resource_settings.interface import CalendarContent, WeeklyHours, create_calendar
 from waterfall.core.resource_settings.tables import DurationUnit
 from waterfall.core.revisions.tables import CostStructure
-from waterfall.platform.audit import Act
-from waterfall.platform.database import utc_now
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.worker.exchanges import ExportTask, ImportTasks
 from waterfall.worker.marking import mark as marking
@@ -54,7 +53,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.planning.msproject import MsProject
-    from waterfall.core.planning.tables import Node, Task
     from waterfall.platform.database import Database
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue
@@ -202,13 +200,8 @@ def request_export(api: ContractClient, stage: Scene, revision_id: str, **body: 
 
 
 def download(api: ContractClient, stage: Scene, task_id: str) -> Any:
-    """Download the result of an export as the manager does, past the check of the contract.
-
-    The contract declares the file ``application/xml`` as a binary string, and the validator of
-    the answers parses such a body into a tree, which it then refuses as no string: the answer is
-    read here by the client of the application itself, its type and its name checked by the tests.
-    """
-    return api.client.get(f"{TASKS}/{task_id}/result", headers=stage.manager.headers)
+    """Download the result of an export as the manager does; give the answer."""
+    return api.get(f"{TASKS}/{task_id}/result", headers=stage.manager.headers)
 
 
 def exported_answer(api: ContractClient, stage: Scene, worker: Worker, revision_id: str) -> Any:
@@ -425,31 +418,16 @@ def test_a_task_on_a_calendar_of_other_hours_gets_a_calendar_of_its_own_after_th
     api: ContractClient, stage: Scene, worker: Worker
 ) -> None:
     # « Un calendrier de projet et un calendrier de tâche par calendrier applicable distinct » :
-    # the calendars of the roles are EP-07's, a facet of a test names one for a task.
+    # the calendar of a task is the one of the role of its line (EP-07, ``register_facet``).
     revision = opened(api, stage)
     import_file(api, stage, worker, the_planning(), apply=True)
-    project_id = UUID(stage.project["project_id"])
     pose = next(node.id for node, task in nodes(stage) if task.label == "Pose")
-    week = (Decimal(10), Decimal(10), Decimal(10), Decimal(10), Decimal(0), Decimal(0), Decimal(0))
-    with stage.database.transaction() as session:
-        content = CalendarContent("Atelier", WeeklyHours(*week))
-        workshop = create_calendar(session, content, Act(None, utc_now())).calendar_id
-
-    def calendars(_: Session, project: UUID, task_id: UUID) -> set[UUID]:
-        return {workshop} if (project, task_id) == (project_id, pose) else set()
-
-    def nothing(*_: object) -> None:
-        return None
-
-    def read_nothing(*_: object) -> dict[UUID, Any]:
-        return {}
-
-    hooks = FacetHooks(read_nothing, nothing, nothing, calendars)
-    withdraw = register_facet("estimate_line", hooks)
-    try:
-        project = read_project(exported(api, stage, worker, revision["revision_id"])).project
-    finally:
-        withdraw()
+    costing(stage.database)
+    workshop = add_role(stage.database, "ATEL", (10, 10, 10, 10, 0, 0, 0))
+    Lines(Tree(api, stage, revision)).made(
+        str(pose), quantity="1", resource_role_id=str(workshop), hours="8"
+    )
+    project = read_project(exported(api, stage, worker, revision["revision_id"])).project
     assert [(each.uid, each.name, each.is_base) for each in project.calendars] == [
         (1, "Waterfall", True),
         (2, "Waterfall 2", True),
@@ -616,3 +594,56 @@ def test_the_currency_code_written_is_the_one_of_the_installation(
     assert currency
     assert project.currency_code == currency
     assert f"<CurrencyCode>{currency}</CurrencyCode>" in content.decode()
+
+
+def test_a_link_created_while_the_planning_is_exported_is_not_read_and_the_export_succeeds(
+    api: ContractClient, stage: Scene, worker: Worker, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The export reads in a transaction frozen at its first read (#2679): a task and a link from
+    # it, committed between the reading of the tree and that of the links, are not read — the link
+    # would name a task the tree read has not —, and the planning is exported as it stood.
+    revision = opened(api, stage)
+    revision_id = UUID(revision["revision_id"])
+    import_file(api, stage, worker, the_planning(), apply=True)
+    successor = nodes(stage)[-1][0].id
+    reading = exporting.read_links
+
+    def meanwhile(session: Session, project_id: UUID, structure_id: UUID) -> list[TaskLink]:
+        with stage.database.engine.begin() as connection:
+            created = give_a_task(connection, revision_id)
+            connection.execute(
+                insert_link(project_id, revision_id, structure_id, created, successor)
+            )
+        return reading(session, project_id, structure_id)
+
+    monkeypatch.setattr(exporting, "read_links", meanwhile)
+    exported_project = read_project(exported(api, stage, worker, revision["revision_id"])).project
+    monkeypatch.undo()
+    assert len(exported_project.tasks) == len(read_project(the_planning()).project.tasks)
+    again = read_project(exported(api, stage, worker, revision["revision_id"])).project
+    assert len(again.tasks) == len(exported_project.tasks) + 1
+
+
+def test_a_link_created_while_the_planning_is_analysed_is_not_read_and_the_analysis_succeeds(
+    api: ContractClient, stage: Scene, worker: Worker, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The analysis reads in a transaction frozen at its first read (#2679), as the export does: a
+    # task and a link from it, committed between the reading of the tree and that of the links,
+    # are not read — the link would name a task the tree read has not.
+    revision = opened(api, stage)
+    revision_id = UUID(revision["revision_id"])
+    import_file(api, stage, worker, the_planning(), apply=True)
+    successor = nodes(stage)[-1][0].id
+    reading = importing.read_links
+
+    def meanwhile(session: Session, project_id: UUID, structure_id: UUID) -> list[TaskLink]:
+        with stage.database.engine.begin() as connection:
+            created = give_a_task(connection, revision_id)
+            connection.execute(
+                insert_link(project_id, revision_id, structure_id, created, successor)
+            )
+        return reading(session, project_id, structure_id)
+
+    monkeypatch.setattr(importing, "read_links", meanwhile)
+    found = import_file(api, stage, worker, the_planning(), apply=False)
+    assert found["status"] == "analysed"

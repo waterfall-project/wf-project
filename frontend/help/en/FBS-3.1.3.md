@@ -4,9 +4,16 @@
 
 How Waterfall reads the extraction of the actual costs of the ERP, for the whole installation. The ERP names its columns its own way: for each of the five columns the import reads — **Subproject** (the WBS element), **Document no.**, **Item**, **Document date**, **Amount** —, the list of the labels that designate it in the extraction; then the **Kept columns**, those of the extraction that Waterfall keeps for information and gives back on consulting the lines imported.
 
-The item is optional, the four other columns are required. Above the lists, a bar says the required columns that have no label, or that the mapping is complete. It is empty at installation, and is set before the import of the actual costs, which is not offered yet: it will read this mapping.
+The item is optional, the four other columns are required. Above the lists, a bar says the required columns that have no label, or that the mapping is complete. It is empty at installation, and is set before the import of the actual costs, which reads this mapping.
 
 A label is compared to the header of the file, and to the other labels, regardless of case, of accents and of spaces at the ends. The mapping is saved whole, even incomplete, and read back as saved. A label that duplicates another, in the same column, in another column read or among the kept columns, is refused: nothing is saved.
+
+The [import of the actual costs](FBS-4.3.4.md) reads the header of the extraction and compares it with the labels of the mapping:
+
+- as long as the mapping is incomplete, the import is refused, and the command of the import says so in advance: the server answers 409, `actual_cost_mapping_complete`, and names the required columns without a label;
+- a required column none of whose labels is in the header of the file makes the file refused, 422 `FILE_FORMAT_UNREADABLE`, which names the labels expected;
+- a column of the file that the mapping designates neither as read nor as kept is ignored: the report of the analysis counts it among the ignored columns;
+- the mapping read at the analysis is kept with its report: the application runs it as the analysis read it, even if the mapping changes in the meantime.
 
 ## Its commands
 

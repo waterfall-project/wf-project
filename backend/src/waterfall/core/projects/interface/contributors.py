@@ -33,8 +33,15 @@ from waterfall.core.projects.commands import (
     PROJECT_NOT_TERMINAL,
     TERMINAL,
 )
+from waterfall.core.projects.interface.estimate_facts import roles_employed
 from waterfall.core.projects.tables import Contributor, Project
-from waterfall.core.users.interface import AccountLabel, active_accounts, read_account_labels
+from waterfall.core.resource_settings.interface import read_roles
+from waterfall.core.users.interface import (
+    AccountLabel,
+    active_accounts,
+    active_accounts_in_nodes,
+    read_account_labels,
+)
 from waterfall.platform.database import contains
 from waterfall.platform.errors import (
     NOT_FOUND,
@@ -445,12 +452,36 @@ def list_contributor_suggestions(
 ) -> tuple[ContributorSuggestion, ...]:
     """Suggest the accounts the lines of the project employ (``listContributorSuggestions``).
 
-    Empty while no line of estimate employs a role of resources: the lines are EP-07's
-    (WF-PRJ-0070). Refused if the project does not exist (404).
+    The active accounts attached to the node of a role the labour lines of the project employ
+    (``roles_employed``: the current revision, or the last marked), that the list does not count,
+    each with its node and the roles of that node the lines employ, by name. Empty while no line
+    employs a role (WF-PRJ-0070). The list is not written. Refused if the project does not exist
+    (404).
     """
     if not project_exists(session, project_id):
         raise NotFoundError(NOT_FOUND)
-    return ()
+    employed = roles_employed(session, project_id)
+    if not employed:
+        return ()
+    roles = read_roles(session, employed, may_change=False)
+    by_node: dict[UUID, list[tuple[UUID, str]]] = {}
+    labels: dict[UUID, str] = {}
+    for role in roles:
+        by_node.setdefault(role.org_node_id, []).append((role.resource_role_id, role.label))
+        labels[role.org_node_id] = role.org_node_label
+    counted = _stored(session, project_id)[1]
+    return tuple(
+        ContributorSuggestion(
+            account.user_id,
+            account.display_name,
+            account.org_node_id,
+            labels[account.org_node_id],
+            tuple(role_id for role_id, _ in by_node[account.org_node_id]),
+            tuple(label for _, label in by_node[account.org_node_id]),
+        )
+        for account in active_accounts_in_nodes(session, by_node)
+        if account.user_id not in counted
+    )
 
 
 def contributors_present(

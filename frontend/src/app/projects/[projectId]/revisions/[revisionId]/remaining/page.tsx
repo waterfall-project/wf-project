@@ -12,12 +12,13 @@
  * work breakdown read whole, above it, as the estimate's (WF-RAE-0040). The grid is entered from
  * the keyboard, its tasks and its lines created and deleted, and places undo and redo, when the
  * structure lists `edit_remaining` available to the caller (US-0140, WF-RAE-0040): before the
- * project is in progress it lists it unavailable, and the grid is read only. The categories a line
- * is created from, and the sub-projects its lines are carried to (US-0480), are read then. Its head
- * leads to the Kanban of the start of the tasks, a leaf with a screen of its own (FBS-4.5.3), in the
- * same context, and, when the project lists the import of a remaining to commit, to the imports and
- * exports, where it is exercised (#521). Indicators the API does not find are said unavailable, the
- * rest of the screen shown; any other refusal follows the rule of the reads.
+ * project is in progress it lists it unavailable, and the grid is read only. The categories and
+ * the roles a line is created from, and the sub-projects its lines are carried to (US-0480), are
+ * read then. Its head leads to the Kanban of the start of the tasks, a leaf with a screen of its own
+ * (FBS-4.5.3), in the same context, and, when the project lists the import of a remaining to
+ * commit, to the imports and exports, where it is exercised (#521). Indicators the API does not
+ * find are said unavailable, the rest of the screen shown; any other refusal follows the rule of
+ * the reads.
  */
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -46,7 +47,6 @@ import { progressHref, readProgress } from "@/components/remaining/address";
 import { RemainingSummary } from "@/components/remaining/remaining-summary";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
-import { MockupNotice } from "@/components/shell/mockup-notice";
 import { buttonVariants } from "@/components/ui/button";
 import { type PageSearchParams, searchQuery } from "@/navigation/context";
 import { onBasis } from "@/components/workload/workload-basis";
@@ -84,8 +84,8 @@ async function readIndicators({ revision }: GridAddress) {
 
 /**
  * The categories of cost a line is created from, the active ones — a line created takes an active
- * category (WF-REF-0150) —, as the grid reads them; none when the API refuses the list, and the grid
- * then creates no line.
+ * category (WF-REF-0150) —, as the grid reads them, with the type of their cost, by which the grid
+ * offers the categories of expense alone; none when the API refuses the list.
  */
 async function readCategories() {
   const categories = await readEveryPageUnlessRefused(
@@ -97,6 +97,24 @@ async function readCategories() {
     id: category.cost_category_id,
     label: category.label,
     active: category.is_active,
+    kind: category.cost_type_kind,
+  }));
+}
+
+/**
+ * The roles a line of labour is created from, the active ones; none when the API refuses the list
+ * (the roles are the reference's), and the grid then creates a line from a category alone.
+ */
+async function readRoles() {
+  const roles = await readEveryPageUnlessRefused(
+    "listResourceRoles",
+    OPTIONAL_READ_REFUSALS,
+    (page) => serverClient().GET("/reference/resource-roles", { params: { query: { ...page } } }),
+  );
+  return roles?.map((role) => ({
+    id: role.resource_role_id,
+    label: role.label,
+    active: role.is_active,
   }));
 }
 
@@ -231,13 +249,14 @@ export default async function RemainingPage({
     byBreakdown: true,
   }).then(async (read) => {
     const entered = read.commands.has("edit_remaining");
-    const [categories, subprojects] = await Promise.all([
+    const [categories, roles, subprojects] = await Promise.all([
       entered ? readCategories() : undefined,
+      entered ? readRoles() : undefined,
       entered ? readSubprojects(revision.projectId) : undefined,
     ]);
-    return { screen: read, categories, subprojects };
+    return { screen: read, categories, roles, subprojects };
   });
-  const [{ screen, categories, subprojects }, indicators, currency] = await Promise.all([
+  const [{ screen, categories, roles, subprojects }, indicators, currency] = await Promise.all([
     grid,
     readIndicators(at),
     requestCurrency(),
@@ -263,7 +282,6 @@ export default async function RemainingPage({
             <ExchangesLink project={screen.reading.project} kind="remaining" context={at.context} />
           }
         />
-        <MockupNotice lists />
         <RemainingSummary indicators={indicators} currency={currency} />
         <PendingAddress>
           {screen.breakdown === undefined ? null : (
@@ -276,6 +294,7 @@ export default async function RemainingPage({
             filters={screen.filters}
             editable={editable}
             categories={categories}
+            roles={roles}
             subprojects={subprojects}
             query={screen.query}
             preferences={screen.preferences}

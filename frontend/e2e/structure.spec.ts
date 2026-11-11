@@ -5,8 +5,8 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import { columnsOf } from "./columns";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
+import { createOwnProject, openRevision } from "./own-project";
 import { SEEDED, seedPlanning } from "./planning-seed";
-import { API } from "./service/realm";
 
 // The gestures that create and delete tasks and lines (US-0460), against the fake back. It serves
 // the first example of each read whatever the request: the witness project is in progress, so its
@@ -253,7 +253,7 @@ test("adds a task from the remaining to commit of a project in progress, below a
   test.slow();
   // Une tâche ajoutée depuis la grille de reste à engager : the structure lists `edit_remaining`
   // available, and the gesture is the planning's; that it appears in the planning, the reference
-  // unchanged, is the service's (EP-09).
+  // unchanged, is the service's (EP-09, served); this path has no twin against it yet (#2909).
   const { cell } = await focusRow(
     page,
     "remaining",
@@ -271,13 +271,14 @@ test("adds a task from the remaining to commit of a project in progress, below a
   await expect(cell).toBeFocused();
 });
 
-test("proposes no entry and no command of writing in the estimate of the main structure of a project in progress [WF-DEV-0050-A]", async ({
+test("proposes no entry and no command of writing in the estimate of the main structure of a project in progress @shared [WF-DEV-0050-A]", async ({
   page,
 }) => {
   test.slow();
   // Sur un projet En cours, la grille de devis de la structure principale ne propose aucune saisie
   // : the structure lists the estimate unavailable (`project_before_in_progress`), and the grid is
-  // read only whatever the planning lists.
+  // read only whatever the planning lists. The witness of the service is In progress too (PRJ-001,
+  // US-1570): the path is played against it as against the fake back.
   const { table, cell } = await focusRow(
     page,
     "estimate",
@@ -301,6 +302,9 @@ test("inserts a line in the remaining to commit of a project in progress, named,
   test.slow();
   // Sur un projet En cours, la grille de reste à engager propose la création d'une ligne et d'une
   // tâche : the structure lists `edit_remaining` available. The categories come from the reference.
+  // Not played against the service: it writes the remaining of PRJ-001, whose project manager the
+  // account of the run is not (#2193); `remaining.spec.ts` plays the writes on a project the run
+  // creates.
   const { cell } = await focusRow(
     page,
     "remaining",
@@ -313,9 +317,10 @@ test("inserts a line in the remaining to commit of a project in progress, named,
     .getByRole("menuitem", { name: "Insérer une ligne" })
     .click();
   const dialog = page.getByRole("dialog", { name: "Insérer une ligne" });
-  await expect(
-    dialog.getByRole("combobox", { name: "Catégorie" }).getByRole("option"),
-  ).not.toHaveCount(0);
+  // The entry is chosen in the one list of the roles and of the categories of expense.
+  const entry = dialog.getByRole("combobox", { name: "Rôle ou catégorie" });
+  await expect(entry.getByRole("option")).not.toHaveCount(0);
+  await entry.selectOption({ index: 0 });
   await dialog.getByRole("textbox", { name: "Libellé" }).fill("Consommables d’essais");
   await dialog.getByRole("textbox", { name: "Quantité" }).fill("2,5");
   await dialog.getByRole("button", { name: "Créer" }).click();
@@ -325,7 +330,7 @@ test("inserts a line in the remaining to commit of a project in progress, named,
   await expect(cell).toBeFocused();
 });
 
-test("filters the remaining to commit by the post « Poste 1.1 » chosen among the work breakdown, the filter shown active in the banner and lifted from it", async ({
+test("filters the remaining to commit by the post « Poste 1.1 » chosen among the work breakdown, the filter shown active in the banner and lifted from it @shared", async ({
   page,
 }) => {
   test.slow();
@@ -446,61 +451,157 @@ test("deletes a task at once and a summary after its confirmation against the se
   await expect(table.getByRole("row", { name: new RegExp(SEEDED[5]) })).toBeVisible();
 });
 
-// The estimate grid is served by EP-07: its screen reads `Introuvable` against the service until then,
-// so the carry-over of #1057 is played from the operations that grid sends, `createNode` and
-// `moveNodes`, on the structure it shares with the planning, and read in the planning.
-test("reads in the planning a task created and indented by the operations the estimate grid sends, the structure being shared @shared [WF-DEV-0050-A] [WF-PLA-0080-A]", async ({
+// The estimate grid is served (US-1560): the carry-over of #1057 is played from the grid itself, a
+// task created in the estimate and a line under it, read in the planning, the structure being shared.
+test("reads in the planning a task created in the estimate grid, automatic, of one day and without predecessor, and the task indented from the grid, the structure being shared @shared [WF-DEV-0050-A] [WF-PLA-0080-A]", async ({
   page,
-  browser,
-  request,
-  manager,
 }) => {
   test.skip(!inService, SERVICE_ONLY);
   test.slow();
-  const seeded = await seedPlanning(page, browser, request, manager, "Report");
-  const { project, revision, structure } = seeded.ids;
-  const base = `${API}/projects/${project}/revisions/${revision}/structures/${structure}/nodes`;
-  const added = "Tâche du devis";
-  const created = await request.post(base, {
-    headers: seeded.headers,
-    data: {
-      kind: "task",
-      parent_id: seeded.nodes[1] ?? null,
-      after_node_id: seeded.nodes[2] ?? null,
-      task: { label: added },
-    },
+  const own = await createOwnProject(page, "Report");
+  await openRevision(page, own);
+  const opened = new URL(page.url()).searchParams.get("revision_id");
+  expect(opened, "the revision opened").not.toBeNull();
+  const revision = `${own.path}/revisions/${opened ?? ""}`;
+  await openHydrated(page, `${revision}/estimate`);
+  const estimate = page.getByRole("treegrid", { name: "Grille de devis" });
+
+  // A task created from the empty grid, and a line under it, from the menu of its cell.
+  await page.getByRole("button", { name: "Insérer une tâche" }).click();
+  const creation = page.getByRole("dialog", { name: "Insérer une tâche" });
+  await creation.getByRole("textbox", { name: "Libellé" }).fill("Tâche du devis");
+  await creation.getByRole("button", { name: "Créer" }).click();
+  await saidAndRead(page, estimate, "« Tâche du devis » créée.");
+  const at = await columnsOf(estimate, { label: "Libellé" });
+  const task = estimate
+    .getByRole("row", { name: /^1 .*Tâche du devis/ })
+    .getByRole("gridcell")
+    .nth(at.label);
+  await task.click({ button: "right" });
+  await page
+    .getByRole("menu", { name: "Menu de la cellule" })
+    .getByRole("menuitem", { name: "Insérer une ligne" })
+    .click();
+  const line = page.getByRole("dialog", { name: "Insérer une ligne" });
+  await line
+    .getByRole("combobox", { name: "Rôle ou catégorie" })
+    .selectOption({ label: "Matériel électrique" });
+  await line.getByRole("textbox", { name: "Libellé" }).fill("Câbles");
+  await line.getByRole("textbox", { name: "Quantité" }).fill("2");
+  await line.getByRole("button", { name: "Créer" }).click();
+  await saidAndRead(page, estimate, "« Câbles » créée.");
+  await expect(estimate.getByRole("row", { name: /^2 .*Câbles/ })).toBeVisible();
+
+  // A second task, created below the line, indented under the first from the grid.
+  await task.click({ button: "right" });
+  await page
+    .getByRole("menu", { name: "Menu de la cellule" })
+    .getByRole("menuitem", { name: "Insérer au-dessous" })
+    .click();
+  const below = page.getByRole("dialog", { name: "Insérer au-dessous" });
+  await below.getByRole("textbox", { name: "Libellé" }).fill("Sous-tâche du devis");
+  await below.getByRole("button", { name: "Créer" }).click();
+  await saidAndRead(page, estimate, "« Sous-tâche du devis » créée.");
+
+  // Read in the planning: the first task is there, automatic, of one day, with no predecessor, and
+  // the second beside it.
+  await openHydrated(page, `${revision}/planning`);
+  const planning = page.getByRole("treegrid", { name: "Grille de planning" });
+  const columns = await columnsOf(planning, {
+    mode: "Mode de planification",
+    duration: "Durée",
+    predecessors: "Prédécesseurs",
   });
-  expect(created.status(), "POST nodes").toBe(201);
-  const answer = (await created.json()) as {
-    nodes: { node_id: string }[];
-    structure_lock_version: number;
-  };
-  const node = answer.nodes[0];
-  if (node === undefined) {
-    throw new Error("a node created is answered");
+  const created = planning.getByRole("row", { name: /^1 .*Tâche du devis/ });
+  await expect(created).toBeVisible({ timeout: WORKING });
+  const cells = created.getByRole("gridcell");
+  await expect(cells.nth(columns.mode)).toHaveText("Automatique");
+  await expect(cells.nth(columns.duration)).toHaveText(/^1\s?j/);
+  await expect(cells.nth(columns.predecessors)).toHaveText("");
+  // The numbers are those of the estimate, where the line of the first task is the second row.
+  const second = planning.getByRole("row", { name: /^3 .*Sous-tâche du devis/ });
+  await expect(second).toHaveAttribute("aria-level", "1");
+
+  // Indented under the first task from the estimate grid, the move is read in the planning.
+  await openHydrated(page, `${revision}/estimate`);
+  const indent = page.getByRole("treegrid", { name: "Grille de devis" });
+  await indent.getByRole("gridcell", { name: "3 — poignée de la ligne", exact: true }).click();
+  await page.keyboard.press("Alt+Shift+ArrowRight");
+  await expect(page.getByText(/« Sous-tâche du devis » .*indentée/)).toBeVisible({
+    timeout: WORKING,
+  });
+  await expect(indent).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
+  await openHydrated(page, `${revision}/planning`);
+  await expect(
+    page.getByRole("treegrid", { name: "Grille de planning" }).getByRole("row", {
+      name: /^3 .*Sous-tâche du devis/,
+    }),
+  ).toHaveAttribute("aria-level", "2", { timeout: WORKING });
+});
+
+// WF-DEV-0020-A: a line of labour is created from a role, its category computed by the server, and a
+// line of expense from a category of expense — the labour and provision categories are not offered.
+test("creates from the estimate grid a line of labour by a role and a line of expense by a category, and reads them in the grid @shared [WF-DEV-0020-A]", async ({
+  page,
+}) => {
+  test.skip(!inService, SERVICE_ONLY);
+  test.slow();
+  const own = await createOwnProject(page, "Lignes");
+  await openRevision(page, own);
+  const opened = new URL(page.url()).searchParams.get("revision_id");
+  expect(opened, "the revision opened").not.toBeNull();
+  await openHydrated(page, `${own.path}/revisions/${opened ?? ""}/estimate`);
+  const estimate = page.getByRole("treegrid", { name: "Grille de devis" });
+
+  await page.getByRole("button", { name: "Insérer une tâche" }).click();
+  const creation = page.getByRole("dialog", { name: "Insérer une tâche" });
+  await creation.getByRole("textbox", { name: "Libellé" }).fill("Tâche des lignes");
+  await creation.getByRole("button", { name: "Créer" }).click();
+  await saidAndRead(page, estimate, "« Tâche des lignes » créée.");
+  const at = await columnsOf(estimate, { label: "Libellé" });
+  const task = estimate
+    .getByRole("row", { name: /^1 .*Tâche des lignes/ })
+    .getByRole("gridcell")
+    .nth(at.label);
+
+  /** Open the dialog of a line under the task, name the line, and choose its entry in the list. */
+  async function insert(
+    label: string,
+    group: string,
+    entry: { index: number } | { label: string },
+  ) {
+    await task.click({ button: "right" });
+    await page
+      .getByRole("menu", { name: "Menu de la cellule" })
+      .getByRole("menuitem", { name: "Insérer une ligne" })
+      .click();
+    const line = page.getByRole("dialog", { name: "Insérer une ligne" });
+    const list = line.getByRole("combobox", { name: "Rôle ou catégorie" });
+    // A closed list does not expose its groups to the accessibility tree: they are read by their tag.
+    await expect(list.locator("optgroup")).toHaveCount(2);
+    await expect(list.locator(`optgroup[label="${group}"] option`)).not.toHaveCount(0);
+    await list.selectOption(entry);
+    await line.getByRole("textbox", { name: "Libellé" }).fill(label);
+    await line.getByRole("textbox", { name: "Quantité" }).fill("2");
+    await line.getByRole("button", { name: "Créer" }).click();
+    await saidAndRead(page, estimate, `« ${label} » créée.`);
   }
 
-  // Read in the planning: the task is there, a sibling of the one it was created below.
-  await openHydrated(page, seeded.planning);
-  const planning = page.getByRole("treegrid", { name: "Grille de planning" });
-  const task = planning.getByRole("row", { name: new RegExp(`^3 .*${added}`) });
-  await expect(task).toBeVisible({ timeout: WORKING });
-  await expect(task).toHaveAttribute("aria-level", "2");
+  // The first role of the list, a line of labour; a category of expense, a line of expense.
+  await insert("Études de main-d’œuvre", "Rôles (main-d’œuvre)", { index: 0 });
+  await insert("Fournitures de débours", "Catégories de débours", { label: "Matériel électrique" });
 
-  // Indented under the task above it, the move is read indented in the planning.
-  const moved = await request.post(`${base}/move`, {
-    headers: seeded.headers,
-    data: {
-      node_ids: [node.node_id],
-      parent_id: seeded.nodes[2] ?? null,
-      lock_version: answer.structure_lock_version,
-    },
-  });
-  expect(moved.status(), "POST move").toBe(200);
-  await openHydrated(page, seeded.planning);
-  await expect(planning.getByRole("row", { name: new RegExp(`^3 .*${added}`) })).toHaveAttribute(
-    "aria-level",
-    "3",
-    { timeout: WORKING },
+  const columns = await columnsOf(estimate, { role: "Rôle", category: "Catégorie" });
+  const labour = estimate.getByRole("row", { name: /^\d+ .*Études de main-d’œuvre/ });
+  const expense = estimate.getByRole("row", { name: /^\d+ .*Fournitures de débours/ });
+  await expect(labour).toBeVisible({ timeout: WORKING });
+  await expect(expense).toBeVisible({ timeout: WORKING });
+  // The labour line bears the role chosen and the category the server computed; the expense line
+  // bears its category and no role.
+  await expect(labour.getByRole("gridcell").nth(columns.role)).not.toHaveText("");
+  await expect(labour.getByRole("gridcell").nth(columns.category)).not.toHaveText("");
+  await expect(expense.getByRole("gridcell").nth(columns.category)).toHaveText(
+    "Matériel électrique",
   );
+  await expect(expense.getByRole("gridcell").nth(columns.role)).toHaveText("");
 });

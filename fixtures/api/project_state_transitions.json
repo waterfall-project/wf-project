@@ -1,5 +1,5 @@
 {
-  "summary": "La chronologie du témoin, chaque événement à son instant, dans l'ordre, avec ce que la tranche des projets écrit à cet instant : le projet créé, les révisions 100, 101 et 102 ouvertes, l'offre et la référence marquées, la désignation tentée et refusée faute de tâches, le code saisi, les transitions (WF-CYC-0130). Chaque écriture nomme son projet, PRJ-001 : PRJ-002 n'est pas datée ici, le chargeur crée PRJ-002 et PRJ-001 depuis `projects.json` avant les événements, et `project_created` date PRJ-001. Lue par `waterfall-api load-witness` sans importer `wftools`.",
+  "summary": "La chronologie du témoin, chaque événement à son instant, dans l'ordre, avec ce que la tranche des projets écrit à cet instant : le projet créé, les révisions 100, 101 et 102 ouvertes, la mise à jour des taux de 2026 acceptée sur la 101 pour ses deux catégories de main-d'œuvre (WF-REV-0060), l'offre et la référence marquées, la désignation de l'offre 100, le code saisi, les transitions, dont le passage En cours (WF-CYC-0130). Chaque écriture nomme son projet, PRJ-001 : PRJ-002 n'est pas datée ici, le chargeur crée PRJ-002 et PRJ-001 depuis `projects.json` avant les événements, et `project_created` date PRJ-001. Lue par `waterfall-api load-witness` sans importer `wftools`.",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "events": [
@@ -8,20 +8,21 @@
       {"sequence":3,"occurred_at":"2025-11-03T08:30:00Z","what":"Ouverture de l'offre 100, passage en Chiffrage","writes":[{"kind":"revision_opened","project":"PRJ-001","revision":100},{"kind":"state_transition","project":"PRJ-001","from":"created","to":"pricing"}]},
       {"sequence":4,"occurred_at":"2025-12-15T16:00:00Z","what":"Offre v1.0 marquée","writes":[{"kind":"revision_marked","project":"PRJ-001","revision":100,"version_name":"Offre v1.0"}]},
       {"sequence":5,"occurred_at":"2026-01-12T10:00:00Z","what":"Risques 751, 752 et 753 identifiés ; la première saisie ouvre la révision 101","writes":[{"kind":"revision_opened","project":"PRJ-001","revision":101}]},
-      {"sequence":6,"occurred_at":"2026-01-12T10:15:00Z","what":"Mise à jour des taux de 2026 acceptée depuis la révision 101 en cours","writes":[]},
-      {"sequence":7,"occurred_at":"2026-01-15T11:00:00Z","what":"Commande reçue ; l'offre 100 désignée référence, passage En cours","writes":[{"kind":"designation_attempted","project":"PRJ-001","revision":100,"refused":"no_task"},{"kind":"code_entered","project":"PRJ-001","code":"PRJ-001"}]},
+      {"sequence":6,"occurred_at":"2026-01-12T10:15:00Z","what":"Mise à jour des taux de 2026 acceptée depuis la révision 101 en cours","writes":[{"kind":"rate_update_applied","project":"PRJ-001","revision":101,"cost_category_ids":["01926f3a-7c00-7000-8000-000000000402","01926f3a-7c00-7000-8000-000000000405"]}]},
+      {"sequence":7,"occurred_at":"2026-01-15T11:00:00Z","what":"Commande reçue ; l'offre 100 désignée référence, passage En cours","writes":[{"kind":"designation_attempted","project":"PRJ-001","revision":100},{"kind":"code_entered","project":"PRJ-001","code":"PRJ-001"},{"kind":"state_transition","project":"PRJ-001","from":"pricing","to":"in_progress"}]},
       {"sequence":8,"occurred_at":"2026-02-01T09:00:00Z","what":"Avenant 1 fusionné ; la révision 101 « Référence » marquée, référence","writes":[{"kind":"revision_marked","project":"PRJ-001","revision":101,"version_name":"Référence"}]},
       {"sequence":9,"occurred_at":"2026-02-02T09:00:00Z","what":"Réexamen de 751 : gravité portée à 1 250 000 ; la saisie ouvre la révision courante 102 ; 753 écarté","writes":[{"kind":"revision_opened","project":"PRJ-001","revision":102}]},
       {"sequence":10,"occurred_at":"2026-02-20T16:00:00Z","what":"Survenance de 752 : son devis propre fusionné dans la révision en cours, 102, la référence 101 inchangée","writes":[]},
       {"sequence":11,"occurred_at":"2026-03-02T09:15:00Z","what":"Réexamen de 751 à 40 % ; début des études","writes":[]},
-      {"sequence":12,"occurred_at":"2026-04-03T08:30:00Z","what":"Import de coûts réels","writes":[]},
-      {"sequence":13,"occurred_at":"2026-05-04T08:30:00Z","what":"Import de coûts réels","writes":[]},
-      {"sequence":14,"occurred_at":"2026-05-06T14:00:00Z","what":"Import de coûts réels","writes":[]},
-      {"sequence":15,"occurred_at":"2026-05-11T09:00:00Z","what":"Import de coûts réels","writes":[]},
-      {"sequence":16,"occurred_at":"2026-05-20T00:00:00Z","what":"Import de planning, abandonné","writes":[]},
-      {"sequence":17,"occurred_at":"2026-06-02T09:01:00Z","what":"Extraction d'avril rejouée et analysée ; expirée le lendemain","writes":[]},
-      {"sequence":18,"occurred_at":"2026-06-03T08:30:00Z","what":"Import de coûts réels","writes":[]},
-      {"sequence":19,"occurred_at":"2026-06-03T08:41:00Z","what":"Import du devis analysé, applicable jusqu'au lendemain","writes":[]}
+      {"sequence":12,"occurred_at":"2026-04-03T08:30:00Z","what":"Import de coûts réels","writes":[{"kind":"cost_import_applied","project":"PRJ-001","cost_import_id":"01926f3a-7c00-7000-8000-000000000c11"}]},
+      {"sequence":13,"occurred_at":"2026-04-06T09:15:00Z","what":"Exclusion de la réception du client","writes":[{"kind":"cost_line_excluded","project":"PRJ-001","document":"FA-2026-0295","item":"10","reason":"Réception du client, non budgétée"}]},
+      {"sequence":14,"occurred_at":"2026-05-04T08:30:00Z","what":"Import de coûts réels","writes":[{"kind":"cost_import_applied","project":"PRJ-001","cost_import_id":"01926f3a-7c00-7000-8000-000000000c12"}]},
+      {"sequence":15,"occurred_at":"2026-05-06T14:00:00Z","what":"Import de coûts réels","writes":[{"kind":"cost_import_applied","project":"PRJ-001","cost_import_id":"01926f3a-7c00-7000-8000-000000000c13"}]},
+      {"sequence":16,"occurred_at":"2026-05-11T09:00:00Z","what":"Import de coûts réels","writes":[{"kind":"cost_import_applied","project":"PRJ-001","cost_import_id":"01926f3a-7c00-7000-8000-000000000c14"}]},
+      {"sequence":17,"occurred_at":"2026-05-20T00:00:00Z","what":"Import de planning, abandonné","writes":[]},
+      {"sequence":18,"occurred_at":"2026-06-02T09:01:00Z","what":"Extraction d'avril rejouée et analysée ; expirée le lendemain","writes":[{"kind":"import_expired","project":"PRJ-001","import_id":"01926f3a-7c00-7000-8000-000000000a12"}]},
+      {"sequence":19,"occurred_at":"2026-06-03T08:30:00Z","what":"Import de coûts réels","writes":[{"kind":"cost_import_applied","project":"PRJ-001","cost_import_id":"01926f3a-7c00-7000-8000-000000000c15"}]},
+      {"sequence":20,"occurred_at":"2026-06-03T08:41:00Z","what":"Import du devis analysé, applicable jusqu'au lendemain","writes":[]}
     ]
   }
 }

@@ -25,7 +25,10 @@ from typing import TYPE_CHECKING, Literal
 from sqlalchemy import ColumnElement, SQLColumnExpression, case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
-from waterfall.core.cost_settings.interface import missing_prerequisites
+from waterfall.core.cost_settings.interface import (
+    missing_prerequisites,
+    read_actual_cost_mapping,
+)
 from waterfall.core.projects.commands import (
     PROJECT_NOT_TERMINAL,
     TERMINAL,
@@ -34,6 +37,7 @@ from waterfall.core.projects.commands import (
     state_conditions,
 )
 from waterfall.core.projects.interface.contributors import require_project_manager
+from waterfall.core.projects.interface.estimate_facts import hold_estimate, reinflate_estimate
 from waterfall.core.projects.interface.lifecycle import advance
 from waterfall.core.projects.interface.skeleton import opening_with_tasks
 from waterfall.core.projects.interface.work_breakdown import BORN_LOCK_VERSION, follow_project_label
@@ -78,6 +82,8 @@ type ProjectState = Literal["created", "pricing", "in_progress", "completed", "l
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 ALREADY_EXISTS = "ALREADY_EXISTS"
 REFERENCE_INCOMPLETE = "REFERENCE_INCOMPLETE"
+# Who may import the actual costs of a project: its mapping is read for the command (WF-REF-0190).
+ACTUAL_COSTS_WRITE = "actual_costs.write"
 # The unique index of the code of a project (migration of the tables of the projects).
 CODE_INDEX = "uq_project_code"
 RATIOS = ("win_probability", "inflation_rate")
@@ -203,6 +209,7 @@ class ProjectFacts:
     current_revision_id: UUID | None
     inflation_rate: Decimal
     win_probability: Decimal
+    reference_revision_id: UUID | None = None
 
 
 def _facts(project: Project) -> ProjectFacts:
@@ -211,6 +218,7 @@ def _facts(project: Project) -> ProjectFacts:
         project.current_revision_id,
         project.inflation_rate,
         project.win_probability,
+        project.reference_revision_id,
     )
 
 
@@ -334,6 +342,14 @@ def _views(session: Session, projects: Iterable[Project], viewer: Viewer) -> lis
         else []
     )
     opening: frozenset[UUID] = opening_with_tasks(session, asking) if asking else frozenset()
+    # The mapping of the installation is read once, for who may import the actual costs of a
+    # project that lists its commands (WF-REF-0190).
+    mapping_complete = (
+        read_actual_cost_mapping(session).is_complete
+        if ACTUAL_COSTS_WRITE in viewer.permissions
+        and any(row.state not in TERMINAL for row in rows)
+        else True
+    )
     return [
         ProjectView(
             project_id=row.id,
@@ -355,7 +371,9 @@ def _views(session: Session, projects: Iterable[Project], viewer: Viewer) -> lis
                     row.state,
                     row.current_revision_id,
                     running=Running(
-                        no_task_running=row.id not in busy, opening_has_tasks=row.id in opening
+                        no_task_running=row.id not in busy,
+                        opening_has_tasks=row.id in opening,
+                        mapping_complete=mapping_complete,
                     ),
                 )
             ),
@@ -525,8 +543,13 @@ def _create(session: Session, draft: ProjectDraft, act: Act, project_id: UUID | 
 
     The lock of the reference is shared before the four questions are asked, and held until the
     commit: a write that could empty the reference waits for the project, or is waited for (#2154).
+    The partitions of the project are created right after, before any write of the transaction:
+    their function waits for no lock while it holds one, and the transaction holds none yet that a
+    writer or another creation waits for (#2603, #2667).
     """
     share_reference(session)
+    identifier = new_id() if project_id is None else project_id
+    session.execute(select(func.create_project_partitions(identifier)))
     missing = missing_prerequisites(session)
     if missing:
         raise ConflictError(REFERENCE_INCOMPLETE, {"missing_prerequisites": list(missing)})
@@ -536,7 +559,6 @@ def _create(session: Session, draft: ProjectDraft, act: Act, project_id: UUID | 
         "updated_at": act.at,
         "updated_by": act.author,
     }
-    identifier = new_id() if project_id is None else project_id
     project = Project(
         id=identifier,
         label=draft.label,
@@ -584,7 +606,6 @@ def _create(session: Session, draft: ProjectDraft, act: Act, project_id: UUID | 
         )
     )
     session.flush()
-    session.execute(select(func.create_project_partitions(project.id)))
     _inscribe_creation(session, project, act)
     return project
 
@@ -660,12 +681,18 @@ def update_project(
     terminal project has reached In progress, and the condition of the probability is the one its
     own command names, where a terminal project lists no command at all. A code entered calls
     ``advance`` under the lock, which moves a Pricing project to In progress when the reference is
-    designated already (WF-PRJ-0010, WF-CYC-0030).
+    designated already (WF-PRJ-0010, WF-CYC-0030). A new rate of inflation prices the current
+    revision again (WF-PRJ-0040, US-1500): its lock is shared before the project is locked, the
+    order of the marking, and its lines priced under the lock of each structure; a marked revision
+    keeps the rate of its marking.
     """
     values = change.values
     faults = _ratio_faults(values)
     if faults:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
+    if "inflation_rate" in values:
+        # The current revision, which a new rate prices again, is locked before the project.
+        hold_estimate(session, project_id)
     project = _locked(session, project_id)
     require_project_manager(session, project_id, viewer)
     if project.lock_version != change.lock_version:
@@ -695,4 +722,6 @@ def update_project(
             follow_project_label(session, project, project.label, act)
         if changed.get("code") is not None:
             advance(session, project.id, "reference_designated_and_code_set", act)
+        if "inflation_rate" in changed:
+            reinflate_estimate(session, project.id, act.at)
     return _views(session, [project], viewer)[0]

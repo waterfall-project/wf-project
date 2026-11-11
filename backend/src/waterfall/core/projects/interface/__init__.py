@@ -54,6 +54,13 @@ from waterfall.core.projects.interface.contributors import (
 # ``days`` (US-1380/L4): the current day of an instant, in the time zone of the installation.
 from waterfall.core.projects.interface.days import current_day
 
+# ``estimate_facts`` (US-1490/L4): what the estimate tells of its lines, by its registry.
+from waterfall.core.projects.interface.estimate_facts import (
+    EstimatedLine,
+    EstimateFacts,
+    register_estimate_facts,
+)
+
 # ``lifecycle`` (US-0980): the cycle of life of a project.
 from waterfall.core.projects.interface.lifecycle import (
     DesignationFacts,
@@ -113,8 +120,10 @@ from waterfall.core.projects.interface.skeleton import (
     register_opening_question,
 )
 
-# ``subprojects`` (US-0940): the subprojects of a project.
+# ``subprojects`` (US-0940; the facts of the actual costs, US-1610/L3): the subprojects of a
+# project.
 from waterfall.core.projects.interface.subprojects import (
+    CostFacts,
     SubprojectChange,
     SubprojectColumn,
     SubprojectCommandAvailability,
@@ -128,7 +137,13 @@ from waterfall.core.projects.interface.subprojects import (
     delete_subproject,
     list_subprojects,
     load_subprojects,
+    register_cost_facts,
+    subproject_has_actual_costs,
+    subproject_labels,
+    subprojects_coded,
+    subprojects_named,
     subprojects_present,
+    subprojects_with_actual_costs,
     update_subproject,
 )
 
@@ -172,9 +187,12 @@ __all__ = [
     "ContributorsLoad",
     "ContributorsRead",
     "ContributorsToWrite",
+    "CostFacts",
     "DeliverableEntry",
     "DeliverableView",
     "DesignationFacts",
+    "EstimateFacts",
+    "EstimatedLine",
     "ExitRequest",
     "ExitState",
     "LifecycleTrigger",
@@ -249,6 +267,8 @@ __all__ = [
     "read_project",
     "read_work_breakdown",
     "register_attachments",
+    "register_cost_facts",
+    "register_estimate_facts",
     "register_opening_question",
     "require_project_manager",
     "set_contributors",
@@ -256,7 +276,12 @@ __all__ = [
     "set_reference_revision",
     "set_work_breakdown",
     "stored_lock_version",
+    "subproject_has_actual_costs",
+    "subproject_labels",
+    "subprojects_coded",
+    "subprojects_named",
     "subprojects_present",
+    "subprojects_with_actual_costs",
     "update_project",
     "update_subproject",
     "work_breakdown_items",

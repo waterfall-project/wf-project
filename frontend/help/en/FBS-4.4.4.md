@@ -6,13 +6,13 @@ A leaf of the [costing](FBS-4.4.md), which the screen of the estimate opens in t
 
 The **Load by role and by month**: a bar per month, stacked by resource role, the total of the month at its top; the legend names the roles, and the tooltip of a month lists them with their hours. Only the labour lines load. The load of a line is spread over the duration of its task, pro rata to the worked hours of the calendar of its role. On a basis of remaining to commit, the remaining load of a task not completed is spread over the part of its duration alone that follows the date of calculation, and is carried to the month of the date of calculation when the finish of the task is passed.
 
-Under the choice, the basis and the revision the server says it read.
+Under the choice, the basis and the revision the server says it read. The service computes the whole plan — the load of each role and month, the capacity of each role, the totals without gaps and the zone — from the estimate of the revision; the screen only shows it. A task already finished carries no load on the remaining of a revision.
 
 ## Its commands
 
 At the top of the plan, then **Show**:
 
-- **Basis**: **Budget of the reference revision**, **Remaining of a marked revision** or **Remaining of the current revision**. Only the bases the project admits are offered: without a reference revision, the current revision alone; the marked revisions, when the project has one.
+- **Basis**: **Budget of the reference revision**, **Remaining of a marked revision** or **Remaining of the current revision**. Only the bases the project admits are offered: the budget of the reference when the project has a reference revision, the remaining of a marked revision when it has one, the current revision always — alone, with neither.
 - **Marked revision**, for the basis of a marked revision: each of those of the project.
 - **Organisation node and its descendants** restricts the plan to the roles that come under it; **All nodes** lifts it.
 

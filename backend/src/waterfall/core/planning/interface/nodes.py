@@ -32,6 +32,11 @@ from waterfall.core.planning.attachments import (
     stray_fault,
     strays,
 )
+from waterfall.core.planning.carrying import (
+    judge_facets_moved,
+    judge_lines_moved,
+    refuse_completed,
+)
 from waterfall.core.planning.dating import constants_of
 from waterfall.core.planning.entries import (
     AUTOMATIC,
@@ -40,23 +45,31 @@ from waterfall.core.planning.entries import (
     judged_creation,
 )
 from waterfall.core.planning.filters import NodeFilters, retained
-from waterfall.core.planning.interface.facets import calendar_of, calendars_of, facets
+from waterfall.core.planning.interface.facets import calendar_of, facets
+from waterfall.core.planning.interface.lines import create_line_node
+from waterfall.core.planning.reading import reading_of
 from waterfall.core.planning.scheduling import Move, WorkInstant
 from waterfall.core.planning.shaping import (
     Placing,
+    closed_above,
+    closed_again,
+    completed_again,
     deleted,
     emptied,
     judge_place,
     place,
     placed,
+    reopened,
     stamp,
 )
+from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tables import Node, Task, TaskLink
-from waterfall.core.planning.tree import TASK, Tree, read_links, read_tree
-from waterfall.core.planning.views import NOT_STARTED, NodeView, Reading, state_of
+from waterfall.core.planning.tree import TASK, Tree, read_tree
+from waterfall.core.planning.views import COMPLETED, NOT_STARTED, NodeView, state_of
 from waterfall.core.planning.writing import (
     NodesWritten,
     Place,
+    StructureTotals,
     Write,
     Writer,
     facts_of,
@@ -135,26 +148,33 @@ class TaskEntry:
 
 @dataclass(frozen=True, slots=True)
 class NodeList:
-    """A reading of a structure (``listNodes``): its nodes, its tasks counted, its meta."""
+    """A reading of a structure (``listNodes``): its nodes, its tasks counted, its meta, its totals.
+
+    ``totals`` are those of the lines retained, whatever the kinds returned.
+    """
 
     items: tuple[NodeView, ...]
     task_count: int
     summary_depth: int
     scheduled_at: datetime
+    totals: StructureTotals
 
 
 @dataclass(frozen=True, slots=True)
 class NodeCreation:
-    """A task to create: its parent, the sibling it follows, its facet.
+    """A node to create: its parent, the sibling it follows, its kind and its facet.
 
-    ``after_given`` false places it after the last subtask of its parent; given, ``after_node_id``
-    null places it at their head.
+    ``after_given`` false places it after the last of its kind under its parent; given,
+    ``after_node_id`` null places it at their head. A task is created with ``task``; a node of
+    another kind with ``facet``, what the write sends of it, opaque to the planning (``lines``).
     """
 
     parent_id: UUID | None
     after_node_id: UUID | None
     after_given: bool
-    task: TaskEntry
+    task: TaskEntry | None = None
+    kind: str = TASK
+    facet: object | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -301,23 +321,6 @@ def copy_nodes(copy: RevisionCopy) -> None:
         hooks.copy(copy)
 
 
-def _reading(
-    session: Session, place: Place, tree: Tree, scheduled: tuple[datetime, bool]
-) -> Reading:
-    """Read what a reading of a structure derives: its links, its calendars, its states.
-
-    The links are read after the tree, in their own statement: one whose ends a write committed
-    in between is of a later state than the tree, and left out.
-    """
-    links = [
-        link
-        for link in read_links(session, place.project_id, place.structure_id)
-        if {link.predecessor_id, link.successor_id} <= tree.tasks.keys()
-    ]
-    calendars = calendars_of(session, place.project_id, tree.tasks)
-    return Reading(session, (place.project_id, *scheduled), tree, links, calendars)
-
-
 def list_nodes(session: Session, place: Place, filters: NodeFilters) -> NodeList:
     """Read the nodes of a structure, depth first, numbered and filtered (``listNodes``).
 
@@ -327,14 +330,16 @@ def list_nodes(session: Session, place: Place, filters: NodeFilters) -> NodeList
     """
     facts = facts_of(session, place, lock=False)
     tree = read_tree(session, place.project_id, place.structure_id)
-    reading = _reading(session, place, tree, (facts.scheduled_at, facts.is_main))
+    reading = reading_of(session, place, tree, (facts.scheduled_at, facts.is_main))
     structure = (place.project_id, place.structure_id)
-    order, count = retained(session, structure, reading, filters, constants_of(session))
+    found = retained(session, structure, reading, filters, constants_of(session))
+    reading.prefetch(found.order)
     return NodeList(
-        tuple(reading.node(each) for each in order),
-        count,
+        tuple(reading.node(each) for each in found.order),
+        found.task_count,
         reading.summary_depth(),
         facts.scheduled_at,
+        StructureTotals(len(found.lines), reading.totals(found.lines)),
     )
 
 
@@ -391,8 +396,10 @@ class Ground:
 class CreationJudged:
     """A task to create as judged on a tree: its node, its facet and attachment, its place.
 
-    ``shifted`` are the siblings its rank moves down; ``made_summary`` tells that its parent, a
-    manual leaf, becomes an automatic summary (WF-PLA-0040).
+    ``shifted`` are the siblings its rank moves down; ``made_summary``: its parent, a manual leaf,
+    becomes an automatic summary (WF-PLA-0040); ``closed``: the tasks above it whose facet keeps a
+    completion that it, not completed, makes stale — put back to started, their day cleared
+    (``closed_above``, WF-PLA-0040, WF-PLA-0130; #2769).
     """
 
     node_id: UUID
@@ -401,13 +408,17 @@ class CreationJudged:
     rank: int
     shifted: tuple[UUID, ...]
     made_summary: bool
+    closed: tuple[UUID, ...] = ()
 
     @property
     def touched(self) -> tuple[UUID, ...]:
-        """Give the nodes its write touches: itself, its parent made a summary, its siblings."""
+        """Give the nodes its write touches: itself, its parent made a summary, its siblings.
+
+        And the summaries above it whose completion it makes stale (``closed``, #2769).
+        """
         parent = self.creation.parent_id
         above = (parent,) if parent is not None and self.made_summary else ()
-        return (self.node_id, *above, *self.shifted)
+        return tuple(dict.fromkeys((self.node_id, *above, *self.shifted, *self.closed)))
 
 
 def _together[Judged](judge: Callable[[], Judged], attached: Attached) -> Judged:
@@ -425,25 +436,30 @@ def _together[Judged](judge: Callable[[], Judged], attached: Attached) -> Judged
     return judged
 
 
+def _entry(creation: NodeCreation) -> TaskEntry:
+    """Give the entry of a task to create; a node of another kind has none."""
+    if creation.task is None:
+        msg = "a task is created with its entry"
+        raise ValueError(msg)
+    return creation.task
+
+
 def judge_creation(ground: Ground, creation: NodeCreation, node_id: UUID) -> CreationJudged:
     """Judge a task to create on the tree of a ground, as ``createNode`` does; nothing is written.
 
-    Its parent, a task of the structure and no milestone (``MILESTONE_HAS_NO_SUBTASK``, the
-    milestone named, WF-PLA-0050), its facet with its attachment, all refusals at once, then its
-    place (``NODE_NOT_SIBLING``). A paste calls it for each row past the last node (#2559).
+    Its parent (``MILESTONE_HAS_NO_SUBTASK``, WF-PLA-0050), its facet and attachment, all refusals
+    at once, then its place (``NODE_NOT_SIBLING``). A paste calls it for rows past the last node.
     """
     session, tree = ground.session, ground.tree
-    parent = creation.parent_id
+    parent, entry = creation.parent_id, _entry(creation)
     _judge_parent(tree, parent)
     applicable = calendar_of(session, ground.project_id, node_id).calendar
     lineage = () if parent is None else (parent, *tree.ancestors(parent))
-    bearer = Bearer(node_id, creation.task.label or "", lineage, created=True)
+    bearer = Bearer(node_id, entry.label or "", lineage, created=True)
     held = (ground.project_id, tree, ground.is_main)
-    sent = creation.task.attachment(creation=True)
+    sent = entry.attachment(creation=True)
     attached = judged_attachment(session, held, bearer, sent, "/task")
-    facet = _together(
-        lambda: judged_creation(creation.task, applicable, constants_of(session)), attached
-    )
+    facet = _together(lambda: judged_creation(entry, applicable, constants_of(session)), attached)
     rank = _rank(tree, creation)
     shifted = tuple(each for each in tree.subtasks(parent) if tree.nodes[each].rank >= rank)
     made_summary = (
@@ -451,14 +467,15 @@ def judge_creation(ground: Ground, creation: NodeCreation, node_id: UUID) -> Cre
         and not tree.is_summary(parent)
         and tree.tasks[parent].scheduling_mode == MANUAL
     )
-    return CreationJudged(node_id, creation, (facet, attached), rank, shifted, made_summary)
+    closed = closed_above(tree, parent)
+    return CreationJudged(node_id, creation, (facet, attached), rank, shifted, made_summary, closed)
 
 
 def _made(
     place: Place, act: Act, judged: CreationJudged, planning_start: date
 ) -> tuple[Node, Task]:
     """Give the node and the facet of a task created, at its first version; nothing written."""
-    node_id, entry = judged.node_id, judged.creation.task
+    node_id, entry = judged.node_id, _entry(judged.creation)
     facet, attached = judged.judged
     node = Node(
         project_id=place.project_id,
@@ -506,14 +523,14 @@ def write_creation(write: Write, judged: CreationJudged) -> Task:
     """Write a task ``judge_creation`` judged on the tree of a write; give its facet written.
 
     A manual leaf that receives it becomes a summary, always automatic (WF-PLA-0040). The siblings
-    at its rank or after are moved down by one in one statement — the rank is unique, checked at
-    its end — and counted as any write of a node is.
+    at its rank or after move down by one in one statement (the rank is unique, checked at its end).
     """
     session, place, act = write.session, write.place, write.writer.act
     parent = judged.creation.parent_id
     if parent is not None and judged.made_summary:
         write.tree.tasks[parent].scheduling_mode = AUTOMATIC
         stamp(write.tree.nodes[parent], act)
+    reopened(write.tree, judged.closed, act)
     if judged.shifted:
         session.execute(
             update(Node)
@@ -538,21 +555,22 @@ def create_node(
 ) -> NodesWritten:
     """Create a task of a structure, and give the nodes written (``createNode``).
 
-    Judged under the lock of the structure (``judge_creation``): its parent, a task of the
-    structure and no milestone (``MILESTONE_HAS_NO_SUBTASK``, WF-PLA-0050), its place
-    (``NODE_NOT_SIBLING``), its facet — an automatic task of a day by default, a manual one at the
-    dates sent, their hours completed on its calendar (#1769, WF-PLA-0020), its attachment to the
-    work breakdown under its parent (WF-PLA-0170). A manual leaf that receives it becomes a
-    summary, always automatic (WF-PLA-0040), and is written with it. Beyond fifteen years, refused
-    naming the task by its label (WF-PLA-0150); nothing is created.
+    Judged under the lock of the structure (``judge_creation``): its parent, its place, its
+    facet — an automatic task of a day by default, a manual one at the dates sent, their hours
+    completed on its calendar (#1769, WF-PLA-0020) — its attachment to the work breakdown
+    (WF-PLA-0170). A manual leaf that receives it becomes a summary, always automatic
+    (WF-PLA-0040). Beyond fifteen years, refused (WF-PLA-0150). Another kind goes to ``lines``.
     """
+    entry = creation.task
+    if creation.kind != TASK or entry is None:
+        return create_line_node(session, place, creation, writer)
     node_id = new_id()
     with writing(session, place, writer, ("node_create", (node_id,))) as write:
         ground = Ground(session, place.project_id, write.tree, write.facts.is_main)
         judged = judge_creation(ground, creation, node_id)
         write.before(judged.touched)
         write_creation(write, judged)
-        redated = write.redate((None, creation.task.label or ""))
+        redated = write.redate((None, entry.label or ""))
         write.after(judged.touched)
         return redated.written((node_id,))
 
@@ -611,7 +629,7 @@ def traced(ground: Ground) -> Ground:
         node_id: Task(**{attr.key: getattr(task, attr.key) for attr in inspect(Task).column_attrs})
         for node_id, task in ground.tree.tasks.items()
     }
-    tree = Tree(ground.tree.nodes, tasks)
+    tree = ground.tree.with_nodes(ground.tree.nodes, tasks)
     return Ground(ground.session, ground.project_id, tree, ground.is_main)
 
 
@@ -633,7 +651,8 @@ def traced_creation(
         tasks[parent] = Task(**{**_columns(tasks[parent]), "scheduling_mode": AUTOMATIC})
     node, task = _made(place, act, judged, planning_start)
     nodes[node.id], tasks[node.id] = node, task
-    return Ground(ground.session, ground.project_id, Tree(nodes, tasks), ground.is_main)
+    tree = ground.tree.with_nodes(nodes, tasks)
+    return Ground(ground.session, ground.project_id, tree, ground.is_main)
 
 
 def update_task_facet(
@@ -707,30 +726,47 @@ def computed_value_dependencies(
     """Name what a computed value of a node depends on (``getComputedValueDependencies``).
 
     The rule, and the rows it reads — the direct subordinates of a summary, the lines and the
-    direct subordinates of a task — in the order of the plan, whatever a reading retains. A field
-    the server does not compute for the node is refused (422, ``params.field``); a node the
+    direct subordinates of a task — in the order of the plan, whatever a reading retains; for a
+    node of another kind, the rules its facet names (``FacetHooks.dependencies``), without a row.
+    A field the server does not compute for the node is refused (422, ``params.field``); a node the
     structure does not hold is not found (404).
     """
     facts_of(session, place, lock=False)
     tree = read_tree(session, place.project_id, place.structure_id)
     if node_id not in tree.nodes:
         raise NotFoundError(NOT_FOUND)
-    found = _rule(tree, node_id, field) if node_id in tree.tasks else None
+    if node_id not in tree.tasks:
+        hooks = facets().get(tree.nodes[node_id].kind)
+        named = (
+            None if hooks is None else hooks.dependencies(session, place.project_id, node_id, field)
+        )
+        if named is None:
+            raise UnprocessableError(VALIDATION_FAILED, {"field": field})
+        return Dependencies(node_id, field, named, ())
+    found = _rule(tree, node_id, field)
     if found is None:
         raise UnprocessableError(VALIDATION_FAILED, {"field": field})
     rule, rows = found
+    labels = _labels(session, place.project_id, tree, rows)
     return Dependencies(
         node_id,
         field,
         (rule,),
-        tuple(DependencyRow(each, tree.row_number[each], _label(tree, each)) for each in rows),
+        tuple(DependencyRow(each, tree.row_number[each], labels[each]) for each in rows),
     )
 
 
-def _label(tree: Tree, node_id: UUID) -> str:
-    """Give the label of a node: its task's; a line's is EP-07's facet."""
-    task = tree.tasks.get(node_id)
-    return "" if task is None else task.label
+def _labels(
+    session: Session, project_id: UUID, tree: Tree, node_ids: list[UUID]
+) -> dict[UUID, str]:
+    """Give the label of each node: its task's, or its facet's as the history names it."""
+    labels = {each: tree.tasks[each].label for each in node_ids if each in tree.tasks}
+    others = [each for each in node_ids if each not in labels]
+    if others:
+        labels.update(
+            {state.object_id: state.label for state in taken(session, project_id, others)}
+        )
+    return {each: labels.get(each, "") for each in node_ids}
 
 
 def resolve_row_number(session: Session, place: Place, row_number: int) -> RowResolution:
@@ -744,7 +780,8 @@ def resolve_row_number(session: Session, place: Place, row_number: int) -> RowRe
     if not 1 <= row_number <= len(tree.order):
         raise NotFoundError(NOT_FOUND)
     node_id = tree.order[row_number - 1]
-    return RowResolution(node_id, row_number, _label(tree, node_id), tree.nodes[node_id].kind)
+    label = _labels(session, place.project_id, tree, [node_id])[node_id]
+    return RowResolution(node_id, row_number, label, tree.nodes[node_id].kind)
 
 
 @dataclass(frozen=True, slots=True)
@@ -769,10 +806,14 @@ def delete_node(
 
     Under the lock of the structure: refused if the structure does not hold the node (404), at
     another version than the one read (412), for a task started or completed, or a summary one of
-    whose subordinates is (409 ``task_not_started``, WF-PLA-0070). The subtree goes, its links and
-    the inscriptions of its lineages with it; a summary left without subordinate becomes a leaf in
-    its state (WF-PLA-0040) and is given back among the ancestors, with the tasks the links taken
-    away redate. No provision line moves before EP-08: ``nodes`` is empty.
+    whose subordinates is (409 ``task_not_started``, WF-PLA-0070), for a line of a completed task
+    of the main structure (409 ``task_not_completed``, WF-RAE-0040; #1767). The subtree goes, its
+    lines, its links and the inscriptions of its lineages with it (WF-DAT-0090); a summary left
+    without subordinate becomes a leaf in its state (WF-PLA-0040) and is given back among the
+    ancestors, with the tasks the links taken away redate — and the task a line leaves, whose
+    calendar may change (WF-PLA-0010) — and the totals without them; a summary it leaves completed
+    again reads the zeroing of its lines (``closed_again``, #2803). No provision line moves before
+    EP-08: ``nodes`` is empty.
     """
     with writing(session, place, writer, ("node_delete", (node_id,))) as write:
         tree = write.tree
@@ -786,14 +827,19 @@ def delete_node(
         if node_id in tree.tasks and state_of(tree, node_id).progress != NOT_STARTED:
             raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": TASK_NOT_STARTED})
         parent = node.parent_id
+        if node_id not in tree.tasks:
+            refuse_completed(write, (parent,))
         former = () if parent is None else (parent, *tree.ancestors(parent))
         subtree = list(tree.subtree(node_id))
         left_bare = parent is not None and tree.subtasks(parent) == [node_id]
-        touched = (*subtree, *((parent,) if left_bare and parent is not None else ()))
+        again = closed_again(session, place.project_id, tree, (node_id,))
+        bare = (parent,) if left_bare and parent is not None else ()
+        touched = (*subtree, *bare, *again)
         write.before(touched)
         if left_bare and parent is not None:
             emptied(tree, parent)
             stamp(tree.nodes[parent], writer.act)
+        completed_again(tree, again, writer.act)
         deleted(session, place.project_id, tree, subtree)
         redated = write.redate(None)
         write.after(touched)
@@ -875,13 +921,17 @@ def move_nodes(session: Session, place: Place, moving: NodeMoving, writer: Write
 
     Under the lock of the structure, at its counter (412): a node it does not hold is not found
     (404); a node named with one of its ancestors is left to it (``_outermost``); the parent and
-    the place are judged (``_judge_move``), then the tasks of the work breakdown (WF-PLA-0170).
+    the place are judged (``_judge_move``), a line moved to a completed task or from it on the
+    main structure (409 ``task_not_completed``, #1767), then the tasks of the work breakdown
+    (WF-PLA-0170). A line given another task is judged by the hooks of its kind once placed —
+    a role that would leave that task without an hour (WF-PLA-0010) —, and priced again on it.
     Each node takes its subtree with it, unchanged but for its parent and its place
     (WF-PLA-0040); a manual leaf that receives a task becomes an automatic summary; a
     summary that loses its last subordinate a leaf in its state. The engine refuses a link the
     move would make between a summary and its subordinate, or a loop it would close through the
     parent (``LINK_FORBIDDEN``, ``LINK_CYCLE``, #1169), and a project beyond fifteen years, the
-    first task moved named (WF-PLA-0150); nothing is written then. The moved nodes are given back
+    first task moved named, or the task that receives the lines (WF-PLA-0150); nothing is written
+    then. The moved nodes are given back
     with their former and new ancestors.
     """
     node_ids = tuple(dict.fromkeys(moving.node_ids))
@@ -896,6 +946,7 @@ def move_nodes(session: Session, place: Place, moving: NodeMoving, writer: Write
         kept = _outermost(tree, node_ids)
         placing = Placing(kept, moving.parent_id, moving.after_node_id, moving.after_given)
         _judge_move(tree, placing)
+        judge_lines_moved(write, kept, moving.parent_id)
         _judge_package_tasks(write, placing, moving.node_ids)
         return _moved(write, placing)
 
@@ -919,19 +970,30 @@ def _moved(write: Write, placing: Placing) -> NodesWritten:
         and tree.tasks[parent].scheduling_mode == MANUAL
     )
     shifted = [each for each in changes if each not in node_ids]
+    carried = [
+        each for each in node_ids if each not in tree.tasks and tree.nodes[each].parent_id != parent
+    ]
     above = (parent,) if made_summary and parent is not None else ()
-    touched = (*node_ids, *shifted, *above, *left_bare)
+    # A task not completed placed under a parent makes it and the summaries above not completed.
+    open_below = any(state_of(tree, each).progress != COMPLETED for each in tasks_moved)
+    closed = closed_above(tree, parent) if open_below else ()
+    receiving = () if parent is None else (parent, *tree.ancestors(parent))
+    again = closed_again(write.session, write.place.project_id, tree, tasks_moved, receiving)
+    touched = tuple(dict.fromkeys((*node_ids, *shifted, *above, *left_bare, *closed, *again)))
     write.before(touched)
+    reopened(tree, closed, act)
     for each in left_bare:
         emptied(tree, each)
         stamp(tree.nodes[each], act)
+    completed_again(tree, again, act)
     if made_summary and parent is not None:
         tree.tasks[parent].scheduling_mode = AUTOMATIC
         stamp(tree.nodes[parent], act)
     place(write, changes, (*node_ids, *shifted))
-    first = tasks_moved[0] if tasks_moved else None
+    judge_facets_moved(write, carried)
+    first = tasks_moved[0] if tasks_moved else parent
     blamed = None if first is None else (first, tree.tasks[first].label)
-    origin = None if parent is None or first is None else Move(tuple(tasks_moved), parent)
+    origin = None if parent is None or not tasks_moved else Move(tuple(tasks_moved), parent)
     redated = write.redate(blamed, origin)
     write.after(touched)
     return redated.written(node_ids, former)

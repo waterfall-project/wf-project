@@ -6,7 +6,8 @@
 witness, PRJ-002 and PRJ-001 with their client, the contributors, the subprojects, the work
 breakdown, then the events of the chronology (``project_state_transitions.json``) each at its
 instant: the offer 100 opened (Created to Pricing) and marked, the 101 opened, the designation of
-100 tried and refused for the lack of tasks, the code entered, the 101 marked, the 102 opened.
+100 (made since EP-07 loads the tasks and the lines), the code entered with the order received,
+which moves the project In progress, the 101 marked, the 102 opened.
 
 What the service reads of the loaded witness is compared with the examples of the contract, but for
 what the slice does not reach, listed here (``UNREACHED``): each entry names the EPIC that lifts it.
@@ -41,7 +42,7 @@ from waterfall.platform.database import utc_now
 from waterfall.platform.errors import ConflictError
 from waterfall.platform.logs import logging_context
 from waterfall.platform.settings import WitnessSettings
-from waterfall.witness import projects, revisions
+from waterfall.witness import org_nodes, projects, revisions
 from waterfall.witness.description import Witness
 from waterfall.witness.main import load_witness
 from waterfall.witness.timeline import Chronology
@@ -61,30 +62,31 @@ PRJ_002 = UUID("01926f3a-7c00-7000-8000-000000000002")
 REVISION_100 = UUID("01926f3a-7c00-7000-8000-000000000100")
 REVISION_101 = UUID("01926f3a-7c00-7000-8000-000000000101")
 REVISION_102 = UUID("01926f3a-7c00-7000-8000-000000000102")
-# The contributors of the witness: Camille Martin, Alix Moreau (deactivated), Lucas Petit, Inès
-# Roux.
+# The accounts of the witness: its contributors — Camille Martin, Alix Moreau (deactivated), Lucas
+# Petit, Inès Roux — and Sacha Lefèvre, whom ``users.json`` attaches to a node of the organisation
+# without naming a contributor (#2698).
 CONTRIBUTORS = {
     UUID("01926f3a-7c00-7000-8000-000000000301"): True,
     UUID("01926f3a-7c00-7000-8000-000000000303"): False,
     UUID("01926f3a-7c00-7000-8000-000000000305"): True,
     UUID("01926f3a-7c00-7000-8000-000000000306"): True,
+    UUID("01926f3a-7c00-7000-8000-000000000304"): True,
 }
 # What the slice does not reach, by object: the fields of an example the loaded witness differs
 # from, each with the EPIC that lifts it. The author is the platform, never the account the example
 # names; the counter of writes and the commands follow the writes and the state of the object.
 UNREACHED = {
     "project": {
-        "state": "PRJ-001 stays in Pricing until the order received (EP-07), PRJ-002 has none",
-        "order_received_on": "the order received (EP-07)",
-        "reference_revision_id": "the designation succeeds with tasks and lines (EP-06, EP-07)",
-        "win_probability": "the order received sets it to 1 (EP-07); no slice loads the others",
-        "inflation_rate": "the rate of the project is not written by the slice",
+        "reference_revision_id": "the offer 100 is the reference until the amendment 1 (EP-08)",
+        "state": "PRJ-002 has no event in the chronology: it stays created",
+        "win_probability": "project.json gives PRJ-001's alone; PRJ-002 keeps the default",
+        "inflation_rate": "project.json gives PRJ-001's alone; PRJ-002 keeps the default",
         "lock_version": "the counter follows the writes of the slice",
         "audit": "the platform is the author; updated_at follows the writes",
         "available_commands": "the commands follow the state of the project",
     },
     "revision": {
-        "is_reference": "the designation succeeds with tasks and lines (EP-06, EP-07)",
+        "is_reference": "the offer 100 is the reference until the amendment 1 (EP-08)",
         "inflation_rate": "copied from the project, which the slice does not set",
         "win_probability": "copied from the project, which the slice does not set",
         "lock_version": "the counter follows the writes of the slice",
@@ -92,7 +94,6 @@ UNREACHED = {
         "available_commands": "the commands follow the state of the revision",
     },
     "subproject": {
-        "has_actual_costs": "the actual costs are imported (EP-09)",
         "lock_version": "the counter follows the writes of the slice",
         "audit": "the platform is the author; the instant is the creation of the project",
         "available_commands": "the commands follow the state of the subproject",
@@ -193,7 +194,7 @@ def identifying(database: Database) -> dict[str, list[tuple[object, ...]]]:
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
-def test_the_witness_loads_the_local_accounts_of_its_contributors_under_its_identifiers(
+def test_the_witness_loads_its_local_accounts_attached_to_their_node_under_its_identifiers(
     witness: Database,
 ) -> None:
     named = {user["user_id"]: user for user in example("users")["items"]}
@@ -202,6 +203,13 @@ def test_the_witness_loads_the_local_accounts_of_its_contributors_under_its_iden
             select(UserAccount).where(UserAccount.id.in_(CONTRIBUTORS))
         ).all()
     assert {account.id: account.state == "active" for account in accounts} == CONTRIBUTORS
+    # Each is attached to the node of the organisation ``users.json`` gives it (#2698).
+    attached = {str(account.id): str(account.org_node_id) for account in accounts}
+    wanted = {str(each): named[str(each)]["org_node_id"] for each in CONTRIBUTORS}
+    assert {key: node for key, node in wanted.items() if node} == {
+        key: node for key, node in attached.items() if node != "None"
+    }
+    assert "01926f3a-7c00-7000-8000-000000000472" in attached.values()
     for account in accounts:
         expected = named[str(account.id)]
         assert (account.first_name, account.last_name) == (
@@ -229,15 +237,15 @@ def test_the_projects_read_are_the_examples_but_for_what_the_slice_does_not_reac
     api: ContractClient, witness: Database, realm: TestRealm
 ) -> None:
     unreached = set(UNREACHED["project"])
-    body = read(api, witness, realm, f"{PROJECTS}?states=created,pricing")
+    body = read(api, witness, realm, f"{PROJECTS}?states=created,pricing,in_progress")
     read_projects = keyed(body["items"], "project_id")
     expected = keyed(example("projects")["items"], "project_id")
     assert read_projects.keys() == expected.keys() == {str(PRJ_001), str(PRJ_002)}
     for identifier, item in read_projects.items():
         assert without(item, unreached) == without(expected[identifier], unreached)
-    # Where the slice stops: PRJ-001 in Pricing with its code and its current revision, PRJ-002
-    # created with its own.
-    assert read_projects[str(PRJ_001)]["state"] == "pricing"
+    # Where the witness stands: PRJ-001 In progress since the order received (EP-07) with its code
+    # and its current revision, PRJ-002 created with its own.
+    assert read_projects[str(PRJ_001)]["state"] == "in_progress"
     assert read_projects[str(PRJ_002)]["state"] == "created"
     assert read_projects[str(PRJ_001)]["current_revision_id"] == str(REVISION_102)
     assert body["meta"]["total"] == 2
@@ -258,8 +266,15 @@ def test_the_revisions_read_are_the_examples_but_for_what_the_slice_does_not_rea
         (identifier[-3:], item["status"], item["version_name"])
         for identifier, item in sorted(read_revisions.items())
     ] == [("100", "marked", "Offre v1.0"), ("101", "marked", "Référence"), ("102", "draft", None)]
-    # The designation of 100 was refused, and no other tried: no reference (EP-06, EP-07).
-    assert not any(item["is_reference"] for item in read_revisions.values())
+    # The designation of the offer 100 succeeds at the order received (EP-07): it is the reference
+    # until the amendment 1 is merged (EP-08), where the example reads the 101.
+    assert {
+        identifier[-3:]: item["is_reference"] for identifier, item in read_revisions.items()
+    } == {
+        "100": True,
+        "101": False,
+        "102": False,
+    }
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
@@ -291,15 +306,15 @@ def test_the_work_breakdown_read_is_the_example_but_for_what_the_slice_does_not_
 
 
 @pytest.mark.requirement("WF-CYC-0130-A")
-def test_the_transitions_read_are_the_examples_up_to_the_pricing_the_slice_stops_at(
+def test_the_transitions_read_are_the_examples_up_to_the_order_received(
     api: ContractClient, witness: Database, realm: TestRealm
 ) -> None:
     # The third transition of the example, Pricing to In progress at the order received, is the
-    # designation that tasks and lines allow (EP-07); the author is the platform.
+    # designation of the offer once its code is entered (EP-07); the author is the platform.
     body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/state-transitions")
     expected = example("state_transitions")
     assert [(each["from_state"], each["to_state"], each["occurred_at"]) for each in body] == [
-        (each["from_state"], each["to_state"], each["occurred_at"]) for each in expected[:2]
+        (each["from_state"], each["to_state"], each["occurred_at"]) for each in expected
     ]
     assert all(each["actor"]["kind"] == "platform" for each in body)
 
@@ -331,6 +346,7 @@ def test_the_dates_of_the_projects_revisions_and_transitions_are_those_of_the_ch
         (PRJ_001, None, "created", created),
         (PRJ_002, None, "created", created),
         (PRJ_001, "created", "pricing", opened_offer),
+        (PRJ_001, "pricing", "in_progress", instant(7)),
     ]
 
 
@@ -359,16 +375,16 @@ def test_the_revisions_100_101_and_102_each_hold_their_main_cost_structure(
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
-def test_the_designation_of_the_offer_is_tried_refused_and_noted_in_the_output(
+def test_the_designation_of_the_offer_succeeds_and_is_noted_in_the_output(
     logs: Logs, witness_loaded: Database
 ) -> None:
-    noted = logs.named("witness.designation_refused")
-    assert [(each["project"], each["revision"], each["missing_condition"]) for each in noted] == [
-        ("PRJ-001", 100, "revision_has_tasks_and_lines")
-    ]
+    # Refused for the lack of tasks and lines until EP-07 loaded them; now made, the only reference.
+    assert not logs.named("witness.designation_refused")
+    noted = logs.named("witness.reference_designated")
+    assert [(each["project"], each["revision"]) for each in noted] == [("PRJ-001", 100)]
     assert len(logs.named("witness.loaded")) == 1
     with witness_loaded.transaction() as session:
-        assert session.scalar(select(func.count()).where(Revision.is_reference)) == 0
+        assert session.scalar(select(func.count()).where(Revision.is_reference)) == 1
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
@@ -535,10 +551,13 @@ def test_the_projects_are_created_by_the_rules_of_the_creation_the_minimal_refer
     witness: Database, owner: Engine
 ) -> None:
     # A platform whose reference lacks a prerequisite refuses the witness (#2155): the projects
-    # slice, run on the bootstrap alone, names what is missing and writes nothing.
+    # slice, run on the bootstrap and the nodes of the organisation that the accounts attach to,
+    # names what is missing and writes nothing.
     wipe(owner)
     install(owner)
     current = Witness(WITNESS, Act(None, utc_now()))
+    with witness.transaction() as session:
+        org_nodes.load(session, current)
     with (
         logging_context(correlation_id="witness-refused"),
         pytest.raises(ConflictError) as refused,

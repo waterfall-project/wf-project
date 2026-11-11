@@ -69,6 +69,24 @@ const FILE_RESULT: Readonly<Record<TaskKind, boolean>> = {
   identity_sync: false,
 };
 
+/**
+ * Whether the tracker of the shell follows a kind of task, for every kind of the contract: all
+ * but the restoration, which is followed by the screen of its maintenance alone — where every
+ * operation answers 503 while it runs, which the shell would read again all along (#2263). A kind
+ * the contract adds fails the type check until it is classified here.
+ */
+const FOLLOWED: Readonly<Record<TaskKind, boolean>> = {
+  import_analysis: true,
+  import_apply: true,
+  revision_mark: true,
+  structure_merge: true,
+  risk_occurrence: true,
+  export: true,
+  backup: true,
+  restore: false,
+  identity_sync: true,
+};
+
 /** Whether a task has succeeded with a file to download: the entry offers it. */
 export function givesFile(task: BackgroundTask): boolean {
   return task.status === "succeeded" && task.result_url != null && FILE_RESULT[task.kind];
@@ -204,12 +222,24 @@ function logEnd(log: readonly EndLine[], before: BackgroundTask, after: TrackedT
     : logged(log, end, after, after.task.problem ?? undefined);
 }
 
+/** The statuses of a refused read that stop the follow-up: the task unknown, the session gone. */
+const ENDS_FOLLOW_UP: ReadonlySet<number> = new Set([401, 404]);
+
 /** The entry once an answer that is no task has come. */
 function refused(
   entry: TrackedTask,
   source: "read" | "relaunch" | "download",
-  outcome: Exclude<Outcome<BackgroundTask>, { kind: "done" }>,
+  answered: Exclude<Outcome<BackgroundTask>, { kind: "done" }>,
 ): TrackedTask {
+  // A read says the task gone or the session lost by a 404 or a 401 alone; any other refusal — a
+  // 500, a 503 while the database or Redis is down, a status the contract does not declare — is a
+  // passing failure, taken as the API out of reach: asked again later, told once (#2257).
+  const outcome: typeof answered =
+    source === "read" &&
+    answered.kind !== "unreachable" &&
+    !ENDS_FOLLOW_UP.has(answered.problem.status)
+      ? { kind: "unreachable" }
+      : answered;
   if (
     source === "read" &&
     outcome.kind === "unreachable" &&
@@ -293,7 +323,7 @@ function found(state: Tracking, tasks: readonly BackgroundTask[]): Tracking {
     ...state.tasks.flatMap((tracked) => [tracked.key, tracked.task.task_id]),
   ]);
   const added = tasks
-    .filter((task) => !known.has(task.task_id))
+    .filter((task) => FOLLOWED[task.kind] && !known.has(task.task_id))
     .map((task): TrackedTask => ({
       key: task.task_id,
       task,

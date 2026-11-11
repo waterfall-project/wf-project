@@ -299,6 +299,7 @@ _KEYS = {
     "lineage_id": _LINEAGES,
     "parent_lineage_id": _LINEAGES,
     "predecessor_lineage_id": _LINEAGES,
+    "task_lineage_id": _LINEAGES,
     "project_id": ("projets", "projets du portefeuille"),
     "revision_id": ("révisions",),
     "source_revision_id": ("révisions",),
@@ -309,6 +310,7 @@ _KEYS = {
     "structure_id": ("structures",),
     "user_id": ("comptes",),
     "cost_category_id": ("catégories de coût", "catégories de la grille des taux"),
+    "cost_category_ids": ("catégories de coût",),
     "resource_role_id": ("rôles de ressources",),
     "cost_type_id": ("natures de coût",),
     "org_node_id": ("nœuds d'organisation",),
@@ -372,6 +374,8 @@ _KEYS = {
     "timeline_id": ("chronologies",),
     "cost_line_id": ("lignes de coût réel", "lignes de coût réel engendrées"),
     "cost_import_id": ("imports de coûts réels",),
+    "created_by_cost_import_id": ("imports de coûts réels",),
+    "updated_by_cost_import_ids": ("imports de coûts réels",),
 }
 """The families an identifier may be of, by the key that carries it."""
 

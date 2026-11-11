@@ -30,6 +30,9 @@ from waterfall.core.exchanges.interface import register_exporter, register_forma
 from waterfall.core.planning.calendars import (
     Applicable as Applicable,
 )
+from waterfall.core.planning.entries import (
+    ENTRIES as ENTRIES,
+)
 from waterfall.core.planning.filters import (
     NodeFilters as NodeFilters,
 )
@@ -37,9 +40,40 @@ from waterfall.core.planning.interface.closing import (
     delete_nodes as delete_nodes,
 )
 
-# ``facets`` (US-1380/L1; read by US-1380/L2): the facets of a node other than the task (EP-07).
+# ``facets`` (US-1380/L1; read by US-1380/L2; completed by US-1490/L3): the facets of a node
+# other than the task (EP-07).
+from waterfall.core.planning.interface.facets import (
+    Amounts as Amounts,
+)
+from waterfall.core.planning.interface.facets import (
+    BearingTask as BearingTask,
+)
+from waterfall.core.planning.interface.facets import (
+    CellRefusal as CellRefusal,
+)
+from waterfall.core.planning.interface.facets import (
+    CellsJudged as CellsJudged,
+)
+from waterfall.core.planning.interface.facets import (
+    CellsPasted as CellsPasted,
+)
+from waterfall.core.planning.interface.facets import (
+    FacetCreation as FacetCreation,
+)
 from waterfall.core.planning.interface.facets import (
     FacetHooks as FacetHooks,
+)
+from waterfall.core.planning.interface.facets import (
+    FacetRead as FacetRead,
+)
+from waterfall.core.planning.interface.facets import (
+    FacetState as FacetState,
+)
+from waterfall.core.planning.interface.facets import (
+    FacetWrite as FacetWrite,
+)
+from waterfall.core.planning.interface.facets import (
+    LineSort as LineSort,
 )
 from waterfall.core.planning.interface.facets import (
     calendar_of as calendar_of,
@@ -51,20 +85,88 @@ from waterfall.core.planning.interface.facets import (
     facets as facets,
 )
 from waterfall.core.planning.interface.facets import (
+    named_calendars as named_calendars,
+)
+from waterfall.core.planning.interface.facets import (
     register_facet as register_facet,
 )
 
-# ``lines`` (US-1380/L1; US-1380/L2): the lines of a task, and their place, for EP-07.
+# ``lines`` (US-1380/L1; US-1490/L3, L4; US-1550/L3): the lines of a task, their place, their
+# writes, where they stand, their counters, the write of an import, for EP-07.
+from waterfall.core.planning.interface.lines import (
+    FacetChange as FacetChange,
+)
+from waterfall.core.planning.interface.lines import (
+    LineJudged as LineJudged,
+)
+from waterfall.core.planning.interface.lines import (
+    LinesWrite as LinesWrite,
+)
+from waterfall.core.planning.interface.lines import (
+    NodeRow as NodeRow,
+)
+from waterfall.core.planning.interface.lines import (
+    bearers_of as bearers_of,
+)
+from waterfall.core.planning.interface.lines import (
+    bearing_tasks as bearing_tasks,
+)
+from waterfall.core.planning.interface.lines import (
+    create_line_node as create_line_node,
+)
+from waterfall.core.planning.interface.lines import (
+    judge_bearer as judge_bearer,
+)
+from waterfall.core.planning.interface.lines import (
+    judge_line_creation as judge_line_creation,
+)
+from waterfall.core.planning.interface.lines import (
+    lineages_of as lineages_of,
+)
 from waterfall.core.planning.interface.lines import (
     lines_of as lines_of,
 )
 from waterfall.core.planning.interface.lines import (
-    place_line as place_line,
+    lines_of_revision as lines_of_revision,
+)
+from waterfall.core.planning.interface.lines import (
+    lines_of_structure as lines_of_structure,
+)
+from waterfall.core.planning.interface.lines import (
+    new_line_node as new_line_node,
+)
+from waterfall.core.planning.interface.lines import (
+    node_revisions as node_revisions,
+)
+from waterfall.core.planning.interface.lines import (
+    node_rows as node_rows,
+)
+from waterfall.core.planning.interface.lines import (
+    node_versions as node_versions,
+)
+from waterfall.core.planning.interface.lines import (
+    revision_bears as revision_bears,
+)
+from waterfall.core.planning.interface.lines import (
+    structures_of as structures_of,
+)
+from waterfall.core.planning.interface.lines import (
+    write_facet as write_facet,
+)
+from waterfall.core.planning.interface.lines import (
+    write_line_node as write_line_node,
+)
+from waterfall.core.planning.interface.lines import (
+    write_lines as write_lines,
 )
 
-# ``loading`` (US-1480/L2): the tasks of the witness, a revision's tree reconciled with them.
+# ``loading`` (US-1480/L2; US-1570/L2): the tasks and the lines of the witness, a revision's tree
+# reconciled with them.
 from waterfall.core.planning.interface.loading import (
     DatesDisagreeing as DatesDisagreeing,
+)
+from waterfall.core.planning.interface.loading import (
+    LineNodeLoad as LineNodeLoad,
 )
 from waterfall.core.planning.interface.loading import (
     LinkLoad as LinkLoad,
@@ -74,6 +176,9 @@ from waterfall.core.planning.interface.loading import (
 )
 from waterfall.core.planning.interface.loading import (
     TasksLoad as TasksLoad,
+)
+from waterfall.core.planning.interface.loading import (
+    load_line_nodes as load_line_nodes,
 )
 from waterfall.core.planning.interface.loading import (
     load_tasks as load_tasks,
@@ -167,6 +272,27 @@ from waterfall.core.planning.interface.nodes import (
     write_creation as write_creation,
 )
 
+# ``open_lines`` (US-1590/L1; US-1650/L2): the own lines that hold a summary task open, and when
+# they were set to nought, which the estimate tells.
+from waterfall.core.planning.interface.open_lines import (
+    OpenLines as OpenLines,
+)
+from waterfall.core.planning.interface.open_lines import (
+    ZeroedAt as ZeroedAt,
+)
+from waterfall.core.planning.interface.open_lines import (
+    held_open as held_open,
+)
+from waterfall.core.planning.interface.open_lines import (
+    register_open_lines as register_open_lines,
+)
+from waterfall.core.planning.interface.open_lines import (
+    register_zeroed_at as register_zeroed_at,
+)
+from waterfall.core.planning.interface.open_lines import (
+    zeroed_at as zeroed_at,
+)
+
 # ``paste`` (US-1380/L1; US-1450/L2): the paste of a block of cells.
 from waterfall.core.planning.interface.paste import (
     PasteApplied as PasteApplied,
@@ -201,7 +327,18 @@ from waterfall.core.planning.interface.predecessors import (
     set_predecessors as set_predecessors,
 )
 
-# ``progress`` (US-1380/L1; US-1410): the state of a task.
+# ``progress`` (US-1380/L1; US-1410; US-1580/L2; US-1590/L1): the state of a task, its completion
+# by the re-estimate that sets its last open line to nought (``write_remaining``), the gestures of
+# a card of the Kanban (``progress_commands``).
+from waterfall.core.planning.interface.progress import (
+    KanbanCommand as KanbanCommand,
+)
+from waterfall.core.planning.interface.progress import (
+    KanbanCommandAvailability as KanbanCommandAvailability,
+)
+from waterfall.core.planning.interface.progress import (
+    KanbanCondition as KanbanCondition,
+)
 from waterfall.core.planning.interface.progress import (
     ProgressEntry as ProgressEntry,
 )
@@ -209,10 +346,22 @@ from waterfall.core.planning.interface.progress import (
     ProgressLoad as ProgressLoad,
 )
 from waterfall.core.planning.interface.progress import (
+    RemainingChange as RemainingChange,
+)
+from waterfall.core.planning.interface.progress import (
+    TaskProgress as TaskProgress,
+)
+from waterfall.core.planning.interface.progress import (
     load_progress as load_progress,
 )
 from waterfall.core.planning.interface.progress import (
+    progress_commands as progress_commands,
+)
+from waterfall.core.planning.interface.progress import (
     set_task_progress as set_task_progress,
+)
+from waterfall.core.planning.interface.progress import (
+    write_remaining as write_remaining,
 )
 
 # ``reference`` (US-1380/L1; US-1390/L2): what the planning answers to the reference.
@@ -314,14 +463,36 @@ from waterfall.core.planning.interface.work_breakdown import (
 from waterfall.core.planning.interface.work_breakdown import (
     work_breakdown_item_cited as work_breakdown_item_cited,
 )
+from waterfall.core.planning.interface.work_breakdown import (
+    work_package_lines as work_package_lines,
+)
+
+# Beside the interface (US-1530): a structure read whole, and what a reading's filters retain of it.
+from waterfall.core.planning.reading import (
+    StructureRead as StructureRead,
+)
+from waterfall.core.planning.reading import (
+    read_structure as read_structure,
+)
+
+# Beside the interface: what a write of the tree hands the replay of the engine (#2492).
 from waterfall.core.planning.rescheduling import (
     Holding as Holding,
+)
+
+# Beside the interface (US-1570/L5, #2549): a calendar of a week and its count of the hours of work,
+# which the estimate spreads a line on.
+from waterfall.core.planning.scheduling import (
+    Calendar as Calendar,
 )
 from waterfall.core.planning.scheduling import (
     Duration as Duration,
 )
 from waterfall.core.planning.scheduling import (
     WorkInstant as WorkInstant,
+)
+from waterfall.core.planning.scheduling import (
+    weekly_calendar as weekly_calendar,
 )
 from waterfall.core.planning.views import (
     ConflictView as ConflictView,
@@ -342,10 +513,16 @@ from waterfall.core.planning.views import (
     TrackingView as TrackingView,
 )
 from waterfall.core.planning.writing import (
+    InflationView as InflationView,
+)
+from waterfall.core.planning.writing import (
     NodesWritten as NodesWritten,
 )
 from waterfall.core.planning.writing import (
     Place as Place,
+)
+from waterfall.core.planning.writing import (
+    StructureTotals as StructureTotals,
 )
 from waterfall.core.planning.writing import (
     Writer as Writer,

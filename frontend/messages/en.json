@@ -316,6 +316,7 @@
       "refusedAt": "Refused at row {number}, “{label}”:",
       "refusedAtRow": "Refused at row {number}:",
       "refusedCreating": "Creation of “{label}” refused:",
+      "toRemaining": "Bring its remaining to commit to zero",
       "onRow": "Row {number}, “{label}”",
       "timelines": "Timelines",
       "milestoneTracking": "Time/time tracking",
@@ -328,10 +329,12 @@
       "subprojectSet": "{others, plural, =0 {Subproject of “{label}” updated.} one {Subproject of “{label}” and of one other line updated.} other {Subproject of “{label}” and of # other lines updated.}}",
       "underHint": "{under}. {hint}",
       "labelField": "Label",
-      "categoryField": "Category",
+      "entryField": "Role or category",
+      "rolesGroup": "Roles (labour)",
+      "expensesGroup": "Expense categories",
       "quantityField": "Quantity",
       "taskHint": "Name the task. It is created as a leaf, automatic, of one day, without predecessor.",
-      "lineHint": "Choose the category and the quantity of the line. The other fields are entered in the grid.",
+      "lineHint": "Choose the role or the expense category, and the quantity of the line. The other fields are entered in the grid.",
       "composedLabel": "Optional: by default, the label of the task that bears the line, followed by that of its role.",
       "busy": "Waits for the write under way to end."
     },
@@ -358,6 +361,7 @@
       "reading": "Reading the report…",
       "accepted": "{count, plural, =0 {No row will be written.} one {# row will be written.} other {# rows will be written.}}",
       "created": "{count, plural, one {# task will be created} other {# tasks will be created}} after the last task.",
+      "createdLines": "{count, plural, one {# line will be created} other {# lines will be created}} under the last task.",
       "noneRejected": "No row is refused.",
       "partial": "Confirmed, the paste writes the valid rows, and not the refused ones; abandoned, it changes no row.",
       "rejected": "{count, plural, one {# row is refused:} other {# rows are refused:}}",
@@ -479,6 +483,12 @@
     }
   },
   "remainingGrid": {
+    "completionTitle": "Complete the task",
+    "completionHint": "This entry brings the remaining to commit of the last open line of the task to zero: it completes the task. Give the date of its completion.",
+    "completionDate": "Completion date",
+    "completionRequired": "Give the completion date.",
+    "completionCancel": "Give up the entry",
+    "completionConfirm": "Complete the task",
     "finishOverdue": "Started task past its finish",
     "ownLinesOpen": "Own lines open",
     "showNotStarted": "Show the tasks not started too",
@@ -1249,6 +1259,9 @@
     "attachUser": {
       "help": "Attaches the account to an active node of the organisation chart, or removes its attachment: an attachment gives no permission."
     },
+    "setAccessRoles": {
+      "help": "Attributes one or more roles of the installation to the account: they give it its permissions."
+    },
     "activeUser": {
       "help": "Activates or deactivates the account: a deactivated account can no longer sign in."
     },
@@ -1489,6 +1502,9 @@
       },
       "ownLinesOpen": {
         "help": "Marks a summary task whose subordinates are all completed and which waits only for its own lines, and those lines, provisions excepted, that still hold a remaining to commit."
+      },
+      "inactiveObject": {
+        "help": "Marks a line that uses a deactivated object of the reference data, still readable."
       },
       "budgetedAmount": {
         "help": "Budgeted amount of the line, as the reference budget froze it."
@@ -2289,12 +2305,17 @@
       "title": "Account not admitted",
       "explanation": "Waterfall does not admit this account: the screen cannot be shown. Contact an administrator."
     },
+    "componentUnavailable": {
+      "title": "Component unavailable",
+      "explanation": "A component of the service is unavailable: the screen could not read its data. Try again once it is back."
+    },
     "unexpected": {
       "title": "Unexpected error",
       "explanation": "The screen could not be displayed. If the error persists, give its reference to the operator."
     },
     "signInUnreachable": "The service does not answer: the sign-in could not be made. Try again in a moment.",
     "reference": "Reference: {reference}",
+    "component": "Unavailable component: {component}",
     "retry": "Try again",
     "signOut": "Sign out"
   },
@@ -2320,7 +2341,8 @@
       "deactivate": "Deactivate “{name}”",
       "deactivateShort": "Deactivate",
       "deactivationUnavailable": "Deactivating “{name}” is unavailable. {unmet}",
-      "designationUnavailable": "Designating “{name}” by default is unavailable. {unmet}"
+      "designationUnavailable": "Designating “{name}” by default is unavailable. {unmet}",
+      "rolesUnavailable": "Attributing the roles of “{name}” is unavailable. {unmet}"
     },
     "inactive": {
       "show": "Show the deactivated ones too",
@@ -2500,7 +2522,7 @@
     "actualCostMapping": {
       "form": "Mapping of the actual cost extraction",
       "summary": "The labels under which the ERP extraction names the columns Waterfall reads, and the columns it keeps for information. A label is compared with the header of the file, and with the other labels, regardless of case, accents and spaces at the ends.",
-      "complete": "The mapping is complete: an actual cost extraction can be imported.",
+      "complete": "The mapping is complete: the import of actual costs is no longer refused for it, and it reads the columns of the extraction under these labels.",
       "missing": "{count, plural, one {Required column without a label} other {Required columns without a label}}: {columns}. The import of actual costs is refused while the mapping is incomplete.",
       "required": "(required)",
       "optional": "(optional)",
@@ -2988,6 +3010,7 @@
     "PROJECT_CODE_INVALID": "The project code cannot contain a slash.",
     "DUPLICATE_COLUMN_LABEL": "This column label is already in the mapping, regardless of case, accents or surrounding spaces: each one names a single column.",
     "DUPLICATE_COST_LINE": "This line shares its document and item, blank item included, with other lines of the file: all of them are rejected, none is preferred. Correct or remove the duplicates in the file.",
+    "DUPLICATE_LINEAGE": "This line carries a line identifier (“ID ligne”) that other lines of the file carry too: all of them are rejected, none is preferred, and the line of the revision is left as it is. Remove or correct the copies in the file.",
     "COMPONENT_UNAVAILABLE": "A component of the service is unavailable.",
     "INTERNAL_ERROR": "Unexpected service error.",
     "ACCOUNT_DEACTIVATED": "This account is deactivated; contact an administrator.",
