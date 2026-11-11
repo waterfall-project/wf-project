@@ -253,7 +253,7 @@ test("adds a task from the remaining to commit of a project in progress, below a
   test.slow();
   // Une tâche ajoutée depuis la grille de reste à engager : the structure lists `edit_remaining`
   // available, and the gesture is the planning's; that it appears in the planning, the reference
-  // unchanged, is the service's (EP-09).
+  // unchanged, is the service's (EP-09, served); this path has no twin against it yet (#2909).
   const { cell } = await focusRow(
     page,
     "remaining",

@@ -4149,9 +4149,10 @@ the epic that lifts it; that epic removes the guard and its entry:
   twin against the service on a project of the run (`planning-service.spec.ts`, `structure.spec.ts`,
   `computed.spec.ts`, `keyboard.spec.ts`), which no epic reverses; the paths of these files that
   read the witness play on both sides. The paths of the remaining to commit of `structure.spec.ts`
-  that write (the addition of a task and of a line) follow the same rule, their twin being the path
-  of `remaining.spec.ts` that writes on a project of the run; the one that reads — the filter by
-  item — plays on both sides (EP-09).
+  that write to PRJ-001 (the addition of a task, the insertion of a named line with a category and
+  a quantity) stay on the fake back and **have no twin** against the service: `remaining.spec.ts`
+  replays neither on a project of the run (#2909: port them there, a decision to take). The one
+  that reads — the filter by item — plays on both sides (EP-09).
 - `planning.spec.ts` — the read of the planning start date and of its headers « Démarrée le » and
   « Terminée le » plays on both sides; only its write (`updateCostStructure`) stays on the fake
   back, like the other writes to the witness above.
@@ -4168,10 +4169,13 @@ the epic that lifts it; that epic removes the guard and its entry:
   folding by level, and the scroll of the keyboard to the six thousandth row (`grid.spec.ts`,
   `keyboard.spec.ts`) —, the provision of the twelfth row (**EP-08**), the paths of the own estimate
   of a risk and of the differential (`paste.spec.ts`, `entry.spec.ts`, guarded by `inService` or
-  untagged until **EP-08**). The paths that write the remaining to commit of PRJ-001 (`undo.spec.ts`,
-  the sort after a write in `grid.spec.ts`, `structure.spec.ts`) do not replay, untagged: the account
-  of the run is no contributor of PRJ-001 (#2193), and `remaining.spec.ts` replays the gestures on a
-  project of the run. The passage of a project to In progress
+  untagged until **EP-08**). The untagged paths of the remaining to commit of
+  PRJ-001 do not replay, the account of the run being no contributor of PRJ-001 (#2193), and their
+  twin is not always the one believed: the sort after a write in `grid.spec.ts` and the addition of
+  a task or of a line in `structure.spec.ts` have no twin against the service (#2909 for the last
+  two); the path of `undo.spec.ts` writes nothing, it asserts the history unavailable, which the
+  fake back says, and the service is covered by the three `@shared` undo paths of the same file
+  (planning, line of the estimate, deleted task). The passage of a project to In progress
   plays: the estimate of the main structure read only against PRJ-001 (`structure.spec.ts`), and the
   pricing up to the passage to In progress (`pricing.spec.ts`); a line under a completed task,
   refused, is written only in the remaining to commit, the main structure of a project In progress
@@ -5084,8 +5088,11 @@ the guard and the entry above:
 - **No epic reverses them** — the paths that write PRJ-001, whose account of the run is no
   contributor (#2193): their twins play the service on a project of the run (`FAKE_BACK_ONLY`,
   `FAKE_BACK_KEEPS_NOTHING`, `NOT_REPLAYED_IN_SERVICE`, `WITNESS_KEPT`), the untagged paths of the
-  remaining to commit (`undo.spec.ts`, `grid.spec.ts`, `structure.spec.ts`) and the imports screen of
-  PRJ-001 (`exchanges.spec.ts`).
+  remaining to commit (`undo.spec.ts`: memory background without history, the service being covered by
+  its `@shared` undo paths; `grid.spec.ts`; `structure.spec.ts`: the addition of a task and of a line,
+  with no twin, #2909) and the imports screen of PRJ-001 (`exchanges.spec.ts`), which only reads that
+  screen: the `@shared` path exporting and re-importing the remaining to commit covers another
+  gesture, on a project of the run.
 
 The slice of the costs makes the actual costs, their journal and the exclusion playable; EP-08 adds
 the provisions, the amendments and the risks to it, EP-13 the whole volumes.

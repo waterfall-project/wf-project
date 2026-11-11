@@ -4182,9 +4182,11 @@ chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son ent
   chacun a son jumeau contre le service sur un projet de la course (`planning-service.spec.ts`,
   `structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`), que nul EPIC ne renverse ; les
   parcours de ces fichiers qui lisent le témoin se jouent des deux côtés. Les parcours du reste à
-  engager de `structure.spec.ts` qui écrivent (l'ajout d'une tâche et d'une ligne) suivent la même
-  règle, leur jumeau étant le parcours d'`remaining.spec.ts` qui écrit sur un projet de la course ;
-  celui qui lit — le filtre par poste — se joue des deux côtés (EP-09).
+  engager de `structure.spec.ts` qui écrivent sur PRJ-001 (l'ajout d'une tâche, l'insertion d'une
+  ligne nommée, avec catégorie et quantité) restent sur le faux back et **n'ont aucun jumeau**
+  contre le service : `remaining.spec.ts` ne rejoue ni l'un ni l'autre sur un projet de la course
+  (#2909 : les y porter, décision à trancher). Celui qui lit — le filtre par poste — se joue des
+  deux côtés (EP-09).
 - `planning.spec.ts` — la lecture de la date de début de planning, de ses en-têtes « Démarrée le » et
   « Terminée le » se joue des deux côtés ; seule son écriture (`updateCostStructure`) reste sur le
   faux back, comme les autres écritures du témoin ci-dessus.
@@ -4201,10 +4203,14 @@ chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son ent
   basse et étroite, son pli par niveau, et le défilement du clavier jusqu'à la six millième ligne
   (`grid.spec.ts`, `keyboard.spec.ts`) —, la provision de la douzième ligne (**EP-08**), les
   parcours du devis propre d'un risque et du différentiel (`paste.spec.ts`, `entry.spec.ts`, gardés
-  par `inService` ou sans étiquette jusqu'à **EP-08**). Les parcours qui écrivent le reste à engager
-  de PRJ-001 (`undo.spec.ts`, le tri après une écriture de `grid.spec.ts`, `structure.spec.ts`) ne se
-  rejouent pas, sans étiquette : le compte de la course n'est pas contributeur de PRJ-001 (#2193), et
-  `remaining.spec.ts` rejoue les gestes sur un projet de la course. Le passage d'un projet En cours
+  par `inService` ou sans étiquette jusqu'à **EP-08**). Les parcours sans étiquette du reste à
+  engager de PRJ-001 ne se rejouent pas, le compte de la course n'étant pas contributeur de PRJ-001
+  (#2193), et leur jumeau n'est pas toujours celui qu'on croit : le tri après une écriture de
+  `grid.spec.ts` et l'ajout d'une tâche ou d'une ligne de `structure.spec.ts` n'ont pas de jumeau
+  contre le service (#2909 pour ces deux derniers) ; le parcours d'`undo.spec.ts` n'écrit rien, il
+  affirme l'historique indisponible, ce que dit le faux back, et le service est couvert par les
+  trois parcours d'annulation `@shared` du même fichier (planning, ligne du devis, tâche
+  supprimée). Le passage d'un projet En cours
   se joue : le devis de la structure principale en lecture seule contre PRJ-001
   (`structure.spec.ts`), et le chiffrage jusqu'au passage En cours (`pricing.spec.ts`) ; une ligne
   sous une tâche terminée, refusée, ne s'écrit que dans le reste à engager, la structure principale
@@ -4292,8 +4298,11 @@ la garde et l'entrée ci-dessus :
 - **Aucun EPIC ne les renverse** — les parcours qui écrivent PRJ-001, dont le compte de la course n'est
   pas contributeur (#2193) : leurs jumeaux jouent le service sur un projet de la course
   (`FAKE_BACK_ONLY`, `FAKE_BACK_KEEPS_NOTHING`, `NOT_REPLAYED_IN_SERVICE`, `WITNESS_KEPT`), les
-  parcours sans étiquette du reste à engager (`undo.spec.ts`, `grid.spec.ts`, `structure.spec.ts`) et
-  l'écran des imports de PRJ-001 (`exchanges.spec.ts`).
+  parcours sans étiquette du reste à engager (`undo.spec.ts` : fond mémoire sans historique, le service
+  étant couvert par ses parcours d'annulation `@shared` ; `grid.spec.ts` ; `structure.spec.ts` : l'ajout
+  d'une tâche et d'une ligne, sans jumeau, #2909) et l'écran des imports de PRJ-001
+  (`exchanges.spec.ts`), qui ne fait que lire cet écran : le parcours `@shared` d'export et de
+  réimport du reste à engager couvre un autre geste, sur un projet de la course.
 
 La tranche des coûts rend les coûts réels, leur journal et l'exclusion jouables ; EP-08 y ajoute les
 provisions, les avenants et les risques, EP-13 les volumes entiers.
