@@ -252,6 +252,7 @@ def analyse(
         if (lineage := importing.lineage_of(each.lineage)) is not None and lineage in held.lines
     }
     judging = importing.Judging(confirmed is not None, HEADERS)
+    # The double is judged on the lines read; a copy the reader rejected has its lineage taken.
     alone, doubled, twice = importing.alone_on_lineage(read.lines)
     found.rejected += doubled
     taken |= twice & held.lines.keys()

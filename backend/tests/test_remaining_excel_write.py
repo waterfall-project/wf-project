@@ -557,4 +557,4 @@ def test_the_hours_per_day_is_a_defined_name_the_formulas_use(content: bytes) ->
 def test_the_bands_are_merged_across_their_columns(content: bytes) -> None:
     book = _open(content)
     assert {str(r) for r in book["SP-PRE"].merged_cells.ranges} == {"H14:I14"}
-    assert any(str(r).startswith("H") for r in book["Synthèse"].merged_cells.ranges)
+    assert {str(r) for r in book["Synthèse"].merged_cells.ranges} == {"H14:L14"}

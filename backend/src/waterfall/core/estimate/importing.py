@@ -691,6 +691,10 @@ def alone_on_lineage[Line: Lineaged](
     each of them is rejected, ``DUPLICATE_LINEAGE``, ``params.lines`` the tab and the row of the
     others in the order of the file (#2798). The lineages of the doubled lines are given so that
     the analysis leaves the lines of the structure that carry them as they are.
+
+    The double is judged on the lines read (``read.lines``): a copy the reader has already rejected
+    — a cell unreadable — is refused as it is and counts for no double; the analysis takes the
+    lineage it carries (``taken``), so that the line of the structure is left as it is.
     """
     by_lineage: dict[UUID, list[Line]] = defaultdict(list)
     for line in lines:

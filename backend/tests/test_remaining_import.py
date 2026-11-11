@@ -894,6 +894,47 @@ def test_an_amount_left_on_a_task_over_two_years_is_given_back_as_typed(
     assert created.reestimated_amount == Decimal("103.00")
 
 
+@pytest.mark.requirement("WF-INTF-0130-A")
+def test_a_remaining_over_two_years_reimported_as_exported_is_unchanged(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # Round trip without a gap (#2797): the amount left a line of disbursement shows in the file is
+    # the one the base holds; read again at the mean of the coefficients weighted by the shares of
+    # the two years, it comes to the same line: no row is modified.
+    inflating(stage, scene.tree, date(YEAR, 12, 28), date(NEXT, 1, 8), days=10)
+    rows = scene.exported()
+    for each in rows:
+        if each[1] == scene.stuff:
+            node = line_named(scene.tree, each[2])["node_id"]
+            each[4] = row_of(stage, node).reestimated_amount
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    found = report(api, stage, import_id)
+    assert (found["differences"], found["rejected"]) == ([], [])
+    assert found["unchanged_count"] == found["read_count"] == 5
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_copy_the_reader_rejects_is_refused_as_it_is_and_the_line_it_names_is_left_alone(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # The double is judged on the lines read: a copy with a cell unreadable is rejected by the
+    # reader (alone, no DUPLICATE_LINEAGE), and the lineage it carries is taken, so that the line
+    # of the structure is neither updated by the original nor removed.
+    rows = scene.exported()
+    rows[1][4] = 77
+    copied = list(rows[1])
+    copied[4] = "beaucoup"
+    rows.append(copied)
+    node = line_named(scene.tree, "Fournitures")["node_id"]
+    before = row_of(stage, node).reestimated_amount
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    found = report(api, stage, import_id)
+    assert [each["code"] for each in found["rejected"]] == ["NUMBER_INVALID"]
+    assert found["rejected"][0]["row"] == len(rows) + 1
+    applied(api, stage, worker, import_id)
+    assert row_of(stage, node).reestimated_amount == before
+
+
 @pytest.mark.requirement("WF-INTF-0120-A")
 def test_a_lineage_that_two_rows_carry_rejects_both_and_leaves_its_line_as_it_is(
     api: ContractClient, stage: Scene, worker: Worker, scene: Rows
