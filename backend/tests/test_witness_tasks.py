@@ -738,15 +738,41 @@ def test_a_created_child_described_before_its_created_parent_is_written_after_it
         position=1,
         links=(),
     )
+    grandchild = replace(
+        leaves[4],
+        node_id=UUID("01926f3a-7c00-7000-8000-00000000f003"),
+        lineage_id=UUID("01926f3a-7c00-7000-8000-00000000f103"),
+        parent_lineage_id=child.lineage_id,
+        label="Petit-enfant créé",
+        position=1,
+        links=(),
+    )
     with witness.transaction() as session:
         place = Place(PRJ_001, REVISION_102, structure_of(session, REVISION_102))
         act = Act(author=None, at=instant(OPENED[102]))
-        # The child comes first in the list, its parent after it.
-        load_tasks(session, place, TasksLoad(PLANNING_START, (*tasks, child, parent)), act)
+        # The grandchild comes first in the list, then the child, their parent last.
+        described = TasksLoad(PLANNING_START, (grandchild, *tasks, child, parent))
+        load_tasks(session, place, described, act)
         after = rows(session, REVISION_102)
-        assert len(after) == 1002
+        assert len(after) == 1003
+        assert after[grandchild.lineage_id][0].parent_id == child.node_id
         assert after[child.lineage_id][0].parent_id == parent.node_id
         assert after[parent.lineage_id][0].id == parent.node_id
+
+
+def test_tasks_each_the_parent_of_the_other_are_refused_with_an_explicit_error(
+    witness: Database,
+) -> None:
+    # A parentage cycle in load.tasks must fail loudly, not loop without end.
+    tasks = loaded_tasks(102)
+    first, second = tasks[0], tasks[1]
+    one = replace(first, parent_lineage_id=second.lineage_id)
+    other = replace(second, parent_lineage_id=first.lineage_id)
+    with witness.transaction() as session:
+        place = Place(PRJ_001, REVISION_102, structure_of(session, REVISION_102))
+        act = Act(author=None, at=instant(OPENED[102]))
+        with pytest.raises(ValueError, match="loops on itself"):
+            load_tasks(session, place, TasksLoad(PLANNING_START, (one, other, *tasks[2:])), act)
 
 
 def test_a_task_kept_under_another_identifier_is_written_again_with_its_lineage_its_links_and_state(

@@ -103,9 +103,16 @@ class TaskLoad:
     completed_on: date | None
 
 
+class ParentageLoopError(ValueError):
+    """The tasks described have a parentage that loops on itself."""
+
+    def __init__(self, lineage_id: UUID) -> None:
+        super().__init__(f"the parentage of task {lineage_id} loops on itself")
+
+
 @dataclass(frozen=True, slots=True)
 class TasksLoad:
-    """What the witness describes of a structure: its planning start, its tasks parents first."""
+    """What the witness describes of a structure: its planning start, its tasks, in any order."""
 
     planning_start_on: date
     tasks: tuple[TaskLoad, ...]
@@ -165,6 +172,8 @@ def _parents_first(tasks: tuple[TaskLoad, ...]) -> list[TaskLoad]:
         chain: list[TaskLoad] = []
         current: TaskLoad | None = each
         while current is not None and current.lineage_id not in depths:
+            if len(chain) >= len(tasks):
+                raise ParentageLoopError(each.lineage_id)
             chain.append(current)
             current = (
                 None if current.parent_lineage_id is None else by_lineage[current.parent_lineage_id]
