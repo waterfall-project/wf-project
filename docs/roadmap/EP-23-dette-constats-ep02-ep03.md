@@ -1,6 +1,6 @@
 ---
 id: EP-23
-titre: Les constats laissés ouverts par EP-02 et EP-03, et quatre d'EP-06, sont soldés — le suivi des tâches, les refus, les écrans de l'administration, les comptes, les sauvegardes, le compteur d'écriture et le moteur de planning
+titre: Les constats laissés ouverts par EP-02 et EP-03, quatre d'EP-06 et huit d'EP-05, sont soldés — le suivi des tâches, les refus, les écrans de l'administration, les comptes, les sauvegardes, le compteur d'écriture, le moteur de planning et le référentiel
 statut: en cours
 depend_de: EP-02, EP-03, EP-06
 famille: front, back
@@ -24,7 +24,12 @@ technique de l'admission, la liste des sauvegardes après une restauration venue
 archive orpheline et un compteur d'écriture qui déborde. Le même jour, l'auteur lui a confié quatre
 constats laissés par EP-06, livré : deux du moteur de planning — la passe arrière d'un décalage
 écoulé, le départ au plus tard d'une durée écoulée —, et deux de tests — des citations d'exigence et
-des exemples lus par un cast.
+des exemples lus par un cast. Toujours le 2026-11-11, il lui a confié huit constats laissés par
+EP-05, livré, relevés par les mêmes revues : cinq refus du service du référentiel — une liste de
+l'arbre qui répond 500 sur une création concurrente, un filtre qui laisse passer le caractère NUL, la
+correspondance des coûts réels non amorcée, les années de la grille des taux et le départage d'un
+tri, qui s'écartent du contrat —, deux décimaux reçus sans borne ou en chiffres non ASCII, et une
+phrase du guide qui offre les objets désactivés sous la permission de lecture.
 
 Il ne sert aucun EPIC de domaine et n'en attend aucun : il se livre en parallèle d'EP-07 et d'EP-09,
 sur sa propre branche tirée de `main` après la fusion d'EP-06 (#2855), sans toucher aux fichiers que
@@ -54,7 +59,17 @@ leurs derniers lots écrivent (« Préalables »).
 - le moteur de planning (`core/planning/scheduling`) : la passe arrière d'un décalage écoulé qui
   atteint un jour sans heure de travail, le départ au plus tard d'une durée écoulée éprouvé pour
   d'autres durées, et trois tests d'API qui citent l'exigence que leur refus porte (#2816, #2832,
-  #2845, d'EP-06) — US-1820.
+  #2845, d'EP-06) — US-1820 ;
+- le guide, qui n'offre les objets désactivés du référentiel qu'à la permission d'écriture, et
+  l'en-tête du parcours des paramètres des ressources (#2272, et la ligne de #2271 qui restait, d'EP-05)
+  — US-1780 ;
+- les refus du service du référentiel : la liste de l'arbre d'organisation sur une création
+  concurrente et son filtre `code`, la correspondance des coûts réels non amorcée, les années de la
+  grille des taux et le tri des catégories par nature (#2228, #2233, #2235, #2237, #2239, d'EP-05) —
+  US-1830 ;
+- les décimaux à l'entrée du service : une précision maximale pour les seuils et les bornes de la
+  matrice, et les chiffres non ASCII refusés dans un `Money` et un `Decimal` (#2234, #2238, d'EP-05)
+  — US-1840.
 
 ## Ce qui n'en fait pas partie
 
@@ -63,18 +78,31 @@ leurs derniers lots écrivent (« Préalables »).
   filtres et le tri de `listBackups` (#2231), les commandes `retain` et `release` annoncées
   disponibles (#2241), la reprise d'un dépôt par morceaux interrompu (#2258) — notés dans les
   « Constats reçus » d'EP-13 ;
-- les rôles d'habilitation et les comptes qui naissent encore à `lock_version` 0 (#2779) : rien
-  avant la v1, comme pour le projet et son lotissement (#2843, option A ; décision de l'auteur du
-  2026-11-11) ;
+- les rôles d'habilitation, les comptes et les nœuds d'organisation qui naissent encore à
+  `lock_version` 0 (#2779, #2240, fermée) : rien avant la v1, comme pour le projet et son lotissement
+  (#2843, option A ; décision de l'auteur du 2026-11-11) ;
 - le parcours de bout en bout des sauvegardes (`frontend/e2e/service/backups.spec.ts`), que des
-  lots d'EP-07 et d'EP-09 écrivent : aucun lot d'EP-23 ne touche un parcours ;
+  lots d'EP-07 et d'EP-09 écrivent : aucun lot d'EP-23 ne touche un parcours, hors l'en-tête de
+  `frontend/e2e/reference-resources.spec.ts` (US-1780) ;
+- le parcours des unités de durée, rejoué contre le service depuis US-1330 (EP-21) : #2271 est
+  fermée par l'auteur le 2026-11-11, l'alternance 7/8 de la valeur écrite acceptée comme état
+  équivalent ; seule sa ligne d'en-tête restante passe à US-1780 ;
+- le critère d'US-0860 qui demandait `resource_settings.read` pour les calendriers désactivés
+  (#2245) : l'auteur le corrige dans le fichier d'EP-05 par la pull request de ce cadrage, sans
+  lot ;
+- les décimaux sans borne des autres champs — les constantes des unités de durée, la capacité d'un
+  rôle, les durées et les décalages du planning, les montants d'une ligne de devis d'EP-07 — et les
+  autres textes que le contrat lit par `\d` (les mois, les trimestres, le collage d'une durée) :
+  hors des décisions de l'auteur, ils sont relevés dans la conception et suivis par une issue à
+  trancher (« Décisions ») ;
 - le jour courant pris en UTC, faute d'un fuseau de l'installation (#2527, d'EP-06) : EP-13
   (décision de l'auteur du 2026-11-11, « Constats reçus » d'EP-13) ;
 - la copie privée d'`identifierOf` dans `components/portfolio/address.ts`, qui laisse passer un
   identifiant qui n'est pas un UUID comme celle que corrige US-1770 : une issue mineure, #2867,
   reportée à EP-11 (décision de l'auteur du 2026-11-11) ;
 - toute modification de la spécification ; toute modification du contrat autre que la borne de
-  `LockVersion` (US-1810).
+  `LockVersion` (US-1810) : #2234 et #2238 se corrigent dans le code, le contrat et
+  `docs/api/DECISIONS.md` inchangés (décision de l'auteur du 2026-11-11).
 
 ## Exigences réalisées
 
@@ -85,7 +113,8 @@ constate. Leur portée reste celle des EPIC qui les ouvrent et les closent : `WF
 par EP-09), `WF-ADM-0160-A` (EP-04), `WF-EXP-0040-A` et `WF-OBS-0020-A` (EP-13),
 `WF-INTF-0160-A`, `WF-SEC-0020-A`, `WF-ADM-0010-A`, `WF-ADM-0120-A`, `WF-ADM-0140-A` (EP-03),
 `WF-ADM-0040-A` (EP-04), `WF-IHM-0090-A` (EP-02), `WF-PLA-0100-A` et `WF-PLA-0160-A` (EP-06),
-`WF-REV-0020-A` (EP-07).
+`WF-REV-0020-A` (EP-07), `WF-REF-0070-A` (EP-11), `WF-REF-0150-A` (EP-05), `WF-IHM-0060-A` et
+`WF-DAT-0100-A` (EP-07), `WF-REF-0160-A` (EP-08), `WF-REF-0170-A` (EP-10).
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
@@ -99,10 +128,14 @@ filtrées par un identifiant de l'adresse (US-1770) ; `updateAccessRole`, `delet
 `setUserAccessRoles`, `listUsers` (US-1780) ; `resendInvitation`, `createUser`, `updateUser`,
 `anonymizeUser`, `createPasswordSetupLink`, `getMe` (US-1790) ; `startRestore`, `listBackups`,
 `startBackup` (US-1800) ; toute écriture qui porte un `lock_version` (US-1810) ; aucune pour
-US-1820, qui corrige le moteur et des tests.
+US-1820, qui corrige le moteur et des tests ; `listOrgNodes`, `getActualCostMapping`,
+`setActualCostMapping`, `getHourlyRateGrid`, `listCostCategories` (US-1830) ;
+`updateReferenceSettings`, `setHourlyRate`, et toute écriture dont le corps porte un `Money` ou un
+`Decimal`, `listNodes` et `listResourceRoles` par leurs bornes (US-1840).
 
 Une seule modification du contrat : `LockVersion` gagne `maximum: 2147483647`
-(`docs/api/components/common.yaml`), avec son entrée dans `docs/api/DECISIONS.md` (US-1810).
+(`docs/api/components/common.yaml`), avec son entrée dans `docs/api/DECISIONS.md` (US-1810). Les
+refus d'US-1830 et d'US-1840 sont tous déjà déclarés par leurs opérations (422, 503).
 
 ## Préalables
 
@@ -128,9 +161,18 @@ Décisions de l'auteur du 2026-11-11.
 - la chaîne de #2816 — A (4 j) → B (1 j), B fin à fin C avec +2 ej, C (1 j) — porte des marges
   nulles et A, B, C critiques ; le départ au plus tard d'une durée écoulée est éprouvé pour 1, 2, 3
   et 5 ej, une avance de 1 à 10 j et un calendrier à jour férié ;
+- `GET /reference/org-nodes` répond 200 quand un nœud est créé entre ses deux lectures, et
+  `?code=%00` répond 422 sur `/query/code` ; `getActualCostMapping` et `setActualCostMapping`
+  répondent 503 `COMPONENT_UNAVAILABLE` sans leur ligne ; `getHourlyRateGrid` avec
+  `include_inactive=true&is_active=true` garde dans `years` l'année d'une catégorie désactivée ;
+  `listCostCategories` triée par nature départage par le code de la catégorie ;
+- un seuil ou une borne de la matrice de plus de dix décimales répond 422 à son champ, et non 500 ;
+  `{"amount":"١٢.٥٠"}` répond 422 sur `/amount`, une borne `"٠.٢٥"` sur
+  `/risk_matrix/probability_bounds/0` ;
 - `make check` passe sur la branche de l'EPIC, la file de fusion est verte ; `make roadmap` et
   `make requirements` passent ;
-- les dix-neuf constats sont fermés par la fusion de leur lot.
+- les vingt-sept constats sont fermés par la fusion de leur lot, et #2245 par la pull request de
+  son cadrage.
 
 ## Constats reçus
 
@@ -175,16 +217,43 @@ passés au label `EP-23` à l'ouverture des issues :
   base → US-1820 ;
 - #2846 — front : `problem.test.ts` lit encore cinq exemples par un cast → US-1760.
 
+Laissés par EP-05, livré, relevés par les revues complètes du 2026-11-07 et confiés à EP-23 par
+l'auteur le 2026-11-11 ; renommés `[EP-23]`, passés au label `EP-23` et rattachés à leur US à
+l'ouverture des issues d'US-1830 et d'US-1840, le même jour :
+
+- #2228 — back : `listOrgNodes` répond 500 quand un nœud est créé entre ses deux lectures de
+  l'arbre → US-1830 ;
+- #2233 — back : le filtre `code` de `listOrgNodes` laisse passer le caractère NUL, 500 au lieu de
+  422 → US-1830 ;
+- #2235 — back : la correspondance des coûts réels répond 500 quand l'amorçage n'a pas écrit sa
+  ligne, là où les paramètres répondent 503 → US-1830 ;
+- #2237 — back : les années de `getHourlyRateGrid` changent avec `is_active=true`, contre le
+  contrat → US-1830 ;
+- #2239 — back : le tri de `listCostCategories` par `cost_type` départage par le code de la
+  nature, contre le contrat → US-1830 ;
+- #2234 — back : un décimal au-delà des limites de PostgreSQL dans les seuils ou les bornes de la
+  matrice donne 500 au lieu de 422 → US-1840 ;
+- #2238 — back : des chiffres non ASCII sont acceptés pour un montant (`Money`) et pour une borne
+  (`Decimal`) → US-1840 ;
+- #2272 — front : le guide offre les objets désactivés du référentiel sous la permission de
+  lecture, contre la décision #2084 → US-1780, avec la ligne d'en-tête restante de #2271, fermée.
+
+Laissés de même, et réglés hors des lots : #2245 (le critère d'US-0860, corrigé dans le fichier
+d'EP-05 par la pull request de ce cadrage) ; #2240 (fermée, rien avant la v1).
+
 ## Conception
 
 Écrite le 2026-11-11 sur `main` (d421d4e2, EP-06 fusionné), après la validation des US par
 l'auteur le même jour ; validée par lui le même jour, puis étendue aux quatre constats d'EP-06 qu'il
-a confiés à EP-23 (US-1820, et #2846 dans US-1760). Courte, comme celle d'EP-18 : chaque issue porte sa proposition, ses
+a confiés à EP-23 (US-1820, et #2846 dans US-1760), puis, sur `main` (419e1e4d), aux huit constats
+d'EP-05 qu'il lui a confiés (US-1830, US-1840, et #2272 dans US-1780). Courte, comme celle d'EP-18 : chaque issue porte sa proposition, ses
 fichiers et ses tests, et fait foi pour le détail ; ce qui suit ne dit que ce qu'elles laissent
 ouvert, ce qui s'en écarte, et ce que les décisions de l'auteur du 2026-11-11 y changent.
 
 **Tables et migrations.** Aucune. Les colonnes `lock_version` sont toutes en `Integer`, que la
-borne de US-1810 couvre exactement.
+borne de US-1810 couvre exactement. US-1830 et US-1840 ne changent aucune colonne : les seuils et les
+bornes de la matrice restent des `numeric` sans précision, que la règle d'US-1840 tient sous les
+limites de PostgreSQL.
 
 **Modules touchés, et ce que chacun expose.**
 
@@ -224,7 +293,18 @@ borne de US-1810 couvre exactement.
   `aria-disabled` sur chaque commande) et n'envoyer rien. Le garde `writing` propre à la matrice
   disparaît dans ce mécanisme commun. `RolesCell` lit `offer.is_available` et passe par `useUnmet`
   et `CommandTooltip unavailable`, comme `StateSwitch`. Le guide (« Les écrans de
-  l'administration ») remplace « part de la version répondue » par la ligne occupée.
+  l'administration ») remplace « part de la version répondue » par la ligne occupée. Le même lot
+  corrige, dans ses deux langues, les deux phrases du guide qui offrent les objets désactivés du
+  référentiel à la permission de **lecture** de leur partie (#2272) : « Les grilles » (les listes du
+  référentiel que lit le devis ; `README-fr.md` l. 936-938, `README.md` l. 946-948 sur `main`) et
+  « Les écrans du référentiel » (`include_inactive` et le filtre d'état, `inactiveQuery` et
+  `stateOf` ; `README-fr.md` l. 1453-1458, `README.md` l. 1455-1458) disent la permission
+  d'**écriture**, comme la décision #2084, option A, `docs/api/DECISIONS.md` (« Les rôles et les
+  catégories actifs se lisent avec le projet ») et le code. Il corrige aussi l'en-tête de
+  `frontend/e2e/reference-resources.spec.ts` (l. 6-7, « leave what they found ») : les parcours
+  qui écrivent laissent un état équivalent à celui qu'ils ont trouvé, celui des unités de durée
+  écrivant l'autre de 7 et de 8 (#2271, fermée ; l'alternance acceptée par l'auteur le
+  2026-11-11). Le corps du parcours ne change pas.
 - *Back, comptes* (US-1790) :
   - `platform/keycloak_admin.py` : `send_invitation` rend `"not_local"` sur le 409
     `{"error":"not_local"}` de l'extension ; `post_invitation` lève alors `password_link_not_local()`
@@ -250,6 +330,73 @@ borne de US-1810 couvre exactement.
   paramétré de #2832 révèle un écart, auquel cas sa correction est dans le lot. Aucune autre pièce du
   moteur, ni de son interface, ne change. Les trois tests d'API de #2845 (`test_nodes_state.py`,
   `test_paste.py`, `test_reference_designation.py`) changent leur seul marqueur.
+- *Back, les refus du référentiel* (US-1830) :
+  - `core/resource_settings/interface/org_nodes.py` : `list_nodes` tire d'une seule lecture les
+    nœuds, leurs niveaux et ceux que les filtres retiennent (la proposition de #2228 : les critères
+    lus comme une colonne de la même requête) ; un nœud validé entre deux lectures ne peut plus
+    manquer à l'une. `read_node` ne change pas. `api/org_nodes.py` : `NodesQuery.code` est un `Text`,
+    comme `search` à côté (#2233) ;
+  - `core/cost_settings/interface/actual_cost_mapping.py` : la lecture et le remplacement de la
+    correspondance refusent par 503 `COMPONENT_UNAVAILABLE`, `params.component` à `database`, quand
+    la ligne de l'amorçage manque (#2235), par le refus de `read_reference_settings`
+    (`_not_bootstrapped`, `core/cost_settings/interface/reference_settings.py`), partagé dans
+    `core/cost_settings` et journalisé au nom de ce qui manque. La signature de
+    `read_actual_cost_mapping` ne change pas : ses appelants d'EP-09 (`core/costs/interface/actual_costs.py:76`,
+    `core/costs/extraction.py`, `core/projects/interface/projects.py`, sur `epic/EP-09`) reçoivent
+    ce 503 au lieu d'un 500, sans rien changer ;
+  - `core/cost_settings/interface/hourly_rates.py` et `api/hourly_rates.py` : la portée des années
+    se lit de `include_inactive` vrai ou `is_active` faux, indépendamment des états que la page
+    garde (#2237, `HourlyRateGrid.years`) ; `grid_filters` la passe dans `HourlyRateFilters`, à
+    côté de `states`. `kept_states` (`api/cost_types.py`), que d'autres listes lisent, ne change
+    pas ;
+  - `core/cost_settings/interface/cost_categories.py` : la clé `cost_type` du tri se réduit au
+    libellé de la nature, le départage restant celui de toute colonne, le code de la catégorie puis
+    l'identifiant (#2239) ;
+  - les tests vont dans `test_resource_settings_nodes.py` (dont la lecture tenue entre deux étapes
+    par une `Barrier`, sur le modèle de `test_two_creations_of_one_code_at_once…`),
+    `test_actual_cost_mapping.py`, `test_cost_settings_rates.py` et
+    `test_cost_settings_categories.py`, chaque réponse validée contre le contrat.
+- *Back, les décimaux à l'entrée* (US-1840) — corrigés dans le code, le contrat et
+  `docs/api/DECISIONS.md` inchangés, `api/contract/models.py`, engendré, non plus (décision de
+  l'auteur du 2026-11-11) :
+  - `api/contract/base.py`, écrit à la main, est la base de chaque modèle que
+    `make generate-server-models` engendre : à côté du NUL, il refuse une valeur de `Money` ou de
+    `Decimal` — et des types qui les portent, `Percent`, `Hours`… — qui tient un chiffre autre que 0
+    à 9, comme une valeur que son motif refuse (422 `VALIDATION_FAILED`, au pointeur du champ ou de
+    son élément ; #2238). Le motif du contrat est une expression de JSON Schema, où `\d` ne vaut que
+    0 à 9 ; les modèles engendrés le lisent en Unicode. La base reconnaît ces types sans importer
+    `models.py`, qui l'importe ; un test confronte la reconnaissance aux modèles engendrés : tout
+    type dont la racine porte le motif de `Decimal` ou de `Money` est reconnu, et aucun autre ;
+  - les bornes des requêtes, lues à la main, passent de `\d` à `[0-9]` : `api/nodes.py`
+    (`DECIMAL`, `MONEY`, `WHOLE`, `DAY`, l. 88-91 sur `main`) et `api/resource_roles.py`
+    (`DECIMAL`, l. 82) ; un chiffre non ASCII y est un `NUMBER_INVALID`, comme toute borne mal
+    formée. `api/hourly_rates.py` et `core/indicator_settings/thresholds.py` lisent déjà `[0-9]` ;
+  - la précision (#2234) : `core/indicator_settings/thresholds.py` (`_in_range`) et
+    `core/risk_settings/matrix.py` (`matrix_faults`), qu'appelle `api/reference_settings_write.py`,
+    refusent un seuil ou une borne de plus de dix décimales ou de plus de dix chiffres avant le point
+    (422 `VALIDATION_FAILED`, à `/index_thresholds/<seuil>` ou à `/risk_matrix/<axe>/<rang>`, tous
+    nommés à la fois), comme `RATIO_DECIMALS` refuse un taux de projet trop précis
+    (`core/projects/interface/projects.py`) ; un seuil est jugé dans sa forme, puis dans son
+    intervalle, puis dans sa précision ; une borne refusée pour sa précision n'est pas jugée dans
+    son ordre ;
+  - ce qui déborde PostgreSQL, hors de ces deux paramètres (relevé à la lecture des colonnes et du
+    code sur `main` et `epic/EP-09`, non rejoué sur une base) : un `numeric` sans précision refuse
+    plus de 131 072 chiffres avant le point ou 16 383 après, un `numeric(p, s)` une partie entière
+    de plus de p − s chiffres. `Money` ne déborde pas dans `main` : le taux horaire
+    (`numeric(12, 2)`) est borné par `GREATEST_RATE` et à deux décimales par son motif, et les bornes
+    `rate_min` et `rate_max` de sa grille ne débordent qu'au-delà de 131 072 chiffres entiers dans
+    l'adresse ; sur `epic/EP-07` et `epic/EP-09`, les montants d'une ligne de devis
+    (`numeric(14, 2)`, bornés en bas seulement par `core/estimate/entries.py`) débordent à treize
+    chiffres entiers, et sa quantité (`numeric(14, 4)`) à onze, arrondie en base au-delà de quatre
+    décimales. Débordent aussi, dans `main`, les constantes des unités de durée, la capacité d'un
+    rôle, les durées et les décalages du planning, bornés en bas seulement. Sont bornés : les heures
+    d'un jour d'un calendrier (`numeric(4, 2)`), les taux d'un projet (`numeric(5, 4)`). Ce relevé,
+    hors des décisions de l'auteur, est #2875, à trancher ;
+  - les tests vont dans un fichier neuf, `test_contract_digits.py` — `setHourlyRate` avec
+    `{"amount":"١٢.٥٠"}` sur `/amount`, `updateReferenceSettings` avec une borne `"٠.٢٥"` sur
+    `/risk_matrix/probability_bounds/0`, une borne de `listNodes` et de `listResourceRoles`, la
+    reconnaissance confrontée aux modèles —, et dans `test_reference_settings.py`, un test par champ
+    pour la précision. Aucun ne va dans `test_contract_declarations.py` ni dans `test_nodes.py`.
 - *Contrat et service, compteur* (US-1810) : voir « Modifications du contrat ». Les quatre
   paramètres de requête servis (`api/access_roles.py`, `api/subprojects.py`, `api/revisions.py`,
   `api/nodes.py`) passent à `Query(ge=0, le=2147483647)`, que `test_contract_declarations.py`
@@ -266,11 +413,18 @@ et `make server-models-up-to-date` vérifient.
 Tout `lock_version` du contrat référence `LockVersion` (vérifié : corps, réponses et les cinq
 paramètres de requête) : la borne les couvre tous.
 
-**Ordre de construction.** Aucune US n'en attend une autre : les sept lots se livrent en
-parallèle, à deux contraintes près.
+**Ordre de construction.** Aucune US n'en attend une autre : les dix lots se livrent en
+parallèle, à trois contraintes près.
 
 - US-1760 et US-1780 écrivent toutes deux le guide (`docs/dev/README-fr.md`, `README.md`), dans
-  deux sections différentes : elles ne se livrent pas en même temps (« pas avec »).
+  des sections différentes — « Les pages système » pour l'une, « Les écrans de l'administration »,
+  « Les grilles » et « Les écrans du référentiel » pour l'autre : elles ne se livrent pas en même
+  temps (« pas avec »).
+- US-1840 et US-1810 écrivent toutes deux `api/nodes.py`, l'une ses motifs des bornes (l. 88-91),
+  l'autre le `Query` de `lock_version` (l. 527) : « pas avec ». US-1810 régénère `models.py`, dont
+  `base.py` est la base ; la règle d'US-1840 ne dépend pas de ce que la régénération y change.
+- US-1830 ne partage aucun fichier avec un autre lot d'EP-23, ni US-1840 hors `api/nodes.py` : leurs
+  tests vont dans des fichiers distincts.
 - US-1810 change le contrat et régénère le client : aucun autre lot ne touche `docs/api` ni les
   fichiers engendrés, et ses tests ne vont pas dans `test_access_roles.py`, que US-1790 écrit.
 - US-1820 ne partage aucun fichier avec un autre lot d'EP-23.
@@ -286,6 +440,17 @@ et les lots qui leur restent (US-1570/L3 #2386, US-1650/L3 #2416) n'y vont pas. 
 trois fichiers de tests de #2845, mais loin des trois marqueurs, qui ne changent que d'une ligne
 chacun. Aucun lot d'EP-23 n'attend donc #2416, et EP-23 se fusionne dans `main` avant ou après EP-07 et EP-09,
 celui qui vient second reprenant `main`.
+
+Revérifié pour US-1830, US-1840 et les ajouts d'US-1780 le 2026-11-11, sur `origin/epic/EP-09`
+(3d3b4dcb) et sur la branche en cours d'US-1570/L3 (470a134b) : les lots qui restent à EP-07 et à
+EP-09 (US-1570/L3 #2386, US-1650/L3 #2416) ne touchent aucun de leurs fichiers. US-1570/L3 écrit
+dans « Les grilles » le paragraphe de la comparaison, à cent lignes de celui d'US-1780, et #2810
+lui laisse le choix de toucher `api/nodes.py` pour son littéral `CHANGE` (l. 78 de `main`), ce
+qu'elle n'a pas fait à ce jour ; aucun ne touche `reference-resources.spec.ts`. Déjà fusionnés sur
+leurs branches, EP-07 et EP-09 ne changent, dans les fichiers d'US-1830 et d'US-1840, que des
+imports (#2763), ce qu'ils ajoutent à `core/cost_settings` pour le devis, et, dans `api/nodes.py`,
+les constantes jusqu'à la ligne qui précède le commentaire des motifs : une ligne inchangée les
+sépare du changement d'US-1840, que la reprise de `main` règle sans conflit.
 
 **Décisions.**
 
@@ -343,6 +508,33 @@ celui qui vient second reprenant `main`.
   2026-11-11) : une issue mineure la suit, #2867, reportée à EP-11.
 - **Les reports** : #2229, #2231, #2241, #2258 et #2527 vont à EP-13 (ses « Constats reçus »),
   #2779 attend la v1, et le fichier d'EP-03, livré, n'est pas touché (décisions de l'auteur du 2026-11-11).
+- **Les constats d'EP-05 en deux US neuves, et #2272 dans US-1780** (décisions de l'auteur du
+  2026-11-11) : les cinq refus du service dans US-1830, les deux décimaux dans US-1840, la phrase du
+  guide dans US-1780, qui écrit déjà le guide et n'est pas commencée. US-1760, en cours de
+  livraison, n'est pas touchée. #2240 attend la v1 avec #2779 ; #2245 se corrige dans le fichier
+  d'EP-05 par la pull request de ce cadrage, l'auteur la faisant sienne ; #2271 est fermée.
+- **Les décimaux corrigés dans le code, pas au contrat** (#2234, #2238 ; décision de l'auteur du
+  2026-11-11). Écartés : un `maxLength` ou un motif `[0-9]` au contrat, qui changerait le contrat
+  figé, et toute modification de `models.py`, engendré.
+- **Les chiffres non ASCII refusés dans la base des modèles, plutôt que route par route** (#2238).
+  La base écrite à la main tient déjà le refus du NUL pour tout corps ; elle tient celui-ci pour
+  tout `Money` et tout `Decimal`, des écritures d'EP-07 et d'EP-09 comprises après leur fusion.
+  Écartés : un contrôle dans `api/hourly_rates.py` et `api/reference_settings_write.py` seuls, qui
+  laisserait les constantes, la capacité, les durées, les taux d'un projet et les lignes d'EP-07
+  accepter un chiffre arabe, et la prochaine route l'oublier ; changer le moteur des motifs dans la
+  génération, qui changerait `models.py`.
+- **Dix décimales et dix chiffres entiers au plus, pour les seuils et les bornes** (#2234). Dix
+  décimales comme `Hours` (« a ten-billionth of an hour, finer than any entry »,
+  `components/common.yaml`), refusées comme un taux de projet trop précis, par `VALIDATION_FAILED`
+  à leur champ. Écartés : traduire la `DataError` de PostgreSQL en 422, que proposait aussi #2234,
+  qui ne nommerait aucun champ ; quatre décimales comme les taux d'un projet, qui refuseraient un
+  pourcentage saisi à trois décimales (12,345 %). Les autres décimaux qui débordent restent hors
+  des décisions de l'auteur : #2875, à trancher.
+- **Une seule lecture de l'arbre** (#2228), la proposition de l'issue. Écarté : ignorer dans les
+  nœuds retenus un identifiant absent des niveaux, qui garderait deux lectures non cohérentes
+  (défaut n° 1 de `python.md`).
+- **La correspondance non amorcée refusée comme les paramètres** (#2235). Écarté : créer la ligne à
+  la lecture, qui écrirait dans une lecture des valeurs que personne n'a choisies.
 
 ---
 
@@ -495,7 +687,9 @@ que je lisais (#2259, #2269).
 **En tant qu'**administrateur, **je veux** que la ligne d'un rôle soit occupée tant qu'une écriture
 de ce rôle est en route, et que l'attribution des rôles d'un compte, quand le serveur la dit
 indisponible, me le dise avec sa condition sans rien envoyer, **afin de** ne pas recevoir un 412 que
-je n'ai pas provoqué, ni un refus que l'écran savait d'avance (#2261, #2262).
+je n'ai pas provoqué, ni un refus que l'écran savait d'avance (#2261, #2262) ; **en tant que**
+développeur, que le guide dise sous quelle permission les écrans offrent les objets désactivés du
+référentiel (#2272).
 
 **Critères d'acceptation.**
 
@@ -517,11 +711,19 @@ je n'ai pas provoqué, ni un refus que l'écran savait d'avance (#2261, #2262).
   par EP-03 et EP-18, inchangée.
 - écart : `WF-IHM-0090-A` — « Un refus de saisie sur un projet dont l'utilisateur n'est pas contributeur nomme cette condition. » : EP-04, sans objet pour un compte.
 - écart : `WF-IHM-0090-A` — « Pendant un traitement de fond sur le projet, la saisie du lotissement est présentée indisponible en nommant le traitement en cours comme condition manquante, et une écriture tentée est refusée en le nommant. » : EP-04 et EP-06, sans objet pour un compte.
+- propre à l'US : le guide, dans ses deux langues, n'offre les objets désactivés du référentiel
+  (`include_inactive`) et le filtre par état qu'à une session qui porte la permission d'écriture de
+  leur partie, dans « Les grilles » comme dans « Les écrans du référentiel » (#2272, #2084,
+  option A) ; `make readmes` passe.
+- propre à l'US : l'en-tête de `frontend/e2e/reference-resources.spec.ts` ne dit plus que les
+  parcours qui écrivent laissent ce qu'ils ont trouvé, mais un état équivalent, le parcours des
+  unités de durée écrivant l'autre de 7 et de 8 (#2271).
 
 **Notes de réalisation.** Pour #2261, l'auteur a retenu la ligne occupée, plutôt que des écritures
 chaînées par rôle (décision du 2026-11-11) ; la proposition de #2262 fait foi. Le contrat liste
 aujourd'hui `set_access_roles` toujours disponible (`UserCommand`) : le cas est latent, et le test le
-construit (« Conception »).
+construit (« Conception »). #2272 et la ligne restante de #2271 y sont passés le 2026-11-11, l'US
+n'étant pas commencée (décision de l'auteur) : seuls le guide et un commentaire changent.
 
 **Hors périmètre.** La table des comptes et ses autres commandes, déjà retenues (EP-17, #949).
 
@@ -693,3 +895,146 @@ trois tests d'API citent l'exigence dont ils éprouvent le Vérif (#2845).
 de celui de #2648.
 
 **Hors périmètre.** Toute autre pièce du moteur ; le jour courant en UTC (#2527, EP-13).
+
+---
+
+## US-1830 — Les refus du référentiel : la liste de l'arbre, la correspondance non amorcée, les années de la grille des taux et un tri
+
+- **statut** : à faire
+- **exigences** : `WF-REF-0070-A`, `WF-REF-0150-A`, `WF-IHM-0060-A`, `WF-EXP-0040-A`
+- **opérations** : `listOrgNodes`, `getActualCostMapping`, `setActualCostMapping`, `getHourlyRateGrid`,
+  `listCostCategories`
+- **issue** : #2876
+
+**En tant que** manager ou administrateur, **je veux** que les lectures et les écritures du
+référentiel répondent ce que le contrat déclare — la liste de l'arbre pendant qu'un autre crée un
+nœud, un filtre mal formé, une correspondance que l'amorçage n'a pas écrite, les années de la grille
+des taux, l'ordre d'un tri —, **afin de** ne jamais recevoir une erreur interne là où le contrat
+promet une réponse ou un refus nommé (#2228, #2233, #2235, #2237, #2239).
+
+**Critères d'acceptation.**
+
+- `WF-REF-0070-A` — « Un arbre de six niveaux peut être créé. » : sa forme pour la lecture de
+  l'arbre : `GET /reference/org-nodes` répond 200, avec ou sans le nouveau nœud, quand un nœud est
+  créé et validé pendant que la lecture est tenue entre ses deux étapes ; `?code=%00` répond 422
+  `VALIDATION_FAILED`, `fields` sur `/query/code` ; la création d'un arbre de six niveaux est
+  constatée par EP-05 (US-0840), inchangée.
+- écart : `WF-REF-0070-A` — « La création d'un nœud dont le code existe déjà est refusée. » : constaté
+  par EP-05 (US-0840), inchangé.
+- écart : `WF-REF-0070-A` — « Le déplacement d'un nœud sous un autre emporte ses descendants et ses
+  rôles ; le plan de charge agrégé filtré sur le nœud d'arrivée inclut désormais ces rôles, et les
+  valeurs par rôle sont inchangées. » : constaté par EP-05 (US-0840) pour l'arbre ; EP-11 clôt.
+- écart : `WF-REF-0070-A` — « Le déplacement sous un nœud désactivé est refusé. » : constaté par
+  EP-05 (US-0840), inchangé.
+- `WF-REF-0150-A` — « Un objet désactivé n'apparaît pas dans la liste par défaut, apparaît lorsque
+  l'affichage des objets désactivés est demandé, et peut y être réactivé. » : sa forme pour les
+  colonnes de la grille des taux : une année que seule porte une catégorie désactivée — 2030 saisi
+  sur la catégorie OLD, puis OLD désactivée — est dans `years` avec `include_inactive=true`, et y
+  reste avec `include_inactive=true&is_active=true`, les années ne dépendant jamais d'`is_active`
+  vrai (`HourlyRateGrid.years`) ; le reste est constaté par EP-05 (US-0880), inchangé.
+- `WF-IHM-0060-A` — « Chaque colonne d'une table plate se trie dans les deux sens. » : sa forme pour
+  le départage du tri de `listCostCategories` par nature : deux natures « Main-d'œuvre », de codes A
+  et B, portent C-2 (nature A) et C-1 (nature B) ; triée par `cost_type` en ordre croissant, la liste
+  rend C-1 puis C-2 — à libellé de nature égal, l'ordre de la liste sans tri, puis l'identifiant ; le
+  tri de chaque colonne est constaté par EP-05 (US-0820), inchangé.
+- écart : `WF-IHM-0060-A` — « Dans la grille de planning, aucun en-tête de colonne ne propose de
+  tri ; dans la grille de devis, le tri par montant réordonne les lignes sous chaque tâche sans
+  déplacer les tâches. » : EP-06 et EP-07, sans objet pour le référentiel.
+- écart : `WF-IHM-0060-A` — « Après défilement de mille lignes, en-têtes et totaux sont toujours
+  visibles, de même que la colonne de libellé après défilement horizontal. » : constaté par EP-02
+  (US-0110), inchangé ; EP-07 clôt.
+- écart : `WF-IHM-0060-A` — « Les colonnes masquées et les largeurs choisies sont retrouvées à la
+  réouverture, et un autre utilisateur ouvrant la même grille voit ses propres réglages. » :
+  constaté par EP-03 (US-0400), inchangé.
+- écart : `WF-IHM-0060-A` — « Le nombre de lignes par page choisi pour une table est retrouvé à sa
+  réouverture, sans changer celui des autres tables ; une grille arborescente n'offre pas ce
+  choix. » : constaté par EP-15 (US-0570), inchangé.
+- `WF-EXP-0040-A` — « Pendant l'arrêt du stockage objet, une demande d'import est refusée en nommant
+  le composant, et la consultation comme la saisie continuent. » : sa forme pour une installation
+  dont l'amorçage n'a pas écrit la correspondance des coûts réels : `getActualCostMapping` et
+  `setActualCostMapping` répondent 503 `COMPONENT_UNAVAILABLE`, `params.component` à `database`,
+  comme `getReferenceSettings` sans ses paramètres, et non 500 ; l'import refusé lui-même est
+  d'EP-09, et la plateforme d'EP-13.
+- écart : `WF-EXP-0040-A` — « Pendant l'arrêt du worker, un marquage demandé aboutit après le
+  rétablissement, sans nouvelle demande. » : le service, EP-13 clôt.
+- écart : `WF-EXP-0040-A` — « Aucune donnée partiellement écrite ne subsiste après le rétablissement
+  d'un composant tombé en cours d'écriture. » : idem.
+- propre à l'US : chaque réponse des tests est validée contre le contrat (`ContractClient`) ; le
+  contrat ne change pas.
+
+**Notes de réalisation.** Les propositions de #2228, #2233, #2235, #2237 et #2239 font foi
+(décisions de l'auteur du 2026-11-11). Les numéros de ligne de la décision, relevés sur
+`epic/EP-09`, sont ceux de `main` à quelques lignes près : `org_nodes.py` l. 204-207,
+`actual_cost_mapping.py` l. 131 et 284, `cost_categories.py` l. 216. Le refus de #2235 change ce
+que reçoivent les appelants de `read_actual_cost_mapping` sur `epic/EP-09`, sans changer sa
+signature.
+
+**Hors périmètre.** Les nœuds nés à `lock_version` 0 (#2240, la v1) ; les décimaux (US-1840) ; le
+critère d'US-0860 (#2245, corrigé par la pull request du cadrage).
+
+---
+
+## US-1840 — Les décimaux à l'entrée : une précision pour les seuils et les bornes, des chiffres de 0 à 9
+
+- **statut** : à faire
+- **exigences** : `WF-DAT-0100-A`, `WF-REF-0160-A`, `WF-REF-0170-A`
+- **opérations** : `updateReferenceSettings`, `setHourlyRate`, et toute écriture dont le corps porte un
+  `Money` ou un `Decimal` ; `listNodes` et `listResourceRoles` par leurs bornes
+- **issue** : #2877
+
+**En tant qu'**administrateur, **je veux** qu'un seuil, une borne ou un montant que je saisis soit lu
+comme le contrat l'écrit — des chiffres de 0 à 9, une précision que la base tient —, **afin qu'**une
+valeur hors de ces règles soit refusée à son champ, plutôt qu'enregistrée autrement que je l'ai
+écrite ou rejetée par une erreur interne (#2234, #2238).
+
+**Critères d'acceptation.**
+
+- écart : `WF-DAT-0100-A` — « La somme des montants budgétés d'une révision est identique quel que
+  soit l'ordre de sommation. » : constaté par EP-03 et EP-06, inchangé ; EP-07 clôt.
+- écart : `WF-DAT-0100-A` — « Une tâche planifiée au 30 juin s'affiche au 30 juin sur tout poste
+  client, quel que soit son fuseau. » : idem.
+- `WF-DAT-0100-A` — « Un montant de 0,10 additionné dix fois donne exactement 1,00. » : sa forme
+  pour l'entrée : un `Money` ou un `Decimal` reçu est lu tel que le contrat l'écrit, en chiffres de
+  0 à 9 : `setHourlyRate` avec `{"amount":"١٢.٥٠"}` répond 422 `VALIDATION_FAILED` sur `/amount`
+  et n'enregistre rien ; `updateReferenceSettings` avec une borne `"٠.٢٥"` répond 422 sur
+  `/risk_matrix/probability_bounds/0` ; une borne de `listNodes` ou de `listResourceRoles` en
+  chiffres non ASCII répond 422 `NUMBER_INVALID` à son paramètre ; la somme exacte est constatée par
+  EP-03 et EP-06, inchangée.
+- écart : `WF-DAT-0100-A` — « Deux tâches de quatre heures liées fin à début, sur un calendrier de
+  huit heures, commencent et finissent le même jour. » : constaté par EP-06, inchangé ; EP-07 clôt.
+- `WF-REF-0160-A` — « Les six bornes sont saisissables et ordonnées. » : sa forme pour leur
+  précision : une borne de plus de dix décimales, ou de plus de dix chiffres avant le point — `"0."`
+  suivi de vingt mille `9` —, est refusée par 422 `VALIDATION_FAILED` à `/risk_matrix/<axe>/<rang>`,
+  et non par 500 ; une borne de dix décimales est acceptée ; la saisie et l'ordre sont constatés par
+  EP-05 (US-0810), inchangés.
+- écart : `WF-REF-0160-A` — « Avec des bornes de gravité à 1 %, 5 % et 10 %, un risque de gravité 60
+  est au troisième niveau sur un projet de budget 1 000 (6 %) et au deuxième sur un projet de budget
+  2 000 (3 %). » : EP-08 clôt.
+- écart : `WF-REF-0160-A` — « Sur un projet en chiffrage, un risque est classé d'après le total hors
+  provisions de son devis courant ; la désignation de la révision de référence ne change pas son
+  niveau si ce total égale le budget de référence. » : idem.
+- écart : `WF-REF-0160-A` — « Avec des bornes de gravité à 1 %, 5 % et 10 %, un risque de gravité 50
+  sur un projet de budget 1 000 est au troisième niveau. » : idem.
+- `WF-REF-0170-A` — « Les quatre seuils sont saisissables, et le seuil d'alerte de chaque indice est
+  inférieur à son seuil de vigilance. » : sa forme pour leur précision : `PATCH /reference/settings`
+  avec `cost_watch` à `"0."` suivi de vingt mille `9`, les autres valeurs valides, répond 422
+  `VALIDATION_FAILED` à `/index_thresholds/cost_watch`, et non 500, chacun des quatre seuils de
+  même ; un seuil de dix décimales est accepté ; la saisie et l'ordre sont constatés par EP-05
+  (US-0810), inchangés.
+- écart : `WF-REF-0170-A` — « Un indice traverse les trois zones lorsque sa valeur décroît de 1 à
+  0,5, avec des seuils fixés à 0,9 et 0,8. » : EP-10 clôt.
+- écart : `WF-REF-0170-A` — « Avec des seuils à 0,9 et 0,8, un indice de 0,9 est nominal et un
+  indice de 0,8 en vigilance. » : idem.
+- propre à l'US : la base des modèles reconnaît tout type de `api/contract/models.py` dont la racine
+  porte le motif de `Decimal` ou de `Money`, et aucun autre, ce qu'un test confronte aux modèles
+  engendrés ; `api/contract/models.py`, le contrat et `docs/api/DECISIONS.md` ne changent pas
+  (`make server-models-up-to-date` et `make inventory` passent).
+
+**Notes de réalisation.** Corrigés dans le code, pas au contrat (décision de l'auteur du
+2026-11-11) ; la conception dit où (« Back, les décimaux à l'entrée ») et pourquoi la base des
+modèles plutôt que les routes. La précision suit `RATIO_DECIMALS` des projets. Les numéros de ligne
+de la décision, relevés sur `epic/EP-09`, sont sur `main` : `api/nodes.py` l. 88-91,
+`api/resource_roles.py` l. 82, `api/reference_settings_write.py` l. 86-87.
+
+**Hors périmètre.** Les autres décimaux qui débordent PostgreSQL, et les mois, les trimestres et la
+durée collée lus par `\d` (#2875, à trancher) ; le compteur d'écriture (US-1810).
