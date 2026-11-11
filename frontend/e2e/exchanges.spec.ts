@@ -7,6 +7,7 @@ import {
   expect,
   type Locator,
   type Page,
+  type Request,
   type Route,
 } from "@playwright/test";
 
@@ -14,7 +15,9 @@ import type { components } from "../src/api/generated/schema";
 import { compile } from "./compile";
 import { seedEstimate } from "./estimate-seed";
 import { openHydrated, WORKING } from "./hydration";
+import { takeInProgress } from "./in-progress";
 import { inService, test } from "./mode";
+import { employRole, wiringService } from "./own-project";
 import { seedPlanning } from "./planning-seed";
 import { API } from "./service/realm";
 
@@ -391,9 +394,10 @@ test("exports the estimate as an Excel file, downloads it, sees a file that is n
   await expect(async () => {
     if ((await report.getByText(/lues?\./).count()) === 0) {
       await page.reload();
+      await page.waitForLoadState("domcontentloaded");
     }
     await expect(report.getByText(/lues?\./)).toBeVisible({ timeout: 1_000 });
-  }).toPass({ timeout: WORKING });
+  }).toPass({ timeout: WORKING, intervals: [500, 1_000, 2_000] });
   await expect(report.getByText("Aucun écart avec les données existantes")).toBeVisible();
   await expect(report.getByRole("table", { name: "Lignes rejetées" })).toHaveCount(0);
   const address = `${API}/projects/${seeded.ids.project}/imports/${opened}`;
@@ -412,4 +416,131 @@ test("exports the estimate as an Excel file, downloads it, sees a file that is n
 
   // The lines obtained are the lines exported: the same, lineage and amounts.
   expect(await lines()).toEqual(before);
+});
+
+test("exports the remaining to commit as an Excel file, imports it back in two steps, leaves the screen of the exchanges while it is applied, and reads its outcome in the shell, as the project manager of the run @shared [WF-IHM-0080-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  // WF-IHM-0080-A: « Un utilisateur qui change d’écran pendant un import est informé de son
+  // aboutissement. » The remaining to commit exported and imported back without a change, the
+  // application confirmed is a task of the shell, which the user keeps reading from another screen:
+  // the shell tells its success there, and the service holds the import applied. The project is
+  // the run's own (#2193).
+  test.skip(
+    !inService,
+    "the service keeps the file made and the import applied, the fake back not",
+  );
+  test.slow();
+  // The import of a remaining to commit is offered to a project in progress: the project of the
+  // run is taken there, by the operations a user leads it by, and its current revision opened.
+  const seeded = await seedPlanning(page, browser, request, manager, "Reste");
+  const employed = seeded.nodes[6];
+  if (employed === undefined) {
+    throw new Error("the planning seeded has no task 6, which the line of labour is attached to");
+  }
+  await employRole(request, seeded.headers, seeded.ids, employed, wiringService());
+  const current = await takeInProgress(
+    request,
+    seeded,
+    `RAE-${seeded.own.label.slice(-8).toUpperCase()}`,
+  );
+  const screen = `${seeded.own.path}/revisions/${current.revision}/exchanges`;
+  await openHydrated(page, screen);
+
+  // The export of the remaining to commit: chosen in the list of the files, followed in the shell.
+  const exports = page.getByRole("region", { name: "Demander un export" });
+  const kinds = exports.getByRole("combobox", { name: "Fichier à exporter" });
+  await expect(kinds.getByRole("option", { name: "Reste à engager" })).toHaveCount(1, {
+    timeout: WORKING,
+  });
+  await kinds.selectOption({ label: "Reste à engager" });
+  await exports.getByRole("button", { name: "Demander l’export" }).click();
+  await page.getByRole("button", { name: /^Tâches et messages\s:/ }).click();
+  const panel = page.getByRole("dialog", { name: "Tâches et messages" });
+  const tasks = panel.getByRole("region", { name: "Tâches de fond" });
+  const link = tasks.getByRole("link", { name: /^Télécharger le résultat/ });
+  await expect(link).toBeVisible({ timeout: WORKING });
+  const [download] = await Promise.all([page.waitForEvent("download"), link.click()]);
+  const filename = download.suggestedFilename();
+  expect(filename).toMatch(/-reste-a-engager\.xlsx$/);
+  const workbook = await readFile(await download.path());
+  expect(workbook.subarray(0, 4)).toEqual(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
+  await page.keyboard.press("Escape");
+  await expect(panel).toHaveCount(0);
+
+  // Imported back as it is: the report comes before any confirmation.
+  const imports = page.getByRole("region", { name: "Importer un fichier" });
+  await imports.getByRole("button", { name: "Importer un reste à engager" }).click();
+  const form = imports.getByRole("form", { name: "Importer un reste à engager" });
+  await form.getByLabel("Fichier à importer").setInputFiles({
+    name: filename,
+    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: workbook,
+  });
+  await form.getByRole("button", { name: "Analyser le fichier" }).click();
+  await expect(page).toHaveURL(/[?&]import=[0-9a-f-]{36}/, { timeout: WORKING });
+  const opened = new URL(page.url()).searchParams.get("import") ?? "";
+  const report = page.getByRole("region", { name: `Compte rendu de l’import « ${filename} »` });
+  // The analysis is a task of the background: the report comes when the screen is read anew.
+  await expect(async () => {
+    if ((await report.getByText(/lues?\./).count()) === 0) {
+      await page.reload();
+      await page.waitForLoadState("domcontentloaded");
+    }
+    await expect(report.getByText(/lues?\./)).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: WORKING, intervals: [500, 1_000, 2_000] });
+  await expect(report.getByText("Aucun écart avec les données existantes")).toBeVisible();
+  await expect(report.getByRole("table", { name: "Lignes rejetées" })).toHaveCount(0);
+
+  // Confirmed, the application is a task; the user leaves the screen of the exchanges at once. The
+  // read of a task by the shell (a server action carrying the sole identifier of the task) waits
+  // for the test to let it, in the browser: the application is then still followed when the screen
+  // is left, however small the file, and the service itself is left to its own pace.
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const reading = (request: Request) =>
+    /^\["[0-9a-f-]{36}"\]$/.test(request.postData() ?? "") &&
+    request.headers()["next-action"] !== undefined;
+  await page.route("**/*", async (route: Route) => {
+    if (reading(route.request())) {
+      await released;
+    }
+    await route.fallback();
+  });
+  const held = page.waitForRequest(reading);
+  await report.getByRole("button", { name: "Appliquer l’import" }).click();
+  const confirmation = report.getByRole("form", { name: "Confirmation de l’application" });
+  await confirmation.getByRole("button", { name: "Confirmer l’application" }).click();
+  await expect(confirmation).toHaveCount(0);
+  await held;
+  await page
+    .getByRole("navigation", { name: "Fonctions" })
+    .getByRole("link", { name: "Projets", exact: true })
+    .click();
+  await expect(page).not.toHaveURL(/\/exchanges/);
+  await expect(report).toHaveCount(0);
+
+  // From the other screen, the shell shows the application still followed, its read held.
+  await page.getByRole("button", { name: /^Tâches et messages\s:/ }).click();
+  const application = tasks
+    .getByRole("listitem")
+    .filter({ hasText: `Application d’un import « ${filename} »` });
+  await expect(application.getByText(/^(En cours|En attente)$/)).toBeVisible();
+  await expect(application.getByText("Réussie")).toHaveCount(0);
+
+  // The read let go, the shell tells the outcome of the application.
+  release();
+  await expect(application.getByText("Réussie")).toBeVisible({ timeout: WORKING });
+  await page.keyboard.press("Escape");
+  const address = `${API}/projects/${seeded.ids.project}/imports/${opened}`;
+  await expect(async () => {
+    const applied = await request.get(address, { headers: seeded.headers });
+    expect(applied.status(), "GET import").toBe(200);
+    expect(((await applied.json()) as Imported).status).toBe("applied");
+  }).toPass({ timeout: WORKING });
 });

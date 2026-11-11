@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING, Any
 import xlsxwriter
 from xlsxwriter.utility import xl_col_to_name, xl_rowcol_to_cell
 
-from waterfall.core.estimate.excel.names import sheet_name
 from waterfall.core.estimate.excel.writer import (
     KIND_NAMES,
     KIND_ORDER,
@@ -88,12 +87,6 @@ def _title(tab: RemainingTab) -> str:
 
 def _task_entry(task: RemainingTask) -> str:
     return f"{task.number} {task.label}"
-
-
-def _tab_name(tab: RemainingTab, taken: list[str]) -> str:
-    name = sheet_name(tab.code or layout.OUTSIDE, taken)
-    taken.append(name)
-    return name
 
 
 def _table_names(tabs: tuple[RemainingTab, ...]) -> tuple[str, ...]:
@@ -529,8 +522,8 @@ def _write_summary(sheet: Worksheet, ctx: _Context, cells: list[_Cells], mention
 
 def _context(book: RemainingWorkbook, workbook: xlsxwriter.Workbook) -> _Context:
     tabs = (*book.subprojects, *((book.outside,) if book.outside is not None else ()))
-    taken = list[str](layout.FIXED_TABS)
-    sheets = tuple(_tab_name(tab, taken) for tab in tabs)
+    names = layout.tab_names(tab.code for tab in book.subprojects)
+    sheets = tuple(names[tab.code] for tab in tabs)
     kinds = {nature.name: nature.kind for nature in book.natures}
     labour_codes = tuple(
         dict.fromkeys(c.code for c in book.categories if kinds[c.nature] == "labour")

@@ -640,7 +640,17 @@ ImportRejection:
     a field, by the reason of that field (`VALUE_REQUIRED`, `VALUE_TOO_LONG`,
     `VALUE_OUT_OF_RANGE`, `FIELD_NOT_ACCEPTED`, `RESOURCE_ROLE_REQUIRED`,
     `INACTIVE_REFERENCE_OBJECT`), its parameters and `params.header` the header of the column
-    that carries the field.
+    that carries the field. For a remaining to commit, the lines that the file sets to nought
+    on a task that it would complete at the date of the review (« Synthèse », cell B9), when that
+    date forbids it (WF-RAE-0040, WF-INTF-0120): each of these lines is rejected, `params.tasks`
+    naming the task by its lineage and its label (`lineage_id`, `label`), with
+    `COMPLETION_DATE_REQUIRED` when the file carries no date of review; `DATE_INVALID`,
+    `params.value` the content of the cell as the file carries it — without `params.column`, the
+    cell being that of the review and no column of the lines — when it holds something that is
+    not a date; `VALUE_OUT_OF_RANGE`, `params.minimum` the date of the start of the task started
+    (ISO 8601), when the date of the review precedes it. The task is then not completed, its
+    lines left as they are. The lines of a task that is already completed carry
+    `task_not_completed` as above.
   properties:
     sheet:
       anyOf: [{ type: string }, { type: 'null' }]

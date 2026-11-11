@@ -574,6 +574,7 @@ def test_the_export_of_the_estimate_is_a_command_of_the_revision_which_lacks_no_
     expected: list[tuple[str, list[str]]] = [
         ("export_planning", []),
         ("export_estimate", []),
+        ("export_remaining", []),
         ("export_task_tree_image", []),
     ]
     assert exports() == expected

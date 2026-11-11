@@ -26,6 +26,7 @@ database unchanged, the import where it stood; the task runs again from the star
 """
 
 from dataclasses import dataclass
+from functools import partial
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -33,9 +34,11 @@ from waterfall.core.exchanges.judgments import (
     IMPORT_KEY,
     REPORT_LIFETIME,
     REVISION_KEY,
+    FormJudgment,
     ImportTarget,
     Judge,
     Standing,
+    judge_import,
     judge_state,
 )
 from waterfall.core.exchanges.records import (
@@ -247,7 +250,6 @@ def _judged(
     requester.judge(session, project_id, form.permission)
     if form.scope != "structure":
         standing = Standing(project_id, lock_project(session, project_id), form.scope)
-        judge_state(session, standing, requester.viewer, task.task_id)
         target = ImportTarget(
             project_id,
             None,
@@ -257,7 +259,13 @@ def _judged(
             period_from=row.period_from,
             period_to=row.period_to,
         )
-        form.judge(session, target)
+        judge_import(
+            session,
+            standing,
+            requester.viewer,
+            FormJudgment(partial(form.judge, session, target), form.judged_first),
+            task.task_id,
+        )
         return target
     current = project_facts(session, project_id).current_revision_id
     if current is not None:
@@ -268,7 +276,15 @@ def _judged(
         current = facts.current_revision_id
         if current is not None:
             revision_draft(session, current)
-    judge_state(session, Standing(project_id, facts, form.scope), requester.viewer, task.task_id)
+    # A format judged first sees the revision as it stands, possibly none: it reads the project.
+    provisional = ImportTarget(project_id, current, None, task.task_id, import_id=row.id)
+    judge_state(
+        session,
+        Standing(project_id, facts, form.scope),
+        requester.viewer,
+        task.task_id,
+        partial(form.judge, session, provisional) if form.judged_first else None,
+    )
     if current is None:
         # The opening shares the lock of the reference while this one holds the lock of the
         # project, against the order "reference, then project" (#2510). Safe as long as no holder
@@ -282,7 +298,8 @@ def _judged(
     target = ImportTarget(
         project_id, current, aimed_by(session, row, current), task.task_id, import_id=row.id
     )
-    form.judge(session, target)
+    if not form.judged_first:
+        form.judge(session, target)
     return target
 
 

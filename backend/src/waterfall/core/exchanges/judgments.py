@@ -90,17 +90,51 @@ class Standing:
     scope: ImportScope
 
 
+@dataclass(frozen=True, slots=True)
+class FormJudgment:
+    """The conditions of a format on an import: what judges them, and whether it does so first."""
+
+    judge: Callable[[], None]
+    first: bool
+
+
+def judge_import(
+    session: Session,
+    standing: Standing,
+    viewer: Viewer,
+    form: FormJudgment,
+    running: UUID | None = None,
+) -> None:
+    """Judge the state of the project and the conditions of the format, in the contract's order.
+
+    The conditions of the format come after the state of the project, except for a format that
+    judges them first, right after a terminal project (``Format.judged_first``).
+    """
+    judge_state(session, standing, viewer, running, form.judge if form.first else None)
+    if not form.first:
+        form.judge()
+
+
 def judge_state(
-    session: Session, standing: Standing, viewer: Viewer, running: UUID | None = None
+    session: Session,
+    standing: Standing,
+    viewer: Viewer,
+    running: UUID | None = None,
+    first: Callable[[], None] | None = None,
 ) -> None:
     """Refuse an import on the state of its project, read under its lock, in the contract's order.
 
     ``viewer`` is who would create the revision; ``running`` the task of the application that
-    asks, which suspends no write of its own.
+    asks, which suspends no write of its own. ``first`` is the condition of a format that
+    ``ProjectCommand.import_*`` names before the others — ``project_in_progress`` of a remaining
+    to commit, then ``no_background_task_running`` and ``may_create_revision`` (US-1630; #2796) —,
+    judged right after a terminal project.
     """
     facts = standing.facts
     if facts.state in TERMINAL:
         raise refused(PROJECT_NOT_TERMINAL)
+    if first is not None:
+        first()
     if standing.scope != "structure":
         return
     if not no_background_task_running(session, standing.project_id, running):

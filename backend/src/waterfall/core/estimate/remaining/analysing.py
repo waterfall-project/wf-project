@@ -205,6 +205,13 @@ def _task_coefficient(scale: Scale, bearer: BearingTask, fallback_year: int) -> 
     return weighted / sum(shares.values(), NOUGHT)
 
 
+def consumption_year_of(bearer: BearingTask, fallback: int) -> int:
+    """Give the year a task consumes most of a line in, on its own calendar."""
+    placement = Placement(weekly_calendar(bearer.week), bearer.start, bearer.finish)
+    shares = spread_by_year(placement, ONE)
+    return max(shares.items(), key=lambda share: share[1])[0] if shares else fallback
+
+
 @dataclass(frozen=True, slots=True)
 class Sent:
     """What a line without a lineage sends of its figures, as an estimate's cells would."""
