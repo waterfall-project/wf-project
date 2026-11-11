@@ -490,8 +490,43 @@ l'option écartée :
 - **Coller l'avancement ou les dates d'exécution d'une tâche exige `remaining.write`** (#2805,
   d'EP-07), comme `setTaskProgress`, dont la règle fait foi : la grille de reste à engager présente
   `physical_progress`, `started_on` et `completed_on`, que le Kanban écrit déjà sous cette
-  permission ; par US-1640/L1 #2412, dans `core/planning/interface/paste.py`. Écarté : ces colonnes
-  retirées du collage sous `remaining.write` seul.
+  permission ; par US-1650/L3 #2416, après la reprise d'`epic/EP-07` dans `epic/EP-09` (décision de
+  l'auteur du 2026-11-11, qui le retire à US-1640/L1 #2412), dans `core/planning/interface/paste.py`.
+  Écarté : ces colonnes retirées du collage sous `remaining.write` seul.
+
+### Les décisions du 2026-11-11
+
+Décisions de l'auteur du 2026-11-11 sur les constats laissés ouverts par les lots livrés ; toutes
+sont portées par la vérification d'ensemble US-1650/L3 #2416, qui passe aussi US-1630 `fini` (ses
+cinq lots fusionnés) dans ce fichier, au tableau de suivi et par la fermeture de #2395.
+
+- **Le générateur des exemples répartit une ligne de devis à cheval sur deux années comme le
+  service** (#2838, option A ; WF-DEV-0040) : `wftools` partage la ligne entre les années,
+  `make mock-data` régénère les exemples, et `backend/tests/test_witness_costs.py` perd la tolérance
+  qui expliquait l'écart (`spread`, `volume_excess`, `AMOUNTS_APART`) : le calculé fait l'attendu.
+  Écartée : l'écart admis comme une cause d'écart des exemples.
+- **Chaque onglet du classeur du reste à engager offre toutes les tâches non terminées** (#2834,
+  option B) : la liste de validation « Tâches » d'un onglet de sous-projet ou de « Hors
+  sous-projet » n'est plus restreinte aux tâches qui y portent une ligne ; le test qui fixait le
+  choix réalisé par US-1630/L4 change. Écartée : la liste par onglet, qui obligeait à taper le
+  libellé d'une tâche dont toutes les lignes sont dans un autre onglet.
+- **L'export écrit dans « Tâches » le coefficient pondéré par les parts des années de la tâche**
+  (#2848, option a), celui que l'import applique (US-1630/L5, `_task_coefficient`), au lieu du
+  coefficient de l'année où la tâche consomme le plus : la formule de « Main-d'œuvre » du classeur
+  rend alors le chiffre de l'application ; un test compare le coefficient de « Tâches » à celui de
+  l'import sur une tâche du 28 décembre au 8 janvier. « Le format Excel du reste à engager » le dit.
+  Écartée : l'année dominante, écart d'affichage du classeur.
+- **Le marquage d'une révision dans les parcours e2e n'est écrit qu'une fois** (#2835) : une aide
+  exportée, qui sort au plus tôt sur `failed` avec le `problem` de la tâche, sert
+  `frontend/e2e/in-progress.ts` et `frontend/e2e/service/backups.spec.ts`.
+- **Le test de l'export d'une structure non principale nettoie par une aide de la scène** (#2841) :
+  une aide de `project_rows` remplace la suppression table par table de
+  `backend/tests/test_remaining_export.py`, et le commentaire du test du refus de l'import d'un
+  projet laissé en cours dit que c'est l'annulation de la transaction qui ne laisse aucune révision.
+- **La date relue d'une récapitulative refermée est l'instant de saisie de la mise à zéro**
+  (#2803, limite acceptée) : `reestimated_at` est l'instant où la mise à zéro a été saisie, non le
+  jour de terminaison déclaré à la validation ; rien n'est à corriger.
+- Ces fichiers s'ajoutent à ceux qu'écrit US-1650/L3.
 
 ### Tables et migrations
 
@@ -695,8 +730,9 @@ worker, le chargeur — s'étend à chacun.
   restants ou débours restant, puis les colonnes calculées (nature, code comptable, service, taux,
   main-d'œuvre, débours, reste à engager, type, coefficient), la lignée masquée —, listes de
   validation sur « Tâches » et « Paramètres », dix lignes vides pour les lignes nouvelles ;
-  « Tâches » (les tâches non terminées par sous-projet, leur lignée, leur état, le coefficient
-  d'inflation de leur année de consommation, leur description) et « Paramètres » (le référentiel
+  « Tâches » (les tâches non terminées, que la liste de validation de chaque onglet offre toutes
+  (#2834), leur lignée, leur état, leur coefficient d'inflation — la moyenne des coefficients de
+  leurs années pondérée par leurs parts, celui que l'import applique (#2848) —, leur description) et « Paramètres » (le référentiel
   que la révision retient, les heures par jour), protégés ; le logo et le pied de page d'EP-07 ;
   `strings_to_formulas` faux. Les montants des en-têtes sont ceux que `remaining_indicators` et
   `costs` calculent pour la révision exportée. Le nom : `<code ou libellé du projet>-<version>-reste-a-engager.xlsx`.
@@ -781,7 +817,8 @@ worker qu'à partir de ce lot — l'API et le chargeur les attendent dès le soc
   #2385) reçoit les trois modèles d'écriture après #2385. Rien n'est chargé pour le reste à engager :
   les états viennent d'EP-06, les lignes d'EP-07, `previous_*` de la copie de la révision 102 depuis
   la référence 101, marquée En cours — le registre est rempli dès le chargement, qui tourne entier
-  sur une plateforme neuve. Les imports du planning (a10) et du devis (a11) restent à EP-06, EP-07 et
+  sur une plateforme neuve. Le générateur des exemples répartit une ligne de devis à cheval sur deux
+  années comme le service (WF-DEV-0040, #2838). Les imports du planning (a10) et du devis (a11) restent à EP-06, EP-07 et
   EP-08. Les montants et imputations sont ceux que le service calcule : le calculé devient l'attendu.
 
 ### Le front
@@ -1611,8 +1648,8 @@ périodique avec l'outil que mes interlocuteurs connaissent.
   (budget, coûts réels, reste à engager, projection, écart, avancement) puis ses lignes des tâches
   non terminées en tableau Excel — tâche, description, état, rôle ou catégorie, désignation, budget,
   reste précédent, jours restants ou débours restant, colonnes calculées, lignée masquée — aux
-  listes et formules étendues à la saisie ; « Tâches » (les tâches non terminées par sous-projet,
-  leur état, leur coefficient) et « Paramètres » (le référentiel de la révision et les heures par
+  listes et formules étendues à la saisie ; « Tâches » (les tâches non terminées, toutes offertes
+  à chaque onglet (#2834), leur état, leur coefficient pondéré par les parts de leurs années (#2848)) et « Paramètres » (le référentiel de la révision et les heures par
   jour), protégés ; le logo et le pied de page ; `review_date` de la demande, le jour par défaut ;
   le fichier `.xlsx`, `<code ou libellé du projet>-<version>-reste-a-engager.xlsx` ; `requestExport`
   sous `export_remaining`, gardée par `remaining.read`, disponible sur un projet terminal ;

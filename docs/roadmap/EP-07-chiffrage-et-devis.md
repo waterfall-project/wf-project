@@ -760,7 +760,8 @@ deux lots ajoutés à l'EPIC, avant la vérification d'ensemble US-1570/L3, qui 
   - **coller l'avancement ou les dates d'exécution d'une tâche** (`physical_progress`,
     `started_on`, `completed_on`) exige `remaining.write`, comme `setTaskProgress`, dont la règle
     fait foi (#2805) : la grille de reste à engager les présente, et le Kanban les écrit déjà sous
-    cette permission. Corrigé en EP-09 par US-1640/L1 #2412, dans
+    cette permission. Corrigé en EP-09 par US-1650/L3 #2416, après la reprise d'`epic/EP-07` dans
+    `epic/EP-09` (décision de l'auteur du 2026-11-11, au lieu d'US-1640/L1 #2412), dans
     `core/planning/interface/paste.py`. Écarté : ne pas offrir ces colonnes au
     collage sous `remaining.write` seul, qui refusait à la grille ce que le Kanban permet.
 - **Les parcours e2e relisent les réponses de l'API par le schéma du client engendré** (#2771) :
