@@ -322,20 +322,20 @@ def test_an_archive_that_does_not_read_back_whole_is_listed_with_a_verification_
     assert [tuple(row) for row in rows] == [("failed", "scheduled")]
 
 
-def keys_of(bucket: Bucket) -> list[str]:
-    """List the keys of the objects the bucket holds, those of earlier tests included."""
-    listed = bucket.client.list_objects_v2(Bucket=bucket.name)
-    return [item.get("Key", "") for item in listed.get("Contents", [])]
+DATABASE = "database"
 
 
-def unavailable() -> UnavailableError:
-    """Give the error of the object storage, which does not answer."""
-    return UnavailableError("COMPONENT_UNAVAILABLE", {"component": "object_storage"})
+def keys_of(bucket: Bucket, prefix: str = "") -> list[str]:
+    """List the keys, under ``prefix``, of the objects the bucket holds, paginated."""
+    pages = bucket.client.get_paginator("list_objects_v2").paginate(
+        Bucket=bucket.name, Prefix=prefix
+    )
+    return [item.get("Key", "") for page in pages for item in page.get("Contents", [])]
 
 
-def database_down() -> UnavailableError:
-    """Give the error of the database, which does not answer."""
-    return UnavailableError("COMPONENT_UNAVAILABLE", {"component": "database"})
+def unavailable(component: str = "object_storage") -> UnavailableError:
+    """Give the error of a component, which does not answer: the object storage unless told."""
+    return UnavailableError("COMPONENT_UNAVAILABLE", {"component": component})
 
 
 class Unreadable(Bucket):
@@ -354,6 +354,7 @@ class Unremovable(Unreadable):
         raise unavailable()
 
 
+@pytest.mark.requirement("WF-DAT-0120-A")
 def test_an_archive_written_and_not_read_back_leaves_no_object_under_its_key(
     database: Database, run: Run, databases: dict[str, str], backups_bucket: Bucket
 ) -> None:
@@ -366,11 +367,12 @@ def test_an_archive_written_and_not_read_back_leaves_no_object_under_its_key(
         "failed",
         {"component": "object_storage"},
     )
-    assert f"backup-{task_id}.tar" not in keys_of(backups_bucket)
+    assert keys_of(backups_bucket, f"backup-{task_id}") == []
     with database.transaction() as session:
         assert session.execute(text("SELECT count(*) FROM backup")).scalar_one() == 0
 
 
+@pytest.mark.requirement("WF-DAT-0120-A")
 def test_an_archive_written_and_not_recorded_leaves_no_object_under_its_key(
     database: Database,
     run: Run,
@@ -380,7 +382,7 @@ def test_an_archive_written_and_not_recorded_leaves_no_object_under_its_key(
 ) -> None:
     # WF-DAT-0120 (#2242): the verification passed, the database refuses the backup.
     def refuse(*_: object) -> UUID:
-        raise database_down()
+        raise unavailable(DATABASE)
 
     monkeypatch.setattr(backup_module, "add_backup", refuse)
     task_id = run(BackupTask(databases, backups_bucket))
@@ -389,9 +391,29 @@ def test_an_archive_written_and_not_recorded_leaves_no_object_under_its_key(
         "failed",
         {"component": "database"},
     )
-    assert f"backup-{task_id}.tar" not in keys_of(backups_bucket)
+    assert keys_of(backups_bucket, f"backup-{task_id}") == []
 
 
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_an_archive_whose_verification_raises_leaves_no_object_under_its_key(
+    database: Database,
+    run: Run,
+    databases: dict[str, str],
+    backups_bucket: Bucket,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # WF-DAT-0120 (#2242): the verification itself raises, inside the guarded block.
+    def raising(*_: object) -> None:
+        raise unavailable()
+
+    monkeypatch.setattr(backup_module, "verified", raising)
+    task_id = run(BackupTask(databases, backups_bucket))
+    failed = task(database, task_id)
+    assert failed.status == "failed"
+    assert keys_of(backups_bucket, f"backup-{task_id}") == []
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
 def test_a_removal_that_fails_is_logged_and_does_not_hide_the_fault_of_the_backup(
     database: Database, run: Run, databases: dict[str, str], backups_bucket: Bucket
 ) -> None:

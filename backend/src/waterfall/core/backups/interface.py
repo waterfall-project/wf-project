@@ -232,9 +232,8 @@ def write_back_after_restoration(
     restored database holds only as kept, so that none names an archive of another installation
     (#2230); the inscriptions the restored database lacks, by their identifier — an inscription
     made while the database was dumped is in the dump already, and is not written twice —; the
-    deposits kept in
-    place of those of the source, without their account where the restored database lacks it, so
-    that none names an object of another installation; the tasks restored
+    deposits kept in place of those of the source, without their account where the restored
+    database lacks it, so that none names an object of another installation; the tasks restored
     pending fail (#892); the accounts the journal says anonymised since the backup are anonymised
     again (#988), and the role of the service gets its rights back. ``at`` ends the tasks that
     fail. Gives the subjects of the local accounts anonymised again, which the caller removes from
