@@ -4076,12 +4076,27 @@ three revisions (five thousand for the main structure of the 102), with their ro
 quantities, payment delays and sub-projects, and the role calendars that give their dates to the 103
 tasks on the 4×10 h calendar of the frieze (#2594); then it replays the rate update of the 101 (on
 12 January 2026), designates the offer 100 as the reference (on 15 January 2026), and the passage to
-In progress that this designation produces is written to the transitions of the witness. It loads no
-provision and no amendment, no risk (EP-08, whose merge of the amendment 1 makes the 101 the
-reference: until then the reference is the offer 100), no actual cost (EP-09, which adds the five
-actual cost imports and the previous remaining to commit of the lines of the 102), no indicator
-(EP-10), and not the whole volumes (EP-13). Against the service, the structure of PRJ-001 counts
-5,966 nodes, not the 5,999 of the volume that the fake back serves. What reads PRJ-001 In progress,
+In progress that this designation produces is written to the transitions of the witness. The slice of
+the costs (EP-09, US-1650/L2, `witness/costs.py`) follows the chronology, called by the march of the
+events of `witness/revisions.py` for each write of costs: the five actual cost imports of PRJ-001 (3
+April, 4, 6 and 11 May, 3 June), each with its line of the journal of the imports of the exchanges and
+its entry of the journal of the costs (period, columns kept, counts), the twenty-eight cost lines they
+brought or updated, each with its item, its imputation as the service computes it, its columns kept
+and the audit of its imports, the exclusion of the customer's reception (on 6 April at 9:15, with its
+reason) and the extraction of April replayed, analysed on 2 June then expired; at the identifiers and
+the instants of the witness, the project manager of the witness as the account, through the
+interfaces of `core/exchanges` and `core/costs`, with no Excel file and no worker. The imports come
+from `fixtures/api/witness_costs.json`, which `make mock-data` writes beside the examples
+(`wftools.mockwitnesscosts`) and which the back reads by a strict model of its own, without importing
+`wftools`. The remaining to commit has no slice: the lines of the revision 102 carry `previous_*` from
+the copy of the reference 101, and their states come from EP-06. The generator of the examples shares
+a quote line astride two years as the service does (WF-DEV-0040, #2838): the computed is the
+expected, and the figures of the examples are the service's. What the slice does not have: no
+provision, no amendment, no risk (**EP-08**, whose merge of the amendment 1 makes the 101 the
+reference: until then the reference is the offer 100), no indicator (**EP-10**), and not the whole
+volumes (**EP-13**, which closes: the three hundred projects and the eighteen thousand cost lines of
+§4.6.2). Against the service, the structure of PRJ-001 counts 5,966 nodes, not the 5,999 of the
+volume that the fake back serves. What reads PRJ-001 In progress,
 its reference and its lines thus plays against the service, to the expectations of the examples near
 that the list below names. The assertions of a write affirm what was written, read anew, by
 `inService`.
@@ -4123,18 +4138,21 @@ the epic that lifts it; that epic removes the guard and its entry:
   breakdown of a project created, written then read anew, plays since US-0950 (twin path,
   `SERVICE_ONLY`), the fake back keeping nothing of the work breakdown it is given
   (`FAKE_BACK_FORGETS`) (#2543).
-- `context.spec.ts` — the banner of the context on the remaining to commit, the risks and the
-  indicators, and on a differential structure (`BEFORE_THE_REMAINING`, `BEFORE_THE_INDICATORS`,
-  `BEFORE_THE_DIFFERENTIALS`): lifted screen by screen by **EP-09** (the remaining to commit),
-  **EP-08** (the risks and the differential structures) and **EP-10** (the indicators). The banner
-  of the planning (EP-06), of the estimate (US-1560, EP-07), of the screens of a project created, of
+- `context.spec.ts` — the banner of the context on the risks, on the indicators and on a
+  differential structure (`BEFORE_THE_RISKS`, `BEFORE_THE_INDICATORS`,
+  `BEFORE_THE_DIFFERENTIALS`): lifted screen by screen by **EP-08** (the risks and the differential
+  structures) and **EP-10** (the indicators). The path that goes through the remaining to commit then
+  the risks stays guarded by the risks. The banner of the planning (EP-06), of the estimate (US-1560, EP-07), of the screens of a project created, of
   its settings and of its revisions plays against the service.
 - `planning.spec.ts`, `structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts` — the paths that
   write to the witness of PRJ-001, whose account of the run is no contributor (#2193): each has its
   twin against the service on a project of the run (`planning-service.spec.ts`, `structure.spec.ts`,
   `computed.spec.ts`, `keyboard.spec.ts`), which no epic reverses; the paths of these files that
   read the witness play on both sides. The paths of the remaining to commit of `structure.spec.ts`
-  are **EP-09**'s.
+  that write to PRJ-001 (the addition of a task, the insertion of a named line with a category and
+  a quantity) stay on the fake back and **have no twin** against the service: `remaining.spec.ts`
+  replays neither on a project of the run (#2909: port them there, a decision to take). The one
+  that reads — the filter by item — plays on both sides (EP-09).
 - `planning.spec.ts` — the read of the planning start date and of its headers « Démarrée le » and
   « Terminée le » plays on both sides; only its write (`updateCostStructure`) stays on the fake
   back, like the other writes to the witness above.
@@ -4151,12 +4169,28 @@ the epic that lifts it; that epic removes the guard and its entry:
   folding by level, and the scroll of the keyboard to the six thousandth row (`grid.spec.ts`,
   `keyboard.spec.ts`) —, the provision of the twelfth row (**EP-08**), the paths of the own estimate
   of a risk and of the differential (`paste.spec.ts`, `entry.spec.ts`, guarded by `inService` or
-  untagged until **EP-08**) and those of the remaining to commit (`undo.spec.ts`, the sort after a
-  write in `grid.spec.ts`, `structure.spec.ts`, **EP-09**). The passage of a project to In progress
+  untagged until **EP-08**). The untagged paths of the remaining to commit of
+  PRJ-001 do not replay, the account of the run being no contributor of PRJ-001 (#2193), and their
+  twin is not always the one believed: the sort after a write in `grid.spec.ts` and the addition of
+  a task or of a line in `structure.spec.ts` have no twin against the service (#2909 for the last
+  two); the path of `undo.spec.ts` writes nothing, it asserts the history unavailable, which the
+  fake back says, and the service is covered by the three `@shared` undo paths of the same file
+  (planning, line of the estimate, deleted task). The passage of a project to In progress
   plays: the estimate of the main structure read only against PRJ-001 (`structure.spec.ts`), and the
   pricing up to the passage to In progress (`pricing.spec.ts`); a line under a completed task,
-  refused, is written only in the remaining to commit (**EP-09**), the main structure of a project
-  In progress being read only.
+  refused, is written only in the remaining to commit, the main structure of a project In progress
+  being read only.
+- `actual-costs.spec.ts` — the actual costs (US-1620): the whole file carries `@shared`. The two
+  paths that read PRJ-001 — the lines and their three totals, the date of the last import, the
+  journal, the sort and the filter; the number of lines per page — read the slice of the costs of the
+  witness (US-1650/L2, above), whose amounts and imputations are those the service computes. The
+  third, the exclusion of a line of the witness from the list, stays guarded by `inService`: the
+  account of the run is no project manager of PRJ-001 (#2193), the exclusion would write the
+  witness, and no epic reverses it; the path that writes excludes a line it imports. The two that
+  write do so on a project the run
+  creates (`bringInProgress`, `importActualCosts` of `in-progress.ts`, #2193): no import, then the
+  import of an extraction followed by the exclusion of a line, with the totals read anew (filter
+  included) and the date of the last import.
 - `remaining.spec.ts` — the remaining-to-commit grid and the Kanban (US-1640): the whole file carries
   `@shared`. The path that writes — a task started and a milestone completed on the Kanban, the lines
   of the started task in the grid, the tasks not started on demand — plays against the service on a
@@ -4178,8 +4212,10 @@ the epic that lifts it; that epic removes the guard and its entry:
   back and confirmed, on a project of the run (`:321`, US-1550), whose workbook has no line to
   reject; the refusal of a file too large (`:163`), which opens the imports screen of PRJ-001 whose
   account of the run is no contributor (#2193); the two screens that lead to the imports screen from
-  the estimate and the remaining to commit (`:192`), lifted by **EP-09**, the estimate being served
-  by EP-07. The export of the planning, imported back and confirmed, plays against the service on a
+  the estimate and the remaining to commit (`:192`), which opens the imports screen of PRJ-001 whose
+  account of the run is no contributor (#2193): it stays untagged, like the refusal of a file too
+  large; the import of a remaining to commit plays against the service on a project of the run
+  (`:451`), that of an extraction in `actual-costs.spec.ts`, by the API. The export of the planning, imported back and confirmed, plays against the service on a
   project of the run (US-1430, #2683), as does the export of the remaining to commit, imported back
   in two steps and left while it is applied (`:451`, US-1630).
 - `projects.spec.ts` — the paths that write to PRJ-001 or reach it through its planning: the screen
@@ -5032,6 +5068,35 @@ commits » on `main` (*Settings → Rules*), before creating the branch of the n
 targets neither `epic/*` nor `lot/*`. No check of the chain duplicates it: it is GitHub that
 refuses, hence this section.
 
+**The list of the entries not replayed**, as EP-09 leaves it (US-1650/L3), by the epic that removes
+the guard and the entry above:
+
+- **EP-08** — the provisions and the risks, guarded by `inService` until it: the risk coverage, a
+  provision or a risk read in the remaining to commit (`remaining.spec.ts`), the own estimate of a
+  risk (`entry.spec.ts`, `paste.spec.ts`, `BEFORE_EP08`), the provision of the twelfth row of the
+  estimate (`grid.spec.ts`), the banner on the risks and on a differential structure
+  (`context.spec.ts`), the risks of `risks.spec.ts`, the way back to the previous project of
+  `navigation.spec.ts`; the service loads no provision and no risk, and serves at zero what depends
+  on them.
+- **EP-10** — the indicators that the banner filters (`BEFORE_THE_INDICATORS`) and those of the
+  project.
+- **EP-11** — the opening, from `/`, of the portfolio of `navigation.spec.ts`.
+- **EP-13** — the volumes: the project of 5,999 nodes and its marks (`NO_VOLUME_IN_SERVICE` of
+  `revisions.spec.ts` and of `remaining.spec.ts`, the opening and the scroll of the grid, its windows
+  and its folding, the keyboard to the six thousandth row), the three hundred projects and the
+  eighteen thousand cost lines of §4.6.2, and the status screen of the system.
+- **No epic reverses them** — the paths that write PRJ-001, whose account of the run is no
+  contributor (#2193): their twins play the service on a project of the run (`FAKE_BACK_ONLY`,
+  `FAKE_BACK_KEEPS_NOTHING`, `NOT_REPLAYED_IN_SERVICE`, `WITNESS_KEPT`), the untagged paths of the
+  remaining to commit (`undo.spec.ts`: memory background without history, the service being covered by
+  its `@shared` undo paths; `grid.spec.ts`; `structure.spec.ts`: the addition of a task and of a line,
+  with no twin, #2909) and the imports screen of PRJ-001 (`exchanges.spec.ts`), which only reads that
+  screen: the `@shared` path exporting and re-importing the remaining to commit covers another
+  gesture, on a project of the run.
+
+The slice of the costs makes the actual costs, their journal and the exclusion playable; EP-08 adds
+the provisions, the amendments and the risks to it, EP-13 the whole volumes.
+
 The paths that depend on what the service does not do yet, or does not serve, are not replayed
 against it, being untagged; each is still played against the fake back, by `chromium`. What depends
 on the clock: nothing in the reference, whose dates are those of the loading (WF-DAT-0070) and which
@@ -5049,7 +5114,7 @@ the administrator of the installation. The home is served since US-0920/L2 and p
 project since US-1000 (among them, in `navigation.spec.ts`, the move from the settings to the
 lifecycle). Untagged in `navigation.spec.ts` stay the way back to the previous project from a
 function outside any project, which reopens the remaining to commit then the risks of PRJ-001
-(lifted by **EP-09** and **EP-08**); the address of the project that leads to its planning, with its
+(lifted by **EP-08**: the path goes through the risks); the address of the project that leads to its planning, with its
 reading context, plays on both sides since EP-06. On what their US does not tag yet: the reading of
 the settings outside any project (`reference-costs.spec.ts`, US-0250). The change of the units of
 duration (`reference-resources.spec.ts`), which writes the single object of the installation, plays

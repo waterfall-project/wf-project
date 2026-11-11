@@ -43,6 +43,7 @@ const CABLE_FITTER = "01926f3a-7c00-7000-8000-000000000454";
 // in 2027, and the commissioning starts and is consumed there (`estimate_line_redated`).
 const SUMMARY = 0;
 const ON_SITE = 2;
+const ASSISTANCE = 3;
 const COMMISSIONING = 4;
 const COMMISSIONING_LINE = 5;
 const installation = example("nodes_installation") as NodeList;
@@ -109,9 +110,12 @@ describe("the amount at the rates of the year of reference, after a write that m
     ]);
 
     // The commissioning, consumed a year later, and its line: corrected anew at the inflation of
-    // the witness, 3 %, as the server answered them (`reinflated`), never computed here.
+    // the witness, 3 %, as the server answered them (`reinflated`), never computed here; and the
+    // assistance to the tests, whose line the new dates share otherwise between the years.
     expect(redated.reinflated.map((each) => each.node_id)).toEqual(
-      [COMMISSIONING, COMMISSIONING_LINE].map((row) => installation.items[row]?.node_id),
+      [ASSISTANCE, COMMISSIONING, COMMISSIONING_LINE].map(
+        (row) => installation.items[row]?.node_id,
+      ),
     );
     // The summary above, rendered whole (`ancestors`), sums them; the amounts at the year of
     // reference do not depend on the dates, and stay.
@@ -120,14 +124,14 @@ describe("the amount at the rates of the year of reference, after a write that m
     expect(cell(COMMISSIONING, "base_amount")).toHaveTextContent(/^6\s000,00$/);
     // The amount re-estimated, inflation included, moves with them, in its own column and never
     // in that of the reference: the commissioning and its line 6 180,00 for 6 000,00 at the
-    // reference, the summary 18 780,00 for 18 600,00, and the totals of the structure the server
-    // gives, 68 923 871,77 for 66 105 223,89 [WF-DEV-0050-A].
+    // reference, the summary 18 832,26 for 18 600,00, and the totals of the structure the server
+    // gives, 68 950 863,31 for 66 105 223,89 [WF-DEV-0050-A].
     expect(cell(COMMISSIONING_LINE, "reestimated_amount")).toHaveTextContent(/^6\s180,00$/);
     expect(cell(COMMISSIONING, "reestimated_amount")).toHaveTextContent(/^6\s180,00$/);
-    expect(cell(SUMMARY, "reestimated_amount")).toHaveTextContent(/^18\s780,00$/);
+    expect(cell(SUMMARY, "reestimated_amount")).toHaveTextContent(/^18\s832,26$/);
     const foot = [
       ...(screen.getByRole("treegrid").querySelector("tfoot tr")?.querySelectorAll("td") ?? []),
     ].map((each) => each.textContent);
-    expect(foot.slice(-2)).toEqual(["66\u202f105\u202f223,89", "68\u202f923\u202f871,77"]);
+    expect(foot.slice(-2)).toEqual(["66\u202f105\u202f223,89", "68\u202f950\u202f863,31"]);
   });
 });

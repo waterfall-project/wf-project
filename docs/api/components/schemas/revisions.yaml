@@ -512,10 +512,11 @@ StructureCommand:
     `edit_remaining` is never listed: only the main structure has a remaining to commit
     (WF-RAE-0040).
 
-    The phase condition comes first, specific to the command; then the revision's state
-    conditions, as the revision's command of the same name names them — `revision_draft` on
-    a marked revision, `no_background_task_running` during a background task that writes
-    into the current revision or freezes it —, in the same order. On a closed project, none is
+    The quality condition comes first, `is_contributor`, which the caller lacks when they
+    take no part in the project; then the phase condition, specific to the
+    command; then the revision's state conditions, as the revision's command of the same name
+    names them — `revision_draft` on a marked revision, `no_background_task_running` during a
+    background task that writes into the current revision or freezes it —, in the same order. On a closed project, none is
     listed (US-0702/L3). The revision's commands keep what does not read a structure: the
     skeleton, the marking, the exports, the risks (C-358, #1067).
 
@@ -888,10 +889,11 @@ KanbanCommand:
     non-provision line, and on it only — it is the gesture that completes it, `complete` there
     lacking `task_without_lines`, or that re-estimates it even before it starts.
 
-    After the gesture's own conditions come those of the entry of the remaining to commit of
-    the main structure (`StructureCommand.edit_remaining`), in the same order:
-    `project_in_progress` outside the In progress state, `no_background_task_running` during a
-    background task that writes into the current revision or freezes it.
+    After the gesture's own conditions come all those of the entry of the remaining to commit
+    of the main structure (`StructureCommand.edit_remaining`), in the same order:
+    `is_contributor`, `project_in_progress` outside the In progress state, `revision_draft`
+    on a marked revision, `no_background_task_running` during a background task that writes
+    into the current revision or freezes it.
 
 KanbanCommandAvailability:
   type: object

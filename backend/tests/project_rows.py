@@ -15,6 +15,8 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import CheckConstraint, delete, func, insert, select, table, text
 
+from waterfall.core.estimate.tables import EstimateLine
+from waterfall.core.planning.tables import Node, Task
 from waterfall.core.projects.tables import Project
 from waterfall.core.revisions.tables import CostStructure, Revision
 
@@ -75,6 +77,20 @@ def structure_row(project_id: UUID, revision_id: UUID, **overrides: object) -> d
         **STAMP,
         **overrides,
     }
+
+
+def delete_structure(owner: Engine, structure_id: UUID) -> None:
+    """Remove a structure a test wrote, with its nodes, its tasks and its lines, as the owner.
+
+    The one place that knows what hangs from a structure: a test that wrote one by hand calls it in
+    its ``finally``, and a table that comes to depend on the nodes is added here, not in each test.
+    """
+    with owner.begin() as connection:
+        nodes = select(Node.id).where(Node.structure_id == structure_id)
+        connection.execute(delete(EstimateLine).where(EstimateLine.node_id.in_(nodes)))
+        connection.execute(delete(Task).where(Task.node_id.in_(nodes)))
+        connection.execute(delete(Node).where(Node.structure_id == structure_id))
+        connection.execute(delete(CostStructure).where(CostStructure.id == structure_id))
 
 
 def insert_project(**overrides: object) -> Executable:

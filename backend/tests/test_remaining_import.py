@@ -446,9 +446,10 @@ def revision_count(database: Database) -> int:
 def test_a_project_left_in_progress_before_the_task_runs_refuses_the_import_opening_no_revision(
     api: ContractClient, stage: Scene, worker: Worker, database: Database, scene: Rows
 ) -> None:
-    # The phase is judged again when the task runs, and before the revision the import would open
-    # (#2796): with every revision marked the application would create one, and the refusal
-    # leaves none.
+    # The phase is judged again when the task runs (#2796): with every revision marked the
+    # application would create one, and the refusal leaves none. It is the rollback of the
+    # transaction of the task that leaves no revision, not the order of the condition before the
+    # opening of the revision, which no test can observe from outside.
     review_marked(stage, scene.tree.revision, "Revue 1")
     content = workbook({OUTSIDE: scene.exported()}, scene.tasks())
     import_id = analysed(api, stage, worker, content)

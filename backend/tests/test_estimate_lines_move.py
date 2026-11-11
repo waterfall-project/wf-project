@@ -23,16 +23,15 @@ import pytest
 from estimate_support import YEAR, Costing, Lines, add_role, costing, give_a_line
 from nodes_support import Tree, faults, mark, opened, refusal, set_progress
 from planning_support import insert_link, insert_task
-from project_rows import lifted_kind_check, structure_row
+from project_rows import delete_structure, lifted_kind_check, structure_row
 from projects_support import PROJECTS, Scene, person
 from projects_support import scene as make_scene
-from sqlalchemy import delete as sql_delete
 from sqlalchemy import func, insert, select, update
 
 from waterfall.core.cost_settings.interface import CostCategoryDraft, create_cost_category
 from waterfall.core.cost_settings.tables import CostCategory, CostType
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
-from waterfall.core.planning.tables import Node, Task, TaskLink
+from waterfall.core.planning.tables import Node, TaskLink
 from waterfall.core.revisions.tables import CostStructure
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
@@ -523,19 +522,7 @@ def test_the_lines_a_refusal_names_come_main_structure_first_then_by_structure_l
             ]
             assert found[0]["node_id"] == written["nodes"][0]["node_id"]
         finally:
-            with owner.begin() as connection:
-                nodes = select(Node.id).where(Node.structure_id == structure_id)
-                connection.execute(sql_delete(EstimateLine).where(EstimateLine.node_id.in_(nodes)))
-                connection.execute(
-                    sql_delete(Node).where(
-                        Node.structure_id == structure_id, Node.kind == "estimate_line"
-                    )
-                )
-                connection.execute(sql_delete(Task).where(Task.node_id.in_(nodes)))
-                connection.execute(sql_delete(Node).where(Node.structure_id == structure_id))
-                connection.execute(
-                    sql_delete(CostStructure).where(CostStructure.id == structure_id)
-                )
+            delete_structure(owner, structure_id)
 
 
 @pytest.mark.requirement("WF-DAT-0080-A")

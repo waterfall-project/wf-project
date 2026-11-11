@@ -10,7 +10,8 @@ sees it, writing nothing.
   layout's (``tab_names``), the rule the import reads them by. A tab holds the lines of its
   subproject, tasks not completed of a main structure only, a provision never (EP-08's), under the
   tasks that bear them in the order of the plan; a task is listed in each tab it bears a line in,
-  one that bears none in « Hors sous-projet ».
+  one that bears none in « Hors sous-projet ». The choice of the « Tâche » column, in every tab, is
+  every task not completed of the structure (#2834), not those the tab bears a line of.
 - **The amounts of a header.** The budget and the actual costs of a tab are those of the indicators
   of the revision (``remaining_indicators``: the subproject's balance, or the lines of none and
   the costs imputed to the project alone); the provisions the sum of the provision lines of the
@@ -19,12 +20,10 @@ sees it, writing nothing.
   days left of a line of labour its quantity times its effort over the hours of a day, the amount
   left of any other its re-estimated amount (``remaining_days``). The designation is the label
   stored; the role of a line of labour, the category of any other, by their codes.
-- **The tasks.** « Tâches » gives each its state and the inflation coefficient of the year it
-  consumes most of its lines in (``consumption_year_of``), the one the workbook shows. The analysis
-  does not price a line with it: ``_task_coefficient`` takes the mean coefficient weighted by the
-  shares of the years, so an amount a user types in the workbook is converted by the weighted one,
-  and the gap with the displayed one is possible; which of the two to keep is finding #2848, still
-  to settle.
+- **The tasks.** « Tâches » gives each task not completed once, its state and its inflation
+  coefficient: the mean of the coefficients of the years of the task weighted by their shares
+  (``task_coefficient``), the one the analysis converts an amount typed by, so that the formula of
+  the workbook gives the amount the application does (#2848).
 - **The header.** As the estimate's (``exporting``): the company, the client, the revision by its
   version, the structure by its label, the currency, and the date of the review the order carries,
   the day of the request when it carries none.
@@ -39,9 +38,8 @@ from waterfall.core.cost_settings.interface import read_reference_settings
 from waterfall.core.costs.interface import UNASSIGNED
 from waterfall.core.estimate import exporting
 from waterfall.core.estimate.costing import basis_of
-from waterfall.core.estimate.pricing import inflation_factor
 from waterfall.core.estimate.reading import COMPLETED, budgeted_of, rows_of
-from waterfall.core.estimate.remaining.analysing import consumption_year_of
+from waterfall.core.estimate.remaining.analysing import task_coefficient
 from waterfall.core.estimate.remaining.excel.layout import OUTSIDE_KEY
 from waterfall.core.estimate.remaining.excel.model import (
     RemainingLine,
@@ -226,7 +224,7 @@ def remaining_of(
 def _task(
     item: NodeView, task: TaskView, number: str, lines: list[RemainingLine], pricing: _Pricing
 ) -> RemainingTask:
-    """Give a task of a tab: its state, the inflation of the year it consumes in, its lines."""
+    """Give a task of a tab: its state, the inflation coefficient of its years, its lines."""
     basis = pricing.basis
     bearer = BearingTask(
         item.node_id,
@@ -238,14 +236,14 @@ def _task(
         task.progress,
         pricing.is_main,
     )
-    year = consumption_year_of(bearer, basis.reference_year)
+    coefficient = task_coefficient(basis, bearer, basis.reference_year)
     state: TaskState = STARTED if task.progress == STARTED else "not_started"
     return RemainingTask(
         lineage=str(item.lineage_id),
         number=number,
         label=task.label,
         state=state,
-        inflation=inflation_factor(basis.inflation_rate, basis.reference_year, year),
+        inflation=coefficient,
         description=task.description or "",
         lines=tuple(lines),
     )

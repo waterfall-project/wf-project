@@ -180,36 +180,29 @@ def scale_of(session: Session, held: Aimed, reference: Reference) -> Scale:
     return Scale(hours, basis, tab_subprojects(reference.subprojects), codes)
 
 
-def _coefficient(scale: Scale, year: int) -> Decimal:
+def _coefficient(basis: Basis | None, year: int) -> Decimal:
     """Give the inflation coefficient of a year of consumption, one without a revision."""
-    basis = scale.basis
     if basis is None:
         return ONE
     return inflation_factor(basis.inflation_rate, basis.reference_year, year)
 
 
-def _task_coefficient(scale: Scale, bearer: BearingTask, fallback_year: int) -> Decimal:
+def task_coefficient(basis: Basis | None, bearer: BearingTask, fallback_year: int) -> Decimal:
     """Give the inflation coefficient a task projects a disbursement at: the mean of its years.
 
     The projection (``costing.priced``) shares a line over the years of its task, on the calendar
     of the task, and projects each share: the coefficient that turns an amount typed into the unit
     disbursement is the mean of the coefficients of those years weighted by their shares, so that
-    the amount re-estimated is the amount typed (#2797). A task without a year in its calendar
-    falls back on the coefficient of ``fallback_year``.
+    the amount re-estimated is the amount typed (#2797). The export writes the same coefficient in
+    « Tâches », so that the workbook computes the amount the application does (#2848). A task
+    without a year in its calendar falls back on the coefficient of ``fallback_year``.
     """
     placement = Placement(weekly_calendar(bearer.week), bearer.start, bearer.finish)
     shares = spread_by_year(placement, ONE)
-    if scale.basis is None or not shares:
-        return _coefficient(scale, fallback_year)
-    weighted = sum((share * _coefficient(scale, year) for year, share in shares.items()), NOUGHT)
+    if basis is None or not shares:
+        return _coefficient(basis, fallback_year)
+    weighted = sum((share * _coefficient(basis, year) for year, share in shares.items()), NOUGHT)
     return weighted / sum(shares.values(), NOUGHT)
-
-
-def consumption_year_of(bearer: BearingTask, fallback: int) -> int:
-    """Give the year a task consumes most of a line in, on its own calendar."""
-    placement = Placement(weekly_calendar(bearer.week), bearer.start, bearer.finish)
-    shares = spread_by_year(placement, ONE)
-    return max(shares.items(), key=lambda share: share[1])[0] if shares else fallback
 
 
 @dataclass(frozen=True, slots=True)
@@ -313,7 +306,7 @@ def _create(
     task = importing.designated_task(_placed(line), held, designations)
     basis = scale.basis
     if role is None and disbursement is not None and basis is not None and isinstance(task, UUID):
-        coefficient = _task_coefficient(scale, held.bearer(task), basis.reference_year)
+        coefficient = task_coefficient(basis, held.bearer(task), basis.reference_year)
         disbursement = unit_disbursement(disbursement, ONE, coefficient)
     subproject = scale.tabs[line.sheet]
     placed = _placed(
@@ -388,7 +381,7 @@ def _figures(
             hours = effort(typed, scale.hours_per_day, quantity)
             sent |= {"quantity", "hours"}
         else:
-            coefficient = _task_coefficient(scale, bearer, current.consumption_year)
+            coefficient = task_coefficient(scale.basis, bearer, current.consumption_year)
             disbursement = unit_disbursement(typed, quantity, coefficient)
             sent |= {"quantity", "unit_disbursement"}
     if not sent:
