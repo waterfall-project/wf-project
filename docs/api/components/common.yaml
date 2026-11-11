@@ -378,7 +378,11 @@ Problem:
         WF-REF-0190; EP-16/US-0620); `rows`, the row numbers, as an array of integers, of the
         other lines of the file that carry the same document and the same item as a rejected
         line of an actual cost extraction (`DUPLICATE_COST_LINE`, `ImportRejection.params`,
-        WF-INTF-0140; EP-16/US-0630); `wbs_element`, the WBS element of a rejected line of an
+        WF-INTF-0140; EP-16/US-0630); `lines`, the tab and the row number of the other lines of the
+        file that carry the same lineage as a rejected line of an estimate or of a remaining to
+        commit, as an array of objects (`sheet`, `row`), in the order of the file
+        (`DUPLICATE_LINEAGE`, `ImportRejection.params`, WF-INTF-0100, WF-INTF-0120; #2798);
+        `wbs_element`, the WBS element of a rejected line of an
         actual cost extraction, as the file carries it, and `project_code`, the project code it
         carries when it is that of another project, everything before the slash, dots included
         (`WBS_ELEMENT_INVALID`,
@@ -777,6 +781,12 @@ ErrorCode:
     # same document and the same item, null included (`ImportRejection`, WF-INTF-0140, D-4;
     # EP-16/US-0630): each is rejected, `params.rows` naming the row numbers of the others.
     - DUPLICATE_COST_LINE
+    # A line of an estimate or of a remaining to commit whose lineage — the « ID ligne » column —
+    # another line of the same file carries, on the same tab or on another (`ImportRejection`,
+    # WF-INTF-0100, WF-INTF-0120; #2798): each is rejected, none is preferred, and the line of the
+    # revision that the lineage names is left as it is; `params.lines` names the tab and the row of
+    # the others.
+    - DUPLICATE_LINEAGE
     # 5xx — component unavailable, `params.component` (WF-EXP-0040, 503 `ServiceUnavailable`), or
     # unexpected error, traced by its `correlation_id` (WF-OBS-0020, 500 `InternalError`, which
     # every operation declares; J-07, US-0702/L1).

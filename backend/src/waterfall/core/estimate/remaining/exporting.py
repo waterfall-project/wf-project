@@ -20,8 +20,11 @@ sees it, writing nothing.
   left of any other its re-estimated amount (``remaining_days``). The designation is the label
   stored; the role of a line of labour, the category of any other, by their codes.
 - **The tasks.** « Tâches » gives each its state and the inflation coefficient of the year it
-  consumes most of its lines in, the one the analysis prices a line created under it with
-  (``consumption_year_of``).
+  consumes most of its lines in (``consumption_year_of``), the one the workbook shows. The analysis
+  does not price a line with it: ``_task_coefficient`` takes the mean coefficient weighted by the
+  shares of the years, so an amount a user types in the workbook is converted by the weighted one,
+  and the gap with the displayed one is possible; which of the two to keep is finding #2848, still
+  to settle.
 - **The header.** As the estimate's (``exporting``): the company, the client, the revision by its
   version, the structure by its label, the currency, and the date of the review the order carries,
   the day of the request when it carries none.

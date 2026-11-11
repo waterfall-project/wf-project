@@ -11,14 +11,12 @@ from typing import TYPE_CHECKING, Any
 from waterfall.core.estimate.excel.names import sheet_name
 from waterfall.core.estimate.excel.writer import (
     DISBURSEMENT,
-    FOOTER_LIMIT,
-    FOOTER_MARGIN,
     GREY,
     HOURS_FORMAT,
-    INSTANT_FORMAT,
     LABOUR,
     NOTE,
-    SYMBOLS,
+    amount_format,
+    footer_text,
 )
 
 if TYPE_CHECKING:
@@ -75,6 +73,8 @@ FACTS_ROW = 5
 REVIEW_DATE_CELL = f"B{FACTS_ROW + 3 + 1}"
 # The cell of « Paramètres » that holds the hours per day, which the formulas of the tabs read.
 HOURS_PER_DAY_CELL = "'Paramètres'!$B$2"
+# The defined name of that cell, which the formulas of the tabs use.
+HOURS_PER_DAY = "HeuresParJour"
 # The columns of the summary: the progress, then the breakdown of the remaining.
 PROGRESS_COLUMN = 6
 BREAKDOWN_COLUMN = 7
@@ -151,32 +151,14 @@ def entry(label: str, code: str) -> str:
     return f"{label} ({code})"
 
 
-def money_format(currency: str) -> str:
-    """Give the number format of an amount in a currency."""
-    symbol = SYMBOLS.get(currency, currency).replace('"', "")
-    return f'#,##0.00 "{symbol}"'
-
-
 def footers(book: RemainingWorkbook) -> tuple[str, str]:
     """Give the mention of the summary and the same for the footer, within Excel's limit."""
-    year = book.exported_at.year
-    instant = book.exported_at.strftime(INSTANT_FORMAT)
-
-    def mention(company: str) -> str:
-        return (
-            f"© {year} {company} — Généré par Waterfall le {instant} — "
-            "logiciel libre sous licence AGPL-3.0 — www.waterfall-project.pro"
-        )
-
-    company = book.company
-    while len(mention(company).replace("&", "&&")) > FOOTER_LIMIT - FOOTER_MARGIN and company:
-        company = company[:-2] + "…" if len(company) > 1 else ""
-    return mention(book.company), mention(company).replace("&", "&&")
+    return footer_text(book.company, book.exported_at)
 
 
 def text_formats(workbook: Workbook, currency: str) -> dict[str, Format]:
     """Add the formats of the cells of the workbook."""
-    money = money_format(currency)
+    money = amount_format(currency)
     spec: dict[str, dict[str, Any]] = {
         "bold": {"bold": True},
         "title": {"bold": True, "font_size": 14},
@@ -230,7 +212,7 @@ def line_formulas(table: str) -> dict[str, str]:
         "Type": lookup("Type de nature"),
         "Coefficient": f"={of_task('Coefficient', '1')}",
         "Main-d’œuvre": (
-            f'=IF({empty},"",IF({labour},N({cell("Jours restants")})*{HOURS_PER_DAY_CELL}'
+            f'=IF({empty},"",IF({labour},N({cell("Jours restants")})*{HOURS_PER_DAY}'
             f"*{cell('Taux horaire')}*{cell('Coefficient')},0))"
         ),
         # A disbursement typed is an amount, inflation included: it enters as it is.

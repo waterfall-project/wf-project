@@ -1,0 +1,22 @@
+{
+  "summary": "Une variante du reste à engager importé aujourd'hui : les lignes 3 et 4 de l'onglet « SP-ESS » portent la même lignée, une ligne copiée dans le tableur : toutes deux rejetées, aucune préférée, chacune nommant l'autre ; la ligne de la révision que cette lignée désigne est laissée telle quelle (WF-INTF-0100, WF-INTF-0120, #2798).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "import_id": "01926f3a-7c00-7000-8000-000000000a32",
+    "kind": "remaining",
+    "filename": "reste-a-engager-essais.xlsx",
+    "structure_id": "01926f3a-7c00-7000-8000-000000000201",
+    "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+    "period_from": null,
+    "period_to": null,
+    "status": "analysed",
+    "created_at": "2026-06-03T10:42:05Z",
+    "expires_at": "2026-06-04T10:43:00Z",
+    "report": {"format_version":"1","read_count":3,"unchanged_count":0,"rejected":[{"sheet":"SP-ESS","row":3,"code":"DUPLICATE_LINEAGE","params":{"lines":[{"sheet":"SP-ESS","row":4}]}},{"sheet":"SP-ESS","row":4,"code":"DUPLICATE_LINEAGE","params":{"lines":[{"sheet":"SP-ESS","row":3}]}}],"refusals":[],"differences":[{"change":"updated","target":"estimate_line","lineage_id":"01926f3a-7c00-7000-8000-000000000666","label":"Mise en service sur site","fields":["subproject"]}],"ignored":[],"completed_tasks":[],"date_mismatches":[],"signals":[],"requires_confirmation_reasons":[]},
+    "task": {"task_id":"01926f3a-7c00-7000-8000-000000000951","kind":"import_analysis","status":"succeeded","progress":100,"submitted_at":"2026-06-03T10:42:05Z","finished_at":"2026-06-03T10:43:00Z","problem":null,"result_url":null},
+    "available_commands": [
+      {"command":"apply","is_available":true,"missing_conditions":[]},
+      {"command":"abandon","is_available":true,"missing_conditions":[]}
+    ]
+  }
+}

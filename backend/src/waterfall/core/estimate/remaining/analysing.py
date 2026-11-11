@@ -10,13 +10,16 @@ re-estimated amount — and judges the line changed only when the cell differs f
 at the fifteen significant digits a spreadsheet keeps: a workbook imported again without a change
 gives no difference (WF-INTF-0130). Changed, the line receives its figures, the quantity kept —
 brought to one when nought —: the effort, days x hours per day ÷ quantity, to the hundredth of an
-hour its column holds; the unit disbursement, amount ÷ (quantity x inflation coefficient of its
-consumption year), to the cent; an ``updated`` difference names the columns written, its budgeted
-amount and its lineage left (EP-09, "Ce que le cadrage décide"). Unchanged, it counts in
-``unchanged_count``, nothing written. Its task, its role and its label are the export's: the
-remaining to commit writes only figures, and the subproject of its tab. A line of a task completed
-of the main structure is rejected, unchanged too (``task_not_completed``); a figure in the column of
-the other kind is refused as its entry refuses it (``FIELD_NOT_ACCEPTED``).
+hour its column holds; the unit disbursement, amount ÷ (quantity x the mean inflation coefficient
+of the years of its task, weighted by their shares), to the cent; an ``updated`` difference names
+the columns written, its budgeted amount and its lineage left (EP-09, "Ce que le cadrage décide").
+Unchanged, it counts in ``unchanged_count``, nothing written. Its task, its role and its label are
+the export's: the remaining to commit writes only figures, and the subproject of its tab. A line of
+a task completed of the main structure is rejected, unchanged too (``task_not_completed``); a
+figure in the column of the other kind is refused as its entry refuses it (``FIELD_NOT_ACCEPTED``).
+
+A lineage that two lines of the file carry rejects both (``DUPLICATE_LINEAGE``,
+``importing.alone_on_lineage``, #2798), and the line of the structure it names is left as it is.
 
 A line without a lineage — or with one the structure does not hold — is created, its budgeted
 amount nought on a project that has a reference (WF-DEV-0020), under the task « Tâches » gives its
@@ -25,8 +28,8 @@ entry, with the rejections of the estimate (``importing.plan``): ``AMBIGUOUS_TAS
 ``UNKNOWN_TASK``, ``UNKNOWN_RESOURCE_ROLE``, a provision category, a line under a task completed
 of the main structure (``task_not_completed``, ``params.tasks``; I-05, #1794), a role that would
 leave its task without an hour (``TASK_WITHOUT_WORKING_HOURS``). Its quantity is one: its effort the
-days typed x hours per day, its unit disbursement the amount typed over the inflation coefficient
-of the year its task is consumed in.
+days typed x hours per day, its unit disbursement the amount typed over the mean inflation
+coefficient of the years of its task.
 
 The subproject of a line is the one of its tab, named by its code as the writer names it
 (``sheet_name``), « Hors sous-projet » none: a line placed in another tab changes subproject — an
@@ -185,6 +188,23 @@ def _coefficient(scale: Scale, year: int) -> Decimal:
     return inflation_factor(basis.inflation_rate, basis.reference_year, year)
 
 
+def _task_coefficient(scale: Scale, bearer: BearingTask, fallback_year: int) -> Decimal:
+    """Give the inflation coefficient a task projects a disbursement at: the mean of its years.
+
+    The projection (``costing.priced``) shares a line over the years of its task, on the calendar
+    of the task, and projects each share: the coefficient that turns an amount typed into the unit
+    disbursement is the mean of the coefficients of those years weighted by their shares, so that
+    the amount re-estimated is the amount typed (#2797). A task without a year in its calendar
+    falls back on the coefficient of ``fallback_year``.
+    """
+    placement = Placement(weekly_calendar(bearer.week), bearer.start, bearer.finish)
+    shares = spread_by_year(placement, ONE)
+    if scale.basis is None or not shares:
+        return _coefficient(scale, fallback_year)
+    weighted = sum((share * _coefficient(scale, year) for year, share in shares.items()), NOUGHT)
+    return weighted / sum(shares.values(), NOUGHT)
+
+
 def consumption_year_of(bearer: BearingTask, fallback: int) -> int:
     """Give the year a task consumes most of a line in, on its own calendar."""
     placement = Placement(weekly_calendar(bearer.week), bearer.start, bearer.finish)
@@ -239,7 +259,11 @@ def analyse(
         if (lineage := importing.lineage_of(each.lineage)) is not None and lineage in held.lines
     }
     judging = importing.Judging(confirmed is not None, HEADERS)
-    for line in read.lines:
+    # The double is judged on the lines read; a copy the reader rejected has its lineage taken.
+    alone, doubled, twice = importing.alone_on_lineage(read.lines)
+    found.rejected += doubled
+    taken |= twice & held.lines.keys()
+    for line in alone:
         lineage = importing.lineage_of(line.lineage)
         current = held.lines.get(lineage) if lineage is not None and lineage not in taken else None
         if lineage is not None and current is not None:
@@ -289,8 +313,8 @@ def _create(
     task = importing.designated_task(_placed(line), held, designations)
     basis = scale.basis
     if role is None and disbursement is not None and basis is not None and isinstance(task, UUID):
-        year = consumption_year_of(held.bearer(task), basis.reference_year)
-        disbursement = unit_disbursement(disbursement, ONE, _coefficient(scale, year))
+        coefficient = _task_coefficient(scale, held.bearer(task), basis.reference_year)
+        disbursement = unit_disbursement(disbursement, ONE, coefficient)
     subproject = scale.tabs[line.sheet]
     placed = _placed(
         line,
@@ -321,7 +345,7 @@ def _known(
         header = DISBURSEMENT_HEADER if labour else DAYS_HEADER
         found.rejected.append(importing.rejection(placed, FIELD_NOT_ACCEPTED, {"header": header}))
         return
-    entry = _figures(current, line, scale)
+    entry = _figures(current, line, (scale, held.bearer(task_id)))
     if entry is None:
         return
     sent = (task_id, entry, current)
@@ -337,7 +361,9 @@ def _known(
         )
 
 
-def _figures(current: EstimateLine, line: ReadRemainingLine, scale: Scale) -> LineEntry | None:
+def _figures(
+    current: EstimateLine, line: ReadRemainingLine, read_at: tuple[Scale, BearingTask]
+) -> LineEntry | None:
     """Give what a line known sends: its changed figures, its tab's subproject; none if neither.
 
     The cell is compared to what the export would have written of the line; an empty cell of a
@@ -345,6 +371,7 @@ def _figures(current: EstimateLine, line: ReadRemainingLine, scale: Scale) -> Li
     sets the remaining to nought, as typing 0 does (to be settled by the author, #2410). The
     quantity is kept, brought to one when nought.
     """
+    scale, bearer = read_at
     labour = current.resource_role_id is not None
     typed = (line.days if labour else line.disbursement) or NOUGHT
     written = (
@@ -361,7 +388,7 @@ def _figures(current: EstimateLine, line: ReadRemainingLine, scale: Scale) -> Li
             hours = effort(typed, scale.hours_per_day, quantity)
             sent |= {"quantity", "hours"}
         else:
-            coefficient = _coefficient(scale, current.consumption_year)
+            coefficient = _task_coefficient(scale, bearer, current.consumption_year)
             disbursement = unit_disbursement(typed, quantity, coefficient)
             sent |= {"quantity", "unit_disbursement"}
     if not sent:

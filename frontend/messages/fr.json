@@ -2999,6 +2999,7 @@
     "PROJECT_CODE_INVALID": "Le code du projet ne peut pas contenir de barre oblique.",
     "DUPLICATE_COLUMN_LABEL": "Cet intitulé de colonne figure déjà dans la correspondance, sans égard à la casse, aux accents ni aux espaces en bout : chacun ne désigne qu’une colonne.",
     "DUPLICATE_COST_LINE": "Cette ligne partage sa pièce et son poste, poste vide compris, avec d’autres lignes du fichier : toutes sont rejetées, aucune n’est préférée. Corrigez ou retirez les doublons dans le fichier.",
+    "DUPLICATE_LINEAGE": "Cette ligne porte un identifiant de ligne (« ID ligne ») que d’autres lignes du fichier portent aussi : toutes sont rejetées, aucune n’est préférée, et la ligne de la révision est laissée telle quelle. Retirez ou corrigez les copies dans le fichier.",
     "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",
     "INTERNAL_ERROR": "Erreur inattendue du service.",
     "ACCOUNT_DEACTIVATED": "Ce compte est désactivé ; contactez un administrateur.",

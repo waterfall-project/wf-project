@@ -23,6 +23,8 @@ from waterfall.core.estimate.excel.model import Tab
 from waterfall.core.estimate.excel.names import sheet_name
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from xlsxwriter.format import Format
     from xlsxwriter.worksheet import Worksheet
 
@@ -118,15 +120,16 @@ def _entry(label: str, code: str) -> str:
     return f"{label} ({code})"
 
 
-def _amount_format(currency: str) -> str:
+def amount_format(currency: str) -> str:
+    """Give the number format of an amount in a currency."""
     symbol = SYMBOLS.get(currency, currency).replace('"', "")
     return f'#,##0.00 "{symbol}"'
 
 
-def _footer_text(estimate: Estimate) -> tuple[str, str]:
-    """Give the mention of the presentation and the same for the footer, within its limit."""
-    year = estimate.exported_at.year
-    instant = estimate.exported_at.strftime(INSTANT_FORMAT)
+def footer_text(company: str, exported_at: datetime) -> tuple[str, str]:
+    """Give the mention of a workbook and the same for its footer, within Excel's limit."""
+    year = exported_at.year
+    instant = exported_at.strftime(INSTANT_FORMAT)
 
     def mention(company: str) -> str:
         return (
@@ -134,14 +137,14 @@ def _footer_text(estimate: Estimate) -> tuple[str, str]:
             "logiciel libre sous licence AGPL-3.0 — www.waterfall-project.pro"
         )
 
-    company = estimate.company
-    while len(mention(company).replace("&", "&&")) > FOOTER_LIMIT - FOOTER_MARGIN and company:
-        company = company[:-2] + "…" if len(company) > 1 else ""
-    return mention(estimate.company), mention(company).replace("&", "&&")
+    shortened = company
+    while len(mention(shortened).replace("&", "&&")) > FOOTER_LIMIT - FOOTER_MARGIN and shortened:
+        shortened = shortened[:-2] + "…" if len(shortened) > 1 else ""
+    return mention(company), mention(shortened).replace("&", "&&")
 
 
 def _text_formats(book: xlsxwriter.Workbook, currency: str) -> dict[str, Format]:
-    money = _amount_format(currency)
+    money = amount_format(currency)
     spec: dict[str, dict[str, Any]] = {
         "bold": {"bold": True},
         "title": {"bold": True, "font_size": 14},
@@ -784,7 +787,7 @@ def write_workbook(estimate: Estimate) -> bytes:
     for position, sheet in enumerate(sheets):
         _write_lines_tab(sheet, ctx, position, lists)
     total_row, columns = _write_summary(summary, ctx)
-    mention, footer = _footer_text(estimate)
+    mention, footer = footer_text(estimate.company, estimate.exported_at)
     _write_presentation(presentation, ctx, total_row, columns, mention)
     for sheet in book.worksheets():
         sheet.set_footer(f"&L&8{footer}&R&8Page &P / &N")

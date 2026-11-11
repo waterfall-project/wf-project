@@ -11,7 +11,6 @@ the contract. The export, and the round trip with it, are US-1630/L4's.
 
 from datetime import UTC, date, datetime
 from decimal import Decimal
-from io import BytesIO
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -20,11 +19,24 @@ from costs_support import cost, load_import
 from estimate_import_support import entry_of, project_of
 from estimate_support import YEAR, Costing, Lines, add_role, costing
 from fastapi.testclient import TestClient
-from imports_trial import apply, deposited, import_worker, read, refusal, run, stored
+from imports_trial import apply, import_worker, refusal, run, stored
 from nodes_support import Tree, entries, put_facts, set_progress
-from openpyxl import Workbook
 from projects_support import PROJECTS, Scene, put_in_state
 from projects_support import scene as make_scene
+from remaining_import_support import (
+    REVIEW,
+    Rows,
+    analysed,
+    applied,
+    codes,
+    labour,
+    material,
+    opening,
+    report,
+    row_of,
+    task_row,
+    workbook,
+)
 from remaining_support import Review, in_progress, line_named, review_marked, task_named
 from sqlalchemy import select, update
 from support import ContractClient
@@ -32,17 +44,15 @@ from support import ContractClient
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.cost_settings.interface import set_hourly_rate
-from waterfall.core.cost_settings.tables import CostCategory
 from waterfall.core.estimate.remaining.analysing import same_cell
-from waterfall.core.estimate.remaining.excel.layout import REVIEW_DATE_CELL, tab_subprojects
+from waterfall.core.estimate.remaining.excel.layout import tab_subprojects
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
 from waterfall.core.exchanges.tables import ImportReport
-from waterfall.core.planning.tables import Node, Task
+from waterfall.core.planning.tables import Node
 from waterfall.core.projects.tables import Project
 from waterfall.core.resource_settings.tables import ResourceRole
 from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.audit import Act
-from waterfall.platform.database import utc_now
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
 from waterfall.platform.tasks import BackgroundTask, submit
@@ -59,17 +69,8 @@ if TYPE_CHECKING:
     from waterfall.platform.storage import Bucket
     from waterfall.worker.runner import Worker
 
-HEADERS = [
-    "Tâche",
-    "Rôle ou catégorie",
-    "Désignation",
-    "Jours restants",
-    "Débours restant",
-    "ID ligne",
-]
 OUTSIDE = "Hors sous-projet"
 STATE = "STATE_FORBIDS_OPERATION"
-REVIEW = utc_now().date()
 STARTED_ON = date(YEAR, 1, 1)
 NEXT = YEAR + 1
 LATER = datetime(NEXT, 1, 12, 10, tzinfo=UTC)
@@ -136,149 +137,10 @@ def review(api: ContractClient, stage: Scene, costs: Costing) -> Review:
     return in_progress(api, stage, build)
 
 
-def labour(costs: Costing, label: str, quantity: str, hours: str) -> dict[str, Any]:
-    """Give a labour line of the role of the scene."""
-    return {
-        "label": label,
-        "quantity": quantity,
-        "resource_role_id": str(costs.role),
-        "hours": hours,
-    }
-
-
-def material(costs: Costing, label: str, quantity: str, amount: str) -> dict[str, Any]:
-    """Give a line of material at the unit disbursement said."""
-    return {
-        "label": label,
-        "quantity": quantity,
-        "cost_category_id": str(costs.material),
-        "unit_disbursement": amount,
-    }
-
-
-def workbook(
-    tabs: dict[str, list[list[Any]]],
-    tasks: dict[str, str] | None = None,
-    review: Any = REVIEW,
-    version: Any = 1,
-) -> bytes:
-    """Write a workbook of the format: « Synthèse », its review in B9, « Tâches », the tabs."""
-    book = Workbook()
-    summary = book.active
-    assert summary is not None
-    summary.title = "Synthèse"
-    summary.append(["Format", "Reste à engager"])
-    summary.append(["Version", version])
-    summary[REVIEW_DATE_CELL] = review
-    listed = book.create_sheet("Tâches")
-    listed.append(["Entrée", "ID tâche"])
-    for entry, lineage in (tasks or {}).items():
-        listed.append([entry, lineage])
-    for name, rows in tabs.items():
-        sheet = book.create_sheet(name)
-        sheet.append(HEADERS)
-        for row in rows:
-            sheet.append(row)
-    out = BytesIO()
-    book.save(out)
-    return out.getvalue()
-
-
-class Rows:
-    """The project In progress of a test, read as the import names it: its tasks, its lines."""
-
-    def __init__(self, stage: Scene, review: Review, costs: Costing) -> None:
-        self.stage, self.tree, self.costs = stage, review.tree, costs
-        self.role = entry_of(stage.database, ResourceRole, costs.role)
-        self.stuff = entry_of(stage.database, CostCategory, costs.material)
-        self.numbers = {"Câblage": "1", "Essais": "2", "Réception": "3", "Clôture": "4"}
-
-    def tasks(self) -> dict[str, str]:
-        """Give the entries of « Tâches »: each task by its number and label, its lineage."""
-        return {
-            f"{number} {label}": task_named(self.tree, label)["lineage_id"]
-            for label, number in self.numbers.items()
-        }
-
-    def task(self, label: str) -> str:
-        """Give the entry of a task in « Tâches »."""
-        return f"{self.numbers[label]} {label}"
-
-    def known(self, task: str, label: str, *, days: Any = None, amount: Any = None) -> list[Any]:
-        """Give the row of a line the structure holds: task, entry, cells, lineage."""
-        line = line_named(self.tree, label)
-        entry = self.stuff if days is None else self.role
-        return [self.task(task), entry, label, days, amount, line["lineage_id"]]
-
-    def exported(self) -> list[list[Any]]:
-        """Give the rows the export writes of the lines: 2.5 days, then the amounts left."""
-        return [
-            self.known("Câblage", "Raccordement", days=2.5),
-            self.known("Câblage", "Fournitures", amount=100),
-            self.known("Essais", "Banc", amount=50),
-            self.known("Essais", "Câbles", amount=0),
-            self.known("Réception", "Procès-verbal", amount=10),
-        ]
-
-
 @pytest.fixture
 def scene(stage: Scene, review: Review, costs: Costing) -> Rows:
     """Give the project In progress as the rows of a workbook name it."""
     return Rows(stage, review, costs)
-
-
-def opening(api: ContractClient, stage: Scene, content: bytes) -> Any:
-    """Deposit a workbook and open its import as the manager does; give the answer."""
-    upload_id = deposited(api, stage.manager, content)
-    return api.post(
-        f"{PROJECTS}/{stage.project['project_id']}/imports",
-        headers=stage.manager.headers,
-        json={"kind": "remaining", "upload_id": upload_id},
-    )
-
-
-def analysed(api: ContractClient, stage: Scene, worker: Worker, content: bytes) -> str:
-    """Open the import of a workbook and run its analysis; give the import analysed."""
-    response = opening(api, stage, content)
-    assert response.status_code == 202, response.text
-    run(worker)
-    import_id = response.json()["import_id"]
-    assert read(api, stage, import_id)["status"] == "analysed"
-    return import_id
-
-
-def report(api: ContractClient, stage: Scene, import_id: str) -> dict[str, Any]:
-    """Read the report of an import."""
-    return read(api, stage, import_id)["report"]
-
-
-def applied(api: ContractClient, stage: Scene, worker: Worker, import_id: str) -> None:
-    """Confirm the application of an import analysed and run it; it is applied."""
-    answer = apply(api, stage, import_id)
-    assert answer.status_code == 202, answer.text
-    run(worker)
-    assert read(api, stage, import_id)["status"] == "applied"
-
-
-def row_of(stage: Scene, node_id: str) -> EstimateLine:
-    """Read a line of estimate as the base keeps it."""
-    with stage.database.transaction() as session:
-        row = session.get_one(EstimateLine, (UUID(stage.project["project_id"]), UUID(node_id)))
-        session.expunge(row)
-        return row
-
-
-def task_row(stage: Scene, node_id: str) -> Task:
-    """Read a task as the base keeps it."""
-    with stage.database.transaction() as session:
-        row = session.scalars(select(Task).where(Task.node_id == UUID(node_id))).one()
-        session.expunge(row)
-        return row
-
-
-def codes(found: dict[str, Any]) -> list[tuple[int, str]]:
-    """Give the rows a report rejects and their reasons."""
-    return [(each["row"], each["code"]) for each in found["rejected"]]
 
 
 # --- The cells compared, the tabs named -----------------------------------------------------------
@@ -965,17 +827,89 @@ def test_an_amount_left_is_converted_at_the_inflation_of_the_year_the_task_is_co
 
 
 @pytest.mark.requirement("WF-INTF-0120-A")
-def test_an_amount_left_on_a_task_over_two_years_is_converted_at_the_year_it_consumes_most_in(
+def test_an_amount_left_on_a_task_over_two_years_is_given_back_as_typed(
     api: ContractClient, stage: Scene, worker: Worker, scene: Rows
 ) -> None:
-    # Characterisation, not a requirement: the unit disbursement of a line created is the amount
-    # over the coefficient of the year its task consumes most in — the next one, six days of ten —
-    # while the re-estimate shares the unit over the two years: the amount re-estimated is not the
-    # one typed. The difference is a question to the author (#2410); this pins what is written.
+    # #2797, case 4: the unit disbursement is the amount over the mean of the coefficients of the
+    # years of the task, weighted by their shares (the next year six days of ten: 1.018), as the
+    # projection shares the unit over the two years — the amount re-estimated is the one typed,
+    # on a line created as on a line known (103 typed, never 101.80).
     inflating(stage, scene.tree, date(YEAR, 12, 28), date(NEXT, 1, 8), days=10)
-    rows = [*scene.exported(), [scene.task("Essais"), scene.stuff, "Rallonge", None, 103, None]]
+    rows = scene.exported()
+    rows[2][4] = 103
+    rows.append([scene.task("Essais"), scene.stuff, "Rallonge", None, 103, None])
     import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
     applied(api, stage, worker, import_id)
+    known = row_of(stage, line_named(scene.tree, "Banc")["node_id"])
     created = row_of(stage, line_named(scene.tree, "Rallonge")["node_id"])
-    assert created.unit_disbursement == Decimal("100.00")
-    assert created.reestimated_amount == Decimal("101.80")
+    assert known.reestimated_amount == Decimal("103.00")
+    assert created.unit_disbursement == Decimal("101.18")
+    assert created.reestimated_amount == Decimal("103.00")
+
+
+@pytest.mark.requirement("WF-INTF-0130-A")
+def test_a_remaining_over_two_years_reimported_as_exported_is_unchanged(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # Round trip without a gap (#2797): the amount left a line of disbursement shows in the file is
+    # the one the base holds; read again at the mean of the coefficients weighted by the shares of
+    # the two years, it comes to the same line: no row is modified.
+    inflating(stage, scene.tree, date(YEAR, 12, 28), date(NEXT, 1, 8), days=10)
+    rows = scene.exported()
+    for each in rows:
+        if each[1] == scene.stuff:
+            node = line_named(scene.tree, each[2])["node_id"]
+            each[4] = row_of(stage, node).reestimated_amount
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    found = report(api, stage, import_id)
+    assert (found["differences"], found["rejected"]) == ([], [])
+    assert found["unchanged_count"] == found["read_count"] == 5
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_copy_the_reader_rejects_is_refused_as_it_is_and_the_line_it_names_is_left_alone(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # The double is judged on the lines read: a copy with a cell unreadable is rejected by the
+    # reader (alone, no DUPLICATE_LINEAGE), and the lineage it carries is taken, so that the line
+    # of the structure is neither updated by the original nor removed.
+    rows = scene.exported()
+    rows[1][4] = 77
+    copied = list(rows[1])
+    copied[4] = "beaucoup"
+    rows.append(copied)
+    node = line_named(scene.tree, "Fournitures")["node_id"]
+    before = row_of(stage, node).reestimated_amount
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    found = report(api, stage, import_id)
+    assert [each["code"] for each in found["rejected"]] == ["NUMBER_INVALID"]
+    assert found["rejected"][0]["row"] == len(rows) + 1
+    applied(api, stage, worker, import_id)
+    assert row_of(stage, node).reestimated_amount == before
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_lineage_that_two_rows_carry_rejects_both_and_leaves_its_line_as_it_is(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # #2798: a row copied in Excel keeps the hidden lineage; neither row is the line, none is
+    # preferred, and the line of the structure is neither updated nor removed.
+    rows = scene.exported()
+    copied = list(rows[1])
+    copied[4] = 77
+    rows.append(copied)
+    last = len(rows) + 1
+    node = line_named(scene.tree, "Fournitures")["node_id"]
+    before = row_of(stage, node)
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    found = report(api, stage, import_id)
+    assert codes(found) == [(3, "DUPLICATE_LINEAGE"), (last, "DUPLICATE_LINEAGE")]
+    assert found["rejected"][0]["params"] == {"lines": [{"sheet": OUTSIDE, "row": last}]}
+    assert found["rejected"][1]["params"] == {"lines": [{"sheet": OUTSIDE, "row": 3}]}
+    assert found["differences"] == []
+    applied(api, stage, worker, import_id)
+    after = row_of(stage, node)
+    assert (after.unit_disbursement, after.reestimated_amount) == (
+        before.unit_disbursement,
+        before.reestimated_amount,
+    )
