@@ -27,6 +27,12 @@ from projects_support import scene as make_scene
 from remaining_support import Review, in_progress, line_named, review_marked
 from sqlalchemy import update
 
+from waterfall.core.cost_settings.interface import (
+    CostCategoryDraft,
+    CostTypeDraft,
+    create_cost_category,
+    create_cost_type,
+)
 from waterfall.core.costs.interface import UNASSIGNED
 from waterfall.core.estimate.interface import (
     CalculationContext,
@@ -45,6 +51,8 @@ from waterfall.core.estimate.remaining.balancing import (
     distributed,
 )
 from waterfall.core.estimate.tables import EstimateLine
+from waterfall.platform.audit import Act
+from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -202,6 +210,15 @@ def supplies(costs: Costing, label: str, amount: str, subproject_id: str | None)
         "unit_disbursement": amount,
         **({} if subproject_id is None else {"subproject_id": subproject_id}),
     }
+
+
+def other_provision(stage: Scene) -> UUID:
+    """Give a category of the provision kind, under a nature other than the one installed."""
+    act = Act(None, utc_now())
+    with stage.database.transaction() as session:
+        nature = create_cost_type(session, CostTypeDraft("RSV", "Réserve", "provision"), act)
+        draft = CostCategoryDraft("RSV-001", "Réserve de risques", "606002", nature.cost_type_id)
+        return create_cost_category(session, draft, act).cost_category_id
 
 
 def reestimate(tree: Tree, label: str, amount: str, **extra: str) -> None:
@@ -455,22 +472,30 @@ def test_the_nature_provision_is_served_at_nought_and_left_out_of_the_total(
 ) -> None:
     # « … la nature provision à zéro » : a provision line of the revision (its category of the
     # provision kind, put around the service as the risks of EP-08 will), in a task started or not,
-    # figures with an amount of nought and a share of nought, and the total leaves it out.
+    # figures with an amount of nought and a share of nought, and the total leaves it out. A second
+    # one, of another nature, under a task completed, is served at nought too, whatever the state
+    # of its task.
     Lines(reviewed).made(reviewed.made("Risques"), **supplies(costs, "Aléa", "900", None))
-    provision = line_named(reviewed, "Aléa")
-    with stage.owner.begin() as connection:
-        connection.execute(
-            update(EstimateLine)
-            .where(EstimateLine.node_id == UUID(provision["node_id"]))
-            .values(cost_category_id=costs.provision)
-        )
+    Lines(reviewed).made(reviewed.made("Clos"), **supplies(costs, "Réserve", "700", None))
+    # The task is completed while its line is still of material: a line of provision is no longer
+    # reestimated, and the category is changed under the service afterwards.
+    reestimate(reviewed, "Réserve", "0", completed_on="2026-06-03")
+    reserve_category = other_provision(stage)
+    for label, category in (("Aléa", costs.provision), ("Réserve", reserve_category)):
+        with stage.owner.begin() as connection:
+            connection.execute(
+                update(EstimateLine)
+                .where(EstimateLine.node_id == UUID(line_named(reviewed, label)["node_id"]))
+                .values(cost_category_id=category)
+            )
     body = indicators(api, stage)
     assert body["total"] == "550.00"
     by_type = {each["label"]: each for each in body["by_cost_type"]}
-    assert len(by_type) == 2
-    held = next(each for label, each in by_type.items() if label != "Matériel")
-    assert held["amount"] == "0.00"
-    assert (D(held["share"]["value"]), D(by_type["Matériel"]["share"]["value"])) == (D(0), D(1))
+    assert len(by_type) == 3
+    held = [each for label, each in by_type.items() if label != "Matériel"]
+    assert [each["amount"] for each in held] == ["0.00", "0.00"]
+    shares = [D(each["share"]["value"]) for each in (by_type["Matériel"], *held)]
+    assert shares == [D(1), D(0), D(0)]
     assert sum(D(each["amount"]) for each in body["by_cost_type"]) == D(body["total"])
 
 

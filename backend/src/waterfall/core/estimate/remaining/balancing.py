@@ -7,7 +7,8 @@ the actual cost and the remaining to commit, positive when some is left, negativ
 (WF-RAE-0020). A subproject without a reference has a budget of nought, the amount and not the
 absence: its margin is then the opposite of what it has committed. The lines out of any subproject,
 and the cost imputed to the project alone, form the ``unassigned`` set, always present, so that the
-margins of the subprojects sum to that of the project. Neither the base nor the clock is read: the
+margins of the subprojects sum to that of the project; its key is the one of the interface of
+``costs``, the only import of the module outside ``estimate``. Neither the base nor the clock is read: the
 numeric examples run on it alone.
 """
 
