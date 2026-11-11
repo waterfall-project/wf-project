@@ -1,0 +1,320 @@
+/*
+ * SPDX-FileCopyrightText: 2026 waterfall-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * The login pages in the charter of the front (frontend/src/theme/globals.css): its tokens, copied,
+ * as Keycloak serves no file of the front; its font, Geist; its logo, light and dark. Over the
+ * PatternFly of keycloak.v2, which sets pf-v5-theme-dark on <html> when the workstation is dark.
+ */
+
+@font-face {
+  font-family: "Geist";
+  src: url("../fonts/Geist-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --wf-background: #f5f7fa;
+  --wf-foreground: #0a0a0a;
+  --wf-card: #ffffff;
+  --wf-muted-foreground: #6b6b6b;
+  --wf-primary: #0270b3;
+  --wf-primary-foreground: #ffffff;
+  --wf-primary-hover: #02609a;
+  --wf-accent: #e6f3fb;
+  --wf-border: #e5e5e5;
+  --wf-input: #8c8c8c;
+  --wf-ring: #027dc6;
+  --wf-destructive: #b91c1c;
+  --wf-radius: 0.5rem;
+  --wf-logo: url("../img/waterfall_logo.svg");
+  --wf-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px rgb(2 112 179 / 0.08);
+}
+
+:root.pf-v5-theme-dark {
+  --wf-background: #0a0a0a;
+  --wf-foreground: #fafafa;
+  --wf-card: #171717;
+  --wf-muted-foreground: #a3a3a3;
+  --wf-primary: #1195e1;
+  --wf-primary-foreground: #0a0a0a;
+  --wf-primary-hover: #3aa9ea;
+  --wf-accent: #0c2c40;
+  --wf-border: #2e2e2e;
+  --wf-input: #737373;
+  --wf-ring: #1195e1;
+  --wf-destructive: #f87171;
+  --wf-logo: url("../img/waterfall_logo-dark.svg");
+  --wf-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.35);
+}
+
+/* PatternFly's own tokens, so that every component it draws follows. */
+:root {
+  --pf-v5-global--FontFamily--text: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --pf-v5-global--FontFamily--heading: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --pf-v5-global--primary-color--100: var(--wf-primary);
+  --pf-v5-global--primary-color--200: var(--wf-primary-hover);
+  --pf-v5-global--link--Color: var(--wf-primary);
+  --pf-v5-global--link--Color--hover: var(--wf-primary-hover);
+  --pf-v5-global--BorderRadius--sm: var(--wf-radius);
+  --pf-v5-global--danger-color--100: var(--wf-destructive);
+  --pf-v5-global--Color--100: var(--wf-foreground);
+  --pf-v5-global--Color--200: var(--wf-muted-foreground);
+  --pf-v5-global--BackgroundColor--100: var(--wf-card);
+  --keycloak-card-top-color: transparent;
+}
+
+/* The page: the background of the front, no image of Keycloak. */
+.login-pf body,
+body#keycloak-bg {
+  background: var(--wf-background);
+  color: var(--wf-foreground);
+  font-family: var(--pf-v5-global--FontFamily--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.pf-v5-c-login {
+  min-height: 100vh;
+  background: none;
+}
+
+.pf-v5-c-login__container {
+  grid-template-columns: minmax(0, 28rem);
+  padding-inline: 1rem;
+}
+
+/* The header: the logo in place of the name of the realm. */
+#kc-header-wrapper {
+  height: 3.25rem;
+  width: 100%;
+  background: var(--wf-logo) no-repeat center / contain;
+  font-size: 0;
+  color: transparent;
+  margin-block: 2.5rem 1.5rem;
+}
+
+/* The card. */
+.pf-v5-c-login__main {
+  background: var(--wf-card);
+  border: 1px solid var(--wf-border);
+  border-radius: calc(var(--wf-radius) * 1.5);
+  box-shadow: var(--wf-shadow);
+  overflow: hidden;
+}
+
+.pf-v5-c-login__main-header {
+  border-top: none;
+  padding-block-start: 2rem;
+}
+
+.pf-v5-c-login__main-header .pf-v5-c-title,
+#kc-page-title {
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--wf-foreground);
+}
+
+/* The fields. */
+.pf-v5-c-form-control {
+  --pf-v5-c-form-control--before--BorderTopColor: transparent;
+  --pf-v5-c-form-control--before--BorderRightColor: transparent;
+  --pf-v5-c-form-control--before--BorderBottomColor: transparent;
+  --pf-v5-c-form-control--before--BorderLeftColor: transparent;
+  --pf-v5-c-form-control--after--BorderBottomColor: transparent;
+  border: 1px solid var(--wf-input);
+  border-radius: var(--wf-radius);
+  background: var(--wf-card);
+}
+
+.pf-v5-c-form-control:focus-within {
+  outline: 2px solid var(--wf-ring);
+  outline-offset: 1px;
+}
+
+.pf-v5-c-input-group .pf-v5-c-form-control:not(:last-child) {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+
+.pf-v5-c-input-group .pf-v5-c-button.pf-m-control {
+  border: 1px solid var(--wf-input);
+  border-inline-start: none;
+  border-radius: 0 var(--wf-radius) var(--wf-radius) 0;
+}
+
+.pf-v5-c-button.pf-m-control::after {
+  border: none;
+}
+
+.pf-v5-c-form__label-text {
+  font-weight: 500;
+}
+
+/* The buttons. */
+.pf-v5-c-button {
+  border-radius: var(--wf-radius);
+  font-weight: 500;
+}
+
+.pf-v5-c-button.pf-m-primary {
+  background: var(--wf-primary);
+  color: var(--wf-primary-foreground);
+  min-height: 2.5rem;
+}
+
+.pf-v5-c-button.pf-m-primary:hover,
+.pf-v5-c-button.pf-m-primary:focus {
+  background: var(--wf-primary-hover);
+  color: var(--wf-primary-foreground);
+}
+
+.pf-v5-c-button.pf-m-secondary {
+  border: 1px solid var(--wf-border);
+  color: var(--wf-foreground);
+  background: var(--wf-card);
+}
+
+.pf-v5-c-button.pf-m-secondary::after {
+  border: none;
+}
+
+.pf-v5-c-button.pf-m-secondary:hover {
+  background: var(--wf-accent);
+}
+
+.pf-v5-c-button:focus-visible {
+  outline: 2px solid var(--wf-ring);
+  outline-offset: 2px;
+}
+
+/* The alerts: rounded like the rest. */
+.pf-v5-c-alert {
+  border-radius: var(--wf-radius);
+}
+
+/* The band of the footer: the external provider, the links. */
+.pf-v5-c-login__main-footer-band {
+  border-top: 1px solid var(--wf-border);
+  background: transparent;
+}
+
+.pf-v5-c-login__main-footer-band-item {
+  color: var(--wf-muted-foreground);
+}
+
+/* One ring on the field in focus: the border of PatternFly and the outline of the input give way. */
+.pf-v5-c-form-control::before,
+.pf-v5-c-form-control::after {
+  border: none !important;
+}
+
+.pf-v5-c-form-control > input:focus,
+.pf-v5-c-form-control > select:focus {
+  outline: none;
+}
+
+/* The choice of the language: a compact field, beside the title on a wide screen. */
+.pf-v5-c-login__main-header {
+  column-gap: 1rem;
+}
+
+.pf-v5-c-login__main-header-utilities .pf-v5-c-form-control {
+  width: auto;
+  border-color: var(--wf-border);
+}
+
+.pf-v5-c-login__main-header-utilities select {
+  font-size: 0.875rem;
+  padding-inline-end: 2rem;
+}
+
+/* The external providers: within the card, their name centred, wrapping if long. */
+#kc-social-providers ul {
+  padding-inline: 0;
+}
+
+#kc-social-providers .pf-v5-c-button {
+  width: 100%;
+  white-space: normal;
+  gap: 0.75rem;
+  border: 1px solid var(--wf-border);
+  border-radius: var(--wf-radius);
+  color: var(--wf-foreground);
+  min-height: 2.5rem;
+}
+
+#kc-social-providers .pf-v5-c-button::after {
+  border: none;
+}
+
+#kc-social-providers .pf-v5-c-button:hover {
+  background: var(--wf-accent);
+}
+
+#kc-social-providers .pf-v5-c-button img {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/*
+ * The banner (docs/assets/waterfall-banniere.png): across the top of the page, its logo and its
+ * line left clear, the card over its lower part; it fades into the background of the page. Its
+ * height follows its width (765 / 2056). On a narrow screen, the refinery alone, as a strip.
+ */
+:root {
+  --wf-banner-height: calc(100vw * 765 / 2056);
+  --wf-banner-veil: transparent;
+}
+
+:root.pf-v5-theme-dark {
+  --wf-banner-veil: rgb(10 10 10 / 0.22);
+}
+
+.login-pf body,
+body#keycloak-bg {
+  background:
+    linear-gradient(var(--wf-banner-veil), var(--wf-banner-veil)) top / 100% var(--wf-banner-height) no-repeat,
+    linear-gradient(to bottom, transparent 55%, var(--wf-background) 97%) top / 100% calc(var(--wf-banner-height) + 2px) no-repeat,
+    url("../img/banniere.webp") top / 100% var(--wf-banner-height) no-repeat,
+    var(--wf-background);
+}
+
+@media (min-width: 48rem) {
+  .pf-v5-c-login {
+    align-items: start;
+    padding-block-start: min(calc(var(--wf-banner-height) * 0.64), 34rem);
+    padding-block-end: 3rem;
+  }
+
+  /* The banner carries the logo. */
+  #kc-header {
+    display: none;
+  }
+}
+
+@media (max-width: 47.99rem) {
+  :root {
+    --wf-banner-height: 11rem;
+  }
+
+  .login-pf body,
+  body#keycloak-bg {
+    background:
+      linear-gradient(var(--wf-banner-veil), var(--wf-banner-veil)) top / 100% var(--wf-banner-height) no-repeat,
+      linear-gradient(to bottom, transparent 50%, var(--wf-background) 100%) top / 100% var(--wf-banner-height) no-repeat,
+      url("../img/banniere-mobile.webp") center top / cover no-repeat,
+      var(--wf-background);
+    background-size: 100% var(--wf-banner-height), 100% var(--wf-banner-height), 100% var(--wf-banner-height), auto;
+  }
+
+  .pf-v5-c-login {
+    padding-block-start: 10rem;
+  }
+
+  #kc-header-wrapper {
+    margin-block: 0 1.25rem;
+  }
+}

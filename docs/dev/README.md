@@ -4769,7 +4769,7 @@ two catalogues, and names each key that is missing and the catalogue that carrie
 
 ## Visual identity
 
-The visual identity lives in `frontend/src/theme/globals.css`, and nowhere else: the colours,
+The visual identity lives in `frontend/src/theme/globals.css`, and nowhere else (but the login pages, below): the colours,
 the typography, the spacings and the radii are tokens there — CSS variables that
 Tailwind and the shadcn/ui components read through the theme (`bg-primary`,
 `text-muted-foreground`, `rounded-md`). The blues come from the logos of `docs/assets`
@@ -4883,6 +4883,16 @@ variable rather than an object or a literal written in place; and, for the layou
 an entry carries its icon outside the typed tables — a hand-written button —, that no shadow, no
 gradient and no animation adorns a copied component, that a screen takes the template and the
 density of its function, and that a copied component enters only with the screen that uses it.
+
+**The login pages.** Keycloak serves its own, and no file of the front: the theme `waterfall`
+(`deploy/keycloak/themes/waterfall/login/`) dresses them in the charter with a sheet of its own,
+`resources/css/waterfall.css`, laid over those of `keycloak.v2`. It copies the tokens it needs,
+light and dark — the only copy of the charter outside the front: a token changed in `globals.css`
+is carried over by hand —, and the theme keeps its copies of the Geist font, the logo and the
+banner (`docs/assets/waterfall-banniere.png`, in WebP, cropped on mobile). To try it without
+rebuilding the image, mount the folder of the theme on `/opt/keycloak/themes/waterfall` and turn
+off the cache of the themes (`KC_SPI_THEME__CACHE_THEMES`, `KC_SPI_THEME__CACHE_TEMPLATES` at
+`false`, `KC_SPI_THEME__STATIC_MAX_AGE` at `-1`): the reloaded page follows the file.
 
 ## Migrations
 

@@ -4843,7 +4843,7 @@ deux catalogues, et nomme chaque clé qui manque et le catalogue qui la porte.
 
 ## Charte graphique
 
-La charte vit dans `frontend/src/theme/globals.css`, et nulle part ailleurs : les couleurs,
+La charte vit dans `frontend/src/theme/globals.css`, et nulle part ailleurs (hors les pages de connexion, ci-dessous) : les couleurs,
 la typographie, les espacements et les rayons y sont des jetons — des variables CSS que
 Tailwind et les composants de shadcn/ui lisent par le thème (`bg-primary`,
 `text-muted-foreground`, `rounded-md`). Les bleus viennent des logos de `docs/assets`
@@ -4960,6 +4960,17 @@ qu'un objet ou un littéral écrit sur place ; et, pour la mise en page, qu'un b
 porte son icône hors des tables typées — un bouton écrit à la main —, qu'aucune ombre, aucun dégradé
 ni aucune animation n'orne un composant copié, qu'un écran prenne le gabarit et la densité de sa
 fonction, et qu'un composant copié n'entre qu'avec l'écran qui l'emploie.
+
+**Les pages de connexion.** Keycloak sert les siennes, et aucun fichier du front : le thème
+`waterfall` (`deploy/keycloak/themes/waterfall/login/`) les habille de la charte par sa propre
+feuille, `resources/css/waterfall.css`, posée sur celles de `keycloak.v2`. Elle recopie les jetons
+dont elle a besoin, en clair et en sombre — la seule copie de la charte hors du front : un jeton
+changé dans `globals.css` s'y reporte à la main —, et le thème garde ses copies de la police Geist,
+du logo et de la bannière (`docs/assets/waterfall-banniere.png`, en WebP, recadrée sur mobile).
+Pour l'essayer sans reconstruire l'image, monter le dossier du thème sur
+`/opt/keycloak/themes/waterfall` et couper le cache des thèmes (`KC_SPI_THEME__CACHE_THEMES`,
+`KC_SPI_THEME__CACHE_TEMPLATES` à `false`, `KC_SPI_THEME__STATIC_MAX_AGE` à `-1`) : la page
+rechargée suit le fichier.
 
 ## Migrations
 
