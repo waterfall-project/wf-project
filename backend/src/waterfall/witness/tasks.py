@@ -11,8 +11,9 @@ the instant imposed (EP-06, "Le chargeur du témoin").
 
 The dates are those the engine computes: the computed is the expected. The file's, which the
 generator draws with the calendars the lines of EP-07 give some tasks, differ for those tasks, their
-successors and their summaries until EP-07 loads the lines; the loader notes how many
-(``witness.tasks_dated_by_the_engine``) and keeps the engine's. The identifier
+successors and their summaries at this step, before the lines are loaded (``estimate_lines``, which
+follows); the loader notes how many (``witness.tasks_dated_before_the_lines``: a count of this step,
+not of the loaded witness, where none differs) and keeps the engine's. The identifier
 of a node is its own in a revision: the file gives each lineage the one it has in the revision in
 progress, where the examples of the contract read them; a marked revision holds the same lineages
 under identifiers derived from those, so that two loadings give the same ones.
@@ -181,10 +182,11 @@ def fill(session: Session, witness: Witness, opened: OpenedRevision) -> None:
     disagreeing = load_tasks(
         session, Place(project_id, revision_id, structure_id), load, opened.act
     )
-    # The calendar of a task comes from the roles of its lines, which EP-07 loads: until then the
-    # engine dates on the default calendar the tasks the 4x10 calendars of the file reach, with
-    # their successors and their summaries. The computed is kept, and the count noted.
-    logger.info("witness.tasks_dated_by_the_engine", revision=number, tasks=len(disagreeing))
+    # The calendar of a task comes from the roles of its lines, which are loaded after the tasks
+    # (``estimate_lines``): at this step the engine dates on the default calendar the tasks the 4x10
+    # calendars of the file reach, with their successors and their summaries. The computed is kept,
+    # and the count noted for this step alone: the lines then date them as the file does.
+    logger.info("witness.tasks_dated_before_the_lines", revision=number, tasks=len(disagreeing))
     for task in tasks:
         entries = tuple(TrackingSent(each.kind, each.timeline_id) for each in task.inscriptions)
         tracking = TrackingLoad(task.lineage_id, entries, task.is_milestone)

@@ -379,7 +379,7 @@ def test_the_dates_differ_from_the_file_only_for_the_tasks_a_calendar_of_a_line_
             differing_counts[number] = len(differing)
     assert differing_counts == dict.fromkeys(REVISIONS, 0)
     # The loader notes how many, revision after revision.
-    noted = {r["revision"]: r["tasks"] for r in logs.named("witness.tasks_dated_by_the_engine")}
+    noted = {r["revision"]: r["tasks"] for r in logs.named("witness.tasks_dated_before_the_lines")}
     assert noted == dict.fromkeys(REVISIONS, TASKS_OF_2594)
 
 
@@ -396,7 +396,7 @@ def test_the_loading_notes_for_each_revision_how_many_tasks_the_engine_dated_oth
     logs: Logs, witness_loaded: Database
 ) -> None:
     del witness_loaded
-    noted = logs.named("witness.tasks_dated_by_the_engine")
+    noted = logs.named("witness.tasks_dated_before_the_lines")
     assert sorted(record["revision"] for record in noted) == [100, 101, 102]
     assert [record["tasks"] for record in noted] == [TASKS_OF_2594] * 3
 
