@@ -19,10 +19,10 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
-from estimate_support import Costing, Lines, costing
+from estimate_support import Costing, Lines, costing, give_a_line
 from history_support import link
 from nodes_support import Tree, put_risk, refusal
-from planning_support import DAY, give_a_task
+from planning_support import DAY
 from projects_support import PROJECTS, READING, Scene, person, put_in_state
 from projects_support import scene as make_scene
 from remaining_support import Review, in_progress, line_named, review_marked, task_named
@@ -557,36 +557,37 @@ def test_the_kanban_reads_the_tasks_in_a_number_of_statements_that_no_task_chang
     assert large <= BOUND, large
 
 
-@pytest.mark.requirement("WF-RAE-0030-A")
-def test_a_task_created_while_the_kanban_is_read_is_not_read_and_the_next_reading_has_it(
+def test_a_line_committed_while_the_kanban_is_read_is_not_read_and_the_next_reading_has_it(
     api: ContractClient, stage: Scene, costs: Costing, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # The Kanban reads the nodes, the tasks that bear a line and the gestures in a transaction
-    # frozen at its first read (#2800, #2679): a task committed between the reading of the nodes
-    # and that of the lines is in none of them, so no card is made of two moments.
+    # frozen at its first read (#2800, #2679): a line committed under a task between the reading of
+    # the nodes and that of the lines is in none of them, so no card is made of two moments — the
+    # card of that task keeps the gestures it had, which the line would have changed.
 
     def build(tree: Tree, lines: Lines) -> None:
         lines.made(tree.made("Départ"), **material(costs, "Ligne de départ", "10"))
+        tree.made("Sans ligne")
 
     held = in_progress(api, stage, build)
-    revision_id = UUID(held.tree.revision["revision_id"])
-    before = labels(board(held.tree))
+    bare = UUID(task_named(held.tree, "Sans ligne")["node_id"])
+    before = board(held.tree)
+    assert "enter_remaining" not in {each[0] for each in gestures(card_of(before, "Sans ligne"))}
     reading = kanban.bearing_tasks
-    created: list[UUID] = []
+    given: list[UUID] = []
 
     def meanwhile(session: Session, project_id: UUID, structure_id: UUID) -> Any:
         with stage.database.engine.begin() as connection:
-            created.append(give_a_task(connection, revision_id))
+            given.append(give_a_line(connection, bare))
         return reading(session, project_id, structure_id)
 
     monkeypatch.setattr(kanban, "bearing_tasks", meanwhile)
     during = board(held.tree)
     monkeypatch.undo()
-    assert created
-    assert labels(during) == before
+    assert given
+    assert card_of(during, "Sans ligne") == card_of(before, "Sans ligne")
     after = board(held.tree)
-    assert len(after["not_started"]) == len(before["not_started"]) + 1
-    assert str(created[0]) in {card["node_id"] for card in after["not_started"]}
+    assert "enter_remaining" in {each[0] for each in gestures(card_of(after, "Sans ligne"))}
 
 
 def grow(held: Review, costs: Costing, first: int, count: int) -> None:
