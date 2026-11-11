@@ -123,6 +123,10 @@ test("the revisions of a project, their comparison as the API renders it, its st
   browser,
   manager,
 }) => {
+  // Against the service the path reads the comparison of the whole structure of PRJ-001 three
+  // times — the screen once, the API twice —, some eight seconds each: as the path of WF-REV-0080-A
+  // below, more than the thirty seconds of a test (#2911).
+  test.slow();
   // Les montants, dates et indices affichés sont ceux que l'API renvoie, sans recalcul.
   await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const main = page.getByRole("main");
