@@ -15,7 +15,7 @@ import type { FilterChip } from "@/components/grid/filter-chips";
 import { fieldOf, type Period } from "@/components/grid/period";
 import type { NodeChoice } from "@/components/reference/reference-filters";
 import { useHydrated } from "@/components/use-hydrated";
-import { formatPlanningDay, isPlanningDate } from "@/i18n/format";
+import { formatPlanningDate, isPlanningDate } from "@/i18n/format";
 
 import type { RoleChoice } from "./admin-grids";
 import { AUTHORS, type AuditFilters, type AuthorChoice, PERIODS, WRITTEN } from "./audit-address";
@@ -27,6 +27,9 @@ import {
   ORIGINS,
   type UserOrigin,
 } from "./user-address";
+
+/** What a day of a period is told as before the browser knows its time zone. */
+export const PENDING_DAY = "…";
 
 /** What the address filters the accounts on, as the page read it. */
 export interface UserFilters {
@@ -99,8 +102,13 @@ function useAuditChips(audit: AuditFilters, authors: readonly AuthorChoice[]): F
     chips.push({ key, name, value, params });
   };
   const day = (side: "from" | "to", bound: string) => {
-    const local = hydrated ? fieldOf("day", side, bound) : bound.slice(0, 10);
-    return isPlanningDate(local) ? formatPlanningDay(local, locale) : local;
+    // No day before the browser: the local day of an instant is not the server's, and the end of a
+    // period is excluded, the day it names being the next one.
+    if (!hydrated) {
+      return PENDING_DAY;
+    }
+    const local = fieldOf("day", side, bound);
+    return isPlanningDate(local) ? formatPlanningDate(local, locale) : local;
   };
   const told = (period: Period): string | undefined => {
     if (period.from !== undefined && period.to !== undefined) {

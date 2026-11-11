@@ -23,16 +23,20 @@ export interface FilterChip {
   readonly params: readonly string[];
 }
 
+/** The parameters of the address that lifting some chips removes, each once. */
+export function liftedParams(chips: readonly FilterChip[]): string[] {
+  return [...new Set(chips.flatMap((chip) => chip.params))];
+}
+
 /**
- * The address of the same screen with the filters of some chips lifted, the rest of its query kept,
- * back to the first page of the list the server pages (`page`).
+ * The address of the same screen with some parameters lifted, the rest of its query kept, back to
+ * the first page of the list the server pages (`page`).
  */
 export function liftedHref(
   pathname: string,
   query: URLSearchParams,
-  chips: readonly FilterChip[],
+  params: readonly string[],
   page: string | undefined,
 ): string {
-  const lifted = chips.flatMap((chip) => chip.params);
-  return withoutParameters(pathname, query, page === undefined ? lifted : [...lifted, page]);
+  return withoutParameters(pathname, query, page === undefined ? params : [...params, page]);
 }

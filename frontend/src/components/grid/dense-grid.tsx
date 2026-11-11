@@ -519,7 +519,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
           filters,
           keptSize,
           shape,
-          keptOpen.current,
+          { filtersOpen: keptOpen.current },
         ),
       );
       shown();
@@ -539,7 +539,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
           kept.current,
           size,
           shape,
-          keptOpen.current,
+          { filtersOpen: keptOpen.current },
         ),
       );
       shown();
@@ -582,7 +582,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         kept.current,
         keptSize,
         shape,
-        keptOpen.current,
+        { filtersOpen: keptOpen.current },
       ),
     );
   };
@@ -590,7 +590,9 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   const openFilters = (open: boolean) => {
     setFiltersOpen(open);
     keptOpen.current = open;
-    writer.recordShown(() =>
+    // Written as a column is: after a pause, and not before the page shows a sort asked — what
+    // waits for it is built from `keptOpen` when it goes (défaut n° 15).
+    writer.recordLater(() =>
       recordedPreferences(
         preferences,
         currentSettings.current,
@@ -598,10 +600,9 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         kept.current,
         keptSize,
         shape,
-        keptOpen.current,
+        { filtersOpen: keptOpen.current },
       ),
     );
-    writer.shown();
   };
   const search = (text: string) => {
     writer.flush();
@@ -639,15 +640,9 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       setSettings(next);
       currentSettings.current = next;
       writer.record(
-        recordedPreferences(
-          preferences,
-          next,
-          keptSort.current,
-          kept.current,
-          keptSize,
-          shape,
-          keptOpen.current,
-        ),
+        recordedPreferences(preferences, next, keptSort.current, kept.current, keptSize, shape, {
+          filtersOpen: keptOpen.current,
+        }),
       );
     },
   });
@@ -790,6 +785,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         open={filtersOpen}
         onOpen={openFilters}
         address={config.address}
+        filterNames={config.filters}
         count={totalsCaption(shownTotals)}
         grid={sharedName(config, (name) => t(`names.${name}`))}
         columns={toggledColumns(table, config, (column) =>

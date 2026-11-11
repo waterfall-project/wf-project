@@ -249,3 +249,19 @@ describe("the columns a grid records as known", () => {
     expect(declared).toEqual(expect.arrayContaining(wrappers));
   });
 });
+
+describe("whether the panel of the filters is open, kept with the settings of the grid", () => {
+  const settings = { visibility: {}, sizing: {} };
+
+  it("is recorded as set, and goes back as the account kept it when the grid sets none [WF-IHM-0060-A]", () => {
+    expect(
+      recordedPreferences(undefined, settings, undefined, undefined, undefined, undefined, {
+        filtersOpen: true,
+      }),
+    ).toMatchObject({ filters_open: true });
+    expect(recordedPreferences({ filters_open: true }, settings, undefined)).toMatchObject({
+      filters_open: true,
+    });
+    expect(recordedPreferences(undefined, settings, undefined)).not.toHaveProperty("filters_open");
+  });
+});
