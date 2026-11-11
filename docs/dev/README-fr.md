@@ -4565,10 +4565,14 @@ ses paramètres, jamais une phrase.
   (`waterfall.api.contract.base`, que `[tool.datamodel-codegen]` de `backend/pyproject.toml`
   donne au générateur), qui cherche le NUL dans chacun de ses champs, élément d'une liste, clé ou
   valeur d'un objet compris ; un paramètre de requête ou de chemin en texte se type `Text`, du
-  même module.
+  même module. La même base refuse de même un décimal du contrat — un type dont la racine porte
+  le motif de `Decimal` ou de `Money`, `Percent` et `Hours` compris — écrit avec un chiffre autre
+  que 0 à 9 (#2238) : le motif est une expression de JSON Schema, où `\d` ne vaut que 0 à 9, que
+  les modèles engendrés lisent en Unicode ; une borne de requête lue à la main s'écrit donc
+  `[0-9]`, jamais `\d`.
 
   _Contrôles_ : `make server-models-up-to-date` ; `make test-back` (`test_api_problems.py`,
-  `test_access_roles_guard.py` pour le NUL) ; que tout paramètre en texte est un `Text`, que le
+  `test_access_roles_guard.py` pour le NUL, `test_contract_digits.py` pour les chiffres) ; que tout paramètre en texte est un `Text`, que le
   code et le statut sont ceux du contrat pour l'opération, la revue, puis la validation des
   réponses des tests d'API contre le contrat.
 
