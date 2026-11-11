@@ -16,11 +16,11 @@ import { isServerAction } from "./server-action";
 // service when the service serves what it reads. The paths below that read the witness's own
 // structure — the volumes of §4.6.2, which only the fake back holds (`NO_VOLUME_IN_SERVICE`), and
 // the risk coverage of the indicators, a provision or a risk, served at zero until EP-08 — stay
-// guarded by `inService`; a short path, not guarded, reads the cards of the indicators and the link to
-// the workload on a project the run creates; the paths that write play against the service on a project the run
-// creates (`seedPlanning`, `bringInProgress`, #2193), the last of the file. The fake back serves
-// the first example of each read, whatever it asks: the structure of the
-// volumes of §4.6.2 for the nodes — its lines show here whatever `progress` asks, where the service
+// guarded by `inService`; a short path, not guarded, reads the cards of the indicators and the
+// link to the workload on a project the run creates; the paths that write play against the
+// service on a project the run creates (`seedPlanning`, `bringInProgress`, #2193), the last of the
+// file. The fake back serves the first example of each read, whatever it asks: the structure of
+// the volumes of §4.6.2 for the nodes — its lines show here whatever `progress` asks, where the service
 // renders the lines of the tasks started alone; the page tests prove what the screen asks —, the
 // indicators of the remaining to commit of the witness, and its Kanban on 3 June 2026. The journey
 // reads the structure by marks the generator writes (`test_the_marks_the_journeys_read`): row 3, a
@@ -296,7 +296,7 @@ test("carries a card by a drag and by the keys, the arrows choosing the cards fr
   ).toHaveCount(0);
 });
 
-test("reads the cards of the remaining to commit as the service answers, the remaining by sub-project and its margin, and leads to the workload on the remaining under way @shared [WF-RAE-0030-A] [WF-DEV-0070-A]", async ({
+test("reads the cards of the remaining to commit as the service answers, the remaining by sub-project and its margin, and leads to the workload on the remaining under way @shared [WF-RAE-0020-A] [WF-DEV-0070-A]", async ({
   page,
 }) => {
   // Not guarded: the cards play against the service on a project the run creates, which holds
