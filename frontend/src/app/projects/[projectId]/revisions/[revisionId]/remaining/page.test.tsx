@@ -399,7 +399,7 @@ describe("the screen of the remaining to commit", () => {
 });
 
 describe("the note of the fake back on the remaining to commit", () => {
-  it("shows none: the service serves the screen, its grid and its indicators (US-1640)", async () => {
+  it("shows none: the service serves the screen, its grid and its indicators", async () => {
     const page = await remainingAt();
     expect(page).not.toContain('role="note"');
     expect(page).not.toContain("Filters, search, sort and pages are ignored");

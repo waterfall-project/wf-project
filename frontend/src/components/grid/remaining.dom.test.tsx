@@ -424,9 +424,9 @@ describe("the grid of the remaining to commit", () => {
     expect(alert).toHaveTextContent("La valeur sort des limites admises.");
     expect(alert).not.toHaveTextContent("indiquez la date de sa terminaison");
     expect(screen.getAllByRole("alert")).toHaveLength(1);
-    expect(alert.closest("div.flex-col")).toContainElement(
-      screen.getByRole("treegrid", { name: "Grille de reste à engager" }),
-    );
+    // Above the grid, which it does not replace: the alert comes before the treegrid, both on the page.
+    const treegrid = screen.getByRole("treegrid", { name: "Grille de reste à engager" });
+    expect(alert.compareDocumentPosition(treegrid) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(written(client)).toHaveLength(2);
     expect(screen.queryByRole("dialog")).toBeNull();
   });

@@ -7,7 +7,7 @@ import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 import { bringInProgress } from "./in-progress";
-import { openRevision } from "./own-project";
+import { createOwnProject, openRevision } from "./own-project";
 import { seedPlanning } from "./planning-seed";
 import { scrollToPosition, withinBox } from "./scroll";
 import { isServerAction } from "./server-action";
@@ -16,7 +16,8 @@ import { isServerAction } from "./server-action";
 // service when the service serves what it reads. The paths below that read the witness's own
 // structure — the volumes of §4.6.2, which only the fake back holds (`NO_VOLUME_IN_SERVICE`), and
 // the risk coverage of the indicators, a provision or a risk, served at zero until EP-08 — stay
-// guarded by `inService`; the paths that write play against the service on a project the run
+// guarded by `inService`; a short path, not guarded, reads the cards of the indicators and the link to
+// the workload on a project the run creates; the paths that write play against the service on a project the run
 // creates (`seedPlanning`, `bringInProgress`, #2193), the last of the file. The fake back serves
 // the first example of each read, whatever it asks: the structure of the
 // volumes of §4.6.2 for the nodes — its lines show here whatever `progress` asks, where the service
@@ -293,6 +294,39 @@ test("carries a card by a drag and by the keys, the arrows choosing the cards fr
   await expect(
     notStarted.getByRole("listitem").filter({ hasText: "Montage des armoires" }),
   ).toHaveCount(0);
+});
+
+test("reads the cards of the remaining to commit as the service answers, the remaining by sub-project and its margin, and leads to the workload on the remaining under way @shared [WF-RAE-0030-A] [WF-DEV-0070-A]", async ({
+  page,
+}) => {
+  // Not guarded: the cards play against the service on a project the run creates, which holds
+  // nothing yet, and against the fake back on the witness; the front computes none of the figures.
+  test.slow();
+  let revision = IN_REVISION;
+  let query = `?subproject_id=${SUBPROJECT}`;
+  if (inService) {
+    const own = await createOwnProject(page, "Reste lu");
+    await openRevision(page, own);
+    revision = `${own.path}/revisions/${new URL(page.url()).searchParams.get("revision_id") ?? ""}`;
+    query = "";
+  }
+  await compile(page.request, `${revision}/workload`);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await openHydrated(page, `${revision}/remaining${query}`);
+  const indicators = page.getByRole("region", { name: "Indicateurs du reste à engager" });
+  await expect(indicators).toContainText(
+    inService ? /Reste à engager\s*0,00\s€/ : /Reste à engager\s*67\s470\s133,69\s€/,
+    { timeout: WORKING },
+  );
+  await expect(indicators).toContainText("Calculé le");
+  const balances = page.getByRole("region", {
+    name: "Reste à engager par sous-projet, et marge sur le budget",
+  });
+  await expect(balances).toBeVisible();
+  await expect(balances.getByRole("img", { name: "Alerte" })).toHaveCount(0);
+  await page.getByRole("main").getByRole("link", { name: "Plan de charge" }).click();
+  await expect(page.getByLabel("Base")).toHaveValue("current_remaining", { timeout: WORKING });
+  expect(new URL(page.url()).searchParams.get("basis")).toBe("current_remaining");
 });
 
 test("leads from the remaining to commit to the workload of the project, on the remaining of the revision under way, in the same context @shared [WF-DEV-0070-A]", async ({
