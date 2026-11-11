@@ -4095,10 +4095,25 @@ chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son ent
   parcours de ces fichiers qui lisent le témoin se jouent des deux côtés. Les parcours du reste à
   engager de `structure.spec.ts` sont d'**EP-09**, ceux du devis de `grid.spec.ts` et de
   `keyboard.spec.ts` d'**EP-07**.
+- `planning.spec.ts` — la lecture de la date de début de planning, de ses en-têtes « Démarrée le » et
+  « Terminée le » se joue des deux côtés ; seule son écriture (`updateCostStructure`) reste sur le
+  faux back, comme les autres écritures du témoin ci-dessus.
 - `timelines.spec.ts` — la frise et le focus (`AFTER_THE_LINES`, #2594) : levée par **EP-07**
   (US-1570), qui étiquette les deux parcours `@shared` quand les lignes donnent leurs calendriers
-  aux tâches du témoin ; l'inscription, l'export PNG et les deux sélections se jouent contre le
+  aux tâches du témoin. Restent sans étiquette trois parcours qui écrivent sur le témoin de PRJ-001,
+  dont le compte de la course n'est pas contributeur (#2193) : l'inscription d'une tâche à une
+  chronologie (`:52`, sur le premier nœud du faux back, dont le jumeau `:422`, sur un projet de la
+  course, joue le service), le suivi temps/temps d'un jalon inscrit (`:104`) et la création puis la
+  suppression d'une chronologie (`:310`) ; nul EPIC ne les renverse. La navigation depuis le planning,
+  l'export PNG, les deux sélections et l'inscription sur un projet de la course se jouent contre le
   service.
+- `exchanges.spec.ts` — l'import de l'estimation en deux étapes (`:31`, #2683), qui lit l'analyse,
+  l'application et l'abandon d'un import de PRJ-001 que le service ne sert pas : levé par **EP-07**,
+  qui sert l'estimation ; le refus d'un fichier trop gros (`:101`), qui ouvre l'écran des imports de
+  PRJ-001 dont le compte de la course n'est pas contributeur (#2193) ; les deux écrans qui mènent à
+  l'écran des imports depuis l'estimation et le reste à engager (`:130`), levé par **EP-07** et
+  **EP-09**. L'export du planning, relu par l'import, se joue contre le service sur un projet de la
+  course (US-1430).
 - `projects.spec.ts` — les parcours qui écrivent sur PRJ-001 ou y mènent par son planning : l'écran
   du projet, ses paramètres et son cycle de vie, la sortie, les sous-projets et les contributeurs,
   le lotissement (`FAKE_BACK_ONLY`) : le compte de la course n'est pas chef de projet de PRJ-001,

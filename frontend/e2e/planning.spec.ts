@@ -8,24 +8,31 @@ import { test } from "./mode";
 import { rowAt, scrollToPosition, withinBox } from "./scroll";
 import { isServerAction } from "./server-action";
 
+// The paths tagged `@shared` play against the service too, on the witness it holds (PRJ-001, loaded
+// by `waterfall-api load-witness`, EP-06): they find a row by its label, or by its rank among the
+// tasks, and read the numbers the grid shows; the rows are the tasks alone, the lines being EP-07's.
+// The others write on the witness, whose account of the run is no contributor (#2193): they keep to
+// the fake back, which is the only one to hold what they write, and `planning-service.spec.ts` plays
+// their twins on a project the run creates.
+//
 // The fake back serves the first example of `listNodes` whatever `kinds` asks — the structure of
 // the witness at the sizes of §4.6.2, its core first, a thousand tasks and their lines (#376) —:
 // the page keeps the tasks alone (`projectNodes`, #1397), as the service renders them, so that the
 // rows of the grid are the tasks, in the order of the fake back, and their row numbers (those of
-// the structure, lines counted) are no longer their positions. The journey reads the structure by
-// marks the generator writes, which `test_the_marks_the_journeys_read` holds, and by their ranks
-// among the tasks, which `test_the_ranks_among_the_tasks_the_planning_journeys_read` holds (both
-// in tools/tests/test_mockstructure.py): row 7, a task of the core completed off the critical
-// path; row 311, started, which follows row 291 — the 64th task; row 39, a task of the critical
-// path not started, which follows the factory acceptance of row 13 — the 20th; row 14, a summary of
-// the second level over the tasks of rows 15 and 17, the 11th and the 12th, before row 19 — the
-// 13th.
+// the structure, lines counted) are no longer their positions. The paths that write read the
+// structure by marks the generator writes, which `test_the_marks_the_journeys_read` holds, and by
+// their ranks among the tasks, which `test_the_ranks_among_the_tasks_the_planning_journeys_read`
+// holds (both in tools/tests/test_mockstructure.py): row 7, a task of the core completed off the
+// critical path; row 311, the 64th task, started, which follows row 291 — the 61st, « Validation
+// 1.2.8 »; row 39, a task of the critical path not started, which follows the factory acceptance of
+// row 13 — the 20th; row 14, a summary of the second level over the tasks of rows 15 and 17, the
+// 11th and the 12th, before row 19 — the 13th.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const IN_REVISION = `/projects/${PROJECT}/revisions/${REVISION}`;
 
 /**
- * The width the column of the names of the exported Gantt takes over the tasks of the fake back:
+ * The width the column of the names of the exported Gantt takes over the tasks of the witness:
  * the `namesWidth` of `gantt-image.ts` on them, which `gantt-image.test.ts` holds on the same rows.
  * Only its link to the PNG exported is tried here, the rule of the width not being written twice.
  */
@@ -77,10 +84,13 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   await expect(critical.getByRole("gridcell").nth(at.predecessors)).toHaveText(factory);
 
   // Further down, a task started, which follows another by its row number.
+  // It follows the 61st task, « Validation 1.2.8 » (row 291 on the fake back), whose number is read
+  // where the grid shows it.
+  const followed = await numberOfRow(await scrollToPosition(grid, 61));
   const follower = await scrollToPosition(grid, 64);
   await expect(follower).toHaveAccessibleName(/^\d+ .*Revue 1\.2\.11/);
   await expect(follower.getByRole("img", { name: "Démarrée" })).toBeVisible();
-  await expect(follower.getByRole("gridcell").nth(at.predecessors)).toHaveText(/^\d+$/);
+  await expect(follower.getByRole("gridcell").nth(at.predecessors)).toHaveText(followed);
 
   // Dans la grille de planning, aucun en-tête de colonne ne propose de tri: of its fifteen headers,
   // the number and the fourteen columns, none holds a button but the three of the zoom and the export
@@ -98,8 +108,12 @@ test("opens the grid of the planning: its icons named, the critical path marked,
 
 /** The number a row bears in the first cell of the grid, as the grid shows it. */
 async function numberOf(grid: Locator, name: RegExp): Promise<string> {
-  const number = await grid
-    .getByRole("row", { name })
+  return numberOfRow(grid.getByRole("row", { name }));
+}
+
+/** The number of a row already found, as the grid shows it. */
+async function numberOfRow(row: Locator): Promise<string> {
+  const number = await row
     .getByRole("gridcell")
     .first()
     .evaluate((cell) => /\d+/.exec(cell.textContent)?.[0] ?? "");
@@ -359,7 +373,7 @@ test("filters the planning by the post « Poste 1.1 » chosen among the work bre
 test("offers no skeleton above the grid of the witness, whose structure bears its tasks @shared [WF-PRJ-0030-A]", async ({
   page,
 }) => {
-  // The fake back serves the revision of the witness, whose main structure bears its tasks: the
+  // The revision of the witness, served by either back, has a main structure that bears its tasks: the
   // grid is not empty, and the command « Engendrer le squelette de planning » is not proposed above
   // it. What it offers in the empty grid, once generated, is proven on the examples by
   // `planning-writes.dom.test.tsx`.
@@ -370,17 +384,26 @@ test("offers no skeleton above the grid of the witness, whose structure bears it
   ).toHaveCount(0);
 });
 
-test("shows the planning start date of the structure and the dates its tasks started and completed on, and changes the date, the server answering the week before [WF-PLA-0020-A] [WF-PLA-0080-A]", async ({
+test("shows the planning start date of the structure and the dates its tasks started and completed on @shared [WF-PLA-0020-A] [WF-PLA-0080-A]", async ({
+  page,
+}) => {
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  for (const name of ["Démarrée le", "Terminée le"]) {
+    await expect(grid.getByRole("columnheader", { name, exact: true })).toBeVisible();
+  }
+  await expect(page.getByRole("region", { name: "Date de début de planning" })).toContainText(
+    "02/03/2026",
+  );
+});
+
+test("changes the planning start date, the server answering the week before [WF-PLA-0020-A] [WF-PLA-0080-A]", async ({
   page,
 }) => {
   // The fake back answers `updateCostStructure` by its first example, the date advanced by a week to
   // 23 February: the grid shows the date answered, and says it keeps nothing. The refusal of a day
   // without a working hour is proven on the examples by `planning-start.dom.test.tsx`.
   await openHydrated(page, `${IN_REVISION}/planning`);
-  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
-  for (const name of ["Démarrée le", "Terminée le"]) {
-    await expect(grid.getByRole("columnheader", { name, exact: true })).toBeVisible();
-  }
   const start = page.getByRole("region", { name: "Date de début de planning" });
   await expect(start).toContainText("02/03/2026");
   await start.getByRole("button", { name: "Modifier la date de début de planning" }).click();
@@ -464,8 +487,8 @@ test("folds a summary in the grid and the Gantt follows, unfolds it from the Gan
   await openHydrated(page, `${IN_REVISION}/planning`);
   const grid = page.getByRole("treegrid", { name: "Grille de planning" });
   const at = await columnsOf(grid, { label: "Libellé", gantt: "Gantt" });
-  // A summary of the core at the second level, over the task of row 15, the last of its siblings:
-  // the row after it is the installation on site, row 19, of the first level.
+  // A summary of the core at the second level, over « Relance du fournisseur », the last of its
+  // siblings: the row after it is « Installation sur site », of the first level.
   const summary = grid.getByRole("row", { name: /^\d+ .*Retard de livraison des armoires/ });
   const task = grid.getByRole("row", { name: /^\d+ .*Relance du fournisseur/ });
   await expect(summary).toHaveAttribute("aria-expanded", "true");
@@ -473,7 +496,7 @@ test("folds a summary in the grid and the Gantt follows, unfolds it from the Gan
   await expect(task.getByRole("gridcell").nth(at.gantt).getByRole("img")).toBeVisible();
 
   // Une récapitulative pliée dans la grille l'est dans le Gantt: the rows under it leave both,
-  // the row after it is that of the next task of the first level, and its bracket in the Gantt offers
+  // the row after it is that of the next task of the first level (the 11th row in view), and its bracket in the Gantt offers
   // to unfold it.
   await summary.getByRole("gridcell").nth(at.label).getByRole("button", { name: "Plier" }).click();
   await expect(summary).toHaveAttribute("aria-expanded", "false");

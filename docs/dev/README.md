@@ -4062,9 +4062,24 @@ the epic that lifts it; that epic removes the guard and its entry:
   `computed.spec.ts`, `keyboard.spec.ts`), which no epic reverses; the paths of these files that
   read the witness play on both sides. The paths of the remaining to commit of `structure.spec.ts`
   are **EP-09**'s, those of the estimate of `grid.spec.ts` and `keyboard.spec.ts` **EP-07**'s.
+- `planning.spec.ts` — the read of the planning start date and of its headers « Démarrée le » and
+  « Terminée le » plays on both sides; only its write (`updateCostStructure`) stays on the fake
+  back, like the other writes to the witness above.
 - `timelines.spec.ts` — the frieze and the focus (`AFTER_THE_LINES`, #2594): lifted by **EP-07**
   (US-1570), which tags both paths `@shared` once the lines give their calendars to the tasks of the
-  witness; the inscription, the PNG export and the two selections play against the service.
+  witness. Three paths that write to the witness of PRJ-001, whose account of the run is no
+  contributor (#2193), stay untagged: the inscription of a task to a timeline (`:52`, on the first
+  node of the fake back, whose twin `:422`, on a project of the run, plays the service), the
+  time/time tracking of an inscribed milestone (`:104`) and the creation then the deletion of a
+  timeline (`:310`); no epic reverses them. The navigation from the planning, the PNG export, the
+  two selections and the inscription on a project of the run play against the service.
+- `exchanges.spec.ts` — the import of the estimate in two steps (`:31`, #2683), which reads the
+  analysis, the application and the abandonment of an import of PRJ-001 that the service does not
+  serve: lifted by **EP-07**, which serves the estimate; the refusal of a file too large (`:101`),
+  which opens the imports screen of PRJ-001 whose account of the run is no contributor (#2193); the
+  two screens that lead to the imports screen from the estimate and the remaining to commit
+  (`:130`), lifted by **EP-07** and **EP-09**. The export of the planning, imported back, plays
+  against the service on a project of the run (US-1430).
 - `projects.spec.ts` — the paths that write to PRJ-001 or reach it through its planning: the screen
   of the project, its settings and its lifecycle, the exit, the sub-projects and the contributors,
   the work breakdown (`FAKE_BACK_ONLY`): the account of the run is not a project manager of PRJ-001,
