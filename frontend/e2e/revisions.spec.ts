@@ -174,7 +174,7 @@ test("the revisions of a project, their comparison as the API renders it, its st
   const deltas = main.getByRole("table", { name: "Écarts de montants" });
   await expect(deltas.getByRole("row")).toHaveCount(6);
   // Both deviations, each under the header that names it, on the row of the nature of cost
-  // « Main-d'œuvre ». The fake back's window: budgeted 3 000,00, re-estimated 2 841,00. Against
+  // « Main-d'œuvre ». The fake back's window: budgeted 3 000,00, re-estimated 2 840,83. Against
   // the service, the amounts are those the API renders for the comparison, read of it and written
   // as the screen writes them, none pinned (the loader changes them with the provisions, EP-08).
   await expect(deltas.getByRole("columnheader", { name: "Écart budgété" })).toBeVisible();
@@ -183,7 +183,7 @@ test("the revisions of a project, their comparison as the API renders it, its st
     .getByRole("row")
     .filter({ has: page.getByRole("cell", { name: "Main-d'œuvre", exact: true }) });
   let budgeted = "3000.00";
-  let reestimated = "2841.00";
+  let reestimated = "2840.83";
   if (inService) {
     const served = (await comparisonServed(browser, manager)).amount_deltas;
     const delta = served.find(
