@@ -395,10 +395,9 @@ describe("the screen of the risks", () => {
     });
   });
 
-  it("presses the states the address filters on", async () => {
+  it("checks the states the address filters on: the menu says the one chosen", async () => {
     const page = await risksAt({ states: "identified" });
-    expect(page).toMatch(/aria-pressed="true"[^>]*>.*?Identified<\/button>/);
-    expect(page).toMatch(/aria-pressed="false"[^>]*>.*?Every state<\/button>/);
+    expect(page).toMatch(/<button[^>]*aria-haspopup="dialog"[^>]*><span class="truncate">Identified<\/span>/);
   });
 
   it("shows the three totals of the provisions, distinct, and the general total, as the server gives them [WF-RIS-0040-A]", async () => {

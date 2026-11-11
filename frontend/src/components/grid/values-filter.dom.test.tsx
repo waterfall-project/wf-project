@@ -137,7 +137,7 @@ describe("the filter of a list on the values of a column", () => {
     );
     await openMenu("Long");
     await userEvent.type(
-      screen.getByRole("searchbox", { name: "Rechercher dans « Long »" }),
+      screen.getByRole("searchbox", { name: "Rechercher dans «\u00a0Long\u00a0»" }),
       "-11",
     );
     expect(screen.getByRole("checkbox", { name: "valeur-11" })).toBeInTheDocument();
