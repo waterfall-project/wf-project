@@ -1240,8 +1240,9 @@ déclarer ce qui a commencé et clore mes phases depuis la vue qui les répartit
   courante — la révision en cours, ou la dernière marquée sans elle — en trois colonnes dans
   l'ordre du plan, jamais une récapitulative hors celle qui n'attend plus que ses lignes propres,
   chaque tâche avec ses `available_commands` dans l'ordre de `KanbanCommand`, les conditions dans
-  l'ordre du contrat (le geste, puis `project_in_progress`, `no_background_task_running`), vides
-  sans `remaining.write`, et `progress` l'état que chaque geste envoie ; sous `remaining.read` ;
+  l'ordre du contrat (le geste, puis les conditions d'`edit_remaining` de la structure principale
+  dans l'ordre de `structure_commands` : `is_contributor`, `project_in_progress`, `revision_draft`,
+  `no_background_task_running`), vides sans `remaining.write`, et `progress` l'état que chaque geste envoie ; sous `remaining.read` ;
   chaque réponse est validée contre le contrat dans les tests du service ;
 - propre à l'US : le temps de réponse de `listStartableTasks` sur les mille tâches de PRJ-001 est
   mesuré contre le service, le témoin chargé, et relevé sur la pull request avec celui de l'écran
