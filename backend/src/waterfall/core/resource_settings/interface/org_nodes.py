@@ -15,7 +15,7 @@ of a role take too (``resource_roles``); its reactivation reaches the node alone
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ColumnElement, SQLColumnExpression, func, or_, select, update
+from sqlalchemy import ColumnElement, SQLColumnExpression, and_, func, or_, select, update
 
 from waterfall.core.resource_settings.interface.readiness import lock_reference
 from waterfall.core.resource_settings.org_tree import (
@@ -199,12 +199,21 @@ def list_nodes(session: Session, filters: NodeFilters, *, may_change: bool) -> l
 
     Every node tells its depth, the children of a parent come by label in the order of the code
     points. An ancestor is rendered for the tree to read without a hole, whether or not it
-    satisfies the filters.
+    satisfies the filters. The nodes, their levels and the filters come from one reading: a node
+    validated meanwhile is in all of them or in none.
     """
-    nodes = _every_node(session)
+    rows = session.execute(
+        select(OrgNode, and_(*_criteria(filters)).label("matched")).execution_options(
+            populate_existing=True
+        )
+    ).all()
+    nodes = {row.OrgNode.id: row.OrgNode for row in rows}
     levels = levels_of(_branches(nodes))
-    matched = session.scalars(select(OrgNode.id).where(*_criteria(filters)))
-    kept = [each for each in matched if _is_deep_enough(levels[each], filters)]
+    kept = [
+        row.OrgNode.id
+        for row in rows
+        if row.matched and _is_deep_enough(levels[row.OrgNode.id], filters)
+    ]
     shown = with_ancestors(_branches(nodes), kept)
     ordered = in_tree_order(branch for branch in _branches(nodes) if branch.node_id in shown)
     return [_view(nodes[each.node_id], nodes, levels, may_change=may_change) for each in ordered]
