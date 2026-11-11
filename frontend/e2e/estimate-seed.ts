@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * An estimate the account of the run writes in the service, for the paths of the grid of the
- * estimate that play against it (US-1560): the witness holds no line before US-1570, and the account
- * of the run is no project manager of PRJ-001 (#2193), so each path writes a project of its own, as
- * a user does — the project made from the home, its revision opened — and its first nodes by the
+ * estimate that play against it (US-1560): the account of the run is no project manager of PRJ-001
+ * (#2193), so each path that writes creates a project of its own, as a user does — the project made from the home, its revision opened — and its first nodes by the
  * API, under the token of its creator. The nodes are always the same, in the order of the plan:
  *
  *   1 Phase (summary)    2 Tâche du devis    and under it a line of the category « Matériel
@@ -22,6 +21,7 @@ import {
 } from "@playwright/test";
 
 import type { components } from "../src/api/generated/schema";
+import type { Answer } from "./answer";
 import { WORKING } from "./hydration";
 import { createOwnProject, openRevision, type OwnProject } from "./own-project";
 import { API, frontToken, type LocalPerson } from "./service/realm";
@@ -93,7 +93,7 @@ async function categoryOf(
       },
     );
     expect(read.status(), "GET cost-categories").toBe(200);
-    const items = ((await read.json()) as { items: Schemas["CostCategory"][] }).items;
+    const items = ((await read.json()) as Answer<"listCostCategories">).items;
     const found = items.find((item) => item.label === label);
     if (found !== undefined) {
       return found.cost_category_id;
@@ -129,7 +129,7 @@ async function lockOf(
 ): Promise<number> {
   const read = await calls.get(`${base}/nodes`, { headers });
   expect(read.status(), "GET nodes").toBe(200);
-  const found = ((await read.json()) as { items: Schemas["Node"][] }).items.find(
+  const found = ((await read.json()) as Answer<"listNodes">).items.find(
     (item) => item.node_id === node,
   );
   if (found === undefined) {

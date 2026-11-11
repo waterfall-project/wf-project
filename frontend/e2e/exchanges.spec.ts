@@ -12,6 +12,7 @@ import {
 
 import catalogue from "../messages/fr.json" with { type: "json" };
 import type { components } from "../src/api/generated/schema";
+import type { Answer } from "./answer";
 import { compile } from "./compile";
 import { seedEstimate } from "./estimate-seed";
 import { openHydrated, WORKING } from "./hydration";
@@ -341,7 +342,7 @@ test("exports the estimate as an Excel file, downloads it, sees a file that is n
   const lines = async (): Promise<unknown[]> => {
     const read = await request.get(nodes, { headers: seeded.headers });
     expect(read.status(), "GET nodes").toBe(200);
-    return ((await read.json()) as { items: Schemas["Node"][] }).items.filter(
+    return ((await read.json()) as Answer<"listNodes">).items.filter(
       ({ kind }) => kind === "estimate_line",
     );
   };
@@ -394,7 +395,7 @@ test("exports the estimate as an Excel file, downloads it, sees a file that is n
     headers: seeded.headers,
   });
   expect(listed.status(), "GET imports").toBe(200);
-  expect(((await listed.json()) as { items: Schemas["Import"][] }).items).toEqual([]);
+  expect(((await listed.json()) as Answer<"listImports">).items).toEqual([]);
 
   // The workbook exported, imported back as it is: analysed, the report reads its lines, every one
   // unchanged, with no difference and no line rejected — before anything is applied.

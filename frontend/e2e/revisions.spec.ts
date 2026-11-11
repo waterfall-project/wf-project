@@ -7,7 +7,7 @@
  * comparison and the rate update proposal (US-1530). The comparison reads, against the service,
  * the whole structure of PRJ-001 from its revision 100 to its revision 101 — 5 966 nodes there, not
  * the 5 999 of the volume, which stays with the fake back until EP-13 (#2696) —, of which the grid
- * draws the rows in view (virtualised: as many as the window shows, `ROWS_IN_VIEW` at most) and
+ * draws the rows in view (virtualised: as many as the window shows, `ROWS_IN_VIEW`) and
  * counts all, the nodes of the answer and its two header rows (`aria-rowcount`); against the fake
  * back, the window of its example (« 2 nodes added, 2 removed… »).
  *
@@ -32,7 +32,7 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const FROM = "01926f3a-7c00-7000-8000-000000000100";
 const TO = "01926f3a-7c00-7000-8000-000000000101";
 // The rows of the grid in view (virtualised) of PRJ-001 compared, 100 to 101, against the service:
-// a count that depends on the height of the window of the harness.
+// exactly the count that the window of the harness shows, which fixes the height of the grid.
 const ROWS_IN_VIEW = 39;
 
 interface AmountDelta {

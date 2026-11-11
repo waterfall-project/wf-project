@@ -3,6 +3,7 @@
 import { type Browser, expect } from "@playwright/test";
 
 import type { components } from "../src/api/generated/schema";
+import type { Answer } from "./answer";
 import { DEFAULT_DEPTH } from "../src/components/tree/summaries";
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
@@ -43,7 +44,7 @@ async function summaryDepth(browser: Browser, manager: LocalPerson | undefined):
       },
     );
     expect(nodes.status(), "GET nodes").toBe(200);
-    return ((await nodes.json()) as { meta: Schemas["NodeListMeta"] }).meta.summary_depth;
+    return ((await nodes.json()) as Answer<"listNodes">).meta.summary_depth;
   } finally {
     await context.close();
   }

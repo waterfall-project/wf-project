@@ -82,13 +82,15 @@ test("the indicators of the estimate break the total down by lot, « Lot 1 » na
   const indicators = page.getByRole("main");
   const byLot = indicators.getByRole("region", { name: "Par lot" });
   await expect(byLot).toBeVisible();
-  // The card holds a list with the lot of the witness, whose posts it contains, with the
-  // total of its tasks as the first example of `getEstimateIndicators` gives it — 502 434,56 €, its
-  // share of the estimate after it (`test_mockdata.py` holds the lot of the volume).
+  // The card holds a list with the lot of the witness, whose posts it contains, with the total of
+  // its tasks. Against the fake back, that of the first example of `getEstimateIndicators`:
+  // 502 434,56 €, its share of the estimate after it (`test_mockdata.py` holds the lot of the
+  // volume). Against the service, 2 434,56 €, the amount that
+  // `backend/tests/test_witness_lines_reads.py` pins for the witness it holds.
   const lot = byLot.getByRole("listitem");
   await expect(lot).toHaveCount(1);
-  // The service adds up the lines of the witness it holds, whose volume (§4.6.2) is the fake back's
-  // alone until EP-13: the lot is the one of the core there.
+  // The 500 000 € that the fake back adds are the volume (§4.6.2), which it alone holds until
+  // EP-13 (#2696).
   await expect(lot).toHaveText(
     inService ? /^Lot 1\s*2\s434,56\s€\s\(<\s0,01\s%\)$/ : /^Lot 1\s*502\s434,56\s€\s\(0,73\s%\)$/,
   );
@@ -396,6 +398,10 @@ test("asks the server for the sort of a column clicked, both ways, by the parame
   if (!inService) {
     await expect(grid(page)).toHaveAttribute("aria-rowcount", ROW_COUNT);
     await expect(grid(page).getByRole("row").nth(1)).toHaveAccessibleName(/^1 .*Études/);
+  } else {
+    // The grid still holds lines of the witness: a first row of data after the header rows.
+    await expect(grid(page).getByRole("row").nth(2)).toBeVisible();
+    expect(Number(await grid(page).getAttribute("aria-rowcount"))).toBeGreaterThan(2);
   }
 });
 
