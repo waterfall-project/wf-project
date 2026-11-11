@@ -439,7 +439,7 @@ ne sert pas encore (#2307, EP-13).
 
 ## US-1770 — Une action rejetée du compte ou d'une grille se dit sous la barre, et un identifiant mal formé de l'adresse est ignoré
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0160-A`, `WF-SEC-0020-A`, `WF-ADM-0040-A`
 - **opérations** : `updateMyPreferences`, `closeMySessions`, les lectures du référentiel et des
   comptes filtrées par un identifiant de l'adresse
