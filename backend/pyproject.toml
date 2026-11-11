@@ -3,7 +3,7 @@
 
 [project]
 name = "waterfall"
-version = "0.1.0"
+version = "0.3.0"
 description = "Waterfall: the business core, the API service and the worker, in one package."
 requires-python = ">=3.14"
 dependencies = [
