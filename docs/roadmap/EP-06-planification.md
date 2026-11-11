@@ -841,6 +841,18 @@ Les constats qu'EP-06 laissait « à trancher », tranchés le 2026-11-10, chacu
   - **`problem.test.ts` lit ses exemples sans cast** (#2764), comme celui de `NODE_CYCLE` :
     `toMatchObject` sur ce que le test lit de l'exemple, puis un `ProblemText` littéral.
 
+### Les constats laissés après la livraison (décisions de l'auteur du 2026-11-11)
+
+EP-06 reste fini ; rien de ce qui suit ne se corrige avant la livraison du 2026-11-13 :
+
+- **La passe arrière d'un décalage écoulé qui atteint un jour sans heure de travail** (#2816) et
+  **le départ au plus tard d'une durée écoulée éprouvé pour d'autres durées** (#2832) sont reportés
+  à un lot de suite d'EP-06, ouvert après la livraison, et pas avant.
+- **Le projet et son lotissement nés à 1, « jamais écrit » lu à `lock_version` 1** (#2843,
+  option A) : rien avant la v1, aucune installation ne portant de données au-delà du témoin ; ni
+  migration, ni drapeau. Écartées : une migration en EP-07 qui décale les compteurs existants, et
+  un drapeau propre `work_breakdown_written`.
+
 ### Le lot de suite d'US-1430 (2026-11-10)
 
 L'auteur a complété le corpus (PR #2811, vers `main`, qu'il fusionne). Essayé sur `epic/EP-06`
