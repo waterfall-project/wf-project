@@ -1215,6 +1215,8 @@ déclarer ce qui a commencé et clore mes phases depuis la vue qui les répartit
 - écart : `WF-PLA-0040-A` — « Le déplacement d’une sélection qui contient une récapitulative et
   l’une de ses subordonnées laisse la subordonnée sous la récapitulative : le groupe est déplacé
   entier, sans être aplati. » : le déplacement est d’EP-06 (US-1380/L4) ;
+- écart : `WF-PLA-0040-A` — « Un déplacement qui placerait un nœud sous lui-même ou sous l’un
+  de ses subordonnés est refusé. » : le déplacement est d’EP-06 (US-1380/L4) ;
 - `WF-PLA-0050-A` — « Une tâche feuille de durée nulle ne peut recevoir de sous-tâche. »
 - `WF-PLA-0050-A` — « Une récapitulative dont la seule subordonnée est un jalon a une durée nulle
   et reste une récapitulative. » : les deux, constatées par EP-06 ;
@@ -1240,8 +1242,9 @@ déclarer ce qui a commencé et clore mes phases depuis la vue qui les répartit
   courante — la révision en cours, ou la dernière marquée sans elle — en trois colonnes dans
   l'ordre du plan, jamais une récapitulative hors celle qui n'attend plus que ses lignes propres,
   chaque tâche avec ses `available_commands` dans l'ordre de `KanbanCommand`, les conditions dans
-  l'ordre du contrat (le geste, puis `project_in_progress`, `no_background_task_running`), vides
-  sans `remaining.write`, et `progress` l'état que chaque geste envoie ; sous `remaining.read` ;
+  l'ordre du contrat (le geste, puis les conditions d'`edit_remaining` de la structure principale
+  dans l'ordre de `structure_commands` : `is_contributor`, `project_in_progress`, `revision_draft`,
+  `no_background_task_running`), vides sans `remaining.write`, et `progress` l'état que chaque geste envoie ; sous `remaining.read` ;
   chaque réponse est validée contre le contrat dans les tests du service ;
 - propre à l'US : le temps de réponse de `listStartableTasks` sur les mille tâches de PRJ-001 est
   mesuré contre le service, le témoin chargé, et relevé sur la pull request avec celui de l'écran
@@ -1385,10 +1388,11 @@ de mon budget sans compter deux fois la même pièce.
 - `WF-CRE-0010-A` — « Une ligne de montant négatif est acceptée et diminue le coût réel. » : un
   avoir, `amount` négatif, et les totaux le comptent ;
 - `WF-CRE-0020-A` — « Une ligne dont l’élément d’OTP ne respecte pas la forme attendue — vide, ou
-  sans rien avant la barre oblique — est signalée au compte rendu et n’est pas importée ; une ligne
-  qui ne porte que le code projet, sans sous-projet, est importée et imputée au seul projet. » :
-  `WBS_ELEMENT_INVALID`, `params.wbs_element`, de même pour un élément sans rien après la barre
-  oblique (`A.ABC.26001/`, #2721) ; `subproject_id` et `subproject_code` nuls ;
+  sans rien avant ou après la barre oblique — est signalée au compte rendu et n’est pas importée ;
+  une ligne qui ne porte que le code projet, sans sous-projet, est importée et imputée au seul
+  projet. » : `WBS_ELEMENT_INVALID`, `params.wbs_element`, de même pour un élément sans rien après
+  la barre oblique (`A.ABC.26001/`, #2721, spécification 1.0.4) ; `subproject_id` et
+  `subproject_code` nuls ;
 - `WF-CRE-0020-A` — « Une ligne d’un autre projet est rejetée et signalée. » :
   `WBS_ELEMENT_OUTSIDE_PROJECT`, `params.project_code` le code lu, `lines_outside_project` parmi les
   motifs de confirmation, même quand la ligne est doublée et rejetée `DUPLICATE_COST_LINE` (#2724),
@@ -1602,6 +1606,14 @@ périodique avec l'outil que mes interlocuteurs connaissent.
   date de la revue lue en « Synthèse » (B9, #2702) et jamais nulle, l'application la termine à cette
   date — une tâche non démarrée qui n'est pas un jalon passe par l'état démarré, un jalon non, les
   deux avec `started_on` égal à `completed_on` — ; une ligne laissée telle quelle n'est pas un écart ;
+- `WF-INTF-0120-A` — « Un fichier qui recopie une ligne avec sa lignée voit les deux lignes
+  rejetées, et la ligne existante inchangée. » : `DUPLICATE_LINEAGE`, `params.lines` nommant les
+  autres (`{sheet, row}`), réalisé par US-1630/L5 (#2738) ; spécification 1.0.4, #2847 ;
+- `WF-INTF-0120-A` — « Un fichier sans date de revue applique les lignes qui ne terminent aucune
+  tâche et rejette celles qui en termineraient une. » : réalisé par US-1630/L3 (#2410) ;
+  spécification 1.0.4, #2829 ;
+- `WF-INTF-0120-A` — « Une cellule de reste effacée sur une ligne connue la met à zéro. » :
+  réalisé par US-1630/L3 (#2410) ; spécification 1.0.4, #2829 ;
 - `WF-INTF-0130-A` — « Même critère d’aller-retour que WF-INTF-0110. » : un reste à engager
   exporté puis réimporté sans modification dans la révision en cours ne présente ni écart ni rejet,
   `unchanged_count` égal à `read_count`, les lignes relues identiques ; un export de la révision en

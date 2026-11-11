@@ -1049,6 +1049,9 @@ sans construire un second arbre.
   d’inflation de 3 %, vaut 1,03 x 1,03 fois son montant de base. »
 - `WF-DEV-0030-A` — « Une ligne consommée dans l’année de référence vaut son montant de base. » :
   les deux, des tests sans base du module de calcul ;
+- `WF-DEV-0030-A` — « Une part consommée l’année qui précède l’année de référence vaut son montant
+  de base, quel que soit le taux d’inflation. » : `inflation_factor` ne projette pas une année
+  antérieure à l'année de référence (spécification 1.0.4, #2745) ;
 - écart : `WF-DEV-0030-A` — « Une ligne de provision portée par une tâche consommée deux ans après
   l’année de référence vaut sa gravité pondérée par sa probabilité, sans autre projection. » : les
   lignes de provision sont d'EP-08, qui clôt ; la règle « une ligne de provision n'est pas
@@ -1540,7 +1543,8 @@ changé d'une offre à la suivante.
   `reestimated_delta` ne vient que des lignes dont le réestimé change ;
 - écart : `WF-REV-0080-A` — « Entre deux révisions d’années de référence différentes, les montants
   réestimés diffèrent en outre sur chaque ligne dont le taux a été mis à jour ou projeté jusqu’à la
-  nouvelle année de référence (WF-REV-0060) ; les tâches et les montants budgétés restent ceux du
+  nouvelle année de référence (WF-REV-0060), et sur chaque ligne de débours, dont le montant est
+  projeté de même (WF-DEV-0030) ; les tâches et les montants budgétés restent ceux du
   différentiel. » : les taux mis à jour ou projetés, ici, sur deux révisions marquées d'années
   différentes sans différentiel ; le différentiel est d'EP-08, qui clôt ;
 - `WF-REV-0080-A` — « Une tâche déplacée sous une autre récapitulative est présentée modifiée. » :
@@ -1711,6 +1715,9 @@ connaissent et de revenir sans écart.
   `project_before_in_progress` l'import sur la structure principale (C-358 ; décision du
   2026-11-09) — ; la structure différentielle est
   d'EP-08, qui clôt ;
+- écart : `WF-INTF-0100-A` — « Un fichier qui recopie une ligne avec sa lignée voit les deux
+  lignes rejetées, et la ligne existante inchangée. » : `DUPLICATE_LINEAGE` (spécification 1.0.4,
+  #2847), réalisé pour les deux imports par EP-09 (US-1630/L5, #2738) ;
 - `WF-INTF-0110-A` — « On exporte un devis, puis on le réimporte sans modification dans la révision
   en cours. »
 - `WF-INTF-0110-A` — « Le compte rendu (WF-INTF-0080) ne signale aucun écart, et les lignes
