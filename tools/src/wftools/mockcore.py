@@ -39,10 +39,10 @@ from wftools.mockdating import (
     awaiting_own_lines,
     float_of,
     payment_delay,
-    price,
+    price_spread,
     progress_at,
-    span_of,
     schedule,
+    span_of,
     tasks_in_order,
 )
 from wftools.mockids import universe
@@ -202,7 +202,7 @@ class _Emitter:
         return amounts
 
     def _line(self, line: Line, place: Place, *, progress: str) -> Amounts:
-        """Append a line of a task, its amount spread over the years of its task; return its amounts.
+        """Append a line of a task, its amount spread over its task's years; return its amounts.
 
         A line of a task started or completed does not leave a subproject charged with actual
         costs (WF-PRJ-0050): it does not name it among the fields it accepts. A line of a task
@@ -215,13 +215,12 @@ class _Emitter:
         held = progress != "not_started" and line.subproject in self.charged
         placed = self.dated[task.number]
         span = span_of(placed, line)
-        amounts = price(
+        amounts = price_spread(
             line,
-            placed.start.day.year,
+            span,
             self.rates,
-            projection=self.projection,
-            span=span,
             budget_span=self.previous_spans.get(line.number),
+            projection=self.projection,
         )
         year = span.year(amounts.base)
         facet: JsonObject = {
@@ -281,9 +280,7 @@ class _Emitter:
         if before is None:
             return dict.fromkeys(PREVIOUS)
         kept = self.previous_spans.get(number, span)
-        amounts = price(
-            before, kept.start.day.year, self.rates, projection=self.projection, span=kept
-        )
+        amounts = price_spread(before, kept, self.rates, projection=self.projection)
         return {
             "previous_quantity": decimal(before.quantity),
             "previous_hours": None if before.hours is None else decimal(before.hours),

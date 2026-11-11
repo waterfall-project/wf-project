@@ -680,7 +680,8 @@ def test_the_offer_is_priced_at_the_rates_of_its_reference_year(whole: Node) -> 
     # #232 proposes (WF-REV-0030): 78.50 for the electrical engineering, 73.50 for the
     # commissioning; the reference at those of 2026, one rate a category, the lines the amendment 1
     # did not designate keeping the budget of the offer, projected from 2025, its reference year
-    # (WF-REV-0050, #467, #1628): 9,420.00 and 5,880.00 consumed in 2026, 9,702.60 and 6,074.57 (the second task crosses two years, WF-DEV-0040).
+    # (WF-REV-0050, #467, #1628): 9,420.00 and 5,880.00 consumed in 2026, 9,702.60 and 6,074.57
+    # (the second task crosses two years, WF-DEV-0040).
     offer = {row.number: row for row in mockhistory.offer_rows()}
     reference = {row.number: row for row in mockhistory.reference_rows()}
     for number, hours, rate in ((553, 10, "78.50"), (563, 120, "78.50"), (566, 80, "73.50")):

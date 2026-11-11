@@ -411,7 +411,10 @@ def test_a_line_is_projected_on_the_years_its_task_crosses(items: list[Node]) ->
             )
         else:
             crossing += 1
-            low, high = mockstructure.inflated(base, years[0]), mockstructure.inflated(base, years[-1])
+            low, high = (
+                mockstructure.inflated(base, years[0]),
+                mockstructure.inflated(base, years[-1]),
+            )
             assert low <= Decimal(line["reestimated_amount"]) <= high
     assert crossing
 

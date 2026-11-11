@@ -315,7 +315,9 @@ def test_an_amount_is_spread_over_the_years_of_a_task_by_the_hours_worked_in_eac
     assert span.year(Decimal(1000)) == 2027
     assert span.projected(Decimal(1000), mockstructure.WITNESS) == Decimal("1018.00")
     # The parts add up to the amount whatever the shares: the last takes what the others leave.
-    third = mockdating.Span(week, Instant(date(2026, 12, 29)), Instant(date(2027, 1, 4), Decimal(8)))
+    third = mockdating.Span(
+        week, Instant(date(2026, 12, 29)), Instant(date(2027, 1, 4), Decimal(8))
+    )
     assert sum(third.years(Decimal("100.00")).values(), Decimal(0)) == Decimal("100.00")
     # A task within one year is projected on it, as the whole line was before.
     within = mockdating.Span(week, Instant(date(2027, 3, 1)), Instant(date(2027, 3, 5), Decimal(8)))

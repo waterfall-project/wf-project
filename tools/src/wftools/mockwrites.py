@@ -746,16 +746,6 @@ def _redated(answer: JsonObject, rows: dict[int, mockcore.Row]) -> str:
     )
 
 
-def _plural(answer: JsonObject) -> str:
-    return "" if len(cast("list[Node]", answer["rescheduled"])) == 1 else "s"
-
-
-def _which(answer: JsonObject) -> str:
-    return (
-        "la tâche qu'" if len(cast("list[Node]", answer["rescheduled"])) == 1 else "les tâches qu'"
-    )
-
-
 def writes() -> dict[str, JsonObject]:
     """Return the named examples of the writes of the grids, by file name."""
     return {**_core_writes(), **_volume_writes(), **mockundoable.examples()}
@@ -770,26 +760,12 @@ def _core_writes() -> dict[str, JsonObject]:
     [line] = cast("list[Node]", updated["nodes"])
     [mounting] = cast("list[Node]", linked["nodes"])
     whole = mockcore.whole(mockcore.current())
-    unmoved = (
-        " — répartie autrement entre les années, ses montants réestimés changent (reinflated) —"
-        if linked["reinflated"]
-        else " — aucun montant ne change d'année —"
-    )
-    totals = cast("dict[str, str]", linked["totals"])
-    before_totals = cast("dict[str, str]", whole["totals"])
-    unchanged = (
-        "les totaux de la structure ne changent pas"
-        if totals == before_totals
-        else f"le total réestimé de la structure passe de "
-        f"{_money(before_totals['reestimated_amount'])} à {_money(totals['reestimated_amount'])}"
-    )
+    spread = " — répartie autrement entre les années, ses montants changent (reinflated) —"
+    unmoved = spread if linked["reinflated"] else " — aucun montant ne change d'année —"
     later = {entry["node_id"]: entry for entry in cast("list[Node]", redated["rescheduled"])}
     priced = {entry["node_id"]: entry for entry in cast("list[Node]", redated["reinflated"])}
     commissioning = universe(COMMISSIONING_TASK)
-    [written] = [
-        cast("dict[str, str]", node["estimate_line"])
-        for node in cast("list[Node]", redated["nodes"])
-    ]
+    [written] = cast("list[Node]", redated["nodes"])
     before = {row.number: row for row in mockcore.current()}
     mounted = cast("Node", before[MOUNTING].node["task"])
     acceptance = cast("Node", before[MILESTONE].node["task"])
@@ -887,20 +863,23 @@ def _core_writes() -> dict[str, JsonObject]:
             f"{SITE_DELAY} jours ouvrés de décalage, le temps d'acheminer les armoires. Le "
             f"montage, écrit, part le {_on(mounting['task']['start'])} et finit le "
             f"{_on(mounting['task']['finish'])} ; une version de plus. Sans être écrite"
-            f"{_plural(linked)}, {_which(linked)}il redate : {_redated(linked, before)}"
+            f"{mocktext.plural(linked)}, {mocktext.which(linked)}il redate : "
+            f"{_redated(linked, before)}"
             f"{unmoved}, {_margin(linked, whole)}. Aucune date passée ne bouge : la réception "
             f"usine reste au "
-            f"{_on(acceptance['finish'])}. Les récapitulatives au-dessus, entières ; {unchanged} "
+            f"{_on(acceptance['finish'])}. Les récapitulatives au-dessus, entières ; "
+            f"{mocktext.totals_change(whole, linked)} "
             f"(WF-PLA-0020, WF-PLA-0030, WF-PLA-0100).",
             linked,
         ),
         "estimate_line_redated.json": mocktext.example(
             f"La ligne « {before[WIRING_ON_SITE].label} » du montage des armoires sur site "
             f"confiée au monteur câbleur, sur la semaine de quatre jours de dix heures ; une "
-            f"version de plus, son montant aux taux de l'année de référence inchangé, son réestimé "
-            f"réparti autrement entre les années puisque le montage les franchit (WF-DEV-0040) : "
-            f"{_money(written['reestimated_amount'])} au lieu de "
-            f"{mocktext.amount(before[WIRING_ON_SITE].amounts.reestimated)}. Le montage, dont l'autre ligne reste au "
+            f"version de plus, son montant de base inchangé, son réestimé réparti autrement entre "
+            f"les années que le montage franchit (WF-DEV-0040) : "
+            f"{_money(written['estimate_line']['reestimated_amount'])} au lieu de "
+            f"{mocktext.amount(before[WIRING_ON_SITE].amounts.reestimated)}. Le montage, dont "
+            f"l'autre ligne reste au "
             f"technicien de mise en service sur la semaine standard, ne travaille plus que les "
             f"jours de ses deux rôles, à huit heures (WF-PLA-0010) : il finit le "
             f"{_on(later[universe(MOUNTING)]['finish'])} au lieu du "
@@ -910,12 +889,11 @@ def _core_writes() -> dict[str, JsonObject]:
             f"à 3 % du projet, "
             f"{_money(priced[universe(COMMISSIONING_LINE)]['reestimated_amount'])} "
             f"au lieu de {mocktext.amount(before[COMMISSIONING_LINE].amounts.reestimated)}, et la "
-            f"mise en service avec elle (reinflated), comme l'autre ligne du montage, « "
-            f"{before[N.TESTS_LINE].label} », "
-            f"{_money(priced[universe(N.TESTS_LINE)]['reestimated_amount'])} "
-            f"au lieu de {mocktext.amount(before[N.TESTS_LINE].amounts.reestimated)} ; leur budgété, projeté sur l'année où la "
+            f"mise en service avec elle, comme l'autre ligne du montage (reinflated) ; leur "
+            f"budgété, projeté sur l'année où la "
             f"référence les consommait, et leur montant aux taux de l'année de référence ne "
-            f"changent pas (WF-DEV-0020). Redatée{_plural(redated)}, {_redated(redated, before)} "
+            f"changent pas (WF-DEV-0020). Redatée{mocktext.plural(redated)}, "
+            f"{_redated(redated, before)} "
             f"{'reste' if len(cast('list[Node]', redated['rescheduled'])) == 1 else 'restent'} "
             f"{_margin(redated, whole)} ; le montage et les récapitulatives "
             f"au-dessus des tâches redatées, entiers ; les totaux, dont le seul montant réestimé "

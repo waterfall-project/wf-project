@@ -34,9 +34,9 @@ from wftools.mockcalendar import (
 )
 from wftools.mocklinks import refuse_through_summaries
 from wftools.mockstructure import (
+    CENT,
     LABOUR_RATES,
     WITNESS,
-    CENT,
     JsonObject,
     Projection,
     money,
@@ -417,9 +417,7 @@ class Span:
             first = min(max(Instant(date(year, 1, 1)), self.start), self.finish)
             edges.append(self.calendar.elapsed(first))
         edges.append(self.calendar.elapsed(self.finish))
-        hours = [
-            (year, edges[index + 1] - edges[index]) for index, year in enumerate(years)
-        ]
+        hours = [(year, edges[index + 1] - edges[index]) for index, year in enumerate(years)]
         worked = [(year, each) for year, each in hours if each > 0]
         parts: dict[int, Decimal] = {}
         left = amount
@@ -447,6 +445,18 @@ class Span:
         return total.quantize(CENT, rounding=ROUND_HALF_UP)
 
 
+def _amounts_of(line: Line, rates: Mapping[str, Decimal]) -> tuple[Decimal, Decimal]:
+    """Return the amount of a line at the rates of the reference year, and its budget."""
+    if line.hours is not None:
+        amount = line.quantity * line.hours * rates[line.category]
+    elif line.unit is not None:
+        amount = line.quantity * line.unit
+    else:
+        message = f"the line {line.number} has neither hours nor a unit disbursement"
+        raise ValueError(message)
+    return amount, amount if line.budgeted is None else line.budgeted
+
+
 def price(
     line: Line,
     year: int,
@@ -454,8 +464,6 @@ def price(
     *,
     budget_year: int | None = None,
     projection: Projection = WITNESS,
-    span: Span | None = None,
-    budget_span: Span | None = None,
 ) -> Amounts:
     """Return the amounts of a line: hours at the rate of its category, or its disbursement.
 
@@ -465,25 +473,35 @@ def price(
     consumption, ``year``, compounded once a year elapsed since the reference year; the budget,
     what the reference revision gives the line — the amount unless the line says otherwise —,
     projected on the year the reference consumed it, ``budget_year``, that of the line by
-    default (WF-DEV-0020, WF-RAE-0010). With a ``span``, the re-estimate is rather the amount
-    spread over the years of the task, each part projected on its year, and the budget the same
-    over ``budget_span`` (WF-DEV-0040). A line of provision is not projected: its amount is the
+    default (WF-DEV-0020, WF-RAE-0010). A line of provision is not projected: its amount is the
     one its risk computes, the own estimate of the risk bearing its projection already
     (WF-DEV-0030, WF-PRJ-0040). The hourly rates are those of the reference year of the revision
     priced, one for each category: by default, the core's, of 2026 (WF-DEV-0020, WF-REV-0060).
+    ``price_spread`` prices a line over the years of its task.
     """
-    if line.hours is not None:
-        amount = line.quantity * line.hours * rates[line.category]
-    elif line.unit is not None:
-        amount = line.quantity * line.unit
-    else:
-        message = f"the line {line.number} has neither hours nor a unit disbursement"
-        raise ValueError(message)
-    budgeted = amount if line.budgeted is None else line.budgeted
+    amount, budgeted = _amounts_of(line, rates)
     if line.is_provision:
         return Amounts(amount, budgeted, amount)
-    if span is not None:
-        kept = span if budget_span is None else budget_span
-        return Amounts(amount, kept.projected(budgeted, projection), span.projected(amount, projection))
     on = year if budget_year is None else budget_year
     return Amounts(amount, projection(budgeted, on), projection(amount, year))
+
+
+def price_spread(
+    line: Line,
+    span: Span,
+    rates: Mapping[str, Decimal] = LABOUR_RATES,
+    *,
+    budget_span: Span | None = None,
+    projection: Projection = WITNESS,
+) -> Amounts:
+    """Return the amounts of a line spread over the years of its task (WF-DEV-0040).
+
+    As ``price``, but the amount is shared among the years of ``span`` by the hours worked in each
+    and every part projected on its year, the sum rounded once, as the service does; the budget the
+    same over ``budget_span``, the placement the reference gave the task, the line's by default.
+    """
+    amount, budgeted = _amounts_of(line, rates)
+    if line.is_provision:
+        return Amounts(amount, budgeted, amount)
+    kept = span if budget_span is None else budget_span
+    return Amounts(amount, kept.projected(budgeted, projection), span.projected(amount, projection))

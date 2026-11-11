@@ -155,9 +155,7 @@ TASK_COLUMNS: tuple[NodeColumn, ...] = (
 )
 # The columns of a task that its execution writes, which ``setTaskProgress`` writes under
 # ``remaining.write`` (EP-09): the others of ``TASK_COLUMNS`` are the planning's.
-EXECUTION_COLUMNS: frozenset[NodeColumn] = frozenset(
-    ("physical_progress", "started_on", "completed_on")
-)
+EXECUTION_COLUMNS: frozenset[str] = frozenset(("physical_progress", "started_on", "completed_on"))
 # The columns of the estimate line, after its label, in the order of ``NodeColumn`` (EP-07).
 LINE_COLUMNS: tuple[NodeColumn, ...] = (
     "cost_category",
@@ -657,16 +655,19 @@ def _row_at(
     return _Row(index, new_id(), given, creates=True)
 
 
-def _task_columns(tree: Tree, target: UUID, row: _Row) -> set[NodeColumn]:
+def _task_columns(tree: Tree, target: UUID, row: _Row) -> set[str]:
     """Give the columns of a task's own that a row writes (#2775).
 
     A row on a task writes its columns, whichever they are; a row that creates a task, its label
     alone being a creation the three grids make alike (#2601), writes them with any other cell.
     """
     columns = {column for column, _ in row.cells}
-    if row.creates:
-        return columns - {"label"} if tree.nodes[target].kind == TASK else set()
-    return columns & set(TASK_COLUMNS) if row.node_id in tree.tasks else set()
+    kept: set[str] = set()
+    if row.creates and tree.nodes[target].kind == TASK:
+        kept = columns - {"label"}
+    elif not row.creates and row.node_id in tree.tasks:
+        kept = columns & set(TASK_COLUMNS)
+    return kept
 
 
 def _refuse_task_columns(
@@ -677,7 +678,7 @@ def _refuse_task_columns(
     The planning's for the columns of a task's own, the remaining to commit's for those of its
     execution (#2805); whoever holds both writes both, a block that mixes them asks for both.
     """
-    written: set[NodeColumn] = set()
+    written: set[str] = set()
     for each in rows:
         written |= _task_columns(tree, target, each)
     asked = (

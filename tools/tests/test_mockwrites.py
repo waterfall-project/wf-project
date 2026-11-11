@@ -273,9 +273,11 @@ def test_a_link_set_on_a_task_not_started_redates_what_follows_and_nothing_past(
         **whole["totals"],
         "reestimated_amount": None,
     }
-    assert Decimal(linked["totals"]["reestimated_amount"]) - Decimal(
-        whole["totals"]["reestimated_amount"]
-    ) == spread
+    assert (
+        Decimal(linked["totals"]["reestimated_amount"])
+        - Decimal(whole["totals"]["reestimated_amount"])
+        == spread
+    )
 
 
 def test_no_write_moves_a_fact_already_recorded(
@@ -318,9 +320,9 @@ def test_a_role_on_another_calendar_redates_its_task_and_moves_its_successor_in_
     [line] = redated["nodes"]
     assert line["estimate_line"]["resource_role_id"] == CABLE_FITTER
     assert line["estimate_line"]["resource_role_label"] == "Monteur câbleur"
-    # The line keeps its quantities and its budget; the mounting now crosses the turn of the year, so
-    # that its re-estimate, spread over the two years by the hours worked in each (WF-DEV-0040), is
-    # between its projections on the first and on the last of them.
+    # The line keeps its quantities and its budget; the mounting now crosses the turn of the
+    # year, so that its re-estimate, spread over the two years by the hours worked in each
+    # (WF-DEV-0040), is between its projections on the first and on the last of them.
     moved_off = {"resource_role_id": None, "resource_role_label": None}
     unspread = {"reestimated_amount": None, "consumption_year": None}
     assert {**line["estimate_line"], **moved_off, **unspread} == {

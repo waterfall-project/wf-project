@@ -1469,7 +1469,7 @@ la ligne de provision (EP-08).
 
 ## US-1630 — Le format Excel du reste à engager : export (FLX-06), import (FLX-05) et aller-retour
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-INTF-0120-A`, `WF-INTF-0130-A`, `WF-INTF-0070-A`, `WF-REV-0060-A`,
   `WF-IHM-0080-A`
 - **opérations** : `requestExport` (`remaining`), `getBackgroundTaskResult` ; `uploadFile`,

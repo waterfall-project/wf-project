@@ -295,7 +295,7 @@ REMAINING_MISSING = (403, "PERMISSION_MISSING", {"missing_permission": "remainin
 
 @pytest.mark.requirement("WF-ADM-0100-A")
 @pytest.mark.parametrize(
-    ("column", "cell", "code"),
+    "cell",
     [
         ("physical_progress", "50", "COMPUTED_VALUE"),
         ("started_on", "2026-06-01", "FIELD_NOT_ACCEPTED"),
@@ -303,7 +303,7 @@ REMAINING_MISSING = (403, "PERMISSION_MISSING", {"missing_permission": "remainin
     ],
 )
 def test_pasting_the_execution_of_a_task_asks_for_remaining_write_as_set_task_progress_does(
-    stage: Scene, tree: Tree, realm: TestRealm, column: str, cell: str, code: str
+    stage: Scene, tree: Tree, realm: TestRealm, cell: tuple[str, str, str]
 ) -> None:
     # The progress and the days of execution of a task are written by ``setTaskProgress`` under
     # ``remaining.write`` (#2805): a paste of one is judged for that permission, not for the
@@ -311,9 +311,10 @@ def test_pasting_the_execution_of_a_task_asks_for_remaining_write_as_set_task_pr
     # answered cell by cell (these columns are no input of the paste, their cells refused with
     # their own reason); whoever holds ``planning.write`` or ``estimate.write`` alone is refused
     # whole by 403, naming ``remaining.write``; nothing is kept.
+    column, text, code = cell
     task = tree.made("Câblage")
     before = (counter(tree), tree.items())
-    rows = [[cell]]
+    rows = [[text]]
     for held in ("planning.write", "estimate.write"):
         who = contributor(stage, realm, held)
         assert refusal(pasted(tree, task, column, rows, who)) == REMAINING_MISSING, held

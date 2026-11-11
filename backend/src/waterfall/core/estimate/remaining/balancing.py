@@ -8,8 +8,8 @@ the actual cost and the remaining to commit, positive when some is left, negativ
 absence: its margin is then the opposite of what it has committed. The lines out of any subproject,
 and the cost imputed to the project alone, form the ``unassigned`` set, always present, so that the
 margins of the subprojects sum to that of the project; its key is the one of the interface of
-``costs``, the only import of the module outside ``estimate``. Neither the base nor the clock is read: the
-numeric examples run on it alone.
+``costs``, the only import of the module from outside ``estimate``. Neither the base nor the clock
+is read: the numeric examples run on it alone.
 """
 
 from dataclasses import dataclass
