@@ -489,7 +489,11 @@ test("folds a summary in the grid and the Gantt follows, unfolds it from the Gan
   const at = await columnsOf(grid, { label: "Libellé", gantt: "Gantt" });
   // A summary of the core at the second level, over « Relance du fournisseur », the last of its
   // siblings: the row after it is « Installation sur site », of the first level.
-  const summary = grid.getByRole("row", { name: /^\d+ .*Retard de livraison des armoires/ });
+  // The faux back also serves rows of other plans bearing the same labels: the summary is the one
+  // that folds (it alone bears aria-expanded), the task the one under it.
+  const summary = grid
+    .getByRole("row", { name: /^\d+ .*Retard de livraison des armoires/ })
+    .and(grid.locator("[aria-expanded]"));
   const task = grid.getByRole("row", { name: /^\d+ .*Relance du fournisseur/ });
   await expect(summary).toHaveAttribute("aria-expanded", "true");
   await expect(summary).toHaveAttribute("aria-level", "2");
