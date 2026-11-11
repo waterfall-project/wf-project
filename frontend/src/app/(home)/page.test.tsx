@@ -208,7 +208,7 @@ describe("the home of an account that cannot read any project [WF-IHM-0120] #291
 
   it("says that the account has no role yet when it carries no access role [WF-IHM-0120-A]", async () => {
     kept.roles = [];
-    kept.permissions = ["users.read"];
+    kept.permissions = [];
     const html = await home();
     expect(text(html)).toContain("no role yet");
   });

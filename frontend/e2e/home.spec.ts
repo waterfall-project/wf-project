@@ -24,17 +24,12 @@ test("the home of a signed-in session renders against the service: its title, th
 });
 
 // Against the service alone: the fake back grants one session, which reads the projects. The reader
-// of the administration holds no permission of a project, and is not refused (#2915).
+// of the administration holds no permission of a project; that the list is not read is the unit
+// test's, the request being the server's, which the browser does not see (#2915).
 test("an account that reads no project lands on a home that says so and leads to the administration, without « Introuvable » [WF-IHM-0120-A] @shared @administration", async ({
   page,
 }) => {
   test.skip(!inService, "the fake back grants a session that reads the projects");
-  const refused: string[] = [];
-  page.on("response", (response) => {
-    if (response.status() >= 400 && response.url().includes("/projects")) {
-      refused.push(response.url());
-    }
-  });
   await page.goto("/");
   await expect(
     page.getByRole("heading", { level: 1, name: "Aucun projet à ouvrir" }),
@@ -43,5 +38,4 @@ test("an account that reads no project lands on a home that says so and leads to
     page.getByRole("main").getByRole("link", { name: "Gestion des utilisateurs" }),
   ).toHaveAttribute("href", "/admin/users");
   await expect(page.getByRole("heading", { name: "Introuvable" })).toHaveCount(0);
-  expect(refused).toEqual([]);
 });

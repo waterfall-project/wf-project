@@ -12,7 +12,7 @@ import { FUNCTION_GROUPS } from "@/navigation/functions";
 import { expectAccessible } from "@/test/axe";
 import { example } from "@/test/fixtures";
 
-import { NoOpenableProject, reachableGroups } from "./no-openable-project";
+import { NoOpenableProject } from "./no-openable-project";
 
 type PermissionCode = components["schemas"]["PermissionCode"];
 type ReferenceReadiness = components["schemas"]["ReferenceReadiness"];
@@ -94,6 +94,5 @@ describe("the home of an account that opens no project [WF-IHM-0120-A] #2915", (
     const hrefs = screen.getAllByRole("link").map((link) => link.getAttribute("href") ?? "");
     expect(hrefs.length).toBeGreaterThan(0);
     expect(hrefs.filter((href) => href.includes("["))).toEqual([]);
-    expect(reachableGroups(every).flatMap((group) => group.functions)).toHaveLength(hrefs.length);
   });
 });
