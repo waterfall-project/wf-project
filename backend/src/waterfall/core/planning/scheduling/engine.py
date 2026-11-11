@@ -314,6 +314,9 @@ class _Engine:
         the Sunday, counted as that end; back from that end itself, they would reach the
         Wednesday's, two days short; back from the Monday's first hour, they reach the Saturday,
         counted as the Friday's end again (#2816).
+
+        The rule holds for any successor: a manual one, whose own dates stand for its latest ones,
+        as an automatic one, and for a link to a start as to a finish.
         """
         calendar = self.tasks[successor_id].calendar
         latest = self.late_span(successor_id)

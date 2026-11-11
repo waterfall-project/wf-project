@@ -900,7 +900,7 @@ de celui de #2648.
 
 ## US-1830 — Les refus du référentiel : la liste de l'arbre, la correspondance non amorcée, les années de la grille des taux et un tri
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0070-A`, `WF-REF-0150-A`, `WF-IHM-0060-A`, `WF-EXP-0040-A`
 - **opérations** : `listOrgNodes`, `getActualCostMapping`, `setActualCostMapping`, `getHourlyRateGrid`,
   `listCostCategories`

@@ -767,6 +767,28 @@ def test_an_elapsed_lag_after_a_friday_bounds_its_predecessor_to_a_finish_as_to_
     assert of(to_finish, 2).is_critical
 
 
+@pytest.mark.requirement("WF-PLA-0160-A")
+@pytest.mark.parametrize("link_type", ["finish_to_start", "finish_to_finish"])
+def test_an_elapsed_lag_toward_a_manual_task_bounds_its_predecessor_as_the_forward_pass_does(
+    link_type: LinkType,
+) -> None:
+    # « Un décalage de 2 ej [...] s'achève le dimanche »: a Friday plus two elapsed days counts as
+    # the end of the Friday. A, two days after a milestone, is linked by two elapsed days to a
+    # manual task from the Saturday to the Monday: A may finish on the Friday, a float of three
+    # days, and the task held by the manual dates is no conflict (#2816).
+    def shifted(by: Decimal) -> Schedule:
+        tasks = [task(1, "2"), task(2, manual=(day(5), day(7, 8))), task(3, "0")]
+        return planned(tasks, [link(3, 1, lag=str(by)), link(1, 2, link_type, "2", "ed")])
+
+    dated = shifted(Decimal(0))
+    assert dated.link_conflicts == ()
+    assert of(dated, 1).total_float == Decimal(3)
+    # Slipped by its float, A still holds the manual task; a day more breaks the link.
+    assert shifted(Decimal(3)).link_conflicts == ()
+    broken = shifted(Decimal(4)).link_conflicts
+    assert [(each.predecessor_id, each.successor_id) for each in broken] == [(ident(1), ident(2))]
+
+
 # A calendar knows no holiday (WF-REF-0110): a day without hours of work inside the week stands for
 # one, every Wednesday; the hours that vary from day to day, a Friday of four.
 WEDNESDAY_OFF = hours_of_week(8, 8, 0, 8, 8, 0, 0)
