@@ -4502,12 +4502,20 @@ its parameters, never a sentence.
   (`waterfall.api.contract.base`, which `[tool.datamodel-codegen]` of `backend/pyproject.toml` gives
   to the generator), which looks for the NUL in each of its fields, an element of a list, a key or
   value of an object included; a query or path parameter in text is typed `Text`, from the same
-  module.
+  module. The same base likewise refuses a decimal of the contract — a type whose root carries the
+  pattern of `Decimal` or of `Money`, `Percent` and `Hours` included — written with a digit other
+  than 0 to 9 (#2238): the pattern is a JSON Schema expression, where `\d` only means 0 to 9, which
+  the generated models read in Unicode; a query bound read by hand is therefore written `[0-9]`,
+  never `\d`.
+  The thresholds of the indices and the bounds of the risk matrix are written with ten decimals
+  at most, counted as written, a final zero included, and ten digits before the point (#2234):
+  beyond that, 422 `VALIDATION_FAILED` at their field, never an overflow of the database.
 
   _Checks_: `make server-models-up-to-date`; `make test-back` (`test_api_problems.py`,
-  `test_access_roles_guard.py` for the NUL); that every text parameter is a `Text`, that the code
-  and the status are those of the contract for the operation, the review, then the validation of the
-  responses of the API tests against the contract.
+  `test_access_roles_guard.py` for the NUL, `test_contract_digits.py` for the digits); that every
+  text parameter is a `Text`, that the code and the status are those of the contract for the
+  operation, the review, then the validation of the responses of the API tests against the
+  contract.
 
 - **Logs and responses of the API tests** — an API test goes through `ContractClient`
   (`backend/tests/support.py`), which validates every response against the contract with

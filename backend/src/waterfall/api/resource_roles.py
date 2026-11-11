@@ -78,8 +78,8 @@ WRITE = [Depends(Requires(CHANGE))]
 # The size of a page the contract gives when none is asked for, and the largest it allows.
 DEFAULT_LIMIT = 50
 GREATEST_LIMIT = 500
-# A decimal as the contract writes it (``Decimal``): a bound of the capacity.
-DECIMAL = re.compile(r"-?\d+(\.\d+)?")
+# A decimal as the contract writes it (``Decimal``), in digits of 0 to 9: a bound of the capacity.
+DECIMAL = re.compile(r"-?[0-9]+(\.[0-9]+)?")
 # The attachments a body may send null, read as absent: lacking (``VALUE_REQUIRED``, WF-REF-0090).
 # A change has no node to lack: its ``org_node_id`` is optional, never null (``node_sent_null``).
 CREATION_ATTACHMENTS = frozenset({"org_node_id", "cost_category_id", "calendar_id"})

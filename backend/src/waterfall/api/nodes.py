@@ -84,11 +84,12 @@ VALUE_REQUIRED = "VALUE_REQUIRED"
 FIELD_NOT_ACCEPTED = "FIELD_NOT_ACCEPTED"
 DAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 NOUGHT = "0.00"
-# The forms of a bound of the query: a decimal, an amount, a whole number, a date (README).
-DECIMAL = re.compile(r"-?\d+(\.\d+)?")
-MONEY = re.compile(r"-?\d+(\.\d{1,2})?")
-WHOLE = re.compile(r"\d+")
-DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
+# The forms of a bound of the query: a decimal, an amount, a whole number, a date (README). Their
+# digits are 0 to 9, as the patterns of the contract say them: another digit malforms the bound.
+DECIMAL = re.compile(r"-?[0-9]+(\.[0-9]+)?")
+MONEY = re.compile(r"-?[0-9]+(\.[0-9]{1,2})?")
+WHOLE = re.compile(r"[0-9]+")
+DAY = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 # The columns of numbers filtered by two bounds, by the form of their bound; the first three
 # retain tasks, the others lines (EP-07).
 DECIMAL_BOUNDS = (
