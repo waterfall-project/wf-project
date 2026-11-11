@@ -4209,11 +4209,14 @@ chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son ent
   (`structure.spec.ts`), et le chiffrage jusqu'au passage En cours (`pricing.spec.ts`) ; une ligne
   sous une tâche terminée, refusée, ne s'écrit que dans le reste à engager, la structure principale
   d'un projet En cours étant en lecture seule.
-- `actual-costs.spec.ts` — les coûts réels (US-1620) : le fichier entier porte `@shared`, et chaque
-  parcours se joue contre le service. Les trois qui lisent PRJ-001 — les lignes et leurs trois
-  totaux, la date du dernier import, le journal, le tri et le filtre ; le nombre de lignes par page ;
-  l'exclusion d'une ligne — lisent la tranche des coûts du témoin (US-1650/L2, plus haut), dont les
-  montants et les imputations sont ceux que le service calcule ; les deux qui écrivent le font sur un
+- `actual-costs.spec.ts` — les coûts réels (US-1620) : le fichier entier porte `@shared`. Les deux
+  parcours qui lisent PRJ-001 — les lignes et leurs trois totaux, la date du dernier import, le
+  journal, le tri et le filtre ; le nombre de lignes par page — lisent la tranche des coûts du
+  témoin (US-1650/L2, plus haut), dont les montants et les imputations sont ceux que le service
+  calcule. Le troisième, l'exclusion d'une ligne du témoin depuis la liste, reste gardé par
+  `inService` : le compte de la course n'est pas chef de projet de PRJ-001 (#2193), l'exclusion
+  écrirait le témoin, et nul EPIC ne le renverse ; le parcours qui écrit exclut une ligne qu'il
+  importe. Les deux qui écrivent le font sur un
   projet que la course crée (`bringInProgress`, `importActualCosts` d'`in-progress.ts`, #2193) : aucun
   import, puis l'import d'une extraction suivi de l'exclusion d'une ligne, aux totaux relus (filtre
   compris) et à la date du dernier import.

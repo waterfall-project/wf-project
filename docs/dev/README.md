@@ -4176,11 +4176,14 @@ the epic that lifts it; that epic removes the guard and its entry:
   pricing up to the passage to In progress (`pricing.spec.ts`); a line under a completed task,
   refused, is written only in the remaining to commit, the main structure of a project In progress
   being read only.
-- `actual-costs.spec.ts` — the actual costs (US-1620): the whole file carries `@shared`, and every
-  path plays against the service. The three that read PRJ-001 — the lines and their three totals, the
-  date of the last import, the journal, the sort and the filter; the number of lines per page; the
-  exclusion of a line — read the slice of the costs of the witness (US-1650/L2, above), whose amounts
-  and imputations are those the service computes; the two that write do so on a project the run
+- `actual-costs.spec.ts` — the actual costs (US-1620): the whole file carries `@shared`. The two
+  paths that read PRJ-001 — the lines and their three totals, the date of the last import, the
+  journal, the sort and the filter; the number of lines per page — read the slice of the costs of the
+  witness (US-1650/L2, above), whose amounts and imputations are those the service computes. The
+  third, the exclusion of a line of the witness from the list, stays guarded by `inService`: the
+  account of the run is no project manager of PRJ-001 (#2193), the exclusion would write the
+  witness, and no epic reverses it; the path that writes excludes a line it imports. The two that
+  write do so on a project the run
   creates (`bringInProgress`, `importActualCosts` of `in-progress.ts`, #2193): no import, then the
   import of an extraction followed by the exclusion of a line, with the totals read anew (filter
   included) and the date of the last import.
