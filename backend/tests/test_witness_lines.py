@@ -523,3 +523,25 @@ def test_a_load_of_lines_reads_the_reference_once_and_the_api_every_time() -> No
             assert recalled(session, "other", read) == "rate 4"
         assert not remembers(session)
         assert recalled(session, "rate", read) == "rate 5"
+
+
+def test_a_memory_of_a_load_survives_a_block_inside_it_and_is_left_on_an_exception() -> None:
+    # A block opened inside another keeps the memory of the outer one, which alone ends it; and
+    # the memory does not outlive a load that raises (#2733).
+    reads: list[str] = []
+
+    def read() -> str:
+        reads.append("read")
+        return f"rate {len(reads)}"
+
+    with Session() as session:
+        with remembering(session):
+            assert recalled(session, "rate", read) == "rate 1"
+            with remembering(session):
+                assert recalled(session, "rate", read) == "rate 1"
+            assert remembers(session)
+            assert recalled(session, "rate", read) == "rate 1"
+        assert not remembers(session)
+        with pytest.raises(RuntimeError), remembering(session):
+            raise RuntimeError
+        assert not remembers(session)

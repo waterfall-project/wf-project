@@ -12,7 +12,7 @@ up to the total, to a ten-billionth, and the caller rounds once what it keeps (W
 
 from dataclasses import dataclass
 from datetime import date
-from decimal import ROUND_HALF_EVEN, Context, Decimal
+from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Context, Decimal
 from fractions import Fraction
 from typing import TYPE_CHECKING
 
@@ -135,7 +135,7 @@ def _shares[K](
     for period, worked in hours[:-1]:
         share = Fraction(amount) * worked / total
         part = EXACT.divide(Decimal(share.numerator), Decimal(share.denominator)).quantize(
-            PLACES, rounding=ROUND_HALF_EVEN
+            PLACES, rounding=ROUND_HALF_UP
         )
         parts[period] = part
         left = EXACT.subtract(left, part)

@@ -28,7 +28,13 @@ _MEMORY = "waterfall.estimate.recalling"
 
 @contextmanager
 def remembering(session: Session) -> Generator[None]:
-    """Remember, until the block ends, what ``recalled`` reads in the session."""
+    """Remember, until the block ends, what ``recalled`` reads in the session.
+
+    A block inside another keeps the memory of the outer one, which alone ends it.
+    """
+    if _MEMORY in session.info:
+        yield
+        return
     session.info[_MEMORY] = {}
     try:
         yield
@@ -37,7 +43,7 @@ def remembering(session: Session) -> Generator[None]:
 
 
 def remembers(session: Session) -> bool:
-    """Tell whether a load of lines is under way: its lines are then flushed together."""
+    """Tell whether a load of lines is under way: its lines are then not flushed one by one."""
     return _MEMORY in session.info
 
 

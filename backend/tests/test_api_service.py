@@ -24,6 +24,7 @@ from support import (
     BEARER_JWT,
     PLATFORM_SECRETS,
     SESSION_COOKIE,
+    UNRESOLVED,
     AmbiguousCompositionError,
     ContractClient,
     Logs,
@@ -45,12 +46,12 @@ if TYPE_CHECKING:
 
 
 def xml_bodies(node: object) -> Iterator[dict[str, Any]]:
-    """Give each ``application/xml`` body a document declares, at any depth."""
+    """Give each ``application/xml`` body a document declares, at any depth, but in its examples."""
     if isinstance(node, dict):
         for key, value in cast("dict[str, Any]", node).items():
             if key == "application/xml" and isinstance(value, dict):
                 yield cast("dict[str, Any]", value)
-            else:
+            elif key not in UNRESOLVED:
                 yield from xml_bodies(value)
     elif isinstance(node, list):
         for each in cast("list[object]", node):
@@ -562,20 +563,17 @@ def test_an_xml_answer_the_contract_declares_binary_is_validated_as_its_bytes() 
     assert (response.status_code, response.content) == (200, content)
 
 
-def test_the_only_xml_body_of_the_contract_is_a_binary_string(contract: OpenAPI) -> None:
+def test_every_xml_body_of_the_contract_is_a_binary_string(contract: OpenAPI) -> None:
     # ``BINARY_TYPES`` reads every ``application/xml`` body as the text of its bytes: that holds
     # while the contract declares no such body but a binary string (the MS Project export).
     declared = cast("dict[str, Any]", contract.spec.read_value())
     root = contract.spec.base_uri
     found = documents(root, declared)
     binary = {"type": "string", "format": "binary"}
-    xml = [
-        address
-        for address, each in found.items()
-        for node in xml_bodies(each)
-        if node.get("schema") != binary
-    ]
-    assert xml == []
+    bodies = [(address, node) for address, each in found.items() for node in xml_bodies(each)]
+    # A positive control: the walk reaches the export of MS Project, or it would pass on nothing.
+    assert any(address.endswith("/paths/system.yaml") for address, _ in bodies)
+    assert [address for address, node in bodies if node.get("schema") != binary] == []
 
 
 def test_an_answer_is_validated_without_reading_a_document_of_the_contract_again(
