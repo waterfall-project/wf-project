@@ -25,7 +25,7 @@ named with its cause where the test stands:
 import copy
 from bisect import bisect_left
 from collections import Counter, defaultdict
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
@@ -334,9 +334,10 @@ def test_the_estimate_read_of_the_loaded_witness_is_the_example_but_for_what_it_
         shifted = wanted[key]["row_number"] - bisect_left(gone, wanted[key]["row_number"])
         assert item["row_number"] == shifted, key
     # The tasks, as the slice of the tasks reads them, their amounts apart.
+    read_on = date.fromisoformat(body["meta"]["scheduled_at"][:10])
     for key, item in got.items():
         if item["kind"] == "task":
-            assert not difference(item, wanted[key]), (name, item["task"]["label"])
+            assert not difference(item, wanted[key], read_on), (name, item["task"]["label"])
     # The lines: everything the file enters, the base amount and the place are the example's; what
     # is read apart is counted, and each difference has its cause.
     lines = {key: item for key, item in got.items() if item["kind"] == "estimate_line"}

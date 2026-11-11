@@ -10,10 +10,11 @@ the planning start of the structure —, at the identifiers and the instants the
 What the service reads of the loaded witness is compared with the examples of the contract
 (``nodes_planning``, ``nodes_summaries``, ``nodes_timeline``, ``nodes_milestone`` and
 ``volume/nodes_thousand``), but for what the slice does not reach (``AMOUNTS``, ``BESIDE``, the
-inscriptions and the links read as sets). The dates the engine computes are the expected; those of
-the file and of the volume example differ, for ``TASKS_OF_2594`` tasks by revision, where the
-calendar of a task comes from the lines EP-07 loads (decision of 2026-11-09, issue #2347; finding
-#2594, carried to EP-07 / US-1570). The tests name those tasks and only them (``EXCUSED``).
+inscriptions and the links read as sets). The dates the engine computes are the expected. At the
+stage of the tasks, ``TASKS_OF_2594`` tasks by revision are dated otherwise than the file and the
+volume example do, the calendar of a task coming from the lines EP-07 loads (decision of
+2026-11-09, issue #2347; finding #2594); once the lines are loaded, the whole witness agrees with
+the examples and no task is excused any more.
 """
 
 import copy
@@ -77,20 +78,11 @@ AMOUNTS = {"base_amount", "budgeted_amount", "reestimated_amount", "physical_pro
 # risk of a provision task (EP-08), the row numbers of the lines (EP-07), a state laid counting one
 # write of the task (US-1410).
 BESIDE = {"origin_risk_id", "row_number", "lock_version"}
-# What every task differs in, the core too, by the way the example is written, not by the dates:
-# the example names no calendar for a task on the default one, which the service names (DEFAULT);
-# finish_overdue is read at the day of the reading, the example's being 3 June 2026; total_float is
-# measured to the end of the project, which the tasks of #2594 move, and differs on tasks of the
-# core whose dates are the file's ("Dossier de conception", "Mise en service").
+# What every task differs in, the core too, by the way the example is written, not by the dates: the
+# example names no calendar for a task on the default one, which the service names (DEFAULT), and
+# finish_overdue is read at the day of the reading (the instant the engine scheduled the revision).
 DEFAULT = "01926f3a-7c00-7000-8000-000000000481"
-READING = {"calendar_id", "finish_overdue", "total_float"}
-# Decision of 2026-11-09 (issue #2347, finding #2594, carried to EP-07 / US-1570): until the lines
-# are loaded, TASKS_OF_2594 tasks by revision are dated by the engine otherwise than the file and
-# the volume example do, because 103 of them hold the 4x10 calendar of the roles of their lines, and
-# their successors and summaries follow. The slice of the lines (US-1570/L2) loads them: no task is
-# dated otherwise any more once the revision is filled, and the loader notes the 401 of the stage of
-# the tasks. What the engine computes of a task excused may differ in these fields.
-EXCUSED = {"start", "finish", "duration", "calendar_hours", "is_critical"}
+# The tasks the engine dated otherwise than the file at the stage of the tasks, before the lines.
 TASKS_OF_2594 = 401
 
 
@@ -422,13 +414,12 @@ def normal(entries: list[dict[str, Any]] | None, dropped: str = "") -> list[str]
     )
 
 
-def difference(
-    read_node: dict[str, Any], expected: dict[str, Any], *, excused: bool = False
-) -> list[str]:
+def difference(read_node: dict[str, Any], expected: dict[str, Any], read_on: date) -> list[str]:
     """Name what a node read differs in from the example, but for what the slice does not reach.
 
-    A task of #2594 (``excused``) may differ in ``EXCUSED``, and those fields are not compared; any
-    other task is compared on them too.
+    Every task is compared on every field, the dates and the float included. ``finish_overdue`` is
+    read at the day of the reading (``read_on``): a started task whose finish is before it; the
+    calendar is the example's when it names one.
     """
     found: list[str] = []
     for key in set(read_node) | set(expected):
@@ -440,19 +431,17 @@ def difference(
     for key in set(ours) | set(theirs):
         if key in AMOUNTS | {"tracking", "origin_risk_id"}:
             continue
-        if key in READING:
+        if key == "finish_overdue":
+            finish = date.fromisoformat(ours["finish"]["date"])
+            if ours[key] != (ours["progress"] == "started" and finish < read_on):
+                found.append(f"task.{key}")
+            continue
+        if key == "calendar_id" and theirs.get(key) is None:
             # The example names no calendar for a task on the default one, which the service names
             # (DEFAULT); a task on the calendar of ten hours of its roles' lines (EP-07) names it.
             ten = ours["calendar_hours"]["monday"] == "10"
-            if (
-                key == "calendar_id"
-                and theirs.get(key) is None
-                and ours.get(key) != DEFAULT
-                and not ten
-            ):
+            if ours.get(key) != DEFAULT and not ten:
                 found.append(f"task.{key}")
-            continue
-        if excused and key in EXCUSED:
             continue
         if ours.get(key) != theirs.get(key):
             found.append(f"task.{key}")
@@ -477,18 +466,11 @@ def test_the_readings_of_the_loaded_witness_are_the_examples_but_for_what_it_doe
     expected = example(name)
     wanted = {item["node_id"]: item for item in expected["items"] if item["kind"] == "task"}
     got = {item["node_id"]: item for item in body["items"]}
+    # The tasks of #2594 are dated as the file does once the lines are loaded, the 103 that hold the
+    # calendar of ten hours included: no task is excused, whatever the field.
     with witness.transaction() as session:
-        dated = set(dated_otherwise(session, 102))
-    # The tasks of #2594, dated otherwise before the lines: none once they are loaded, the 103 that
-    # hold the calendar of ten hours included.
-    holders = {
-        item["node_id"]
-        for item in example("volume/nodes_thousand")["items"]
-        if item["kind"] == "task" and item["task"]["calendar_hours"]["monday"] == "10"
-    }
-    excused = {each["node_id"] for each in file_tasks(102) if each["lineage_id"] in dated}
-    assert not excused
-    assert len(holders) == 103
+        assert not dated_otherwise(session, 102)
+    read_on = date.fromisoformat(body["meta"]["scheduled_at"][:10])
     if name == "nodes_summaries":
         # The reading answers the three summaries and every one the filter keeps of the tree.
         assert wanted.keys() <= got.keys()
@@ -496,7 +478,7 @@ def test_the_readings_of_the_loaded_witness_are_the_examples_but_for_what_it_doe
     assert got.keys() == wanted.keys()
     assert len(got) == len(wanted)
     for node_id, item in wanted.items():
-        found = difference(got[node_id], item, excused=node_id in excused)
+        found = difference(got[node_id], item, read_on)
         if name == "nodes_summaries":
             found = [each for each in found if each not in VARIANT_KEYS]
             if node_id == VARIANT:
@@ -519,19 +501,45 @@ def test_the_readings_of_the_loaded_witness_are_the_examples_but_for_what_it_doe
         assert len(ten) == 103
 
 
+READ_ON = date(2026, 6, 3)
+
+
 def test_the_comparison_fails_on_a_date_of_the_core_moved_by_a_day() -> None:
-    # The comparison bites: a task of the core, outside the tasks of #2594, whose start is one day
-    # off is a difference; the same difference is excused only when the task is one of #2594.
+    # The comparison bites on every task, none being excused: a start one day off is a difference.
     item = next(each for each in example("nodes_planning")["items"] if each["kind"] == "task")
     moved = copy.deepcopy(item)
     start = date.fromisoformat(item["task"]["start"]["date"])
     moved["task"]["start"]["date"] = (start + timedelta(days=1)).isoformat()
-    assert difference(item, item) == []
-    assert difference(moved, item) == ["task.start"]
-    assert difference(moved, item, excused=True) == []
-    # What is excused is not the amounts nor the row numbers: a label off is a difference anyway.
+    assert difference(item, item, READ_ON) == []
+    assert difference(moved, item, READ_ON) == ["task.start"]
     moved["task"]["label"] = "Autre"
-    assert difference(moved, item, excused=True) == ["task.label"]
+    assert sorted(difference(moved, item, READ_ON)) == ["task.label", "task.start"]
+
+
+def test_the_comparison_fails_on_a_float_of_the_core_moved_by_a_day() -> None:
+    # total_float is compared on the whole witness: a float one day off is a difference.
+    item = next(each for each in example("nodes_planning")["items"] if each["kind"] == "task")
+    moved = copy.deepcopy(item)
+    held = item["task"]["total_float"]
+    assert held["unit"] == "d"
+    moved["task"]["total_float"] = {"value": str(Decimal(held["value"]) + 1), "unit": "d"}
+    assert difference(moved, item, READ_ON) == ["task.total_float"]
+
+
+def test_the_comparison_reads_the_overdue_finish_at_the_day_of_the_reading() -> None:
+    # finish_overdue is a started task whose finish is before the day of the reading, the clock
+    # being known; and a calendar the example names is compared (none of the examples names one).
+    items = [each for name in READS for each in example(name)["items"] if each["kind"] == "task"]
+    assert all(each["task"].get("calendar_id") is None for each in items)
+    item = next(each for each in items if each["task"]["finish_overdue"])
+    assert difference(item, item, READ_ON) == []
+    assert difference(item, item, date(2020, 1, 1)) == ["task.finish_overdue"]
+    named = copy.deepcopy(item)
+    named["task"]["calendar_id"] = DEFAULT
+    other = copy.deepcopy(named)
+    other["task"]["calendar_id"] = "01926f3a-7c00-7000-8000-000000000999"
+    assert difference(named, named, READ_ON) == []
+    assert difference(other, named, READ_ON) == ["task.calendar_id"]
 
 
 def test_two_platforms_loaded_with_the_witness_hold_the_same_tasks(
@@ -704,6 +712,41 @@ def test_a_kept_task_moved_under_a_created_one_is_written_after_its_parent(
         assert (node.id, node.parent_id, node.rank) == (moved.node_id, created.node_id, 1)
         assert node.id in before
         assert after[created.lineage_id][0].id == created.node_id
+
+
+def test_a_created_child_described_before_its_created_parent_is_written_after_it(
+    witness: Database,
+) -> None:
+    # The created are inserted in one statement under no_autoflush: the order of load.tasks must not
+    # matter, a created child listed before its created parent being written all the same (#2651).
+    tasks = loaded_tasks(102)
+    leaves = [each for each in tasks if each.lineage_id not in {t.parent_lineage_id for t in tasks}]
+    parent = replace(
+        leaves[2],
+        node_id=UUID("01926f3a-7c00-7000-8000-00000000f001"),
+        lineage_id=UUID("01926f3a-7c00-7000-8000-00000000f101"),
+        label="Parent créé",
+        position=900,
+        links=(),
+    )
+    child = replace(
+        leaves[3],
+        node_id=UUID("01926f3a-7c00-7000-8000-00000000f002"),
+        lineage_id=UUID("01926f3a-7c00-7000-8000-00000000f102"),
+        parent_lineage_id=parent.lineage_id,
+        label="Enfant créé",
+        position=1,
+        links=(),
+    )
+    with witness.transaction() as session:
+        place = Place(PRJ_001, REVISION_102, structure_of(session, REVISION_102))
+        act = Act(author=None, at=instant(OPENED[102]))
+        # The child comes first in the list, its parent after it.
+        load_tasks(session, place, TasksLoad(PLANNING_START, (*tasks, child, parent)), act)
+        after = rows(session, REVISION_102)
+        assert len(after) == 1002
+        assert after[child.lineage_id][0].parent_id == parent.node_id
+        assert after[parent.lineage_id][0].id == parent.node_id
 
 
 def test_a_task_kept_under_another_identifier_is_written_again_with_its_lineage_its_links_and_state(

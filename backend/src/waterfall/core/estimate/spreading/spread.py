@@ -27,8 +27,6 @@ MONTHS_PER_YEAR = 12
 EXACT = Context(prec=34, rounding=ROUND_HALF_EVEN)
 """The context the parts are divided in: wide enough for an amount to the cent, and a few hours."""
 
-"""The scale of a part, a ten-billionth: the parts add up exactly in any context."""
-
 
 @dataclass(frozen=True, slots=True, order=True)
 class Month:
@@ -126,6 +124,7 @@ def _spread[K](
 
 
 DECIMALS = 10
+"""The scale of a part, a ten-billionth: the parts add up exactly in any context."""
 
 
 def _rounded(share: Fraction) -> Decimal:
