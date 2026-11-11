@@ -101,6 +101,10 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (4) :
 - #1714 — contrat : aucun exemple de `getPortfolioWorkload` ni de `getPortfolioPilotHealth` ne
   retient `completed`, l'avis de G-05 à vérifier sur le service réel, qui sert ici ces deux
   opérations. Reporté d'EP-04 par l'auteur le 2026-11-06 : EP-04 ne sert aucune des deux.
+- #2867 — front : la copie privée d'`identifierOf` dans `components/portfolio/address.ts` laisse
+  passer un identifiant de l'adresse qui n'est pas un UUID, que le service refuse par 422. Relevé au
+  cadrage d'EP-23, qui corrige la fonction du référentiel (US-1770, #2269) ; reporté ici par
+  l'auteur le 2026-11-11, rattaché à EP-23 (#2858) jusqu'à l'ouverture de l'issue d'EP-11.
 
 ## Préalables
 

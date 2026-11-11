@@ -160,6 +160,7 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-07](EP-07-chiffrage-et-devis.md) | Chiffrage et devis | en cours | EP-06 |
 | [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Coûts réels, reste à engager et import des coûts | en cours | EP-07 |
 | [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | en cours | EP-09 |
+| [EP-23](EP-23-dette-constats-ep02-ep03.md) | Dette des constats d'EP-02 et d'EP-03 | en cours | EP-02, EP-03, EP-06 |
 | [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | à planifier | EP-10 |
 | [EP-11](EP-11-portefeuille.md) | Portefeuille | à planifier | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | abandonné : chaque aller-retour se valide dans son bloc fonctionnel | — |
@@ -206,7 +207,11 @@ domaine, qui se construit sur les versions cibles (décision de l'auteur du 2026
 reprend les constats d'outillage qu'EP-19 n'a pas pu corriger dans ses lots (décision de
 l'auteur du 2026-11-04) et ce que deux jours de livraison à quatre livreurs ont révélé ; cadré le
 2026-11-07, il dépend aussi d'EP-05, dont la fusion dans `main` porte les fichiers qu'il touche, et
-ses lots, petits et indépendants, se livrent en parallèle d'EP-04 sur les créneaux libres.
+ses lots, petits et indépendants, se livrent en parallèle d'EP-04 sur les créneaux libres. EP-23
+solde les constats que les revues complètes du front et du back du 2026-11-07 ont laissés ouverts
+sous EP-02 et EP-03, livrés (décision de l'auteur du 2026-11-11) ; il ne sert aucun EPIC de domaine,
+et se livre en parallèle d'EP-07 et d'EP-09 sur sa propre branche, tirée de `main` après la fusion
+d'EP-06, sans toucher aux fichiers de leurs derniers lots.
 
 EP-13 ne dépend que d'EP-04 : il peut commencer tôt, mais il clôt des exigences transverses
 dont la dernière action arrive tard, et il finit en dernier.
