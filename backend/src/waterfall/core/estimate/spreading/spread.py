@@ -12,7 +12,7 @@ up to the total, to a ten-billionth, and the caller rounds once what it keeps (W
 
 from dataclasses import dataclass
 from datetime import date
-from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Context, Decimal
+from decimal import ROUND_HALF_EVEN, Context, Decimal
 from fractions import Fraction
 from typing import TYPE_CHECKING
 
@@ -27,7 +27,6 @@ MONTHS_PER_YEAR = 12
 EXACT = Context(prec=34, rounding=ROUND_HALF_EVEN)
 """The context the parts are divided in: wide enough for an amount to the cent, and a few hours."""
 
-PLACES = Decimal(1).scaleb(-10)
 """The scale of a part, a ten-billionth: the parts add up exactly in any context."""
 
 
@@ -126,6 +125,17 @@ def _spread[K](
     return _shares(amount, total, [(period, worked) for period, worked in hours if worked > 0])
 
 
+DECIMALS = 10
+
+
+def _rounded(share: Fraction) -> Decimal:
+    """Round the fraction to the places once, a half going away from zero."""
+    quotient, rest = divmod(abs(share.numerator) * 10**DECIMALS, share.denominator)
+    if 2 * rest >= share.denominator:
+        quotient += 1
+    return Decimal(quotient if share >= 0 else -quotient).scaleb(-DECIMALS)
+
+
 def _shares[K](
     amount: Decimal, total: Fraction, hours: list[tuple[K, Fraction]]
 ) -> dict[K, Decimal]:
@@ -134,9 +144,7 @@ def _shares[K](
     left = amount
     for period, worked in hours[:-1]:
         share = Fraction(amount) * worked / total
-        part = EXACT.divide(Decimal(share.numerator), Decimal(share.denominator)).quantize(
-            PLACES, rounding=ROUND_HALF_UP
-        )
+        part = _rounded(share)
         parts[period] = part
         left = EXACT.subtract(left, part)
     parts[hours[-1][0]] = left
