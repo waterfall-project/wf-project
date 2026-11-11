@@ -420,6 +420,12 @@ export interface GridConfig<Row, Sort extends string, Totals> {
   readonly address?: GridAddress;
   /** The number of a row, shown first and pinned, as the API computes it; none, no column. */
   readonly rowNumber?: (row: Row) => number;
+  /**
+   * Whether the grid has the column of the handles though the API numbers no row (#2916/L4): a
+   * flat table whose rows are selected, numbered by their place among those shown. Set by the grid
+   * itself (`useSelectedConfig`), never by a screen.
+   */
+  readonly handles?: boolean;
   readonly tree?: GridTree<Row>;
   /**
    * The difference a row bears with the structure it is read against, as the server marks it
@@ -472,6 +478,14 @@ export interface GridConfig<Row, Sort extends string, Totals> {
   readonly defaulted?: Readonly<Record<string, string>> | undefined;
   /** Whether the search is kept with the filters; `false`, it is not (the home keeps states). */
   readonly searchKept?: boolean | undefined;
+}
+
+/** Whether a grid has the column of the row numbers: the API numbers its rows, or it has handles. */
+export function hasRowNumbers(config: {
+  readonly rowNumber?: unknown;
+  readonly handles?: boolean;
+}): boolean {
+  return config.rowNumber !== undefined || config.handles === true;
 }
 
 /** The key of the column of row numbers, which no configuration may take. */

@@ -70,7 +70,7 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
     // The node before the roles (#379), each a list the session may choose from: the cell names it.
     await expect(
       accounts.getByRole("row", {
-        name: /^(?:\d+ — poignée de la ligne )?Moreau Alix alix\.moreau@example\.com Créé dans Waterfall BE-ELEC · Bureau d'études électricité Rôles de/,
+        name: /^\d+ — poignée de la ligne Moreau Alix alix\.moreau@example\.com Créé dans Waterfall BE-ELEC · Bureau d'études électricité Rôles de/,
       }),
     ).toHaveCount(1);
     await expect(accounts.getByRole("row").last()).toHaveText("7 comptes");
@@ -557,8 +557,13 @@ test("picks accounts one by one or all at once, and lifts the selection from the
   const accounts = page.getByRole("grid", { name: "Comptes utilisateurs" });
   const handles = accounts.getByRole("gridcell", { name: /poignée de la ligne/ });
   await expect(handles.first()).toBeVisible({ timeout: WORKING });
-  const bar = page.getByRole("toolbar", { name: "Actions sur la sélection" });
+  const bar = page.getByRole("group", { name: "Actions sur la sélection" });
   await expect(bar).toHaveCount(0);
+  const frame = accounts.locator("xpath=..");
+  const top = async () => (await handles.nth(0).boundingBox())?.y;
+  await handles.nth(0).scrollIntoViewIfNeeded();
+  const rowsAt = await top();
+  const frameAt = await frame.boundingBox();
   // The handles are cells of the grid: the pointer picks the first and the third, not the second.
   // The page hydrates meanwhile: a click before it is lost, so the pick is made until it shows.
   await expect(async () => {
@@ -567,6 +572,10 @@ test("picks accounts one by one or all at once, and lifts the selection from the
     await expect(bar).toContainText("2 comptes sélectionnés", { timeout: 1_000 });
   }).toPass({ timeout: WORKING });
   await expect(accounts.getByRole("row", { selected: true })).toHaveCount(2);
+  // The bar lies over the bar of the grid: the rows did not move when it came, so that the second
+  // click fell on the row aimed at.
+  expect(await top()).toBe(rowsAt);
+  expect(await frame.boundingBox()).toEqual(frameAt);
   const all = accounts.getByRole("checkbox", { name: "Sélectionner toutes les lignes affichées" });
   await expect(all).toHaveAttribute("aria-checked", "mixed");
   await all.click();

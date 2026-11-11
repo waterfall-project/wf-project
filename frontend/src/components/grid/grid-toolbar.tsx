@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/components/ui/utils";
 
 import type { GridColumn, GridConfig } from "./columns";
 import { useDatedEntry } from "./dated-entry";
@@ -105,6 +106,11 @@ export interface GridToolbarProps {
    * it needs on one line; none, the whole width.
    */
   readonly width?: string | undefined;
+  /**
+   * Whether the bar of a selection covers this one: hidden and inert, its place kept, so that the
+   * rows do not move (#2916/L4).
+   */
+  readonly covered?: boolean | undefined;
   /** The commands the screen gives the bar, first in it: those of the work breakdown on its rows. */
   readonly commands?: ReactNode;
 }
@@ -226,12 +232,14 @@ export function GridToolbar({
   grid,
   width,
   commands,
+  covered,
 }: GridToolbarProps) {
   const t = useTranslations("grid.columnsMenu");
   const said = useTranslations("commands");
   return (
     <div
-      className="flex min-w-min max-w-full items-center gap-2"
+      inert={covered}
+      className={cn("flex min-w-min max-w-full items-center gap-2", covered ? "invisible" : null)}
       style={width === undefined ? undefined : { width }}
     >
       {commands}

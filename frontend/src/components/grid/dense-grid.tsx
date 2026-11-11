@@ -313,8 +313,6 @@ interface CellStates<Row extends RowData, Sort extends string, Totals> {
   readonly handle: {
     readonly name: (number: number) => string;
     readonly hint: string;
-    /** Whether the handles are numbered by their place, the configuration giving no number. */
-    readonly numbered: boolean;
   };
 }
 
@@ -441,9 +439,7 @@ function BodyRow<Row extends RowData, Sort extends string, Totals>({
               state={cellStateOf(shared.cells, row.id, { row: index, column: cell.column.id })}
               menu={shared.cells.menu}
               pinning={pinningOf(shared.table, cell.column.id, "z-10")}
-              number={
-                shared.cells.handle.numbered ? index + 1 : shared.config.rowNumber?.(row.original)
-              }
+              number={shared.config.rowNumber?.(row.original) ?? index + 1}
               selected={selection.selected(index) === true}
               name={shared.cells.handle.name}
               hint={shared.cells.handle.hint}
@@ -498,7 +494,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   selecting,
 }: DenseGridProps<Row, Sort, Totals>) {
   const t = useTranslations("grid");
-  const { config, pick, numbered } = useSelectedConfig(given, selecting);
+  const { config, pick } = useSelectedConfig(given, selecting);
   const locale = useLocale();
   const currency = useCurrency();
   const pathname = usePathname();
@@ -557,6 +553,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   const scroller = useRef<HTMLDivElement>(null);
   const frameWidth = useFrameWidth(scroller);
   const room = useFrameRoom(scroller);
+  const roomBelow = useRoomBelow(scroller, stacked);
 
   const rowHeight = ROW_REM * useRootFontSize();
 
@@ -706,9 +703,8 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     scroller,
     pick,
   });
-  // The bar of the selection moves the frame down: the room below it is measured again.
+  // The bar of the selection lies over the bar of the grid, in its place: nothing moves under it.
   const barOpen = isBarOpen(selecting, selection.rows);
-  const roomBelow = useRoomBelow(scroller, stacked, barOpen);
   const screenCommands = onRows(
     commands,
     (index) => model[index]?.original,
@@ -742,7 +738,6 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     handle: {
       name: (number) => t("selection.handle", { number }),
       hint,
-      numbered,
     },
     editor: (draft, column) =>
       column.entry === undefined ? null : (
@@ -763,11 +758,12 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
 
   const grid = (
     <div
-      className="flex min-h-0 flex-col gap-2"
-      style={{ minHeight: withBar(bodyRows, 1 + Number(barOpen)) }}
+      className="relative flex min-h-0 flex-col gap-2"
+      style={{ minHeight: withBar(bodyRows) }}
       onKeyDown={undo.onKeyDown}
     >
       <GridToolbar
+        covered={barOpen}
         width={barWidthOf(frameWidth, table.getTotalSize())}
         search={query.search}
         onSearch={config.searched ? search : undefined}
@@ -795,7 +791,12 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         told={undo.told}
         onDismissed={keyboard.refocus}
       />
-      <SelectionNotes hint={hint} count={selection.count} pick={selection.pick} />
+      <SelectionNotes
+        hint={hint}
+        count={selection.count}
+        total={shownRows.length}
+        pick={selection.pick}
+      />
       <OutcomeNotice
         outcome={writer.outcome}
         onClear={writer.clear}

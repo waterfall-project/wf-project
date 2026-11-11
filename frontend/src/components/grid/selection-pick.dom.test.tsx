@@ -50,12 +50,13 @@ function grid(
   config: GridConfig<EstimateNode, NodeSortColumn, NodeTotals> = FLAT,
   tree = false,
   stacked?: boolean,
+  rows: readonly EstimateNode[] = ROWS,
 ) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <DenseGrid
         config={config}
-        rows={ROWS}
+        rows={rows}
         totals={witness.totals}
         totalsCaption={() => "—"}
         query={{ sort: undefined, search: undefined, size: undefined }}
@@ -78,8 +79,8 @@ const handle = (row: number): HTMLElement => {
   return found;
 };
 const selected = (): number[] =>
-  ROWS.flatMap((_, index) =>
-    handle(index).closest("tr")?.getAttribute("aria-selected") === "true" ? [index] : [],
+  [...document.querySelectorAll<HTMLElement>('td[data-column="row_number"]')].flatMap(
+    (cell, index) => (cell.closest("tr")?.getAttribute("aria-selected") === "true" ? [index] : []),
   );
 const header = () => screen.getByRole("checkbox", { name: /toutes les lignes affichées/ });
 
@@ -116,20 +117,116 @@ describe("the rows of a flat table picked one by one [WF-IHM-0040-A] [WF-IHM-010
     expect(selected()).toEqual([0, 1, 2, 3, 4]);
   });
 
-  it("toggles the row of the active cell by Ctrl and Space from the keyboard", async () => {
+  it("toggles the row of the active cell by Space alone, as a listbox that takes several does, and by Ctrl and Space too", async () => {
     const user = userEvent.setup();
     render(grid({}));
     act(() => {
       handle(0).focus();
     });
-    await user.keyboard("{Control>} {/Control}");
+    await user.keyboard(" ");
     expect(selected()).toEqual([0]);
-    await user.keyboard("{ArrowDown}{ArrowDown}{Control>} {/Control}");
+    await user.keyboard("{ArrowDown}{ArrowDown} ");
     expect(selected()).toEqual([0, 2]);
     await user.keyboard("{Control>} {/Control}");
     expect(selected()).toEqual([0]);
     await user.keyboard("{Escape}");
     expect(selected()).toEqual([]);
+  });
+
+  it("selects all the rows shown by Ctrl+A from the column of the handles, the box of the header then checked", async () => {
+    const user = userEvent.setup();
+    render(grid({}));
+    act(() => {
+      handle(1).focus();
+    });
+    await user.keyboard("{Control>}a{/Control}");
+    expect(selected()).toEqual([0, 1, 2, 3, 4]);
+    expect(header()).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Toutes les lignes affichées sont sélectionnées",
+    );
+  });
+
+  it("extends the selection by Shift and an arrow, from the anchor", async () => {
+    const user = userEvent.setup();
+    render(grid({}));
+    act(() => {
+      handle(1).focus();
+    });
+    await user.keyboard(" {Shift>}{ArrowDown}{ArrowDown}{/Shift}");
+    expect(selected()).toEqual([1, 2, 3]);
+  });
+
+  it("says in its status that none is selected after a removal, and that all are, and tells the box of the header on Space", async () => {
+    const user = userEvent.setup();
+    render(grid({}));
+    const status = screen.getByRole("status");
+    act(() => {
+      handle(0).focus();
+    });
+    await user.keyboard(" ");
+    expect(status).toHaveTextContent("1 ligne sélectionnée");
+    await user.keyboard(" ");
+    expect(status).toHaveTextContent("Aucune ligne sélectionnée");
+    const head = document.querySelector<HTMLElement>('th[data-column="row_number"]');
+    act(() => {
+      head?.focus();
+    });
+    await user.keyboard(" ");
+    expect(status).toHaveTextContent("Toutes les lignes affichées sont sélectionnées");
+    expect(header()).toHaveAttribute("aria-checked", "true");
+    await user.keyboard(" ");
+    expect(status).toHaveTextContent("Aucune ligne sélectionnée");
+    expect(header()).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("keeps the extent from the anchor for Shift and a click after a selection that is not contiguous", () => {
+    render(grid({}));
+    fireEvent.click(handle(0));
+    fireEvent.click(handle(2), { ctrlKey: true });
+    fireEvent.click(handle(4), { shiftKey: true });
+    expect(selected()).toEqual([2, 3, 4]);
+  });
+
+  it("says it takes several rows, and gives the focus back to the active cell once the selection is cancelled", () => {
+    render(grid({}));
+    expect(document.querySelector("[aria-multiselectable=true]")).not.toBeNull();
+    act(() => {
+      handle(2).focus();
+    });
+    fireEvent.click(handle(2));
+    fireEvent.click(
+      within(screen.getByRole("group", { name: "Actions sur la sélection" })).getByRole("button", {
+        name: "Annuler la sélection",
+      }),
+    );
+    expect(selected()).toEqual([]);
+    expect(handle(2)).toHaveFocus();
+  });
+
+  it("thins the selection to the rows a reading anew still shows, and lifts it when none is, on a page or a sort that changes", () => {
+    const { rerender } = render(grid({}));
+    fireEvent.click(handle(0));
+    fireEvent.click(handle(2), { ctrlKey: true });
+    fireEvent.click(handle(4), { ctrlKey: true });
+    // Rows 0 and 2 go: only the fifth is left, now the third.
+    rerender(grid({}, FLAT, false, undefined, [ROWS[1], ROWS[3], ROWS[4]] as EstimateNode[]));
+    expect(selected()).toEqual([2]);
+    expect(screen.getByRole("status")).toHaveTextContent("1 ligne sélectionnée");
+    rerender(grid({}, FLAT, false, undefined, [ROWS[1], ROWS[3]] as EstimateNode[]));
+    expect(selected()).toEqual([]);
+    expect(screen.queryByRole("group", { name: "Actions sur la sélection" })).toBeNull();
+    // An anchor that is gone: Shift and a click select alone.
+    rerender(grid({}));
+    fireEvent.click(handle(0));
+    rerender(grid({}, FLAT, false, undefined, ROWS.slice(1)));
+    fireEvent.click(handle(2), { shiftKey: true });
+    expect(selected()).toEqual([2]);
+  });
+
+  it("makes the box of the header unavailable where the grid shows no row", () => {
+    render(grid({}, FLAT, false, undefined, []));
+    expect(header()).toBeDisabled();
   });
 
   it("has a box for all the rows shown: unchecked, mixed, checked", () => {
@@ -152,15 +249,15 @@ describe("the rows of a flat table picked one by one [WF-IHM-0040-A] [WF-IHM-010
         commands: (rows) => <button type="button">Agir sur {rows.length}</button>,
       }),
     );
-    expect(screen.queryByRole("toolbar", { name: "Actions sur la sélection" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Actions sur la sélection" })).toBeNull();
     fireEvent.click(handle(0));
     fireEvent.click(handle(3), { ctrlKey: true });
-    const bar = screen.getByRole("toolbar", { name: "Actions sur la sélection" });
+    const bar = screen.getByRole("group", { name: "Actions sur la sélection" });
     expect(within(bar).getByText("2 comptes")).toBeVisible();
     expect(within(bar).getByRole("button", { name: "Agir sur 2" })).toBeVisible();
     fireEvent.click(within(bar).getByRole("button", { name: "Annuler la sélection" }));
     expect(selected()).toEqual([]);
-    expect(screen.queryByRole("toolbar", { name: "Actions sur la sélection" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Actions sur la sélection" })).toBeNull();
   });
 
   it("says « n lignes sélectionnées » when the screen gives no words", () => {
@@ -168,7 +265,7 @@ describe("the rows of a flat table picked one by one [WF-IHM-0040-A] [WF-IHM-010
     fireEvent.click(handle(0));
     fireEvent.click(handle(1), { ctrlKey: true });
     expect(
-      within(screen.getByRole("toolbar", { name: "Actions sur la sélection" })).getByText(
+      within(screen.getByRole("group", { name: "Actions sur la sélection" })).getByText(
         "2 lignes sélectionnées",
       ),
     ).toBeVisible();
@@ -202,13 +299,13 @@ describe("the grid that offers no selection [WF-IHM-0040-A] #2916", () => {
   it("has no handle, no box and no bar by default", () => {
     render(grid(undefined));
     expect(screen.queryByRole("checkbox")).toBeNull();
-    expect(screen.queryByRole("toolbar", { name: "Actions sur la sélection" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Actions sur la sélection" })).toBeNull();
     expect(document.querySelector('td[data-column="row_number"]')).toBeNull();
   });
 });
 
-describe("the room the bar of a selection takes above the grid #2916", () => {
-  it("is measured again by a grid that takes the room left below it: the bar moves its top down [WF-IHM-0100-A]", () => {
+describe("the bar of a selection lies over the bar of the grid #2916", () => {
+  it("moves nothing: the frame of the rows keeps its height and the bar of the grid is hidden and inert meanwhile [WF-IHM-0100-A]", () => {
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
       top: 300,
     } as DOMRect);
@@ -216,23 +313,31 @@ describe("the room the bar of a selection takes above the grid #2916", () => {
     vi.stubGlobal("scrollY", 0);
     const { container } = render(grid({}, FLAT, false, true));
     const scroller = container.querySelector<HTMLElement>(".max-h-svh");
+    const wrapper = container.querySelector<HTMLElement>("[class~=gap-2]");
     expect(scroller?.style.maxHeight).toBe("600px");
-    // The bar, once a row is selected, takes a line above the frame, whose top goes down.
-    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
-      top: 336,
-    } as DOMRect);
+    const before = wrapper?.style.minHeight;
     fireEvent.click(handle(0));
-    expect(scroller?.style.maxHeight).toBe("564px");
-    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
-      top: 300,
-    } as DOMRect);
-    fireEvent.click(
-      within(screen.getByRole("toolbar", { name: "Actions sur la sélection" })).getByRole(
-        "button",
-        { name: "Annuler la sélection" },
-      ),
-    );
     expect(scroller?.style.maxHeight).toBe("600px");
+    expect(wrapper?.style.minHeight).toBe(before);
+    const bar = screen.getByRole("group", { name: "Actions sur la sélection" });
+    expect(bar.className).toContain("absolute");
+    expect(container.querySelector("[inert]")).not.toBeNull();
     vi.unstubAllGlobals();
+  });
+});
+
+describe("the grid that is a tree keeps its keyboard #2916", () => {
+  it("takes Space as a selection alone, and neither Ctrl and Space nor Ctrl+A", async () => {
+    const user = userEvent.setup();
+    render(grid({}, ESTIMATE_GRID, true));
+    act(() => {
+      handle(0).focus();
+    });
+    await user.keyboard(" ");
+    expect(selected()).toEqual([0]);
+    await user.keyboard("{ArrowDown}{Control>} {/Control}");
+    expect(selected()).toEqual([0]);
+    await user.keyboard("{Control>}a{/Control}");
+    expect(selected()).toEqual([0]);
   });
 });

@@ -85,6 +85,8 @@ export interface HeaderCellProps<Row extends RowData> {
 export interface SelectAll {
   readonly state: "all" | "some" | "none";
   readonly toggle: () => void;
+  /** Whether there is no row to select: the box is unavailable. */
+  readonly disabled: boolean;
 }
 
 /** The box that selects all the rows shown, mixed when only some are. */
@@ -95,6 +97,7 @@ function SelectAllBox({ all }: { readonly all: SelectAll }) {
     <Checkbox
       aria-label={t("all")}
       checked={checked[all.state]}
+      disabled={all.disabled}
       tabIndex={-1}
       onCheckedChange={all.toggle}
       className="size-3.5 align-middle"
@@ -349,7 +352,7 @@ function selectAllKey(
   selectAll: SelectAll | undefined,
   event: KeyboardEvent<HTMLElement>,
 ): boolean {
-  if (selectAll === undefined || event.key !== " ") {
+  if (selectAll === undefined || selectAll.disabled || event.key !== " ") {
     return false;
   }
   selectAll.toggle();

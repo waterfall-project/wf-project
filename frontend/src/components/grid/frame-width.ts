@@ -46,13 +46,11 @@ export function useFrameWidth(frame: RefObject<HTMLElement | null>): number | un
  * bounds a frame to a window's worth from wherever it starts, which is not enough for a grid that
  * a stacked layout sets low on the page; this is the bound that is. Kept as the window and the
  * page change; none while `enabled` is false, before it is measured, and where the browser does
- * not lay out. `above` is anything that, changing, says that the frame moved down or up without the
- * page or the window changing (#2916/L4).
+ * not lay out.
  */
 export function useRoomBelow(
   frame: RefObject<HTMLElement | null>,
   enabled: boolean | undefined,
-  above?: unknown,
 ): number | undefined {
   const [room, setRoom] = useState<number | undefined>(undefined);
   useLayoutEffect(() => {
@@ -80,8 +78,6 @@ export function useRoomBelow(
       window.removeEventListener("resize", measure);
       observer?.disconnect();
     };
-    // What is laid above the frame without moving the page — the bar of a selection — moves its top
-    // too: `above` is what tells it, and measures again.
-  }, [frame, enabled, above]);
+  }, [frame, enabled]);
   return enabled === true ? room : undefined;
 }

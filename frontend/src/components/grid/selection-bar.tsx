@@ -4,8 +4,9 @@
  * The bar of the actions on a selection, above a dense grid as soon as a row is selected (#2916/L4):
  * how many rows are selected — in the words of the screen where it gives them, « 3 comptes
  * sélectionnés » —, the commands the screen gives for those rows, and « Annuler la sélection ». A
- * toolbar named, dark, as wide as the bar above it. It takes room above the frame of the grid,
- * which the grids that fill what is left of the window measure again (`useRoomBelow`).
+ * group named, dark, as wide as the bar of the grid and as high, which it covers from the start of
+ * the grid: it takes no room of its own, so that the rows do not move when the first row is selected
+ * (the bar of the grid is hidden and inert meanwhile, `GridToolbar.covered`).
  */
 "use client";
 
@@ -35,12 +36,9 @@ export function useSelectedConfig<Row, Sort extends string, Totals>(
   selecting: SelectionBarOptions<Row> | undefined,
 ) {
   const pick = selecting !== undefined && given.tree === undefined;
-  const numbered = pick && given.rowNumber === undefined;
-  const config = useMemo(
-    () => (numbered ? { ...given, rowNumber: () => 0 } : given),
-    [given, numbered],
-  );
-  return { config, pick, numbered };
+  const handles = pick && given.rowNumber === undefined;
+  const config = useMemo(() => (handles ? { ...given, handles } : given), [given, handles]);
+  return { config, pick };
 }
 
 /** Whether the bar of a selection is shown: the screen gives one, and a row is selected. */
@@ -71,9 +69,9 @@ export function SelectionBar<Row>({
   }
   return (
     <div
-      role="toolbar"
+      role="group"
       aria-label={t("bar")}
-      className="flex min-w-min max-w-full items-center gap-2 rounded-md bg-foreground px-3 py-1 text-xs text-background"
+      className="absolute top-0 left-0 flex h-7 min-w-min max-w-full items-center gap-2 rounded-md bg-foreground px-3 py-1 text-xs text-background"
       style={{ width }}
     >
       <span className="font-medium">
