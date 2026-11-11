@@ -14,7 +14,8 @@
  *   the notice says before it leads to the sign-in page — never at once: the write is told as not
  *   applied; the sign-in asks for the identifiers again for a session closed —, an account
  *   deactivated or not admitted (`ACCOUNT_DEACTIVATED_DIGEST`, `ACCOUNT_NOT_ADMITTED_DIGEST`),
- *   which it does not — signing in again would loop —, or the unexpected error (`INTERNAL_ERROR`, WF-ARC-0110)
+ *   which it does not — signing in again would loop —, a component of the platform unavailable
+ *   (`componentDigest`), which the notice names as the refusal of the API does, or the unexpected error (`INTERNAL_ERROR`, WF-ARC-0110)
  *   with its reference — the correlation identifier of the API, or the digest Next computed —,
  *   kept only when it has the form the contract gives a `correlation_id`: the notice shows it as
  *   the screen of failure does (WF-OBS-0020).
@@ -23,10 +24,12 @@
  * Pure, and free of the client of the API: a client component calls it.
  */
 import type { Outcome } from "@/api/problem";
-import { type BoundaryError, type Failure, failureOf } from "@/components/system/failure";
-
-/** The form the contract gives a correlation identifier (`Problem.correlation_id`). */
-const CORRELATION = /^[A-Za-z0-9._-]{1,64}$/;
+import {
+  type BoundaryError,
+  type Failure,
+  failureOf,
+  isCorrelation,
+} from "@/components/system/failure";
 
 /** The rejection as the screen of failure reads it: its digest, if it carries one. */
 function asBoundaryError(error: unknown): BoundaryError {
@@ -44,10 +47,10 @@ function accountRefused(code: "ACCOUNT_DEACTIVATED" | "ACCOUNT_NOT_ADMITTED"): O
 
 /**
  * The outcome of a loss the screen of failure tells apart: out of reach, signed out, the session
- * closed, the account deactivated or not admitted.
+ * closed, the account deactivated or not admitted, a component of the platform unavailable.
  */
-function outcomeOfLoss(kind: Exclude<Failure["kind"], "unexpected">): Outcome<never> {
-  switch (kind) {
+function outcomeOfLoss(failure: Exclude<Failure, { kind: "unexpected" }>): Outcome<never> {
+  switch (failure.kind) {
     case "unreachable":
       return { kind: "unreachable" };
     case "session_lost":
@@ -55,13 +58,26 @@ function outcomeOfLoss(kind: Exclude<Failure["kind"], "unexpected">): Outcome<ne
     case "revoked":
       return {
         kind: "signed_out",
-        problem: { code: kind === "revoked" ? "SESSION_REVOKED" : "SESSION_REQUIRED", status: 401 },
+        problem: {
+          code: failure.kind === "revoked" ? "SESSION_REVOKED" : "SESSION_REQUIRED",
+          status: 401,
+        },
         conflictingObjectId: null,
       };
     case "deactivated":
       return accountRefused("ACCOUNT_DEACTIVATED");
     case "not_admitted":
       return accountRefused("ACCOUNT_NOT_ADMITTED");
+    case "component_unavailable":
+      return {
+        kind: "refused",
+        problem: {
+          code: "COMPONENT_UNAVAILABLE",
+          status: 503,
+          params: { component: failure.component },
+        },
+        conflictingObjectId: null,
+      };
   }
 }
 
@@ -72,7 +88,7 @@ export function rejected(error: unknown): Outcome<never> {
   }
   const failure = failureOf(asBoundaryError(error));
   if (failure.kind !== "unexpected") {
-    return outcomeOfLoss(failure.kind);
+    return outcomeOfLoss(failure);
   }
   const { reference } = failure;
   return {
@@ -80,9 +96,7 @@ export function rejected(error: unknown): Outcome<never> {
     problem: {
       code: "INTERNAL_ERROR",
       status: 500,
-      ...(reference !== undefined && CORRELATION.test(reference)
-        ? { correlation_id: reference }
-        : {}),
+      ...(isCorrelation(reference) ? { correlation_id: reference } : {}),
     },
     conflictingObjectId: null,
   };

@@ -525,15 +525,21 @@ Les pages système sont des pièces de la coquille (`frontend/src/app/`,
 `frontend/src/components/system/`). Une lecture dont un écran ne peut se passer passe par
 `readOrFail` de `frontend/src/api/problem.ts`, qui rend ses données ou lève : un 404 mène à l'écran
 « introuvable » unique (`not-found.tsx`), qu'une adresse inexistante et une lecture refusée
-atteignent sans distinction (WF-ADM-0110) ; l'API injoignable lève `Unreachable`, et toute autre
-réponse `UnexpectedAnswer`. Une lecture dont l'écran se passe passe par `readUnlessRefused`, à côté
+atteignent sans distinction (WF-ADM-0110) ; l'API injoignable lève `Unreachable` — `fetch` rejeté,
+ou une passerelle qui répond 502, 503 ou 504 sans l'enveloppe du contrat — ; un 503
+`COMPONENT_UNAVAILABLE` dont l'enveloppe nomme un composant du contrat (`params.component`, un
+`PlatformComponent`) lève `ComponentUnavailable`, la panne de ce composant (WF-EXP-0040, #2265) ; et
+toute autre réponse — une enveloppe 503 sans composant reconnu comprise — `UnexpectedAnswer`. Une
+lecture dont l'écran se passe passe par `readUnlessRefused`, à côté
 : elle ne rend rien sur les refus qu'il attend — un statut, et le `code` de l'enveloppe quand le
 statut ne dit pas lequel —, et suit la même règle pour le reste. L'écran de panne (`error.tsx` dans
 la coquille, `global-error.tsx` quand le layout racine échoue) ne reçoit en production que le
 `digest` de l'erreur levée côté serveur : `Unreachable` porte `UNREACHABLE_DIGEST`, qu'il annonce
 comme tel, `SessionLost` `SESSION_LOST_DIGEST`, qui mène à la connexion sans clic, `SignedOut`
-(un 401) `SESSION_REQUIRED_DIGEST`, qui y mène par un lien (`loginHref`), `UnexpectedAnswer`
-l'identifiant de corrélation de l'enveloppe, préfixé de `WATERFALL_CORRELATION;` pour qu'aucune
+(un 401) `SESSION_REQUIRED_DIGEST`, qui y mène par un lien (`loginHref`), `ComponentUnavailable`
+le composant, préfixé de `WATERFALL_COMPONENT_UNAVAILABLE;` (`componentDigest`), que l'écran nomme
+dans les mots du catalogue (`enums.PlatformComponent`) — un digest dont le composant n'est pas du
+contrat reste l'erreur inattendue —, `UnexpectedAnswer` l'identifiant de corrélation de l'enveloppe, préfixé de `WATERFALL_CORRELATION;` pour qu'aucune
 valeur de l'API ne prenne un sens pour Next (`NEXT_REDIRECT;…`), et qu'il affiche en référence sans
 le préfixe (`failure.ts`). Sans enveloppe, ou sans `correlation_id`, la référence affichée est le
 digest que Next calcule, celui de ses propres journaux. Un écran ne dit jamais « vide » sur une
@@ -4492,7 +4498,8 @@ ses paramètres, jamais une phrase.
   502, 503 ou 504 sans enveloppe `Problem`, qu'une passerelle rend quand le service est
   tombé. Une réponse d'erreur sans enveloppe, ou dont le `code` manque au catalogue — un
   service plus récent que le front —, vaut `INTERNAL_ERROR`, « erreur inattendue », au
-  statut reçu : l'écran n'affiche jamais une clé brute. Le composant le dit par
+  statut reçu, avec le `correlation_id` de l'enveloppe quand il a la forme du contrat, que l'avis
+  présente en référence (WF-OBS-0020, #2264) : l'écran n'affiche jamais une clé brute. Le composant le dit par
   `OutcomeNotice` (`frontend/src/components/commands/`), en alerte : la phrase de
   `problemMessage`, qui nomme aussi les objets que le refus ne donne que par leurs identifiants
   quand l'écran les a lus (`names`) ; les lignes ou les projets nommés au-delà de la phrase, hors de

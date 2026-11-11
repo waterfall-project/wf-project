@@ -8,6 +8,8 @@ import { example, type FakeAnswer, fakeClient } from "@/test/fixtures";
 import {
   ACCOUNT_DEACTIVATED_DIGEST,
   ACCOUNT_NOT_ADMITTED_DIGEST,
+  componentDigest,
+  correlationDigest,
   failureOf,
   SESSION_REQUIRED_DIGEST,
   SESSION_REVOKED_DIGEST,
@@ -19,9 +21,11 @@ import { ACCOUNT_REFUSALS, accountRefusalOf, isAccountRefusal, kindOf } from "./
 import {
   AccountRefused,
   type BackgroundTask,
+  ComponentUnavailable,
   decode,
   decodeTask,
   type ExpectedRefusal,
+  OPTIONAL_READ_REFUSALS,
   reach,
   readOrFail,
   readOrRefused,
@@ -509,5 +513,146 @@ describe("the refusals of the account itself (#1005) [WF-ADM-0060-A]", () => {
     expect(accountRefusalOf(401, undefined)).toBeUndefined();
     expect(accountRefusalOf(401, "toString")).toBeUndefined();
     expect(kindOf(401, "SESSION_EXPIRED")).toBe("signed_out");
+  });
+});
+
+describe("a read refused for a component of the platform unavailable", () => {
+  /**
+   * The refusal of the contract while the identity provider does not answer
+   * (`invitation_provider_unavailable`), as the decoder reads it: if the generated example
+   * changes, the assertion fails here.
+   */
+  const PROVIDER_DOWN = {
+    code: "COMPONENT_UNAVAILABLE",
+    status: 503,
+    params: { component: "identity_provider" },
+    correlation_id: "01926f3a-7c00-7000-8000-000000001906",
+  } as const;
+
+  /** The refusal of the contract before the installation is bootstrapped, the database named. */
+  const DATABASE_DOWN = {
+    code: "COMPONENT_UNAVAILABLE",
+    status: 503,
+    params: { component: "database" },
+  } as const;
+
+  /** Read the account of the session, answered as the test says. */
+  const me = (answer: FakeAnswer<"GET /me">) =>
+    readOrFail("getMe", () => fakeClient({ "GET /me": answer }).GET("/me"));
+
+  it("throws the component unavailable on getMe while the identity provider does not answer, named for the screen of failure [WF-EXP-0040-A]", async () => {
+    expect(example("invitation_provider_unavailable")).toMatchObject(PROVIDER_DOWN);
+    const read = me({ problem: PROVIDER_DOWN });
+    await expect(read).rejects.toBeInstanceOf(ComponentUnavailable);
+    await expect(read).rejects.toMatchObject({
+      operation: "getMe",
+      component: "identity_provider",
+      digest: "WATERFALL_COMPONENT_UNAVAILABLE;identity_provider",
+    });
+    const error = await read.catch((thrown: unknown) => thrown);
+    if (!(error instanceof ComponentUnavailable)) {
+      throw new Error("the read should have been refused for the component");
+    }
+    expect(failureOf(error)).toEqual({
+      kind: "component_unavailable",
+      component: "identity_provider",
+    });
+  });
+
+  it("throws the component unavailable on a read the screen can do without, never an unexpected error [WF-EXP-0040-A]", async () => {
+    expect(example("installation_not_bootstrapped")).toMatchObject(DATABASE_DOWN);
+    const client = fakeClient({ "GET /reference/readiness": { problem: DATABASE_DOWN } });
+    const read = readUnlessRefused("getReferenceReadiness", OPTIONAL_READ_REFUSALS, () =>
+      client.GET("/reference/readiness"),
+    );
+    await expect(read).rejects.toBeInstanceOf(ComponentUnavailable);
+    await expect(read).rejects.toMatchObject({ digest: componentDigest("database") });
+  });
+
+  it.each([
+    ["no component", { code: "COMPONENT_UNAVAILABLE", status: 503 }],
+    [
+      "a component the contract does not know",
+      { code: "COMPONENT_UNAVAILABLE", status: 503, params: { component: "toString" } },
+    ],
+    ["another code", { code: "INTERNAL_ERROR", status: 503, params: { component: "database" } }],
+  ] as const)(
+    "throws an envelope 503 that names %s as unexpected, with its reference",
+    async (_, problem) => {
+      const read = me({ problem: { ...problem, correlation_id: "req-503" } });
+      await expect(read).rejects.toBeInstanceOf(UnexpectedAnswer);
+      await expect(read).rejects.toMatchObject({
+        status: 503,
+        digest: correlationDigest("req-503"),
+      });
+    },
+  );
+
+  it.each([502, 503, 504])(
+    "throws a gateway's %i without the envelope as the API out of reach",
+    async (status) => {
+      const page = new Response("<html>Service unavailable</html>", { status });
+      const read = readOrFail("getMe", () => answering(() => Promise.resolve(page)).GET("/me"));
+      await expect(read).rejects.toMatchObject({ digest: UNREACHABLE_DIGEST });
+    },
+  );
+
+  it("never takes a digest for a component the contract does not name", () => {
+    const forged = Object.assign(new Error("forged"), {
+      digest: "WATERFALL_COMPONENT_UNAVAILABLE;toString",
+    });
+    expect(failureOf(forged)).toEqual({
+      kind: "unexpected",
+      reference: "WATERFALL_COMPONENT_UNAVAILABLE;toString",
+    });
+  });
+});
+
+describe("a refusal whose code the catalogue does not know (#2264)", () => {
+  /** Write the preferences, answered by a service newer than the front with the body given. */
+  function newer(body: object) {
+    const client = answering(() =>
+      Promise.resolve(
+        Response.json(body, {
+          status: 403,
+          headers: { "content-type": "application/problem+json" },
+        }),
+      ),
+    );
+    return decode(() => client.PATCH("/me/preferences", { body: {} }));
+  }
+
+  it("stays the unexpected error, and keeps the correlation identifier the envelope carries [WF-OBS-0020-A]", async () => {
+    const outcome = await newer({
+      code: "A_CODE_OF_A_NEWER_SERVICE",
+      status: 403,
+      correlation_id: "01926f3a-7c00-7000-8000-000000001906",
+    });
+    expect(outcome).toEqual({
+      kind: "refused",
+      problem: {
+        code: "INTERNAL_ERROR",
+        status: 403,
+        correlation_id: "01926f3a-7c00-7000-8000-000000001906",
+      },
+      conflictingObjectId: null,
+    });
+  });
+
+  it.each([
+    ["empty", ""],
+    ["not of the form of the contract", "req 7f3a;redirect"],
+    ["not a string", 42],
+  ])("keeps no correlation identifier %s", async (_, correlation) => {
+    const outcome = await newer({
+      code: "A_CODE_OF_A_NEWER_SERVICE",
+      status: 403,
+      correlation_id: correlation,
+    });
+    expect(outcome).toEqual({
+      kind: "refused",
+      problem: { code: "INTERNAL_ERROR", status: 403 },
+      conflictingObjectId: null,
+    });
   });
 });

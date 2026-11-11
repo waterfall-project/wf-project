@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   ACCOUNT_DEACTIVATED_DIGEST,
   ACCOUNT_NOT_ADMITTED_DIGEST,
+  componentDigest,
   correlationDigest,
   SESSION_LOST_DIGEST,
   SESSION_REQUIRED_DIGEST,
@@ -72,6 +73,18 @@ describe("a server action whose promise rejected", () => {
       });
     },
   );
+
+  it("is the refusal that names the component unavailable, by its digest, as the API names it [WF-EXP-0040-A]", () => {
+    expect(rejected(thrown(componentDigest("object_storage")))).toEqual({
+      kind: "refused",
+      problem: {
+        code: "COMPONENT_UNAVAILABLE",
+        status: 503,
+        params: { component: "object_storage" },
+      },
+      conflictingObjectId: null,
+    });
+  });
 
   it("is the unexpected error with the correlation identifier of the API, its prefix left out", () => {
     expect(rejected(thrown(correlationDigest("req-01926f3a.7c00")))).toEqual(

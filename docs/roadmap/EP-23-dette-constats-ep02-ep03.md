@@ -392,7 +392,7 @@ morceaux interrompu (#2258, EP-13).
 
 ## US-1760 — Une lecture refusée par un composant indisponible le nomme, et un refus inconnu garde sa référence
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-EXP-0040-A`, `WF-OBS-0020-A`
 - **opérations** : `getMe`, `updateMyPreferences`, et toute lecture d'un écran
 - **issue** : #2864

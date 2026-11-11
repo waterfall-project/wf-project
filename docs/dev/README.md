@@ -531,15 +531,22 @@ The system pages are pieces of the shell (`frontend/src/app/`, `frontend/src/com
 read a screen cannot do without goes through `readOrFail` of `frontend/src/api/problem.ts`, which
 renders its data or throws: a 404 leads to the single « not found » screen (`not-found.tsx`), which
 a non-existent address and a refused read reach without distinction (WF-ADM-0110); the API
-unreachable throws `Unreachable`, and any other response `UnexpectedAnswer`. A read a screen can do
+unreachable throws `Unreachable` — `fetch` rejected, or a gateway answering 502, 503 or 504 without
+the envelope of the contract —; a 503 `COMPONENT_UNAVAILABLE` whose envelope names a component of
+the contract (`params.component`, a `PlatformComponent`) throws `ComponentUnavailable`, the failure
+of that component (WF-EXP-0040, #2265); and any other response — a 503 envelope without a
+recognised component included — `UnexpectedAnswer`. A read a screen can do
 without goes through `readUnlessRefused`, next to it: it renders nothing on the refusals it expects
 — a status, and the `code` of the envelope when the status does not say which —, and follows the
 same rule for the rest. The failure screen (`error.tsx` in the shell, `global-error.tsx` when the
 root layout fails) receives in production only the `digest` of the error thrown server-side:
 `Unreachable` carries `UNREACHABLE_DIGEST`, which it announces as such, `SessionLost`
 `SESSION_LOST_DIGEST`, which leads to the sign-in without a click, `SignedOut` (a 401)
-`SESSION_REQUIRED_DIGEST`, which leads there by a link (`loginHref`), `UnexpectedAnswer` the
-correlation identifier of the envelope, prefixed with `WATERFALL_CORRELATION;` so that no value from
+`SESSION_REQUIRED_DIGEST`, which leads there by a link (`loginHref`), `ComponentUnavailable` the
+component, prefixed with `WATERFALL_COMPONENT_UNAVAILABLE;` (`componentDigest`), which the screen
+names in the words of the catalogue (`enums.PlatformComponent`) — a digest whose component is not
+of the contract stays the unexpected error —, `UnexpectedAnswer` the correlation identifier of the
+envelope, prefixed with `WATERFALL_CORRELATION;` so that no value from
 the API takes on a meaning for Next (`NEXT_REDIRECT;…`), and which it displays as a reference
 without the prefix (`failure.ts`). Without an envelope, or without a `correlation_id`, the reference
 displayed is the digest Next computes, that of its own logs. A screen never says « empty » on a
@@ -4422,8 +4429,9 @@ its parameters, never a sentence.
   (another `TypeError` is a defect and propagates), or a 502, 503 or 504 without a `Problem`
   envelope, which a gateway returns when the service is down. An error response without an envelope,
   or whose `code` is missing from the catalogue — a service more recent than the front —, counts as
-  `INTERNAL_ERROR`, « unexpected error », at the status received: the screen never displays a raw
-  key. The component says it through `OutcomeNotice` (`frontend/src/components/commands/`), as an
+  `INTERNAL_ERROR`, « unexpected error », at the status received, with the `correlation_id` of the
+  envelope when it has the form of the contract, which the notice presents as the reference
+  (WF-OBS-0020, #2264): the screen never displays a raw key. The component says it through `OutcomeNotice` (`frontend/src/components/commands/`), as an
   alert: the sentence of `problemMessage`, which also names the objects the refusal gives only by
   their identifiers when the screen has read them (`names`); the lines or the projects named beyond
   the sentence, outside the alert and described by its sentence (#765); on 412, the offer to reload
