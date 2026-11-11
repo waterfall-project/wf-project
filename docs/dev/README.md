@@ -1311,7 +1311,15 @@ in a dialog (`completion-date.tsx`, the day of the workstation proposed), replay
 same version with `completed_on`, and, the dialog left, tells the refusal at the cell. The deletion
 of a task started, refused `task_not_started`, is told in the planning, estimate and remaining
 grids with a link to the task's line in the remaining-to-commit grid of the same revision
-(`taskRemainingHref`, WF-PLA-0070). The Kanban of task starts, FBS-4.5.3, is a leaf of the
+(`taskRemainingHref`, WF-PLA-0070); for a summary task, whose refusal does not say which subordinate
+causes it, the link carries `progress=started,completed` (never the tasks not started, which cause no
+refusal), and the front deduces nothing of what the service knows (#2819). The dialog of the completion
+date is named by a counter, not by `crypto.randomUUID()`, which a page served over HTTP outside
+localhost does not provide (#2818). The screen no longer carries `MockupNotice`: the grid, the
+indicators and the Kanban are the service's. The whole of `e2e/remaining.spec.ts` carries `@shared`
+(the grid and the Kanban); the path that writes plays on a project the run creates (`seedPlanning`,
+`bringInProgress`, #2193), and those that read the volume witness or the risk coverage (a provision, a
+risk) stay guarded by `inService` until **EP-08** (volumes: **EP-13**). The Kanban of task starts, FBS-4.5.3, is a leaf of the
 function, `…/revisions/[r]/kanban`, where the header of the grid leads: all the non-started tasks,
 the started and the completed ones with their date, as `listStartableTasks` renders them, each a
 card, a non-started milestone whose predecessors are completed flagged to be completed
@@ -2908,7 +2916,7 @@ through `MockupNotice` with `lists` (`mockup.notFiltered`), in a single note und
 screens whose service is delivered do not show the note, even though `make dev` serves them through
 Prism and the same limits apply: administration (EP-03), the reference data (EP-05) and, from EP-04,
 the connected home (US-0920/L2), the revisions (US-0960, US-0970) and the settings of the project
-(US-1000), and, from EP-07, the workload (US-1520) and the estimate (US-1560), and, from EP-09, the actual costs (US-1620); a success there is
+(US-1000), and, from EP-07, the workload (US-1520) and the estimate (US-1560), and, from EP-09, the actual costs (US-1620), the remaining-to-commit grid and the Kanban (US-1640, which removes `MockupNotice` from them); a success there is
 what the service kept, read anew.
 
 _Checks_: `make lint-openapi` (examples conforming to the schemas, volumes included),
@@ -4092,6 +4100,14 @@ the epic that lifts it; that epic removes the guard and its entry:
   In progress (the estimate of the main structure read only, a line under a completed task refused)
   is replayed only with the witness of US-1570: the tasks « started » and « completed » cannot be
   written before a project is In progress.
+- `remaining.spec.ts` — the remaining-to-commit grid and the Kanban (US-1640): the whole file carries
+  `@shared`. The path that writes — a task started and a milestone completed on the Kanban, the lines
+  of the started task in the grid, the tasks not started on demand — plays against the service on a
+  project the run creates (`seedPlanning`, `bringInProgress`, #2193). Those that read the volume
+  witness (a thousand tasks, `NO_VOLUME_IN_SERVICE`, lifted by **EP-13**) or the risk coverage, a
+  provision or a risk (lifted by **EP-08**), stay guarded by `inService`; the gestures on the Kanban of
+  the fake back, which keeps nothing, and the « Sub-project » submenu (`FAKE_BACK_KEEPS_NOTHING`) play
+  against the fake back alone, their equivalent against the service being the path that writes.
 - `projects.spec.ts` — the paths that write to PRJ-001 or reach it through its planning: the screen
   of the project, its settings and its lifecycle, the exit, the sub-projects and the contributors,
   the work breakdown (`FAKE_BACK_ONLY`): the account of the run is not a project manager of PRJ-001,

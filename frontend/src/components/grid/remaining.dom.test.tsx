@@ -115,6 +115,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("the grid of the remaining to commit", () => {
@@ -359,6 +360,22 @@ describe("the grid of the remaining to commit", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
+  it("asks the date on a page without `crypto.randomUUID`, served over HTTP outside a secure context [WF-RAE-0040-A]", async () => {
+    // #2818: the dialog of the date is named by a counter, not by an identifier a secure context
+    // alone provides.
+    vi.stubGlobal("crypto", {});
+    const problem = example("remaining_completion_date_required") as Problem & {
+      readonly status: 422;
+    };
+    serve([{ problem }, "remaining_reestimated"]);
+    render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.clear(screen.getByRole("textbox", { name: "Charge (h)" }));
+    await userEvent.keyboard("0{Enter}");
+    expect(await screen.findByRole("dialog", { name: "Terminer la tâche" })).toBeInTheDocument();
+  });
+
   it("gives the entry up when the date is not given, and tells the refusal at the cell [WF-RAE-0040-A]", async () => {
     const problem = example("remaining_completion_date_required") as Problem & {
       readonly status: 422;
@@ -400,7 +417,16 @@ describe("the grid of the remaining to commit", () => {
     await userEvent.clear(date);
     await userEvent.type(date, "2026-06-01");
     await userEvent.click(within(dialog).getByRole("button", { name: "Terminer la tâche" }));
-    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    // The refusal of the second write, not the first (`COMPLETION_DATE_REQUIRED`): the sentence of
+    // the code the service gave, said once in the alert of the grid, beside the grid, which a
+    // replay that kept the first refusal would say otherwise (#2817).
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("La valeur sort des limites admises.");
+    expect(alert).not.toHaveTextContent("indiquez la date de sa terminaison");
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(alert.closest("div.flex-col")).toContainElement(
+      screen.getByRole("treegrid", { name: "Grille de reste à engager" }),
+    );
     expect(written(client)).toHaveLength(2);
     expect(screen.queryByRole("dialog")).toBeNull();
   });

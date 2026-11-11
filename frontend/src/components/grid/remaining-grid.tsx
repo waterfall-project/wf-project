@@ -52,9 +52,15 @@ import type { LineCategory } from "./structure-rules";
  */
 const SCOPE = ["progress"] as const;
 
+/**
+ * The number of the last date asked, which names the next one (the `key` of its dialog): a counter,
+ * not `crypto.randomUUID()`, which a page served over HTTP outside localhost does not have (#2818).
+ */
+let lastDating = 0;
+
 /** A date asked of the user, which the entry that asked it waits for; `null` gives the entry up. */
 interface Dating {
-  readonly id: string;
+  readonly id: number;
   readonly resolve: (date: string | null) => void;
 }
 
@@ -183,7 +189,7 @@ export function RemainingGrid({
   const askDate = useCallback(
     () =>
       new Promise<string | null>((resolve) => {
-        setAsking((before) => [...before, { id: crypto.randomUUID(), resolve }]);
+        setAsking((before) => [...before, { id: (lastDating += 1), resolve }]);
       }),
     [],
   );

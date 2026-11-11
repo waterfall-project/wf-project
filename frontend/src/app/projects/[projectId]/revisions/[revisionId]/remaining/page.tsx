@@ -46,7 +46,6 @@ import { progressHref, readProgress } from "@/components/remaining/address";
 import { RemainingSummary } from "@/components/remaining/remaining-summary";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
-import { MockupNotice } from "@/components/shell/mockup-notice";
 import { buttonVariants } from "@/components/ui/button";
 import { type PageSearchParams, searchQuery } from "@/navigation/context";
 import { onBasis } from "@/components/workload/workload-basis";
@@ -263,7 +262,6 @@ export default async function RemainingPage({
             <ExchangesLink project={screen.reading.project} kind="remaining" context={at.context} />
           }
         />
-        <MockupNotice lists />
         <RemainingSummary indicators={indicators} currency={currency} />
         <PendingAddress>
           {screen.breakdown === undefined ? null : (

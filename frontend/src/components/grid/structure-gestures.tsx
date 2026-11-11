@@ -289,8 +289,8 @@ function refusesStarted(outcome: Outcome<unknown> | undefined): boolean {
  * The link a refusal to delete a task started carries: to its line in the grid of the remaining to
  * commit, where its remaining is brought to zero (`task_not_started`, WF-PLA-0070); none for another
  * refusal, nor for a task completed, which the grid of the started tasks does not show and which is
- * not re-estimated. For a summary task, refused for a subordinate started, the grid shows the tasks
- * started, none searched. The grids of the planning, of the estimate and of the remaining to commit
+ * not re-estimated. For a summary task, whose refusal does not name the subordinate, the grid shows
+ * the tasks started and completed, none searched (#2819). The grids of the planning, of the estimate and of the remaining to commit
  * all tell it.
  */
 function startedRefusal<Row extends GridNode>(
