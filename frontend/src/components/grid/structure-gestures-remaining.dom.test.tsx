@@ -87,14 +87,23 @@ function grid(name: (typeof GRIDS)[number][0]) {
   );
 }
 
-/** Ask the deletion of a task by its label, refused as started, and give the alert that tells it. */
-async function refused(name: (typeof GRIDS)[number][0], label: string): Promise<HTMLElement> {
+/**
+ * Ask the deletion of a task or a line by its label, refused as started unless another refusal is
+ * named, and give the alert that tells it.
+ */
+async function refused(
+  name: (typeof GRIDS)[number][0],
+  label: string,
+  refusal = "node_delete_started_refused",
+): Promise<HTMLElement> {
   server.client = fakeClient({
-    [DELETE]: { problem: example("node_delete_started_refused") as Problem & { status: 409 } },
+    [DELETE]: { problem: example(refusal) as Problem & { status: 409 } },
   });
   render(grid(name));
   const nodes = name === "planning" ? planning : estimate;
-  const row = nodes.items.findIndex((item) => item.task?.label === label);
+  const row = nodes.items.findIndex(
+    (item) => (item.task?.label ?? item.estimate_line?.label) === label,
+  );
   const cell = screen
     .getByRole("treegrid")
     .querySelector<HTMLElement>(`td[data-row="${row.toString()}"][data-column="label"]`);
@@ -154,4 +163,14 @@ describe("the refusal to delete a task started, in the grids of the structure [W
       expect(within(alert).queryByRole("link", REMAINING_LINK)).toBeNull();
     },
   );
+
+  it("refers no other refusal to the remaining to commit", async () => {
+    // The deletion of a line of a task completed, refused for another reason than a task started.
+    const alert = await refused(
+      "estimate",
+      "Raccordement des borniers",
+      "node_delete_line_completed_refused",
+    );
+    expect(within(alert).queryByRole("link")).toBeNull();
+  });
 });

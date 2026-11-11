@@ -279,12 +279,17 @@ test(
     const held = new Set<string>();
     if ((await grid.count()) > 0) {
       const rowsListed = async () => Number((await grid.getAttribute("aria-rowcount")) ?? "0") - 2;
-      // More than one row listed, the first is a backup whose download the grid offers; one row
-      // alone may be the notice of a list without any.
+      // A row is a backup or the notice of a list without any (« Aucune sauvegarde. »): the rows
+      // are all read once the grid offers the download of every row that is a backup — a single
+      // row, whose link is not rendered yet, is never taken for the notice.
+      const notices = grid.getByText("Aucune sauvegarde.", { exact: true });
       await expect
-        .poll(async () => (await rowsListed()) <= 1 || (await downloads.count()) > 0, {
-          timeout: WORKING,
-        })
+        .poll(
+          async () => (await rowsListed()) - (await notices.count()) === (await downloads.count()),
+          {
+            timeout: WORKING,
+          },
+        )
         .toBe(true);
       for (const backup of await listed()) {
         held.add(backup);
@@ -301,7 +306,7 @@ test(
     await entries.getByRole("button", { name: "Recharger l’écran" }).click();
     // Listed once the screen is read anew, with its date, the instant it was taken, which the
     // browser writes in its local time, and with its size. The grid is there once a backup is.
-    await expect(grid).toBeVisible();
+    await expect(grid).toBeVisible({ timeout: WORKING });
     let taken = "";
     await expect
       .poll(async () => {

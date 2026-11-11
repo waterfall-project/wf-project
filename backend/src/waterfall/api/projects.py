@@ -54,14 +54,18 @@ from waterfall.core.projects.interface import (
 from waterfall.core.users.interface import read_authors
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
-from waterfall.platform.errors import FieldError, UnprocessableError, json_pointer
+from waterfall.platform.errors import (
+    VALIDATION_FAILED,
+    FieldError,
+    UnprocessableError,
+    json_pointer,
+)
 
 router = APIRouter(tags=["projects"])
 
 CONSULT = "project_settings.read"
 CHANGE = "project_settings.write"
 CREATE = "project_create"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 DEFAULT_LIMIT = 50
 GREATEST_LIMIT = 500
 CODE_LENGTH = 50

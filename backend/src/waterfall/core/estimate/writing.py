@@ -144,7 +144,13 @@ def judged_priced(
     basis = basis_of(session, project_id, bearer.revision_id)
     line = None if current is None else current.node_id
     new_role = current is None or draft.resource_role_id != current.resource_role_id
-    _priced_draft(session, (project_id, bearer, line), draft, basis, Judging(new_role, earlier))
+    _priced_draft(
+        session,
+        (project_id, bearer, line),
+        draft,
+        basis,
+        Judging(role_changes=new_role, earlier=earlier),
+    )
     return draft
 
 
@@ -191,7 +197,8 @@ def create_line(creation: FacetCreation) -> None:
             updated_by=act.author,
         )
     )
-    # A load of lines flushes them together, by the next statement or at its end (``recalling``).
+    # A load of lines does not flush each one: the next statement that needs it, or the end of the
+    # load, does (``recalling``); what it saves is the reads, which are remembered.
     if not remembers(session):
         session.flush()
 

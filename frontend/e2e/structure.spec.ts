@@ -271,15 +271,14 @@ test("adds a task from the remaining to commit of a project in progress, below a
   await expect(cell).toBeFocused();
 });
 
-test("proposes no entry and no command of writing in the estimate of the main structure of a project in progress [WF-DEV-0050-A]", async ({
+test("proposes no entry and no command of writing in the estimate of the main structure of a project in progress @shared [WF-DEV-0050-A]", async ({
   page,
 }) => {
   test.slow();
   // Sur un projet En cours, la grille de devis de la structure principale ne propose aucune saisie
   // : the structure lists the estimate unavailable (`project_before_in_progress`), and the grid is
-  // read only whatever the planning lists. This journey stays on the fake back: its project In
-  // progress (PRJ-001) is played against the service by US-1570 (« tous les parcours du devis
-  // étiquetés `@shared` passent contre le service, le témoin chargé »).
+  // read only whatever the planning lists. The witness of the service is In progress too (PRJ-001,
+  // US-1570): the path is played against it as against the fake back.
   const { table, cell } = await focusRow(
     page,
     "estimate",
@@ -303,7 +302,7 @@ test("inserts a line in the remaining to commit of a project in progress, named,
   test.slow();
   // Sur un projet En cours, la grille de reste à engager propose la création d'une ligne et d'une
   // tâche : the structure lists `edit_remaining` available. The categories come from the reference.
-  // Played against the service by US-1570 with the loaded witness, not here.
+  // Not played against the service before EP-09, which serves the remaining to commit.
   const { cell } = await focusRow(
     page,
     "remaining",
@@ -316,9 +315,10 @@ test("inserts a line in the remaining to commit of a project in progress, named,
     .getByRole("menuitem", { name: "Insérer une ligne" })
     .click();
   const dialog = page.getByRole("dialog", { name: "Insérer une ligne" });
-  await expect(
-    dialog.getByRole("combobox", { name: "Catégorie" }).getByRole("option"),
-  ).not.toHaveCount(0);
+  // The entry is chosen in the one list of the roles and of the categories of expense.
+  const entry = dialog.getByRole("combobox", { name: "Rôle ou catégorie" });
+  await expect(entry.getByRole("option")).not.toHaveCount(0);
+  await entry.selectOption({ index: 0 });
   await dialog.getByRole("textbox", { name: "Libellé" }).fill("Consommables d’essais");
   await dialog.getByRole("textbox", { name: "Quantité" }).fill("2,5");
   await dialog.getByRole("button", { name: "Créer" }).click();
@@ -482,7 +482,7 @@ test("reads in the planning a task created in the estimate grid, automatic, of o
     .click();
   const line = page.getByRole("dialog", { name: "Insérer une ligne" });
   await line
-    .getByRole("combobox", { name: "Catégorie" })
+    .getByRole("combobox", { name: "Rôle ou catégorie" })
     .selectOption({ label: "Matériel électrique" });
   await line.getByRole("textbox", { name: "Libellé" }).fill("Câbles");
   await line.getByRole("textbox", { name: "Quantité" }).fill("2");
@@ -535,4 +535,71 @@ test("reads in the planning a task created in the estimate grid, automatic, of o
       name: /^3 .*Sous-tâche du devis/,
     }),
   ).toHaveAttribute("aria-level", "2", { timeout: WORKING });
+});
+
+// WF-DEV-0020-A: a line of labour is created from a role, its category computed by the server, and a
+// line of expense from a category of expense — the labour and provision categories are not offered.
+test("creates from the estimate grid a line of labour by a role and a line of expense by a category, and reads them in the grid @shared [WF-DEV-0020-A]", async ({
+  page,
+}) => {
+  test.skip(!inService, SERVICE_ONLY);
+  test.slow();
+  const own = await createOwnProject(page, "Lignes");
+  await openRevision(page, own);
+  const opened = new URL(page.url()).searchParams.get("revision_id");
+  expect(opened, "the revision opened").not.toBeNull();
+  await openHydrated(page, `${own.path}/revisions/${opened ?? ""}/estimate`);
+  const estimate = page.getByRole("treegrid", { name: "Grille de devis" });
+
+  await page.getByRole("button", { name: "Insérer une tâche" }).click();
+  const creation = page.getByRole("dialog", { name: "Insérer une tâche" });
+  await creation.getByRole("textbox", { name: "Libellé" }).fill("Tâche des lignes");
+  await creation.getByRole("button", { name: "Créer" }).click();
+  await saidAndRead(page, estimate, "« Tâche des lignes » créée.");
+  const at = await columnsOf(estimate, { label: "Libellé" });
+  const task = estimate
+    .getByRole("row", { name: /^1 .*Tâche des lignes/ })
+    .getByRole("gridcell")
+    .nth(at.label);
+
+  /** Open the dialog of a line under the task, name the line, and choose its entry in the list. */
+  async function insert(
+    label: string,
+    group: string,
+    entry: { index: number } | { label: string },
+  ) {
+    await task.click({ button: "right" });
+    await page
+      .getByRole("menu", { name: "Menu de la cellule" })
+      .getByRole("menuitem", { name: "Insérer une ligne" })
+      .click();
+    const line = page.getByRole("dialog", { name: "Insérer une ligne" });
+    const list = line.getByRole("combobox", { name: "Rôle ou catégorie" });
+    // A closed list does not expose its groups to the accessibility tree: they are read by their tag.
+    await expect(list.locator("optgroup")).toHaveCount(2);
+    await expect(list.locator(`optgroup[label="${group}"] option`)).not.toHaveCount(0);
+    await list.selectOption(entry);
+    await line.getByRole("textbox", { name: "Libellé" }).fill(label);
+    await line.getByRole("textbox", { name: "Quantité" }).fill("2");
+    await line.getByRole("button", { name: "Créer" }).click();
+    await saidAndRead(page, estimate, `« ${label} » créée.`);
+  }
+
+  // The first role of the list, a line of labour; a category of expense, a line of expense.
+  await insert("Études de main-d’œuvre", "Rôles (main-d’œuvre)", { index: 0 });
+  await insert("Fournitures de débours", "Catégories de débours", { label: "Matériel électrique" });
+
+  const columns = await columnsOf(estimate, { role: "Rôle", category: "Catégorie" });
+  const labour = estimate.getByRole("row", { name: /^\d+ .*Études de main-d’œuvre/ });
+  const expense = estimate.getByRole("row", { name: /^\d+ .*Fournitures de débours/ });
+  await expect(labour).toBeVisible({ timeout: WORKING });
+  await expect(expense).toBeVisible({ timeout: WORKING });
+  // The labour line bears the role chosen and the category the server computed; the expense line
+  // bears its category and no role.
+  await expect(labour.getByRole("gridcell").nth(columns.role)).not.toHaveText("");
+  await expect(labour.getByRole("gridcell").nth(columns.category)).not.toHaveText("");
+  await expect(expense.getByRole("gridcell").nth(columns.category)).toHaveText(
+    "Matériel électrique",
+  );
+  await expect(expense.getByRole("gridcell").nth(columns.role)).toHaveText("");
 });

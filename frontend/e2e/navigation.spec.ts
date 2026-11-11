@@ -3,7 +3,7 @@
 import { expect, type Page } from "@playwright/test";
 
 import { compile } from "./compile";
-import { setExpanded } from "./hydration";
+import { setExpanded, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 
 // The session of the fake back grants the whole catalogue of permissions: every function
@@ -88,7 +88,7 @@ test("a user who opened no project reaches the administration and the status scr
 });
 
 // Against the fake back only: it leads to the remaining and to the risks of PRJ-001, screens the
-// service serves with EP-07 and EP-08 (listed as not replayed in the guide).
+// service serves with EP-09 and EP-08 (listed as not replayed in the guide).
 test("the way back to the previous project from a function outside any project finds the same context [WF-IHM-0010-A]", async ({
   page,
 }) => {
@@ -113,15 +113,18 @@ test("the way back to the previous project from a function outside any project f
   await expect(page).toHaveURL(`${IN_PROJECT}/risks${CONTEXT}`);
 });
 
-// Against the fake back only: it leads to the planning, which the service serves with EP-06 (listed
-// as not replayed in the guide).
-test("the address of a project leads to its revision, the reading context and its filters kept, the way to the screens of the revision then offered [WF-IHM-0010-A]", async ({
+// Played in service too (`@shared`, EP-06): it leads to the planning of PRJ-001, which the service serves.
+test("the address of a project leads to its revision, the reading context and its filters kept, the way to the screens of the revision then offered [WF-IHM-0010-A] @shared", async ({
   page,
 }) => {
   await compile(page.request, `${IN_PROJECT}/planning`);
   await page.goto(`/projects/${PROJECT}${CONTEXT}`);
   await expect(page).toHaveURL(`${IN_PROJECT}/planning${CONTEXT}`);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Planification");
+  // The planning of the thousand tasks of the witness is read from the service: the bound of a
+  // screen of grid, which five seconds of an assertion do not give it under several workers.
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Planification", {
+    timeout: WORKING,
+  });
 });
 
 // Played in service too (`@shared`, EP-04): the settings and the lifecycle of PRJ-001 are served,

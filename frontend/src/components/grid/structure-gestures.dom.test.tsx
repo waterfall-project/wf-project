@@ -65,7 +65,10 @@ const COMPLETED = rowOf("Relance du fournisseur");
 const node = (row: number) => estimate.items[row];
 const planning = example("nodes_planning") as NodeList;
 const categories = estimateReference().categories ?? [];
-const CATEGORY = categories.find((category) => category.active)?.id ?? "";
+const roles = estimateReference().roles ?? [];
+const CATEGORY =
+  categories.find((category) => category.active && category.kind === "non_labor")?.id ?? "";
+const ROLE = roles.find((role) => role.active)?.id ?? "";
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers, hold?: Promise<unknown>): FakeClient {
@@ -180,6 +183,7 @@ function remainingGrid(editable: boolean, withCategories = true, nodes: NodeList
         filters={{ progress: ["started"] }}
         editable={editable}
         categories={withCategories ? categories : undefined}
+        roles={withCategories ? roles : undefined}
         query={NO_QUERY}
         preferences={undefined}
       />
@@ -263,8 +267,8 @@ describe("the gestures that create tasks and lines in a grid of the structure", 
     render(estimateGrid());
     await choose(TASK, "Insérer une ligne");
     const dialog = screen.getByRole("dialog", { name: "Insérer une ligne" });
-    fireEvent.change(within(dialog).getByRole("combobox", { name: "Catégorie" }), {
-      target: { value: CATEGORY },
+    fireEvent.change(within(dialog).getByRole("combobox", { name: "Rôle ou catégorie" }), {
+      target: { value: `category:${CATEGORY}` },
     });
     fireEvent.change(within(dialog).getByRole("textbox", { name: "Quantité" }), {
       target: { value: "2,5" },
@@ -282,6 +286,53 @@ describe("the gestures that create tasks and lines in a grid of the structure", 
     expect(await screen.findByText("« Consommables d’essais » créée.")).toBeVisible();
   });
 
+  it("offers the active roles, then the categories of expense, and neither labour nor provision categories [WF-DEV-0020-A]", async () => {
+    serve({});
+    render(estimateGrid());
+    await choose(TASK, "Insérer une ligne");
+    const dialog = screen.getByRole("dialog", { name: "Insérer une ligne" });
+    const field = within(dialog).getByRole("combobox", { name: "Rôle ou catégorie" });
+    const groups = within(field).getAllByRole("group");
+    expect(groups.map((group) => group.getAttribute("label"))).toEqual([
+      "Rôles (main-d’œuvre)",
+      "Catégories de débours",
+    ]);
+    const labelsOf = (group: HTMLElement) =>
+      within(group)
+        .getAllByRole("option")
+        .map((option) => option.textContent);
+    expect(labelsOf(groups[0] ?? field)).toEqual([
+      "Ingénieur électricien",
+      "Monteur câbleur",
+      "Technicien de mise en service",
+    ]);
+    const expenses = categories.filter(
+      (category) => category.active && category.kind === "non_labor",
+    );
+    expect(labelsOf(groups[1] ?? field)).toEqual(expenses.map((category) => category.label));
+    const hidden = categories
+      .filter((category) => category.kind !== "non_labor")
+      .map((category) => category.label);
+    expect(hidden.length).toBeGreaterThan(0);
+    expect(labelsOf(field).filter((label) => hidden.includes(label))).toEqual([]);
+  });
+
+  it("inserts a line of labour from a role, which sends the role and no category [WF-DEV-0020-A]", async () => {
+    const client = serve({ [CREATE]: { example: "estimate_line_created", status: 201 } });
+    render(estimateGrid());
+    await choose(TASK, "Insérer une ligne");
+    const dialog = screen.getByRole("dialog", { name: "Insérer une ligne" });
+    expect(within(dialog).getByRole("combobox", { name: "Rôle ou catégorie" })).toHaveValue(
+      `role:${ROLE}`,
+    );
+    await create("Études");
+    expect(created(client)).toEqual({
+      kind: "estimate_line",
+      parent_id: node(TASK)?.node_id,
+      estimate_line: { label: "Études", resource_role_id: ROLE, quantity: "1" },
+    });
+  });
+
   it("inserts a line without a label, which the server composes of its task and its role [WF-DEV-0020-A]", async () => {
     // Le libellé d'une ligne est facultatif : absent, le serveur compose celui de la tâche et du rôle.
     const client = serve({ [CREATE]: { example: "estimate_line_created_labelled", status: 201 } });
@@ -291,8 +342,8 @@ describe("the gestures that create tasks and lines in a grid of the structure", 
     expect(within(dialog).getByRole("textbox", { name: "Libellé" })).toHaveAccessibleDescription(
       "Facultatif : à défaut, le libellé de la tâche qui porte la ligne, suivi de celui de son rôle.",
     );
-    fireEvent.change(within(dialog).getByRole("combobox", { name: "Catégorie" }), {
-      target: { value: CATEGORY },
+    fireEvent.change(within(dialog).getByRole("combobox", { name: "Rôle ou catégorie" }), {
+      target: { value: `category:${CATEGORY}` },
     });
     await create("   ");
     expect(created(client)).toEqual({
@@ -311,8 +362,8 @@ describe("the gestures that create tasks and lines in a grid of the structure", 
     render(estimateGrid());
     await choose(LINE, "Insérer une ligne");
     const dialog = screen.getByRole("dialog", { name: "Insérer une ligne" });
-    fireEvent.change(within(dialog).getByRole("combobox", { name: "Catégorie" }), {
-      target: { value: CATEGORY },
+    fireEvent.change(within(dialog).getByRole("combobox", { name: "Rôle ou catégorie" }), {
+      target: { value: `category:${CATEGORY}` },
     });
     await create("");
     expect(await screen.findByText("Ligne créée.")).toBeVisible();
@@ -601,8 +652,8 @@ describe("the refusal of a gesture, said to the row in cause", () => {
     render(estimateGrid());
     await choose(LINE, "Insérer une ligne");
     const dialog = screen.getByRole("dialog", { name: "Insérer une ligne" });
-    fireEvent.change(within(dialog).getByRole("combobox", { name: "Catégorie" }), {
-      target: { value: CATEGORY },
+    fireEvent.change(within(dialog).getByRole("combobox", { name: "Rôle ou catégorie" }), {
+      target: { value: `category:${CATEGORY}` },
     });
     await create("");
     const alert = await screen.findByRole("alert");
@@ -708,14 +759,6 @@ describe("the refusal of a gesture, said to the row in cause", () => {
     );
     expect(alert).toHaveTextContent("Condition non remplie");
     expect(router.refresh).not.toHaveBeenCalled();
-  });
-
-  it("refers no other refusal to the remaining to commit [WF-PLA-0070-A]", async () => {
-    serve({ [DELETE]: COMPLETED_REFUSED });
-    render(estimateGrid());
-    await choose(LINE, "Supprimer");
-    const alert = await screen.findByRole("alert");
-    expect(within(alert).queryByRole("link")).toBeNull();
   });
 
   it("names the risks whose provision a deletion would leave without a task, from the refusal of the contract (H-05)", async () => {
@@ -880,7 +923,7 @@ describe("the grids that offer no gesture", () => {
     empty.unmount();
   });
 
-  it("offers no line where no category can be chosen", async () => {
+  it("offers no line where neither a role nor a category of expense can be chosen", async () => {
     serve({});
     render(remainingGrid(true, false));
     expect(await offered(TASK)).toEqual([

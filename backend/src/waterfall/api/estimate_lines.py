@@ -29,13 +29,12 @@ from waterfall.api.nodes import (
 )
 from waterfall.core.estimate.interface import LineEntry, update_line
 from waterfall.core.planning.interface import Place, Writer
-from waterfall.platform.errors import UnprocessableError
+from waterfall.platform.errors import VALIDATION_FAILED, UnprocessableError
 
 router = APIRouter(tags=["estimate"])
 
 CONSULT = "estimate.read"
 CHANGE = "estimate.write"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 
 
 def line_change(body: EstimateLineUpdate, raw: Sent) -> LineEntry:

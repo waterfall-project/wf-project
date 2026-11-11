@@ -721,6 +721,27 @@ deux lots ajoutés à l'EPIC, avant la vérification d'ensemble US-1570/L3, qui 
   de l'aperçu du collage lu dans la configuration de la grille, `GridConfig.creates: "tasks" |
   "lines"` (#2753), va à US-1640/L1 #2412 d'EP-09, la grille de reste à engager étant la deuxième à
   créer des lignes. Écarté pour #2753 : US-1570/L3, qui n'écrit ni `columns.ts` ni `estimate.tsx`.
+- **Le lot F, les permissions et l'arrondi** (US-1570/L7 #2792, décisions de l'auteur du
+  2026-11-10), après US-1570/L4 à L6, « pas avec » US-1570/L3 #2386, qui écrit aussi
+  `core/estimate/writing.py` et les tests du collage :
+  - **`planning.write` reste exigé pour les colonnes propres à une tâche** (#2775, option 2) :
+    libellé de tâche, durée, mode, dates (`TASK_COLUMNS`), sur tous les chemins d'écriture — le
+    collage, `createNode` d'une tâche, `patchTask` ; `estimate.write` ou `remaining.write` seul garde
+    la création, le collage, le déplacement et la suppression d'une ligne (#2601). Écartée : le
+    collage et la création ouverts aux trois permissions quel que soit le genre, qui ouvraient ce que
+    `patchTask` refuse ;
+  - **annuler ou rétablir une écriture de l'arbre exige la permission qu'exigeait l'écriture
+    annulée** (#2774) — `estimate.write`, `remaining.write` ou `planning.write` —, la pile
+    d'annulation étant celle des trois grilles. Écartée : `planning.write` toujours, qui laissait un
+    contributeur créer une ligne sans pouvoir annuler sa création ;
+  - **la valeur planifiée arrondit un demi-centime loin de zéro** (#2773) : `spreading/planned.py`
+    par `ROUND_HALF_UP`, comme `Money` et `pricing.round_to_cent` (#2618). Écarté : l'arrondi au pair
+    de Python, qu'aucun montant du contrat n'emploie.
+- **Les parcours e2e relisent les réponses de l'API par le schéma du client engendré** (#2771) :
+  `Schemas["X"]` au lieu des types écrits à la main (`own-project.ts`, `estimate-seed.ts`,
+  `task-tree.spec.ts`, `exchanges.spec.ts`, `project-start.spec.ts`), par la vérification
+  d'ensemble US-1570/L3 #2386, qui rejoue ces parcours ; ces fichiers s'ajoutent à ceux qu'elle
+  écrit.
 
 ### Le format Excel du devis
 
@@ -1172,7 +1193,7 @@ la mise à jour des taux (US-1500).
 
 ## US-1500 — L'instantané du référentiel conservé par la révision, et la mise à jour des taux
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-REV-0030-A`, `WF-REV-0060-A`, `WF-REV-0010-A`, `WF-REV-0020-A`,
   `WF-REV-0070-A`, `WF-REF-0020-A`, `WF-REF-0130-A`, `WF-REF-0030-A`, `WF-REF-0010-A`,
   `WF-PRJ-0040-A`
@@ -1882,7 +1903,7 @@ qui lisent le devis propre d'un risque (`paste.spec.ts`, `entry.spec.ts`) resten
 
 ## US-1570 — Le témoin : la tranche des lignes, PRJ-001 En cours, et les parcours rejoués
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-QUA-0040-A`, `WF-INTF-0010-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
 - **issue** : 2369

@@ -50,6 +50,7 @@ from test_witness_projects import (
     PRJ_001,
     REVISION_100,
     REVISION_101,
+    REVISION_102,
     UNREACHED,
     counts,
     example,
@@ -57,11 +58,12 @@ from test_witness_projects import (
     read,
     without,
 )
-from test_witness_tasks import difference
+from test_witness_tasks import difference, structure_of
 
 from waterfall.core.costs.tables import CostImport, CostLine
 from waterfall.core.exchanges.interface import ImportLoad, load_import
 from waterfall.core.exchanges.tables import ImportReport
+from waterfall.core.revisions.tables import CostStructure
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.witness import costs as costs_slice
 from waterfall.witness.description import Witness
@@ -418,6 +420,12 @@ def test_the_kanban_is_the_example_but_for_the_provision_the_reference_and_the_c
 ) -> None:
     body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/remaining-indicators/startable-tasks")
     expected = example("startable_tasks")
+    # A task started is overdue against the day the current revision was scheduled (EP-07).
+    with witness.transaction() as session:
+        scheduled = session.get(CostStructure, (PRJ_001, structure_of(session, REVISION_102)))
+        assert scheduled is not None
+        assert scheduled.scheduled_at is not None
+        read_on = scheduled.scheduled_at.date()
     # The row numbers below the line of provision the witness lacks are one less (EP-08).
     gone = example("volume/nodes_thousand")["items"]
     absent = next(each["row_number"] for each in gone if each["node_id"] == PROVISION)
@@ -428,7 +436,7 @@ def test_the_kanban_is_the_example_but_for_the_provision_the_reference_and_the_c
         found = dict.fromkeys(AMOUNTS_APART[column], 0)
         for key, card in got.items():
             theirs = wanted[key]
-            assert not difference(without(card, COMMANDS), without(theirs, COMMANDS)), (
+            assert not difference(without(card, COMMANDS), without(theirs, COMMANDS), read_on), (
                 column,
                 card["task"]["label"],
             )

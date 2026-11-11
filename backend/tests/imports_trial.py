@@ -119,6 +119,7 @@ class TrialFormat:
             "date_mismatches": [],
             "signals": [],
             "requires_confirmation_reasons": [],
+            "unit_constants": None,
         }
 
     def prepare(self, content: bytes) -> list[str]:

@@ -18,11 +18,9 @@ from waterfall.api.evaluation import RequiresProject
 from waterfall.api.nodes import CHANGE, CONSULT, Writing, written_of
 from waterfall.core.planning.interface import Place, generate_skeleton
 from waterfall.core.revisions.interface import aimed_structure
-from waterfall.platform.errors import NotFoundError
+from waterfall.platform.errors import NOT_FOUND, NotFoundError
 
 router = APIRouter(tags=["planning"])
-
-NOT_FOUND = "NOT_FOUND"
 
 
 @router.post(

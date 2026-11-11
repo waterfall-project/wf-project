@@ -30,6 +30,9 @@ from waterfall.core.exchanges.interface import register_exporter, register_forma
 from waterfall.core.planning.calendars import (
     Applicable as Applicable,
 )
+from waterfall.core.planning.entries import (
+    ENTRIES as ENTRIES,
+)
 from waterfall.core.planning.filters import (
     NodeFilters as NodeFilters,
 )

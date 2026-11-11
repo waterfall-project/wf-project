@@ -55,8 +55,6 @@ from waterfall.core.revisions.commands import NO_CURRENT_REVISION, REVISION_DRAF
 from waterfall.core.revisions.interface.closing import close_revision
 from waterfall.core.revisions.interface.reference import reference_correctable
 from waterfall.core.revisions.interface.shared import (
-    NOT_FOUND,
-    STALE_LOCK_VERSION,
     found_revision,
     inscribe_revision,
     refuse,
@@ -70,7 +68,12 @@ from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.states import state_of
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.database import contains, unique_violated
-from waterfall.platform.errors import NotFoundError, PreconditionFailedError
+from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
+    NotFoundError,
+    PreconditionFailedError,
+)
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:

@@ -1244,6 +1244,12 @@
       task's as a line's (`StructureCommand`, WF-DEV-0050); refused otherwise with 403
       `PERMISSION_MISSING`, `params.missing_permission` naming `planning.write`, the first of
       them (#2601).
+      A task is so created by its label alone; its other columns — description, mode,
+      duration, dates, attachment to the work breakdown — are those of the planning grid,
+      the only one where they are entered (WF-PLA-0080, WF-DEV-0050), as `updateTaskFacet`
+      writes them: a task whose `task` carries one of them, whatever its value, asks for
+      `planning.write`, refused otherwise with 403 `PERMISSION_MISSING`,
+      `params.missing_permission` naming it; nothing is created (#2775).
       Refused on a marked revision (WF-DAT-0020) — every revision of a terminal project is one
       (WF-CYC-0100) — with 409, like any write of the revision. The same write from the
       three grids: the phase of the project refuses nothing here, it is the
@@ -2341,6 +2347,13 @@
       task's as a line's (`StructureCommand`, WF-DEV-0050); refused otherwise with 403
       `PERMISSION_MISSING`, `params.missing_permission` naming `planning.write`, the first of
       them (#2601).
+      The columns of a task (`NodeColumn`, `label` to `work_breakdown`) are those of the
+      planning grid, the only one where they are entered (WF-PLA-0080), as `updateTaskFacet`
+      writes them: a block one line of which writes a cell of a task, or creates a task with
+      another cell than its label — a task created by its label alone being a write of the
+      three grids, as by `createNode` —, asks for `planning.write`, and is refused whole
+      otherwise with 403 `PERMISSION_MISSING`, `params.missing_permission` naming it, before
+      any line is judged; no plan is kept (#2775).
       States what will be written and what will be refused, with the reason for each refusal;
       nothing is written at this stage (WF-IHM-0050). Once confirmed, the paste will write the
       accepted lines and not the refused lines (`applyPaste`). The block fills, starting from
@@ -2433,6 +2446,9 @@
       task's as a line's (`StructureCommand`, WF-DEV-0050); refused otherwise with 403
       `PERMISSION_MISSING`, `params.missing_permission` naming `planning.write`, the first of
       them (#2601).
+      A plan that writes the columns of a task asks again for `planning.write`, as its preview
+      did (`previewPaste`): refused whole otherwise with 403 `PERMISSION_MISSING`,
+      `params.missing_permission` naming it; nothing is written (#2775).
       The valid lines of the plan are written in a single operation, and the refused lines are
       not; an abandoned paste leaves the grid unchanged (WF-IHM-0050; EP-14/L42q). Carries
       the counter of the structure, refused with 412 if it is stale; the plan also retains the
@@ -2553,10 +2569,16 @@
           As the common `Forbidden` response states; besides, an undo is a change like any
           other (WF-IHM-0110): it is refused with 403 `PERMISSION_MISSING`,
           `params.missing_permission` naming it, to whoever no longer holds the permission of
-          the entry it undoes — `planning.write`, `estimate.write` or `remaining.write` for an
-          entry of the corresponding grid, `planning.write` for the planning start date or the
-          label of a structure, `risks.write` for a risk entry (WF-ADM-0100). Nothing is
-          undone. Or the token of the caller carries no session of sign-in (`sid`), by which
+          the entry it undoes, the one its write asked for (#2774) — one at least of
+          `planning.write`, `estimate.write` and `remaining.write` for a write of the tree the
+          three grids make alike, a node created, deleted, moved or pasted that writes no column
+          of a task (#2601), `params.missing_permission` naming `planning.write` when none is
+          held; `planning.write` for a write of the columns of a task — a task changed, created
+          with more than its label, a line of a paste on a task (#2775) —, a predecessor, a
+          tracking, the planning start date or the label of a structure; `estimate.write` for a
+          change of an estimate line (`updateEstimateLine`); `remaining.write` for the state of a
+          task or the remaining of a line; `risks.write` for a risk entry (WF-ADM-0100). Nothing
+          is undone. Or the token of the caller carries no session of sign-in (`sid`), by which
           the server keeps the history: `SESSION_ID_MISSING`, without a parameter — the token is
           valid and the caller known, so it is not a 401, which would send the front back to a
           sign-in that gives the same token; a write made with such a token is made all the same
@@ -2638,10 +2660,8 @@
           As the common `Forbidden` response states; besides, a redo is a change like any
           other (WF-IHM-0110): it is refused with 403 `PERMISSION_MISSING`,
           `params.missing_permission` naming it, to whoever no longer holds the permission of
-          the entry it redoes — `planning.write`, `estimate.write` or `remaining.write` for an
-          entry of the corresponding grid, `planning.write` for the planning start date or the
-          label of a structure, `risks.write` for a risk entry (WF-ADM-0100). Nothing is
-          redone. Or the token of the caller carries no session of sign-in (`sid`):
+          the entry it redoes, the one its write asked for, as for the undo (`undoLastChange`,
+          #2774). Nothing is redone. Or the token of the caller carries no session of sign-in (`sid`):
           `SESSION_ID_MISSING`, as for the undo (`undoLastChange`; #2472).
         content:
           application/problem+json:

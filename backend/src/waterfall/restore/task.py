@@ -39,7 +39,6 @@ from sqlalchemy import Engine, inspect, select
 from sqlalchemy.orm import Session
 
 from waterfall.core.backups.interface import (
-    NOT_FOUND,
     confirmed_taken_at,
     inscribe_restoration,
     keep_for_restoration,
@@ -49,7 +48,7 @@ from waterfall.core.backups.interface import (
 from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import AuditActor
 from waterfall.platform.database import create_database_engine, utc_now
-from waterfall.platform.errors import NotFoundError
+from waterfall.platform.errors import NOT_FOUND, NotFoundError
 from waterfall.platform.logs import get_logger
 from waterfall.platform.maintenance import Maintenance, Restoring
 from waterfall.platform.storage import Bucket, MissingObjectError

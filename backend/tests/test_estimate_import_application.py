@@ -43,6 +43,8 @@ from projects_support import PROJECTS, Scene, put_in_state
 from projects_support import scene as make_scene
 from sqlalchemy import select, update
 from support import ContractClient
+from test_msproject_import import imported as planning_imported
+from test_msproject_import import planning, task
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
@@ -365,6 +367,47 @@ def test_an_estimate_on_a_project_whose_revisions_are_all_marked_creates_one_at_
     assert [tuple(each) for each in kept] == [(costs.labour, Decimal("66.95"), "projected")]
     line = estimate_lines(current_items(api, stage))[held["labour"]["lineage_id"]][1]
     assert figure(line, "hours") == 12
+
+
+@pytest.mark.requirement("WF-INTF-0090-A")
+def test_a_planning_of_ms_project_then_an_estimate_leave_the_marked_revision_as_it_was(
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    held: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # « On importe un planning MS Project, puis un devis, dans un projet qui comporte une révision
+    # marquée » ; « Seule la révision en cours est modifiée : […] les montants de la révision
+    # marquée sont identiques avant et après chaque import. » (#2636, once US-1430/L3 is merged.)
+    # The planning replaces the tasks of the copy, and the lines they bear with them; the workbook
+    # then writes a line under the task of the planning, in the same current revision.
+    tree = held["tree"]
+    mark(stage, tree.revision)
+    marked = tree.items()
+    monkeypatch.setattr("waterfall.core.exchanges.running.utc_now", lambda: LATER)
+    report = planning_imported(api, stage, worker, planning(task(1, "Plans")))
+    assert [each["label"] for each in report["differences"] if each["target"] == "task"] == [
+        "Plans",
+        "Câblage",
+        "Essais",
+    ]
+    assert tree.items() == marked
+    created = project_of(api, stage)["current_revision_id"]
+    assert created not in {None, tree.revision["revision_id"]}
+    current = current_items(api, stage)
+    assert [(each["kind"], each["task"]["label"]) for each in current] == [("task", "Plans")]
+    lineage = current[0]["lineage_id"]
+    cells = {"Désignation": "Goulottes", "Quantité": 2, "Débours unitaire": 40}
+    cells["Délai de paiement (j)"] = 0
+    applied(
+        api, stage, worker, workbook([row("1 Plans", held["stuff"], cells)], {"1 Plans": lineage})
+    )
+    assert tree.items() == marked
+    lines = estimate_lines(current_items(api, stage))
+    assert [
+        (task_lineage, figure(facet, "unit_disbursement")) for task_lineage, facet in lines.values()
+    ] == [(lineage, Decimal(40))]
 
 
 @pytest.mark.requirement("WF-INTF-0100-A")

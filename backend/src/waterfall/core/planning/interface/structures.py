@@ -35,7 +35,13 @@ from waterfall.core.planning.calendars import default_calendar
 from waterfall.core.planning.rescheduling import Holding, replayed
 from waterfall.core.planning.writing import writing
 from waterfall.core.revisions.interface import write_structure
-from waterfall.platform.errors import FieldError, PreconditionFailedError, UnprocessableError
+from waterfall.platform.errors import (
+    STALE_LOCK_VERSION,
+    VALIDATION_FAILED,
+    FieldError,
+    PreconditionFailedError,
+    UnprocessableError,
+)
 
 if TYPE_CHECKING:
     from datetime import date, datetime
@@ -48,8 +54,6 @@ if TYPE_CHECKING:
     from waterfall.core.planning.writing import NodesWritten, Place, Writer
     from waterfall.core.revisions.interface import StructureFacts
 
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 NON_WORKING_DAY = "NON_WORKING_DAY"
 
 

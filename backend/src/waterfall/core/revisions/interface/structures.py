@@ -42,10 +42,9 @@ from waterfall.core.projects.interface import (
     project_facts,
 )
 from waterfall.core.revisions.commands import phase_conditions, structure_commands_of
-from waterfall.core.revisions.interface.shared import NOT_FOUND
 from waterfall.core.revisions.states import revision_state
 from waterfall.core.revisions.tables import CostStructure, Revision
-from waterfall.platform.errors import NotFoundError
+from waterfall.platform.errors import NOT_FOUND, NotFoundError
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:

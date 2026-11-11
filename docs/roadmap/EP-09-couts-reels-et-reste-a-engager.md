@@ -432,6 +432,14 @@ l'option écartée :
 - **Le libellé de l'aperçu du collage se lit dans la configuration de la grille** (#2753, EP-07) :
   un champ déclaratif `GridConfig.creates: "tasks" | "lines"`, posé par US-1640/L1, la grille de
   reste à engager étant la deuxième à créer des lignes. Écarté : `config.name === "estimate"`.
+- **La consultation des coûts réels suit le contrat** (#2776) : `subproject_id=unassigned` filtre
+  les lignes sans sous-projet (`SubprojectFilter`), et `last_import_at` est la date du dernier
+  import du projet, indépendante des filtres (« Les coûts réels », la consultation). Écartée :
+  `last_import_at` agrégé sur l'ensemble retenu, qu'un filtre vide aurait rendu nul — l'écran
+  aurait dit « aucun import ». US-1620/L1 suivait déjà le contrat ; US-1620/L2 attend cette
+  conception.
+- **Le paramètre commun `Offset` sans borne haute** (#2778) reste une dette du contrat commun, hors
+  d'EP-09 et de la livraison du 2026-11-13.
 
 ### Tables et migrations
 
@@ -584,11 +592,14 @@ worker, le chargeur — s'étend à chacun.
   contributeur, inscrite au journal d'audit par la fonction d'EP-03 (`cost_line_exclude`,
   `cost_line_reinstate`, l'objet `cost_line` nommé par sa pièce et son poste, le projet) ; hors de
   l'historique annulable.
-- **La consultation** (`list_actual_costs`) : une requête filtrée (sous-projet — `unassigned` par
-  `subproject_id` nul n'est pas un filtre du contrat —, période sur `document_date`, périmètre),
-  triée par la colonne demandée — `passthrough.<colonne>` par `passthrough ->> colonne` en texte,
-  les nuls après dans l'ordre croissant —, paginée ; les trois totaux et `last_import_at` par des
-  agrégats sur l'ensemble retenu ; `meta.passthrough_columns` l'union, dans l'ordre, des
+- **La consultation** (`list_actual_costs`) : une requête filtrée (sous-projet — `unassigned`,
+  que le contrat accepte (`SubprojectFilter`), par `subproject_id` nul —, période sur
+  `document_date`, périmètre), triée par la colonne demandée — `passthrough.<colonne>` par
+  `passthrough ->> colonne` en texte, les nuls après dans l'ordre croissant —, paginée ; les trois
+  totaux par des agrégats sur l'ensemble retenu ; `last_import_at` la date du dernier import du
+  projet (`cost_import`, le plus récent `imported_at`), indépendante des filtres, nulle sans import
+  (`docs/api/DECISIONS.md`, « La date du dernier import est toujours rendue ») ;
+  `meta.passthrough_columns` l'union, dans l'ordre, des
   `passthrough_columns` des imports (`cost_import`, par `imported_at`) que `last_import_id` des
   lignes retenues désigne, chaque colonne à sa première déclaration ; `subproject_label` résolu.
 

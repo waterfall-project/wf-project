@@ -22,7 +22,7 @@ from waterfall.core.planning.tables import Node, TrackingEntry
 from waterfall.core.planning.tree import LINE, TASK
 from waterfall.core.planning.views import COMPLETED, STARTED, State, state_of, states_without
 from waterfall.core.projects.interface import current_day
-from waterfall.platform.errors import FieldError, UnprocessableError
+from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping
@@ -34,7 +34,6 @@ if TYPE_CHECKING:
     from waterfall.core.planning.writing import Write
     from waterfall.platform.audit import Act
 
-VALIDATION_FAILED = "VALIDATION_FAILED"
 NODE_NOT_SIBLING = "NODE_NOT_SIBLING"
 AUTOMATIC = "automatic"
 # Where a rank is parked while the siblings exchange theirs: above any rank a structure holds.

@@ -5,9 +5,11 @@
  * tagged `@shared`, against the service, which serves the history, the revision and its structures
  * (US-0960); the « Écarts seulement » path plays against it too, the service serving the
  * comparison and the rate update proposal (US-1530). The comparison reads, against the service,
- * the whole structure of PRJ-001 from its revision 100 to its revision 101, of which the grid draws
- * the 39 rows in view and counts all (`aria-rowcount`); against the
- * fake back, the window of its example (« 2 nodes added, 2 removed… »).
+ * the whole structure of PRJ-001 from its revision 100 to its revision 101 — 5 966 nodes there, not
+ * the 5 999 of the volume, which stays with the fake back until EP-13 (#2696) —, of which the grid
+ * draws the rows in view (virtualised: as many as the window shows, `ROWS_IN_VIEW`) and
+ * counts all, the nodes of the answer and its two header rows (`aria-rowcount`); against the fake
+ * back, the window of its example (« 2 nodes added, 2 removed… »).
  *
  * The fake back serves the first example of each operation: the history of three revisions —
  * the reference, the draft, the offer v1.0 —, the draft read whatever the address names, its
@@ -29,7 +31,8 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const FROM = "01926f3a-7c00-7000-8000-000000000100";
 const TO = "01926f3a-7c00-7000-8000-000000000101";
-// The rows of the grid in view (virtualised) of PRJ-001 compared, 100 to 101, against the service.
+// The rows of the grid in view (virtualised) of PRJ-001 compared, 100 to 101, against the service:
+// exactly the count that the window of the harness shows, which fixes the height of the grid.
 const ROWS_IN_VIEW = 39;
 
 interface AmountDelta {
@@ -49,7 +52,7 @@ function asTheScreenWrites(amount: string): string {
 /** A text that ends on the amount whole, not on the tail of a larger one (« 0,00 € » of « 3 000,00 € »). */
 function amountWhole(amount: string): RegExp {
   const escaped = amount.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`(?<![\\d,])${escaped}$`);
+  return new RegExp(`(?<![\\d,\\-\u2212])${escaped}$`);
 }
 
 interface ServedComparison {
@@ -142,17 +145,23 @@ test("the revisions of a project, their comparison as the API renders it, its st
   await expect(main.getByRole("table", { name: "Mise à jour des taux proposée" })).toHaveCount(0);
 
   // The comparison asked of the server: what it answers is shown, nothing paired by the front.
-  // Against the service, it is the whole structure of PRJ-001 from 100 to 101, of which the grid draws 39 rows. Against
-  // the fake back, the example is a window, the sub-tree of « Installation sur site » (#1193), as
-  // its description counts it: 2 nodes added, 2 removed, 2 lines re-estimated at the rates of 2026
-  // (EP-14/L45a), and 5 deviations — 3 natures of cost, 2 sub-projects —, each table with its
-  // header row. The nodes come in the dense grid of the structures, each with the mark the server
-  // gives it, and the screen keeps the bound of a screen of grid (`WORKING`).
+  // Against the service, it is the whole structure of PRJ-001 from 100 to 101, of which the grid
+  // draws the rows in view. Against the fake back, the example is a window, the sub-tree of
+  // « Installation sur site » (#1193), as its description counts it: 2 nodes added, 2 removed, 2
+  // lines re-estimated at the rates of 2026 (EP-14/L45a), and 5 deviations — 3 natures of cost, 2
+  // sub-projects —, each table with its header row. The nodes come in the dense grid of the
+  // structures, each with the mark the server gives it, and the screen keeps the bound of a screen
+  // of grid (`WORKING`).
   await main.getByRole("button", { name: "Comparer" }).click();
   await expect(page).toHaveURL(/from_revision_id=.+&to_revision_id=.+/, { timeout: WORKING });
   const nodes = main.getByRole("grid", { name: "Nœuds comparés" });
-  // The window of the fake back is 11 rows; the service compares the whole structure, of which the grid draws the 39 rows in view.
+  // The window of the fake back is 11 rows; the service compares the whole structure, of which the
+  // grid draws the rows in view and counts all of them, its two header rows besides.
   await expect(nodes.getByRole("row")).toHaveCount(inService ? ROWS_IN_VIEW : 11);
+  if (inService) {
+    const whole = await comparisonServed(browser, manager);
+    await expect(nodes).toHaveAttribute("aria-rowcount", (whole.items.length + 2).toString());
+  }
   await expect(nodes.getByRole("row", { name: /Assistance aux essais de câblage/ })).toContainText(
     "Ajouté",
   );
@@ -170,7 +179,9 @@ test("the revisions of a project, their comparison as the API renders it, its st
   // as the screen writes them, none pinned (the loader changes them with the provisions, EP-08).
   await expect(deltas.getByRole("columnheader", { name: "Écart budgété" })).toBeVisible();
   await expect(deltas.getByRole("columnheader", { name: "Écart réestimé" })).toBeVisible();
-  const labour = deltas.getByRole("row", { name: /Main-d'œuvre/ });
+  const labour = deltas
+    .getByRole("row")
+    .filter({ has: page.getByRole("cell", { name: "Main-d'œuvre", exact: true }) });
   let budgeted = "3000.00";
   let reestimated = "2841.00";
   if (inService) {
@@ -261,14 +272,17 @@ test("retains the differences alone in the comparison: pressed, in the address a
   await expect(nodes).toBeVisible();
   // Against the service the filter is the server's: the grid counts the nodes it retains — its
   // two header rows besides, as in the volume path —, none of them unchanged, and the API's own
-  // count, fewer than the whole structure's when the pair has unchanged nodes. (The fake back
-  // serves the same window whatever the address names.)
+  // count, fewer than the whole structure's, which has unchanged nodes. (The fake back serves the
+  // same window whatever the address names.) The absence of « Inchangé » on the screen is read on
+  // the rows drawn alone, the grid being virtualised: the count of its rows says the rest.
   if (inService) {
     const retained = await comparisonServed(browser, manager, {
       difference: "added,removed,modified",
     });
     const whole = await comparisonServed(browser, manager);
+    expect(whole.items.map(({ difference }) => difference)).toContain("unchanged");
     expect(retained.items.length).toBeGreaterThan(0);
+    expect(retained.items.length).toBeLessThan(whole.items.length);
     expect(retained.items.map(({ difference }) => difference)).not.toContain("unchanged");
     expect(retained.items.length).toBe(
       whole.items.filter(({ difference }) => difference !== "unchanged").length,

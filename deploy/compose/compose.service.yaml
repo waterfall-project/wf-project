@@ -524,8 +524,11 @@ services:
   # #1025, #2687, #2695): two legs of frontend/bench/contract-proxy.ts, around it in the same
   # container, carry the bytes of such a body past it, both ways — an upload, a download —, while
   # every exchange still goes through Prism, held to the contract and written to its log
-  # (US-1550/L7). Kept: the two legs, which the Node of the image runs, its types stripped; they
-  # live in the front, whose lint, types and tests hold them. Set aside: sending those exchanges
+  # (US-1550/L7). Held by its test (bench/contract-proxy.test.ts), among others the cut of a body
+  # past 5 MiB inside a character (#2695), and by the path of the backups, whose download and
+  # restoration cross the legs (frontend/e2e/service/backups.spec.ts, #2751). Kept: the two legs,
+  # which the Node of the image runs, its types stripped; they live in the front, whose lint,
+  # types and tests hold them. Set aside: sending those exchanges
   # straight to the API, which a GET cannot be sorted for before its answer and which would leave
   # them unchecked; a patch of Prism's compiled sources, to redo at each version. The front reaches
   # the entrance on 4010; Prism listens on 4011, and forwards to the exit on 4012, which sends to

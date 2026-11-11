@@ -28,7 +28,7 @@ from waterfall.core.estimate.recalling import recalled
 from waterfall.core.estimate.tables import LABEL_LENGTH
 from waterfall.core.projects.interface import subproject_has_actual_costs, subproject_labels
 from waterfall.core.resource_settings.interface import read_roles
-from waterfall.platform.errors import FieldError, UnprocessableError
+from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -40,7 +40,6 @@ if TYPE_CHECKING:
     from waterfall.core.planning.interface import BearingTask
     from waterfall.core.resource_settings.interface import RoleView
 
-VALIDATION_FAILED = "VALIDATION_FAILED"
 FIELD_NOT_ACCEPTED = "FIELD_NOT_ACCEPTED"
 VALUE_REQUIRED = "VALUE_REQUIRED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"

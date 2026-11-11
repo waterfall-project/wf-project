@@ -12,7 +12,7 @@
     "status": "analysed",
     "created_at": "2026-06-03T11:00:05Z",
     "expires_at": "2026-06-04T11:01:00Z",
-    "report": {"format_version":"1","read_count":1,"unchanged_count":0,"rejected":[{"sheet":"Hors sous-projet","row":2,"code":"STATE_FORBIDS_OPERATION","params":{"missing_condition":"task_not_completed","tasks":[{"lineage_id":"01926f3a-7c00-7000-8000-000000000622","label":"Études de détail"}]}}],"refusals":[],"differences":[],"ignored":[],"completed_tasks":[],"date_mismatches":[],"signals":[],"requires_confirmation_reasons":[]},
+    "report": {"format_version":"1","read_count":1,"unchanged_count":0,"rejected":[{"sheet":"Hors sous-projet","row":2,"code":"STATE_FORBIDS_OPERATION","params":{"missing_condition":"task_not_completed","tasks":[{"lineage_id":"01926f3a-7c00-7000-8000-000000000622","label":"Études de détail"}]}}],"refusals":[],"differences":[],"ignored":[],"completed_tasks":[],"date_mismatches":[],"signals":[],"requires_confirmation_reasons":[],"unit_constants":null},
     "task": {"task_id":"01926f3a-7c00-7000-8000-000000000924","kind":"import_analysis","status":"succeeded","progress":100,"submitted_at":"2026-06-03T11:00:05Z","finished_at":"2026-06-03T11:01:00Z","problem":null,"result_url":null},
     "available_commands": [
       {"command":"apply","is_available":true,"missing_conditions":[]},

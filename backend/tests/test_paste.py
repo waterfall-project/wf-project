@@ -849,7 +849,9 @@ def test_a_paste_is_the_act_of_an_account_never_of_the_platform(tree: Tree, stag
     project, revision = UUID(stage.project["project_id"]), UUID(tree.revision["revision_id"])
     where = Place(project, revision, UUID(tree.structure_id))
     with stage.database.transaction() as session, pytest.raises(RuntimeError):
-        preview_paste(session, where, block, Writer(Act(None, utc_now()), None))
+        preview_paste(
+            session, where, block, Writer(Act(None, utc_now()), None), ("planning.write",)
+        )
 
 
 class _Recorder:

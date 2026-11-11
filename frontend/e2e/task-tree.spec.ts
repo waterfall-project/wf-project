@@ -2,10 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { type Browser, expect } from "@playwright/test";
 
+import type { components } from "../src/api/generated/schema";
+import type { Answer } from "./answer";
+import { DEFAULT_DEPTH } from "../src/components/tree/summaries";
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 import { API, frontToken, type LocalPerson } from "./service/realm";
+
+type Schemas = components["schemas"];
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -22,7 +27,7 @@ async function summaryDepth(browser: Browser, manager: LocalPerson | undefined):
     const revision = `${API}/projects/${PROJECT}/revisions/${REVISION}`;
     const structures = await context.request.get(`${revision}/structures`, { headers });
     expect(structures.status(), "GET structures").toBe(200);
-    const main = ((await structures.json()) as { structure_id: string; kind: string }[]).find(
+    const main = ((await structures.json()) as Schemas["CostStructure"][]).find(
       ({ kind }) => kind === "main",
     );
     expect(main, "a main structure").toBeDefined();
@@ -30,11 +35,16 @@ async function summaryDepth(browser: Browser, manager: LocalPerson | undefined):
       `${revision}/structures/${main?.structure_id ?? ""}/nodes`,
       {
         headers,
-        params: { kinds: "task", summaries_only: true, max_level: 2, fields: "parent_id" },
+        params: {
+          kinds: "task",
+          summaries_only: true,
+          max_level: DEFAULT_DEPTH,
+          fields: "parent_id",
+        },
       },
     );
     expect(nodes.status(), "GET nodes").toBe(200);
-    return ((await nodes.json()) as { meta: { summary_depth: number } }).meta.summary_depth;
+    return ((await nodes.json()) as Answer<"listNodes">).meta.summary_depth;
   } finally {
     await context.close();
   }

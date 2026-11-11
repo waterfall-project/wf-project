@@ -325,8 +325,10 @@ describe("the reading anew that follows a block pasted on the estimate (#2559)",
       grid(estimate, { ...STRUCTURE, structure_id: "01926f3a-7c00-7000-8000-000000000203" }),
     );
     hold.release();
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
+    // The answer applied closes the dialog of the paste: the event that follows the reading it
+    // would have asked for, had the structure still been the one pasted on.
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Coller depuis un tableur" })).toBeNull();
     });
     expect(router.refresh).not.toHaveBeenCalled();
   });

@@ -114,6 +114,22 @@ def test_the_sum_is_rounded_once_from_the_exact_total_not_from_a_quotient() -> N
 
 
 @pytest.mark.requirement("WF-DEV-0080-A")
+def test_a_half_cent_is_rounded_away_from_zero_as_money_is() -> None:
+    # The planned value is an amount the server computes: it rounds a half cent as ``Money`` of
+    # the contract and ``pricing.round_to_cent`` do, away from zero, not to the even (#2773).
+    day = WorkInstant(date(2026, 3, 2))
+
+    def counted(amount: str) -> Decimal:
+        lines = [PlannedLine(Decimal(amount), Placement(EIGHT_HOURS, day, day))]
+        return planned_value(lines, date(2026, 3, 2))
+
+    assert counted("0.025") == Decimal("0.03")
+    assert counted("0.035") == Decimal("0.04")
+    assert counted("-0.025") == Decimal("-0.03")
+    assert counted("0.0249") == Decimal("0.02")
+
+
+@pytest.mark.requirement("WF-DEV-0080-A")
 def test_a_task_over_a_weekend_counts_whole_at_its_end_not_at_its_start() -> None:
     # The choice (the design is silent): no hour worked, the line counts whole at the end.
     weekend = PlannedLine(

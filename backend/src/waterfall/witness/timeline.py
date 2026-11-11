@@ -60,12 +60,11 @@ class RevisionMarked(_Strict):
 
 
 class DesignationAttempted(_Strict):
-    """The designation of a revision as the reference, and the refusal it is met with."""
+    """The designation of a revision as the reference, which succeeds (US-1570/L2)."""
 
     kind: Literal["designation_attempted"]
     project: str
     revision: int
-    refused: Literal["no_task"]
 
 
 class CodeEntered(_Strict):

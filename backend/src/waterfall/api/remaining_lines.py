@@ -31,13 +31,12 @@ from waterfall.api.nodes import (
     written_of,
 )
 from waterfall.core.estimate.interface import LineEntry, LineRemaining, set_line_remaining
-from waterfall.platform.errors import UnprocessableError
+from waterfall.platform.errors import VALIDATION_FAILED, UnprocessableError
 
 router = APIRouter(tags=["remaining"])
 
 CONSULT = "remaining.read"
 CHANGE = "remaining.write"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 BASIS = "reestimated_amount_basis"
 MAX_ROOTS = 2
 

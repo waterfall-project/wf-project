@@ -24,6 +24,7 @@ from waterfall.core.projects.interface import current_day
 from waterfall.core.revisions.interface import list_cost_structures, read_revision
 from waterfall.platform.database import frozen_reading, utc_now
 from waterfall.platform.errors import (
+    NOT_FOUND,
     STATE_FORBIDS_OPERATION,
     ConflictError,
     ForbiddenError,
@@ -60,7 +61,6 @@ EXPORT_COMMANDS: Mapping[ExportKind, tuple[str, str]] = {
 # expired — and its link with it.
 CONSUMED = "consumed"
 MAIN = "main"
-NOT_FOUND = "NOT_FOUND"
 PERMISSION_MISSING = "PERMISSION_MISSING"
 TASK_SUCCEEDED = "task_succeeded"
 # The key of the payload that names the project: not ``project_id``, which makes the project wait

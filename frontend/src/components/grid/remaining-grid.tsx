@@ -83,8 +83,10 @@ export interface RemainingGridProps {
    * (US-0140); otherwise it is read only.
    */
   readonly editable: boolean;
-  /** The categories a line is created from; none, and no line is created. */
+  /** The categories of expense a line is created from; with no role, none, and no line is created. */
   readonly categories?: readonly LineCategory[] | undefined;
+  /** The roles a line of labour is created from. */
+  readonly roles?: readonly LineCategory[] | undefined;
   /**
    * The sub-projects of the project, which the menu of the cells of a line offers it (US-0480): a
    * line is carried to one from the remaining to commit once the project is in progress; none, and
@@ -142,6 +144,7 @@ export function RemainingGrid({
   filters,
   editable,
   categories,
+  roles,
   subprojects,
   query,
   preferences,
@@ -176,6 +179,7 @@ export function RemainingGrid({
           tasks: true,
           lines: true,
           categories,
+          roles,
           rows: nodes.items,
           version,
         }

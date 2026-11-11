@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 from waterfall.api.contract.models import Project, WorkBreakdownReading
 from waterfall.core.projects.interface import (
+    BORN_LOCK_VERSION,
     DeliverableEntry,
     OrderItemEntry,
     WorkBreakdownLoad,
@@ -70,7 +71,7 @@ def load(session: Session, witness: Witness) -> bool:
     }
     if is_loaded(imposed, work_breakdown_present(session, imposed)):
         return False
-    counter = 0 if described.lock_version is None else described.lock_version.root
+    counter = BORN_LOCK_VERSION if described.lock_version is None else described.lock_version.root
     load_work_breakdown(
         session,
         WorkBreakdownLoad(project_id, entries, counter),

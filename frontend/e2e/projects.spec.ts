@@ -128,7 +128,7 @@ test("the home lists the projects the user contributes to, a filter shown and li
     await expect(list.getByRole("row")).toHaveCount(4);
   }
   if (inService) {
-    // The loader writes PRJ-001 in pricing and PRJ-002 created, neither with a code yet (US-0990).
+    // The loader writes PRJ-001 In progress, with its code, and PRJ-002 created, with none yet.
     // The other paths create projects of their own, which a page of the list may no longer leave
     // room for the two of the witness: each is reached by the search of the screen, on its label.
     for (const [search, name] of [
@@ -145,9 +145,15 @@ test("the home lists the projects the user contributes to, a filter shown and li
     ).toBeVisible();
     await expect(list.getByRole("row", { name: /PRJ-002/ })).toContainText("Chiffrage");
   }
-  await expect(list.getByRole("row").last()).toContainText(
-    inService ? /\d+ projets?/ : "2 projets",
-  );
+  const total = list.getByRole("row").last();
+  if (inService) {
+    // The two projects of the witness at least, besides those the other paths created.
+    await expect(total).toContainText(/\d+ projets?/);
+    const counted = /(\d+)\sprojets?/.exec(await total.innerText());
+    expect(Number(counted?.[1] ?? "0")).toBeGreaterThanOrEqual(2);
+  } else {
+    await expect(total).toContainText("2 projets");
+  }
 
   await filter.getByRole("link", { name: "N’afficher que mes projets" }).click();
   await expect(page).toHaveURL("/");

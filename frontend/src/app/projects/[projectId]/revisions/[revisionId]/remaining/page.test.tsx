@@ -136,6 +136,7 @@ beforeEach(() => {
     [INDICATORS]: "remaining_indicators",
     "GET /projects/{project_id}/work-breakdown": "work_breakdown",
     "GET /reference/cost-categories": "volume/cost_categories",
+    "GET /reference/resource-roles": "resource_roles",
   };
 });
 
@@ -306,6 +307,7 @@ describe("the screen of the remaining to commit", () => {
     expect(page).not.toMatch(/<td(?![^>]*aria-readonly)[^>]*data-column=/);
     const calls = server.clients.flatMap((client) => client.calls.map((call) => call.route));
     expect(calls).not.toContain("GET /reference/cost-categories");
+    expect(calls).not.toContain("GET /reference/resource-roles");
   });
 
   it("opens the grid to entry on a project in progress, where tasks and lines are created and deleted, and reads the categories a line is created from", async () => {
@@ -344,6 +346,28 @@ describe("the screen of the remaining to commit", () => {
     expect(handed).toHaveLength(1);
     expect(handed[0]?.subprojects).toBeUndefined();
     expect(handed[0]?.editable).toBe(false);
+  });
+
+  it("hands the grid the type of the cost of the categories and the roles a line is created from [WF-DEV-0020-A]", async () => {
+    await remainingAt();
+    expect(handed[0]?.categories?.some(({ kind }) => kind === "non_labor")).toBe(true);
+    expect(handed[0]?.categories?.some(({ kind }) => kind === "labor")).toBe(true);
+    expect(handed[0]?.categories?.every(({ kind }) => kind !== undefined)).toBe(true);
+    expect(handed[0]?.roles?.map(({ label }) => label)).toContain("Ingénieur électricien");
+    const calls = server.clients.flatMap((client) => client.calls.map((call) => call.route));
+    expect(calls).toContain("GET /reference/resource-roles");
+  });
+
+  it("hands the grid no role when the API refuses the list, the grid still entered [WF-DEV-0020-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /reference/resource-roles": { problem: { code: "PERMISSION_MISSING", status: 403 } },
+    };
+    await remainingAt();
+    expect(handed).toHaveLength(1);
+    expect(handed[0]?.roles).toBeUndefined();
+    expect(handed[0]?.categories).toBeDefined();
+    expect(handed[0]?.editable).toBe(true);
   });
 
   it("hands the grid no sub-project when the API refuses the list, the grid still entered", async () => {

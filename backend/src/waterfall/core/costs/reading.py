@@ -20,7 +20,7 @@ from waterfall.core.costs.tables import CostImport, CostLine
 from waterfall.core.projects.interface import subproject_labels
 from waterfall.core.users.interface import read_authors
 from waterfall.platform.database import CODE_POINTS
-from waterfall.platform.errors import FieldError, UnprocessableError
+from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -30,7 +30,6 @@ if TYPE_CHECKING:
 
     from waterfall.core.users.interface import Author
 
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 UNKNOWN_SUBPROJECT = "UNKNOWN_SUBPROJECT"
 UNASSIGNED = "unassigned"
