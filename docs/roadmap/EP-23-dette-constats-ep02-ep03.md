@@ -1,10 +1,10 @@
 ---
 id: EP-23
 titre: Les constats laissés ouverts par EP-02 et EP-03, et quatre d'EP-06, sont soldés — le suivi des tâches, les refus, les écrans de l'administration, les comptes, les sauvegardes, le compteur d'écriture et le moteur de planning
-statut: prêt
+statut: en cours
 depend_de: EP-02, EP-03, EP-06
 famille: front, back
-issue:
+issue: 2858
 ---
 
 # EP-23 — Dette des constats d'EP-02 et d'EP-03
@@ -71,8 +71,8 @@ leurs derniers lots écrivent (« Préalables »).
 - le jour courant pris en UTC, faute d'un fuseau de l'installation (#2527, d'EP-06) : EP-13
   (décision de l'auteur du 2026-11-11, « Constats reçus » d'EP-13) ;
 - la copie privée d'`identifierOf` dans `components/portfolio/address.ts`, qui laisse passer un
-  identifiant qui n'est pas un UUID comme celle que corrige US-1770 : une issue mineure, reportée à
-  EP-11 (décision de l'auteur du 2026-11-11) ;
+  identifiant qui n'est pas un UUID comme celle que corrige US-1770 : une issue mineure, #2867,
+  reportée à EP-11 (décision de l'auteur du 2026-11-11) ;
 - toute modification de la spécification ; toute modification du contrat autre que la borne de
   `LockVersion` (US-1810).
 
@@ -135,7 +135,8 @@ Décisions de l'auteur du 2026-11-11.
 ## Constats reçus
 
 Relevés par les revues complètes du front et du back du 2026-11-07 (`main`, 89894959), tranchés par
-l'auteur le 2026-11-11 ; renommés `[EP-23]` et passés au label `EP-23` à l'ouverture des issues :
+l'auteur le 2026-11-11 ; renommés `[EP-23]`, passés au label `EP-23` et rattachés à leur US à l'ouverture des issues, le
+2026-11-11 :
 
 - #2257 — front : une réponse 503 ou 500 à la relecture d'une tâche de fond arrête pour de bon son
   suivi → US-1750 ;
@@ -332,15 +333,14 @@ celui qui vient second reprenant `main`.
   décision de l'auteur du 2026-11-11), dans une US du moteur, au modèle `opus` : les deux touchent
   la symétrie des deux passes sur un jour sans heure de travail. Écarté : un lot de suite d'EP-06,
   livré, que la décision du 2026-11-11 reportait après la livraison.
-- **Chaque test de #2845 cite l'exigence dont il éprouve le Vérif**, au cas par cas (décision de
-  l'auteur du 2026-11-11) : le refus d'une écriture sur une révision marquée, par l'état ou par un
+- **Chaque test de #2845 cite l'exigence dont il éprouve le Vérif**, au cas par cas (décisions de
+  l'auteur du 2026-11-11, la seconde sur la proposition du cadrage) : le refus d'une écriture sur une révision marquée, par l'état ou par un
   collage, cite `WF-REV-0020-A` (« quel que soit le point d'entrée »), plutôt que `WF-CYC-0100-A`
   que l'issue proposait en exemple, qui vise un projet terminal ; la désignation d'une révision
   marquée comme référence garde `WF-DAT-0020-A`, dont le Vérif dit « La désignation d'une révision
-  marquée comme référence aboutit ». Le lot les relit un par un, et sa pull request dit ce qu'il a
-  retenu pour chacun.
+  marquée comme référence aboutit ». Écarté : `WF-CYC-0100-A` pour les trois.
 - **La copie d'`identifierOf` du portefeuille** reste hors d'EP-23 (décision de l'auteur du
-  2026-11-11) : une issue mineure la suit, reportée à EP-11.
+  2026-11-11) : une issue mineure la suit, #2867, reportée à EP-11.
 - **Les reports** : #2229, #2231, #2241, #2258 et #2527 vont à EP-13 (ses « Constats reçus »),
   #2779 attend la v1, et le fichier d'EP-03, livré, n'est pas touché (décisions de l'auteur du 2026-11-11).
 
@@ -351,7 +351,7 @@ celui qui vient second reprenant `main`.
 - **statut** : à faire
 - **exigences** : `WF-IHM-0080-A`, `WF-ADM-0160-A`
 - **opérations** : `getBackgroundTask`, `listBackgroundTasks`
-- **issue** :
+- **issue** : #2860
 
 **En tant que** chef de projet ou administrateur, **je veux** qu'une tâche de fond lancée reste
 suivie quand une relecture tombe sur une indisponibilité passagère de la base ou de Redis, et que la
@@ -395,7 +395,7 @@ morceaux interrompu (#2258, EP-13).
 - **statut** : à faire
 - **exigences** : `WF-EXP-0040-A`, `WF-OBS-0020-A`
 - **opérations** : `getMe`, `updateMyPreferences`, et toute lecture d'un écran
-- **issue** :
+- **issue** : #2864
 
 **En tant que** chef de projet, manager ou administrateur, **je veux** qu'un écran dont la lecture
 est refusée parce qu'un composant de la plateforme est indisponible me dise lequel, et qu'un refus
@@ -443,7 +443,7 @@ ne sert pas encore (#2307, EP-13).
 - **exigences** : `WF-INTF-0160-A`, `WF-SEC-0020-A`, `WF-ADM-0040-A`
 - **opérations** : `updateMyPreferences`, `closeMySessions`, les lectures du référentiel et des
   comptes filtrées par un identifiant de l'adresse
-- **issue** :
+- **issue** : #2861
 
 **En tant que** chef de projet, manager ou administrateur, **je veux** que le choix de ma langue, ma
 déconnexion ou la largeur d'une colonne, quand le serveur de Next ou ma connexion tombe, me disent
@@ -490,7 +490,7 @@ que je lisais (#2259, #2269).
 - **statut** : à faire
 - **exigences** : `WF-ADM-0010-A`, `WF-IHM-0090-A`
 - **opérations** : `updateAccessRole`, `deleteAccessRole`, `setUserAccessRoles`, `listUsers`
-- **issue** :
+- **issue** : #2865
 
 **En tant qu'**administrateur, **je veux** que la ligne d'un rôle soit occupée tant qu'une écriture
 de ce rôle est en route, et que l'attribution des rôles d'un compte, quand le serveur la dit
@@ -533,7 +533,7 @@ construit (« Conception »).
 - **exigences** : `WF-ADM-0140-A`, `WF-ADM-0120-A`
 - **opérations** : `resendInvitation`, `createUser`, `createPasswordSetupLink`, `updateUser`,
   `anonymizeUser`, `getMe`
-- **issue** :
+- **issue** : #2859
 
 **En tant qu'**administrateur, **je veux** que le renvoi de l'invitation d'un compte que le
 fournisseur ne tient plus pour local me le dise comme le lien de fixation, qu'une modification d'un
@@ -582,7 +582,7 @@ comptes elle-même, inchangée.
 - **statut** : à faire
 - **exigences** : `WF-ADM-0160-A`
 - **opérations** : `startRestore`, `listBackups`, `startBackup`
-- **issue** :
+- **issue** : #2862
 
 **En tant qu'**exploitant, **je veux** qu'une plateforme reconstruite à partir de l'archive d'une
 installation perdue ne liste que ses propres sauvegardes, et que le compartiment ne garde aucune
@@ -617,7 +617,7 @@ sauvegarde absente, et que la rotation voie tout ce qui est gardé (#2230, #2242
 - **opérations** : toute écriture qui porte un `lock_version`, dans son corps ou en paramètre de
   requête (`deleteAccessRole`, `deleteSubproject`, `abandonRevision`, `deleteNode` ; `deleteRisk`,
   que le service ne sert pas encore, EP-08)
-- **issue** :
+- **issue** : #2863
 
 **En tant que** développeur, **je veux** que le contrat borne le compteur d'écriture à ce que la base
 tient, **afin qu'**un `lock_version` hors de cette borne soit refusé par la validation, et non par une
@@ -648,7 +648,7 @@ la comparaison du compteur en Python que proposait #2232 : c'est une modificatio
 - **statut** : à faire
 - **exigences** : `WF-PLA-0100-A`, `WF-PLA-0160-A`, `WF-REV-0020-A`
 - **opérations** : aucune en propre — le moteur, et des tests d'API qui ne changent que leur marqueur
-- **issue** :
+- **issue** : #2866
 
 **En tant que** chef de projet, **je veux** qu'un décalage ou une durée écoulés qui atteignent une fin
 de semaine donnent la même marge en arrière qu'en avant, **afin qu'**aucune tâche ne se dise critique,
