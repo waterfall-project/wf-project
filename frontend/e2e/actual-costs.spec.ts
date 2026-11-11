@@ -89,21 +89,29 @@ test("chooses the number of rows per page of the actual costs, carried by the ad
   page,
 }) => {
   test.slow();
-  await openHydrated(page, `${COSTS}?in_tracked_scope=false&offset=50`);
+  await openHydrated(page, `${COSTS}?sort_by=amount&sort_order=asc&offset=10`);
   const size = page.getByRole("combobox", { name: "Lignes par page", exact: true });
   await expect(size).toBeInViewport();
   await expect(size).toHaveValue("50");
   await expect(size.getByRole("option")).toHaveText(["10", "25", "50", "100"]);
   await size.selectOption("25");
-  await expect(page).toHaveURL(`${COSTS}?in_tracked_scope=false&limit=25`, { timeout: WORKING });
+  await expect(page).toHaveURL(`${COSTS}?sort_by=amount&sort_order=asc&limit=25`, {
+    timeout: WORKING,
+  });
   // A larger one is chosen as easily, from the address of the one before.
   await size.selectOption("100");
-  await expect(page).toHaveURL(`${COSTS}?in_tracked_scope=false&limit=100`, { timeout: WORKING });
+  await expect(page).toHaveURL(`${COSTS}?sort_by=amount&sort_order=asc&limit=100`, {
+    timeout: WORKING,
+  });
 });
 
 test("shows a line from the list to exclude it from the tracked scope with a reason, the page read anew once the server has written it (#291) @shared [WF-CRE-0040-A]", async ({
   page,
 }) => {
+  test.skip(
+    inService,
+    "the account of the run is no project manager of PRJ-001 and the exclusion would write the witness (#2193): the path of the run below excludes a line it imports",
+  );
   test.slow();
   await openHydrated(page, COSTS);
   const grid = page.getByRole("grid", { name: "Coûts réels" });

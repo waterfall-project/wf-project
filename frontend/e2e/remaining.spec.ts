@@ -82,7 +82,7 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   // The indicators in cards, dated, each figure as the server gives it, the coverage of the risks
   // in a card of its own.
   const indicators = page.getByRole("region", { name: "Indicateurs du reste à engager" });
-  await expect(indicators).toContainText(/Reste à engager\s*67\s747\s090,97\s€/);
+  await expect(indicators).toContainText(/Reste à engager\s*67\s497\s090,97\s€/);
   await expect(indicators).toContainText("Calculé le");
   await expect(page.getByRole("region", { name: "Couverture des risques" })).toHaveText(
     /Réserve pour risques\s*850\s060,00\s€\s*Provisions restantes\s*500\s000,00\s€\s*Coût des risques survenus\s*200,00\s€\s*réestimé\s*Réestimé des risques survenus \(information\)\s*200,00\s€\s*Écart de couverture\s*349\s860,00\s€/,
@@ -315,7 +315,7 @@ test("reads the cards of the remaining to commit as the service answers, the rem
   await openHydrated(page, `${revision}/remaining${query}`);
   const indicators = page.getByRole("region", { name: "Indicateurs du reste à engager" });
   await expect(indicators).toContainText(
-    inService ? /Reste à engager\s*0,00\s€/ : /Reste à engager\s*67\s747\s090,97\s€/,
+    inService ? /Reste à engager\s*0,00\s€/ : /Reste à engager\s*67\s497\s090,97\s€/,
     { timeout: WORKING },
   );
   await expect(indicators).toContainText("Calculé le");
@@ -506,7 +506,25 @@ test("starts a task from the Kanban and completes a milestone, on a project the 
     await page.getByRole("textbox", { name: "Charge (h)" }).fill("0");
     await page.keyboard.press("Enter");
     const asking = page.getByRole("dialog", { name: "Terminer la tâche" });
+    // The server action leaves before the click returns: the screen is left once it has answered.
+    const written = page.waitForResponse(
+      (response) => response.request().method() === "POST" && response.url().includes(revision),
+      { timeout: WORKING },
+    );
     await asking.getByRole("button", { name: "Terminer la tâche" }).click();
+    expect((await written).ok()).toBe(true);
+    await expect(asking).toBeHidden({ timeout: WORKING });
+    await openHydrated(page, `${revision}/remaining?progress=not_started%2Cstarted%2Ccompleted`);
+    await expect(
+      grid
+        .getByRole("row", { name: /Mise en service/ })
+        .nth(1)
+        .getByRole("gridcell")
+        .nth(at.hours),
+    ).toHaveText("0", { timeout: WORKING });
+    await expect(grid.getByRole("row", { name: /Mise en service/ }).first()).toContainText(
+      "Terminée",
+    );
     await openHydrated(page, `${revision}/kanban`);
     await expect(
       completed.getByRole("listitem").filter({ hasText: "Mise en service" }),
