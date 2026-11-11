@@ -252,6 +252,25 @@ def test_the_state_of_the_filter_panel_of_a_grid_is_kept_and_read_again_absent_w
     assert preferences_of(database, user_id) == {"grids": {"users": USERS_GRID}}
 
 
+@pytest.mark.requirement("WF-IHM-0060-A")
+def test_the_filter_panel_state_is_read_as_a_boolean_by_the_lax_models_and_refuses_other_words(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # #2916: the models are lax, as for the neighbours of the field: "true" is read as true,
+    # and a word that is no boolean, "open", is refused on the field.
+    _, headers = person(database, realm, display_preferences={})
+    grid = {"grids": {"users": {"filters_open": "true"}}}
+    response = api.patch(PREFERENCES, headers=headers, json=grid)
+    assert response.status_code == 200, response.text
+    assert api.get(ME, headers=headers).json()["display_preferences"]["grids"]["users"] == {
+        "filters_open": True
+    }
+    grid = {"grids": {"users": {"filters_open": "open"}}}
+    response = api.patch(PREFERENCES, headers=headers, json=grid)
+    assert refusal(response)[:2] == (422, "VALIDATION_FAILED")
+    assert [field["pointer"] for field in refusal(response)[2]] == ["/grids/users/filters_open"]
+
+
 @pytest.mark.requirement("WF-ADM-0040-A")
 def test_the_layout_of_a_timeline_is_kept_by_timeline_and_forgotten_when_sent_null(
     api: ContractClient, database: Database, realm: TestRealm
