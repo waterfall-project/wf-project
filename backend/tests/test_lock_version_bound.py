@@ -15,6 +15,8 @@ from uuid import UUID
 
 import pytest
 from access_rows import role
+from projects_support import PROJECTS
+from projects_support import scene as make_scene
 from realm import KEY, TestRealm
 from sqlalchemy import insert, select
 from support import ContractClient, bearer, raw_account
@@ -24,6 +26,8 @@ from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
 
 if TYPE_CHECKING:
+    from sqlalchemy import Engine
+
     from waterfall.platform.database import Database
 
 ROLES = "/api/v1/access-roles"
@@ -106,6 +110,25 @@ def test_a_counter_beyond_the_bound_in_a_query_is_refused_by_the_validation(
     assert untouched(database, written) == ("Chiffreur", 0, False, [])
     unknown = api.delete(f"{ROLES}/{UNKNOWN}", headers=headers, params={"lock_version": BEYOND})
     assert refusal(unknown) == beyond("/query/lock_version")
+
+
+@pytest.mark.parametrize(
+    "tail",
+    [
+        "subprojects/{unknown}",
+        "revisions/{unknown}",
+        "revisions/{unknown}/structures/{unknown}/nodes/{unknown}",
+    ],
+    ids=["deleteSubproject", "abandonRevision", "deleteNode"],
+)
+def test_a_counter_beyond_the_bound_in_a_query_is_refused_on_the_other_deletions(
+    api: ContractClient, owner: Engine, database: Database, realm: TestRealm, tail: str
+) -> None:
+    # The project exists, as the permission is read first; the object under it need not.
+    stage = make_scene(api, owner, database, realm)
+    path = f"{PROJECTS}/{stage.project['project_id']}/{tail.format(unknown=UNKNOWN)}"
+    response = api.delete(path, headers=stage.manager.headers, params={"lock_version": BEYOND})
+    assert refusal(response) == beyond("/query/lock_version")
 
 
 @pytest.mark.parametrize("write", ["patch", "delete"])
