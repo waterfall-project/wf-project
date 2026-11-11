@@ -42,7 +42,7 @@ from waterfall.platform.database import utc_now
 from waterfall.platform.errors import ConflictError
 from waterfall.platform.logs import logging_context
 from waterfall.platform.settings import WitnessSettings
-from waterfall.witness import projects, revisions
+from waterfall.witness import org_nodes, projects, revisions
 from waterfall.witness.description import Witness
 from waterfall.witness.main import load_witness
 from waterfall.witness.timeline import Chronology
@@ -62,13 +62,15 @@ PRJ_002 = UUID("01926f3a-7c00-7000-8000-000000000002")
 REVISION_100 = UUID("01926f3a-7c00-7000-8000-000000000100")
 REVISION_101 = UUID("01926f3a-7c00-7000-8000-000000000101")
 REVISION_102 = UUID("01926f3a-7c00-7000-8000-000000000102")
-# The contributors of the witness: Camille Martin, Alix Moreau (deactivated), Lucas Petit, Inès
-# Roux.
+# The accounts of the witness: its contributors — Camille Martin, Alix Moreau (deactivated), Lucas
+# Petit, Inès Roux — and Sacha Lefèvre, whom ``users.json`` attaches to a node of the organisation
+# without naming a contributor (#2698).
 CONTRIBUTORS = {
     UUID("01926f3a-7c00-7000-8000-000000000301"): True,
     UUID("01926f3a-7c00-7000-8000-000000000303"): False,
     UUID("01926f3a-7c00-7000-8000-000000000305"): True,
     UUID("01926f3a-7c00-7000-8000-000000000306"): True,
+    UUID("01926f3a-7c00-7000-8000-000000000304"): True,
 }
 # What the slice does not reach, by object: the fields of an example the loaded witness differs
 # from, each with the EPIC that lifts it. The author is the platform, never the account the example
@@ -193,7 +195,7 @@ def identifying(database: Database) -> dict[str, list[tuple[object, ...]]]:
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
-def test_the_witness_loads_the_local_accounts_of_its_contributors_under_its_identifiers(
+def test_the_witness_loads_its_local_accounts_attached_to_their_node_under_its_identifiers(
     witness: Database,
 ) -> None:
     named = {user["user_id"]: user for user in example("users")["items"]}
@@ -202,6 +204,13 @@ def test_the_witness_loads_the_local_accounts_of_its_contributors_under_its_iden
             select(UserAccount).where(UserAccount.id.in_(CONTRIBUTORS))
         ).all()
     assert {account.id: account.state == "active" for account in accounts} == CONTRIBUTORS
+    # Each is attached to the node of the organisation ``users.json`` gives it (#2698).
+    attached = {str(account.id): str(account.org_node_id) for account in accounts}
+    wanted = {str(each): named[str(each)]["org_node_id"] for each in CONTRIBUTORS}
+    assert {key: node for key, node in wanted.items() if node} == {
+        key: node for key, node in attached.items() if node != "None"
+    }
+    assert "01926f3a-7c00-7000-8000-000000000472" in attached.values()
     for account in accounts:
         expected = named[str(account.id)]
         assert (account.first_name, account.last_name) == (
@@ -543,10 +552,13 @@ def test_the_projects_are_created_by_the_rules_of_the_creation_the_minimal_refer
     witness: Database, owner: Engine
 ) -> None:
     # A platform whose reference lacks a prerequisite refuses the witness (#2155): the projects
-    # slice, run on the bootstrap alone, names what is missing and writes nothing.
+    # slice, run on the bootstrap and the nodes of the organisation that the accounts attach to,
+    # names what is missing and writes nothing.
     wipe(owner)
     install(owner)
     current = Witness(WITNESS, Act(None, utc_now()))
+    with witness.transaction() as session:
+        org_nodes.load(session, current)
     with (
         logging_context(correlation_id="witness-refused"),
         pytest.raises(ConflictError) as refused,

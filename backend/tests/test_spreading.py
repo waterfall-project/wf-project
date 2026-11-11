@@ -63,6 +63,17 @@ def test_the_parts_of_a_line_add_up_to_its_total_even_when_the_ratio_does_not_di
         assert len(spread) > 2
 
 
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_a_part_that_falls_on_a_half_is_rounded_away_from_zero_the_last_taking_the_rest() -> None:
+    # « Les montants sont des décimaux exacts » rounded as ``Money`` is, a half away from zero
+    # (#2806): 29 December 2025 to 5 January 2026 holds three working days in each year, so the
+    # first part of a ten-billionth is half of it, and the last takes what the first leaves.
+    dates = (date(2025, 12, 29), date(2026, 1, 5))
+    tenth = Decimal("0.0000000001")
+    assert spread_by_year(task(*dates), tenth) == {2025: tenth, 2026: ZERO}
+    assert spread_by_year(task(*dates), -tenth) == {2025: -tenth, 2026: ZERO}
+
+
 @pytest.mark.requirement("WF-DEV-0040-A")
 def test_a_task_within_one_year_puts_the_whole_amount_on_it() -> None:
     # The year of consumption of a line is the one of the task that carries it.

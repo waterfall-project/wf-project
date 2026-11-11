@@ -417,8 +417,8 @@ export default defineConfig([
     // US-1550/L7): no code of the front, which Next never loads, but a proxy that Node runs in the
     // container of Prism, and its test, which stands up the servers it sits between. A proxy
     // speaks HTTP by its nature: node:http passes, and no other module of the network — not fetch,
-    // nor a client of npm, nor the libraries of the session. It writes only a log, no text of the interface, and the other rules of
-    // the guard stay as they are.
+    // nor a client of npm, nor the libraries of the session. It writes only a log, no text of the
+    // interface, and the other rules of the guard stay as they are.
     files: ["bench/contract-proxy.ts", "bench/contract-proxy.test.ts"],
     rules: {
       "no-restricted-imports": [

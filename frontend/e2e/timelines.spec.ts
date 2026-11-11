@@ -16,11 +16,11 @@ import { isServerAction } from "./server-action";
 // revisions 100 to 102) and its two timelines: the navigation from the planning (read only), the PNG
 // export and the two selections (WF-PLA-0140-A). The inscription on a project the run creates
 // (WF-PLA-0060-A, the service path below) plays against it too: the account of the run is no
-// contributor of PRJ-001, #2193. The frieze and the focus (WF-IHM-0100-A) are skipped against the
-// service: 103 tasks of the witness keep the 4x10 h calendar of the lines' role (EP-07), which gives
-// other dates than the ones they read (#2594); US-1570 in EP-07 lifts the skip. On the fake back they
-// prove the frieze is drawn alone and say so in an annotation, since it draws every node whatever
-// the timeline (#463): the lanes and the last rectangle are the service's. The inscription on the
+// contributor of PRJ-001, #2193. The frieze and the focus (WF-IHM-0100-A) are played against the
+// service since the lines of the witness give its tasks the calendar of their role (#2594,
+// US-1570). On the fake back they prove the frieze is drawn alone and say so in an annotation, since
+// it draws every node whatever the timeline (#463): the lanes and the last rectangle are the
+// service's. The inscription on the
 // first task of the fake back (WF-PLA-0060-A, the first two paths) and the creation/deletion of a
 // timeline keep to the fake back, which is the only one to hold what they write.
 //
@@ -136,27 +136,20 @@ test("offers the time/time tracking of a milestone beside its timelines, checked
 // The fake back keeps no preference: the journey proves the moves on the screen and what the frieze
 // sends. A move refused for an overlap is proven by `timeline-chart.dom.test.tsx`: no timeline of
 // the witness holds two rectangles that overlap.
-// Why the frieze and the focus are skipped against the service: its witness gives the dates of the
-// calendar of the lines' role, not those the paths read (#2594, carried to EP-07, US-1570).
-const AFTER_THE_LINES =
-  "the witness of the service keeps the calendar of the lines' role (#2594, EP-07)";
 const ON_FAKE_BACK =
   "the fake back draws every node (#463): only the frieze is proven, not the lanes or the last rectangle";
 const MOVED = "01926f3a-7c00-7000-8000-000000000565";
 
-test("lays out the frieze of a timeline by the keyboard and the mouse, and records the lanes @shared", async ({
+test("lays out the frieze of a timeline by the keyboard and the mouse, and records the lanes @shared [WF-IHM-0100-A]", async ({
   page,
 }) => {
-  test.skip(inService, AFTER_THE_LINES);
   // The timelines read the structure of a thousand tasks: the bound of a grid.
   test.slow();
   await openHydrated(page, `${IN_REVISION}/timelines`);
   const frieze = page.getByRole("group", { name: /^Frise de la chronologie/ });
   await expect(frieze).toBeVisible({ timeout: WORKING });
   if (!inService) {
-    // The assertions below run in no mode while the skip above (#2594) stands: the service is
-    // skipped, and this branch leaves the fake back before them. US-1570 (EP-07) lifts the skip,
-    // plays them, and corrects whatever has drifted from the screen meanwhile.
+    // The assertions below are the service's: the fake back draws every node, and leaves here.
     test
       .info()
       .annotations.push({ type: "not played on the fake back", description: ON_FAKE_BACK });
@@ -207,15 +200,12 @@ test("keeps the rectangle the keyboard reaches in view on a zoomed axis, and cut
   page,
 }) => {
   // Le focus reste visible.
-  test.skip(inService, AFTER_THE_LINES);
   test.slow();
   await openHydrated(page, `${IN_REVISION}/timelines`);
   const frieze = page.getByRole("group", { name: /^Frise de la chronologie/ });
   await expect(frieze).toBeVisible({ timeout: WORKING });
   if (!inService) {
-    // The assertions below run in no mode while the skip above (#2594) stands: the service is
-    // skipped, and this branch leaves the fake back before them. US-1570 (EP-07) lifts the skip,
-    // plays them, and corrects whatever has drifted from the screen meanwhile.
+    // The assertions below are the service's: the fake back draws every node, and leaves here.
     test
       .info()
       .annotations.push({ type: "not played on the fake back", description: ON_FAKE_BACK });
@@ -388,7 +378,10 @@ test("shows two timelines of a project with distinct selections, found again by 
   // Another session: the same account signed in anew in a browser context of its own, which shares
   // nothing with the first (cookies, storage), reads the two selections the service holds. The fake
   // back keeps no session, and the visits above are what it plays.
-  if (inService && manager !== undefined) {
+  if (inService) {
+    if (manager === undefined) {
+      throw new Error("the run on the service names no manager account to sign in anew");
+    }
     const context = await browser.newContext();
     try {
       const other = await context.newPage();
@@ -402,6 +395,11 @@ test("shows two timelines of a project with distinct selections, found again by 
     } finally {
       await context.close();
     }
+  } else {
+    test.info().annotations.push({
+      type: "not played on the fake back",
+      description: "no session on the fake back: only the visits above are played",
+    });
   }
 });
 

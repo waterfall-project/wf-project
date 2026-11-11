@@ -506,6 +506,7 @@ def test_a_line_that_names_a_task_the_structure_does_not_hold_stops_the_loading(
             load_lines(session, Place(PRJ_001, REVISION_102, structure), (stray,), Act(None, LATER))
 
 
+@pytest.mark.requirement("WF-QUA-0040-A")
 def test_a_load_of_lines_reads_the_reference_once_and_the_api_every_time() -> None:
     # What the lines of a load name of the reference is read once for them all (#2716); outside a
     # load, as the API writes a line, it is read afresh each time, and nothing is left behind.
@@ -523,3 +524,26 @@ def test_a_load_of_lines_reads_the_reference_once_and_the_api_every_time() -> No
             assert recalled(session, "other", read) == "rate 4"
         assert not remembers(session)
         assert recalled(session, "rate", read) == "rate 5"
+
+
+@pytest.mark.requirement("WF-QUA-0040-A")
+def test_a_memory_of_a_load_survives_a_block_inside_it_and_is_left_on_an_exception() -> None:
+    # A block opened inside another keeps the memory of the outer one, which alone ends it; and
+    # the memory does not outlive a load that raises (#2733).
+    reads: list[str] = []
+
+    def read() -> str:
+        reads.append("read")
+        return f"rate {len(reads)}"
+
+    with Session() as session:
+        with remembering(session):
+            assert recalled(session, "rate", read) == "rate 1"
+            with remembering(session):
+                assert recalled(session, "rate", read) == "rate 1"
+            assert remembers(session)
+            assert recalled(session, "rate", read) == "rate 1"
+        assert not remembers(session)
+        with pytest.raises(RuntimeError), remembering(session):
+            raise RuntimeError
+        assert not remembers(session)

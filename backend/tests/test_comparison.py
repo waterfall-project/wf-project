@@ -24,10 +24,9 @@ from uuid import UUID, uuid4
 import pytest
 from estimate_support import YEAR, Costing, Lines, costing
 from nodes_support import Tree, opened, refusal, set_progress
-from project_rows import STAMP
 from projects_support import PROJECTS, Scene, create
 from projects_support import scene as make_scene
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -39,7 +38,6 @@ from waterfall.core.cost_settings.interface import (
 )
 from waterfall.core.cost_settings.tables import CostCategory, CostType
 from waterfall.core.estimate.tables import EstimateLine, RevisionCategory
-from waterfall.core.planning.tables import TrackingEntry
 from waterfall.core.projects.tables import Project
 from waterfall.core.revisions.interface import mark_revision
 from waterfall.core.revisions.tables import CostStructure
@@ -751,23 +749,22 @@ def test_a_line_whose_payment_delay_alone_changes_is_modified_without_any_amount
 @pytest.mark.requirement(REQUIREMENT)
 def test_a_timeline_brings_no_ancestors(api: ContractClient, stage: Scene, pair: Pair) -> None:
     # ``timeline_id`` retains the tasks it tracks alone, their ancestors not coming back.
-    nodes = by_label(compared(api, stage, revisions(pair))["items"])
     created = api.post(
         f"{PROJECTS}/{stage.project['project_id']}/timelines",
         headers=stage.manager.headers,
         json={"label": "Comité de pilotage"},
     ).json()["timeline_id"]
-    with stage.database.transaction() as session:
-        session.execute(
-            insert(TrackingEntry).values(
-                id=uuid4(),
-                project_id=UUID(stage.project["project_id"]),
-                lineage_id=UUID(nodes["Conception"]["lineage_id"]),
-                kind="timeline",
-                timeline_id=UUID(created),
-                **STAMP,
-            )
-        )
+    # The inscription of a task is written as a manager does, on the revision in progress that
+    # follows the two marked: it is by lineage, which the compared revisions share.
+    following = Tree(api, stage, opened(api, stage))
+    node = by_label(following.items())["Conception"]
+    entry = {"kind": "timeline", "timeline_id": created}
+    answer = api.put(
+        f"{following.path}/nodes/{node['node_id']}/tracking",
+        headers=stage.manager.headers,
+        json={"entries": [entry], "lock_version": node["lock_version"]},
+    )
+    assert answer.status_code == 200, answer.text
     tracked = compared(api, stage, revisions(pair), f"&kinds=task&timeline_id={created}")
     assert [label_of(each) for each in tracked["items"]] == ["Conception"]
 
@@ -794,11 +791,20 @@ def test_max_level_leaves_out_a_removed_task_below_it(api: ContractClient, stage
 
 
 @pytest.mark.requirement(REQUIREMENT)
-def test_summaries_only_and_a_subtree_combined_with_difference_read_the_union(
+def test_summaries_only_keeps_the_summary_tasks_alone(
     api: ContractClient, stage: Scene, pair: Pair
 ) -> None:
     summaries = compared(api, stage, revisions(pair), "&summaries_only=true")
     assert [label_of(each) for each in summaries["items"]] == ["Études", "Installation"]
+
+
+@pytest.mark.requirement(REQUIREMENT)
+def test_a_subtree_read_with_difference_added_keeps_its_ancestors_as_they_are_marked(
+    api: ContractClient, stage: Scene, pair: Pair
+) -> None:
+    # ``difference=added`` keeps the lines marked added; the ancestors of what is kept stay, with
+    # the mark they bear whatever the filter: « Installation », which gains « Câblage », is
+    # ``modified`` though it is not ``added``.
     nodes = by_label(compared(api, stage, revisions(pair))["items"])
     site = nodes["Installation"]["node_id"]
     added = compared(api, stage, revisions(pair), f"&subtree_of={site}&difference=added")

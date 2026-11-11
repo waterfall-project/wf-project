@@ -393,16 +393,22 @@ def retrieved(uri: str) -> Resource[Any]:
     return DRAFT202012.create_resource(document(uri))
 
 
-def binary_text(content: bytes) -> str:
+def binary_text(content: bytes | str) -> str:
     """Read a binary body as the string its schema declares, each byte one character."""
-    return content.decode("latin-1")
+    return content.decode("latin-1") if isinstance(content, bytes) else content
 
 
 # The bodies the contract declares a binary string and openapi-core reads otherwise: an MS Project
 # file, which it would parse into a tree of XML, then refuse as no string (#2675). It applies to
 # every ``application/xml``, though only the binary body of ``docs/api/paths/system.yaml`` needs
-# it: a test of the contract fails on any other (``test_api_service.py``).
-BINARY_TYPES = {"application/xml": binary_text}
+# it: a test of the contract fails on any other (``test_api_service.py``). The images and the
+# octet stream are read so too, the only reading of a binary body of the tests (#2757).
+BINARY_TYPES = {
+    "application/xml": binary_text,
+    "image/png": binary_text,
+    "image/jpeg": binary_text,
+    "application/octet-stream": binary_text,
+}
 # The paths of the contract whose resolution is kept: the walk of an answer asks each of its values
 # what its schema holds, and a schema is reached again from the root at each question.
 RESOLVED_PATHS = 1 << 16
