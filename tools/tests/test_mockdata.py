@@ -182,8 +182,8 @@ def test_a_summary_counts_what_its_volume_holds(volumes: dict[str, Any]) -> None
     assert "27 jalons" in nodes
     assert "5 000 lignes de devis" in nodes
     total = volumes["estimate_indicators_volume.json"]["value"]["total"]
-    assert total == mockstructure.computable("68923691.77")
-    assert "68 923 691,77 au total" in volumes["estimate_indicators_volume.json"]["summary"]
+    assert total == mockstructure.computable("68950649.05")
+    assert "68 950 649,05 au total" in volumes["estimate_indicators_volume.json"]["summary"]
     assert "Les 300 projets" in volumes["portfolio_projects.json"]["summary"]
     assert "seuils de 0,9 et 0,8" in volumes["portfolio_projects.json"]["summary"]
     assert "15 ans" in volumes["hourly_rates.json"]["summary"]

@@ -1,5 +1,5 @@
 {
-  "summary": "De l'offre v1.0 à la révision de référence, rapprochées par lignée sur toute la structure du témoin aux volumes du §4.6.2, lue entière, sans filtre, comme l'écran de la comparaison la lit, chaque nœud réduit par `fields` à ce que l'écran en montre — kind, task.label, estimate_line.label — et à ce qui est toujours rendu, sa marque comprise : 5 999 nœuds dans l'ordre du plan, dont 5 ajoutés, 2 retirés et rendus à leur place, 4 997 modifiés par leurs propres valeurs, 965 tâches modifiées par leur seul contenu et 30 inchangés (C-361). Les totaux et la meta sont ceux de `listNodes` sur la référence entière, les écarts des montants budgétés et réestimés ceux de toute la structure, 852 890,95 et -1 012 313,24 en tout (WF-REV-0080, WF-DAT-0030, #1193, #1201).",
+  "summary": "De l'offre v1.0 à la révision de référence, rapprochées par lignée sur toute la structure du témoin aux volumes du §4.6.2, lue entière, sans filtre, comme l'écran de la comparaison la lit, chaque nœud réduit par `fields` à ce que l'écran en montre — kind, task.label, estimate_line.label — et à ce qui est toujours rendu, sa marque comprise : 5 999 nœuds dans l'ordre du plan, dont 5 ajoutés, 2 retirés et rendus à leur place, 4 997 modifiés par leurs propres valeurs, 965 tâches modifiées par leur seul contenu et 30 inchangés (C-361). Les totaux et la meta sont ceux de `listNodes` sur la référence entière, les écarts des montants budgétés et réestimés ceux de toute la structure, 852 890,95 et -1 013 056,56 en tout (WF-REV-0080, WF-DAT-0030, #1193, #1201).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "from_revision_id": "01926f3a-7c00-7000-8000-000000000100",
@@ -6005,15 +6005,15 @@
       {"node_id":"01926f3a-7c00-7000-8000-000100005999","row_number":5998,"level":4,"lock_version":1,"difference":"modified","changes":["reestimated_amount"],"kind":"estimate_line","estimate_line":{"label":"Transport et manutention"}},
       {"node_id":"01926f3a-7c00-7000-8000-000100006000","row_number":5999,"level":3,"lock_version":1,"difference":"unchanged","changes":[],"kind":"task","task":{"label":"Fin du lot 9.3"}}
     ],
-    "totals": {"task_count":997,"estimate_line_count":5000,"hours":"116270","base_amount":"66455083.89","budgeted_amount":"71138755.96","reestimated_amount":"69273551.77"},
+    "totals": {"task_count":997,"estimate_line_count":5000,"hours":"116270","base_amount":"66455083.89","budgeted_amount":"71166456.56","reestimated_amount":"69300509.05"},
     "meta": {"summary_depth":2,"scheduled_at":"2026-02-01T09:00:00Z"},
     "amount_deltas": [
-      {"dimension":"cost_type","key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","budgeted_delta":"3191.45","reestimated_delta":"-95174.62"},
-      {"dimension":"cost_type","key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","budgeted_delta":"-360.50","reestimated_delta":"-1767198.62"},
+      {"dimension":"cost_type","key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","budgeted_delta":"3191.45","reestimated_delta":"-95208.91"},
+      {"dimension":"cost_type","key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","budgeted_delta":"-360.50","reestimated_delta":"-1767907.65"},
       {"dimension":"cost_type","key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","budgeted_delta":"850060.00","reestimated_delta":"850060.00"},
-      {"dimension":"subproject","key":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande","budgeted_delta":"23949334.84","reestimated_delta":"23314197.74"},
-      {"dimension":"subproject","key":"01926f3a-7c00-7000-8000-000000000802","label":"Essais et mise en service","budgeted_delta":"22257364.13","reestimated_delta":"21667888.73"},
-      {"dimension":"subproject","key":"unassigned","label":null,"budgeted_delta":"-45353808.02","reestimated_delta":"-45994399.71"}
+      {"dimension":"subproject","key":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande","budgeted_delta":"23958109.83","reestimated_delta":"23322741.24"},
+      {"dimension":"subproject","key":"01926f3a-7c00-7000-8000-000000000802","label":"Essais et mise en service","budgeted_delta":"22269183.00","reestimated_delta":"21679390.18"},
+      {"dimension":"subproject","key":"unassigned","label":null,"budgeted_delta":"-45374401.88","reestimated_delta":"-46015187.98"}
     ]
   }
 }

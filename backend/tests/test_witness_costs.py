@@ -23,8 +23,6 @@ witness does not reach, each named with its cause where the test stands:
 - the reference is the offer 100 until the merge of the amendment 1 (EP-08): the budgets of the
   subprojects, their margins and the margin on the reference are measured to it, the project names
   it, a task's budgeted amount is that of its lineage in the 100;
-- a line whose task straddles two years is spread over them by the service (WF-DEV-0040), where the
-  generator of the examples kept the first year (US-1570/L2): the remaining of these tasks;
 - the tasks a risk originates are EP-08's;
 - the authors of the objects the platform writes, their counters, and the commands of a reader,
   which follow its rights.
@@ -45,7 +43,7 @@ from sqlalchemy import func, select
 from support import WITNESS, captured_logs
 from test_witness import load, wipe
 from test_witness_lines import PROVISION, line_rows
-from test_witness_lines_reads import READ_AT, by_role, deviations, keyed, volume_excess
+from test_witness_lines_reads import READ_AT, by_role, deviations, keyed
 from test_witness_projects import (
     PRJ_001,
     REVISION_100,
@@ -304,7 +302,7 @@ def test_the_subprojects_with_actual_costs_are_the_example_but_for_the_authors_a
 
 # What the remaining indicators of the witness differ in from the example, each for its cause.
 REMAINING_APART = {
-    # The provision of the risk of the core (EP-08), and the lines on two years spread.
+    # The provision of the risk of the core (EP-08).
     "/total",
     "/by_cost_type[len]",
     "/by_cost_type[]/amount",
@@ -339,17 +337,14 @@ def test_the_remaining_indicators_are_the_example_but_for_the_provisions_and_the
     assert [each["actual_cost"] for each in body["by_subproject"]] == [
         each["actual_cost"] for each in expected["by_subproject"]
     ]
-    # The natures of the example but the provision (EP-08); the total its, but for the provision,
-    # the lines the occurrence of a risk merged (EP-08) and the lines on two years, which the
-    # service spreads: the very difference of the lines read.
+    # The natures of the example but the provision (EP-08); the total its, but for the provision
+    # and the lines the occurrence of a risk merged (EP-08).
     provision = next(each for each in expected["by_cost_type"] if each["label"] == "Provision")
     assert [each["key"] for each in body["by_cost_type"]] == [
         each["key"] for each in expected["by_cost_type"] if each is not provision
     ]
     total = Decimal(body["total"])
-    assert total == Decimal(expected["total"]) - Decimal(provision["amount"]) - merged() + spread(
-        witness
-    )
+    assert total == Decimal(expected["total"]) - Decimal(provision["amount"]) - merged()
     for dimension, amount in (("by_cost_type", "amount"), ("by_subproject", "remaining")):
         assert sum(Decimal(each[amount]) for each in body[dimension]) == total
     # Measured to the offer 100, each margin the budget less the actual cost and the remaining.
@@ -388,25 +383,11 @@ def merged() -> Decimal:
     return sum((Decimal(each) for each in found), Decimal(0))
 
 
-def spread(witness: Database) -> Decimal:
-    """Give how much more the lines of the revision in progress cost than the example's.
-
-    The lines on two years, which the service spreads by the hours of each (WF-DEV-0040), the
-    provision the witness lacks apart (EP-08). The difference is a known one, tolerated until the
-    witness spreads as the service does (#2838).
-    """
-    wanted = keyed(example("volume/nodes_thousand")["items"], "node_id")
-    return volume_excess(witness) + Decimal(
-        wanted[PROVISION]["estimate_line"]["reestimated_amount"]
-    )
-
-
 # What the Kanban counts of the tasks whose amounts differ from the example's, by column and cause:
 # the base amount of the core, which bears the provision (EP-08); the budgeted amount of a lineage
-# in the offer 100, the reference; the re-estimated amount of a task on two years, or bearing the
-# provision.
+# in the offer 100, the reference; the re-estimated amount of a task bearing the provision.
 AMOUNTS_APART = {
-    "not_started": {"base_amount": 0, "budgeted_amount": 24, "reestimated_amount": 23},
+    "not_started": {"base_amount": 0, "budgeted_amount": 1, "reestimated_amount": 0},
     "started": {"base_amount": 1, "budgeted_amount": 1, "reestimated_amount": 1},
     "completed": {"base_amount": 0, "budgeted_amount": 0, "reestimated_amount": 0},
 }

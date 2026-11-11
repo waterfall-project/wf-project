@@ -35,11 +35,13 @@ from wftools.mockcalendar import (
 from wftools.mockdating import (
     Amounts,
     Dated,
+    Span,
     awaiting_own_lines,
     float_of,
     payment_delay,
     price,
     progress_at,
+    span_of,
     schedule,
     tasks_in_order,
 )
@@ -159,7 +161,7 @@ class _Emitter:
     rates: Mapping[str, Decimal] = field(default_factory=lambda: dict(LABOUR_RATES))
     projection: Projection = WITNESS
     previous: Mapping[int, Line] = field(default_factory=dict[int, Line])
-    previous_years: Mapping[int, int] = field(default_factory=dict[int, int])
+    previous_spans: Mapping[int, Span] = field(default_factory=dict[int, Span])
     rows: list[Row] = field(default_factory=list[Row])
     row_of: dict[int, int] = field(default_factory=dict[int, int])
     charged: frozenset[str] = field(default_factory=charged_subprojects)
@@ -200,7 +202,7 @@ class _Emitter:
         return amounts
 
     def _line(self, line: Line, place: Place, *, progress: str) -> Amounts:
-        """Append a line of a task, consumed in the year its task starts; return its amounts.
+        """Append a line of a task, its amount spread over the years of its task; return its amounts.
 
         A line of a task started or completed does not leave a subproject charged with actual
         costs (WF-PRJ-0050): it does not name it among the fields it accepts. A line of a task
@@ -211,14 +213,17 @@ class _Emitter:
         task = place.bearing
         completed = progress == "completed"
         held = progress != "not_started" and line.subproject in self.charged
-        year = self.dated[task.number].start.day.year
+        placed = self.dated[task.number]
+        span = span_of(placed, line)
         amounts = price(
             line,
-            year,
+            placed.start.day.year,
             self.rates,
-            budget_year=self.previous_years.get(line.number),
             projection=self.projection,
+            span=span,
+            budget_span=self.previous_spans.get(line.number),
         )
+        year = span.year(amounts.base)
         facet: JsonObject = {
             "label": line.label,
             "cost_category_id": line.category,
@@ -232,7 +237,7 @@ class _Emitter:
             "subproject_id": line.subproject,
             "subproject_label": None if line.subproject is None else self.labels[line.subproject],
             **amounts.rendered(),
-            **self._previous(line.number, year),
+            **self._previous(line.number, span),
             "remaining_reason": line.reason,
             "consumption_year": year,
             "is_computed": line.is_provision,
@@ -265,7 +270,7 @@ class _Emitter:
         )
         return amounts
 
-    def _previous(self, number: int, year: int) -> JsonObject:
+    def _previous(self, number: int, span: Span) -> JsonObject:
         """Return the quantities of a line at the previous review and its amount re-estimated.
 
         Null before the first review, and for a line added since, as the merged ones; the hours
@@ -275,8 +280,10 @@ class _Emitter:
         before = self.previous.get(number)
         if before is None:
             return dict.fromkeys(PREVIOUS)
-        on = self.previous_years.get(number, year)
-        amounts = price(before, on, self.rates, projection=self.projection)
+        kept = self.previous_spans.get(number, span)
+        amounts = price(
+            before, kept.start.day.year, self.rates, projection=self.projection, span=kept
+        )
         return {
             "previous_quantity": decimal(before.quantity),
             "previous_hours": None if before.hours is None else decimal(before.hours),
@@ -527,11 +534,11 @@ def _core(
     start: date,
 ) -> tuple[Row, ...]:
     before = {line.number: line for task in tasks_in_order(previous) for line in task.lines}
-    years: dict[int, int] = {}
+    spans: dict[int, Span] = {}
     if previous:
         dated = schedule(previous)
-        years = {
-            line.number: dated[task.number].start.day.year
+        spans = {
+            line.number: span_of(dated[task.number], line)
             for task in tasks_in_order(previous)
             for line in task.lines
         }
@@ -542,7 +549,7 @@ def _core(
         pricing.by_category(),
         pricing.projection,
         before,
-        years,
+        spans,
         row_of=rows_of(roots),
     )
     for rank, root in enumerate(roots, start=1):

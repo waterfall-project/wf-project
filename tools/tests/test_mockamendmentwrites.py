@@ -85,7 +85,10 @@ def test_a_line_created_on_the_amendment_is_added_and_climbs_to_its_ancestors(
         own(N.COMMISSIONING),
     )
     assert (line["difference"], line["changes"]) == ("added", [])
-    assert facet["base_amount"] == facet["budgeted_amount"] == "350.00"
+    # Its budget is its amount, projected as its re-estimate is, over the years of its task
+    # (WF-DEV-0040): 350.00 at the rates of the reference year.
+    assert facet["base_amount"] == "350.00"
+    assert facet["budgeted_amount"] == facet["reestimated_amount"]
     assert {key: facet[key] for key in mockcore.PREVIOUS} == dict.fromkeys(mockcore.PREVIOUS)
     above = [node["node_id"] for node in created["ancestors"]]
     assert above == [own(N.INSTALLATION), own(N.SITE_TESTS), own(N.COMMISSIONING)]

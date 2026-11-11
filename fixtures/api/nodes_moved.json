@@ -1,5 +1,5 @@
 {
-  "summary": "Sur l'« Avenant 2 — reprise des essais », différentiel non fusionné de la révision courante, dont le devis se saisit quel que soit l'état du projet (WF-DEV-0050), une sélection de deux lignes, « Matériel » et « Sous-traitance » de « Conception 1.1.2 », déplacée en une écriture sous « Revue 1.1.3 », à sa fin : leur tâche porteuse change, une version de plus chacune, modifiées par leur parent (changes) ; aucune n'est de main-d'œuvre, aucun calendrier ne change. Avec elles, les anciens et les nouveaux ancêtres, « Approvisionnements », « Approvisionnements — Poste de commande », « Conception 1.1.2 » et « Revue 1.1.3 », dont les montants suivent, et les totaux de la structure, 5 000 lignes, 116310 h, 66 108 223,89 à l'année de référence, dont 70 541 639,56 budgétés, inchangés (WF-PLA-0040, #1214).",
+  "summary": "Sur l'« Avenant 2 — reprise des essais », différentiel non fusionné de la révision courante, dont le devis se saisit quel que soit l'état du projet (WF-DEV-0050), une sélection de deux lignes, « Matériel » et « Sous-traitance » de « Conception 1.1.2 », déplacée en une écriture sous « Revue 1.1.3 », à sa fin : leur tâche porteuse change, une version de plus chacune, modifiées par leur parent (changes) ; aucune n'est de main-d'œuvre, aucun calendrier ne change. Avec elles, les anciens et les nouveaux ancêtres, « Approvisionnements », « Approvisionnements — Poste de commande », « Conception 1.1.2 » et « Revue 1.1.3 », dont les montants suivent, et les totaux de la structure, 5 000 lignes, 116310 h, 66 108 223,89 à l'année de référence, dont 70 569 348,99 budgétés, inchangés (WF-PLA-0040, #1214).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "nodes": [
@@ -14,7 +14,7 @@
     ],
     "rescheduled": [],
     "reinflated": [],
-    "totals": {"task_count":1002,"estimate_line_count":5000,"hours":"116310","base_amount":"66108223.89","budgeted_amount":"70541639.56","reestimated_amount":"68926691.77"},
+    "totals": {"task_count":1002,"estimate_line_count":5000,"hours":"116310","base_amount":"66108223.89","budgeted_amount":"70569348.99","reestimated_amount":"68953829.05"},
     "structure_lock_version": 3
   }
 }
