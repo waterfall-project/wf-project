@@ -847,7 +847,7 @@ la comparaison du compteur en Python que proposait #2232 : c'est une modificatio
 
 ## US-1820 — Le moteur de planning : un décalage et une durée écoulés reculent juste, et trois tests citent leur exigence
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0100-A`, `WF-PLA-0160-A`, `WF-REV-0020-A`
 - **opérations** : aucune en propre — le moteur, et des tests d'API qui ne changent que leur marqueur
 - **issue** : #2866
