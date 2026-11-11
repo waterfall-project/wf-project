@@ -17,6 +17,8 @@
  * the sign-in page, or, when the front had lost its session, the silent sign-in that closes it on
  * every workstation (#689): nothing of the session stays in the page for the next user of the
  * workstation. A refusal, or the API out of reach, is told under the bar, and the session stands.
+ * So is a server action that rejects (`rejected`, #330): the language is not changed, the session
+ * stands, and the page is neither replaced by the screen of failure nor read again.
  */
 "use client";
 
@@ -32,6 +34,7 @@ import type { Outcome } from "@/api/problem";
 import { useAccountNaming } from "@/components/account/account-name";
 import { initials } from "@/components/account/initials";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { rejected } from "@/components/commands/rejection";
 import { useForgetTasks } from "@/components/tasks/task-tracker";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -190,12 +193,12 @@ export function AccountMenu({ account, language, theme }: AccountMenuProps) {
   const mark = initials(account, locale);
   const write = (apply: () => Promise<Written>) => {
     startTransition(async () => {
-      setOutcome(await apply());
+      setOutcome(await apply().catch(rejected));
     });
   };
   const leave = () => {
     startTransition(async () => {
-      const closed = await signOut();
+      const closed = await signOut().catch(rejected);
       if (closed.kind !== "left") {
         setOutcome(closed);
         return;
