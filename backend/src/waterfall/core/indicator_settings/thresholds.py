@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from waterfall.core.cost_settings.interface import IndexThresholds
-from waterfall.platform.decimals import too_precise
+from waterfall.platform.decimals import exceeds_precision
 from waterfall.platform.errors import VALIDATION_FAILED, FieldError, json_pointer
 
 NUMBER_INVALID = "NUMBER_INVALID"
@@ -50,7 +50,7 @@ def _in_range(name: str, text: str) -> tuple[Decimal | None, FieldError | None]:
     value = Decimal(text)
     if not 0 < value < 1:
         return None, FieldError(pointer, THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE)
-    if too_precise(value):
+    if exceeds_precision(value):
         return None, FieldError(pointer, VALIDATION_FAILED)
     return value, None
 

@@ -13,6 +13,8 @@ from uuid import UUID
 
 import pytest
 import yaml
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from nodes_support import Tree, faults, opened
 from projects_support import scene as make_scene
 from pydantic import BaseModel
@@ -20,7 +22,14 @@ from pydantic_core import PydanticCustomError
 from support import CONTRACT
 
 from waterfall.api.contract import models
-from waterfall.api.contract.base import DIGIT_FAULT, is_decimal, refuse_other_digits
+from waterfall.api.contract.base import (
+    DIGIT_FAULT,
+    ContractModel,
+    is_decimal,
+    refuse_other_digits,
+)
+from waterfall.api.middleware import CorrelationMiddleware
+from waterfall.api.problems import install_problem_handlers
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -38,6 +47,8 @@ SETTINGS = "/api/v1/reference/settings"
 ROLES = "/api/v1/reference/resource-roles"
 # The two types of the contract a decimal is written by; every other carries one of them.
 ROOTS = frozenset({"Decimal", "Money"})
+# The keywords by which a schema carries another one.
+NESTING = frozenset({"allOf", "anyOf", "oneOf", "items", "not"})
 # The digits of 0 to 9 written as Arabic-Indic ones, which a Unicode digit class matches.
 ARABIC_INDIC = str.maketrans({str(digit): chr(0x0660 + digit) for digit in range(10)})
 
@@ -67,6 +78,25 @@ def test_an_amount_in_other_digits_is_refused_at_its_field_and_no_rate_is_writte
     assert 2015 not in [rate["year"] for rate in api.get(RATES, headers=headers).json()]
     # The same amount in digits of 0 to 9 is written.
     assert api.put(f"{RATES}/2015", headers=headers, json={"amount": "12.50"}).status_code == 200
+
+
+@pytest.mark.requirement("WF-REF-0170-A")
+def test_a_threshold_in_other_digits_is_refused_at_its_field_and_nothing_is_written(
+    api: ContractClient, witness: Database, reference_sessions: ReferenceSessions
+) -> None:
+    del witness
+    headers = reference_sessions("indicator_settings").changing
+    read = api.get(SETTINGS, headers=headers).json()
+    # A threshold is a text for the base, which does not see it: the form of the threshold does.
+    thresholds = {**read["index_thresholds"], "cost_watch": arabic("0.9")}
+    sent = {"index_thresholds": thresholds, "lock_version": read["lock_version"]}
+    refused = api.patch(SETTINGS, headers=headers, json=sent)
+    assert fields_of(refused) == (
+        422,
+        "VALIDATION_FAILED",
+        [("/index_thresholds/cost_watch", "NUMBER_INVALID")],
+    )
+    assert api.get(SETTINGS, headers=headers).json() == read
 
 
 def test_a_bound_of_the_matrix_in_other_digits_is_refused_at_its_rank_and_nothing_is_written(
@@ -129,7 +159,7 @@ def decimal_schemas() -> set[str]:
     """Name the schemas of the contract that are ``Decimal`` or ``Money``, or carry one of them.
 
     Read from the sources of the contract, apart from the models: a schema carries another by its
-    reference, alone or in its ``allOf``, at any depth.
+    reference, alone or in its ``allOf``, ``anyOf``, ``oneOf``, ``items`` or ``not``, at any depth.
     """
     schemas: dict[str, dict[str, Any]] = {}
     for source in (CONTRACT.parent / "components").rglob("*.yaml"):
@@ -145,14 +175,19 @@ def decimal_schemas() -> set[str]:
         found |= carriers
 
 
-def carried(schema: dict[str, Any]) -> set[str]:
-    """Name the schemas a schema refers to, by itself or by its ``allOf``."""
-    references = [schema, *cast("list[object]", schema.get("allOf", []))]
-    return {
-        str(cast("dict[str, Any]", each)["$ref"]).rpartition("/")[2]
-        for each in references
-        if isinstance(each, dict) and "$ref" in each
-    }
+def carried(schema: object) -> set[str]:
+    """Name the schemas a schema refers to, by itself or by what it nests, at any depth."""
+    if isinstance(schema, list):
+        return {name for each in cast("list[object]", schema) for name in carried(each)}
+    if not isinstance(schema, dict):
+        return set()
+    found: set[str] = set()
+    for key, each in cast("dict[str, object]", schema).items():
+        if key == "$ref":
+            found.add(str(each).rpartition("/")[2])
+        elif key in NESTING:
+            found |= carried(each)
+    return found
 
 
 def engendered() -> dict[str, type[BaseModel]]:
@@ -189,3 +224,40 @@ def test_each_type_recognised_refuses_other_digits_at_its_item_and_takes_digits_
             DIGIT_FAULT,
             {"path": ("values", 1)},
         ), name
+
+
+class Inner(ContractModel):
+    """An object nested in a field."""
+
+    amount: models.Decimal
+
+
+class Sheet(ContractModel):
+    """A model of the contract whose fields hold a decimal, in a list and in a nested object."""
+
+    amounts: list[models.Decimal]
+    nested: Inner
+
+
+def test_a_decimal_in_a_field_of_the_base_is_refused_at_its_item_by_a_route() -> None:
+    app = FastAPI()
+    app.add_middleware(CorrelationMiddleware)
+    install_problem_handlers(app)
+
+    @app.post("/sheet")
+    def receive(sheet: Sheet) -> dict[str, int]:
+        return {"amounts": len(sheet.amounts)}
+
+    client = TestClient(app)
+    kept = {"amounts": ["0.5", "1"], "nested": {"amount": "2"}}
+    assert client.post("/sheet", json=kept).json() == {"amounts": 2}
+    for sent, pointer in (
+        ({**kept, "amounts": ["0.5", arabic("1")]}, "/amounts/1"),
+        ({**kept, "nested": {"amount": arabic("2")}}, "/nested/amount"),
+    ):
+        refused = client.post("/sheet", json=sent)
+        assert fields_of(refused) == (
+            422,
+            "VALIDATION_FAILED",
+            [(pointer, "VALIDATION_FAILED")],
+        )

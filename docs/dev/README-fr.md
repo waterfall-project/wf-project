@@ -4570,11 +4570,14 @@ ses paramètres, jamais une phrase.
   que 0 à 9 (#2238) : le motif est une expression de JSON Schema, où `\d` ne vaut que 0 à 9, que
   les modèles engendrés lisent en Unicode ; une borne de requête lue à la main s'écrit donc
   `[0-9]`, jamais `\d`.
+  Les seuils des indices et les bornes de la matrice des risques s'écrivent avec dix décimales
+  au plus, comptées telles qu'écrites, zéro final compris, et dix chiffres avant la virgule
+  (#2234) : au-delà, 422 `VALIDATION_FAILED` à leur champ, jamais un débordement de la base.
 
   _Contrôles_ : `make server-models-up-to-date` ; `make test-back` (`test_api_problems.py`,
-  `test_access_roles_guard.py` pour le NUL, `test_contract_digits.py` pour les chiffres) ; que tout paramètre en texte est un `Text`, que le
-  code et le statut sont ceux du contrat pour l'opération, la revue, puis la validation des
-  réponses des tests d'API contre le contrat.
+  `test_access_roles_guard.py` pour le NUL, `test_contract_digits.py` pour les chiffres) ; que
+  tout paramètre en texte est un `Text`, que le code et le statut sont ceux du contrat pour
+  l'opération, la revue, puis la validation des réponses des tests d'API contre le contrat.
 
 - **Journaux et réponses des tests d'API** — un test d'API passe par `ContractClient`
   (`backend/tests/support.py`), qui valide chaque réponse contre le contrat avec openapi-core :

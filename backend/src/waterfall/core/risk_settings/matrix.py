@@ -12,7 +12,7 @@ the interface of ``cost_settings``, which keeps them.
 
 from typing import TYPE_CHECKING
 
-from waterfall.platform.decimals import too_precise
+from waterfall.platform.decimals import exceeds_precision
 from waterfall.platform.errors import VALIDATION_FAILED, FieldError, json_pointer
 
 if TYPE_CHECKING:
@@ -39,7 +39,7 @@ def matrix_faults(matrix: RiskMatrix) -> list[FieldError]:
         ("probability_bounds", matrix.probability_bounds),
         ("severity_bounds", matrix.severity_bounds),
     ):
-        kept = [not too_precise(bound) for bound in bounds]
+        kept = [not exceeds_precision(bound) for bound in bounds]
         for rank, bound in enumerate(bounds):
             pointer = json_pointer("risk_matrix", axis, rank)
             if not kept[rank]:
