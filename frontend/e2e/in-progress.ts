@@ -14,7 +14,8 @@ import { API } from "./service/realm";
 import type { components } from "../src/api/generated/schema";
 import { workbook } from "./workbook";
 
-const MARKING = 60_000;
+/** How long the worker is given to mark a revision: a task taken from the queue, one transaction. */
+export const MARKING = 60_000;
 
 type Schemas = components["schemas"];
 
@@ -37,18 +38,29 @@ export type ExtractedLine = readonly [
   amount: number,
 ];
 
+/** What a path asserts along the way of `bringInProgress`, between two of its steps. */
+export interface Between {
+  /** After the line is under its task, before the revision is marked. */
+  readonly beforeMarking?: () => Promise<void>;
+  /** After the reference is designated, before the code is entered. */
+  readonly afterDesignation?: () => Promise<void>;
+}
+
 /**
  * Take a project seeded with a planning to In progress by the way of the cycle: a line under a task,
  * its revision marked by the worker, designated as the reference, and the code of the project
- * entered. Returns the code, which the WBS elements of an extraction begin with.
+ * entered. Returns the code, which the WBS elements of an extraction begin with. A path that
+ * asserts what the screen says along the way gives it as `between`.
  */
 export async function bringInProgress(
   page: Page,
   calls: APIRequestContext,
   seeded: Seeded,
+  between: Between = {},
 ): Promise<string> {
   const main = page.getByRole("main");
   await employRole(calls, seeded.headers, seeded.ids, seeded.nodes[6] ?? "", wiringService());
+  await between.beforeMarking?.();
   await openHydrated(page, `${seeded.own.path}/revisions?revision_id=${seeded.ids.revision}`);
   const commands = main.getByRole("region", { name: "Commandes" });
   await commands.getByRole("button", { name: "Marquer la révision" }).click();
@@ -72,6 +84,8 @@ export async function bringInProgress(
   await designation.getByRole("button", { name: "Confirmer la désignation" }).click();
   const history = main.getByRole("table", { name: "Historique des révisions" });
   await expect(history.getByRole("row").nth(1)).toContainText("Référence", { timeout: WORKING });
+
+  await between.afterDesignation?.();
 
   // The code entered takes the project In progress, without another action (WF-CYC-0020).
   await openHydrated(page, `${seeded.own.path}/settings`);
@@ -160,6 +174,45 @@ async function lockOf(
 }
 
 /**
+ * Mark a revision as the screen does, by the API under the token of its project manager, and follow
+ * the task of the worker to its end. The wait ends with the task, whatever its end: a task that
+ * failed ends it at once, and its problem is what the path fails on, not the whole delay given to
+ * the worker (#2835).
+ */
+export async function markRevision(
+  calls: APIRequestContext,
+  headers: Headers,
+  project: string,
+  revision: Pick<Schemas["Revision"], "revision_id" | "lock_version">,
+  versionName: string,
+): Promise<void> {
+  const marking: Schemas["RevisionMark"] = {
+    version_name: versionName,
+    lock_version: revision.lock_version,
+  };
+  const marked = await calls.post(
+    `${API}/projects/${project}/revisions/${revision.revision_id}/mark`,
+    {
+      headers,
+      data: marking,
+    },
+  );
+  expect(marked.status(), "POST mark").toBe(202);
+  const { task_id: task } = (await marked.json()) as Schemas["BackgroundTaskRef"];
+  let ended: Schemas["BackgroundTaskRef"] | undefined;
+  const finished = async (): Promise<boolean> => {
+    const read = await calls.get(`${API}/tasks/${task}`, { headers });
+    expect(read.status(), "GET task").toBe(200);
+    const body = (await read.json()) as Schemas["BackgroundTaskRef"];
+    const over = body.status === "succeeded" || body.status === "failed";
+    ended = over ? body : undefined;
+    return over;
+  };
+  await expect.poll(finished, { timeout: MARKING }).toBe(true);
+  expect(ended?.status, JSON.stringify(ended?.problem)).toBe("succeeded");
+}
+
+/**
  * Mark the revision seeded, designate it as the reference, enter the code of the project — which
  * takes it In progress — and open the current revision. The seeded revision must bear a task and a
  * line (`employRole`).
@@ -173,26 +226,16 @@ export async function takeInProgress(
   const project = `${API}/projects/${seeded.ids.project}`;
   const revision = `${project}/revisions/${seeded.ids.revision}`;
 
-  const marking: Schemas["RevisionMark"] = {
-    version_name: "v1.0",
-    lock_version: await lockOf(calls, headers, revision),
-  };
-  const marked = await calls.post(`${revision}/mark`, { headers, data: marking });
-  expect(marked.status(), "POST mark").toBe(202);
-  const { task_id: task } = (await marked.json()) as Schemas["BackgroundTaskRef"];
-  // The wait ends with the task, whatever its end: a task that failed ends it at once, and its
-  // problem is what the path fails on, not the whole delay given to the worker.
-  let ended: Schemas["BackgroundTaskRef"] | undefined;
-  const finished = async (): Promise<boolean> => {
-    const read = await calls.get(`${API}/tasks/${task}`, { headers });
-    expect(read.status(), "GET task").toBe(200);
-    const body = (await read.json()) as Schemas["BackgroundTaskRef"];
-    const over = body.status === "succeeded" || body.status === "failed";
-    ended = over ? body : undefined;
-    return over;
-  };
-  await expect.poll(finished, { timeout: MARKING }).toBe(true);
-  expect(ended?.status, JSON.stringify(ended?.problem)).toBe("succeeded");
+  await markRevision(
+    calls,
+    headers,
+    seeded.ids.project,
+    {
+      revision_id: seeded.ids.revision,
+      lock_version: await lockOf(calls, headers, revision),
+    },
+    "v1.0",
+  );
 
   const designated = await calls.put(`${project}/reference-revision`, {
     headers,

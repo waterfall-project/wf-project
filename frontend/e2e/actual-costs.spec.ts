@@ -16,11 +16,9 @@ import { scrollToFoot, scrollToPosition, withinBox } from "./scroll";
 // the core and completed (EP-14/L45a) — and the journal of its five imports, whatever the
 // filters, the sort or the page asked: the component and page tests prove what the screen asks
 // of each. Tagged `@shared`, the paths play against the service too (EP-09, US-1620). The lines
-// above are the witness's, whose costs the service loads at US-1650 and which no path writes (the
-// account of the run is no project manager of PRJ-001, #2193): the paths that read them wait for
-// it in the service. The paths that write play there on a project the run creates and takes In
-// progress (`in-progress.ts`), whose extraction they import by the API.
-const BEFORE_THE_WITNESS_COSTS = "US-1650 loads the actual costs of the witness into the service";
+// above are the witness's, whose costs the service loads (US-1650): the paths play them there too.
+// The paths that write play there on a project the run creates and takes In progress
+// (`in-progress.ts`), whose extraction they import by the API.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const COSTS = `/projects/${PROJECT}/revisions/${REVISION}/actual-costs`;
@@ -30,7 +28,6 @@ test("reads the actual costs of a project: the lines and their three totals, the
 }) => {
   // The opening and the dense grid read anew by each click, each in the bound of a grid
   // (`WORKING`): more than the thirty seconds of a test.
-  test.skip(inService, BEFORE_THE_WITNESS_COSTS);
   test.slow();
   await openHydrated(page, COSTS);
   await expect(page).toHaveTitle("Coûts réels · Modernisation du poste de commande — Waterfall");
@@ -91,7 +88,6 @@ test("reads the actual costs of a project: the lines and their three totals, the
 test("chooses the number of rows per page of the actual costs, carried by the address and back to the first page, the rest of the query kept @shared [WF-IHM-0060-A]", async ({
   page,
 }) => {
-  test.skip(inService, BEFORE_THE_WITNESS_COSTS);
   test.slow();
   await openHydrated(page, `${COSTS}?in_tracked_scope=false&offset=50`);
   const size = page.getByRole("combobox", { name: "Lignes par page", exact: true });
@@ -108,10 +104,6 @@ test("chooses the number of rows per page of the actual costs, carried by the ad
 test("shows a line from the list to exclude it from the tracked scope with a reason, the page read anew once the server has written it (#291) @shared [WF-CRE-0040-A]", async ({
   page,
 }) => {
-  test.skip(
-    inService,
-    "the lines are the witness's: the path of the run below excludes the lines it imports",
-  );
   test.slow();
   await openHydrated(page, COSTS);
   const grid = page.getByRole("grid", { name: "Coûts réels" });
@@ -178,7 +170,7 @@ test("reads the actual costs of a project the run creates, none imported yet: no
   await expect(page.getByRole("note")).toHaveCount(0);
 });
 
-test("imports the actual costs of a project the run creates, then excludes a line from the tracked scope: the totals move from the tracked scope to the excluded, the sort and the filter asked of the service @shared [WF-CRE-0040-A] [WF-CRE-0030-A]", async ({
+test("imports the actual costs of a project the run creates, then excludes a line from the tracked scope: the totals move from the tracked scope to the excluded, the sort and the filter asked of the service @shared [WF-CRE-0040-A] [WF-CRE-0030-A] [WF-CRE-0020-A] [WF-CRE-0050-A]", async ({
   page,
   browser,
   playwright,
@@ -213,6 +205,12 @@ test("imports the actual costs of a project the run creates, then excludes a lin
     await expect(totals).toHaveText(
       /^Totaux des lignes retenues\s*Périmètre suivi\s*1\s360,50\s€\s*Exclu du périmètre suivi\s*0,00\s€\s*Total général\s*1\s360,50\s€\s*Dernier import/,
     );
+    // The date of the last import is the one the service served after a real import (WF-CRE-0050-A):
+    // an instant of the last minutes, not the placeholder of a project with no import.
+    await expect(totals).not.toContainText("Aucun import");
+    const imported = await totals.locator("time").getAttribute("datetime");
+    expect(imported, "the date of the last import").not.toBeNull();
+    expect(Math.abs(Date.now() - Date.parse(imported ?? ""))).toBeLessThan(10 * 60_000);
 
     // The sort by amount and the filter on the lines of no subproject, asked of the service.
     await grid.getByRole("columnheader", { name: "Montant" }).getByRole("button").click();
@@ -221,6 +219,12 @@ test("imports the actual costs of a project the run creates, then excludes a lin
     await openHydrated(page, `${address}?subproject_id=unassigned`);
     await expect(lines).toHaveCount(3, { timeout: WORKING });
     await expect(grid.getByRole("row", { name: /FA-0004/ })).toHaveCount(0);
+    // The filter applies to the three totals (WF-CRE-0040-A): the line charged to the sub-project
+    // leaves the tracked scope and the general total alike.
+    await expect(totals).toHaveText(
+      /^Totaux des lignes retenues\s*Périmètre suivi\s*1\s350,50\s€\s*Exclu du périmètre suivi\s*0,00\s€\s*Total général\s*1\s350,50\s€\s*Dernier import/,
+      { timeout: WORKING },
+    );
 
     // A line excluded with its reason: the page read anew, the totals moved to the excluded.
     await openHydrated(page, address);

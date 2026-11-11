@@ -139,8 +139,8 @@ const ENGLISH: Language = {
     backToProject: "Back to the project",
   },
   figures: [
-    ["Remaining to commit", "€67,470,133.69"],
-    ["Reference budget", "€70,288,695.96"],
+    ["Remaining to commit", "€67,747,090.97"],
+    ["Reference budget", "€70,316,396.56"],
     ["Planned value", "€1,721,585.56"],
     ["Schedule variance", "-€228,231.37"],
     ["Schedule index", "0.8674"],

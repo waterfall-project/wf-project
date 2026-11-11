@@ -37,6 +37,7 @@ import { type APIRequestContext, expect, type Locator, type Page, test } from "@
 import type { components } from "../../src/api/generated/schema";
 import { compileAnswered } from "../compile";
 import { untilHydrated, WORKING } from "../hydration";
+import { markRevision } from "../in-progress";
 import { heldToTheContract } from "./contract";
 import {
   accountAdministrator,
@@ -55,8 +56,6 @@ heldToTheContract();
 
 // The predefined role that creates a project, opens and marks its revisions (WF-EXP-0020).
 const PROJECT_MANAGER = "Chef de projet";
-// How long the worker is given to mark a revision: a task taken from the queue, one transaction.
-const MARKING = 60_000;
 const BACKUPS = "/admin/backups";
 const JOURNAL = "/admin/audit-log";
 const ANY_BACKUP = `${BACKUPS}/01926f3a-7c00-7000-8000-000000000907/content`;
@@ -99,29 +98,8 @@ function projectManagerAt(request: APIRequestContext, token: string) {
       return { project: project.project_id, revision };
     },
     /** Mark a revision as the screen does, and follow the task of the worker to its success. */
-    mark: async (project: string, revision: Schemas["Revision"], versionName: string) => {
-      const marking: Schemas["RevisionMark"] = {
-        version_name: versionName,
-        lock_version: revision.lock_version,
-      };
-      const { task_id: task } = await asked<Schemas["BackgroundTaskRef"]>(
-        "POST",
-        `/projects/${project}/revisions/${revision.revision_id}/mark`,
-        202,
-        marking,
-      );
-      // The wait ends with the task, whatever its end: a task that failed ends it at once, and its
-      // problem is what the path fails on, not the whole delay given to the worker.
-      let ended: Schemas["BackgroundTaskRef"] | undefined;
-      const finished = async (): Promise<boolean> => {
-        const read = await asked<Schemas["BackgroundTaskRef"]>("GET", `/tasks/${task}`, 200);
-        const over = read.status === "succeeded" || read.status === "failed";
-        ended = over ? read : undefined;
-        return over;
-      };
-      await expect.poll(finished, { timeout: MARKING }).toBe(true);
-      expect(ended?.status, JSON.stringify(ended?.problem)).toBe("succeeded");
-    },
+    mark: (project: string, revision: Schemas["Revision"], versionName: string) =>
+      markRevision(request, { Authorization: `Bearer ${token}` }, project, revision, versionName),
     /** The revisions of a project, as its history lists them. */
     revisions: async (project: string) =>
       (await asked<{ items: Schemas["Revision"][] }>("GET", `/projects/${project}/revisions`, 200))
