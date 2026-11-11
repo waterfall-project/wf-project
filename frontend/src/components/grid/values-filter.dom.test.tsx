@@ -7,6 +7,8 @@ import { startTransition } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CATALOGUES } from "@/i18n/catalogues";
+import { expectAccessible } from "@/test/axe";
+import { menuSummary, openMenu, pick } from "@/test/check-menu";
 
 import { ValuesFilter } from "./values-filter";
 
@@ -25,7 +27,7 @@ vi.mock("next/navigation", async (original) => ({
 const STATES = ["identified", "occurred", "closed"] as const;
 type State = (typeof STATES)[number];
 
-/** The filter of the risks by state, the states the address names pressed. */
+/** The filter of the risks by state, the states the address names checked. */
 function filter(chosen: readonly State[]) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
@@ -47,7 +49,7 @@ afterEach(() => {
 });
 
 describe("the filter of a list on the values of a column", () => {
-  it("shows the values asked pressed while the server reads the list anew, and the address once it has answered", async () => {
+  it("shows the values asked checked while the server reads the list anew, and the address once it has answered", async () => {
     let arrive: () => void = () => undefined;
     const navigation = new Promise<void>((resolve) => {
       arrive = resolve;
@@ -57,17 +59,14 @@ describe("the filter of a list on the values of a column", () => {
       startTransition(() => navigation);
     });
     const { rerender } = render(filter([]));
-    const occurred = screen.getByRole("button", { name: "occurred" });
-    await userEvent.click(occurred);
+    await pick("État", "occurred");
     expect(router.push).toHaveBeenLastCalledWith("/projects/p/revisions/r/risks?states=occurred", {
       scroll: false,
     });
-    // The address has not changed yet: the value asked shows pressed, never the address before it.
-    expect(occurred).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Tous les états" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+    // The address has not changed yet: the value asked shows checked, never the address before it.
+    expect(screen.getByRole("checkbox", { name: "occurred" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Tous les états" })).not.toBeChecked();
+    expect(menuSummary("État")).toBe("occurred");
     // The server answers: the address names the value, which the button goes on showing pressed.
     page.search = "states=occurred";
     await act(async () => {
@@ -75,7 +74,7 @@ describe("the filter of a list on the values of a column", () => {
       await navigation;
     });
     rerender(filter(["occurred"]));
-    expect(occurred).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("checkbox", { name: "occurred" })).toBeChecked();
   });
 
   it("shows the filter lifted while every value of an exhaustive filter is asked", async () => {
@@ -88,23 +87,70 @@ describe("the filter of a list on the values of a column", () => {
     });
     page.search = "states=identified,occurred";
     const { rerender } = render(filter(["identified", "occurred"]));
-    await userEvent.click(screen.getByRole("button", { name: "closed" }));
+    await pick("État", "closed");
     expect(router.push).toHaveBeenLastCalledWith("/projects/p/revisions/r/risks", {
       scroll: false,
     });
-    expect(screen.getByRole("button", { name: "Tous les états" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(screen.getByRole("checkbox", { name: "Tous les états" })).toBeChecked();
     page.search = "";
     await act(async () => {
       arrive();
       await navigation;
     });
     rerender(filter([]));
-    expect(screen.getByRole("button", { name: "Tous les états" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
+    expect(screen.getByRole("checkbox", { name: "Tous les états" })).toBeChecked();
+  });
+
+  it("says Tous, the value, or how many are checked, and checks and unchecks a value in a row, the menu left open (#2916)", async () => {
+    // The server never answers: what is asked stays shown, and goes on from what was last asked.
+    router.push.mockImplementation(() => {
+      startTransition(() => new Promise<void>(() => undefined));
+    });
+    render(filter([]));
+    expect(menuSummary("État")).toBe("Tous les états");
+    await pick("État", "identified");
+    await pick("État", "closed");
+    expect(router.push).toHaveBeenLastCalledWith(
+      "/projects/p/revisions/r/risks?states=identified%2Cclosed",
+      { scroll: false },
     );
+    expect(menuSummary("État")).toBe("2 sélectionnés");
+    await pick("État", "identified");
+    expect(menuSummary("État")).toBe("closed");
+    await pick("État", "Tous les états");
+    expect(menuSummary("État")).toBe("Tous les états");
+  });
+
+  it("searches a long menu: eleven values or more offer a search, fewer none (#2916)", async () => {
+    const many = Array.from({ length: 12 }, (_, index) => `valeur-${String(index)}`);
+    render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <ValuesFilter
+          name="states"
+          label="Long"
+          every="Tous"
+          values={many.map((value) => ({ value, text: value }))}
+          chosen={[]}
+          exhaustive={false}
+        />
+      </NextIntlClientProvider>,
+    );
+    await openMenu("Long");
+    await userEvent.type(
+      screen.getByRole("searchbox", { name: "Rechercher dans « Long »" }),
+      "-11",
+    );
+    expect(screen.getByRole("checkbox", { name: "valeur-11" })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "valeur-3" })).toBeNull();
+    await userEvent.clear(screen.getByRole("searchbox"));
+    await userEvent.type(screen.getByRole("searchbox"), "zzz");
+    expect(screen.getByText("Aucune valeur ne correspond.")).toBeInTheDocument();
+  });
+
+  it("offers no search to a short menu, and breaks no rule of accessibility (#2916)", async () => {
+    const { container } = render(filter(["occurred"]));
+    await openMenu("État");
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    await expectAccessible(container);
   });
 });

@@ -129,7 +129,7 @@ export function account(lastName: string): User {
 
 /** Open the panel of the filters of the table, closed until the account opens it (#2916). */
 export async function openFilters() {
-  const button = screen.getByRole("button", { name: /^Filtres/ });
+  const button = screen.getByRole("button", { name: /^Filtres( \(|$)/ });
   if (button.getAttribute("aria-expanded") !== "true") {
     await userEvent.click(button);
   }

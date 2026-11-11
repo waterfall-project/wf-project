@@ -29,6 +29,7 @@ import { type Bounds, type RefusedBounds, refusedSides } from "@/components/grid
 import { ListPages } from "@/components/grid/list-pages";
 import { OFFSET, type GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
+import { FilterFields } from "@/components/grid/filter-fields";
 import { RangeFilter } from "@/components/grid/range-filter";
 import { type FilterValue, ValuesFilter } from "@/components/grid/values-filter";
 import { CELL, ICON } from "@/components/projects/project-tables";
@@ -133,7 +134,7 @@ export function UserList({
     text: named(origin),
   }));
   const filters = (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+    <FilterFields>
       <ValuesFilter
         name={ORIGINS}
         label={t("originFilter")}
@@ -168,7 +169,7 @@ export function UserList({
         lifts={[INCLUDE_INACTIVE]}
       />
       <AuditFilterBar filters={audit} authors={authors} searchable page={OFFSET} />
-    </div>
+    </FilterFields>
   );
   const empty = page.total === 0 && !narrowed;
   const asked = { origins, orgNode, accessRoles, active, audit, authors };
@@ -235,7 +236,7 @@ export interface RoleFilters {
 function RoleFilterBar({ filters }: { readonly filters: RoleFilters }) {
   const t = useTranslations();
   return (
-    <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
+    <FilterFields>
       <ChoiceFilter
         name={PREDEFINED}
         label={t("admin.accessRoles.kindFilter")}
@@ -259,7 +260,7 @@ function RoleFilterBar({ filters }: { readonly filters: RoleFilters }) {
         ]}
       />
       <AuditFilterBar filters={filters.audit} authors={filters.authors} searchable={false} />
-    </div>
+    </FilterFields>
   );
 }
 

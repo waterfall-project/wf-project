@@ -8,6 +8,8 @@
  * a list, sent together: each bound entered as the language writes a number (`parseDecimal`), and
  * written in the address as the contract writes it, under `<column>_min` and `<column>_max`
  * (`filters.ts`), back to the first page of a list the server pages; a side left empty is no bound.
+ * Each column is one command, « du … au … », applied on Enter or on leaving the form with something
+ * typed — no button to press (#2916); leaving does not take the focus back from where it went.
  * A bound that is not a number of the language — or an amount of more than two decimals — is said at
  * its field, which takes the focus, and nothing is asked. The server filters, never the front, and
  * decides alone whether the bounds hold: a bound it refuses (422) — not a number of its type, an
@@ -23,17 +25,24 @@
  * document.
  *
  * Each field is named by its column and its side, both written beside it (« Heures par mois »,
- * « min. »), so that its name holds what the eye reads (WCAG 2.5.3).
+ * « du »), so that its name holds what the eye reads (WCAG 2.5.3).
  *
  * Every prop is data — the texts are given translated —, never a function: a server component
  * hands it over (défaut n° 12 de `typescript.md`).
  */
 "use client";
 
-import { ListFilter, X } from "lucide-react";
+import { X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { type SubmitEvent, useEffect, useId, useRef } from "react";
+import {
+  type FocusEvent,
+  type KeyboardEvent,
+  type SubmitEvent,
+  useEffect,
+  useId,
+  useRef,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -197,11 +206,13 @@ function ColumnFields({
       ? undefined
       : problemOf(faults.get(`${column.column}.${first}`), refused?.[first]);
   return (
-    <div role="group" aria-label={label} className="flex flex-col gap-1">
+    <div role="group" aria-label={label} className="flex min-w-0 flex-col gap-1">
+      <span aria-hidden="true" className="text-sm leading-none font-medium">
+        {label}
+      </span>
       <div className="flex items-center gap-1.5 text-sm">
-        <span aria-hidden="true">{label}</span>
         {SIDES.map((side) => (
-          <label key={side} className="flex items-center gap-1 text-xs text-muted-foreground">
+          <label key={side} className="flex items-center gap-1.5 text-muted-foreground">
             <span aria-hidden="true">{t(`${side}Short`)}</span>
             <Input
               inputMode="decimal"
@@ -213,7 +224,7 @@ function ColumnFields({
               onChange={(event) => {
                 onText(side, event.target.value);
               }}
-              className="h-7 w-20 text-xs text-foreground tabular-nums"
+              className="h-8 w-24 min-w-0 text-foreground tabular-nums"
             />
           </label>
         ))}
@@ -243,7 +254,7 @@ function ScopeField({
   const refused = scope.refused !== undefined;
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-2 text-sm">
+      <div className="flex flex-col gap-1 text-sm">
         <Label htmlFor={id}>{scope.label}</Label>
         <NativeSelect
           id={id}
@@ -333,7 +344,7 @@ function SharedRangeFilter({ label, columns, kind, scope, page }: RangeFilterPro
       form.current?.querySelector<HTMLElement>(WRONG)?.focus();
     }
   }, [refused]);
-  const send = (written: Texts) => {
+  const send = (written: Texts, focus = true, scoped = chosen) => {
     const read = columns.map(({ column }) => ({
       column,
       min: readText(written[column]?.min ?? "", kind, locale),
@@ -350,7 +361,7 @@ function SharedRangeFilter({ label, columns, kind, scope, page }: RangeFilterPro
     }
     setCheck((before) => ({
       faults: found,
-      attempts: before.attempts + (found.size > 0 ? 1 : 0),
+      attempts: before.attempts + (found.size > 0 && focus ? 1 : 0),
     }));
     if (found.size > 0) {
       return;
@@ -364,7 +375,7 @@ function SharedRangeFilter({ label, columns, kind, scope, page }: RangeFilterPro
     sent();
     request((query) =>
       boundsHref(pathname, query, asked, {
-        scope: scope === undefined ? undefined : { name: scope.name, value: chosen },
+        scope: scope === undefined ? undefined : { name: scope.name, value: scoped },
         page,
       }),
     );
@@ -373,13 +384,31 @@ function SharedRangeFilter({ label, columns, kind, scope, page }: RangeFilterPro
     event.preventDefault();
     send(texts);
   };
+  const confirm = (event: KeyboardEvent<HTMLFormElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      send(texts);
+    }
+  };
+  // Leaving the form with something typed applies it, without taking the focus back from where it went.
+  const leave = (event: FocusEvent<HTMLFormElement>) => {
+    const next = event.relatedTarget;
+    if (
+      Object.keys(entered).length > 0 &&
+      !(next instanceof Node && event.currentTarget.contains(next))
+    ) {
+      send(texts, false);
+    }
+  };
   const lifted = Object.fromEntries(columns.map(({ column }) => [column, { min: "", max: "" }]));
   return (
     <form
       ref={form}
       aria-label={label}
       onSubmit={submit}
-      className="flex flex-wrap items-start gap-x-4 gap-y-2"
+      onKeyDown={confirm}
+      onBlur={leave}
+      className="flex min-w-0 flex-wrap items-start gap-x-4 gap-y-2"
     >
       {scope === undefined ? null : (
         <ScopeField
@@ -387,6 +416,7 @@ function SharedRangeFilter({ label, columns, kind, scope, page }: RangeFilterPro
           chosen={chosen}
           onChoose={(value) => {
             enter(SCOPE, value);
+            send(texts, true, value);
           }}
         />
       )}
@@ -401,11 +431,7 @@ function SharedRangeFilter({ label, columns, kind, scope, page }: RangeFilterPro
           }}
         />
       ))}
-      <div className="flex items-center gap-1.5">
-        <Button type="submit" size="sm" variant="outline">
-          <ListFilter aria-hidden="true" className="size-4" />
-          {t("apply")}
-        </Button>
+      <div className="flex items-center gap-1.5 self-end">
         {columns.some(({ bounds }) => bounded(bounds)) ? (
           <Button
             type="button"

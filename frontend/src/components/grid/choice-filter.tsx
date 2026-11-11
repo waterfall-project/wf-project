@@ -83,11 +83,9 @@ export function ChoiceFilter({
   // Every parameter the choices write: the one a choice writes, the others lifted.
   const names = [...new Set([name, ...choices.map((choice) => choice.name ?? name)])];
   return (
-    <div className="flex items-center gap-2 text-sm">
-      <Label htmlFor={select} className="whitespace-nowrap">
-        {label}
-      </Label>
-      <div className="w-56 shrink-0">
+    <div className="flex min-w-48 flex-col gap-1 text-sm">
+      <Label htmlFor={select}>{label}</Label>
+      <div className="min-w-0">
         <NativeSelect
           id={select}
           value={shown}

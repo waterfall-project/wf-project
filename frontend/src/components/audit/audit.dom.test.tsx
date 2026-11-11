@@ -15,6 +15,7 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridQuery } from "@/components/grid/query";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { menuSummary, pick } from "@/test/check-menu";
 import { example, fakeClient } from "@/test/fixtures";
 
 import { AUDIT_LIST, type AuditFilters, readAuditFilters } from "./audit-address";
@@ -544,8 +545,7 @@ describe("the grid of the journal", () => {
   it("turns a page from a filter under way to the first page of the journal", async () => {
     page.search = "offset=10";
     render(journal({ shown: second }));
-    const kinds = screen.getByRole("group", { name: "Filtrer par nature d’auteur" });
-    await userEvent.click(within(kinds).getByRole("button", { name: "La plateforme" }));
+    await pick("Filtrer par nature d’auteur", "La plateforme");
     expect(lastAddress()).toBe("/admin/audit-log?actor_kind=platform");
     // The filter asked and not arrived: the journal read otherwise starts from its first page.
     await userEvent.click(screen.getByRole("link", { name: /Page suivante/ }));
@@ -583,7 +583,7 @@ describe("the filters of the journal", () => {
     async function enterFrom(local: string) {
       const period = screen.getByRole("form", { name: "Période" });
       await userEvent.type(within(period).getByLabelText("Depuis le"), local);
-      await userEvent.click(within(period).getByRole("button", { name: "Appliquer" }));
+      await userEvent.keyboard("{Enter}");
     }
 
     it("sends an instant entered in summer in universal time, two hours earlier, back to the first page", async () => {
@@ -614,7 +614,7 @@ describe("the filters of the journal", () => {
       expect(field).toHaveValue("2026-05-01T08:00");
       expect(screen.getByLabelText("Avant le")).toHaveAttribute("min", "2026-05-01T08:00");
       await userEvent.clear(field);
-      await userEvent.click(screen.getByRole("button", { name: "Appliquer" }));
+      await userEvent.keyboard("{Enter}");
       expect(lastAddress()).toBe("/admin/audit-log");
     });
 
@@ -623,7 +623,7 @@ describe("the filters of the journal", () => {
       render(journal({ filters: filtersOf(page.search) }));
       const period = screen.getByRole("form", { name: "Période" });
       await userEvent.type(within(period).getByLabelText("Avant le"), "2026-06-01T00:00");
-      await userEvent.click(within(period).getByRole("button", { name: "Appliquer" }));
+      await userEvent.keyboard("{Enter}");
       expect(lastAddress()).toBe(
         "/admin/audit-log?from=2026-05-01T06%3A00%3A30.250Z&to=2026-05-31T22%3A00%3A00.000Z",
       );
@@ -668,12 +668,8 @@ describe("the filters of the journal", () => {
   it("filter by kind of author under the name of the contract, back to the first page", async () => {
     page.search = "offset=50";
     render(journal());
-    const kinds = screen.getByRole("group", { name: "Filtrer par nature d’auteur" });
-    expect(within(kinds).getByRole("button", { name: "Tous les auteurs" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    await userEvent.click(within(kinds).getByRole("button", { name: "La plateforme" }));
+    expect(menuSummary("Filtrer par nature d’auteur")).toBe("Tous les auteurs");
+    await pick("Filtrer par nature d’auteur", "La plateforme");
     expect(lastAddress()).toBe("/admin/audit-log?actor_kind=platform");
   });
 

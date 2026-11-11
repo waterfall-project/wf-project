@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { userEvent } from "@testing-library/user-event";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -63,6 +62,11 @@ function enter(side: "Du" | "Au", day: string) {
   fireEvent.change(field(side), { target: { value: day } });
 }
 
+/** Press Enter in a field of the period (the end, unless one is given). */
+function validate(target: HTMLElement = field("Au")) {
+  fireEvent.keyDown(target, { key: "Enter" });
+}
+
 /** A period whose end the server refused for preceding its start. */
 function inverted(from: string, to: string): ReactNode {
   return filter({ from, to }, { to: { code: "VALUE_OUT_OF_RANGE", minimum: from } });
@@ -77,24 +81,23 @@ afterEach(() => {
 });
 
 describe("the filter of a list on a period of days of planning", () => {
-  it("writes both days entered under the names of the contract, back to the first page, the rest kept", async () => {
+  it("writes both days entered under the names of the contract, back to the first page, the rest kept", () => {
     page.search = "sort_by=code&offset=50&to=2026-04-30";
     render(filter({ from: undefined, to: "2026-04-30" }));
-    const form = screen.getByRole("form", { name: "Période de modification" });
     expect(field("Au")).toHaveValue("2026-04-30");
     enter("Du", "2026-03-01");
     // Each side keeps the other: a start after the end is not offered.
     expect(field("Du")).toHaveAttribute("max", "2026-04-30");
     expect(field("Au")).toHaveAttribute("min", "2026-03-01");
-    await userEvent.click(within(form).getByRole("button", { name: "Filtrer" }));
+    validate();
     expect(lastAddress()).toBe("/?sort_by=code&to=2026-04-30&from=2026-03-01");
   });
 
-  it("lifts a side emptied", async () => {
+  it("lifts a side emptied", () => {
     page.search = "from=2026-03-01&to=2026-03-16";
     render(filter({ from: "2026-03-01", to: "2026-03-16" }));
     enter("Au", "");
-    await userEvent.click(screen.getByRole("button", { name: "Filtrer" }));
+    validate();
     expect(lastAddress()).toBe("/?from=2026-03-01");
   });
 
@@ -122,23 +125,61 @@ describe("the filter of a list on a period of days of planning", () => {
     expect(field("Au")).toHaveFocus();
     // The focus elsewhere, another inverted period reached in the history comes back refused on
     // the same side: its field takes the focus anew.
-    screen.getByRole("button", { name: "Filtrer" }).focus();
+    field("Du").focus();
     page.search = "from=2026-03-31&to=2026-03-02";
     rerender(inverted("2026-03-31", "2026-03-02"));
     expect(field("Au")).toHaveFocus();
     expect(field("Au")).toHaveValue("2026-03-02");
   });
 
-  it("keeps the focus on the button that sent the period once the address arrives, the form never remounted", async () => {
+  it("keeps the focus on the field that sent the period once the address arrives, the form never remounted", () => {
     const { rerender } = render(filter());
     enter("Du", "2026-03-01");
-    const apply = screen.getByRole("button", { name: "Filtrer" });
-    await userEvent.click(apply);
+    field("Du").focus();
+    const sender = field("Du");
+    validate(sender);
     page.search = "from=2026-03-01";
     rerender(filter({ from: "2026-03-01", to: undefined }));
-    expect(screen.getByRole("button", { name: "Filtrer" })).toBe(apply);
-    expect(apply).toHaveFocus();
+    expect(field("Du")).toBe(sender);
+    expect(sender).toHaveFocus();
     expect(field("Du")).toHaveValue("2026-03-01");
+  });
+
+  it("offers no button to press: the period is sent on Enter and on leaving the form, #2916", () => {
+    render(filter());
+    expect(screen.queryByRole("button")).toBeNull();
+    enter("Du", "2026-03-01");
+    field("Du").focus();
+    // Moving to the other side of the same period sends nothing.
+    field("Au").focus();
+    expect(router.push).not.toHaveBeenCalled();
+    // Leaving the form with something typed sends it.
+    field("Au").blur();
+    expect(lastAddress()).toBe("/?from=2026-03-01");
+  });
+
+  it("sends nothing on leaving the form when nothing was typed", () => {
+    render(filter());
+    field("Du").focus();
+    field("Du").blur();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("says a start typed after the end and sends nothing, #2916", async () => {
+    render(filter());
+    enter("Du", "2026-05-01");
+    enter("Au", "2026-04-01");
+    validate();
+    expect(router.push).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Le début de la période ne peut suivre sa fin.",
+    );
+    expect(field("Au")).toHaveAttribute("aria-invalid", "true");
+    enter("Au", "2026-06-01");
+    expect(screen.queryByRole("alert")).toBeNull();
+    validate();
+    expect(lastAddress()).toBe("/?from=2026-05-01&to=2026-06-01");
+    await expectAccessible(document.body);
   });
 
   it("shows the period of the address anew when it changes back in the history, what was entered and not sent given up", () => {
@@ -175,25 +216,25 @@ describe("the filter of a list on a period of local days, sent as instants", () 
     process.env.TZ = original;
   });
 
-  it("sends the start of the first day and the start of the day after the last, in universal time, back to the first page", async () => {
+  it("sends the start of the first day and the start of the day after the last, in universal time, back to the first page", () => {
     page.search = "sort_by=code&offset=50";
     render(filter(NONE, undefined, "day"));
     enter("Du", "2026-03-01");
     enter("Au", "2026-03-31");
-    await userEvent.click(screen.getByRole("button", { name: "Filtrer" }));
+    validate();
     expect(lastAddress()).toBe(
       "/?sort_by=code&from=2026-02-28T23%3A00%3A00.000Z&to=2026-03-31T22%3A00%3A00.000Z",
     );
   });
 
-  it("shows the local days of the instants of the address, a bound left untouched sent as the address names it", async () => {
+  it("shows the local days of the instants of the address, a bound left untouched sent as the address names it", () => {
     page.search = "from=2026-02-28T23%3A00%3A00Z&to=2026-03-31T22%3A00%3A00Z";
     render(filter({ from: "2026-02-28T23:00:00Z", to: "2026-03-31T22:00:00Z" }, undefined, "day"));
     expect(field("Du")).toHaveValue("2026-03-01");
     expect(field("Au")).toHaveValue("2026-03-31");
     expect(field("Au")).toHaveAttribute("min", "2026-03-01");
     enter("Du", "2026-03-10");
-    await userEvent.click(screen.getByRole("button", { name: "Filtrer" }));
+    validate();
     expect(lastAddress()).toBe("/?from=2026-03-09T23%3A00%3A00.000Z&to=2026-03-31T22%3A00%3A00Z");
   });
 

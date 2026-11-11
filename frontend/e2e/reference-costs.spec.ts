@@ -239,8 +239,9 @@ test("sorts the grid of the hourly rates by the rate of a year, filters the cate
     name: "Bornes de «\u00a0Grille des taux horaires\u00a0»",
   });
   await rateBounds.getByRole("combobox", { name: "Année du taux" }).selectOption("2026");
-  await rateBounds.getByRole("textbox", { name: "Taux horaire, min." }).fill("110,5");
-  await rateBounds.getByRole("button", { name: "Filtrer" }).click();
+  const rateLeast = rateBounds.getByRole("textbox", { name: "Taux horaire, du" });
+  await rateLeast.fill("110,5");
+  await rateLeast.press("Enter");
   await expect(page).toHaveURL(/category_cost_type_id=[\w-]+&rate_min=110\.5&rate_year=2026$/, {
     timeout: WORKING,
   });
@@ -279,8 +280,9 @@ test("filters the roles by calendar, bounds their monthly hours and filters thei
   const roleBounds = page.getByRole("form", {
     name: "Bornes de «\u00a0Rôles de ressources\u00a0»",
   });
-  await roleBounds.getByRole("textbox", { name: "Heures par mois, min." }).fill("300 000");
-  await roleBounds.getByRole("button", { name: "Filtrer" }).click();
+  const hoursLeast = roleBounds.getByRole("textbox", { name: "Heures par mois, du" });
+  await hoursLeast.fill("300 000");
+  await hoursLeast.press("Enter");
   await expect(page).toHaveURL(
     "/reference/resources?role_calendar_id=01926f3a-7c00-7000-8000-000000000481&role_monthly_hours_min=300000",
     { timeout: WORKING },

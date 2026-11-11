@@ -13,6 +13,7 @@ import { TextFilter } from "@/components/grid/text-filter";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { ListPage } from "@/navigation/pages";
 import { expectAccessible } from "@/test/axe";
+import { menuSummary, openMenu, pick } from "@/test/check-menu";
 import { example } from "@/test/fixtures";
 
 import { listReads } from "./address";
@@ -84,13 +85,9 @@ describe("the filters of a list of the reference data", () => {
         />,
       ),
     );
-    const group = screen.getByRole("group", { name: "État des objets de «\u00A0Rôles\u00A0»" });
-    expect(group).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Tous les états" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Désactivés" }));
+    await openMenu("État des objets de «\u00A0Rôles\u00A0»");
+    expect(screen.getByRole("radio", { name: "Tous les états" })).toBeChecked();
+    await userEvent.click(screen.getByRole("radio", { name: "Désactivés" }));
     // The page of the calendars, another list, is kept.
     expect(lastAddress()).toBe("/reference/resources?calendar_offset=50&role_is_active=false");
     page.search = "role_is_active=false";
@@ -104,17 +101,16 @@ describe("the filters of a list of the reference data", () => {
         />,
       ),
     );
-    expect(screen.getByRole("button", { name: "Désactivés" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Actifs" }));
+    await openMenu("État des objets de «\u00A0Rôles\u00A0»");
+    expect(screen.getByRole("radio", { name: "Désactivés" })).toBeChecked();
+    await userEvent.click(screen.getByRole("radio", { name: "Actifs" }));
     expect(lastAddress()).toBe("/reference/resources?role_is_active=true");
-    await userEvent.click(screen.getByRole("button", { name: "Tous les états" }));
+    await openMenu("État des objets de «\u00A0Rôles\u00A0»");
+    await userEvent.click(screen.getByRole("radio", { name: "Tous les états" }));
     expect(lastAddress()).toBe("/reference/resources");
   });
 
-  it("show the state asked pressed while the server reads the list anew, and the address once it has answered", async () => {
+  it("show the state asked checked while the server reads the list anew, and the address once it has answered", async () => {
     let arrive: () => void = () => undefined;
     const navigation = new Promise<void>((resolve) => {
       arrive = resolve;
@@ -126,23 +122,18 @@ describe("the filters of a list of the reference data", () => {
     const filter = (chosen: boolean | undefined) =>
       inFrench(<StateFilter name={ROLE_STATE} label="État" chosen={chosen} />);
     const { rerender } = render(filter(undefined));
-    const inactive = screen.getByRole("button", { name: "Désactivés" });
-    await userEvent.click(inactive);
+    await pick("État", "Désactivés", "radio");
     expect(lastAddress()).toBe("/reference/resources?role_is_active=false");
-    // The address has not changed yet: the state asked shows pressed, never the address before it.
-    expect(inactive).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Tous les états" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
-    // The server answers: the address names the state, which the button goes on showing pressed.
+    // The address has not changed yet: the state asked shows checked, never the address before it.
+    expect(menuSummary("État")).toBe("Désactivés");
+    // The server answers: the address names the state, which the button goes on showing checked.
     page.search = "role_is_active=false";
     await act(async () => {
       arrive();
       await navigation;
     });
     rerender(filter(false));
-    expect(inactive).toHaveAttribute("aria-pressed", "true");
+    expect(menuSummary("État")).toBe("Désactivés");
   });
 
   it("filter on an object chosen, back to the first page, and keep one the list does not offer, to be cleared [WF-IHM-0130-A]", async () => {
@@ -306,7 +297,7 @@ describe("the pages of a list of the reference data", () => {
       ),
     );
     // A filter of the roles asked, not shown yet: the next page is the first of the list filtered.
-    await userEvent.click(screen.getByRole("button", { name: "Actifs" }));
+    await pick("État", "Actifs", "radio");
     await userEvent.click(screen.getByRole("link", { name: /Page suivante/ }));
     expect(lastAddress()).toBe("/reference/resources?role_is_active=true");
     // Shown, the sort of another list under way leaves the place of the roles as it is.
