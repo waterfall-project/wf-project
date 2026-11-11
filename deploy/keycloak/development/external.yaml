@@ -6,7 +6,7 @@
 # Waterfall until her first sign-in. Its secrets are development values, visible, named as such.
 realm: external
 enabled: true
-displayName: External provider (development)
+displayName: External provider
 registrationAllowed: false
 loginWithEmailAllowed: true
 

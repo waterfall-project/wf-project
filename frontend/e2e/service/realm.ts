@@ -81,7 +81,7 @@ export const EXTERNAL: Person = {
   email: "camille.externe@external.test",
   password: "development-only-external-password",
   name: "Camille Externe",
-  provider: "External provider (development)",
+  provider: "External provider",
 };
 
 /** An address under a prefix, as `toHaveURL` waits for it across navigations. */

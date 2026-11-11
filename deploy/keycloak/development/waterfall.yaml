@@ -39,7 +39,7 @@ clients:
 
 identityProviders:
   - alias: external
-    displayName: External provider (development)
+    displayName: External provider
     providerId: oidc
     enabled: true
     trustEmail: true
