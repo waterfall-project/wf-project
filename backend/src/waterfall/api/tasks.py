@@ -17,12 +17,10 @@ from waterfall.api.contract.base import Text
 from waterfall.api.contract.models import BackgroundTaskRef, BackgroundTaskStatus, PaginationMeta
 from waterfall.api.queries import listed
 from waterfall.core.exchanges.interface import has_file
-from waterfall.platform.errors import NotFoundError
+from waterfall.platform.errors import NOT_FOUND, NotFoundError
 from waterfall.platform.tasks import BackgroundTask, TaskFilters, list_tasks, read_task
 
 router = APIRouter(tags=["tasks"])
-
-NOT_FOUND = "NOT_FOUND"
 
 
 # Where a task that succeeded gives its result, by its kind: the backup it took, the report of the

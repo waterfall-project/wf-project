@@ -129,7 +129,7 @@ def first(api: ContractClient, stage: Scene) -> dict[str, Any]:
             ),
             package("Lot B", item("Poste B1", deliverable("Rapport"))),
         ],
-        0,
+        1,
     )
     assert answer.status_code == 200, answer.text
     return answer.json()
@@ -142,7 +142,7 @@ def test_a_project_without_a_work_breakdown_has_a_work_package_and_a_bare_order_
     body = read(api, stage, stage.manager)
     label = stage.project["label"]
     assert labels(body) == [[label, [[label, []]]]]
-    assert body["lock_version"] == 0
+    assert body["lock_version"] == 1
     assert all(
         element["is_match"] and element["attached_task"] is None
         for element in body["work_packages"] + body["work_packages"][0]["order_items"]
@@ -154,7 +154,7 @@ def test_a_project_without_a_work_breakdown_has_a_work_package_and_a_bare_order_
 def test_an_order_item_can_be_written_without_deliverable(
     api: ContractClient, stage: Scene
 ) -> None:
-    answer = write(api, stage, stage.manager, [package("Lot", item("Poste seul"))], 0)
+    answer = write(api, stage, stage.manager, [package("Lot", item("Poste seul"))], 1)
     assert answer.status_code == 200, answer.text
     assert labels(answer.json()) == [["Lot", [["Poste seul", []]]]]
     assert counts(stage) == (1, 1, 0)
@@ -165,7 +165,7 @@ def test_the_whole_work_breakdown_is_written_and_new_elements_receive_their_iden
     api: ContractClient, stage: Scene
 ) -> None:
     answer = first(api, stage)
-    assert answer["lock_version"] == 1
+    assert answer["lock_version"] == 2
     assert labels(answer) == [
         ["Lot A", [["Poste A1", ["Plan", "Notice"]], ["Poste A2", []]]],
         ["Lot B", [["Poste B1", ["Rapport"]]]],
@@ -222,7 +222,7 @@ def test_an_element_sent_back_with_its_identifier_is_renamed_moved_and_reordered
                 id_=lot_a["work_package_id"],
             ),
         ],
-        1,
+        2,
     )
     assert answer.status_code == 200, answer.text
     body = answer.json()
@@ -232,7 +232,7 @@ def test_an_element_sent_back_with_its_identifier_is_renamed_moved_and_reordered
     ]
     assert body["work_packages"][0]["work_package_id"] == lot_b["work_package_id"]
     assert body["work_packages"][0]["order_items"][1]["order_item_id"] == item_a2["order_item_id"]
-    assert body["lock_version"] == 2
+    assert body["lock_version"] == 3
     assert counts(stage) == (2, 3, 3)
 
 
@@ -252,7 +252,7 @@ def test_an_element_left_out_is_deleted_for_good_with_what_it_holds(
                 id_=lot_b["work_package_id"],
             )
         ],
-        1,
+        2,
     )
     assert answer.status_code == 200, answer.text
     assert labels(answer.json()) == [["Lot B", [["Poste B1", []]]]]
@@ -269,16 +269,16 @@ def test_a_counter_that_is_stale_or_null_and_a_work_breakdown_without_package_ar
     api: ContractClient, stage: Scene
 ) -> None:
     first(api, stage)
-    stale = write(api, stage, stage.manager, [package("Lot", item("Poste"))], 0)
-    assert refusal(stale) == (412, "STALE_LOCK_VERSION", {"expected_lock_version": 1})
+    stale = write(api, stage, stage.manager, [package("Lot", item("Poste"))], 1)
+    assert refusal(stale) == (412, "STALE_LOCK_VERSION", {"expected_lock_version": 2})
     nulled = write(api, stage, stage.manager, [package("Lot", item("Poste"))], None)
     assert nulled.status_code == 422
     assert faults(nulled) == [("/lock_version", "VALUE_REQUIRED")]
-    empty = write(api, stage, stage.manager, [], 1)
+    empty = write(api, stage, stage.manager, [], 2)
     assert empty.status_code == 422
     assert faults(empty) == [("/work_packages", "VALUE_REQUIRED")]
     assert counts(stage) == (2, 3, 3)
-    assert read(api, stage, stage.manager)["lock_version"] == 1
+    assert read(api, stage, stage.manager)["lock_version"] == 2
 
 
 @pytest.mark.requirement("WF-PRJ-0020-A")
@@ -315,7 +315,7 @@ def test_a_label_that_is_empty_or_too_long_is_refused_at_its_field(
                 item("Poste", deliverable("y" * 301), deliverable("   ")),
             )
         ],
-        0,
+        1,
     )
     assert refused.status_code == 422
     assert faults(refused) == [
@@ -348,7 +348,7 @@ def test_an_identifier_unknown_forged_or_of_another_nature_is_refused_at_its_fie
                 id_=item_id,
             )
         ],
-        1,
+        2,
     )
     assert refused.status_code == 422
     assert faults(refused) == [
@@ -362,7 +362,7 @@ def test_an_identifier_unknown_forged_or_of_another_nature_is_refused_at_its_fie
         ),
     ]
     assert counts(stage) == (2, 3, 3)
-    assert read(api, stage, stage.manager)["lock_version"] == 1
+    assert read(api, stage, stage.manager)["lock_version"] == 2
 
 
 @pytest.mark.requirement("WF-PRJ-0020-A")
@@ -382,7 +382,7 @@ def test_an_identifier_sent_twice_is_refused_at_each_occurrence_after_the_first(
                 item("Autre", deliverable("Trois", plan)),
             )
         ],
-        1,
+        2,
     )
     assert refused.status_code == 422
     assert faults(refused) == [
@@ -402,32 +402,32 @@ def test_the_work_breakdown_is_read_by_a_participant_and_the_reader_but_written_
     api: ContractClient, stage: Scene
 ) -> None:
     for who in (stage.participant, stage.reader):
-        assert read(api, stage, who)["lock_version"] == 0
+        assert read(api, stage, who)["lock_version"] == 1
     hidden = api.get(path(stage), headers=stage.outsider.headers)
     assert refusal(hidden) == (404, "NOT_FOUND", {})
     unknown = api.get(f"{PROJECTS}/{uuid4()}/work-breakdown", headers=stage.manager.headers)
     assert refusal(unknown) == (404, "NOT_FOUND", {})
     body = [package("Lot", item("Poste"))]
-    assert refusal(write(api, stage, stage.participant, body, 0)) == (
+    assert refusal(write(api, stage, stage.participant, body, 1)) == (
         403,
         "NOT_PROJECT_MANAGER",
         {"missing_condition": "is_project_manager"},
     )
-    assert refusal(write(api, stage, stage.outsider, body, 0)) == (404, "NOT_FOUND", {})
-    assert refusal(write(api, stage, stage.reader, body, 0))[0] == 403
+    assert refusal(write(api, stage, stage.outsider, body, 1)) == (404, "NOT_FOUND", {})
+    assert refusal(write(api, stage, stage.reader, body, 1))[0] == 403
     assert counts(stage) == (1, 1, 0)
 
 
 @pytest.mark.requirement("WF-PRJ-0020-A")
 def test_a_terminal_project_refuses_the_writing(api: ContractClient, stage: Scene) -> None:
     put_in_state(stage.owner, stage.project["project_id"], "lost")
-    refused = write(api, stage, stage.manager, [package("Lot", item("Poste"))], 0)
+    refused = write(api, stage, stage.manager, [package("Lot", item("Poste"))], 1)
     assert refusal(refused) == (
         409,
         "STATE_FORBIDS_OPERATION",
         {"missing_condition": "project_not_terminal"},
     )
-    assert read(api, stage, stage.manager)["lock_version"] == 0
+    assert read(api, stage, stage.manager)["lock_version"] == 1
 
 
 def pend_marking(api: ContractClient, stage: Scene) -> None:
@@ -449,14 +449,14 @@ def test_a_background_task_that_writes_in_the_project_refuses_the_writing(
     api: ContractClient, stage: Scene
 ) -> None:
     pend_marking(api, stage)
-    refused = write(api, stage, stage.manager, [package("Lot", item("Poste"))], 0)
+    refused = write(api, stage, stage.manager, [package("Lot", item("Poste"))], 1)
     assert refusal(refused) == (
         409,
         "STATE_FORBIDS_OPERATION",
         {"missing_condition": "no_background_task_running"},
     )
     assert counts(stage) == (1, 1, 0)
-    assert read(api, stage, stage.manager)["lock_version"] == 0
+    assert read(api, stage, stage.manager)["lock_version"] == 1
 
 
 @pytest.mark.requirement("WF-PRJ-0020-A")
@@ -465,7 +465,7 @@ def test_a_terminal_project_is_refused_before_the_background_task(
 ) -> None:
     pend_marking(api, stage)
     put_in_state(stage.owner, stage.project["project_id"], "lost")
-    refused = write(api, stage, stage.manager, [package("Lot", item("Poste"))], 0)
+    refused = write(api, stage, stage.manager, [package("Lot", item("Poste"))], 1)
     assert refusal(refused) == (
         409,
         "STATE_FORBIDS_OPERATION",
@@ -487,9 +487,9 @@ def rename(api: ContractClient, stage: Scene, label: str, version: int) -> None:
 def test_the_birth_work_breakdown_follows_the_label_of_the_project(
     api: ContractClient, stage: Scene
 ) -> None:
-    rename(api, stage, "Beta", 0)
+    rename(api, stage, "Beta", 1)
     body = read(api, stage, stage.manager)
-    assert body["lock_version"] == 0
+    assert body["lock_version"] == 1
     (lot,) = body["work_packages"]
     assert (lot["label"], [poste["label"] for poste in lot["order_items"]]) == ("Beta", ["Beta"])
 
@@ -498,12 +498,12 @@ def test_the_birth_work_breakdown_follows_the_label_of_the_project(
 def test_a_work_breakdown_that_was_written_keeps_its_labels_when_the_project_is_renamed(
     api: ContractClient, stage: Scene
 ) -> None:
-    written = write(api, stage, stage.manager, [package("Lot saisi", item("Poste saisi"))], 0)
+    written = write(api, stage, stage.manager, [package("Lot saisi", item("Poste saisi"))], 1)
     assert written.status_code == 200, written.text
-    rename(api, stage, "Beta", 0)
+    rename(api, stage, "Beta", 1)
     body = read(api, stage, stage.manager)
     (lot,) = body["work_packages"]
-    assert body["lock_version"] == 1
+    assert body["lock_version"] == 2
     assert (lot["label"], lot["order_items"][0]["label"]) == ("Lot saisi", "Poste saisi")
 
 
@@ -512,15 +512,15 @@ def test_two_writings_at_the_same_counter_write_once_and_the_other_is_refused_st
     api: ContractClient, stage: Scene
 ) -> None:
     def send(label: str) -> Any:
-        return write(api, stage, stage.manager, [package(label, item("Poste"))], 0)
+        return write(api, stage, stage.manager, [package(label, item("Poste"))], 1)
 
     with ThreadPoolExecutor(2) as pool:
         answers = list(pool.map(send, ["Premier", "Second"]))
     assert sorted(answer.status_code for answer in answers) == [200, 412]
     stale = next(answer for answer in answers if answer.status_code == 412)
-    assert refusal(stale) == (412, "STALE_LOCK_VERSION", {"expected_lock_version": 1})
+    assert refusal(stale) == (412, "STALE_LOCK_VERSION", {"expected_lock_version": 2})
     stored = read(api, stage, stage.manager)
-    assert stored["lock_version"] == 1
+    assert stored["lock_version"] == 2
     assert len(stored["work_packages"]) == 1
     assert counts(stage) == (1, 1, 0)
 
@@ -592,7 +592,7 @@ def test_the_witness_loads_its_work_breakdown_under_its_identifiers_and_counter(
         f"{PROJECTS}/01926f3a-7c00-7000-8000-000000000002/work-breakdown", headers=reader.headers
     )
     assert other.status_code == 200
-    assert other.json()["lock_version"] == 0
+    assert other.json()["lock_version"] == 1
     assert len(other.json()["work_packages"]) == 1
     with witness.transaction() as session:
         assert (

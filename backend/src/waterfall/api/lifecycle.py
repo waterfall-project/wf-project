@@ -61,6 +61,7 @@ from waterfall.core.users.interface import read_authors
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import (
+    STALE_LOCK_VERSION,
     BadRequestError,
     ConflictError,
     FieldError,
@@ -82,7 +83,6 @@ REVISION_ABANDON = "revision_abandon"
 REVISION_MARK = "revision_mark"
 ALREADY_EXISTS = "ALREADY_EXISTS"
 VERSION_NAME = "/current_revision/version_name"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 
 
 @router.get(

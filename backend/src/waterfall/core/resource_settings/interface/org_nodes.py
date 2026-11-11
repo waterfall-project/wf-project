@@ -28,7 +28,10 @@ from waterfall.core.resource_settings.org_tree import (
 from waterfall.core.resource_settings.tables import OrgNode, ResourceRole
 from waterfall.platform.database import contains
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
     STATE_FORBIDS_OPERATION,
+    VALIDATION_FAILED,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -48,10 +51,7 @@ if TYPE_CHECKING:
 
 # The key of the advisory lock of the tree: one for every write of the nodes.
 TREE_LOCK = 5_200_070
-NOT_FOUND = "NOT_FOUND"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 ALREADY_EXISTS = "ALREADY_EXISTS"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 UNKNOWN_ORG_NODE = "UNKNOWN_ORG_NODE"
 ORG_NODE_CYCLE = "ORG_NODE_CYCLE"
 INACTIVE_REFERENCE_OBJECT = "INACTIVE_REFERENCE_OBJECT"

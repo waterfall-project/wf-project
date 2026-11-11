@@ -134,6 +134,7 @@ from waterfall.core.projects.interface.subprojects import (
 
 # ``work_breakdown`` (US-0950; the elements a task bears, US-1380/L3): the work breakdown.
 from waterfall.core.projects.interface.work_breakdown import (
+    BORN_LOCK_VERSION,
     DeliverableEntry,
     DeliverableView,
     OrderItemEntry,
@@ -154,6 +155,7 @@ from waterfall.core.projects.interface.work_breakdown import (
 
 __all__ = [
     "BEFORE_IN_PROGRESS",
+    "BORN_LOCK_VERSION",
     "NO_BACKGROUND_TASK_RUNNING",
     "PROJECT_BEFORE_IN_PROGRESS",
     "PROJECT_NOT_TERMINAL",

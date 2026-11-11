@@ -19,6 +19,8 @@ from waterfall.core.resource_settings.interface.extensions import recalculate
 from waterfall.core.resource_settings.interface.readiness import lock_reference
 from waterfall.core.resource_settings.tables import SINGLE_ROW, DurationUnit
 from waterfall.platform.errors import (
+    STALE_LOCK_VERSION,
+    VALIDATION_FAILED,
     FieldError,
     PreconditionFailedError,
     UnprocessableError,
@@ -32,8 +34,6 @@ if TYPE_CHECKING:
 
     from waterfall.platform.audit import Act
 
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 DURATION_UNIT_NOT_POSITIVE = "DURATION_UNIT_NOT_POSITIVE"
 # The first version of the constants, as the examples of the contract have it.
 FIRST_VERSION = 1

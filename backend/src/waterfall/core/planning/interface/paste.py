@@ -62,6 +62,9 @@ from waterfall.core.planning.tree import read_tree
 from waterfall.core.planning.writing import NodesWritten, facts_of, judge_revision, writing
 from waterfall.core.projects.interface import work_breakdown_items
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
+    VALIDATION_FAILED,
     FieldError,
     NotFoundError,
     PreconditionFailedError,
@@ -82,9 +85,6 @@ if TYPE_CHECKING:
     from waterfall.core.projects.interface import WorkBreakdownItem
     from waterfall.platform.audit import Act
 
-NOT_FOUND = "NOT_FOUND"
-VALIDATION_FAILED = "VALIDATION_FAILED"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 COMPUTED_VALUE = "COMPUTED_VALUE"
 FIELD_NOT_ACCEPTED = "FIELD_NOT_ACCEPTED"
 PASTE_TOO_WIDE = "PASTE_TOO_WIDE"

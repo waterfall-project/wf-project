@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.planning.dating import duration_of, horizon_exceeded, in_days
 from waterfall.core.planning.scheduling import Duration, Moment, WorkInstant
-from waterfall.platform.errors import FieldError, UnprocessableError
+from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 
 if TYPE_CHECKING:
     from waterfall.core.planning.interface.nodes import InstantSent, TaskEntry
@@ -31,7 +31,6 @@ if TYPE_CHECKING:
     from waterfall.core.planning.tables import Task
     from waterfall.core.planning.tree import Tree
 
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_REQUIRED = "VALUE_REQUIRED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 NON_WORKING_DAY = "NON_WORKING_DAY"

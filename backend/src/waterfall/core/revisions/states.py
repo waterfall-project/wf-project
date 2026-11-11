@@ -20,14 +20,12 @@ from waterfall.core.revisions.interface.reference import (
     revision_has_tasks_and_lines,
 )
 from waterfall.core.revisions.tables import Revision
-from waterfall.platform.errors import NotFoundError
+from waterfall.platform.errors import NOT_FOUND, NotFoundError
 
 if TYPE_CHECKING:
     from uuid import UUID
 
     from sqlalchemy.orm import Session
-
-NOT_FOUND = "NOT_FOUND"
 
 
 def revision_state(session: Session, project_id: UUID, revision_id: UUID) -> RevisionState:

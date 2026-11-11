@@ -64,7 +64,10 @@ from waterfall.core.planning.writing import (
 )
 from waterfall.core.projects.interface import work_breakdown_items
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
     STATE_FORBIDS_OPERATION,
+    VALIDATION_FAILED,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -87,9 +90,6 @@ if TYPE_CHECKING:
     from waterfall.core.revisions.interface import RevisionCopy
     from waterfall.platform.audit import Act
 
-NOT_FOUND = "NOT_FOUND"
-VALIDATION_FAILED = "VALIDATION_FAILED"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 UNKNOWN_TASK = "UNKNOWN_TASK"
 NODE_CYCLE = "NODE_CYCLE"
 NODE_NOT_SIBLING = "NODE_NOT_SIBLING"

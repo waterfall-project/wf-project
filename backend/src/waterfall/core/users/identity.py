@@ -44,14 +44,13 @@ from waterfall.platform.audit import (
     Inscription,
     record,
 )
-from waterfall.platform.errors import FieldError, UnprocessableError
+from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 
 if TYPE_CHECKING:
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_REQUIRED = "VALUE_REQUIRED"
 FIELD_READ_ONLY = "FIELD_READ_ONLY"
 UNKNOWN_ORG_NODE = "UNKNOWN_ORG_NODE"

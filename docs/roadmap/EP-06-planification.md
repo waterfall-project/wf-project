@@ -1406,7 +1406,7 @@ se pose autour du service dans les tests, comme EP-04 l'a fait.
 
 ## US-1420 — L'import en deux temps
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-ARC-0100-A`, `WF-INTF-0080-A`, `WF-INTF-0090-A`, `WF-ARC-0110-A`,
   `WF-DAT-0120-A`
 - **opérations** : `uploadFile`, `listImports`, `openImport`, `getImport`, `abandonImport`,
@@ -1903,7 +1903,7 @@ physique (EP-10).
 
 ## US-1480 — Le témoin : la tranche des tâches, et les parcours rejoués
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-QUA-0040-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
 - **issue** : 2327
