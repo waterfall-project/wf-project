@@ -386,3 +386,25 @@ def test_the_interface_refuses_what_the_contract_would_not_let_through(mapping: 
             replace_actual_cost_mapping(session, stale, 7, act)
         assert dict(outdated.value.params) == {"expected_lock_version": 1}
         assert read_actual_cost_mapping(session).lock_version == 1
+
+
+@pytest.mark.requirement("WF-EXP-0040-A")
+def test_an_installation_without_the_row_of_the_mapping_refuses_to_read_and_to_replace_it(
+    api: ContractClient,
+    database: Database,
+    reference_sessions: ReferenceSessions,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # The bootstrap has not written the row: not ready to serve (503), as the settings are.
+    sessions = reference_sessions("cost_settings")
+    with database.transaction() as session:
+        assert session.scalar(select(func.count()).select_from(ActualCostMapping)) == 0
+    for answer in (
+        api.get(PATH, headers=sessions.reading),
+        api.put(PATH, json=body(DECLARED), headers=sessions.changing),
+    ):
+        assert (answer.status_code, answer.json()["code"]) == (503, "COMPONENT_UNAVAILABLE")
+        assert answer.json()["params"] == {"component": "database"}
+    assert "missing=actual_cost_mapping" in capsys.readouterr().out
+    with database.transaction() as session:
+        assert session.scalar(select(func.count()).select_from(ActualCostMapping)) == 0
