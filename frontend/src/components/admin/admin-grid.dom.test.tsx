@@ -195,10 +195,10 @@ describe("the grid of the accounts", () => {
   it("presents each account with its origin, its roles and its node as the server names them, and says in its totals how many the server retained", () => {
     render(userList());
     const grid = screen.getByRole("grid", { name: "Comptes utilisateurs" });
-    const moreau = within(grid).getByRole("row", { name: /^Moreau/ });
+    const moreau = within(grid).getByRole("row", { name: /^\d+ — poignée de la ligne Moreau/ });
     // Its audit columns after its state, each instant in the local time of the workstation.
     expect(moreau.textContent).toMatch(
-      /^MoreauAlixalix\.moreau@example\.comCréé dans WaterfallBureau d'études électricitéChef de projetDésactivé.+Camille Martin.+Camille Martin$/,
+      /^\d+MoreauAlixalix\.moreau@example\.comCréé dans WaterfallBureau d'études électricitéChef de projetDésactivé.+Camille Martin.+Camille Martin$/,
     );
     expect([...moreau.querySelectorAll("time")].map((time) => time.dateTime)).toEqual([
       "2026-01-12T10:00:00Z",
@@ -358,7 +358,7 @@ describe("an anonymised account", () => {
     const grid = screen.getByRole("grid", { name: "Comptes utilisateurs" });
     const row = within(grid).getAllByRole("row")[1];
     expect(row).toHaveTextContent(
-      /^Compte anonymiséCréé dans WaterfallBureau d'études électricitéChef de projetDésactivé.+Camille Martin.+Camille Martin$/,
+      /^\d+Compte anonymiséCréé dans WaterfallBureau d'études électricitéChef de projetDésactivé.+Camille Martin.+Camille Martin$/,
     );
     expect(grid).not.toHaveTextContent(/Alix|Moreau|alix\.moreau/);
   });

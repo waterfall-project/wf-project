@@ -285,7 +285,12 @@
     "selection": {
       "handle": "{number} — poignée de la ligne",
       "hint": "Espace sélectionne la ligne, Maj et une flèche étendent la sélection, Échap la lève. Alt+Maj et une flèche la déplacent — Alt+Maj+↑ et Alt+Maj+↓ d’un rang, Alt+Maj+→ et Alt+Maj+← en l’indentant et en la désindentant —, comme le glisser de la poignée à la souris.",
-      "count": "{count, plural, one {# ligne sélectionnée} other {# lignes sélectionnées}}"
+      "hintPick": "Espace sélectionne la ligne, Ctrl+Espace l’ajoute à la sélection ou l’en retire (Cmd+clic ou Ctrl+clic à la souris), Maj et une flèche étendent la sélection, Échap la lève.",
+      "count": "{count, plural, one {# ligne sélectionnée} other {# lignes sélectionnées}}",
+      "all": "Sélectionner toutes les lignes affichées",
+      "bar": "Actions sur la sélection",
+      "barCount": "{count, plural, one {# ligne sélectionnée} other {# lignes sélectionnées}}",
+      "clear": "Annuler la sélection"
     },
     "structure": {
       "insertFirst": "Insérer une tâche",
@@ -2563,6 +2568,7 @@
     },
     "users": {
       "title": "Comptes utilisateurs",
+      "selected": "{count, plural, one {# compte sélectionné} other {# comptes sélectionnés}}",
       "noRole": "Aucun rôle",
       "noOrgNode": "Aucun",
       "none": "Aucun compte.",

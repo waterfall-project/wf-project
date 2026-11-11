@@ -103,6 +103,8 @@ export function UserGrid({
       totalsCaption={(retained) => t("count", { count: retained.total })}
       query={query}
       preferences={preferences}
+      // The accounts are picked one by one; their actions on a selection come with #2917.
+      selecting={{ label: (count) => t("selected", { count }) }}
     />
   );
 }

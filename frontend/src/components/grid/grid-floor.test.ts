@@ -24,6 +24,10 @@ describe("the floor of the frame of a dense grid (#1041)", () => {
   it("adds the bar to the floor for what holds the grid", () => {
     expect(withBar(2)).toBe("calc(min(10rem, calc(7.5rem + 2px)) + 2.25rem)");
   });
+
+  it("adds a second bar, the one of a selection, when it is shown (#2916)", () => {
+    expect(withBar(2, 2)).toBe("calc(min(10rem, calc(7.5rem + 2px)) + 4.5rem)");
+  });
 });
 
 describe("the width of the bar of a dense grid (#1042)", () => {

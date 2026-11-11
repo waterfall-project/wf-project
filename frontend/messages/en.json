@@ -285,7 +285,12 @@
     "selection": {
       "handle": "{number} — row handle",
       "hint": "Space selects the row, Shift and an arrow extend the selection, Escape lifts it. Alt+Shift and an arrow move it — Alt+Shift+Up and Alt+Shift+Down by a rank, Alt+Shift+Right and Alt+Shift+Left indenting and outdenting it —, as dragging the handle with the mouse does.",
-      "count": "{count, plural, one {# row selected} other {# rows selected}}"
+      "hintPick": "Space selects the row, Ctrl+Space adds it to the selection or takes it off (Cmd+click or Ctrl+click with the mouse), Shift and an arrow extend the selection, Escape lifts it.",
+      "count": "{count, plural, one {# row selected} other {# rows selected}}",
+      "all": "Select all the rows shown",
+      "bar": "Actions on the selection",
+      "barCount": "{count, plural, one {# row selected} other {# rows selected}}",
+      "clear": "Clear the selection"
     },
     "structure": {
       "insertFirst": "Insert a task",
@@ -2563,6 +2568,7 @@
     },
     "users": {
       "title": "User accounts",
+      "selected": "{count, plural, one {# account selected} other {# accounts selected}}",
       "noRole": "No role",
       "noOrgNode": "None",
       "none": "No account.",

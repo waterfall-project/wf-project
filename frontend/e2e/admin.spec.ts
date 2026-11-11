@@ -70,7 +70,7 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
     // The node before the roles (#379), each a list the session may choose from: the cell names it.
     await expect(
       accounts.getByRole("row", {
-        name: /^Moreau Alix alix\.moreau@example\.com Créé dans Waterfall BE-ELEC · Bureau d'études électricité Rôles de/,
+        name: /^(?:\d+ — poignée de la ligne )?Moreau Alix alix\.moreau@example\.com Créé dans Waterfall BE-ELEC · Bureau d'études électricité Rôles de/,
       }),
     ).toHaveCount(1);
     await expect(accounts.getByRole("row").last()).toHaveText("7 comptes");
@@ -548,4 +548,31 @@ test("enters the node an account is attached to in its cell, among the active no
     await list.selectOption({ label: "Aucun" });
     await expect(list.locator("option:checked")).toHaveText("Aucun");
   }
+});
+
+test("picks accounts one by one or all at once, and lifts the selection from the bar above the table [WF-IHM-0040-A] [WF-IHM-0100-A] #2916", async ({
+  page,
+}) => {
+  await page.goto("/admin/users");
+  const accounts = page.getByRole("grid", { name: "Comptes utilisateurs" });
+  const handles = accounts.getByRole("gridcell", { name: /poignée de la ligne/ });
+  await expect(handles.first()).toBeVisible({ timeout: WORKING });
+  const bar = page.getByRole("toolbar", { name: "Actions sur la sélection" });
+  await expect(bar).toHaveCount(0);
+  // The handles are cells of the grid: the pointer picks the first and the third, not the second.
+  // The page hydrates meanwhile: a click before it is lost, so the pick is made until it shows.
+  await expect(async () => {
+    await handles.nth(0).click();
+    await handles.nth(2).click({ modifiers: ["ControlOrMeta"] });
+    await expect(bar).toContainText("2 comptes sélectionnés", { timeout: 1_000 });
+  }).toPass({ timeout: WORKING });
+  await expect(accounts.getByRole("row", { selected: true })).toHaveCount(2);
+  const all = accounts.getByRole("checkbox", { name: "Sélectionner toutes les lignes affichées" });
+  await expect(all).toHaveAttribute("aria-checked", "mixed");
+  await all.click();
+  await expect(all).toHaveAttribute("aria-checked", "true");
+  await expect(bar).toContainText("7 comptes sélectionnés");
+  await bar.getByRole("button", { name: "Annuler la sélection" }).click();
+  await expect(bar).toHaveCount(0);
+  await expect(accounts.getByRole("row", { selected: true })).toHaveCount(0);
 });

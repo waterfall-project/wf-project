@@ -176,14 +176,14 @@ describe("the accounts", () => {
     server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const page = rendered(await UsersPage(searched()));
     expect(rows(page, "Comptes utilisateurs")).toEqual([
-      "Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État Créé le Créé par Modifié le Modifié par",
-      "Bernard Dominique dominique.bernard@example.com Importé de l’annuaire Aucun Manager Actif La plateforme La plateforme",
-      "Lefèvre Sacha sacha.lefevre@example.com Créé par le fournisseur d’identité Atelier de câblage Aucun rôle Actif La plateforme La plateforme",
-      "Martin Camille camille.martin@example.com Créé dans Waterfall Aucun Direction de projet Actif La plateforme Camille Martin",
-      "Moreau Alix alix.moreau@example.com Créé dans Waterfall Bureau d'études électricité Chef de projet Désactivé Camille Martin Camille Martin",
-      "Petit Lucas lucas.petit@example.com Créé dans Waterfall Aucun Chiffreur Actif Camille Martin Camille Martin",
-      "Roux Inès ines.roux@example.com Créé dans Waterfall Aucun Pilotage de projet Actif Camille Martin Camille Martin",
-      "Vidal Noé noe.vidal@example.com Créé dans Waterfall Aucun Auditeur Actif Camille Martin Camille Martin",
+      "N° Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État Créé le Créé par Modifié le Modifié par",
+      "1 Bernard Dominique dominique.bernard@example.com Importé de l’annuaire Aucun Manager Actif La plateforme La plateforme",
+      "2 Lefèvre Sacha sacha.lefevre@example.com Créé par le fournisseur d’identité Atelier de câblage Aucun rôle Actif La plateforme La plateforme",
+      "3 Martin Camille camille.martin@example.com Créé dans Waterfall Aucun Direction de projet Actif La plateforme Camille Martin",
+      "4 Moreau Alix alix.moreau@example.com Créé dans Waterfall Bureau d'études électricité Chef de projet Désactivé Camille Martin Camille Martin",
+      "5 Petit Lucas lucas.petit@example.com Créé dans Waterfall Aucun Chiffreur Actif Camille Martin Camille Martin",
+      "6 Roux Inès ines.roux@example.com Créé dans Waterfall Aucun Pilotage de projet Actif Camille Martin Camille Martin",
+      "7 Vidal Noé noe.vidal@example.com Créé dans Waterfall Aucun Auditeur Actif Camille Martin Camille Martin",
       "7 comptes",
     ]);
     expect(sortable(page, "Comptes utilisateurs")).toEqual([
@@ -401,7 +401,7 @@ describe("the accounts", () => {
     server.answers = { ...server.answers, "GET /users": "users_anonymized" };
     const page = rendered(await UsersPage(searched({ is_active: "false" })));
     expect(rows(page, "Comptes utilisateurs").slice(1, 2)).toEqual([
-      "Compte anonymisé Créé dans Waterfall Bureau d'études électricité Chef de projet Condition non remplie : compte non anonymisé. Désactivé Camille Martin Camille Martin Anonymiser Condition non remplie : compte non anonymisé.",
+      "1 Compte anonymisé Créé dans Waterfall Bureau d'études électricité Chef de projet Condition non remplie : compte non anonymisé. Désactivé Camille Martin Camille Martin Anonymiser Condition non remplie : compte non anonymisé.",
     ]);
     expect(text(page)).not.toMatch(/Alix|Moreau|alix\.moreau/);
     // Its reactivation, on the switch of its state, and its anonymisation: both unavailable.
@@ -430,7 +430,7 @@ describe("the accounts", () => {
     expect(text(page)).not.toMatch(/Supprimer/);
     expect(buttons(page)).toContain("Créer un compte local");
     expect(rows(page, "Comptes utilisateurs")[0]).toBe(
-      "Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État Créé le Créé par Modifié le Modifié par Lien de fixation Renvoi du courriel Anonymisation",
+      "N° Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État Créé le Créé par Modifié le Modifié par Lien de fixation Renvoi du courriel Anonymisation",
     );
     expect(page).toContain('aria-label="Anonymiser «\u00a0Alix Moreau\u00a0»"');
     expect(page).toContain('aria-label="Compte de «\u00a0Alix Moreau\u00a0» actif"');
@@ -486,8 +486,8 @@ describe("the accounts", () => {
     const page = rendered(await UsersPage(searched({ offset: "2" })));
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true", offset: "2" }]);
     expect(rows(page, "Comptes utilisateurs").slice(1)).toEqual([
-      "Martin Camille camille.martin@example.com Créé dans Waterfall Aucun Direction de projet Actif La plateforme Camille Martin",
-      "Moreau Alix alix.moreau@example.com Créé dans Waterfall Bureau d'études électricité Chef de projet Désactivé Camille Martin Camille Martin",
+      "1 Martin Camille camille.martin@example.com Créé dans Waterfall Aucun Direction de projet Actif La plateforme Camille Martin",
+      "2 Moreau Alix alix.moreau@example.com Créé dans Waterfall Bureau d'études électricité Chef de projet Désactivé Camille Martin Camille Martin",
       "7 comptes",
     ]);
     // The pages before and after: the state of the accounts is a choice, no link.

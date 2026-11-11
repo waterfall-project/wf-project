@@ -45,8 +45,8 @@ const BAR_REM = ROW_REM + 0.5;
  * the wrappers of a screen that fills the window, which shrink to what is left, never push the frame
  * below its floor over what follows it (#1033).
  */
-export function withBar(rows: number): string {
-  return `calc(${floorOf(rows)} + ${String(BAR_REM)}rem)`;
+export function withBar(rows: number, bars = 1): string {
+  return `calc(${floorOf(rows)} + ${String(BAR_REM * bars)}rem)`;
 }
 
 /**
