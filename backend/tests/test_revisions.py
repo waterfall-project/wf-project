@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
+from estimate_support import give_a_line
 from planning_support import give_a_task
 from projects_support import MANAGING, PROJECTS, READING, Scene, person, put_in_state
 from projects_support import scene as make_scene
@@ -164,10 +165,13 @@ def test_the_first_revision_is_born_current_with_its_main_structure_alone(
         "generate_skeleton": [],
         "edit_estimate": [],
         "edit_remaining": [],
+        # A first revision keeps no rate: no update to propose (WF-REV-0060, US-1500).
+        "apply_rate_update": ["rate_update_available"],
         "mark": [],
         "designate_reference": ["revision_marked", "revision_has_tasks_and_lines"],
         "abandon": [],
         "export_planning": [],
+        "export_estimate": [],
         "export_task_tree_image": [],
     }
     [main] = structures(api, stage, revision["revision_id"])
@@ -742,30 +746,26 @@ def test_a_revision_bears_tasks_and_lines_when_every_question_registered_says_so
 ) -> None:
     # How EP-06 and EP-07 answer ``revision_has_tasks_and_lines`` (``register_tasks_and_lines``),
     # a detail of the realization which reprises no Vérif: the planning answers whether the revision
-    # bears a task (``revision_has_tasks``, US-1380/L1), EP-07 whether it bears a line; each part
-    # needs its question, and every question registered must say yes.
-    offer = open_revision(api, stage)
-    path = f"{revisions_of(stage.project['project_id'])}/{offer['revision_id']}"
+    # bears a task (``revision_has_tasks``, US-1380/L1), the estimate whether it bears a line
+    # (``revision_has_lines``, US-1490/L3); every question registered must say yes.
+    offers: list[dict[str, Any]] = []
 
     def designation() -> list[str]:
+        path = f"{revisions_of(stage.project['project_id'])}/{offers[-1]['revision_id']}"
         return missing(api.get(path, headers=stage.manager.headers).json())["designate_reference"]
 
+    for name, holds in (("v1.0", ()), ("v2.0", ("tasks",)), ("v3.0", ("tasks", "lines"))):
+        offers.append(open_revision(api, stage))
+        with stage.owner.begin() as connection:
+            if holds:
+                task = give_a_task(connection, UUID(offers[-1]["revision_id"]))
+                if "lines" in holds:
+                    give_a_line(connection, task)
+        mark_as_the_worker(stage.owner, offers[-1], name)
+        # Nothing, then tasks alone, refuse the designation; tasks and a line make it open.
+        assert designation() == ([] if "lines" in holds else ["revision_has_tasks_and_lines"])
     with ExitStack() as registered:
-        registered.callback(register_tasks_and_lines("lines", lambda _session, _revision: True))
-        mark_as_the_worker(stage.owner, offer, "v1.0")
-        assert designation() == ["revision_has_tasks_and_lines"]
-    offer = open_revision(api, stage)
-    path = f"{revisions_of(stage.project['project_id'])}/{offer['revision_id']}"
-    with stage.owner.begin() as connection:
-        give_a_task(connection, UUID(offer["revision_id"]))
-    mark_as_the_worker(stage.owner, offer, "v2.0")
-    # Its tasks alone: no question of the lines, no designation.
-    assert designation() == ["revision_has_tasks_and_lines"]
-    with ExitStack() as registered:
-        registered.callback(register_tasks_and_lines("lines", lambda _session, _revision: True))
-        assert designation() == []
-        lines = register_tasks_and_lines("lines", lambda _session, _revision: False)
-        registered.callback(lines)
+        registered.callback(register_tasks_and_lines("lines", lambda _session, _revision: False))
         assert designation() == ["revision_has_tasks_and_lines"]
 
 

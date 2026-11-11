@@ -42,12 +42,15 @@ notice-rgx = "SPDX-FileCopyrightText: \\d{4} waterfall-project"
 [lint.flake8-type-checking]
 # Python 3.14 evaluates annotations lazily, so Ruff asks for the imports only an annotation uses to
 # move under `TYPE_CHECKING`. What reads its annotations at run time keeps them: the models of
-# Pydantic, the settings, and the tables of SQLAlchemy (the type of a `Mapped[...]`).
+# Pydantic, the settings, and the tables of SQLAlchemy (the type of a `Mapped[...]`). `Strict`, the
+# base of the models of the files the fillers of the witness read, is a model of Pydantic that Ruff
+# does not see through its module (#2701).
 runtime-evaluated-base-classes = [
     "pydantic.BaseModel",
     "pydantic_settings.BaseSettings",
     "sqlalchemy.orm.DeclarativeBase",
     "waterfall.platform.database.Base",
+    "waterfall.witness.filling.Strict",
 ]
 
 [lint.mccabe]
@@ -91,8 +94,11 @@ convention = "pep257"
 "backend/src/waterfall/api/avatars.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/backups.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/calendars.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/comparison.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/contributors.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/cost_types.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/estimate_indicators.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/estimate_lines.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/evaluation.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/exports.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/history.py" = ["TC001", "TC002", "TC003"]
@@ -105,6 +111,7 @@ convention = "pep257"
 "backend/src/waterfall/api/org_nodes.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/progress.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/projects.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/rate_update.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/reference.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/reference_settings.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/reference_settings_write.py" = ["TC001", "TC002", "TC003"]
@@ -120,6 +127,7 @@ convention = "pep257"
 "backend/src/waterfall/api/uploads.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/users.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/work_breakdown.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/workload.py" = ["TC001", "TC002", "TC003"]
 "tools/src/**" = [
     "T201", # the repository tools speak on the console
     "S603", # they run git and their own commands, never user input

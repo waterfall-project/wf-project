@@ -5,11 +5,12 @@
 ``projects.json`` and ``project.json``: the local accounts of Waterfall alone, which never sign
 in, then PRJ-002 and PRJ-001 with their client, each under the identifier the witness imposes.
 
-The accounts are those the contributors of the witness name (``contributors.json``), described as
-``users.json`` describes them; each is created by the interface of the accounts without any
-identity provider, its subject drawn from its identifier, and the one the witness says
-deactivated is deactivated after, each under an address of the domain ``waterfall.test``, all at
-the instant of the first event of the chronology, the installation. The projects are created by
+The accounts are those the contributors of the witness name (``contributors.json``) and those
+``users.json`` attaches to a node of the organisation, described as it describes them; each is
+created by the interface of the accounts without any identity provider, its subject drawn from its
+identifier, and the one the witness says deactivated is deactivated after, each under an address of
+the domain ``waterfall.test``, all at the instant of the first event of the chronology, the
+installation. The projects are created by
 the very rules of the creation (``load_project``), the minimal reference included, in the state
 ``created``, at the instant the chronology creates them: PRJ-001 at its ``project_created``,
 PRJ-002, which the chronology does not date, at the same one. A project bears its code from its
@@ -86,21 +87,34 @@ def load(session: Session, witness: Witness) -> bool:
 
 
 def _load_accounts(session: Session, witness: Witness, act: Act) -> None:
-    """Create the local accounts of the contributors, the deactivated one deactivated after."""
+    """Create the local accounts of the witness, the deactivated ones deactivated after.
+
+    Those of the contributors, then those ``users.json`` attaches to a node of the organisation
+    without naming them contributors — Sacha Lefèvre, whom ``listContributorSuggestions`` proposes
+    for the node of the roles the lines employ (#2698). Each is attached to its node, which the
+    slice ``org_nodes`` has written.
+    """
     contributors = witness.read(CONTRIBUTORS_FILE, ContributorList).items
     described = {user.user_id.root: user for user in witness.read(USERS_FILE, Users).items}
-    for contributor in contributors:
-        user = described[contributor.user_id.root]
+    active = {each.user_id.root: each.is_active for each in contributors}
+    named = [described[each.user_id.root] for each in contributors]
+    attached = [
+        user
+        for user in described.values()
+        if user.org_node_id is not None and user.user_id.root not in active
+    ]
+    for user in (*named, *attached):
         last_name, first_name = user.last_name, user.first_name
         identity = Identity(
             "" if last_name is None else last_name.root,
             "" if first_name is None else first_name.root,
             _address(user.email),
+            None if user.org_node_id is None else user.org_node_id.root,
         )
         account = create_local_account(
             session, identity, f"witness-{user.user_id.root}", act, user.user_id.root
         )
-        if not contributor.is_active:
+        if not active.get(user.user_id.root, user.is_active):
             set_account_activation(
                 session,
                 account.user_id,

@@ -11,8 +11,9 @@ state after (WF-PRJ-0060). A terminal project lists none: nothing modifies it an
 the 409 of a direct call names ``project_not_terminal`` (WF-CYC-0100).
 
 This module knows the commands of EP-04; the later EPICs add theirs — the risks, the imports, the
-skeleton of the planning — to ``RULES`` with their conditions. The rescue of ``manage_contributors``
-for a caller who is no contributor is the story of the contributors (US-0930).
+skeleton of the planning — to ``RULES`` with their conditions: the imports of a planning
+(US-1430/L4) and of an estimate (US-1550/L3). The rescue of ``manage_contributors`` for a caller
+who is no contributor is the story of the contributors (US-0930).
 """
 
 from dataclasses import dataclass
@@ -64,7 +65,10 @@ RULES: tuple[Rule, ...] = (
     Rule("abandon", "project_exit", manager=True),
     Rule("generate_skeleton", "planning.write"),
     Rule("import_planning", "planning.write"),
+    Rule("import_estimate", "estimate.write"),
 )
+# The imports a project carries, which create the current revision if it has none (WF-INTF-0090).
+IMPORTS = ("import_planning", "import_estimate")
 
 
 def state_conditions(
@@ -86,7 +90,10 @@ def state_conditions(
         missing.append(PROJECT_IN_PRICING)
     # A task of the background that writes in the current revision, or freezes it, suspends what
     # would move the project or its work breakdown (EP-04, "Le worker").
-    if command in {"update_work_breakdown", "complete", "lose", "abandon"} and not no_task_running:
+    if (
+        command in {"update_work_breakdown", "complete", "lose", "abandon", *IMPORTS}
+        and not no_task_running
+    ):
         missing.append(NO_BACKGROUND_TASK_RUNNING)
     return missing
 
@@ -134,8 +141,11 @@ def commands_of(
 
     The skeleton is listed only while the project has no current revision, to whoever holds the
     planning permission, ``may_create_revision`` missing to whoever cannot open one (WF-PRJ-0030).
-    The import of a planning is always listed to the same holder, with the conditions ``openImport``
-    refuses by, in its order (WF-INTF-0090).
+    An import is listed whatever the revision, to whoever holds the permission of its kind; without
+    a current revision, ``may_create_revision`` missing to whoever cannot create the one it would
+    (WF-INTF-0090). An estimate stays available In progress: its import on the main structure is
+    refused by the import itself, which the structure states (``edit_estimate``; C-358). The
+    conditions of an import are those ``openImport`` refuses by, in its order.
     """
     if state in TERMINAL:
         return []
@@ -150,14 +160,17 @@ def commands_of(
             if current_revision_id is None:
                 listed.append((rule.command, _skeleton_lacks(permissions, kind, running)))
             continue
-        if rule.command == "import_planning":
-            lacks = _import_lacks(permissions, kind, current_revision_id, running)
-            listed.append((rule.command, lacks))
-            continue
         missing = quality_conditions(kind, manager=rule.manager)
         missing += state_conditions(
             rule.command, state, current_revision_id, no_task_running=running.no_task_running
         )
+        # An import creates the current revision when there is none: who cannot is told so.
+        if (
+            rule.command in IMPORTS
+            and current_revision_id is None
+            and "revisions.write" not in permissions
+        ):
+            missing.append(MAY_CREATE_REVISION)
         listed.append((rule.command, tuple(missing)))
     return listed
 
@@ -168,20 +181,5 @@ def _skeleton_lacks(
     """Name what the skeleton of a project without a current revision lacks (WF-IHM-0090)."""
     missing = [*quality_conditions(kind, manager=False), *skeleton_conditions(running)]
     if "revisions.write" not in permissions:
-        missing.append(MAY_CREATE_REVISION)
-    return tuple(missing)
-
-
-def _import_lacks(
-    permissions: Collection[str],
-    kind: str | None,
-    current_revision_id: UUID | None,
-    running: Running,
-) -> tuple[str, ...]:
-    """Name what the import of a planning lacks, as ``openImport`` refuses it (WF-INTF-0090)."""
-    missing = quality_conditions(kind, manager=False)
-    if not running.no_task_running:
-        missing.append(NO_BACKGROUND_TASK_RUNNING)
-    if current_revision_id is None and "revisions.write" not in permissions:
         missing.append(MAY_CREATE_REVISION)
     return tuple(missing)

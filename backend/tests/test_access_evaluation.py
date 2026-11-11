@@ -15,8 +15,11 @@ from uuid import UUID, uuid4
 
 import asked_actual_cost_mapping
 import asked_calendars
+import asked_comparison
 import asked_contributors
 import asked_cost_types
+import asked_estimate_indicators
+import asked_estimate_lines
 import asked_exports
 import asked_history
 import asked_hourly_rates
@@ -26,6 +29,7 @@ import asked_nodes
 import asked_org_nodes
 import asked_progress
 import asked_projects
+import asked_rate_update
 import asked_reference
 import asked_reference_settings
 import asked_resource_roles
@@ -35,6 +39,7 @@ import asked_skeleton
 import asked_subprojects
 import asked_timelines
 import asked_work_breakdown
+import asked_workload
 import pytest
 from access_rows import ADMINISTRATION, role
 from fastapi import Depends
@@ -444,6 +449,14 @@ PLANNING = (
     asked_history,
     asked_skeleton,
 )
+# The operations of the estimate, declared router by router (EP-07).
+ESTIMATE = (
+    asked_estimate_lines,
+    asked_rate_update,
+    asked_estimate_indicators,
+    asked_workload,
+    asked_comparison,
+)
 # The permissions each served operation asks for, in the order they are evaluated.
 ASKED: dict[str, tuple[str, ...]] = {
     "getLiveness": (),
@@ -486,16 +499,19 @@ ASKED: dict[str, tuple[str, ...]] = {
     **{name: asked for router in REFERENCE for name, asked in router.ASKED.items()},
     **{name: asked for router in PROJECTS for name, asked in router.ASKED.items()},
     **{name: asked for router in PLANNING for name, asked in router.ASKED.items()},
+    **{name: asked for router in ESTIMATE for name, asked in router.ASKED.items()},
 }
 # Two files that declare the same operation would overwrite each other in the table above.
-DECLARED = [name for router in (*REFERENCE, *PROJECTS, *PLANNING) for name in router.ASKED]
+DECLARED = [
+    name for router in (*REFERENCE, *PROJECTS, *PLANNING, *ESTIMATE) for name in router.ASKED
+]
 assert len(DECLARED) == len(set(DECLARED)), sorted(
     name for name in set(DECLARED) if DECLARED.count(name) > 1
 )
 # The quality on its project each operation of a project asks for, by ``RequiresProject``.
 ON_PROJECT: dict[str, str] = {
     name: quality
-    for router in (*PROJECTS, *PLANNING)
+    for router in (*PROJECTS, *PLANNING, *ESTIMATE)
     for name, quality in router.ON_PROJECT.items()
 }
 # The permission each list of the reference asks for besides when it asks for deactivated objects.
@@ -516,12 +532,18 @@ BY_COMMAND = {"requestExport"}
 
 
 def asked(route: APIRoute) -> tuple[str, ...]:
-    """Give the permissions a route asks for, by its dependencies, on a project or not."""
+    """Give the permissions a route asks for, by its dependencies, on a project or not.
+
+    Those one at least of which it asks for (``RequiresProject.one_of``) follow, in their order.
+    """
     return tuple(
         permission
         for depends in route.dependencies
         if isinstance(depends.dependency, Requires | RequiresProject)
-        for permission in depends.dependency.permissions
+        for permission in (
+            *depends.dependency.permissions,
+            *getattr(depends.dependency, "one_of", ()),
+        )
     )
 
 
@@ -532,7 +554,8 @@ def on_project(route: APIRoute) -> str | None:
         if isinstance(guard, RequiresProject):
             if guard.manager:
                 return "project_manager"
-            writes = any(not CONSULTATION[permission] for permission in guard.permissions)
+            held = (*guard.permissions, *guard.one_of)
+            writes = any(not CONSULTATION[permission] for permission in held)
             return "contributor" if writes else "consultation"
     return None
 

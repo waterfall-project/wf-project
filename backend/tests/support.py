@@ -7,19 +7,25 @@ import json
 import logging
 import time
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, urljoin, urlsplit
 from uuid import uuid4
+from weakref import WeakKeyDictionary
 
 import pytest
 import structlog
+from jsonschema_path import SchemaAccessor, SchemaPath, default_handlers
+from jsonschema_path.paths import SPEC_SEPARATOR
+from openapi_core import OpenAPI
 from openapi_core.templating.media_types.finders import MediaTypeFinder
 from openapi_core.templating.paths.finders import APICallPathFinder
 from openapi_core.templating.responses.finders import ResponseFinder
 from openapi_core.testing import MockRequest, MockResponse
+from referencing import Registry, Resource
+from referencing.jsonschema import DRAFT202012
 from sqlalchemy import URL, QueuePool, text
 
 from waterfall.platform.database import Database, engine_url
@@ -39,8 +45,6 @@ if TYPE_CHECKING:
 
     from fastapi.testclient import TestClient
     from httpx2 import Response
-    from jsonschema_path import SchemaPath
-    from openapi_core import OpenAPI
 
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.settings import ServiceSettings
@@ -192,7 +196,8 @@ class AmbiguousCompositionError(AssertionError):
 
     The client holds a value to every branch at once: one branch would declare the properties
     of another, or open them all. It reads no such composition rather than reading it too wide;
-    the nullable one, a schema and ``{type: null}``, has a single branch of each shape.
+    the nullable one, a schema and ``{type: null}``, has a single branch of each shape, and the
+    one whose objects are each closed and apart (``apart``) gives an object a single branch.
     """
 
     def __init__(self, schema: SchemaPath, part: str, shape: str) -> None:
@@ -203,27 +208,86 @@ class AmbiguousCompositionError(AssertionError):
 SHAPES = {"an object": ("properties", "additionalProperties"), "a list": ("items",)}
 
 
-def branches(schemas: list[SchemaPath]) -> list[SchemaPath]:
+def apart(objects: list[list[SchemaPath]]) -> list[frozenset[str]] | None:
+    """Give what each object branch alone requires, when the branches are closed and apart.
+
+    A branch is closed when its single object schema says ``additionalProperties: false``; apart,
+    when it requires a property that no other branch declares. An object then follows the one
+    branch whose own properties it carries, and no other: none would declare what it holds
+    (``ProblemParams.tasks``, #2635). Otherwise there is nothing to give.
+    """
+    schemas: list[SchemaPath] = []
+    for branch in objects:
+        shaped = [each for each in branch if any(key in each for key in SHAPES["an object"])]
+        if len(shaped) != 1 or not closed(shaped[0]):
+            return None
+        schemas.extend(shaped)
+    named = [properties(schema) for schema in schemas]
+    own: list[frozenset[str]] = []
+    for index, schema in enumerate(schemas):
+        others = set[str]().union(*named[:index], *named[index + 1 :])
+        required = (
+            cast("list[str]", (schema / "required").read_value()) if "required" in schema else []
+        )
+        if not set(required) - others:
+            return None
+        own.append(frozenset(required) - others)
+    return own
+
+
+def properties(schema: SchemaPath) -> set[str]:
+    """Give the names of the properties an object schema declares."""
+    return (
+        {name for name, _ in (schema / "properties").str_items()}
+        if "properties" in schema
+        else set()
+    )
+
+
+def names(value: object) -> set[str]:
+    """Give the names of the properties an object holds; none for any other value."""
+    return set(cast("dict[str, object]", value)) if isinstance(value, dict) else set()
+
+
+def closed(schema: SchemaPath) -> bool:
+    """Say whether an object schema declares every property its objects may hold."""
+    return (
+        "additionalProperties" in schema and (schema / "additionalProperties").read_value() is False
+    )
+
+
+def branches(schemas: list[SchemaPath], value: object = None) -> list[SchemaPath]:
     """Give the schemas and each schema they compose, the composed ones' in turn.
 
     The schemas of an ``allOf`` all hold at once; of the branches of an ``anyOf`` or a
-    ``oneOf``, a single one may describe an object, and a single one a list.
+    ``oneOf``, a single one may describe an object, and a single one a list — or the objects
+    are closed and apart, and the value follows the one whose own properties it carries.
     """
+    held = names(value)
     found: list[SchemaPath] = []
     for schema in schemas:
         found.append(schema)
         if "allOf" in schema:
-            found.extend(branches(list(schema / "allOf")))
+            found.extend(branches(list(schema / "allOf"), value))
         for part in ("anyOf", "oneOf"):
             if part not in schema:
                 continue
-            composed = [branches([each]) for each in schema / part]
+            composed = [branches([each], value) for each in schema / part]
+            followed = set(range(len(composed)))
             for shape, keys in SHAPES.items():
-                shaped = [b for b in composed if any(key in each for each in b for key in keys)]
-                if len(shaped) > 1:
+                shaped = [
+                    index
+                    for index, branch in enumerate(composed)
+                    if any(key in each for each in branch for key in keys)
+                ]
+                if len(shaped) <= 1:
+                    continue
+                own = apart([composed[index] for index in shaped]) if shape == "an object" else None
+                if own is None:
                     raise AmbiguousCompositionError(schema, part, shape)
-            for each in composed:
-                found.extend(each)
+                followed -= {index for index, mine in zip(shaped, own, strict=True) if mine - held}
+            for index in sorted(followed):
+                found.extend(composed[index])
     return found
 
 
@@ -236,12 +300,12 @@ def walk(schemas: list[SchemaPath], value: object, pointer: str) -> Iterator[str
     """Point at each property of the value that none of its schemas declares.
 
     A value is held to its schemas and to all they compose together, a single branch of a
-    composition describing an object or a list (``AmbiguousCompositionError``). An object
-    whose schema says ``additionalProperties`` — ``true``, or the schema of its values — is
-    open to properties it does not name, ``Problem.params`` and ``FieldProblem.params`` among
-    them.
+    composition describing an object or a list (``AmbiguousCompositionError``), or the one closed
+    object branch whose own properties the value carries (``apart``). An object whose schema says
+    ``additionalProperties`` — ``true``, or the schema of its values — is open to properties it
+    does not name, ``Problem.params`` and ``FieldProblem.params`` among them.
     """
-    every = branches(schemas)
+    every = branches(schemas, value)
     if isinstance(value, list):
         items = [schema / "items" for schema in every if "items" in schema]
         for index, each in enumerate(cast("list[object]", value)):
@@ -286,12 +350,105 @@ def captured_logs(secrets: Iterable[str] = ()) -> Generator[Logs]:
         structlog.reset_defaults()
 
 
+# What a validation never resolves: the examples, some eight hundred files of the witness.
+UNRESOLVED = {"example", "examples"}
+
+
+def references(node: object) -> Iterator[str]:
+    """Give each ``$ref`` a document holds, at any depth, but in its examples."""
+    # A schema property named ``example`` is skipped too: its references are not preloaded, and
+    # ``retrieved`` reads them when asked, slower but right.
+    if isinstance(node, dict):
+        for key, value in cast("dict[str, object]", node).items():
+            if key == "$ref" and isinstance(value, str):
+                yield value
+            elif key not in UNRESOLVED:
+                yield from references(value)
+    elif isinstance(node, list):
+        for each in cast("list[object]", node):
+            yield from references(each)
+
+
+def document(address: str) -> Any:
+    """Read a document of the contract by its address, as openapi-core reads it."""
+    return default_handlers[urlsplit(address).scheme](address)
+
+
+def documents(root: str, contents: Any) -> dict[str, Any]:
+    """Read each document the contract reaches by its references, once, by its address."""
+    found = {root: contents}
+    pending = [root]
+    while pending:
+        address = pending.pop()
+        for reference in references(found[address]):
+            target = urljoin(address, reference).partition("#")[0]
+            if target not in found:
+                found[target] = document(target)
+                pending.append(target)
+    return found
+
+
+def retrieved(uri: str) -> Resource[Any]:
+    """Read a document the registry does not hold, an example, as openapi-core retrieves it."""
+    return DRAFT202012.create_resource(document(uri))
+
+
+def binary_text(content: bytes | str) -> str:
+    """Read a binary body as the string its schema declares, each byte one character."""
+    return content.decode("latin-1") if isinstance(content, bytes) else content
+
+
+# The bodies the contract declares a binary string and openapi-core reads otherwise: an MS Project
+# file, which it would parse into a tree of XML, then refuse as no string (#2675). It applies to
+# every ``application/xml``, though only the binary body of ``docs/api/paths/system.yaml`` needs
+# it: a test of the contract fails on any other (``test_api_service.py``). The images and the
+# octet stream are read so too, the only reading of a binary body of the tests (#2757).
+BINARY_TYPES = {
+    "application/xml": binary_text,
+    "image/png": binary_text,
+    "image/jpeg": binary_text,
+    "application/octet-stream": binary_text,
+}
+# The paths of the contract whose resolution is kept: the walk of an answer asks each of its values
+# what its schema holds, and a schema is reached again from the root at each question.
+RESOLVED_PATHS = 1 << 16
+
+
+def resolved_once(contract: OpenAPI) -> OpenAPI:
+    """Give the contract with every document it references read once, in a single registry.
+
+    openapi-core resolves a reference to another document by retrieving it: the validation of an
+    answer read again the YAML of that document at each ``$ref`` it followed, 129 181 times for
+    the 5 999 nodes of the witness, 306 seconds (#2720). The registry holds them all from the
+    start, and a reference is a lookup. The contract was validated when it was read.
+    """
+    root = contract.spec.base_uri
+    found = documents(root, contract.spec.read_value())
+    registry = Registry[Any](retrieve=retrieved).with_resources(
+        (address, DRAFT202012.create_resource(each)) for address, each in found.items()
+    )
+    resolver = registry.crawl().resolver(base_uri=root)
+    accessor = SchemaAccessor(found[root], resolver, resolved_cache_maxsize=RESOLVED_PATHS)
+    spec = SchemaPath(accessor, separator=SPEC_SEPARATOR)
+    deserializers = {**BINARY_TYPES, **(contract.config.extra_media_type_deserializers or {})}
+    config = replace(
+        contract.config, spec_validator_cls=None, extra_media_type_deserializers=deserializers
+    )
+    return OpenAPI(spec, config=config)
+
+
+# The contracts resolved once, by the contract they come from: a session reads it once.
+RESOLVED: WeakKeyDictionary[OpenAPI, OpenAPI] = WeakKeyDictionary()
+
+
 class ContractClient:
     """A client of the application whose every answer is checked against the contract."""
 
     def __init__(self, client: TestClient, contract: OpenAPI) -> None:
         self.client = client
-        self.contract = contract
+        if contract not in RESOLVED:
+            RESOLVED[contract] = resolved_once(contract)
+        self.contract = RESOLVED[contract]
 
     def request(self, method: str, path: str, **kwargs: Any) -> Response:
         """Send the request; fail if the answer is not the one the contract describes."""

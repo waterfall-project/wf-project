@@ -14,7 +14,7 @@ any more (WF-CYC-0100); their exports are the exception, and lack no condition (
 This module knows the commands of EP-04 — the entries of a revision and of its structures, its
 marking, its designation and its abandonment —; the later epics add theirs to ``REVISION_RULES``
 in the order of ``RevisionCommand`` (the skeleton, the risks, the amendments, the update of the
-rates), with their conditions, and the exports to ``EXPORT_RULES``.
+rates — US-1500 —), with their conditions, and the exports to ``EXPORT_RULES``.
 """
 
 from dataclasses import dataclass
@@ -39,6 +39,7 @@ MAIN_STRUCTURE_WITHOUT_TASKS = "main_structure_without_tasks"
 REVISION_MARKED = "revision_marked"
 REVISION_HAS_TASKS_AND_LINES = "revision_has_tasks_and_lines"
 REFERENCE_CORRECTABLE = "reference_correctable"
+RATE_UPDATE_AVAILABLE = "rate_update_available"
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,16 +58,21 @@ REVISION_RULES: tuple[Rule, ...] = (
     Rule("generate_skeleton", "planning.write"),
     Rule("edit_estimate", "estimate.write"),
     Rule("edit_remaining", "remaining.write"),
+    # A write of the revision, guarded by the permission to manage the revisions, that of
+    # ``createRevision``, which applies it at the creation (WF-REV-0060; US-1500).
+    Rule("apply_rate_update", "revisions.write"),
     Rule("mark", "revision_mark", manager=True),
     Rule("designate_reference", "reference_designate", manager=True),
     Rule("abandon", "revision_abandon", manager=True),
 )
 # The exports, listed after the other commands as ``RevisionCommand`` orders them: a matter of
 # consultation, each guarded by the permission to view the function of its kind, lacking no
-# condition (WF-CYC-0110). The planning's and the tree image's (US-1440) are here; the estimate
-# (EP-07) and the remaining to commit (EP-09) add theirs.
+# condition (WF-CYC-0110). The planning's and the tree image's (US-1440) are here, the estimate's
+# (US-1550) between them as ``RevisionCommand`` orders them; the remaining to commit (EP-09) adds
+# its own.
 EXPORT_RULES: tuple[Rule, ...] = (
     Rule("export_planning", "planning.read"),
+    Rule("export_estimate", "estimate.read"),
     Rule("export_task_tree_image", "planning.read"),
 )
 # In the order of ``StructureCommand``: each guarded by the permission of the command of the same
@@ -80,13 +86,18 @@ STRUCTURE_RULES: tuple[Rule, ...] = (
 
 @dataclass(frozen=True, slots=True)
 class RevisionState:
-    """What the conditions of a revision read: its status, its facts, its project's."""
+    """What the conditions of a revision read: its status, its facts, its project's.
+
+    ``rate_update_available`` whether its proposal of rates presents a category (US-1500), judged
+    on a current revision alone.
+    """
 
     marked: bool
     no_task_running: bool
     has_tasks_and_lines: bool
     reference_correctable: bool
     has_tasks: bool = False
+    rate_update_available: bool = False
 
 
 def quality_conditions(kind: str | None, *, manager: bool) -> list[str]:
@@ -104,7 +115,8 @@ def revision_conditions(command: str, revision: RevisionState) -> list[str]:
     A marked revision lacks ``revision_draft`` alone for what would modify it; the designation,
     which asks it marked, lacks ``revision_marked`` on the current one, then what it asks of it:
     tasks and lines, a designation still correctable, no background task (WF-CYC-0030, WF-REV-0040).
-    The skeleton lacks, on a draft, a main structure without tasks before the background task.
+    The skeleton lacks, on a draft, a main structure without tasks before the background task; the
+    update of the rates, a proposal that presents a category (WF-REV-0060, #1351).
     """
     if command == "designate_reference":
         missing = [] if revision.marked else [REVISION_MARKED]
@@ -120,6 +132,8 @@ def revision_conditions(command: str, revision: RevisionState) -> list[str]:
     # The skeleton asks a main structure without tasks first, its own condition (WF-PRJ-0030).
     skeleton = command == "generate_skeleton" and revision.has_tasks
     missing = [MAIN_STRUCTURE_WITHOUT_TASKS] if skeleton else []
+    if command == "apply_rate_update" and not revision.rate_update_available:
+        missing.append(RATE_UPDATE_AVAILABLE)
     return missing if revision.no_task_running else [*missing, NO_BACKGROUND_TASK_RUNNING]
 
 

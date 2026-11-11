@@ -29,9 +29,13 @@ from typing import TYPE_CHECKING, Any, Literal
 from sqlalchemy import ColumnElement, SQLColumnExpression, func, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
+from waterfall.core.resource_settings.interface.extensions import (
+    CalendarChange,
+    projects_left_idle,
+)
 from waterfall.core.resource_settings.interface.org_nodes import lock_tree, within_node
 from waterfall.core.resource_settings.interface.readiness import lock_reference
-from waterfall.core.resource_settings.tables import Calendar, OrgNode, ResourceRole
+from waterfall.core.resource_settings.tables import DAYS, Calendar, OrgNode, ResourceRole
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
     NOT_FOUND,
@@ -55,6 +59,7 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import Row
     from sqlalchemy.orm import Session
 
+    from waterfall.core.resource_settings.interface.extensions import IdleProject
     from waterfall.platform.audit import Act
 
 ALREADY_EXISTS = "ALREADY_EXISTS"
@@ -288,6 +293,25 @@ def read_roles(session: Session, role_ids: Collection[UUID], *, may_change: bool
     return [_view(row, may_change=may_change) for row in rows]
 
 
+def roles_named(session: Session, labels: Collection[str]) -> dict[str, list[UUID]]:
+    """Give the roles each label names, deactivated ones too; a label with none is absent.
+
+    What a cell pasted into the estimate names its role by (EP-07, US-1560); two roles may bear one
+    label, which the caller refuses as unknown.
+    """
+    found: dict[str, list[UUID]] = {}
+    if not labels:
+        return found
+    rows = session.execute(
+        select(ResourceRole.label, ResourceRole.id)
+        .where(ResourceRole.label.in_(list(labels)))
+        .order_by(ResourceRole.code)
+    )
+    for label, role_id in rows:
+        found.setdefault(label, []).append(role_id)
+    return found
+
+
 def read_role(session: Session, role_id: UUID, *, may_change: bool) -> RoleView:
     """Read a role, deactivated or not, or refuse (404)."""
     found = read_roles(session, [role_id], may_change=may_change)
@@ -514,16 +538,53 @@ def _write(session: Session, role: ResourceRole, act: Act, **values: object) -> 
     )
 
 
+def idle_tasks_refused(session: Session, idle: Sequence[IdleProject]) -> UnprocessableError:
+    """Refuse a change that leaves tasks without an hour: the roles concerned, then the projects.
+
+    The roles by their identifier, their code and their label, active or deactivated, by label
+    (``params.resource_roles``), none when tasks without a labour line alone lose their hours; each
+    project once, by its label and its code, in the order of its label (``params.projects``,
+    WF-PLA-0010, WF-ADM-0110).
+    """
+    role_ids = {role for project in idle for role in project.resource_role_ids}
+    roles = [
+        {"resource_role_id": str(role.resource_role_id), "code": role.code, "label": role.label}
+        for role in read_roles(session, role_ids, may_change=False)
+    ]
+    named = sorted({(project.label, project.code) for project in idle}, key=_by_label)
+    projects = [{"project_label": label, "project_code": code} for label, code in named]
+    return UnprocessableError(
+        TASK_WITHOUT_WORKING_HOURS, {"resource_roles": roles, "projects": projects}
+    )
+
+
+def _by_label(named: tuple[str, str | None]) -> tuple[str, str]:
+    label, code = named
+    return (label, code or "")
+
+
+def _role_left_idle(session: Session, role_id: UUID, calendar_id: UUID) -> tuple[IdleProject, ...]:
+    """Name the projects a role given a calendar would leave with a task without an hour."""
+    calendar = session.scalars(
+        select(Calendar).where(Calendar.id == calendar_id).execution_options(populate_existing=True)
+    ).first()
+    if calendar is None:
+        return ()
+    hours = {day: getattr(calendar, day) for day in DAYS}
+    # The role does not make its calendar the default: a task without a labour line is not on it.
+    return projects_left_idle(
+        session, CalendarChange(calendar_id, hours, default=False, resource_role_id=role_id)
+    )
+
+
 def role_calendar_change_is_admissible(session: Session, role_id: UUID, calendar_id: UUID) -> bool:
     """Tell whether the role may take this calendar without a task left without an hour.
 
-    Provisional: the template the design of EP-05 lays for EP-06, whose form — the signature, the
-    question asked, the parameters of the refusal ``TASK_WITHOUT_WORKING_HOURS`` that
-    ``update_role`` raises when it answers no — EP-06 fixes (WF-PLA-0010). Always so for now: no
-    task depends on a role before EP-06.
+    The estimate answers, by the guard it registers (``register_idle_task_guard``, WF-PLA-0010,
+    US-1500): the calendars of the roles of the labour lines of each task of a current revision
+    the role works, the role on this one, must still meet on a day.
     """
-    del session, role_id, calendar_id
-    return True
+    return not _role_left_idle(session, role_id, calendar_id)
 
 
 def update_role(
@@ -534,8 +595,9 @@ def update_role(
     Refused if unknown (404), at another version (412); at a node sent other than its own
     (``FIELD_READ_ONLY``), at a category or a calendar it is given that is unknown, out of labour
     or deactivated — those it keeps, deactivated since, are not judged —, at a negative capacity
-    (422, one reason a field); at a calendar that would leave a task without an hour (422,
-    EP-06); then if another role holds its code (409).
+    (422, one reason a field); at a calendar that would leave a task of a current revision without
+    an hour (422 ``TASK_WITHOUT_WORKING_HOURS``, the roles and the projects named; US-1500); then
+    if another role holds its code (409).
     """
     role = _lock_role(session, role_id, lock_version)
     moved = change.org_node_id is not None and change.org_node_id != role.org_node_id
@@ -552,11 +614,10 @@ def update_role(
             *_capacity_faults(change.capacity),
         ]
     )
-    # Provisional, as its question: the form of this refusal is EP-06's to fix.
-    if recalendared and not role_calendar_change_is_admissible(
-        session, role_id, change.calendar_id
-    ):
-        raise UnprocessableError(TASK_WITHOUT_WORKING_HOURS, {"resource_roles": [], "projects": []})
+    if recalendared:
+        idle = _role_left_idle(session, role_id, change.calendar_id)
+        if idle:
+            raise idle_tasks_refused(session, idle)
     with _unique_code(session, change.code):
         _write(
             session,

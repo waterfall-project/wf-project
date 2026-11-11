@@ -21,7 +21,10 @@ are taken in one order: the revision, then its project — never the project bef
 
 The partitions of the revised tables are created in the transaction of the creation of the
 project, by the function of the owner of the tables (``create_project_partitions``, WF-DAT-0050):
-the role of the service may execute it, and holds no other right of DDL.
+the role of the service may execute it, and holds no other right of DDL. The function takes the
+advisory lock ``PARTITIONS_LOCK``, then every lock it needs at once, without waiting, and tries
+again a little later while one is held elsewhere (migration ``0026``, #2603, #2667): called before
+any write of its transaction, it never waits while its transaction holds a lock another waits for.
 
 Declared by US-0910/L1, which fills the partitions; US-0960 fills the rest. ``load_revision``
 opens a revision of the witness under the identifier it imposes, by the very rules of the opening
@@ -31,7 +34,7 @@ opens a revision of the witness under the identifier it imposes, by the very rul
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
-from sqlalchemy import ColumnElement, func, or_, select
+from sqlalchemy import ColumnElement, and_, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from waterfall.core.projects.interface import (
@@ -129,6 +132,21 @@ class RevisionFilters:
 
 
 @dataclass(frozen=True, slots=True)
+class RevisionRead:
+    """What an indicator reads of a revision: its status, its year, and the revisions to compare.
+
+    ``reference_revision_id`` is the reference of the project, none without one;
+    ``previous_marked_id`` the marked revision before this one, none without one.
+    """
+
+    revision_id: UUID
+    marked: bool
+    reference_year: int
+    reference_revision_id: UUID | None
+    previous_marked_id: UUID | None
+
+
+@dataclass(frozen=True, slots=True)
 class RevisionPage:
     """Which revisions of the history are read: ``limit`` of them, after the first ``offset``."""
 
@@ -142,6 +160,14 @@ class RevisionList:
 
     revisions: list[RevisionView]
     total: int
+
+
+@dataclass(frozen=True, slots=True)
+class RevisionAsked:
+    """What a creation of a revision asks: its description, and whether it accepts the new rates."""
+
+    description: str | None = None
+    apply_rate_update: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -159,6 +185,8 @@ class RevisionCopy:
     ``identifiers`` maps the identifier of each row copied to that of its copy, table after
     table: a table copied later finds there the copy of the row it names (a task, its structure).
     The copies bear the stamp of the creation of the revision, its author and its instant.
+    ``apply_rate_update`` tells whether the creation accepts the update of the rates the proposal
+    would present at the rate of the reference (``RevisionCreate.apply_rate_update``, WF-REV-0060).
     """
 
     session: Session
@@ -168,6 +196,7 @@ class RevisionCopy:
     at: datetime
     author: UUID | None
     identifiers: dict[UUID, UUID]
+    apply_rate_update: bool = False
 
 
 # The copies a revision opened from a marked one makes, table after table, in the order of their
@@ -188,10 +217,17 @@ def register_copy(copier: Callable[[RevisionCopy], None]) -> Callable[[], None]:
 register_copy(copy_structures)
 
 
+# The key of the advisory lock of the transaction under which the function of the database creates
+# the partitions of a project (migration ``0026``), distinct from the other keys of the service.
+PARTITIONS_LOCK = 4_100_010
+
+
 def create_project_partitions(session: Session, project_id: UUID) -> None:
     """Create the partitions of a project in each revised table, in the transaction of ``session``.
 
-    A project that has them already is refused by the database, which raises.
+    Called before any write of the transaction (``docs/dev/sql.md``, "Verrous"). A project that has
+    them already is refused by the database, which raises; a lock held elsewhere for about ten
+    seconds too (``lock_not_available``).
     """
     session.execute(select(func.create_project_partitions(project_id)))
 
@@ -201,6 +237,14 @@ def current_revision(session: Session, project_id: UUID) -> UUID | None:
     return session.scalar(
         select(Revision.id).where(Revision.project_id == project_id, Revision.status == "draft")
     )
+
+
+def reference_year_of(session: Session, revision_id: UUID) -> int:
+    """Give the year of reference a revision prices its lines at (WF-DEV-0030); or 404."""
+    year = session.scalar(select(Revision.reference_year).where(Revision.id == revision_id))
+    if year is None:
+        raise NotFoundError(NOT_FOUND)
+    return year
 
 
 def revisions_present(session: Session, revision_ids: Collection[UUID]) -> frozenset[UUID]:
@@ -252,8 +296,12 @@ def _views(
             marked_at=row.marked_at,
             reference_year=row.reference_year,
             is_reference=row.is_reference,
-            inflation_rate=project.inflation_rate,
-            win_probability=project.win_probability,
+            inflation_rate=(
+                project.inflation_rate if row.inflation_rate is None else row.inflation_rate
+            ),
+            win_probability=(
+                project.win_probability if row.win_probability is None else row.win_probability
+            ),
             source_revision_id=row.source_revision_id,
             source_version_name=(
                 None if row.source_revision_id is None else names.get(row.source_revision_id)
@@ -265,7 +313,11 @@ def _views(
                     kind,
                     project.state,
                     state_of(
-                        session, row.id, row.status, no_task_running=idle, correctable=correctable
+                        session,
+                        (project_id, row.id),
+                        row.status,
+                        no_task_running=idle,
+                        correctable=correctable,
                     ),
                 )
             ),
@@ -310,6 +362,39 @@ def read_revision(
     return _views(session, [revision], project_id, viewer)[0]
 
 
+def read_revision_for(session: Session, project_id: UUID, revision_id: UUID | None) -> RevisionRead:
+    """Read the revision named, else the current one, else the last one marked; or refuse (404).
+
+    What the indicators of an estimate read (EP-07, US-1510): its year of reference, whether it is
+    marked, the reference of its project, and the marked revision before it.
+    """
+    if revision_id is None:
+        revision_id = current_revision(session, project_id) or _last_marked(session, project_id)
+        if revision_id is None:
+            raise NotFoundError(NOT_FOUND)
+    revision = found_revision(session, revision_id, project_id, lock=False)
+    earlier = select(Revision.id).where(
+        Revision.project_id == project_id, Revision.status == "marked"
+    )
+    if revision.marked_at is not None:
+        earlier = earlier.where(
+            or_(
+                Revision.marked_at < revision.marked_at,
+                and_(Revision.marked_at == revision.marked_at, Revision.id < revision.id),
+            )
+        )
+    previous = session.scalar(
+        earlier.order_by(Revision.marked_at.desc(), Revision.id.desc()).limit(1)
+    )
+    return RevisionRead(
+        revision.id,
+        revision.status == "marked",
+        revision.reference_year,
+        project_facts(session, project_id).reference_revision_id,
+        previous,
+    )
+
+
 def _judge_opening(
     session: Session, project_id: UUID, project: ProjectFacts, running: UUID | None = None
 ) -> None:
@@ -329,6 +414,17 @@ def _judge_opening(
 def last_marked_revision(session: Session, project_id: UUID) -> UUID | None:
     """Give the last marked revision of a project, which the next current one copies, if any."""
     return _last_marked(session, project_id)
+
+
+def marked_revisions(session: Session, project_id: UUID) -> frozenset[UUID]:
+    """Give the marked revisions of a project (WF-CYC-0050)."""
+    return frozenset(
+        session.scalars(
+            select(Revision.id).where(
+                Revision.project_id == project_id, Revision.status == "marked"
+            )
+        )
+    )
 
 
 def last_marked_revisions(session: Session, project_ids: Collection[UUID]) -> dict[UUID, UUID]:
@@ -354,11 +450,15 @@ def _last_marked(session: Session, project_id: UUID) -> UUID | None:
 
 @dataclass(frozen=True, slots=True)
 class _Opening:
-    """A revision to open: its identifier, its description, and the task that opens it, if one."""
+    """A revision to open: its identifier, its description, and the task that opens it, if one.
+
+    ``apply_rate_update`` whether its creation accepts the update of the rates (WF-REV-0060).
+    """
 
     revision_id: UUID
     description: str | None = None
     running: UUID | None = None
+    apply_rate_update: bool = False
 
 
 def _open(session: Session, project_id: UUID, act: Act, opening: _Opening) -> Revision:
@@ -401,23 +501,31 @@ def _open(session: Session, project_id: UUID, act: Act, opening: _Opening) -> Re
     if source is None:
         create_main_structure(session, project_id, revision_id, act)
     else:
-        copy_revision(session, source, revision_id)
+        copy_revision(session, source, revision_id, apply_rate_update=opening.apply_rate_update)
     set_current_revision(session, project_id, revision_id, act)
     advance(session, project_id, "first_revision_created", act)
     return revision
 
 
 def create_revision(
-    session: Session, project_id: UUID, act: Act, viewer: Viewer, description: str | None = None
+    session: Session,
+    project_id: UUID,
+    act: Act,
+    viewer: Viewer,
+    asked: RevisionAsked | None = None,
 ) -> RevisionView:
     """Open the current revision of a project, a copy of its last marked (``createRevision``).
 
-    The description given is kept on the current revision, which its marking takes up (#2171).
+    The description asked is kept on the current revision, which its marking takes up (#2171);
+    ``asked.apply_rate_update`` accepts the update of the rates the proposal would present at the
+    rate of the reference, its copy of the rates told so (WF-REV-0060, #1764).
     Refused, nothing written, on a terminal project (409 ``project_not_terminal``), while a
     current revision exists (409 ``no_current_revision``), and while a background task would
     create it itself (409 ``no_background_task_running``).
     """
-    revision = _open(session, project_id, act, _Opening(new_id(), description))
+    asked = asked or RevisionAsked()
+    opening = _Opening(new_id(), asked.description, apply_rate_update=asked.apply_rate_update)
+    revision = _open(session, project_id, act, opening)
     return _views(session, [revision], project_id, viewer)[0]
 
 
@@ -431,12 +539,15 @@ def open_revision_by_task(session: Session, project_id: UUID, act: Act, running:
     return _open(session, project_id, act, _Opening(new_id(), running=running)).id
 
 
-def copy_revision(session: Session, source: UUID, target: UUID) -> None:
+def copy_revision(
+    session: Session, source: UUID, target: UUID, *, apply_rate_update: bool = False
+) -> None:
     """Copy what a marked revision holds into the new current one, table after table (WF-DAT-0010).
 
     The structures here, but the merged ones, each under an identifier of its own and the lineage
     of the one it copies (#1759); the copies bear the stamp of the creation of ``target``, which is
-    written already. Each epic adds its tables by ``register_copy``.
+    written already. Each epic adds its tables by ``register_copy``; ``apply_rate_update`` tells the
+    copy of the rates whether the update is accepted (EP-07).
     """
     revision = session.get_one(Revision, target)
     copy = RevisionCopy(
@@ -447,6 +558,7 @@ def copy_revision(session: Session, source: UUID, target: UUID) -> None:
         at=revision.created_at,
         author=revision.created_by,
         identifiers={},
+        apply_rate_update=apply_rate_update,
     )
     for copier in _COPIES.entries():
         copier(copy)

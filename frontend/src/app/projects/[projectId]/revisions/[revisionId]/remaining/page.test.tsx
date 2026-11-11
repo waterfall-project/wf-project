@@ -136,6 +136,7 @@ beforeEach(() => {
     [INDICATORS]: "remaining_indicators",
     "GET /projects/{project_id}/work-breakdown": "work_breakdown",
     "GET /reference/cost-categories": "volume/cost_categories",
+    "GET /reference/resource-roles": "resource_roles",
   };
 });
 
@@ -206,7 +207,7 @@ describe("the screen of the remaining to commit", () => {
     const summary = section(await remainingAt(), "Remaining to commit indicators");
     expect(summary).toMatch(/Computed on <time dateTime="2026-06-03T14:05:00Z"/);
     expect(text(summary)).toContain(
-      "Remaining to commit 67,470,133.69 Margin on the reference budget -641,534.68 " +
+      "Remaining to commit 67,470,133.69 Margin on the reference budget 1,405,592.07 " +
         "Deviation from the previous review -1,803,418.08 By cost type",
     );
     // Each amount bears the one mark of a computed value.
@@ -217,24 +218,27 @@ describe("the screen of the remaining to commit", () => {
     );
   });
 
-  it("signals the sub-project over its budget in the zone the server classes it in, the others not, the deviations signed [WF-RAE-0020-A]", async () => {
+  it("signals the scope outside the sub-projects over its budget in the zone the server classes it in, the others not, the deviations signed [WF-RAE-0020-A]", async () => {
     // Les écarts sont présents et signés. Un sous-projet dont le coût réel augmenté du reste à
     // engager dépasse son budget est signalé par la couleur, les autres non.
-    // The remaining to commit just after the re-estimate made today: the control station, its
-    // invoice of 2,400 beyond the estimate of its lines, still over its budget.
+    // The remaining to commit had the risk of rework of the wiring been re-examined today at 60 %
+    // instead of 40 %: its provision, which no sub-project bears, overruns the margin of the whole
+    // outside the sub-projects alone; the two sub-projects keep theirs.
     server.answers = { ...server.answers, [INDICATORS]: "remaining_indicators_over_budget" };
     const markup = section(await remainingAt(), "Remaining to commit indicators");
     const summary = text(markup);
-    expect(summary).toContain("Poste de commande: €23,313,997.74, margin -€64,499.75");
-    expect(summary).toContain("No subproject: €23,341,668.85, margin -€540,306.37");
-    // Each by the zone the server gives it, named: every scope is over its budget, the remaining
-    // of its tasks not started projected on their years of consumption beyond it (EP-14/L45a).
+    expect(summary).toContain("Poste de commande: €23,314,197.74, margin €632,737.10");
+    expect(summary).toContain("Essais et mise en service: €20,814,267.10, margin €611,744.06");
+    expect(summary).toContain("No subproject: €23,591,668.85, margin -€88,889.09");
+    // Each by the zone the server gives it, named: the whole outside the sub-projects alone is
+    // over its budget, signalled; the two sub-projects within theirs are not.
     expect(
       [...markup.matchAll(/role="img" aria-label="(Alert|Nominal|Watch)"/g)].map((m) => m[1]),
-    ).toEqual(["Alert", "Alert", "Alert"]);
-    // The margin on the reference budget, in the sense of the balances: 200 more of it.
-    expect(summary).toContain("Margin on the reference budget -641,334.68");
-    expect(summary).toContain("Deviation from the previous review -1,803,618.08");
+    ).toEqual(["Nominal", "Nominal", "Alert"]);
+    // The margin on the reference budget, in the sense of the balances: 250,000 less of it, the
+    // provision the review adds.
+    expect(summary).toContain("Margin on the reference budget 1,155,592.07");
+    expect(summary).toContain("Deviation from the previous review -1,553,418.08");
   });
 
   it("says the indicators unavailable when the API does not find them, the grid shown", async () => {
@@ -303,6 +307,7 @@ describe("the screen of the remaining to commit", () => {
     expect(page).not.toMatch(/<td(?![^>]*aria-readonly)[^>]*data-column=/);
     const calls = server.clients.flatMap((client) => client.calls.map((call) => call.route));
     expect(calls).not.toContain("GET /reference/cost-categories");
+    expect(calls).not.toContain("GET /reference/resource-roles");
   });
 
   it("opens the grid to entry on a project in progress, where tasks and lines are created and deleted, and reads the categories a line is created from", async () => {
@@ -341,6 +346,28 @@ describe("the screen of the remaining to commit", () => {
     expect(handed).toHaveLength(1);
     expect(handed[0]?.subprojects).toBeUndefined();
     expect(handed[0]?.editable).toBe(false);
+  });
+
+  it("hands the grid the type of the cost of the categories and the roles a line is created from [WF-DEV-0020-A]", async () => {
+    await remainingAt();
+    expect(handed[0]?.categories?.some(({ kind }) => kind === "non_labor")).toBe(true);
+    expect(handed[0]?.categories?.some(({ kind }) => kind === "labor")).toBe(true);
+    expect(handed[0]?.categories?.every(({ kind }) => kind !== undefined)).toBe(true);
+    expect(handed[0]?.roles?.map(({ label }) => label)).toContain("Ingénieur électricien");
+    const calls = server.clients.flatMap((client) => client.calls.map((call) => call.route));
+    expect(calls).toContain("GET /reference/resource-roles");
+  });
+
+  it("hands the grid no role when the API refuses the list, the grid still entered [WF-DEV-0020-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /reference/resource-roles": { problem: { code: "PERMISSION_MISSING", status: 403 } },
+    };
+    await remainingAt();
+    expect(handed).toHaveLength(1);
+    expect(handed[0]?.roles).toBeUndefined();
+    expect(handed[0]?.categories).toBeDefined();
+    expect(handed[0]?.editable).toBe(true);
   });
 
   it("hands the grid no sub-project when the API refuses the list, the grid still entered", async () => {

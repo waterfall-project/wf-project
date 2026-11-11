@@ -15,8 +15,9 @@ read today (WF-PLA-0010, WF-PLA-0160): the wiring, given to the cable fitter, wo
 days of ten hours, the rest the standard week. No line drawn is a provision: a line of provision is
 created by the declaration of a risk alone (WF-DEV-0020, WF-RIS-0010), and the witness has three.
 Every line drawn was in the offer, and the amendment 1 designated none of them: a labour line keeps
-the budget the offer fixed, at the rates of 2025, and is re-estimated at the one rate of 2026 of its
-category, as the two lines of the core the amendment did not designate (WF-REV-0050, #467).
+the budget the offer fixed, at the rates of 2025 projected from 2025, and is re-estimated at the one
+rate of 2026 of its category, as the two lines of the core the amendment did not designate
+(WF-REV-0050, #467, #1628).
 
 A line names its category, its role and its subproject by the labels of the universe, as the
 server resolves them. Amounts are ``Decimal``. Nothing here reads the clock or draws at random:
@@ -134,11 +135,10 @@ class Projection:
     """How a revision projects an amount on its year of consumption (WF-DEV-0030, WF-PRJ-0040).
 
     Compounded at the inflation rate of the project, once a year elapsed since the reference
-    year of the revision: the witness's, 3 % from 2026, by default. Every revision of the witness
-    is projected from 2026, the offer of 2025 included: a declared simplification, for the author
-    to settle (#1628). A simplification of
-    WF-DEV-0040: the whole line is projected on the year its task starts, not split across the
-    years the task spans in proportion to its hours of work.
+    year of the revision: 3 % from 2026 by default, that of the reference 101 and of the revision
+    in progress 102; from 2025 for the offer 100, its own reference year (``OFFER_PROJECTION``,
+    WF-REV-0060, #1628). A simplification of WF-DEV-0040: the whole line is projected on the year
+    its task starts, not split across the years the task spans in proportion to its hours of work.
     """
 
     reference_year: int = REFERENCE_YEAR
@@ -152,6 +152,31 @@ class Projection:
 
 WITNESS = Projection()
 """The projection of the revisions of the witness of reference year 2026, at its 3 %."""
+
+OFFER_PROJECTION = Projection(OFFER_YEAR)
+"""The projection of the offer 100, of reference year 2025, at the same 3 % (#1628)."""
+
+
+@dataclass(frozen=True, slots=True)
+class Pricing:
+    """What a revision prices its lines with, both of its reference year (WF-REV-0060).
+
+    The hourly rate of each labour category the structure employs, for that year (WF-DEV-0020),
+    and the projection from that year onto the year of consumption (WF-DEV-0030): those of 2026
+    by default, the reference's and the current revision's; the offer's are of 2025
+    (``mockhistory.offer_pricing``, #1628). Hashable, so that a structure priced is read once.
+    """
+
+    rates: tuple[tuple[str, Decimal], ...] = tuple(sorted(LABOUR_RATES.items()))
+    projection: Projection = WITNESS
+
+    def by_category(self) -> dict[str, Decimal]:
+        """Return the hourly rate of each labour category."""
+        return dict(self.rates)
+
+
+WITNESS_PRICING = Pricing()
+"""What the revisions of the witness of reference year 2026 price their lines with."""
 
 
 def inflated(amount: Decimal, year: int) -> Decimal:
@@ -363,8 +388,9 @@ class _Plan:
 def _line(number: int, kind: LineKind, key: str, subproject: str | None) -> Line:
     """Return a line drawn: hours for labour, a quantity and a unit disbursement otherwise.
 
-    A labour line is budgeted as the offer priced it, at the rate of 2025 of its category: the
-    amendment 1 did not designate it (WF-REV-0050, #467). The other lines are paid a month after
+    A line is budgeted as the offer priced it, a labour line at the rate of 2025 of its category,
+    and as the offer projected it, from 2025: the amendment 1 did not designate it (WF-REV-0050,
+    #467, #1628). The other lines are paid a month after
     their work, as the subcontracting of the core; the labour as it is worked (WF-DEV-0020,
     WF-IND-0100).
     """
@@ -379,20 +405,37 @@ def _line(number: int, kind: LineKind, key: str, subproject: str | None) -> Line
             subproject=subproject,
             budgeted=offer_budget(hours, kind.category),
         )
+    unit = Decimal(draw(f"unit/{key}", 1_000, 500_000)) / 100
+    quantity = Decimal(draw(f"quantity/{key}", 1, 20))
     return Line(
         number,
         kind.label,
         kind.category,
-        unit=Decimal(draw(f"unit/{key}", 1_000, 500_000)) / 100,
+        unit=unit,
         subproject=subproject,
         payment_delay_days=PAYMENT_DELAY,
-        quantity=Decimal(draw(f"quantity/{key}", 1, 20)),
+        quantity=quantity,
+        budgeted=carried(quantity * unit),
     )
 
 
 def offer_budget(hours: Decimal, category: str) -> Decimal:
-    """Return the budget the offer fixed to a labour line: its hours at the rate of 2025 (#467)."""
-    return hours * hourly_rate(LABOUR_RATES[category], OFFER_YEAR)
+    """Return the budget the offer fixed to a labour line: its hours at the rate of 2025, carried.
+
+    As a revision of 2026 keeps it (``carried``, #467, #1628).
+    """
+    return carried(hours * hourly_rate(LABOUR_RATES[category], OFFER_YEAR))
+
+
+def carried(amount: Decimal) -> Decimal:
+    """Return a budget the offer fixed as a revision of 2026 keeps it (WF-RAE-0010, #467).
+
+    Carried from 2025 to 2026 at the inflation of the witness and left unrounded: projected again
+    from 2026 on its year of consumption, as the reference and the revision in progress project,
+    it is the budgeted amount of the offer to the cent, the offer projecting from its own
+    reference year (``OFFER_PROJECTION``, #1628).
+    """
+    return amount * (1 + INFLATION_RATE) ** (REFERENCE_YEAR - OFFER_YEAR)
 
 
 NETWORK = network()

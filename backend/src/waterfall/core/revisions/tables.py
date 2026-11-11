@@ -7,8 +7,9 @@ A revision of a project — at most one current (``draft``) per project, marked 
 partitioned by list on ``project_id``, one partition per project, created with it by the function
 ``create_project_partitions`` of the owner of the tables (migration ``0020``, WF-DAT-0050): its
 key holds the key of the partition, and its row names its revision with its project, so that it
-lives in the partition of its revision's project. Each epic that adds a revised table replaces
-that function in its migration.
+lives in the partition of its revision's project. The function reads the revised tables in the
+catalogue since ``0026``: a table that an epic adds, partitioned by list on ``project_id``, has its
+partitions created without replacing it, given its trigger ``<table>_refuse_truncate``.
 
 What the database itself refuses of a marked revision — going back to ``draft``, any change but
 its designation as reference, its counter and its audit — and of a row of a marked revision —
@@ -16,6 +17,7 @@ any write — is said by the triggers of the migration, owner included.
 """
 
 from datetime import date, datetime
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import (
@@ -26,6 +28,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    Numeric,
     SmallInteger,
     Text,
     UniqueConstraint,
@@ -140,6 +143,10 @@ class Revision(Audited):
     # The marked revision this one is the copy of; null for the first revision of a project, kept
     # after the marking (``Revision.source_revision_id`` of the contract).
     source_revision_id: Mapped[UUID | None]
+    # The rate of inflation and the probability of winning of the project, kept at the marking
+    # (EP-07); null on a current revision, which follows its project, and on one marked before.
+    inflation_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
+    win_probability: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
 
 
 class CostStructure(Audited):

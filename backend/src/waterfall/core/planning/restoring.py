@@ -18,7 +18,10 @@ never over what another contributor did since:
 - the links and the inscriptions follow their entry: a node created again takes back all of its
   own, a node changed only those its entry writes — the predecessors of a task for a ``link``, its
   inscriptions for a ``tracking`` —, and a link or an inscription whose other end, or timeline, is
-  gone is left out.
+  gone is left out;
+- the facet of a node of another kind — an estimate line, EP-07 — is written back by the hooks of
+  its kind (``FacetHooks.restore``), then priced again on the dates of its task with the others it
+  bears (``FacetHooks.reinflate``).
 """
 
 import annotationlib
@@ -33,6 +36,7 @@ from sqlalchemy import select
 from waterfall.core.history.interface import UNDO_CONFLICT, ObjectState
 from waterfall.core.planning.attachments import ORDER_ITEM_ID, WORK_PACKAGE_ID, carriers, strays
 from waterfall.core.planning.dating import conflicts_of
+from waterfall.core.planning.interface.facets import facets
 from waterfall.core.planning.interface.structures import structure_state
 from waterfall.core.planning.shaping import PARKED, deleted
 from waterfall.core.planning.snapshotting import taken
@@ -105,10 +109,13 @@ def _conflict(object_id: UUID, label: str) -> ConflictError:
     )
 
 
-def _label(tree: Tree, node_id: UUID) -> str:
-    """Give the label of a task of the tree, none for another node."""
+def _label(session: Session, project_id: UUID, tree: Tree, node_id: UUID) -> str:
+    """Give the label of a node of the tree: its task's, or its facet's as the history keeps it."""
     task = tree.tasks.get(node_id)
-    return "" if task is None else task.label
+    if task is not None:
+        return task.label
+    found = taken(session, project_id, (node_id,))
+    return found[0].label if found else ""
 
 
 def _coerced(kind: type, value: JsonValue) -> object:
@@ -194,7 +201,7 @@ def _judged(session: Session, project_id: UUID, tree: Tree, restoring: Restoring
     for node_id in removed:
         for child in tree.children.get(node_id, []):
             if child not in removed:
-                raise _conflict(child, _label(tree, child))
+                raise _conflict(child, _label(session, project_id, tree, child))
     outside = set(tree.nodes) - kept - set(removed)
     holders = {
         (tree.nodes[each].parent_id, tree.nodes[each].kind, tree.nodes[each].rank): each
@@ -208,7 +215,7 @@ def _judged(session: Session, project_id: UUID, tree: Tree, restoring: Restoring
             raise _conflict(state.object_id, state.label)
         place = (parent, cast("str", node["kind"]), cast("int", node["rank"]))
         if place in holders:
-            raise _conflict(holders[place], _label(tree, holders[place]))
+            raise _conflict(holders[place], _label(session, project_id, tree, holders[place]))
     return Restoration(created, changed, removed, _bearing(session, project_id, tree, restoring))
 
 
@@ -242,7 +249,7 @@ def _bearing(
                 continue
             holder = borne.get(item_id)
             if holder is not None and holder != node_id and holder not in brought:
-                raise _conflict(holder, _label(tree, holder))
+                raise _conflict(holder, _label(session, project_id, tree, holder))
             live.append(item_id)
         kept[node_id] = (live[0], live[1])
     _unstrayed(session, project_id, tree, restoring, kept)
@@ -313,12 +320,15 @@ def _write_changed(tree: Tree, restoration: Restoration, writer: Writer) -> None
     """Rewrite the rows of the nodes the tree holds, their counter advanced."""
     act = writer.act
     for state in restoration.changed:
-        node, task = tree.nodes[state.object_id], tree.tasks[state.object_id]
+        node = tree.nodes[state.object_id]
         for column, value in _typed(Node, _row(state, "node")).items():
             if column not in NODE_KEPT | NODE_STAMPED:
                 setattr(node, column, value)
         node.lock_version += 1
         node.updated_at, node.updated_by = act.at, act.author
+        task = tree.tasks.get(state.object_id)
+        if task is None:
+            continue
         for column, value in _typed(Task, _row(state, "task")).items():
             if column not in TASK_KEPT:
                 setattr(task, column, value)
@@ -348,9 +358,24 @@ def _write_created(session: Session, restoration: Restoration, writer: Writer) -
         session.add(Node(**columns))
     session.flush()
     for state in ordered:
+        if state.rows["task"] is None:
+            continue
         columns = _typed(Task, _row(state, "task"))
         columns["work_package_id"], columns["order_item_id"] = restoration.bearing[state.object_id]
         session.add(Task(**columns))
+    session.flush()
+
+
+def _restore_facets(session: Session, project_id: UUID, states: Snapshot, writer: Writer) -> None:
+    """Write back the facets of the nodes of the other kinds, by the hooks of their kind."""
+    for kind, hooks in facets().items():
+        rows = {
+            state.object_id: state.rows["facet"]
+            for state in states
+            if "facet" in state.rows and _row(state, "node")["kind"] == kind
+        }
+        if rows:
+            hooks.restore(session, project_id, rows, writer.act)
     session.flush()
 
 
@@ -487,9 +512,16 @@ def bring_back(
     _write_changed(tree, restoration, writer)
     session.flush()
     _write_created(session, restoration, writer)
+    _restore_facets(session, project_id, restoring.restored, writer)
     _restore_links(session, place, restoration, restoring.kind)
     _restore_tracking(session, project_id, restoration, restoring.kind)
-    redated = redated_structure(session, place, writer.act, (facts, None, conflicts))
+    bearers = {
+        parent
+        for state in restoring.restored
+        if "facet" in state.rows and (parent := _id(_row(state, "node"), "parent_id")) is not None
+    }
+    held = (facts, None, conflicts)
+    redated = redated_structure(session, place, writer.act, held, bearers)
     ids = tuple(state.object_id for state in restoring.restored)
     restoring.keep_present(taken(session, project_id, ids))
     return redated.written(ids, former)

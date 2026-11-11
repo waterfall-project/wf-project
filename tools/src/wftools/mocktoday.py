@@ -8,13 +8,13 @@ the reference at their marking, the current revision today, the actual costs
 a reading of the state of today (the indicators of the estimate, of the remaining to commit and of
 the project, the evolution of the indices, the tracking of the milestones, the curves, the
 workload); a reading of an earlier instant (the estimate the offer kept at its marking, the
-indicators the reference kept, the rate update its creation proposed); the sequel of a write made
-today (the remaining to commit after ``remaining_reestimated``); or a counterfactual variant
+indicators the reference kept, the rate update its creation proposed); or a counterfactual variant
 declared as such (``*_missing_rates``, ``estimate_indicators_work_package_without_task``,
-``cost_curve_amendment``, ``cost_curve_subproject_unbudgeted``,
-``project_indicators_without_current_revision``, and the curves of a subproject no line relates
-to, read on the core alone, ``alone``). The portfolio sums the indicators of the project in memory
-(``project_today``), never read back from the file the same command writes.
+``remaining_indicators_over_budget``, ``cost_curve_amendment``,
+``cost_curve_subproject_unbudgeted``, ``project_indicators_without_current_revision``, and the
+curves of a subproject no line relates to, read on the core alone, ``alone``). The portfolio sums
+the indicators of the project in memory (``project_today``), never read back from the file the
+same command writes.
 """
 
 from dataclasses import dataclass, replace
@@ -22,7 +22,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
-from wftools import mockcore, mocktext, mockwitnessrisks, mockwrites
+from wftools import mockcore, mockhistory, mocktext, mockwitnessrisks, mockwrites
 from wftools.mockcurves import Era, cost_curve, earned_value_curves, workload
 from wftools.mockids import universe
 from wftools.mockindicators import (
@@ -50,7 +50,6 @@ from wftools.mockwitness import (
     CORE,
     ELECTRICAL_ENGINEERING,
     GENERATED,
-    LABOUR,
     OFFER_MARKED,
     ORDER_RECEIVED,
     PAYMENT_DELAY,
@@ -59,11 +58,13 @@ from wftools.mockwitness import (
     STUDIES_STARTED,
     SUBPROJECT_CONTROL,
     SUBPROJECT_TESTS,
+    TODAY,
     WORK_BREAKDOWN,
     WorkPackage,
     fixture,
 )
 from wftools.mockwitnesscosts import COSTS
+from wftools.mockwitnessrisks import Review
 
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject, JsonValue
@@ -71,14 +72,23 @@ if TYPE_CHECKING:
 OTHER_AMENDMENT = Decimal("15000.00")
 OTHER_AMENDMENT_ON = date(2026, 3, 10)
 """The counterfactual amendment of ``cost_curve_amendment``: the rework of the detailed studies,
-15,000 more on their line of subcontracting, as if contracted on 10 March 2026. Another amendment
-than the amendment 2 the current revision bears, not merged (``mockamendment``, #791): it is
-named by no number."""
+15,000 more on their line of subcontracting, as if contracted on 10 March 2026, which it budgets at
+its amount of 2026: its budget steps by 12,000, the 103,000 the offer fixed, of 2025 projected on
+2026, giving way to 115,000 (WF-REV-0050, #1628). Another amendment than the amendment 2 the
+current revision bears, not merged (``mockamendment``, #791): it is named by no number."""
 
 UNBORNE_LOT = WorkPackage(universe(718), "Lot 2")
 """The counterfactual lot of ``estimate_indicators_work_package_without_task``: a second lot of the
 work breakdown, entered after « Lot 1 », without post, that no task bears — the witness has one lot
 alone, borne by the summary « Poste de commande » (WF-PRJ-0020, WF-DEV-0060, #1142)."""
+
+REWORK_WORSENED = Decimal("0.6")
+"""The counterfactual review of ``remaining_indicators_over_budget``: the risk of rework of the
+wiring, still identified, re-examined today at 60 % instead of the 40 % of its last review, its
+severity unchanged. Its provision, which no subproject bears, follows (WF-RIS-0010): 750,000 instead
+of 500,000, more than the margin of the whole outside the subprojects, which it overruns; the two
+subprojects keep theirs, of more than 600,000 each, which no re-estimate of their few started lines
+could consume (WF-RAE-0020)."""
 
 WORKSHOP = universe(472)
 """The node of organisation the filtered workload retains: the cabling workshop, under the
@@ -149,22 +159,36 @@ def estimate_today(read_once: Witness | None = None) -> JsonObject:
     return estimate(found.today, against=found.reference, previous=found.reference)
 
 
+def rework_worsened() -> Reading:
+    """Return the current revision today, had the risk of rework been re-examined at 60 %.
+
+    The counterfactual of ``remaining_indicators_over_budget`` (``REWORK_WORSENED``): a review of
+    the risk made today, its severity kept, and its line of provision at the provision it gives
+    (WF-RIS-0010); nothing else changes.
+    """
+    risk = mockwitnessrisks.REWORK
+    worse = Review(TODAY, REWORK_WORSENED, risk.last.severity)
+    provision = mockhistory.provision(replace(risk, reviews=(*risk.reviews, worse)))
+    return today(
+        mockwrites.amended(
+            described(),
+            line=mockwrites.on_line(cast("int", risk.provision_line), unit=provision),
+        )
+    )
+
+
 def values() -> dict[str, JsonValue]:
     """Return the values of the examples of the indicators, by name."""
     found, core = witness(), alone()
     now, base, costs = found.today, found.reference, found.costs
     missing = frozenset({ELECTRICAL_ENGINEERING})
-    reestimated = today(
-        mockwrites.amended(
-            described(),
-            line=mockwrites.on_line(LABOUR, hours=mockwrites.REESTIMATED_HOURS),
-        )
-    )
+    worsened = rework_worsened()
     amended = reference(
         mockwrites.amended(
             mockcore.REFERENCE,
             line=lambda line: (
-                replace(line, unit=cast("Decimal", line.unit) + OTHER_AMENDMENT)
+                # Designated by the amendment, the line is budgeted at its amount (WF-REV-0050).
+                replace(line, unit=cast("Decimal", line.unit) + OTHER_AMENDMENT, budgeted=None)
                 if line.number == STUDIES_LINE
                 else line
             ),
@@ -183,7 +207,7 @@ def values() -> dict[str, JsonValue]:
         "missing_rates": missing_rates(now, now.lines, missing),
         "rate_update": rate_update(),
         "remaining_indicators": remaining_indicators(now, base, base, costs),
-        "remaining_indicators_over_budget": remaining_indicators(reestimated, base, base, costs),
+        "remaining_indicators_over_budget": remaining_indicators(worsened, base, base, costs),
         "project_indicators": project_today(found),
         "project_indicators_marked": project_indicators(base, base, costs),
         "project_indicators_subproject": project_indicators(now, base, costs, SUBPROJECT_CONTROL),
@@ -344,10 +368,12 @@ def _estimate_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             f"La mise à jour des taux présentée à la création de la révision 101, le "
             f"{_day(RISKS_IDENTIFIED.on)} — sa première saisie, l'identification des risques —, "
             f"dont l'année de référence est 2026 quand celle de l'offre copiée était 2025 : "
-            f"catégorie par catégorie, chaque catégorie de main-d'œuvre de l'offre à son taux de "
-            f"2026 de la grille des taux, celui de 2025 en regard — {rates} —, que l'utilisateur "
-            f"accepte ou refuse une à une (WF-REV-0060). La révision courante, ouverte la même "
-            f"année que la référence qu'elle copie, n'en a aucune."
+            f"créée par une saisie de risque, elle a appliqué les taux de l'offre projetés "
+            f"jusqu'à 2026 ; catégorie par catégorie, chaque catégorie de main-d'œuvre de l'offre "
+            f"à son taux de 2026 de la grille des taux, en regard du taux qu'elle conserve, celui "
+            f"de 2025 corrigé d'une année d'inflation — {rates} —, que l'utilisateur accepte ou "
+            f"refuse une à une (WF-REV-0060). La révision courante, ouverte la même année que la "
+            f"référence qu'elle copie, n'en a aucune."
         ),
     }
 
@@ -399,6 +425,8 @@ def _remaining_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
         _get(found, "remaining_indicators"),
         _get(found, "remaining_indicators_over_budget"),
     )
+    kept, worse = _obj(left["coverage"]), _obj(over["coverage"])
+    rework = mockwitnessrisks.REWORK
     return {
         "remaining_indicators": (
             f"Le reste à engager de la révision courante au {_TODAY}, sur toute la structure de "
@@ -413,10 +441,14 @@ def _remaining_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             f"couverture des risques (WF-RAE-0020, WF-RIS-0050)."
         ),
         "remaining_indicators_over_budget": (
-            f"Le reste à engager juste après la réestimation du raccordement des borniers à "
-            f"{mockwrites.REESTIMATED_HOURS} h, faite aujourd'hui (remaining_reestimated) : "
-            f"{_money(over['total'])} ; {_scopes_said(over)} ; {_margins(over)} (WF-RAE-0020, "
-            f"WF-IHM-0070)."
+            f"Variante contrefactuelle : le reste à engager de la révision courante au {_TODAY} "
+            f"si le risque de reprise du câblage, encore identifié, était réexaminé aujourd'hui à "
+            f"{REWORK_WORSENED * 100:.0f} % au lieu de {rework.last.probability * 100:.0f} %, sa "
+            f"gravité inchangée : sa provision, qu'aucun sous-projet ne porte, passe de "
+            f"{_money(kept['remaining_provisions'])} à {_money(worse['remaining_provisions'])} "
+            f"(WF-RIS-0010), et le reste à engager à {_money(over['total'])} ; "
+            f"{_scopes_said(over)} ; {_margins(over)} ; l'écart de couverture des risques, "
+            f"{_money(worse['coverage_variance'])} (WF-RAE-0020, WF-IHM-0070, WF-RIS-0050)."
         ),
     }
 
@@ -596,12 +628,15 @@ def _curve_summaries(found: dict[str, JsonValue], read_once: Witness) -> dict[st
         "cost_curve_amendment": (
             f"La même courbe si un autre avenant que l'avenant 2 « reprise des essais », que la "
             f"révision courante porte sans l'avoir fusionné — la reprise des études de détail, "
-            f"{_money(second['amount'])} de plus sur leur ligne de sous-traitance — avait été "
-            f"contractualisé le {_day(OTHER_AMENDMENT_ON)} : une seconde marche, le budget de "
-            f"référence portant deux points à cette date, avant et après — {_money(before)} puis "
-            f"{_money(after)} —, puis cumulé sur la nouvelle référence, jusqu'à "
-            f"{_money(_series(amended, 'reference_budget')[-1]['amount'])} ; les études étant "
-            f"terminées, le reste à engager et la projection ne changent pas (WF-IND-0100)."
+            f"{mocktext.amount(OTHER_AMENDMENT)} de plus sur leur ligne de sous-traitance, que "
+            f"l'avenant budgète à son montant — avait été contractualisé le "
+            f"{_day(OTHER_AMENDMENT_ON)} : une seconde marche, de {_money(second['amount'])} — "
+            f"le budget que l'offre avait fixé, de 2025 projeté sur 2026, cédant la place au "
+            f"montant de 2026 —, le budget de référence portant deux points à cette date, avant "
+            f"et après — {_money(before)} puis {_money(after)} —, puis cumulé sur la nouvelle "
+            f"référence, jusqu'à {_money(_series(amended, 'reference_budget')[-1]['amount'])} ; "
+            f"les études étant terminées, le reste à engager et la projection ne changent pas "
+            f"(WF-IND-0100)."
         ),
         "cost_curve_subproject": (
             f"La courbe de coûts cumulés du seul sous-projet « {labels[SUBPROJECT_CONTROL]} » au "

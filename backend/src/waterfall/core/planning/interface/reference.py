@@ -38,7 +38,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from waterfall.core.planning.dating import PROJECT_HORIZON_EXCEEDED
-from waterfall.core.planning.interface.facets import facets
+from waterfall.core.planning.interface.facets import named_calendars
 from waterfall.core.planning.interface.structures import reschedule
 from waterfall.core.planning.tables import Node
 from waterfall.core.planning.tree import TASK
@@ -59,11 +59,8 @@ if TYPE_CHECKING:
 
 def _on_the_default(session: Session, project_id: UUID, task_ids: list[UUID]) -> bool:
     """Tell whether one of these tasks is on the default calendar: its facets name no calendar."""
-    hooks = list(facets().values())
-    return any(
-        not any(each.calendars(session, project_id, task_id) for each in hooks)
-        for task_id in task_ids
-    )
+    named = named_calendars(session, project_id, task_ids)
+    return any(not named[task_id] for task_id in task_ids)
 
 
 def tasks_left_idle(session: Session, change: CalendarChange) -> tuple[IdleProject, ...]:

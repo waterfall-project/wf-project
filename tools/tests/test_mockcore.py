@@ -107,13 +107,15 @@ def test_a_task_sums_its_lines_and_its_subordinates_and_the_totals_sum_the_lines
     estimate = nodes(readings["nodes_estimate.json"])
     wiring, lot = facet(estimate[WIRING]), facet(estimate[CONTROL_STATION])
     assert wiring["base_amount"] == "502234.56"
-    assert (lot["base_amount"], lot["budgeted_amount"]) == ("502434.56", "252234.56")
+    # The terminal blocks keep the budget the offer fixed, 1,234.56 of 2025 projected on 2026,
+    # 1,271.60 (#467, #1628): the lot is budgeted 252,271.60.
+    assert (lot["base_amount"], lot["budgeted_amount"]) == ("502434.56", "252271.60")
     assert readings["nodes_estimate.json"]["totals"] == {
         "task_count": 6,
         "estimate_line_count": 5,
         "hours": "12.5",
         "base_amount": "502434.56",
-        "budgeted_amount": "252234.56",
+        "budgeted_amount": "252271.60",
         "reestimated_amount": "502434.56",
     }
     # Read in the reference year, a line is not projected: its amounts agree (WF-DEV-0030).
@@ -270,7 +272,8 @@ def test_a_reading_numbers_its_rows_in_the_whole_structure_and_sums_what_it_reta
     # The tasks alone have the totals of the full reading: `kinds` renders, never sums (#487).
     assert readings["nodes_planning.json"]["totals"] == readings["nodes.json"]["totals"]
     assert readings["nodes_planning.json"]["totals"]["task_count"] == 6
-    assert readings["nodes.json"]["totals"]["budgeted_amount"] == "100000.00"
+    # The detailed studies keep the budget the offer fixed, of 2025 projected on 2026 (#1628).
+    assert readings["nodes.json"]["totals"]["budgeted_amount"] == "103000.00"
     assert readings["nodes.json"]["totals"]["estimate_line_count"] == 1
 
 

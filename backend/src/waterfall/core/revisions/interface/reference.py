@@ -12,14 +12,17 @@ that a revision with tasks but no line is refused until EP-07 answers for the li
 The moment of the last designation is the one of its last inscription in the journal, taken under
 the lock of the project, so that a marking validated meanwhile is judged against it.
 
-The designation locks the project, then reads and writes the revisions it names, all marked: the
-marking and the abandonment lock a current revision, then the project, and never a marked
-revision, so that no two locks are taken in opposite orders. It judges under the lock, in the
+The designation shares the lock of the current revision of the project first, if it has one
+(``hold_current_revision``), then locks the project, then reads and writes the revisions it names,
+all marked: the marking and the abandonment lock a current revision, then the project, and never a
+marked revision, so that no two locks are taken in opposite orders — what follows the designation
+writes in the current revision (US-1500). It judges under the lock, in the
 order of the contract: the revision unknown (404), the counter of the project read (412), a
 terminal project (409 ``project_not_terminal``), then the first condition the command
 ``designate_reference`` lacks (409). It writes ``is_reference`` of the previous reference and of
 the new one, the project, and ``reference_designate`` in the journal; the project moves to In
-progress if its code is entered (``set_reference_revision``).
+progress if its code is entered (``set_reference_revision``). The modules registered then do their
+part (``register_designation``: the budgeted amounts of EP-07), in the same transaction.
 """
 
 from dataclasses import dataclass, replace
@@ -41,6 +44,7 @@ from waterfall.core.revisions.commands import (
 )
 from waterfall.core.revisions.interface.shared import (
     found_revision,
+    hold_current_revision,
     inscribe_revision,
     refuse,
 )
@@ -52,6 +56,7 @@ from waterfall.platform.errors import STALE_LOCK_VERSION, PreconditionFailedErro
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from datetime import datetime
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -65,6 +70,8 @@ REVISION_PARTS: frozenset[RevisionPart] = frozenset(("tasks", "lines"))
 _TASKS_AND_LINES: Registry[tuple[RevisionPart, Callable[[Session, UUID], bool]]] = Registry(
     "revisions.tasks_and_lines"
 )
+# What a module does once a reference is designated, in the order of registration: EP-07's.
+_DESIGNATIONS: Registry[Callable[[ReferenceDesignated], None]] = Registry("revisions.designation")
 
 
 def reference_correctable(session: Session, project_id: UUID) -> bool:
@@ -103,11 +110,30 @@ def _write(revision: Revision, *, reference: bool, act: Act) -> None:
 
 
 @dataclass(frozen=True, slots=True)
+class ReferenceDesignated:
+    """A reference just designated, in the transaction of its designation, under its locks.
+
+    ``at`` is the instant of the designation, ``author`` who designated it.
+    """
+
+    session: Session
+    project_id: UUID
+    revision_id: UUID
+    at: datetime
+    author: UUID | None
+
+
+@dataclass(frozen=True, slots=True)
 class ReferenceToDesignate:
-    """The revision a designation names, and the counter of the project its caller read."""
+    """The revision a designation names, and the counter of the project its caller read.
+
+    ``at`` is the instant the loader of the witness imposes (WF-CYC-0130); none for a request,
+    whose designation takes the moment under the lock.
+    """
 
     revision_id: UUID
     lock_version: int
+    at: datetime | None = None
 
 
 def designate_reference(
@@ -118,11 +144,13 @@ def designate_reference(
     Judged under the lock of the project, where the writer is judged again as a project manager of
     it (403, 404; #2207), then at the counter read; nothing is written if refused. The
     revision that is the reference already is designated again without a write: no counter, no
-    inscription, no transition. The moment of the designation is taken under the lock.
+    inscription, no transition. The moment of the designation is taken under the lock, unless the
+    witness imposes it.
     """
+    hold_current_revision(session, project_id)
     project = lock_for_designation(session, project_id)
     require_project_manager(session, project_id, viewer)
-    act = replace(act, at=utc_now())
+    act = replace(act, at=utc_now() if designated.at is None else designated.at)
     revision_id = designated.revision_id
     target = found_revision(session, revision_id, project_id, lock=False)
     if project.lock_version != designated.lock_version:
@@ -161,7 +189,21 @@ def designate_reference(
     _write(revision, reference=True, act=act)
     session.flush()
     set_reference_revision(session, project_id, revision_id, act)
+    designation = ReferenceDesignated(session, project_id, revision_id, act.at, act.author)
+    # The current revision, opened or marked since it was held, is held under the lock now.
+    hold_current_revision(session, project_id)
+    for follow in _DESIGNATIONS.entries():
+        follow(designation)
     inscribe_revision(session, revision, "reference_designate", revision.version_name, act)
+
+
+def register_designation(follow: Callable[[ReferenceDesignated], None]) -> Callable[[], None]:
+    """Add what a module does once a reference is designated; give its withdrawal.
+
+    The estimate refreshes the budgeted amounts of the lines of the current revision by their
+    lineage (EP-07, US-1500). Nothing runs for a revision designated again, which writes nothing.
+    """
+    return _DESIGNATIONS.register(follow)
 
 
 def register_tasks_and_lines(
