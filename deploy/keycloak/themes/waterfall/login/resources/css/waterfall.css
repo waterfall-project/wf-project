@@ -262,10 +262,10 @@ body#keycloak-bg {
 /*
  * The banner (docs/assets/waterfall-banniere.png): across the top of the page, its logo and its
  * line left clear, the card over its lower part; it fades into the background of the page. Its
- * height follows its width (765 / 2056). On a narrow screen, the refinery alone, as a strip.
+ * height follows its width (635 / 2056, its empty sky cut off). On a narrow screen, the refinery alone, as a strip.
  */
 :root {
-  --wf-banner-height: calc(100vw * 765 / 2056);
+  --wf-banner-height: calc(100vw * 635 / 2056);
   --wf-banner-veil: transparent;
 }
 
@@ -285,7 +285,7 @@ body#keycloak-bg {
 @media (min-width: 48rem) {
   .pf-v5-c-login {
     align-items: start;
-    padding-block-start: min(calc(var(--wf-banner-height) * 0.64), 34rem);
+    padding-block-start: min(calc(var(--wf-banner-height) * 0.56), 26rem);
     padding-block-end: 3rem;
   }
 
