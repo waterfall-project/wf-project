@@ -3,8 +3,9 @@
 /**
  * An estimate the account of the run writes in the service, for the paths of the grid of the
  * estimate that play against it (US-1560): the account of the run is no project manager of PRJ-001
- * (#2193), so each path that writes creates a project of its own, as a user does — the project made from the home, its revision opened — and its first nodes by the
- * API, under the token of its creator. The nodes are always the same, in the order of the plan:
+ * (#2193), so each path that writes creates a project of its own, as a user does — the project
+ * made from the home, its revision opened — and its first nodes by the API, under the token of
+ * its creator. The nodes are always the same, in the order of the plan:
  *
  *   1 Phase (summary)    2 Tâche du devis    and under it a line of the category « Matériel
  *   électrique », with a quantity of 1 and a unit disbursement of 1 000,00

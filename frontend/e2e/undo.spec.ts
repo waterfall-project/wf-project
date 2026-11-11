@@ -14,8 +14,9 @@ import { rowAt } from "./scroll";
 // available, where it lists the estimate unavailable (WF-RAE-0040, WF-DEV-0050): undo and redo are
 // placed in its bar, in the menu of its cells and on its keys, unavailable until its entries are
 // recorded (US-0140). EP-06 wires those of the planning (US-1450): the last journeys of this file
-// play them against the service, on a project the run creates. Row 10 is a line of labour, « Raccordement des borniers »
-// (`test_the_marks_the_journeys_read`, tools/tests/test_mockstructure.py).
+// play them against the service, on a project the run creates. Row 10 is a line of labour,
+// « Raccordement des borniers » (`test_the_marks_the_journeys_read`,
+// tools/tests/test_mockstructure.py).
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const REMAINING = `/projects/${PROJECT}/revisions/${REVISION}/remaining`;

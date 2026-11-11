@@ -376,13 +376,28 @@ describe("the file as the container runs it", () => {
   // The service runs `node /bench/contract-proxy.ts` on the Node of its image, which strips the
   // types and nothing else: a syntax that is not erasable (`enum`, a parameter property of a
   // constructor) would break the bench of `make e2e-service` alone (#2758).
-  it("is erasable TypeScript: Node reads it with its types stripped, as it refuses an enum", async () => {
-    await run(process.execPath, ["--check", join(import.meta.dirname, "contract-proxy.ts")]);
+  it("is erasable TypeScript: Node loads it with its types stripped, as it refuses an enum", async () => {
+    // `--check` strips nothing that matters here (it accepts an enum), so the files are loaded:
+    // the bench starts nothing unless it is the main module (`import.meta.main`).
+    const load = (file: string) =>
+      run(process.execPath, ["--input-type=module", "-e", "await import(process.argv[1])", file]);
+    await load(join(import.meta.dirname, "contract-proxy.ts"));
     const directory = await mkdtemp(join(tmpdir(), "erasable-"));
     try {
+      // The witness, written the same way as the control: Node loads it, so the refusal below is
+      // the enum's.
+      const witness = join(directory, "witness.ts");
+      await writeFile(witness, "const witness: number = 1;\nexport { witness };\n");
+      await load(witness);
       const control = join(directory, "control.ts");
-      await writeFile(control, "enum Control { One }\n");
-      await expect(run(process.execPath, ["--check", control])).rejects.toThrow();
+      await writeFile(control, "enum Control { One }\nexport { Control };\n");
+      let refused = "";
+      try {
+        await load(control);
+      } catch (error) {
+        refused = String((error as { stderr?: unknown }).stderr);
+      }
+      expect(refused).toMatch(/SyntaxError/);
     } finally {
       await rm(directory, { recursive: true });
     }
