@@ -146,6 +146,43 @@ beforeEach(() => {
   };
 });
 
+describe("the home of an account that cannot read any project [WF-IHM-0120] #2915", () => {
+  /** Whether the home asked the API for the list of projects. */
+  function askedList(): boolean {
+    return server.clients.some((client) =>
+      client.calls.some((call) => call.route === "GET /projects"),
+    );
+  }
+
+  it("lists the projects for an account that holds project_settings.read [WF-IHM-0120-A]", async () => {
+    const html = await home();
+    expect(askedList()).toBe(true);
+    expect(text(html)).not.toContain("No project to open");
+  });
+
+  it("says that the account opens no project and leads to the functions it holds, without reading the list [WF-IHM-0120-A]", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_auditor" };
+    const html = await home();
+    expect(askedList()).toBe(false);
+    expect(html).toMatch(/<h1[^>]*>.*No project to open<\/h1>/);
+    expect(text(html)).toContain("Your account cannot open any project");
+    expect(text(html)).not.toContain("Not found");
+    expect(links(html)).toContain("/admin/audit-log");
+    expect(links(html)).not.toContain("/admin/users");
+    expect(text(html)).not.toContain("no role yet");
+  });
+
+  it("says that the account has no role yet when it holds no function at all [WF-IHM-0120-A]", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_without_roles" };
+    const html = await home();
+    expect(askedList()).toBe(false);
+    expect(text(html)).toContain(
+      "Your account has no role yet. An administrator must give you one",
+    );
+    expect(links(html)).toEqual([]);
+  });
+});
+
 describe("the home, the list of projects", () => {
   it("hands the grid the projects in the order of the server, each with its code, its state and when it was modified", async () => {
     const html = await home();

@@ -22,6 +22,10 @@
  * empty grid, not that notice. A session that holds the permission to create a project is offered
  * its creation in the header (`CreateProject`, WF-ADM-0100); no other session is.
  *
+ * An account without `project_settings.read` cannot read the list: the home does not ask for it,
+ * and says that the account opens no project, leading to the functions it holds, or to the role it
+ * lacks (WF-IHM-0120, #2915).
+ *
  * The page reads what the service serves, the list (`listProjects`) and the readiness of the
  * reference data (`getReferenceReadiness`) as they are (US-0920, #1004): it shows no note of the
  * mock-up, the list being filtered, sorted and paged by the server.
@@ -54,7 +58,7 @@ import {
 import { ProjectPeriodFilter, ProjectStateFilter } from "@/components/projects/project-list-view";
 import { GROUP_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
-import { ReferenceIncomplete } from "@/components/system/empty-states";
+import { NoOpenableProject, ReferenceIncomplete } from "@/components/system/empty-states";
 import { type PageSearchParams, pageSearch, searchQuery } from "@/navigation/context";
 import {
   isContributorFiltered,
@@ -176,6 +180,12 @@ export default async function HomePage({
   const client = serverClient();
   const session = await requestSession();
   const permissions = session?.permissions ?? [];
+  // An account that cannot read any project is not refused: the list is not read (the API would
+  // answer 404), and the home says so and leads to what the account holds (WF-IHM-0120, #2915).
+  // Decided on the permission, never on the name of a role.
+  if (session !== undefined && !permissions.includes("project_settings.read")) {
+    return <NoOpenableProject permissions={permissions} />;
+  }
   // Without the permission to read every project, the list lifted is the list filtered: it is
   // filtered whatever the address says, and no link promises otherwise (WF-IHM-0090, #522).
   const mayLift = mayLiftContributorFilter(permissions);
