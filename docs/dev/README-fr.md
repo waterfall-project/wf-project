@@ -527,15 +527,21 @@ Les pages système sont des pièces de la coquille (`frontend/src/app/`,
 `frontend/src/components/system/`). Une lecture dont un écran ne peut se passer passe par
 `readOrFail` de `frontend/src/api/problem.ts`, qui rend ses données ou lève : un 404 mène à l'écran
 « introuvable » unique (`not-found.tsx`), qu'une adresse inexistante et une lecture refusée
-atteignent sans distinction (WF-ADM-0110) ; l'API injoignable lève `Unreachable`, et toute autre
-réponse `UnexpectedAnswer`. Une lecture dont l'écran se passe passe par `readUnlessRefused`, à côté
+atteignent sans distinction (WF-ADM-0110) ; l'API injoignable lève `Unreachable` — `fetch` rejeté,
+ou une passerelle qui répond 502, 503 ou 504 sans l'enveloppe du contrat — ; un 503
+`COMPONENT_UNAVAILABLE` dont l'enveloppe nomme un composant du contrat (`params.component`, un
+`PlatformComponent`) lève `ComponentUnavailable`, la panne de ce composant (WF-EXP-0040, #2265) ; et
+toute autre réponse — une enveloppe 503 sans composant reconnu comprise — `UnexpectedAnswer`. Une
+lecture dont l'écran se passe passe par `readUnlessRefused`, à côté
 : elle ne rend rien sur les refus qu'il attend — un statut, et le `code` de l'enveloppe quand le
 statut ne dit pas lequel —, et suit la même règle pour le reste. L'écran de panne (`error.tsx` dans
 la coquille, `global-error.tsx` quand le layout racine échoue) ne reçoit en production que le
 `digest` de l'erreur levée côté serveur : `Unreachable` porte `UNREACHABLE_DIGEST`, qu'il annonce
 comme tel, `SessionLost` `SESSION_LOST_DIGEST`, qui mène à la connexion sans clic, `SignedOut`
-(un 401) `SESSION_REQUIRED_DIGEST`, qui y mène par un lien (`loginHref`), `UnexpectedAnswer`
-l'identifiant de corrélation de l'enveloppe, préfixé de `WATERFALL_CORRELATION;` pour qu'aucune
+(un 401) `SESSION_REQUIRED_DIGEST`, qui y mène par un lien (`loginHref`), `ComponentUnavailable`
+le composant, préfixé de `WATERFALL_COMPONENT_UNAVAILABLE;` (`componentDigest`), que l'écran nomme
+dans les mots du catalogue (`enums.PlatformComponent`) — un digest dont le composant n'est pas du
+contrat reste l'erreur inattendue —, `UnexpectedAnswer` l'identifiant de corrélation de l'enveloppe, préfixé de `WATERFALL_CORRELATION;` pour qu'aucune
 valeur de l'API ne prenne un sens pour Next (`NEXT_REDIRECT;…`), et qu'il affiche en référence sans
 le préfixe (`failure.ts`). Sans enveloppe, ou sans `correlation_id`, la référence affichée est le
 digest que Next calcule, celui de ses propres journaux. Un écran ne dit jamais « vide » sur une
@@ -945,8 +951,9 @@ sous-projet d'une ligne de provision, celui que son risque désigne, y est une c
 le nœud nomme (`estimate_line.subproject_id` de `computed_fields`, EP-14/L42p), et son refus demande
 au serveur ce dont il dépend, comme ses grandeurs — les listes du référentiel ne servent qu'au choix
 d'une saisie, offerte seulement sur un objet qu'elles connaissent ; elles ne demandent les objets
-désactivés (`include_inactive`) qu'à une session qui porte la permission de lecture de leur partie
-du référentiel, que le contrat exige, et un chiffreur sans elle saisit sur les objets actifs (#351).
+désactivés (`include_inactive`) qu'à une session qui porte la permission d'écriture de leur partie
+du référentiel, que le contrat exige (#2084, option A), et un chiffreur sans elle saisit sur les
+objets actifs (#351).
 Ce qu'une écriture rend se lit comme la grille le lit (`nodesWritten`) : les nœuds écrits et leurs
 ancêtres entiers, des tâches redatées la part de leur calendrier qu'elle montre (`rescheduled`), des
 lignes et des tâches déplacées dans le temps la part de leurs montants qu'elle montre (`reinflated`)
@@ -1466,11 +1473,12 @@ des listes dans le front ; une section se nomme par `aria-label` (#251).
 Les listes du référentiel ne lisent que les objets actifs, et les désactivés aussi quand l'adresse
 le demande (`include_inactive`, WF-REF-0150, #300), sous le nom du contrat, que l'en-tête de l'écran
 écrit ou lève par un lien (`InactiveSwitch`), qui ramène chaque liste paginée à sa première page — à
-une session seulement qui porte la permission de lecture de leur partie du référentiel, sans
-laquelle le contrat le refuse (403, `inactiveQuery` d'`address.ts`), comme les listes du devis
-(#351). Le filtre par état (`is_active`, `StateFilter`) prime sur lui : tous les états, les actifs
-seuls, ou les désactivés seuls, offert à la même session seulement (`stateOf`). Un objet désactivé
-s'y dit par une marque et un mot, et s'y réactive comme le serveur liste sa commande
+une session seulement qui porte la permission d'écriture de leur partie du référentiel, sans
+laquelle le contrat le refuse (403, `inactiveQuery` d'`address.ts` ; décision #2084, option A,
+`docs/api/DECISIONS.md`), comme les listes du devis (#351). Le filtre par état (`is_active`,
+`StateFilter`) prime sur lui : tous les états, les actifs seuls, ou les désactivés seuls, offert à
+la même session seulement (`stateOf`). Un objet désactivé s'y dit par une marque et un mot, et s'y
+réactive comme le serveur liste sa commande
 (`available_commands`, #532, WF-IHM-0090) — le serveur ne la liste qu'à qui peut modifier cette
 partie, et le front n'en déduit rien : disponible, par la commande d'activation de sa nature
 (`setActivation`, une action serveur, depuis la version lue), puis la page relit ses listes ;
@@ -1781,11 +1789,16 @@ tant qu'un compte porte le rôle (`ACCESS_ROLE_IN_USE`, WF-ADM-0090) ; la matric
 modification des permissions, une case à cocher par permission et par rôle
 (`permission-matrix.tsx`), qui écrit le rôle entier, ses permissions dans l'ordre du catalogue, les
 autres cases du rôle attendant la réponse. La table et la matrice lisent une seule source du rôle
-répondu le plus récent par sa `lock_version` (`RoleAnswers`, `role-answers.tsx`) : un renommage puis
-une case cochée avant la relecture, ou l'inverse, part de la version répondue, et une relecture plus
-ancienne que la réponse ne la défait pas ; l'en-tête de la colonne d'un rôle renommé et le nom de
-chacune de ses cases prennent eux aussi le libellé répondu (`RoleLabel`, `PermissionCell`), sans
-attendre la relecture (#976). Ce que fait une commande de la table se dit dans sa région, nommée «
+répondu le plus récent par sa `lock_version` (`RoleAnswers`, `role-answers.tsx`), et des rôles en
+écriture : tant qu'une écriture d'un rôle — son renommage, une case de la matrice ou sa suppression
+confirmée — est en route, la ligne de ce rôle est occupée, la cellule de son libellé, ses cases et «
+Supprimer » marquées `aria-busy` et `aria-disabled` et n'envoyant rien, et l'écriture suivante part
+de la version répondue, sans 412 (une saisie du libellé ouverte avant l'écriture ne part pas et
+reste ouverte ; une confirmation de suppression ouverte avant elle reste ouverte, sa commande
+occupée) ; une écriture d'un autre rôle n'attend pas (#2261). Une relecture plus ancienne que la
+réponse ne la défait pas ; l'en-tête de la colonne d'un rôle renommé et le nom de chacune de ses
+cases prennent eux aussi le libellé répondu (`RoleLabel`, `PermissionCell`), sans attendre la
+relecture (#976). Ce que fait une commande de la table se dit dans sa région, nommée «
 Commandes des rôles d'habilitation » ; un refus, par le catalogue des codes d'erreur au-dessus de la
 table ou de la matrice, sur la lecture d'où il est parti (`Reactivations`) — le dernier
 administrateur (`LAST_ADMINISTRATOR`), la version périmée avec l'offre de relire —, le focus rendu,
@@ -1798,9 +1811,11 @@ porte `users.write` (`platformOffer`) : le nom et le prénom d'un compte local d
 choix multiple des rôles de l'installation, quel que soit le rattachement (`setUserAccessRoles`,
 `user-cells.tsx`) — chacun tel que le compte liste sa commande (`User.available_commands`) : une
 commande absente n'est pas présentée, une indisponible l'est avec sa condition, et un clic la dit
-sans la lancer. La désactivation du dernier compte actif qui porte les permissions de modifier les
-comptes et les rôles est indisponible, `last_administrator` manquante (WF-ADM-0120, #540) — le front
-ne pourrait pas le trouver seul, la liste étant paginée ; l'attribution de ses rôles reste
+sans la lancer — la cellule des rôles aussi (`RolesCell`, par `useUnmet` et `CommandTooltip`, #2262)
+: attribution indisponible, son déclencheur est `aria-disabled` et la liste ne s'ouvre pas. La
+désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles
+est indisponible, `last_administrator` manquante (WF-ADM-0120, #540) — le front ne pourrait pas le
+trouver seul, la liste étant paginée ; l'attribution de ses rôles reste
 disponible, le serveur jugeant les rôles envoyés, et refusant par `LAST_ADMINISTRATOR` ceux qui lui
 retireraient ces permissions — un refus dit comme tout autre. Le lien de fixation d'un compte local
 (`createPasswordSetupLink`) se remet dans un dialogue, entier et en lecture seule, avec l'heure où
@@ -4577,7 +4592,8 @@ ses paramètres, jamais une phrase.
   502, 503 ou 504 sans enveloppe `Problem`, qu'une passerelle rend quand le service est
   tombé. Une réponse d'erreur sans enveloppe, ou dont le `code` manque au catalogue — un
   service plus récent que le front —, vaut `INTERNAL_ERROR`, « erreur inattendue », au
-  statut reçu : l'écran n'affiche jamais une clé brute. Le composant le dit par
+  statut reçu, avec le `correlation_id` de l'enveloppe quand il a la forme du contrat, que l'avis
+  présente en référence (WF-OBS-0020, #2264) : l'écran n'affiche jamais une clé brute. Le composant le dit par
   `OutcomeNotice` (`frontend/src/components/commands/`), en alerte : la phrase de
   `problemMessage`, qui nomme aussi les objets que le refus ne donne que par leurs identifiants
   quand l'écran les a lus (`names`) ; les lignes ou les projets nommés au-delà de la phrase, hors de
@@ -4643,12 +4659,19 @@ ses paramètres, jamais une phrase.
   (`waterfall.api.contract.base`, que `[tool.datamodel-codegen]` de `backend/pyproject.toml`
   donne au générateur), qui cherche le NUL dans chacun de ses champs, élément d'une liste, clé ou
   valeur d'un objet compris ; un paramètre de requête ou de chemin en texte se type `Text`, du
-  même module.
+  même module. La même base refuse de même un décimal du contrat — un type dont la racine porte
+  le motif de `Decimal` ou de `Money`, `Percent` et `Hours` compris — écrit avec un chiffre autre
+  que 0 à 9 (#2238) : le motif est une expression de JSON Schema, où `\d` ne vaut que 0 à 9, que
+  les modèles engendrés lisent en Unicode ; une borne de requête lue à la main s'écrit donc
+  `[0-9]`, jamais `\d`.
+  Les seuils des indices et les bornes de la matrice des risques s'écrivent avec dix décimales
+  au plus, comptées telles qu'écrites, zéro final compris, et dix chiffres avant la virgule
+  (#2234) : au-delà, 422 `VALIDATION_FAILED` à leur champ, jamais un débordement de la base.
 
   _Contrôles_ : `make server-models-up-to-date` ; `make test-back` (`test_api_problems.py`,
-  `test_access_roles_guard.py` pour le NUL) ; que tout paramètre en texte est un `Text`, que le
-  code et le statut sont ceux du contrat pour l'opération, la revue, puis la validation des
-  réponses des tests d'API contre le contrat.
+  `test_access_roles_guard.py` pour le NUL, `test_contract_digits.py` pour les chiffres) ; que
+  tout paramètre en texte est un `Text`, que le code et le statut sont ceux du contrat pour
+  l'opération, la revue, puis la validation des réponses des tests d'API contre le contrat.
 
 - **Journaux et réponses des tests d'API** — un test d'API passe par `ContractClient`
   (`backend/tests/support.py`), qui valide chaque réponse contre le contrat avec openapi-core :

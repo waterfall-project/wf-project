@@ -36,6 +36,7 @@ from structlog.contextvars import bind_contextvars
 
 from waterfall.core.users.interface import (
     Account,
+    Admission,
     NotAdmitted,
     add_account_of_provider,
     read_account_of_subject,
@@ -53,6 +54,8 @@ ACCOUNT_DEACTIVATED = "ACCOUNT_DEACTIVATED"
 ACCOUNT_NOT_ADMITTED = "ACCOUNT_NOT_ADMITTED"
 SESSION_REVOKED = "SESSION_REVOKED"
 SCHEME = "bearer"
+# The record of the log that says what the admission of an account did; none for one found as it is.
+ADMISSIONS: dict[Admission, str] = {"created": "account.created", "updated": "account.attached"}
 
 logger = get_logger(__name__)
 
@@ -159,9 +162,10 @@ def admit(session: Session, subject: str, provider: ProviderAccount | None) -> A
     """Create or attach the account of a person Waterfall does not know yet, or refuse her (401).
 
     ``provider`` is the account the realm holds for ``subject``, ``None`` if it holds none. The
-    creation or the attachment is inscribed in the journal of audit by the platform (#703, #707).
-    A refusal says
-    ``ACCOUNT_NOT_ADMITTED``; its cause is written in the log only.
+    creation or the attachment is inscribed in the journal of audit by the platform (#703, #707),
+    and said in the log as what it was: ``account.created`` or ``account.attached``; an account a
+    concurrent first request admitted is found as it is, and the log says nothing of it (#2243).
+    A refusal says ``ACCOUNT_NOT_ADMITTED``; its cause is written in the log only.
     """
     admitted = (
         NotAdmitted.UNKNOWN_TO_PROVIDER
@@ -171,8 +175,11 @@ def admit(session: Session, subject: str, provider: ProviderAccount | None) -> A
     if isinstance(admitted, NotAdmitted):
         logger.warning("account.not_admitted", subject=subject, reason=admitted.value)
         raise UnauthenticatedError(ACCOUNT_NOT_ADMITTED)
-    logger.info("account.created", user_id=str(admitted.user_id), origin=admitted.origin)
-    return admitted
+    account = admitted.account
+    event = ADMISSIONS.get(admitted.followed)
+    if event is not None:
+        logger.info(event, user_id=str(account.user_id), origin=account.origin)
+    return account
 
 
 async def caller(account: Annotated[CallingAccount, Depends(identify)]) -> CallingAccount:

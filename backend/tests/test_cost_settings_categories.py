@@ -184,6 +184,32 @@ def test_the_categories_are_filtered_searched_sorted_and_paged_by_the_server(
     assert (len(page["items"]), page["meta"]["total"]) == (6, 201)
 
 
+@pytest.mark.requirement("WF-IHM-0060-A")
+def test_categories_of_natures_of_one_label_sorted_by_nature_come_by_code_then_identifier(
+    api: ContractClient, sessions: PartSessions
+) -> None:
+    headers = sessions.changing
+    natures: dict[str, str] = {}
+    for code in ("A", "B"):
+        made = api.post(
+            TYPES,
+            headers=headers,
+            json={"code": f"ZN-{code}", "label": "Main-d'œuvre", "kind": "labor"},
+        )
+        assert made.status_code == 201
+        natures[code] = made.json()["cost_type_id"]
+    # C-2 under the nature of the lower code, C-1 under the other: the code of the nature
+    # does not decide, the contract has the code of the category.
+    for code, nature in (("ZQ-2", "A"), ("ZQ-1", "B")):
+        assert (
+            api.post(CATEGORIES, headers=headers, json=sent(code, natures[nature])).status_code
+            == 201
+        )
+    for order in ("asc", "desc"):
+        found = codes(api, headers, f"search=ZQ-&sort_by=cost_type&sort_order={order}")
+        assert found == ["ZQ-1", "ZQ-2"], order
+
+
 @pytest.mark.requirement("WF-REF-0040-A")
 @pytest.mark.requirement("WF-REF-0150-A")
 def test_the_deactivated_categories_are_read_by_the_permission_to_change_and_come_after_the_active(

@@ -889,6 +889,7 @@ def test_the_administrator_role_its_holder_holds_is_not_deleted(
 # The caller changes the roles by ``Direction`` alone, which it may then take from itself.
 @pytest.mark.parametrize("caller_permissions", [("access_roles.read",)])
 @pytest.mark.parametrize("withdrawn", ADMINISTRATION)
+@pytest.mark.requirement("WF-ADM-0120-A")
 def test_a_change_that_takes_the_administration_from_the_last_administrator_is_refused(
     api: ContractClient, database: Database, headers: dict[str, str], withdrawn: str
 ) -> None:
@@ -918,6 +919,7 @@ def test_a_change_that_takes_the_administration_from_the_last_administrator_is_r
 # same change is refused.
 @pytest.mark.parametrize("caller_permissions", [("access_roles.read",)])
 @pytest.mark.parametrize("second", [True, False])
+@pytest.mark.requirement("WF-ADM-0120-A")
 def test_the_administration_is_withdrawn_once_a_second_active_account_holds_it(
     api: ContractClient, database: Database, headers: dict[str, str], second: bool
 ) -> None:

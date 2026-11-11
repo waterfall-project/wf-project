@@ -10,7 +10,8 @@
  * held no session for `SESSION_LOST_DIGEST`, a refusal of the API for want of a session
  * `SESSION_REQUIRED_DIGEST`, one for a session closed `SESSION_REVOKED_DIGEST`, one for a
  * deactivated account `ACCOUNT_DEACTIVATED_DIGEST`, one for an account Waterfall does not admit
- * `ACCOUNT_NOT_ADMITTED_DIGEST`, which the boundary tells apart; an unexpected
+ * `ACCOUNT_NOT_ADMITTED_DIGEST`, which the boundary tells apart; a refusal for a component of the
+ * platform unavailable names it behind `COMPONENT_PREFIX` (WF-EXP-0040); an unexpected
  * answer of the API carries the correlation identifier of the request (WF-OBS-0020), which
  * the API wrote in its logs, behind `CORRELATION_PREFIX`; any other error — an answer without
  * the envelope or without its identifier among them — the digest Next computes, which Next
@@ -22,6 +23,7 @@
  *
  * Pure, and free of the client of the API: the boundary, a client component, reads it.
  */
+import type { components } from "@/api/generated/schema";
 
 /** The digest of an error that says the API did not answer at all. */
 export const UNREACHABLE_DIGEST = "WATERFALL_API_UNREACHABLE";
@@ -64,6 +66,58 @@ export function correlationDigest(correlationId: string): string {
   return `${CORRELATION_PREFIX}${correlationId}`;
 }
 
+/** The form the contract gives a correlation identifier (`Problem.correlation_id`). */
+const CORRELATION = /^[A-Za-z0-9._-]{1,64}$/;
+
+/**
+ * Whether a value has the form the contract gives a correlation identifier: never empty, and of
+ * the characters the contract allows, which the front may show and put in a digest as is.
+ */
+export function isCorrelation(value: unknown): value is string {
+  return typeof value === "string" && CORRELATION.test(value);
+}
+
+/** A component of the platform, which a refusal names when it is unavailable (WF-EXP-0040). */
+export type PlatformComponent = components["schemas"]["PlatformComponent"];
+
+/**
+ * Every component of the contract: typed by the enumeration, so that a component added to it fails
+ * the type check here until the front knows it.
+ */
+const PLATFORM_COMPONENTS: Readonly<Record<PlatformComponent, true>> = {
+  api: true,
+  worker: true,
+  database: true,
+  cache: true,
+  object_storage: true,
+  identity_provider: true,
+  metrics: true,
+};
+
+/** Whether a value is a component of the platform the contract names. */
+export function isPlatformComponent(value: unknown): value is PlatformComponent {
+  return typeof value === "string" && Object.hasOwn(PLATFORM_COMPONENTS, value);
+}
+
+/** What comes before the component of the platform a read found unavailable, in a digest. */
+export const COMPONENT_PREFIX = "WATERFALL_COMPONENT_UNAVAILABLE;";
+
+/**
+ * The digest of an error that says the API refused the read, a component of the platform being
+ * unavailable (503 `COMPONENT_UNAVAILABLE`): the screen of failure names it.
+ */
+export function componentDigest(component: PlatformComponent): string {
+  return `${COMPONENT_PREFIX}${component}`;
+}
+
+/** The component a digest names as unavailable, if it names one the contract knows. */
+function componentOf(digest: string | undefined): PlatformComponent | undefined {
+  const component = digest?.startsWith(COMPONENT_PREFIX)
+    ? digest.slice(COMPONENT_PREFIX.length)
+    : undefined;
+  return isPlatformComponent(component) ? component : undefined;
+}
+
 /** An error as an error boundary receives it. */
 export type BoundaryError = Error & { readonly digest?: string | undefined };
 
@@ -71,14 +125,15 @@ export type BoundaryError = Error & { readonly digest?: string | undefined };
  * What the screen of failure says: the API out of reach, no session — the front held none, and
  * the screen leads to the sign-in page at once, or the API refused the one it held, and the screen
  * offers the way to sign in —, the session closed — the screen offers a sign-in that asks for
- * the identifiers again —, the account deactivated or not admitted, or a defect, with its
- * reference when the error carries one.
+ * the identifiers again —, the account deactivated or not admitted, a component of the platform
+ * unavailable, which it names, or a defect, with its reference when the error carries one.
  */
 export type Failure =
   | {
       readonly kind:
         "unreachable" | "session_lost" | "signed_out" | "revoked" | "deactivated" | "not_admitted";
     }
+  | { readonly kind: "component_unavailable"; readonly component: PlatformComponent }
   | { readonly kind: "unexpected"; readonly reference: string | undefined };
 
 /**
@@ -112,6 +167,10 @@ export function failureOf(error: BoundaryError): Failure {
   if (error.digest === ACCOUNT_NOT_ADMITTED_DIGEST) {
     return { kind: "not_admitted" };
   }
+  const component = componentOf(error.digest);
+  if (component !== undefined) {
+    return { kind: "component_unavailable", component };
+  }
   return { kind: "unexpected", reference: referenceOf(error.digest) };
 }
 
@@ -126,5 +185,6 @@ export const FAILURE_TEXTS = {
   revoked: "revoked",
   deactivated: "deactivated",
   not_admitted: "notAdmitted",
+  component_unavailable: "componentUnavailable",
   unexpected: "unexpected",
 } as const satisfies Record<Failure["kind"], string>;

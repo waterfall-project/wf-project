@@ -4,9 +4,10 @@
  * The screen of the settings of the resources (`/reference/resources`): the roles, the tree of the
  * organisation, the calendars and the units of duration, against the fake back and, for the paths
  * tagged `@shared`, against the service (US-0850). The service keeps what is written: the paths
- * that write leave what they found, and the screen shows no mock-up notice. The units of duration,
- * one object of the installation, are written by a path tagged `@serial` too: the project
- * `shared-serial` plays it alone, after the others (US-1330).
+ * that write leave a state equivalent to the one they found — the units of duration alternate
+ * between 7 and 8 — and the screen shows no mock-up notice. The units of duration, one object of
+ * the installation, are written by a path tagged `@serial` too: the project `shared-serial` plays
+ * it alone, after the others (US-1330).
  */
 import { expect, type Locator } from "@playwright/test";
 

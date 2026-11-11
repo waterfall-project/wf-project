@@ -19,7 +19,9 @@ given back its identity there: it is logged.
 
 What the provider is asked comes before the guard is taken: no administrator waits on Keycloak. The
 lock of the rule of the last administrator is taken before any row of an account, as the routes
-that change an account take it: the reading and a route never wait each on what the other holds.
+of the administration that change an account take it (``api/users.py``, not those of the caller's
+own preferences, avatar and sessions): the reading and such a route never wait each on what the
+other holds.
 The orphans and the identities to give back are told in the report, and the provider is written
 once it is committed, out of any transaction (#669): a reading stopped before writes nothing there,
 and the next one, which finds them again, does. Each identity given back is read again first, in a

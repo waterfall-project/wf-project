@@ -80,6 +80,8 @@ from waterfall.core.users.personal import (
 )
 from waterfall.core.users.provider import (
     NAME_MAX_LENGTH,
+    Admission,
+    Followed,
     HeldAccount,
     NotAdmitted,
     NotFollowed,
@@ -128,10 +130,13 @@ __all__ = [
     "AccountPage",
     "AccountSort",
     "AccountState",
+    "Admission",
+    "Admitted",
     "AttachedAccount",
     "Author",
     "Avatar",
     "CommandAvailability",
+    "Followed",
     "HeldAccount",
     "Identity",
     "IdentityChange",
@@ -366,19 +371,34 @@ def read_account_of_subject(session: Session, subject: str) -> Account | None:
     return None if account is None else _account(session, account)
 
 
+@dataclass(frozen=True, slots=True)
+class Admitted:
+    """The account of a person the provider holds, and what her admission did of it (#2243).
+
+    ``created``; ``updated``, attached by her address (#707); ``unchanged``, found as a concurrent
+    admission of hers left it.
+    """
+
+    account: Account
+    followed: Admission
+
+
 def add_account_of_provider(
     session: Session, provider: ProviderAccount, at: datetime
-) -> Account | NotAdmitted:
+) -> Admitted | NotAdmitted:
     """Give the account of a person the provider holds and Waterfall not yet (``provider``).
 
     Created without any role, or attached by her address if she comes from the directory, the
-    platform its author, and inscribed in the journal of audit (#703, #707). When the provider does
-    not admit the person (``origin_of``), when she lacks a name or an address, or when her address
-    is held by another account and she comes from an external provider, nothing is written, and
-    why is said.
+    platform its author, and inscribed in the journal of audit (#703, #707), with what the
+    admission did of it. When the provider does not admit the person (``origin_of``), when she
+    lacks a name or an address, or when her address is held by another account and she comes from
+    an external provider, nothing is written, and why is said.
     """
     admitted = admit(session, provider, at)
-    return admitted if isinstance(admitted, NotAdmitted) else _account(session, admitted[0])
+    if isinstance(admitted, NotAdmitted):
+        return admitted
+    account, followed = admitted
+    return Admitted(_account(session, account), followed)
 
 
 def create_local_account(

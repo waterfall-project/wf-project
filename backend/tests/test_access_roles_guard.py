@@ -66,6 +66,7 @@ def waits_on_an_advisory_lock(database: Database) -> bool:
     return False
 
 
+@pytest.mark.requirement("WF-ADM-0120-A")
 def test_two_writes_that_each_take_one_of_the_last_two_administrators_do_not_both_pass(
     database: Database,
 ) -> None:

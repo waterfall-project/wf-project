@@ -52,9 +52,11 @@ DEACTIVATED = "deactivated"
 
 logger = get_logger(__name__)
 
-# What the reading did of a person of the provider; ``restored``, a local account whose identity
-# the provider holds otherwise, for it to take back Waterfall's (#919).
-type Followed = Literal["created", "updated", "unchanged", "restored"]
+# What an admission did of a person of the provider, and what the reading did of her: ``restored``,
+# a local account whose identity the provider holds otherwise, for it to take back Waterfall's
+# (#919), is for the reading alone.
+type Admission = Literal["created", "updated", "unchanged"]
+type Followed = Admission | Literal["restored"]
 
 
 class NotAdmitted(StrEnum):
@@ -104,7 +106,7 @@ def _identity(provider: ProviderAccount) -> dict[str, str]:
 
 def admit(
     session: Session, provider: ProviderAccount, at: datetime
-) -> tuple[UserAccount, Followed] | NotAdmitted:
+) -> tuple[UserAccount, Admission] | NotAdmitted:
     """Give the account of a person the provider holds: created, attached, or found as it was.
 
     Created without any role, or attached by its address for a person of the directory, the
@@ -130,7 +132,7 @@ def admit(
 
 def _attach(
     session: Session, provider: ProviderAccount, at: datetime
-) -> tuple[UserAccount, Followed] | NotAdmitted:
+) -> tuple[UserAccount, Admission] | NotAdmitted:
     """Attach a person of the directory to the account that holds her address (#707).
 
     The account takes her subject, her names and her address, and comes from the directory from

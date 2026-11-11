@@ -19,9 +19,17 @@ address taken meanwhile. An account deactivated, or withdrawn all its roles, has
 closed by the provider once the write is committed (WF-SEC-0020). A local account to anonymise is
 removed from it before the anonymisation is written, once checked: while the provider does not
 answer, nothing is written (WF-ADM-0060).
+
+Every transaction of a route of this module that changes an account (``updateUser``,
+``anonymizeUser``, ``createPasswordSetupLink``, ``resendInvitation``, ``createUser``) takes first
+the lock of the rule of the last administrator, as the guarded writes and the reading of the
+accounts of the provider do (WF-ADM-0120, #2227): such a route, holding the row of an account then
+waiting for the row of its author, never waits on a reading that holds that author and waits for
+the account. The routes of the caller's own account (preferences, avatar, sessions) do not take it.
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Generator, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import replace
 from functools import partial
 from typing import Annotated, Literal
@@ -61,6 +69,7 @@ from waterfall.core.access_roles.interface import (
     guard_deactivation,
     holding_one_of,
     labels_held,
+    lock_administrators,
     roles_held_by,
     set_access_roles,
     sole_administrator,
@@ -125,6 +134,10 @@ ATTRIBUTE = [Depends(Requires(CONSULTATION, CHANGE, ROLES_CHANGE))]
 DEFAULT_LIMIT = 50
 GREATEST_LIMIT = 500
 
+# What became of an invitation: the mail left, it did not, or the provider holds the account as no
+# local one, which has no link to mail (#2226).
+type Invitation = Literal["sent", "not_sent", "not_local"]
+
 type UserColumn = Literal[
     "last_name",
     "first_name",
@@ -138,6 +151,18 @@ type UserColumn = Literal[
     "updated_at",
     "updated_by",
 ]
+
+
+@contextmanager
+def account_transaction(services: Services) -> Generator[Session]:
+    """Open a transaction of a route of the administration that changes an account, under the lock.
+
+    The lock of the rule of the last administrator, taken before any row of an account, as the
+    guarded writes and the reading of the accounts of the provider take it (WF-ADM-0120, #2227).
+    """
+    with services.database.transaction() as session:
+        lock_administrators(session)
+        yield session
 
 
 def account_fields(account: Account, roles: Sequence[HeldRole]) -> dict[str, object]:
@@ -317,7 +342,8 @@ def write_new_account(
 
     ``created`` is its identity and that subject. The address is read again by the unique index:
     refused, nothing is written. Giving no role, the creation takes no administration from anyone
-    and gives it to no one: it runs outside the guard of the last administrator (WF-ADM-0120).
+    and gives it to no one: it runs outside the guard of the last administrator (WF-ADM-0120), its
+    transaction under the lock of the rule all the same (``account_transaction``).
     """
     identity, subject = created
     account = create_local_account(session, identity, subject, act)
@@ -368,23 +394,28 @@ def post_user(
             raise address_taken(address_holder(session, body.email))
     act = Act(account.user_id, utc_now())
     try:
-        with services.database.transaction() as session:
+        with account_transaction(services) as session:
             created = write_new_account(session, (identity, subject), actor, act)
     except Exception:
         withdraw(admin, subject)
         raise
-    sent = invite(admin, subject, created.user_id.root)
+    user_id = created.user_id.root
+    invited = invite(admin, subject, user_id)
+    if invited == "not_local":
+        # Linked to an identity of an external provider as soon as created: no mail left.
+        logger.warning("account.invitation_not_sent", user_id=str(user_id), reason=invited)
     return UserCreated.model_validate(
-        {**created.model_dump(exclude_unset=True), "invitation_sent": sent}
+        {**created.model_dump(exclude_unset=True), "invitation_sent": invited == "sent"}
     )
 
 
-def invite(admin: KeycloakAdmin, subject: str, user_id: UUID) -> bool:
-    """Have the extension mail the holder of an account just created the link of its password.
+def invite(admin: KeycloakAdmin, subject: str, user_id: UUID) -> Invitation:
+    """Have the extension mail the holder of a local account the link of its password.
 
     The account exists whether the mail leaves or not: one that does not is said in the log with
     its reason, and the link of the account may be obtained by hand (WF-ADM-0140, WF-CMP-0030).
-    Give whether it left.
+    An account the provider holds as no local one has no link (#2226): ``not_local``, which the
+    caller refuses or says, the log saying nothing of it here.
     """
     try:
         reason = admin.send_invitation(subject)
@@ -392,11 +423,13 @@ def invite(admin: KeycloakAdmin, subject: str, user_id: UUID) -> bool:
         logger.exception(
             "account.invitation_not_sent", user_id=str(user_id), reason="provider_error"
         )
-        return False
+        return "not_sent"
+    if reason == "not_local":
+        return reason
     if reason is not None:
         logger.warning("account.invitation_not_sent", user_id=str(user_id), reason=reason)
-        return False
-    return True
+        return "not_sent"
+    return "sent"
 
 
 def identity_change(body: UserUpdate) -> IdentityChange:
@@ -435,14 +468,14 @@ def patch_user(
     """
     sent = identity_change(body)
     lock_version = body.lock_version.root
-    with services.database.transaction() as session:
+    with account_transaction(services) as session:
         held, changed = check_account_change(session, user_id, sent, lock_version)
     carried = held.origin == "local" and bool(changed)
     if carried:
         carry_identity(services.keycloak_admin, held, changed)
     act = Act(account.user_id, utc_now())
     try:
-        with services.database.transaction() as session:
+        with account_transaction(services) as session:
             done = change_account(session, user_id, sent, lock_version, act)
             return users(session, actor, [done])[0]
     except Exception:
@@ -576,13 +609,13 @@ def post_user_anonymization(
     Whether that gap is closed is #868's to decide. The account of the directory or of an
     external provider is the provider's, which Waterfall does not touch.
     """
-    with services.database.transaction() as session:
+    with account_transaction(services) as session:
         checked = check_account_anonymization(session, user_id, body.lock_version.root)
     if checked.origin == LOCAL:
         services.keycloak_admin.remove_account(checked.subject)
         logger.info("account.removed_from_provider", user_id=str(user_id))
     act = Act(account.user_id, utc_now())
-    with services.database.transaction() as session:
+    with account_transaction(services) as session:
         anonymized = anonymize_account(session, user_id, body.lock_version.root, act)
         return users(session, actor, [anonymized])[0]
 
@@ -635,14 +668,14 @@ def post_password_link(user_id: UUID, account: Caller, services: ServicesOf) -> 
     any transaction (#669), then the account read again under a lock: one deactivated meanwhile is
     refused, and its link not given.
     """
-    with services.database.transaction() as session:
+    with account_transaction(services) as session:
         holder = password_link_holder(session, user_id)
     link = services.keycloak_admin.make_password_link(holder.subject)
     if link is None:
         raise password_link_not_local()
     act = Act(account.user_id, utc_now())
     given = PasswordSetupLink.model_validate({"url": link.url, "expires_at": link.expires_at})
-    with services.database.transaction() as session:
+    with account_transaction(services) as session:
         inscribe_password_link(session, user_id, act)
     logger.info("account.password_link_made", user_id=str(user_id))
     return given
@@ -658,19 +691,24 @@ def post_invitation(user_id: UUID, account: Caller, services: ServicesOf) -> Res
     """Have the provider send again the mail that carries the link of a local account (WF-ADM-0140).
 
     Judged as the link is: an account that is not local, anonymised or deactivated has none (409),
-    and no mail leaves. A mail the provider does not send is never presented as sent: 503
+    and no mail leaves — nor for one the provider holds as no local one since, linked to an
+    identity of an external provider: refused as its link is (409, #2226), nothing inscribed. A
+    mail the provider does not send is never presented as sent: 503
     (WF-EXP-0040), the link remaining to be handed over by another channel. The sending is
     inscribed as the request of a link is, once the mail has left, the account read again under a
     lock (#669). An account anonymised or deactivated between the sending and that inscription is
     answered 409 though the mail has left: the defect of the request of a link, which the design
     accepts.
     """
-    with services.database.transaction() as session:
+    with account_transaction(services) as session:
         holder = password_link_holder(session, user_id)
-    if not invite(services.keycloak_admin, holder.subject, user_id):
+    invited = invite(services.keycloak_admin, holder.subject, user_id)
+    if invited == "not_local":
+        raise password_link_not_local()
+    if invited == "not_sent":
         raise unavailable()
     act = Act(account.user_id, utc_now())
-    with services.database.transaction() as session:
+    with account_transaction(services) as session:
         inscribe_password_link(session, user_id, act)
     logger.info("account.invitation_sent", user_id=str(user_id))
     return Response(status_code=204)

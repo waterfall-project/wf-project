@@ -540,7 +540,7 @@ sépare du changement d'US-1840, que la reprise de `main` règle sans conflit.
 
 ## US-1750 — Le suivi des tâches relit une tâche après une panne passagère, et laisse la restauration à son écran
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0080-A`, `WF-ADM-0160-A`
 - **opérations** : `getBackgroundTask`, `listBackgroundTasks`
 - **issue** : #2860
@@ -584,7 +584,7 @@ morceaux interrompu (#2258, EP-13).
 
 ## US-1760 — Une lecture refusée par un composant indisponible le nomme, et un refus inconnu garde sa référence
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-EXP-0040-A`, `WF-OBS-0020-A`
 - **opérations** : `getMe`, `updateMyPreferences`, et toute lecture d'un écran
 - **issue** : #2864
@@ -631,7 +631,7 @@ ne sert pas encore (#2307, EP-13).
 
 ## US-1770 — Une action rejetée du compte ou d'une grille se dit sous la barre, et un identifiant mal formé de l'adresse est ignoré
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0160-A`, `WF-SEC-0020-A`, `WF-ADM-0040-A`
 - **opérations** : `updateMyPreferences`, `closeMySessions`, les lectures du référentiel et des
   comptes filtrées par un identifiant de l'adresse
@@ -679,7 +679,7 @@ que je lisais (#2259, #2269).
 
 ## US-1780 — L'écran des rôles n'écrit pas deux fois un même rôle en même temps, et l'attribution indisponible le dit
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ADM-0010-A`, `WF-IHM-0090-A`
 - **opérations** : `updateAccessRole`, `deleteAccessRole`, `setUserAccessRoles`, `listUsers`
 - **issue** : #2865
@@ -731,7 +731,7 @@ n'étant pas commencée (décision de l'auteur) : seuls le guide et un commentai
 
 ## US-1790 — Comptes : le renvoi de l'invitation d'un compte devenu non local, l'ordre des verrous, le journal de l'admission
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ADM-0140-A`, `WF-ADM-0120-A`
 - **opérations** : `resendInvitation`, `createUser`, `createPasswordSetupLink`, `updateUser`,
   `anonymizeUser`, `getMe`
@@ -781,7 +781,7 @@ comptes elle-même, inchangée.
 
 ## US-1800 — Sauvegardes : la liste après la restauration d'une autre installation, et aucune archive orpheline
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ADM-0160-A`
 - **opérations** : `startRestore`, `listBackups`, `startBackup`
 - **issue** : #2862
@@ -814,7 +814,7 @@ sauvegarde absente, et que la rotation voie tout ce qui est gardé (#2230, #2242
 
 ## US-1810 — Le compteur d'écriture borné par le contrat
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — correction du contrat et du service
 - **opérations** : toute écriture qui porte un `lock_version`, dans son corps ou en paramètre de
   requête (`deleteAccessRole`, `deleteSubproject`, `abandonRevision`, `deleteNode` ; `deleteRisk`,
@@ -847,7 +847,7 @@ la comparaison du compteur en Python que proposait #2232 : c'est une modificatio
 
 ## US-1820 — Le moteur de planning : un décalage et une durée écoulés reculent juste, et trois tests citent leur exigence
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0100-A`, `WF-PLA-0160-A`, `WF-REV-0020-A`
 - **opérations** : aucune en propre — le moteur, et des tests d'API qui ne changent que leur marqueur
 - **issue** : #2866
@@ -900,7 +900,7 @@ de celui de #2648.
 
 ## US-1830 — Les refus du référentiel : la liste de l'arbre, la correspondance non amorcée, les années de la grille des taux et un tri
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0070-A`, `WF-REF-0150-A`, `WF-IHM-0060-A`, `WF-EXP-0040-A`
 - **opérations** : `listOrgNodes`, `getActualCostMapping`, `setActualCostMapping`, `getHourlyRateGrid`,
   `listCostCategories`
@@ -976,7 +976,7 @@ critère d'US-0860 (#2245, corrigé par la pull request du cadrage).
 
 ## US-1840 — Les décimaux à l'entrée : une précision pour les seuils et les bornes, des chiffres de 0 à 9
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-DAT-0100-A`, `WF-REF-0160-A`, `WF-REF-0170-A`
 - **opérations** : `updateReferenceSettings`, `setHourlyRate`, et toute écriture dont le corps porte un
   `Money` ou un `Decimal` ; `listNodes` et `listResourceRoles` par leurs bornes

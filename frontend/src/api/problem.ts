@@ -21,11 +21,13 @@
  *   not send, and never a blank screen.
  *
  * A code the catalogue does not know is decoded as `INTERNAL_ERROR`, the unexpected error of
- * the service: the screen never shows the bare key of a text.
+ * the service, with the correlation identifier its envelope carries (WF-OBS-0020): the screen
+ * never shows the bare key of a text, and the notice still gives the reference of the logs.
  *
  * A read of a server component that its screen cannot do without goes through `readOrFail`
- * instead: what is not its data is thrown — not found, the API out of reach, no session, an
- * unexpected answer, the account refused —, and the pages of the shell say it (`not-found.tsx`,
+ * instead: what is not its data is thrown — not found, the API out of reach, no session, a
+ * component of the platform unavailable, an unexpected answer, the account refused —, and the
+ * pages of the shell say it (`not-found.tsx`,
  * `error.tsx`). A read it can do without goes through `readUnlessRefused`, which gives nothing on
  * the refusals it expects.
  *
@@ -36,7 +38,11 @@ import { notFound, unstable_rethrow } from "next/navigation";
 import {
   ACCOUNT_DEACTIVATED_DIGEST,
   ACCOUNT_NOT_ADMITTED_DIGEST,
+  componentDigest,
   correlationDigest,
+  isCorrelation,
+  isPlatformComponent,
+  type PlatformComponent,
   SESSION_LOST_DIGEST,
   SESSION_REQUIRED_DIGEST,
   SESSION_REVOKED_DIGEST,
@@ -128,11 +134,20 @@ export function isGatewayFailure(response: Response, body: unknown): boolean {
  * The envelope of a refusal the catalogue can render. A body that is none — the page of a
  * proxy in front of the API — or whose code the catalogue does not know — a service newer than
  * the front — stands as the unexpected error of the service, at the status the answer carried:
- * never the bare key of a text nobody wrote.
+ * never the bare key of a text nobody wrote. An envelope whose code the catalogue does not know
+ * keeps its correlation identifier when it has the form of the contract, for the notice to give
+ * the reference the operator finds in the logs (WF-OBS-0020, #2264).
  */
 function envelope(body: unknown, status: number): Problem {
-  return isProblem(body) && Object.hasOwn(CATALOGUES[FALLBACK_LOCALE].errors, body.code)
-    ? body
+  if (!isProblem(body)) {
+    return { code: "INTERNAL_ERROR", status };
+  }
+  if (Object.hasOwn(CATALOGUES[FALLBACK_LOCALE].errors, body.code)) {
+    return body;
+  }
+  const correlation: unknown = body.correlation_id;
+  return isCorrelation(correlation)
+    ? { code: "INTERNAL_ERROR", status, correlation_id: correlation }
     : { code: "INTERNAL_ERROR", status };
 }
 
@@ -201,15 +216,52 @@ export class AccountRefused extends Error {
 }
 
 /**
+ * The API refused a read of a screen because a component of the platform is unavailable (503
+ * `COMPONENT_UNAVAILABLE`, WF-EXP-0040): the screen of failure names it — its digest, the one
+ * thing of it Next forwards, says which (`componentDigest`) —, never an unexpected error.
+ */
+export class ComponentUnavailable extends Error {
+  readonly digest: string;
+
+  /** The refusal of an operation, by its `operationId`, and the component its envelope names. */
+  constructor(
+    readonly operation: string,
+    readonly component: PlatformComponent,
+  ) {
+    super(`${operation} answered 503 COMPONENT_UNAVAILABLE ${component}`);
+    this.name = "ComponentUnavailable";
+    this.digest = componentDigest(component);
+  }
+}
+
+/**
+ * The component an answer says unavailable: that of a 503 `COMPONENT_UNAVAILABLE` whose envelope
+ * names one of the contract (`params.component`); none for any other answer, an envelope that
+ * names no component, or one the contract does not know, included.
+ */
+function unavailableComponentOf(status: number, body: unknown): PlatformComponent | undefined {
+  if (status !== 503 || !isProblem(body) || body.code !== "COMPONENT_UNAVAILABLE") {
+    return undefined;
+  }
+  const component: unknown = body.params?.component;
+  return isPlatformComponent(component) ? component : undefined;
+}
+
+/**
  * What a read throws on an answer that is neither a success, nor "not found", nor the API
  * out of reach: `SignedOut` on 401, `AccountRefused` on the 401 that refuses the account,
- * `UnexpectedAnswer` otherwise.
+ * `ComponentUnavailable` on the 503 that names a component unavailable, `UnexpectedAnswer`
+ * otherwise.
  */
 export function refusalOf(operation: string, status: number, body: unknown): Error {
   const code = isProblem(body) ? body.code : undefined;
   const refusal = accountRefusalOf(status, code);
   if (refusal !== undefined) {
     return new AccountRefused(operation, refusal);
+  }
+  const component = unavailableComponentOf(status, body);
+  if (component !== undefined) {
+    return new ComponentUnavailable(operation, component);
   }
   return status === 401
     ? new SignedOut(operation, code)
@@ -220,8 +272,8 @@ export function refusalOf(operation: string, status: number, body: unknown): Err
  * Call the API for a read a screen cannot do without, and give its data. Anything else
  * throws, for Next to render: a 404 is the object not found — or not readable, which the API
  * answers alike (WF-ADM-0110) — and the page is not found; the API out of reach, `fetch`
- * rejected or a gateway saying the service is down, is `Unreachable`; a 401, `SignedOut`;
- * any other answer, `UnexpectedAnswer`.
+ * rejected or a gateway saying the service is down, is `Unreachable`; a 401, `SignedOut`; a 503
+ * that names a component unavailable, `ComponentUnavailable`; any other answer, `UnexpectedAnswer`.
  */
 export async function readOrFail<T>(operation: string, call: () => Promise<Answer<T>>): Promise<T> {
   const answer = await call();
@@ -284,7 +336,8 @@ export type ReadOrRefused<T, R extends ExpectedRefusal> =
  * Call the API for a read its screen can do without, and says why when it is refused: its data;
  * on a refusal the screen expects, which of them — the first that the answer matches —, for the
  * screen to say the data unavailable and why, and show the rest. Any other answer follows the
- * rule of `readOrFail`: not found, the API out of reach, no session, an unexpected answer.
+ * rule of `readOrFail`: not found, the API out of reach, no session, a component unavailable, an
+ * unexpected answer.
  */
 export async function readOrRefused<T, R extends ExpectedRefusal>(
   operation: string,
@@ -304,7 +357,8 @@ export async function readOrRefused<T, R extends ExpectedRefusal>(
 /**
  * Call the API for a read its screen can do without: its data; `undefined` on a refusal the
  * screen expects, which says the data unavailable and shows the rest. Any other answer follows
- * the rule of `readOrFail`: not found, the API out of reach, no session, an unexpected answer.
+ * the rule of `readOrFail`: not found, the API out of reach, no session, a component unavailable,
+ * an unexpected answer.
  */
 export async function readUnlessRefused<T>(
   operation: string,
