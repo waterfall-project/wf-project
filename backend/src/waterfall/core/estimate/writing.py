@@ -144,7 +144,13 @@ def judged_priced(
     basis = basis_of(session, project_id, bearer.revision_id)
     line = None if current is None else current.node_id
     new_role = current is None or draft.resource_role_id != current.resource_role_id
-    _priced_draft(session, (project_id, bearer, line), draft, basis, Judging(role_changes=new_role, earlier=earlier))
+    _priced_draft(
+        session,
+        (project_id, bearer, line),
+        draft,
+        basis,
+        Judging(role_changes=new_role, earlier=earlier),
+    )
     return draft
 
 

@@ -18,9 +18,8 @@ named with its cause where the test stands:
   (``editable_fields``) are EP-09's;
 - a line whose task straddles two years is spread over them by the service, by the hours of each
   (WF-DEV-0040), where the generator of the examples kept the first year;
-- the accounts of the witness are not attached to their node of the organisation, so that no
-  contributor is suggested; the authors are the platform's, and the commands of a reader are those
-  of its rights, not of the example's.
+- the authors are the platform's, and the commands of a reader are those of its rights, not of
+  the example's.
 """
 
 import copy
@@ -470,13 +469,11 @@ def test_the_workload_of_the_reference_budget_is_that_of_the_offer_where_the_exa
     assert found == {"/context/revision_id", "/monthly_totals[]/hours", "/roles[]/months[]/hours"}
 
 
-def test_the_contributors_the_lines_employ_are_proposed_but_for_the_accounts_not_attached(
+def test_the_contributors_the_lines_employ_are_proposed_as_the_example_does(
     api: ContractClient, witness: Database, realm: TestRealm
 ) -> None:
     # The lines of the revision in progress employ the role of the cable fitter, whose node holds
-    # the account of Sacha Lefèvre; the example proposes it. The accounts of the witness are created
-    # without their node (``witness.projects``), so that none is proposed: the proposal is empty
-    # (#2698, left to US-1570/L3).
+    # the account of Sacha Lefèvre, created attached to it as ``users.json`` has it (#2698).
     with witness.transaction() as session:
         employed = roles_employed(session, PRJ_001)
     assert CABLER in employed
@@ -484,7 +481,7 @@ def test_the_contributors_the_lines_employ_are_proposed_but_for_the_accounts_not
     body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/contributors/suggestions")
     expected = example("contributor_suggestions")
     assert expected[0]["resource_role_ids"] == [str(CABLER)]
-    assert body == []
+    assert body == expected
 
 
 def without(value: Any, names: set[str]) -> Any:

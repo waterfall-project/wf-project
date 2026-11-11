@@ -27,8 +27,6 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from pydantic import BaseModel, ConfigDict
-
 from waterfall.core.planning.interface import (
     LinkLoad,
     Place,
@@ -43,6 +41,7 @@ from waterfall.core.planning.interface import (
 from waterfall.core.planning.scheduling import Duration, DurationUnit, LagUnit
 from waterfall.core.revisions.interface import aimed_structure
 from waterfall.platform.logs import get_logger
+from waterfall.witness.filling import Strict, node_identifier, number_of
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -56,34 +55,28 @@ _NODE_NAMESPACE = uuid5(NAMESPACE_URL, "https://waterfall.example/witness/node")
 logger = get_logger(__name__)
 
 
-class _Strict(BaseModel):
-    """A part of ``witness_tasks.json``: every key it holds is read, none is missing."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-
-class _Duration(_Strict):
+class _Duration(Strict):
     """A duration: a value and its unit."""
 
     value: Decimal
     unit: DurationUnit
 
 
-class _Lag(_Strict):
+class _Lag(Strict):
     """A lag: a value and its unit."""
 
     value: Decimal
     unit: LagUnit
 
 
-class _Moment(_Strict):
+class _Moment(Strict):
     """A start or a finish: a day and the hours of work elapsed that day."""
 
     date: date
     hours: Decimal
 
 
-class _Link(_Strict):
+class _Link(Strict):
     """A link to a predecessor, by its lineage."""
 
     predecessor_lineage_id: UUID
@@ -91,14 +84,14 @@ class _Link(_Strict):
     lag: _Lag
 
 
-class _Inscription(_Strict):
+class _Inscription(Strict):
     """An inscription of a task of the witness, as the description writes it."""
 
     kind: str
     timeline_id: UUID | None
 
 
-class _Task(_Strict):
+class _Task(Strict):
     """A task of a revision, as the description writes it."""
 
     revision: int
@@ -123,7 +116,7 @@ class _Task(_Strict):
     inscriptions: list[_Inscription]
 
 
-class _Revision(_Strict):
+class _Revision(Strict):
     """What the description says of a revision: the day it is read at, its planning start."""
 
     revision: int
@@ -132,30 +125,17 @@ class _Revision(_Strict):
     task_count: int
 
 
-class _Tasks(_Strict):
+class _Tasks(Strict):
     """The tasks of the witness by revision, as ``witness_tasks.json`` keeps them."""
 
     revisions: list[_Revision]
     tasks: list[_Task]
 
 
-def _number(revision_id: UUID) -> int | None:
-    """Give the number an identifier of the witness ends with, ``None`` if it is not a number."""
-    last = str(revision_id).rsplit("-", 1)[1]
-    return int(last) if last.isdecimal() else None
-
-
-def _node_id(task: _Task, current: int) -> UUID:
-    """Give the identifier of a task's node in its revision: the file's in the one in progress."""
-    if task.revision == current:
-        return task.node_id
-    return uuid5(_NODE_NAMESPACE, f"{task.revision}/{task.node_id}")
-
-
 def _load(task: _Task, current: int) -> TaskLoad:
     """Give a task as the planning loads it."""
     return TaskLoad(
-        node_id=_node_id(task, current),
+        node_id=node_identifier(_NODE_NAMESPACE, task.revision, task.node_id, current),
         lineage_id=task.lineage_id,
         parent_lineage_id=task.parent_lineage_id,
         position=task.position,
@@ -184,7 +164,7 @@ def fill(session: Session, witness: Witness, opened: OpenedRevision) -> None:
     inscriptions of each lineage written (the timelines are those of the slice before the
     revisions). A revision the file does not describe is left as it is.
     """
-    number = _number(opened.revision.revision_id.root)
+    number = number_of(opened.revision.revision_id.root)
     described = witness.read(TASKS_FILE, _Tasks)
     revision = next((each for each in described.revisions if each.revision == number), None)
     if revision is None:

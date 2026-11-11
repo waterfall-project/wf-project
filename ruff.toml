@@ -42,12 +42,15 @@ notice-rgx = "SPDX-FileCopyrightText: \\d{4} waterfall-project"
 [lint.flake8-type-checking]
 # Python 3.14 evaluates annotations lazily, so Ruff asks for the imports only an annotation uses to
 # move under `TYPE_CHECKING`. What reads its annotations at run time keeps them: the models of
-# Pydantic, the settings, and the tables of SQLAlchemy (the type of a `Mapped[...]`).
+# Pydantic, the settings, and the tables of SQLAlchemy (the type of a `Mapped[...]`). `Strict`, the
+# base of the models of the files the fillers of the witness read, is a model of Pydantic that Ruff
+# does not see through its module (#2701).
 runtime-evaluated-base-classes = [
     "pydantic.BaseModel",
     "pydantic_settings.BaseSettings",
     "sqlalchemy.orm.DeclarativeBase",
     "waterfall.platform.database.Base",
+    "waterfall.witness.filling.Strict",
 ]
 
 [lint.mccabe]
