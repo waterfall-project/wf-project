@@ -14,6 +14,7 @@ identifiers of the witness end with (``01926f3a-…-000000000100``).
 
 from dataclasses import replace
 from typing import TYPE_CHECKING, Annotated, Literal, Self
+from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
@@ -59,12 +60,11 @@ class RevisionMarked(_Strict):
 
 
 class DesignationAttempted(_Strict):
-    """The designation of a revision as the reference, and the refusal it is met with."""
+    """The designation of a revision as the reference, which succeeds (US-1570/L2)."""
 
     kind: Literal["designation_attempted"]
     project: str
     revision: int
-    refused: Literal["no_task"]
 
 
 class CodeEntered(_Strict):
@@ -73,6 +73,18 @@ class CodeEntered(_Strict):
     kind: Literal["code_entered"]
     project: str
     code: str
+
+
+class RateUpdateApplied(_Strict):
+    """The update of the rates accepted from a revision in progress, for the categories named.
+
+    Applied by the slice of the revisions (``apply_rate_update``), at the instant of its event.
+    """
+
+    kind: Literal["rate_update_applied"]
+    project: str
+    revision: int
+    cost_category_ids: list[UUID]
 
 
 class StateTransition(_Strict):
@@ -90,6 +102,7 @@ type Write = Annotated[
     | RevisionMarked
     | DesignationAttempted
     | CodeEntered
+    | RateUpdateApplied
     | StateTransition,
     Field(discriminator="kind"),
 ]

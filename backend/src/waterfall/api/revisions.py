@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The revisions of a project and their structures (FBS-4.1).
 
-``listRevisions``, ``createRevision``, ``getRevision``, ``abandonRevision`` and
-``listCostStructures`` (US-0960); ``markRevision``, which submits its task to the worker and
+``listRevisions``, ``createRevision``, ``getRevision`` — with, for a marked revision, what it keeps
+of the reference (``snapshot``, US-1500) —, ``abandonRevision`` and ``listCostStructures``
+(US-0960); ``markRevision``, which submits its task to the worker and
 answers 202 with it, which ``getBackgroundTask`` follows (US-0970, WF-ARC-0090).
 
 Each names the project and is judged by ``RequiresProject``: the permission of the function of
@@ -13,6 +14,7 @@ a contributor holding the permission to manage them, and marked or abandoned by 
 holding the permission of that action, a structuring action of its own (WF-ADM-0100).
 """
 
+from collections.abc import Mapping
 from decimal import Decimal
 from typing import Annotated, Any
 from uuid import UUID
@@ -34,10 +36,12 @@ from waterfall.api.contract.models import (
 from waterfall.api.evaluation import Acting, RequiresProject
 from waterfall.api.queries import Search, listed
 from waterfall.api.tasks import task_ref
+from waterfall.core.estimate.interface import KeptReference, Stamp, kept_reference
 from waterfall.core.projects.interface import CommandAvailability, Viewer
 from waterfall.core.revisions.interface import (
     KEPT,
     MarkingRequest,
+    RevisionAsked,
     RevisionFilters,
     RevisionPage,
     RevisionToAbandon,
@@ -49,7 +53,7 @@ from waterfall.core.revisions.interface import (
     read_revision,
     submit_marking,
 )
-from waterfall.core.users.interface import read_authors
+from waterfall.core.users.interface import Author, read_authors
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.tasks import BackgroundTask
@@ -64,6 +68,7 @@ DEFAULT_LIMIT = 50
 GREATEST_LIMIT = 500
 REVISIONS = "/projects/{project_id}/revisions"
 REVISION = f"{REVISIONS}/{{revision_id}}"
+DAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 
 
 def _plain(value: Decimal) -> str:
@@ -82,11 +87,110 @@ def _commands(commands: tuple[CommandAvailability, ...]) -> list[dict[str, Any]]
     ]
 
 
-def described(session: Session, views: list[RevisionView]) -> list[Revision]:
+def _audit(stamp: Stamp, authors: Mapping[UUID, Author]) -> dict[str, Any]:
+    """Describe the audit an image keeps, its authors named as they are today."""
+    created, updated = stamp.created_by, stamp.updated_by
+    return {
+        "created_at": stamp.created_at,
+        "created_by": actor_ref(None if created is None else authors.get(created)),
+        "updated_at": stamp.updated_at,
+        "updated_by": actor_ref(None if updated is None else authors.get(updated)),
+    }
+
+
+def snapshot(session: Session, kept: KeptReference) -> dict[str, Any]:
+    """Describe what a marked revision keeps of the reference (``RevisionSnapshot``, WF-REV-0030).
+
+    Every field as it was at the marking; the authors, accounts, named as they are today.
+    """
+    stamps = [each.stamp for each in (*kept.resource_roles, *kept.calendars, *kept.cost_categories)]
+    authors = read_authors(
+        session,
+        {
+            author
+            for stamp in stamps
+            for author in (stamp.created_by, stamp.updated_by)
+            if author is not None
+        },
+    )
+    roles = [
+        {
+            "resource_role_id": role.resource_role_id,
+            "code": role.code,
+            "label": role.label,
+            "org_node_id": role.org_node_id,
+            "org_node_label": role.org_node_label,
+            "cost_category_id": role.cost_category_id,
+            "cost_category_label": role.cost_category_label,
+            "calendar_id": role.calendar_id,
+            "calendar_label": role.calendar_label,
+            "capacity": {
+                "monthly_hours": _plain(role.monthly_hours),
+                "headcount": _plain(role.headcount),
+            },
+            "is_active": role.stamp.is_active,
+            "audit": _audit(role.stamp, authors),
+            "lock_version": role.stamp.lock_version,
+        }
+        for role in kept.resource_roles
+    ]
+    calendars = [
+        {
+            "calendar_id": calendar.calendar_id,
+            "label": calendar.label,
+            "weekly_hours": {day: _plain(calendar.weekly_hours.of(day)) for day in DAYS},
+            "is_default": calendar.is_default,
+            "is_active": calendar.stamp.is_active,
+            "audit": _audit(calendar.stamp, authors),
+            "lock_version": calendar.stamp.lock_version,
+        }
+        for calendar in kept.calendars
+    ]
+    categories = [
+        {
+            "cost_category_id": category.cost_category_id,
+            "code": category.code,
+            "label": category.label,
+            "cost_type_id": category.cost_type_id,
+            "cost_type_label": category.cost_type_label,
+            "cost_type_kind": category.cost_type_kind,
+            "cost_type_is_active": category.cost_type_is_active,
+            "accounting_code": category.accounting_code,
+            "is_active": category.stamp.is_active,
+            "audit": _audit(category.stamp, authors),
+            "lock_version": category.stamp.lock_version,
+        }
+        for category in kept.cost_categories
+    ]
+    rates = [
+        {
+            "cost_category_id": rate.cost_category_id,
+            "year": rate.year,
+            "amount": f"{rate.amount:.2f}",
+        }
+        for rate in kept.hourly_rates
+    ]
+    return {
+        "employed_reference": {
+            "resource_roles": roles,
+            "calendars": calendars,
+            "cost_categories": categories,
+            "hourly_rates": rates,
+        }
+    }
+
+
+def described(
+    session: Session,
+    views: list[RevisionView],
+    snapshots: Mapping[UUID, dict[str, Any]] | None = None,
+) -> list[Revision]:
     """Describe revisions as the contract does, their authors named as they are today.
 
-    The snapshot of a marked revision is EP-07's: omitted until then.
+    ``snapshots`` what each marked revision ``getRevision`` reads keeps of the reference, by
+    revision: omitted for the others, the current one and every revision of a list or a write.
     """
+    snapshots = snapshots or {}
     wanted = {
         author
         for view in views
@@ -121,6 +225,11 @@ def described(session: Session, views: list[RevisionView]) -> list[Revision]:
                     ),
                 },
                 "lock_version": view.lock_version,
+                **(
+                    {"snapshot": snapshots[view.revision_id]}
+                    if view.revision_id in snapshots
+                    else {}
+                ),
             }
         )
         for view in views
@@ -186,11 +295,13 @@ def post_revision(
 ) -> Revision:
     """Open the current revision of a project, a copy of its last marked one (WF-REV-0010).
 
-    The body's ``apply_rate_update`` has nothing to apply until EP-07 keeps the rates; its
-    ``description`` is kept on the revision, which its marking takes up (#2171).
+    The body's ``apply_rate_update`` accepts the update of the rates the proposal would present at
+    the rate of the reference (WF-REV-0060, #1764); its ``description`` is kept on the revision,
+    which its marking takes up (#2171).
     """
     act = Act(account.user_id, utc_now())
-    opened = create_revision(session, project_id, act, viewer_of(actor), body.description)
+    asked = RevisionAsked(body.description, apply_rate_update=bool(body.apply_rate_update))
+    opened = create_revision(session, project_id, act, viewer_of(actor), asked)
     return described(session, [opened])[0]
 
 
@@ -203,9 +314,16 @@ def post_revision(
 def get_revision(
     project_id: UUID, revision_id: UUID, actor: Acting, session: Transaction
 ) -> Revision:
-    """Give a revision of a project, with the commands its reader holds on it (WF-REV-0090)."""
+    """Give a revision of a project, with the commands its reader holds on it (WF-REV-0090).
+
+    A marked revision with what it keeps of the reference (``snapshot``, WF-REV-0030); the current
+    one follows the reference, and has none.
+    """
     view = read_revision(session, project_id, revision_id, viewer_of(actor))
-    return described(session, [view])[0]
+    kept: dict[UUID, dict[str, Any]] = {}
+    if view.status == "marked":
+        kept[view.revision_id] = snapshot(session, kept_reference(session, project_id, revision_id))
+    return described(session, [view], kept)[0]
 
 
 @router.delete(

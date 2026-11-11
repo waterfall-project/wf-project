@@ -25,6 +25,7 @@ from waterfall.core.resource_settings.interface.extensions import (
     recalculate,
 )
 from waterfall.core.resource_settings.interface.readiness import lock_reference
+from waterfall.core.resource_settings.interface.resource_roles import idle_tasks_refused
 from waterfall.core.resource_settings.tables import DAYS, Calendar
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
@@ -48,6 +49,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.resource_settings.interface.extensions import IdleProject
     from waterfall.platform.audit import Act
 
 ALREADY_EXISTS = "ALREADY_EXISTS"
@@ -201,13 +203,9 @@ def _refuse_hours(weekly_hours: WeeklyHours) -> None:
 
 def _left_idle(
     session: Session, calendar_id: UUID, weekly_hours: WeeklyHours, *, default: bool
-) -> tuple[dict[str, str | None], ...]:
+) -> tuple[IdleProject, ...]:
     """Name the projects the change would leave with a task without an hour, by each guard."""
-    change = CalendarChange(calendar_id, _weekly(weekly_hours), default)
-    return tuple(
-        {"project_label": project.label, "project_code": project.code}
-        for project in projects_left_idle(session, change)
-    )
+    return projects_left_idle(session, CalendarChange(calendar_id, _weekly(weekly_hours), default))
 
 
 def calendar_change_is_admissible(
@@ -215,7 +213,9 @@ def calendar_change_is_admissible(
 ) -> bool:
     """Tell whether the calendar may take these hours, or be the default, without a task left idle.
 
-    The planning answers, by the guards it registers (``register_idle_task_guard``, WF-PLA-0010).
+    The planning and the estimate answer, by the guards they register (``register_idle_task_guard``,
+    WF-PLA-0010): the default calendar of the tasks without a labour line, the calendars of the
+    roles of the lines of the others.
     """
     return not _left_idle(session, calendar_id, weekly_hours, default=default)
 
@@ -223,12 +223,10 @@ def calendar_change_is_admissible(
 def _refuse_idle_tasks(
     session: Session, calendar_id: UUID, weekly_hours: WeeklyHours, *, default: bool
 ) -> None:
-    """Refuse a change that would leave a task without an hour, naming its projects (422)."""
-    projects = _left_idle(session, calendar_id, weekly_hours, default=default)
-    if projects:
-        raise UnprocessableError(
-            TASK_WITHOUT_WORKING_HOURS, {"resource_roles": [], "projects": list(projects)}
-        )
+    """Refuse a change that would leave a task without an hour, naming its roles and projects."""
+    idle = _left_idle(session, calendar_id, weekly_hours, default=default)
+    if idle:
+        raise idle_tasks_refused(session, idle)
 
 
 def _deactivation_missing(*, is_default: bool) -> str | None:

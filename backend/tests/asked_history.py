@@ -7,17 +7,21 @@ quality on its project each asks for besides.
 """
 
 CONSULT = "planning.read"
-CHANGE = "planning.write"
+
+# The permissions of the three grids, one at least of which a paste, an undoing and a redoing ask
+# for (#2601, #2774).
+ENTRIES = ("planning.write", "estimate.write", "remaining.write")
 
 # The permissions each operation asks for, in the order they are evaluated: a paste, an undoing and
-# a redoing write the planning, the command ``edit_planning`` of the structure. An undoing is
-# refused besides for the permission of the entry it undoes, which the planning judges once it
-# knows the entry (``remaining.write`` for the state of a task).
+# a redoing, which the three grids make alike, one at least of their permissions (#2601, #2774). A
+# paste is refused besides without ``planning.write`` when it writes the columns of a task (#2775),
+# an undoing and a redoing for the permission of the write of the entry, which the planning judges
+# once it knows the entry (``test_nodes_entries.py``).
 ASKED: dict[str, tuple[str, ...]] = {
-    "previewPaste": (CONSULT, CHANGE),
-    "applyPaste": (CONSULT, CHANGE),
-    "undoLastChange": (CONSULT, CHANGE),
-    "redoLastUndo": (CONSULT, CHANGE),
+    "previewPaste": (CONSULT, *ENTRIES),
+    "applyPaste": (CONSULT, *ENTRIES),
+    "undoLastChange": (CONSULT, *ENTRIES),
+    "redoLastUndo": (CONSULT, *ENTRIES),
 }
 # The quality on its project each operation that names one asks for, evaluated by
 # ``RequiresProject``: ``consultation``, ``contributor`` or ``project_manager`` (WF-ADM-0110).

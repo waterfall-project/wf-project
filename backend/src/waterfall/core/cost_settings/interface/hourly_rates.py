@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy import ColumnElement, SQLColumnExpression, exists, func, insert, not_, or_, select
 
+from waterfall.core.cost_settings.employment import RateWritten, price_after_rate
 from waterfall.core.cost_settings.records import (
     ALREADY_EXISTS,
     Audit,
@@ -303,7 +304,9 @@ def set_hourly_rate(
 
     The lock of the natures comes first, as for every write that reads the kind of a nature: a
     nature never changes kind between the reading of the category and the writing of its rate,
-    and two settings of one year never meet.
+    and two settings of one year never meet. Once written, the current revisions whose lines of the
+    category are priced at the rate of the reference for the year — the category kept no rate of
+    its own — are priced again (``register_employment``, EP-07), under that lock still.
     """
     category_id, year = key
     fault = _amount_fault(amount)
@@ -345,6 +348,9 @@ def set_hourly_rate(
         current.updated_at = act.at
         current.updated_by = act.author
         session.flush()
+    # The current revisions that price the category at the rate of the reference follow it, their
+    # structures locked after the natures (EP-07, US-1500).
+    price_after_rate(session, RateWritten(category_id, year, act.at))
     rate = session.scalars(
         select(HourlyRate)
         .where(HourlyRate.cost_category_id == category_id, HourlyRate.year == year)

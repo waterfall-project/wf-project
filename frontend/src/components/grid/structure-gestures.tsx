@@ -262,7 +262,8 @@ function GestureDialog<Row extends GridNode>({
             created={gesture === "line" ? "line" : "task"}
             title={title}
             under={under}
-            categories={scope.categories ?? []}
+            categories={scope.categories}
+            roles={scope.roles}
             pending={writing}
             onCreate={onCreate}
             onCancel={onClose}

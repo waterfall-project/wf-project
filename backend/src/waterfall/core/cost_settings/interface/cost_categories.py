@@ -25,6 +25,7 @@ from waterfall.core.cost_settings.commands import (
     cost_category_commands,
     kind_change_missing,
 )
+from waterfall.core.cost_settings.employment import category_is_employed
 from waterfall.core.cost_settings.interface.hourly_rates import category_is_rated
 from waterfall.core.cost_settings.records import (
     Audit,
@@ -128,22 +129,17 @@ class CostCategoryDraft:
 
 @dataclass(frozen=True, slots=True)
 class CategoryLabel:
-    """What a role of resources shows of its category, and what admits it (WF-REF-0090)."""
+    """What a role of resources shows of its category, and what admits it (WF-REF-0090).
+
+    ``cost_type_id`` its nature, by which a line of estimate is filtered (EP-07).
+    """
 
     cost_category_id: UUID
     label: str
     cost_type_kind: str
     is_active: bool
     cost_type_is_active: bool
-
-
-def category_is_employed(session: Session, category_ids: Collection[UUID]) -> frozenset[UUID]:
-    """Give, of the categories given, those a line of a quote employs (WF-REF-0030, WF-REF-0040).
-
-    No line exists before EP-07, which fills it: none is employed here.
-    """
-    del session, category_ids
-    return frozenset()
+    cost_type_id: UUID | None = None
 
 
 def category_holdings(session: Session, category_ids: Collection[UUID]) -> dict[UUID, Holdings]:
@@ -260,6 +256,26 @@ def _read_view(session: Session, category_id: UUID) -> CostCategoryView:
     return _views(session, [row], may_change=True)[0]
 
 
+def read_cost_categories(
+    session: Session, category_ids: Collection[UUID]
+) -> list[CostCategoryView]:
+    """Read the categories given, deactivated or not, without their commands, by code.
+
+    What a marked revision keeps of those its lines employ (EP-07, US-1500). An identifier no
+    category bears is left out.
+    """
+    if not category_ids:
+        return []
+    rows = session.execute(
+        select(CostCategory, CostType)
+        .join(CostType, CostType.id == CostCategory.cost_type_id)
+        .where(CostCategory.id.in_(list(category_ids)))
+        .order_by(CostCategory.code, CostCategory.id)
+        .execution_options(populate_existing=True)
+    ).all()
+    return _views(session, [(category, nature) for category, nature in rows], may_change=False)
+
+
 def present_cost_categories(session: Session, category_ids: Collection[UUID]) -> frozenset[UUID]:
     """Give, of the identifiers given, those a category bears: the witness looks for its own."""
     found = session.scalars(select(CostCategory.id).where(CostCategory.id.in_(category_ids)))
@@ -289,10 +305,34 @@ def category_labels(
     )
     return {
         category.id: CategoryLabel(
-            category.id, category.label, nature.kind, category.is_active, nature.is_active
+            category.id,
+            category.label,
+            nature.kind,
+            category.is_active,
+            nature.is_active,
+            nature.id,
         )
         for category, nature in rows
     }
+
+
+def categories_named(session: Session, labels: Collection[str]) -> dict[str, list[UUID]]:
+    """Give the categories each label names, deactivated ones too; a label with none is absent.
+
+    What a cell pasted into the estimate names its category by (EP-07, US-1560); two categories may
+    bear one label, which the caller refuses as unknown.
+    """
+    found: dict[str, list[UUID]] = {}
+    if not labels:
+        return found
+    rows = session.execute(
+        select(CostCategory.label, CostCategory.id)
+        .where(CostCategory.label.in_(list(labels)))
+        .order_by(CostCategory.code)
+    )
+    for label, category_id in rows:
+        found.setdefault(label, []).append(category_id)
+    return found
 
 
 def category_label_of(

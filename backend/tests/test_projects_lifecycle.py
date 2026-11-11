@@ -199,7 +199,13 @@ def test_the_next_state_is_a_function_of_the_facts_alone(
     # état, son déclencheur et les conditions restantes » ; nothing after In progress: no fact.
     state, has_revision, has_reference, has_code = facts
     assert (
-        next_state(state, has_revision=has_revision, has_reference=has_reference, has_code=has_code)
+        next_state(
+            state,
+            has_revision=has_revision,
+            has_reference=has_reference,
+            has_code=has_code,
+            has_lines=True,
+        )
         == expected
     )
 
@@ -215,6 +221,7 @@ def test_the_next_state_is_read_in_each_state_without_trying_an_action(
         "current_state": CREATED,
         "next_state": PRICING,
         "trigger": "first_revision_created",
+        # The passage to Pricing has no condition beyond its fact (#2634, option B).
         "missing_conditions": [],
     }
     open_revision(api, stage)
@@ -222,7 +229,11 @@ def test_the_next_state_is_read_in_each_state_without_trying_an_action(
         "current_state": PRICING,
         "next_state": IN_PROGRESS,
         "trigger": "reference_designated_and_code_set",
-        "missing_conditions": ["project_code_set", "reference_revision_designated"],
+        "missing_conditions": [
+            "project_code_set",
+            "revision_has_tasks_and_lines",
+            "reference_revision_designated",
+        ],
     }
     coded = api.patch(
         project_path(stage),
@@ -230,7 +241,10 @@ def test_the_next_state_is_read_in_each_state_without_trying_an_action(
         json={"code": "PRJ-080", "lock_version": project_of(api, stage)["lock_version"]},
     )
     assert coded.status_code == 200, coded.text
-    assert next_of(api, stage)["missing_conditions"] == ["reference_revision_designated"]
+    assert next_of(api, stage)["missing_conditions"] == [
+        "revision_has_tasks_and_lines",
+        "reference_revision_designated",
+    ]
     in_progress_around(stage)
     assert next_of(api, stage) == {
         "current_state": IN_PROGRESS,
@@ -238,6 +252,34 @@ def test_the_next_state_is_read_in_each_state_without_trying_an_action(
         "trigger": None,
         "missing_conditions": [],
     }
+
+
+@pytest.mark.requirement("WF-CYC-0050-A")
+@pytest.mark.parametrize(
+    ("state", "has_code", "has_reference", "expected"),
+    [
+        (CREATED, False, False, ()),
+        (
+            PRICING,
+            False,
+            False,
+            ("project_code_set", "revision_has_tasks_and_lines", "reference_revision_designated"),
+        ),
+        (PRICING, True, False, ("revision_has_tasks_and_lines", "reference_revision_designated")),
+        (PRICING, True, True, ("revision_has_tasks_and_lines",)),
+        (IN_PROGRESS, True, True, ()),
+    ],
+)
+def test_the_lines_condition_is_named_between_the_code_and_the_reference(
+    state: str, has_code: bool, has_reference: bool, expected: tuple[str, ...]
+) -> None:
+    # No revision marked bears a line: the code, then the lines the reference is chosen among, then
+    # the reference itself; Created, whose passage to Pricing has no condition, and the states
+    # after Pricing name nothing of it (#2634).
+    got = next_state(
+        state, has_revision=True, has_reference=has_reference, has_code=has_code, has_lines=False
+    )
+    assert got.missing_conditions == expected
 
 
 @pytest.mark.requirement("WF-CYC-0020-A")
@@ -333,6 +375,7 @@ def test_no_operation_leads_to_pricing_or_in_progress_by_an_exit(
         "create_revision",
         "generate_skeleton",
         "import_planning",
+        "import_estimate",
     }
     assert set(commands) - changing == {"complete", "lose", "abandon"}
 

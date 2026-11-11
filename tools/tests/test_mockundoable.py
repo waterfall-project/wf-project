@@ -29,6 +29,7 @@ PLANS = {
     "paste_plan_amendment_skipping",
     "paste_plan_amendment_target_removed",
     "paste_plan_creating",
+    "paste_plan_creating_lines",
     "paste_plan_subproject_held",
     "paste_plan_unknown_category",
     "paste_plan_without_hours",
@@ -96,7 +97,8 @@ def test_every_plan_counts_its_rows_that_create_among_those_it_accepts() -> None
     }
     assert set(plans) == PLANS
     assert {name: plan["created"] for name, plan in plans.items() if plan["created"]} == {
-        "paste_plan_creating": 2
+        "paste_plan_creating": 2,
+        "paste_plan_creating_lines": 2,
     }
     assert all(plan["created"] <= plan["accepted"] for plan in plans.values())
 

@@ -208,7 +208,7 @@ def _judged(
     if form.scope != "structure":
         standing = Standing(project_id, lock_project(session, project_id), form.scope)
         judge_state(session, standing, requester.viewer, task.task_id)
-        target = ImportTarget(project_id, None, None)
+        target = ImportTarget(project_id, None, None, task.task_id)
         form.judge(session, target)
         return target
     current = project_facts(session, project_id).current_revision_id
@@ -231,7 +231,7 @@ def _judged(
         # and whether the import opens the revision is known only under the lock of the project.
         act = Act(task.requested_by, utc_now())
         current = open_revision_by_task(session, project_id, act, task.task_id)
-    target = ImportTarget(project_id, current, aimed_by(session, row, current))
+    target = ImportTarget(project_id, current, aimed_by(session, row, current), task.task_id)
     form.judge(session, target)
     return target
 

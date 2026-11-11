@@ -659,7 +659,15 @@ ImportRejection:
     (WF-INTF-0100); and a line that designates its task by a label that several tasks carry,
     when the "Tâches" sheet does not know it: `AMBIGUOUS_TASK_LABEL`, `params.label` this label
     and `params.tasks` the tasks that carry it, by their lineage and their label (annex B,
-    WF-INTF-0080).
+    WF-INTF-0080). For an estimate, a line whose cell of a column of numbers — the quantity, the
+    hours, the unit disbursement, the payment delay — carries a text, or a payment delay that is
+    not a whole number of days: `NUMBER_INVALID`, `params.value` the value of the cell as the file
+    carries it and `params.header` the header of its column as the workbook carries it, one
+    rejection per such cell (annex B, WF-INTF-0080; #2609); and a line its entry would refuse on
+    a field, by the reason of that field (`VALUE_REQUIRED`, `VALUE_TOO_LONG`,
+    `VALUE_OUT_OF_RANGE`, `FIELD_NOT_ACCEPTED`, `RESOURCE_ROLE_REQUIRED`,
+    `INACTIVE_REFERENCE_OBJECT`), its parameters and `params.header` the header of the column
+    that carries the field.
   properties:
     sheet:
       anyOf: [{ type: string }, { type: 'null' }]

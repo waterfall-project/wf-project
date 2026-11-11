@@ -8,18 +8,23 @@ with what the planning derives at the reading — the state of a summary from it
 (WF-PLA-0040), the finish overdue of a started task (WF-RAE-0040), its calendar (WF-PLA-0010), its
 links in conflict (WF-PLA-0020) —, its predecessors named by their number (WF-PLA-0080), and the
 fields it computes and accepts (``computed_fields``, ``editable_fields``, WF-IHM-0030, WF-IHM-0040).
-The amounts, the lines and the physical progress are EP-07's: nought, none, and not computable.
+A node of another kind — an estimate line, EP-07 — is read by the hooks of its facet
+(``FacetHooks.read``), opaque here, which say its fields; the amounts of a task are the sum of the
+figures of its lines and of its subordinates (``FacetHooks.totals``), computed at the reading and
+never kept (EP-07, "Le calcul des montants"). The physical progress is EP-07's, not computable.
 The interface re-exports the views; the API writes them as the contract does.
 """
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from waterfall.core.planning.interface.facets import Amounts, BearingTask, facets
 from waterfall.core.planning.scheduling import WorkInstant
 from waterfall.core.planning.tree import TASK, tracking_of
 from waterfall.core.projects.interface import work_breakdown_items
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
     from datetime import date, datetime
     from decimal import Decimal
     from uuid import UUID
@@ -27,6 +32,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.planning.calendars import Applicable
+    from waterfall.core.planning.interface.facets import FacetRead
     from waterfall.core.planning.tables import TaskLink
     from waterfall.core.planning.tree import Tree
 
@@ -101,11 +107,15 @@ class TaskView:
     work_package_id: UUID | None
     work_breakdown_label: str | None
     external_id: str | None
+    amounts: Amounts
 
 
 @dataclass(frozen=True, slots=True)
 class NodeView:
-    """A node of a structure as it is read (``Node``): a task here, its facet with it."""
+    """A node of a structure as it is read (``Node``): a task, or a node of another kind.
+
+    ``facet`` is the facet of a node of another kind, as its hooks read it; none for a task.
+    """
 
     node_id: UUID
     lineage_id: UUID
@@ -117,6 +127,7 @@ class NodeView:
     origin_risk_id: UUID | None
     lock_version: int
     task: TaskView | None
+    facet: FacetRead | None
     predecessors: tuple[PredecessorView, ...]
     computed_fields: tuple[str, ...]
     editable_fields: tuple[str, ...]
@@ -202,7 +213,17 @@ class Reading:
         # a marked revision still shows (WF-PLA-0170).
         borne = any(task.work_package_id or task.order_item_id for task in tree.tasks.values())
         self.items = work_breakdown_items(session, project_id) if borne else {}
+        self._session, self._project_id = session, project_id
+        # The figures of each node of another kind, read once by the hooks of its facet; the
+        # facets as read, asked for the nodes a reading returns (``prefetch``).
+        self.figures: dict[UUID, Amounts] = {}
+        for kind, hooks in facets().items():
+            held = [each for each, node in tree.nodes.items() if node.kind == kind]
+            if held:
+                self.figures.update(hooks.totals(session, project_id, held))
+        self._facets: dict[UUID, FacetRead] = {}
         self.states: dict[UUID, State] = {}
+        self.sums: dict[UUID, Amounts] = {}
         for node_id in reversed(tree.order):
             if node_id not in tree.tasks:
                 continue
@@ -212,6 +233,48 @@ class Reading:
             else:
                 task = tree.tasks[node_id]
                 self.states[node_id] = State(task.progress, task.started_on, task.completed_on)
+            total = Amounts()
+            for each in tree.lines(node_id):
+                total += self.figures.get(each, Amounts())
+            for each in below:
+                total += self.sums[each]
+            self.sums[node_id] = total
+
+    def bearer(self, task_id: UUID) -> BearingTask:
+        """Give a task as the facet of a node it bears is told of it."""
+        task = self.tree.tasks[task_id]
+        return BearingTask(
+            task_id,
+            self.tree.nodes[task_id].revision_id,
+            task.label,
+            WorkInstant(task.start_date, task.start_hours),
+            WorkInstant(task.finish_date, task.finish_hours),
+            self.calendars[task_id].calendar.week,
+            self.states[task_id].progress,
+            self.is_main,
+        )
+
+    def prefetch(self, node_ids: Collection[UUID]) -> None:
+        """Read once the facets of the nodes of another kind among those named."""
+        tree = self.tree
+        for kind, hooks in facets().items():
+            held = {
+                each: self.bearer(parent)
+                for each in node_ids
+                if each not in self._facets
+                and tree.nodes[each].kind == kind
+                and (parent := tree.nodes[each].parent_id) is not None
+            }
+            if held:
+                self._facets.update(hooks.read(self._session, self._project_id, held))
+
+    def totals(self, node_ids: Collection[UUID]) -> Amounts:
+        """Give the sum of the figures of the nodes of another kind among those named."""
+        total = Amounts()
+        for each in node_ids:
+            if each in self.figures:
+                total += self.figures[each]
+        return total
 
     def conflicts(self, node_id: UUID) -> tuple[ConflictView, ...]:
         """Give the links in conflict a task is an end of, in the order of the plan (0020)."""
@@ -299,6 +362,7 @@ class Reading:
             work_package_id=task.work_package_id,
             work_breakdown_label=self._borne(task.work_package_id or task.order_item_id),
             external_id=task.external_id,
+            amounts=self.sums[node_id],
         )
 
     def _borne(self, item_id: UUID | None) -> str | None:
@@ -314,7 +378,18 @@ class Reading:
             self._incoming.get(node_id, []),
             key=lambda link: row[link.predecessor_id],
         )
-        computed, editable = self._fields(node_id) if node.kind == TASK else ((), ())
+        facet = None
+        computed: tuple[str, ...] = ()
+        editable: tuple[str, ...] = ()
+        if node.kind == TASK:
+            computed, editable = self._fields(node_id)
+        else:
+            if node_id not in self._facets:
+                self.prefetch((node_id,))
+            # A node its facet does not read — written around the service — names no field.
+            facet = self._facets.get(node_id)
+            if facet is not None:
+                computed, editable = facet.computed_fields, facet.editable_fields
         return NodeView(
             node_id=node_id,
             lineage_id=node.lineage_id,
@@ -326,6 +401,7 @@ class Reading:
             origin_risk_id=node.origin_risk_id,
             lock_version=node.lock_version,
             task=self._task(node_id) if node.kind == TASK else None,
+            facet=facet,
             predecessors=tuple(
                 PredecessorView(
                     link.predecessor_id,

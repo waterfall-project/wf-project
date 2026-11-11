@@ -230,6 +230,8 @@ export interface Choice {
   readonly active: boolean;
   /** The code that names it before its label in a list — a sub-project's —, if it has one. */
   readonly code?: string | undefined;
+  /** The type of the cost of a category, which the creation of a line chooses by (WF-DEV-0020). */
+  readonly kind?: components["schemas"]["CostTypeKind"] | undefined;
 }
 
 /**

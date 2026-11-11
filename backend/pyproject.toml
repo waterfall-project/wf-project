@@ -13,6 +13,7 @@ dependencies = [
     "fastapi>=0.162.0",
     "httpx2>=2.16.0",
     "lxml>=6.1.3",
+    "openpyxl>=3.1.5",
     "pillow>=13.0.0",
     "psycopg[binary]>=3.3.8",
     "pydantic-settings>=2.16.2",
@@ -23,6 +24,7 @@ dependencies = [
     "structlog>=26.1.0",
     "uuid-utils>=1.2.0",
     "uvicorn>=0.54.0",
+    "xlsxwriter>=3.3.1",
 ]
 
 # One package, two processes: the API and the worker start from the same distribution, and
@@ -111,10 +113,10 @@ type = "layers"
 layers = ["waterfall.witness", "waterfall.bootstrap | waterfall.restore", "waterfall.api | waterfall.worker | waterfall.migrations", "waterfall.schema", "waterfall.core", "waterfall.platform"]
 
 [[tool.importlinter.contracts]]
-name = "The modules of the core are ordered: the one above imports the one below, never the reverse (the cycle of #2124); the planning registers in the exchanges, the history, the revisions, the projects and the resource settings; projects and revisions sit between them and cost_settings; resource_settings imports no other module of the core"
+name = "The modules of the core are ordered: the one above imports the one below, never the reverse (the cycle of #2124); the estimate registers in the planning, the exchanges, the revisions, the projects, the cost settings and the resource settings; the planning registers in the exchanges, the history, the revisions, the projects and the resource settings; projects and revisions sit between them and cost_settings; resource_settings imports no other module of the core"
 type = "layers"
 containers = ["waterfall.core"]
-layers = ["access_roles | backups | indicator_settings | risk_settings", "planning", "exchanges | history", "revisions", "projects", "cost_settings", "users", "resource_settings"]
+layers = ["access_roles | backups | indicator_settings | risk_settings", "estimate", "planning", "exchanges | history", "revisions", "projects", "cost_settings", "users", "resource_settings"]
 
 [[tool.importlinter.contracts]]
 name = "A module of the core reaches another only through its public interface"

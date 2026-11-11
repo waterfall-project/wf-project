@@ -413,6 +413,29 @@ export default defineConfig([
     },
   },
   {
+    // The bench of the paths against the service, around Prism (bench/contract-proxy.ts,
+    // US-1550/L7): no code of the front, which Next never loads, but a proxy that Node runs in the
+    // container of Prism, and its test, which stands up the servers it sits between. A proxy
+    // speaks HTTP by its nature: node:http passes, and no other module of the network — not fetch,
+    // nor a client of npm, nor the libraries of the session. It writes only a log, no text of the
+    // interface, and the other rules of the guard stay as they are.
+    files: ["bench/contract-proxy.ts", "bench/contract-proxy.test.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex: modulePattern(NETWORK_MODULES.filter((m) => m !== "node:http")),
+              message: NETWORK,
+            },
+            { regex: SESSION_MODULE, message: SESSION_NETWORK },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // A non-breaking space written as itself is invisible in a test, and an expectation with one
     // cannot be told from one with an ordinary space: a test writes it as its escape, and the
     // rule, which skips strings by default, reads strings and templates too (#905).

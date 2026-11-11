@@ -184,6 +184,12 @@ describe("the grid of the estimate, entered as the structure lists it", () => {
 });
 
 describe("the reference data the estimate is entered from", () => {
+  it("hands the grid the type of the cost of each category, by which a line is created from an expense or a role [WF-DEV-0020-A]", async () => {
+    const grid = await estimateFor("me");
+    const kinds = new Set(grid?.reference.categories?.map(({ kind }) => kind));
+    expect(kinds).toEqual(new Set(["labor", "non_labor", "provision"]));
+  });
+
   it("asks the active ones alone of a session that only reads the cost and resource settings, which the contract keeps for the permission to modify them [WF-REF-0150-A]", async () => {
     // The consultation alone: the permissions to read kept, those to modify withdrawn. The fake back
     // answers the deactivated ones whatever is asked, so the request of the page is what is proved.
@@ -262,7 +268,7 @@ describe("the link of the estimate to the workload (#1069)", () => {
 
 describe("the shares of the estimate (#626)", () => {
   it("says a share too small to show below the smallest shown, never « 0% »", async () => {
-    // The estimate the offer v1.0 kept at its marking: its work package, 2,019.56 of 65,427,832.64,
+    // The estimate the offer v1.0 kept at its marking: its work package, 2,080.15 of 70,285,865.01,
     // the server gives a share of « 0.00003 », to its first significant digit (EP-14/L42o).
     server.answers = {
       ...server.answers,
@@ -272,8 +278,8 @@ describe("the shares of the estimate (#626)", () => {
       .replace(/<[^>]+>/g, " ")
       .replace(/&lt;/g, "<")
       .replace(/\s+/g, " ");
-    expect(page).toContain("By work package Computed on Lot 1 €2,019.56 (<0.01%)");
-    expect(page).toContain("Computed on No subproject €68,238,704.21 (100%)");
+    expect(page).toContain("By work package Computed on Lot 1 €2,080.15 (<0.01%)");
+    expect(page).toContain("Computed on No subproject €70,285,865.01 (100%)");
   });
 });
 
@@ -347,11 +353,11 @@ describe("« Écarts seulement » on the grid of the estimate [WF-REV-0100-A]", 
   });
 });
 
-describe("the note of the fake back on the estimate", () => {
-  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
+describe("the estimate served by the service", () => {
+  it("shows no note of the mock-up: what the grid writes is kept, and its reads are filtered by the server (US-1560)", async () => {
     const page = await estimatePage("me");
-    expect(page.match(/<p role="note"/g)).toHaveLength(1);
-    expect(page).toContain("Filters, search, sort and pages are ignored");
+    expect(page).not.toContain('role="note"');
+    expect(page).not.toContain("Filters, search, sort and pages are ignored");
   });
 });
 
@@ -446,7 +452,7 @@ describe("the filter of the estimate on the rows a risk occurred merged", () => 
 
   it("reads the rows with the risks occurred, not after them, when the address names no risk [WF-RIS-0060-A]", async () => {
     // #1955: the list of the risks is held; the rows are asked for all the same.
-    const NODES = "/nodes";
+    const NODES_ROUTE_END = "/nodes";
     const answer = held();
     server.hold = (route) => (route === RISKS ? answer.until : undefined);
     const loaded = estimatePage("me");
@@ -455,7 +461,7 @@ describe("the filter of the estimate on the rows a risk occurred merged", () => 
         expect(queryOf("/risks")).toBeDefined();
       });
       await vi.waitFor(() => {
-        expect(queryOf(NODES)).toBeDefined();
+        expect(queryOf(NODES_ROUTE_END)).toBeDefined();
       });
     } finally {
       answer.release();
