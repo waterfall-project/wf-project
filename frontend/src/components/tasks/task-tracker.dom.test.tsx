@@ -35,7 +35,6 @@ const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: un
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 // The router of Next, as far as a notice needs it: the refresh that reads the screen anew.
 const router = vi.hoisted(() => ({ refresh: vi.fn() }));
-
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
@@ -416,6 +415,7 @@ describe("the tracker of background tasks", () => {
   it("reads a task again after a read refused by 503, and tells its success without interrupting the follow-up [WF-IHM-0080-A]", async () => {
     const client = serve({
       [TASK]: [
+        // The contract has no 503 example for getBackgroundTask: borrow this one, only the status is read.
         { problem: example("invitation_provider_unavailable") as Problem & { status: 503 } },
         "task_running",
         "task_succeeded",
