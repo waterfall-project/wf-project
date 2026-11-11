@@ -12,6 +12,7 @@ administrator the reading renames (#2227).
 """
 
 import threading
+import time
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -26,7 +27,13 @@ from support import ContractClient, Logs, Watching, bearer, nowhere, raw_account
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
-from waterfall.core.access_roles.interface import Act, roles_held_by, set_access_roles
+from waterfall.core.access_roles.administrators import ADMINISTRATORS_LOCK
+from waterfall.core.access_roles.interface import (
+    Act,
+    lock_administrators,
+    roles_held_by,
+    set_access_roles,
+)
 from waterfall.core.resource_settings.interface import NodeWrite, create_node
 from waterfall.core.users.interface import (
     HeldAccount,
@@ -401,6 +408,101 @@ def api(
     """Give a client of the API whose administration client is watched."""
     app = create_app(Services(database, keycloak, watching, *nowhere()))
     return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
+
+
+ADMINISTRATORS_WAITED_FOR = text(
+    "SELECT count(*) FROM pg_locks AS waiting JOIN pg_stat_activity AS backend USING (pid) "
+    "WHERE NOT waiting.granted AND waiting.locktype = 'advisory' AND waiting.objid = :lock "
+    "AND backend.datname = current_database()"
+).bindparams(lock=ADMINISTRATORS_LOCK)
+
+# Each route that changes an account: the method, the path and the body, and the answer once the
+# lock is released (the account is the directory's: the provider is not reached).
+LOCKED_ROUTES: dict[str, tuple[str, str, dict[str, Any] | None, int]] = {
+    "updateUser": ("PATCH", "/users/{id}", {"org_node_id": None, "lock_version": 0}, 200),
+    "anonymizeUser": ("POST", "/users/{id}/anonymization", {"lock_version": 0}, 409),
+    "createPasswordSetupLink": ("POST", "/users/{id}/password-link", None, 409),
+    "resendInvitation": ("POST", "/users/{id}/invitation", None, 409),
+    "createUser": (
+        "POST",
+        "/users",
+        {"last_name": "Nouveau", "first_name": "Louis", "email": "louis@example.org"},
+        201,
+    ),
+}
+
+
+class Creating(Watching):
+    """The administration client of the API, as a provider that creates what it is asked.
+
+    The realm of test serves no administration API: the account of ``createUser`` is held under a
+    subject of its own, and its invitation said sent.
+    """
+
+    def create_account(self, identity: LocalIdentity) -> str | None:
+        """Hold the account under a subject of its own."""
+        del identity
+        return f"kc-{uuid4()}"
+
+    def send_invitation(self, subject: str) -> None:
+        """Say the invitation sent."""
+        del subject
+
+
+@pytest.mark.requirement("WF-ADM-0120-A")
+@pytest.mark.parametrize("operation", list(LOCKED_ROUTES))
+def test_a_route_that_changes_an_account_waits_for_the_lock_of_the_rule_before_any_row(
+    database: Database,
+    contract: OpenAPI,
+    keycloak: Keycloak,
+    realm_settings: ServiceSettings,
+    realm: TestRealm,
+    operation: str,
+) -> None:
+    # #2227: every route of the administration that changes an account takes the lock of the rule
+    # of the last administrator first, before the row of any account, as the reading does. Another
+    # transaction holds the lock: the route waits for it, and has locked no row — the accounts are
+    # still lent to whoever asks for them without waiting; released, the route answers.
+    with database.transaction() as session:
+        camille = held(session, last_name="Martin", first_name="Camille")
+        paul = held(session, last_name="Durand", first_name="Paul", email="paul@example.org")
+    role(
+        database,
+        "Administration",
+        permissions=(*ADMINISTRATION, "users.read"),
+        holders=(camille["id"],),
+    )
+    headers = bearer(realm.token(str(camille["idp_subject"]), KEY))
+    provider = Creating(keycloak, realm_settings, database)
+    app = create_app(Services(database, keycloak, provider, *nowhere()))
+    api = ContractClient(TestClient(app, raise_server_exceptions=False), contract)
+    method, template, body, expected = LOCKED_ROUTES[operation]
+    path = f"/api/v1{template.format(id=paul['id'])}"
+    answers: list[int] = []
+
+    def ask() -> None:
+        answers.append(api.request(method, path, headers=headers, json=body).status_code)
+
+    concurrent = threading.Thread(target=ask)
+    with database.transaction() as holding:
+        lock_administrators(holding)
+        concurrent.start()
+        deadline = time.monotonic() + 10
+        with database.engine.connect() as watching:
+            while not watching.scalar(ADMINISTRATORS_WAITED_FOR) and time.monotonic() < deadline:
+                watching.rollback()
+                time.sleep(0.05)
+            assert watching.scalar(ADMINISTRATORS_WAITED_FOR) == 1
+            watching.rollback()
+        with database.transaction() as other:
+            other.execute(text("SET LOCAL lock_timeout = '1s'"))
+            ids = [camille["id"], paul["id"]]
+            locked = select(UserAccount.id).where(UserAccount.id.in_(ids)).with_for_update(nowait=True)
+            assert len(other.scalars(locked).all()) == 2
+        assert answers == []
+    concurrent.join(15)
+    assert not concurrent.is_alive()
+    assert answers == [expected]
 
 
 @pytest.mark.requirement("WF-ADM-0120-A")
