@@ -1053,7 +1053,7 @@ travaille.
 - propre à l'US : `listCalendars` cherche sur le libellé, filtre l'état, trie chaque colonne, les
   heures de chaque jour et leur somme comprises, le calendrier par défaut en tête par
   `is_default`, et ne filtre pas les heures (C-352) ; les désactivés avec `include_inactive`,
-  sous `resource_settings.read` ;
+  sous `resource_settings.write` (#2084, option A ; corrigé le 2026-11-11 par l'auteur, #2245) ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service ;
 - propre à l'US : `load-witness` charge les calendriers du témoin, les désactivés compris
   (`calendars_with_inactive.json`, #2131), et désigne son calendrier par défaut (décisions des

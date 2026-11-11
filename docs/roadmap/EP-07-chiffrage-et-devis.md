@@ -730,6 +730,15 @@ deux lots ajoutés à l'EPIC, avant la vérification d'ensemble US-1570/L3, qui 
     la création, le collage, le déplacement et la suppression d'une ligne (#2601). Écartée : le
     collage et la création ouverts aux trois permissions quel que soit le genre, qui ouvraient ce que
     `patchTask` refuse ;
+  - **une tâche créée avec son seul libellé reste permise sous `estimate.write` ou
+    `remaining.write`** (décision de l'auteur du 2026-11-10, exception relevée par la PR #2815 du
+    lot) : le Vérif de WF-DEV-0050-A crée une tâche depuis la grille de devis, et le front n'envoie
+    que `label`. Changer le libellé d'une tâche existante exige `planning.write`, comme
+    `patchTask`. À l'annulation, une tâche créée se reconnaît « par son seul libellé » à ses valeurs
+    (automatique, 1 j, sans description ni rattachement) : celle qui a été créée explicitement à ces
+    valeurs s'annule sous `estimate.write`, ce qui revient à sa suppression, que `deleteNode` permet
+    déjà. Écartée : `planning.write` pour toute création de tâche, qui rendait le Vérif de
+    WF-DEV-0050-A injouable par un détenteur d'`estimate.write` seul ;
   - **annuler ou rétablir une écriture de l'arbre exige la permission qu'exigeait l'écriture
     annulée** (#2774) — `estimate.write`, `remaining.write` ou `planning.write` —, la pile
     d'annulation étant celle des trois grilles. Écartée : `planning.write` toujours, qui laissait un
@@ -737,11 +746,48 @@ deux lots ajoutés à l'EPIC, avant la vérification d'ensemble US-1570/L3, qui 
   - **la valeur planifiée arrondit un demi-centime loin de zéro** (#2773) : `spreading/planned.py`
     par `ROUND_HALF_UP`, comme `Money` et `pricing.round_to_cent` (#2618). Écarté : l'arrondi au pair
     de Python, qu'aucun montant du contrat n'emploie.
+- **Les constats du lot F** (décisions de l'auteur du 2026-11-10, soir) :
+  - **la répartition par période arrondit aussi loin de zéro** (#2806) : chaque part de
+    `spreading/spread.py` par `ROUND_HALF_UP`, la part restante absorbant l'écart comme aujourd'hui,
+    et les fixtures du réestimé de même (`docs/api/2026-10-31-contrat-spec-et-fixtures.md`, qui
+    disait l'arrondi au pair), par la vérification d'ensemble US-1570/L3 #2386 ; ces fichiers
+    s'ajoutent à ceux qu'elle écrit. Écarté : l'arrondi au pair gardé pour la répartition, qui
+    faisait suivre deux règles au total planifié et à ses parts ;
+  - **les constantes de permission du planning** (#2810) : une ligne vide sépare dans
+    `core/planning/entries.py` le commentaire du code 403 de celui d'`ENTRIES`, et
+    `core/planning/interface/msproject.py` prend `PLANNING_WRITE` d'`entries.py` ; `api/nodes.py`,
+    à la frontière du noyau, garde son littéral ou le prend d'`access_roles`, au choix du lot ; par
+    US-1570/L3 #2386 ;
+  - **coller l'avancement ou les dates d'exécution d'une tâche** (`physical_progress`,
+    `started_on`, `completed_on`) exige `remaining.write`, comme `setTaskProgress`, dont la règle
+    fait foi (#2805) : la grille de reste à engager les présente, et le Kanban les écrit déjà sous
+    cette permission. Corrigé en EP-09 par US-1650/L3 #2416, après la reprise d'`epic/EP-07` dans
+    `epic/EP-09` (décision de l'auteur du 2026-11-11, au lieu d'US-1640/L1 #2412), dans
+    `core/planning/interface/paste.py`. Écarté : ne pas offrir ces colonnes au
+    collage sous `remaining.write` seul, qui refusait à la grille ce que le Kanban permet.
 - **Les parcours e2e relisent les réponses de l'API par le schéma du client engendré** (#2771) :
   `Schemas["X"]` au lieu des types écrits à la main (`own-project.ts`, `estimate-seed.ts`,
   `task-tree.spec.ts`, `exchanges.spec.ts`, `project-start.spec.ts`), par la vérification
   d'ensemble US-1570/L3 #2386, qui rejoue ces parcours ; ces fichiers s'ajoutent à ceux qu'elle
   écrit.
+- **La fenêtre « Insérer une ligne » propose le rôle** (#2821, majeur ; US-1570/L8 #2822, décision
+  de l'auteur du 2026-11-10), après les lots déjà fusionnés, « pas avec » US-1570/L3 #2386, qui
+  rejoue `frontend/e2e/structure.spec.ts` : la fenêtre de `structure-dialogs.tsx`, ouverte par
+  `structure-gestures.tsx`, demandait la catégorie et jamais le rôle, et le serveur refusait toute
+  ligne de main-d'œuvre (`RESOURCE_ROLE_REQUIRED`). Elle propose, dans une liste à deux groupes, un
+  **rôle actif** — la ligne est de main-d'œuvre, sa catégorie calculée du rôle (WF-DEV-0020) ; le
+  corps envoie `resource_role_id` sans `cost_category_id` — ou une **catégorie active hors
+  main-d'œuvre** (`cost_type_kind` `non_labor`, le débours ; le corps envoie `cost_category_id` sans
+  rôle), comme le décrit `EstimateLineWrite` ; ni les catégories de provision, réservées aux risques
+  (`PROVISION_CATEGORY_RESERVED`, WF-RIS-0010), ni celles de main-d'œuvre, qui passent par le rôle.
+  `cost_type_kind` est déjà rendu par `listCostCategories` : le contrat ne change pas. La même
+  fenêtre sert la grille de reste à engager (`remaining-grid.tsx`) : la correction vaut pour les
+  deux, et `remaining/page.tsx` lit aussi les rôles actifs. Un parcours e2e crée depuis la grille de
+  devis une ligne de main-d'œuvre et une ligne de débours. Le lot ajoute les seules clés de la
+  fenêtre aux catalogues `messages/*.json` (`grid.structure`), par exception à la règle qui les
+  réserve : aucun autre lot ouvert d'EP-07 ne les écrit. Écartées : la catégorie de main-d'œuvre
+  laissée au choix, le rôle s'en déduisant — une catégorie porte plusieurs rôles — ; deux champs,
+  rôle et catégorie, dont un seul doit être rempli, qui laissent saisir les deux.
 
 ### Le format Excel du devis
 
