@@ -7,6 +7,11 @@
 realm: external
 enabled: true
 displayName: External provider
+# Its login pages in the dress of Waterfall's, the development platform being all one product.
+loginTheme: waterfall
+internationalizationEnabled: true
+supportedLocales: [fr, en]
+defaultLocale: fr
 registrationAllowed: false
 loginWithEmailAllowed: true
 

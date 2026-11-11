@@ -129,10 +129,19 @@ export async function giveIdentifiers(page: Page, person: Person): Promise<void>
     return;
   }
   await page.getByRole("link", { name: person.provider }).click();
-  // The provider of the platform is another realm, in English.
-  await page.getByLabel("Username or email").fill(person.login);
-  await page.getByLabel("Password", { exact: true }).fill(person.password);
-  await page.getByRole("button", { name: "Sign In" }).click();
+  // The provider of the platform is another realm, in French or in English, as the browser asks.
+  await page
+    .getByLabel("Nom d'utilisateur ou courriel")
+    .or(page.getByLabel("Username or email"))
+    .fill(person.login);
+  await page
+    .getByLabel("Mot de passe", { exact: true })
+    .or(page.getByLabel("Password", { exact: true }))
+    .fill(person.password);
+  await page
+    .getByRole("button", { name: "Connexion", exact: true })
+    .or(page.getByRole("button", { name: "Sign In", exact: true }))
+    .click();
 }
 
 /**
