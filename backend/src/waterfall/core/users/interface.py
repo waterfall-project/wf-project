@@ -80,6 +80,7 @@ from waterfall.core.users.personal import (
 )
 from waterfall.core.users.provider import (
     NAME_MAX_LENGTH,
+    Admission,
     Followed,
     HeldAccount,
     NotAdmitted,
@@ -129,6 +130,7 @@ __all__ = [
     "AccountPage",
     "AccountSort",
     "AccountState",
+    "Admission",
     "Admitted",
     "Author",
     "Avatar",
@@ -343,7 +345,7 @@ class Admitted:
     """
 
     account: Account
-    followed: Followed
+    followed: Admission
 
 
 def add_account_of_provider(

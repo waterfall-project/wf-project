@@ -36,6 +36,7 @@ from structlog.contextvars import bind_contextvars
 
 from waterfall.core.users.interface import (
     Account,
+    Admission,
     NotAdmitted,
     add_account_of_provider,
     read_account_of_subject,
@@ -54,7 +55,7 @@ ACCOUNT_NOT_ADMITTED = "ACCOUNT_NOT_ADMITTED"
 SESSION_REVOKED = "SESSION_REVOKED"
 SCHEME = "bearer"
 # The record of the log that says what the admission of an account did; none for one found as it is.
-ADMISSIONS = {"created": "account.created", "updated": "account.attached"}
+ADMISSIONS: dict[Admission, str] = {"created": "account.created", "updated": "account.attached"}
 
 logger = get_logger(__name__)
 
