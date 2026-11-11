@@ -579,7 +579,7 @@ comptes elle-même, inchangée.
 
 ## US-1800 — Sauvegardes : la liste après la restauration d'une autre installation, et aucune archive orpheline
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ADM-0160-A`
 - **opérations** : `startRestore`, `listBackups`, `startBackup`
 - **issue** : #2862

@@ -24,7 +24,7 @@ from fastapi.testclient import TestClient
 from realm import KEY, TestRealm
 from sqlalchemy import Engine, select, text
 from sqlalchemy.exc import ProgrammingError
-from support import ContractClient, as_backup, bearer
+from support import ContractClient, as_backup, bearer, captured_logs
 from task_handlers import REQUEST, deposit, task
 
 from waterfall import __version__
@@ -38,6 +38,7 @@ from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
 from waterfall.platform.settings import ServiceSettings, load_worker_settings
 from waterfall.platform.storage import Bucket
+from waterfall.worker import backup as backup_module
 from waterfall.worker.backup import MANIFEST, BackupTask, DumpError, connection, dump, verified
 from waterfall.worker.runner import Timing, Worker
 
@@ -319,6 +320,115 @@ def test_an_archive_that_does_not_read_back_whole_is_listed_with_a_verification_
     with database.transaction() as session:
         rows = session.execute(text("SELECT verification, origin FROM backup")).all()
     assert [tuple(row) for row in rows] == [("failed", "scheduled")]
+
+
+DATABASE = "database"
+
+
+def keys_of(bucket: Bucket, prefix: str = "") -> list[str]:
+    """List the keys, under ``prefix``, of the objects the bucket holds, paginated."""
+    pages = bucket.client.get_paginator("list_objects_v2").paginate(
+        Bucket=bucket.name, Prefix=prefix
+    )
+    return [item.get("Key", "") for page in pages for item in page.get("Contents", [])]
+
+
+def unavailable(component: str = "object_storage") -> UnavailableError:
+    """Give the error of a component, which does not answer: the object storage unless told."""
+    return UnavailableError("COMPONENT_UNAVAILABLE", {"component": component})
+
+
+class Unreadable(Bucket):
+    """A bucket that takes an archive and cannot give it back."""
+
+    def download(self, key: str, path: Path) -> None:
+        del key, path
+        raise unavailable()
+
+
+class Unremovable(Unreadable):
+    """A bucket that cannot give an archive back, nor remove it."""
+
+    def remove(self, key: str) -> None:
+        del key
+        raise unavailable()
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_an_archive_written_and_not_read_back_leaves_no_object_under_its_key(
+    database: Database, run: Run, databases: dict[str, str], backups_bucket: Bucket
+) -> None:
+    # WF-DAT-0120: « Aucun autre fichier n'y est conservé » (#2242): the archive is written, then
+    # the read-back fails; the task fails as it did, and nothing stays under the key.
+    failing = Unreadable(backups_bucket.client, backups_bucket.name)
+    task_id = run(BackupTask(databases, failing))
+    failed = task(database, task_id)
+    assert (failed.status, (failed.problem or {}).get("params")) == (
+        "failed",
+        {"component": "object_storage"},
+    )
+    assert keys_of(backups_bucket, f"backup-{task_id}") == []
+    with database.transaction() as session:
+        assert session.execute(text("SELECT count(*) FROM backup")).scalar_one() == 0
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_an_archive_written_and_not_recorded_leaves_no_object_under_its_key(
+    database: Database,
+    run: Run,
+    databases: dict[str, str],
+    backups_bucket: Bucket,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # WF-DAT-0120 (#2242): the verification passed, the database refuses the backup.
+    def refuse(*_: object) -> UUID:
+        raise unavailable(DATABASE)
+
+    monkeypatch.setattr(backup_module, "add_backup", refuse)
+    task_id = run(BackupTask(databases, backups_bucket))
+    failed = task(database, task_id)
+    assert (failed.status, (failed.problem or {}).get("params")) == (
+        "failed",
+        {"component": "database"},
+    )
+    assert keys_of(backups_bucket, f"backup-{task_id}") == []
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_an_archive_whose_verification_raises_leaves_no_object_under_its_key(
+    database: Database,
+    run: Run,
+    databases: dict[str, str],
+    backups_bucket: Bucket,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # WF-DAT-0120 (#2242): the verification itself raises, inside the guarded block.
+    def raising(*_: object) -> None:
+        raise unavailable()
+
+    monkeypatch.setattr(backup_module, "verified", raising)
+    task_id = run(BackupTask(databases, backups_bucket))
+    failed = task(database, task_id)
+    assert failed.status == "failed"
+    assert keys_of(backups_bucket, f"backup-{task_id}") == []
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_a_removal_that_fails_is_logged_and_does_not_hide_the_fault_of_the_backup(
+    database: Database, run: Run, databases: dict[str, str], backups_bucket: Bucket
+) -> None:
+    # WF-DAT-0120 (#2242): the archive cannot be removed either; the task fails on the fault that
+    # came first, and the removal that failed is logged.
+    failing = Unremovable(backups_bucket.client, backups_bucket.name)
+    with captured_logs() as logs:
+        task_id = run(BackupTask(databases, failing))
+    failed = task(database, task_id)
+    assert (failed.status, (failed.problem or {}).get("params")) == (
+        "failed",
+        {"component": "object_storage"},
+    )
+    (removal,) = logs.named("backup.archive_not_removed")
+    assert removal["key"] == f"backup-{task_id}.tar"
 
 
 def test_verification_refuses_an_archive_without_its_manifest_or_its_two_dumps(

@@ -124,6 +124,24 @@ def test_two_backups_stay_listed_and_downloadable_once_the_first_is_restored(
 
 
 @pytest.mark.requirement("WF-ADM-0160-A")
+def test_a_backup_row_the_restored_database_holds_and_the_installation_does_not_is_not_listed(
+    installation: Installation, take: Take, tmp_path: Path
+) -> None:
+    # #2230: the dump of the second backup holds the row of the first; the installation, which
+    # lost that row, keeps the second alone. The restored table is replaced by the rows kept, so
+    # that none names an archive the installation does not hold.
+    first, second = take(), take()
+    owner = create_database_engine(installation.owner["waterfall"])
+    with owner.begin() as connection:
+        connection.execute(text("DELETE FROM backup WHERE task_id = :task"), {"task": first})
+    owner.dispose()
+    restore(installation, second, tmp_path)
+    with installation.database.transaction() as session:
+        listed = set(session.scalars(select(Backup.task_id)))
+    assert listed == {second}
+
+
+@pytest.mark.requirement("WF-ADM-0160-A")
 def test_both_databases_are_replaced_and_hold_what_they_held_at_the_backup_and_nothing_after(
     installation: Installation, take: Take, tmp_path: Path
 ) -> None:
