@@ -257,6 +257,14 @@ describe("the table of the accounts, its own entry", () => {
       `L’attribution des rôles de «\u00a0Noé Vidal\u00a0» est indisponible. ${unmet}`,
     );
     expect(writes(client)).toEqual([]);
+    // From the keyboard, on the cell of the grid and on the command itself: the same refusal.
+    (trigger.closest("td") as HTMLElement).focus();
+    await userEvent.keyboard("{Enter}");
+    trigger.focus();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.keyboard(" ");
+    expect(screen.queryByRole("group", { name: /^Rôles de/ })).toBeNull();
+    expect(writes(client)).toEqual([]);
     // An account that lists it available keeps its list.
     const other = within(grid()).getByRole("button", { name: /^Rôles de «\sCamille Martin\s» :/ });
     expect(other).not.toHaveAttribute("aria-disabled");

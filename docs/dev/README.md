@@ -1463,9 +1463,10 @@ address asks for it (`include_inactive`, WF-REF-0150, #300), under the name of t
 the header of the screen writes or lifts by a link (`InactiveSwitch`), which brings each paginated
 list back to its first page — only for a session that carries the write permission of their part of
 the reference data, without which the contract refuses it (403, `inactiveQuery` of `address.ts`;
-decision #2084, option A, `docs/api/DECISIONS.md`), like the lists of the estimate (#351). The filter by state (`is_active`, `StateFilter`) prevails
-over it: all states, the active only, or the deactivated only, offered to the same session only
-(`stateOf`). A deactivated object is said there by a mark and a word, and is reactivated there as
+decision #2084, option A, `docs/api/DECISIONS.md`), like the lists of the estimate (#351). The
+filter by state (`is_active`, `StateFilter`) prevails over it: all states, the active only, or the
+deactivated only, offered to the same session only (`stateOf`). A deactivated object is said there
+by a mark and a word, and is reactivated there as
 the server lists its command (`available_commands`, #532, WF-IHM-0090) — the server lists it only
 for whoever can modify that part, and the front deduces nothing from it: available, through the
 activation command of its nature (`setActivation`, a server action, from the version read), then the
@@ -1778,13 +1779,15 @@ WF-ADM-0090); the matrix is the place where permissions are changed, one checkbo
 and per role (`permission-matrix.tsx`), which writes the whole role, its permissions in the order of
 the catalogue, the other boxes of the role waiting for the answer. The table and the matrix read a
 single source of the most recently answered role by its `lock_version` (`RoleAnswers`,
-`role-answers.tsx`), and of the roles being written: as long as a write of a role — its rename, a box
-of the matrix or its confirmed deletion — is under way, the row of that role is busy, the cell of its
-label, its boxes and « Delete » marked `aria-busy` and `aria-disabled` and sending nothing, and the
-next write starts from the answered version, without a 412; a write of another role does not wait
-(#2261). A reload older than the answer does not undo it; the header of the column of
-a renamed role and the name of each of its boxes take the answered label too (`RoleLabel`,
-`PermissionCell`), without waiting for the reload (#976). What a command of the table does is said
+`role-answers.tsx`), and of the roles being written: as long as a write of a role — its rename, a
+box of the matrix or its confirmed deletion — is under way, the row of that role is busy, the cell
+of its label, its boxes and « Delete » marked `aria-busy` and `aria-disabled` and sending nothing,
+and the next write starts from the answered version, without a 412 (an entry of the label opened
+before the write sends nothing and stays open; a deletion confirmation opened before it stays open,
+its command busy); a write of another role does not wait (#2261). A reload older than the answer
+does not undo it; the header of the column of a renamed role and the name of each of its boxes take
+the answered label too (`RoleLabel`, `PermissionCell`), without waiting for the reload (#976). What
+a command of the table does is said
 in its region, named « Commands of the access roles »; a refusal, by the catalogue of error codes
 above the table or the matrix, on the loading it started from (`Reactivations`) — the last
 administrator (`LAST_ADMINISTRATOR`), the stale version with the offer to reload —, the focus given
@@ -1796,10 +1799,10 @@ the page. For the accounts (US-0360, #379), the table is its own input, to a ses
 on a switch, its word beside it (`setUserActivation`); the roles in a multiple-choice list of the
 roles of the installation, whatever the attachment (`setUserAccessRoles`, `user-cells.tsx`) — each
 as the account lists its command (`User.available_commands`): an absent command is not presented,
-an unavailable one is, with its condition, and a click says it without launching it — the roles
-cell too (`RolesCell`, through `useUnmet` and `CommandTooltip`, #2262): attribution unavailable, its
-trigger is `aria-disabled` and the list does not open. Deactivating
-the last active account that carries the permissions to change the accounts and the roles is
+an unavailable one is, with its condition, and a click says it without launching it — the roles cell
+too (`RolesCell`, through `useUnmet` and `CommandTooltip`, #2262): attribution unavailable, its
+trigger is `aria-disabled` and the list does not open. Deactivating the last active account that
+carries the permissions to change the accounts and the roles is
 unavailable, `last_administrator` missing (WF-ADM-0120, #540) — the front could not find it on its
 own, the list being paginated; assigning its roles stays available, the server judging the roles
 sent, and refusing by `LAST_ADMINISTRATOR` those that would take these permissions away from it — a
