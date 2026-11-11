@@ -2289,12 +2289,17 @@
       "title": "Account not admitted",
       "explanation": "Waterfall does not admit this account: the screen cannot be shown. Contact an administrator."
     },
+    "componentUnavailable": {
+      "title": "Component unavailable",
+      "explanation": "A component of the service is unavailable: the screen could not read its data. Try again once it is back."
+    },
     "unexpected": {
       "title": "Unexpected error",
       "explanation": "The screen could not be displayed. If the error persists, give its reference to the operator."
     },
     "signInUnreachable": "The service does not answer: the sign-in could not be made. Try again in a moment.",
     "reference": "Reference: {reference}",
+    "component": "Unavailable component: {component}",
     "retry": "Try again",
     "signOut": "Sign out"
   },

@@ -75,7 +75,8 @@ export async function readProjectScreen(address: ProjectAddress): Promise<Projec
 
 /**
  * The revision in progress of a project, which « Engendrer le planning » reads; none for a project
- * without one, for one the API does not find, and for an API out of reach. Any other refusal throws
+ * without one, for one the API does not find, and for an API out of reach. A 503 that names a
+ * component of the platform throws `ComponentUnavailable`, and any other refusal throws
  * `UnexpectedAnswer`, as the reading of the context does: a 5xx never hides the offer in silence.
  */
 export async function readCurrentRevision(project: Project): Promise<Revision | undefined> {

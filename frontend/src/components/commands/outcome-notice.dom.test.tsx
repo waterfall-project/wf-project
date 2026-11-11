@@ -4,6 +4,8 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createApiClient } from "@/api/client";
+import { decode } from "@/api/problem";
 import type { NodeList } from "@/components/grid/nodes";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import {
@@ -146,6 +148,29 @@ describe("the notice of an outcome", () => {
       </NextIntlClientProvider>,
     );
     expect(screen.getByRole("alert")).not.toHaveTextContent("Référence");
+  });
+
+  it("shows the reference of a refusal whose code the catalogue does not know, which it says as the unexpected error (#2264) [WF-OBS-0020-A]", async () => {
+    // A service newer than the front refuses the preferences by a code the front does not know.
+    const client = createApiClient({
+      address: "http://api.invalid",
+      fetch: () =>
+        Promise.resolve(
+          Response.json(
+            { code: "A_CODE_OF_A_NEWER_SERVICE", status: 403, correlation_id: "req-7f3a" },
+            { status: 403, headers: { "content-type": "application/problem+json" } },
+          ),
+        ),
+    });
+    const outcome = await decode(() => client.PATCH("/me/preferences", { body: {} }));
+    render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <OutcomeNotice outcome={outcome} onClear={vi.fn()} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      /^Erreur inattendue du service\.\s*Référence\s:\sreq-7f3a$/,
+    );
   });
 
   it("says the API out of reach for a server action the browser could not reach", () => {
