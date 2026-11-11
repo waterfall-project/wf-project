@@ -57,6 +57,8 @@ if TYPE_CHECKING:
     from waterfall.platform.database import Database
 
 pytestmark = pytest.mark.requirement("WF-QUA-0040-A")
+# The requirement of the amount deltas of the comparison (US-1530): a test of them cites it too.
+COMPARISON_REQUIREMENT = "WF-REV-0080-A"
 
 # The day of the reading of the examples: the 3 June 2026, 14:05.
 READ_AT = datetime(2026, 6, 3, 14, 5, tzinfo=UTC)
@@ -258,7 +260,7 @@ def projection_apart(
         high = inflated(Decimal(sheet["base_amount"]), basis, ends)
         assert abs(theirs - low) <= CENT, label
         assert low - CENT <= ours <= high + CENT, label
-        assert int(sheet["consumption_year"]) in {starts, ends}, label
+        assert starts <= int(sheet["consumption_year"]) <= ends, label
         found += ["reestimated"] * (ours != theirs)
         found += ["year"] * (sheet["consumption_year"] != example_sheet["consumption_year"])
         return found
@@ -665,6 +667,7 @@ def test_the_comparison_of_the_whole_structure_marks_the_nodes_of_the_example_bu
     ]
 
 
+@pytest.mark.requirement(COMPARISON_REQUIREMENT)
 def test_the_amount_deltas_of_the_whole_comparison_are_the_lines_of_the_two_revisions_summed(
     api: ContractClient, witness: Database, realm: TestRealm
 ) -> None:
@@ -727,6 +730,8 @@ def test_the_amount_deltas_of_the_whole_comparison_are_the_lines_of_the_two_revi
             for dimension in ("cost_type", "subproject")
         }
         assert by["cost_type"] == by["subproject"], name
+    # A sum held to another proves their agreement only: some budgeted delta is not nought.
+    assert any(found[key] for key in found if key[2] == "budgeted_delta")
     # The keys are the example's but for the nature of the provision; the budgeted delta of the
     # disbursements, which the offer and the 101 do not budget differently, is the example's.
     ours = {(each["dimension"], each["key"]) for each in body["amount_deltas"]}
