@@ -224,6 +224,45 @@ describe("the table of the accounts, its own entry", () => {
     expect(trigger).toHaveAttribute("aria-busy", "false");
     expect(writes(client)).toHaveLength(1);
   });
+
+  it("presents the roles of an account that lists their attribution unavailable `aria-disabled`, described by its condition, and a press says it without opening the list or asking anything [WF-IHM-0090-A]", async () => {
+    const client = serve({});
+    // The contract lists the attribution always available: the case is built on the example read.
+    const vidal = account("Vidal");
+    render(
+      accounts(
+        true,
+        users.items.map((user) =>
+          user.user_id === vidal.user_id
+            ? {
+                ...user,
+                available_commands: user.available_commands.map((offer) =>
+                  offer.command === "set_access_roles"
+                    ? { ...offer, is_available: false, missing_conditions: ["last_administrator"] }
+                    : offer,
+                ),
+              }
+            : user,
+        ),
+      ),
+    );
+    const trigger = within(grid()).getByRole("button", { name: /^Rôles de «\sNoé Vidal\s» :/ });
+    const unmet =
+      "Condition non remplie\u00A0: un autre compte actif portant les permissions d’administration.";
+    expect(trigger).toHaveAttribute("aria-disabled", "true");
+    expect(trigger).toHaveAccessibleDescription(unmet);
+    await userEvent.click(trigger);
+    expect(screen.queryByRole("group", { name: /^Rôles de/ })).toBeNull();
+    expect(screen.getAllByRole("status").map((region) => region.textContent)).toContain(
+      `L’attribution des rôles de «\u00a0Noé Vidal\u00a0» est indisponible. ${unmet}`,
+    );
+    expect(writes(client)).toEqual([]);
+    // An account that lists it available keeps its list.
+    const other = within(grid()).getByRole("button", { name: /^Rôles de «\sCamille Martin\s» :/ });
+    expect(other).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(other);
+    expect(await screen.findByRole("group", { name: /^Rôles de/ })).toBeInTheDocument();
+  });
 });
 
 describe("the anonymisation of an account", () => {

@@ -1249,6 +1249,9 @@
     "attachUser": {
       "help": "Attaches the account to an active node of the organisation chart, or removes its attachment: an attachment gives no permission."
     },
+    "setAccessRoles": {
+      "help": "Attributes one or more roles of the installation to the account: they give it its permissions."
+    },
     "activeUser": {
       "help": "Activates or deactivates the account: a deactivated account can no longer sign in."
     },
@@ -2325,7 +2328,8 @@
       "deactivate": "Deactivate “{name}”",
       "deactivateShort": "Deactivate",
       "deactivationUnavailable": "Deactivating “{name}” is unavailable. {unmet}",
-      "designationUnavailable": "Designating “{name}” by default is unavailable. {unmet}"
+      "designationUnavailable": "Designating “{name}” by default is unavailable. {unmet}",
+      "rolesUnavailable": "Attributing the roles of “{name}” is unavailable. {unmet}"
     },
     "inactive": {
       "show": "Show the deactivated ones too",

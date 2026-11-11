@@ -11,7 +11,7 @@ import type { components } from "@/api/generated/schema";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { NO_AUDIT } from "@/test/accounts";
+import { holdRoute, NO_AUDIT } from "@/test/accounts";
 import { atCommit, atFocus } from "@/test/committed";
 import {
   example,
@@ -386,5 +386,147 @@ describe("the renaming of a role in its cell", () => {
     expect(within(matrix).queryByRole("checkbox", { name: /Manager/ })).toBeNull();
     // The page not yet read anew: the answer of the renaming alone names the role so.
     expect(refresh).toHaveBeenCalledOnce();
+  });
+});
+
+describe("the writes of a same role, one at a time (#2261)", () => {
+  const DELETED = "DELETE /access-roles/{access_role_id}";
+  const planning = "«\u00A0Modifier la planification\u00A0» pour «\u00A0";
+
+  /** The matrix cell of the planning for a role, by the label the screen shows it under. */
+  function cell(label: string): HTMLElement {
+    return screen.getByRole("checkbox", { name: `${planning}${label}\u00A0»` });
+  }
+
+  /** The label of a role in the table, in its cell. */
+  function label(name: string): HTMLElement {
+    return within(screen.getByRole("grid", { name: "Rôles d’habilitation" })).getByText(name);
+  }
+
+  it("marks the label, the cells and the deletion of a role busy while a cell of it is written, sends no renaming, and renames from the version the cell answered, without a 412 [WF-ADM-0010-A]", async () => {
+    const hold = holdRoute(WRITTEN);
+    const client = serve(
+      { [WRITTEN]: ["access_role_updated", "access_role_renamed"] },
+      hold.timing,
+    );
+    const shown = permissions.filter(({ code }) => code === "planning.write");
+    render(inFrench(tableAndMatrix(shown)));
+    await userEvent.click(await screen.findByRole("checkbox", { name: /Manager/ }));
+    await waitFor(() => {
+      expect(label("Manager")).toHaveAttribute("aria-busy", "true");
+    });
+    expect(label("Manager")).toHaveAttribute("aria-disabled", "true");
+    expect(cell("Manager")).toHaveAttribute("aria-busy", "true");
+    expect(cell("Manager")).toHaveAttribute("aria-disabled", "true");
+    // Another role is free, and a renaming of the busy one starts no entry.
+    expect(cell("Chiffreur")).toHaveAttribute("aria-busy", "false");
+    labelCell("Manager").focus();
+    await userEvent.keyboard("Resp{Enter}");
+    expect(client.calls).toHaveLength(1);
+    hold.release();
+    await waitFor(() => {
+      expect(label("Manager")).toHaveAttribute("aria-busy", "false");
+    });
+    expect(cell("Manager")).not.toHaveAttribute("aria-disabled");
+    labelCell("Manager").focus();
+    await userEvent.keyboard("Resp{Enter}");
+    await waitFor(() => {
+      expect(client.calls).toHaveLength(2);
+    });
+    const checked = example("access_role_updated") as Schemas["AccessRole"];
+    expect(client.calls[1]?.body).toEqual({
+      label: "Resp",
+      permissions: checked.permissions,
+      lock_version: checked.lock_version,
+    });
+  });
+
+  it("marks the cells of a role busy while its renaming is written, a press sending nothing, and writes a cell from the version the renaming answered [WF-ADM-0010-A]", async () => {
+    const hold = holdRoute(WRITTEN);
+    const client = serve(
+      { [WRITTEN]: ["access_role_renamed", "access_role_updated"] },
+      hold.timing,
+    );
+    const shown = permissions.filter(({ code }) => code === "planning.write");
+    render(inFrench(tableAndMatrix(shown)));
+    labelCell("Manager").focus();
+    await userEvent.keyboard("Resp{Enter}");
+    await waitFor(() => {
+      expect(cell("Manager")).toHaveAttribute("aria-busy", "true");
+    });
+    // The cell shows what was typed until the server answers.
+    expect(label("Resp")).toHaveAttribute("aria-busy", "true");
+    await userEvent.click(cell("Manager"));
+    expect(client.calls).toHaveLength(1);
+    hold.release();
+    await waitFor(() => {
+      expect(cell("Responsable d'équipe")).toHaveAttribute("aria-busy", "false");
+    });
+    await userEvent.click(cell("Responsable d'équipe"));
+    await waitFor(() => {
+      expect(client.calls).toHaveLength(2);
+    });
+    const renamed = example("access_role_renamed") as Schemas["AccessRole"];
+    expect(client.calls[1]?.body).toMatchObject({
+      label: renamed.label,
+      lock_version: renamed.lock_version,
+    });
+  });
+
+  it("marks the label, the cells and the deletion of a role busy while its confirmed deletion is written, a press sending nothing, and frees them once it answers [WF-ADM-0010-A]", async () => {
+    const hold = holdRoute(DELETED);
+    const client = serve(
+      { [DELETED]: { status: 204 }, [WRITTEN]: "access_role_updated" },
+      hold.timing,
+    );
+    const shown = permissions.filter(({ code }) => code === "planning.write");
+    render(inFrench(tableAndMatrix(shown)));
+    const grid = screen.getByRole("grid", { name: "Rôles d’habilitation" });
+    await userEvent.click(
+      within(grid).getByRole("button", { name: "Supprimer «\u00a0Administrateur\u00a0»" }),
+    );
+    const confirmation = await screen.findByRole("alertdialog");
+    await userEvent.click(within(confirmation).getByRole("button", { name: "Supprimer" }));
+    const remove = within(grid).getByRole("button", {
+      name: "Supprimer «\u00a0Administrateur\u00a0»",
+    });
+    await waitFor(() => {
+      expect(remove).toHaveAttribute("aria-busy", "true");
+    });
+    expect(remove).toHaveAttribute("aria-disabled", "true");
+    expect(label("Administrateur")).toHaveAttribute("aria-busy", "true");
+    expect(cell("Administrateur")).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(cell("Administrateur"));
+    await userEvent.click(remove);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(client.calls.map(({ route }) => route)).toEqual([DELETED]);
+    hold.release();
+    await waitFor(() => {
+      expect(remove).toHaveAttribute("aria-busy", "false");
+    });
+    expect(cell("Administrateur")).not.toHaveAttribute("aria-disabled");
+    expect(label("Administrateur")).toHaveAttribute("aria-busy", "false");
+  });
+
+  it("frees a role whose write the server refuses, the next write going from the version read [WF-ADM-0010-A]", async () => {
+    const client = serve({
+      [WRITTEN]: [
+        { problem: example("access_role_update_refused") as never },
+        "access_role_updated",
+      ],
+    });
+    const shown = permissions.filter(({ code }) => code === "planning.write");
+    render(inFrench(tableAndMatrix(shown)));
+    await userEvent.click(cell("Manager"));
+    await waitFor(() => {
+      expect(client.calls).toHaveLength(1);
+    });
+    await waitFor(() => {
+      expect(cell("Manager")).toHaveAttribute("aria-busy", "false");
+    });
+    await userEvent.click(cell("Manager"));
+    await waitFor(() => {
+      expect(client.calls).toHaveLength(2);
+    });
   });
 });

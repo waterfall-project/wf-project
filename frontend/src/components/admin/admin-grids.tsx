@@ -56,6 +56,7 @@ import { ActiveState } from "@/components/reference/section";
 import { auditColumns } from "./audit-columns";
 import { DeleteRole } from "./role-commands";
 import { LABEL_LENGTH, ROLE_FILTERS } from "./role-address";
+import { RoleLabelCell } from "./role-answers";
 import {
   AnonymizeCommand,
   Attachment,
@@ -86,6 +87,12 @@ export interface RoleAnswered {
   readonly latest: (read: AccessRole) => AccessRole;
   /** Keep a role answered, unless one newer is kept. */
   readonly record: (answered: AccessRole) => void;
+  /** Whether a write of the role is under way, as the last mark left it. */
+  readonly isWriting: (id: string) => boolean;
+  /** Mark a role being written: the next write of it waits for the answer of this one. */
+  readonly begin: (id: string) => void;
+  /** Free a role, the server having answered, whatever it answered. */
+  readonly end: (id: string) => void;
 }
 
 /** The column of the contract the server sorts the accounts by. */
@@ -360,7 +367,8 @@ function renaming(answers: RoleAnswered | undefined): CellEntry<AccessRole, null
   let answered = 0;
   return {
     kind: { type: "text", maxLength: LABEL_LENGTH },
-    in: () => true,
+    // A role being written takes no entry: its cell is busy until the server answers (#2261).
+    in: (role) => answers?.isWriting(role.access_role_id) !== true,
     value: (role) => role.label,
     write: async (shown, label): Promise<Outcome<RowsWritten<AccessRole, null>>> => {
       if (label === null) {
@@ -368,18 +376,23 @@ function renaming(answers: RoleAnswered | undefined): CellEntry<AccessRole, null
         throw new Error("a role is never left without a label");
       }
       const role = answers?.latest(shown) ?? shown;
-      const outcome = await updateAccessRole(role.access_role_id, {
-        label,
-        permissions: role.permissions,
-        lock_version: role.lock_version,
-      });
-      if (outcome.kind !== "done") {
-        return outcome;
+      answers?.begin(role.access_role_id);
+      try {
+        const outcome = await updateAccessRole(role.access_role_id, {
+          label,
+          permissions: role.permissions,
+          lock_version: role.lock_version,
+        });
+        if (outcome.kind !== "done") {
+          return outcome;
+        }
+        answers?.record(outcome.data);
+        answered += 1;
+        const written = { rows: [outcome.data], changed: [], parts: [], totals: undefined };
+        return { kind: "done", data: { ...written, order: answered } };
+      } finally {
+        answers?.end(role.access_role_id);
       }
-      answers?.record(outcome.data);
-      answered += 1;
-      const written = { rows: [outcome.data], changed: [], parts: [], totals: undefined };
-      return { kind: "done", data: { ...written, order: answered } };
     },
   };
 }
@@ -414,6 +427,7 @@ export function accessRoleGrid(
         pinned: true,
         contract: "label",
         value: (role) => role.label,
+        ...(editable ? { render: (role: AccessRole) => <RoleLabelCell role={role} /> } : {}),
         entry: editable ? renaming(answers) : undefined,
       },
       {

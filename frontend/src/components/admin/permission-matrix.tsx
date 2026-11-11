@@ -89,20 +89,27 @@ function Writing({ order, roles, children }: WritesProps) {
     }
     const role = newer(read, answers?.answered.get(id));
     const codes = asked.get(id);
-    return { role, codes: codes ?? new Set(role.permissions), writing: codes !== undefined };
+    return {
+      role,
+      codes: codes ?? new Set(role.permissions),
+      // Any write of the role, a renaming or a deletion as well as a cell (#2261).
+      writing: answers?.writing.has(id) === true || codes !== undefined,
+    };
   };
   const write = (
-    { role: shown, writing }: Holding,
+    { role: shown }: Holding,
     code: PermissionCode,
     held: boolean,
     cell: HTMLElement | null,
   ) => {
-    if (writing) {
-      return;
-    }
     // The role as the screen holds it now: an answer may have arrived since the last render.
     const role = answers?.latest(shown) ?? shown;
     const id = role.access_role_id;
+    if (answers?.isWriting(id) === true) {
+      // Marked busy and unavailable: the write of the role under way is answered first.
+      return;
+    }
+    answers?.begin(id);
     const next = new Set(role.permissions);
     if (held) {
       next.add(code);
@@ -126,6 +133,7 @@ function Writing({ order, roles, children }: WritesProps) {
       } else {
         list?.report({ outcome, generation, names: {}, target: `permissions ${id}`, back: cell });
       }
+      answers?.end(id);
     });
   };
   return <WritesContext value={{ holding, write }}>{children}</WritesContext>;

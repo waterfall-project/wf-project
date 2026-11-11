@@ -172,7 +172,10 @@ export function RolesCell({
   readonly roles: readonly RoleChoice[];
 }) {
   const t = useTranslations("admin.users");
+  const said = useTranslations("commands");
   const writes = useUserWrites();
+  const list = useListReport();
+  const unmet = useUnmet();
   const naming = useAccountNaming();
   const name = naming.person(user);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -183,6 +186,8 @@ export function RolesCell({
   if (offer === undefined || writes === undefined || roles.length === 0) {
     return <HeldRoles labels={user.access_role_labels} />;
   }
+  // The condition the attribution lacks, the account listing it unavailable: said, never sent.
+  const lacking = offer.is_available ? undefined : unmet(offer);
   const held = asked ?? user.access_role_ids;
   // The labels of the roles asked, as the server named them in the list of the roles.
   const labels =
@@ -215,25 +220,42 @@ export function RolesCell({
   };
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          ref={trigger}
-          type="button"
-          variant="ghost"
-          size="sm"
-          tabIndex={-1}
-          {...{ [CELL_COMMAND]: "" }}
-          aria-label={t("rolesHeld", {
-            name,
-            roles: labels.length === 0 ? t("noRole") : labels.join(", "),
-          })}
-          aria-busy={busy}
-          className="h-5 max-w-full justify-start px-0.5 font-normal"
-        >
-          <HeldRoles labels={labels} />
-          <ChevronDown aria-hidden="true" />
-        </Button>
-      </PopoverTrigger>
+      <CommandTooltip
+        label={t("rolesHeld", {
+          name,
+          roles: labels.length === 0 ? t("noRole") : labels.join(", "),
+        })}
+        help={said("setAccessRoles.help")}
+        unavailable={lacking}
+      >
+        <PopoverTrigger asChild>
+          <Button
+            ref={trigger}
+            type="button"
+            variant="ghost"
+            size="sm"
+            tabIndex={-1}
+            {...{ [CELL_COMMAND]: "" }}
+            aria-label={t("rolesHeld", {
+              name,
+              roles: labels.length === 0 ? t("noRole") : labels.join(", "),
+            })}
+            aria-busy={busy}
+            className="h-5 max-w-full justify-start px-0.5 font-normal"
+            onClick={(event) => {
+              if (lacking !== undefined) {
+                // An unavailable command never runs: the press says the condition it lacks, and
+                // the list stays shut.
+                event.preventDefault();
+                list?.tell(name, offer, "set_access_roles");
+              }
+            }}
+          >
+            <HeldRoles labels={labels} />
+            <ChevronDown aria-hidden="true" />
+          </Button>
+        </PopoverTrigger>
+      </CommandTooltip>
       <PopoverContent
         align="start"
         aria-labelledby={group}

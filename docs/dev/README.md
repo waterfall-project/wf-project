@@ -951,9 +951,9 @@ its risk designates, is there a computed cell, which the node names
 (`estimate_line.subproject_id` of `computed_fields`, EP-14/L42p), and its refusal asks the server
 what it depends on, like its quantities — the lists of the reference data serve only the choice
 of an entry, offered only on an object they know; they ask for the deactivated objects
-(`include_inactive`) only for a session that carries the read permission of their part of the
-reference data, which the contract requires, and an estimator without it enters on the active
-objects (#351). What a write renders is read the way the grid reads it (`nodesWritten`): the nodes
+(`include_inactive`) only for a session that carries the write permission of their part of the
+reference data, which the contract requires (#2084, option A), and an estimator without it enters on
+the active objects (#351). What a write renders is read the way the grid reads it (`nodesWritten`): the nodes
 written and their whole ancestors, of the re-dated tasks the part of their calendar it shows
 (`rescheduled`), of the lines and tasks moved in time the part of their amounts it shows
 (`reinflated`) — each part sets only its own fields: those of a same row, from one write or
@@ -1461,9 +1461,9 @@ by matching lists in the front; a section is named by `aria-label` (#251).
 The lists of the reference data read only the active objects, and the deactivated ones too when the
 address asks for it (`include_inactive`, WF-REF-0150, #300), under the name of the contract, which
 the header of the screen writes or lifts by a link (`InactiveSwitch`), which brings each paginated
-list back to its first page — only for a session that carries the read permission of their part of
-the reference data, without which the contract refuses it (403, `inactiveQuery` of `address.ts`),
-like the lists of the estimate (#351). The filter by state (`is_active`, `StateFilter`) prevails
+list back to its first page — only for a session that carries the write permission of their part of
+the reference data, without which the contract refuses it (403, `inactiveQuery` of `address.ts`;
+decision #2084, option A, `docs/api/DECISIONS.md`), like the lists of the estimate (#351). The filter by state (`is_active`, `StateFilter`) prevails
 over it: all states, the active only, or the deactivated only, offered to the same session only
 (`stateOf`). A deactivated object is said there by a mark and a word, and is reactivated there as
 the server lists its command (`available_commands`, #532, WF-IHM-0090) — the server lists it only
@@ -1778,8 +1778,11 @@ WF-ADM-0090); the matrix is the place where permissions are changed, one checkbo
 and per role (`permission-matrix.tsx`), which writes the whole role, its permissions in the order of
 the catalogue, the other boxes of the role waiting for the answer. The table and the matrix read a
 single source of the most recently answered role by its `lock_version` (`RoleAnswers`,
-`role-answers.tsx`): a rename then a box ticked before the reload, or the reverse, starts from the
-answered version, and a reload older than the answer does not undo it; the header of the column of
+`role-answers.tsx`), and of the roles being written: as long as a write of a role — its rename, a box
+of the matrix or its confirmed deletion — is under way, the row of that role is busy, the cell of its
+label, its boxes and « Delete » marked `aria-busy` and `aria-disabled` and sending nothing, and the
+next write starts from the answered version, without a 412; a write of another role does not wait
+(#2261). A reload older than the answer does not undo it; the header of the column of
 a renamed role and the name of each of its boxes take the answered label too (`RoleLabel`,
 `PermissionCell`), without waiting for the reload (#976). What a command of the table does is said
 in its region, named « Commands of the access roles »; a refusal, by the catalogue of error codes
@@ -1793,7 +1796,9 @@ the page. For the accounts (US-0360, #379), the table is its own input, to a ses
 on a switch, its word beside it (`setUserActivation`); the roles in a multiple-choice list of the
 roles of the installation, whatever the attachment (`setUserAccessRoles`, `user-cells.tsx`) — each
 as the account lists its command (`User.available_commands`): an absent command is not presented,
-an unavailable one is, with its condition, and a click says it without launching it. Deactivating
+an unavailable one is, with its condition, and a click says it without launching it — the roles
+cell too (`RolesCell`, through `useUnmet` and `CommandTooltip`, #2262): attribution unavailable, its
+trigger is `aria-disabled` and the list does not open. Deactivating
 the last active account that carries the permissions to change the accounts and the roles is
 unavailable, `last_administrator` missing (WF-ADM-0120, #540) — the front could not find it on its
 own, the list being paginated; assigning its roles stays available, the server judging the roles
