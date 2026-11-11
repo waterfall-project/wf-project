@@ -67,8 +67,9 @@ IDENTITY_POINTERS = {
 }
 
 # Why the invitation of an account did not leave: the realm has no mail server, its server did not
-# take the mail, or Keycloak does not answer.
-type InvitationFailure = Literal["no_mail_server", "not_sent", "provider_unavailable"]
+# take the mail, Keycloak does not answer, or the realm holds the account as no local one — linked
+# since to an identity of an external provider, or read from a directory (#2226).
+type InvitationFailure = Literal["no_mail_server", "not_sent", "provider_unavailable", "not_local"]
 
 logger = get_logger(__name__)
 
@@ -351,7 +352,8 @@ class KeycloakAdmin:
         The link replaces the one made before it, unless the mail does not leave. Then the reason
         is given: the realm has no mail server — an installation without one gives the link by
         hand (WF-CMP-0030) —, its server did not take the mail, or Keycloak does not answer. The
-        account exists all the same, and its link may be asked for again.
+        account exists all the same, and its link may be asked for again. ``not_local`` if the
+        realm holds the account as no local one, which has no link (#2226).
         """
         path = f"{self._extension}/users/{quote(subject, safe='')}/invitation"
         try:
@@ -359,6 +361,8 @@ class KeycloakAdmin:
             response = self._as_service("POST", path, answered={HTTPStatus.BAD_GATEWAY})
         except UnavailableError:
             return "provider_unavailable"
+        if _not_local(response):
+            return "not_local"
         error = _document(response).get("error")
         if response.status_code == HTTPStatus.BAD_GATEWAY:
             if error == "not_sent":

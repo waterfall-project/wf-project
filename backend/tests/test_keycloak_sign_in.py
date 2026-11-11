@@ -756,6 +756,32 @@ def test_an_account_the_realm_relays_since_waterfall_created_it_has_no_link(
     )
 
 
+@pytest.mark.requirement("WF-ADM-0140-A")
+@pytest.mark.usefixtures("in_realm")
+def test_an_account_the_realm_relays_since_waterfall_created_it_is_not_invited_again(
+    api: ContractClient, admin: httpx2.Client, database: Database, administrator: dict[str, str]
+) -> None:
+    # #2226: as its link, its invitation sent again is refused by the extension as not local, and
+    # by the API by the condition it lacks — not as a provider that fails; nothing is inscribed.
+    user_id = created_by_administrator(api, administrator)
+    with database.transaction() as session:
+        held = session.get_one(UserAccount, user_id)
+        assert held.email is not None
+        relay(admin, Account(held.idp_subject, held.email.lower()))
+        held_id = held.id
+    refused = api.post(f"{USERS}/{user_id}/invitation", headers=administrator)
+    assert (refused.status_code, refused.json()["code"], refused.json()["params"]) == (
+        409,
+        "STATE_FORBIDS_OPERATION",
+        {"missing_condition": "is_local_account"},
+    )
+    with database.transaction() as session:
+        inscribed = session.scalars(
+            select(AuditEntry.action).where(AuditEntry.object_id == held_id)
+        ).all()
+    assert inscribed == ["user_create"]
+
+
 class Answering(Keycloak):
     """The client of the realm behind a proxy that answers the extension ``answer``."""
 

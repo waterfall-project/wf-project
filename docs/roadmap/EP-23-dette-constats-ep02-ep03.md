@@ -529,7 +529,7 @@ construit (« Conception »).
 
 ## US-1790 — Comptes : le renvoi de l'invitation d'un compte devenu non local, l'ordre des verrous, le journal de l'admission
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ADM-0140-A`, `WF-ADM-0120-A`
 - **opérations** : `resendInvitation`, `createUser`, `createPasswordSetupLink`, `updateUser`,
   `anonymizeUser`, `getMe`

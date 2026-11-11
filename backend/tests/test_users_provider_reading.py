@@ -7,7 +7,8 @@ no longer holds is deactivated; a local account is left as Waterfall holds it, t
 back its identity if it holds another (WF-ADM-0070, #919). What the reading leaves is reported, an
 account of Waterfall by its identifier alone (#918, #920). What the worker asks of Keycloak is tried
 against the platform (``test_keycloak_identity_sync.py``); its writes are tried here, under the
-correlation of a task, with a change of roles at once.
+correlation of a task, with a change of roles at once, and with a change of an account by an
+administrator the reading renames (#2227).
 """
 
 import threading
@@ -17,11 +18,16 @@ from uuid import uuid4
 
 import pytest
 from access_rows import ADMINISTRATION, role
+from fastapi.testclient import TestClient
+from realm import KEY, TestRealm
 from sqlalchemy import insert, select, text
 from sqlalchemy.exc import DBAPIError
-from support import Logs, raw_account, wait_for_a_lock
+from support import ContractClient, Logs, Watching, bearer, nowhere, raw_account, wait_for_a_lock
 
+from waterfall.api.app import create_app
+from waterfall.api.authentication import Services
 from waterfall.core.access_roles.interface import Act, roles_held_by, set_access_roles
+from waterfall.core.resource_settings.interface import NodeWrite, create_node
 from waterfall.core.users.interface import (
     HeldAccount,
     NotAdmitted,
@@ -49,9 +55,12 @@ from waterfall.worker.identity_sync import Written, write_accounts
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from openapi_core import OpenAPI
     from sqlalchemy.orm import Session
 
     from waterfall.platform.database import Database
+    from waterfall.platform.keycloak import Keycloak
+    from waterfall.platform.settings import ServiceSettings
 
 NOON = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
 CORRELATION = "reading-of-the-accounts"
@@ -377,3 +386,95 @@ def test_the_reading_and_a_change_of_roles_queue_without_a_deadlock(
         held_roles = roles_held_by(session, [renamed["id"]])[renamed["id"]]
         assert [each.access_role_id for each in held_roles] == [planning]
         assert session.get_one(UserAccount, gone["id"]).state == "deactivated"
+
+
+@pytest.fixture
+def watching(keycloak: Keycloak, realm_settings: ServiceSettings, database: Database) -> Watching:
+    """Give the administration client of the API, which notes each call to Keycloak."""
+    return Watching(keycloak, realm_settings, database)
+
+
+@pytest.fixture
+def api(
+    contract: OpenAPI, database: Database, keycloak: Keycloak, watching: Watching
+) -> ContractClient:
+    """Give a client of the API whose administration client is watched."""
+    app = create_app(Services(database, keycloak, watching, *nowhere()))
+    return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
+
+
+@pytest.mark.requirement("WF-ADM-0120-A")
+def test_the_reading_and_a_change_of_an_account_by_an_administrator_it_renames_queue(
+    database: Database,
+    monkeypatch: pytest.MonkeyPatch,
+    api: ContractClient,
+    watching: Watching,
+    realm: TestRealm,
+) -> None:
+    # #2227: the reading renames the administrator Camille and holds her row; she attaches the
+    # account of Paul to a node (updateUser), which inscribes her name; then the reading renames
+    # Paul. The route takes the lock of the rule before any row, as the reading does: it waits for
+    # the reading, then judges Paul as the reading left him (412) — locking him first, it would
+    # wait for her row while the reading waits for his, and one of the two would be abandoned.
+    with database.transaction() as session:
+        camille = held(session, last_name="Martin", first_name="Camille")
+        paul = held(session, last_name="Durand", first_name="Paul", email="paul@example.org")
+        node = create_node(session, NodeWrite("DIR", "Direction", None), Act(None, NOON)).node_id
+    role(
+        database,
+        "Administration",
+        permissions=(*ADMINISTRATION, "users.read"),
+        holders=(camille["id"],),
+    )
+    headers = bearer(realm.token(str(camille["idp_subject"]), KEY))
+    path = f"/api/v1/users/{paul['id']}"
+    answers: list[tuple[int, dict[str, Any]]] = []
+
+    def attach(lock_version: int) -> None:
+        sent = {"org_node_id": str(node), "lock_version": lock_version}
+        answer = api.patch(path, headers=headers, json=sent)
+        answers.append((answer.status_code, answer.json()))
+
+    concurrent = threading.Thread(target=attach, args=(0,))
+
+    def follow_then_attach(session: Session, person: ProviderAccount, at: datetime) -> object:
+        followed = follow(session, person, at)
+        if person.subject == camille["idp_subject"]:
+            concurrent.start()
+            wait_for_a_lock(database)
+        return followed
+
+    monkeypatch.setattr(identity_sync, "follow", follow_then_attach)
+    with database.transaction() as session:
+        session.execute(text("SET LOCAL lock_timeout = '10s'"))
+        written = write_accounts(
+            session,
+            [
+                of_provider(camille, last_name="Martin-Dupont"),
+                of_provider(paul, last_name="Dupuis"),
+            ],
+            [],
+            NOON,
+        )
+    concurrent.join(15)
+    assert not concurrent.is_alive()
+    counts = {"created": 0, "updated": 2, "unchanged": 0, "restored": 0, "deactivated": 0}
+    assert written == Written(counts, [], [])
+    ((status, body),) = answers
+    assert (status, body["code"], body["params"]) == (
+        412,
+        "STALE_LOCK_VERSION",
+        {"expected_lock_version": 1},
+    )
+    # Asked again at the version read, the attachment passes, inscribed under her new name.
+    attach(1)
+    assert answers[1][0] == 200
+    assert answers[1][1]["org_node_id"] == str(node)
+    with database.transaction() as session:
+        inscribed = session.scalars(
+            select(AuditEntry.actor_display_name).where(
+                AuditEntry.object_id == paul["id"], AuditEntry.actor_user_id == camille["id"]
+            )
+        ).all()
+    assert inscribed == ["Camille Martin-Dupont"]
+    assert watching.held == []
