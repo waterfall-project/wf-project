@@ -30,7 +30,7 @@ from waterfall.core.exchanges.interface import (
     result_of,
 )
 from waterfall.core.projects.interface import Viewer
-from waterfall.platform.errors import NotFoundError
+from waterfall.platform.errors import NOT_FOUND, NotFoundError
 from waterfall.platform.storage import MissingObjectError
 from waterfall.platform.tasks import BackgroundTask
 
@@ -38,7 +38,6 @@ from waterfall.platform.tasks import BackgroundTask
 # ``getBackgroundTaskResult``.
 router = APIRouter()
 
-NOT_FOUND = "NOT_FOUND"
 # What a quoted file name may not carry (RFC 6266): the quote and the backslash.
 UNQUOTED = {ord('"'): "'", ord("\\"): "_"}
 

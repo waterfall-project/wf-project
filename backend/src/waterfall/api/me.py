@@ -23,7 +23,7 @@ from waterfall.core.users.interface import (
     refuse,
 )
 from waterfall.platform.database import utc_now
-from waterfall.platform.errors import FieldError, json_pointer
+from waterfall.platform.errors import VALIDATION_FAILED, FieldError, json_pointer
 from waterfall.platform.installation import FOLLOWED
 from waterfall.platform.logs import get_logger
 
@@ -31,7 +31,6 @@ router = APIRouter(tags=["me"])
 
 logger = get_logger(__name__)
 
-VALIDATION_FAILED = "VALIDATION_FAILED"
 LANGUAGE = "language"
 # The origin of an account read from a directory the realm federates.
 DIRECTORY = "directory"

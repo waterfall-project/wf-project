@@ -193,7 +193,7 @@ def test_a_started_or_completed_task_and_a_summary_over_one_are_not_deleted(
     assert tree.labels() == ["Études", "Relevés", "Plans"]
 
 
-@pytest.mark.requirement("WF-IHM-0110-A")
+@pytest.mark.requirement("WF-DAT-0150-A")
 def test_a_deletion_at_a_stale_version_or_of_an_unknown_node_deletes_nothing(tree: Tree) -> None:
     node = tree.made("Études")
     tree.changed(node, label="Études détaillées")
@@ -246,7 +246,7 @@ def test_the_only_milestone_of_a_summary_deleted_leaves_a_milestone_not_started(
     assert (task["progress"], task["duration"]) == ("not_started", {"value": "0", "unit": "d"})
 
 
-@pytest.mark.requirement("WF-IHM-0110-A")
+@pytest.mark.requirement("WF-DAT-0150-A")
 def test_a_summary_left_a_leaf_by_a_deletion_is_refused_at_the_counter_read_before(
     tree: Tree,
 ) -> None:
@@ -264,7 +264,7 @@ def test_a_summary_left_a_leaf_by_a_deletion_is_refused_at_the_counter_read_befo
     )
 
 
-@pytest.mark.requirement("WF-IHM-0110-A")
+@pytest.mark.requirement("WF-DAT-0150-A")
 def test_a_summary_left_a_leaf_by_a_move_is_refused_at_the_counter_read_before(
     tree: Tree,
 ) -> None:
@@ -491,7 +491,7 @@ def test_a_selection_of_an_unknown_node_is_not_found(tree: Tree) -> None:
     assert tree.labels() == ["Chantier"]
 
 
-@pytest.mark.requirement("WF-IHM-0110-A")
+@pytest.mark.requirement("WF-DAT-0150-A")
 def test_two_moves_at_one_counter_move_once_and_the_other_is_refused_stale(tree: Tree) -> None:
     parent = tree.made("Chantier")
     task = tree.made("Câblage")

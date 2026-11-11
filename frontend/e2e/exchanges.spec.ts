@@ -10,6 +10,7 @@ import {
   type Route,
 } from "@playwright/test";
 
+import catalogue from "../messages/fr.json" with { type: "json" };
 import type { components } from "../src/api/generated/schema";
 import { compile } from "./compile";
 import { seedEstimate } from "./estimate-seed";
@@ -278,6 +279,10 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
   await expect(report.getByRole("table", { name: "Lignes rejetées" })).toHaveCount(0);
   await expect(
     report.getByRole("table", { name: "Tâches datées autrement par le fichier" }),
+  ).toHaveCount(0);
+  // Exported and imported by the same installation, the file bears its constants: nothing to signal.
+  await expect(
+    report.getByText(catalogue.exchanges.report.unitConstants.split("{", 1).join("").trim()),
   ).toHaveCount(0);
 
   // Confirmed, the application is a task followed in the shell, to its success (WF-INTF-0010-A: the

@@ -734,6 +734,7 @@ def import_remaining_completed_task() -> JsonObject:
         "date_mismatches": [],
         "signals": [],
         "requires_confirmation_reasons": [],
+        "unit_constants": None,
     }
     status = "analysed"
     return {

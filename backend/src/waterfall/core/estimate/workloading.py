@@ -42,6 +42,7 @@ from waterfall.core.resource_settings.interface import (
 from waterfall.core.revisions.interface import read_revision
 from waterfall.platform.errors import (
     STATE_FORBIDS_OPERATION,
+    VALIDATION_FAILED,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -57,7 +58,6 @@ if TYPE_CHECKING:
 
     from waterfall.core.projects.interface import Viewer
 
-VALIDATION_FAILED = "VALIDATION_FAILED"
 UNKNOWN_ORG_NODE = "UNKNOWN_ORG_NODE"
 PROJECT_STATE = "ProjectState"
 REVISION_POINTER = "/query/revision_id"

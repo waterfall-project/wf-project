@@ -113,9 +113,8 @@ test("the way back to the previous project from a function outside any project f
   await expect(page).toHaveURL(`${IN_PROJECT}/risks${CONTEXT}`);
 });
 
-// Against the fake back only: it leads to the planning, which the service serves with EP-06 (listed
-// as not replayed in the guide).
-test("the address of a project leads to its revision, the reading context and its filters kept, the way to the screens of the revision then offered [WF-IHM-0010-A]", async ({
+// Played in service too (`@shared`, EP-06): it leads to the planning of PRJ-001, which the service serves.
+test("the address of a project leads to its revision, the reading context and its filters kept, the way to the screens of the revision then offered [WF-IHM-0010-A] @shared", async ({
   page,
 }) => {
   await compile(page.request, `${IN_PROJECT}/planning`);

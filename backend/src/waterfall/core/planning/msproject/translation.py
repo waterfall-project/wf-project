@@ -4,8 +4,8 @@
 
 Pure, as the reader (WF-QUA-0080): what the analysis of an import (US-1430/L3) and the test of the
 corpus read of a file. MS Project writes a duration in hours — of work, or elapsed —, a lag in
-tenths of a minute or of a percent, a date at the hour of the wall clock; the engine reads a value
-in the unit of its entry, and an instant of work, a day and the hours of work elapsed that day
+tenths of a minute or in whole percents, a date at the hour of the wall clock; the engine reads a
+value in the unit of its entry, and an instant of work, a day and the hours of work elapsed that day
 (WF-DAT-0100). The hours of the file are kept: a duration of « 2 j » at seven hours a day is
 fourteen hours, whatever the constants it is read with (WF-PLA-0160, « importé avec les mêmes
 durées en heures »), and its value in its unit is those hours over the hours of the unit at the
@@ -45,7 +45,8 @@ if TYPE_CHECKING:
 MINUTES_PER_HOUR = 60
 SECONDS_PER_HOUR = 3600
 DAY_HOURS = 24
-# A lag is written in tenths of a minute, a lag in percent in tenths of a percent.
+# A lag is written in tenths of a minute; a lag in percent in whole percents, ``10`` for 10 %
+# (the file 02 of the corpus: 10 % of a task of 8 hours, 48 minutes for MS Project).
 TENTHS = 10
 MICROSECOND = timedelta(microseconds=1)
 MICROSECONDS_PER_HOUR = 3_600_000_000
@@ -174,10 +175,10 @@ def duration_of(task: MsTask, constants: UnitConstants) -> Duration:
 def lag_of(link: PredecessorLink, constants: UnitConstants) -> Lag:
     """Give the lag of a link in the unit of the file, its hours kept; a percent as a percent.
 
-    ``LinkLag`` is in tenths of a minute — of work, or elapsed —, or in tenths of a percent.
+    ``LinkLag`` is in tenths of a minute — of work, or elapsed —, or in whole percents.
     """
     unit: LagUnit = link.lag_unit or "d"
     if unit == "percent":
-        return Lag(decimal_of(Fraction(link.lag, TENTHS)), unit)
+        return Lag(Decimal(link.lag), unit)
     hours = Fraction(link.lag, TENTHS * MINUTES_PER_HOUR)
     return Lag(decimal_of(hours / _per_unit(unit, constants)), unit)

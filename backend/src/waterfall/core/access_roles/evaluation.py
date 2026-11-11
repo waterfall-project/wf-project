@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, cast
 from sqlalchemy import ColumnElement, select
 
 from waterfall.core.access_roles.predefined import CONSULTATION
-from waterfall.core.access_roles.roles import NOT_FOUND, HeldRole
+from waterfall.core.access_roles.roles import HeldRole
 from waterfall.core.access_roles.tables import (
     AccessRole,
     AccessRolePermission,
@@ -32,7 +32,7 @@ from waterfall.core.access_roles.tables import (
     UserAccessRole,
 )
 from waterfall.core.projects.interface import ContributorKind, contributor_kind, project_exists
-from waterfall.platform.errors import ForbiddenError, NotFoundError
+from waterfall.platform.errors import NOT_FOUND, ForbiddenError, NotFoundError
 
 if TYPE_CHECKING:
     from uuid import UUID

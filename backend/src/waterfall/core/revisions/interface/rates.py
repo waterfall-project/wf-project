@@ -20,9 +20,9 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.projects.interface import no_background_task_running
 from waterfall.core.revisions.commands import RevisionState, revision_conditions
-from waterfall.core.revisions.interface.shared import STALE_LOCK_VERSION, found_revision, refuse
+from waterfall.core.revisions.interface.shared import found_revision, refuse
 from waterfall.core.revisions.registry import Registry
-from waterfall.platform.errors import PreconditionFailedError
+from waterfall.platform.errors import STALE_LOCK_VERSION, PreconditionFailedError
 
 if TYPE_CHECKING:
     from collections.abc import Callable

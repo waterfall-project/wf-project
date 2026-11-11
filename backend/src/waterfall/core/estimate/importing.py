@@ -690,6 +690,8 @@ def report_of(held: Aimed, read: WorkbookRead, found: Analysis) -> Report:
         "date_mismatches": [],
         "signals": [],
         "requires_confirmation_reasons": [],
+        # An estimate carries no unit constants: only a planning does (WF-PLA-0160).
+        "unit_constants": None,
     }
 
 

@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.planning.dating import duration_of, horizon_exceeded, in_days
 from waterfall.core.planning.scheduling import Duration, Moment, WorkInstant
-from waterfall.platform.errors import FieldError, UnprocessableError
+from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 
 # The permissions of the three grids, in the order of ``StructureCommand``: a write of the tree
 # they make alike asks for one at least of them (#2601), the first named when none is held. One
@@ -41,7 +41,6 @@ if TYPE_CHECKING:
     from waterfall.core.planning.tables import Task
     from waterfall.core.planning.tree import Tree
 
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_REQUIRED = "VALUE_REQUIRED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 NON_WORKING_DAY = "NON_WORKING_DAY"

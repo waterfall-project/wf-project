@@ -45,7 +45,6 @@ from waterfall.core.access_roles.evaluation import (
 from waterfall.core.access_roles.predefined import PredefinedRole, predefined_roles
 from waterfall.core.access_roles.roles import (
     ACCESS_ROLE_IN_USE,
-    NOT_FOUND,
     CataloguePermission,
     HeldRole,
     RoleFilters,
@@ -70,7 +69,6 @@ __all__ = [
     "ACCESS_ROLE_IN_USE",
     "LAST_ADMINISTRATOR",
     "NOT_CONTRIBUTOR",
-    "NOT_FOUND",
     "NOT_PROJECT_MANAGER",
     "PERMISSION_MISSING",
     "UNKNOWN_ACCESS_ROLE",

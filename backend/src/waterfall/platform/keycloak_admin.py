@@ -31,7 +31,12 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, Literal, cast
 from urllib.parse import quote
 
-from waterfall.platform.errors import FieldError, UnavailableError, UnprocessableError
+from waterfall.platform.errors import (
+    VALIDATION_FAILED,
+    FieldError,
+    UnavailableError,
+    UnprocessableError,
+)
 from waterfall.platform.keycloak import IdentityProviderError, Keycloak, expect
 from waterfall.platform.logs import get_logger
 
@@ -46,7 +51,6 @@ SERVICE_CLIENT = "waterfall-service"
 INSTALLATION_CLIENT = "waterfall-installation"
 # The token of the service account is renewed this long before it expires.
 TOKEN_MARGIN_SECONDS = 30.0
-VALIDATION_FAILED = "VALIDATION_FAILED"
 # The attribute of an account of the realm that holds its language (WF-INTF-0160).
 LOCALE = "locale"
 # The accounts of the realm are read by pages of that many.

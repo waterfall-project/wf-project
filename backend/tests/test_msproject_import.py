@@ -265,6 +265,7 @@ def dates(task: Task) -> tuple[WorkInstant, WorkInstant]:
 @pytest.mark.requirement("WF-INTF-0040-A")
 @pytest.mark.requirement("WF-PLA-0030-A")
 @pytest.mark.requirement("WF-PLA-0020-A")
+@pytest.mark.requirement("WF-PLA-0160-A")
 def test_a_file_saved_by_ms_project_is_imported_with_its_tasks_links_and_dates(
     api: ContractClient, stage: Scene, worker: Worker
 ) -> None:
@@ -281,6 +282,8 @@ def test_a_file_saved_by_ms_project_is_imported_with_its_tasks_links_and_dates(
     assert (report["read_count"], report["unchanged_count"]) == (8, 0)
     assert (report["rejected"], report["refusals"], report["date_mismatches"]) == ([], [], [])
     assert report["ignored"] == [{"kind": "calendars", "count": 1, "labels": ["Standard"]}]
+    # The constants of the file, 8 hours, 40 and 20 days, are those of the installation.
+    assert report["unit_constants"] is None
     kept = tasks(stage)
     assert [task.label for _, task in kept] == added
     assert [task.external_id for _, task in kept] == [str(each.uid) for each in project.tasks]
@@ -417,6 +420,31 @@ def test_a_summary_in_manual_mode_is_imported_automatic_and_signalled_with_its_d
         {"lineage_id": None, "label": "Études", "fields": ["finish"]}
     ]
     assert by_label(stage)["Études"][1].scheduling_mode == "automatic"
+
+
+@pytest.mark.requirement("WF-INTF-0040-A")
+@pytest.mark.requirement("WF-QUA-0080-A")
+def test_the_summary_in_manual_mode_of_the_corpus_is_signalled_by_the_analysis(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # « Une récapitulative en mode manuel dans le fichier est importée en mode automatique, et le
+    # compte rendu la signale avec l'écart de dates. » The file 06 of the corpus carries one,
+    # « Manuelle 4 », entered on the 16th of November 2009 alone; the test of the corpus dates it
+    # from its subordinates.
+    seven_hours_a_day(stage)
+    report = analysed(api, stage, worker, corpus("06-manual-tasks.xml"))["report"]
+    assert [each for each in report["signals"] if each["code"] == "SUMMARY_TASK_DERIVED"] == [
+        {
+            "lineage_id": None,
+            "label": "Manuelle 4",
+            "column": "scheduling_mode",
+            "code": "SUMMARY_TASK_DERIVED",
+            "params": {"start": "2009-11-16", "finish": "2009-11-16"},
+        }
+    ]
+    assert {"lineage_id": None, "label": "Manuelle 4", "fields": ["start", "finish"]} in report[
+        "date_mismatches"
+    ]
 
 
 @pytest.mark.requirement("WF-INTF-0040-A")
@@ -688,10 +716,32 @@ def test_a_file_of_other_constants_is_imported_with_the_same_hours(
         task(2, "Essais", besides=week),
         minutes=(420, 2100),
     )
-    imported(api, stage, worker, content)
+    report = imported(api, stage, worker, content)
+    assert report["unit_constants"] == {
+        "file": {"hours_per_day": "7", "hours_per_week": "35", "days_per_month": "20"},
+        "installation": {"hours_per_day": "8", "hours_per_week": "40", "days_per_month": "20"},
+    }
     cabling = by_label(stage)["Câblage"][1]
     assert (cabling.duration_value, cabling.duration_unit) == (Decimal("1.75"), "d")
     assert links(stage) == {("Câblage", "Essais", "finish_to_start", Decimal("0.875"), "w")}
+
+
+@pytest.mark.requirement("WF-PLA-0160-A")
+@pytest.mark.requirement("WF-QUA-0080-A")
+def test_the_report_of_the_planning_of_other_constants_signals_the_difference(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # « Un fichier MS Project dont les constantes diffèrent de celles de l'installation est
+    # importé avec les mêmes durées en heures, et le compte rendu signale la différence. » The file
+    # 10 of the corpus carries 7 hours a day, 35 a week and 20 days a month; the installation 8, 40
+    # and 20. « 1 j » is seven hours, 0.875 d at the installation.
+    seven_hours_a_day(stage)
+    report = analysed(api, stage, worker, corpus("10-other-constants.xml"))["report"]
+    assert report["unit_constants"] == {
+        "file": {"hours_per_day": "7", "hours_per_week": "35", "days_per_month": "20"},
+        "installation": {"hours_per_day": "8", "hours_per_week": "40", "days_per_month": "20"},
+    }
+    assert report["refusals"] == []
 
 
 @pytest.mark.requirement("WF-INTF-0080-A")

@@ -894,6 +894,35 @@ Les constats qu'EP-06 laissait « à trancher », tranchés le 2026-11-10, chacu
   - **`problem.test.ts` lit ses exemples sans cast** (#2764), comme celui de `NODE_CYCLE` :
     `toMatchObject` sur ce que le test lit de l'exemple, puis un `ProblemText` littéral.
 
+### Le lot de suite d'US-1430 (2026-11-10)
+
+L'auteur a complété le corpus (PR #2811, vers `main`, qu'il fusionne). Essayé sur `epic/EP-06`
+avec le manifeste complet, le test du corpus fait passer 65 contrôles et échouer trois fichiers.
+Le lot de suite que la décision du 2026-11-09 annonçait est **US-1430/L5 (#2813)**. Il ferme #2645,
+ainsi que #2580, #2647 et #2648 (« Les constats des lots livrés »), et clôt WF-QUA-0080-A.
+US-1480/L3 (#2348) l'attend.
+
+- **La reprise de `main` se fait dans le lot.** Le manifeste complet fait échouer le test du
+  corpus tant que les trois écarts ne sont pas corrigés : une reprise seule d'`epic/EP-06` ne
+  passerait pas la chaîne. Écartée : reprendre `main` dans `epic/EP-06` avant le lot.
+- **Le décalage en pourcentage** (02, T12 et T13 ; `LagFormat` 19, `LinkLag` = 10) : 10 % d'une
+  tâche de 8 h valent 48 min pour MS Project, environ 5 min pour Waterfall. C'est une anomalie, du
+  lecteur ou du moteur, que le lot corrige. L'écrivain la suit en miroir.
+- **La récapitulative manuelle** (06, Manuelle 4 ; `manual_summary`) : MS Project garde ses dates
+  saisies, Waterfall la calcule toujours. L'import la rend automatique et la signale
+  (`SUMMARY_TASK_DERIVED`, « Le format MS Project »). Le test du corpus ne compare pas cette tâche
+  aux dates du fichier, mais il affirme l'écart à part : ses dates sont dérivées de ses
+  subordonnées, et elles diffèrent de celles du fichier. Le test de l'import établit le signal.
+  Aucune autre tâche n'est exclue de la comparaison. Écarté : garder les dates saisies d'une
+  récapitulative, que la spécification calcule toujours.
+- **Les contraintes** (08 ; SNET, MFO, FNLT) : le test du corpus donne ces tâches au moteur en mode
+  manuel, aux dates du fichier, comme l'import les fige (README du corpus, point 9 ; WF-INTF-0040).
+- **`lag_negative_w` reste non exécuté** (#2812) : aucun planning ne porte un décalage négatif en
+  semaines, le seul décalage négatif du 02 étant en jours. Le cas ne bloque ni le lot ni
+  US-1480/L3. Son marquage cite #2812 au lieu de #2645, et WF-QUA-0080-A se clôt en EP-06 avec cet
+  écart. Le texte de la spécification n'est pas en cause : c'est le corpus qui manque d'un fichier,
+  et l'auteur désigne l'EPIC qui le recevra.
+
 ### Le front
 
 - Les écrans sont ceux d'EP-02, d'EP-14 et d'EP-15 ; chaque US branche le sien et retire
@@ -1377,7 +1406,7 @@ se pose autour du service dans les tests, comme EP-04 l'a fait.
 
 ## US-1420 — L'import en deux temps
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-ARC-0100-A`, `WF-INTF-0080-A`, `WF-INTF-0090-A`, `WF-ARC-0110-A`,
   `WF-DAT-0120-A`
 - **opérations** : `uploadFile`, `listImports`, `openImport`, `getImport`, `abandonImport`,
@@ -1481,7 +1510,7 @@ des échanges, branché par US-1430.
 
 ## US-1430 — Le format MS Project : import, export et aller-retour
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-INTF-0040-A`, `WF-INTF-0050-A`, `WF-INTF-0060-A`, `WF-QUA-0080-A`,
   `WF-DAT-0120-A`
 - **opérations** : `requestExport` (`ms_project_schedule`), `getBackgroundTaskResult` ;
@@ -1545,7 +1574,8 @@ un planning avec l'outil que mes interlocuteurs connaissent.
 - `WF-QUA-0080-A` — « Chaque cas cité par le corps figure dans au moins un planning du corpus. » :
   un test lit le corpus et nomme le cas qui manque ; sur le corpus partiel, il marque non
   exécutés, en citant #2645, les cas qu'aucun fichier ne déclare encore, et le lot de suite du
-  dépôt les lève (décision du 2026-11-09) ;
+  dépôt les lève (décision du 2026-11-09) ; écart : `lag_negative_w`, qu'aucun planning ne porte,
+  reste non exécuté en citant #2812 (« Le lot de suite d'US-1430 ») ;
 - `WF-QUA-0080-A` — « La modification de la règle de calcul des dates fait échouer au moins un
   test du corpus. »
 - `WF-QUA-0080-A` — « Leur exécution ne demande ni MS Project, ni base de données, ni
@@ -1873,7 +1903,7 @@ physique (EP-10).
 
 ## US-1480 — Le témoin : la tranche des tâches, et les parcours rejoués
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-QUA-0040-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
 - **issue** : 2327

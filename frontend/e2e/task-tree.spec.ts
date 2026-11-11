@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { type Browser, expect } from "@playwright/test";
 
+import { DEFAULT_DEPTH } from "../src/components/tree/summaries";
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
@@ -30,7 +31,12 @@ async function summaryDepth(browser: Browser, manager: LocalPerson | undefined):
       `${revision}/structures/${main?.structure_id ?? ""}/nodes`,
       {
         headers,
-        params: { kinds: "task", summaries_only: true, max_level: 2, fields: "parent_id" },
+        params: {
+          kinds: "task",
+          summaries_only: true,
+          max_level: DEFAULT_DEPTH,
+          fields: "parent_id",
+        },
       },
     );
     expect(nodes.status(), "GET nodes").toBe(200);

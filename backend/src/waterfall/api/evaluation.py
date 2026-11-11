@@ -19,14 +19,13 @@ from pydantic import TypeAdapter, ValidationError
 
 from waterfall.api.authentication import Caller, ServicesOf
 from waterfall.core.access_roles.interface import (
-    NOT_FOUND,
     PERMISSION_MISSING,
     Actor,
     actor_of,
     require,
     require_project,
 )
-from waterfall.platform.errors import ForbiddenError, NotFoundError
+from waterfall.platform.errors import NOT_FOUND, ForbiddenError, NotFoundError
 
 # How a parameter of the query is read as a boolean, as the validation of the route reads it.
 BOOLEAN = TypeAdapter(bool)

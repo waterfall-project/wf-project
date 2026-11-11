@@ -11,18 +11,18 @@ import { createOwnProject, openRevision, type OwnProject } from "./own-project";
 import { signIn } from "./service/realm";
 import { isServerAction } from "./server-action";
 
-// The timelines screen is served by the service (US-1400). Two paths tagged `@shared` are played
+// The timelines screen is served by the service (US-1400). The paths tagged `@shared` are played
 // against it with the witness it holds since the filler of US-1480/L2 loads its tasks (PRJ-001,
-// revisions 100 to 102) and its two timelines: the PNG export and the two selections
-// (WF-PLA-0140-A). The inscription on a project the run creates (WF-PLA-0060-A, the service path
-// below) plays against it too: the account of the run is no contributor of PRJ-001, #2193. The frieze
-// and the focus (WF-IHM-0100-A) are skipped against the service: 103 tasks of the witness keep the
-// 4x10 h calendar of the lines' role (EP-07), which gives other dates than the ones they read
-// (#2594); US-1570 in EP-07 lifts the skip. On the fake back they prove the frieze is drawn alone
-// and say so in an annotation, since it draws every node whatever the timeline (#463): the lanes
-// and the last rectangle are the service's. The inscription on the first task of the fake back
-// (WF-PLA-0060-A, the first two paths), the navigation and the creation/deletion of a timeline keep
-// to the fake back, which is the only one to hold what they write.
+// revisions 100 to 102) and its two timelines: the navigation from the planning (read only), the PNG
+// export and the two selections (WF-PLA-0140-A). The inscription on a project the run creates
+// (WF-PLA-0060-A, the service path below) plays against it too: the account of the run is no
+// contributor of PRJ-001, #2193. The frieze and the focus (WF-IHM-0100-A) are skipped against the
+// service: 103 tasks of the witness keep the 4x10 h calendar of the lines' role (EP-07), which gives
+// other dates than the ones they read (#2594); US-1570 in EP-07 lifts the skip. On the fake back they
+// prove the frieze is drawn alone and say so in an annotation, since it draws every node whatever
+// the timeline (#463): the lanes and the last rectangle are the service's. The inscription on the
+// first task of the fake back (WF-PLA-0060-A, the first two paths) and the creation/deletion of a
+// timeline keep to the fake back, which is the only one to hold what they write.
 //
 // The inscription of a task to a timeline, from the menu of its cell (US-0480, WF-PLA-0060), against
 // the fake back. It keeps nothing: it serves the first example of each read, and the first of
@@ -270,7 +270,9 @@ test("exports the frieze of a timeline as a PNG image, named after the project @
   expect([image.readUInt32BE(16), image.readUInt32BE(20)]).toEqual([2560, 1440]);
 });
 
-test("leads from the planning to the timelines of the project, read only", async ({ page }) => {
+test("leads from the planning to the timelines of the project, read only @shared", async ({
+  page,
+}) => {
   // Three bounds of a screen of grid (`WORKING`): more than the thirty seconds of a test.
   test.slow();
   await compile(page.request, `${IN_REVISION}/timelines`);
@@ -283,7 +285,7 @@ test("leads from the planning to the timelines of the project, read only", async
   );
   // The timelines of the project; the screen asks the tasks of the one shown (`timeline_id`) and
   // draws what it is given. The fake back answers the same volume whatever the timeline: this path
-  // proves the navigation, not the selection (the `@shared` selections path proves it).
+  // proves the navigation, not the selection (the selections path proves it).
   // They read the structure of a thousand tasks: the bound of a grid.
   await expect(page.getByRole("link", { name: "Comité de pilotage" })).toHaveAttribute(
     "aria-current",
@@ -297,8 +299,8 @@ test("leads from the planning to the timelines of the project, read only", async
     "true",
     { timeout: WORKING },
   );
-  // The fake back's volume is drawn whole, its first rows holding « Réception usine »: the path
-  // holds only because of that order, and says nothing of the customer's own selection.
+  // « Réception usine » is in both timelines of the witness, the service's and the fake back's
+  // volume alike: the path says nothing of the customer's own selection, which the other proves.
   await expect(page.getByRole("main")).toContainText("Réception usine");
   await expect(
     page.getByText("Aucune tâche de cette révision n’est inscrite à cette chronologie."),

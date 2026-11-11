@@ -211,13 +211,25 @@ def _listed(view: ImportView) -> dict[str, Any]:
     }
 
 
+def _report(view: ImportView) -> dict[str, Any] | None:
+    """Give the report of an import, its unit constants nil when it was written without them.
+
+    A report analysed before ``unit_constants`` (#2580), or by the code that precedes it during an
+    update (WF-DAT-0140), lacks the key the contract requires: it is read as the constants of the
+    file not differing, as every format but MS Project writes them.
+    """
+    if view.report is None:
+        return None
+    return {"unit_constants": None, **view.report}
+
+
 def detailed(session: Session, view: ImportView) -> ImportDetail:
     """Describe an import as reading it does: with its report, its last task and its commands."""
     task = session.get_one(BackgroundTask, view.task_id)
     return ImportDetail.model_validate(
         {
             **_listed(view),
-            "report": view.report,
+            "report": _report(view),
             "task": task_ref(task),
             "available_commands": _commands(view),
         }

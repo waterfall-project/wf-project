@@ -37,7 +37,7 @@ from waterfall.core.planning.tables import Timeline, TrackingEntry
 
 if TYPE_CHECKING:
     from realm import TestRealm
-    from sqlalchemy import Engine
+    from sqlalchemy import Connection, Engine
     from support import ContractClient
 
     from waterfall.platform.database import Database
@@ -314,7 +314,7 @@ def test_every_fault_of_every_entry_is_named_at_once(tree: Tree, stage: Scene) -
     assert rows(stage) == []
 
 
-@pytest.mark.requirement("WF-IHM-0110-A")
+@pytest.mark.requirement("WF-DAT-0150-A")
 def test_a_stale_version_and_an_unknown_node_are_refused(
     api: ContractClient, tree: Tree, stage: Scene
 ) -> None:
@@ -328,7 +328,7 @@ def test_a_stale_version_and_an_unknown_node_are_refused(
     assert len(rows(stage)) == 1
 
 
-@pytest.mark.requirement("WF-DAT-0020-A")
+@pytest.mark.requirement("WF-CYC-0100-A")
 def test_a_marked_revision_and_a_terminal_project_refuse_the_inscription(
     api: ContractClient, tree: Tree, stage: Scene
 ) -> None:
@@ -446,16 +446,24 @@ def test_a_timeline_deleted_while_a_task_is_inscribed_to_it_leaves_no_orphan_ins
     assert rows(stage) == []
 
 
-def _wait_for_a_lock(stage: Scene, seconds: float = 10.0) -> None:
-    """Wait until a backend of the base waits for a lock: the request is blocked, not yet there."""
+def _wait_for_a_lock(stage: Scene, blocker: Connection, seconds: float = 10.0) -> None:
+    """Wait until the request of the inscription waits for the lock that ``blocker`` holds.
+
+    The backend counted is the one that ``blocker``, the connection of the deletion, blocks
+    (``pg_blocking_pids``), not any backend of the base that waits for a lock (#2569): the text of
+    a statement cannot name the request, the backend still showing the ``BEGIN`` the driver sent.
+    """
+    holder = blocker.execute(text("SELECT pg_backend_pid()")).scalar_one()
     deadline = time.monotonic() + seconds
     with stage.owner.connect() as watcher:
         while time.monotonic() < deadline:
             waiting = watcher.execute(
                 text(
                     "SELECT count(*) FROM pg_stat_activity "
-                    "WHERE wait_event_type = 'Lock' AND datname = current_database()"
-                )
+                    "WHERE wait_event_type = 'Lock' AND datname = current_database() "
+                    "AND :holder = ANY(pg_blocking_pids(pid))"
+                ),
+                {"holder": holder},
             ).scalar_one()
             if waiting:
                 return
@@ -476,7 +484,7 @@ def test_a_timeline_that_goes_while_the_inscription_waits_is_refused_as_unknown(
         connection.execute(delete(Timeline).where(Timeline.id == UUID(committee)))
         with ThreadPoolExecutor(1) as pool:
             pending = pool.submit(track, tree, node, on(committee))
-            _wait_for_a_lock(stage)
+            _wait_for_a_lock(stage, connection)
             deletion.commit()
             answer = pending.result()
     assert faults(answer) == [("/entries/0/timeline_id", "UNKNOWN_TIMELINE", {})]

@@ -45,18 +45,14 @@ from waterfall.core.projects.interface.estimate_facts import (
     subprojects_cited,
     subprojects_estimated,
 )
-from waterfall.core.projects.interface.projects import (
-    ALREADY_EXISTS,
-    NOT_FOUND,
-    STALE_LOCK_VERSION,
-    VALIDATION_FAILED,
-    Viewer,
-    lock_project,
-)
+from waterfall.core.projects.interface.projects import ALREADY_EXISTS, Viewer, lock_project
 from waterfall.core.projects.tables import Project, Subproject
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
     STATE_FORBIDS_OPERATION,
+    VALIDATION_FAILED,
     ConflictError,
     FieldError,
     NotFoundError,

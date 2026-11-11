@@ -47,7 +47,7 @@ from waterfall.core.revisions.interface import (
     structure_facts,
     update_rates,
 )
-from waterfall.platform.errors import FieldError, UnprocessableError
+from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
@@ -64,7 +64,6 @@ REFERENCE = "reference"
 PROJECTED = "projected"
 REFERENCE_RATE = "reference_rate"
 INFLATED_PREVIOUS = "inflated_previous"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 UNKNOWN_COST_CATEGORY = "UNKNOWN_COST_CATEGORY"
 # The precision a projection is computed at, before its rounding to the cent.
 PRECISION = 60

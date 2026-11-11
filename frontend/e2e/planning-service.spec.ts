@@ -53,10 +53,12 @@ test("reads from the service the columns of the planning, the three kinds of tas
   await expect(leaf.getByRole("img", { name: "Tâche", exact: true })).toBeVisible();
   const milestone = grid.getByRole("row", { name: new RegExp(`^4 .*${SEEDED[4]}`) });
   await expect(milestone.getByRole("img", { name: "Jalon", exact: true })).toBeVisible();
-  // Une tâche terminée se distingue d’une tâche démarrée sans lire de colonne: against the service,
-  // a task not started is told by its icon. A started and a completed task cannot be seeded before
-  // EP-07: `setTaskProgress` needs a project in progress, which needs a reference revision that
-  // bears lines (`revision_has_tasks_and_lines`); both icons are played against the fake back above.
+  // Une tâche terminée se distingue d’une tâche démarrée sans lire de colonne: on the planning the
+  // path seeds, a task not started is told by its icon. A started and a completed task cannot be
+  // seeded before EP-07: `setTaskProgress` needs a project in progress, which needs a reference
+  // revision that bears lines (`revision_has_tasks_and_lines`); both icons are played against the
+  // service on the witness, whose tasks the filler loads in their states (`planning.spec.ts`, the
+  // opening of the grid, #2595).
   await expect(leaf.getByRole("img", { name: "Non démarrée" })).toBeVisible();
   // Une feuille ne porte pas d’avancement physique: its cell is empty, and the summary's is not.
   const at = await columnsOf(grid, { physical: "Calculé Avancement physique" });
