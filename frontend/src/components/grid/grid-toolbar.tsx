@@ -13,7 +13,7 @@
 import type { RowData } from "@tanstack/react-table";
 import { Columns3, ListTree, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { ReactNode, SubmitEvent } from "react";
+import { type ReactNode, type SubmitEvent, useRef } from "react";
 
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { MenuCommand } from "@/components/commands/menu-command";
@@ -33,9 +33,22 @@ import { cn } from "@/components/ui/utils";
 import type { GridColumn, GridConfig } from "./columns";
 import { useDatedEntry } from "./dated-entry";
 import { MENU_KEYS, useFoldReach } from "./fold";
+import {
+  barFilters,
+  FilterChips,
+  FilterPanel,
+  FiltersButton,
+  type Filtering,
+  usePanelId,
+} from "./filter-bar";
 import { configColumn, type GridTable } from "./grid-table";
-import { SEARCH_LENGTH } from "./query";
+import { type GridAddress, SEARCH_LENGTH } from "./query";
 import { UndoCommands, type UndoControl } from "./undo-commands";
+
+/** Nothing to do, for a panel that cannot be opened. */
+function noop(): void {
+  return undefined;
+}
 
 /** A column the user may show or hide. */
 export interface ToggledColumn {
@@ -113,6 +126,20 @@ export interface GridToolbarProps {
   readonly covered?: boolean | undefined;
   /** The commands the screen gives the bar, first in it: those of the work breakdown on its rows. */
   readonly commands?: ReactNode;
+  /**
+   * For a flat table whose screen folds its filters into the bar: the button « Filtres (n) », the
+   * panel under the bar and the chips of the filters on (`filter-bar.tsx`); none, the bar as before.
+   */
+  readonly filters?: Filtering | undefined;
+  /** Whether the panel of the filters is open, and how it opens and closes. */
+  readonly open?: boolean | undefined;
+  readonly onOpen?: ((open: boolean) => void) | undefined;
+  /** The names the table writes its address by, for the page its filters take back to its first. */
+  readonly address?: GridAddress | undefined;
+  /** The parameters of the address the table reads as its search and its filters. */
+  readonly filterNames?: readonly string[] | undefined;
+  /** What the bar says at its end of how many rows the table holds, when its filters are folded. */
+  readonly count?: string | undefined;
 }
 
 /**
@@ -233,19 +260,47 @@ export function GridToolbar({
   width,
   commands,
   covered,
+  filters: filtering,
+  open,
+  onOpen,
+  address,
+  filterNames,
+  count,
 }: GridToolbarProps) {
+  const filters = barFilters(
+    filtering,
+    { open: open === true, onOpen: onOpen ?? noop },
+    address,
+    filterNames,
+  );
   const t = useTranslations("grid.columnsMenu");
   const said = useTranslations("commands");
-  return (
+  const panel = usePanelId();
+  const toggle = useRef<HTMLButtonElement>(null);
+  const folded = filters !== undefined;
+  const sized = width === undefined ? undefined : { width };
+  const bar = (
     <div
       data-grid-toolbar=""
       inert={covered}
-      className={cn("flex min-w-min max-w-full items-center gap-2", covered ? "invisible" : null)}
-      style={width === undefined ? undefined : { width }}
+      className={cn(
+        folded ? "flex w-full items-center gap-2" : "flex min-w-min max-w-full items-center gap-2",
+        covered ? "invisible" : null,
+      )}
+      style={folded ? undefined : sized}
     >
       {commands}
       {onSearch === undefined ? null : (
         <SearchField search={search} onSearch={onSearch} grid={grid} />
+      )}
+      {filters === undefined ? null : (
+        <FiltersButton
+          ref={toggle}
+          count={filters.chips.length}
+          open={filters.open}
+          panel={panel}
+          onOpen={filters.onOpen}
+        />
       )}
       <div className="flex-1" />
       {undoable === true ? <UndoCommands control={undo} /> : null}
@@ -282,6 +337,26 @@ export function GridToolbar({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
+      {filters === undefined || count === undefined ? null : (
+        <span className="text-xs whitespace-nowrap text-muted-foreground">{count}</span>
+      )}
+    </div>
+  );
+  if (filters === undefined) {
+    return bar;
+  }
+  return (
+    <div className="flex min-w-min max-w-full flex-col gap-2" style={sized} data-folded="">
+      {bar}
+      <FilterPanel id={panel} open={filters.open}>
+        {filters.panel}
+      </FilterPanel>
+      <FilterChips
+        chips={filters.chips}
+        page={filters.page}
+        every={filters.every}
+        toggle={toggle}
+      />
     </div>
   );
 }

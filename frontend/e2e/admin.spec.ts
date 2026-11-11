@@ -304,6 +304,11 @@ test("sorts, searches and filters the accounts by the server, under the names of
     accounts,
     "/admin/users?sort_by=org_node&sort_order=asc",
   );
+  // The filters are folded into a panel, closed until the bar opens it (#2916).
+  const toggle = page.getByRole("button", { name: /^Filtres/ });
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("group", { name: "Filtrer par origine" })).toBeHidden();
+  await setExpanded(toggle, true);
   // An origin chosen keeps the sort; a second keeps the first, in the order of the contract.
   const origins = page.getByRole("group", { name: "Filtrer par origine" });
   await origins.getByRole("button", { name: "Importé de l’annuaire" }).click();
@@ -341,6 +346,38 @@ test("sorts, searches and filters the accounts by the server, under the names of
   await expect(page).toHaveURL(/access_role_ids=[\w-]+&is_active=true$/, { timeout: WORKING });
   // The fake back answers its example whatever is asked: what the screen asks is what this proves.
   await expect(accounts.getByRole("row").last()).toHaveText("7 comptes");
+  // The filters on are told as chips, the panel closed or open, and counted by the button.
+  await expect(toggle).toHaveAccessibleName("Filtres (3)");
+  await setExpanded(toggle, false);
+  const chips = page.getByRole("list", { name: "Filtres actifs" });
+  await expect(chips.getByRole("listitem")).toHaveCount(3);
+  await expect(chips).toContainText("Origine : Créé dans Waterfall, Importé de l’annuaire");
+  // A chip lifted changes the address, the server filtering still.
+  await chips.getByRole("button", { name: /^Retirer le filtre État du compte/ }).click();
+  await expect(page).not.toHaveURL(/is_active/, { timeout: WORKING });
+  await expect(toggle).toHaveAccessibleName("Filtres (2)");
+  // The cross lifted took the focus with it: it goes to the cross of the previous chip.
+  await expect(chips.getByRole("button", { name: /^Retirer le filtre Rôles/ })).toBeFocused();
+  // All lifted, the search kept: it has its own field in the bar.
+  await page.getByRole("button", { name: "Effacer les filtres" }).click();
+  await expect(page).toHaveURL(/search=Mor$/, { timeout: WORKING });
+  await expect(page.getByRole("list", { name: "Filtres actifs" })).toHaveCount(0);
+  await expect(toggle).toBeFocused();
+});
+
+test("writes whether the panel of the filters of the accounts is open with the settings of the grid [WF-IHM-0060-A]", async ({
+  page,
+}) => {
+  // The fake back keeps nothing: that the write leaves with the state is what this proves; that it
+  // is read again is proven by the tests of the table, and against the service.
+  await page.goto("/admin/users");
+  const toggle = page.getByRole("button", { name: /^Filtres/ });
+  const written = page.waitForRequest(
+    (request) =>
+      request.method() === "POST" && (request.postData() ?? "").includes('"filters_open":true'),
+  );
+  await setExpanded(toggle, true);
+  await written;
 });
 
 test("enters the table of the accounts — a state on its switch, the roles of an account, a local account created, a link given, a deactivated one anonymised once confirmed — and offers to delete none [WF-ADM-0060-A]", async ({

@@ -13,6 +13,7 @@ import type { GridPreferences } from "@/components/grid/settings";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { atCommit } from "@/test/committed";
+import { openFilters } from "@/test/accounts";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { keysOf } from "@/test/grid-preferences";
 
@@ -131,6 +132,7 @@ describe("the filter of a table on the author of an audit column", () => {
   it("offers any account, the platform and the accounts that wrote the rows, and writes the one chosen under the names of the contract, back to the first page [WF-IHM-0130-A]", async () => {
     page.search = "origins=local&offset=2";
     render(accounts());
+    await openFilters();
     const created = author("Créé par");
     expect([...within(created).getAllByRole("option")].map((option) => option.textContent)).toEqual(
       ["Tous les auteurs", "Un compte", "La plateforme", "Camille Martin"],
@@ -146,9 +148,10 @@ describe("the filter of a table on the author of an audit column", () => {
     expect(lastAddress()).toBe("/admin/users?origins=local");
   });
 
-  it("shows the author the address names, an account or the platform, each column its own", () => {
+  it("shows the author the address names, an account or the platform, each column its own", async () => {
     page.search = `created_by_kind=platform&updated_by_user_id=${CAMILLE}`;
     render(accounts(audit(page.search)));
+    await openFilters();
     expect(author("Créé par")).toHaveValue("platform");
     expect(author("Modifié par")).toHaveValue(CAMILLE);
   });
@@ -156,6 +159,7 @@ describe("the filter of a table on the author of an audit column", () => {
   it("finds the accounts to choose by a search of the server, deactivated ones included, and says how many it found", async () => {
     const client = serve({ "GET /users": "users_search" });
     render(accounts());
+    await openFilters();
     // Each search its own form, named by the column it finds an author for.
     const search = screen.getByRole("form", {
       name: "Chercher un compte pour «\u00A0Modifié par\u00A0»",
@@ -191,6 +195,7 @@ describe("the filter of a table on the author of an audit column", () => {
   it("tells a search the server refuses by the catalogue, and offers nothing more", async () => {
     serve({ "GET /users": { problem: { code: "COMPONENT_UNAVAILABLE", status: 503 } } });
     render(accounts());
+    await openFilters();
     await userEvent.type(
       screen.getByRole("searchbox", { name: "Chercher un compte pour «\u00A0Créé par\u00A0»" }),
       "Mor{Enter}",
@@ -214,6 +219,7 @@ describe("the filter of a table on the period of an audit column", () => {
   it("writes the local days entered as the instants of the contract, under the names of its column, back to the first page [WF-IHM-0130-A]", async () => {
     page.search = "offset=2";
     render(accounts());
+    await openFilters();
     const form = screen.getByRole("form", { name: "Créé le" });
     // Sent once the page is hydrated, which the browser knows its time zone by.
     await waitFor(() => {

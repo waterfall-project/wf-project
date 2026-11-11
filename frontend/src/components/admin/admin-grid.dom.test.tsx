@@ -16,7 +16,7 @@ import type { GridPreferences } from "@/components/grid/settings";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { refusedBounds } from "@/components/grid/filters";
-import { NO_AUDIT } from "@/test/accounts";
+import { NO_AUDIT, openFilters } from "@/test/accounts";
 import { example, type FakeClient, fakeClient, held, type Problem } from "@/test/fixtures";
 import { heldLink } from "@/test/held-link";
 import { keysOf } from "@/test/grid-preferences";
@@ -244,6 +244,7 @@ describe("the grid of the accounts", () => {
   it("is filtered by origin under the name of the contract, the values in its order, back to the first page", async () => {
     page.search = "sort_by=email&sort_order=desc&offset=2";
     const { rerender } = render(userList(NO_QUERY, second));
+    await openFilters();
     const filter = screen.getByRole("group", { name: "Filtrer par origine" });
     expect(within(filter).getByRole("button", { name: "Toutes les origines" })).toHaveAttribute(
       "aria-pressed",
@@ -270,6 +271,7 @@ describe("the grid of the accounts", () => {
   it("is filtered by access role under the name of the contract, choosing every role still filtering, back to the first page [WF-IHM-0130-A]", async () => {
     page.search = "offset=2";
     const { rerender } = render(userList(NO_QUERY, second));
+    await openFilters();
     const filter = screen.getByRole("group", { name: "Filtrer par rôle" });
     const first = roleChoices[0] ?? { id: "", label: "" };
     await userEvent.click(within(filter).getByRole("button", { name: first.label }));
@@ -287,6 +289,7 @@ describe("the grid of the accounts", () => {
     // Every account by default: « Tous les états » chosen, and no other control of the state.
     page.search = "offset=2";
     const { rerender } = render(userList(NO_QUERY, second));
+    await openFilters();
     const state = () => screen.getByRole("combobox", { name: "État du compte" });
     expect(state()).toHaveValue("");
     expect(screen.queryByRole("link", { name: /les désactivés$/ })).toBeNull();
@@ -306,6 +309,7 @@ describe("the grid of the accounts", () => {
   it("is filtered by node of organisation under the name of the contract, back to the first page", async () => {
     page.search = "offset=2";
     render(userList(NO_QUERY, second));
+    await openFilters();
     const bureau = nodes[1]?.id ?? "";
     await userEvent.selectOptions(
       screen.getByRole("combobox", { name: "Nœud d’organisation" }),
@@ -332,6 +336,7 @@ describe("the grid of the accounts", () => {
   it("turns a page from a filter under way to the first page of the accounts", async () => {
     page.search = "offset=2";
     render(userList(NO_QUERY, second));
+    await openFilters();
     const filter = screen.getByRole("group", { name: "Filtrer par origine" });
     await userEvent.click(within(filter).getByRole("button", { name: "Importé de l’annuaire" }));
     expect(lastAddress()).toBe("/admin/users?origins=directory");

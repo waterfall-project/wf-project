@@ -15,6 +15,7 @@ import type { GridConfig } from "./columns";
 import { DenseGrid } from "./dense-grid";
 import { ESTIMATE_GRID, type EstimateNode } from "./estimate";
 import { type NodeList, type NodeSortColumn, type NodeTotals } from "./nodes";
+import type { Filtering } from "./filter-bar";
 import type { SelectionBarOptions } from "./selection-bar";
 
 // The rows of a flat table picked one by one, all at once, and acted on from a bar (#2916/L4,
@@ -51,6 +52,7 @@ function grid(
   tree = false,
   stacked?: boolean,
   rows: readonly EstimateNode[] = ROWS,
+  filtering?: Filtering,
 ) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
@@ -62,6 +64,7 @@ function grid(
         query={{ sort: undefined, search: undefined, size: undefined }}
         preferences={allShown(ESTIMATE_GRID.columns)}
         selecting={selecting}
+        filtering={filtering}
         stacked={stacked}
         commands={tree ? DRAG : undefined}
       />
@@ -447,5 +450,49 @@ describe("the box of all the rows #2916", () => {
     });
     await user.keyboard("{Control>}a{/Control}");
     expect(selected()).toEqual([0, 1, 2, 3, 4]);
+  });
+});
+
+describe("the bar of the selection over a bar that folds filters #2916", () => {
+  it("covers the line of the bar alone: the open panel and the chips stay visible and active, and the frame does not move [WF-IHM-0100-A]", async () => {
+    const user = userEvent.setup();
+    const used = vi.fn();
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      top: 300,
+    } as DOMRect);
+    vi.stubGlobal("innerHeight", 900);
+    vi.stubGlobal("scrollY", 0);
+    const filtering: Filtering = {
+      panel: (
+        <button type="button" onClick={used}>
+          Filtre du panneau
+        </button>
+      ),
+      chips: [{ key: "origins", name: "Origine", value: "Local", params: ["origins"] }],
+    };
+    const { container } = render(grid({}, FLAT, false, true, ROWS, filtering));
+    await user.click(screen.getByRole("button", { name: /^Filtres/ }));
+    const scroller = container.querySelector<HTMLElement>(".max-h-svh");
+    const before = scroller?.style.maxHeight;
+    expect(before).not.toBe("");
+    await user.click(handle(0));
+    expect(selected()).toEqual([0]);
+    expect(scroller?.style.maxHeight).toBe(before);
+    // Only the line is covered: hidden and inert, the search and the button of the filters with it.
+    const line = container.querySelector("[data-grid-toolbar]");
+    expect(line).toHaveAttribute("inert");
+    expect(line?.closest("[data-folded]")).not.toBeNull();
+    const panel = screen.getByRole("button", { name: "Filtre du panneau" });
+    expect(panel.closest("[inert]")).toBeNull();
+    await user.click(panel);
+    expect(used).toHaveBeenCalledTimes(1);
+    const chips = screen.getByText("Origine", { exact: false });
+    expect(chips.closest("[inert]")).toBeNull();
+    // The bar of the selection has the width of the line it covers.
+    const bar = screen.getByRole("group", { name: "Actions sur la sélection" });
+    const folded = line?.closest<HTMLElement>("[data-folded]");
+    expect(bar.style.width).not.toBe("");
+    expect(bar.style.width).toBe(folded?.style.width);
+    vi.unstubAllGlobals();
   });
 });
