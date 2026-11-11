@@ -24,7 +24,7 @@ from fastapi.testclient import TestClient
 from realm import KEY, TestRealm
 from sqlalchemy import Engine, select, text
 from sqlalchemy.exc import ProgrammingError
-from support import ContractClient, as_backup, bearer
+from support import ContractClient, as_backup, bearer, captured_logs
 from task_handlers import REQUEST, deposit, task
 
 from waterfall import __version__
@@ -38,6 +38,7 @@ from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
 from waterfall.platform.settings import ServiceSettings, load_worker_settings
 from waterfall.platform.storage import Bucket
+from waterfall.worker import backup as backup_module
 from waterfall.worker.backup import MANIFEST, BackupTask, DumpError, connection, dump, verified
 from waterfall.worker.runner import Timing, Worker
 
@@ -319,6 +320,93 @@ def test_an_archive_that_does_not_read_back_whole_is_listed_with_a_verification_
     with database.transaction() as session:
         rows = session.execute(text("SELECT verification, origin FROM backup")).all()
     assert [tuple(row) for row in rows] == [("failed", "scheduled")]
+
+
+def keys_of(bucket: Bucket) -> list[str]:
+    """List the keys of the objects the bucket holds, those of earlier tests included."""
+    listed = bucket.client.list_objects_v2(Bucket=bucket.name)
+    return [item.get("Key", "") for item in listed.get("Contents", [])]
+
+
+def unavailable() -> UnavailableError:
+    """Give the error of the object storage, which does not answer."""
+    return UnavailableError("COMPONENT_UNAVAILABLE", {"component": "object_storage"})
+
+
+def database_down() -> UnavailableError:
+    """Give the error of the database, which does not answer."""
+    return UnavailableError("COMPONENT_UNAVAILABLE", {"component": "database"})
+
+
+class Unreadable(Bucket):
+    """A bucket that takes an archive and cannot give it back."""
+
+    def download(self, key: str, path: Path) -> None:
+        del key, path
+        raise unavailable()
+
+
+class Unremovable(Unreadable):
+    """A bucket that cannot give an archive back, nor remove it."""
+
+    def remove(self, key: str) -> None:
+        del key
+        raise unavailable()
+
+
+def test_an_archive_written_and_not_read_back_leaves_no_object_under_its_key(
+    database: Database, run: Run, databases: dict[str, str], backups_bucket: Bucket
+) -> None:
+    # WF-DAT-0120: « Aucun autre fichier n'y est conservé » (#2242): the archive is written, then
+    # the read-back fails; the task fails as it did, and nothing stays under the key.
+    failing = Unreadable(backups_bucket.client, backups_bucket.name)
+    task_id = run(BackupTask(databases, failing))
+    failed = task(database, task_id)
+    assert (failed.status, (failed.problem or {}).get("params")) == (
+        "failed",
+        {"component": "object_storage"},
+    )
+    assert f"backup-{task_id}.tar" not in keys_of(backups_bucket)
+    with database.transaction() as session:
+        assert session.execute(text("SELECT count(*) FROM backup")).scalar_one() == 0
+
+
+def test_an_archive_written_and_not_recorded_leaves_no_object_under_its_key(
+    database: Database,
+    run: Run,
+    databases: dict[str, str],
+    backups_bucket: Bucket,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # WF-DAT-0120 (#2242): the verification passed, the database refuses the backup.
+    def refuse(*_: object) -> UUID:
+        raise database_down()
+
+    monkeypatch.setattr(backup_module, "add_backup", refuse)
+    task_id = run(BackupTask(databases, backups_bucket))
+    failed = task(database, task_id)
+    assert (failed.status, (failed.problem or {}).get("params")) == (
+        "failed",
+        {"component": "database"},
+    )
+    assert f"backup-{task_id}.tar" not in keys_of(backups_bucket)
+
+
+def test_a_removal_that_fails_is_logged_and_does_not_hide_the_fault_of_the_backup(
+    database: Database, run: Run, databases: dict[str, str], backups_bucket: Bucket
+) -> None:
+    # WF-DAT-0120 (#2242): the archive cannot be removed either; the task fails on the fault that
+    # came first, and the removal that failed is logged.
+    failing = Unremovable(backups_bucket.client, backups_bucket.name)
+    with captured_logs() as logs:
+        task_id = run(BackupTask(databases, failing))
+    failed = task(database, task_id)
+    assert (failed.status, (failed.problem or {}).get("params")) == (
+        "failed",
+        {"component": "object_storage"},
+    )
+    (removal,) = logs.named("backup.archive_not_removed")
+    assert removal["key"] == f"backup-{task_id}.tar"
 
 
 def test_verification_refuses_an_archive_without_its_manifest_or_its_two_dumps(
