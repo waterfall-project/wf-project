@@ -619,6 +619,39 @@ def test_a_person_the_provider_admits_is_given_an_account(session: Session, logs
     )
     (record,) = logs.named("account.created")
     assert (record["user_id"], record["origin"]) == (str(admitted.user_id), "directory")
+    assert logs.named("account.attached") == []
+
+
+def test_a_person_of_the_directory_attached_by_her_address_is_said_attached_in_the_log(
+    session: Session, logs: Logs
+) -> None:
+    # #707, #2243: a local account holds her address; it is hers from now on, and the log says
+    # the attachment, not a creation.
+    held = raw_account(email="Dominique.Annuaire@waterfall.test")
+    session.execute(insert(UserAccount).values(**held))
+    with logging_context(correlation_id="admission"):
+        admitted = admit(session, SUBJECT, provider_account())
+    assert (admitted.user_id, admitted.subject, admitted.origin) == (
+        held["id"],
+        SUBJECT,
+        "directory",
+    )
+    (record,) = logs.named("account.attached")
+    assert (record["user_id"], record["origin"]) == (str(held["id"]), "directory")
+    assert logs.named("account.created") == []
+
+
+def test_a_person_admitted_meanwhile_is_found_and_the_log_says_nothing_of_it(
+    session: Session, logs: Logs
+) -> None:
+    # #2243: a concurrent first request admitted her first; this one finds her account as it is.
+    with logging_context(correlation_id="admission"):
+        first = admit(session, SUBJECT, provider_account())
+        logs.clear()
+        found = admit(session, SUBJECT, provider_account(last_name="Autre"))
+    assert found == first
+    said = [record["event"] for record in logs.records]
+    assert [event for event in said if event.startswith("account.")] == []
 
 
 @pytest.mark.parametrize(

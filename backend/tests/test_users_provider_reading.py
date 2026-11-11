@@ -7,21 +7,34 @@ no longer holds is deactivated; a local account is left as Waterfall holds it, t
 back its identity if it holds another (WF-ADM-0070, #919). What the reading leaves is reported, an
 account of Waterfall by its identifier alone (#918, #920). What the worker asks of Keycloak is tried
 against the platform (``test_keycloak_identity_sync.py``); its writes are tried here, under the
-correlation of a task, with a change of roles at once.
+correlation of a task, with a change of roles at once, and with a change of an account by an
+administrator the reading renames (#2227).
 """
 
 import threading
+import time
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import pytest
 from access_rows import ADMINISTRATION, role
+from fastapi.testclient import TestClient
+from realm import KEY, TestRealm
 from sqlalchemy import insert, select, text
 from sqlalchemy.exc import DBAPIError
-from support import Logs, raw_account, wait_for_a_lock
+from support import ContractClient, Logs, Watching, bearer, nowhere, raw_account, wait_for_a_lock
 
-from waterfall.core.access_roles.interface import Act, roles_held_by, set_access_roles
+from waterfall.api.app import create_app
+from waterfall.api.authentication import Services
+from waterfall.core.access_roles.administrators import ADMINISTRATORS_LOCK
+from waterfall.core.access_roles.interface import (
+    Act,
+    lock_administrators,
+    roles_held_by,
+    set_access_roles,
+)
+from waterfall.core.resource_settings.interface import NodeWrite, create_node
 from waterfall.core.users.interface import (
     HeldAccount,
     NotAdmitted,
@@ -49,9 +62,12 @@ from waterfall.worker.identity_sync import Written, write_accounts
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from openapi_core import OpenAPI
     from sqlalchemy.orm import Session
 
     from waterfall.platform.database import Database
+    from waterfall.platform.keycloak import Keycloak
+    from waterfall.platform.settings import ServiceSettings
 
 NOON = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
 CORRELATION = "reading-of-the-accounts"
@@ -377,3 +393,192 @@ def test_the_reading_and_a_change_of_roles_queue_without_a_deadlock(
         held_roles = roles_held_by(session, [renamed["id"]])[renamed["id"]]
         assert [each.access_role_id for each in held_roles] == [planning]
         assert session.get_one(UserAccount, gone["id"]).state == "deactivated"
+
+
+@pytest.fixture
+def watching(keycloak: Keycloak, realm_settings: ServiceSettings, database: Database) -> Watching:
+    """Give the administration client of the API, which notes each call to Keycloak."""
+    return Watching(keycloak, realm_settings, database)
+
+
+@pytest.fixture
+def api(
+    contract: OpenAPI, database: Database, keycloak: Keycloak, watching: Watching
+) -> ContractClient:
+    """Give a client of the API whose administration client is watched."""
+    app = create_app(Services(database, keycloak, watching, *nowhere()))
+    return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
+
+
+ADMINISTRATORS_WAITED_FOR = text(
+    "SELECT count(*) FROM pg_locks AS waiting JOIN pg_stat_activity AS backend USING (pid) "
+    "WHERE NOT waiting.granted AND waiting.locktype = 'advisory' AND waiting.objid = :lock "
+    "AND backend.datname = current_database()"
+).bindparams(lock=ADMINISTRATORS_LOCK)
+
+# Each route that changes an account: the method, the path and the body, and the answer once the
+# lock is released (the account is the directory's: the provider is not reached).
+LOCKED_ROUTES: dict[str, tuple[str, str, dict[str, Any] | None, int]] = {
+    "updateUser": ("PATCH", "/users/{id}", {"org_node_id": None, "lock_version": 0}, 200),
+    "anonymizeUser": ("POST", "/users/{id}/anonymization", {"lock_version": 0}, 409),
+    "createPasswordSetupLink": ("POST", "/users/{id}/password-link", None, 409),
+    "resendInvitation": ("POST", "/users/{id}/invitation", None, 409),
+    "createUser": (
+        "POST",
+        "/users",
+        {"last_name": "Nouveau", "first_name": "Louis", "email": "louis@example.org"},
+        201,
+    ),
+}
+
+
+class Creating(Watching):
+    """The administration client of the API, as a provider that creates what it is asked.
+
+    The realm of test serves no administration API: the account of ``createUser`` is held under a
+    subject of its own, and its invitation said sent.
+    """
+
+    def create_account(self, identity: LocalIdentity) -> str | None:
+        """Hold the account under a subject of its own."""
+        del identity
+        return f"kc-{uuid4()}"
+
+    def send_invitation(self, subject: str) -> None:
+        """Say the invitation sent."""
+        del subject
+
+
+@pytest.fixture
+def creating(
+    contract: OpenAPI, database: Database, keycloak: Keycloak, realm_settings: ServiceSettings
+) -> ContractClient:
+    """Give a client of the API whose provider creates the accounts asked."""
+    provider = Creating(keycloak, realm_settings, database)
+    app = create_app(Services(database, keycloak, provider, *nowhere()))
+    return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
+
+
+@pytest.mark.requirement("WF-ADM-0120-A")
+@pytest.mark.parametrize("operation", list(LOCKED_ROUTES))
+def test_a_route_that_changes_an_account_waits_for_the_lock_of_the_rule_before_any_row(
+    database: Database, creating: ContractClient, realm: TestRealm, operation: str
+) -> None:
+    # #2227: every route of the administration that changes an account takes the lock of the rule
+    # of the last administrator first, before the row of any account, as the reading does. Another
+    # transaction holds the lock: the route waits for it, and has locked no row — the accounts are
+    # still lent to whoever asks for them without waiting; released, the route answers.
+    with database.transaction() as session:
+        camille = held(session, last_name="Martin", first_name="Camille")
+        paul = held(session, last_name="Durand", first_name="Paul", email="paul@example.org")
+    role(
+        database,
+        "Administration",
+        permissions=(*ADMINISTRATION, "users.read"),
+        holders=(camille["id"],),
+    )
+    headers = bearer(realm.token(str(camille["idp_subject"]), KEY))
+    method, template, body, expected = LOCKED_ROUTES[operation]
+    path = f"/api/v1{template.format(id=paul['id'])}"
+    answers: list[int] = []
+
+    def ask() -> None:
+        answers.append(creating.request(method, path, headers=headers, json=body).status_code)
+
+    concurrent = threading.Thread(target=ask)
+    with database.transaction() as holding:
+        lock_administrators(holding)
+        concurrent.start()
+        deadline = time.monotonic() + 10
+        with database.engine.connect() as watching:
+            while not watching.scalar(ADMINISTRATORS_WAITED_FOR) and time.monotonic() < deadline:
+                watching.rollback()
+                time.sleep(0.05)
+            assert watching.scalar(ADMINISTRATORS_WAITED_FOR) == 1
+            watching.rollback()
+        with database.transaction() as other:
+            other.execute(text("SET LOCAL lock_timeout = '1s'"))
+            ids = [camille["id"], paul["id"]]
+            rows = select(UserAccount.id).where(UserAccount.id.in_(ids))
+            assert len(other.scalars(rows.with_for_update(nowait=True)).all()) == 2
+        assert answers == []
+    concurrent.join(15)
+    assert not concurrent.is_alive()
+    assert answers == [expected]
+
+
+@pytest.mark.requirement("WF-ADM-0120-A")
+def test_the_reading_and_a_change_of_an_account_by_an_administrator_it_renames_queue(
+    database: Database,
+    monkeypatch: pytest.MonkeyPatch,
+    api: ContractClient,
+    watching: Watching,
+    realm: TestRealm,
+) -> None:
+    # #2227: the reading renames the administrator Camille and holds her row; she attaches the
+    # account of Paul to a node (updateUser), which inscribes her name; then the reading renames
+    # Paul. The route takes the lock of the rule before any row, as the reading does: it waits for
+    # the reading, then judges Paul as the reading left him (412) — locking him first, it would
+    # wait for her row while the reading waits for his, and one of the two would be abandoned.
+    with database.transaction() as session:
+        camille = held(session, last_name="Martin", first_name="Camille")
+        paul = held(session, last_name="Durand", first_name="Paul", email="paul@example.org")
+        node = create_node(session, NodeWrite("DIR", "Direction", None), Act(None, NOON)).node_id
+    role(
+        database,
+        "Administration",
+        permissions=(*ADMINISTRATION, "users.read"),
+        holders=(camille["id"],),
+    )
+    headers = bearer(realm.token(str(camille["idp_subject"]), KEY))
+    path = f"/api/v1/users/{paul['id']}"
+    answers: list[tuple[int, dict[str, Any]]] = []
+
+    def attach(lock_version: int) -> None:
+        sent = {"org_node_id": str(node), "lock_version": lock_version}
+        answer = api.patch(path, headers=headers, json=sent)
+        answers.append((answer.status_code, answer.json()))
+
+    concurrent = threading.Thread(target=attach, args=(0,))
+
+    def follow_then_attach(session: Session, person: ProviderAccount, at: datetime) -> object:
+        followed = follow(session, person, at)
+        if person.subject == camille["idp_subject"]:
+            concurrent.start()
+            wait_for_a_lock(database)
+        return followed
+
+    monkeypatch.setattr(identity_sync, "follow", follow_then_attach)
+    with database.transaction() as session:
+        session.execute(text("SET LOCAL lock_timeout = '10s'"))
+        written = write_accounts(
+            session,
+            [
+                of_provider(camille, last_name="Martin-Dupont"),
+                of_provider(paul, last_name="Dupuis"),
+            ],
+            [],
+            NOON,
+        )
+    concurrent.join(15)
+    assert not concurrent.is_alive()
+    counts = {"created": 0, "updated": 2, "unchanged": 0, "restored": 0, "deactivated": 0}
+    assert written == Written(counts, [], [])
+    ((status, body),) = answers
+    assert (status, body["code"], body["params"]) == (
+        412,
+        "STALE_LOCK_VERSION",
+        {"expected_lock_version": 1},
+    )
+    # Asked again at the version read, the attachment passes, inscribed under her new name.
+    attach(1)
+    assert answers[1][0] == 200
+    assert answers[1][1]["org_node_id"] == str(node)
+    with database.transaction() as session:
+        inscribed = session.scalars(
+            select(AuditEntry.actor_display_name).where(
+                AuditEntry.object_id == paul["id"], AuditEntry.actor_user_id == camille["id"]
+            )
+        ).all()
+    assert inscribed == ["Camille Martin-Dupont"]
+    assert watching.held == []

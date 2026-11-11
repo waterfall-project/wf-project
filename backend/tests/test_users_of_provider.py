@@ -18,6 +18,8 @@ from support import raw_account, wait_for_a_lock
 from waterfall.core.users.interface import (
     NAME_MAX_LENGTH,
     Account,
+    Admitted,
+    Followed,
     NotAdmitted,
     add_account_of_provider,
     origin_of,
@@ -62,6 +64,14 @@ def inscriptions(session: Session) -> list[tuple[Any, ...]]:
     ]
 
 
+def admitted(session: Session, provider: ProviderAccount, followed: Followed) -> Account:
+    """Admit a person, and give her account once the admission says it did ``followed`` (#2243)."""
+    admission = add_account_of_provider(session, provider, NOON)
+    assert isinstance(admission, Admitted)
+    assert admission.followed == followed
+    return admission.account
+
+
 def person(**overrides: Any) -> ProviderAccount:
     """Describe a person of the directory as the provider does, with the changes asked for."""
     fields: dict[str, Any] = {
@@ -93,8 +103,7 @@ def test_the_origin_of_an_account_is_where_the_provider_reads_it(
 
 
 def test_a_person_of_the_directory_is_created_active_by_the_platform(session: Session) -> None:
-    created = add_account_of_provider(session, person(), NOON)
-    assert isinstance(created, Account)
+    created = admitted(session, person(), "created")
     assert (created.last_name, created.first_name, created.email) == (
         "Annuaire",
         "Dominique",
@@ -110,8 +119,7 @@ def test_a_person_of_the_directory_is_created_active_by_the_platform(session: Se
 def test_the_creation_of_a_person_admitted_is_inscribed_by_the_platform(session: Session) -> None:
     # Dated, attributed to the platform, under the correlation of the request (#703); the journal
     # names the account by its label alone, which its anonymisation rewrites.
-    created = add_account_of_provider(session, person(), NOON)
-    assert isinstance(created, Account)
+    created = admitted(session, person(), "created")
     assert inscriptions(session) == [
         (
             "user_create",
@@ -126,8 +134,7 @@ def test_the_creation_of_a_person_admitted_is_inscribed_by_the_platform(session:
 
 
 def test_a_person_relayed_by_an_external_provider_is_created_as_such(session: Session) -> None:
-    created = add_account_of_provider(session, person(is_federated=False, is_relayed=True), NOON)
-    assert isinstance(created, Account)
+    created = admitted(session, person(is_federated=False, is_relayed=True), "created")
     assert created.origin == "identity_provider"
 
 
@@ -177,8 +184,7 @@ def test_a_person_of_the_directory_at_an_address_an_account_holds_is_attached_to
         email="Dominique.Annuaire@waterfall.test", last_name="Annuaire", first_name="Dom"
     )
     session.execute(insert(UserAccount).values(**held))
-    attached = add_account_of_provider(session, person(), NOON)
-    assert isinstance(attached, Account)
+    attached = admitted(session, person(), "updated")
     assert (attached.user_id, attached.subject, attached.origin) == (
         held["id"],
         SUBJECT,
@@ -200,13 +206,12 @@ def test_a_person_of_the_directory_at_an_address_an_account_holds_is_attached_to
         )
     ]
     # Attached once: found by her subject from now on.
-    assert add_account_of_provider(session, person(), NOON) == attached
+    assert admitted(session, person(), "unchanged") == attached
 
 
 def test_a_person_created_twice_is_one_account(session: Session) -> None:
-    first = add_account_of_provider(session, person(), NOON)
-    second = add_account_of_provider(session, person(last_name="Autre"), NOON)
-    assert isinstance(first, Account)
+    first = admitted(session, person(), "created")
+    second = admitted(session, person(last_name="Autre"), "unchanged")
     assert second == first
     assert session.scalar(select(func.count()).select_from(UserAccount)) == 1
     # Found, not created: the second inscribes nothing.
@@ -215,9 +220,8 @@ def test_a_person_created_twice_is_one_account(session: Session) -> None:
 
 def test_two_first_requests_at_once_give_one_account(database: Database) -> None:
     with Session(database.engine) as first, Session(database.engine) as second:
-        inserted = add_account_of_provider(first, person(), NOON)
-        assert isinstance(inserted, Account)
-        found: list[Account | NotAdmitted] = []
+        inserted = admitted(first, person(), "created")
+        found: list[Admitted | NotAdmitted] = []
         waiting = threading.Thread(
             target=lambda: found.append(add_account_of_provider(second, person(), NOON))
         )
@@ -227,7 +231,7 @@ def test_two_first_requests_at_once_give_one_account(database: Database) -> None
         assert found == []
         first.commit()
         waiting.join(timeout=10)
-        assert found == [inserted]
+        assert found == [Admitted(inserted, "unchanged")]
         second.commit()
     with Session(database.engine) as session:
         assert session.scalar(select(func.count()).select_from(UserAccount)) == 1
