@@ -140,7 +140,7 @@ const ON_FAKE_BACK =
   "the fake back draws every node (#463): only the frieze is proven, not the lanes or the last rectangle";
 const MOVED = "01926f3a-7c00-7000-8000-000000000565";
 
-test("lays out the frieze of a timeline by the keyboard and the mouse, and records the lanes @shared", async ({
+test("lays out the frieze of a timeline by the keyboard and the mouse, and records the lanes @shared [WF-IHM-0100-A]", async ({
   page,
 }) => {
   // The timelines read the structure of a thousand tasks: the bound of a grid.
@@ -392,6 +392,11 @@ test("shows two timelines of a project with distinct selections, found again by 
     } finally {
       await context.close();
     }
+  } else {
+    test.info().annotations.push({
+      type: "not played on the fake back",
+      description: "no session on the fake back: only the visits above are played",
+    });
   }
 });
 
