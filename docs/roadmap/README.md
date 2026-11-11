@@ -157,10 +157,11 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-22](EP-22-kanban-recapitulatives-demarrees.md) | The Kanban lists the summary awaiting only its own lines | livré | EP-17 |
 | [EP-05](EP-05-referentiel.md) | Reference data of the company | livré | EP-16, EP-18, EP-19, EP-20 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projects, revisions and life cycle | livré | EP-05 |
-| [EP-06](EP-06-planification.md) | Planning | en cours | EP-04 |
+| [EP-06](EP-06-planification.md) | Planning | livré | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Costing and estimate | en cours | EP-06 |
 | [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Actual costs, remaining to commit and cost import | en cours | EP-07 |
 | [EP-10](EP-10-indicateurs.md) | Project indicators | en cours | EP-09 |
+| [EP-23](EP-23-dette-constats-ep02-ep03.md) | Debt of the findings of EP-02 and EP-03 | en cours | EP-02, EP-03, EP-06 |
 | [EP-08](EP-08-avenants-et-risques.md) | Amendments, risks and provisions | à planifier | EP-10 |
 | [EP-11](EP-11-portefeuille.md) | Portfolio | à planifier | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | File exchanges (FLX-01 to FLX-06) | abandonné : each round trip is validated in its functional block | — |
@@ -207,7 +208,11 @@ epic, which is built on the target versions (decision of the author, 2026-11-03)
 up the tooling findings that EP-19 could not fix in its lots (decision of the author,
 2026-11-04) and what two days of delivery with four deliverers revealed; framed on 2026-11-07, it
 also depends on EP-05, whose merge into `main` carries the files it touches, and its lots, small
-and independent, are delivered alongside EP-04 on the free slots.
+and independent, are delivered alongside EP-04 on the free slots. EP-23 settles the findings that
+the full reviews of the front and of the back of 2026-11-07 left open under EP-02 and EP-03, both
+delivered (decision of the author, 2026-11-11); it serves no domain epic, and is delivered alongside
+EP-07 and EP-09 on its own branch, drawn from `main` after EP-06 is merged, without touching the
+files of their last batches.
 
 EP-13 depends only on EP-04: it can start early, but it closes cross-cutting requirements
 whose last action comes late, and it finishes last.

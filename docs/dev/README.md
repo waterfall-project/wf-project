@@ -533,15 +533,22 @@ The system pages are pieces of the shell (`frontend/src/app/`, `frontend/src/com
 read a screen cannot do without goes through `readOrFail` of `frontend/src/api/problem.ts`, which
 renders its data or throws: a 404 leads to the single « not found » screen (`not-found.tsx`), which
 a non-existent address and a refused read reach without distinction (WF-ADM-0110); the API
-unreachable throws `Unreachable`, and any other response `UnexpectedAnswer`. A read a screen can do
+unreachable throws `Unreachable` — `fetch` rejected, or a gateway answering 502, 503 or 504 without
+the envelope of the contract —; a 503 `COMPONENT_UNAVAILABLE` whose envelope names a component of
+the contract (`params.component`, a `PlatformComponent`) throws `ComponentUnavailable`, the failure
+of that component (WF-EXP-0040, #2265); and any other response — a 503 envelope without a
+recognised component included — `UnexpectedAnswer`. A read a screen can do
 without goes through `readUnlessRefused`, next to it: it renders nothing on the refusals it expects
 — a status, and the `code` of the envelope when the status does not say which —, and follows the
 same rule for the rest. The failure screen (`error.tsx` in the shell, `global-error.tsx` when the
 root layout fails) receives in production only the `digest` of the error thrown server-side:
 `Unreachable` carries `UNREACHABLE_DIGEST`, which it announces as such, `SessionLost`
 `SESSION_LOST_DIGEST`, which leads to the sign-in without a click, `SignedOut` (a 401)
-`SESSION_REQUIRED_DIGEST`, which leads there by a link (`loginHref`), `UnexpectedAnswer` the
-correlation identifier of the envelope, prefixed with `WATERFALL_CORRELATION;` so that no value from
+`SESSION_REQUIRED_DIGEST`, which leads there by a link (`loginHref`), `ComponentUnavailable` the
+component, prefixed with `WATERFALL_COMPONENT_UNAVAILABLE;` (`componentDigest`), which the screen
+names in the words of the catalogue (`enums.PlatformComponent`) — a digest whose component is not
+of the contract stays the unexpected error —, `UnexpectedAnswer` the correlation identifier of the
+envelope, prefixed with `WATERFALL_CORRELATION;` so that no value from
 the API takes on a meaning for Next (`NEXT_REDIRECT;…`), and which it displays as a reference
 without the prefix (`failure.ts`). Without an envelope, or without a `correlation_id`, the reference
 displayed is the digest Next computes, that of its own logs. A screen never says « empty » on a
@@ -955,9 +962,9 @@ its risk designates, is there a computed cell, which the node names
 (`estimate_line.subproject_id` of `computed_fields`, EP-14/L42p), and its refusal asks the server
 what it depends on, like its quantities — the lists of the reference data serve only the choice
 of an entry, offered only on an object they know; they ask for the deactivated objects
-(`include_inactive`) only for a session that carries the read permission of their part of the
-reference data, which the contract requires, and an estimator without it enters on the active
-objects (#351). What a write renders is read the way the grid reads it (`nodesWritten`): the nodes
+(`include_inactive`) only for a session that carries the write permission of their part of the
+reference data, which the contract requires (#2084, option A), and an estimator without it enters on
+the active objects (#351). What a write renders is read the way the grid reads it (`nodesWritten`): the nodes
 written and their whole ancestors, of the re-dated tasks the part of their calendar it shows
 (`rescheduled`), of the lines and tasks moved in time the part of their amounts it shows
 (`reinflated`) — each part sets only its own fields: those of a same row, from one write or
@@ -1495,11 +1502,12 @@ by matching lists in the front; a section is named by `aria-label` (#251).
 The lists of the reference data read only the active objects, and the deactivated ones too when the
 address asks for it (`include_inactive`, WF-REF-0150, #300), under the name of the contract, which
 the header of the screen writes or lifts by a link (`InactiveSwitch`), which brings each paginated
-list back to its first page — only for a session that carries the read permission of their part of
-the reference data, without which the contract refuses it (403, `inactiveQuery` of `address.ts`),
-like the lists of the estimate (#351). The filter by state (`is_active`, `StateFilter`) prevails
-over it: all states, the active only, or the deactivated only, offered to the same session only
-(`stateOf`). A deactivated object is said there by a mark and a word, and is reactivated there as
+list back to its first page — only for a session that carries the write permission of their part of
+the reference data, without which the contract refuses it (403, `inactiveQuery` of `address.ts`;
+decision #2084, option A, `docs/api/DECISIONS.md`), like the lists of the estimate (#351). The
+filter by state (`is_active`, `StateFilter`) prevails over it: all states, the active only, or the
+deactivated only, offered to the same session only (`stateOf`). A deactivated object is said there
+by a mark and a word, and is reactivated there as
 the server lists its command (`available_commands`, #532, WF-IHM-0090) — the server lists it only
 for whoever can modify that part, and the front deduces nothing from it: available, through the
 activation command of its nature (`setActivation`, a server action, from the version read), then the
@@ -1812,10 +1820,15 @@ WF-ADM-0090); the matrix is the place where permissions are changed, one checkbo
 and per role (`permission-matrix.tsx`), which writes the whole role, its permissions in the order of
 the catalogue, the other boxes of the role waiting for the answer. The table and the matrix read a
 single source of the most recently answered role by its `lock_version` (`RoleAnswers`,
-`role-answers.tsx`): a rename then a box ticked before the reload, or the reverse, starts from the
-answered version, and a reload older than the answer does not undo it; the header of the column of
-a renamed role and the name of each of its boxes take the answered label too (`RoleLabel`,
-`PermissionCell`), without waiting for the reload (#976). What a command of the table does is said
+`role-answers.tsx`), and of the roles being written: as long as a write of a role — its rename, a
+box of the matrix or its confirmed deletion — is under way, the row of that role is busy, the cell
+of its label, its boxes and « Delete » marked `aria-busy` and `aria-disabled` and sending nothing,
+and the next write starts from the answered version, without a 412 (an entry of the label opened
+before the write sends nothing and stays open; a deletion confirmation opened before it stays open,
+its command busy); a write of another role does not wait (#2261). A reload older than the answer
+does not undo it; the header of the column of a renamed role and the name of each of its boxes take
+the answered label too (`RoleLabel`, `PermissionCell`), without waiting for the reload (#976). What
+a command of the table does is said
 in its region, named « Commands of the access roles »; a refusal, by the catalogue of error codes
 above the table or the matrix, on the loading it started from (`Reactivations`) — the last
 administrator (`LAST_ADMINISTRATOR`), the stale version with the offer to reload —, the focus given
@@ -1827,8 +1840,10 @@ the page. For the accounts (US-0360, #379), the table is its own input, to a ses
 on a switch, its word beside it (`setUserActivation`); the roles in a multiple-choice list of the
 roles of the installation, whatever the attachment (`setUserAccessRoles`, `user-cells.tsx`) — each
 as the account lists its command (`User.available_commands`): an absent command is not presented,
-an unavailable one is, with its condition, and a click says it without launching it. Deactivating
-the last active account that carries the permissions to change the accounts and the roles is
+an unavailable one is, with its condition, and a click says it without launching it — the roles cell
+too (`RolesCell`, through `useUnmet` and `CommandTooltip`, #2262): attribution unavailable, its
+trigger is `aria-disabled` and the list does not open. Deactivating the last active account that
+carries the permissions to change the accounts and the roles is
 unavailable, `last_administrator` missing (WF-ADM-0120, #540) — the front could not find it on its
 own, the list being paginated; assigning its roles stays available, the server judging the roles
 sent, and refusing by `LAST_ADMINISTRATOR` those that would take these permissions away from it — a
@@ -4586,9 +4601,10 @@ its parameters, never a sentence.
   (another `TypeError` is a defect and propagates), or a 502, 503 or 504 without a `Problem`
   envelope, which a gateway returns when the service is down. An error response without an envelope,
   or whose `code` is missing from the catalogue — a service more recent than the front —, counts as
-  `INTERNAL_ERROR`, « unexpected error », at the status received: the screen never displays a raw
-  key. The component says it through `OutcomeNotice` (`frontend/src/components/commands/`), as an
-  alert: the sentence of `problemMessage`, which also names the objects the refusal gives only by
+  `INTERNAL_ERROR`, « unexpected error », at the status received, with the `correlation_id` of the
+  envelope when it has the form of the contract, which the notice presents as the reference
+  (WF-OBS-0020, #2264): the screen never displays a raw key. The component says it through `OutcomeNotice`
+  (`frontend/src/components/commands/`), as an alert: the sentence of `problemMessage`, which also names the objects the refusal gives only by
   their identifiers when the screen has read them (`names`); the lines or the projects named beyond
   the sentence, outside the alert and described by its sentence (#765); on 412, the offer to reload
   the screen; the conflicting object (`params.conflicting_object_id`, or failing that the one of the
@@ -4650,12 +4666,20 @@ its parameters, never a sentence.
   (`waterfall.api.contract.base`, which `[tool.datamodel-codegen]` of `backend/pyproject.toml` gives
   to the generator), which looks for the NUL in each of its fields, an element of a list, a key or
   value of an object included; a query or path parameter in text is typed `Text`, from the same
-  module.
+  module. The same base likewise refuses a decimal of the contract — a type whose root carries the
+  pattern of `Decimal` or of `Money`, `Percent` and `Hours` included — written with a digit other
+  than 0 to 9 (#2238): the pattern is a JSON Schema expression, where `\d` only means 0 to 9, which
+  the generated models read in Unicode; a query bound read by hand is therefore written `[0-9]`,
+  never `\d`.
+  The thresholds of the indices and the bounds of the risk matrix are written with ten decimals
+  at most, counted as written, a final zero included, and ten digits before the point (#2234):
+  beyond that, 422 `VALIDATION_FAILED` at their field, never an overflow of the database.
 
   _Checks_: `make server-models-up-to-date`; `make test-back` (`test_api_problems.py`,
-  `test_access_roles_guard.py` for the NUL); that every text parameter is a `Text`, that the code
-  and the status are those of the contract for the operation, the review, then the validation of the
-  responses of the API tests against the contract.
+  `test_access_roles_guard.py` for the NUL, `test_contract_digits.py` for the digits); that every
+  text parameter is a `Text`, that the code and the status are those of the contract for the
+  operation, the review, then the validation of the responses of the API tests against the
+  contract.
 
 - **Logs and responses of the API tests** — an API test goes through `ContractClient`
   (`backend/tests/support.py`), which validates every response against the contract with

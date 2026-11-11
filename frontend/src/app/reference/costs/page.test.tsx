@@ -120,6 +120,24 @@ beforeEach(() => {
   };
 });
 
+describe("the nature an address filters the categories by", () => {
+  const CATEGORIES = "GET /reference/cost-categories";
+  const NATURE = "01926f3a-7c00-7000-8000-000000000461";
+
+  it("is sent to the read of the categories when it is a UUID [US-1770]", async () => {
+    await costsAt({ category_cost_type_id: NATURE });
+    const [query] = queriesOf(CATEGORIES);
+    expect(query).toMatchObject({ cost_type_id: NATURE });
+  });
+
+  it("is not retained when it is not a UUID: the screen opens without this filter, and no read leaves with it [US-1770]", async () => {
+    await costsAt({ category_cost_type_id: "abc" });
+    const queries = queriesOf(CATEGORIES);
+    expect(queries.length).toBeGreaterThan(0);
+    expect(queries.every((query) => !("cost_type_id" in query))).toBe(true);
+  });
+});
+
 describe("the types of the natures the page hands the form of a category", () => {
   it("are every nature read with the deactivated ones, apart from the natures offered, for a session that writes", async () => {
     // The natures offered, then every one with the deactivated ones: the disbursements deactivated.

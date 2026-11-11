@@ -1259,6 +1259,9 @@
     "attachUser": {
       "help": "Attaches the account to an active node of the organisation chart, or removes its attachment: an attachment gives no permission."
     },
+    "setAccessRoles": {
+      "help": "Attributes one or more roles of the installation to the account: they give it its permissions."
+    },
     "activeUser": {
       "help": "Activates or deactivates the account: a deactivated account can no longer sign in."
     },
@@ -2302,12 +2305,17 @@
       "title": "Account not admitted",
       "explanation": "Waterfall does not admit this account: the screen cannot be shown. Contact an administrator."
     },
+    "componentUnavailable": {
+      "title": "Component unavailable",
+      "explanation": "A component of the service is unavailable: the screen could not read its data. Try again once it is back."
+    },
     "unexpected": {
       "title": "Unexpected error",
       "explanation": "The screen could not be displayed. If the error persists, give its reference to the operator."
     },
     "signInUnreachable": "The service does not answer: the sign-in could not be made. Try again in a moment.",
     "reference": "Reference: {reference}",
+    "component": "Unavailable component: {component}",
     "retry": "Try again",
     "signOut": "Sign out"
   },
@@ -2333,7 +2341,8 @@
       "deactivate": "Deactivate “{name}”",
       "deactivateShort": "Deactivate",
       "deactivationUnavailable": "Deactivating “{name}” is unavailable. {unmet}",
-      "designationUnavailable": "Designating “{name}” by default is unavailable. {unmet}"
+      "designationUnavailable": "Designating “{name}” by default is unavailable. {unmet}",
+      "rolesUnavailable": "Attributing the roles of “{name}” is unavailable. {unmet}"
     },
     "inactive": {
       "show": "Show the deactivated ones too",

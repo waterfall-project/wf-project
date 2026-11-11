@@ -4,8 +4,9 @@
 
 Each threshold is a decimal strictly between 0 and 1, and the threshold of alert of each index is
 strictly below its threshold of watch (WF-REF-0170); the delay is from 1 to 104 weeks
-(WF-REF-0180). The form of a threshold is judged first, its range then, and the order of two
-thresholds only between thresholds in range. An index is in the zone its thresholds give it:
+(WF-REF-0180). The form of a threshold is judged first, its range then, its precision last — ten
+decimals at most, which the database keeps (#2234) —, and the order of two thresholds only between
+thresholds in range and kept. An index is in the zone its thresholds give it:
 nominal from the watch on, in watch from the alert on, in alert below. Pure functions: the
 settings are read by the interface of ``cost_settings``, which keeps them.
 """
@@ -15,7 +16,8 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from waterfall.core.cost_settings.interface import IndexThresholds
-from waterfall.platform.errors import FieldError, json_pointer
+from waterfall.platform.decimals import exceeds_precision
+from waterfall.platform.errors import VALIDATION_FAILED, FieldError, json_pointer
 
 NUMBER_INVALID = "NUMBER_INVALID"
 THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE = "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE"
@@ -41,13 +43,15 @@ class ThresholdTexts:
 
 
 def _in_range(name: str, text: str) -> tuple[Decimal | None, FieldError | None]:
-    """Read a threshold, or refuse its form, then its range, at its pointer."""
+    """Read a threshold, or refuse its form, then its range, then its precision, at its pointer."""
     pointer = json_pointer("index_thresholds", name)
     if DECIMAL.fullmatch(text) is None:
         return None, FieldError(pointer, NUMBER_INVALID)
     value = Decimal(text)
     if not 0 < value < 1:
         return None, FieldError(pointer, THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE)
+    if exceeds_precision(value):
+        return None, FieldError(pointer, VALIDATION_FAILED)
     return value, None
 
 
@@ -55,7 +59,8 @@ def read_thresholds(texts: ThresholdTexts) -> tuple[IndexThresholds | None, list
     """Read the four thresholds, or give each fault in the order of the fields (WF-REF-0170).
 
     A threshold that is no decimal is ``NUMBER_INVALID``, a decimal out of ]0, 1[
-    ``THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE``; an alert in range that is not below its watch in range,
+    ``THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE``, a decimal in range of more than ten decimals
+    ``VALIDATION_FAILED``; an alert that is not below its watch, both in range and kept,
     ``THRESHOLD_NOT_BELOW_WATCH`` at the alert.
     """
     faults: list[FieldError] = []

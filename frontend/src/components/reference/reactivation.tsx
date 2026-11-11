@@ -70,13 +70,16 @@ type ActivationCommand = "deactivate" | "reactivate";
 
 /** A command of a row whose unavailability a press tells: an activation, or a designation. */
 type ToldCommand =
-  ActivationCommand | Extract<components["schemas"]["CalendarCommand"], "set_default">;
+  | ActivationCommand
+  | Extract<components["schemas"]["CalendarCommand"], "set_default">
+  | Extract<components["schemas"]["UserCommand"], "set_access_roles">;
 
 /** The sentence that tells what an unavailable command lacks, by command. */
 const TOLD = {
   reactivate: "unavailable",
   deactivate: "deactivationUnavailable",
   set_default: "designationUnavailable",
+  set_access_roles: "rolesUnavailable",
 } as const satisfies Readonly<Record<ToldCommand, string>>;
 
 /**

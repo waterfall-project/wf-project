@@ -176,8 +176,9 @@ async function readFilters(
  *
  * The API out of reach — `fetch` rejected, or a gateway said the service is down
  * (`isGatewayFailure`) — throws `Unreachable`, which the screen of failure announces as such;
- * a 401 throws `SignedOut`, which leads to the sign-in page; any other answer — a failure of
- * the server — throws `UnexpectedAnswer`: a screen of a project left without its banner would
+ * a 401 throws `SignedOut`, which leads to the sign-in page; a 503 that names a component of
+ * the platform throws `ComponentUnavailable`; any other answer — a failure of the server —
+ * throws `UnexpectedAnswer`: a screen of a project left without its banner would
  * hide which revision it reads in.
  */
 export async function readProjectContext(

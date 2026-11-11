@@ -202,7 +202,7 @@ def patch_access_role(
 )
 def remove_access_role(
     access_role_id: UUID,
-    lock_version: Annotated[int, Query(ge=0)],
+    lock_version: Annotated[int, Query(ge=0, le=2147483647)],
     account: Caller,
     session: Transaction,
 ) -> Response:

@@ -1,7 +1,7 @@
 ---
 id: EP-06
 titre: Construire le planning d'un projet, et le lire en grille, en Gantt et en arborescence
-statut: en cours
+statut: livré
 depend_de: EP-04
 famille: front, back
 issue: 2316
@@ -894,6 +894,18 @@ Les constats qu'EP-06 laissait « à trancher », tranchés le 2026-11-10, chacu
   - **`problem.test.ts` lit ses exemples sans cast** (#2764), comme celui de `NODE_CYCLE` :
     `toMatchObject` sur ce que le test lit de l'exemple, puis un `ProblemText` littéral.
 
+### Les constats laissés après la livraison (décisions de l'auteur du 2026-11-11)
+
+EP-06 reste fini ; rien de ce qui suit ne se corrige avant la livraison du 2026-11-13 :
+
+- **La passe arrière d'un décalage écoulé qui atteint un jour sans heure de travail** (#2816) et
+  **le départ au plus tard d'une durée écoulée éprouvé pour d'autres durées** (#2832) sont reportés
+  à un lot de suite d'EP-06, ouvert après la livraison, et pas avant.
+- **Le projet et son lotissement nés à 1, « jamais écrit » lu à `lock_version` 1** (#2843,
+  option A) : rien avant la v1, aucune installation ne portant de données au-delà du témoin ; ni
+  migration, ni drapeau. Écartées : une migration en EP-07 qui décale les compteurs existants, et
+  un drapeau propre `work_breakdown_written`.
+
 ### Le lot de suite d'US-1430 (2026-11-10)
 
 L'auteur a complété le corpus (PR #2811, vers `main`, qu'il fusionne). Essayé sur `epic/EP-06`
@@ -1060,6 +1072,9 @@ planning dont le devis portera les lignes.
   subordonnées laisse la subordonnée sous la récapitulative : le groupe est déplacé entier, sans
   être aplati. » : `moveNodes` ignore une tâche nommée dont une ancêtre est aussi nommée
   (spécification 1.0.3, #2521), réalisé par US-1380/L4 (#2519) ;
+- `WF-PLA-0040-A` — « Un déplacement qui placerait un nœud sous lui-même ou sous l’un de ses
+  subordonnés est refusé. » : `moveNodes` refuse par 422 `NODE_CYCLE` (spécification 1.0.4,
+  #2741), réalisé par US-1380/L4 (#2519) ;
 - `WF-DAT-0150-A` — « Deux contributeurs lisent la même tâche ; le premier la modifie ; la
   modification du second, fondée sur sa lecture, est refusée, le refus le dit, et la tâche garde la
   valeur du premier. Relue, la tâche se modifie. » : 412 `STALE_LOCK_VERSION` sur le `lock_version`
@@ -1319,6 +1334,9 @@ frise, **afin de** présenter à chaque public les jalons qui le concernent.
   révision suivante retrouve (WF-DAT-0030) ;
 - `WF-PLA-0140-A` — « L’export produit un fichier PNG de la chronologie affichée. » : la frise
   d'EP-15 (US-0530/L3b) exporte son PNG contre le service, le parcours étiqueté `@shared` ;
+- écart : `WF-PLA-0140-A` — « La disposition en couloirs qu’un utilisateur a donnée à une
+  chronologie se retrouve d’une session à l’autre. » : une préférence d'affichage
+  (`DisplayPreferences.timelines`), d'EP-15 (US-0530, US-0570/L1) ; spécification 1.0.4, #2871 ;
 - `WF-PLA-0060-A` — « Une tâche inscrite apparaît dans la chronologie et disparaît lorsqu’elle
   est retirée. » : `setNodeTracking` remplace les inscriptions de la tâche, et `listNodes` avec
   `timeline_id` la rend puis ne la rend plus ;

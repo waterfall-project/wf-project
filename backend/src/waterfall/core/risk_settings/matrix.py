@@ -3,15 +3,17 @@
 """The rules of the matrix of risks (WF-REF-0160).
 
 The three bounds of each axis are fractions, strictly increasing: a bound that is not above the one
-before it is refused at its rank. A value is at the level of the bounds it reaches — the first below
-the lowest bound, the fourth from the highest on —, and a cell of the matrix is the zone ranked by
-its level of probability, then of severity. Pure functions: the settings are read by the interface
-of ``cost_settings``, which keeps them.
+before it is refused at its rank, as one of more than ten decimals or ten digits before the point,
+which the database would not keep (#2234). A value is at the level of the bounds it reaches — the
+first below the lowest bound, the fourth from the highest on —, and a cell of the matrix is the
+zone ranked by its level of probability, then of severity. Pure functions: the settings are read by
+the interface of ``cost_settings``, which keeps them.
 """
 
 from typing import TYPE_CHECKING
 
-from waterfall.platform.errors import FieldError, json_pointer
+from waterfall.platform.decimals import exceeds_precision
+from waterfall.platform.errors import VALIDATION_FAILED, FieldError, json_pointer
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -25,21 +27,25 @@ LEVELS = 4
 
 
 def matrix_faults(matrix: RiskMatrix) -> list[FieldError]:
-    """Refuse each bound that is not strictly above the one before it, at its rank.
+    """Refuse each bound too precise, or not strictly above the one before it, at its rank.
 
     On each axis, probability then severity: ``/risk_matrix/<axis>/<rank>``, the rank of the bound
-    that breaks the order, counted from zero.
+    counted from zero. A bound too precise is ``VALIDATION_FAILED``, and is not judged in its order,
+    neither against the bound before it nor against the one after it: the order is only judged
+    between two bounds kept.
     """
     faults: list[FieldError] = []
     for axis, bounds in (
         ("probability_bounds", matrix.probability_bounds),
         ("severity_bounds", matrix.severity_bounds),
     ):
-        faults.extend(
-            FieldError(json_pointer("risk_matrix", axis, rank), BOUNDS_NOT_ORDERED)
-            for rank in range(1, len(bounds))
-            if bounds[rank] <= bounds[rank - 1]
-        )
+        kept = [not exceeds_precision(bound) for bound in bounds]
+        for rank, bound in enumerate(bounds):
+            pointer = json_pointer("risk_matrix", axis, rank)
+            if not kept[rank]:
+                faults.append(FieldError(pointer, VALIDATION_FAILED))
+            elif rank > 0 and kept[rank - 1] and bound <= bounds[rank - 1]:
+                faults.append(FieldError(pointer, BOUNDS_NOT_ORDERED))
     return faults
 
 

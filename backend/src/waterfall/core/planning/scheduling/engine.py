@@ -306,10 +306,23 @@ class _Engine:
         The count reached is the successor's: the task's end may lie up to the last instant that
         count holds — read as a start, the first hour of work that follows —, and is then counted
         on the task's own calendar, whose hours do not measure the same day (WF-PLA-0010).
+
+        An elapsed lag reached forward past the hours of a day counts as their end, even on a day
+        without hours of work (WF-PLA-0160): it goes back, as the latest start of an elapsed
+        duration does, from the last moment that still holds the successor's count, the first
+        hour of work that follows. Two elapsed days forward from the end of a Friday's work reach
+        the Sunday, counted as that end; back from that end itself, they would reach the
+        Wednesday's, two days short; back from the Monday's first hour, they reach the Saturday,
+        counted as the Friday's end again (#2816).
+
+        The rule holds for any successor: a manual one, whose own dates stand for its latest ones,
+        as an automatic one, and for a link to a start as to a finish.
         """
         calendar = self.tasks[successor_id].calendar
         latest = self.late_span(successor_id)
         target = latest.start if link.link_type in TO_START else latest.finish
+        if span.is_elapsed:
+            target = calendar.moment(calendar.count(target), finish=False)
         count = self.shifted(calendar, target, -span)
         task = self.tasks[task_id]
         end = task.calendar.count(calendar.moment(count, finish=False))

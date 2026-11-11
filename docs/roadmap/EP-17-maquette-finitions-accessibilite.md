@@ -995,6 +995,8 @@ prédécesseurs, **afin de** démarrer le travail du jour sans parcourir trois c
 - écart : `WF-PLA-0040-A` — « Le déplacement d’une sélection qui contient une récapitulative et
   l’une de ses subordonnées laisse la subordonnée sous la récapitulative : le groupe est déplacé
   entier, sans être aplati. » : du service ; EP-06 le réalise (US-1380/L4) ;
+- écart : `WF-PLA-0040-A` — « Un déplacement qui placerait un nœud sous lui-même ou sous l’un
+  de ses subordonnés est refusé. » : du service ; EP-06 le réalise (US-1380/L4) ;
 - propre à l'US : les aides du reste à engager et du Kanban disent la marque (#1776).
 
 **Notes de réalisation.** Trois colonnes, les états d'une tâche : une quatrième colonne « Prêtes »

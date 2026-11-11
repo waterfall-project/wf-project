@@ -8,8 +8,9 @@
  * the link to it, and goes nowhere by itself: the token the front held was refused, and another
  * could be too; the session closed (`SESSION_REVOKED`), that link asks for the identifiers again
  * (#855). Either way the sign-in comes back to the screen (`loginHref`, from the address
- * the browser shows). Any other error is unexpected, with the reference that finds it again in
- * the logs when it carries one. An account Waterfall does not admit is offered the way out: the
+ * the browser shows). A read the API refused for a component of the platform unavailable names it,
+ * by its label in the catalogue (WF-EXP-0040). Any other error is unexpected, with the reference
+ * that finds it again in the logs when it carries one. An account Waterfall does not admit is offered the way out: the
  * realm signs it in again at each sign-in, and the shell offers it no menu of the account (#664).
  * In every case, the user may try again: the page is read anew from the server.
  *
@@ -92,9 +93,12 @@ export interface SystemFailureProps {
 /** Render what went wrong, and the offer to try again. */
 export function SystemFailure({ error, retry }: SystemFailureProps) {
   const t = useTranslations("failure");
+  const components = useTranslations("enums.PlatformComponent");
   const phase = useRestorationPhase(undefined);
   const failure = failureOf(error);
   const reference = failure.kind === "unexpected" ? failure.reference : undefined;
+  const component =
+    failure.kind === "component_unavailable" ? components(failure.component) : undefined;
   if (phase.kind === "maintenance" || phase.kind === "done") {
     return (
       <main className="px-5 py-4">
@@ -110,6 +114,7 @@ export function SystemFailure({ error, retry }: SystemFailureProps) {
           {t(`${FAILURE_TEXTS[failure.kind]}.title`)}
         </h1>
         <p>{t(`${FAILURE_TEXTS[failure.kind]}.explanation`)}</p>
+        {component === undefined ? null : <p>{t("component", { component })}</p>}
         {reference === undefined ? null : (
           <p className="text-muted-foreground">{t("reference", { reference })}</p>
         )}
