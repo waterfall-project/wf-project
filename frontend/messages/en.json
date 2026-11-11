@@ -342,6 +342,18 @@
       "openIn": "Columns of “{grid}”",
       "title": "Columns shown"
     },
+    "filtering": {
+      "open": "{count, plural, =0 {Filters} other {Filters ({count})}}",
+      "panel": "Filters",
+      "active": "Active filters",
+      "chip": "{name}: {value}",
+      "remove": "Remove the filter {name}: {value}",
+      "clear": "Clear the filters",
+      "between": "from {from} to {to}",
+      "since": "since {from}",
+      "until": "until {to}",
+      "authorUnknown": "An account"
+    },
     "fold": {
       "open": "Tree",
       "title": "Fold and unfold the tree",

@@ -171,6 +171,7 @@ export function UserList({
     </div>
   );
   const empty = page.total === 0 && !narrowed;
+  const asked = { origins, orgNode, accessRoles, active, audit, authors };
   let list: ReactNode;
   if (audit.refused !== undefined) {
     list = (
@@ -184,7 +185,6 @@ export function UserList({
   } else {
     list = (
       <>
-        {filters}
         <UserGrid
           users={users}
           page={page}
@@ -193,6 +193,8 @@ export function UserList({
           roles={roles}
           nodes={nodes}
           editable={editable}
+          filters={asked}
+          panel={filters}
         />
         <ListPages list={USERS_LIST} texts="admin.pages" page={page} shown={users.length} />
       </>

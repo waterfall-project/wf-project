@@ -32,9 +32,22 @@ import { Input } from "@/components/ui/input";
 import type { GridColumn, GridConfig } from "./columns";
 import { useDatedEntry } from "./dated-entry";
 import { MENU_KEYS, useFoldReach } from "./fold";
+import {
+  barFilters,
+  FilterChips,
+  FilterPanel,
+  FiltersButton,
+  type Filtering,
+  usePanelId,
+} from "./filter-bar";
 import { configColumn, type GridTable } from "./grid-table";
-import { SEARCH_LENGTH } from "./query";
+import { type GridAddress, SEARCH_LENGTH } from "./query";
 import { UndoCommands, type UndoControl } from "./undo-commands";
+
+/** Nothing to do, for a panel that cannot be opened. */
+function noop(): void {
+  return undefined;
+}
 
 /** A column the user may show or hide. */
 export interface ToggledColumn {
@@ -107,6 +120,18 @@ export interface GridToolbarProps {
   readonly width?: string | undefined;
   /** The commands the screen gives the bar, first in it: those of the work breakdown on its rows. */
   readonly commands?: ReactNode;
+  /**
+   * For a flat table whose screen folds its filters into the bar: the button « Filtres (n) », the
+   * panel under the bar and the chips of the filters on (`filter-bar.tsx`); none, the bar as before.
+   */
+  readonly filters?: Filtering | undefined;
+  /** Whether the panel of the filters is open, and how it opens and closes. */
+  readonly open?: boolean | undefined;
+  readonly onOpen?: ((open: boolean) => void) | undefined;
+  /** The names the table writes its address by, for the page its filters take back to its first. */
+  readonly address?: GridAddress | undefined;
+  /** What the bar says at its end of how many rows the table holds, when its filters are folded. */
+  readonly count?: string | undefined;
 }
 
 /**
@@ -226,17 +251,36 @@ export function GridToolbar({
   grid,
   width,
   commands,
+  filters: filtering,
+  open,
+  onOpen,
+  address,
+  count,
 }: GridToolbarProps) {
+  const filters = barFilters(filtering, { open: open === true, onOpen: onOpen ?? noop }, address);
   const t = useTranslations("grid.columnsMenu");
   const said = useTranslations("commands");
-  return (
+  const panel = usePanelId();
+  const folded = filters !== undefined;
+  const sized = width === undefined ? undefined : { width };
+  const bar = (
     <div
-      className="flex min-w-min max-w-full items-center gap-2"
-      style={width === undefined ? undefined : { width }}
+      className={
+        folded ? "flex w-full items-center gap-2" : "flex min-w-min max-w-full items-center gap-2"
+      }
+      style={folded ? undefined : sized}
     >
       {commands}
       {onSearch === undefined ? null : (
         <SearchField search={search} onSearch={onSearch} grid={grid} />
+      )}
+      {filters === undefined ? null : (
+        <FiltersButton
+          count={filters.chips.length}
+          open={filters.open}
+          panel={panel}
+          onOpen={filters.onOpen}
+        />
       )}
       <div className="flex-1" />
       {undoable === true ? <UndoCommands control={undo} /> : null}
@@ -273,6 +317,21 @@ export function GridToolbar({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
+      {filters === undefined || count === undefined ? null : (
+        <span className="text-xs whitespace-nowrap text-muted-foreground">{count}</span>
+      )}
+    </div>
+  );
+  if (filters === undefined) {
+    return bar;
+  }
+  return (
+    <div className="flex min-w-min max-w-full flex-col gap-2" style={sized}>
+      {bar}
+      <FilterPanel id={panel} open={filters.open}>
+        {filters.panel}
+      </FilterPanel>
+      <FilterChips chips={filters.chips} page={filters.page} />
     </div>
   );
 }

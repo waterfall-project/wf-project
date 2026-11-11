@@ -342,6 +342,18 @@
       "openIn": "Colonnes de « {grid} »",
       "title": "Colonnes affichées"
     },
+    "filtering": {
+      "open": "{count, plural, =0 {Filtres} other {Filtres ({count})}}",
+      "panel": "Filtres",
+      "active": "Filtres actifs",
+      "chip": "{name} : {value}",
+      "remove": "Retirer le filtre {name} : {value}",
+      "clear": "Effacer les filtres",
+      "between": "du {from} au {to}",
+      "since": "depuis le {from}",
+      "until": "jusqu’au {to}",
+      "authorUnknown": "Un compte"
+    },
     "fold": {
       "open": "Arbre",
       "title": "Plier et déplier l’arbre",

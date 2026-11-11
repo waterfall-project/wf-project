@@ -46,11 +46,13 @@ export function useFrameWidth(frame: RefObject<HTMLElement | null>): number | un
  * bounds a frame to a window's worth from wherever it starts, which is not enough for a grid that
  * a stacked layout sets low on the page; this is the bound that is. Kept as the window and the
  * page change; none while `enabled` is false, before it is measured, and where the browser does
- * not lay out.
+ * not lay out. What the screen opens or closes above the frame without moving the page — the panel
+ * of the filters, their chips — tells it by `above`, which measures again when it changes (#2916).
  */
 export function useRoomBelow(
   frame: RefObject<HTMLElement | null>,
   enabled: boolean | undefined,
+  above?: string,
 ): number | undefined {
   const [room, setRoom] = useState<number | undefined>(undefined);
   useLayoutEffect(() => {
@@ -78,6 +80,6 @@ export function useRoomBelow(
       window.removeEventListener("resize", measure);
       observer?.disconnect();
     };
-  }, [frame, enabled]);
+  }, [frame, enabled, above]);
   return enabled === true ? room : undefined;
 }

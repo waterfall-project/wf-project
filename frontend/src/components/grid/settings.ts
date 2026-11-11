@@ -139,6 +139,7 @@ export function recordedPreferences(
   filters?: Readonly<Record<string, string>>,
   size?: number,
   shape?: GridShape,
+  filtersOpen?: boolean,
 ): GridPreferences {
   const ended = shape?.ended ?? new Set<string>();
   const recorded: GridPreferences = {
@@ -157,7 +158,8 @@ export function recordedPreferences(
   const sized = pageSizeOf(size);
   const paged = sized === undefined ? recorded : { ...recorded, page_size: sized };
   const sorted = sort === undefined ? paged : { ...paged, sort };
-  return filters === undefined ? sorted : { ...sorted, filters };
+  const opened = filtersOpen === undefined ? sorted : { ...sorted, filters_open: filtersOpen };
+  return filters === undefined ? opened : { ...opened, filters };
 }
 
 /** What the writer of the settings gives the grid. */
