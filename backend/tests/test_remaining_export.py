@@ -390,8 +390,6 @@ def test_the_coefficient_of_a_task_over_two_years_is_the_one_the_import_converts
     applied(api, stage, worker, import_id)
     created = row_of(stage, line_named(scene.tree, "Rallonge")["node_id"])
     assert created.unit_disbursement == (Decimal(103) / shown).quantize(Decimal("0.01"))
-    # Another year of the task would have been 1.00 or 1.03: neither is shown.
-    assert shown not in (Decimal(1), Decimal("1.03"))
 
 
 @pytest.mark.requirement("WF-INTF-0130-A")

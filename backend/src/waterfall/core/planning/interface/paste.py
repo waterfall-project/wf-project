@@ -677,6 +677,12 @@ def _refuse_task_columns(
 
     The planning's for the columns of a task's own, the remaining to commit's for those of its
     execution (#2805); whoever holds both writes both, a block that mixes them asks for both.
+
+    The ``REMAINING_WRITE`` branch is defensive: the paste refuses the three columns of the
+    execution cell by cell, so no plan kept holds one and the replay at the confirmation never
+    asks for it. It stays so that the day the paste writes them, the permission is already asked
+    on both paths; no test carries it, a plan holding such a cell being buildable only by hand
+    in the database.
     """
     written: set[str] = set()
     for each in rows:

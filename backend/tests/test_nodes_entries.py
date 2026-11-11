@@ -335,7 +335,7 @@ def test_a_row_that_mixes_the_columns_of_a_task_and_its_execution_asks_for_both_
     # A block that writes a column of the planning (the duration) and one of the execution (the day
     # it started on) asks for both permissions (#2805): refused whole to whoever holds one alone,
     # naming the one it lacks, the planning's first when it holds neither; judged cell by cell to
-    # whoever holds both, the duration accepted, the day refused. A column of the planning alone
+    # whoever holds both, the row refused whole for its day. A column of the planning alone
     # still asks for ``planning.write`` alone, and ``remaining.write`` does not open it.
     task = tree.made("Câblage")
     mixed = [["3", "", "", "", "", "", "2026-06-01"]]
