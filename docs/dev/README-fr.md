@@ -940,8 +940,9 @@ sous-projet d'une ligne de provision, celui que son risque désigne, y est une c
 le nœud nomme (`estimate_line.subproject_id` de `computed_fields`, EP-14/L42p), et son refus demande
 au serveur ce dont il dépend, comme ses grandeurs — les listes du référentiel ne servent qu'au choix
 d'une saisie, offerte seulement sur un objet qu'elles connaissent ; elles ne demandent les objets
-désactivés (`include_inactive`) qu'à une session qui porte la permission de lecture de leur partie
-du référentiel, que le contrat exige, et un chiffreur sans elle saisit sur les objets actifs (#351).
+désactivés (`include_inactive`) qu'à une session qui porte la permission d'écriture de leur partie
+du référentiel, que le contrat exige (#2084, option A), et un chiffreur sans elle saisit sur les
+objets actifs (#351).
 Ce qu'une écriture rend se lit comme la grille le lit (`nodesWritten`) : les nœuds écrits et leurs
 ancêtres entiers, des tâches redatées la part de leur calendrier qu'elle montre (`rescheduled`), des
 lignes et des tâches déplacées dans le temps la part de leurs montants qu'elle montre (`reinflated`)
@@ -1459,11 +1460,12 @@ des listes dans le front ; une section se nomme par `aria-label` (#251).
 Les listes du référentiel ne lisent que les objets actifs, et les désactivés aussi quand l'adresse
 le demande (`include_inactive`, WF-REF-0150, #300), sous le nom du contrat, que l'en-tête de l'écran
 écrit ou lève par un lien (`InactiveSwitch`), qui ramène chaque liste paginée à sa première page — à
-une session seulement qui porte la permission de lecture de leur partie du référentiel, sans
-laquelle le contrat le refuse (403, `inactiveQuery` d'`address.ts`), comme les listes du devis
-(#351). Le filtre par état (`is_active`, `StateFilter`) prime sur lui : tous les états, les actifs
-seuls, ou les désactivés seuls, offert à la même session seulement (`stateOf`). Un objet désactivé
-s'y dit par une marque et un mot, et s'y réactive comme le serveur liste sa commande
+une session seulement qui porte la permission d'écriture de leur partie du référentiel, sans
+laquelle le contrat le refuse (403, `inactiveQuery` d'`address.ts` ; décision #2084, option A,
+`docs/api/DECISIONS.md`), comme les listes du devis (#351). Le filtre par état (`is_active`,
+`StateFilter`) prime sur lui : tous les états, les actifs seuls, ou les désactivés seuls, offert à
+la même session seulement (`stateOf`). Un objet désactivé s'y dit par une marque et un mot, et s'y
+réactive comme le serveur liste sa commande
 (`available_commands`, #532, WF-IHM-0090) — le serveur ne la liste qu'à qui peut modifier cette
 partie, et le front n'en déduit rien : disponible, par la commande d'activation de sa nature
 (`setActivation`, une action serveur, depuis la version lue), puis la page relit ses listes ;
@@ -1774,11 +1776,16 @@ tant qu'un compte porte le rôle (`ACCESS_ROLE_IN_USE`, WF-ADM-0090) ; la matric
 modification des permissions, une case à cocher par permission et par rôle
 (`permission-matrix.tsx`), qui écrit le rôle entier, ses permissions dans l'ordre du catalogue, les
 autres cases du rôle attendant la réponse. La table et la matrice lisent une seule source du rôle
-répondu le plus récent par sa `lock_version` (`RoleAnswers`, `role-answers.tsx`) : un renommage puis
-une case cochée avant la relecture, ou l'inverse, part de la version répondue, et une relecture plus
-ancienne que la réponse ne la défait pas ; l'en-tête de la colonne d'un rôle renommé et le nom de
-chacune de ses cases prennent eux aussi le libellé répondu (`RoleLabel`, `PermissionCell`), sans
-attendre la relecture (#976). Ce que fait une commande de la table se dit dans sa région, nommée «
+répondu le plus récent par sa `lock_version` (`RoleAnswers`, `role-answers.tsx`), et des rôles en
+écriture : tant qu'une écriture d'un rôle — son renommage, une case de la matrice ou sa suppression
+confirmée — est en route, la ligne de ce rôle est occupée, la cellule de son libellé, ses cases et «
+Supprimer » marquées `aria-busy` et `aria-disabled` et n'envoyant rien, et l'écriture suivante part
+de la version répondue, sans 412 (une saisie du libellé ouverte avant l'écriture ne part pas et
+reste ouverte ; une confirmation de suppression ouverte avant elle reste ouverte, sa commande
+occupée) ; une écriture d'un autre rôle n'attend pas (#2261). Une relecture plus ancienne que la
+réponse ne la défait pas ; l'en-tête de la colonne d'un rôle renommé et le nom de chacune de ses
+cases prennent eux aussi le libellé répondu (`RoleLabel`, `PermissionCell`), sans attendre la
+relecture (#976). Ce que fait une commande de la table se dit dans sa région, nommée «
 Commandes des rôles d'habilitation » ; un refus, par le catalogue des codes d'erreur au-dessus de la
 table ou de la matrice, sur la lecture d'où il est parti (`Reactivations`) — le dernier
 administrateur (`LAST_ADMINISTRATOR`), la version périmée avec l'offre de relire —, le focus rendu,
@@ -1791,9 +1798,11 @@ porte `users.write` (`platformOffer`) : le nom et le prénom d'un compte local d
 choix multiple des rôles de l'installation, quel que soit le rattachement (`setUserAccessRoles`,
 `user-cells.tsx`) — chacun tel que le compte liste sa commande (`User.available_commands`) : une
 commande absente n'est pas présentée, une indisponible l'est avec sa condition, et un clic la dit
-sans la lancer. La désactivation du dernier compte actif qui porte les permissions de modifier les
-comptes et les rôles est indisponible, `last_administrator` manquante (WF-ADM-0120, #540) — le front
-ne pourrait pas le trouver seul, la liste étant paginée ; l'attribution de ses rôles reste
+sans la lancer — la cellule des rôles aussi (`RolesCell`, par `useUnmet` et `CommandTooltip`, #2262)
+: attribution indisponible, son déclencheur est `aria-disabled` et la liste ne s'ouvre pas. La
+désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles
+est indisponible, `last_administrator` manquante (WF-ADM-0120, #540) — le front ne pourrait pas le
+trouver seul, la liste étant paginée ; l'attribution de ses rôles reste
 disponible, le serveur jugeant les rôles envoyés, et refusant par `LAST_ADMINISTRATOR` ceux qui lui
 retireraient ces permissions — un refus dit comme tout autre. Le lien de fixation d'un compte local
 (`createPasswordSetupLink`) se remet dans un dialogue, entier et en lecture seule, avec l'heure où

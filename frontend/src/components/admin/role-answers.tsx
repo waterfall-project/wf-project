@@ -8,6 +8,11 @@
  * the other way round. The role answered prevails over the same role read while it is newer, by its
  * counter (`lock_version`); a role read since, as new or newer, prevails over it (défaut n° 22 de
  * `typescript.md`).
+ *
+ * The roles being written are kept beside them: a renaming, a cell of the matrix and a confirmed
+ * deletion each mark their role until the server answers, whatever the answer, and the label, the
+ * cells and « Supprimer » of a role so marked are busy and send nothing — the next write goes from the
+ * role answered, never from the version a write under way is about to leave (US-1780, #2261).
  */
 "use client";
 
@@ -32,6 +37,8 @@ export function newer(read: AccessRole, answered: AccessRole | undefined): Acces
 interface Answers extends RoleAnswered {
   /** The roles answered, by their identifier, as the last render saw them. */
   readonly answered: ReadonlyMap<string, AccessRole>;
+  /** The roles being written, by their identifier, as the last render saw them. */
+  readonly writing: ReadonlySet<string>;
 }
 
 const AnswersContext = createContext<Answers | undefined>(undefined);
@@ -65,6 +72,37 @@ export function RoleAnswers({ children }: { readonly children: ReactNode }) {
     (read: AccessRole) => newer(read, latestAnswers.current.get(read.access_role_id)),
     [],
   );
-  const value = useMemo(() => ({ answered, latest, record }), [answered, latest, record]);
+  const [writing, setWriting] = useState<ReadonlySet<string>>(() => new Set());
+  // The same, as the last mark left them: an event reads it, which may run before the render.
+  const latestWriting = useRef<ReadonlySet<string>>(writing);
+  const isWriting = useCallback((id: string) => latestWriting.current.has(id), []);
+  const begin = useCallback((id: string) => {
+    const next = new Set(latestWriting.current).add(id);
+    latestWriting.current = next;
+    setWriting(next);
+  }, []);
+  const end = useCallback((id: string) => {
+    const next = new Set(latestWriting.current);
+    next.delete(id);
+    latestWriting.current = next;
+    setWriting(next);
+  }, []);
+  const value = useMemo(
+    () => ({ answered, writing, latest, record, isWriting, begin, end }),
+    [answered, writing, latest, record, isWriting, begin, end],
+  );
   return <AnswersContext value={around ?? value}>{children}</AnswersContext>;
+}
+
+/**
+ * The label of a role in its cell of the table: busy, and out of any entry, while a write of the
+ * role is under way (`RoleAnswers`).
+ */
+export function RoleLabelCell({ role }: { readonly role: AccessRole }) {
+  const busy = useRoleAnswers()?.writing.has(role.access_role_id) === true;
+  return (
+    <span aria-busy={busy} aria-disabled={busy ? true : undefined}>
+      {role.label}
+    </span>
+  );
 }

@@ -125,13 +125,22 @@ export function AccessRoleGrid({
   const answers = useRoleAnswers();
   const latest = answers?.latest;
   const record = answers?.record;
+  const isWriting = answers?.isWriting;
+  const begin = answers?.begin;
+  const end = answers?.end;
   const config = useMemo(
     () =>
       accessRoleGrid(
         editable,
-        latest === undefined || record === undefined ? undefined : { latest, record },
+        latest === undefined ||
+          record === undefined ||
+          isWriting === undefined ||
+          begin === undefined ||
+          end === undefined
+          ? undefined
+          : { latest, record, isWriting, begin, end },
       ),
-    [editable, latest, record],
+    [editable, latest, record, isWriting, begin, end],
   );
   return (
     <DenseGrid

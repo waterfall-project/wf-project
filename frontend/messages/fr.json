@@ -1249,6 +1249,9 @@
     "attachUser": {
       "help": "Rattache le compte à un nœud actif de l’organigramme, ou retire son rattachement : le rattachement ne donne aucun droit."
     },
+    "setAccessRoles": {
+      "help": "Attribue au compte un ou plusieurs rôles de l’installation : ils lui donnent ses permissions."
+    },
     "activeUser": {
       "help": "Active ou désactive le compte : un compte désactivé ne peut plus se connecter."
     },
@@ -2325,7 +2328,8 @@
       "deactivate": "Désactiver « {name} »",
       "deactivateShort": "Désactiver",
       "deactivationUnavailable": "La désactivation de « {name} » est indisponible. {unmet}",
-      "designationUnavailable": "La désignation de « {name} » par défaut est indisponible. {unmet}"
+      "designationUnavailable": "La désignation de « {name} » par défaut est indisponible. {unmet}",
+      "rolesUnavailable": "L’attribution des rôles de « {name} » est indisponible. {unmet}"
     },
     "inactive": {
       "show": "Afficher aussi les désactivés",

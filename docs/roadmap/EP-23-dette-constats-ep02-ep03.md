@@ -487,7 +487,7 @@ que je lisais (#2259, #2269).
 
 ## US-1780 — L'écran des rôles n'écrit pas deux fois un même rôle en même temps, et l'attribution indisponible le dit
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ADM-0010-A`, `WF-IHM-0090-A`
 - **opérations** : `updateAccessRole`, `deleteAccessRole`, `setUserAccessRoles`, `listUsers`
 - **issue** : #2865

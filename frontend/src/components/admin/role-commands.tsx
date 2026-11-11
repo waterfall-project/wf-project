@@ -54,17 +54,16 @@ import { Label } from "@/components/ui/label";
 import { problemMessage } from "@/i18n/problem";
 
 import { LABEL_LENGTH, ROLE_READS } from "./role-address";
-import { RoleAnswers } from "./role-answers";
+import { RoleAnswers, useRoleAnswers } from "./role-answers";
 
 type AccessRole = components["schemas"]["AccessRole"];
 
 /** How a command of the table says what it did; none outside the table. */
 const Say = createContext<((text: string) => void) | undefined>(undefined);
 
-/** How the deletion of a role is asked, and the roles whose deletion is under way. */
+/** How the deletion of a role is asked; the roles being written are those of `RoleAnswers`. */
 interface Deletions {
   readonly ask: (role: AccessRole) => void;
-  readonly deleting: ReadonlySet<string>;
 }
 
 /** The deletions of the table; none outside it. */
@@ -115,22 +114,24 @@ function Deletion({ children }: { readonly children: ReactNode }) {
   const held = list?.held ?? own;
   // The role whose deletion is asked — kept while the confirmation closes —, and whether it is open.
   const [asked, setAsked] = useState<{ readonly role: AccessRole; readonly open: boolean }>();
-  const [deleting, setDeleting] = useState<ReadonlySet<string>>(() => new Set());
+  const answers = useRoleAnswers();
   const ask = useCallback((role: AccessRole) => {
     setAsked({ role, open: true });
   }, []);
-  const deletions = useMemo(() => ({ ask, deleting }), [ask, deleting]);
-  const confirmed = (role: AccessRole) => {
+  const deletions = useMemo(() => ({ ask }), [ask]);
+  const confirmed = (shown: AccessRole) => {
+    // The role as the screen holds it now: a write of it may have answered since the confirmation
+    // opened, and one under way is answered first.
+    const role = answers?.latest(shown) ?? shown;
     const id = role.access_role_id;
+    if (answers?.isWriting(id) === true) {
+      return;
+    }
     // The reading the role is deleted from: its refusal is told on it alone.
     const generation = list?.generation ?? 0;
-    setDeleting((before) => new Set(before).add(id));
+    answers?.begin(id);
     void held(deleteAccessRole(id, role.lock_version)).then((outcome) => {
-      setDeleting((before) => {
-        const after = new Set(before);
-        after.delete(id);
-        return after;
-      });
+      answers?.end(id);
       if (outcome.kind === "done") {
         say?.(t("deleted", { name: role.label }));
       } else {
@@ -166,6 +167,9 @@ function Deletion({ children }: { readonly children: ReactNode }) {
               {t("keep")}
             </AlertDialogCancel>
             <AlertDialogAction
+              // A write of the role under way is answered first: the confirmation stays open, and
+              // its command busy, rather than closing on a press that sends nothing.
+              disabled={answers?.writing.has(asked?.role.access_role_id ?? "") === true}
               onClick={() => {
                 if (asked !== undefined) {
                   confirmed(asked.role);
@@ -314,7 +318,8 @@ export function DeleteRole({ role }: { readonly role: AccessRole }) {
   const deletions = useContext(DeletionsContext);
   const name = t("deleteRole", { name: role.label });
   const held = role.holder_count > 0 ? t("heldBy", { count: role.holder_count }) : undefined;
-  const pending = deletions?.deleting.has(role.access_role_id) ?? false;
+  // Any write of the role under way, a renaming or a cell of the matrix as well as its deletion.
+  const pending = useRoleAnswers()?.writing.has(role.access_role_id) === true;
   return (
     <CellCommand
       label={name}
@@ -322,6 +327,7 @@ export function DeleteRole({ role }: { readonly role: AccessRole }) {
       aria-haspopup="dialog"
       unavailable={held}
       aria-busy={pending}
+      waiting={pending}
       className={UNAVAILABLE}
       onClick={() => {
         if (held !== undefined) {
