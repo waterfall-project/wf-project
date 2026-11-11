@@ -348,7 +348,7 @@ celui qui vient second reprenant `main`.
 
 ## US-1750 — Le suivi des tâches relit une tâche après une panne passagère, et laisse la restauration à son écran
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0080-A`, `WF-ADM-0160-A`
 - **opérations** : `getBackgroundTask`, `listBackgroundTasks`
 - **issue** : #2860

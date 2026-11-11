@@ -413,6 +413,33 @@ describe("the tracker of background tasks", () => {
     expect(reads(client)).toHaveLength(1);
   });
 
+  it("reads a task again after a read refused by 503, and tells its success without interrupting the follow-up [WF-IHM-0080-A]", async () => {
+    const client = serve({
+      [TASK]: [
+        { problem: example("invitation_provider_unavailable") as Problem & { status: 503 } },
+        "task_running",
+        "task_succeeded",
+      ],
+    });
+    await started(task("task_mark_queued"));
+    await tick(3);
+    expect(reads(client)).toHaveLength(3);
+    expect(screen.queryByText("Suivi interrompu")).toBeNull();
+    expect(ends()).toEqual([["Tâche terminée\u00A0: Marquage d’une révision."]]);
+  });
+
+  it("reads a task again after a read refused by 500, and tells the refusal once [WF-IHM-0080-A]", async () => {
+    const client = serve({
+      [TASK]: { problem: example("internal_error") as Problem & { status: 500 } },
+    });
+    await started(task("task_mark_queued"));
+    await tick(3);
+    expect(reads(client)).toHaveLength(3);
+    expect(screen.queryByText("Suivi interrompu")).toBeNull();
+    const told = readMessages().messages.filter((m) => m.sentence.startsWith("Le service est"));
+    expect(told).toHaveLength(1);
+  });
+
   it("leads to the sign-in page when the session is gone during the follow-up", async () => {
     serve({ [TASK]: { problem: { code: "SESSION_EXPIRED", status: 401 } } });
     await started(task("task_mark_queued"));
