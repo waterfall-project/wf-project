@@ -101,7 +101,6 @@ body#keycloak-bg {
   border: 1px solid var(--wf-border);
   border-radius: calc(var(--wf-radius) * 1.5);
   box-shadow: var(--wf-shadow);
-  overflow: hidden;
 }
 
 .pf-v5-c-login__main-header {
@@ -316,5 +315,63 @@ body#keycloak-bg {
 
   #kc-header-wrapper {
     margin-block: 0 1.25rem;
+  }
+}
+
+/*
+ * The site of the project (footer.ftl): on a wide screen, an invisible link over the address the
+ * banner shows, from its rule to its last letter (4.5 % to 25 % of its width, 69 % to 78 % of its
+ * height); on a narrow one, a line under the card.
+ */
+.wf-site-link {
+  color: var(--wf-muted-foreground);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.wf-site-link:hover {
+  color: var(--wf-primary);
+  text-decoration: underline;
+}
+
+@media (min-width: 48rem) {
+  .pf-v5-c-login,
+  .pf-v5-c-login__container,
+  .pf-v5-c-login__main,
+  .pf-v5-c-login__main-footer {
+    position: static;
+  }
+
+  .wf-site-link {
+    position: absolute;
+    left: 4.5vw;
+    top: calc(var(--wf-banner-height) * 0.69);
+    width: 20.5vw;
+    height: calc(var(--wf-banner-height) * 0.09);
+    color: transparent;
+    font-size: 0;
+    border-radius: var(--wf-radius);
+  }
+
+  .wf-site-link:hover {
+    color: transparent;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .wf-site-link:focus-visible {
+    outline: 2px solid var(--wf-ring);
+    outline-offset: 2px;
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .pf-v5-c-login__main-footer:has(.wf-site-link) {
+    text-align: center;
+  }
+
+  .wf-site-link {
+    display: inline-block;
+    padding-block: 1.5rem 0.5rem;
   }
 }
