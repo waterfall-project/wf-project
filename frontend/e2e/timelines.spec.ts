@@ -378,7 +378,10 @@ test("shows two timelines of a project with distinct selections, found again by 
   // Another session: the same account signed in anew in a browser context of its own, which shares
   // nothing with the first (cookies, storage), reads the two selections the service holds. The fake
   // back keeps no session, and the visits above are what it plays.
-  if (inService && manager !== undefined) {
+  if (inService) {
+    if (manager === undefined) {
+      throw new Error("the run on the service names no manager account to sign in anew");
+    }
     const context = await browser.newContext();
     try {
       const other = await context.newPage();
