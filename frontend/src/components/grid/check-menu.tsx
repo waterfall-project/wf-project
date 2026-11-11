@@ -65,6 +65,27 @@ function plainOf(option: CheckOption): string {
   return option.plain ?? (typeof option.text === "string" ? option.text : option.value);
 }
 
+/** What the button shows of the choice, and the text a reader is told of it. */
+function summaryOf(
+  options: readonly CheckOption[],
+  chosen: readonly string[],
+  every: string,
+  selected: (count: number) => string,
+): { readonly summary: ReactNode; readonly said: string } {
+  const [one] = options.filter((option) => chosen.includes(option.value));
+  if (chosen.length > 1) {
+    return { summary: selected(chosen.length), said: selected(chosen.length) };
+  }
+  if (one !== undefined && chosen.length === 1) {
+    return { summary: one.text, said: plainOf(one) };
+  }
+  // Chosen by the address and not offered: named by what the address says.
+  const unoffered = chosen[0];
+  return unoffered === undefined
+    ? { summary: every, said: every }
+    : { summary: unoffered, said: unoffered };
+}
+
 /** Render the menu of a list of values, those chosen checked. */
 export function CheckMenu({
   label,
@@ -121,30 +142,12 @@ export function CheckMenu({
   const shown = options.filter(
     (option) => needle === "" || option.found === true || folded(plainOf(option)).includes(needle),
   );
-  const picked = options.filter((option) => chosen.includes(option.value));
-  let summary: ReactNode = every;
-  if (picked.length === 1) {
-    summary = picked[0]?.text;
-  } else if (chosen.length > 1) {
-    summary = t("selected", { count: chosen.length });
-  } else if (chosen.length === 1) {
-    // Chosen by the address and not offered: named by what the address says.
-    summary = chosen[0];
-  }
+  const { summary, said } = summaryOf(options, chosen, every, (count) => t("selected", { count }));
   /** Close the list, and forget what was searched in it. */
   const close = () => {
     setOpen(false);
     setText("");
   };
-  // What the list says to a reader while it is open and the page behind it is hidden.
-  let said: string = every;
-  if (chosen.length > 1) {
-    said = t("selected", { count: chosen.length });
-  } else if (picked.length === 1 && picked[0] !== undefined) {
-    said = plainOf(picked[0]);
-  } else if (chosen.length === 1) {
-    said = chosen[0] ?? every;
-  }
   /** A value of a menu of one choice: a radio the arrows only reach. */
   const radio = (value: string, text: ReactNode) => {
     const checked = (chosen[0] ?? "") === value;
