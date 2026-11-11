@@ -40,7 +40,15 @@ one too. A row for a line is judged on the base and on the rows accepted before 
 task: the entries of those rows are handed to the hook (``CellsPasted.earlier``), so that the
 preview and the confirmation reach the same verdict.
 
-Declared by US-1380/L1; filled by US-1450/L2, L5; the lines by US-1560/L1.
+A paste is asked for by whoever may write one at least of the three grids (#2601), but the columns
+of a task's own are the planning's (#2775): a block one of whose rows writes a cell of a task — any
+column of ``TASK_COLUMNS``, the label included —, or creates a task with another cell than its
+label, as ``createNode`` does from the three grids, is refused whole to whoever does not hold
+``planning.write``, by 403 ``PERMISSION_MISSING`` naming it, at its preview before any row is
+judged, and again at its confirmation; nothing is kept nor written then.
+
+Declared by US-1380/L1; filled by US-1450/L2, L5; the lines by US-1560/L1; the permission of the
+columns of a task by US-1570/L7.
 """
 
 import re
@@ -58,7 +66,7 @@ from waterfall.core.planning.carrying import (
     TASK_NOT_COMPLETED,
     bearing,
 )
-from waterfall.core.planning.entries import ONE_DAY
+from waterfall.core.planning.entries import ONE_DAY, PERMISSION_MISSING, PLANNING_WRITE
 from waterfall.core.planning.interface.facets import CellsPasted, FacetWrite, facets
 from waterfall.core.planning.interface.lines import (
     judge_line_creation,
@@ -81,12 +89,16 @@ from waterfall.core.planning.interface.nodes import (
 from waterfall.core.planning.scheduling import Duration
 from waterfall.core.planning.shaping import stamp
 from waterfall.core.planning.tables import DURATION_UNITS, Node
-from waterfall.core.planning.tree import LINE, TASK, read_tree
+from waterfall.core.planning.tree import LINE, TASK, Tree, read_tree
 from waterfall.core.planning.views import COMPLETED, state_of
 from waterfall.core.planning.writing import NodesWritten, facts_of, judge_revision, writing
 from waterfall.core.projects.interface import work_breakdown_items
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
+    VALIDATION_FAILED,
     FieldError,
+    ForbiddenError,
     NotFoundError,
     PreconditionFailedError,
     UnprocessableError,
@@ -94,7 +106,7 @@ from waterfall.platform.errors import (
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Collection, Iterable, Mapping
 
     from sqlalchemy.orm import Session
 
@@ -108,9 +120,6 @@ if TYPE_CHECKING:
     from waterfall.core.projects.interface import WorkBreakdownItem
     from waterfall.platform.audit import Act
 
-NOT_FOUND = "NOT_FOUND"
-VALIDATION_FAILED = "VALIDATION_FAILED"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 COMPUTED_VALUE = "COMPUTED_VALUE"
 FIELD_NOT_ACCEPTED = "FIELD_NOT_ACCEPTED"
 PASTE_TOO_WIDE = "PASTE_TOO_WIDE"
@@ -634,8 +643,34 @@ def _row_at(
     return _Row(index, new_id(), given, creates=True)
 
 
+def _writes_task(tree: Tree, target: UUID, row: _Row) -> bool:
+    """Tell whether a row writes a column of a task's own (#2775).
+
+    A row on a task writes its columns, whichever they are; a row that creates a task, its label
+    alone being a creation the three grids make alike (#2601), writes them with any other cell.
+    """
+    columns = {column for column, _ in row.cells}
+    if row.creates:
+        return tree.nodes[target].kind == TASK and bool(columns - {"label"})
+    return row.node_id in tree.tasks and not columns.isdisjoint(TASK_COLUMNS)
+
+
+def _refuse_task_columns(
+    tree: Tree, target: UUID, rows: Iterable[_Row], permissions: Collection[str]
+) -> None:
+    """Refuse a block that writes the columns of a task to whoever may not write the planning."""
+    if PLANNING_WRITE in permissions:
+        return
+    if any(_writes_task(tree, target, each) for each in rows):
+        raise ForbiddenError(PERMISSION_MISSING, {"missing_permission": PLANNING_WRITE})
+
+
 def preview_paste(
-    session: Session, place: Place, block: PasteBlock, writer: Writer
+    session: Session,
+    place: Place,
+    block: PasteBlock,
+    writer: Writer,
+    permissions: Collection[str],
 ) -> PastePlanned:
     """Judge a block of cells, and keep its plan (``previewPaste``).
 
@@ -645,7 +680,9 @@ def preview_paste(
     of the structure is read before its tree: a write between the two makes the plan stale, never
     the counter newer than the tree it judged. Each row is judged on the tree the rows accepted
     before it leave — written on a copy, never in the session —, as the confirmation judges it; a
-    row past the last node creates a task there, under the identifier the plan keeps for it.
+    row past the last node creates a task there, under the identifier the plan keeps for it. A
+    block that writes the columns of a task is refused first to whoever does not hold
+    ``permissions`` ``planning.write`` (403, #2775).
     """
     facts = facts_of(session, place, lock=False)
     tree = read_tree(session, place.project_id, place.structure_id)
@@ -664,15 +701,17 @@ def preview_paste(
         ground, _items(session, place.project_id), held, tree.order[-1], block.target_node_id
     )
     start = tree.order.index(block.target_node_id)
-    accepted: list[_Row] = []
-    rejected: list[PasteRefusal] = []
+    given_rows: list[_Row] = []
     for index, cells in enumerate(block.rows):
         given: tuple[tuple[NodeColumn, str], ...] = tuple(
             (columns[at], text) for at, text in enumerate(cells) if text.strip()
         )
-        if not given:
-            continue
-        row = _row_at(tree.order, start + index, index, given)
+        if given:
+            given_rows.append(_row_at(tree.order, start + index, index, given))
+    _refuse_task_columns(tree, block.target_node_id, given_rows, permissions)
+    accepted: list[_Row] = []
+    rejected: list[PasteRefusal] = []
+    for row in given_rows:
         outcome = _settled(board, row)
         if outcome.refusals:
             rejected += outcome.refusals
@@ -797,7 +836,11 @@ def _blamed(write: Write, first: tuple[_Row, _Outcome]) -> tuple[UUID | None, st
 
 
 def apply_paste(
-    session: Session, place: Place, confirmation: PasteConfirmation, writer: Writer
+    session: Session,
+    place: Place,
+    confirmation: PasteConfirmation,
+    writer: Writer,
+    permissions: Collection[str],
 ) -> PasteApplied:
     """Apply the plan of a paste, and give the nodes written (``applyPaste``).
 
@@ -807,7 +850,9 @@ def apply_paste(
     now is added to the refusals of the preview, and not written —, the others written, the tasks
     of the rows past the last node created, in one operation, redated once, and one entry of the
     history, ``paste``, which names them all and holds none of those created before it. Without
-    any row to write, nothing is written: no entry, the counter as it was.
+    any row to write, nothing is written: no entry, the counter as it was. A plan that writes the
+    columns of a task is refused, under the lock, to whoever no longer holds ``planning.write``
+    among ``permissions`` (403, #2775); nothing is written then.
     """
     facts = facts_of(session, place, lock=False)
     judge_revision(session, place.project_id, place.revision_id)
@@ -822,6 +867,7 @@ def apply_paste(
     try:
         with writing(session, place, writer, ("paste", ())) as write:
             _stale(write.facts.lock_version, kept, confirmation)
+            _refuse_task_columns(write.tree, kept.plan.target_node_id, rows, permissions)
             ground = Ground(session, place.project_id, write.tree, write.facts.is_main)
             held = (place, writer.act, write.facts.planning_start_on)
             items = _items(session, place.project_id)

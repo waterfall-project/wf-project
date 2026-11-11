@@ -59,7 +59,7 @@ from waterfall.core.resource_settings.interface import (
 from waterfall.core.users.interface import read_authors
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
-from waterfall.platform.errors import FieldError, UnprocessableError
+from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -70,7 +70,6 @@ router = APIRouter(tags=["reference"])
 
 CHANGE = "resource_settings.write"
 NUMBER_INVALID = "NUMBER_INVALID"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 # Any open session reads the active roles; ``Requires()`` asks nothing but the session, and comes
 # before the guard of the deactivated ones, which a caller who may not read would otherwise be told.

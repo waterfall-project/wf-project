@@ -38,8 +38,18 @@ def planned_value(lines: Iterable[PlannedLine], at: date) -> Decimal:
     total = Fraction(0)
     for line in lines:
         total += Fraction(line.amount) * _earned(line, end)
-    # One rounding, to the nearest even, of the exact sum; ``scaleb`` keeps the two decimals.
-    return Decimal(round(total * 100)).scaleb(-2)
+    return _to_cent(total)
+
+
+def _to_cent(total: Fraction) -> Decimal:
+    """Round an exact sum once to the cent, half away from zero, as ``Money`` does (#2773).
+
+    The rounding of ``pricing.round_to_cent`` (#2618), on the exact fraction rather than on a
+    decimal that would round it first; ``scaleb`` keeps the two decimals.
+    """
+    cents = abs(total) * 100
+    whole = (2 * cents.numerator + cents.denominator) // (2 * cents.denominator)
+    return Decimal(whole if total >= 0 else -whole).scaleb(-2)
 
 
 def _earned(line: PlannedLine, end: WorkInstant) -> Fraction:

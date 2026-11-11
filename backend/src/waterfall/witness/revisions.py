@@ -53,11 +53,16 @@ from waterfall.core.revisions.interface import (
     read_revision,
     revisions_present,
 )
-from waterfall.platform.errors import FieldError, UnprocessableError
+from waterfall.platform.errors import (
+    VALIDATION_FAILED,
+    FieldError,
+    UnprocessableError,
+)
 from waterfall.platform.logs import get_logger
 from waterfall.platform.registry import Registry
 from waterfall.witness import costs, timeline
 from waterfall.witness.description import is_loaded
+from waterfall.witness.filling import number_of
 from waterfall.witness.timeline import (
     CodeEntered,
     CostImportApplied,
@@ -86,7 +91,6 @@ PROJECT_FILE = "project.json"
 PROJECTS_FILE = "projects.json"
 CONTRIBUTORS_FILE = "contributors.json"
 MANAGER = "project_manager"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_REQUIRED = "VALUE_REQUIRED"
 PRICING = "pricing"
 IN_PROGRESS = "in_progress"
@@ -127,12 +131,6 @@ class Projects(BaseModel):
     items: list[Project]
 
 
-def _numbered(revision: UUID) -> int | None:
-    """Give the number an identifier of the witness ends with, ``None`` if it is not a number."""
-    last = str(revision).rsplit("-", 1)[1]
-    return int(last) if last.isdecimal() else None
-
-
 class _Walk:
     """What the walk of the chronology reads of the description, and writes event by event."""
 
@@ -145,7 +143,7 @@ class _Walk:
             if project.code is not None
         }
         self.numbered = {
-            (revision.project_id.root, _numbered(revision.revision_id.root)): revision
+            (revision.project_id.root, number_of(revision.revision_id.root)): revision
             for revision in witness.read(REVISIONS_FILE, Revisions).items
         }
         self.manager = self._manager(witness)

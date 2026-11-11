@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any
 # By their modules: their own imports reach this interface again, through the facets of a task.
 from waterfall.core.exchanges.interface import ExportedFile
 from waterfall.core.planning import applying, exporting, importing
+from waterfall.core.planning.entries import PLANNING_WRITE
 from waterfall.core.planning.msproject import (
     UnreadableProjectError,
     read_project,
@@ -72,7 +73,7 @@ class MsProjectFormat:
     header_length = HEADER_LENGTH
     judged_first = False
     scope: ImportScope = "structure"
-    permission = "planning.write"
+    permission = PLANNING_WRITE
 
     def read_header(self, session: Session, head: bytes) -> None:
         """Refuse the head of a file that is not a planning of MS Project."""

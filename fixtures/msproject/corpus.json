@@ -2,7 +2,14 @@
   "files": [
     {
       "file": "01-links-and-lags-days.xml",
-      "cases": ["link_fs", "link_ss", "link_ff", "link_sf", "lag_positive_d", "lag_negative_d"],
+      "cases": [
+        "link_fs",
+        "link_ss",
+        "link_ff",
+        "link_sf",
+        "lag_positive_d",
+        "lag_negative_d"
+      ],
       "project_start": "2009-11-16",
       "hours_per_day": 8,
       "hours_per_week": 40,
@@ -11,25 +18,66 @@
     },
     {
       "file": "02-lags-every-unit.xml",
-      "cases": ["lag_min", "lag_h", "lag_w", "lag_mo", "lag_emin", "lag_eh", "lag_ed", "lag_ew", "lag_emo"],
+      "cases": [
+        "lag_min",
+        "lag_h",
+        "lag_w",
+        "lag_mo",
+        "lag_emin",
+        "lag_eh",
+        "lag_ed",
+        "lag_ew",
+        "lag_emo",
+        "lag_percent",
+        "lag_elapsed_over_weekend"
+      ],
       "project_start": "2009-11-16",
       "hours_per_day": 8,
       "hours_per_week": 40,
       "days_per_month": 20,
-      "notes": "une chaîne FD dont chaque liaison porte une unité : 30 min, 4 h, 1 j, 1 sem, 1 m, 90 emin (qui tombe dans la pause), 2 eh, 2 ej après une fin vendredi soir, 2 esem, 1 em"
+      "notes": "une chaîne FD dont chaque liaison porte une unité : 30 min, 4 h, 1 j, 1 sem, 1 m, 90 emin (qui tombe dans la pause), 2 eh, 2 ej après une fin vendredi soir, 2 esem, 1 em ; T12 décalée de 10 % de T11, T13 avec un décalage négatif de −3 j"
     },
     {
       "file": "03-durations-every-unit.xml",
-      "cases": ["duration_min", "duration_h", "duration_d", "duration_w", "duration_mo", "duration_elapsed"],
+      "cases": [
+        "duration_min",
+        "duration_h",
+        "duration_d",
+        "duration_w",
+        "duration_mo",
+        "duration_elapsed",
+        "sixteen_hours_standard"
+      ],
       "project_start": "2009-11-16",
       "hours_per_day": 8,
       "hours_per_week": 40,
       "days_per_month": 20,
-      "notes": "onze tâches sans liaison, une par unité de durée : 30 min, 4 h, 1 j, 1 sem, 1 m, 90 emin, 2 eh, 2 ej, 2 esem, 1 em, et 1 j estimé"
+      "notes": "onze tâches sans liaison, une par unité de durée : 30 min, 4 h, 1 j, 1 sem, 1 m, 90 emin, 2 eh, 2 ej, 2 esem, 1 em, 1 j estimé et 16 h sur le Standard"
+    },
+    {
+      "file": "04-calendars-uneven-days.xml",
+      "cases": [
+        "calendar_uneven",
+        "calendar_4x10",
+        "calendar_half_day",
+        "calendar_four_hours",
+        "task_calendar_chain"
+      ],
+      "project_start": "2009-11-16",
+      "hours_per_day": 8,
+      "hours_per_week": 40,
+      "days_per_month": 20,
+      "notes": "une chaîne FD de quatre tâches, chacune sur son calendrier de tâche : 16 h sur le Standard, 16 h sur « 4x10 » (lundi–jeudi 10 h), 40 h sur « Vendredi court » (vendredi 8:00–12:00), 16 h sur « 4 heures » (8:00–12:00)"
     },
     {
       "file": "05-summaries-and-milestones.xml",
-      "cases": ["summary", "summary_nested", "milestone", "milestone_linked_ff", "summary_single_milestone"],
+      "cases": [
+        "summary",
+        "summary_nested",
+        "milestone",
+        "milestone_linked_ff",
+        "summary_single_milestone"
+      ],
       "project_start": "2009-11-16",
       "hours_per_day": 8,
       "hours_per_week": 40,
@@ -37,9 +85,95 @@
       "notes": "récapitulatives sur quatre niveaux, des liaisons FD vers et depuis des récapitulatives, un jalon de fin lié en FF à deux récapitulatives, une récapitulative dont la seule subordonnée est un jalon, un jalon de départ manuel"
     },
     {
+      "file": "06-manual-tasks.xml",
+      "cases": [
+        "manual",
+        "manual_with_auto_successor",
+        "manual_conflict_fs",
+        "manual_conflict_ss",
+        "manual_non_working_day",
+        "manual_summary"
+      ],
+      "project_start": "2009-11-16",
+      "hours_per_day": 8,
+      "hours_per_week": 40,
+      "days_per_month": 20,
+      "notes": "une manuelle suivie d'une automatique ; une manuelle datée avant la fin de son prédécesseur automatique (FD) ; une manuelle liée DD qui commence avant son prédécesseur ; une manuelle qui commence un samedi ; une récapitulative en mode manuel dont les dates saisies ne couvrent pas ses subordonnées"
+    },
+    {
+      "file": "07-critical-path.xml",
+      "cases": [
+        "two_branches",
+        "float_equals_gap",
+        "summary_critical",
+        "summary_without_float"
+      ],
+      "project_start": "2009-11-16",
+      "hours_per_day": 8,
+      "hours_per_week": 40,
+      "days_per_month": 20,
+      "notes": "deux branches de 80 h et 40 h qui partent du jalon J1, la courte avec une marge égale à l'écart ; une récapitulative dont la subordonnée est critique ; une récapitulative dont la seule subordonnée est manuelle"
+    },
+    {
+      "file": "08-constraints.xml",
+      "cases": [
+        "constraint_snet",
+        "constraint_mfo",
+        "constraint_fnlt"
+      ],
+      "project_start": "2025-11-16",
+      "hours_per_day": 8,
+      "hours_per_week": 40,
+      "days_per_month": 20,
+      "notes": "une tâche « Début au plus tôt le », une « Doit finir le », une « Fin au plus tard le » ; Waterfall les importe manuelles aux dates du fichier et les signale ; le projet commence un dimanche"
+    },
+    {
+      "file": "09-ignored-content.xml",
+      "cases": [
+        "resources_ignored",
+        "assignments_ignored",
+        "resource_calendar_ignored",
+        "progress_ignored",
+        "costs_ignored",
+        "custom_fields_ignored"
+      ],
+      "project_start": "2009-11-16",
+      "hours_per_day": 8,
+      "hours_per_week": 40,
+      "days_per_month": 20,
+      "notes": "trois ressources dont une de coût, chacune affectée ; une tâche sur un calendrier de tâche « Équipe de nuit » ; une tâche à 50 % ; un coût fixe de 10 000 ; un champ personnalisé texte"
+    },
+    {
+      "file": "10-other-constants.xml",
+      "cases": [
+        "constants_7_35_20"
+      ],
+      "project_start": "2009-11-16",
+      "hours_per_day": 7,
+      "hours_per_week": 35,
+      "days_per_month": 20,
+      "notes": "7 heures par jour, 35 par semaine, 20 jours par mois ; 1 j, 1 sem et 1 m, soit 7 h, 35 h et 140 h ; le Standard du fichier compte 6 h par jour (9:00–12:00, 14:00–17:00)"
+    },
+    {
+      "file": "11-horizon-sixteen-years.xml",
+      "dating": false,
+      "cases": [
+        "horizon_exceeded"
+      ],
+      "project_start": "2009-11-16",
+      "hours_per_day": 8,
+      "hours_per_week": 40,
+      "days_per_month": 20,
+      "notes": "une tâche de 192 mois, du 16 novembre 2009 au 10 septembre 2026, rejetée au compte rendu (WF-PLA-0150) ; hors du test de datation"
+    },
+    {
       "file": "13-resource-calendars-not-ignored.xml",
       "dating": false,
-      "cases": ["resources_ignored", "assignments_ignored", "resource_calendar_ignored"],
+      "cases": [
+        "resources_ignored",
+        "assignments_ignored",
+        "resource_calendar_ignored"
+      ],
       "project_start": "2009-11-16",
       "hours_per_day": 8,
       "hours_per_week": 40,

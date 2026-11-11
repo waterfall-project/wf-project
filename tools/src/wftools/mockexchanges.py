@@ -237,6 +237,7 @@ def import_report(nodes: dict[int, Node]) -> JsonObject:
         "date_mismatches": [],
         "signals": [],
         "requires_confirmation_reasons": [],
+        "unit_constants": None,
     }
 
 
@@ -416,6 +417,7 @@ def completing_report(nodes: dict[int, Node]) -> JsonObject:
         "date_mismatches": [],
         "signals": [],
         "requires_confirmation_reasons": [],
+        "unit_constants": None,
     }
 
 
@@ -612,6 +614,7 @@ def cost_report(entry: CostImport) -> JsonObject:
         "date_mismatches": [],
         "signals": [],
         "requires_confirmation_reasons": reasons,
+        "unit_constants": None,
     }
 
 

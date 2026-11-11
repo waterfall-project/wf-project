@@ -311,6 +311,7 @@ ImportReport:
     - date_mismatches
     - signals
     - requires_confirmation_reasons
+    - unit_constants
   description: >-
     Report presented before application, and read again after it: lines read, lines
     rejected with their reason, differences with the existing data (WF-INTF-0080), what
@@ -447,6 +448,46 @@ ImportReport:
       items:
         type: string
         enum: [lines_outside_project, unknown_subproject]
+    unit_constants:
+      anyOf: [{ $ref: '#/ImportUnitConstants' }, { type: 'null' }]
+      description: >-
+        For an MS Project schedule whose unit constants differ from those of the installation,
+        the constants of the file and those of the installation: "an MS Project file whose
+        constants differ from those of the installation is imported with the same durations in
+        hours, and the report signals the difference" (WF-PLA-0160, WF-INTF-0040). The durations
+        and the lags are imported with their hours, their values converted at the constants of
+        the installation: "2 d" at seven hours a day is fourteen hours, 1.75 d at eight. A
+        constant the file does not carry is the default of MS Project, eight hours a day, forty a
+        week and twenty days a month. A piece of information, not a reason for confirmation.
+        Always returned: null when the constants are equal, and for the other kinds of import.
+
+ImportUnitConstants:
+  type: object
+  required: [file, installation]
+  description: >-
+    The unit constants of an MS Project schedule and those of the installation, when they differ
+    (`ImportReport.unit_constants`, WF-PLA-0160).
+  properties:
+    file:
+      allOf: [{ $ref: '#/UnitConstantValues' }]
+      description: The constants the file carries, a missing one at the default of MS Project.
+    installation:
+      allOf: [{ $ref: '#/UnitConstantValues' }]
+      description: >-
+        The constants of the installation at the analysis (`DurationUnits`), at which the
+        durations and the lags of the file are converted.
+
+UnitConstantValues:
+  type: object
+  required: [hours_per_day, hours_per_week, days_per_month]
+  description: >-
+    Three constants by which working days, weeks and months are converted into hours
+    (WF-PLA-0160), as `DurationUnits` carries them, without audit nor lock version: a reading,
+    not an object of the installation.
+  properties:
+    hours_per_day: { $ref: ../common.yaml#/Decimal }
+    hours_per_week: { $ref: ../common.yaml#/Decimal }
+    days_per_month: { $ref: ../common.yaml#/Decimal }
 
 ImportIgnoredKind:
   type: string

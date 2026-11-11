@@ -21,11 +21,10 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from pydantic import BaseModel, ConfigDict
-
 from waterfall.core.estimate.interface import LineEntry, LineLoad, load_lines
 from waterfall.core.planning.interface import Place
 from waterfall.core.revisions.interface import aimed_structure
+from waterfall.witness.filling import Strict, node_identifier, number_of
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -50,20 +49,14 @@ _ENTERED = frozenset(
 )
 
 
-class _Strict(BaseModel):
-    """A part of ``witness_lines.json``: every key it holds is read, none is missing."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-
-class _Revision(_Strict):
+class _Revision(Strict):
     """What the file says of a revision: its number, and how many lines it gives it."""
 
     revision: int
     line_count: int
 
 
-class _Line(_Strict):
+class _Line(Strict):
     """A line of a revision, as the file writes it: its place and what it is entered with."""
 
     revision: int
@@ -81,24 +74,11 @@ class _Line(_Strict):
     subproject_id: UUID | None
 
 
-class _Lines(_Strict):
+class _Lines(Strict):
     """The lines of the witness by revision, as ``witness_lines.json`` keeps them."""
 
     revisions: list[_Revision]
     lines: list[_Line]
-
-
-def _number(revision_id: UUID) -> int | None:
-    """Give the number an identifier of the witness ends with, ``None`` if it is not a number."""
-    last = str(revision_id).rsplit("-", 1)[1]
-    return int(last) if last.isdecimal() else None
-
-
-def _node_id(line: _Line, current: int) -> UUID:
-    """Give the identifier of a line's node in its revision: the file's in the one in progress."""
-    if line.revision == current:
-        return line.node_id
-    return uuid5(_NODE_NAMESPACE, f"{line.revision}/{line.node_id}")
 
 
 def _load(line: _Line, current: int) -> LineLoad:
@@ -115,7 +95,11 @@ def _load(line: _Line, current: int) -> LineLoad:
         sent=_ENTERED,
     )
     return LineLoad(
-        _node_id(line, current), line.lineage_id, line.task_lineage_id, line.position, entry
+        node_identifier(_NODE_NAMESPACE, line.revision, line.node_id, current),
+        line.lineage_id,
+        line.task_lineage_id,
+        line.position,
+        entry,
     )
 
 
@@ -126,7 +110,7 @@ def fill(session: Session, witness: Witness, opened: OpenedRevision) -> None:
     the file does not describe is left as it is; one it describes with a count other than its lines
     is a defect of the file, which stops the command.
     """
-    number = _number(opened.revision.revision_id.root)
+    number = number_of(opened.revision.revision_id.root)
     described = witness.read(LINES_FILE, _Lines)
     revision = next((each for each in described.revisions if each.revision == number), None)
     if revision is None:

@@ -103,9 +103,16 @@ class TaskLoad:
     completed_on: date | None
 
 
+class ParentageLoopError(ValueError):
+    """The tasks described have a parentage that loops on itself."""
+
+    def __init__(self, lineage_id: UUID) -> None:
+        super().__init__(f"the parentage of task {lineage_id} loops on itself")
+
+
 @dataclass(frozen=True, slots=True)
 class TasksLoad:
-    """What the witness describes of a structure: its planning start, its tasks parents first."""
+    """What the witness describes of a structure: its planning start, its tasks, in any order."""
 
     planning_start_on: date
     tasks: tuple[TaskLoad, ...]
@@ -156,6 +163,29 @@ def _stamp(act: Act) -> dict[str, object]:
     }
 
 
+def _parents_first(tasks: tuple[TaskLoad, ...]) -> list[TaskLoad]:
+    """Give the tasks with each parent before its children, in the order described otherwise."""
+    by_lineage = {each.lineage_id: each for each in tasks}
+    depths: dict[UUID, int] = {}
+
+    def depth(each: TaskLoad) -> int:
+        chain: list[TaskLoad] = []
+        current: TaskLoad | None = each
+        while current is not None and current.lineage_id not in depths:
+            if len(chain) >= len(tasks):
+                raise ParentageLoopError(each.lineage_id)
+            chain.append(current)
+            current = (
+                None if current.parent_lineage_id is None else by_lineage[current.parent_lineage_id]
+            )
+        base = -1 if current is None else depths[current.lineage_id]
+        for step, found in enumerate(reversed(chain), start=1):
+            depths[found.lineage_id] = base + step
+        return depths[each.lineage_id]
+
+    return sorted(tasks, key=depth)
+
+
 def _reconciled(session: Session, place: Place, load: TasksLoad, act: Act) -> None:
     """Delete, change and create the tasks of the structure so that it holds those described."""
     project_id = place.project_id
@@ -174,7 +204,7 @@ def _reconciled(session: Session, place: Place, load: TasksLoad, act: Act) -> No
     ranks = _ranks(load.tasks)
     created: list[dict[str, object]] = []
     task_rows: list[dict[str, object]] = []
-    for each in load.tasks:
+    for each in _parents_first(load.tasks):
         parent = None if each.parent_lineage_id is None else nodes[each.parent_lineage_id]
         facet = {
             "label": each.label,

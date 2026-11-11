@@ -820,12 +820,13 @@ plan de charge — est un paramètre de l'adresse, que le serveur envoie à l'AP
 ni ne décale rien.
 
 Le plan de charge du projet (`…/workload`, FBS-4.4.4) est branché sur le service (EP-07, US-1520) :
-la page ne porte plus la note de la maquette (`MockupNotice`), `getProjectWorkload` rend la charge, la
-capacité de chaque rôle, les totaux sans trou et la zone de chaque mois, et l'écran n'offre que les
-bases que le projet admet — celle de la référence quand il a une révision de référence, celle d’une
-révision marquée quand il en a une, la révision en cours toujours, seule sans l’un ni l’autre ; l'étalement et la
-date de calcul sont ceux du service, le front ne calcule rien. Les parcours de `workload.spec.ts`
-portent `@shared`, et `frontend/help/fr/FBS-4.4.4.md` dit ce que le service fait.
+la page ne porte plus la note de la maquette (`MockupNotice`), `getProjectWorkload` rend la charge,
+la capacité de chaque rôle, les totaux sans trou et la zone de chaque mois, et l'écran n'offre que
+les bases que le projet admet — celle de la référence quand il a une révision de référence, celle
+d'une révision marquée quand il en a une, la révision en cours toujours, seule sans l'un ni
+l'autre ; l'étalement et la date de calcul sont ceux du service, le front ne calcule rien. Les
+parcours de `workload.spec.ts` portent `@shared`, et `frontend/help/fr/FBS-4.4.4.md` dit ce que le
+service fait.
 
 ### L'écran des indicateurs
 
@@ -1053,8 +1054,9 @@ pas ; rien ne se trie ni ne se cherche, l'ordre est celui du plan. Les 5 999 nœ
 volume (`volume/comparison_volume.json`, dont 2 770 modifiés) ne montent qu'une fenêtre de lignes,
 et l'écran garde la borne d'un écran de grille (`WORKING`, 15 s, `revisions.spec.ts`) ; le parcours
 joue l'exemple de la fenêtre contre le faux back, qui sert le premier exemple de l'opération, et
-toute la structure contre le service. Les écarts de montants restent une table sous la grille, et l'écran est l'un de ceux du harnais
-d'accessibilité (`DIFFERENTIAL_SCREENS`).
+toute la structure contre le service, où celle de PRJ-001 compte 5 966 nœuds, la volumétrie de 5 999
+nœuds restant au faux back jusqu'à EP-13 (#2696). Les écarts de montants restent une table sous la
+grille, et l'écran est l'un de ceux du harnais d'accessibilité (`DIFFERENTIAL_SCREENS`).
 
 ### La grille de planning et le Gantt
 
@@ -1185,9 +1187,14 @@ leur nom et la chronologie montrée se supprime après confirmation, comme le pr
 `manage_timelines` (`timeline-commands.tsx`, EP-14/L44c). Le serveur sélectionne ce que chacune
 dessine (#463) : l'arborescence demande les récapitulatives jusqu'au niveau de l'adresse
 (`summaries_only`, `max_level`), une chronologie les tâches qui y sont inscrites (`timeline_id`). Le
-service les tient pour les chronologies (US-1400) : l'écran dessine ce qu'il rend, sans appliquer
-de critère à la réponse ; l'arborescence applique encore le sien (`summaryTree`) contre le faux
-back, écart temporaire d'EP-02 retiré par US-1440.
+service les tient pour les chronologies (US-1400) et pour l'arborescence (US-1440) : l'écran
+dessine ce qu'il rend, sans appliquer de critère à la réponse, et le repli de `listNodes` (#496,
+`summaryTree`, `inscribedTo`) n'existe plus. Contre le faux back, qui rend le premier exemple
+quelle que soit la requête, l'arborescence dessine toute la structure du témoin, et l'écran des
+chronologies tous les rectangles du volume : ce que chacune sélectionne se prouve contre le service
+(`task-tree.spec.ts`, `timelines.spec.ts`), la requête de l'écran par ses tests de composants. La
+profondeur que le parcours de l'arborescence demande au service est celle de l'écran
+(`DEFAULT_DEPTH`, `summaries.ts`, #2551), non un nombre recopié.
 L'arborescence offre exactement les niveaux que la structure a, du premier à celui de sa plus
 profonde récapitulative, que le serveur dit quels que soient les filtres (`meta.summary_depth`,
 #494), et montre le niveau demandé, ou le plus profond quand on lui en demande un au-delà
@@ -1200,26 +1207,37 @@ par `updateCostStructure`, et le rattachement, la création, l'indentation, le d
 suppression par les opérations de l'arbre ; les tâches redatées, les liaisons en conflit, la marge
 et le chemin critique sont ceux que le serveur rend. Un compte qui voit le projet sans en être
 contributeur lit le planning et reçoit `NOT_CONTRIBUTOR` à chaque écriture et à `openImport`
-(`e2e/service/planning-readers.spec.ts`, WF-ADM-0110-A). Les parcours de `planning-service.spec.ts`,
-`structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`, `grid.spec.ts` (le Gantt épinglé) et
-`context.spec.ts` qui jouent contre le service portent `@shared` : le témoin de PRJ-001 n'a pas
-encore ses tâches dans le service (US-1480), et le compte de la course n'en est pas contributeur
-(#2193), si bien que chacun écrit son propre projet (`e2e/planning-seed.ts` : le projet créé depuis
-l'accueil, sa révision ouverte, six tâches écrites par l'API, et, selon le parcours, leurs liaisons
-dont une en conflit, un lotissement de deux postes ; les états « démarrée » et « terminée » restent
-joués sur le faux back jusqu'à US-1480/L3, #2595). Le report d'une grille à l'autre (#1057) se joue
-depuis la grille de devis (EP-07, US-1560, `structure.spec.ts`) : la tâche créée dans le devis, et
-une ligne sous elle, sont lues dans le planning — automatique, d'un jour, sans prédécesseur —, et
-son indentation depuis le devis avec elle. Le parcours du compte « chef de projet » joue la
-planification et FLX-02 ; FLX-01 attend US-1430/L4 (#2589). Les parcours qui lisent le témoin de
-PRJ-001 attendent US-1480 : leur étiquetage `@shared` est celui d'US-1480/L3 (#2591). Ce qui ne se
-rejoue pas avant son EPIC reste gardé par `inService` : les lignes, les montants et le devis (EP-07)
-; le reste à engager (EP-09) ; les risques (EP-08) ; les indicateurs (EP-10) ; les structures
-différentielles (EP-08), si bien que le parcours de `context.spec.ts` qui ouvre l'avenant, celui de
-l'écran des risques et celui des indicateurs restent sur le faux back ; les parcours de
-`planning.spec.ts` et de `keyboard.spec.ts` qui lisent les mille tâches du témoin (US-1480). La
-mesure d'une validation de cellule (#196) et celle du déplacement de la cellule active sur mille
-tâches (#620) sont au relevé de livraison d'US-1470.
+(`e2e/service/planning-readers.spec.ts`, WF-ADM-0110-A). Le témoin de PRJ-001 a ses mille tâches dans
+le service (US-1480), et le compte de la course n'en est pas contributeur (#2193) : un parcours qui
+le lit se joue des deux côtés, `@shared`, et un parcours qui écrit se joue sur son propre projet
+(`e2e/planning-seed.ts` : le projet créé depuis l'accueil, sa révision ouverte, six tâches écrites
+par l'API, et, selon le parcours, leurs liaisons dont une en conflit, un lotissement de deux
+postes). Les parcours de `planning-service.spec.ts`, `structure.spec.ts`, `computed.spec.ts`,
+`keyboard.spec.ts`, `grid.spec.ts` (le Gantt épinglé) et `context.spec.ts` qui jouent contre le
+service portent `@shared`, comme, dans `planning.spec.ts`, ceux qui lisent le témoin : l'ouverture
+de la grille — ses icônes, les états « démarrée » et « terminée » d'une tâche du témoin
+(WF-PLA-0080-A, #2595) —, ses totaux, le filtre sur un poste, l'absence de squelette, le Gantt, ses
+jours chômés, le pli d'une récapitulative, le zoom et l'export PNG ; avec `navigation.spec.ts` (le
+projet qui mène à son planning). Ils ne comptent pas sur un numéro de ligne : le service numérote
+les tâches seules, les lignes du témoin, qui font avancer les numéros du faux back (7, 39, 311),
+attendant US-1570 (EP-07) ; ils trouvent la ligne par son libellé et lisent le numéro qu'un
+prédécesseur doit porter dans la grille. Le report d'une grille à l'autre (#1057, #2590) se joue
+depuis la grille de devis (EP-07, US-1560, `structure.spec.ts`), sur la structure qu'elle partage
+avec le planning : la tâche créée dans le devis, et une ligne sous elle, sont lues dans le
+planning — automatique, d'un jour, sans prédécesseur —, et son indentation depuis le devis avec
+elle. Le parcours du compte « chef de projet » joue la planification et FLX-02 ; FLX-01, l'analyse
+de l'export relu, puis l'import confirmé et suivi dans la coquille, se joue contre le service
+(`exchanges.spec.ts`, #2589, #2683). Ce qui ne se rejoue pas contre le service reste sur le faux
+back, gardé par `inService` ou sans étiquette, la liste des entrées étant celle de « Un parcours de
+bout en bout » : les parcours de `planning.spec.ts` qui écrivent sur le témoin — le rattachement,
+la saisie d'une cellule, la durée et les prédécesseurs, la date de début — ont chacun leur jumeau
+dans `planning-service.spec.ts`, sur un projet de la course ; les lignes, les montants et le devis
+se jouent contre le service sur un projet de la course (EP-07, US-1560), ceux qui lisent le témoin
+attendant ses lignes (US-1570) ; le reste à engager relève d'EP-09, les risques d'EP-08, les
+indicateurs d'EP-10 et les structures différentielles d'EP-08, si bien que le parcours de
+`context.spec.ts` qui ouvre l'avenant, celui de l'écran des risques et celui des indicateurs
+restent sur le faux back. La mesure d'une validation de cellule (#196) et celle du déplacement de
+la cellule active sur mille tâches (#620) sont au relevé de livraison d'US-1470.
 
 ### L'écran des risques
 
@@ -2920,10 +2938,16 @@ qui en dépend se juge mal en maquette (#1399) : juger ces gestes revient aux te
 éprouvent la requête que l'écran fait, et au service. Les écrans de listes et de grilles le disent
 par `MockupNotice` avec `lists` (`mockup.notFiltered`), en une seule note sous l'en-tête. Les écrans
 dont le service est livré ne portent pas la note, même si `make dev` les sert par Prism et que les
-mêmes limites s'y appliquent : l'administration (EP-03), le référentiel (EP-05) et, d'EP-04, l'accueil
-connecté (US-0920/L2), les révisions (US-0960, US-0970) et les paramètres du projet (US-1000), et,
-d'EP-07, le plan de charge (US-1520) et le devis (US-1560), et, d'EP-09, les coûts réels (US-1620), la grille du reste à engager et le Kanban (US-1640, qui en retire `MockupNotice`) ; un
-succès y est ce que le service a gardé, relu.
+mêmes limites s'y appliquent : l'administration (EP-03), le référentiel (EP-05) et, d'EP-04,
+l'accueil connecté (US-0920/L2), les révisions (US-0960, US-0970) et les paramètres du projet
+(US-1000), puis, d'EP-06, les chronologies (US-1400), les échanges (US-1430), l'arborescence
+(US-1440) et le planning (US-1470), d'EP-07, le plan de charge (US-1520), la comparaison des
+révisions (US-1530), les contributeurs proposés (US-1540), l'import et l'export du devis (US-1550)
+et le devis (US-1560), et, d'EP-09, les coûts réels (US-1620), la grille du reste à engager et le
+Kanban (US-1640, qui en retire `MockupNotice`) ; un succès y est ce que le service a gardé, relu.
+Contre le faux back, l'écran des chronologies dessine tout le volume que Prism rend pour
+`listNodes`, quelle que soit la chronologie : les parcours de la frise et du focus n'y jugent que la
+disposition, et leur sélection se prouve contre le service.
 
 _Contrôles_ : `make lint-openapi` (exemples conformes aux schémas, volumes compris),
 `make mock-data-up-to-date` (les volumes versionnés sont ceux que l'outil écrit, dans la
@@ -4073,65 +4097,99 @@ parcours `@shared` remet aussi à zéro les préférences de grille du compte qu
 (`resetGridPreferences`, `updateMyPreferences`), qu'un tri ou un filtre d'un parcours précédent
 aurait laissées (#2282), ce que `service/grid-reset.spec.ts` éprouve.
 
-Le projet `shared` joue ainsi les parcours du projet contre le témoin chargé, tranche des projets
-comprise (« Le back et les frontières du noyau ») : PRJ-001 en Chiffrage, ses révisions 100 et 101
-marquées, la 102 ouverte, sans tâche ni ligne ni référence. Leurs attendus de lecture ne sont pas
-réécrits pour ce qu'un projet en chiffrage et des révisions vides laissent lire ; ce qui lit PRJ-001
-En cours, sa référence, ses tâches ou ses lignes ne se rejoue pas avant EP-07. Les assertions
-d'écriture affirment ce qui a été écrit, relu, par `inService`.
+Le projet `shared` joue ainsi les parcours du projet contre le témoin chargé, tranches des projets,
+des tâches et des lignes comprises (« Le back et les frontières du noyau ») : PRJ-001 En cours, son
+code posé et l'offre 100 désignée pour référence, ses révisions 100 et 101 marquées, la 102 ouverte.
+La tranche des tâches (`waterfall-api load-witness`, EP-06, US-1480) charge, pour la structure
+principale de chacune des trois révisions, les mille tâches de PRJ-001 avec leurs liaisons, leurs
+modes et leurs durées, leurs états et leurs dates de démarrage et de terminaison, leurs
+inscriptions, les deux chronologies et la date de début de planning. La tranche des lignes (EP-07,
+US-1570) vient après les tâches de chaque révision et avant son marquage : elle charge les lignes de
+devis des trois révisions (cinq mille pour la structure principale de la 102), avec leurs rôles,
+leurs catégories, leurs grandeurs, leurs délais de paiement et leurs sous-projets, et les
+calendriers de rôles qui donnent leurs dates aux 103 tâches à calendrier 4×10 h de la frise
+(#2594) ; puis elle rejoue la mise à jour des taux de la 101 (le 12 janvier 2026), désigne l'offre
+100 pour référence (le 15 janvier 2026), et le passage En cours que cette désignation produit
+s'écrit aux transitions du témoin. Elle ne charge ni provision ni avenant, ni risque (EP-08, dont la
+fusion de l'avenant 1 fait de la 101 la référence : jusqu'alors la référence est l'offre 100), ni
+coût réel (EP-09, qui y ajoute les cinq imports de coûts réels et le reste à engager précédent des
+lignes de la 102), ni indicateur (EP-10), ni les volumes entiers (EP-13). En service, la structure
+de PRJ-001 compte 5 966 nœuds, non les 5 999 du volume que le faux back sert. Ce que lisent PRJ-001
+En cours, sa référence et ses lignes se joue donc contre le service, aux attendus des exemples près
+que la liste ci-dessous nomme. Les assertions d'écriture affirment ce qui a été écrit, relu, par
+`inService`.
 
 La liste consolidée de ce qu'un parcours ne rejoue pas encore contre le service tient ici : il se
 saute par `inService` (`test.skip(inService, …)`) quand il est étiqueté, ou reste sans étiquette,
 chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son entrée :
 
 - `revisions.spec.ts` — la volumétrie (5 999 nœuds) seule (`NO_VOLUME_IN_SERVICE`) : le projet de
-  volume n'existe qu'au faux back, jusqu'aux volumes d'EP-13 (#2696) ; **EP-13** retire la garde.
-  La révision en cours et ses parties, la comparaison et « Écarts seulement » se jouent contre le
-  service depuis US-1570/L2 (#2385), dont le chargeur donne au témoin ses tâches et ses lignes
-  (le service sert `compareRevisions` et `getRateUpdateProposal`) ; la comparaison y est celle de
-  toute la structure, là où le faux back rend la fenêtre de son exemple. L'écran d'une révision
-  en cours lit la proposition par `readUnlessRefused` et se rend sans elle sur le 404 du service
-  (#2173), ses commandes jouables. L'historique se joue contre le service dès US-0960, avec les
-  révisions 100 et 101 du témoin marquées dès US-0970.
+  volume n'existe qu'au faux back, jusqu'aux volumes d'EP-13 (#2696) ; **EP-13** retire la garde. La
+  révision en cours et ses parties, la comparaison et « Écarts seulement » se jouent contre le
+  service depuis US-1570/L2 (#2385), dont le chargeur donne au témoin ses tâches et ses lignes (le
+  service sert `compareRevisions` et `getRateUpdateProposal`) ; la comparaison y est celle de toute
+  la structure de PRJ-001, 5 966 nœuds en service, là où le faux back rend la fenêtre de son
+  exemple. L'écran d'une révision en cours lit la proposition des taux comme toute lecture
+  (`readOrFail`), non plus par `readUnlessRefused` : le service sert `getRateUpdateProposal`
+  (#2173). L'historique se joue contre le service dès US-0960, avec les révisions 100 et 101 du
+  témoin marquées dès US-0970.
 - `revision-cycle.spec.ts` — les commandes de la révision 102 de PRJ-001 et l'ouverture indisponible
   (`NOT_REPLAYED_IN_SERVICE`) : le compte de la course n'est pas inscrit chef de projet des projets
-  du témoin, par décision (#2193, option A), si bien que le service ne lui liste pas les commandes
-  de PRJ-001 ; les parcours qui écrivent créent leur propre projet. La désignation de la référence
-  de PRJ-001, refusée faute de tâches et de lignes, est levée par **EP-07** (EP-06 sert les tâches).
+  du témoin, par décision (#2193, option A) que nul EPIC ne renverse, si bien que le service ne lui
+  liste pas les commandes de PRJ-001 ; les parcours qui écrivent créent leur propre projet. La
+  désignation de l'offre 100 de PRJ-001 est celle du chargeur (EP-07), et le projet est En cours.
   L'abandon de la 102 (`WITNESS_KEPT`) ne se joue jamais contre le service, qui l'ôterait à tous les
   autres parcours. Le cycle (#1350) se joue contre le service seul (`SERVICE_ONLY`), sur un projet
   que le compte de la course crée (`own-project.ts`), chef de projet comme créateur : une révision
-  ouverte puis marquée par le worker, la désignation refusée faute de tâches et de lignes — ce
-  qu'**EP-07** renversera : la désignation aboutira, et le code saisi emmènera le projet En cours —,
-  une autre ouverte puis abandonnée, rouverte, le code saisi, le projet sorti à Perdu. Il se joue
-  depuis qu'**US-0850** (EP-05) sert les rôles de ressources : le référentiel minimal est complet,
-  et le service crée un projet (#2194). Le parcours de restauration (`service/backups.spec.ts`) en
-  crée un avant la sauvegarde, marque sa révision et en crée un second après, et ne les retrouve
-  plus une fois la restauration faite (WF-ADM-0160-A) ; rejoué sur une même installation, il y
-  laisse un compte et un projet de plus, la restauration reprenant tout le reste.
-- `project-start.spec.ts` — le départ vers le planning : l'ouverture de PRJ-001 qui mène à son
-  planning, l'écran du lotissement qui engendre le planning, et l'encart « Démarrer le projet » d'un
-  projet créé, qui se jouent contre le service sur un projet que le compte de la course crée : il
-  liste `import_planning` (US-1430) et sert les structures et `generatePlanningSkeleton`, si bien
-  qu'aucune garde `BEFORE_EP06` ne reste. Le lotissement d'un projet créé, écrit puis relu, se joue
-  dès US-0950 (parcours jumeau, `SERVICE_ONLY`), le fond mémoire ne gardant rien du lotissement
-  qu'on lui donne (`FAKE_BACK_FORGETS`).
-- `context.spec.ts` — le bandeau du contexte sur les écrans des données, le planning, le reste à
-  engager, les risques et les indicateurs, et sur une structure différentielle (`BEFORE_THE_DATA`) :
-  levée écran par écran par **EP-06** (le planning, les structures), **EP-07** (le devis d'une
-  structure principale que la course crée, US-1560 ; le devis propre d'un risque et les
-  différentiels sont d'**EP-08**, le reste à engager d'**EP-09**), **EP-08** (les risques) et
-  **EP-10** (les indicateurs). Le bandeau des écrans d'un projet créé,
-  ses paramètres et ses révisions, se joue dès US-1000.
+  ouverte puis marquée par le worker, la désignation refusée faute de tâches et de lignes, une autre
+  ouverte puis abandonnée, rouverte, le code saisi, le projet sorti à Perdu. Le parcours qui suit
+  dans le fichier est celui qui aboutit (US-1540) : une référence qui porte une tâche et une ligne
+  est désignée, le projet reste en Chiffrage tant que le code manque, et le code saisi le passe En
+  cours ; `pricing.spec.ts` y ajoute le chiffrage par la grille (voir plus bas). Il se joue depuis
+  qu'**US-0850** (EP-05) sert les rôles de ressources : le référentiel minimal est complet, et le
+  service crée un projet (#2194). Le parcours de restauration (`service/backups.spec.ts`) en crée un
+  avant la sauvegarde, marque sa révision et en crée un second après, et ne les retrouve plus une
+  fois la restauration faite (WF-ADM-0160-A) ; rejoué sur une même installation, il y laisse un
+  compte et un projet de plus, la restauration reprenant tout le reste.
+- `project-start.spec.ts` — aucune entrée : le départ vers le planning se joue contre le service
+  (`BEFORE_EP06` levée par US-1460), sur un projet que le compte de la course crée, qui liste
+  `import_planning` (US-1430) et sert les structures et `generatePlanningSkeleton`. Le lotissement
+  d'un projet créé, écrit puis relu, se joue dès US-0950 (parcours jumeau, `SERVICE_ONLY`), le fond
+  mémoire ne gardant rien du lotissement qu'on lui donne (`FAKE_BACK_FORGETS`) (#2543).
+- `context.spec.ts` — le bandeau du contexte sur le reste à engager, les risques et les indicateurs,
+  et sur une structure différentielle (`BEFORE_THE_REMAINING`, `BEFORE_THE_INDICATORS`,
+  `BEFORE_THE_DIFFERENTIALS`) : levée écran par écran par **EP-09** (le reste à engager), **EP-08**
+  (les risques et les structures différentielles) et **EP-10** (les indicateurs). Le bandeau du
+  planning (EP-06), du devis (US-1560, EP-07), des écrans d'un projet créé, de ses paramètres et de
+  ses révisions se joue contre le service.
+- `planning.spec.ts`, `structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts` — les parcours
+  qui écrivent sur le témoin de PRJ-001, dont le compte de la course n'est pas contributeur (#2193) :
+  chacun a son jumeau contre le service sur un projet de la course (`planning-service.spec.ts`,
+  `structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`), que nul EPIC ne renverse ; les
+  parcours de ces fichiers qui lisent le témoin se jouent des deux côtés. Les parcours du reste à
+  engager de `structure.spec.ts` sont d'**EP-09**.
+- `planning.spec.ts` — la lecture de la date de début de planning, de ses en-têtes « Démarrée le » et
+  « Terminée le » se joue des deux côtés ; seule son écriture (`updateCostStructure`) reste sur le
+  faux back, comme les autres écritures du témoin ci-dessus.
 - `entry.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`, `paste.spec.ts`, `undo.spec.ts`,
-  `grid.spec.ts` (le tri par montant), `structure.spec.ts` — le devis (US-1560, EP-07) : les parcours
-  qui écrivent se jouent contre le service sur un projet que la course crée, une phase, une tâche et
-  une ligne écrites par l'API (`e2e/estimate-seed.ts`), et portent `@shared` ; ceux qui lisent les
-  six mille nœuds du témoin attendent US-1570, et ceux du devis propre d'un risque (`paste.spec.ts`,
-  `entry.spec.ts`), étiquetés, sont gardés par `inService` jusqu'à **EP-08**. Le passage d'un projet
-  En cours (le devis de la structure principale en lecture seule, une ligne sous une tâche terminée
-  refusée) ne se rejoue qu'avec le témoin d'US-1570 : les tâches « démarrée » et « terminée » ne
-  s'écrivent pas avant qu'un projet soit En cours.
+  `grid.spec.ts`, `structure.spec.ts`, `workload.spec.ts` — le devis (US-1560, EP-07) et le plan de
+  charge (US-1520) : les parcours qui écrivent se jouent contre le service sur un projet que la
+  course crée, une phase, une tâche et une ligne écrites par l'API (`e2e/estimate-seed.ts`), et
+  portent `@shared` ; ceux qui lisent le témoin de PRJ-001 En cours s'y jouent depuis US-1570/L3 (la
+  lecture seule de la structure principale, `structure.spec.ts` ; les montants calculés et les dates
+  des récapitulatives, `computed.spec.ts` ; la grille, ses indicateurs par lot, son filtre, son tri,
+  ses colonnes et son clavier ; les quatre parcours du plan de charge). Ne se jouent pas, faute de
+  ce que le service sert : le volume de 5 999 nœuds et ses marques, que seul le faux back porte
+  jusqu'aux volumes d'**EP-13** (#2696) — l'ouverture et le défilement de la grille, ses fenêtres
+  basse et étroite, son pli par niveau, et le défilement du clavier jusqu'à la six millième ligne
+  (`grid.spec.ts`, `keyboard.spec.ts`) —, la provision de la douzième ligne (**EP-08**), les
+  parcours du devis propre d'un risque et du différentiel (`paste.spec.ts`, `entry.spec.ts`, gardés
+  par `inService` ou sans étiquette jusqu'à **EP-08**) et ceux du reste à engager (`undo.spec.ts`,
+  le tri après une écriture de `grid.spec.ts`, `structure.spec.ts`, **EP-09**). Le passage d'un
+  projet En cours se joue : le devis de la structure principale en lecture seule contre PRJ-001
+  (`structure.spec.ts`), et le chiffrage jusqu'au passage En cours (`pricing.spec.ts`) ; une ligne
+  sous une tâche terminée, refusée, ne s'écrit que dans le reste à engager (**EP-09**), la structure
+  principale d'un projet En cours étant en lecture seule.
 - `remaining.spec.ts` — la grille du reste à engager et le Kanban (US-1640) : le fichier entier porte
   `@shared`. Le parcours qui écrit — une tâche démarrée et un jalon terminé au Kanban, les lignes de la
   tâche démarrée dans la grille, les non démarrées à la demande — se joue contre le service sur un projet
@@ -4140,17 +4198,42 @@ chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son ent
   ou un risque (levé par **EP-08**), restent gardés par `inService` ; les gestes sur le Kanban du faux
   back, qui ne garde rien, et le sous-menu « Sous-projet » (`FAKE_BACK_KEEPS_NOTHING`) ne se rejouent
   qu'en faux back, leur équivalent contre le service étant le parcours qui écrit.
+- `timelines.spec.ts` — la frise et le focus (WF-IHM-0100-A) se jouent contre le service depuis
+  US-1570/L3 : les lignes du témoin donnent leurs calendriers de rôles aux tâches (#2594). Restent
+  sans étiquette trois parcours qui écrivent sur le témoin de PRJ-001, dont le compte de la course
+  n'est pas contributeur (#2193) : l'inscription d'une tâche à une chronologie (`:52`, sur le
+  premier nœud du faux back, dont le jumeau `:415`, sur un projet de la course, joue le service), le
+  suivi temps/temps d'un jalon inscrit (`:104`) et la création puis la suppression d'une chronologie
+  (`:300`) ; nul EPIC ne les renverse. La navigation depuis le planning, l'export PNG, les deux
+  sélections et l'inscription sur un projet de la course se jouent contre le service.
+- `exchanges.spec.ts` — l'import en deux étapes de PRJ-001 (`:93`), qui lit les lignes qu'un rapport
+  rejette et l'abandon : le service joue l'import d'un devis, exporté puis réimporté et confirmé,
+  sur un projet de la course (`:321`, US-1550), dont le classeur n'a nulle ligne à rejeter ; le
+  refus d'un fichier trop gros (`:163`), qui ouvre l'écran des imports de PRJ-001 dont le compte de
+  la course n'est pas contributeur (#2193) ; les deux écrans qui mènent à l'écran des imports depuis
+  le devis et le reste à engager (`:192`), levé par **EP-09**, le devis étant servi par EP-07.
+  L'export du planning, relu par l'import et confirmé, se joue contre le service sur un projet de la
+  course (US-1430, #2683), comme l'export du reste à engager, réimporté en deux étapes et quitté
+  pendant son application (`:451`, US-1630).
 - `projects.spec.ts` — les parcours qui écrivent sur PRJ-001 ou y mènent par son planning : l'écran
   du projet, ses paramètres et son cycle de vie, la sortie, les sous-projets et les contributeurs,
   le lotissement (`FAKE_BACK_ONLY`) : le compte de la course n'est pas chef de projet de PRJ-001,
   par décision (#2193, option A), que nul EPIC ne renverse — ce que rejouent les jumeaux —, et le
-  planning vers lequel mène sa page est d'**EP-06**. Chacun a son jumeau, joué contre le service
+  planning vers lequel mène sa page, que le service sert depuis EP-06, ne s'écrit pas non plus sous
+  ce compte. Chacun a son jumeau, joué contre le service
   seul sur un projet que le compte crée (`SERVICE_ONLY`, `own-project.ts`) : paramètres, cycle de
   vie, sous-projets, lotissement, contributeurs (un second compte, inscrit par l'API puisque l'écran
   ne propose que les comptes du devis, WF-PRJ-0070-A ; la qualité de ce compte est changée par
   l'écran, puis relue après rechargement) et une sortie à Perdu depuis Chiffrage, relue. La lecture
   de PRJ-001 — la liste, les tris et les filtres de l'accueil, les listes de ses paramètres — se
   joue des deux côtés.
+
+La définition de fini d'EP-07 se constate par des parcours contre le service, joués par le compte
+« chef de projet » de la course : un projet chiffré par la grille puis passé En cours — la quantité
+d'une ligne saisie, son montant calculé par le service, la révision marquée par le worker, désignée
+pour référence, le code saisi (`pricing.spec.ts`, WF-INTF-0010-A, FBS-4.4) ; un devis exporté en
+Excel, réimporté sans écart et confirmé (`exchanges.spec.ts`, FLX-03 et FLX-04) ; cinquante saisies
+d'une ligne annulées une à une puis rétablies dans l'ordre (`undo.spec.ts`, WF-IHM-0110-A).
 
 Les deux lecteurs d'un projet (`service/project-readers.spec.ts`, WF-ADM-0040-A) se jouent contre le
 service seul : deux comptes locaux qui portent « Manager » et « Chef de projet », l'un lisant en
@@ -4164,20 +4247,20 @@ dépend de l'horloge : rien dans le référentiel, dont les dates sont celles du
 (WF-DAT-0070) et que les parcours n'attendent pas. D'un écran que le service ne sert pas :
 l'ouverture, depuis `/`, du portefeuille de `navigation.spec.ts`, levée par **EP-11**, et celle de
 l'écran d'état du système, levée par **EP-13** (`getSystemStatus`, #2307). L'administration, elle,
-se lit sous `@administration` (le compte de la course n'y porte pas le rôle « Manager » mais «
-Administrateur (parcours) ») : les parcours d'`admin.spec.ts` qui lisent sont `@shared
-@administration`. Ne se rejouent pas ceux d'`admin.spec.ts` qui écrivent — les sauvegardes (lancer,
-garder, restaurer), l'horaire des sauvegardes, les comptes et les rôles : chacun écrit un objet
-unique de l'installation, ou demande `users.write` ou `access_roles.write`, que le compte de
+se lit sous `@administration` (le compte de la course n'y porte pas le rôle « Manager » mais
+« Administrateur (parcours) ») : les parcours d'`admin.spec.ts` qui lisent sont
+`@shared @administration`. Ne se rejouent pas ceux d'`admin.spec.ts` qui écrivent — les sauvegardes
+(lancer, garder, restaurer), l'horaire des sauvegardes, les comptes et les rôles : chacun écrit un
+objet unique de l'installation, ou demande `users.write` ou `access_roles.write`, que le compte de
 `@administration` n'a pas, et que les parcours de `frontend/e2e/service/` (`backups.spec.ts`,
 `accounts.spec.ts`, `roles.spec.ts`) éprouvent sous l'administrateur de l'installation. L'accueil
 est servi depuis US-0920/L2 et se joue des deux côtés (`projects.spec.ts`, et l'icône de l'onglet de
 `navigation.spec.ts`), de même que les écrans d'un projet depuis US-1000 (dont, dans
 `navigation.spec.ts`, le passage des paramètres au cycle de vie). Restent sans étiquette, dans
 `navigation.spec.ts`, le retour au projet précédent depuis une fonction hors projet, qui rouvre le
-reste à engager puis les risques de PRJ-001 (levé par **EP-07** et **EP-08**), et l'adresse du
-projet qui mène à son planning, avec son contexte de lecture (levée par **EP-06**). De ce que leur
-US n'étiquette pas encore : la lecture des réglages hors projet (`reference-costs.spec.ts`,
+reste à engager puis les risques de PRJ-001 (levé par **EP-09** et **EP-08**) ; l'adresse du projet
+qui mène à son planning, avec son contexte de lecture, se joue des deux côtés depuis EP-06. De ce
+que leur US n'étiquette pas encore : la lecture des réglages hors projet (`reference-costs.spec.ts`,
 US-0250). La modification des unités de durée (`reference-resources.spec.ts`), qui écrit l'objet
 unique de l'installation, se joue en `@serial` dans le projet `shared-serial`, comme les autres
 parcours qui écrivent un objet unique. Les gardes `inService` des parcours étiquetés ne sont pas des

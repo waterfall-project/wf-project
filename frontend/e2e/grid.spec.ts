@@ -28,6 +28,12 @@ import { seedPlanning } from "./planning-seed";
 // (`openHydrated`) before it scrolls or clicks: the rows follow the scroll, and the sort answers
 // its header, once React does. An address that follows a click which reads the six thousand rows
 // anew is awaited with the bound of the screens of grids (`WORKING`, #315, #419).
+//
+// The paths tagged `@shared` are played against the service too, on the witness it holds (US-1570).
+// The others read the volume of the generator by its marks — six thousand rows, the task of row 15,
+// the milestone of row 6000 —, which the witness of the service does not hold: its structure counts
+// 5 999 nodes of its own, and the volumes are EP-13's (#2696). Nor does a path of the remaining to
+// commit play there before EP-09.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const GRID = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
@@ -69,23 +75,29 @@ function edges(page: Page) {
   };
 }
 
-test("the indicators of the estimate break the total down by lot, « Lot 1 » named as the work breakdown names it [WF-DEV-0060-A]", async ({
+test("the indicators of the estimate break the total down by lot, « Lot 1 » named as the work breakdown names it @shared [WF-DEV-0060-A]", async ({
   page,
 }) => {
   await openHydrated(page, GRID);
   const indicators = page.getByRole("main");
   const byLot = indicators.getByRole("region", { name: "Par lot" });
   await expect(byLot).toBeVisible();
-  // The card holds a list with the lot of the witness, whose posts it contains, with the
-  // total of its tasks as the first example of `getEstimateIndicators` gives it — 502 434,56 €, its
-  // share of the estimate after it (`test_mockdata.py` holds the lot of the volume).
+  // The card holds a list with the lot of the witness, whose posts it contains, with the total of
+  // its tasks. Against the fake back, that of the first example of `getEstimateIndicators`:
+  // 502 434,56 €, its share of the estimate after it (`test_mockdata.py` holds the lot of the
+  // volume). Against the service, 2 434,56 €, the amount that
+  // `backend/tests/test_witness_lines_reads.py` pins for the witness it holds.
   const lot = byLot.getByRole("listitem");
   await expect(lot).toHaveCount(1);
-  await expect(lot).toHaveText(/^Lot 1\s*502\s434,56\s€\s\(0,73\s%\)$/);
+  // The 500 000 € that the fake back adds are the volume (§4.6.2), which it alone holds until
+  // EP-13 (#2696).
+  await expect(lot).toHaveText(
+    inService ? /^Lot 1\s*2\s434,56\s€\s\(<\s0,01\s%\)$/ : /^Lot 1\s*502\s434,56\s€\s\(0,73\s%\)$/,
+  );
   await expect(indicators.getByText("Par poste")).toHaveCount(0);
 });
 
-test("filters the estimate by the lot « Lot 1 » chosen among the work breakdown, said in the banner to restrict the grid alone [WF-IHM-0020-A]", async ({
+test("filters the estimate by the lot « Lot 1 » chosen among the work breakdown, said in the banner to restrict the grid alone @shared [WF-IHM-0020-A]", async ({
   page,
 }) => {
   // Un filtre actif est visible sans avoir à ouvrir le panneau de filtres.
@@ -262,7 +274,7 @@ test.describe("on a narrow window", () => {
     }
   });
 
-  test("shows the revision a copy is made of whole, beside the chip of an active filter, without overlap [WF-IHM-0020-A]", async ({
+  test("shows the revision a copy is made of whole, beside the chip of an active filter, without overlap @shared [WF-IHM-0020-A]", async ({
     page,
   }) => {
     // Tout écran nomme la révision source avec la révision en cours.
@@ -362,7 +374,7 @@ test.describe("on a narrow window", () => {
  */
 const HELD = WORKING + 5_000;
 
-test("asks the server for the sort of a column clicked, both ways, by the parameters of the contract", async ({
+test("asks the server for the sort of a column clicked, both ways, by the parameters of the contract @shared", async ({
   page,
 }) => {
   // Three bounds of a screen of grid (`WORKING`): more than the thirty seconds of a test.
@@ -380,12 +392,20 @@ test("asks the server for the sort of a column clicked, both ways, by the parame
   await expect(header).toHaveAttribute("aria-sort", "descending");
   await expect(grid(page)).toHaveAttribute("aria-busy", "false");
   // The rows are those of the answer, in its order: the fake back serves the same example
-  // whatever the sort (US-0110, gap on WF-IHM-0060-A), and the grid reorders nothing.
-  await expect(grid(page)).toHaveAttribute("aria-rowcount", ROW_COUNT);
-  await expect(grid(page).getByRole("row").nth(1)).toHaveAccessibleName(/^1 .*Études/);
+  // whatever the sort (US-0110, gap on WF-IHM-0060-A), and the grid reorders nothing. The service
+  // sorts the lines under their task (`sorts the lines under each task…`, below): it is the order
+  // of its answer, not the fake back's, that the grid then shows.
+  if (!inService) {
+    await expect(grid(page)).toHaveAttribute("aria-rowcount", ROW_COUNT);
+    await expect(grid(page).getByRole("row").nth(1)).toHaveAccessibleName(/^1 .*Études/);
+  } else {
+    // The grid still holds lines of the witness: a first row of data after the header rows.
+    await expect(grid(page).getByRole("row").nth(2)).toBeVisible();
+    expect(Number(await grid(page).getAttribute("aria-rowcount"))).toBeGreaterThan(2);
+  }
 });
 
-test("shows the sort asked without waiting for the server actions of the page, its preference among them", async ({
+test("shows the sort asked without waiting for the server actions of the page, its preference among them @shared", async ({
   page,
 }) => {
   // The opening and the sort, each in the bound of a grid, beside actions held longer than one
@@ -466,7 +486,7 @@ test("shows the sort asked without waiting for the totals a searched grid reads 
   }
 });
 
-test("hides a column chosen in the menu of the columns, and searches the labels on the server, the field keeping the focus", async ({
+test("hides a column chosen in the menu of the columns, and searches the labels on the server, the field keeping the focus @shared", async ({
   page,
 }) => {
   await openHydrated(page, GRID);

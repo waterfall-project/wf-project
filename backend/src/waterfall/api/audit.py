@@ -42,13 +42,12 @@ from waterfall.platform.audit_consultation import (
     journal_projects,
     list_entries,
 )
-from waterfall.platform.errors import FieldError, UnprocessableError
+from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 
 router = APIRouter(tags=["audit"])
 
 CONSULTATION = "audit_log.read"
 READ = [Depends(Requires(CONSULTATION))]
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 # The size of a page the contract gives when none is asked for, and the largest it allows.
 DEFAULT_LIMIT = 50

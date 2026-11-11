@@ -33,7 +33,7 @@ from waterfall.platform.audit import (
     Inscription,
     record,
 )
-from waterfall.platform.errors import NotFoundError
+from waterfall.platform.errors import NOT_FOUND, NotFoundError
 from waterfall.platform.identifiers import new_id
 from waterfall.platform.restoration import (
     begin_keeping,
@@ -51,7 +51,6 @@ from waterfall.platform.uploads import FileUpload
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-NOT_FOUND = "NOT_FOUND"
 # The member an archive of a backup holds first: what it holds, and when it was taken.
 MANIFEST = "manifest.json"
 # How many bytes of the head of an archive hold its manifest: its header, then the manifest.

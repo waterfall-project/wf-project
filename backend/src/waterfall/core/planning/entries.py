@@ -23,7 +23,18 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.planning.dating import duration_of, horizon_exceeded, in_days
 from waterfall.core.planning.scheduling import Duration, Moment, WorkInstant
-from waterfall.platform.errors import FieldError, UnprocessableError
+from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
+
+# The code of the 403 for a permission missing (the planning does not import the access roles).
+PERMISSION_MISSING = "PERMISSION_MISSING"
+
+# The permissions of the three grids, in the order of ``StructureCommand``: a write of the tree
+# they make alike asks for one at least of them (#2601), the first named when none is held. One
+# list for the routes and the planning, so that the 403 names the same permission in both.
+PLANNING_WRITE = "planning.write"
+ESTIMATE_WRITE = "estimate.write"
+REMAINING_WRITE = "remaining.write"
+ENTRIES = (PLANNING_WRITE, ESTIMATE_WRITE, REMAINING_WRITE)
 
 if TYPE_CHECKING:
     from waterfall.core.planning.interface.nodes import InstantSent, TaskEntry
@@ -31,7 +42,6 @@ if TYPE_CHECKING:
     from waterfall.core.planning.tables import Task
     from waterfall.core.planning.tree import Tree
 
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_REQUIRED = "VALUE_REQUIRED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 NON_WORKING_DAY = "NON_WORKING_DAY"

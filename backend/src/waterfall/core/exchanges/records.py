@@ -15,7 +15,7 @@ from sqlalchemy import event, select, update
 
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.revisions.interface import aimed_structure, structure_in_revision
-from waterfall.platform.errors import NotFoundError, UnavailableError
+from waterfall.platform.errors import NOT_FOUND, NotFoundError, UnavailableError
 from waterfall.platform.logs import get_logger
 from waterfall.platform.storage import MissingObjectError
 
@@ -26,7 +26,6 @@ if TYPE_CHECKING:
 
     from waterfall.platform.storage import Bucket
 
-NOT_FOUND = "NOT_FOUND"
 
 logger = get_logger(__name__)
 

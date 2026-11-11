@@ -11,7 +11,8 @@ A structure is read by whoever may consult the planning of its project; its task
 the contributors of the project who may write the planning (``StructureCommand.edit_planning``).
 A node is created, deleted and moved alike from the three grids, by a contributor who may write
 one at least of the planning, the estimate and the remaining to commit, as ``StructureCommand``
-says (#2601).
+says (#2601); a task so created carries its label alone, the columns of its own — description,
+mode, duration, dates, attachment — being the planning's to write (``planning.write``, #2775).
 The parameters of a reading are judged here, every bound at once (``NUMBER_INVALID``,
 ``DATE_INVALID``, ``VALUE_OUT_OF_RANGE``, WF-IHM-0130), those of the line too, which retain lines
 (``LineFilters``); ``fields`` names what is returned of each node, an unknown property refused
@@ -54,8 +55,10 @@ from waterfall.api.contract.models import (
 )
 from waterfall.api.evaluation import Acting, RequiresProject
 from waterfall.api.queries import read_list, refuse_query
+from waterfall.core.access_roles.interface import PERMISSION_MISSING
 from waterfall.core.estimate.interface import LineEntry, LineFilters, LineView
 from waterfall.core.planning.interface import (
+    ENTRIES,
     Amounts,
     ConflictView,
     Duration,
@@ -82,7 +85,12 @@ from waterfall.core.planning.interface import (
 from waterfall.core.planning.interface import WorkInstant as Instant
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
-from waterfall.platform.errors import FieldError, UnprocessableError
+from waterfall.platform.errors import (
+    VALIDATION_FAILED,
+    FieldError,
+    ForbiddenError,
+    UnprocessableError,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -91,11 +99,7 @@ router = APIRouter(tags=["revisions"])
 
 CONSULT = "planning.read"
 CHANGE = "planning.write"
-# The permissions of the three grids, one of which a write they make alike asks for (#2601), in the
-# order of ``StructureCommand``: the first named when the caller holds none.
-ENTRIES = ("planning.write", "estimate.write", "remaining.write")
 STRUCTURE = "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 NUMBER_INVALID = "NUMBER_INVALID"
 DATE_INVALID = "DATE_INVALID"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
@@ -593,6 +597,23 @@ def unknown_fields(sent: object, known: type[BaseModel], prefix: str) -> list[Fi
 Sent = Annotated[dict[str, Any], Depends(sent_body)]
 
 
+def task_columns_asked(actor: Acting, sent: Sent) -> None:
+    """Refuse a task created with more than its label to whoever may not write the planning.
+
+    The three grids create a task alike, by its label (WF-DEV-0050, WF-RAE-0040, #2601); its other
+    columns — description, mode, duration, dates, attachment — are the planning's, as
+    ``updateTaskFacet`` writes them (#2775): a creation of a task whose facet carries one of them,
+    present whatever its value, asks for ``planning.write``, refused with 403
+    ``PERMISSION_MISSING`` naming it. Judged on the body as JSON reads it, before its validation,
+    after ``RequiresProject``: a body that is no task asks for nothing here.
+    """
+    facet: object = sent.get("task")
+    if sent.get("kind") != NodeKind.task.value or not isinstance(facet, dict):
+        return
+    if CHANGE not in actor.permissions and set(cast("dict[str, Any]", facet)) - {"label"}:
+        raise ForbiddenError(PERMISSION_MISSING, {"missing_permission": CHANGE})
+
+
 def writer_of(actor: Acting, account: Caller) -> Writer:
     """Give who writes, now, and the session of sign-in the history keeps the write by."""
     return Writer(Act(actor.user_id, utc_now()), account.session_id)
@@ -634,7 +655,10 @@ def get_nodes(
 @router.post(
     f"{STRUCTURE}/nodes",
     operation_id="createNode",
-    dependencies=[Depends(RequiresProject(CONSULT, one_of=ENTRIES))],
+    dependencies=[
+        Depends(RequiresProject(CONSULT, one_of=ENTRIES)),
+        Depends(task_columns_asked),
+    ],
     status_code=201,
     response_model=None,
 )

@@ -26,7 +26,12 @@ from waterfall.core.projects.interface import (
 )
 from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import AuditObject, AuditProject, Inscription, record
-from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError, NotFoundError
+from waterfall.platform.errors import (
+    NOT_FOUND,
+    STATE_FORBIDS_OPERATION,
+    ConflictError,
+    NotFoundError,
+)
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -35,7 +40,6 @@ if TYPE_CHECKING:
 
     from waterfall.platform.audit import Act
 
-NOT_FOUND = "NOT_FOUND"
 PROJECT_IN_PROGRESS = "project_in_progress"
 IN_PROGRESS = "in_progress"
 

@@ -68,7 +68,10 @@ from waterfall.core.planning.writing import (
 from waterfall.core.projects.interface import TERMINAL, current_day, project_facts
 from waterfall.core.revisions.interface import structure_phase_conditions
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
     STATE_FORBIDS_OPERATION,
+    VALIDATION_FAILED,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -87,9 +90,6 @@ if TYPE_CHECKING:
     from waterfall.core.planning.views import TaskView
     from waterfall.platform.audit import Act
 
-NOT_FOUND = "NOT_FOUND"
-VALIDATION_FAILED = "VALIDATION_FAILED"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 SUMMARY_TASK_DERIVED = "SUMMARY_TASK_DERIVED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 TASK_NOT_COMPLETED = "task_not_completed"

@@ -8,12 +8,17 @@ writes its tests here ("Les tests du back"). Without MS Project, a database or a
 engine with its tasks, its links, the calendars of its tasks and its constants, and each start and
 each finish the engine computes is compared with the one MS Project computed, read on the calendar
 of its task — a file deposited later enters the test by its entry in the manifest, without a
-change here. The cases the body of WF-QUA-0080 cites, by the identifiers the README of the corpus
-gives them, are each declared by a file of the manifest; on the partial corpus, one that none
-declares yet is not run, and named, until the files that are missing are deposited (#2645).
+change here. A task is given as the import gives it (WF-INTF-0040): manual in the file, or bearing
+a date constraint, at the dates of the file; a summary always automatic. A summary the file
+carries in manual mode keeps there the dates entered on it, which Waterfall does not: it is
+compared apart, its dates derived from its subordinates (``DERIVED``). The cases the body of
+WF-QUA-0080 cites, by the identifiers the README of the corpus gives them, are each declared by a
+file of the manifest, but for a negative lag in weeks, which no file carries (#2812).
 """
 
 import json
+from datetime import date
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 from uuid import NAMESPACE_OID, UUID, uuid5
@@ -21,6 +26,7 @@ from uuid import NAMESPACE_OID, UUID, uuid5
 import pytest
 
 from waterfall.core.planning.msproject import (
+    DATE_CONSTRAINTS,
     MsProject,
     calendar_of,
     calendars_of,
@@ -29,7 +35,14 @@ from waterfall.core.planning.msproject import (
     lag_of,
     read_project,
 )
-from waterfall.core.planning.scheduling import Link, Structure, Task, schedule
+from waterfall.core.planning.scheduling import (
+    Link,
+    Schedule,
+    Structure,
+    Task,
+    WorkInstant,
+    schedule,
+)
 from waterfall.core.planning.scheduling import engine as dating_engine
 
 CORPUS = Path(__file__).resolve().parents[2] / "fixtures" / "msproject"
@@ -108,19 +121,30 @@ CASES: dict[str, tuple[str, ...]] = {
     "the horizon": ("horizon_exceeded",),
 }
 
+# The cases no planning of the corpus declares, each with the issue that says why: the corpus
+# lacks a file for it, the text of the specification is not in question.
+MISSING: dict[str, str] = {"lag_negative_w": "#2812"}
+
+# The summaries the corpus carries in manual mode, by file: MS Project keeps the dates entered on
+# them, Waterfall always computes a summary from its subordinates, and the import makes it
+# automatic and signals it (``SUMMARY_TASK_DERIVED``, WF-INTF-0040). Not compared with the dates of
+# the file, they are affirmed apart; no other task is left out of the comparison.
+DERIVED: dict[str, tuple[str, ...]] = {"06-manual-tasks.xml": ("Manuelle 4",)}
+
 
 def _ids(project: MsProject) -> dict[int, UUID]:
     """Give each task of a file an identifier of the engine, drawn from its ``UID``."""
     return {task.uid: uuid5(NAMESPACE_OID, str(task.uid)) for task in project.tasks}
 
 
-def mismatches(file: str) -> list[str]:
-    """Date a file of the corpus by the engine; name each date that differs from MS Project's.
+def dated(file: str) -> tuple[MsProject, Schedule]:
+    """Date a file of the corpus by the engine, as the import gives it its tasks.
 
     The engine is given the tasks of the file in its order, their parent, their mode — a summary
-    always automatic —, their duration and the calendar of each in the file, its dates for a task
-    in manual mode; the links with their type and their lag; the start of the project and the
-    constants of the file. A date of the file is read on the calendar of its task.
+    always automatic, a leaf manual when the file says so or when it bears a date constraint —,
+    their duration and the calendar of each in the file, the dates of the file for a task in
+    manual mode; the links with their type and their lag; the start of the project and the
+    constants of the file.
     """
     project = read_project((CORPUS / file).read_bytes()).project
     assert project.start is not None, f"{file} says no start"
@@ -133,7 +157,8 @@ def mismatches(file: str) -> list[str]:
     for each in project.tasks:
         calendar = calendar_of(project, calendars, each)
         assert calendar is not None, f"{file}: {each.name} has no calendar"
-        manual = each.manual and each.uid not in summaries
+        frozen = each.manual or each.constraint in DATE_CONSTRAINTS
+        manual = frozen and each.uid not in summaries
         assert not manual or (each.start is not None and each.finish is not None)
         parent = parents[each.uid]
         tasks.append(
@@ -152,14 +177,27 @@ def mismatches(file: str) -> list[str]:
         for each in project.tasks
         for link in each.predecessors
     )
-    dated = schedule(Structure(tuple(tasks), links, project.start.date(), constants))
+    return project, schedule(Structure(tuple(tasks), links, project.start.date(), constants))
+
+
+def mismatches(file: str) -> list[str]:
+    """Date a file of the corpus by the engine; name each date that differs from MS Project's.
+
+    A date of the file is read on the calendar of its task. A summary in manual mode the test
+    names (``DERIVED``) is left out, and only it.
+    """
+    project, dates = dated(file)
+    calendars = calendars_of(project)
+    ids = _ids(project)
     found: list[str] = []
     for each in project.tasks:
+        if each.name in DERIVED.get(file, ()):
+            continue
         calendar = calendar_of(project, calendars, each)
         assert calendar is not None
         assert each.start is not None
         assert each.finish is not None
-        placed = dated.tasks[ids[each.uid]]
+        placed = dates.tasks[ids[each.uid]]
         for end, expected, computed in (
             ("start", calendar.instant(each.start), placed.start),
             ("finish", calendar.instant(each.finish), placed.finish),
@@ -180,6 +218,57 @@ def test_each_planning_of_the_corpus_is_dated_by_the_engine_as_ms_project_dated_
     entry: dict[str, Any],
 ) -> None:
     assert mismatches(entry["file"]) == []
+
+
+def _manual_summaries(project: MsProject) -> tuple[str, ...]:
+    """Name the summaries a file carries in manual mode."""
+    parents = project.parents()
+    summaries = {uid for uid in parents.values() if uid is not None}
+    return tuple(each.name for each in project.tasks if each.manual and each.uid in summaries)
+
+
+@pytest.mark.requirement("WF-QUA-0080-A")
+def test_the_only_tasks_left_out_of_the_comparison_are_the_summaries_in_manual_mode() -> None:
+    # Only a summary in manual mode is left out, and each one the corpus carries is named.
+    carried: dict[str, tuple[str, ...]] = {}
+    for entry in DATED:
+        names = _manual_summaries(read_project((CORPUS / entry["file"]).read_bytes()).project)
+        if names:
+            carried[entry["file"]] = names
+    assert carried == DERIVED
+
+
+@pytest.mark.requirement("WF-QUA-0080-A")
+@pytest.mark.requirement("WF-INTF-0040-A")
+def test_a_summary_in_manual_mode_is_dated_from_its_subordinates_not_at_the_file_dates() -> None:
+    # « Une récapitulative en mode manuel dans le fichier est importée en mode automatique, et le
+    # compte rendu la signale avec l'écart de dates. » MS Project keeps the dates entered on
+    # « Manuelle 4 », a single day, the 16th of November 2009; Waterfall dates it from its
+    # subordinates, from the 10th, where « Manuelle 7 » starts, to the 19th, where « Auto 2 »
+    # finishes at 3 h of work.
+    file = "06-manual-tasks.xml"
+    project, dates = dated(file)
+    ids = _ids(project)
+    parents = project.parents()
+    summary = next(each for each in project.tasks if each.name == "Manuelle 4")
+    subordinates = [
+        dates.tasks[ids[uid]] for uid, parent in parents.items() if parent == summary.uid
+    ]
+    placed = dates.tasks[ids[summary.uid]]
+    assert placed.start == min(each.start for each in subordinates)
+    assert placed.finish == max(each.finish for each in subordinates)
+    assert (placed.start, placed.finish) == (
+        WorkInstant(date(2009, 11, 10), Decimal(0)),
+        WorkInstant(date(2009, 11, 19), Decimal(3)),
+    )
+    calendar = calendar_of(project, calendars_of(project), summary)
+    assert calendar is not None
+    assert summary.start is not None
+    assert summary.finish is not None
+    assert (calendar.instant(summary.start), calendar.instant(summary.finish)) == (
+        WorkInstant(date(2009, 11, 16), Decimal(0)),
+        WorkInstant(date(2009, 11, 16), Decimal(7)),
+    )
 
 
 @pytest.mark.requirement("WF-QUA-0080-A")
@@ -211,11 +300,11 @@ CITED = [(theme, case) for theme, cases in CASES.items() for case in cases]
 def test_each_case_the_body_cites_is_declared_by_a_planning_of_the_corpus(
     theme: str, case: str
 ) -> None:
-    # « Chaque cas cité par le corps figure dans au moins un planning du corpus. » The corpus is
-    # partial until the files that are missing are deposited (#2645, decision of the 2026-11-09):
-    # a case no file declares yet is not run, and named in the report; a case a file declares
-    # needs that file in the corpus.
+    # « Chaque cas cité par le corps figure dans au moins un planning du corpus. » A case no file
+    # declares is not run only when the test names the issue that says why (#2812, decision of
+    # the 2026-11-10); any other fails, and a case a file declares needs that file in the corpus.
     declaring = [entry["file"] for entry in FILES if case in entry["cases"]]
-    if not declaring:
-        pytest.skip(f"{case} ({theme}): no planning of the corpus declares it yet (#2645)")
+    if not declaring and case in MISSING:
+        pytest.skip(f"{case} ({theme}): no planning of the corpus declares it ({MISSING[case]})")
+    assert declaring, f"{case} ({theme}): no planning of the corpus declares it"
     assert [file for file in declaring if (CORPUS / file).is_file()] != [], declaring

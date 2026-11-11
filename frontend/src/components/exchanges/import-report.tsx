@@ -7,8 +7,9 @@
  * confirmation, each line rejected by its place in the file — its tab, when the file has tabs, and
  * its row — and its motive, each task the file dates or lasts otherwise than Waterfall computes it,
  * with the columns that differ (WF-INTF-0040), each value of the file
- * kept and signalled, each task the import completes at the date of the review the file bears, and
- * each difference with the existing data — a line of
+ * kept and signalled, each task the import completes at the date of the review the file bears, the
+ * unit constants of an MS Project file that differ from the installation's, with both (WF-PLA-0160),
+ * and each difference with the existing data — a line of
  * actual cost by its document and its item (US-0630) —, with the fields it changes named as the
  * columns of their grid, and what the import ignores — the columns of an
  * extraction of actual costs by the label the file gives them (WF-REF-0190). Every sentence
@@ -351,7 +352,37 @@ function CompletedTasks({ completed }: { readonly completed: Report["completed_t
   );
 }
 
-/** What the analysis found: lines read, reasons to confirm, lines rejected, differences. */
+/**
+ * The unit constants of an MS Project schedule that differ from those of the installation, the
+ * file's and the installation's, as the API gives them (WF-PLA-0160): the durations and the lags
+ * keep their hours. A piece of information, not a reason to confirm.
+ */
+function UnitConstants({
+  constants,
+}: {
+  readonly constants: NonNullable<Report["unit_constants"]>;
+}) {
+  const t = useTranslations("exchanges.report");
+  const locale = useLocale();
+  const { file, installation } = constants;
+  return (
+    <p className="text-sm">
+      {t("unitConstants", {
+        fileDay: formatDecimal(file.hours_per_day, locale),
+        fileWeek: formatDecimal(file.hours_per_week, locale),
+        fileMonth: formatDecimal(file.days_per_month, locale),
+        installationDay: formatDecimal(installation.hours_per_day, locale),
+        installationWeek: formatDecimal(installation.hours_per_week, locale),
+        installationMonth: formatDecimal(installation.days_per_month, locale),
+      })}
+    </p>
+  );
+}
+
+/**
+ * What the analysis found: lines read, the unit constants of the file, reasons to confirm, lines
+ * rejected, differences.
+ */
 function Findings({ report }: { readonly report: Report }) {
   const t = useTranslations();
   const reasons = report.requires_confirmation_reasons;
@@ -361,6 +392,7 @@ function Findings({ report }: { readonly report: Report }) {
         {t("exchanges.report.read", { count: report.read_count })}{" "}
         {t("exchanges.report.unchanged", { count: report.unchanged_count })}
       </p>
+      {report.unit_constants === null ? null : <UnitConstants constants={report.unit_constants} />}
       {reasons.length === 0 ? null : (
         <div className="space-y-1">
           <h3 className={HEADING}>{t("exchanges.report.reasons")}</h3>

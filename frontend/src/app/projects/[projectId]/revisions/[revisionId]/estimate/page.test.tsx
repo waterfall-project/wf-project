@@ -184,6 +184,12 @@ describe("the grid of the estimate, entered as the structure lists it", () => {
 });
 
 describe("the reference data the estimate is entered from", () => {
+  it("hands the grid the type of the cost of each category, by which a line is created from an expense or a role [WF-DEV-0020-A]", async () => {
+    const grid = await estimateFor("me");
+    const kinds = new Set(grid?.reference.categories?.map(({ kind }) => kind));
+    expect(kinds).toEqual(new Set(["labor", "non_labor", "provision"]));
+  });
+
   it("asks the active ones alone of a session that only reads the cost and resource settings, which the contract keeps for the permission to modify them [WF-REF-0150-A]", async () => {
     // The consultation alone: the permissions to read kept, those to modify withdrawn. The fake back
     // answers the deactivated ones whatever is asked, so the request of the page is what is proved.

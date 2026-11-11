@@ -62,10 +62,11 @@ def _written(*kinds: str) -> list[dict[str, Any]]:
 
 def test_the_writes_are_those_of_the_design_in_that_order() -> None:
     # WF-QUA-0040-A: the design of EP-04 lists them: 100 opened (Created to Pricing), marked, 101
-    # opened, 100 designated and refused, the code entered, 101 marked, 102 opened; no abandon.
-    # EP-07 adds the update of the rates accepted on 101 (« Le chargeur du témoin »); EP-09 the
-    # imports of costs, the exclusion of the reception of the customer and the expiry of the
-    # extraction of April replayed (see tools/tests/test_witness_costs.py).
+    # opened, 100 designated, the code entered, 101 marked, 102 opened; no abandon. EP-07 adds the
+    # update of the rates accepted on 101 (« Le chargeur du témoin »), and the designation of 100
+    # succeeds: the project moves to In progress by the code entered (#2700); EP-09 the imports of
+    # costs, the exclusion of the reception of the customer and the expiry of the extraction of
+    # April replayed (see tools/tests/test_witness_costs.py).
     costs = {"cost_import_applied", "cost_line_excluded", "import_expired"}
     assert [(w["kind"], w.get("revision")) for w in _writes() if w["kind"] not in costs] == [
         ("project_created", None),
@@ -76,6 +77,7 @@ def test_the_writes_are_those_of_the_design_in_that_order() -> None:
         ("rate_update_applied", 101),
         ("designation_attempted", 100),
         ("code_entered", None),
+        ("state_transition", None),
         ("revision_marked", 101),
         ("revision_opened", 102),
     ]
@@ -87,7 +89,7 @@ def test_each_write_has_the_fields_of_its_kind() -> None:
         "project_created": {"kind", "project"},
         "revision_opened": {"kind", "project", "revision"},
         "revision_marked": {"kind", "project", "revision", "version_name"},
-        "designation_attempted": {"kind", "project", "revision", "refused"},
+        "designation_attempted": {"kind", "project", "revision"},
         "code_entered": {"kind", "project", "code"},
         "rate_update_applied": {"kind", "project", "revision", "cost_category_ids"},
         "state_transition": {"kind", "project", "from", "to"},
@@ -100,10 +102,11 @@ def test_each_write_has_the_fields_of_its_kind() -> None:
         (100, "Offre v1.0"),
         (101, "Référence"),
     ]
-    assert [(w["revision"], w["refused"]) for w in _written("designation_attempted")] == [
-        (100, "no_task")
+    assert [w["revision"] for w in _written("designation_attempted")] == [100]
+    assert [(w["from"], w["to"]) for w in _written("state_transition")] == [
+        ("created", "pricing"),
+        ("pricing", "in_progress"),
     ]
-    assert [(w["from"], w["to"]) for w in _written("state_transition")] == [("created", "pricing")]
     assert [w["revision"] for w in _written("revision_opened")] == [100, 101, 102]
 
 

@@ -32,7 +32,7 @@ from waterfall.core.revisions.interface import (
     structure_commands,
 )
 from waterfall.platform.database import frozen_reading
-from waterfall.platform.errors import NotFoundError
+from waterfall.platform.errors import NOT_FOUND, NotFoundError
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -47,7 +47,6 @@ if TYPE_CHECKING:
     )
     from waterfall.core.projects.interface import Viewer
 
-NOT_FOUND = "NOT_FOUND"
 TASK = "task"
 NOT_STARTED = "not_started"
 STARTED = "started"

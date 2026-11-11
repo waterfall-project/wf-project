@@ -22,17 +22,16 @@ import { seedPlanning } from "./planning-seed";
 // creates (`own-project.ts`), and manages as its creator, never on the witness, whose revisions
 // every other path reads — created, a revision opened, marked by the worker, the designation
 // refused for the lack of tasks, another opened and abandoned (US-0970), opened again, the code
-// entered, the project left (US-0990/L2). EP-07 reverses the refusal (US-1540): a reference that
-// bears a task and a line is designated, and the code entered then takes the project to In
-// progress.
+// entered, the project left (US-0990/L2). A reference that bears a task and a line is designated
+// by the next path (US-1540), and the code entered then takes the project to In progress.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 
-// What the service does not replay of the witness yet, as the guide lists it (« Un parcours de bout
-// en bout »): the commands of PRJ-001 are listed to its project managers alone, and its reference
-// stays undesignated until its tasks and lines are served (EP-07).
+// What the service does not replay of the witness, as the guide lists it (« Un parcours de bout en
+// bout »): the commands of PRJ-001 are listed to its project managers alone, and the account of the
+// run is none of them.
 const NOT_REPLAYED_IN_SERVICE =
-  "by decision the account of the run is not a project manager of PRJ-001 (#2193, option A), and its reference waits for its tasks and lines (EP-07)";
+  "by decision the account of the run is not a project manager of PRJ-001 (#2193, option A), which no EPIC reverses";
 
 // The abandon of the witness's current revision would take it from every other path: the service
 // plays the abandon on the project the cycle creates.
