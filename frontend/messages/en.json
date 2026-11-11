@@ -273,6 +273,10 @@
       "redo": "Redo",
       "menu": "Cell menu",
       "unavailable": "Unavailable until the server keeps the history of the entries.",
+      "done": {
+        "undo": "Change undone. {count, plural, =0 {No more changes to undo.} one {# change left to undo.} other {# changes left to undo.}}",
+        "redo": "Change redone. {count, plural, =0 {No more changes to redo.} one {# change left to redo.} other {# changes left to redo.}}"
+      },
       "told": {
         "undo": "Undo is unavailable: the server does not keep the history of the entries yet.",
         "redo": "Redo is unavailable: the server does not keep the history of the entries yet."
@@ -353,6 +357,7 @@
       "block": "Block of {rows, plural, one {# row} other {# rows}} by {columns, plural, one {# column} other {# columns}}, from row {row}, column “{column}”: nothing is written before you confirm.",
       "reading": "Reading the report…",
       "accepted": "{count, plural, =0 {No row will be written.} one {# row will be written.} other {# rows will be written.}}",
+      "created": "{count, plural, one {# task will be created} other {# tasks will be created}} after the last task.",
       "noneRejected": "No row is refused.",
       "partial": "Confirmed, the paste writes the valid rows, and not the refused ones; abandoned, it changes no row.",
       "rejected": "{count, plural, one {# row is refused:} other {# rows are refused:}}",
@@ -368,8 +373,7 @@
       "absentColumn": "The pasted block would reach the column “{column}”, which this grid does not present: paste a narrower block.",
       "foldedRows": "The pasted block would reach folded rows: unfold them before pasting, or paste a shorter block.",
       "sortedRows": "The pasted block would write the rows that follow the cell in the order of the plan, which the sort has moved: lift the sort before pasting, or paste a shorter block.",
-      "unretainedRows": "The pasted block would write rows of the plan that the search or the filter hides: lift the search or the filter before pasting, or paste a shorter block.",
-      "beyondRows": "The pasted block would reach past the rows the grid shows under the cell: paste a shorter block."
+      "unretainedRows": "The pasted block would write rows of the plan that the search or the filter hides: lift the search or the filter before pasting, or paste a shorter block."
     },
     "range": {
       "min": "{column}, min",
@@ -1295,6 +1299,9 @@
       },
       "declare_risk": {
         "help": "Leads to the screen of the risks of the revision, where « Identify a risk » is offered."
+      },
+      "export_task_tree_image": {
+        "help": "Asks for the image of the task tree at the level shown, drawn in the background: the file is downloaded from the follow-up of the tasks."
       },
       "create_structure": {
         "help": "Prepares an amendment: a differential structure on the revision."
@@ -2912,6 +2919,7 @@
     "PERMISSION_MISSING": "You do not have the required permission.",
     "NOT_CONTRIBUTOR": "Only the project’s contributors can do this.",
     "NOT_PROJECT_MANAGER": "Only the project’s managers can do this.",
+    "SESSION_ID_MISSING": "Your session token carries no session identifier: sign in again to be able to undo or redo a change.",
     "NOT_FOUND": "Not found: this item does not exist, or you do not have access to it.",
     "STATE_FORBIDS_OPERATION": "The current state does not allow this operation.",
     "ALREADY_EXISTS": "This item already exists.",
@@ -2926,6 +2934,7 @@
     "COMPUTED_VALUE": "This value is calculated and cannot be entered.",
     "SUMMARY_TASK_DERIVED": "A summary task takes its values from its subtasks.",
     "LINK_CYCLE": "This link would create a loop.",
+    "NODE_CYCLE": "This move would put a node under itself.",
     "LINK_FORBIDDEN": "This link is not allowed.",
     "RESOURCE_ROLE_REQUIRED": "A resource role is required.",
     "LABOUR_CATEGORY_REQUIRED": "A labour cost category is required.",
@@ -2992,7 +3001,8 @@
     "PASTE_TARGET_REMOVED": "The target of the paste disappeared in the meantime: nothing was pasted.",
     "WBS_ELEMENT_INVALID": "The WBS element of the line does not have the expected form: a project code, a slash, then a sub-project code.",
     "WBS_ELEMENT_OUTSIDE_PROJECT": "The WBS element of the line belongs to another project.",
-    "AMBIGUOUS_TASK_LABEL": "This label is carried by several tasks: the report does not say which one it targets."
+    "AMBIGUOUS_TASK_LABEL": "This label is carried by several tasks: the report does not say which one it targets.",
+    "TASK_TREE_IMAGE_TOO_LARGE": "The image of the task tree would exceed one hundred million pixels: nothing was drawn. Choose a shallower level."
   },
   "problemDetails": {
     "missing_permission": "Required permission: {permission}.",
@@ -4001,6 +4011,7 @@
       "sheet": "Tab",
       "dateMismatches": "{count, plural, one {# task the file dates otherwise: what Waterfall computes prevails} other {# tasks the file dates otherwise: what Waterfall computes prevails}}",
       "dateMismatchesTable": "Tasks the file dates otherwise",
+      "unitConstants": "File constants: hours per day {fileDay}, hours per week {fileWeek}, days per month {fileMonth}; installation constants: hours per day {installationDay}, hours per week {installationWeek}, days per month {installationMonth} — the durations and the lags keep their hours, read at the constants of the installation.",
       "unchanged": "Of these, {count, plural, =0 {none is unchanged} one {# is unchanged} other {# are unchanged}}.",
       "signals": "{count, plural, one {# value of the file kept and signalled} other {# values of the file kept and signalled}}",
       "signalsTable": "Values of the file kept and signalled",

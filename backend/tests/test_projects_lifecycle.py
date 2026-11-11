@@ -331,6 +331,8 @@ def test_no_operation_leads_to_pricing_or_in_progress_by_an_exit(
         "manage_timelines",
         "manage_contributors",
         "create_revision",
+        "generate_skeleton",
+        "import_planning",
     }
     assert set(commands) - changing == {"complete", "lose", "abandon"}
 

@@ -22,7 +22,13 @@ from sqlalchemy.dialects.postgresql import insert
 
 from waterfall.core.cost_settings.tables import LABEL_LENGTH, SINGLE_ROW, ReferenceSetting
 from waterfall.core.users.interface import Author, read_author
-from waterfall.platform.errors import FieldError, PreconditionFailedError, UnavailableError
+from waterfall.platform.errors import (
+    STALE_LOCK_VERSION,
+    VALIDATION_FAILED,
+    FieldError,
+    PreconditionFailedError,
+    UnavailableError,
+)
 from waterfall.platform.installation import COMPONENT_UNAVAILABLE
 from waterfall.platform.logs import get_logger
 
@@ -33,8 +39,6 @@ if TYPE_CHECKING:
 
     from waterfall.platform.audit import Act
 
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_REQUIRED = "VALUE_REQUIRED"
 VALUE_TOO_LONG = "VALUE_TOO_LONG"
 # The first version of the settings, written by the bootstrap.

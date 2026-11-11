@@ -35,6 +35,9 @@ from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from waterfall.core.projects.interface import (
+    NO_BACKGROUND_TASK_RUNNING,
+    PROJECT_NOT_TERMINAL,
+    TERMINAL,
     CommandAvailability,
     advance,
     contributor_kind,
@@ -44,18 +47,11 @@ from waterfall.core.projects.interface import (
     require_project_manager,
     set_current_revision,
 )
-from waterfall.core.revisions.commands import (
-    NO_BACKGROUND_TASK_RUNNING,
-    NO_CURRENT_REVISION,
-    PROJECT_NOT_TERMINAL,
-    REVISION_DRAFT,
-    TERMINAL,
-    revision_commands,
-)
+from waterfall.core.resource_settings.interface import share_reference
+from waterfall.core.revisions.commands import NO_CURRENT_REVISION, REVISION_DRAFT, revision_commands
+from waterfall.core.revisions.interface.closing import close_revision
 from waterfall.core.revisions.interface.reference import reference_correctable
 from waterfall.core.revisions.interface.shared import (
-    NOT_FOUND,
-    STALE_LOCK_VERSION,
     found_revision,
     inscribe_revision,
     refuse,
@@ -69,7 +65,12 @@ from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.states import state_of
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.database import contains, unique_violated
-from waterfall.platform.errors import NotFoundError, PreconditionFailedError
+from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
+    NotFoundError,
+    PreconditionFailedError,
+)
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
@@ -172,7 +173,7 @@ class RevisionCopy:
 # The copies a revision opened from a marked one makes, table after table, in the order of their
 # registration: a module registers its copy after those of the tables its rows name, whose copies it
 # finds in ``RevisionCopy.identifiers`` (EP-04, "Modules").
-_COPIES: Registry[Callable[[RevisionCopy], None]] = Registry()
+_COPIES: Registry[Callable[[RevisionCopy], None]] = Registry("revisions.copy")
 
 
 def register_copy(copier: Callable[[RevisionCopy], None]) -> Callable[[], None]:
@@ -309,18 +310,36 @@ def read_revision(
     return _views(session, [revision], project_id, viewer)[0]
 
 
-def _judge_opening(session: Session, project_id: UUID, project: ProjectFacts) -> None:
+def _judge_opening(
+    session: Session, project_id: UUID, project: ProjectFacts, running: UUID | None = None
+) -> None:
     """Refuse the opening of a revision as the state of the project, read under its lock, does.
 
     In the order of the contract: a terminal project, then a current revision, then a background
-    task that would create the current revision itself.
+    task that would create the current revision itself — but the task ``running``, which opens it.
     """
     if project.state in TERMINAL:
         raise refuse(PROJECT_NOT_TERMINAL)
     if project.current_revision_id is not None:
         raise refuse(NO_CURRENT_REVISION)
-    if not no_background_task_running(session, project_id):
+    if not no_background_task_running(session, project_id, running):
         raise refuse(NO_BACKGROUND_TASK_RUNNING)
+
+
+def last_marked_revision(session: Session, project_id: UUID) -> UUID | None:
+    """Give the last marked revision of a project, which the next current one copies, if any."""
+    return _last_marked(session, project_id)
+
+
+def last_marked_revisions(session: Session, project_ids: Collection[UUID]) -> dict[UUID, UUID]:
+    """Give the last marked revision of each of the projects that has one, in one statement."""
+    rows = session.execute(
+        select(Revision.project_id, Revision.id)
+        .where(Revision.project_id.in_(project_ids), Revision.status == "marked")
+        .order_by(Revision.marked_at.asc(), Revision.id.asc())
+    )
+    # Ascending: the last row of a project is its latest.
+    return {row[0]: row[1] for row in rows}
 
 
 def _last_marked(session: Session, project_id: UUID) -> UUID | None:
@@ -333,12 +352,27 @@ def _last_marked(session: Session, project_id: UUID) -> UUID | None:
     )
 
 
-def _open(
-    session: Session, project_id: UUID, revision_id: UUID, act: Act, description: str | None = None
-) -> Revision:
-    """Open the current revision of a project, under the lock of the project the caller takes."""
+@dataclass(frozen=True, slots=True)
+class _Opening:
+    """A revision to open: its identifier, its description, and the task that opens it, if one."""
+
+    revision_id: UUID
+    description: str | None = None
+    running: UUID | None = None
+
+
+def _open(session: Session, project_id: UUID, act: Act, opening: _Opening) -> Revision:
+    """Open the current revision of a project, under the lock of the project the caller takes.
+
+    The lock of the reference is shared first, and held until the commit: a change of the units
+    of duration or of a calendar, which redates the structures of the current revisions, waits for
+    the opening, and sees the revision it opens, or is waited for, and the copy is dated with what
+    it wrote (WF-PLA-0160). No holder of the reference waits for the lock of a project.
+    """
+    revision_id, description = opening.revision_id, opening.description
+    share_reference(session)
     project = lock_project(session, project_id)
-    _judge_opening(session, project_id, project)
+    _judge_opening(session, project_id, project, opening.running)
     source = _last_marked(session, project_id)
     revision = Revision(
         id=revision_id,
@@ -383,8 +417,18 @@ def create_revision(
     current revision exists (409 ``no_current_revision``), and while a background task would
     create it itself (409 ``no_background_task_running``).
     """
-    revision = _open(session, project_id, new_id(), act, description)
+    revision = _open(session, project_id, act, _Opening(new_id(), description))
     return _views(session, [revision], project_id, viewer)[0]
+
+
+def open_revision_by_task(session: Session, project_id: UUID, act: Act, running: UUID) -> UUID:
+    """Open the current revision of a project for the task ``running``, which writes in it.
+
+    By the rules of ``create_revision``, the task that asks apart: the application of an import on
+    a project without a current revision creates it (WF-INTF-0090, EP-06), which no other task
+    may then be writing in.
+    """
+    return _open(session, project_id, act, _Opening(new_id(), running=running)).id
 
 
 def copy_revision(session: Session, source: UUID, target: UUID) -> None:
@@ -416,9 +460,10 @@ def abandon_revision(
     Under the lock of the revision, read under it, then the lock of the project: refused if
     unknown (404), if the writer is no project manager of the project any more (403, 404), at
     another version (412), once marked (409 ``revision_draft``), or while a background task writes
-    in it (409 ``no_background_task_running``). The project names no current revision any more, then
-    the structures and the revision are deleted, and the abandonment is inscribed in the journal. A
-    terminal project's revisions are all marked: ``revision_draft`` refuses there too.
+    in it (409 ``no_background_task_running``). The modules registered close it
+    (``register_closing``), the project names no current revision any more, then the structures and
+    the revision are deleted, and the abandonment is inscribed in the journal. A terminal project's
+    revisions are all marked: ``revision_draft`` refuses there too.
     """
     revision_id, lock_version = abandoned.revision_id, abandoned.lock_version
     revision = found_revision(session, revision_id, project_id, lock=True)
@@ -434,6 +479,7 @@ def abandon_revision(
         raise refuse(REVISION_DRAFT)
     if not no_background_task_running(session, project_id):
         raise refuse(NO_BACKGROUND_TASK_RUNNING)
+    close_revision(session, project_id, revision_id, "abandoned")
     set_current_revision(session, project_id, None, act)
     delete_structures(session, project_id, revision_id)
     inscribe_revision(session, revision, "revision_abandon", None, act)
@@ -461,4 +507,4 @@ def revision_draft(session: Session, revision_id: UUID) -> None:
 
 def load_revision(session: Session, project_id: UUID, revision_id: UUID, act: Act) -> None:
     """Open a revision of the witness under the identifier it imposes, by the rules of opening."""
-    _open(session, project_id, revision_id, act)
+    _open(session, project_id, act, _Opening(revision_id))

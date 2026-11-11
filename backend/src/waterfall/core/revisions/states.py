@@ -16,17 +16,16 @@ from waterfall.core.projects.interface import no_background_task_running
 from waterfall.core.revisions.commands import RevisionState
 from waterfall.core.revisions.interface.reference import (
     reference_correctable,
+    revision_has_tasks,
     revision_has_tasks_and_lines,
 )
 from waterfall.core.revisions.tables import Revision
-from waterfall.platform.errors import NotFoundError
+from waterfall.platform.errors import NOT_FOUND, NotFoundError
 
 if TYPE_CHECKING:
     from uuid import UUID
 
     from sqlalchemy.orm import Session
-
-NOT_FOUND = "NOT_FOUND"
 
 
 def revision_state(session: Session, project_id: UUID, revision_id: UUID) -> RevisionState:
@@ -59,4 +58,5 @@ def state_of(
         no_task_running=no_task_running,
         has_tasks_and_lines=revision_has_tasks_and_lines(session, revision_id),
         reference_correctable=correctable,
+        has_tasks=revision_has_tasks(session, revision_id),
     )

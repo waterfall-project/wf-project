@@ -4,29 +4,39 @@
 
 ``waterfall-worker`` runs the tasks of the queue until it is stopped (WF-ARC-0090);
 ``waterfall-worker enqueue <kind>`` deposits a task the platform schedules, unless one of that kind
-is pending (PBS-5.3). Each stops at start, naming the variable that lacks, rather than starting
-without its settings (WF-SEC-0010).
+is pending (PBS-5.3); ``waterfall-worker purge`` purges what expired — imports, deposits, exports,
+history — under a lock of its own (EP-06, "La purge"). Each stops at start, naming the variable that
+lacks, rather than starting without its settings (WF-SEC-0010).
 """
 
 import signal
 import sys
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
 
 from waterfall import __version__, schema
+from waterfall.core.exchanges import interface as exchanges_interface
+from waterfall.core.history import interface as history_interface
+from waterfall.core.planning import interface as planning_interface
 from waterfall.platform.correlation import correlation_id_from
-from waterfall.platform.database import Database, create_database_engine
+from waterfall.platform.database import Database, create_database_engine, utc_now
+from waterfall.platform.errors import UnavailableError
 from waterfall.platform.logs import PLATFORM, configure_logging, get_logger, logging_context
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.settings import (
+    PurgeSettings,
     Settings,
     SettingsError,
     WorkerSettings,
+    load_purge_settings,
     load_settings,
     load_worker_settings,
 )
+from waterfall.platform.storage import Bucket
 from waterfall.platform.tasks import TaskHandler, TaskKind, pending_task, submit
+from waterfall.worker import exchanges
 from waterfall.worker.backup import BackupTask
 from waterfall.worker.identity_sync import IdentitySync
 from waterfall.worker.marking import mark
@@ -36,18 +46,27 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
 NAME = "waterfall-worker"
-USAGE = f"usage: {NAME} [--version | enqueue <kind>]\n"
+USAGE = f"usage: {NAME} [--version | enqueue <kind> | purge]\n"
+# The modules that fill the registries of the others at the import of their interface (#2180):
+# imported here, so that no revision the worker marks or creates, no import it applies, lacks
+# their part.
+EXTENDING = (exchanges_interface, history_interface, planning_interface)
 
 
 def handlers(settings: WorkerSettings) -> dict[str, TaskHandler]:
     """Give what the worker runs, by kind of task: a backup, the reading of the accounts, a marking.
 
-    The marking is the first task of the trade (US-0970).
+    The marking is the first task of the trade (US-0970); the analysis and the application of an
+    import and an export are the exchanges' (EP-06).
     """
+    imports = exchanges.ImportTasks.of(settings)
     return {
         "backup": BackupTask.of(settings),
         "identity_sync": IdentitySync.of(settings),
         "revision_mark": mark,
+        "import_analysis": imports.analyse,
+        "import_apply": imports.apply,
+        "export": exchanges.ExportTask.of(settings),
     }
 
 
@@ -55,6 +74,8 @@ def handlers(settings: WorkerSettings) -> dict[str, TaskHandler]:
 SCHEDULED: tuple[TaskKind, ...] = ("identity_sync",)
 # The key of the advisory lock under which a schedule looks for a pending task, then deposits.
 SCHEDULE_LOCK = 3_700_010
+# The key of the advisory lock of a purge: two purges never run together.
+PURGE_LOCK = 3_700_020
 
 logger = get_logger(__name__)
 
@@ -71,6 +92,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     match arguments:
         case ["enqueue", kind] if kind in SCHEDULED:
             return _started(load_settings, lambda settings: _enqueue(settings, kind))
+        case ["purge"]:
+            return _started(load_purge_settings, _purge)
         case ["enqueue", kind]:
             fault = f"not a kind the platform schedules: {kind}"
         case _:
@@ -146,6 +169,57 @@ def _schedule(database: Database, queue: TaskQueue, kind: TaskKind) -> int:
     event = "task.already_pending" if deposited is None else "task.enqueued"
     logger.info(event, kind=kind, task_id=str(pending or deposited))
     return 0
+
+
+def _stored(database: Database, bucket: Bucket, now: datetime) -> exchanges_interface.Stored:
+    """List the old objects of the prefixes the purge sweeps; a storage out of reach lists none.
+
+    Those a row names are left out of the listing, read in a transaction of its own, without a
+    lock (#2533). The rows are purged all the same: what the storage keeps, the next pass sweeps.
+    """
+    try:
+        # This transaction stays open during the whole pagination of the storage. That is harmless:
+        # it only reads, takes no lock, and the rows are read again under the lock in the purge.
+        # It would matter if the listing began to write or to lock, or if a pagination took longer
+        # than the idle-transaction timeout of the database: the listing would then be cut in
+        # pages, one transaction each.
+        with database.transaction() as session:
+            return exchanges_interface.stored_before(bucket, now, session)
+    except UnavailableError:
+        logger.warning("purge.storage_unlisted")
+        return exchanges_interface.Stored()
+
+
+def _purge(settings: PurgeSettings) -> int:
+    """Purge what expired, under a correlation of its own; an unexpected error ends it (1).
+
+    The rows are purged in one transaction, under the advisory lock of the purge; the storage
+    loses what they designated once it is validated, never before: an object is not deleted for a
+    row a failed transaction keeps. The old objects of the storage are listed before the lock.
+    """
+    database = Database(create_database_engine(settings.database_url.get_secret_value()))
+    bucket = Bucket.of_backups(settings)
+    try:
+        with logging_context(correlation_id=correlation_id_from(None), actor=PLATFORM):
+            now = utc_now()
+            stored = _stored(database, bucket, now)
+            try:
+                with database.transaction() as session:
+                    session.execute(select(func.pg_advisory_xact_lock(PURGE_LOCK)))
+                    purged = exchanges_interface.purge(session, now, stored)
+                    history_interface.purge(
+                        session,
+                        before=now - timedelta(hours=settings.undo_retention_hours),
+                        now=now,
+                    )
+            except Exception:
+                logger.exception("purge.failed")
+                return 1
+            exchanges_interface.remove_purged(bucket, purged)
+            logger.info("purge.done", objects=len(purged.objects), deposits=len(purged.deposits))
+            return 0
+    finally:
+        database.dispose()
 
 
 if __name__ == "__main__":

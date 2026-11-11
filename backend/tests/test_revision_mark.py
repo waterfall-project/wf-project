@@ -430,11 +430,15 @@ def test_while_the_marking_is_pending_the_writes_of_the_revision_name_the_task(
     running = ["no_background_task_running"]
     assert missing(during) == {
         "edit_planning": running,
+        "generate_skeleton": running,
         "edit_estimate": running,
         "edit_remaining": running,
         "mark": running,
         "designate_reference": ["revision_marked", "revision_has_tasks_and_lines", *running],
         "abandon": running,
+        # An export reads: it lacks no condition during a marking either (WF-CYC-0110).
+        "export_planning": [],
+        "export_task_tree_image": [],
     }
     again = ask_marking(api, stage, during, version_name="v2.0")
     assert refusal(again) == (

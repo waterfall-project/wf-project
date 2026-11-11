@@ -29,8 +29,8 @@
  * hidden until shown, and are the boxes of the submenu « Chronologies » of the menu of their cells
  * (US-0480). The Gantt reads the hours of a day of the installation (`getDurationUnits`), which
  * graduate its finest level, and is exported with the date its dates were calculated at
- * (`meta.scheduled_at`). Once, under its header, the screen then says that the fake back keeps none
- * of what they write (`MockupNotice`, EP-14/L44d).
+ * (`meta.scheduled_at`). The screen is served (US-1470): it shows what the service renders — dates,
+ * margins, critical path and conflicts — and writes it back, with no note of the mock-up.
  */
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -59,7 +59,6 @@ import { PlanningGrid, type PlanningGridProps } from "@/components/grid/planning
 import type { ChoiceOption } from "@/components/grid/row-choices";
 import { MergeAmendmentCommand } from "@/components/revisions/merge-amendment-command";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
-import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import type { PageSearchParams, ProjectContext } from "@/navigation/context";
@@ -255,7 +254,6 @@ export default async function PlanningPage({
           offer={findOffer(screen.reading.revision?.available_commands ?? [], "merge_structure")}
           revision={revision}
         />
-        <MockupNotice lists />
         <GridFilters
           breakdown={screen.breakdown}
           difference={screen.difference}

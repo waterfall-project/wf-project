@@ -30,6 +30,7 @@ from sqlalchemy.exc import IntegrityError
 from waterfall.core.projects.commands import (
     PROJECT_NOT_TERMINAL,
     TERMINAL,
+    Running,
     commands_of,
     quality_conditions,
 )
@@ -37,18 +38,14 @@ from waterfall.core.projects.interface.contributors import (
     contributor_kind,
     require_project_manager,
 )
-from waterfall.core.projects.interface.projects import (
-    ALREADY_EXISTS,
+from waterfall.core.projects.interface.projects import ALREADY_EXISTS, Viewer, lock_project
+from waterfall.core.projects.tables import Project, Subproject
+from waterfall.platform.database import contains, unique_violated
+from waterfall.platform.errors import (
     NOT_FOUND,
     STALE_LOCK_VERSION,
     STATE_FORBIDS_OPERATION,
     VALIDATION_FAILED,
-    Viewer,
-    lock_project,
-)
-from waterfall.core.projects.tables import Project, Subproject
-from waterfall.platform.database import contains, unique_violated
-from waterfall.platform.errors import (
     ConflictError,
     FieldError,
     NotFoundError,
@@ -241,7 +238,7 @@ def _views(
             kind,
             project.state,
             project.current_revision_id,
-            no_task_running=True,
+            running=Running(no_task_running=True),
         )
     )
     quality = tuple(quality_conditions(kind, manager=True))

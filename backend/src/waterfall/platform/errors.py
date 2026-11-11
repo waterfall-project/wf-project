@@ -15,6 +15,17 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+# The refusal of an operation the state of its object does not offer (409), ``missing_condition``
+# naming the condition it lacks: one code that every module raises, declared here alone (#2555).
+STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
+
+# The codes every module raises or answers alike, declared here alone (#2763): the absence of an
+# object (404), a counter that is not the object's (412), and a request that fails its validation
+# (400 or 422, by the contract of the operation).
+NOT_FOUND = "NOT_FOUND"
+STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
+VALIDATION_FAILED = "VALIDATION_FAILED"
+
 
 def json_pointer(*parts: str | int) -> str:
     """Point at a place of a body, as RFC 6901 writes it: ``~`` and ``/`` of a key escaped.

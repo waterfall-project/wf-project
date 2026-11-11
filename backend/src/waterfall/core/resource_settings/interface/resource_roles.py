@@ -34,6 +34,10 @@ from waterfall.core.resource_settings.interface.readiness import lock_reference
 from waterfall.core.resource_settings.tables import Calendar, OrgNode, ResourceRole
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
+    STATE_FORBIDS_OPERATION,
+    VALIDATION_FAILED,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -53,11 +57,7 @@ if TYPE_CHECKING:
 
     from waterfall.platform.audit import Act
 
-NOT_FOUND = "NOT_FOUND"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 ALREADY_EXISTS = "ALREADY_EXISTS"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 FIELD_READ_ONLY = "FIELD_READ_ONLY"
 UNKNOWN_ORG_NODE = "UNKNOWN_ORG_NODE"

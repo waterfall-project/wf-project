@@ -1,9 +1,12 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { columnsOf } from "./columns";
 import { openHydrated, WORKING } from "./hydration";
+import { inService, test } from "./mode";
+import { SEEDED, seedPlanning } from "./planning-seed";
+import { API } from "./service/realm";
 
 // The gestures that create and delete tasks and lines (US-0460), against the fake back. It serves
 // the first example of each read whatever the request: the witness project is in progress, so its
@@ -349,4 +352,155 @@ test("filters the remaining to commit by the post « Poste 1.1 » chosen among t
   await chips.getByRole("link", { name: /^Lever le filtre/ }).click();
   await expect(page).toHaveURL(`${IN_REVISION}/remaining`, { timeout: WORKING });
   await expect(filter).toHaveValue("");
+});
+
+// The planning written against the service on a planning the run seeds (`planning-seed.ts`): the
+// service keeps what the gestures write, so the grid read anew is the structure they made.
+const SERVICE_ONLY = "the service keeps what is written, which the fake back does not";
+
+test("inserts, indents a group, outdents and moves tasks against the service, each said and kept in the grid read anew @shared [WF-PLA-0080-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  test.skip(!inService, SERVICE_ONLY);
+  test.slow();
+  const seeded = await seedPlanning(page, browser, request, manager, "Structure");
+  await openHydrated(page, seeded.planning);
+  const table = page.getByRole("treegrid", { name: "Grille de planning" });
+  const handle = (number: number) =>
+    table.getByRole("gridcell", { name: `${String(number)} — poignée de la ligne`, exact: true });
+  const named = (number: number, label: string) =>
+    table.getByRole("row", { name: new RegExp(`^${String(number)} .*${label}`) });
+
+  // L'indentation d'un groupe de tâches déplace le groupe entier sous la tâche précédente : rows 3
+  // and 4 follow « Études de détail », which becomes their summary.
+  await handle(3).click();
+  await handle(4).click({ modifiers: ["Shift"] });
+  await expect(table.getByRole("row", { selected: true })).toHaveCount(2);
+  await page.keyboard.press("Alt+Shift+ArrowRight");
+  await saidAndRead(page, table, "« Revue de conception » et la ligne suivante indentées.");
+  await expect(named(2, SEEDED[2])).toHaveAttribute("aria-expanded", "true");
+  await expect(named(3, SEEDED[3])).toHaveAttribute("aria-level", "3");
+  await expect(named(4, SEEDED[4])).toHaveAttribute("aria-level", "3");
+
+  // A task inserted below one, from the menu of its cell: created, and read anew at its place.
+  const at = await columnsOf(table, { label: "Libellé" });
+  const cell = named(5, SEEDED[5]).getByRole("gridcell").nth(at.label);
+  await cell.click({ button: "right" });
+  await page
+    .getByRole("menu", { name: "Menu de la cellule" })
+    .getByRole("menuitem", { name: "Insérer au-dessous" })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Insérer au-dessous" });
+  await dialog.getByRole("textbox", { name: "Libellé" }).fill("Note de calcul");
+  await dialog.getByRole("button", { name: "Créer" }).click();
+  await saidAndRead(page, table, "« Note de calcul » créée.");
+  await expect(named(6, "Note de calcul")).toBeVisible();
+  await expect(named(7, SEEDED[6])).toBeVisible();
+
+  // Outdented from the menu: the task leaves its summary, and is a task of the first level.
+  const task = named(3, SEEDED[3]).getByRole("gridcell").nth(at.label);
+  await task.click({ button: "right" });
+  await page
+    .getByRole("menu", { name: "Menu de la cellule" })
+    .getByRole("menuitem", { name: "Désindenter" })
+    .click();
+  await saidAndRead(page, table, "« Revue de conception » et la ligne suivante désindentées.");
+  await expect(named(3, SEEDED[3])).toHaveAttribute("aria-level", "2");
+});
+
+test("deletes a task at once and a summary after its confirmation against the service, which keeps the rows gone @shared [WF-PLA-0080-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  test.skip(!inService, SERVICE_ONLY);
+  test.slow();
+  const seeded = await seedPlanning(page, browser, request, manager, "Suppression");
+  await openHydrated(page, seeded.planning);
+  const table = page.getByRole("treegrid", { name: "Grille de planning" });
+  const at = await columnsOf(table, { label: "Libellé" });
+  const label = (number: number, name: string) =>
+    table
+      .getByRole("row", { name: new RegExp(`^${String(number)} .*${name}`) })
+      .getByRole("gridcell")
+      .nth(at.label);
+
+  // A task without subordinates, by the keys: gone from the grid once it is read anew.
+  await label(6, SEEDED[6]).click();
+  await page.keyboard.press("Control+Delete");
+  await saidAndRead(page, table, "« Mise en service » supprimée.");
+  await expect(table.getByRole("row", { name: new RegExp(SEEDED[6]) })).toHaveCount(0);
+
+  // The summary carries its subordinates away, after the confirmation.
+  await label(1, SEEDED[1]).click();
+  await page.keyboard.press("Control+Delete");
+  const confirm = page.getByRole("dialog", { name: "Supprimer « Études » ?" });
+  await expect(confirm).toContainText("leurs lignes et leurs liaisons");
+  await confirm.getByRole("button", { name: "Supprimer" }).click();
+  await saidAndRead(page, table, "« Études » supprimée.");
+  await expect(table.getByRole("row", { name: new RegExp(SEEDED[2]) })).toHaveCount(0);
+  await expect(table.getByRole("row", { name: new RegExp(SEEDED[5]) })).toBeVisible();
+});
+
+// The estimate grid is served by EP-07: its screen reads `Introuvable` against the service until then,
+// so the carry-over of #1057 is played from the operations that grid sends, `createNode` and
+// `moveNodes`, on the structure it shares with the planning, and read in the planning.
+test("reads in the planning a task created and indented by the operations the estimate grid sends, the structure being shared @shared [WF-DEV-0050-A] [WF-PLA-0080-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  test.skip(!inService, SERVICE_ONLY);
+  test.slow();
+  const seeded = await seedPlanning(page, browser, request, manager, "Report");
+  const { project, revision, structure } = seeded.ids;
+  const base = `${API}/projects/${project}/revisions/${revision}/structures/${structure}/nodes`;
+  const added = "Tâche du devis";
+  const created = await request.post(base, {
+    headers: seeded.headers,
+    data: {
+      kind: "task",
+      parent_id: seeded.nodes[1] ?? null,
+      after_node_id: seeded.nodes[2] ?? null,
+      task: { label: added },
+    },
+  });
+  expect(created.status(), "POST nodes").toBe(201);
+  const answer = (await created.json()) as {
+    nodes: { node_id: string }[];
+    structure_lock_version: number;
+  };
+  const node = answer.nodes[0];
+  if (node === undefined) {
+    throw new Error("a node created is answered");
+  }
+
+  // Read in the planning: the task is there, a sibling of the one it was created below.
+  await openHydrated(page, seeded.planning);
+  const planning = page.getByRole("treegrid", { name: "Grille de planning" });
+  const task = planning.getByRole("row", { name: new RegExp(`^3 .*${added}`) });
+  await expect(task).toBeVisible({ timeout: WORKING });
+  await expect(task).toHaveAttribute("aria-level", "2");
+
+  // Indented under the task above it, the move is read indented in the planning.
+  const moved = await request.post(`${base}/move`, {
+    headers: seeded.headers,
+    data: {
+      node_ids: [node.node_id],
+      parent_id: seeded.nodes[2] ?? null,
+      lock_version: answer.structure_lock_version,
+    },
+  });
+  expect(moved.status(), "POST move").toBe(200);
+  await openHydrated(page, seeded.planning);
+  await expect(planning.getByRole("row", { name: new RegExp(`^3 .*${added}`) })).toHaveAttribute(
+    "aria-level",
+    "3",
+    { timeout: WORKING },
+  );
 });

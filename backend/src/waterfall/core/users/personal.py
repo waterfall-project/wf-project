@@ -15,7 +15,7 @@ from sqlalchemy import select, update
 
 from waterfall.core.users.accounts import lock_account
 from waterfall.core.users.tables import UserAccount
-from waterfall.platform.errors import FieldError, UnprocessableError
+from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -29,7 +29,6 @@ if TYPE_CHECKING:
 TABLES = ("grids", "timelines", "charts")
 # The entries a table holds at most, once a change applies as when it is sent (#874, #1235).
 MOST_ENTRIES = 100
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_TOO_LONG = "VALUE_TOO_LONG"
 PNG = "image/png"
 JPEG = "image/jpeg"

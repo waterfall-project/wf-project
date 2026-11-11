@@ -54,6 +54,8 @@ def lock_reference(session: Session) -> None:
     that does not take it: the default calendar, which the minimal reference reads, is never
     deactivated (``calendar_not_default``), so that no deactivation can empty it. Were that refusal
     lifted, the activation would take the lock; a test pins the refusal (``test_reference_lock``).
+    The units of duration take it too (``set_duration_units``), as every write that redates the
+    plannings of the current revisions, which the opening of a revision shares (EP-06).
     """
     session.execute(select(func.pg_advisory_xact_lock(REFERENCE_LOCK)))
 
@@ -63,6 +65,8 @@ def share_reference(session: Session) -> None:
 
     By the creation of a project, before it asks the four questions: the writes that could change
     an answer (``lock_reference``) wait for it, or are waited for; two creations do not wait for
-    each other.
+    each other. By the opening of a revision too, which a change that redates the current
+    revisions must see, or be seen by (EP-06): it may hold the lock of its project already, which
+    no holder of this lock waits for.
     """
     session.execute(select(func.pg_advisory_xact_lock_shared(REFERENCE_LOCK)))

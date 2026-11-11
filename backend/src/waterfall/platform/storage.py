@@ -19,13 +19,14 @@ from botocore.exceptions import BotoCoreError, ClientError
 from waterfall.platform.errors import UnavailableError
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Iterator
+    from collections.abc import Callable, Collection, Generator, Iterator, Sequence
+    from datetime import datetime
     from pathlib import Path
 
     from mypy_boto3_s3.client import S3Client
     from mypy_boto3_s3.type_defs import CompletedPartTypeDef
 
-    from waterfall.platform.settings import ServiceSettings
+    from waterfall.platform.settings import StorageSettings
 
 COMPONENT_UNAVAILABLE = "COMPONENT_UNAVAILABLE"
 OBJECT_STORAGE = "object_storage"
@@ -57,6 +58,14 @@ def reached() -> Generator[None]:
         raise unavailable() from error
     except BotoCoreError as error:
         raise unavailable() from error
+
+
+def _left[T](listed: list[T], kept: Callable[[Sequence[T]], Collection[T]] | None) -> list[T]:
+    """Give what a page of a listing holds, but what ``kept`` leaves out of it."""
+    if kept is None or not listed:
+        return listed
+    out = set(kept(listed))
+    return [each for each in listed if each not in out]
 
 
 class Bucket:
@@ -94,8 +103,13 @@ class Bucket:
         return cls(client, name)
 
     @classmethod
-    def of_backups(cls, settings: ServiceSettings) -> Bucket:
-        """Open the bucket of the backups the settings name."""
+    def of_backups(cls, settings: StorageSettings) -> Bucket:
+        """Open the bucket of the backups the settings name.
+
+        One bucket carries the three prefixes (EP-06, "Ce que le cadrage décide"): the backups, the
+        files in transit under ``uploads/`` and the exports under ``exports/``; the purge of the
+        last two opens it by this name too.
+        """
         return cls.connect(
             settings.backups_bucket,
             settings.storage_address,
@@ -108,6 +122,87 @@ class Bucket:
         """Write a file under a key, in parts if it is large; an object there is replaced."""
         with reached():
             self.client.upload_file(str(path), self.name, key)
+
+    def put(self, key: str, content: bytes, media_type: str | None = None) -> None:
+        """Write a content held in memory under a key, in one piece; an object there is replaced.
+
+        The media type, when given, is the one the object is served with.
+        """
+        with reached():
+            if media_type is None:
+                self.client.put_object(Bucket=self.name, Key=key, Body=content)
+            else:
+                self.client.put_object(
+                    Bucket=self.name, Key=key, Body=content, ContentType=media_type
+                )
+
+    def remove(self, key: str) -> None:
+        """Delete the object of a key; a key that holds none is no fault, S3 says nothing of it."""
+        with reached():
+            self.client.delete_object(Bucket=self.name, Key=key)
+
+    def keys_before(
+        self,
+        prefix: str,
+        before: datetime,
+        limit: int | None = None,
+        kept: Callable[[Sequence[str]], Collection[str]] | None = None,
+    ) -> list[str]:
+        """List the keys under a prefix of the objects last modified before an instant.
+
+        ``limit`` bounds the list: the keys beyond it are left to a later call, so that a bucket
+        with a great many old objects is not held in memory. ``kept`` gives, among the old keys
+        of a page of the listing, those to leave out: they count for nothing, and the listing goes
+        on past them, so that a limit is never spent on keys the caller would not take (#2533).
+        """
+        keys: list[str] = []
+        with reached():
+            pages = self.client.get_paginator("list_objects_v2").paginate(
+                Bucket=self.name, Prefix=prefix
+            )
+            for page in pages:
+                old = [
+                    listed.get("Key", "")
+                    for listed in page.get("Contents", [])
+                    if (modified := listed.get("LastModified")) is not None and modified < before
+                ]
+                keys += _left(old, kept)
+                if limit is not None and len(keys) >= limit:
+                    return keys[:limit]
+        return keys
+
+    def deposits_before(
+        self,
+        prefix: str,
+        before: datetime,
+        limit: int | None = None,
+        kept: Callable[[Sequence[tuple[str, str]]], Collection[tuple[str, str]]] | None = None,
+    ) -> list[tuple[str, str]]:
+        """List the deposits in parts under a prefix opened before an instant, by key and deposit.
+
+        A deposit in parts not completed is not an object: ``keys_before`` never lists it.
+        ``limit`` bounds the list, and ``kept`` leaves deposits out of it, as for the keys.
+        """
+        found: list[tuple[str, str]] = []
+        with reached():
+            pages = self.client.get_paginator("list_multipart_uploads").paginate(
+                Bucket=self.name, Prefix=prefix
+            )
+            for page in pages:
+                old = [
+                    (listed.get("Key", ""), listed.get("UploadId", ""))
+                    for listed in page.get("Uploads", [])
+                    if (opened := listed.get("Initiated")) is not None and opened < before
+                ]
+                found += _left(old, kept)
+                if limit is not None and len(found) >= limit:
+                    return found[:limit]
+        return found
+
+    def abort_parts(self, key: str, deposit: str) -> None:
+        """Abort the deposit in parts of an object: the parts it received are freed."""
+        with reached():
+            self.client.abort_multipart_upload(Bucket=self.name, Key=key, UploadId=deposit)
 
     def download(self, key: str, path: Path) -> None:
         """Read the object of a key into a file."""

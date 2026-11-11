@@ -129,8 +129,19 @@ contributors, its subprojects, its work breakdown — and `waterfall.core.revisi
 revisions and their cost structures. Their interface is a package of one file per subject
 (`projects`, `contributors`, `subprojects`, `work_breakdown`, `lifecycle`; `revisions`,
 `structures`, `marking`, `reference`), where each function of the design is declared from the
-foundation on, without effect, so that no story reopens `interface/__init__.py` to fill its own. A
-revised table is partitioned by list on `project_id`, one partition per project (WF-DAT-0050),
+foundation on, without effect, so that no story reopens `interface/__init__.py` to fill its own.
+
+The planning (EP-06) has three: `waterfall.core.planning` (FBS-4.3) — the nodes and their task
+facet, the links, the timelines and the inscriptions —, `waterfall.core.history` — the undo history and
+the paste plans — and `waterfall.core.exchanges` (FBS-4.3.4) — the imports, the exports and their
+formats —, whose interface is likewise a package of one file per story or subject, each function
+declared by the foundation (US-1380/L1). A module above extends a module below without the latter
+importing it, through an ordered registry (`Registry`, `waterfall.platform.registry`) that the
+interface below offers to fill and that the one above fills at its import (EP-06, "Les points
+d'extension"); an entry point that depends on it imports the interface that registers, and
+`test_registries.py` checks it for the API, the worker and the loader (#2180).
+
+A revised table is partitioned by list on `project_id`, one partition per project (WF-DAT-0050),
 which the function `create_project_partitions` of the owner of the tables (`SECURITY DEFINER`)
 creates in the transaction of the creation of the project; the role of the service alone may
 execute it, with no other right of DDL; each epic that adds a revised table replaces it. Two
@@ -172,7 +183,11 @@ nothing while it is there (EP-03, « Sauvegarde et
 restauration »). Scheduled
 tasks are deposited by `waterfall-worker enqueue <genre>`, which deposits none when a task of the
 same kind is queued or running: the `scheduler` service of Compose calls it at the interval of
-`WATERFALL_IDENTITY_SYNC_INTERVAL`, in seconds, one day by default.
+`WATERFALL_IDENTITY_SYNC_INTERVAL`, in seconds, one day by default; its second loop calls
+`waterfall-worker purge`, which collects what expired — reports of imports, deposits, exports, the
+undo history, and their objects on the storage — at the interval of `WATERFALL_PURGE_INTERVAL`, ten
+minutes by default (EP-06, "La purge"); an interval that is not a positive whole number stops the
+service with 2.
 Whoever opens the queue says how long it waits for Redis: a request or the scheduler
 `TaskQueue.connect(adresse, timeout=DEPOSIT_TIMEOUT)`, one second, so that a mute Redis does not
 hold back the response; the worker `WORKER_TIMEOUT`, longer than each of its reads. An error the
@@ -1166,12 +1181,54 @@ each task, its dates and its lane; they are created by their name and the timeli
 after confirmation, as the project lists `manage_timelines` (`timeline-commands.tsx`, EP-14/L44c).
 The server selects what each one draws (#463): the tree asks for the summary tasks down to the level
 of the address (`summaries_only`, `max_level`), a timeline the tasks inscribed in it
-(`timeline_id`). The fake back ignoring these filters ("What the fake back does not do"), each one
-applies the same criterion again to the response (`summaryTree`, `inscribedTo`): an idempotent
-filter, which changes nothing against a server that honours them, a temporary gap of EP-02 removed
-with the back of EP-03. The tree offers exactly the levels the structure has, from the first to that
-of its deepest summary task, which the server says whatever the filters (`meta.summary_depth`,
-#494), and shows the level asked for, or the deepest when asked for one beyond it (`depthShown`).
+(`timeline_id`). The service honours the latter for the timelines (US-1400): the screen draws what
+it renders, applying no criterion to the response, and so does it for the tree (US-1440): the
+fallback of `listNodes` (#496, `summaryTree`, `inscribedTo`) no longer exists. Against the fake back,
+which renders the first example whatever the request, the tree draws the whole structure of the
+witness, and the timelines screen every rectangle of the volume: what each selects is proven against
+the service (`task-tree.spec.ts`, `timelines.spec.ts`), the request of the screen by its component
+tests. The depth the task tree path asks the service for is the screen's (`DEFAULT_DEPTH`,
+`summaries.ts`, #2551), not a number copied. The tree offers exactly the
+levels the structure has, from the first to that of its deepest summary task, which the server says
+whatever the filters (`meta.summary_depth`, #494), and shows the level asked for, or the deepest
+when asked for one beyond it (`depthShown`).
+
+The planning is wired to the service (EP-06, US-1470): the page no longer carries the note of the
+mock-up (`MockupNotice`), each cell is written by `updateTaskFacet`, the predecessors by
+`setPredecessors` (`resolveRowNumber` for a number the search left out), the start date by
+`updateCostStructure`, and the attachment, creation, indentation, move and deletion by the
+operations of the tree; the tasks redated, the links in conflict, the float and the critical path
+are those the server renders. An account that sees the project without being a contributor reads the
+planning and receives `NOT_CONTRIBUTOR` on each write and on `openImport`
+(`e2e/service/planning-readers.spec.ts`, WF-ADM-0110-A). The witness of PRJ-001 has its thousand
+tasks in the service (US-1480), and the account of the run is no contributor of it (#2193): a path
+that reads it plays on both sides, `@shared`, and a path that writes plays on a project of its own
+(`e2e/planning-seed.ts`: the project made from the home, its revision opened, six tasks written by
+the API, and, according to the path, their links with one in conflict, a work breakdown of two
+order items). The paths of `planning-service.spec.ts`, `structure.spec.ts`, `computed.spec.ts`,
+`keyboard.spec.ts`, `grid.spec.ts` (the pinned Gantt) and `context.spec.ts` that play against the
+service carry `@shared`, as do, in `planning.spec.ts`, those that read the witness: the opening of
+the grid — its icons, the « started » and « completed » states of a task of the witness
+(WF-PLA-0080-A, #2595) —, its totals, the filter on an order item, the absence of a skeleton, the
+Gantt, its days off, the fold of a summary, the zoom and the PNG export; and `navigation.spec.ts`
+(the project that leads to its planning). They do not count on a row number: the service numbers the
+tasks alone, the lines, which advance the numbers of the fake back (7, 39, 311), being EP-07's;
+they find the row by its label and read the number a predecessor must bear in the grid. The
+carry-over from one grid to the other (#1057) is played by the operations the estimate grid sends,
+`createNode` then `moveNodes`, on the structure it shares with the planning: the screen of the
+estimate grid is not served before EP-07, and the gesture made from it is postponed to that EPIC
+(#2590); the task so created is read in the planning, and its indentation with it. The path of the
+account « chef de projet » plays the planning and FLX-02; FLX-01, the analysis of the exported file
+read back, plays against the service (`exchanges.spec.ts`, #2589), the path that confirms the
+import being EP-07's (#2683). What is not replayed against the service stays on the fake back,
+guarded by `inService` or untagged, the list of the entries being that of « An end-to-end path »:
+the paths of `planning.spec.ts` that write to the witness — the attachment, the entry of a cell, the
+duration and the predecessors, the start date — each have their twin in `planning-service.spec.ts`,
+on a project of the run; the lines, the amounts and the estimate are EP-07's, the remaining to
+commit EP-09's, the risks EP-08's, the indicators EP-10's and the differential structures EP-08's,
+so the path of `context.spec.ts` that opens the amendment, that of the risks screen and that of the
+indicators stay on the fake back. The measure of a cell validation (#196) and that of the move of
+the active cell over a thousand tasks (#620) are in the delivery report of US-1470.
 
 ### The risks screen
 
@@ -1993,6 +2050,18 @@ tracking reloads the task, follows it and says the refusal in its entry (`Outcom
 task unreadable, in a notice of its panel —, and removes it from the address once the page is
 revealed, Next's router rendering afresh a page whose address changes (#416).
 
+The screen is wired to the service (EP-06, US-1430): the page no longer carries the note of the
+mock-up (`MockupNotice`). The MS Project planning is imported in two steps (`openImport`, `getImport`,
+`applyImport`, `expected_format` set to `ms_project_schedule`) and exported (`requestExport`,
+`kind: ms_project_schedule`); the file of the export is downloaded through the route
+`/tasks/[taskId]/result`, which the service empties at the end of the first complete download
+(`result_url` null, 404 afterwards, which the route renders as its refusal). The path of
+`exchanges.spec.ts` that exports the planning of a project the run creates, downloads it, then
+imports it back with no difference (FLX-01 and FLX-02 of the « project manager » account,
+WF-INTF-0010-A), and those of `tasks.spec.ts` that play the route and the refusal of a result on the
+export it made, carry `@shared`; the estimate, the remaining to commit and the actual costs (EP-07,
+EP-09) and the path of the marking stay on the fake back.
+
 The page of a project proposes to start its planning through the « Start the project » insert
 (`ProjectStart`, `components/projects/project-start.tsx`, US-0490) as long as the main structure of
 the current revision has no task. The condition is read at the server (`startOffers`,
@@ -2076,10 +2145,12 @@ target to the last row of the block, the number of each displayed row to the one
 the order of the plan (on a differential, the server skips the nodes the amendment removes and
 fills the next ones: the guard counts neither their rank nor their row, like the preview, #1278) —
 a grid that pastes reads all the kinds of node, and its numbers follow one another —; folded
-(`fold.tsx`), moved by a sort, hidden by the search or a filter, or beyond the last row shown, the
-cause said is the one the user lifts first (L40, #527). Otherwise `previewPaste` returns the plan,
+(`fold.tsx`), moved by a sort, or hidden by the search or a filter, the cause said is the one the
+user lifts first (L40, #527); a block taller than the rows shown is no longer refused: its rows
+beyond the last node of the structure create tasks (see below). Otherwise `previewPaste` returns the plan,
 which a shadcn dialog box shows (`PasteDialog`, `ui/dialog.tsx`), in a single announced region —
-how many rows will be written, each refused row by its place in the block, its cells as copied and
+how many rows will be written, how many tasks will be created (`created`, when there are any), each
+refused row by its place in the block, its cells as copied and
 its reason, a row refused for several cells counted once —, and `applyPaste` applies it on
 confirmation, in a single operation: the valid rows are written, the refused rows are not
 (WF-IHM-0050, EP-14/L42q). A plan that refuses rows and writes others says so, and is confirmed; a
@@ -2110,23 +2181,61 @@ operation, the plan that refuses nothing: the partial paste is only tested by th
 (`paste-applied.dom.test.tsx`, `paste-dialog.dom.test.tsx`), and the real height of the notice will
 only be proved in a path. A grid without `paste` in its configuration, read-only, takes no paste.
 
+**The paste that creates (planning, US-1450/L6, #2559).** The planning service creates a task for
+each row of the block that falls beyond the last node of the structure: a sibling of that node, of
+the kind of the targeted node, in the order of the block, its label required (a row without a label
+is refused, `VALIDATION_FAILED` on the `label` column). The local guard therefore no longer compares
+the block to the height of the grid: it keeps its refusals for hidden or absent columns, folded
+rows, the sort, the search and the filter — a reading narrowed by the search or a filter refuses a
+block that passes its last row, the front being unable to tell whether hidden rows follow it. The
+preview says how many tasks will be created (`PastePlan.created`, also counted among the rows
+written, in one more sentence of the same announced region, `grid.paste.created`); the confirmation
+returns the tasks created in `nodes` (`PasteApplied`, `NodesWritten`), and the planning grid, which
+does not know where those rows are placed, reads its page anew when the plan created some
+(`router.refresh`, as after the creation of a task); the rows written take the place of the rows
+read, as usual. A block whose target is an estimate line has its rows beyond the last node refused
+as `FIELD_NOT_ACCEPTED` without any task being created (EP-07 will serve the lines): the refusal
+reads in the list of refused rows of the preview, like any refusal. Undoing the paste deletes the
+tasks it created, redoing it recreates them: a single history entry (`undone.kind` stays `paste`,
+`undone.node_ids` names the nodes written and created). The path `paste.spec.ts` plays it against
+the service (`@shared`), the tests of the grid on the examples `paste_plan_creating` and
+`paste_applied_creating`.
+
 ### Grids: undo and redo
 
-Undo and Redo are placed, not wired (WF-IHM-0110, US-0140, `undo-commands.tsx`): every grid whose
-loaded structure lists its `edit_*` command as available places them (`undoable` of `DenseGrid`) —
-the estimate by `edit_estimate`, the planning by `edit_planning`, the remaining to commit by
-`edit_remaining` (#115); no grid outside a current revision places them: neither the marking, nor
-an applied import, nor the exclusion of a cost line can be undone. Such a grid shows them as
-buttons in its bar and in the context menu of its cells (right click, Shift+F10, Menu key —
-`CellMenu`, without one more tab stop), with their shortcuts, and takes Ctrl+Z and Ctrl+Shift+Z —
-Cmd on a Mac — in the grid or its bar, outside a menu or a box it opens. Unavailable as long as the
-server does not keep the history of the inputs, they stay reachable by keyboard, `aria-disabled`,
-described by their reason; the shortcut says it in an announced region. A field being entered — the
-editor of a cell, the search — keeps Ctrl+Z for itself: the browser's undo stays there. EP-06 wires
-them to `undoLastChange` and `redoLastUndo`, an undo carried by the server, never a stack in the
-browser; their refusal will be said like any refusal, its condition named by the catalogue — the
-one of an undo that would bring back a subproject deleted since, `restored_subproject_exists`, is
-already there (EP-14/L42p).
+Undo and Redo are placed by every grid whose loaded structure lists its `edit_*` command as
+available (WF-IHM-0110, US-0140, `undo-commands.tsx`; `undoable` of `DenseGrid`) — the estimate by
+`edit_estimate`, the planning by `edit_planning`, the remaining to commit by `edit_remaining`
+(#115); no grid outside a current revision places them: neither the marking, nor an applied import,
+nor the exclusion of a cost line can be undone. Such a grid shows them as buttons in its bar and in
+the context menu of its cells (right click, Shift+F10, Menu key — `CellMenu`, without one more tab
+stop), with their shortcuts, and takes Ctrl+Z and Ctrl+Shift+Z — Cmd on a Mac — in the grid or its
+bar, outside a menu or a box it opens. A field being entered — the editor of a cell, the search —
+keeps Ctrl+Z for itself: the browser's undo stays there.
+
+**Wired (planning, US-1450).** The planning grid wires them to `undoLastChange` and `redoLastUndo`
+(`src/api/actions/history.ts`) through `useUndoRedo` (`undo-run.ts`), which `DenseGrid` receives as
+`undo` (`UndoControl`): an undo is carried by the server, which keeps the stack by revision, by
+account and by sign-in session, never a stack in the browser. The buttons, the menu and the keys are
+then available — neither `aria-disabled`, nor a reason to read. An undo is a write of the structure
+like any other: it is counted in the account of the structure (`useStructureVersion`), the gestures
+and the confirmation of a paste wait for it and it waits for them, the grid says it is busy, and a
+command given during a write has no effect. The action reads the page anew once the server has
+answered — the rows returned, created or deleted are the server's — and the version the structure
+reached (`written.structure_lock_version`) is told to the account for the next write;
+`remaining_depth` is said with the success, in an announced region (`grid.undo.done.undo` and
+`grid.undo.done.redo`: « Change undone. 3 changes left to undo. »). A refusal is said
+like any refusal, by `OutcomeNotice` above the grid, its sentence taken from the catalogue by its
+code and its parameters: `UNDO_CONFLICT` names the object taken up since (`conflicting_object_label`),
+`STATE_FORBIDS_OPERATION` the condition that is missing (`undo_history_not_empty`,
+`redo_history_not_empty`, `restored_subproject_exists`), `SESSION_ID_MISSING` a token without a
+sign-in session. It stays said until it is closed or the next command leaves. Success is played against the
+service (`e2e/undo.spec.ts`, fifty inputs undone then redone through the grid, `@shared`), refusals
+and the announcement of success on the examples (`undo-wired.dom.test.tsx`).
+
+**Placed only.** The estimate and the remaining to commit receive no `undo`: their inputs, served by EP-07, have no
+history yet, and their commands stay unavailable, `aria-disabled`, described by their
+reason; the shortcut says it in an announced region.
 
 ### Grids: creating and deleting tasks and lines
 
@@ -2647,7 +2756,8 @@ of what it describes, and two generations write the same bytes:
   structure and of the entry of tasks, with their refusals (`wftools.mockgestures`, the place of a
   node and the loops a gesture would close in `wftools.mocktree`, the gestures of the estimate made
   on amendment 2, and the entry and the paste the end-to-end paths make there, in
-  `wftools.mockamendmentwrites`), the gestures of the cards of the Kanban and their responses
+  `wftools.mockamendmentwrites`; the paste that creates the tasks beyond the last row, and the
+  undo and the redo of a renaming, in `wftools.mockundoable`, #2559, #2564), the gestures of the cards of the Kanban and their responses
   (`wftools.mockkanban`), and the refusals of a paste and of an import that a subproject or the
   phase of the project command (`wftools.mockexchanges`), and a manual date on a non-working day,
   refused at entry and flagged at import (`wftools.mocknonworking`, #1271); its history
@@ -2771,7 +2881,11 @@ through `MockupNotice` with `lists` (`mockup.notFiltered`), in a single note und
 screens whose service is delivered do not show the note, even though `make dev` serves them through
 Prism and the same limits apply: administration (EP-03), the reference data (EP-05) and, from EP-04,
 the connected home (US-0920/L2), the revisions (US-0960, US-0970) and the settings of the project
-(US-1000); a success there is what the service kept, read anew.
+(US-1000), then, from EP-06, the timelines (US-1400), the exchanges (US-1430), the task tree
+(US-1440) and the planning (US-1470); a success there is what the service kept, read anew. Against
+the fake back, the timelines screen draws the whole volume Prism renders for `listNodes`, whatever
+the timeline: the paths of the frieze and of the focus judge only the layout there, and their
+selection is proven against the service.
 
 _Checks_: `make lint-openapi` (examples conforming to the schemas, volumes included),
 `make mock-data-up-to-date` (the versioned volumes are those the tool writes, in the
@@ -2792,6 +2906,7 @@ its side; a failure of the chain is therefore reproduced by the same command.
 | `make test-back TESTS=…`, `make test-front TESTS=…`, `make e2e TESTS=…` | one single test file, during development; without `TESTS`, all of them, as in the chain                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `make service-install`                                                  | bootstraps the started service platform, its realm applied (`waterfall-api install`, US-0420): applies the migrations under the owner of the tables, creates the installation, its three predefined roles and its local administrator, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` by default), in the language `WATERFALL_DEFAULT_LANGUAGE` (`fr` by default), and its minimal reference (EP-05): the shared settings, with the currency `WATERFALL_CURRENCY` (`EUR` by default) and the name of the company `WATERFALL_COMPANY_NAME` (`Delmas Automatismes` by default, those of the witness), the units of duration, the mapping of the actual costs, empty, the default calendar, the nature and the category of provision for risks; writes on its output only the link that sets its password, valid until it is used; run again, it creates nothing, says another currency or another name ignored, and writes a new link, which replaces the previous one, as long as the administrator has no password, none afterwards                                                                                                                                                                                                   |
 | `make service-witness`                                                  | loads the witness on the service platform, started and bootstrapped (`waterfall-api load-witness`, service `witness`, EP-05): the examples of the contract, `fixtures/api/`, mounted read-only, written by the role of the service; run again, it writes nothing; one slice per object, in the order of the dependencies, in one transaction ("The back and the boundaries of the core")                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `make service-purge`                                                    | runs by hand the purge of what expired on the service platform, started (`waterfall-worker purge`, in the container of the `scheduler` service, which calls it at the interval of `WATERFALL_PURGE_INTERVAL`, 600 s by default): reports of imports past their term, deposits past their term, exports of more than twenty-four hours, the history of the sessions older than `WATERFALL_UNDO_RETENTION_HOURS` hours (12 by default), and the objects that no row designates any more under `uploads/` and `exports/`; two purges never run together (advisory lock)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `make service-up`, `make service-down`                                  | starts, stops the service platform (`deploy/compose/compose.service.yaml`: PostgreSQL, Redis, the Garage object storage and its buckets, the migrations, the API, the worker and the scheduler of its tasks, the restoration service, Keycloak behind its HTTPS front end and its realm, applied again at each start by `keycloak-realm`, which stays started to reapply it after a restoration, OpenLDAP, Mailpit); it requires its secrets in the environment (below), and `service-down WATERFALL_RESET_DATA=yes` also deletes its databases, its storage, its directory and the authority of its front end; `service-up` refuses a PostgreSQL volume of another major than 18, printing the refusal of `postgres-volume`, which says this remedy (US-1130)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `make keycloak-authority`                                               | copies out of the platform the root of the authority of Keycloak's front end, into `deploy/compose/.authority/root.crt`, which git ignores; `service-up` and `test-keycloak` do it at each start                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `make e2e-service`                                                      | the paths of the Playwright project `service` (`frontend/e2e/service/`), and those of `shared` (the tag `@shared`), against the real service, through Prism as a proxy (« An end-to-end path »); same secrets as `service-up`, and the browser of `make e2e-browsers`; it loads the witness after the bootstrap, as `make service-witness` does; `TESTS=<arguments of playwright test>`: a single file also plays `installation` and, if it carries a `@realm-wide` or `@platform-wide` path, the projects its own depends on (`service`, `shared`, `shared-serial`); `TESTS="--no-deps --project=shared --project=realm e2e/reference-resources.spec.ts e2e/service/reference-manager.spec.ts"` plays only those files, without `installation` (on an installation already played)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
@@ -3892,10 +4007,15 @@ which `service/grid-reset.spec.ts` tests.
 
 The project `shared` thus plays the paths of the project against the loaded witness, the slice of
 the projects included ("The back and the boundaries of the core"): PRJ-001 in Pricing, its
-revisions 100 and 101 marked, the 102 open, with no task, no line and no reference. Their
-assertions of reading are not rewritten for what a project in pricing and empty revisions leave to
-read; what reads PRJ-001 In progress, its reference, its tasks or its lines is not replayed before
-EP-07. The assertions of a write affirm what was written, read anew, by `inService`.
+revisions 100 and 101 marked, the 102 open, with no line and no reference. The slice of the tasks
+(`waterfall-api load-witness`, EP-06, US-1480) loads, for the main structure of each of the three
+revisions, the thousand tasks of PRJ-001 with their links, their modes and durations, their states
+and their start and completion dates, their inscriptions, the two timelines and the planning start
+date; it loads no line, whose amounts and role calendars are EP-07's (the 103 tasks on a 4×10 h
+calendar of the frieze wait for them, #2594), no risk (EP-08), no actual cost (EP-09), no indicator
+(EP-10). Their assertions of reading are not rewritten for what a project in pricing leaves to
+read; what reads PRJ-001 In progress, its reference or its lines is not replayed before EP-07. The
+assertions of a write affirm what was written, read anew, by `inService`.
 
 The consolidated list of what a path does not replay against the service yet is kept here: it is
 skipped by `inService` (`test.skip(inService, …)`) when tagged, or stays untagged, each entry naming
@@ -3924,22 +4044,48 @@ the epic that lifts it; that epic removes the guard and its entry:
   after it, and does not find them once restored (WF-ADM-0160-A); played again on the same
   installation, it leaves one more account and one more project there, the restoration taking back
   all the rest.
-- `project-start.spec.ts` — the start towards the planning: the opening of PRJ-001 that leads to its
-  planning, the screen of the work breakdown that generates the planning, and the encart « Démarrer
-  le projet » of a project created, which the service does not offer to the account of the run
-  before the structures (`BEFORE_EP06`): lifted by **EP-06**, which serves the structures, the
-  import of a planning and `generatePlanningSkeleton`. The work breakdown of a project created,
-  written then read anew, plays since US-0950 (twin path, `SERVICE_ONLY`).
-- `context.spec.ts` — the banner of the context on the screens of the data, the planning, the
-  remaining to commit, the risks and the indicators, and on a differential structure
-  (`BEFORE_THE_DATA`): lifted screen by screen by **EP-06** (the planning, the structures),
-  **EP-07** (the remaining to commit), **EP-08** (the risks) and **EP-10** (the indicators). The
-  banner of the screens of a project created, its settings and its revisions, plays since US-1000.
+- `project-start.spec.ts` — no entry: the start towards the planning plays against the service
+  (`BEFORE_EP06` lifted by US-1460), on a project the account of the run creates, which lists
+  `import_planning` (US-1430) and serves the structures and `generatePlanningSkeleton`. The work
+  breakdown of a project created, written then read anew, plays since US-0950 (twin path,
+  `SERVICE_ONLY`), the fake back keeping nothing of the work breakdown it is given
+  (`FAKE_BACK_FORGETS`) (#2543).
+- `context.spec.ts` — the banner of the context on the remaining to commit, the risks and the
+  indicators, and on a differential structure (`BEFORE_THE_REMAINING`, `BEFORE_THE_INDICATORS`,
+  `BEFORE_THE_DIFFERENTIALS`): lifted screen by screen by **EP-07** (the estimate), **EP-09** (the
+  remaining to commit), **EP-08** (the risks and the differential structures) and **EP-10** (the
+  indicators). The banner of the planning, of the screens of a project created, of its settings and
+  of its revisions plays against the service (`BEFORE_THE_DATA` lifted for the planning by EP-06).
+- `planning.spec.ts`, `structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts` — the paths that
+  write to the witness of PRJ-001, whose account of the run is no contributor (#2193): each has its
+  twin against the service on a project of the run (`planning-service.spec.ts`, `structure.spec.ts`,
+  `computed.spec.ts`, `keyboard.spec.ts`), which no epic reverses; the paths of these files that
+  read the witness play on both sides. The paths of the remaining to commit of `structure.spec.ts`
+  are **EP-09**'s, those of the estimate of `grid.spec.ts` and `keyboard.spec.ts` **EP-07**'s.
+- `planning.spec.ts` — the read of the planning start date and of its headers « Démarrée le » and
+  « Terminée le » plays on both sides; only its write (`updateCostStructure`) stays on the fake
+  back, like the other writes to the witness above.
+- `timelines.spec.ts` — the frieze and the focus (`AFTER_THE_LINES`, #2594): lifted by **EP-07**
+  (US-1570), which tags both paths `@shared` once the lines give their calendars to the tasks of the
+  witness. Three paths that write to the witness of PRJ-001, whose account of the run is no
+  contributor (#2193), stay untagged: the inscription of a task to a timeline (`:52`, on the first
+  node of the fake back, whose twin `:422`, on a project of the run, plays the service), the
+  time/time tracking of an inscribed milestone (`:104`) and the creation then the deletion of a
+  timeline (`:310`); no epic reverses them. The navigation from the planning, the PNG export, the
+  two selections and the inscription on a project of the run play against the service.
+- `exchanges.spec.ts` — the import of the estimate in two steps (`:31`, #2683), which reads the
+  analysis, the application and the abandonment of an import of PRJ-001 that the service does not
+  serve: lifted by **EP-07**, which serves the estimate; the refusal of a file too large (`:101`),
+  which opens the imports screen of PRJ-001 whose account of the run is no contributor (#2193); the
+  two screens that lead to the imports screen from the estimate and the remaining to commit
+  (`:130`), lifted by **EP-07** and **EP-09**. The export of the planning, imported back, plays
+  against the service on a project of the run (US-1430).
 - `projects.spec.ts` — the paths that write to PRJ-001 or reach it through its planning: the screen
   of the project, its settings and its lifecycle, the exit, the sub-projects and the contributors,
   the work breakdown (`FAKE_BACK_ONLY`): the account of the run is not a project manager of PRJ-001,
   by decision (#2193, option A), which no epic reverses — which the twins replay —, and the planning
-  its page leads to is **EP-06**'s. Each has its twin, played against the service alone on a project
+  its page leads to, which the service serves since EP-06, is not written under that account either.
+  Each has its twin, played against the service alone on a project
   the account creates (`SERVICE_ONLY`, `own-project.ts`): settings, lifecycle, sub-projects, work
   breakdown, contributors (a second account, enrolled through the API since the screen proposes the
   accounts of the estimate alone, WF-PRJ-0070-A; the quality of that account is changed on the
@@ -4775,9 +4921,9 @@ installation. The home is served since US-0920/L2 and plays on both sides (`proj
 the icon of the tab in `navigation.spec.ts`), as do the screens of a project since US-1000 (among
 them, in `navigation.spec.ts`, the move from the settings to the lifecycle). Untagged in
 `navigation.spec.ts` stay the way back to the previous project from a function outside any project,
-which reopens the remaining to commit then the risks of PRJ-001 (lifted by **EP-07** and **EP-08**),
-and the address of the project that leads to its planning, with its reading context (lifted by
-**EP-06**). On what their US does not tag yet: the reading of the settings outside any project
+which reopens the remaining to commit then the risks of PRJ-001 (lifted by **EP-07** and **EP-08**);
+the address of the project that leads to its planning, with its reading context, plays on both sides
+since EP-06. On what their US does not tag yet: the reading of the settings outside any project
 (`reference-costs.spec.ts`, US-0250). The change of the units of duration
 (`reference-resources.spec.ts`), which writes the single object of the installation, plays as
 `@serial` in the project `shared-serial`, like the other paths that write a single object.

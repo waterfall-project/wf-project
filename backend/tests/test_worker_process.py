@@ -16,17 +16,21 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 import yaml
+from access_rows import holder
+from purge_environment import storage_environment
 from sqlalchemy import insert, select
 from support import raw_account
 from task_handlers import REQUEST, Runs, deposit, inscriptions, task
 
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.correlation import FORM
+from waterfall.platform.database import utc_now
 from waterfall.platform.tasks import BackgroundTask
+from waterfall.platform.uploads import LIFETIME, FileUpload, Whole, object_key_of, record_whole
 from waterfall.worker.runner import Timing, Worker
 
 if TYPE_CHECKING:
@@ -34,12 +38,15 @@ if TYPE_CHECKING:
 
     from waterfall.platform.database import Database
     from waterfall.platform.queue import TaskQueue
+    from waterfall.platform.storage import Bucket
 
 TESTS = Path(__file__).resolve().parent
 COMPOSE = TESTS.parents[1] / "deploy" / "compose" / "compose.service.yaml"
+PRODUCTION = TESTS.parents[1] / "deploy" / "compose" / "compose.prod.yaml"
 # Long enough for a process to start, and short enough for a test to fail in reasonable time.
 PATIENCE = 30.0
 INTERVAL = 1
+PURGE = "WATERFALL_PURGE_INTERVAL"
 
 
 def wait_for(condition: Callable[[], bool]) -> None:
@@ -99,12 +106,12 @@ def test_a_worker_stopped_during_a_task_leaves_the_base_unchanged_and_resumes_it
     assert task(database, task_id).attempts == 2
 
 
-def scheduler() -> tuple[dict[str, str], list[str]]:
-    """Read the service that schedules the tasks in the Compose file: settings and command.
+def scheduler(compose: Path = COMPOSE) -> tuple[dict[str, str], list[str]]:
+    """Read the service that schedules the tasks in a Compose file: settings and command.
 
     The command is given as its shell reads it, once Compose has written ``$$`` as ``$``.
     """
-    service = yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))["services"]["scheduler"]
+    service = yaml.safe_load(compose.read_text(encoding="utf-8"))["services"]["scheduler"]
     command = cast("list[str]", service["command"])
     return cast("dict[str, str]", service["environment"]), [
         part.replace("$$", "$") for part in command
@@ -124,7 +131,8 @@ def test_the_platform_deposits_the_reading_of_the_accounts_at_its_interval_as_an
     runs = Runs()
     platform_queue.prepare()
     taker = Worker(database, platform_queue, {"identity_sync": runs}, "worker", Timing(block=0.1))
-    with started(shell, {**service_environment, variable: str(INTERVAL)}):
+    # The other loop of the schedule, the purge, sleeps through the test.
+    with started(shell, {**service_environment, variable: str(INTERVAL), PURGE: "3600"}):
         wait_for(lambda: taker.step() and len(runs) == 2)
     with database.transaction() as session:
         scheduled = list(session.scalars(select(BackgroundTask).order_by(BackgroundTask.id)))
@@ -144,3 +152,73 @@ def test_the_platform_deposits_the_reading_of_the_accounts_at_its_interval_as_an
     wait_for(lambda: not taker.step())
     assert asked in runs
     assert task(database, asked).status == "succeeded"
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_the_platform_purges_what_expired_at_its_interval_by_the_second_loop_of_its_schedule(
+    database: Database, backups_bucket: Bucket, service_environment: dict[str, str]
+) -> None:
+    # « Un fichier déposé et jamais confirmé disparaît au terme du délai d'expiration. » : the
+    # schedule purges at the interval of ``WATERFALL_PURGE_INTERVAL``, ten minutes by default, while
+    # the loop of the reading of the accounts waits for its day.
+    scheduled_with, shell = scheduler()
+    assert scheduled_with[PURGE] == f"${{{PURGE}:-600}}"
+    upload_id = uuid4()
+    key = object_key_of(upload_id)
+    backups_bucket.put(key, b"WF")
+    user = holder(database)
+    with database.transaction() as session:
+        record_whole(session, upload_id, Whole("oublie.wft", 2, user), utc_now() - LIFETIME * 2)
+    environment = {
+        **service_environment,
+        **storage_environment(backups_bucket),
+        "WATERFALL_IDENTITY_SYNC_INTERVAL": "3600",
+        PURGE: str(INTERVAL),
+    }
+
+    def purged() -> bool:
+        # The row and the object go each in its own step of the purge: both are waited for (#2566).
+        with database.transaction() as session:
+            if session.get(FileUpload, upload_id) is not None:
+                return False
+        return backups_bucket.size(key) is None
+
+    with started(shell, environment):
+        wait_for(purged)
+    assert backups_bucket.size(key) is None
+
+
+@pytest.mark.parametrize("interval", ["0", "soon", ""])
+def test_a_schedule_whose_purge_interval_is_no_positive_number_stops_with_two(
+    interval: str, service_environment: dict[str, str]
+) -> None:
+    # A purge scheduled at no interval would never come, so the schedule refuses to start. It
+    # guards the purge of WF-DAT-0120 without trying its Vérif, which the test above tries: it
+    # cites no requirement (#2533).
+    _, shell = scheduler()
+    environment = {
+        **service_environment,
+        "WATERFALL_IDENTITY_SYNC_INTERVAL": "3600",
+        PURGE: interval,
+    }
+    with started(shell, environment) as process:
+        assert process.wait(timeout=PATIENCE) == 2
+
+
+def test_the_two_compose_files_schedule_the_same_loops_with_the_same_settings() -> None:
+    # The purge that makes a deposit never confirmed disappear must run in production as the tests
+    # run it: the same script of loops, the same intervals and retention by default. A comparison
+    # of two files, not the Vérif of WF-DAT-0120: it cites no requirement (#2533).
+    service_settings, service_shell = scheduler(COMPOSE)
+    production_settings, production_shell = scheduler(PRODUCTION)
+    assert production_shell == service_shell
+    names = (
+        "WATERFALL_IDENTITY_SYNC_INTERVAL",
+        PURGE,
+        "WATERFALL_UNDO_RETENTION_HOURS",
+    )
+    retention = "WATERFALL_UNDO_RETENTION_HOURS"
+    assert service_settings[retention] == f"${{{retention}:-12}}"
+    assert {each: production_settings[each] for each in names} == {
+        each: service_settings[each] for each in names
+    }

@@ -98,7 +98,7 @@ def test_a_project_is_born_created_without_a_code_and_its_creator_manages_it(
     assert (project["state"], project["code"], project["client"]) == ("created", None, None)
     assert (project["inflation_rate"], project["win_probability"]) == ("0", "0")
     assert (project["reference_revision_id"], project["current_revision_id"]) == (None, None)
-    assert project["lock_version"] == 0
+    assert project["lock_version"] == 1
     assert project["audit"]["created_by"]["user_id"] == str(stage.manager.user_id)
     # Its creator reads the commands of a project manager; the state-bound ones say what lacks.
     assert missing(project) == {
@@ -111,6 +111,8 @@ def test_a_project_is_born_created_without_a_code_and_its_creator_manages_it(
         "complete": ["project_in_progress"],
         "lose": ["project_in_pricing"],
         "abandon": [],
+        "generate_skeleton": [],
+        "import_planning": [],
     }
     read = api.get(f"{PROJECTS}/{project['project_id']}", headers=stage.manager.headers)
     assert (read.status_code, read.json()) == (200, project)
@@ -207,7 +209,7 @@ def test_a_code_that_holds_a_slash_is_refused_whatever_else_it_holds(
     changed = api.patch(
         f"{PROJECTS}/{stage.project['project_id']}",
         headers=stage.manager.headers,
-        json={"code": code, "lock_version": 0},
+        json={"code": code, "lock_version": 1},
     )
     assert (changed.status_code, faults(changed)) == (422, expected)
     assert changed.json()["code"] == "VALIDATION_FAILED"
@@ -269,7 +271,7 @@ def test_a_code_borne_by_another_project_is_refused_naming_it(
     )
     path = f"{PROJECTS}/{stage.project['project_id']}"
     changed = api.patch(
-        path, headers=stage.manager.headers, json={"code": "PRJ-001", "lock_version": 0}
+        path, headers=stage.manager.headers, json={"code": "PRJ-001", "lock_version": 1}
     )
     assert (changed.status_code, faults(changed)) == (409, named)
     with stage.database.transaction() as session:
@@ -279,9 +281,9 @@ def test_a_code_borne_by_another_project_is_refused_naming_it(
     kept = api.patch(
         f"{PROJECTS}/{held['project_id']}",
         headers=stage.manager.headers,
-        json={"code": "PRJ-001", "lock_version": 0},
+        json={"code": "PRJ-001", "lock_version": 1},
     )
-    assert (kept.status_code, kept.json()["lock_version"]) == (200, 0)
+    assert (kept.status_code, kept.json()["lock_version"]) == (200, 1)
 
 
 @pytest.mark.requirement("WF-PRJ-0010-A")
@@ -439,7 +441,7 @@ def test_a_manager_changes_the_attributes_and_each_change_counts_once(
         "inflation_rate": "0.03",
         "win_probability": "0.4",
         "order_received_on": "2026-01-15",
-        "lock_version": 0,
+        "lock_version": 1,
     }
     changed = api.patch(path, headers=headers, json=sent)
     assert changed.status_code == 200
@@ -448,18 +450,18 @@ def test_a_manager_changes_the_attributes_and_each_change_counts_once(
         name: value for name, value in sent.items() if name != "lock_version"
     }
     assert (body["lock_version"], body["audit"]["updated_by"]["user_id"]) == (
-        1,
+        2,
         str(stage.manager.user_id),
     )
     emptied = api.patch(
         path,
         headers=headers,
-        json={"client": None, "order_received_on": None, "description": None, "lock_version": 1},
+        json={"client": None, "order_received_on": None, "description": None, "lock_version": 2},
     )
     assert emptied.status_code == 200
     body = emptied.json()
     assert (body["client"], body["order_received_on"], body["description"]) == (None, None, None)
-    assert (body["label"], body["code"], body["lock_version"]) == ("Modernisation", "PRJ-001", 2)
+    assert (body["label"], body["code"], body["lock_version"]) == ("Modernisation", "PRJ-001", 3)
     assert api.get(path, headers=headers).json() == body
 
 
@@ -469,7 +471,7 @@ def test_a_change_that_changes_nothing_writes_nothing(api: ContractClient, stage
     same = api.patch(
         path,
         headers=stage.manager.headers,
-        json={"label": stage.project["label"], "win_probability": "0.0", "lock_version": 0},
+        json={"label": stage.project["label"], "win_probability": "0.0", "lock_version": 1},
     )
     assert (same.status_code, same.json()) == (200, stage.project)
 
@@ -479,12 +481,12 @@ def test_a_change_at_a_stale_version_is_refused_and_writes_nothing(
     api: ContractClient, stage: Scene
 ) -> None:
     path = f"{PROJECTS}/{stage.project['project_id']}"
-    first = api.patch(path, headers=stage.manager.headers, json={"label": "Un", "lock_version": 0})
+    first = api.patch(path, headers=stage.manager.headers, json={"label": "Un", "lock_version": 1})
     assert first.status_code == 200
     stale = api.patch(
-        path, headers=stage.manager.headers, json={"label": "Deux", "lock_version": 0}
+        path, headers=stage.manager.headers, json={"label": "Deux", "lock_version": 1}
     )
-    assert refusal(stale) == (412, "STALE_LOCK_VERSION", {"expected_lock_version": 1})
+    assert refusal(stale) == (412, "STALE_LOCK_VERSION", {"expected_lock_version": 2})
     assert api.get(path, headers=stage.manager.headers).json()["label"] == "Un"
 
 
@@ -498,7 +500,7 @@ def test_a_rate_or_a_probability_out_of_zero_to_one_is_refused_field_by_field(
     out = api.patch(
         path,
         headers=headers,
-        json={"win_probability": "1.5", "inflation_rate": "-0.1", "lock_version": 0},
+        json={"win_probability": "1.5", "inflation_rate": "-0.1", "lock_version": 1},
     )
     assert (out.status_code, out.json()["code"]) == (422, "VALIDATION_FAILED")
     assert faults(out) == [
@@ -508,7 +510,7 @@ def test_a_rate_or_a_probability_out_of_zero_to_one_is_refused_field_by_field(
     edge = api.patch(
         path,
         headers=headers,
-        json={"win_probability": "1", "inflation_rate": "0", "lock_version": 0},
+        json={"win_probability": "1", "inflation_rate": "0", "lock_version": 1},
     )
     assert (edge.status_code, edge.json()["win_probability"]) == (200, "1")
     # The values are judged before the counter, as the contract orders them.
@@ -519,7 +521,7 @@ def test_a_rate_or_a_probability_out_of_zero_to_one_is_refused_field_by_field(
 @pytest.mark.requirement("WF-PRJ-0080-A")
 def test_a_field_that_is_never_null_refuses_a_null(api: ContractClient, stage: Scene) -> None:
     path = f"{PROJECTS}/{stage.project['project_id']}"
-    sent = {"label": None, "win_probability": None, "lock_version": 0}
+    sent = {"label": None, "win_probability": None, "lock_version": 1}
     answer = api.patch(path, headers=stage.manager.headers, json=sent)
     assert (answer.status_code, faults(answer)) == (
         422,
@@ -537,20 +539,20 @@ def test_the_probability_is_refused_from_in_progress_and_its_command_said_so_bef
     path = f"{PROJECTS}/{project_id}"
     headers = stage.manager.headers
     assert missing(stage.project)["update_win_probability"] == []
-    pricing = api.patch(path, headers=headers, json={"win_probability": "0.4", "lock_version": 0})
+    pricing = api.patch(path, headers=headers, json={"win_probability": "0.4", "lock_version": 1})
     assert pricing.status_code == 200
     put_in_state(stage.owner, project_id, "in_progress")
     read = api.get(path, headers=headers).json()
     assert missing(read)["update_win_probability"] == ["project_before_in_progress"]
     assert "lose" not in missing(read)
-    frozen = api.patch(path, headers=headers, json={"win_probability": "0.9", "lock_version": 1})
+    frozen = api.patch(path, headers=headers, json={"win_probability": "0.9", "lock_version": 2})
     assert refusal(frozen) == (
         409,
         "STATE_FORBIDS_OPERATION",
         {"missing_condition": "project_before_in_progress"},
     )
     # The rate of inflation remains modifiable at any time (WF-PRJ-0040).
-    inflation = api.patch(path, headers=headers, json={"inflation_rate": "0.05", "lock_version": 1})
+    inflation = api.patch(path, headers=headers, json={"inflation_rate": "0.05", "lock_version": 2})
     assert (inflation.status_code, inflation.json()["win_probability"]) == (200, "0.4")
 
 
@@ -568,7 +570,7 @@ def test_a_terminal_project_is_read_without_commands_and_refuses_every_change(
         state,
         [],
     )
-    refused = api.patch(path, headers=stage.manager.headers, json={"label": "X", "lock_version": 0})
+    refused = api.patch(path, headers=stage.manager.headers, json={"label": "X", "lock_version": 1})
     assert refusal(refused) == (
         409,
         "STATE_FORBIDS_OPERATION",
@@ -577,7 +579,7 @@ def test_a_terminal_project_is_read_without_commands_and_refuses_every_change(
     # The probability's own condition comes first (a terminal project has reached In progress),
     # although its commands, none being listed, do not say it beforehand.
     both = api.patch(
-        path, headers=stage.manager.headers, json={"win_probability": "0.2", "lock_version": 0}
+        path, headers=stage.manager.headers, json={"win_probability": "0.2", "lock_version": 1}
     )
     assert refusal(both)[2] == {"missing_condition": "project_before_in_progress"}
 
@@ -587,7 +589,7 @@ def test_the_parameters_are_reserved_to_the_managers_of_the_project(
     api: ContractClient, stage: Scene
 ) -> None:
     path = f"{PROJECTS}/{stage.project['project_id']}"
-    sent = {"label": "Autre", "lock_version": 0}
+    sent = {"label": "Autre", "lock_version": 1}
     participant = api.patch(path, headers=stage.participant.headers, json=sent)
     assert refusal(participant) == (
         403,
@@ -654,7 +656,7 @@ def test_a_holder_of_the_permissions_who_is_no_contributor_reads_what_it_lacks(
     refused = api.patch(
         f"{PROJECTS}/{stage.project['project_id']}",
         headers=holder.headers,
-        json={"label": "Autre", "lock_version": 0},
+        json={"label": "Autre", "lock_version": 1},
     )
     assert refusal(refused) == (403, "NOT_CONTRIBUTOR", {"missing_condition": "is_contributor"})
 
@@ -668,7 +670,7 @@ def test_a_project_renamed_is_named_by_its_label_of_the_day_and_the_journal_keep
     renamed = api.patch(
         path,
         headers=stage.manager.headers,
-        json={"label": "Renommé", "code": "PRJ-7", "lock_version": 0},
+        json={"label": "Renommé", "code": "PRJ-7", "lock_version": 1},
     )
     assert renamed.status_code == 200
     with stage.database.transaction() as session:
@@ -687,7 +689,7 @@ def test_the_rates_are_exact_decimals_written_without_a_useless_zero(
     api: ContractClient, stage: Scene
 ) -> None:
     path = f"{PROJECTS}/{stage.project['project_id']}"
-    sent = {"inflation_rate": "0.0350", "win_probability": "0.1", "lock_version": 0}
+    sent = {"inflation_rate": "0.0350", "win_probability": "0.1", "lock_version": 1}
     answer = api.patch(path, headers=stage.manager.headers, json=sent)
     assert (answer.json()["inflation_rate"], answer.json()["win_probability"]) == ("0.035", "0.1")
     with stage.database.transaction() as session:
@@ -703,11 +705,11 @@ def test_a_rate_with_more_decimals_than_the_base_keeps_is_refused_and_one_that_f
     path = f"{PROJECTS}/{stage.project['project_id']}"
     headers = stage.manager.headers
     for name in ("inflation_rate", "win_probability"):
-        refused = api.patch(path, headers=headers, json={name: "0.03125", "lock_version": 0})
+        refused = api.patch(path, headers=headers, json={name: "0.03125", "lock_version": 1})
         assert (refused.status_code, refused.json()["code"]) == (422, "VALIDATION_FAILED")
         assert faults(refused) == [(f"/{name}", "VALIDATION_FAILED", {})]
     assert api.get(path, headers=headers).json() == stage.project
-    sent = {"inflation_rate": "0.0313", "win_probability": "0.12340", "lock_version": 0}
+    sent = {"inflation_rate": "0.0313", "win_probability": "0.12340", "lock_version": 1}
     changed = api.patch(path, headers=headers, json=sent)
     assert changed.status_code == 200
     assert changed.json() == api.get(path, headers=headers).json()
@@ -715,8 +717,8 @@ def test_a_rate_with_more_decimals_than_the_base_keeps_is_refused_and_one_that_f
         "0.0313",
         "0.1234",
     )
-    again = api.patch(path, headers=headers, json={**sent, "lock_version": 1})
-    assert (again.status_code, again.json()["lock_version"]) == (200, 1)
+    again = api.patch(path, headers=headers, json={**sent, "lock_version": 2})
+    assert (again.status_code, again.json()["lock_version"]) == (200, 2)
 
 
 @pytest.mark.requirement("WF-CYC-0120-A")

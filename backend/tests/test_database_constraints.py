@@ -3,7 +3,9 @@
 """The database itself refuses what the rules of the tables forbid, before any service rule.
 
 Every test writes around the data access of the module, with the table alone, to show that the
-refusal is the database's (WF-DAT-0090).
+refusal is the database's (WF-DAT-0090). That every foreign key of the schema refuses but the
+cascades a design decides is tried in ``test_database_constraints_planning.py``, since EP-06 brings
+the first cascades (``test_every_foreign_key_of_the_schema_refuses_by_default``).
 """
 
 from datetime import UTC, datetime
@@ -194,16 +196,6 @@ def test_an_account_is_active_unless_written_otherwise(database: Database) -> No
             columns,
         ).one()
     assert tuple(row) == ("active", 0, {})
-
-
-@pytest.mark.requirement("WF-DAT-0090-A")
-def test_every_foreign_key_of_the_schema_refuses_by_default(database: Database) -> None:
-    with database.engine.connect() as connection:
-        actions = connection.execute(
-            text("SELECT conname, confdeltype, confupdtype FROM pg_constraint WHERE contype = 'f'")
-        ).all()
-    assert len(actions) >= 2
-    assert {(row.confdeltype, row.confupdtype) for row in actions} <= {("r", "a"), ("a", "a")}
 
 
 @pytest.mark.requirement("WF-DAT-0090-A")

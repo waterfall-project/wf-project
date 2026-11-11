@@ -16,6 +16,9 @@ from typing import TYPE_CHECKING
 from waterfall.core.access_roles import tables as access_roles_tables
 from waterfall.core.backups import tables as backups_tables
 from waterfall.core.cost_settings import tables as cost_settings_tables
+from waterfall.core.exchanges import tables as exchanges_tables
+from waterfall.core.history import tables as history_tables
+from waterfall.core.planning import tables as planning_tables
 from waterfall.core.projects import tables as projects_tables
 from waterfall.core.resource_settings import tables as resource_settings_tables
 from waterfall.core.revisions import tables as revisions_tables
@@ -30,6 +33,9 @@ __all__ = [
     "backups_tables",
     "cost_settings_tables",
     "declared",
+    "exchanges_tables",
+    "history_tables",
+    "planning_tables",
     "projects_tables",
     "resource_settings_tables",
     "revisions_tables",

@@ -28,7 +28,6 @@ from sqlalchemy import select
 
 from waterfall.core.resource_settings.interface import node_labels
 from waterfall.core.users.accounts import (
-    NOT_FOUND,
     Stamp,
     address_holder,
     address_taken,
@@ -106,7 +105,7 @@ from waterfall.core.users.states import (
     set_state,
 )
 from waterfall.core.users.tables import UserAccount
-from waterfall.platform.errors import ConflictError, NotFoundError
+from waterfall.platform.errors import NOT_FOUND, ConflictError, NotFoundError
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Mapping

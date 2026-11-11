@@ -15,12 +15,13 @@ its designation as reference, its counter and its audit — and of a row of a ma
 any write — is said by the triggers of the migration, owner included.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Date,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
@@ -59,6 +60,9 @@ class Audited(Base):
 
     __abstract__ = True
 
+    # The database default stays 0, as in every other table of the platform: a resource is born at
+    # ``FIRST_VERSION`` (1), which the code of the module writes on insert and never leaves to this
+    # default. Moving it to 1 here alone would split the schema; #2762 settles it for all tables.
     lock_version: Mapped[int] = mapped_column(Integer, server_default="0")
     created_at: Mapped[datetime] = mapped_column(UtcDateTime)
     created_by: Mapped[UUID | None] = mapped_column(
@@ -142,7 +146,10 @@ class CostStructure(Audited):
     """A cost structure of a revision: its main one alone here (WF-REV-0100), one per revision.
 
     The first revised table, partitioned by project. ``lineage_id`` is kept by the copy of the
-    revision, its own identifier at the creation of the structure (WF-DAT-0030).
+    revision, its own identifier at the creation of the structure (WF-DAT-0030). The date its
+    planning starts on and the instant its dates were computed (EP-06, #2170) are null for a row
+    the migration ``0023`` did not fill, which the code reads as their derived values: the day of
+    the creation of the origin of its lineage, the instant of its own creation.
     """
 
     __tablename__ = "cost_structure"
@@ -154,6 +161,8 @@ class CostStructure(Audited):
         ),
         CheckConstraint(_in("kind", STRUCTURE_KINDS), name="kind_known"),
         *bounded("label", LABEL_LENGTH),
+        # What a revised row of the planning names: the structure with its revision (EP-06).
+        UniqueConstraint("project_id", "id", "revision_id"),
         Index(None, "project_id", "revision_id"),
         Index(
             "uq_cost_structure_main",
@@ -173,3 +182,5 @@ class CostStructure(Audited):
     label: Mapped[str] = mapped_column(Text(collation=CODE_POINTS))
     is_merged: Mapped[bool] = mapped_column(Boolean)
     lineage_id: Mapped[UUID]
+    planning_start_on: Mapped[date | None] = mapped_column(Date)
+    scheduled_at: Mapped[datetime | None] = mapped_column(UtcDateTime)

@@ -13,7 +13,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, insert, select, text
+from sqlalchemy import delete, func, insert, select, table, text
 
 from waterfall.core.projects.tables import Project
 from waterfall.core.revisions.tables import CostStructure, Revision
@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
     from sqlalchemy import Engine
+    from sqlalchemy.engine import Connection
     from sqlalchemy.sql import Executable
 
 AT = datetime(2026, 11, 6, 9, 0, tzinfo=UTC)
@@ -96,6 +97,44 @@ def partition_of(project_id: UUID) -> str:
     return f"cost_structure_p_{project_id.hex}"
 
 
+# The revised tables, each before the tables its keys name: the partition of a table that another
+# names is dropped after the other's.
+REVISED = ("task_link", "task", "node", "cost_structure")
+PARTITIONS_OF = text(
+    "SELECT child.relname FROM pg_inherits JOIN pg_class AS child ON child.oid = inhrelid "
+    "JOIN pg_class AS parent ON parent.oid = inhparent WHERE parent.relname = :parent "
+    "ORDER BY child.relname"
+)
+
+
+# The role under which the triggers and the keys of a transaction are off, a superuser's alone.
+REPLICA = text("SET LOCAL session_replication_role = replica")
+
+
+def unguarded(connection: Connection) -> None:
+    """Turn the triggers and the keys off for the rest of the transaction of ``connection``."""
+    connection.execute(REPLICA)
+
+
+def drop_partitions(connection: Connection, project_id: UUID | None = None) -> None:
+    """Drop the partitions of a project, or of every project, with their rows, as a superuser.
+
+    A partition a key of a partitioned table names — the cost structures, the nodes — is neither
+    dropped nor detached while it is attached or a row names it: each is emptied, guards and keys
+    off, detached, then dropped, the tables that name it first. The guards and the keys stay off for
+    the rest of the transaction (``REPLICA``, set by ``unguarded``): a caller that empties other
+    tables after it — the journal, whose triggers refuse a deletion — sets it itself, so as not to
+    depend on this.
+    """
+    unguarded(connection)
+    for parent in REVISED:
+        for name in connection.scalars(PARTITIONS_OF, {"parent": parent}).all():
+            if project_id is None or name.endswith(project_id.hex):
+                connection.execute(delete(table(name)))
+                connection.execute(text(f'ALTER TABLE "{parent}" DETACH PARTITION "{name}"'))
+                connection.execute(text(f'DROP TABLE "{name}"'))
+
+
 @contextmanager
 def projects_with_partitions(owner: Engine, count: int = 1) -> Generator[list[UUID]]:
     """Write projects as the owner, each with its partitions created by their function.
@@ -113,4 +152,4 @@ def projects_with_partitions(owner: Engine, count: int = 1) -> Generator[list[UU
     finally:
         with owner.begin() as connection:
             for project_id in projects:
-                connection.execute(text(f'DROP TABLE IF EXISTS "{partition_of(project_id)}"'))
+                drop_partitions(connection, project_id)

@@ -29,12 +29,14 @@ from waterfall.core.cost_settings.interface import missing_prerequisites
 from waterfall.core.projects.commands import (
     PROJECT_NOT_TERMINAL,
     TERMINAL,
+    Running,
     commands_of,
     state_conditions,
 )
 from waterfall.core.projects.interface.contributors import require_project_manager
 from waterfall.core.projects.interface.lifecycle import advance
-from waterfall.core.projects.interface.work_breakdown import follow_project_label
+from waterfall.core.projects.interface.skeleton import opening_with_tasks
+from waterfall.core.projects.interface.work_breakdown import BORN_LOCK_VERSION, follow_project_label
 from waterfall.core.projects.tables import (
     STATES,
     Contributor,
@@ -48,6 +50,10 @@ from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import AuditObject, AuditProject, Inscription, record
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
+    STATE_FORBIDS_OPERATION,
+    VALIDATION_FAILED,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -69,12 +75,8 @@ if TYPE_CHECKING:
 # The six states of the cycle of life, as the contract says them (``ProjectState``).
 type ProjectState = Literal["created", "pricing", "in_progress", "completed", "lost", "abandoned"]
 
-NOT_FOUND = "NOT_FOUND"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 ALREADY_EXISTS = "ALREADY_EXISTS"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 REFERENCE_INCOMPLETE = "REFERENCE_INCOMPLETE"
 # The unique index of the code of a project (migration of the tables of the projects).
 CODE_INDEX = "uq_project_code"
@@ -325,6 +327,13 @@ def _views(session: Session, projects: Iterable[Project], viewer: Viewer) -> lis
     rows = list(projects)
     kinds = _kinds(session, viewer.user_id, [row.id for row in rows])
     busy = projects_with_task_pending(session, [row.id for row in rows])
+    # Only a project without a current revision judges the skeleton on the revision it would open.
+    asking = (
+        [row.id for row in rows if row.current_revision_id is None and row.state not in TERMINAL]
+        if "planning.write" in viewer.permissions
+        else []
+    )
+    opening: frozenset[UUID] = opening_with_tasks(session, asking) if asking else frozenset()
     return [
         ProjectView(
             project_id=row.id,
@@ -345,7 +354,9 @@ def _views(session: Session, projects: Iterable[Project], viewer: Viewer) -> lis
                     kinds.get(row.id),
                     row.state,
                     row.current_revision_id,
-                    no_task_running=row.id not in busy,
+                    running=Running(
+                        no_task_running=row.id not in busy, opening_has_tasks=row.id in opening
+                    ),
                 )
             ),
             created_at=row.created_at,
@@ -462,6 +473,15 @@ def projects_present(session: Session, project_ids: Collection[UUID]) -> frozens
     return frozenset(session.scalars(select(Project.id).where(Project.id.in_(project_ids))))
 
 
+def first_project(session: Session) -> UUID | None:
+    """Give a project of the installation, the first by identifier; none, ``None`` (#2556).
+
+    The witness's question too: its calendars are loaded before any project, which the default
+    one would judge and redate.
+    """
+    return session.scalars(select(Project.id).order_by(Project.id).limit(1)).first()
+
+
 def _code_taken(session: Session, code: str, own: UUID) -> ConflictError:
     """Refuse a code another project bears, naming that project (409, WF-PRJ-0010)."""
     holder = session.execute(
@@ -524,6 +544,8 @@ def _create(session: Session, draft: ProjectDraft, act: Act, project_id: UUID | 
         client=draft.client,
         code=draft.code,
         state="created",
+        lock_version=BORN_LOCK_VERSION,
+        work_breakdown_lock_version=BORN_LOCK_VERSION,
         inflation_rate=Decimal(0),
         win_probability=Decimal(0),
         **stamp,

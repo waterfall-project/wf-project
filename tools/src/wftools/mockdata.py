@@ -63,8 +63,8 @@ and its exit, its code refused and its readings by the quality of its reader, by
 ``wftools.mockrefusals`` (US-0702/L1); and the refusals the contract declared without a code,
 a condition nor an example, by ``wftools.mockdeclared`` (US-0702/L2); and the examples of the
 majors of the review of the 2026-10-31, by ``wftools.mockreview`` (US-0704), with the Kanban of
-the summary that awaits its own lines (US-1240); and the chronology of the witness,
-``project_state_transitions``, by ``wftools.mockchronology`` (US-0990/L1).
+the summary that awaits its own lines (US-1240); and the chronology and the tasks of the witness, by
+``wftools.mockchronology`` (US-0990/L1) and ``wftools.mockwitnesstasks`` (US-1480/L1).
 
 They live in the universe of the other examples: identifiers are kept, and what the
 witness project, the offer and the labels of the universe say is read from their fixtures,
@@ -115,11 +115,13 @@ from wftools import (
     mockreview,
     mockrevisionminors,
     mockriskwrites,
+    mockservedrefusals,
     mocksnapshot,
     mocksort,
     mocktext,
     mocktoday,
     mockwitness,
+    mockwitnesstasks,
     mockwrites,
     paths,
 )
@@ -317,19 +319,17 @@ _TASKS = frozenset({mockcore.TASK})
 def named() -> dict[str, JsonObject]:
     """Return the named examples of the witness, by file name.
 
-    Its readings, its writes, its history — its revisions compared and its risks —, its
-    indicators today, its actual costs with the journal of their imports; the views of the
-    portfolio over time that sum it with the other projects (``mockportfoliotime``); the
-    journal of audit of the universe (``mockaudit``), and its variants of the administration of
-    today and of a restore (``mockauditadmin``); the readings of the lists of the
-    reference written by hand (``mockreference``), and those of the projects, the subprojects
-    and the contributors (``mocklists``), the contributors once an account is anonymised
-    (``mockanonymized``); the exit of the witness, its code refused and its readings by quality
-    (``mockproject``); the refusals of one form each (``mockrefusals``), and those the contract
-    declared without a code, a condition nor an example (``mockdeclared``), and those of the
-    administration and of the platform described without one (``mockadminrefusals``); the
-    examples of the majors of the review of the 2026-10-31 (``mockreview``); the chronology of the
-    witness, for the loader of the projects (``mockchronology``).
+    Its readings, its writes, its history — its revisions compared and its risks —, its indicators
+    today, its actual costs with the journal of their imports; the views of the portfolio over time
+    (``mockportfoliotime``); the journal of audit (``mockaudit``) and its variants of the
+    administration and of a restore (``mockauditadmin``); the lists of the reference written by hand
+    (``mockreference``), of the projects, the subprojects and the contributors (``mocklists``), the
+    contributors once an account is anonymised (``mockanonymized``); the exit of the witness
+    (``mockproject``); the refusals of one form each (``mockrefusals``), those the contract declared
+    without a code, a condition nor an example (``mockdeclared``), those of the administration
+    (``mockadminrefusals``), and those the service served undeclared (``mockservedrefusals``); the
+    majors of the review of the 2026-10-31 (``mockreview``); the chronology of the witness and its
+    tasks, for the loaders (``mockchronology``, ``mockwitnesstasks``).
     """
     marked = mocksnapshot.revisions(categories())
     return {
@@ -360,7 +360,9 @@ def named() -> dict[str, JsonObject]:
         **mockdeclared.examples(),
         **mockreview.examples(),
         **mockrevisionminors.examples(),
+        **mockservedrefusals.examples(),
         **mockchronology.examples(),
+        **mockwitnesstasks.examples(),
     }
 
 

@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
+from installed_reference import install
 from pydantic import SecretStr
 from sqlalchemy import select, update
 from support import WITNESS
@@ -25,15 +26,16 @@ from waterfall.core.resource_settings.interface import (
     CalendarFilters,
     CalendarSort,
     CalendarWindow,
+    IdleProject,
     WeeklyHours,
     create_calendar,
     get_duration_units,
     install_duration_units,
     list_calendars,
     read_calendar,
+    register_idle_task_guard,
     set_default_calendar,
 )
-from waterfall.core.resource_settings.interface import calendars as calendars_module
 from waterfall.core.resource_settings.tables import Calendar
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act
@@ -42,6 +44,7 @@ from waterfall.platform.settings import WitnessSettings
 from waterfall.witness.main import load_witness
 
 if TYPE_CHECKING:
+    from sqlalchemy import Engine
     from support import ContractClient, PartSessions, ReferenceSessions
 
     from waterfall.platform.database import Database
@@ -401,35 +404,44 @@ def test_a_change_that_would_leave_a_task_without_an_hour_is_refused_and_writes_
     api: ContractClient,
     database: Database,
     sessions: PartSessions,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # The question is EP-06's (WF-PLA-0010); the interface asks it before writing, for a change of
-    # hours and for a designation.
+    # The question is EP-06's (WF-PLA-0010), asked of the guards the planning registers
+    # (``register_idle_task_guard``); the interface asks it before writing, for a change of hours
+    # and for a designation, and names the projects by their label and their code.
     standard = seed(database, "Semaine standard", default=True)
     other = seed(database, "Autre")
 
-    def never(*_: object, **__: object) -> bool:
-        return False
+    def every_change(*_: object) -> tuple[IdleProject, ...]:
+        return (IdleProject("Ligne de convoyage", "PRJ-001"),)
 
-    monkeypatch.setattr(calendars_module, "calendar_change_is_admissible", never)
-    sent = {"label": "Semaine standard", "weekly_hours": week("0", "0", "0", "0", "0", "0", "0")}
-    changed = api.patch(
-        f"{CALENDARS}/{standard}", headers=sessions.changing, json={**sent, "lock_version": 1}
-    )
-    assert refusal(changed)[:3] == (
-        422,
-        "TASK_WITHOUT_WORKING_HOURS",
-        {"resource_roles": [], "projects": []},
-    )
-    designated = put(api, sessions.changing, f"{other}/default", lock_version=1)
-    assert refusal(designated)[1] == "TASK_WITHOUT_WORKING_HOURS"
+    withdraw = register_idle_task_guard(every_change)
+    try:
+        sent = {
+            "label": "Semaine standard",
+            "weekly_hours": week("0", "0", "0", "0", "0", "0", "0"),
+        }
+        changed = api.patch(
+            f"{CALENDARS}/{standard}", headers=sessions.changing, json={**sent, "lock_version": 1}
+        )
+        assert refusal(changed)[:3] == (
+            422,
+            "TASK_WITHOUT_WORKING_HOURS",
+            {
+                "resource_roles": [],
+                "projects": [{"project_label": "Ligne de convoyage", "project_code": "PRJ-001"}],
+            },
+        )
+        designated = put(api, sessions.changing, f"{other}/default", lock_version=1)
+        assert refusal(designated)[1] == "TASK_WITHOUT_WORKING_HOURS"
+    finally:
+        withdraw()
     with database.transaction() as session:
         assert read_calendar(session, standard).weekly_hours == hours_of()
         assert read_calendar(session, standard).is_default
         assert not read_calendar(session, other).is_default
 
 
-def test_the_question_of_the_tasks_a_calendar_change_would_leave_idle_is_always_answered_yes(
+def test_a_calendar_change_is_admissible_while_no_guard_names_a_project_left_idle(
     database: Database,
 ) -> None:
     calendar_id = seed(database, "Semaine standard")
@@ -735,12 +747,17 @@ def without_audit(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 @pytest.mark.requirement("WF-QUA-0040-A")
 def test_the_witness_loads_the_calendars_and_designates_its_default_one(
-    api: ContractClient, database: Database, sessions: PartSessions, service_database_url: str
+    api: ContractClient,
+    database: Database,
+    owner: Engine,
+    sessions: PartSessions,
+    service_database_url: str,
 ) -> None:
     # `load-witness` writes `calendars_with_inactive.json` with its identifiers and its default
     # calendar, the one the platform held losing the designation, then deactivates the one it says
     # deactivated (#2131); the list reads back the example of the contract, the audit columns
     # apart. A second loading writes nothing.
+    install(owner)
     held = seed(database, "Installé", default=True)
     assert load(service_database_url) == 0
     example = example_items()

@@ -30,6 +30,10 @@ from waterfall.core.projects.tables import STATES, Project, ProjectStateTransiti
 from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import AuditObject, AuditProject, Inscription, record
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
+    STATE_FORBIDS_OPERATION,
+    VALIDATION_FAILED,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -57,11 +61,7 @@ type RevisionFate = Literal["mark", "abandon"]
 # Created, Pricing and In progress: the states before a terminal one.
 BEFORE_TERMINAL = STATES[:3]
 
-NOT_FOUND = "NOT_FOUND"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_REQUIRED = "VALUE_REQUIRED"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 NO_CURRENT_REVISION = "no_current_revision"
 PROJECT_CODE_SET = "project_code_set"
 REFERENCE_DESIGNATED = "reference_revision_designated"
@@ -340,10 +340,13 @@ def list_state_transitions(session: Session, project_id: UUID) -> list[Transitio
     ]
 
 
-def no_background_task_running(session: Session, project_id: UUID) -> bool:
+def no_background_task_running(
+    session: Session, project_id: UUID, besides: UUID | None = None
+) -> bool:
     """Tell whether no background task that writes in the project is queued or running.
 
     The tasks that aim at a project — its marking (US-0970), and the merges, occurrences and
-    imports of later epics — are read in ``waterfall.platform.tasks``.
+    imports of later epics — are read in ``waterfall.platform.tasks``. ``besides`` is the task that
+    asks, running itself, which does not count: the application of an import (EP-06).
     """
-    return not project_task_pending(session, project_id)
+    return not project_task_pending(session, project_id, besides)

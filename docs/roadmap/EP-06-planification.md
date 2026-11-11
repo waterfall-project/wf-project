@@ -341,9 +341,10 @@ Décisions de l'auteur du 2026-11-07, sur les questions du cadrage, chacune avec
   sous `FOR UPDATE` dans un `GET`.
 - **Une seule chaîne de migrations pour EP-06, dans le socle**, `0022` le schéma et `0023` les
   données (`planning_start_on` remplie), aux prochains numéros libres à la création
-  d'`epic/EP-06` — `epic/EP-04` est à `0021` ; aucun lot d'EP-06 n'écrit de migration après le
-  socle, et EP-07 chaîne la sienne sur `0023`, sans révision de fusion. Écarté : une migration par
-  US, qui donnerait deux têtes à la fusion d'EP-07.
+  d'`epic/EP-06` — `epic/EP-04` est à `0021` ; un seul lot d'EP-06 écrit une migration après le
+  socle, `0024` par US-1420/L2, qui accorde à la purge la suppression des dépôts (#2341), et
+  EP-07 chaîne la sienne sur `0024`, sans révision de fusion. Écarté : une migration par US, qui
+  donnerait deux têtes à la fusion d'EP-07.
 - **La tranche des tâches s'insère dans la chronologie d'EP-04 par un registre du chargeur** :
   `witness/revisions.py` offre `register_revision_filler`, et appelle chaque remplisseur
   enregistré après l'ouverture d'une révision et avant l'événement suivant ; la tranche des
@@ -367,13 +368,13 @@ supprime donc ses nœuds avec ses structures, et un test l'éprouve.
 
 | Table | Contenu | Contraintes |
 |---|---|---|
-| `node` | `project_id` (clé de partition), `id`, `revision_id`, `structure_id`, `lineage_id`, `kind`, `parent_id`, `rank`, `origin_risk_id` (nul ici, posé par EP-08), audit, `lock_version` | clé primaire (`project_id`, `id`) et unique (`project_id`, `id`, `kind`), que la facette cite ; `kind` dans `task`, `estimate_line` ; clé composite vers `cost_structure` et vers `node` (le parent, du même projet, nul pour une racine), toutes deux en cascade ; `rank` entier ≥ 1, unique sous (`structure_id`, `parent_id`, `kind`) par `UNIQUE NULLS NOT DISTINCT` — les racines, `parent_id` nul, comprises —, renuméroté parmi ses frères à chaque écriture — les lignes d'une tâche précèdent ses sous-tâches à la lecture, `position` et `row_number` calculés ; le parent d'une ligne est une tâche, celui d'une tâche jamais un jalon ni une ligne : tenu par le service, sous le verrou de la structure ; déclencheur d'immuabilité comme `cost_structure` |
-| `task` | `project_id`, `node_id` (clé primaire avec lui), `kind` (`CHECK (kind = 'task')`, clé composite (`project_id`, `node_id`, `kind`) vers `node` en cascade : un nœud `task` ne reçoit jamais une autre facette, sans que le service y veille ; « exactement une facette par nœud » reste au service, dans la transaction de la création), `label`, `description`, `scheduling_mode`, `duration_value` (`numeric`), `duration_unit`, `start_date`, `start_hours`, `finish_date`, `finish_hours`, `progress`, `started_on`, `completed_on`, `external_id`, `order_item_id`, `work_package_id`, `total_float_days` (`numeric`, nul en manuel), `is_critical` | `label` de 1 à 300 non blanc ; `scheduling_mode` dans `automatic`, `manual` ; `duration_unit` dans les dix unités de `DurationUnit` ; `duration_value` ≥ 0 ; `progress` dans les trois états ; `started_on` non nul si `progress` ≠ `not_started`, `completed_on` non nul si et seulement si `completed` ; `external_id` de 200 au plus ; `order_item_id` et `work_package_id` clés en refus, jamais tous deux non nuls ; un poste ou un lot porté par un seul nœud par structure (index unique partiel) ; les dates calculées sont conservées — une révision marquée garde les siennes —, l'instant du calcul étant celui de la structure (`cost_structure.scheduled_at`, que `NodeListMeta` lit) ; déclencheur d'immuabilité |
-| `task_link` | `project_id`, `id`, `revision_id`, `structure_id`, `predecessor_id`, `successor_id`, `link_type`, `lag_value`, `lag_unit`, `in_conflict` | clés composites vers `node` en cascade — la liaison suit l'une ou l'autre de ses tâches — ; `predecessor_id <> successor_id` ; unique (`structure_id`, `predecessor_id`, `successor_id`) — « deux tâches ne sont reliées que par une liaison au plus » — ; `link_type` dans les quatre types, `lag_unit` dans les onze unités de `LagUnit` ; l'absence de boucle et de liaison récapitulative–subordonnée est tenue par le service ; déclencheur d'immuabilité |
-| `cost_structure` | reçoit `planning_start_on` (`date`, nulle : le jour de la création de l'origine de la lignée, que le code calcule encore ; remplie par `0023` ; #2170) et `scheduled_at` (`timestamptz`, nul : l'instant de création) | aucune autre contrainte ; `copy_revision` reprend les deux |
+| `node` | `project_id` (clé de partition), `id`, `revision_id`, `structure_id`, `lineage_id`, `kind`, `parent_id`, `rank`, `origin_risk_id` (nul ici, posé par EP-08), audit, `lock_version` | clé primaire (`project_id`, `id`) et unique (`project_id`, `id`, `kind`), que la facette cite ; `kind` dans `task`, `estimate_line` ; clé composite (`project_id`, `structure_id`, `revision_id`) vers `cost_structure` — la structure de la révision de la ligne — et (`project_id`, `parent_id`, `structure_id`) vers `node` (le parent, de la même structure, nul pour une racine), toutes deux en cascade ; unique (`id`, `project_id`, `structure_id`), que citent la facette, l'enfant et la liaison ; `rank` entier ≥ 1, unique sous (`structure_id`, `parent_id`, `kind`) par `UNIQUE NULLS NOT DISTINCT` — les racines, `parent_id` nul, comprises —, renuméroté parmi ses frères à chaque écriture — les lignes d'une tâche précèdent ses sous-tâches à la lecture, `position` et `row_number` calculés ; le parent d'une ligne est une tâche, celui d'une tâche jamais un jalon ni une ligne : tenu par le service, sous le verrou de la structure ; déclencheur d'immuabilité comme `cost_structure` |
+| `task` | `project_id`, `node_id` (clé primaire avec lui), `kind` (`CHECK (kind = 'task')`, clé composite (`project_id`, `node_id`, `kind`) vers `node` en cascade : un nœud `task` ne reçoit jamais une autre facette, sans que le service y veille ; et (`node_id`, `project_id`, `structure_id`), la structure du nœud ; « exactement une facette par nœud » reste au service, dans la transaction de la création), `label`, `description`, `scheduling_mode`, `duration_value` (`numeric`), `duration_unit`, `start_date`, `start_hours`, `finish_date`, `finish_hours`, `progress`, `started_on`, `completed_on`, `external_id`, `order_item_id`, `work_package_id`, `total_float_days` (`numeric`, nul en manuel), `is_critical` | `label` de 1 à 300 non blanc ; `scheduling_mode` dans `automatic`, `manual` ; `duration_unit` dans les dix unités de `DurationUnit` ; `duration_value` ≥ 0 ; `progress` dans les trois états ; `started_on` non nul si `progress` ≠ `not_started`, `completed_on` non nul si et seulement si `completed` ; `external_id` de 200 au plus ; `order_item_id` et `work_package_id` clés en refus, jamais tous deux non nuls ; un poste ou un lot porté par un seul nœud par structure (index unique partiel) ; les dates calculées sont conservées — une révision marquée garde les siennes —, l'instant du calcul étant celui de la structure (`cost_structure.scheduled_at`, que `NodeListMeta` lit) ; déclencheur d'immuabilité |
+| `task_link` | `project_id`, `id`, `revision_id`, `structure_id`, `predecessor_id`, `successor_id`, `link_type`, `lag_value`, `lag_unit`, `in_conflict` | clé composite (`project_id`, `structure_id`, `revision_id`) vers `cost_structure`, et clés (`predecessor_id` ou `successor_id`, `project_id`, `structure_id`) vers `node`, en cascade — la liaison suit l'une ou l'autre de ses tâches, toutes deux de sa structure — ; `predecessor_id <> successor_id` ; unique (`structure_id`, `predecessor_id`, `successor_id`) — « deux tâches ne sont reliées que par une liaison au plus » — ; `link_type` dans les quatre types, `lag_unit` dans les onze unités de `LagUnit` ; l'absence de boucle et de liaison récapitulative–subordonnée est tenue par le service ; déclencheur d'immuabilité |
+| `cost_structure` | reçoit `planning_start_on` (`date`, nulle : le jour de la création de l'origine de la lignée, que le code calcule encore ; remplie par `0023` ; #2170) et `scheduled_at` (`timestamptz`, nul : l'instant de création) | unique (`project_id`, `id`, `revision_id`), que citent les lignes révisionnées : aucune ne lie une révision à la structure d'une autre ; `copy_revision` reprend les deux |
 | `timeline` | `id`, `project_id`, `label`, audit | `label` de 1 à 200 non blanc, non unique ; clé vers `project` en refus ; supprimée physiquement |
 | `tracking_entry` | `id`, `project_id`, `lineage_id` (la lignée de la tâche), `kind` (`timeline`, `milestone_tracking`), `timeline_id` (nul pour `milestone_tracking`), audit | unique (`lineage_id`, `kind`, `timeline_id`) par `UNIQUE NULLS NOT DISTINCT` — une seule inscription au suivi temps/temps par lignée, `timeline_id` nul — ; clé vers `timeline` en cascade — une chronologie supprimée emporte ses inscriptions — ; `timeline_id` non nul si et seulement si `kind = timeline` |
-| `import_report` | `id`, `project_id`, `kind` (`ExchangeKind`), `filename`, `upload_id`, `object_key`, `structure_id`, `revision_id`, `period_from`, `period_to`, `status`, `report` (`jsonb`, codes et paramètres), `task_id` (la dernière tâche de fond), `requested_by`, `created_at`, `analysed_at`, `expires_at`, `applied_at` | `status` dans les huit valeurs d'`Import.status` ; `expires_at` non nul si et seulement si `analysed`, `applying`, `applied`, `abandoned` ou `expired` ; `report` objet ou nul ; clé vers `project` en refus ; `upload_id` unique — un dépôt ne sert qu'un import — |
+| `import_report` | `id`, `project_id`, `kind` (`ExchangeKind`), `filename`, `upload_id`, `object_key`, `structure_id`, `revision_id`, `period_from`, `period_to`, `status`, `report` (`jsonb`, codes et paramètres), `task_id` (la dernière tâche de fond), `requested_by`, `created_at`, `analysed_at`, `expires_at`, `applied_at` | `status` dans les huit valeurs d'`Import.status` ; `expires_at` non nul si et seulement si `analysed`, `applying`, `applied`, `abandoned` ou `expired` ; `report` objet ou nul ; `filename` de 1 à 255, comme `file_upload.filename` ; clé vers `project` en refus ; `upload_id` unique — un dépôt ne sert qu'un import — |
 | `undo_entry` | `id`, `project_id`, `revision_id`, `user_account_id`, `session_id` (le `sid` du jeton), `rank`, `kind` (`UndoneKind`), `node_ids`, `before`, `after` (`jsonb` : les lignes de `node`, `task`, `task_link` et `tracking_entry` touchées, telles qu'elles étaient et telles qu'elles sont), `undone`, `created_at` | unique (`revision_id`, `user_account_id`, `session_id`, `rank`) ; clé vers `revision` en refus — le marquage et l'abandon suppriment les entrées d'abord — |
 | `paste_plan` | `id`, `project_id`, `revision_id`, `structure_id`, `user_account_id`, `target_node_id`, `target_column`, `rows` (`jsonb`), `structure_lock_version`, `created_at`, `expires_at` | une heure de vie ; clé vers `revision` en refus |
 
@@ -389,7 +390,11 @@ supprime donc ses nœuds avec ses structures, et un test l'éprouve.
   création de l'origine de sa lignée, et `scheduled_at` par la date de création de la structure,
   comme le code les dérive aujourd'hui (règle 3 des migrations, « une donnée change dans sa propre
   migration »). Les deux colonnes restent nullables (règle 1) : le code lit un nul comme la valeur
-  dérivée. **Aucune migration d'EP-06 après le socle** ; EP-07 chaîne la sienne sur `0023`.
+  dérivée. **Une seule migration d'EP-06 après le socle** : `0024` (US-1420/L2, #2341) accorde
+  `DELETE` sur `file_upload` au rôle du service, que la purge des dépôts échus demande
+  (WF-DAT-0120-A) et que `0017` ne donnait pas — `REVOKE` à la descente, `SERVICE_RIGHTS` mis à
+  jour ; EP-07 chaîne la sienne sur `0024`. Écarté : réécrire `0022`, déjà appliquée aux bases des
+  postes et du témoin.
 - **La partition** : `node_p_<uuid>`, `task_p_<uuid>`, `task_link_p_<uuid>`, par la fonction
   remplacée (`CREATE OR REPLACE`), avec leur déclencheur de `TRUNCATE` ; la migration crée les
   partitions des projets existants en lisant `project`.
@@ -406,7 +411,7 @@ supprime donc ses nœuds avec ses structures, et un test l'éprouve.
 |---|---|---|
 | `waterfall.core.planning` (FBS-4.3) | `node`, `task`, `task_link`, `timeline`, `tracking_entry` | les nœuds lus (`listNodes` : filtres, `fields`, recherche, `row_number`, `summary_depth`, `scheduled_at`, totaux), une tâche créée, modifiée, supprimée, des nœuds déplacés, un numéro résolu, les dépendances d'une valeur calculée ; les prédécesseurs remplacés ; la date de début et le libellé d'une structure écrits ; l'état d'une tâche ; les chronologies et les inscriptions ; le squelette ; le moteur (`scheduling`, pur) et `reschedule(structure)` ; `revision_has_tasks(revision_id)` ; `copy_nodes(RevisionCopy)` ; `work_breakdown_item_cited(item_id)` et `detach_work_breakdown_item(project_id, item_id)` pour `core/projects` ; `tasks_left_idle(calendar…)` et `reschedule_current_structures()` pour `resource_settings` ; `lines_of(task)` et les règles de placement qu'EP-07 appelle pour une ligne ; `register_facet(kind, FacetHooks)`, par lequel EP-07 enregistre la lecture, la copie et la suppression de sa facette ; `load_*` avec identifiants et instants imposés |
 | `waterfall.core.history` (WF-IHM-0110, WF-IHM-0050) | `undo_entry`, `paste_plan` | `recording(session, change)` — un encadrement de l'écriture : `planning` lui donne, par son interface, l'instantané des nœuds touchés avant l'écriture puis après elle (`snapshot(node_ids)`), et `history` les garde sans lire aucune table d'un autre module — ; `undo(revision, actor)`, `redo(revision, actor)`, chacun rendant les nœuds à restituer que `planning` réécrit et redate ; `depth(revision, actor)` ; `close_history(revision_id)` pour le marquage et l'abandon ; `keep_plan`, `read_plan`, `drop_plan` ; `purge(before)` |
-| `waterfall.core.exchanges` (FBS-4.3.4, FLX-01 à FLX-07) | `import_report` | `register_format(ExchangeKind, Format)` et `register_exporter(ExportKind, Exporter)` ; le dépôt d'un fichier d'import (`deposit`), l'ouverture (`open_import` : l'en-tête par le format, les conditions, la tâche d'analyse), la lecture et la liste, l'abandon, l'application (`apply_import` : la revérification, la tâche) ; `run_analysis(task)`, `run_apply(task)`, `run_export(task)` pour le worker ; `result_of(task)` pour `getBackgroundTaskResult` et `consumed(task)` ; `purge(now)` : imports échus, dépôts expirés, exports échus ; l'analyseur XML durci, pour tout format XML |
+| `waterfall.core.exchanges` (FBS-4.3.4, FLX-01 à FLX-07) | `import_report` | `register_format(ExchangeKind, Format)` et `register_exporter(ExportKind, Exporter)` ; le dépôt d'un fichier d'import (`deposit`), l'ouverture (`open_import` : l'en-tête par le format, les conditions, la tâche d'analyse), la lecture et la liste, l'abandon, l'application (`apply_import` : la revérification, la tâche) ; `run_analysis(task)`, `run_apply(task)`, `run_export(task)` pour le worker ; `result_of(task)` pour `getBackgroundTaskResult` et `consumed(task)` ; `stored_before(bucket, now)` (les vieux objets du stockage, listés hors transaction, rendus en `Stored`), `purge(session, now, stored)` (imports échus, dépôts expirés, exports échus, et ce que le stockage garde sans ligne qui le désigne) et `remove_purged(bucket, purged)` (les suppressions du stockage, après la validation) ; l'analyseur XML durci, pour tout format XML |
 
 - **Le moteur** (`core/planning/scheduling/`) est pur : il reçoit une structure — les tâches
   (identifiant, parent, mode, durée et unité, dates manuelles, heures hebdomadaires de leur
@@ -439,7 +444,8 @@ supprime donc ses nœuds avec ses structures, et un test l'éprouve.
 ### Les points d'extension
 
 EP-06 est le premier EPIC à remplir ceux d'EP-04 et à créer ceux qu'EP-05 a laissés en
-promesse ; chacun est un registre ordonné sur le modèle de `core/revisions/registry.py`, rempli à
+promesse ; chacun est un registre ordonné, un `Registry` de `platform/registry.py` (que
+`core/revisions/registry.py` réexporte pour les fichiers d'EP-07, d'EP-09 et d'EP-10), rempli à
 l'import de l'interface du module qui enregistre, et le test des points d'entrée de #2180 les
 couvre tous : pour chaque processus — l'API (`create_app`), le worker (`handlers`), le chargeur
 (`load_witness`) — et chaque registre, les extensions attendues sont présentes.
@@ -447,8 +453,8 @@ couvre tous : pour chaque processus — l'API (`create_app`), le worker (`handle
 | Module | Registre | Qui le remplit | Ce qu'il fait |
 |---|---|---|---|
 | `core/revisions` | `register_copy` (EP-04) | `planning` (les nœuds, leur facette tâche, les liaisons, après les structures) ; EP-07 (la facette ligne, les images) | `copy_revision` |
-| `core/revisions` | `register_tasks_and_lines` (EP-04) | `planning` (`revision_has_tasks`) ; EP-07 (les lignes) | la désignation de la référence |
-| `core/revisions` | `register_closing` (nouveau, créé par le socle) | `history` (`close_history`), puis `planning` (`delete_nodes`, à l'abandon seul, dès le lot qui crée des nœuds) | le crochet commun du marquage et de l'abandon, appelé avant que la révision ne s'écrive, chaque module y faisant sa part dans l'ordre de l'enregistrement — l'historique et les plans d'abord, puis les nœuds, puis les structures d'EP-04 (`delete_structures`) : l'abandon d'une révision pleine ne laisse aucune ligne (WF-DAT-0010) ; la cascade des clés tient le même ordre si un chemin l'oublie |
+| `core/revisions` | `register_tasks_and_lines` (EP-04) | `planning` (`revision_has_tasks`, sous la partie `tasks`) ; EP-07 (les lignes, sous la partie `lines`) | la désignation de la référence, refusée tant qu'une des deux parties n'a pas sa question ou qu'une question répond non |
+| `core/revisions` | `register_closing` (nouveau, créé par le socle) | `history` (`close_history`), puis `planning` (`delete_nodes`, à l'abandon seul, dès le lot qui crée des nœuds) | le crochet commun du marquage et de l'abandon, appelé avant que la révision ne s'écrive, chaque module y faisant sa part sous une étape (`register_closing(stage, closer)`), les étapes dans l'ordre déclaré `CLOSING_STAGES` quel que soit l'ordre des imports, et dans une étape l'ordre de l'enregistrement — l'historique et les plans d'abord (`history`), puis les nœuds et les images d'EP-07 (`content`), puis les structures d'EP-04 (`delete_structures`) : l'abandon d'une révision pleine ne laisse aucune ligne (WF-DAT-0010) ; la cascade des clés tient le même ordre si un chemin l'oublie |
 | `core/resource_settings` | `register_idle_task_guard` (nouveau ; remplace le `True` de `calendar_change_is_admissible`) | `planning` (`tasks_left_idle` : les projets dont une tâche d'une révision en cours n'aurait plus aucune heure dans la semaine) | `updateCalendar`, `setDefaultCalendar`, `updateResourceRole` refusent par `TASK_WITHOUT_WORKING_HOURS`, `params.projects` ; ici le calendrier par défaut, EP-07 les rôles |
 | `core/resource_settings` | `register_recalculation` (nouveau) | `planning` (`reschedule_current_structures`) | `set_duration_units` et l'écriture d'un calendrier redatent, dans leur transaction, les structures des révisions en cours |
 | `core/projects` | `register_attachments` (nouveau) | `planning` (`work_breakdown_item_cited`, `detach_work_breakdown_item`) | `set_work_breakdown` marque supprimé un lot ou un poste qu'une tâche d'une révision marquée porte (`deleted_at`), le supprime sinon, et retire le rattachement des tâches de la révision en cours ; `follow_project_label` ne change pas |
@@ -479,8 +485,14 @@ couvre tous : pour chaque processus — l'API (`create_app`), le worker (`handle
   exception typée passe l'import `failed`, le fichier supprimé.
 - **L'application** (`applyImport`) revérifie la permission et la qualité de contributeur de
   l'appelant, l'état de l'import (`import_awaiting_decision`, `import_file_accepted`), puis les
-  conditions de l'ouverture, et dépose `import_apply` ; refusée par l'une d'elles, elle passe
-  l'import `refused` et supprime le fichier (#1790). Le worker, dans la transaction de la tâche,
+  conditions de l'ouverture, et dépose `import_apply`. Refusée par une condition passagère —
+  `no_background_task_running`, une tâche de fond qui finira, ou `may_create_revision`, une
+  permission qui peut être donnée —, elle répond 409 et laisse l'import `analysed`, son compte
+  rendu applicable et son fichier en place : l'application se redemande sans nouveau dépôt
+  (WF-ARC-0100, spécification 1.0.3 ; #2475, amendé par US-1380/L4). Refusée par une autre — le
+  compte rendu, `project_not_terminal`, une condition de la nature, la permission ou la qualité
+  perdue, la structure visée que la révision en cours ne tient plus (404) —, elle passe l'import
+  `refused` et supprime le fichier (#1790). Le worker, dans la transaction de la tâche,
   revérifie de nouveau, crée la révision en cours au besoin par `create_revision` (EP-04),
   applique par le format sous le verrou de la structure, redate, passe `applied`, supprime le
   fichier, et l'historique annulable ne reçoit rien (WF-IHM-0110). Une tâche en file ou en cours
@@ -516,8 +528,8 @@ couvre tous : pour chaque processus — l'API (`create_app`), le worker (`handle
   d'unités, un calendrier de projet et un calendrier de tâche par calendrier applicable distinct
   (`calendar_hours`), chaque tâche avec `UID`, `OutlineLevel`, `Name`, `Notes` (la description),
   `Manual`, `Duration` dans son unité, `Start`, `Finish`, `Milestone`, `CalendarUID`, sa lignée
-  en `GUID`, les `PredecessorLink` avec `Type`, `LinkLag`, `LagFormat` —, dans l'ordre du schéma,
-  et le dépose sous `exports/<task_id>.xml`.
+  dans le champ étendu `Text1`, alias `Waterfall.lineage`, les `PredecessorLink` avec `Type`,
+  `LinkLag`, `LagFormat` —, dans l'ordre du schéma, et le dépose sous `exports/<task_id>.xml`.
 - **Le corpus** : `fixtures/msproject/*.xml`, un test par fichier qui le lit, donne au moteur
   les calendriers du fichier, et compare chaque début et chaque fin à ceux du fichier ; un test
   qui liste les cas du corps et nomme ceux qu'aucun fichier ne porte ; un test de validation de
@@ -582,6 +594,47 @@ Compose de service et de celui de production reçoit une seconde boucle, qui l'a
 l'intervalle de `WATERFALL_PURGE_INTERVAL` (600 s), la variable passée par les deux Compose et
 `production.env.example` ; `make service-purge` pour la main. C'est la seule modification du Compose
 de l'EPIC.
+
+Ce que le lot réalise de plus, et que la phrase ci-dessus ne dit pas :
+
+- **Les fichiers.** Un import `analysed` échu passe `expired`, et un import dont la tâche a échoué
+  sans laisser sa trace (les tentatives épuisées, jamais abandonné) passe `failed` : le fichier de
+  l'un et de l'autre est supprimé. Un dépôt échu est supprimé, mais l'objet d'un dépôt qu'un import
+  garde encore est épargné : il est à l'import, qui le supprime à sa fin. Un dépôt par morceaux
+  inachevé est abandonné (`abort_parts`).
+- **Les balayages des préfixes.** Un objet de `uploads/` de plus d'un jour (la durée d'un dépôt) que
+  ni une ligne `file_upload` ni un import qui garde son fichier ne désigne est supprimé (#2479) —
+  l'objet s'écrit avant sa ligne, et un processus arrêté entre les deux le laisse ; un objet
+  d'`exports/` de plus de vingt-quatre heures qu'aucune tâche `export` au résultat non consommé ne
+  désigne l'est aussi (#2484). Un téléversement par morceaux inachevé n'est pas un objet pour
+  `list_objects_v2` : les dépôts par morceaux ouverts depuis plus d'un jour sous `uploads/` que
+  nulle ligne ne désigne sont donc listés à part (`list_multipart_uploads`) et abandonnés, pour que
+  des morceaux dont l'abandon a échoué après la suppression de la ligne soient libérés au passage
+  suivant. Chaque liste est bornée par `SWEEP_LIMIT` (10 000) : le reste attend le passage suivant.
+  L'âge d'un objet est celui que le stockage dit (`LastModified`), jugé contre l'horloge de
+  l'application : une dérive de quelques minutes décale le terme d'autant, ce qu'un objet d'un jour
+  ne ressent pas, et un objet plus jeune que le terme n'est jamais balayé.
+- **L'ordre.** Les objets sont listés avant la transaction et hors du verrou (le stockage est lent
+  devant un verrou) ; les lignes sont purgées sous le verrou consultatif, avec le balayage des
+  candidats que plus aucune ligne ne désigne ; les suppressions du stockage ont lieu après la
+  validation, jamais avant : un objet n'est pas supprimé pour une ligne qu'une transaction échouée
+  garde. Un objet listé comme vieux ne peut recevoir sa ligne entre la liste et la transaction,
+  l'objet s'écrivant sous un identifiant neuf et sa ligne suivant dans la requête.
+- **Les noms.** `Stored(uploads, exports, parts)` porte les candidats ; `stored_before(bucket, now)`
+  les liste ; `purge(session, now, stored)` rend `Purged(objects, deposits)` ; `remove_purged(bucket,
+  purged)` les supprime. Un stockage hors d'atteinte pendant la liste ne retient pas la purge : le
+  verbe journalise `purge.storage_unlisted`, purge les lignes, et le passage suivant balaie ; hors
+  d'atteinte pendant les suppressions, `purge.storage_unavailable`, et de même.
+- **La course sur le dépôt échu.** `createImport` lit le dépôt sous verrou (`FOR UPDATE`) et la purge
+  le supprime par un `DELETE … RETURNING` qui verrouille la ligne : l'ouverture ne prend pas, juste
+  avant son terme, un dépôt dont la purge va supprimer l'objet ; l'une attend l'autre.
+- **Les réglages.** `PurgeSettings` prend la base, Redis et le stockage, sans Keycloak.
+  `WATERFALL_UNDO_RETENTION_HOURS` (12 par défaut, un entier d'au moins 1, sans borne haute : ni la
+  conception ni la spécification n'en donnent) est passée par les deux Compose, comme
+  `WATERFALL_PURGE_INTERVAL` ; l'intervalle de la purge doit être un entier positif, sinon le
+  service `scheduler` s'arrête avec 2. Un même compartiment porte les trois préfixes
+  (`Bucket.of_backups`), la purge l'ouvre par ce nom aussi.
+- **La migration `0024`** accorde `DELETE` sur `file_upload` au rôle du service (WF-DAT-0120-A).
 
 ### Le service d'API
 
@@ -898,8 +951,11 @@ US-1480/L3 (#2348) l'attend.
 
 ### Le harnais
 
-Chaque US étiquette `@shared` les tests dont l'écran est servi : US-1400 `timelines.spec.ts` ;
-US-1430 `exchanges.spec.ts` et `tasks.spec.ts` ; US-1440 l'arborescence de `planning.spec.ts` ;
+Chaque US étiquette `@shared` les tests dont l'écran est servi : US-1400 le parcours
+d'inscription de `timelines.spec.ts` (WF-PLA-0060-A), sur un projet que la course crée, et
+US-1480/L2 ses quatre parcours qui lisent le témoin — la frise, le focus, l'export PNG, les deux
+sélections —, dont les tâches n'existent qu'avec son remplisseur (#2340) ;
+US-1430 `exchanges.spec.ts` et `tasks.spec.ts` ; US-1440 `task-tree.spec.ts` ;
 US-1450 `undo.spec.ts` et `paste.spec.ts` pour le planning ; US-1460 les étapes du squelette de
 `project-start.spec.ts` (`BEFORE_EP06` levé) ; US-1470 `planning.spec.ts`, `structure.spec.ts`,
 `computed.spec.ts`, `keyboard.spec.ts`, la part du planning de `grid.spec.ts` et de
@@ -941,7 +997,8 @@ de lots (étape 3) le détaille en vagues.
    `register_tasks_and_lines`, `register_closing` et `register_facet`, l'interface de
    `core/exchanges` (`register_format`, `register_exporter`) et celle de `core/history`, la chaîne
    des migrations arrêtée à `0023` ; EP-07 ajoute par sa migration la table `estimate_line`
-   (clé vers `node`), les tables images de la révision, et chaîne sur `0023` ; ses lots qui créent
+   (clé vers `node`), les tables images de la révision, et chaîne sur `0024`, celle
+   d'US-1420/L2 (#2341) ; ses lots qui créent
    des lignes attendent aussi les deux lots suivants de l'arbre. En parallèle, dès la création de
    la branche : **le moteur pur** (US-1390), sans table ni dépendance nouvelle, qui possède
    `core/planning/scheduling/` entier ; et le lot d'outil d'US-1480 (`witness_tasks.json`).
@@ -968,7 +1025,7 @@ de lots (étape 3) le détaille en vagues.
 
 ## US-1380 — L'arbre des tâches de la structure principale
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0040-A`, `WF-PLA-0050-A`, `WF-PLA-0070-A`, `WF-PLA-0170-A`,
   `WF-PLA-0150-A`, `WF-DAT-0150-A`
 - **opérations** : `listNodes`, `createNode`, `updateTaskFacet`, `deleteNode`, `moveNodes`,
@@ -1126,7 +1183,7 @@ inscriptions (US-1400) ; l'état (US-1410) ; le collage et l'annulation (US-1450
 
 ## US-1390 — Le calcul des dates, des marges et du chemin critique, et les liaisons
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0010-A`, `WF-PLA-0020-A`, `WF-PLA-0030-A`, `WF-PLA-0100-A`,
   `WF-PLA-0160-A`
 - **opérations** : `setPredecessors`, `updateCostStructure` ; `listNodes`, `createNode`,
@@ -1256,7 +1313,7 @@ répartition de la charge (EP-07).
 
 ## US-1400 — Les chronologies nommées et les inscriptions aux suivis
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0140-A`, `WF-PLA-0060-A`
 - **opérations** : `listTimelines`, `createTimeline`, `deleteTimeline`, `setNodeTracking` ;
   `listNodes` avec `timeline_id`
@@ -1288,7 +1345,8 @@ frise, **afin de** présenter à chaque public les jalons qui le concernent.
   `edit_planning` ;
 - propre à l'US : l'écran des chronologies (`…/timelines`) travaille contre le service, le front
   n'applique plus le critère `timeline_id` à la réponse (#496) et le parcours
-  `timelines.spec.ts` porte `@shared` ; `load-witness` charge les chronologies du témoin et les
+  d'inscription de `timelines.spec.ts` porte `@shared`, ses quatre parcours qui lisent le témoin
+  le portant à US-1480/L2 (#2340) ; `load-witness` charge les chronologies du témoin et les
   inscriptions de ses tâches dans le fichier `timelines` de la tranche ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service.
 
@@ -1304,7 +1362,7 @@ préférence d'affichage (EP-03, EP-15).
 
 ## US-1410 — L'état des tâches
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0130-A`
 - **opérations** : `setTaskProgress`
 - **issue** : 2324
@@ -1333,10 +1391,11 @@ démarré à terminé, **afin que** le planning dise où en est chaque tâche av
   sont pas saisissables. » : la marge et la criticité, par US-1390 et US-1470 ; l'avancement
   physique est d'EP-10, qui clôt ;
 - `WF-PLA-0130-A` — « Une terminaison datée avant le démarrage de la tâche est refusée. » :
-  `setTaskProgress` refuse par 422 `VALUE_OUT_OF_RANGE` sur la date (US-1380/L4, #2519) ; écart :
-  le jour par défaut se lit dans le fuseau horaire de l’installation (spécification 1.0.3, #2524),
-  qui n'existe pas encore — le jour courant est pris en UTC, et le fuseau est reporté vers EP-07
-  (#2527), qui clôt ;
+  `setTaskProgress` refuse par 422 `VALUE_OUT_OF_RANGE` sur la date ;
+- écart : `WF-PLA-0130-A` — le jour courant par défaut se lit dans le fuseau horaire de
+  l’installation (spécification 1.0.3, #2524) : le fuseau de l’installation est reporté vers EP-07
+  (#2527) ; d'ici là, le jour courant est calculé en UTC par une seule fonction du noyau (US-1380/L4,
+  #2519), sur laquelle EP-07 branchera le fuseau ;
 - propre à l'US : `setTaskProgress` démarre, termine ou rouvre une tâche feuille, au compteur lu,
   et refuse par 409 — `task_is_milestone`, `task_without_lines` (jamais manquante sans ligne),
   `task_not_milestone`, `completed_milestone`, puis `project_in_progress` et
@@ -1359,7 +1418,7 @@ se pose autour du service dans les tests, comme EP-04 l'a fait.
 
 ## US-1420 — L'import en deux temps
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ARC-0100-A`, `WF-INTF-0080-A`, `WF-INTF-0090-A`, `WF-ARC-0110-A`,
   `WF-DAT-0120-A`
 - **opérations** : `uploadFile`, `listImports`, `openImport`, `getImport`, `abandonImport`,
@@ -1463,7 +1522,7 @@ des échanges, branché par US-1430.
 
 ## US-1430 — Le format MS Project : import, export et aller-retour
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0040-A`, `WF-INTF-0050-A`, `WF-INTF-0060-A`, `WF-QUA-0080-A`,
   `WF-DAT-0120-A`
 - **opérations** : `requestExport` (`ms_project_schedule`), `getBackgroundTaskResult` ;
@@ -1585,7 +1644,7 @@ lignes d'une tâche réimportée (EP-07).
 
 ## US-1440 — L'arborescence de tâches et son export PNG
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0110-A`, `WF-PLA-0120-A`
 - **opérations** : `listNodes` (`summaries_only`, `max_level`) ; `requestExport`
   (`task_tree_image`), `getBackgroundTaskResult`
@@ -1619,7 +1678,7 @@ présenter la structure du projet sans ses détails.
 - propre à l'US : l'image porte le libellé du projet, de la révision et la date de calcul, dans
   la langue du compte demandeur (WF-ARC-0110) ; l'écran de l'arborescence (`…/task-tree`)
   travaille contre le service, offre l'export sous `export_task_tree_image`, et son parcours
-  (`planning.spec.ts`, l'arborescence) porte `@shared` ; chaque réponse est validée contre le
+  (`task-tree.spec.ts`) porte `@shared` ; chaque réponse est validée contre le
   contrat dans les tests du service.
 
 **Notes de réalisation.** La bibliothèque d'image du worker se fixe à la conception. Le témoin
@@ -1632,7 +1691,7 @@ PRJ-001 a la profondeur que `summary_depth` dit.
 
 ## US-1450 — Le collage et l'annulation servis par le serveur
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0110-A`
 - **opérations** : `previewPaste`, `applyPaste`, `undoLastChange`, `redoLastUndo`
 - **issue** : 2322
@@ -1709,7 +1768,7 @@ saisies de risque (EP-08).
 
 ## US-1460 — Le squelette de planning engendré du lotissement
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PRJ-0030-A`, `WF-PLA-0170-A`
 - **opérations** : `generatePlanningSkeleton` ; `getWorkBreakdown`, `createRevision`
 - **issue** : 2325
@@ -1768,7 +1827,7 @@ révision en cours, l'écran ouvre la révision d'abord (`createRevision`, EP-04
 
 ## US-1470 — La grille de planning et le Gantt branchés sur le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0080-A`, `WF-PLA-0090-A`, `WF-ADM-0110-A`, `WF-INTF-0010-A`
 - **opérations** : toutes celles de l'EPIC que la grille de planning et le Gantt lisent et
   écrivent
@@ -1839,9 +1898,15 @@ back.
   les mille tâches de PRJ-001 (#620) s'écrit au relevé de livraison ; aucune optimisation sans
   elle.
 
-**Notes de réalisation.** Les écrans sont ceux d'EP-02/L40, d'EP-14 et d'EP-15 (US-0460 à
-US-0530) ; cette US ne les réécrit pas. Un manque que le branchement révèle devient une issue ;
-un manque du contrat, une « Interface contract issue ».
+**Notes de réalisation.** Les écrans sont ceux d'EP-02/L40, d'EP-14 et d'EP-15 (US-0460 à US-0530) ;
+cette US ne les réécrit pas. Un manque que le branchement révèle devient une issue ; un manque du
+contrat, une « Interface contract issue ». Parts reportées, chacune dans son issue : FLX-01 du
+compte « chef de projet » → #2589 (US-1430/L4) ; le geste du report (#1057) fait depuis la grille de
+devis → #2590 (EP-07), le parcours le jouant par les opérations que cette grille envoie ;
+l'étiquetage `@shared` des parcours qui lisent le témoin de PRJ-001 → #2591 (US-1480/L3) ; les états
+« démarrée » et « terminée » joués contre le service, impossibles sur un projet de la course avant
+EP-07 → #2595 (US-1480/L3, sur le témoin). Les parcours `@shared` du planning sont dans
+`planning-service.spec.ts`, `planning.spec.ts` dépassant la borne de 1 000 lignes.
 
 **Hors périmètre.** La grille de devis et celle du reste à engager (EP-07, EP-09) ; l'avancement
 physique (EP-10).
@@ -1850,7 +1915,7 @@ physique (EP-10).
 
 ## US-1480 — Le témoin : la tranche des tâches, et les parcours rejoués
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-QUA-0040-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
 - **issue** : 2327
@@ -1881,6 +1946,9 @@ s'affiche.
   lectures du témoin chargé — `nodes_planning`, `nodes_summaries`, `nodes_timeline`,
   `nodes_milestone`, `volume/nodes_thousand` — sont comparées aux exemples, aux colonnes d'audit
   et aux montants près, listés dans le test ;
+- propre à l'US : les quatre parcours de `timelines.spec.ts` qui lisent le témoin — la frise, le
+  focus, l'export PNG, les deux sélections (WF-PLA-0140-A) — portent `@shared` dès que le
+  remplisseur charge les tâches (US-1480/L2, #2340) ;
 - propre à l'US : tous les parcours du planning, du Gantt, de l'arborescence, des chronologies
   et des échanges étiquetés `@shared` passent contre le service, le témoin chargé — la frise et le
   focus de `timelines.spec.ts`, dont les dates dépendent des calendriers des lignes, sont

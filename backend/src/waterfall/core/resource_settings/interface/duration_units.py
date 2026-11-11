@@ -4,8 +4,8 @@
 
 The three constants the days, the weeks and the months convert by, read and written
 (WF-PLA-0160): a single row, with a counter of its own, that the bootstrap writes at 8, 40 and 20.
-Each is strictly positive. The recalculation of the plannings a change brings is EP-06's: here the
-constants are kept, and nothing else moves.
+Each is strictly positive. The recalculation of the plannings a change brings is EP-06's, called
+under the lock of the reference (``recalculate``): here the constants are kept.
 """
 
 from dataclasses import dataclass
@@ -15,8 +15,12 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 
+from waterfall.core.resource_settings.interface.extensions import recalculate
+from waterfall.core.resource_settings.interface.readiness import lock_reference
 from waterfall.core.resource_settings.tables import SINGLE_ROW, DurationUnit
 from waterfall.platform.errors import (
+    STALE_LOCK_VERSION,
+    VALIDATION_FAILED,
     FieldError,
     PreconditionFailedError,
     UnprocessableError,
@@ -30,8 +34,6 @@ if TYPE_CHECKING:
 
     from waterfall.platform.audit import Act
 
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 DURATION_UNIT_NOT_POSITIVE = "DURATION_UNIT_NOT_POSITIVE"
 # The first version of the constants, as the examples of the contract have it.
 FIRST_VERSION = 1
@@ -129,9 +131,13 @@ def set_duration_units(
 ) -> DurationUnitsView:
     """Write the three constants, if their version is the one read (412), and read them back.
 
-    The constants are refused first (422), the row is locked before its version is judged.
+    The constants are refused first (422), then the lock of the reference is taken, before the row
+    is locked and its version judged: an opening of a revision, which shares it, is waited for or
+    waits (EP-06). The structures of the current revisions are redated in the transaction, once
+    the constants are written, when one of them changes (``recalculate``, EP-06).
     """
     _refuse_units(units)
+    lock_reference(session)
     row = session.scalars(
         select(DurationUnit)
         .where(DurationUnit.id == SINGLE_ROW)
@@ -142,6 +148,7 @@ def set_duration_units(
         raise PreconditionFailedError(
             STALE_LOCK_VERSION, {"expected_lock_version": row.lock_version}
         )
+    changed = _view(row).units != units
     session.execute(
         update(DurationUnit)
         .where(DurationUnit.id == SINGLE_ROW)
@@ -154,4 +161,6 @@ def set_duration_units(
             updated_by=act.author,
         )
     )
+    if changed:
+        recalculate(session, act.at)
     return get_duration_units(session)

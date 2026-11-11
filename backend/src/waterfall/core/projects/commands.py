@@ -37,6 +37,8 @@ PROJECT_IN_PRICING = "project_in_pricing"
 PROJECT_BEFORE_IN_PROGRESS = "project_before_in_progress"
 NO_CURRENT_REVISION = "no_current_revision"
 NO_BACKGROUND_TASK_RUNNING = "no_background_task_running"
+MAIN_STRUCTURE_WITHOUT_TASKS = "main_structure_without_tasks"
+MAY_CREATE_REVISION = "may_create_revision"
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,6 +62,8 @@ RULES: tuple[Rule, ...] = (
     Rule("complete", "project_exit", manager=True),
     Rule("lose", "project_exit", manager=True),
     Rule("abandon", "project_exit", manager=True),
+    Rule("generate_skeleton", "planning.write"),
+    Rule("import_planning", "planning.write"),
 )
 
 
@@ -87,6 +91,28 @@ def state_conditions(
     return missing
 
 
+@dataclass(frozen=True, slots=True)
+class Running:
+    """What the commands read of the background and of the revision an opening would create.
+
+    ``no_task_running`` tells that no task of the background writes in the project;
+    ``opening_has_tasks`` that the revision its opening would create carries a task.
+    """
+
+    no_task_running: bool
+    opening_has_tasks: bool = False
+
+
+def skeleton_conditions(running: Running) -> list[str]:
+    """Name the conditions the generation of the skeleton lacks, judged on the revision to open.
+
+    A running import, occurrence or merge creates another revision; the revision to open is a copy
+    of the last marked one (WF-PRJ-0030, WF-REV-0010).
+    """
+    missing = [] if running.no_task_running else [NO_BACKGROUND_TASK_RUNNING]
+    return [*missing, MAIN_STRUCTURE_WITHOUT_TASKS] if running.opening_has_tasks else missing
+
+
 def quality_conditions(kind: str | None, *, manager: bool) -> list[str]:
     """Name the quality on the project that the caller lacks for a command, if it does."""
     if kind is None:
@@ -102,9 +128,15 @@ def commands_of(
     state: str,
     current_revision_id: UUID | None,
     *,
-    no_task_running: bool,
+    running: Running,
 ) -> list[tuple[str, tuple[str, ...]]]:
-    """List the commands a caller holds on a project, each with the conditions it lacks."""
+    """List the commands a caller holds on a project, each with the conditions it lacks.
+
+    The skeleton is listed only while the project has no current revision, to whoever holds the
+    planning permission, ``may_create_revision`` missing to whoever cannot open one (WF-PRJ-0030).
+    The import of a planning is always listed to the same holder, with the conditions ``openImport``
+    refuses by, in its order (WF-INTF-0090).
+    """
     if state in TERMINAL:
         return []
     listed: list[tuple[str, tuple[str, ...]]] = []
@@ -114,9 +146,42 @@ def commands_of(
             rule.command == "lose" and state == "in_progress"
         ):
             continue
+        if rule.command == "generate_skeleton":
+            if current_revision_id is None:
+                listed.append((rule.command, _skeleton_lacks(permissions, kind, running)))
+            continue
+        if rule.command == "import_planning":
+            lacks = _import_lacks(permissions, kind, current_revision_id, running)
+            listed.append((rule.command, lacks))
+            continue
         missing = quality_conditions(kind, manager=rule.manager)
         missing += state_conditions(
-            rule.command, state, current_revision_id, no_task_running=no_task_running
+            rule.command, state, current_revision_id, no_task_running=running.no_task_running
         )
         listed.append((rule.command, tuple(missing)))
     return listed
+
+
+def _skeleton_lacks(
+    permissions: Collection[str], kind: str | None, running: Running
+) -> tuple[str, ...]:
+    """Name what the skeleton of a project without a current revision lacks (WF-IHM-0090)."""
+    missing = [*quality_conditions(kind, manager=False), *skeleton_conditions(running)]
+    if "revisions.write" not in permissions:
+        missing.append(MAY_CREATE_REVISION)
+    return tuple(missing)
+
+
+def _import_lacks(
+    permissions: Collection[str],
+    kind: str | None,
+    current_revision_id: UUID | None,
+    running: Running,
+) -> tuple[str, ...]:
+    """Name what the import of a planning lacks, as ``openImport`` refuses it (WF-INTF-0090)."""
+    missing = quality_conditions(kind, manager=False)
+    if not running.no_task_running:
+        missing.append(NO_BACKGROUND_TASK_RUNNING)
+    if current_revision_id is None and "revisions.write" not in permissions:
+        missing.append(MAY_CREATE_REVISION)
+    return tuple(missing)

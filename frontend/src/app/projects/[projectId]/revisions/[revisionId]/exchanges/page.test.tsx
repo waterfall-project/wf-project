@@ -226,6 +226,13 @@ describe("the screen of the imports and exports", () => {
     expect(text(page)).toContain("planning-poste-de-commande.xml MS Project planning Abandoned");
   });
 
+  it("shows no note of the mock-up: the screen is served, its writes kept by the service", async () => {
+    const page = await exchangesAt();
+    expect(page).not.toContain("Mock-up");
+    expect(page).not.toContain(CATALOGUES.en.mockup.notKept);
+    expect(page).not.toContain(CATALOGUES.en.mockup.notFiltered);
+  });
+
   it("reads no revision but the one of its route, whose exports it offers, the imports being the project's", async () => {
     server.answers = { ...server.answers, [GET_REVISION]: "revision_marked" };
     const page = await exchangesAt({}, "en", MARKED);
@@ -396,12 +403,4 @@ describe("the screen of the imports and exports", () => {
       expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
     },
   );
-});
-
-describe("the note of the fake back on the imports and exports", () => {
-  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
-    const page = await exchangesAt();
-    expect(page.match(/<p role="note"/g)).toHaveLength(1);
-    expect(page).toContain("Filters, search, sort and pages are ignored");
-  });
 });

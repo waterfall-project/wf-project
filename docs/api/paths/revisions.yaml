@@ -119,7 +119,20 @@
             examples:
               current_revision_exists: { $ref: ../../../fixtures/api/current_revision_exists.json }
               background_task_running: { $ref: ../../../fixtures/api/revision_create_background_running.json }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          The copy of the last marked revision is dated with the duration units and the
+          calendars of the opening (WF-PLA-0160): when that would take the duration of the
+          project beyond fifteen years, the opening is refused, nothing being created —
+          `PROJECT_HORIZON_EXCEEDED`, without `fields`, `params.task` naming the task of the copy
+          that finishes last, not a summary task, the first in plan order in case of a tie, by
+          its node and its label (`horizon_exceeded`; WF-PLA-0150, #2505). Or a value outside
+          the rules, `fields` locating it, as the common response `UnprocessableEntity` says.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              horizon_exceeded: { $ref: ../../../fixtures/api/revision_create_horizon_exceeded.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -1158,7 +1171,9 @@
       '200':
         description: >-
           Nodes, in depth-first traversal, their totals, and what the read says about the
-          structure itself.
+          structure itself. Without `fields`, each node is whole, as `Node` describes it; with
+          `fields`, it is projected: the four properties always returned and those that `fields`
+          names (`NodeProjection`, #2485).
         content:
           application/json:
             schema:
@@ -1167,7 +1182,7 @@
               properties:
                 items:
                   type: array
-                  items: { $ref: ../components/schemas/revisions.yaml#/Node }
+                  items: { $ref: ../components/schemas/revisions.yaml#/NodeProjection }
                 totals: { $ref: ../components/schemas/revisions.yaml#/NodeTotals }
                 meta: { $ref: ../components/schemas/revisions.yaml#/NodeListMeta }
             examples:
@@ -1341,7 +1356,18 @@
           like `updateTaskFacet` (WF-PLA-0020, WF-PLA-0010; #1345); or, with a working day,
           hours sent outside the day, `/task/start/hours` or `/task/finish/hours` with
           `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` set to `0` or `maximum` to the hours
-          of the day, as on modification (`WorkInstantWrite`; #1769).
+          of the day, as on modification (`WorkInstantWrite`; #1769). Or a parent that is not a
+          task of the structure — unknown, or an estimate line —: `fields` on `/parent_id`,
+          `UNKNOWN_TASK`, without a parameter (`parent_unknown`; #2490, #2500). Or a task in
+          manual mode created without its start or its finish, which it carries as entered:
+          `/task/start` or `/task/finish`, `VALUE_REQUIRED` (`dates_required`); or with its
+          finish before its start: `/task/finish/date`, `VALUE_OUT_OF_RANGE`,
+          `fields[].params.minimum` the date of the start (`finish_before_start`; WF-PLA-0020,
+          #2490). Or a task sent without its facet, `/task`, `VALUE_REQUIRED`, or with the facet
+          of a line, `/estimate_line`, `FIELD_NOT_ACCEPTED` (`facet_missing`). Or, on a service
+          that does not create the estimate lines yet — before EP-07 serves them —, a node of
+          `kind` `estimate_line`: `/kind`, `FIELD_NOT_ACCEPTED`, without a parameter
+          (`kind_not_accepted`; #2490).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1356,6 +1382,12 @@
               without_hours: { $ref: ../../../fixtures/api/node_create_without_hours.json }
               field_not_accepted: { $ref: ../../../fixtures/api/node_create_field_not_accepted.json }
               under_milestone: { $ref: ../../../fixtures/api/node_create_under_milestone.json }
+              parent_unknown: { $ref: ../../../fixtures/api/node_create_parent_unknown.json }
+              dates_required: { $ref: ../../../fixtures/api/node_create_dates_required.json }
+              finish_before_start:
+                $ref: ../../../fixtures/api/node_create_finish_before_start.json
+              facet_missing: { $ref: ../../../fixtures/api/node_create_facet_missing.json }
+              kind_not_accepted: { $ref: ../../../fixtures/api/node_create_kind_not_accepted.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -1679,11 +1711,22 @@
           or `/finish/hours` with `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` set to `0` or
           `maximum` to the hours of the day, the only bound crossed, never null — a non-working
           day is refused by its date, its hours not being judged (`WorkInstantWrite`,
-          WF-PLA-0010, WF-DAT-0100, #1244).
+          WF-PLA-0010, WF-DAT-0100, #1244). Or a date of a task in manual mode sent null — a
+          manual task keeps the dates entered for it, which are changed, never cleared —:
+          `/start` or `/finish`, `VALUE_REQUIRED` (`dates_required`); or a finish before the
+          start, the one sent or the one the task keeps: `/finish/date`, `VALUE_OUT_OF_RANGE`,
+          `fields[].params.minimum` the date of the start (`finish_before_start`; WF-PLA-0020,
+          #2490). Or `label`, `scheduling_mode` or `duration` sent null: `VALIDATION_FAILED` at
+          its field. Or a body that sends the counter alone, which `minProperties` refuses:
+          `VALIDATION_FAILED` without `fields`, there being no field to designate
+          (`update_empty`; #2490).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
+              dates_required: { $ref: ../../../fixtures/api/task_dates_required.json }
+              finish_before_start: { $ref: ../../../fixtures/api/task_finish_before_start.json }
+              update_empty: { $ref: ../../../fixtures/api/task_update_empty.json }
               date_computed: { $ref: ../../../fixtures/api/task_date_computed_refused.json }
               summary_date_refused: { $ref: ../../../fixtures/api/task_summary_date_refused.json }
               milestone_duration_refused:
@@ -1877,9 +1920,12 @@
           `params.task` naming the task entered (WF-PLA-0150); or a predecessor sent twice, a
           second link between the same tasks, `VALIDATION_FAILED`, `fields` designating each
           occurrence after the first, `/predecessors/<n>/predecessor_node_id`, with
-          `DUPLICATE_PREDECESSOR` (WF-PLA-0030; F-03, US-0702/L2); or a value outside the rules,
-          `fields` locating it, as the common response `UnprocessableEntity` says. The code
-          names the reason, which the predecessors column states at its cell.
+          `DUPLICATE_PREDECESSOR` (WF-PLA-0030; F-03, US-0702/L2); or a predecessor that is not a
+          task of the structure — unknown, or an estimate line —, `VALIDATION_FAILED`, `fields`
+          at its rank, `/predecessors/<n>/predecessor_node_id`, with `UNKNOWN_TASK`
+          (`unknown_task`; #2506); or a value outside the rules, `fields` locating it, as the
+          common response `UnprocessableEntity` says. The code names the reason, which the
+          predecessors column states at its cell.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1888,6 +1934,7 @@
               forbidden: { $ref: ../../../fixtures/api/predecessors_forbidden.json }
               horizon_exceeded: { $ref: ../../../fixtures/api/predecessors_horizon_exceeded.json }
               duplicate: { $ref: ../../../fixtures/api/predecessors_duplicate.json }
+              unknown_task: { $ref: ../../../fixtures/api/predecessors_unknown_task.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -1904,7 +1951,11 @@
       completion — a milestone without going through the started state —, and a reopened
       milestone loses both (`ProgressUpdate`, `milestone_completed`, `milestone_reopened`).
       Refused on a summary task, whose state is derived from its subordinates (WF-PLA-0040):
-      422 `SUMMARY_TASK_DERIVED`, which names them (WF-IHM-0030).
+      422 `SUMMARY_TASK_DERIVED`, which names them (WF-IHM-0030). A completion is not dated
+      before the start of the task (WF-PLA-0130): 422 `VALUE_OUT_OF_RANGE` on `/occurred_on`.
+      The day of the action is, by default, the current day, which is that of the time zone of
+      the installation (WF-PLA-0130, WF-EXP-0020) — taken in universal time as long as the
+      installation has none (#2495, #2527).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1949,9 +2000,11 @@
           `task_not_milestone`, a milestone sent to `started`, which does not go through the
           started state (WF-PLA-0050); `completed_milestone`, `not_started` sent for a task that
           is not a completed milestone (`reopen_not_started_refused`, WF-RAE-0030) —, then the
-          conditions
-          of the remaining to commit entry (`StructureCommand.edit_remaining`):
-          `project_in_progress`, `no_background_task_running`.
+          conditions of the remaining to commit entry (`StructureCommand.edit_remaining`):
+          `project_in_progress` on the main structure alone, which alone has a remaining to
+          commit and whose command alone names that phase (WF-RAE-0040; #2494) — the action on a
+          task of another structure lacks no condition of the phase —, then
+          `revision_draft` and `no_background_task_running`.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1965,14 +2018,21 @@
         description: >-
           A summary task, whose state cannot be entered: `SUMMARY_TASK_DERIVED`,
           `params.subordinate_node_ids` naming its direct subordinates, in plan order, from
-          which it derives its state (WF-PLA-0040, WF-IHM-0030); nothing is written. Or a value
-          outside the rules, `fields` locating it, as the common response `UnprocessableEntity`
-          says.
+          which it derives its state (WF-PLA-0040, WF-IHM-0030); nothing is written. Or a
+          completion dated before the start of a started task — "a completion is not dated
+          before the start" (WF-PLA-0130; #2495) —, the date sent or the current day by default
+          (so a task started on a future date, completed without a date, is refused on
+          `/occurred_on`, a field not sent): `VALIDATION_FAILED`, `fields` on `/occurred_on`, `VALUE_OUT_OF_RANGE`,
+          `fields[].params.minimum` the date of the start (`completed_before_start`); nothing is
+          written. Or a value outside the rules, `fields` locating it, as the common response
+          `UnprocessableEntity` says.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               summary_refused: { $ref: ../../../fixtures/api/task_progress_summary_refused.json }
+              completed_before_start:
+                $ref: ../../../fixtures/api/task_completed_before_start.json
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -2233,11 +2293,18 @@
           subordinates: `LINK_FORBIDDEN`, without a parameter (WF-PLA-0030, WF-PLA-0040); or
           that would close a loop of links through it: `LINK_CYCLE`, `params.cycle` naming the
           tasks of the loop by their node and their label, in the order of the links
-          (WF-PLA-0030) — the grid, filtered, may not read them.
+          (WF-PLA-0030) — the grid, filtered, may not read them. Or a parent that is not a task
+          of the structure — unknown, an estimate line, or null for a selection that holds a
+          line, which goes under a task —: `fields` on `/parent_id`, `UNKNOWN_TASK`, without a
+          parameter (`parent_unknown`); or a parent that is one of the moved nodes or one of
+          their subordinates, the hierarchy then looping: `fields` on `/parent_id`, `NODE_CYCLE`,
+          without a parameter (`node_cycle`; WF-PLA-0040, `NodeMove`; #2500).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
+              parent_unknown: { $ref: ../../../fixtures/api/nodes_move_parent_unknown.json }
+              node_cycle: { $ref: ../../../fixtures/api/nodes_move_node_cycle.json }
               after_not_sibling: { $ref: ../../../fixtures/api/nodes_move_after_not_sibling.json }
               outside_work_package: { $ref: ../../../fixtures/api/nodes_move_outside_work_package.json }
               indent_forbidden: { $ref: ../../../fixtures/api/nodes_indent_forbidden.json }
@@ -2258,8 +2325,9 @@
       nothing is written at this stage (WF-IHM-0050). Once confirmed, the paste will write the
       accepted lines and not the refused lines (`applyPaste`). The block fills, starting from
       the target column, the columns of the facet of the target node in the order of
-      `NodeColumn` — the order of the grids (WF-PLA-0080, WF-DEV-0050) —, without shifting any
-      cell: a non-empty cell that falls on a column that its line does not accept is refused,
+      `NodeColumn` — the order of the grids (WF-PLA-0080, WF-DEV-0050) —, each line of the block
+      the node at the same distance below the target node: a non-empty cell that falls on a
+      column that its line does not accept is refused,
       named by its line and its column (`PastePreview`), and the subproject of a line of a
       started or completed task does not leave a subproject that has received actual costs
       (`SUBPROJECT_HAS_ACTUAL_COSTS`, `PasteRejection`, WF-PRJ-0050); on the main
@@ -2274,6 +2342,11 @@
       `PasteRejection`, on the first line of the block and the target column, with
       `PASTE_TARGET_REMOVED`, no line accepted or judged; the anchor is not carried over to
       the next node, which would write somewhere other than where the user clicked (#1361).
+      A line of the block that falls beyond the last node of the structure creates a node, a
+      sibling of that last node, of the kind of the target node, whose label is required — the
+      line without one is refused with `VALIDATION_FAILED`, `column` at `label` — and whose other
+      cells are judged as those of a node written; the plan counts these lines in `created`, and
+      in `accepted` too (`PastePreview`, `PastePlan`; decision of the user of 2026-11-08, #2559).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -2288,7 +2361,8 @@
         description: >-
           Paste plan. The `unknown_category` example shows a refused category cell,
           `without_hours` a role cell that would leave the task of its line without any worked
-          hour (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010; #779).
+          hour (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010; #779), `creating` a block of tasks
+          whose lines beyond the last node create tasks, the one without a label refused (#2559).
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/PastePlan }
@@ -2301,6 +2375,7 @@
               amendment_skipping: { $ref: ../../../fixtures/api/paste_plan_amendment_skipping.json }
               amendment_target_removed:
                 $ref: ../../../fixtures/api/paste_plan_amendment_target_removed.json
+              creating: { $ref: ../../../fixtures/api/paste_plan_creating.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -2340,7 +2415,11 @@
       the following nodes, as the preview judged them (`PastePreview`, #1278); a plan whose
       target cell is on a removed node, refused whole (`PASTE_TARGET_REMOVED`), writes
       nothing, once confirmed: the counter of the structure does not move forward, and the
-      refusal is stated again (#1361).
+      refusal is stated again (#1361). The accepted lines beyond the last node of the structure
+      create their nodes, judged again like the others; the nodes created are among the nodes
+      written (`nodes`), at their first version, and no other field says them. The paste is one
+      entry of the history (`UndoneKind.paste`): its undo deletes the nodes it created and its
+      redo creates them again (`undoLastChange`, `redoLastUndo`; #2559).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -2364,6 +2443,7 @@
               amendment: { $ref: ../../../fixtures/api/paste_applied_amendment.json }
               amendment_skipping: { $ref: ../../../fixtures/api/paste_applied_amendment_skipping.json }
               rejudged: { $ref: ../../../fixtures/api/paste_applied_rejudged.json }
+              creating: { $ref: ../../../fixtures/api/paste_applied_creating.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -2431,6 +2511,9 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/UndoResult }
+            examples:
+              undone: { $ref: ../../../fixtures/api/undo_task_renamed.json }
+              undone_one_left: { $ref: ../../../fixtures/api/undo_task_renamed_one_left.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403':
         description: >-
@@ -2440,10 +2523,16 @@
           the entry it undoes — `planning.write`, `estimate.write` or `remaining.write` for an
           entry of the corresponding grid, `planning.write` for the planning start date or the
           label of a structure, `risks.write` for a risk entry (WF-ADM-0100). Nothing is
-          undone.
+          undone. Or the token of the caller carries no session of sign-in (`sid`), by which
+          the server keeps the history: `SESSION_ID_MISSING`, without a parameter — the token is
+          valid and the caller known, so it is not a 401, which would send the front back to a
+          sign-in that gives the same token; a write made with such a token is made all the same
+          and enters no history, so nothing is there to undo (WF-IHM-0110; #2472).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              session_id_missing: { $ref: ../../../fixtures/api/undo_session_id_missing.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
@@ -2507,6 +2596,9 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/UndoResult }
+            examples:
+              redone: { $ref: ../../../fixtures/api/redo_task_renamed.json }
+              redone_two_left: { $ref: ../../../fixtures/api/redo_task_renamed_two_left.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403':
         description: >-
@@ -2516,10 +2608,13 @@
           the entry it redoes — `planning.write`, `estimate.write` or `remaining.write` for an
           entry of the corresponding grid, `planning.write` for the planning start date or the
           label of a structure, `risks.write` for a risk entry (WF-ADM-0100). Nothing is
-          redone.
+          redone. Or the token of the caller carries no session of sign-in (`sid`):
+          `SESSION_ID_MISSING`, as for the undo (`undoLastChange`; #2472).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              session_id_missing: { $ref: ../../../fixtures/api/redo_session_id_missing.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-

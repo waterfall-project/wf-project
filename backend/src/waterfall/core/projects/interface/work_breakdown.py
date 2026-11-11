@@ -4,11 +4,14 @@
 
 Read whole or filtered, written whole under its own counter
 (``project.work_breakdown_lock_version``); an element left out is deleted. A work package and an
-order item are deleted for good while no task of a marked revision bears them: there is none
-before EP-06, which will mark them deleted instead (``deleted_at``, null here, and left out of
-every reading); a deliverable is always deleted for good. The project is born with a work package
-and an order item that bear its label, without deliverable (``create_project``); the first writing
-replaces them.
+order item left out are first withdrawn from the tasks of the current revision, then marked deleted
+(``deleted_at``, left out of every reading of the work breakdown) when a task of a marked revision
+bears them — or, for a work package, an order item marked deleted is still under it —, and deleted
+for good otherwise (``register_attachments``, WF-PLA-0170, US-1380/L3); a deliverable is always
+deleted for good. The project is born with a work package and an order item that bear its label,
+without deliverable (``create_project``); the first writing replaces them. The planning reads the
+work packages and order items of a project, those marked deleted included, by
+``work_breakdown_items``.
 
 The tree is read in one statement, so that the counter and the elements it numbers belong to one
 snapshot. It is written under the lock of the project, which every decision is read under; the
@@ -25,11 +28,16 @@ from waterfall.core.projects.commands import (
     PROJECT_NOT_TERMINAL,
     TERMINAL,
 )
+from waterfall.core.projects.interface.attachments import detach_item, item_cited
 from waterfall.core.projects.interface.contributors import require_project_manager
 from waterfall.core.projects.interface.lifecycle import no_background_task_running
 from waterfall.core.projects.tables import Deliverable, OrderItem, Project, WorkPackage
 from waterfall.platform.database import contains
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
+    STATE_FORBIDS_OPERATION,
+    VALIDATION_FAILED,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -40,7 +48,7 @@ from waterfall.platform.errors import (
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping, Sequence
+    from collections.abc import Collection, Iterable, Mapping, Sequence
     from datetime import datetime
     from uuid import UUID
 
@@ -49,10 +57,6 @@ if TYPE_CHECKING:
     from waterfall.core.projects.interface.projects import Viewer
     from waterfall.platform.audit import Act
 
-NOT_FOUND = "NOT_FOUND"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 UNKNOWN_WORK_BREAKDOWN_ITEM = "UNKNOWN_WORK_BREAKDOWN_ITEM"
 DUPLICATE_WORK_BREAKDOWN_ITEM = "DUPLICATE_WORK_BREAKDOWN_ITEM"
 ALREADY_EXISTS = "ALREADY_EXISTS"
@@ -62,6 +66,9 @@ ORDER_ITEM = "order_item"
 DELIVERABLE = "deliverable"
 # Where a position is parked while the slots are exchanged: above any position a project may hold.
 PARKED = 1_000_000_000
+# The counter a project is born with, its work breakdown included: a work breakdown that still
+# reads it has not been written (#2762).
+BORN_LOCK_VERSION = 1
 
 type Row = WorkPackage | OrderItem | Deliverable
 
@@ -157,6 +164,21 @@ class WorkBreakdownLoad:
     project_id: UUID
     work_packages: tuple[WorkPackageEntry, ...]
     lock_version: int
+
+
+@dataclass(frozen=True, slots=True)
+class WorkBreakdownItem:
+    """A work package or an order item a task may bear, marked deleted or not (WF-PLA-0170).
+
+    ``kind`` is ``work_package`` or ``order_item``; ``work_package_id`` the work package of an
+    order item, none for a work package.
+    """
+
+    item_id: UUID
+    kind: str
+    label: str
+    work_package_id: UUID | None
+    deleted: bool
 
 
 @dataclass(slots=True)
@@ -465,16 +487,53 @@ def _replace(
     _write_level(scope, packages, plan_packages, WorkPackage)
     _write_level(scope, items, plan_items, OrderItem)
     _write_level(scope, deliverables, plan_deliverables, Deliverable)
-    for held, planned in (
-        (deliverables, plan_deliverables),
-        (items, plan_items),
-        (packages, plan_packages),
-    ):
-        kept = {plan.id for plan in planned}
-        for id_, row in held.items():
-            if id_ not in kept:
-                session.delete(row)
-        session.flush()
+    for row in _leaving(deliverables, plan_deliverables):
+        session.delete(row)
+    session.flush()
+    _remove(scope, _leaving(items, plan_items), _leaving(packages, plan_packages))
+
+
+def _leaving[Model: Row](held: Mapping[UUID, Model], planned: Iterable[_Planned]) -> list[Model]:
+    """Give the elements held that the writing leaves out."""
+    kept = {plan.id for plan in planned}
+    return [row for id_, row in held.items() if id_ not in kept]
+
+
+def _remove(scope: _Scope, items: list[OrderItem], packages: list[WorkPackage]) -> None:
+    """Remove the order items and the work packages left out, from the tasks first (WF-PLA-0170).
+
+    Their rows are locked before any task is touched: a write of the planning that attaches one
+    reads it under a shared lock, and waits, or is waited for, before it writes its task. Each is
+    withdrawn from the tasks of the current revision, then marked deleted when a task of a marked
+    revision bears it — a work package also when an order item marked deleted is still under it,
+    which its key keeps —, deleted for good otherwise.
+    """
+    session, act = scope.session, scope.act
+    leaving = [row.id for row in (*items, *packages)]
+    if not leaving:
+        return
+    for table in (WorkPackage, OrderItem):  # the order of ``work_breakdown_items``: no deadlock
+        session.execute(select(table.id).where(table.id.in_(leaving)).with_for_update())
+    for item_id in leaving:
+        detach_item(session, scope.project_id, item_id)
+    for item in items:
+        _drop(session, item, act, kept=item_cited(session, item.id))
+    session.flush()
+    for package in packages:
+        under = session.scalar(
+            select(OrderItem.id).where(OrderItem.work_package_id == package.id).limit(1)
+        )
+        _drop(session, package, act, kept=under is not None or item_cited(session, package.id))
+    session.flush()
+
+
+def _drop(session: Session, row: WorkPackage | OrderItem, act: Act, *, kept: bool) -> None:
+    """Mark an element deleted when something still cites it, delete it for good otherwise."""
+    if kept:
+        row.deleted_at = act.at
+        _stamp(row, act.at, act.author)
+    else:
+        session.delete(row)
 
 
 def set_work_breakdown(
@@ -522,14 +581,50 @@ def work_breakdown_present(session: Session, ids: Iterable[UUID]) -> frozenset[U
     )
 
 
+def work_breakdown_items(
+    session: Session, project_id: UUID, *, shared: Collection[UUID] = ()
+) -> dict[UUID, WorkBreakdownItem]:
+    """Read the work packages and the order items of a project, those marked deleted included.
+
+    ``shared`` names elements to lock ``FOR SHARE`` before the reading: a write that attaches a
+    task to one reads it under that lock, so that ``set_work_breakdown`` neither deletes nor marks
+    it meanwhile (WF-PLA-0170). By identifier; an element of another project is not given.
+    """
+    if shared:
+        for table in (WorkPackage, OrderItem):
+            session.execute(
+                select(table.id)
+                .where(table.project_id == project_id, table.id.in_(list(shared)))
+                .with_for_update(read=True)
+            )
+    found = {
+        row.id: WorkBreakdownItem(row.id, WORK_PACKAGE, row.label, None, row.deleted_at is not None)
+        for row in session.scalars(
+            select(WorkPackage)
+            .where(WorkPackage.project_id == project_id)
+            .execution_options(populate_existing=True)
+        )
+    }
+    for row in session.scalars(
+        select(OrderItem)
+        .where(OrderItem.project_id == project_id)
+        .execution_options(populate_existing=True)
+    ):
+        deleted = row.deleted_at is not None
+        found[row.id] = WorkBreakdownItem(
+            row.id, ORDER_ITEM, row.label, row.work_package_id, deleted
+        )
+    return found
+
+
 def follow_project_label(session: Session, project: Project, label: str, act: Act) -> None:
     """Make the work package and the order item of the birth bear a new label of the project.
 
     They follow the label of the project (D-11) while no writing has set the work breakdown, that
-    is while its counter is 0; written once, they are the writing's and stay as it set them. To be
-    called under the lock of the project, which ``update_project`` holds.
+    is while its counter is the one of its birth; written once, they are the writing's and stay as
+    it set them. To be called under the lock of the project, which ``update_project`` holds.
     """
-    if project.work_breakdown_lock_version != 0:
+    if project.work_breakdown_lock_version != BORN_LOCK_VERSION:
         return
     packages, items, _ = _held(session, project.id)
     for row in (*packages.values(), *items.values()):
@@ -547,7 +642,7 @@ def load_work_breakdown(session: Session, load: WorkBreakdownLoad, act: Act) -> 
     overwrites what a platform holds. The identifiers the witness imposes are kept.
     """
     project = _locked(session, load.project_id)
-    if project.work_breakdown_lock_version != 0:
+    if project.work_breakdown_lock_version != BORN_LOCK_VERSION:
         raise ConflictError(ALREADY_EXISTS, {"conflicting_object_id": str(project.id)})
     _replace(session, project, load.work_packages, act)
     project.work_breakdown_lock_version = load.lock_version

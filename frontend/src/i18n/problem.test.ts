@@ -67,20 +67,24 @@ describe("the sentence of a refusal", () => {
   it.each([
     [
       "session_revoked",
+      "SESSION_REVOKED",
       "fr",
       "Votre session a été fermée — déconnexion, désactivation du compte ou retrait de ses rôles\u202F; reconnectez-vous en saisissant à nouveau vos identifiants.",
     ],
     [
       "session_revoked",
+      "SESSION_REVOKED",
       "en",
       "Your session has been closed — by a sign-out, the deactivation of the account or the withdrawal of its roles; sign in again with your credentials.",
     ],
-    ["session_expired", "fr", "Votre session a expiré\u202F; reconnectez-vous."],
-    ["session_expired", "en", "Your session has expired; please sign in again."],
+    ["session_expired", "SESSION_EXPIRED", "fr", "Votre session a expiré\u202F; reconnectez-vous."],
+    ["session_expired", "SESSION_EXPIRED", "en", "Your session has expired; please sign in again."],
   ] as const)(
     "says a session closed — whose sign-in asks for the identifiers again — apart from one expired (#855): %s, %s",
-    (name, locale, sentence) => {
-      expect(say(example(name) as ProblemText, locale)).toBe(sentence);
+    (name, code, locale, sentence) => {
+      // The example is read by what the sentence takes of it: its code, nothing else.
+      expect(example(name)).toMatchObject({ code });
+      expect(say({ code }, locale)).toBe(sentence);
     },
   );
 
@@ -119,24 +123,49 @@ describe("the sentence of a refusal", () => {
   });
 
   it("says a project terminal and a revision marked as facts, not as conditions unmet, from the refusals of the contract (US-0702/L1)", () => {
-    expect(say(example("timeline_create_terminal") as ProblemText, "fr")).toBe(
+    // The examples are read by what the sentences take of them: if one changes, the assertion fails.
+    expect(example("timeline_create_terminal")).toMatchObject({
+      code: "STATE_FORBIDS_OPERATION",
+      params: { missing_condition: "project_not_terminal" },
+    });
+    expect(example("node_create_marked_refused")).toMatchObject({
+      code: "STATE_FORBIDS_OPERATION",
+      params: { missing_condition: "revision_draft" },
+    });
+    const terminal: ProblemText = {
+      code: "STATE_FORBIDS_OPERATION",
+      params: { missing_condition: "project_not_terminal" },
+    };
+    const marked: ProblemText = {
+      code: "STATE_FORBIDS_OPERATION",
+      params: { missing_condition: "revision_draft" },
+    };
+    expect(say(terminal, "fr")).toBe(
       "L\u2019état actuel ne permet pas cette opération. Le projet est clos\u00A0: il ne se modifie plus.",
     );
-    expect(say(example("node_create_marked_refused") as ProblemText, "fr")).toBe(
+    expect(say(marked, "fr")).toBe(
       "L\u2019état actuel ne permet pas cette opération. La révision est marquée\u00A0: elle ne se modifie plus.",
     );
-    expect(say(example("node_create_marked_refused") as ProblemText, "en")).toBe(
+    expect(say(marked, "en")).toBe(
       "The current state does not allow this operation. The revision is marked: it no longer changes.",
     );
   });
 
   it("names the object a later change took back, which an undo or a redo would undo, by the label the refusal gives [WF-IHM-0110-A]", () => {
+    const later: ProblemText = {
+      code: "UNDO_CONFLICT",
+      params: {
+        conflicting_object_id: "01926f3a-7c00-7000-8000-000000000553",
+        conflicting_object_label: "Raccordement des borniers",
+      },
+    };
     for (const refused of ["undo_later_change", "redo_later_change"]) {
-      expect(say(example(refused) as ProblemText, "fr")).toBe(
+      expect(example(refused)).toMatchObject(later);
+      expect(say(later, "fr")).toBe(
         `${CATALOGUES.fr.errors.UNDO_CONFLICT} Objet repris depuis\u00A0: «\u00A0Raccordement des borniers\u00A0».`,
       );
     }
-    expect(say(example("undo_later_change") as ProblemText, "en")).toBe(
+    expect(say(later, "en")).toBe(
       `${CATALOGUES.en.errors.UNDO_CONFLICT} Object changed since: “Raccordement des borniers”.`,
     );
   });
@@ -747,6 +776,25 @@ describe("the sentence of a refusal", () => {
     expect(say({ code: "LINK_CYCLE", params: { cycle: [{ node_id: "n" }] } }, "en")).toBe(
       "This link would create a loop.",
     );
+  });
+
+  it("says a token without session identifier refuses an undo or a redo, in the reader's language [WF-IHM-0110-A]", () => {
+    expect(say({ code: "SESSION_ID_MISSING" }, "fr")).toBe(
+      "Votre jeton de session ne porte pas d’identifiant de session : reconnectez-vous pour pouvoir annuler ou rétablir une modification.",
+    );
+    expect(say({ code: "SESSION_ID_MISSING" }, "en")).toBe(
+      "Your session token carries no session identifier: sign in again to be able to undo or redo a change.",
+    );
+  });
+
+  it("says a move that would put a node under itself, in the reader's language [WF-PLA-0040-A]", () => {
+    // `nodes_move_node_cycle`: the refusal of a parent taken among the moved nodes or their
+    // subordinates, without a parameter. The example is read by what it must say, not by a shape
+    // assumed for it: if the generated example changes, the assertion fails here.
+    expect(example("nodes_move_node_cycle")).toMatchObject({ fields: [{ code: "NODE_CYCLE" }] });
+    const reduced: ProblemText = { code: "NODE_CYCLE" };
+    expect(say(reduced, "fr")).toBe("Ce déplacement mettrait un nœud sous lui-même.");
+    expect(say(reduced, "en")).toBe("This move would put a node under itself.");
   });
 
   it.each([

@@ -15,7 +15,12 @@ from waterfall.core.projects.interface import project_code, project_label
 from waterfall.core.revisions.tables import Revision
 from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import AuditObject, AuditProject, Inscription, record
-from waterfall.platform.errors import ConflictError, NotFoundError
+from waterfall.platform.errors import (
+    NOT_FOUND,
+    STATE_FORBIDS_OPERATION,
+    ConflictError,
+    NotFoundError,
+)
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -23,10 +28,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.platform.audit import Act, AuditAction
-
-NOT_FOUND = "NOT_FOUND"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 
 
 def refuse(condition: str) -> ConflictError:

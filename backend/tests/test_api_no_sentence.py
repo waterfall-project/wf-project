@@ -82,6 +82,21 @@ DATA = {
     # The name of a file deposited, as the person chose it (#350).
     "ChunkedUpload.filename": "a name of a file",
     "FileUpload.filename": "a name of a file",
+    # What the report of an import names as its file or its structure holds it (US-1420/L1): the
+    # file, the labels of its objects, the sheet of a line, the version of its format, the number
+    # of an item of a document, the columns a difference changes, as their grid names them.
+    "Import.filename": "a name of a file",
+    "ImportCompletedTask.label": "a label",
+    "ImportDateMismatch.label": "a label",
+    "ImportDifference.label": "a label",
+    "ImportDifference.predecessor_label": "a label",
+    "ImportDifference.work_breakdown_label": "a label",
+    "ImportDifference.document_item": "a number of an item",
+    "ImportDifference.fields": "names of columns",
+    "ImportIgnored.labels": "labels of the file",
+    "ImportRejection.sheet": "a name of a sheet",
+    "ImportReport.format_version": "a version of a format",
+    "ImportSignal.label": "a label",
     # What the parameters of a refusal name, by the label and the code a person gave it: a role, a
     # project, a task, a line and its structure, a subproject, a risk, and the labels of a column of
     # the extraction of actual costs, as the mapping declares them (``ProblemParams``, #768; the
@@ -135,6 +150,33 @@ DATA = {
     "Project.client": "a name",
     # The label of a subproject, as its project manager gave it (its code is a value pattern-bound).
     "Subproject.label": "a label",
+    # The label of a timeline, as the person who named it gave it (US-1400/L1).
+    "Timeline.label": "a label",
+    # The label and the description of a task, as the person who wrote it gave them, the identifier
+    # MS Project gave it, the label of what it is attached to; a line of estimate's labels, by
+    # those a person gave its objects (EP-07, which the node reads); and a row named by its label,
+    # what a computed value depends on or what a number designates (US-1380/L2).
+    "TaskFacet.label": "a label",
+    "TaskFacet.description": "a text",
+    "TaskFacet.external_id": "a code",
+    "TaskFacet.work_breakdown_label": "a label",
+    "EstimateLineFacet.label": "a label",
+    "EstimateLineFacet.bearing_task_label": "a label",
+    "EstimateLineFacet.cost_category_label": "a label",
+    "EstimateLineFacet.resource_role_label": "a label",
+    "EstimateLineFacet.subproject_label": "a label",
+    # The same, of the facets of a node that a reading of ``listNodes`` projects (#2485).
+    "ComparedTaskFacet.label": "a label",
+    "ComparedTaskFacet.description": "a text",
+    "ComparedTaskFacet.external_id": "a code",
+    "ComparedTaskFacet.work_breakdown_label": "a label",
+    "ComparedEstimateLineFacet.label": "a label",
+    "ComparedEstimateLineFacet.bearing_task_label": "a label",
+    "ComparedEstimateLineFacet.cost_category_label": "a label",
+    "ComparedEstimateLineFacet.resource_role_label": "a label",
+    "ComparedEstimateLineFacet.subproject_label": "a label",
+    "DependencyRow.label": "a label",
+    "RowNumberResolution.label": "a label",
     # The name of version and the description a revision was marked with, and its source's; the
     # label of a structure, as given — the main one's, as the examples of the contract name it.
     "Revision.version_name": "a name",

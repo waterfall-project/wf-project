@@ -24,13 +24,8 @@ from waterfall.api.contract.models import BackgroundTaskRef, Backup, PaginationM
 from waterfall.api.evaluation import Acting, Requires
 from waterfall.api.tasks import task_ref
 from waterfall.core.access_roles.interface import Actor
-from waterfall.core.backups.interface import (
-    NOT_FOUND,
-    BackupView,
-    list_backups,
-    read_backup,
-)
-from waterfall.platform.errors import NotFoundError
+from waterfall.core.backups.interface import BackupView, list_backups, read_backup
+from waterfall.platform.errors import NOT_FOUND, NotFoundError
 from waterfall.platform.storage import MissingObjectError
 from waterfall.platform.tasks import BackgroundTask, pending_task, submit
 

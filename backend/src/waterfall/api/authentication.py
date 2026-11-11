@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Who calls: the access token validated, the account read, its state checked, every request.
 
-The API takes nothing from the token but its subject and the moment of its sign-in (WF-ARC-0030):
+The API takes nothing from the token but its subject, the moment of its sign-in and its session of
+sign-in, ``sid``, by which the history keeps its stacks (WF-ARC-0030; EP-06):
 the account is read in the base by ``idp_subject``, and its state with it, so that a deactivated
 account is refused at its next request even if the closing of its sessions was lost
 (WF-SEC-0020); a token of a sign-in before the account last closed its sessions — signed out
@@ -25,7 +26,7 @@ slow would exhaust the pool, and requests that do not need Keycloak would fail (
 """
 
 from collections.abc import Generator
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from datetime import datetime
 from typing import Annotated, cast
 
@@ -54,6 +55,24 @@ SESSION_REVOKED = "SESSION_REVOKED"
 SCHEME = "bearer"
 
 logger = get_logger(__name__)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class CallingAccount(Account):
+    """The account of the caller, and the session of sign-in its token comes from.
+
+    ``session_id`` is the ``sid`` of the token, which its refreshes keep: the stacks of the history
+    are kept by revision, by account and by it (EP-06, "L'historique annulable"); ``None`` for a
+    token without it.
+    """
+
+    session_id: str | None
+
+
+def calling(account: Account, bearer: Bearer) -> CallingAccount:
+    """Give the account of the caller with the session of its token."""
+    held = {field.name: getattr(account, field.name) for field in fields(Account)}
+    return CallingAccount(**held, session_id=bearer.session_id)
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,8 +118,10 @@ def bearer_token(request: Request) -> str:
     return token.strip()
 
 
-def identify(request: Request, services: ServicesOf) -> Account:
+def identify(request: Request, services: ServicesOf) -> CallingAccount:
     """Give the account of the caller, created if the provider admits it, or refuse it (401).
+
+    With the session of sign-in of its token (``CallingAccount``).
 
     A token of a sign-in that precedes the last closing of the sessions of the account — its
     holder's sign-out (#668), its deactivation (#835), the withdrawal of all its roles — is refused
@@ -119,7 +140,7 @@ def identify(request: Request, services: ServicesOf) -> Account:
         raise UnauthenticatedError(ACCOUNT_DEACTIVATED)
     if signed_in_before_sessions_closed(bearer, account.sessions_closed_at):
         raise UnauthenticatedError(SESSION_REVOKED)
-    return account
+    return calling(account, bearer)
 
 
 def signed_in_before_sessions_closed(bearer: Bearer, sessions_closed_at: datetime | None) -> bool:
@@ -154,7 +175,7 @@ def admit(session: Session, subject: str, provider: ProviderAccount | None) -> A
     return admitted
 
 
-async def caller(account: Annotated[Account, Depends(identify)]) -> Account:
+async def caller(account: Annotated[CallingAccount, Depends(identify)]) -> CallingAccount:
     """Name the caller as the author of every record the request writes from now on.
 
     It runs in the task of the request, unlike ``identify`` which runs in a thread of its own:
@@ -164,4 +185,4 @@ async def caller(account: Annotated[Account, Depends(identify)]) -> Account:
     return account
 
 
-Caller = Annotated[Account, Depends(caller)]
+Caller = Annotated[CallingAccount, Depends(caller)]

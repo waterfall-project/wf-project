@@ -17,15 +17,23 @@ import asked_actual_cost_mapping
 import asked_calendars
 import asked_contributors
 import asked_cost_types
+import asked_exports
+import asked_history
 import asked_hourly_rates
+import asked_imports
 import asked_lifecycle
+import asked_nodes
 import asked_org_nodes
+import asked_progress
 import asked_projects
 import asked_reference
 import asked_reference_settings
 import asked_resource_roles
 import asked_revisions
+import asked_scheduling
+import asked_skeleton
 import asked_subprojects
+import asked_timelines
 import asked_work_breakdown
 import pytest
 from access_rows import ADMINISTRATION, role
@@ -424,6 +432,18 @@ PROJECTS = (
     asked_revisions,
     asked_lifecycle,
 )
+# The operations of the planning, of its imports and of its exports, declared router by router
+# (EP-06).
+PLANNING = (
+    asked_nodes,
+    asked_scheduling,
+    asked_timelines,
+    asked_progress,
+    asked_imports,
+    asked_exports,
+    asked_history,
+    asked_skeleton,
+)
 # The permissions each served operation asks for, in the order they are evaluated.
 ASKED: dict[str, tuple[str, ...]] = {
     "getLiveness": (),
@@ -465,15 +485,18 @@ ASKED: dict[str, tuple[str, ...]] = {
     "completeChunkedUpload": ("platform_restore",),
     **{name: asked for router in REFERENCE for name, asked in router.ASKED.items()},
     **{name: asked for router in PROJECTS for name, asked in router.ASKED.items()},
+    **{name: asked for router in PLANNING for name, asked in router.ASKED.items()},
 }
 # Two files that declare the same operation would overwrite each other in the table above.
-DECLARED = [name for router in (*REFERENCE, *PROJECTS) for name in router.ASKED]
+DECLARED = [name for router in (*REFERENCE, *PROJECTS, *PLANNING) for name in router.ASKED]
 assert len(DECLARED) == len(set(DECLARED)), sorted(
     name for name in set(DECLARED) if DECLARED.count(name) > 1
 )
 # The quality on its project each operation of a project asks for, by ``RequiresProject``.
 ON_PROJECT: dict[str, str] = {
-    name: quality for router in PROJECTS for name, quality in router.ON_PROJECT.items()
+    name: quality
+    for router in (*PROJECTS, *PLANNING)
+    for name, quality in router.ON_PROJECT.items()
 }
 # The permission each list of the reference asks for besides when it asks for deactivated objects.
 INACTIVE: dict[str, str] = {
@@ -486,7 +509,10 @@ BY_FIELD = asked_reference_settings.BY_FIELD
 # The operations that ask for no permission and still refuse by a 404 the object their path names:
 # the task another account asked for does not exist for the caller, nor the avatar of an account
 # without one.
-PATH_OBJECTS = {"getBackgroundTask", "getUserAvatar"}
+PATH_OBJECTS = {"getBackgroundTask", "getBackgroundTaskResult", "getUserAvatar"}
+# The operations whose route asks for no permission because the command of a revision judges it:
+# the export refuses by a 403 naming the permission of its kind (WF-CYC-0110).
+BY_COMMAND = {"requestExport"}
 
 
 def asked(route: APIRoute) -> tuple[str, ...]:
@@ -587,8 +613,8 @@ def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_
             # the deactivated ones (``INACTIVE``), tried below; that of a writing judged field by
             # field, its guard of each field (``BY_FIELD``).
             refusals = {"403", "404"}
-            allowed_404: set[str] = {"404"} if name in PATH_OBJECTS else set()
-            guarded = name in INACTIVE or name in BY_FIELD
+            allowed_404: set[str] = {"404"} if name in PATH_OBJECTS | set(ON_PROJECT) else set()
+            guarded = name in INACTIVE or name in BY_FIELD or name in BY_COMMAND
             allowed_403: set[str] = {"403"} if guarded else set()
             refused = refusals - allowed_404 - allowed_403
             assert not refused & responses, name

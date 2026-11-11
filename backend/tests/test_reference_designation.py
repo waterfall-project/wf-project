@@ -4,8 +4,9 @@
 
 ``designateReferenceRevision`` on a project its manager created (``projects_support``), every
 answer checked against the contract. A revision is marked by the transaction of the worker
-(``mark_revision``); that it bears tasks and lines, which EP-06 and EP-07 answer, is put by a
-fixture (``register_tasks_and_lines``).
+(``mark_revision``); that it bears tasks and lines, which EP-06 and EP-07 answer, is put by a task
+written around the service before its marking, which the planning answers (``revision_has_tasks``),
+and by a fixture for the lines (``register_tasks_and_lines``), which EP-07 answers.
 """
 
 from concurrent.futures import ThreadPoolExecutor
@@ -15,6 +16,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from planning_support import give_a_task
 from projects_support import MANAGING, PROJECTS, Scene, create, person, put_in_state
 from projects_support import scene as make_scene
 from sqlalchemy import select
@@ -81,8 +83,8 @@ def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRea
 
 @pytest.fixture
 def lines() -> Iterator[None]:
-    """Make every revision bear tasks and lines, as EP-06 and EP-07 will answer."""
-    withdraw = register_tasks_and_lines(lambda _session, _revision: True)
+    """Make every revision bear lines, as EP-07 will answer; its tasks are given at its marking."""
+    withdraw = register_tasks_and_lines("lines", lambda _session, _revision: True)
     yield
     withdraw()
 
@@ -106,20 +108,26 @@ def open_revision(api: ContractClient, stage: Scene) -> dict[str, Any]:
     return response.json()
 
 
-def mark(stage: Scene, revision: dict[str, Any], name: str, at: datetime = EARLY) -> None:
-    """Mark a revision by the transaction of the worker, at ``at``."""
+def mark(
+    stage: Scene, revision: dict[str, Any], name: str, at: datetime = EARLY, *, tasks: bool = True
+) -> None:
+    """Mark a revision by the transaction of the worker, at ``at``, a task given to it first."""
     with (
         logging_context(correlation_id="marking"),
         Session(stage.owner) as session,
         session.begin(),
     ):
+        if tasks:
+            give_a_task(session.connection(), UUID(revision["revision_id"]))
         mark_revision(session, UUID(revision["revision_id"]), name, None, Act(None, at))
 
 
-def marked(api: ContractClient, stage: Scene, name: str, at: datetime = EARLY) -> dict[str, Any]:
+def marked(
+    api: ContractClient, stage: Scene, name: str, at: datetime = EARLY, *, tasks: bool = True
+) -> dict[str, Any]:
     """Open the current revision, mark it under ``name`` at ``at``, and give it as it is read."""
     opened = open_revision(api, stage)
-    mark(stage, opened, name, at)
+    mark(stage, opened, name, at, tasks=tasks)
     return read(api, stage, opened["revision_id"])
 
 
@@ -198,12 +206,15 @@ def entered(api: ContractClient, stage: Scene, code: str) -> Any:
 
 
 @pytest.mark.requirement("WF-CYC-0030-A")
+@pytest.mark.parametrize("tasks", [False, True], ids=["nothing", "tasks_without_lines"])
 def test_a_designation_without_tasks_and_lines_is_refused_naming_the_condition(
-    api: ContractClient, stage: Scene
+    api: ContractClient, stage: Scene, tasks: bool
 ) -> None:
     # « La désignation d'une révision marquée sans tâche, ou sans ligne de devis, est refusée et la
-    # condition manquante est nommée ; le projet n'a pas de référence. » None registers its tasks.
-    revision = marked(api, stage, "v1.0")
+    # condition manquante est nommée ; le projet n'a pas de référence. » The revision bears no
+    # task, or tasks without a line: none registers the lines before EP-07, and the tasks alone
+    # never make the designation pass.
+    revision = marked(api, stage, "v1.0", tasks=tasks)
     before = project_row(stage)
     answer = designate(api, stage, revision["revision_id"])
     assert refusal(answer) == (
@@ -347,6 +358,8 @@ def test_a_revision_marked_by_the_worker_after_the_designation_closes_the_correc
     first = marked(api, stage, "v1.0")
     assert designate(api, stage, first["revision_id"]).status_code == 200
     opened = open_revision(api, stage)
+    with stage.owner.begin() as connection:
+        give_a_task(connection, UUID(opened["revision_id"]))
     asked = api.post(
         f"{project_path(stage)}/revisions/{opened['revision_id']}/mark",
         headers=stage.manager.headers,

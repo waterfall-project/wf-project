@@ -28,11 +28,22 @@
  */
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 
 import {
+  applyPaste,
   generatePlanningSkeleton,
+  previewPaste,
   resolveRowNumber,
   setPredecessors,
   updateTaskFacet,
@@ -62,6 +73,7 @@ import {
   type NodeSortColumn,
   type NodesWritten,
   nodesWritten,
+  pasteSpan,
   type StructurePath,
   withDifference,
 } from "./nodes";
@@ -78,7 +90,8 @@ import type { GridQuery } from "./query";
 import type { ChoiceOption, RowChoices } from "./row-choices";
 import type { GridPreferences } from "./settings";
 import { useStructureGestures } from "./structure-gestures";
-import { useStructureVersion } from "./structure-version";
+import { type StructureAccount, useStructureVersion } from "./structure-version";
+import { useUndoRedo } from "./undo-run";
 import type { RowCommands } from "./undo-commands";
 
 /** What the grid of the planning shows. */
@@ -296,6 +309,11 @@ function useRowNames(
   return useMemo(() => ({ resolve, ask }), [resolve, ask]);
 }
 
+/** The account of the writes, busy as long as the reading anew that follows a paste is under way. */
+function waiting(account: StructureAccount, reading: boolean): StructureAccount {
+  return { ...account, busy: account.busy || reading };
+}
+
 /** Render the grid of the planning, its totals counting the tasks the answer retained. */
 export function PlanningGrid({
   nodes,
@@ -317,17 +335,25 @@ export function PlanningGrid({
 }: PlanningGridProps) {
   const t = useTranslations("planningGrid");
   const kinds = useTranslations("enums.WorkBreakdownKind");
+  const columns = useTranslations("enums.NodeColumn");
   const modes = useTranslations("enums.SchedulingMode");
   const units = useTranslations("enums.DurationUnit");
   const lagUnits = useTranslations("enums.LagUnit");
   // The skeleton generated, for the structure it was generated on: a grid of another structure — a
   // revision left while it was generated — never shows it.
+  const router = useRouter();
   const [generated, setGenerated] = useState<Generated>();
   const ours = generated?.structure === structure.structure_id ? generated : undefined;
   // One account of the writes of the structure: the version they moved it on to, whichever write
   // moved it, and those under way, which the gestures wait for.
-  const account = useStructureVersion(structure.structure_id, structureVersion);
-  const { version, reach } = account;
+  const counted = useStructureVersion(structure.structure_id, structureVersion);
+  // The reading anew that follows a paste which created tasks: the grid is busy until it arrives, so
+  // that no gesture, no undo starts from the neighbours of before it.
+  const [reading, refresh] = useTransition();
+  const account = waiting(counted, reading);
+  const { version, reach, shows } = account;
+  // Undo and redo ask the server's history, where the planning may be entered.
+  const undo = useUndoRedo(structure, account, undoable);
   const filled = ours !== undefined && ours.version > structureVersion ? ours.rows : undefined;
   const shown = filled ?? nodes;
   const names = useRowNames(shown.items, structure, version);
@@ -366,6 +392,44 @@ export function PlanningGrid({
       return { kind: "done" as const, data: nodesWritten(outcome.data, PLANNING_FIELDS, whole) };
     };
     const writes: PlanningWrites = {
+      // The cell of the block, from the node of the active cell and its column (#200): the server
+      // judges it, the grid judges nothing; the plan confirmed carries the version of the structure.
+      paste: {
+        span: pasteSpan,
+        name: (column) => columns(column),
+        preview: (node, column, block) =>
+          previewPaste(structure, {
+            target_node_id: node.node_id,
+            target_column: column,
+            rows: block.map((cells) => [...cells]),
+          }),
+        apply: async (plan) => {
+          const outcome = await applyPaste(structure, {
+            paste_id: plan.paste_id,
+            confirmed: true,
+            lock_version: version,
+          });
+          if (outcome.kind !== "done") {
+            return outcome;
+          }
+          reach(outcome.data.structure_lock_version);
+          // The tasks the paste created are in the answer, but the rows they take their place
+          // among are the server's: the grid reads its page anew, as after any creation (#2559).
+          // Only while the grid still shows the structure pasted in: the reading would be another's.
+          if (plan.created > 0 && shows(structure.structure_id)) {
+            refresh(() => {
+              router.refresh();
+            });
+          }
+          return {
+            kind: "done",
+            data: {
+              written: nodesWritten(outcome.data, PLANNING_FIELDS, whole),
+              rejected: outcome.data.rejected,
+            },
+          };
+        },
+      },
       // The field entered and the version of the node read, nothing else (#178).
       task: async (node, change) =>
         answered(
@@ -403,9 +467,14 @@ export function PlanningGrid({
     units,
     lagUnits,
     t,
+    columns,
     structure,
+    version,
     whole,
     reach,
+    shows,
+    refresh,
+    router,
     timelines,
     names,
   ]);
@@ -515,6 +584,7 @@ export function PlanningGrid({
             foldScope={structure.revision_id}
             narrowing={nodeNarrowing(filters)}
             undoable={undoable}
+            undo={undo}
             commands={zoomed}
             around={(rows, table) => (
               <GanttRows

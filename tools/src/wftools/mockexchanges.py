@@ -142,7 +142,7 @@ def paste_plan(block: Sequence[str | None]) -> JsonObject:
         refusal = held_refusal(nodes, line, subproject, pasted=True)
         if refusal is not None:
             rejected.append({"row": row, "column": "subproject", **refusal})
-    return {"paste_id": HELD_PASTE, "accepted": len(block) - len(rejected), "rejected": rejected}
+    return mocktext.paste_plan_of(HELD_PASTE, len(block) - len(rejected), rejected)
 
 
 def paste_plan_subproject_held() -> JsonObject:
@@ -237,6 +237,7 @@ def import_report(nodes: dict[int, Node]) -> JsonObject:
         "date_mismatches": [],
         "signals": [],
         "requires_confirmation_reasons": [],
+        "unit_constants": None,
     }
 
 
@@ -380,6 +381,7 @@ def completing_report(nodes: dict[int, Node]) -> JsonObject:
         "date_mismatches": [],
         "signals": [],
         "requires_confirmation_reasons": [],
+        "unit_constants": None,
     }
 
 
@@ -560,6 +562,7 @@ def april_report() -> JsonObject:
         "date_mismatches": [],
         "signals": [],
         "requires_confirmation_reasons": reasons,
+        "unit_constants": None,
     }
 
 

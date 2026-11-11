@@ -1,0 +1,10 @@
+{
+  "summary": "L'application d'un import analysé du projet témoin demandée pendant le marquage de sa révision en cours : refusée, la condition manquante nommée ; le refus est passager, l'import reste analysé et son fichier en place, et l'application se redemande après le marquage, sans nouveau dépôt (WF-ARC-0100, #2475).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"no_background_task_running"},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001698"
+  }
+}

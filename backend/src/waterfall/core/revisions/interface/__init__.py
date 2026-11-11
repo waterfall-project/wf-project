@@ -9,18 +9,30 @@ few the design leaves silent. A name a story adds besides joins the import of it
 comment that names it, in the order Ruff keeps. Another module imports them from here, never from
 the file.
 
-The later epics extend the revisions through three ordered registries, without this module
+The later epics extend the revisions through four ordered registries, without this module
 importing theirs: ``register_copy`` the copy of a revision opened from a marked one (EP-06 the
 tasks and their links, EP-07 the lines and the images, EP-08 the structures it adds),
-``register_tasks_and_lines`` the question the designation asks (EP-06, EP-07), and
-``register_indicators`` the indicators kept at the marking (EP-10). Each registers its own by a
-call in the ``__init__`` of its module's interface (``waterfall.core.<module>.interface``), at its
-import: that interface imports this one first, so its copy comes after the structures', which this
-module registers itself, and after the copies of the modules it imports, whose rows its rows name.
-A registry holds nothing for a module its process never imported: the entry points that open or
-mark a revision — the API, the worker, the loader of the witness — import the interface of each
-such module, by what they serve or explicitly. ``RevisionCopy`` is what a copy receives.
+``register_tasks_and_lines`` the questions the designation asks, the tasks (EP-06) and the lines
+(EP-07), ``register_indicators`` the indicators kept at the marking (EP-10), and
+``register_closing`` what a module does before a revision is marked or abandoned, under its stage
+(EP-06). Each registers its own by a call in the ``__init__`` of its module's interface
+(``waterfall.core.<module>.interface``), at its import: that interface imports this one first, so
+its copy comes after the structures', which this module registers itself, and after the copies of
+the modules it imports, whose rows its rows name. A registry holds nothing for a module its process
+never imported: the entry points that open or mark a revision — the API, the worker, the loader of
+the witness — import the interface of each such module, by what they serve or explicitly.
+``RevisionCopy`` is what a copy receives.
 """
+
+# ``closing`` (US-1380/L1): what the later modules do before a revision is marked or abandoned.
+from waterfall.core.revisions.interface.closing import (
+    CLOSING_STAGES,
+    ClosingKind,
+    ClosingStage,
+    RevisionClosing,
+    closers,
+    register_closing,
+)
 
 # ``marking`` (US-0970; the indicators, EP-10): the marking of a revision.
 from waterfall.core.revisions.interface.marking import (
@@ -37,9 +49,11 @@ from waterfall.core.revisions.interface.marking import (
 # ``reference`` (US-0980/L2): the reference revision of a project.
 from waterfall.core.revisions.interface.reference import (
     ReferenceToDesignate,
+    RevisionPart,
     designate_reference,
     reference_correctable,
     register_tasks_and_lines,
+    revision_has_tasks,
     revision_has_tasks_and_lines,
 )
 
@@ -57,54 +71,86 @@ from waterfall.core.revisions.interface.revisions import (
     create_project_partitions,
     create_revision,
     current_revision,
+    last_marked_revision,
+    last_marked_revisions,
     list_revisions,
     load_revision,
+    open_revision_by_task,
     read_revision,
     register_copy,
     revision_draft,
     revisions_present,
 )
 
-# ``structures`` (US-0960): the cost structures of a revision.
+# ``structures`` (US-0960; the facts the planning reads, US-1380/L2; written, US-1390/L2).
 from waterfall.core.revisions.interface.structures import (
+    CurrentStructure,
+    StructureFacts,
     StructureView,
+    aimed_structure,
+    current_structures,
     list_cost_structures,
     structure_commands,
+    structure_facts,
+    structure_in_revision,
+    structure_phase_conditions,
+    structure_rescheduled,
+    write_structure,
 )
 
 __all__ = [
+    "CLOSING_STAGES",
     "KEPT",
+    "ClosingKind",
+    "ClosingStage",
+    "CurrentStructure",
     "MarkingRequest",
     "ReferenceToDesignate",
+    "RevisionClosing",
     "RevisionCopy",
     "RevisionFilters",
     "RevisionList",
     "RevisionPage",
+    "RevisionPart",
     "RevisionStatus",
     "RevisionToAbandon",
     "RevisionView",
+    "StructureFacts",
     "StructureView",
     "abandon_revision",
+    "aimed_structure",
+    "closers",
     "compute_indicators",
     "copy_revision",
     "create_project_partitions",
     "create_revision",
     "current_revision",
+    "current_structures",
     "designate_reference",
+    "last_marked_revision",
+    "last_marked_revisions",
     "list_cost_structures",
     "list_revisions",
     "load_marking",
     "load_revision",
     "mark_revision",
+    "open_revision_by_task",
     "read_revision",
     "reference_correctable",
+    "register_closing",
     "register_copy",
     "register_indicators",
     "register_tasks_and_lines",
     "revision_draft",
+    "revision_has_tasks",
     "revision_has_tasks_and_lines",
     "revisions_present",
     "run_marking",
     "structure_commands",
+    "structure_facts",
+    "structure_in_revision",
+    "structure_phase_conditions",
+    "structure_rescheduled",
     "submit_marking",
+    "write_structure",
 ]

@@ -286,6 +286,7 @@ _STRUCTURE = (
     "nœuds de l'avenant 2, celui du nœud 5nn de la principale en 12nn",
     "nœuds engendrés de l'avenant 2",
 )
+_LINEAGES = ("lignées, celle du nœud 5nn en 6nn", "lignées engendrées", "jalons du portefeuille")
 _KEYS = {
     "node_id": _STRUCTURE,
     "node_ids": _STRUCTURE,
@@ -295,11 +296,9 @@ _KEYS = {
     "successor_node_id": _STRUCTURE,
     "provision_node_id": _STRUCTURE,
     "parent_id": (*_STRUCTURE, "nœuds d'organisation"),
-    "lineage_id": (
-        "lignées, celle du nœud 5nn en 6nn",
-        "lignées engendrées",
-        "jalons du portefeuille",
-    ),
+    "lineage_id": _LINEAGES,
+    "parent_lineage_id": _LINEAGES,
+    "predecessor_lineage_id": _LINEAGES,
     "project_id": ("projets", "projets du portefeuille"),
     "revision_id": ("révisions",),
     "source_revision_id": ("révisions",),

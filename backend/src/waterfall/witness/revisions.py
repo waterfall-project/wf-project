@@ -13,12 +13,20 @@ of the opening (#1402) and marked by the very transaction of the worker (``load_
 revision bears the name of version and the description of ``revisions.json``, the object the
 contract answers, which the chronology only orders: its ``version_name`` must be the one of the
 event, « Offre v1.0 ». The designation is tried by the project manager of the witness and is
-refused for the lack of tasks, which the loader notes (``witness.designation_refused``) — a
-designation that succeeds, or any other refusal, is a defect that stops the command. The code is
-entered by the same project manager, through the change of a project. The state a transition
-write names is checked against the transitions the writes before it left.
+refused for the lack of tasks and lines (``revision_has_tasks_and_lines``; of lines alone once the
+tasks are loaded, until EP-07 registers them), which the loader notes
+(``witness.designation_refused``) — a designation that succeeds, or any other refusal, is a defect
+that stops the command. The code is entered by the same project manager, through the change of a
+project. The state a transition write names is checked against the transitions the writes before it
+left.
+
+The content of a revision is written between its opening and the next event, by the fillers
+registered (``register_revision_filler``, EP-06): the tasks (``witness.tasks``), then EP-07's
+lines, each reconciling what the copy gave the revision with what the witness describes of it,
+before its marking comes.
 """
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
@@ -39,11 +47,14 @@ from waterfall.core.revisions.interface import (
     revisions_present,
 )
 from waterfall.platform.errors import (
+    STATE_FORBIDS_OPERATION,
+    VALIDATION_FAILED,
     ConflictError,
     FieldError,
     UnprocessableError,
 )
 from waterfall.platform.logs import get_logger
+from waterfall.platform.registry import Registry
 from waterfall.witness import timeline
 from waterfall.witness.description import is_loaded
 from waterfall.witness.timeline import (
@@ -55,6 +66,7 @@ from waterfall.witness.timeline import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -67,12 +79,31 @@ REVISIONS_FILE = "revisions.json"
 PROJECTS_FILE = "projects.json"
 CONTRIBUTORS_FILE = "contributors.json"
 MANAGER = "project_manager"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_REQUIRED = "VALUE_REQUIRED"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 NO_TASKS_AND_LINES = "revision_has_tasks_and_lines"
 
 logger = get_logger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class OpenedRevision:
+    """A revision of the witness just opened, as ``revisions.json`` describes it, at its instant."""
+
+    revision: Revision
+    act: Act
+
+
+# What writes the content of a revision of the witness once it is opened, in their order.
+_FILLERS: Registry[Callable[[Session, Witness, OpenedRevision], None]] = Registry(
+    "witness.revision_fillers"
+)
+
+
+def register_revision_filler(
+    filler: Callable[[Session, Witness, OpenedRevision], None],
+) -> Callable[[], None]:
+    """Add what writes the content of a revision once opened, after the others; give its removal."""
+    return _FILLERS.register(filler)
 
 
 class Revisions(BaseModel):
@@ -154,6 +185,8 @@ class _Walk:
                 load_revision(
                     self.session, revision.project_id.root, revision.revision_id.root, act
                 )
+                for fill in _FILLERS.entries():
+                    fill(self.session, self.witness, OpenedRevision(revision, act))
             case RevisionMarked():
                 self._mark(write, act)
             case DesignationAttempted():
@@ -178,7 +211,7 @@ class _Walk:
         load_marking(self.session, revision.revision_id.root, name, revision.description, act)
 
     def _designate(self, write: DesignationAttempted, act: Act) -> None:
-        """Try the designation of a revision: refused for the lack of tasks, which is noted."""
+        """Try the designation of a revision: refused for want of tasks and lines, then noted."""
         revision = self.revision(write)
         project_id = revision.project_id.root
         designated = ReferenceToDesignate(

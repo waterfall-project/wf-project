@@ -1,0 +1,12 @@
+{
+  "summary": "Le taux d'inflation du projet témoin saisi à 0.03125, cinq décimales : dans ses bornes, mais au-delà des quatre que le taux garde, un centième de pour cent ; refusé sur son champ, sans paramètre, plutôt qu'arrondi ; rien n'est écrit (WF-PRJ-0040, WF-DAT-0100, #2305).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/inflation_rate","code":"VALIDATION_FAILED"}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001705"
+  }
+}

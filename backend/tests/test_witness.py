@@ -16,6 +16,7 @@ from uuid import UUID, uuid4
 import pytest
 from cost_settings_examples import LABOUR, NON_LABOUR, PROVISION, UNSHARED
 from installed_reference import install
+from project_rows import drop_partitions, projects_with_partitions, unguarded
 from pydantic import SecretStr, ValidationError
 from sqlalchemy import delete, insert, select, text
 from support import WITNESS
@@ -113,11 +114,13 @@ def test_the_slices_are_loaded_in_the_order_of_their_dependencies(
 
 
 def test_the_slices_of_the_projects_are_loaded_in_their_order_after_the_reference(
-    session: Session, monkeypatch: pytest.MonkeyPatch
+    session: Session, owner: Engine, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # One entry for the slices of the projects, last of the loader (EP-04): each slice called, in
     # the order of their dependencies, and the entry tells whether one of them wrote.
     called: list[str] = []
+    # The tasks of the revisions are dated by the engine, which reads the units of the installation.
+    install(owner)
 
     def slice_of(name: str, *, writes: bool) -> loader.Slice:
         def load(_: Session, witness: Witness) -> bool:
@@ -127,7 +130,7 @@ def test_the_slices_of_the_projects_are_loaded_in_their_order_after_the_referenc
 
         return load
 
-    order = ["projects", "contributors", "subprojects", "work_breakdown", "revisions"]
+    order = ["projects", "contributors", "subprojects", "work_breakdown", "timelines", "revisions"]
     assert [name for name, _ in chronology.SLICES] == order
     witness = Witness(WITNESS, Act(None, utc_now()))
     # The slices of the projects are filled: on a platform that holds none they write, and the
@@ -235,10 +238,13 @@ def test_an_example_is_read_in_the_form_of_the_contract(tmp_path: Path) -> None:
 def test_the_command_loads_the_witness_its_settings_given(
     service_database_url: str,
     database: Database,
+    owner: Engine,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     del database
+    # The command runs on an installed platform: the tasks are dated with its units.
+    install(owner)
     monkeypatch.setenv("WATERFALL_DATABASE_URL", service_database_url)
     monkeypatch.setenv("WATERFALL_WITNESS_PATH", str(WITNESS))
     assert main(["load-witness"]) == 0
@@ -409,15 +415,8 @@ def wipe(owner: Engine) -> None:
     The partitions of the projects go with their rows: a project loaded again creates them again.
     """
     with owner.begin() as connection:
-        children = connection.execute(
-            text(
-                "SELECT c.relname FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid "
-                "WHERE i.inhparent = 'public.cost_structure'::regclass"
-            )
-        ).scalars()
-        for name in list(children):
-            connection.execute(text(f'DROP TABLE "{name}"'))
-        connection.execute(text("SET LOCAL session_replication_role = replica"))
+        unguarded(connection)
+        drop_partitions(connection)
         for table in reversed(Base.metadata.sorted_tables):
             if not table.info.get(WRITTEN_BY_MIGRATION):
                 connection.execute(delete(table))
@@ -603,3 +602,19 @@ def test_the_command_stops_saying_so_on_a_witness_the_rules_refuse_and_writes_no
     with database.transaction() as session:
         for model, column in OBJECTS:
             assert rows_of(session, model, column) == [], model
+
+
+def test_the_witness_is_refused_on_an_installation_that_holds_a_project_without_its_calendars(
+    database: Database, owner: Engine, service_database_url: str, logs: Logs
+) -> None:
+    # Its default calendar, designated, would judge the tasks of a project already there, and
+    # redate them: the loader refuses such an installation, naming the project, and writes nothing
+    # of the slices before the calendars (#2556).
+    install(owner)
+    with projects_with_partitions(owner) as [project_id]:
+        assert load(service_database_url) == 1
+        refusals = [(record["code"], record["params"]) for record in logs.named("witness.refused")]
+        assert refusals == [(ALREADY_EXISTS, {"conflicting_object_id": str(project_id)})]
+        with database.transaction() as session:
+            for model, column in OBJECTS:
+                assert rows_of(session, model, column) == [], model

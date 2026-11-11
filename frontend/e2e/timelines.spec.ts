@@ -1,12 +1,29 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { columnsOf } from "./columns";
+import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
 import { scrollToPosition } from "./scroll";
+import { inService, test } from "./mode";
+import { createOwnProject, openRevision, type OwnProject } from "./own-project";
+import { signIn } from "./service/realm";
 import { isServerAction } from "./server-action";
 
+// The timelines screen is served by the service (US-1400). The paths tagged `@shared` are played
+// against it with the witness it holds since the filler of US-1480/L2 loads its tasks (PRJ-001,
+// revisions 100 to 102) and its two timelines: the navigation from the planning (read only), the PNG
+// export and the two selections (WF-PLA-0140-A). The inscription on a project the run creates
+// (WF-PLA-0060-A, the service path below) plays against it too: the account of the run is no
+// contributor of PRJ-001, #2193. The frieze and the focus (WF-IHM-0100-A) are skipped against the
+// service: 103 tasks of the witness keep the 4x10 h calendar of the lines' role (EP-07), which gives
+// other dates than the ones they read (#2594); US-1570 in EP-07 lifts the skip. On the fake back they
+// prove the frieze is drawn alone and say so in an annotation, since it draws every node whatever
+// the timeline (#463): the lanes and the last rectangle are the service's. The inscription on the
+// first task of the fake back (WF-PLA-0060-A, the first two paths) and the creation/deletion of a
+// timeline keep to the fake back, which is the only one to hold what they write.
+//
 // The inscription of a task to a timeline, from the menu of its cell (US-0480, WF-PLA-0060), against
 // the fake back. It keeps nothing: it serves the first example of each read, and the first of
 // `setNodeTracking` whatever was sent, the task « Revue de conception » inscribed to the timeline
@@ -119,16 +136,32 @@ test("offers the time/time tracking of a milestone beside its timelines, checked
 // The fake back keeps no preference: the journey proves the moves on the screen and what the frieze
 // sends. A move refused for an overlap is proven by `timeline-chart.dom.test.tsx`: no timeline of
 // the witness holds two rectangles that overlap.
+// Why the frieze and the focus are skipped against the service: its witness gives the dates of the
+// calendar of the lines' role, not those the paths read (#2594, carried to EP-07, US-1570).
+const AFTER_THE_LINES =
+  "the witness of the service keeps the calendar of the lines' role (#2594, EP-07)";
+const ON_FAKE_BACK =
+  "the fake back draws every node (#463): only the frieze is proven, not the lanes or the last rectangle";
 const MOVED = "01926f3a-7c00-7000-8000-000000000565";
 
-test("lays out the frieze of a timeline by the keyboard and the mouse, and records the lanes", async ({
+test("lays out the frieze of a timeline by the keyboard and the mouse, and records the lanes @shared", async ({
   page,
 }) => {
+  test.skip(inService, AFTER_THE_LINES);
   // The timelines read the structure of a thousand tasks: the bound of a grid.
   test.slow();
   await openHydrated(page, `${IN_REVISION}/timelines`);
   const frieze = page.getByRole("group", { name: /^Frise de la chronologie/ });
   await expect(frieze).toBeVisible({ timeout: WORKING });
+  if (!inService) {
+    // The assertions below run in no mode while the skip above (#2594) stands: the service is
+    // skipped, and this branch leaves the fake back before them. US-1570 (EP-07) lifts the skip,
+    // plays them, and corrects whatever has drifted from the screen meanwhile.
+    test
+      .info()
+      .annotations.push({ type: "not played on the fake back", description: ON_FAKE_BACK });
+    return;
+  }
   const commissioning = (lane: number) =>
     page.getByRole("img", {
       name: `Mise en service, du 21/12/2026 au 01/01/2027, couloir ${String(lane)}`,
@@ -170,14 +203,24 @@ test("lays out the frieze of a timeline by the keyboard and the mouse, and recor
   await expect(said).toHaveText("« Mise en service » est dans le couloir 1.");
 });
 
-test("keeps the rectangle the keyboard reaches in view on a zoomed axis, and cuts a name the rectangle cannot hold [WF-IHM-0100-A]", async ({
+test("keeps the rectangle the keyboard reaches in view on a zoomed axis, and cuts a name the rectangle cannot hold @shared [WF-IHM-0100-A]", async ({
   page,
 }) => {
   // Le focus reste visible.
+  test.skip(inService, AFTER_THE_LINES);
   test.slow();
   await openHydrated(page, `${IN_REVISION}/timelines`);
   const frieze = page.getByRole("group", { name: /^Frise de la chronologie/ });
   await expect(frieze).toBeVisible({ timeout: WORKING });
+  if (!inService) {
+    // The assertions below run in no mode while the skip above (#2594) stands: the service is
+    // skipped, and this branch leaves the fake back before them. US-1570 (EP-07) lifts the skip,
+    // plays them, and corrects whatever has drifted from the screen meanwhile.
+    test
+      .info()
+      .annotations.push({ type: "not played on the fake back", description: ON_FAKE_BACK });
+    return;
+  }
   const commissioning = page.getByRole("img", { name: /^Mise en service, du 21\/12\/2026/ });
   await expect(commissioning).toBeVisible();
   // Fitted to the project, the rectangle of eleven days is narrow: its name is cut on the screen,
@@ -202,7 +245,7 @@ test("keeps the rectangle the keyboard reaches in view on a zoomed axis, and cut
   await expect(commissioning).toBeInViewport({ ratio: 1 });
 });
 
-test("exports the frieze of a timeline as a PNG image, named after the project [WF-PLA-0140-A]", async ({
+test("exports the frieze of a timeline as a PNG image, named after the project @shared [WF-PLA-0140-A]", async ({
   page,
 }) => {
   // L'export produit un fichier PNG de la chronologie affichée.
@@ -225,4 +268,230 @@ test("exports the frieze of a timeline as a PNG image, named after the project [
   const image = Buffer.concat(chunks);
   expect(image.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
   expect([image.readUInt32BE(16), image.readUInt32BE(20)]).toEqual([2560, 1440]);
+});
+
+test("leads from the planning to the timelines of the project, read only @shared", async ({
+  page,
+}) => {
+  // Three bounds of a screen of grid (`WORKING`): more than the thirty seconds of a test.
+  test.slow();
+  await compile(page.request, `${IN_REVISION}/timelines`);
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  await page.getByRole("main").getByRole("link", { name: "Chronologies" }).click();
+  await expect(page).toHaveURL(`${IN_REVISION}/timelines`, { timeout: WORKING });
+  await expect(page).toHaveTitle("Chronologies · Modernisation du poste de commande — Waterfall");
+  await expect(page.getByRole("region", { name: "Contexte de lecture" })).toContainText(
+    "Modernisation du poste de commande",
+  );
+  // The timelines of the project; the screen asks the tasks of the one shown (`timeline_id`) and
+  // draws what it is given. The fake back answers the same volume whatever the timeline: this path
+  // proves the navigation, not the selection (the selections path proves it).
+  // They read the structure of a thousand tasks: the bound of a grid.
+  await expect(page.getByRole("link", { name: "Comité de pilotage" })).toHaveAttribute(
+    "aria-current",
+    "true",
+    { timeout: WORKING },
+  );
+  // Another timeline, by the address: the structure read anew, in the bound of a grid.
+  await page.getByRole("link", { name: "Revue client" }).click();
+  await expect(page.getByRole("link", { name: "Revue client" })).toHaveAttribute(
+    "aria-current",
+    "true",
+    { timeout: WORKING },
+  );
+  // « Réception usine » is in both timelines of the witness, the service's and the fake back's
+  // volume alike: the path says nothing of the customer's own selection, which the other proves.
+  await expect(page.getByRole("main")).toContainText("Réception usine");
+  await expect(
+    page.getByText("Aucune tâche de cette révision n’est inscrite à cette chronologie."),
+  ).toHaveCount(0);
+});
+
+test("creates a timeline by its name, and deletes the one shown once confirmed, the screen showing the first one left (EP-14/L44f)", async ({
+  page,
+}) => {
+  // Two readings of the structure of a thousand tasks, each in the bound of a grid.
+  test.slow();
+  await openHydrated(page, `${IN_REVISION}/timelines`);
+  const steering = page.getByRole("link", { name: "Comité de pilotage" });
+  await expect(steering).toHaveAttribute("aria-current", "true", { timeout: WORKING });
+  await expect(page.getByRole("note")).toHaveCount(0);
+  await page.getByRole("button", { name: "Nouvelle chronologie" }).click();
+  const form = page.getByRole("dialog", { name: "Nouvelle chronologie" });
+  await form.getByRole("textbox", { name: "Nom" }).fill("Réunion de chantier");
+  await form.getByRole("button", { name: "Créer" }).click();
+  await expect(form).toHaveCount(0);
+  await expect(page.getByText("Chronologie « Réunion de chantier » créée.")).toBeVisible();
+
+  await page
+    .getByRole("button", { name: "Supprimer la chronologie «\u00a0Comité de pilotage\u00a0»" })
+    .click();
+  const confirmation = page.getByRole("dialog", { name: /^Supprimer la chronologie/ });
+  await expect(confirmation).toContainText("les tâches et les jalons gardent leurs dates");
+  await confirmation.getByRole("button", { name: "Supprimer" }).click();
+  await expect(page.getByText("Chronologie « Comité de pilotage » supprimée.")).toBeVisible();
+  await expect(steering).toHaveCount(0);
+  await expect(page).toHaveURL(
+    `${IN_REVISION}/timelines?timeline=01926f3a-7c00-7000-8000-000000001001`,
+    { timeout: WORKING },
+  );
+  await expect(page.getByRole("link", { name: "Revue client" })).toHaveAttribute(
+    "aria-current",
+    "true",
+    { timeout: WORKING },
+  );
+});
+
+// What the service serves of the witness: the steering committee (`…1000`) holds the studies, the
+// two receptions and the commissioning; the customer review (`…1001`), the two receptions alone.
+const STEERING = "01926f3a-7c00-7000-8000-000000001000";
+const CUSTOMER = "01926f3a-7c00-7000-8000-000000001001";
+const STUDIES = /^Études, du /;
+const RECEPTION = /^Réception usine, jalon le /;
+
+/** The rectangle or the line a frieze draws for a task, named by its label. */
+const drawn = (page: Page, name: RegExp) => page.getByRole("img", { name });
+
+test("shows two timelines of a project with distinct selections, found again by another visit and another session @shared [WF-PLA-0140-A]", async ({
+  page,
+  browser,
+  baseURL,
+  manager,
+}) => {
+  // Deux chronologies d'un même projet portent des sélections distinctes et se retrouvent d'une
+  // session à l'autre.
+  test.slow();
+  const steering = `${IN_REVISION}/timelines?timeline=${STEERING}`;
+  const customer = `${IN_REVISION}/timelines?timeline=${CUSTOMER}`;
+  await openHydrated(page, steering);
+  await expect(drawn(page, STUDIES)).toBeVisible({ timeout: WORKING });
+  await expect(drawn(page, RECEPTION)).toBeAttached();
+  await expect(page.getByRole("note")).toHaveCount(0);
+  await openHydrated(page, customer);
+  await expect(drawn(page, RECEPTION)).toBeAttached({ timeout: WORKING });
+  // The selection is the service's: the fake back draws all its nodes, whatever the timeline.
+  if (inService) {
+    await expect(drawn(page, STUDIES)).toHaveCount(0);
+  }
+
+  // Another visit — the page opened anew, then reloaded — reads the same two selections.
+  await openHydrated(page, steering);
+  await expect(drawn(page, STUDIES)).toBeVisible({ timeout: WORKING });
+  await page.reload();
+  await expect(drawn(page, STUDIES)).toBeVisible({ timeout: WORKING });
+  await openHydrated(page, customer);
+  await expect(drawn(page, RECEPTION)).toBeAttached({ timeout: WORKING });
+  // The selection is the service's: the fake back draws all its nodes, whatever the timeline.
+  if (inService) {
+    await expect(drawn(page, STUDIES)).toHaveCount(0);
+  }
+
+  // Another session: the same account signed in anew in a browser context of its own, which shares
+  // nothing with the first (cookies, storage), reads the two selections the service holds. The fake
+  // back keeps no session, and the visits above are what it plays.
+  if (inService && manager !== undefined) {
+    const context = await browser.newContext({
+      ...(baseURL === undefined ? {} : { baseURL }),
+      locale: "fr-FR",
+      ignoreHTTPSErrors: true,
+    });
+    try {
+      const other = await context.newPage();
+      await signIn(other, manager, steering);
+      await openHydrated(other, steering);
+      await expect(drawn(other, STUDIES)).toBeVisible({ timeout: WORKING });
+      await expect(drawn(other, RECEPTION)).toBeAttached();
+      await openHydrated(other, customer);
+      await expect(drawn(other, RECEPTION)).toBeAttached({ timeout: WORKING });
+      await expect(drawn(other, STUDIES)).toHaveCount(0);
+    } finally {
+      await context.close();
+    }
+  }
+});
+
+/** The address of the screens of the revision a path opened on its own project. */
+function revisionOf(own: OwnProject, opened: string): string {
+  const revision = new URL(opened).searchParams.get("revision_id");
+  if (revision === null) {
+    throw new Error("the revision opened is not named by its address");
+  }
+  return `${own.path}/revisions/${revision}`;
+}
+
+test("shows a task once inscribed to a timeline the path made, and no longer once taken out, on a project the run creates @shared [WF-PLA-0060-A]", async ({
+  page,
+}) => {
+  // Une tâche inscrite apparaît dans la chronologie et disparaît lorsqu'elle est retirée.
+  test.skip(!inService, "the fake back keeps no inscription: the grid test above proves the menu");
+  test.slow();
+  // The account of the run is no contributor of PRJ-001 (#2193): the path writes on its own project.
+  const own = await createOwnProject(page, "Chronologies");
+  await openRevision(page, own);
+  const base = revisionOf(own, page.url());
+  const shown = `${base}/timelines`;
+  const label = `Chronologie de parcours ${String(Date.now())}`;
+  const EMPTY = "Aucune tâche de cette révision n’est inscrite à cette chronologie.";
+  const TASK = "Revue de conception";
+  const UPDATED = `Chronologies de « ${TASK} » mises à jour.`;
+  // The first task of the structure, from the bar of the empty grid.
+  await openHydrated(page, `${base}/planning`);
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  await page.getByRole("button", { name: "Insérer une tâche" }).click();
+  const creation = page.getByRole("dialog", { name: "Insérer une tâche" });
+  await creation.getByRole("textbox", { name: "Libellé" }).fill(TASK);
+  await creation.getByRole("button", { name: "Créer" }).click();
+  await expect(page.getByText(`« ${TASK} » créée.`)).toBeVisible({ timeout: WORKING });
+  await expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
+
+  // The timeline, made from the screen, empty.
+  await openHydrated(page, shown);
+  await page.getByRole("button", { name: "Nouvelle chronologie" }).click();
+  const form = page.getByRole("dialog", { name: "Nouvelle chronologie" });
+  await form.getByRole("textbox", { name: "Nom" }).fill(label);
+  await form.getByRole("button", { name: "Créer" }).click();
+  await expect(page.getByText(`Chronologie « ${label} » créée.`)).toBeVisible();
+  await page.getByRole("link", { name: label }).click();
+  await expect(page.getByRole("link", { name: label })).toHaveAttribute("aria-current", "true", {
+    timeout: WORKING,
+  });
+  await expect(page.getByText(EMPTY)).toBeVisible({ timeout: WORKING });
+
+  // Inscribed from the menu of the cell of the task, not yet inscribed to any.
+  await openHydrated(page, `${base}/planning`);
+  const at = await columnsOf(grid, { label: "Libellé" });
+  const boxes = await openTimelines(
+    page,
+    grid.getByRole("row", { name: new RegExp(TASK) }),
+    at.label,
+  );
+  await boxes.getByRole("menuitemcheckbox", { name: label }).click();
+  await expect(page.getByText(UPDATED)).toBeVisible({ timeout: WORKING });
+  await expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
+
+  // It appears in the timeline, and is found again once the page is read anew.
+  await openHydrated(page, shown);
+  await page.getByRole("link", { name: label }).click();
+  await expect(drawn(page, /^Revue de conception, du /)).toBeVisible({ timeout: WORKING });
+  await page.reload();
+  await expect(drawn(page, /^Revue de conception, du /)).toBeVisible({ timeout: WORKING });
+
+  // Taken out by the same menu, it disappears from the timeline.
+  await openHydrated(page, `${base}/planning`);
+  const menu = await openTimelines(
+    page,
+    grid.getByRole("row", { name: new RegExp(TASK) }),
+    at.label,
+  );
+  await expect(menu.getByRole("menuitemcheckbox", { name: label })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+  await menu.getByRole("menuitemcheckbox", { name: label }).click();
+  await expect(page.getByText(UPDATED)).toBeVisible({ timeout: WORKING });
+  await expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
+  await openHydrated(page, shown);
+  await page.getByRole("link", { name: label }).click();
+  await expect(page.getByText(EMPTY)).toBeVisible({ timeout: WORKING });
+  await expect(drawn(page, /^Revue de conception/)).toHaveCount(0);
 });

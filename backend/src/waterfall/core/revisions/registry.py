@@ -1,46 +1,14 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""An ordered registry, private to the module: what the later epics add to the revisions.
+"""The ordered registry of the revisions: what the later epics add to them (EP-04).
 
-The copy of a revision, the question of its tasks and lines and its indicators are each a
-registry, which the interface offers to fill (``register_copy``, ``register_tasks_and_lines``,
-``register_indicators``): a later module registers its part without this one importing it.
+The copy of a revision, the questions of its tasks and lines, its indicators and its closing are
+each a ``Registry``, which the interface offers to fill. The class lives in the platform since
+EP-06 (``waterfall.platform.registry``), every module of the core holding registries of its own; it
+is named here too, where the files of the later epics find it (``core/revisions/registry.py``), and
+the interface of the revisions takes it from here.
 """
 
-from typing import TYPE_CHECKING
+from waterfall.platform.registry import Registry
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
-
-class Registry[T]:
-    """Entries kept in the order of their registration, each at most once."""
-
-    def __init__(self) -> None:
-        """Hold no entry yet."""
-        self._entries: list[T] = []
-
-    def register(self, entry: T) -> Callable[[], None]:
-        """Add an entry after the others, and give what withdraws it; refused if held already.
-
-        An entry registered twice would act twice — a copy, two rows for one —: it is refused. The
-        withdrawal withdraws this registration once, and does nothing after: called again, it
-        never withdraws the same entry registered anew since.
-        """
-        if entry in self._entries:
-            msg = f"{entry!r} is registered already"
-            raise ValueError(msg)
-        self._entries.append(entry)
-        withdrawn = False
-
-        def withdraw() -> None:
-            nonlocal withdrawn
-            if not withdrawn:
-                withdrawn = True
-                self._entries.remove(entry)
-
-        return withdraw
-
-    def entries(self) -> tuple[T, ...]:
-        """Give the entries, in the order of their registration."""
-        return tuple(self._entries)
+__all__ = ["Registry"]

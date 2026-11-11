@@ -317,10 +317,13 @@ by = "make fixtures"
 # its readings by the quality of its reader and during a marking (wftools.mockproject, held by
 # tools/tests/test_mockexit.py), the refusals of one form each (wftools.mockrefusals, held by
 # tools/tests/test_mockrefusals.py), and those the contract declared without a code, a condition
-# nor an example (wftools.mockdeclared, held by tools/tests/test_mockdeclared.py), and the examples
+# nor an example (wftools.mockdeclared, held by tools/tests/test_mockdeclared.py), and those the
+# service served undeclared (wftools.mockservedrefusals, held by
+# tools/tests/test_mockservedrefusals.py), and the examples
 # of the majors of the review of the 2026-10-31 (wftools.mockreview, held by
 # tools/tests/test_mockreview.py), and the chronology of the witness the loader of the projects
-# reads (wftools.mockchronology, held by tools/tests/test_mockchronology.py).
+# reads (wftools.mockchronology, held by tools/tests/test_mockchronology.py), and its tasks the
+# loader of the tasks reads (wftools.mockwitnesstasks, held by tools/tests/test_witness_tasks.py).
 paths = [
     "fixtures/api/volume/**",
     "fixtures/api/nodes.json",
@@ -432,6 +435,12 @@ paths = [
     "fixtures/api/paste_applied_partial.json",
     "fixtures/api/paste_applied_rejudged.json",
     "fixtures/api/paste_stale.json",
+    "fixtures/api/paste_plan_creating.json",
+    "fixtures/api/paste_applied_creating.json",
+    "fixtures/api/undo_task_renamed.json",
+    "fixtures/api/redo_task_renamed.json",
+    "fixtures/api/undo_task_renamed_one_left.json",
+    "fixtures/api/redo_task_renamed_two_left.json",
     "fixtures/api/paste_plan_subproject_held.json",
     "fixtures/api/import_remaining_subproject_held.json",
     "fixtures/api/import_remaining_completed_tasks.json",
@@ -585,6 +594,8 @@ paths = [
     "fixtures/api/risk_update_occurred_refused.json",
     "fixtures/api/project_update_not_manager.json",
     "fixtures/api/next_state_pricing_without_code.json",
+    "fixtures/api/undo_session_id_missing.json",
+    "fixtures/api/redo_session_id_missing.json",
     "fixtures/api/undo_history_empty.json",
     "fixtures/api/redo_history_empty.json",
     "fixtures/api/task_progress_summary_refused.json",
@@ -670,6 +681,26 @@ paths = [
     "fixtures/api/structure_label_updated.json",
     "fixtures/api/undo_background_running.json",
     "fixtures/api/redo_background_running.json",
+    "fixtures/api/node_create_parent_unknown.json",
+    "fixtures/api/node_create_dates_required.json",
+    "fixtures/api/node_create_finish_before_start.json",
+    "fixtures/api/node_create_kind_not_accepted.json",
+    "fixtures/api/node_create_facet_missing.json",
+    "fixtures/api/task_dates_required.json",
+    "fixtures/api/task_finish_before_start.json",
+    "fixtures/api/task_update_empty.json",
+    "fixtures/api/nodes_move_parent_unknown.json",
+    "fixtures/api/nodes_move_node_cycle.json",
+    "fixtures/api/predecessors_unknown_task.json",
+    "fixtures/api/task_completed_before_start.json",
+    "fixtures/api/import_apply_background_running.json",
+    "fixtures/api/import_apply_may_create_revision.json",
+    "fixtures/api/export_permission_missing.json",
+    "fixtures/api/duration_units_horizon_exceeded.json",
+    "fixtures/api/calendar_update_horizon_exceeded.json",
+    "fixtures/api/calendar_default_horizon_exceeded.json",
+    "fixtures/api/revision_create_horizon_exceeded.json",
+    "fixtures/api/project_rate_precision.json",
     "fixtures/api/revision_completed_project.json",
     "fixtures/api/import_open_terminal.json",
     "fixtures/api/import_open_background_running.json",
@@ -703,6 +734,7 @@ paths = [
     "fixtures/api/backups_period.json",
     "fixtures/api/backups_by_size.json",
     "fixtures/api/project_state_transitions.json",
+    "fixtures/api/witness_tasks.json",
 ]
 by = "make mock-data"
 

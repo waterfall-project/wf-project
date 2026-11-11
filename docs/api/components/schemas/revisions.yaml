@@ -1565,8 +1565,9 @@ TaskFacet:
         a summary task does not inherit the calendars of its subordinates, each of which has
         its own, and its dates as well as its duration are counted on its own (WF-PLA-0040). A
         day at 0 hours is a non-working day of the task, which the Gantt distinguishes; the
-        contract knows no public holidays (WF-REF-0110). On a marked revision, the hours of the
-        calendars it freezes (`EmployedReference`).
+        contract knows no public holidays (WF-REF-0110). On a marked revision, read as the
+        current one is, the hours of the calendars of the project today, not of those it froze:
+        they may differ from the hours its frozen dates were counted on (#2491).
     total_float:
       anyOf: [{ $ref: '#/Duration' }, { type: 'null' }]
       description: >-
@@ -1947,7 +1948,10 @@ NodeCreate:
     under a milestone, which carries no subtasks, is refused with 422 `VALIDATION_FAILED`,
     `fields[].pointer` at `/parent_id`, reason `MILESTONE_HAS_NO_SUBTASK`, `fields[].params`
     naming the milestone (`node_id`, `label`), nothing being written; an estimate line under a
-    milestone is allowed (WF-PLA-0050; F-04, #1771).
+    milestone is allowed (WF-PLA-0050; F-04, #1771). A `parent_id` that is not a task of the
+    structure — unknown, or an estimate line — is refused with 422 `VALIDATION_FAILED`,
+    `fields[].pointer` at `/parent_id`, reason `UNKNOWN_TASK`, without a parameter, nothing being
+    written (#2490, #2500).
   properties:
     kind: { $ref: '#/NodeKind' }
     parent_id:
@@ -2205,7 +2209,18 @@ NodeMove:
     which carries no subtasks, is refused with 422 `VALIDATION_FAILED`,
     `fields[].pointer` at `/parent_id`, reason `MILESTONE_HAS_NO_SUBTASK`, `fields[].params`
     naming the milestone (`node_id`, `label`), nothing moving; an estimate line moved under
-    a milestone is allowed (WF-PLA-0050; F-04, #1771).
+    a milestone is allowed (WF-PLA-0050; F-04, #1771). A `parent_id` that is not a task of the
+    structure — unknown, an estimate line, or null for a selection that holds a line — is refused
+    with 422 `VALIDATION_FAILED`, `fields[].pointer` at `/parent_id`, reason `UNKNOWN_TASK`; one
+    that is a moved node or one of their subordinates, the hierarchy then looping, with reason
+    `NODE_CYCLE`; both without a parameter, nothing moving (WF-PLA-0040; #2500).
+
+    A selection that names a node and one of its ancestors leaves the node to that ancestor: it
+    goes with it, under it, at its place, and keeps its own subordinates — the group is moved
+    whole, never flattened (WF-PLA-0040, WF-PLA-0080; #2507). Only the nodes none of whose
+    ancestors the selection names take their place under `parent_id`, in the order of
+    `node_ids`, and only they are returned in `nodes`; a node left to its ancestor is judged and
+    placed with it, whatever its rank in `node_ids`.
   properties:
     node_ids:
       type: array
@@ -2386,7 +2401,8 @@ PastePreview:
     estimate line pasted on its label: the category, the role, the quantity, the effort,
     the unit disbursement, the subproject, the payment delay; for a task: the
     description, the mode, the duration, the start, the finish. Each row of the block writes the
-    grid row at the same distance below the targeted node, in outline order. On a differential,
+    grid row at the same distance below the targeted node, in outline order; a row that falls
+    beyond the last node of the structure creates one (below). On a differential,
     the nodes it removes, which its read returns in their place as read-only (`NodeDifference`),
     do not count: the paste skips them, without refusal, and the block row that would have fallen
     on one of them writes the next node that is not removed, the following block rows the nodes
@@ -2398,7 +2414,7 @@ PastePreview:
     `PasteRejection`, `row` at `0`, `column` the targeted column, `code` at `PASTE_TARGET_REMOVED`,
     no other row being judged; the anchor is not carried over to the next node, which would write
     elsewhere than where the user clicked (decision of the author, reframing of EP-16, #1361).
-    No cell is shifted: a cell that falls on a column that its row
+    A cell that falls on a column that its row
     does not accept is refused, the row and the column named (`PastePlan.rejected`), unless
     it is empty, which writes nothing — a field computed for this node with `COMPUTED_VALUE`, a
     field that its kind refuses or a column that no write carries, like the amounts,
@@ -2409,6 +2425,22 @@ PastePreview:
     being written (WF-RAE-0040; F-01, #1766). A block wider than the
     columns of the facet from the targeted column onwards is refused with 422 (`PASTE_TOO_WIDE`,
     `params.max_columns`).
+
+    The block has no limit of height but the size of the request (413): a row that falls beyond
+    the last node of the structure, in outline order, creates a node, which `PastePlan.created`
+    counts — a sibling of that last node, the anchor, whether its own row is written or refused:
+    under the same parent, ranked after it in the order of the block, of the kind of the targeted
+    node, a task pasted from a task, an estimate line pasted from a line (decision of the user of
+    2026-11-08, #2559; the creation of an estimate line by a paste is served once the estimate
+    exists (EP-07), the service creating tasks alone until then). Its label is required: a row
+    whose `label` cell is empty or absent — the
+    block not starting at the `label` column, the only one before the others — is refused with
+    `VALIDATION_FAILED`, `column` at `label`, and nothing is created for it. Its other cells
+    first take the values of a creation (`createNode`: for a task, the automatic mode, one day,
+    no predecessor; WF-DEV-0050), then are judged in the order of `NodeColumn` with the refusals
+    of an entry, as the cells of an existing node are; a row one of whose cells is refused is
+    refused whole, and nothing is created for it. A task row whose anchor is under a milestone is
+    refused with `MILESTONE_HAS_NO_SUBTASK` (`PasteRejection`).
   properties:
     target_node_id: { $ref: ../common.yaml#/Uuid }
     target_column:
@@ -2423,21 +2455,30 @@ PastePreview:
 
 PastePlan:
   type: object
-  required: [paste_id, accepted, rejected]
+  required: [paste_id, accepted, created, rejected]
   description: >-
     What a paste will write and what it will refuse, each refusal with its reason and, when it
     concerns a cell, its column (WF-IHM-0050). A block row one of whose cells is
     refused is refused whole: confirmed, the paste writes the other rows and not this one
-    (`applyPaste`, `PasteApplied`); abandoned, it writes nothing.
+    (`applyPaste`, `PasteApplied`); abandoned, it writes nothing and creates nothing.
   properties:
     paste_id: { $ref: ../common.yaml#/Uuid }
     accepted:
       type: integer
       minimum: 0
       description: >-
-        The number of block rows that the confirmation will write. On a differential, a removed
+        The number of block rows that the confirmation will write, those that create a node
+        included (`created`). On a differential, a removed
         node that the paste skips is not counted in it, and is not refused either: each
         block row writes the next node that is not removed (`PastePreview`, #1278).
+    created:
+      type: integer
+      minimum: 0
+      description: >-
+        The number of accepted block rows (`accepted`) that fall beyond the last node of the
+        structure, and for each of which the confirmation will create a node, a sibling of that
+        last node (`PastePreview`, #2559); `0` when the block ends on the last node or above it.
+        A refused row is counted in neither.
     rejected:
       type: array
       description: >-
@@ -2511,7 +2552,9 @@ PasteApplied:
   description: >-
     What the confirmation of a paste returns (WF-IHM-0050): a partial success when the preview
     refused rows. The valid rows are written in a single operation and returned like
-    any grid write (`NodesWritten`); the refused rows are not, and each one
+    any grid write (`NodesWritten`), the nodes that the rows beyond the last node of the
+    structure create among `nodes`, at their first version, in outline order (`PastePreview`,
+    #2559); the refused rows are not, and each one
     is repeated with its reason (`rejected`). The plan retains the structure's counter read at
     the preview, and the confirmation is refused with 412 if the structure has changed since,
     whatever counter is sent (`PasteApply`): the structure is the one the preview judged. The
@@ -2659,8 +2702,9 @@ ComparedNodeRead:
     the properties of `Node`, taken over from it, of which only those that a read always returns
     are required — `node_id`, `row_number`, `level` and `lock_version`, and the node's mark,
     `difference` and `changes` —, the others being returned only if `fields` names them, or all
-    of them if it is omitted (#166, #1201, #1208). Its facets are partial likewise. `Node`, which
-    `listNodes` returns, does not change.
+    of them if it is omitted (#166, #1201, #1208). Its facets are partial likewise, those of
+    `NodeProjection`, which `listNodes` returns likewise (#2485). `Node`, which the writes return
+    whole, does not change.
   properties:
     <<: *node_properties
     task:
@@ -2679,16 +2723,37 @@ ComparedNodeRead:
 ComparedTaskFacet:
   type: object
   description: >-
-    The time facet of a node of the comparison (`ComparedNodeRead.task`): the properties of
-    `TaskFacet`, taken over from it, none required — a read with `fields` returns only those
-    it names (`task.label`), a read without `fields` returns them all (#166, #1208).
+    The time facet of a node that a read returns, of the comparison (`ComparedNodeRead.task`) or
+    of `listNodes` (`NodeProjection.task`): the properties of `TaskFacet`, taken over from it,
+    none required — a read with `fields` returns only those it names (`task.label`), a read
+    without `fields` returns them all (#166, #1208, #2485).
   properties: *task_facet_properties
 
 ComparedEstimateLineFacet:
   type: object
   description: >-
-    The estimate facet of a node of the comparison (`ComparedNodeRead.estimate_line`): the
+    The estimate facet of a node that a read returns, of the comparison
+    (`ComparedNodeRead.estimate_line`) or of `listNodes` (`NodeProjection.estimate_line`): the
     properties of `EstimateLineFacet`, taken over from it, none required — a read with `fields`
     returns only those it names (`estimate_line.label`), a read without `fields` returns them
-    all (#166, #1208).
+    all (#166, #1208, #2485).
   properties: *estimate_line_facet_properties
+
+NodeProjection:
+  type: object
+  required: [node_id, row_number, level, lock_version]
+  description: >-
+    A node as `listNodes` returns it (`items`): the properties of `Node`, taken over from it, of
+    which only those that a read always returns are required — `node_id`, `row_number`, `level`
+    and `lock_version` —, the others being returned only if `fields` names them, or all of them
+    if it is omitted, the node then being whole, as `Node` describes it (#166, #2485). Its facets
+    are partial likewise, those of the comparison (`ComparedTaskFacet`,
+    `ComparedEstimateLineFacet`). `Node`, which the writes return whole, does not change.
+  properties:
+    <<: *node_properties
+    task:
+      anyOf: [{ $ref: '#/ComparedTaskFacet' }, { type: 'null' }]
+      description: Null for an estimate line.
+    estimate_line:
+      anyOf: [{ $ref: '#/ComparedEstimateLineFacet' }, { type: 'null' }]
+      description: Null for a task.

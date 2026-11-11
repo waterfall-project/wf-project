@@ -131,7 +131,20 @@ projet, l'historique de ses états, ses contributeurs, ses sous-projets, son lot
 un paquet d'un fichier par sujet (`projects`, `contributors`, `subprojects`, `work_breakdown`,
 `lifecycle` ; `revisions`, `structures`, `marking`, `reference`), où chaque fonction de la
 conception est déclarée dès le socle, sans effet, pour qu'aucune US ne rouvre `interface/__init__.py`
-pour remplir la sienne. Une table révisionnée est partitionnée par liste sur `project_id`, une
+pour remplir la sienne.
+
+Le planning (EP-06) en a trois : `waterfall.core.planning` (FBS-4.3) — les
+nœuds et leur facette tâche, les liaisons, les chronologies et les inscriptions —,
+`waterfall.core.history` — l'historique annulable et les plans de collage — et
+`waterfall.core.exchanges` (FBS-4.3.4) — les imports, les exports et leurs formats —, dont
+l'interface est de même un paquet d'un fichier par US ou par sujet, chaque fonction déclarée par le
+socle (US-1380/L1). Un module du haut étend un module du bas sans que celui-ci l'importe, par un
+registre ordonné (`Registry`, `waterfall.platform.registry`) que l'interface du bas offre de
+remplir et que celle du haut remplit à son import (EP-06, « Les points d'extension ») ; un point
+d'entrée qui en dépend importe l'interface qui enregistre, et `test_registries.py` le vérifie pour
+l'API, le worker et le chargeur (#2180).
+
+Une table révisionnée est partitionnée par liste sur `project_id`, une
 partition par projet (WF-DAT-0050), que crée dans la transaction de la création du projet la
 fonction `create_project_partitions` du propriétaire des tables (`SECURITY DEFINER`), que le rôle du
 service seul peut exécuter, sans autre droit de DDL ; chaque EPIC qui ajoute une table révisionnée la
@@ -173,7 +186,11 @@ sauf la sonde de vie), et le worker n'exécute rien tant qu'elle y est (EP-03, �
 restauration »). Les tâches planifiées se déposent par `waterfall-worker enqueue <genre>`, qui n'en
 dépose pas une quand une tâche du même genre est en file ou en cours : le service `scheduler` de
 Compose l'appelle à l'intervalle de `WATERFALL_IDENTITY_SYNC_INTERVAL`, en secondes, un jour par
-défaut. Qui ouvre la file dit combien il attend Redis : une requête ou le planificateur
+défaut ; sa seconde boucle appelle `waterfall-worker purge`, qui ramasse ce qui a expiré — comptes
+rendus d'import, dépôts, exports, historique annulable, et leurs objets sur le stockage —, à
+l'intervalle de `WATERFALL_PURGE_INTERVAL`, dix minutes par défaut (EP-06, « La purge ») ; un
+intervalle qui n'est pas un entier positif arrête le service avec 2.
+Qui ouvre la file dit combien il attend Redis : une requête ou le planificateur
 `TaskQueue.connect(adresse, timeout=DEPOSIT_TIMEOUT)`, une seconde, pour qu'un Redis muet ne
 retienne pas la réponse ; le worker `WORKER_TIMEOUT`, plus long que chacune de ses lectures. Une
 erreur que le worker n'attend pas — Redis ou PostgreSQL hors d'atteinte — l'arrête en échec (1),
@@ -1158,13 +1175,56 @@ leur nom et la chronologie montrée se supprime après confirmation, comme le pr
 `manage_timelines` (`timeline-commands.tsx`, EP-14/L44c). Le serveur sélectionne ce que chacune
 dessine (#463) : l'arborescence demande les récapitulatives jusqu'au niveau de l'adresse
 (`summaries_only`, `max_level`), une chronologie les tâches qui y sont inscrites (`timeline_id`). Le
-faux back ignorant ces filtres (« Ce que le faux back ne fait pas »), chacune applique encore le
-même critère à la réponse (`summaryTree`, `inscribedTo`) : un filtre idempotent, qui ne change rien
-contre un serveur qui les tient, écart temporaire d'EP-02 retiré avec le back d'EP-03.
+service les tient pour les chronologies (US-1400) et pour l'arborescence (US-1440) : l'écran
+dessine ce qu'il rend, sans appliquer de critère à la réponse, et le repli de `listNodes` (#496,
+`summaryTree`, `inscribedTo`) n'existe plus. Contre le faux back, qui rend le premier exemple
+quelle que soit la requête, l'arborescence dessine toute la structure du témoin, et l'écran des
+chronologies tous les rectangles du volume : ce que chacune sélectionne se prouve contre le service
+(`task-tree.spec.ts`, `timelines.spec.ts`), la requête de l'écran par ses tests de composants. La
+profondeur que le parcours de l'arborescence demande au service est celle de l'écran
+(`DEFAULT_DEPTH`, `summaries.ts`, #2551), non un nombre recopié.
 L'arborescence offre exactement les niveaux que la structure a, du premier à celui de sa plus
 profonde récapitulative, que le serveur dit quels que soient les filtres (`meta.summary_depth`,
 #494), et montre le niveau demandé, ou le plus profond quand on lui en demande un au-delà
 (`depthShown`).
+
+Le planning est branché sur le service (EP-06, US-1470) : la page ne porte plus la note de la
+maquette (`MockupNotice`), chaque cellule s'écrit par `updateTaskFacet`, les prédécesseurs par
+`setPredecessors` (`resolveRowNumber` pour un numéro que la recherche a écarté), la date de début
+par `updateCostStructure`, et le rattachement, la création, l'indentation, le déplacement et la
+suppression par les opérations de l'arbre ; les tâches redatées, les liaisons en conflit, la marge
+et le chemin critique sont ceux que le serveur rend. Un compte qui voit le projet sans en être
+contributeur lit le planning et reçoit `NOT_CONTRIBUTOR` à chaque écriture et à `openImport`
+(`e2e/service/planning-readers.spec.ts`, WF-ADM-0110-A). Le témoin de PRJ-001 a ses mille tâches dans
+le service (US-1480), et le compte de la course n'en est pas contributeur (#2193) : un parcours qui
+le lit se joue des deux côtés, `@shared`, et un parcours qui écrit se joue sur son propre projet
+(`e2e/planning-seed.ts` : le projet créé depuis l'accueil, sa révision ouverte, six tâches écrites
+par l'API, et, selon le parcours, leurs liaisons dont une en conflit, un lotissement de deux
+postes). Les parcours de `planning-service.spec.ts`, `structure.spec.ts`, `computed.spec.ts`,
+`keyboard.spec.ts`, `grid.spec.ts` (le Gantt épinglé) et `context.spec.ts` qui jouent contre le
+service portent `@shared`, comme, dans `planning.spec.ts`, ceux qui lisent le témoin : l'ouverture
+de la grille — ses icônes, les états « démarrée » et « terminée » d'une tâche du témoin
+(WF-PLA-0080-A, #2595) —, ses totaux, le filtre sur un poste, l'absence de squelette, le Gantt, ses
+jours chômés, le pli d'une récapitulative, le zoom et l'export PNG ; avec `navigation.spec.ts` (le
+projet qui mène à son planning). Ils ne comptent pas sur un numéro de ligne : le service numérote
+les tâches seules, les lignes, qui font avancer les numéros du faux back (7, 39, 311), étant
+d'EP-07 ; ils trouvent la ligne par son libellé et lisent le numéro qu'un prédécesseur doit porter
+dans la grille. Le report d'une grille à l'autre (#1057) se joue par les opérations que la grille
+de devis envoie, `createNode` puis `moveNodes`, sur la structure qu'elle partage avec le
+planning : l'écran de la grille de devis n'est pas servi avant EP-07, et le geste fait depuis lui
+est reporté à cet EPIC (#2590) ; la tâche ainsi créée est lue dans le planning, et son
+indentation avec elle. Le parcours du compte « chef de projet » joue la planification et FLX-02 ;
+FLX-01, l'analyse de l'export relu, se joue contre le service (`exchanges.spec.ts`, #2589), le
+parcours qui confirme l'import étant d'EP-07 (#2683). Ce qui ne se rejoue pas contre le service
+reste sur le faux back, gardé par `inService` ou sans étiquette, la liste des entrées étant celle
+de « Un parcours de bout en bout » : les parcours de `planning.spec.ts` qui écrivent sur le
+témoin — le rattachement, la saisie d'une cellule, la durée et les prédécesseurs, la date de début —
+ont chacun leur jumeau dans `planning-service.spec.ts`, sur un projet de la course ; les lignes, les
+montants et le devis relèvent d'EP-07, le reste à engager d'EP-09, les risques d'EP-08, les
+indicateurs d'EP-10 et les structures différentielles d'EP-08, si bien que le parcours de
+`context.spec.ts` qui ouvre l'avenant, celui de l'écran des risques et celui des indicateurs
+restent sur le faux back. La mesure d'une validation de cellule (#196) et celle du déplacement de
+la cellule active sur mille tâches (#620) sont au relevé de livraison d'US-1470.
 
 ### L'écran des risques
 
@@ -1987,6 +2047,17 @@ dans son entrée (`OutcomeNotice`) — ou, la tâche illisible, dans un avis de 
 de l'adresse une fois la page révélée, le routeur de Next rendant à neuf une page dont l'adresse
 change (#416).
 
+L'écran est branché sur le service (EP-06, US-1430) : la page ne porte plus la note de la maquette
+(`MockupNotice`). Le planning MS Project s'importe en deux temps (`openImport`, `getImport`,
+`applyImport`, `expected_format` à `ms_project_schedule`) et s'exporte (`requestExport`,
+`kind: ms_project_schedule`) ; le fichier de l'export se télécharge par la route
+`/tasks/[taskId]/result`, que le service vide à la fin du premier téléchargement complet (`result_url`
+nul, 404 ensuite, que la route rend par son refus). Le parcours de `exchanges.spec.ts` qui exporte le
+planning d'un projet que la course crée, le télécharge, puis le réimporte sans écart (FLX-01 et FLX-02
+du compte « chef de projet », WF-INTF-0010-A), et ceux de `tasks.spec.ts` qui jouent la route et le
+refus d'un résultat sur l'export qu'elle a fait, portent `@shared` ; le devis, le reste à engager et
+les coûts réels (EP-07, EP-09) et le parcours du marquage restent sur le faux back.
+
 La page d'un projet propose de démarrer son planning par l'encart « Démarrer le projet »
 (`ProjectStart`, `components/projects/project-start.tsx`, US-0490) tant que la structure principale
 de la révision en cours n'a aucune tâche. La condition est lue au serveur (`startOffers`,
@@ -2069,11 +2140,12 @@ garde compare, de la cible à la dernière ligne du bloc, le numéro de chaque l
 qu'elle aurait dans l'ordre du plan (sur un différentiel, le serveur saute les nœuds que l'avenant
 retire et remplit les suivants : la garde ne compte ni leur rang ni leur ligne, comme l'aperçu,
 #1278) — une grille qui colle lit tous les genres de nœud, et ses numéros se suivent — ; pliée
-(`fold.tsx`), déplacée par un tri, cachée par la recherche ou un filtre, ou au-delà de la dernière
-ligne montrée, la cause dite est celle que l'utilisateur lève d'abord (L40, #527). Sinon
+(`fold.tsx`), déplacée par un tri, ou cachée par la recherche ou un filtre, la cause dite est celle que
+l'utilisateur lève d'abord (L40, #527) ; un bloc plus haut que les lignes montrées n'est plus refusé :
+ses lignes au-delà du dernier nœud de la structure créent des tâches (voir plus bas). Sinon
 `previewPaste` rend le plan, que montre une boîte de dialogue de shadcn (`PasteDialog`,
-`ui/dialog.tsx`), dans une seule région annoncée — combien de lignes seront écrites, chaque ligne
-refusée par sa place dans le bloc, ses cellules telles que copiées et son motif, une ligne refusée
+`ui/dialog.tsx`), dans une seule région annoncée — combien de lignes seront écrites, combien de tâches seront créées (`created`, quand il y en a),
+chaque ligne refusée par sa place dans le bloc, ses cellules telles que copiées et son motif, une ligne refusée
 pour plusieurs cellules comptée une fois —, et `applyPaste` l'applique sur confirmation, en une
 seule opération : les lignes valides sont écrites, les lignes refusées ne le sont pas (WF-IHM-0050,
 EP-14/L42q). Un plan qui refuse des lignes et en écrit d'autres le dit, et se confirme ; un plan qui
@@ -2105,24 +2177,62 @@ la grille (`paste-applied.dom.test.tsx`, `paste-dialog.dom.test.tsx`), et la hau
 l'avis ne se prouvera qu'en parcours. Une grille sans `paste` dans sa configuration, en lecture
 seule, ne prend aucun collage.
 
+**Le collage qui crée (planning, US-1450/L6, #2559).** Le service du planning crée une tâche pour
+chaque ligne du bloc qui tombe au-delà du dernier nœud de la structure : sœur de ce nœud, du genre
+du nœud visé, dans l'ordre du bloc, son libellé requis (la ligne sans libellé est refusée,
+`VALIDATION_FAILED` sur la colonne `label`). La garde locale ne compare donc plus le bloc à la
+hauteur de la grille : elle garde ses refus pour les colonnes masquées ou absentes, les lignes
+pliées, le tri, la recherche et le filtre — une lecture restreinte par la recherche ou un filtre
+refuse un bloc qui dépasse sa dernière ligne, le front ne pouvant dire si des lignes cachées la
+suivent. L'aperçu dit combien de tâches seront créées (`PastePlan.created`, comptées aussi parmi les
+lignes écrites, en une phrase de plus de la même région annoncée, `grid.paste.created`) ; la
+confirmation rend les tâches créées dans `nodes` (`PasteApplied`, `NodesWritten`), et la grille du
+planning, qui ne sait pas où ces lignes se rangent, lit sa page à nouveau quand le plan en créait
+(`router.refresh`, comme après la création d'une tâche) ; les lignes écrites prennent la place des
+lignes lues, comme à l'ordinaire. Un bloc dont la cible est une ligne de devis voit ses lignes
+au-delà du dernier nœud refusées en `FIELD_NOT_ACCEPTED` sans qu'aucune tâche soit créée (EP-07
+servira les lignes) : le refus se lit dans la liste des lignes refusées de l'aperçu, comme tout
+refus. Annuler le collage supprime les tâches qu'il a créées, le rétablir les recrée : une seule
+entrée d'historique (`undone.kind` reste `paste`, `undone.node_ids` nomme les nœuds écrits et
+créés). Le parcours `paste.spec.ts` le joue contre le service (`@shared`), les tests de la grille
+sur les exemples `paste_plan_creating` et `paste_applied_creating`.
+
 ### Les grilles : annuler et rétablir
 
-Annuler et Rétablir sont posées, pas branchées (WF-IHM-0110, US-0140, `undo-commands.tsx`) :
-toute grille dont la structure lue liste sa commande `edit_*` disponible les pose (`undoable`
-de `DenseGrid`) — le devis par `edit_estimate`, le planning par `edit_planning`, le reste à
-engager par `edit_remaining` (#115) ; aucune grille hors d'une révision en cours ne les pose : ni
-le marquage, ni un import appliqué, ni l'exclusion d'une ligne de coût ne s'annulent. Une telle
-grille les montre en boutons dans sa barre et dans le menu contextuel de ses cellules (clic droit,
-Maj+F10, touche Menu — `CellMenu`, sans arrêt de tabulation de plus), avec leurs raccourcis, et
-prend Ctrl+Z et Ctrl+Maj+Z — Cmd sur un Mac — dans la grille ou sa barre, hors d'un menu ou d'une
-boîte qu'elle ouvre. Indisponibles tant que le serveur ne conserve pas l'historique des saisies,
-elles restent atteignables au clavier, `aria-disabled`, décrites par leur raison ; le raccourci la
-dit dans une région annoncée. Un champ en cours de saisie — l'éditeur d'une cellule, la
-recherche — garde Ctrl+Z pour lui : l'annulation du navigateur y reste. EP-06 les branche sur
-`undoLastChange` et `redoLastUndo`, une annulation portée par le serveur, jamais une pile dans le
-navigateur ; leur refus se dira comme tout refus, sa condition nommée par le catalogue — celle d'une
-annulation qui rendrait un sous-projet supprimé depuis, `restored_subproject_exists`, y est déjà
-(EP-14/L42p).
+Annuler et Rétablir sont posées par toute grille dont la structure lue liste sa commande `edit_*`
+disponible (WF-IHM-0110, US-0140, `undo-commands.tsx` ; `undoable` de `DenseGrid`) — le devis par
+`edit_estimate`, le planning par `edit_planning`, le reste à engager par `edit_remaining` (#115) ;
+aucune grille hors d'une révision en cours ne les pose : ni le marquage, ni un import appliqué, ni
+l'exclusion d'une ligne de coût ne s'annulent. Une telle grille les montre en boutons dans sa barre
+et dans le menu contextuel de ses cellules (clic droit, Maj+F10, touche Menu — `CellMenu`, sans
+arrêt de tabulation de plus), avec leurs raccourcis, et prend Ctrl+Z et Ctrl+Maj+Z — Cmd sur un Mac —
+dans la grille ou sa barre, hors d'un menu ou d'une boîte qu'elle ouvre. Un champ en cours de saisie
+— l'éditeur d'une cellule, la recherche — garde Ctrl+Z pour lui : l'annulation du navigateur y reste.
+
+**Branchées (planning, US-1450).** La grille de planning les branche sur `undoLastChange` et
+`redoLastUndo` (`src/api/actions/history.ts`) par `useUndoRedo` (`undo-run.ts`), que `DenseGrid`
+reçoit en `undo` (`UndoControl`) : une annulation est portée par le serveur, qui garde la pile par
+révision, par compte et par session de connexion, jamais une pile dans le navigateur. Les boutons,
+le menu et les touches sont alors disponibles — ni `aria-disabled`, ni raison à lire. Une annulation
+est une écriture de la structure comme les autres : elle se compte dans le compte de la structure
+(`useStructureVersion`), les gestes et la confirmation d'un collage l'attendent et elle les attend,
+la grille se dit occupée, et une commande donnée pendant une écriture est sans effet. L'action lit la
+page à nouveau une fois le serveur répondu — les lignes rendues, créées ou supprimées, sont celles du
+serveur — et la version que la structure a atteinte (`written.structure_lock_version`) est dite au
+compte pour l'écriture suivante ; `remaining_depth` est dit avec le succès, dans une région annoncée
+(`grid.undo.done.undo` et `grid.undo.done.redo` : « Modification annulée. 3 modifications restent à
+annuler. »). Un refus se dit comme tout refus, par `OutcomeNotice` au-dessus de la grille,
+sa phrase tirée du catalogue d'après son code et ses paramètres : `UNDO_CONFLICT` nomme l'objet repris
+depuis (`conflicting_object_label`), `STATE_FORBIDS_OPERATION` la condition qui manque
+(`undo_history_not_empty`, `redo_history_not_empty`, `restored_subproject_exists`),
+`SESSION_ID_MISSING` un jeton sans session de connexion. Il reste dit jusqu'à ce qu'on le ferme ou
+que la commande suivante parte. Le succès se joue contre le service (`e2e/undo.spec.ts`, cinquante saisies annulées puis
+rétablies par la grille, `@shared`), les refus et l'annonce du succès sur les exemples
+(`undo-wired.dom.test.tsx`).
+
+**Posées seulement.** Le devis et le reste à engager ne reçoivent pas d'`undo` : leurs saisies, servies par EP-07, n'ont
+pas encore d'historique, et leurs commandes restent indisponibles, `aria-disabled`, décrites par
+leur raison ; le raccourci la dit dans une région annoncée.
 
 ### Les grilles : créer et supprimer des tâches et des lignes
 
@@ -2652,7 +2762,9 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   structure et de la saisie des tâches, avec leurs refus (`wftools.mockgestures`, la place d'un nœud
   et les boucles qu'un geste fermerait dans `wftools.mocktree`, les gestes du devis faits sur
   l'avenant 2, et la saisie et le collage qu'y font les parcours, dans
-  `wftools.mockamendmentwrites`), les gestes des cartes du Kanban et leurs réponses
+  `wftools.mockamendmentwrites` ; le collage qui crée les tâches au-delà de la dernière ligne, et
+  l'annulation et le rétablissement d'un renommage, dans `wftools.mockundoable`, #2559, #2564), les
+  gestes des cartes du Kanban et leurs réponses
   (`wftools.mockkanban`), et les refus d'un collage et d'un import qu'un sous-projet ou la phase du
   projet commandent (`wftools.mockexchanges`), et une date manuelle sur un jour chômé, refusée à la
   saisie et signalée à l'import (`wftools.mocknonworking`, #1271) ; son histoire
@@ -2774,8 +2886,12 @@ qui en dépend se juge mal en maquette (#1399) : juger ces gestes revient aux te
 par `MockupNotice` avec `lists` (`mockup.notFiltered`), en une seule note sous l'en-tête. Les écrans
 dont le service est livré ne portent pas la note, même si `make dev` les sert par Prism et que les
 mêmes limites s'y appliquent : l'administration (EP-03), le référentiel (EP-05) et, d'EP-04, l'accueil
-connecté (US-0920/L2), les révisions (US-0960, US-0970) et les paramètres du projet (US-1000) ; un
-succès y est ce que le service a gardé, relu.
+connecté (US-0920/L2), les révisions (US-0960, US-0970) et les paramètres du projet (US-1000), puis,
+d'EP-06, les chronologies (US-1400), les échanges (US-1430), l'arborescence (US-1440) et le planning
+(US-1470) ; un succès y est ce que le service a gardé, relu. Contre le faux back, l'écran des
+chronologies dessine tout le volume que Prism rend pour `listNodes`, quelle que soit la
+chronologie : les parcours de la frise et du focus n'y jugent que la disposition, et leur
+sélection se prouve contre le service.
 
 _Contrôles_ : `make lint-openapi` (exemples conformes aux schémas, volumes compris),
 `make mock-data-up-to-date` (les volumes versionnés sont ceux que l'outil écrit, dans la
@@ -2797,6 +2913,7 @@ commande.
 | `make test-back TESTS=…`, `make test-front TESTS=…`, `make e2e TESTS=…` | un seul fichier de tests, pendant le développement ; sans `TESTS`, tous, comme dans la chaîne                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `make service-install`                                                  | amorce la plateforme de service démarrée, son royaume appliqué (`waterfall-api install`, US-0420) : applique les migrations sous le propriétaire des tables, crée l'installation, ses trois rôles prédéfinis et son administrateur local, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` par défaut), dans la langue `WATERFALL_DEFAULT_LANGUAGE` (`fr` par défaut), et son référentiel minimal (EP-05) : les paramètres communs, avec la devise `WATERFALL_CURRENCY` (`EUR` par défaut) et le nom de l'entreprise `WATERFALL_COMPANY_NAME` (`Delmas Automatismes` par défaut, ceux du témoin), les unités de durée, la correspondance des coûts réels, vide, le calendrier par défaut, la nature et la catégorie de provision pour risques ; écrit seul sur sa sortie le lien qui fixe son mot de passe, valable jusqu'à son emploi ; relancée, elle ne crée rien, dit ignorées une autre devise ou un autre nom, et écrit un nouveau lien, qui remplace le précédent, tant que l'administrateur n'a pas de mot de passe, aucun ensuite                                                                                                                                                                                              |
 | `make service-witness`                                                  | charge le témoin sur la plateforme de service démarrée et amorcée (`waterfall-api load-witness`, service `witness`, EP-05) : les exemples du contrat, `fixtures/api/`, montés en lecture seule, écrits par le rôle du service ; relancée, elle n'écrit rien ; une tranche par objet, dans l'ordre des dépendances, en une transaction (« Le back et les frontières du noyau »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `make service-purge`                                                    | lance à la main la purge de ce qui a expiré sur la plateforme de service démarrée (`waterfall-worker purge`, dans le conteneur du service `scheduler`, qui l'appelle à l'intervalle de `WATERFALL_PURGE_INTERVAL`, 600 s par défaut) : comptes rendus d'import échus, dépôts échus, exports de plus de vingt-quatre heures, historique des sessions de plus de `WATERFALL_UNDO_RETENTION_HOURS` heures (12 par défaut), et les objets que plus aucune ligne ne désigne sous `uploads/` et `exports/` ; deux purges ne tournent jamais ensemble (verrou consultatif)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `make service-up`, `make service-down`                                  | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, le stockage objet Garage et ses compartiments, les migrations, l'API, le worker et le planificateur de ses tâches, le service de la restauration, Keycloak derrière son frontal HTTPS et son royaume, appliqué de nouveau à chaque démarrage par `keycloak-realm`, qui reste démarré pour le réappliquer après une restauration, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son stockage, son annuaire et l'autorité de son frontal ; `service-up` refuse un volume PostgreSQL d'une autre majeure que 18, en affichant le refus de `postgres-volume`, qui dit ce remède (US-1130)                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `make keycloak-authority`                                               | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `make e2e-service`                                                      | les parcours du projet Playwright `service` (`frontend/e2e/service/`), et ceux de `shared` (l'étiquette `@shared`), contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers` ; il charge le témoin après l'amorçage, comme `make service-witness` ; `TESTS=<arguments de playwright test>` : un fichier seul joue aussi `installation`, et, s'il porte un parcours `@realm-wide` ou `@platform-wide`, les projets dont dépend le sien (`service`, `shared`, `shared-serial`) ; `TESTS="--no-deps --project=shared --project=realm e2e/reference-resources.spec.ts e2e/service/reference-manager.spec.ts"` ne joue que ces fichiers, sans `installation` (sur une installation déjà jouée)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
@@ -3922,11 +4039,17 @@ parcours `@shared` remet aussi à zéro les préférences de grille du compte qu
 aurait laissées (#2282), ce que `service/grid-reset.spec.ts` éprouve.
 
 Le projet `shared` joue ainsi les parcours du projet contre le témoin chargé, tranche des projets
-comprise (« Le back et les frontières du noyau ») : PRJ-001 en Chiffrage, ses révisions 100 et 101
-marquées, la 102 ouverte, sans tâche ni ligne ni référence. Leurs attendus de lecture ne sont pas
-réécrits pour ce qu'un projet en chiffrage et des révisions vides laissent lire ; ce qui lit PRJ-001
-En cours, sa référence, ses tâches ou ses lignes ne se rejoue pas avant EP-07. Les assertions
-d'écriture affirment ce qui a été écrit, relu, par `inService`.
+et tranche des tâches comprises (« Le back et les frontières du noyau ») : PRJ-001 en Chiffrage, ses
+révisions 100 et 101 marquées, la 102 ouverte, sans ligne ni référence. La tranche des tâches
+(`waterfall-api load-witness`, EP-06, US-1480) charge, pour la structure principale de chacune des
+trois révisions, les mille tâches de PRJ-001 avec leurs liaisons, leurs modes et leurs durées, leurs
+états et leurs dates de démarrage et de terminaison, leurs inscriptions, les deux chronologies et la
+date de début de planning ; elle ne charge aucune ligne, dont les montants et les calendriers de
+rôles sont d'EP-07 (les 103 tâches à calendrier 4×10 h de la frise y attendent, #2594), ni risque
+(EP-08), ni coût réel (EP-09), ni indicateur (EP-10). Leurs attendus de lecture ne sont pas
+réécrits pour ce qu'un projet en chiffrage laisse lire ; ce qui lit PRJ-001 En cours, sa référence
+ou ses lignes ne se rejoue pas avant EP-07. Les assertions d'écriture affirment ce qui a été écrit,
+relu, par `inService`.
 
 La liste consolidée de ce qu'un parcours ne rejoue pas encore contre le service tient ici : il se
 saute par `inService` (`test.skip(inService, …)`) quand il est étiqueté, ou reste sans étiquette,
@@ -3954,22 +4077,49 @@ chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son ent
   crée un avant la sauvegarde, marque sa révision et en crée un second après, et ne les retrouve
   plus une fois la restauration faite (WF-ADM-0160-A) ; rejoué sur une même installation, il y
   laisse un compte et un projet de plus, la restauration reprenant tout le reste.
-- `project-start.spec.ts` — le départ vers le planning : l'ouverture de PRJ-001 qui mène à son
-  planning, l'écran du lotissement qui engendre le planning, et l'encart « Démarrer le projet » d'un
-  projet créé, que le service n'offre pas au compte de la course avant les structures
-  (`BEFORE_EP06`) : levée par **EP-06**, qui sert les structures, l'import d'un planning et
-  `generatePlanningSkeleton`. Le lotissement d'un projet créé, écrit puis relu, se joue dès US-0950
-  (parcours jumeau, `SERVICE_ONLY`).
-- `context.spec.ts` — le bandeau du contexte sur les écrans des données, le planning, le reste à
-  engager, les risques et les indicateurs, et sur une structure différentielle (`BEFORE_THE_DATA`) :
-  levée écran par écran par **EP-06** (le planning, les structures), **EP-07** (le reste à engager),
-  **EP-08** (les risques) et **EP-10** (les indicateurs). Le bandeau des écrans d'un projet créé,
-  ses paramètres et ses révisions, se joue dès US-1000.
+- `project-start.spec.ts` — aucune entrée : le départ vers le planning se joue contre le service
+  (`BEFORE_EP06` levée par US-1460), sur un projet que le compte de la course crée, qui liste
+  `import_planning` (US-1430) et sert les structures et `generatePlanningSkeleton`. Le lotissement
+  d'un projet créé, écrit puis relu, se joue dès US-0950 (parcours jumeau, `SERVICE_ONLY`), le fond
+  mémoire ne gardant rien du lotissement qu'on lui donne (`FAKE_BACK_FORGETS`) (#2543).
+- `context.spec.ts` — le bandeau du contexte sur le reste à engager, les risques et les indicateurs,
+  et sur une structure différentielle (`BEFORE_THE_REMAINING`, `BEFORE_THE_INDICATORS`,
+  `BEFORE_THE_DIFFERENTIALS`) : levée écran par écran par **EP-07** (le devis), **EP-09** (le reste à
+  engager), **EP-08** (les risques et les structures différentielles) et **EP-10** (les
+  indicateurs). Le bandeau du planning, des écrans d'un projet créé, de ses paramètres et de ses
+  révisions se joue contre le service (`BEFORE_THE_DATA` levée pour le planning par EP-06).
+- `planning.spec.ts`, `structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts` — les parcours
+  qui écrivent sur le témoin de PRJ-001, dont le compte de la course n'est pas contributeur (#2193) :
+  chacun a son jumeau contre le service sur un projet de la course (`planning-service.spec.ts`,
+  `structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`), que nul EPIC ne renverse ; les
+  parcours de ces fichiers qui lisent le témoin se jouent des deux côtés. Les parcours du reste à
+  engager de `structure.spec.ts` sont d'**EP-09**, ceux du devis de `grid.spec.ts` et de
+  `keyboard.spec.ts` d'**EP-07**.
+- `planning.spec.ts` — la lecture de la date de début de planning, de ses en-têtes « Démarrée le » et
+  « Terminée le » se joue des deux côtés ; seule son écriture (`updateCostStructure`) reste sur le
+  faux back, comme les autres écritures du témoin ci-dessus.
+- `timelines.spec.ts` — la frise et le focus (`AFTER_THE_LINES`, #2594) : levée par **EP-07**
+  (US-1570), qui étiquette les deux parcours `@shared` quand les lignes donnent leurs calendriers
+  aux tâches du témoin. Restent sans étiquette trois parcours qui écrivent sur le témoin de PRJ-001,
+  dont le compte de la course n'est pas contributeur (#2193) : l'inscription d'une tâche à une
+  chronologie (`:52`, sur le premier nœud du faux back, dont le jumeau `:422`, sur un projet de la
+  course, joue le service), le suivi temps/temps d'un jalon inscrit (`:104`) et la création puis la
+  suppression d'une chronologie (`:310`) ; nul EPIC ne les renverse. La navigation depuis le planning,
+  l'export PNG, les deux sélections et l'inscription sur un projet de la course se jouent contre le
+  service.
+- `exchanges.spec.ts` — l'import de l'estimation en deux étapes (`:31`, #2683), qui lit l'analyse,
+  l'application et l'abandon d'un import de PRJ-001 que le service ne sert pas : levé par **EP-07**,
+  qui sert l'estimation ; le refus d'un fichier trop gros (`:101`), qui ouvre l'écran des imports de
+  PRJ-001 dont le compte de la course n'est pas contributeur (#2193) ; les deux écrans qui mènent à
+  l'écran des imports depuis l'estimation et le reste à engager (`:130`), levé par **EP-07** et
+  **EP-09**. L'export du planning, relu par l'import, se joue contre le service sur un projet de la
+  course (US-1430).
 - `projects.spec.ts` — les parcours qui écrivent sur PRJ-001 ou y mènent par son planning : l'écran
   du projet, ses paramètres et son cycle de vie, la sortie, les sous-projets et les contributeurs,
   le lotissement (`FAKE_BACK_ONLY`) : le compte de la course n'est pas chef de projet de PRJ-001,
   par décision (#2193, option A), que nul EPIC ne renverse — ce que rejouent les jumeaux —, et le
-  planning vers lequel mène sa page est d'**EP-06**. Chacun a son jumeau, joué contre le service
+  planning vers lequel mène sa page, que le service sert depuis EP-06, ne s'écrit pas non plus sous
+  ce compte. Chacun a son jumeau, joué contre le service
   seul sur un projet que le compte crée (`SERVICE_ONLY`, `own-project.ts`) : paramètres, cycle de
   vie, sous-projets, lotissement, contributeurs (un second compte, inscrit par l'API puisque l'écran
   ne propose que les comptes du devis, WF-PRJ-0070-A ; la qualité de ce compte est changée par
@@ -4000,8 +4150,9 @@ est servi depuis US-0920/L2 et se joue des deux côtés (`projects.spec.ts`, et 
 `navigation.spec.ts`), de même que les écrans d'un projet depuis US-1000 (dont, dans
 `navigation.spec.ts`, le passage des paramètres au cycle de vie). Restent sans étiquette, dans
 `navigation.spec.ts`, le retour au projet précédent depuis une fonction hors projet, qui rouvre le
-reste à engager puis les risques de PRJ-001 (levé par **EP-07** et **EP-08**), et l'adresse du
-projet qui mène à son planning, avec son contexte de lecture (levée par **EP-06**). De ce que leur
+reste à engager puis les risques de PRJ-001 (levé par **EP-07** et **EP-08**) ; l'adresse du
+projet qui mène à son planning, avec son contexte de lecture, se joue des deux côtés depuis
+EP-06. De ce que leur
 US n'étiquette pas encore : la lecture des réglages hors projet (`reference-costs.spec.ts`,
 US-0250). La modification des unités de durée (`reference-resources.spec.ts`), qui écrit l'objet
 unique de l'installation, se joue en `@serial` dans le projet `shared-serial`, comme les autres

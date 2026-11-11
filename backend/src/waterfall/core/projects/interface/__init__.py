@@ -10,6 +10,25 @@ comment that names it, in the order Ruff keeps. Another module imports them from
 the file.
 """
 
+# ``commands`` (US-0920; exported by US-1380/L5 and US-1480/L4): the states that end the cycle of
+# life and those before In progress, the condition a terminal project lacks and the one a running
+# background task takes away, which the other modules judge by these names, never a copy (#2555).
+from waterfall.core.projects.commands import (
+    BEFORE_IN_PROGRESS,
+    NO_BACKGROUND_TASK_RUNNING,
+    PROJECT_BEFORE_IN_PROGRESS,
+    PROJECT_NOT_TERMINAL,
+    TERMINAL,
+)
+
+# ``attachments`` (US-1380/L1, filled by US-1380/L3): the tasks attached to the work breakdown.
+from waterfall.core.projects.interface.attachments import (
+    Attachments,
+    detach_item,
+    item_cited,
+    register_attachments,
+)
+
 # ``contributors`` (US-0930; the kind and the existence, US-0910/L2): a project's contributors.
 from waterfall.core.projects.interface.contributors import (
     ContributorColumn,
@@ -31,6 +50,9 @@ from waterfall.core.projects.interface.contributors import (
     require_project_manager,
     set_contributors,
 )
+
+# ``days`` (US-1380/L4): the current day of an instant, in the time zone of the installation.
+from waterfall.core.projects.interface.days import current_day
 
 # ``lifecycle`` (US-0980): the cycle of life of a project.
 from waterfall.core.projects.interface.lifecycle import (
@@ -70,6 +92,7 @@ from waterfall.core.projects.interface.projects import (
     ProjectView,
     Viewer,
     create_project,
+    first_project,
     list_projects,
     load_project,
     lock_project,
@@ -82,6 +105,12 @@ from waterfall.core.projects.interface.projects import (
     read_project,
     set_current_revision,
     update_project,
+)
+
+# ``skeleton`` (US-1460): whether the revision a project would open carries a task.
+from waterfall.core.projects.interface.skeleton import (
+    opening_with_tasks,
+    register_opening_question,
 )
 
 # ``subprojects`` (US-0940): the subprojects of a project.
@@ -103,13 +132,15 @@ from waterfall.core.projects.interface.subprojects import (
     update_subproject,
 )
 
-# ``work_breakdown`` (US-0950): the work breakdown of a project.
+# ``work_breakdown`` (US-0950; the elements a task bears, US-1380/L3): the work breakdown.
 from waterfall.core.projects.interface.work_breakdown import (
+    BORN_LOCK_VERSION,
     DeliverableEntry,
     DeliverableView,
     OrderItemEntry,
     OrderItemView,
     WorkBreakdownFilters,
+    WorkBreakdownItem,
     WorkBreakdownLoad,
     WorkBreakdownRead,
     WorkBreakdownToWrite,
@@ -118,10 +149,18 @@ from waterfall.core.projects.interface.work_breakdown import (
     load_work_breakdown,
     read_work_breakdown,
     set_work_breakdown,
+    work_breakdown_items,
     work_breakdown_present,
 )
 
 __all__ = [
+    "BEFORE_IN_PROGRESS",
+    "BORN_LOCK_VERSION",
+    "NO_BACKGROUND_TASK_RUNNING",
+    "PROJECT_BEFORE_IN_PROGRESS",
+    "PROJECT_NOT_TERMINAL",
+    "TERMINAL",
+    "Attachments",
     "CommandAvailability",
     "ContributorColumn",
     "ContributorEntry",
@@ -165,6 +204,7 @@ __all__ = [
     "TransitionView",
     "Viewer",
     "WorkBreakdownFilters",
+    "WorkBreakdownItem",
     "WorkBreakdownLoad",
     "WorkBreakdownRead",
     "WorkBreakdownToWrite",
@@ -176,8 +216,12 @@ __all__ = [
     "contributors_present",
     "create_project",
     "create_subproject",
+    "current_day",
     "delete_subproject",
+    "detach_item",
     "exit_project",
+    "first_project",
+    "item_cited",
     "judge_exit_unlocked",
     "list_contributor_suggestions",
     "list_contributors",
@@ -193,6 +237,7 @@ __all__ = [
     "lock_project",
     "next_state",
     "no_background_task_running",
+    "opening_with_tasks",
     "project_code",
     "project_commands",
     "project_exists",
@@ -203,6 +248,8 @@ __all__ = [
     "read_next_state",
     "read_project",
     "read_work_breakdown",
+    "register_attachments",
+    "register_opening_question",
     "require_project_manager",
     "set_contributors",
     "set_current_revision",
@@ -212,5 +259,6 @@ __all__ = [
     "subprojects_present",
     "update_project",
     "update_subproject",
+    "work_breakdown_items",
     "work_breakdown_present",
 ]

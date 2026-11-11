@@ -1,0 +1,10 @@
+{
+  "summary": "L'export du planning du projet témoin demandé par un compte qui ne peut pas le consulter : la commande export_planning est absente de sa révision, et le refus nomme la permission de consultation qui manque, planning.read ; rien n'est mis en file (WF-ADM-0100, WF-CYC-0110, #2483).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "PERMISSION_MISSING",
+    "status": 403,
+    "params": {"missing_permission":"planning.read"},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001700"
+  }
+}

@@ -13,9 +13,6 @@ from waterfall.core.cost_settings.interface.actual_cost_mapping import (
     DUPLICATE_COLUMN_LABEL as DUPLICATE_COLUMN_LABEL,
 )
 from waterfall.core.cost_settings.interface.actual_cost_mapping import (
-    STALE_LOCK_VERSION as STALE_LOCK_VERSION,
-)
-from waterfall.core.cost_settings.interface.actual_cost_mapping import (
     ActualCostMappingView as ActualCostMappingView,
 )
 from waterfall.core.cost_settings.interface.actual_cost_mapping import (

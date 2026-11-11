@@ -8,6 +8,7 @@ but for the name of the root package, to a sample package built for each test.
 
 import ast
 import importlib
+import inspect
 import os
 import pkgutil
 import re
@@ -79,14 +80,49 @@ REFERENCE_INTERFACES: dict[str, set[str]] = {
         "resource_roles",
         "calendars",
         "duration_units",
+        "extensions",
     },
     "risk_settings": set(),
     "indicator_settings": set(),
 }
 # The modules of the projects and of the revisions (EP-04), one file per subject.
 PROJECT_INTERFACES: dict[str, set[str]] = {
-    "projects": {"projects", "contributors", "subprojects", "work_breakdown", "lifecycle"},
-    "revisions": {"revisions", "structures", "marking", "reference", "shared"},
+    "projects": {
+        "projects",
+        "contributors",
+        "subprojects",
+        "work_breakdown",
+        "lifecycle",
+        "attachments",
+        "skeleton",
+        "days",
+    },
+    "revisions": {"revisions", "structures", "marking", "reference", "shared", "closing"},
+}
+# The modules of the planning, the history and the exchanges (EP-06), one file per story or
+# subject, laid by the socle (US-1380/L1) so that no later story opens their ``__init__``.
+PLANNING_INTERFACES: dict[str, set[str]] = {
+    "planning": {
+        "closing",
+        "facets",
+        "lines",
+        "loading",
+        "msproject",
+        "nodes",
+        "paste",
+        "predecessors",
+        "progress",
+        "reference",
+        "skeleton",
+        "snapshots",
+        "structures",
+        "task_tree",
+        "timelines",
+        "tracking",
+        "work_breakdown",
+    },
+    "history": {"closing", "plans", "purge", "recording", "undo"},
+    "exchanges": {"exports", "imports", "purge", "xml"},
 }
 # What the design names of each (EP-04, "Modules"), declared from US-0910/L1 on, which the other
 # stories call before theirs fill them.
@@ -120,6 +156,69 @@ DESIGNED: dict[str, set[str]] = {
         "revision_draft",
         "create_project_partitions",
         "load_revision",
+    },
+    # EP-06, "Modules": what each story calls of another before it fills its own.
+    "planning": {
+        "list_nodes",
+        "create_node",
+        "update_task_facet",
+        "delete_node",
+        "move_nodes",
+        "resolve_row_number",
+        "computed_value_dependencies",
+        "set_predecessors",
+        "update_cost_structure",
+        "set_task_progress",
+        "list_timelines",
+        "create_timeline",
+        "delete_timeline",
+        "set_node_tracking",
+        "generate_skeleton",
+        "reschedule",
+        "revision_has_tasks",
+        "copy_nodes",
+        "delete_nodes",
+        "work_breakdown_item_cited",
+        "detach_work_breakdown_item",
+        "tasks_left_idle",
+        "reschedule_current_structures",
+        "lines_of",
+        "register_facet",
+        "calendar_of",
+        "snapshot",
+        "restore",
+        "preview_paste",
+        "apply_paste",
+    },
+    "history": {
+        "recording",
+        "undo",
+        "redo",
+        "depth",
+        "close_history",
+        "keep_plan",
+        "read_plan",
+        "drop_plan",
+        "purge",
+    },
+    "exchanges": {
+        "register_format",
+        "register_exporter",
+        "deposit",
+        "open_import",
+        "read_import",
+        "list_imports",
+        "abandon_import",
+        "apply_import",
+        "run_analysis",
+        "run_apply",
+        "run_export",
+        "result_of",
+        "consumed",
+        "purge",
+        "remove_purged",
+        "stored_before",
+        "hardened_parser",
     },
 }
 
@@ -360,12 +459,55 @@ def test_the_projects_and_the_revisions_offer_their_interface_as_a_package_by_su
         assert source.rsplit(".", 1)[0] == interface.__name__, name
 
 
+def own_names(interface: object, prefix: str) -> set[str]:
+    """Name what a package offers of its own files: a name whose object one of them declares."""
+    return {
+        name
+        for name, value in vars(interface).items()
+        if not name.startswith("_") and str(getattr(value, "__module__", "")).startswith(prefix)
+    }
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+@pytest.mark.parametrize(("module", "files"), PLANNING_INTERFACES.items())
+def test_the_planning_the_history_and_the_exchanges_offer_every_function_of_their_files(
+    module: str, files: set[str]
+) -> None:
+    # The socle lays every file and re-exports every function of each (EP-06, "Modules"): a story
+    # fills the body of its own and never opens the ``__init__`` another story fills beside it.
+    interface = importlib.import_module(f"waterfall.core.{module}.interface")
+    held = {info.name for info in pkgutil.iter_modules(interface.__path__)}
+    assert held == files
+    prefix = f"{interface.__name__}."
+    offered = own_names(interface, prefix)
+    assert DESIGNED[module] <= offered
+    declared = {
+        name
+        for file in files
+        for name, value in vars(importlib.import_module(f"{prefix}{file}")).items()
+        if not name.startswith("_")
+        and inspect.isfunction(value)
+        and value.__module__ == f"{prefix}{file}"
+    }
+    assert declared - offered == set()
+
+
 STUB_STATEMENTS = 2
 # The functions the design leaves silent until a story fills them: each gives a documented result,
 # without effect, and a caller relies on it — a stub in their place would refuse every caller.
 SILENT = {
     "projects": {"no_background_task_running", "advance"},
     "revisions": {"revision_has_tasks_and_lines", "compute_indicators"},
+    # What a registry of EP-04 or EP-05 calls before the story that fills it.
+    "planning": {
+        "copy_nodes",
+        "delete_nodes",
+        "tasks_left_idle",
+        "reschedule_current_structures",
+        "work_breakdown_item_cited",
+        "detach_work_breakdown_item",
+    },
+    "history": {"close_history"},
 }
 
 
@@ -444,13 +586,13 @@ def malformed_stubs(source: str) -> list[str]:
 
 
 def interface_sources() -> list[tuple[str, str]]:
-    """List (file, source) of each file of the two interfaces, subpackages included.
+    """List (file, source) of each file of the interfaces in a package, subpackages included.
 
     Each file is named by its path under the interface, after its module: two files of the same
     name in two subpackages are two.
     """
     found: list[tuple[str, str]] = []
-    for module in PROJECT_INTERFACES:
+    for module in (*PROJECT_INTERFACES, *PLANNING_INTERFACES):
         interface = importlib.import_module(f"waterfall.core.{module}.interface")
         for directory in interface.__path__:
             found.extend(
@@ -464,7 +606,7 @@ def interface_sources() -> list[tuple[str, str]]:
 
 
 def stubs() -> list[tuple[str, str, str]]:
-    """List (file, function, message) of each stub the files of the two interfaces declare.
+    """List (file, function, message) of each stub the files of the interfaces declare.
 
     Read from the code, not from a list: a function a story fills leaves it alone. The silent ones
     (the design gives them a documented result without effect) are not stubs.
@@ -520,7 +662,7 @@ def test_the_sweep_of_the_stubs_accepts_a_well_formed_stub_async_or_nested(sourc
 
 
 @pytest.mark.requirement("WF-ARC-0010-A")
-def test_a_stub_of_the_projects_and_the_revisions_refuses_naming_the_story_that_fills_it() -> None:
+def test_a_stub_of_an_interface_refuses_naming_the_story_that_fills_it() -> None:
     # A caller that reaches a function before its story fills it must fail, not read or write
     # nothing: a green test would hide a refusal (`revision_draft`) that does not exist yet. One
     # test over them all, not one per stub: once the last is filled, it still runs, and passes.
@@ -646,3 +788,50 @@ def test_the_package_itself_keeps_its_contracts() -> None:
         check=False,
     )
     assert result.returncode == 0, result.stdout
+
+
+# A code, a condition or a set of states several modules judge by, and the one module that declares
+# it: the others import it from that module (its interface, for a module of the core), never copy
+# it (#2471, #2555, #2763).
+SHARED = {
+    "STATE_FORBIDS_OPERATION": "platform/errors.py",
+    "NOT_FOUND": "platform/errors.py",
+    "STALE_LOCK_VERSION": "platform/errors.py",
+    "VALIDATION_FAILED": "platform/errors.py",
+    "BEFORE_IN_PROGRESS": "core/projects/commands.py",
+    "NO_BACKGROUND_TASK_RUNNING": "core/projects/commands.py",
+    "PROJECT_BEFORE_IN_PROGRESS": "core/projects/commands.py",
+    "PROJECT_NOT_TERMINAL": "core/projects/commands.py",
+    "TERMINAL": "core/projects/commands.py",
+}
+
+
+def _shared_names_declared(source: str) -> set[str]:
+    """Return the shared names a module declares at its top level, annotated or not."""
+    names: set[str] = set()
+    for statement in ast.parse(source).body:
+        if isinstance(statement, ast.Assign):
+            targets = statement.targets
+        elif isinstance(statement, ast.AnnAssign):
+            targets = [statement.target]
+        else:
+            targets = []
+        names |= {t.id for t in targets if isinstance(t, ast.Name) and t.id in SHARED}
+    return names
+
+
+def test_a_copy_of_a_shared_name_is_seen_annotated_or_not() -> None:
+    # A detail of the code, which reprises no Vérif: it cites no requirement.
+    assert _shared_names_declared('TERMINAL = ("lost",)') == {"TERMINAL"}
+    assert _shared_names_declared('TERMINAL: Final = ("lost",)') == {"TERMINAL"}
+    assert _shared_names_declared("from x import TERMINAL\nOTHER = 1") == set()
+
+
+def test_a_name_several_modules_judge_by_is_declared_by_the_one_that_owns_it() -> None:
+    # A detail of the code, which reprises no Vérif: it cites no requirement.
+    package = Path(cast("str", importlib.import_module("waterfall").__file__)).parent
+    declared: dict[str, set[str]] = {name: set() for name in SHARED}
+    for path in sorted(package.rglob("*.py")):
+        for name in _shared_names_declared(path.read_text(encoding="utf-8")):
+            declared[name].add(path.relative_to(package).as_posix())
+    assert declared == {name: {owner} for name, owner in SHARED.items()}

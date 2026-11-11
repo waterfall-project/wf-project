@@ -181,7 +181,7 @@ Le contrat cite **190 des 213 exigences** de la spécification.
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task` | Modify the time facet of a task | WF-IHM-0040, WF-PLA-0010, WF-PLA-0020, WF-PLA-0040, WF-PLA-0050, WF-PLA-0150, WF-PLA-0160, WF-PLA-0170 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line` | Modify the money facet of an estimate line | WF-DEV-0020, WF-DEV-0030, WF-DEV-0040, WF-DEV-0050, WF-IHM-0040, WF-PLA-0010, WF-PRJ-0050, WF-RAE-0040, WF-REV-0050, WF-RIS-0010 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors` | Replace the predecessors of a task | WF-PLA-0030, WF-PLA-0040, WF-PLA-0150, WF-PLA-0160 |
-| PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/progress` | Start, complete or reopen a task | WF-IHM-0030, WF-IND-0030, WF-PLA-0040, WF-PLA-0130, WF-RAE-0030 |
+| PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/progress` | Start, complete or reopen a task | WF-EXP-0020, WF-IHM-0030, WF-IND-0030, WF-PLA-0040, WF-PLA-0130, WF-RAE-0030 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining` | Re-estimate a line | WF-PLA-0130, WF-RAE-0030, WF-RAE-0040 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/tracking` | Register a task for tracking or remove it | WF-PLA-0060 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move` | Move nodes in the tree | WF-DEV-0040, WF-PLA-0020, WF-PLA-0030, WF-PLA-0040, WF-PLA-0050, WF-PLA-0150, WF-PLA-0170 |
@@ -249,7 +249,7 @@ Le contrat cite **190 des 213 exigences** de la spécification.
 | POST | `/chunked-uploads/{chunked_upload_id}/completion` | Complete the chunked upload | WF-ADM-0160 |
 | GET | `/projects/{project_id}/imports` | Imports of the project | WF-ARC-0100, WF-INTF-0080 |
 | POST | `/projects/{project_id}/imports` | Open an import and start its analysis | WF-ARC-0090, WF-ARC-0100, WF-CRE-0050, WF-DAT-0120, WF-INTF-0040, WF-INTF-0070, WF-INTF-0080, WF-INTF-0090, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-PLA-0150, WF-PLA-0170, WF-PRJ-0050, WF-REF-0190 |
-| GET | `/projects/{project_id}/imports/{import_id}` | Report of an import | WF-ARC-0110, WF-CRE-0020, WF-IHM-0090, WF-INTF-0040, WF-INTF-0080, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-REF-0190 |
+| GET | `/projects/{project_id}/imports/{import_id}` | Report of an import | WF-ARC-0110, WF-CRE-0020, WF-IHM-0090, WF-INTF-0040, WF-INTF-0080, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-PLA-0160, WF-REF-0190 |
 | DELETE | `/projects/{project_id}/imports/{import_id}` | Abandon an import | WF-ARC-0100, WF-DAT-0120, WF-INTF-0080 |
 | POST | `/projects/{project_id}/imports/{import_id}/apply` | Apply an import | WF-ARC-0100, WF-CRE-0030, WF-DAT-0110, WF-INTF-0080, WF-INTF-0100, WF-INTF-0140, WF-REF-0190 |
 | POST | `/projects/{project_id}/exports` | Request an export | WF-ARC-0040, WF-CYC-0110, WF-DAT-0120, WF-INTF-0050, WF-INTF-0060, WF-INTF-0110, WF-INTF-0120, WF-INTF-0130, WF-INTF-0180, WF-PLA-0020, WF-PLA-0120 |

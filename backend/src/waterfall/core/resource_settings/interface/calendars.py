@@ -19,10 +19,19 @@ from typing import TYPE_CHECKING, Any, Literal
 from sqlalchemy import ColumnElement, SQLColumnExpression, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
+from waterfall.core.resource_settings.interface.extensions import (
+    CalendarChange,
+    projects_left_idle,
+    recalculate,
+)
 from waterfall.core.resource_settings.interface.readiness import lock_reference
 from waterfall.core.resource_settings.tables import DAYS, Calendar
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
+    STATE_FORBIDS_OPERATION,
+    VALIDATION_FAILED,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -41,11 +50,7 @@ if TYPE_CHECKING:
 
     from waterfall.platform.audit import Act
 
-NOT_FOUND = "NOT_FOUND"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 ALREADY_EXISTS = "ALREADY_EXISTS"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 TASK_WITHOUT_WORKING_HOURS = "TASK_WITHOUT_WORKING_HOURS"
 # What an activation or a designation lacks, as a command says it in advance (``CommandCondition``).
@@ -194,23 +199,36 @@ def _refuse_hours(weekly_hours: WeeklyHours) -> None:
         raise UnprocessableError(VALIDATION_FAILED, fields=faults)
 
 
+def _left_idle(
+    session: Session, calendar_id: UUID, weekly_hours: WeeklyHours, *, default: bool
+) -> tuple[dict[str, str | None], ...]:
+    """Name the projects the change would leave with a task without an hour, by each guard."""
+    change = CalendarChange(calendar_id, _weekly(weekly_hours), default)
+    return tuple(
+        {"project_label": project.label, "project_code": project.code}
+        for project in projects_left_idle(session, change)
+    )
+
+
 def calendar_change_is_admissible(
     session: Session, calendar_id: UUID, weekly_hours: WeeklyHours, *, default: bool
 ) -> bool:
     """Tell whether the calendar may take these hours, or be the default, without a task left idle.
 
-    Always so for now: no task depends on a calendar before EP-06, which answers here
-    (``TASK_WITHOUT_WORKING_HOURS``, WF-PLA-0010).
+    The planning answers, by the guards it registers (``register_idle_task_guard``, WF-PLA-0010).
     """
-    del session, calendar_id, weekly_hours, default
-    return True
+    return not _left_idle(session, calendar_id, weekly_hours, default=default)
 
 
 def _refuse_idle_tasks(
     session: Session, calendar_id: UUID, weekly_hours: WeeklyHours, *, default: bool
 ) -> None:
-    if not calendar_change_is_admissible(session, calendar_id, weekly_hours, default=default):
-        raise UnprocessableError(TASK_WITHOUT_WORKING_HOURS, {"resource_roles": [], "projects": []})
+    """Refuse a change that would leave a task without an hour, naming its projects (422)."""
+    projects = _left_idle(session, calendar_id, weekly_hours, default=default)
+    if projects:
+        raise UnprocessableError(
+            TASK_WITHOUT_WORKING_HOURS, {"resource_roles": [], "projects": list(projects)}
+        )
 
 
 def _deactivation_missing(*, is_default: bool) -> str | None:
@@ -378,14 +396,18 @@ def create_calendar(
     """Create an active calendar, and read it back; a label already held is refused (409).
 
     ``default`` designates it, the previous default retired: how the bootstrap and the loader of
-    the witness give the installation its calendar. ``identifier`` is imposed by the loader of the
-    witness alone (EP-05): the API never passes one, and one already held fails.
+    the witness give the installation its calendar. It is designated as ``set_default_calendar``
+    designates (#2510): refused if it would leave a task without an hour (422), and the structures
+    of the current revisions redated in the transaction once it is written (``recalculate``) —
+    none, at the bootstrap and before the projects of the witness. ``identifier`` is imposed by the
+    loader of the witness alone (EP-05): the API never passes one, and one already held fails.
     """
     _refuse_hours(new.weekly_hours)
     calendar_id = new_id() if identifier is None else identifier
     if default:
         lock_reference(session)
         _lock_designation(session)
+        _refuse_idle_tasks(session, calendar_id, new.weekly_hours, default=True)
         _retire_default(session, act)
     with _unique_label(session, new.label):
         session.execute(
@@ -402,6 +424,8 @@ def create_calendar(
                 updated_by=act.author,
             )
         )
+    if default:
+        recalculate(session, act.at)
     return read_calendar(session, calendar_id)
 
 
@@ -411,15 +435,21 @@ def update_calendar(
     """Change the label and the hours of a calendar, if its version is the one read (412).
 
     The days are refused first (422), then the version, then the label (409); a change that would
-    leave a task without an hour is refused (422), which EP-06 judges.
+    leave a task without an hour is refused (422), which EP-06 judges. The structures of the current
+    revisions are redated in the transaction, once the calendar is written (``recalculate``), when
+    the hours of the default change: a label, or the hours of another calendar, which no task of
+    EP-06 is on, redate nothing.
     """
     _refuse_hours(change.weekly_hours)
     lock_reference(session)
     calendar = _lock_calendar(session, calendar_id)
     _expect(calendar, lock_version)
     _refuse_idle_tasks(session, calendar_id, change.weekly_hours, default=calendar.is_default)
+    redating = calendar.is_default and _weekly(_hours_of(calendar)) != _weekly(change.weekly_hours)
     with _unique_label(session, change.label):
         _write(session, calendar, act, label=change.label, **_weekly(change.weekly_hours))
+    if redating:
+        recalculate(session, act.at)
     return read_calendar(session, calendar_id)
 
 
@@ -429,7 +459,9 @@ def set_default_calendar(
     """Designate a calendar the default, the previous one losing it and its version advancing.
 
     The version is judged first, as for any versioned write. A calendar that is the default
-    already answers as it is, nothing written; a deactivated one is not designated (409).
+    already answers as it is, nothing written; a deactivated one is not designated (409), nor one
+    that would leave a task without an hour (422). The structures of the current revisions are
+    redated in the transaction, once it is designated (``recalculate``).
     """
     lock_reference(session)
     _lock_designation(session)
@@ -442,6 +474,7 @@ def set_default_calendar(
         _refuse_idle_tasks(session, calendar_id, _hours_of(calendar), default=True)
         _retire_default(session, act)
         _write(session, calendar, act, is_default=True)
+        recalculate(session, act.at)
     return read_calendar(session, calendar_id)
 
 

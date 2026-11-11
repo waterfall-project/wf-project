@@ -105,7 +105,7 @@ export interface Examples {
     200: "imports" | "imports_empty" | "imports_page";
   };
   "GET /projects/{project_id}/imports/{import_id}": {
-    200: "import_actual_costs_analysed" | "import_actual_costs_column_ignored" | "import_actual_costs_dotted_code" | "import_actual_costs_duplicate_line" | "import_actual_costs_first" | "import_actual_costs_wbs_invalid" | "import_analysed" | "import_analysing" | "import_apply_refused_permission" | "import_estimate_task_without_hours" | "import_planning_mismatch" | "import_planning_non_working_day" | "import_planning_provision_moved" | "import_planning_rejected" | "import_remaining_ambiguous_label" | "import_remaining_analysed" | "import_remaining_completed_task" | "import_remaining_completed_tasks" | "import_remaining_subproject_held";
+    200: "import_actual_costs_analysed" | "import_actual_costs_column_ignored" | "import_actual_costs_dotted_code" | "import_actual_costs_duplicate_line" | "import_actual_costs_first" | "import_actual_costs_wbs_invalid" | "import_analysed" | "import_analysing" | "import_apply_refused_permission" | "import_estimate_task_without_hours" | "import_planning_mismatch" | "import_planning_non_working_day" | "import_planning_other_constants" | "import_planning_provision_moved" | "import_planning_rejected" | "import_remaining_ambiguous_label" | "import_remaining_analysed" | "import_remaining_completed_task" | "import_remaining_completed_tasks" | "import_remaining_subproject_held";
   };
   "GET /projects/{project_id}/indicators": {
     200: "project_indicators" | "project_indicators_marked" | "project_indicators_subproject" | "project_indicators_without_current_revision";
@@ -231,7 +231,7 @@ export interface Examples {
     200: "tasks_none" | "tasks_running";
   };
   "GET /tasks/{task_id}": {
-    200: "identity_sync_succeeded" | "task_exit_mark_failed" | "task_exit_mark_relaunched" | "task_exit_mark_relaunched_succeeded" | "task_exit_mark_running" | "task_exit_mark_succeeded" | "task_export_succeeded" | "task_failed" | "task_import_analysis_failed" | "task_import_succeeded" | "task_interrupted_by_restore" | "task_mark_relaunched" | "task_merge_horizon_exceeded" | "task_merge_link_cycle" | "task_merge_link_forbidden" | "task_merge_outside_work_package" | "task_merge_running" | "task_merge_succeeded" | "task_restore_backup_newer_version" | "task_restore_verification_failed" | "task_running" | "task_succeeded";
+    200: "identity_sync_succeeded" | "task_exit_mark_failed" | "task_exit_mark_relaunched" | "task_exit_mark_relaunched_succeeded" | "task_exit_mark_running" | "task_exit_mark_succeeded" | "task_export_succeeded" | "task_export_tree_image_too_large" | "task_failed" | "task_import_analysis_failed" | "task_import_succeeded" | "task_interrupted_by_restore" | "task_mark_relaunched" | "task_merge_horizon_exceeded" | "task_merge_link_cycle" | "task_merge_link_forbidden" | "task_merge_outside_work_package" | "task_merge_running" | "task_merge_succeeded" | "task_restore_backup_newer_version" | "task_restore_verification_failed" | "task_running" | "task_succeeded";
   };
   "GET /users": {
     200: "users" | "users_anonymized" | "users_by_access_role" | "users_by_created_at" | "users_created_by_platform" | "users_inactive" | "users_page" | "users_search";
@@ -333,6 +333,9 @@ export interface Examples {
   "POST /projects/{project_id}/revisions/{revision_id}/rate-update": {
     200: "rate_update_applied";
   };
+  "POST /projects/{project_id}/revisions/{revision_id}/redo": {
+    200: "redo_task_renamed" | "redo_task_renamed_two_left";
+  };
   "POST /projects/{project_id}/revisions/{revision_id}/skeleton": {
     201: "skeleton_generated";
   };
@@ -349,10 +352,13 @@ export interface Examples {
     200: "nodes_indented" | "nodes_moved";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste": {
-    200: "paste_applied" | "paste_applied_amendment" | "paste_applied_amendment_skipping" | "paste_applied_partial" | "paste_applied_rejudged";
+    200: "paste_applied" | "paste_applied_amendment" | "paste_applied_amendment_skipping" | "paste_applied_creating" | "paste_applied_partial" | "paste_applied_rejudged";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview": {
-    200: "paste_plan" | "paste_plan_amendment" | "paste_plan_amendment_skipping" | "paste_plan_amendment_target_removed" | "paste_plan_subproject_held" | "paste_plan_unknown_category" | "paste_plan_without_hours";
+    200: "paste_plan" | "paste_plan_amendment" | "paste_plan_amendment_skipping" | "paste_plan_amendment_target_removed" | "paste_plan_creating" | "paste_plan_subproject_held" | "paste_plan_unknown_category" | "paste_plan_without_hours";
+  };
+  "POST /projects/{project_id}/revisions/{revision_id}/undo": {
+    200: "undo_task_renamed" | "undo_task_renamed_one_left";
   };
   "POST /projects/{project_id}/risks": {
     201: "risk_created";

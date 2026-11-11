@@ -297,8 +297,9 @@ export async function deleteNode(
  * place, and an outdentation a move after the parent, under the parent of it. The API answers the
  * nodes as they now are, their old and new ancestors recalculated, the tasks redated, the totals and
  * the version the structure moved on to — or refuses it, a link a summary would hold to one of its
- * subordinates (`LINK_FORBIDDEN`), a loop (`LINK_CYCLE`) or a node to follow that is no sibling
- * (`NODE_NOT_SIBLING`) among its reasons; nothing is written then.
+ * subordinates (`LINK_FORBIDDEN`), a loop (`LINK_CYCLE`), a parent taken among the moved nodes or
+ * their subordinates (`NODE_CYCLE`) or a node to follow that is no sibling (`NODE_NOT_SIBLING`)
+ * among its reasons; nothing is written then.
  */
 export async function moveNodes(
   structure: StructurePath,

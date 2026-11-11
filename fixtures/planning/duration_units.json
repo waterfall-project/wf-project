@@ -1,0 +1,10 @@
+{
+  "summary": "Avec les valeurs par défaut des constantes (8 heures par jour, 40 par semaine, 20 jours par mois), une durée de 2 j vaut seize heures, 1 sem quarante heures et 1 m cent soixante heures (WF-PLA-0160).",
+  "examples": ["WF-PLA-0160-A#bbe6853cf3ce"],
+  "constants": {"hours_per_day": "8", "hours_per_week": "40", "days_per_month": "20"},
+  "durations": [
+    {"value": "2", "unit": "d", "hours": "16"},
+    {"value": "1", "unit": "w", "hours": "40"},
+    {"value": "1", "unit": "mo", "hours": "160"}
+  ]
+}
