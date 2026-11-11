@@ -12,7 +12,7 @@
 
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useMemo } from "react";
+import { type FocusEvent, type ReactNode, useLayoutEffect, useMemo, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -49,6 +49,32 @@ export function isBarOpen<Row>(
   return options !== undefined && rows.length > 0;
 }
 
+/**
+ * Where the focus is among the bars above a grid, so that it is given back to the active cell when
+ * the bar it is in goes away: the bar of the grid, covered as a row is selected, or the bar of the
+ * selection, gone as the selection is emptied — by « Annuler » or by a command of the screen. The
+ * handler goes on the element that holds both bars; `refocus` is called after the render that
+ * covers or lifts a bar.
+ */
+export function useBarFocus(open: boolean, refocus: () => void) {
+  const where = useRef<"toolbar" | "bar">(undefined);
+  useLayoutEffect(() => {
+    if (where.current === (open ? "toolbar" : "bar")) {
+      where.current = undefined;
+      refocus();
+    }
+  });
+  return (event: FocusEvent<HTMLElement>) => {
+    const { target } = event;
+    const inside = (mark: string) => target instanceof Element && target.closest(mark) !== null;
+    if (inside("[data-grid-toolbar]")) {
+      where.current = "toolbar";
+    } else {
+      where.current = inside("[data-selection-bar]") ? "bar" : undefined;
+    }
+  };
+}
+
 /** Render the bar of a selection of `rows`, nothing while none is selected. */
 export function SelectionBar<Row>({
   rows,
@@ -71,26 +97,36 @@ export function SelectionBar<Row>({
     <div
       role="group"
       aria-label={t("bar")}
-      className="absolute top-0 left-0 flex h-7 min-w-min max-w-full items-center gap-2 rounded-md bg-foreground px-3 py-1 text-xs text-background"
+      data-selection-bar=""
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          onClear();
+        }
+      }}
+      // In a narrow window it scrolls, never wraps: its height is that of the bar it covers.
+      className="absolute top-0 left-0 h-7 max-w-full overflow-x-auto rounded-md text-xs text-background [scrollbar-width:none]"
       style={{ width }}
     >
-      <span className="font-medium">
-        {options.label === undefined
-          ? t("barCount", { count: rows.length })
-          : options.label(rows.length)}
-      </span>
-      {options.commands?.(rows)}
-      <div className="flex-1" />
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={onClear}
-        className="h-6 text-xs text-background hover:bg-background/15 hover:text-background"
-      >
-        <X aria-hidden="true" />
-        {t("clear")}
-      </Button>
+      <div className="flex h-full w-max min-w-full items-center gap-2 bg-foreground px-3">
+        <span className="font-medium">
+          {options.label === undefined
+            ? t("barCount", { count: rows.length })
+            : options.label(rows.length)}
+        </span>
+        {options.commands?.(rows)}
+        <div className="flex-1" />
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onClear}
+          className="h-6 text-xs text-background hover:bg-background/15 hover:text-background"
+        >
+          <X aria-hidden="true" />
+          {t("clear")}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -285,10 +285,15 @@
     "selection": {
       "handle": "{number} — poignée de la ligne",
       "hint": "Espace sélectionne la ligne, Maj et une flèche étendent la sélection, Échap la lève. Alt+Maj et une flèche la déplacent — Alt+Maj+↑ et Alt+Maj+↓ d’un rang, Alt+Maj+→ et Alt+Maj+← en l’indentant et en la désindentant —, comme le glisser de la poignée à la souris.",
-      "hintPick": "Espace ajoute la ligne à la sélection ou l’en retire (Ctrl+Espace aussi), Maj et une flèche étendent la sélection, Ctrl+A ou Cmd+A sélectionne toutes les lignes affichées, Échap la lève. À la souris, Ctrl+clic ou Cmd+clic ajoute ou retire une ligne, Maj+clic étend, Ctrl+Maj+clic ajoute l’étendue.",
+      "hintPick": "Espace ajoute la ligne à la sélection ou l’en retire (Ctrl+Espace aussi), Maj et une flèche étendent la sélection, Ctrl+A ou Cmd+A, depuis n’importe quelle cellule hors saisie, sélectionne toutes les lignes affichées, Échap la lève. À la souris, Ctrl+clic ou Cmd+clic ajoute ou retire une ligne, Maj+clic étend, Ctrl+Maj+clic ajoute l’étendue.",
       "count": "{count, plural, one {# ligne sélectionnée} other {# lignes sélectionnées}}",
       "none": "Aucune ligne sélectionnée",
       "every": "Toutes les lignes affichées sont sélectionnées",
+      "state": {
+        "all": "Toutes les lignes affichées sont sélectionnées",
+        "some": "Une partie des lignes affichées est sélectionnée",
+        "none": "Aucune ligne n’est sélectionnée"
+      },
       "all": "Sélectionner toutes les lignes affichées",
       "bar": "Actions sur la sélection",
       "barCount": "{count, plural, one {# ligne sélectionnée} other {# lignes sélectionnées}}",

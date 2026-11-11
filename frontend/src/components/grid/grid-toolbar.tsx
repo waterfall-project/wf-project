@@ -238,6 +238,7 @@ export function GridToolbar({
   const said = useTranslations("commands");
   return (
     <div
+      data-grid-toolbar=""
       inert={covered}
       className={cn("flex min-w-min max-w-full items-center gap-2", covered ? "invisible" : null)}
       style={width === undefined ? undefined : { width }}

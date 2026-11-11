@@ -341,3 +341,111 @@ describe("the grid that is a tree keeps its keyboard #2916", () => {
     expect(selected()).toEqual([0]);
   });
 });
+
+const cancel = () =>
+  within(screen.getByRole("group", { name: "Actions sur la sélection" })).getByRole("button", {
+    name: "Annuler la sélection",
+  });
+const inGrid = (element: Element | null) =>
+  element !== null && document.querySelector("table")?.contains(element) === true;
+
+describe("the bar of the grid covered by the bar of the selection #2916", () => {
+  it("gives the focus back to the active cell when it was in the bar of the grid as the selection came", () => {
+    render(grid({}));
+    const search = screen.getByRole("searchbox");
+    act(() => {
+      search.focus();
+    });
+    expect(search).toHaveFocus();
+    fireEvent.click(handle(1));
+    expect(search).not.toHaveFocus();
+    expect(inGrid(document.activeElement)).toBe(true);
+  });
+
+  it("keeps the search typed while the bar is covered, and shows it again when the selection is lifted", async () => {
+    const user = userEvent.setup();
+    render(grid({}));
+    await user.type(screen.getByRole("searchbox"), "câble");
+    fireEvent.click(handle(0));
+    fireEvent.click(cancel());
+    expect(screen.getByRole("searchbox")).toHaveValue("câble");
+    expect(screen.getByRole("searchbox").closest("[inert]")).toBeNull();
+  });
+
+  it("is reached by Shift and Tab from the grid, lifts the selection on Escape and gives the focus back to the active cell", async () => {
+    const user = userEvent.setup();
+    render(grid({}));
+    await user.click(handle(2));
+    await user.tab({ shift: true });
+    expect(cancel()).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(selected()).toEqual([]);
+    expect(inGrid(document.activeElement)).toBe(true);
+  });
+
+  it("gives the focus back to the grid when the selection is emptied by a command of the screen, the bar gone with the focus in it", async () => {
+    const user = userEvent.setup();
+    let empty: () => void = () => undefined;
+    render(
+      grid({
+        commands: () => (
+          <button
+            type="button"
+            onClick={() => {
+              empty();
+            }}
+          >
+            Vider
+          </button>
+        ),
+      }),
+    );
+    await user.click(handle(1));
+    // The command of the screen empties the selection by the box of the header, as a click would.
+    empty = () => {
+      fireEvent.click(header());
+    };
+    await user.click(header());
+    expect(selected()).toEqual([0, 1, 2, 3, 4]);
+    const command = screen.getByRole("button", { name: "Vider" });
+    act(() => {
+      command.focus();
+    });
+    await user.click(command);
+    expect(selected()).toEqual([]);
+    expect(inGrid(document.activeElement)).toBe(true);
+  });
+
+  it("scrolls in a narrow window rather than wrap: its height stays that of the bar it covers", () => {
+    render(grid({}));
+    fireEvent.click(handle(0));
+    const bar = screen.getByRole("group", { name: "Actions sur la sélection" });
+    expect(bar.className).toContain("overflow-x-auto");
+    expect(bar.innerHTML).not.toContain("flex-wrap");
+    expect(bar.firstElementChild?.className).toContain("min-w-full");
+  });
+});
+
+describe("the box of all the rows #2916", () => {
+  it("describes its state, which changes as the rows are selected", () => {
+    render(grid({}));
+    const described = () =>
+      document.getElementById(header().getAttribute("aria-describedby") ?? "")?.textContent;
+    expect(described()).toBe("Aucune ligne n’est sélectionnée");
+    fireEvent.click(handle(0));
+    expect(described()).toBe("Une partie des lignes affichées est sélectionnée");
+    fireEvent.click(header());
+    expect(described()).toBe("Toutes les lignes affichées sont sélectionnées");
+  });
+
+  it("is selected by Ctrl+A from any cell of the grid but one entered", async () => {
+    const user = userEvent.setup();
+    render(grid({}));
+    const cell = document.querySelector<HTMLElement>('td[data-row="2"][data-column="label"]');
+    act(() => {
+      cell?.focus();
+    });
+    await user.keyboard("{Control>}a{/Control}");
+    expect(selected()).toEqual([0, 1, 2, 3, 4]);
+  });
+});

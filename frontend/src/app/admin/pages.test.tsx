@@ -176,7 +176,7 @@ describe("the accounts", () => {
     server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const page = rendered(await UsersPage(searched()));
     expect(rows(page, "Comptes utilisateurs")).toEqual([
-      "N° Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État Créé le Créé par Modifié le Modifié par",
+      "Aucune ligne n’est sélectionnée N° Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État Créé le Créé par Modifié le Modifié par",
       "1 Bernard Dominique dominique.bernard@example.com Importé de l’annuaire Aucun Manager Actif La plateforme La plateforme",
       "2 Lefèvre Sacha sacha.lefevre@example.com Créé par le fournisseur d’identité Atelier de câblage Aucun rôle Actif La plateforme La plateforme",
       "3 Martin Camille camille.martin@example.com Créé dans Waterfall Aucun Direction de projet Actif La plateforme Camille Martin",
@@ -430,7 +430,7 @@ describe("the accounts", () => {
     expect(text(page)).not.toMatch(/Supprimer/);
     expect(buttons(page)).toContain("Créer un compte local");
     expect(rows(page, "Comptes utilisateurs")[0]).toBe(
-      "N° Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État Créé le Créé par Modifié le Modifié par Lien de fixation Renvoi du courriel Anonymisation",
+      "Aucune ligne n’est sélectionnée N° Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État Créé le Créé par Modifié le Modifié par Lien de fixation Renvoi du courriel Anonymisation",
     );
     expect(page).toContain('aria-label="Anonymiser «\u00a0Alix Moreau\u00a0»"');
     expect(page).toContain('aria-label="Compte de «\u00a0Alix Moreau\u00a0» actif"');

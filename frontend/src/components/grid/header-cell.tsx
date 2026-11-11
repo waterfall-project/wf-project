@@ -90,12 +90,13 @@ export interface SelectAll {
 }
 
 /** The box that selects all the rows shown, mixed when only some are. */
-function SelectAllBox({ all }: { readonly all: SelectAll }) {
+function SelectAllBox({ all, described }: { readonly all: SelectAll; readonly described: string }) {
   const t = useTranslations("grid.selection");
   const checked = { all: true, some: "indeterminate", none: false } as const;
   return (
     <Checkbox
       aria-label={t("all")}
+      aria-describedby={described}
       checked={checked[all.state]}
       disabled={all.disabled}
       tabIndex={-1}
@@ -308,7 +309,10 @@ function HeadContent({
   sort,
   end,
   selectAll,
+  stateId,
 }: {
+  /** The identifier of what tells the state of the box of all the rows. */
+  readonly stateId: string;
   readonly heading: ReactNode;
   readonly sort:
     | {
@@ -319,6 +323,7 @@ function HeadContent({
   readonly end: boolean;
   readonly selectAll: SelectAll | undefined;
 }) {
+  const t = useTranslations("grid.selection");
   if (sort !== undefined) {
     return (
       <button
@@ -341,7 +346,10 @@ function HeadContent({
   }
   return (
     <>
-      <SelectAllBox all={selectAll} />
+      <SelectAllBox all={selectAll} described={stateId} />
+      <span id={stateId} className="sr-only">
+        {t(`state.${selectAll.state}`)}
+      </span>
       <span className="sr-only">{heading}</span>
     </>
   );
@@ -380,6 +388,7 @@ export function HeaderCell<Row extends RowData>({
   // The header is named by its heading alone — the Σ and the label —, not by the name of the
   // handle it holds, which would be read with every cell of the column.
   const id = useId();
+  const stateId = useId();
   const heading = (
     <Heading
       id={id}
@@ -433,6 +442,7 @@ export function HeaderCell<Row extends RowData>({
         }
         end={end}
         selectAll={selectAll}
+        stateId={stateId}
       />
       {cornerOf(column)}
       {resizes ? <ResizeHandle table={table} header={header} label={label} /> : null}

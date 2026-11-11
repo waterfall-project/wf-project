@@ -120,6 +120,21 @@ function handleOf(target: EventTarget): number | undefined {
   return at?.column === ROW_NUMBER_KEY ? at.row : undefined;
 }
 
+/** Whether a key is Ctrl or Cmd and A, out of a field: in a field it keeps its sense of text. */
+function selectsAll(event: KeyboardEvent<HTMLElement>): boolean {
+  const { target } = event;
+  const field =
+    target instanceof HTMLElement &&
+    (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+  return (
+    (event.ctrlKey || event.metaKey) &&
+    !event.altKey &&
+    !event.shiftKey &&
+    event.key.toLowerCase() === "a" &&
+    !field
+  );
+}
+
 /**
  * What a key asks of the selection, on a handle: Space, Shift and Space, Escape, Shift and an arrow;
  * and, for a grid that picks, Ctrl or Cmd and Space, which toggles the row of the active cell.
@@ -127,7 +142,7 @@ function handleOf(target: EventTarget): number | undefined {
 function selectionKey(
   event: KeyboardEvent<HTMLElement>,
   pick: boolean,
-): "select" | "extend" | "toggle" | "all" | "lift" | "up" | "down" | undefined {
+): "select" | "extend" | "toggle" | "lift" | "up" | "down" | undefined {
   if (event.altKey) {
     return undefined;
   }
@@ -135,12 +150,7 @@ function selectionKey(
     if (!pick || event.shiftKey) {
       return undefined;
     }
-    const asked: Readonly<Partial<Record<string, "toggle" | "all">>> = {
-      " ": "toggle",
-      a: "all",
-      A: "all",
-    };
-    return asked[event.key];
+    return event.key === " " ? "toggle" : undefined;
   }
   const keys: Readonly<Partial<Record<string, "select" | "lift" | "up" | "down">>> = {
     " ": "select",
@@ -587,13 +597,14 @@ export function useRowSelection<Row>({
    */
   const onKeyDown = (event: KeyboardEvent<HTMLElement>): boolean => {
     const at = positionOf(event.target);
+    // Ctrl or Cmd and A, from any cell of a grid that picks but one entered, selects all the rows.
+    if (pick && at !== undefined && selectsAll(event)) {
+      toggleAll(true);
+      return true;
+    }
     const key = offered && at?.column === ROW_NUMBER_KEY ? selectionKey(event, pick) : undefined;
     if (at === undefined || key === undefined || at.row === HEADER_ROW) {
       return false;
-    }
-    if (key === "all") {
-      toggleAll(true);
-      return true;
     }
     const choice = keyChoice(key);
     if (choice !== undefined) {

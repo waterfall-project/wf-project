@@ -1065,6 +1065,8 @@ toute la structure contre le service, où celle de PRJ-001 compte 5 966 nœuds, 
 nœuds restant au faux back jusqu'à EP-13 (#2696). Les écarts de montants restent une table sous la
 grille, et l'écran est l'un de ceux du harnais d'accessibilité (`DIFFERENTIAL_SCREENS`).
 
+Une table plate peut laisser choisir ses lignes une à une (`DenseGrid.selecting`, désactivé par défaut, #2916/L4) : Ctrl ou Cmd et un clic sur la poignée du numéro, Espace seul au clavier (Ctrl+Espace en alias), Ctrl ou Cmd et A pour toutes les lignes affichées (hors d'une cellule en saisie), la case de l'en-tête des poignées, et, dès qu'une ligne l'est, une barre sombre (`SelectionBar`) qui recouvre la barre de la grille à la même place et à la même hauteur, sans décaler le cadre ni recalculer sa hauteur : la sélection prime, la recherche, « Colonnes » et les commandes de l'écran sont inertes et masquées tant qu'elle dure (leur état, la recherche saisie comprise, est gardé), et « Annuler la sélection » ou Échap les rend. Le focus qui était dans l'une des deux barres quand l'autre la remplace revient à la cellule active (`useBarFocus`). Une grille arborescente garde la sélection contiguë, son glisser-déposer et son clavier.
+
 ### La grille de planning et le Gantt
 
 Au-dessus de la grille, la date de début de planning de la structure lue

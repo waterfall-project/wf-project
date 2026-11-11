@@ -126,6 +126,7 @@ import {
 } from "./row-selection";
 import {
   isBarOpen,
+  useBarFocus,
   SelectionBar,
   type SelectionBarOptions,
   useSelectedConfig,
@@ -705,6 +706,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   });
   // The bar of the selection lies over the bar of the grid, in its place: nothing moves under it.
   const barOpen = isBarOpen(selecting, selection.rows);
+  const barFocus = useBarFocus(barOpen, keyboard.refocus);
   const screenCommands = onRows(
     commands,
     (index) => model[index]?.original,
@@ -761,6 +763,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       className="relative flex min-h-0 flex-col gap-2"
       style={{ minHeight: withBar(bodyRows) }}
       onKeyDown={undo.onKeyDown}
+      onFocusCapture={barFocus}
     >
       <GridToolbar
         covered={barOpen}

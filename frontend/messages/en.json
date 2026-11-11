@@ -285,10 +285,15 @@
     "selection": {
       "handle": "{number} — row handle",
       "hint": "Space selects the row, Shift and an arrow extend the selection, Escape lifts it. Alt+Shift and an arrow move it — Alt+Shift+Up and Alt+Shift+Down by a rank, Alt+Shift+Right and Alt+Shift+Left indenting and outdenting it —, as dragging the handle with the mouse does.",
-      "hintPick": "Space adds the row to the selection or takes it off (Ctrl+Space too), Shift and an arrow extend the selection, Ctrl+A or Cmd+A selects all the rows shown, Escape lifts it. With the mouse, Ctrl+click or Cmd+click adds or removes a row, Shift+click extends, Ctrl+Shift+click adds the extent.",
+      "hintPick": "Space adds the row to the selection or takes it off (Ctrl+Space too), Shift and an arrow extend the selection, Ctrl+A or Cmd+A, from any cell but one entered, selects all the rows shown, Escape lifts it. With the mouse, Ctrl+click or Cmd+click adds or removes a row, Shift+click extends, Ctrl+Shift+click adds the extent.",
       "count": "{count, plural, one {# row selected} other {# rows selected}}",
       "none": "No row selected",
       "every": "All the rows shown are selected",
+      "state": {
+        "all": "All the rows shown are selected",
+        "some": "Some of the rows shown are selected",
+        "none": "No row is selected"
+      },
       "all": "Select all the rows shown",
       "bar": "Actions on the selection",
       "barCount": "{count, plural, one {# row selected} other {# rows selected}}",
