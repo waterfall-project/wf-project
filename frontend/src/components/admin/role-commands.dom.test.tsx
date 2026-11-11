@@ -508,6 +508,77 @@ describe("the writes of a same role, one at a time (#2261)", () => {
     expect(label("Administrateur")).toHaveAttribute("aria-busy", "false");
   });
 
+  it("sends no renaming validated while a cell of the role is written, the entry kept, and renames from the version the cell answered once it is free [WF-ADM-0010-A]", async () => {
+    const hold = holdRoute(WRITTEN);
+    const client = serve(
+      { [WRITTEN]: ["access_role_updated", "access_role_renamed"] },
+      hold.timing,
+    );
+    const shown = permissions.filter(({ code }) => code === "planning.write");
+    render(inFrench(tableAndMatrix(shown)));
+    // The entry is opened first, then a cell of the same role is checked, then the entry validated.
+    labelCell("Manager").focus();
+    await userEvent.keyboard("Resp");
+    // A click from the code, which leaves the focus, and so the entry, where they are.
+    act(() => {
+      cell("Manager").click();
+    });
+    await waitFor(() => {
+      expect(cell("Manager")).toHaveAttribute("aria-busy", "true");
+    });
+    await userEvent.keyboard("{Enter}");
+    expect(client.calls).toHaveLength(1);
+    hold.release();
+    await waitFor(() => {
+      expect(cell("Manager")).toHaveAttribute("aria-busy", "false");
+    });
+    // The role is free: the renaming goes from the version the cell answered.
+    labelCell("Manager").focus();
+    await userEvent.keyboard("Resp{Enter}");
+    await waitFor(() => {
+      expect(client.calls).toHaveLength(2);
+    });
+    const checked = example("access_role_updated") as Schemas["AccessRole"];
+    expect(client.calls[1]?.body).toMatchObject({
+      label: "Resp",
+      lock_version: checked.lock_version,
+    });
+  });
+
+  it("keeps a confirmation opened before a write of the role open and its command busy, deleting once the role is free [WF-ADM-0010-A]", async () => {
+    const hold = holdRoute(WRITTEN);
+    const client = serve(
+      { [DELETED]: { status: 204 }, [WRITTEN]: "access_role_updated" },
+      hold.timing,
+    );
+    const shown = permissions.filter(({ code }) => code === "planning.write");
+    render(inFrench(tableAndMatrix(shown)));
+    const box = cell("Administrateur");
+    const grid = screen.getByRole("grid", { name: "Rôles d’habilitation" });
+    await userEvent.click(
+      within(grid).getByRole("button", { name: "Supprimer «\u00a0Administrateur\u00a0»" }),
+    );
+    const confirmation = await screen.findByRole("alertdialog");
+    // A cell of the role is written while the confirmation is open (set from the code, not a press).
+    act(() => {
+      box.click();
+    });
+    await waitFor(() => {
+      expect(client.calls).toHaveLength(1);
+    });
+    const confirm = within(confirmation).getByRole("button", { name: "Supprimer" });
+    expect(confirm).toBeDisabled();
+    hold.release();
+    await waitFor(() => {
+      expect(confirm).toBeEnabled();
+    });
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    await userEvent.click(confirm);
+    await waitFor(() => {
+      expect(client.calls.map(({ route }) => route)).toEqual([WRITTEN, DELETED]);
+    });
+  });
+
   it("frees a role whose write the server refuses, the next write going from the version read [WF-ADM-0010-A]", async () => {
     const client = serve({
       [WRITTEN]: [
@@ -517,7 +588,7 @@ describe("the writes of a same role, one at a time (#2261)", () => {
     });
     const shown = permissions.filter(({ code }) => code === "planning.write");
     render(inFrench(tableAndMatrix(shown)));
-    await userEvent.click(cell("Manager"));
+    await userEvent.click(cell("Administrateur"));
     await waitFor(() => {
       expect(client.calls).toHaveLength(1);
     });

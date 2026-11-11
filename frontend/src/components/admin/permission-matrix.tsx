@@ -122,19 +122,24 @@ function Writing({ order, roles, children }: WritesProps) {
     const permissions = order.filter((each) => next.has(each));
     void heldWrite(
       updateAccessRole(id, { label: role.label, permissions, lock_version: role.lock_version }),
-    ).then((outcome) => {
-      setAsked((before) => {
-        const after = new Map(before);
-        after.delete(id);
-        return after;
+    )
+      .then((outcome) => {
+        if (outcome.kind === "done") {
+          answers?.record(outcome.data);
+        } else {
+          list?.report({ outcome, generation, names: {}, target: `permissions ${id}`, back: cell });
+        }
+      })
+      .finally(() => {
+        // Whatever the answer, a rejection included: the cell no longer shows the value asked, and
+        // the role is free again.
+        setAsked((before) => {
+          const after = new Map(before);
+          after.delete(id);
+          return after;
+        });
+        answers?.end(id);
       });
-      if (outcome.kind === "done") {
-        answers?.record(outcome.data);
-      } else {
-        list?.report({ outcome, generation, names: {}, target: `permissions ${id}`, back: cell });
-      }
-      answers?.end(id);
-    });
   };
   return <WritesContext value={{ holding, write }}>{children}</WritesContext>;
 }

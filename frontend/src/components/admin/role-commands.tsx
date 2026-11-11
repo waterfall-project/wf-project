@@ -167,6 +167,9 @@ function Deletion({ children }: { readonly children: ReactNode }) {
               {t("keep")}
             </AlertDialogCancel>
             <AlertDialogAction
+              // A write of the role under way is answered first: the confirmation stays open, and
+              // its command busy, rather than closing on a press that sends nothing.
+              disabled={answers?.writing.has(asked?.role.access_role_id ?? "") === true}
               onClick={() => {
                 if (asked !== undefined) {
                   confirmed(asked.role);

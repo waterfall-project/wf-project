@@ -376,6 +376,12 @@ function renaming(answers: RoleAnswered | undefined): CellEntry<AccessRole, null
         throw new Error("a role is never left without a label");
       }
       const role = answers?.latest(shown) ?? shown;
+      if (answers?.isWriting(role.access_role_id) === true) {
+        // The entry was opened before a write of the role started: sending now would go from the
+        // version that write is about to leave, and be refused as stale (#2261). Nothing is sent;
+        // the entry stays to be validated again once the role is free.
+        return { kind: "unreachable" };
+      }
       answers?.begin(role.access_role_id);
       try {
         const outcome = await updateAccessRole(role.access_role_id, {
