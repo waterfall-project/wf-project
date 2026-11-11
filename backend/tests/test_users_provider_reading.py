@@ -449,15 +449,20 @@ class Creating(Watching):
         del subject
 
 
+@pytest.fixture
+def creating(
+    contract: OpenAPI, database: Database, keycloak: Keycloak, realm_settings: ServiceSettings
+) -> ContractClient:
+    """Give a client of the API whose provider creates the accounts asked."""
+    provider = Creating(keycloak, realm_settings, database)
+    app = create_app(Services(database, keycloak, provider, *nowhere()))
+    return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
+
+
 @pytest.mark.requirement("WF-ADM-0120-A")
 @pytest.mark.parametrize("operation", list(LOCKED_ROUTES))
 def test_a_route_that_changes_an_account_waits_for_the_lock_of_the_rule_before_any_row(
-    database: Database,
-    contract: OpenAPI,
-    keycloak: Keycloak,
-    realm_settings: ServiceSettings,
-    realm: TestRealm,
-    operation: str,
+    database: Database, creating: ContractClient, realm: TestRealm, operation: str
 ) -> None:
     # #2227: every route of the administration that changes an account takes the lock of the rule
     # of the last administrator first, before the row of any account, as the reading does. Another
@@ -473,15 +478,12 @@ def test_a_route_that_changes_an_account_waits_for_the_lock_of_the_rule_before_a
         holders=(camille["id"],),
     )
     headers = bearer(realm.token(str(camille["idp_subject"]), KEY))
-    provider = Creating(keycloak, realm_settings, database)
-    app = create_app(Services(database, keycloak, provider, *nowhere()))
-    api = ContractClient(TestClient(app, raise_server_exceptions=False), contract)
     method, template, body, expected = LOCKED_ROUTES[operation]
     path = f"/api/v1{template.format(id=paul['id'])}"
     answers: list[int] = []
 
     def ask() -> None:
-        answers.append(api.request(method, path, headers=headers, json=body).status_code)
+        answers.append(creating.request(method, path, headers=headers, json=body).status_code)
 
     concurrent = threading.Thread(target=ask)
     with database.transaction() as holding:
@@ -497,8 +499,8 @@ def test_a_route_that_changes_an_account_waits_for_the_lock_of_the_rule_before_a
         with database.transaction() as other:
             other.execute(text("SET LOCAL lock_timeout = '1s'"))
             ids = [camille["id"], paul["id"]]
-            locked = select(UserAccount.id).where(UserAccount.id.in_(ids)).with_for_update(nowait=True)
-            assert len(other.scalars(locked).all()) == 2
+            rows = select(UserAccount.id).where(UserAccount.id.in_(ids))
+            assert len(other.scalars(rows.with_for_update(nowait=True)).all()) == 2
         assert answers == []
     concurrent.join(15)
     assert not concurrent.is_alive()
