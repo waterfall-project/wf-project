@@ -38,8 +38,12 @@ export interface TreeNode {
 /** The parameter of the address the depth goes by. */
 export const DEPTH = "depth";
 
-/** The depth asked when the address asks none: the first two levels. */
-const DEFAULT_DEPTH = 2;
+/**
+ * The depth asked when the address asks none: the first two levels. The journey of the task tree
+ * asks the service the same depth (`e2e/task-tree.spec.ts`), so that the request it makes is the
+ * screen's.
+ */
+export const DEFAULT_DEPTH = 2;
 
 /** The depth the address asks — a level, the first being 1 —; the first two when it asks none. */
 export function readDepth(search: SearchParameters): number {

@@ -39,6 +39,16 @@ DAY = date(2026, 11, 8)
 FILL = (239, 246, 255)  # the fill of a frame
 OUTLINE = (107, 114, 128)  # the outline of a frame
 ROOT_FILL = (219, 234, 254)  # the fill of the project's frame
+# The two tolerances of the ink read back from the image, each with its reason (#2539). A glyph
+# does not touch the top of its line: the font keeps its ascent above the capitals and the accents,
+# so the first row of ink of a header line lies a few rows below the y it is drawn at; 8 pixels hold
+# the header font with its accents, and are fewer than the step of a line, so a line drawn a band
+# too low is still seen.
+INK_TOP_SLACK = 8
+# The ink of a label is measured by its first and last columns that differ from the fill, while the
+# font measures its advance: the side bearings of the first and last glyphs and the half-covered
+# columns of the anti-aliasing, a pixel or so at each end, make the two differ by up to 3 pixels.
+INK_SIDE_SLACK = 3
 
 
 def _tree(columns: int = 3, grandchildren: int = 2, label: str = "Lot") -> TreeNode:
@@ -264,7 +274,7 @@ def test_the_three_lines_of_the_header_are_placed_one_under_the_other_each_with_
         assert _ink_in(image, line_y, line_y + step)
         # The ink of a line begins at its own y: a few rows below at most, never above.
         top = _first_ink_row(image, line_y - 2, line_y + step)
-        assert line_y <= top <= line_y + 8
+        assert line_y <= top <= line_y + INK_TOP_SLACK
     assert not _ink_in(image, layout.header_ys[-1] + step, layout.boxes[0].y)
 
 
@@ -290,8 +300,8 @@ def test_the_label_of_each_frame_is_drawn_inside_it() -> None:
             )
         ]
         wanted = round(own_font(FONT_SIZE).getlength(box.label))
-        assert abs((columns[-1] - columns[0] + 1) - wanted) <= 3, box.label
-        assert abs(columns[0] - (box.x + PADDING)) <= 3, box.label
+        assert abs((columns[-1] - columns[0] + 1) - wanted) <= INK_SIDE_SLACK, box.label
+        assert abs(columns[0] - (box.x + PADDING)) <= INK_SIDE_SLACK, box.label
     # The check discriminates: a frame without label has nothing but its fill.
     empty = _layout(TreeNode("", (TreeNode(""),)), depth=1)
     blank = _png(TreeNode("", (TreeNode(""),)), depth=1)

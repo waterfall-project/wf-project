@@ -31,7 +31,12 @@ from waterfall.core.estimate.uniting import TASK, Union, unite
 from waterfall.core.planning.interface import Place, read_structure
 from waterfall.core.projects.interface import subproject_labels
 from waterfall.core.revisions.interface import aimed_structure, read_revision_for
-from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError, NotFoundError
+from waterfall.platform.errors import (
+    NOT_FOUND,
+    STATE_FORBIDS_OPERATION,
+    ConflictError,
+    NotFoundError,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Sequence
@@ -49,7 +54,6 @@ if TYPE_CHECKING:
     )
     from waterfall.core.revisions.interface import RevisionRead
 
-NOT_FOUND = "NOT_FOUND"
 REVISION_MARKED = "revision_marked"
 COST_TYPE = "cost_type"
 SUBPROJECT = "subproject"

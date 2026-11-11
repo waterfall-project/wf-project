@@ -6230,6 +6230,27 @@ class ImportSignal(ContractModel):
     params: ProblemParams
 
 
+class UnitConstantValues(ContractModel):
+    hours_per_day: Decimal
+    hours_per_week: Decimal
+    days_per_month: Decimal
+
+
+class ImportUnitConstants(ContractModel):
+    file: Annotated[
+        UnitConstantValues,
+        Field(
+            description="The constants the file carries, a missing one at the default of MS Project."
+        ),
+    ]
+    installation: Annotated[
+        UnitConstantValues,
+        Field(
+            description="The constants of the installation at the analysis (`DurationUnits`), at which the durations and the lags of the file are converted."
+        ),
+    ]
+
+
 class RequiresConfirmationReason(StrEnum):
     lines_outside_project = "lines_outside_project"
     unknown_subproject = "unknown_subproject"
@@ -6302,6 +6323,12 @@ class ImportReport(ContractModel):
         list[RequiresConfirmationReason],
         Field(
             description="Reasons for an explicit confirmation, specific to actual costs: lines of another project, rejected, or an unknown subproject, kept by its code (WF-CRE-0020). A difference in dates or durations is no longer one: it is stated by `date_mismatches`."
+        ),
+    ]
+    unit_constants: Annotated[
+        ImportUnitConstants | None,
+        Field(
+            description='For an MS Project schedule whose unit constants differ from those of the installation, the constants of the file and those of the installation: "an MS Project file whose constants differ from those of the installation is imported with the same durations in hours, and the report signals the difference" (WF-PLA-0160, WF-INTF-0040). The durations and the lags are imported with their hours, their values converted at the constants of the installation: "2 d" at seven hours a day is fourteen hours, 1.75 d at eight. A constant the file does not carry is the default of MS Project, eight hours a day, forty a week and twenty days a month. A piece of information, not a reason for confirmation. Always returned: null when the constants are equal, and for the other kinds of import.'
         ),
     ]
 

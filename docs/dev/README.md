@@ -1193,8 +1193,13 @@ after confirmation, as the project lists `manage_timelines` (`timeline-commands.
 The server selects what each one draws (#463): the tree asks for the summary tasks down to the level
 of the address (`summaries_only`, `max_level`), a timeline the tasks inscribed in it
 (`timeline_id`). The service honours the latter for the timelines (US-1400): the screen draws what
-it renders, applying no criterion to the response; the tree still applies its own (`summaryTree`)
-against the fake back, a temporary gap of EP-02 removed by US-1440. The tree offers exactly the
+it renders, applying no criterion to the response, and so does it for the tree (US-1440): the
+fallback of `listNodes` (#496, `summaryTree`, `inscribedTo`) no longer exists. Against the fake back,
+which renders the first example whatever the request, the tree draws the whole structure of the
+witness, and the timelines screen every rectangle of the volume: what each selects is proven against
+the service (`task-tree.spec.ts`, `timelines.spec.ts`), the request of the screen by its component
+tests. The depth the task tree path asks the service for is the screen's (`DEFAULT_DEPTH`,
+`summaries.ts`, #2551), not a number copied. The tree offers exactly the
 levels the structure has, from the first to that of its deepest summary task, which the server says
 whatever the filters (`meta.summary_depth`, #494), and shows the level asked for, or the deepest
 when asked for one beyond it (`depthShown`).
@@ -1206,25 +1211,37 @@ mock-up (`MockupNotice`), each cell is written by `updateTaskFacet`, the predece
 operations of the tree; the tasks redated, the links in conflict, the float and the critical path
 are those the server renders. An account that sees the project without being a contributor reads the
 planning and receives `NOT_CONTRIBUTOR` on each write and on `openImport`
-(`e2e/service/planning-readers.spec.ts`, WF-ADM-0110-A). The paths of `planning-service.spec.ts`,
-`structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`, `grid.spec.ts` (the pinned Gantt) and
-`context.spec.ts` that play against the service carry `@shared`: the witness of PRJ-001 has no task
-yet in the service (US-1480), and the account of the run is no contributor of it (#2193), so each
-path writes a project of its own (`e2e/planning-seed.ts`: the project made from the home, its
-revision opened, six tasks written by the API, and, according to the path, their links with one in
-conflict, a work breakdown of two order items; the states « started » and « finished » stay played
-on the fake back until US-1480/L3, #2595). The carry-over from one grid to the other (#1057) is
-played from the estimate grid (EP-07, US-1560, `structure.spec.ts`): the task created in the
-estimate, and a line under it, are read in the planning — automatic, of one day, with no
-predecessor —, and its indentation from the estimate with it. The path of the account « chef de projet » plays the planning and
-FLX-02; FLX-01 waits for US-1430/L4 (#2589). The paths that read the witness of PRJ-001 wait for
-US-1480: their `@shared` tagging is US-1480/L3's (#2591). What is not replayed before its EPIC stays
-guarded by `inService`: the lines, the amounts and the estimate (EP-07); the remaining to commit
-(EP-09); the risks (EP-08); the indicators (EP-10); the differential structures (EP-08), so the path
-of `context.spec.ts` that opens the amendment, that of the risks screen and that of the indicators
-stay on the fake back; the paths of `planning.spec.ts` and `keyboard.spec.ts` that read the thousand
-tasks of the witness (US-1480). The measure of a cell validation (#196) and that of the move of the
-active cell over a thousand tasks (#620) are in the delivery report of US-1470.
+(`e2e/service/planning-readers.spec.ts`, WF-ADM-0110-A). The witness of PRJ-001 has its thousand
+tasks in the service (US-1480), and the account of the run is no contributor of it (#2193): a path
+that reads it plays on both sides, `@shared`, and a path that writes plays on a project of its own
+(`e2e/planning-seed.ts`: the project made from the home, its revision opened, six tasks written by
+the API, and, according to the path, their links with one in conflict, a work breakdown of two
+order items). The paths of `planning-service.spec.ts`, `structure.spec.ts`, `computed.spec.ts`,
+`keyboard.spec.ts`, `grid.spec.ts` (the pinned Gantt) and `context.spec.ts` that play against the
+service carry `@shared`, as do, in `planning.spec.ts`, those that read the witness: the opening of
+the grid — its icons, the « started » and « completed » states of a task of the witness
+(WF-PLA-0080-A, #2595) —, its totals, the filter on an order item, the absence of a skeleton, the
+Gantt, its days off, the fold of a summary, the zoom and the PNG export; and `navigation.spec.ts`
+(the project that leads to its planning). They do not count on a row number: the service numbers the
+tasks alone, the lines of the witness, which advance the numbers of the fake back (7, 39, 311),
+waiting for US-1570 (EP-07); they find the row by its label and read the number a predecessor must
+bear in the grid. The carry-over from one grid to the other (#1057, #2590) is played from the
+estimate grid (EP-07, US-1560, `structure.spec.ts`), on the structure it shares with the planning:
+the task created in the estimate, and a line under it, are read in the planning — automatic, of one
+day, with no predecessor —, and its indentation from the estimate with it. The path of the account
+« chef de projet » plays the planning and FLX-02; FLX-01, the analysis of the exported file read
+back, then the import confirmed and followed in the shell, plays against the service
+(`exchanges.spec.ts`, #2589, #2683). What is not replayed against the service stays on the fake
+back, guarded by `inService` or untagged, the list of the entries being that of « An end-to-end
+path »: the paths of `planning.spec.ts` that write to the witness — the attachment, the entry of a
+cell, the duration and the predecessors, the start date — each have their twin in
+`planning-service.spec.ts`, on a project of the run; the lines, the amounts and the estimate play
+against the service on a project of the run (EP-07, US-1560), those that read the witness waiting
+for its lines (US-1570); the remaining to commit is EP-09's, the risks EP-08's, the indicators
+EP-10's and the differential structures EP-08's, so the path of `context.spec.ts` that opens the
+amendment, that of the risks screen and that of the indicators stay on the fake back. The measure
+of a cell validation (#196) and that of the move of the active cell over a thousand tasks (#620) are
+in the delivery report of US-1470.
 
 ### The risks screen
 
@@ -2889,8 +2906,12 @@ through `MockupNotice` with `lists` (`mockup.notFiltered`), in a single note und
 screens whose service is delivered do not show the note, even though `make dev` serves them through
 Prism and the same limits apply: administration (EP-03), the reference data (EP-05) and, from EP-04,
 the connected home (US-0920/L2), the revisions (US-0960, US-0970) and the settings of the project
-(US-1000), and, from EP-07, the workload (US-1520) and the estimate (US-1560); a success there is
-what the service kept, read anew.
+(US-1000), then, from EP-06, the timelines (US-1400), the exchanges (US-1430), the task tree
+(US-1440) and the planning (US-1470), and, from EP-07, the workload (US-1520) and the estimate
+(US-1560); a success there is what the service kept, read anew. Against the fake back, the
+timelines screen draws the whole volume Prism renders for `listNodes`, whatever the timeline: the
+paths of the frieze and of the focus judge only the layout there, and their selection is proven
+against the service.
 
 _Checks_: `make lint-openapi` (examples conforming to the schemas, volumes included),
 `make mock-data-up-to-date` (the versioned volumes are those the tool writes, in the
@@ -4012,10 +4033,15 @@ which `service/grid-reset.spec.ts` tests.
 
 The project `shared` thus plays the paths of the project against the loaded witness, the slice of
 the projects included ("The back and the boundaries of the core"): PRJ-001 in Pricing, its
-revisions 100 and 101 marked, the 102 open, with no task, no line and no reference. Their
-assertions of reading are not rewritten for what a project in pricing and empty revisions leave to
-read; what reads PRJ-001 In progress, its reference, its tasks or its lines is not replayed before
-EP-07. The assertions of a write affirm what was written, read anew, by `inService`.
+revisions 100 and 101 marked, the 102 open, with no line and no reference. The slice of the tasks
+(`waterfall-api load-witness`, EP-06, US-1480) loads, for the main structure of each of the three
+revisions, the thousand tasks of PRJ-001 with their links, their modes and durations, their states
+and their start and completion dates, their inscriptions, the two timelines and the planning start
+date; it loads no line, whose amounts and role calendars are EP-07's (the 103 tasks on a 4×10 h
+calendar of the frieze wait for them, #2594), no risk (EP-08), no actual cost (EP-09), no indicator
+(EP-10). Their assertions of reading are not rewritten for what a project in pricing leaves to
+read; what reads PRJ-001 In progress, its reference or its lines is not replayed before EP-07. The
+assertions of a write affirm what was written, read anew, by `inService`.
 
 The consolidated list of what a path does not replay against the service yet is kept here: it is
 skipped by `inService` (`test.skip(inService, …)`) when tagged, or stays untagged, each entry naming
@@ -4047,20 +4073,28 @@ the epic that lifts it; that epic removes the guard and its entry:
   after it, and does not find them once restored (WF-ADM-0160-A); played again on the same
   installation, it leaves one more account and one more project there, the restoration taking back
   all the rest.
-- `project-start.spec.ts` — the start towards the planning: the opening of PRJ-001 that leads to its
-  planning, the screen of the work breakdown that generates the planning, and the encart « Démarrer
-  le projet » of a project created, which play against the service on a project the account of the
-  run creates: it lists `import_planning` (US-1430) and serves the structures and
-  `generatePlanningSkeleton`, so no `BEFORE_EP06` guard remains. The work breakdown of a project
-  created, written then read anew, plays since US-0950 (twin path, `SERVICE_ONLY`), the fake back
-  keeping nothing of the work breakdown it is given (`FAKE_BACK_FORGETS`).
-- `context.spec.ts` — the banner of the context on the screens of the data, the planning, the
-  remaining to commit, the risks and the indicators, and on a differential structure
-  (`BEFORE_THE_DATA`): lifted screen by screen by **EP-06** (the planning, the structures),
-  **EP-07** (the estimate of a main structure the run creates, US-1560; the own estimate of a risk
-  and the differentials are **EP-08**'s, the remaining to commit **EP-09**'s), **EP-08** (the risks)
-  and **EP-10** (the indicators). The
-  banner of the screens of a project created, its settings and its revisions, plays since US-1000.
+- `project-start.spec.ts` — no entry: the start towards the planning plays against the service
+  (`BEFORE_EP06` lifted by US-1460), on a project the account of the run creates, which lists
+  `import_planning` (US-1430) and serves the structures and `generatePlanningSkeleton`. The work
+  breakdown of a project created, written then read anew, plays since US-0950 (twin path,
+  `SERVICE_ONLY`), the fake back keeping nothing of the work breakdown it is given
+  (`FAKE_BACK_FORGETS`) (#2543).
+- `context.spec.ts` — the banner of the context on the remaining to commit, the risks and the
+  indicators, and on a differential structure (`BEFORE_THE_REMAINING`, `BEFORE_THE_INDICATORS`,
+  `BEFORE_THE_DIFFERENTIALS`): lifted screen by screen by **EP-09** (the remaining to commit),
+  **EP-08** (the risks and the differential structures) and **EP-10** (the indicators). The banner
+  of the planning (`BEFORE_THE_DATA` lifted for the planning by EP-06), of the estimate of a main
+  structure the run creates (US-1560, EP-07), of the screens of a project created, of its settings
+  and of its revisions plays against the service.
+- `planning.spec.ts`, `structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts` — the paths that
+  write to the witness of PRJ-001, whose account of the run is no contributor (#2193): each has its
+  twin against the service on a project of the run (`planning-service.spec.ts`, `structure.spec.ts`,
+  `computed.spec.ts`, `keyboard.spec.ts`), which no epic reverses; the paths of these files that
+  read the witness play on both sides. The paths of the remaining to commit of `structure.spec.ts`
+  are **EP-09**'s.
+- `planning.spec.ts` — the read of the planning start date and of its headers « Démarrée le » and
+  « Terminée le » plays on both sides; only its write (`updateCostStructure`) stays on the fake
+  back, like the other writes to the witness above.
 - `entry.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`, `paste.spec.ts`, `undo.spec.ts`,
   `grid.spec.ts` (the sort by amount), `structure.spec.ts` — the estimate (US-1560, EP-07): the
   paths that write play against the service on a project the run creates, a phase, a task and a line
@@ -4070,11 +4104,28 @@ the epic that lifts it; that epic removes the guard and its entry:
   In progress (the estimate of the main structure read only, a line under a completed task refused)
   is replayed only with the witness of US-1570: the tasks « started » and « completed » cannot be
   written before a project is In progress.
+- `timelines.spec.ts` — the frieze and the focus (`AFTER_THE_LINES`, #2594): lifted by **EP-07**
+  (US-1570), which tags both paths `@shared` once the lines give their calendars to the tasks of the
+  witness. Three paths that write to the witness of PRJ-001, whose account of the run is no
+  contributor (#2193), stay untagged: the inscription of a task to a timeline (`:52`, on the first
+  node of the fake back, whose twin `:417`, on a project of the run, plays the service), the
+  time/time tracking of an inscribed milestone (`:104`) and the creation then the deletion of a
+  timeline (`:310`); no epic reverses them. The navigation from the planning, the PNG export, the
+  two selections and the inscription on a project of the run play against the service.
+- `exchanges.spec.ts` — the import in two steps of PRJ-001 (`:74`), which reads the lines a report
+  rejects and the abandonment: the service plays the import of an estimate, exported then imported
+  back and confirmed, on a project of the run (`:302`, US-1550), whose workbook has no line to
+  reject; the refusal of a file too large (`:144`), which opens the imports screen of PRJ-001 whose
+  account of the run is no contributor (#2193); the two screens that lead to the imports screen from
+  the estimate and the remaining to commit (`:173`), lifted by **EP-09**, the estimate being served
+  by EP-07. The export of the planning, imported back and confirmed, plays against the service on a
+  project of the run (US-1430, #2683).
 - `projects.spec.ts` — the paths that write to PRJ-001 or reach it through its planning: the screen
   of the project, its settings and its lifecycle, the exit, the sub-projects and the contributors,
   the work breakdown (`FAKE_BACK_ONLY`): the account of the run is not a project manager of PRJ-001,
   by decision (#2193, option A), which no epic reverses — which the twins replay —, and the planning
-  its page leads to is **EP-06**'s. Each has its twin, played against the service alone on a project
+  its page leads to, which the service serves since EP-06, is not written under that account either.
+  Each has its twin, played against the service alone on a project
   the account creates (`SERVICE_ONLY`, `own-project.ts`): settings, lifecycle, sub-projects, work
   breakdown, contributors (a second account, enrolled through the API since the screen proposes the
   accounts of the estimate alone, WF-PRJ-0070-A; the quality of that account is changed on the
@@ -4928,9 +4979,9 @@ installation. The home is served since US-0920/L2 and plays on both sides (`proj
 the icon of the tab in `navigation.spec.ts`), as do the screens of a project since US-1000 (among
 them, in `navigation.spec.ts`, the move from the settings to the lifecycle). Untagged in
 `navigation.spec.ts` stay the way back to the previous project from a function outside any project,
-which reopens the remaining to commit then the risks of PRJ-001 (lifted by **EP-07** and **EP-08**),
-and the address of the project that leads to its planning, with its reading context (lifted by
-**EP-06**). On what their US does not tag yet: the reading of the settings outside any project
+which reopens the remaining to commit then the risks of PRJ-001 (lifted by **EP-07** and **EP-08**);
+the address of the project that leads to its planning, with its reading context, plays on both sides
+since EP-06. On what their US does not tag yet: the reading of the settings outside any project
 (`reference-costs.spec.ts`, US-0250). The change of the units of duration
 (`reference-resources.spec.ts`), which writes the single object of the installation, plays as
 `@serial` in the project `shared-serial`, like the other paths that write a single object.

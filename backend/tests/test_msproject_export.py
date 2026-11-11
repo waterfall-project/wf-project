@@ -31,6 +31,7 @@ from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.cost_settings.interface import read_reference_settings
 from waterfall.core.planning.msproject import read_project
+from waterfall.core.planning.tables import TaskLink
 from waterfall.core.planning.tree import read_tree
 from waterfall.core.projects.tables import Project
 from waterfall.core.resource_settings.tables import DurationUnit
@@ -129,7 +130,7 @@ def the_planning() -> bytes:
         task(
             8,
             "Recette",
-            besides="<Manual>1</Manual>" + link(7, 2, 500, PERCENT),
+            besides="<Manual>1</Manual>" + link(7, 2, 50, PERCENT),
             timing=wednesday,
         ),
     )
@@ -344,7 +345,7 @@ def test_the_modes_the_types_and_the_lags_of_the_links_are_exported_without_loss
         "Pose": [(uids["Revue"], "finish_to_start", 4800, "d")],
         "Câblage": [(uids["Pose"], "start_to_start", 600, "h")],
         "Essais": [(uids["Câblage"], "finish_to_finish", 0, "d")],
-        "Recette": [(uids["Essais"], "start_to_finish", 500, "percent")],
+        "Recette": [(uids["Essais"], "start_to_finish", 50, "percent")],
         "Études": [],
     }
     for name, expected in wanted.items():
@@ -458,7 +459,7 @@ def lagged_planning(month_lag: int = 96000, month: str = "PT160H0M0S") -> bytes:
         task(3, "C", besides=link(2, 1, 24000, 9)),
         task(4, "D", besides=link(3, 1, month_lag, 11)),
         task(5, "E", besides=link(4, 1, 14400, 8)),
-        task(6, "F", timing=Timing(duration=month, unit="11"), besides=link(5, 2, 500, PERCENT)),
+        task(6, "F", timing=Timing(duration=month, unit="11"), besides=link(5, 2, 50, PERCENT)),
     )
 
 
@@ -483,7 +484,8 @@ def test_a_negative_lag_a_lag_in_weeks_in_months_and_an_elapsed_one_are_exported
     api: ContractClient, stage: Scene, worker: Worker
 ) -> None:
     # « Un décalage négatif exporté sans perte. » « Exportés sans perte : […] liaisons : type et
-    # décalage dans son unité. » The hours of a lag are the file's tenths of a minute.
+    # décalage dans son unité. » The hours of a lag are the file's tenths of a minute, a percent its
+    # whole percents.
     revision = opened(api, stage)
     import_file(api, stage, worker, lagged_planning(), apply=True)
     content = exported(api, stage, worker, revision["revision_id"])
@@ -493,10 +495,29 @@ def test_a_negative_lag_a_lag_in_weeks_in_months_and_an_elapsed_one_are_exported
         "C": [(24000, "w")],
         "D": [(96000, "mo")],
         "E": [(14400, "ed")],
-        "F": [(500, "percent")],
+        "F": [(50, "percent")],
     }
     found = import_file(api, stage, worker, content, apply=False)
     assert found["report"]["differences"] == []
+
+
+@pytest.mark.requirement("WF-PLA-0030-A")
+def test_a_lag_of_a_fraction_of_a_percent_is_exported_rounded_half_up_and_comes_back_so(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # MS Project carries a lag in percent in whole percents (``LinkLag``): 12.5 % entered is
+    # written 13 % — a half up, not to the even 12 — and comes back 13 %, the loss of the round
+    # trip.
+    revision = opened(api, stage)
+    import_file(api, stage, worker, lagged_planning(), apply=True)
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(TaskLink).where(TaskLink.lag_unit == "percent").values(lag_value=Decimal("12.5"))
+        )
+    content = exported(api, stage, worker, revision["revision_id"])
+    assert lags_of(read_project(content).project)["F"] == [(13, "percent")]
+    import_file(api, stage, worker, content, apply=True)
+    assert ("E", "F", "start_to_finish", Decimal(13), "percent") in links(stage)
 
 
 @pytest.mark.requirement("WF-PLA-0160-A")

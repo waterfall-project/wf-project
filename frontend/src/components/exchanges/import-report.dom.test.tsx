@@ -62,6 +62,40 @@ describe("the report of an import, what the file dates otherwise", () => {
   });
 });
 
+// The head of the sentence, read from the catalogue: a wording that changes moves it along, so that
+// the absence asserted below cannot pass for want of a phrase to find.
+const FILE_CONSTANTS = CATALOGUES.fr.exchanges.report.unitConstants.split("{", 1).join("").trim();
+
+describe("the report of an import, the unit constants of the file", () => {
+  it("signals the constants of an MS Project file that differ from those of the installation, the file's and the installation's [WF-PLA-0160-A]", () => {
+    open(example("import_planning_other_constants") as Import);
+    expect(
+      screen.getByText(
+        "Constantes du fichier : heures par jour 7, heures par semaine 35, jours par mois 20 ; constantes de l’installation : heures par jour 8, heures par semaine 40, jours par mois 20 — les durées et les décalages gardent leurs heures, lues aux constantes de l’installation.",
+      ),
+    ).toBeVisible();
+    expect(screen.getByText(new RegExp(FILE_CONSTANTS))).toBeVisible();
+    expect(screen.queryByText("Confirmation explicite demandée")).toBeNull();
+  });
+
+  it("signals them in English [WF-PLA-0160-A]", () => {
+    open(example("import_planning_other_constants") as Import, "en");
+    expect(
+      screen.getByText(
+        "File constants: hours per day 7, hours per week 35, days per month 20; installation constants: hours per day 8, hours per week 40, days per month 20 — the durations and the lags keep their hours, read at the constants of the installation.",
+      ),
+    ).toBeVisible();
+  });
+
+  it.each(["import_planning_mismatch", "import_analysed"] as const)(
+    "signals nothing when the report bears no constants, %s",
+    (name) => {
+      open(example(name) as Import);
+      expect(screen.queryByText(new RegExp(FILE_CONSTANTS))).toBeNull();
+    },
+  );
+});
+
 describe("the report of an import, a line that puts a task under a milestone", () => {
   it("is rejected with the sentence of the catalogue, by its place in the file [WF-PLA-0050-A]", () => {
     const analysed = example("import_analysed") as Import & {

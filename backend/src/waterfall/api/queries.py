@@ -13,12 +13,11 @@ from pydantic import AwareDatetime, BaseModel
 from waterfall.api.contract.base import Text
 from waterfall.api.contract.models import AuditActorKind
 from waterfall.platform.audit_columns import AuditColumnFilters, AuthorFilter, Period
-from waterfall.platform.errors import FieldError, UnprocessableError
+from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 
 # The parameter ``search`` of the contract, absent by default; a text, which refuses a NUL.

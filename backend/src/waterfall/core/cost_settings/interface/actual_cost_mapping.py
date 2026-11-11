@@ -28,6 +28,8 @@ from waterfall.core.cost_settings.tables import (
 from waterfall.core.users.interface import Author, read_author
 from waterfall.platform.database import folded
 from waterfall.platform.errors import (
+    STALE_LOCK_VERSION,
+    VALIDATION_FAILED,
     FieldError,
     PreconditionFailedError,
     UnprocessableError,
@@ -44,8 +46,6 @@ if TYPE_CHECKING:
 
     from waterfall.platform.audit import Act
 
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_TOO_LONG = "VALUE_TOO_LONG"
 DUPLICATE_COLUMN_LABEL = "DUPLICATE_COLUMN_LABEL"
 # The most labels a column read names, and the most columns the import keeps.

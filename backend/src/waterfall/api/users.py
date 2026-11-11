@@ -97,7 +97,12 @@ from waterfall.core.users.interface import (
 from waterfall.platform.audit import Act
 from waterfall.platform.audit_columns import AuditColumnFilters
 from waterfall.platform.database import utc_now
-from waterfall.platform.errors import FieldError, UnavailableError, UnprocessableError
+from waterfall.platform.errors import (
+    VALIDATION_FAILED,
+    FieldError,
+    UnavailableError,
+    UnprocessableError,
+)
 from waterfall.platform.keycloak import IdentityProviderError, unavailable
 from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity
 from waterfall.platform.logs import get_logger
@@ -112,7 +117,6 @@ CHANGE = "users.write"
 # accounts alone does not give himself the administration.
 ROLES_CHANGE = "access_roles.write"
 LOCAL = "local"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 READ = [Depends(Requires(CONSULTATION))]
 CREATE = [Depends(Requires(CHANGE))]
 WRITE = [Depends(Requires(CONSULTATION, CHANGE))]

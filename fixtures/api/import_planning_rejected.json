@@ -76,7 +76,8 @@
       "completed_tasks": [],
       "date_mismatches": [],
       "signals": [],
-      "requires_confirmation_reasons": []
+      "requires_confirmation_reasons": [],
+      "unit_constants": null
     },
     "task": {
       "task_id": "01926f3a-7c00-7000-8000-000000000923",

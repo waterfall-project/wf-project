@@ -85,7 +85,12 @@ from waterfall.core.planning.interface import (
 from waterfall.core.planning.interface import WorkInstant as Instant
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
-from waterfall.platform.errors import FieldError, ForbiddenError, UnprocessableError
+from waterfall.platform.errors import (
+    VALIDATION_FAILED,
+    FieldError,
+    ForbiddenError,
+    UnprocessableError,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -95,7 +100,6 @@ router = APIRouter(tags=["revisions"])
 CONSULT = "planning.read"
 CHANGE = "planning.write"
 STRUCTURE = "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 NUMBER_INVALID = "NUMBER_INVALID"
 DATE_INVALID = "DATE_INVALID"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"

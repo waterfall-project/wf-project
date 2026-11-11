@@ -21,7 +21,9 @@ from waterfall.api.evaluation import Requires
 from waterfall.core.backups.interface import MANIFEST_HEAD, archive_taken_at
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import (
+    NOT_FOUND,
     STATE_FORBIDS_OPERATION,
+    VALIDATION_FAILED,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -51,8 +53,6 @@ router = APIRouter(tags=["exchanges"])
 RESTORE = [Depends(Requires("platform_restore"))]
 FILE_FORMAT_UNREADABLE = "FILE_FORMAT_UNREADABLE"
 FILE_TOO_LARGE = "FILE_TOO_LARGE"
-NOT_FOUND = "NOT_FOUND"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 
 

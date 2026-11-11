@@ -54,6 +54,9 @@ from waterfall.core.planning.tables import Node
 from waterfall.core.planning.tree import LINE, read_tree
 from waterfall.core.planning.writing import writing
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
+    VALIDATION_FAILED,
     FieldError,
     NotFoundError,
     PreconditionFailedError,
@@ -73,9 +76,6 @@ if TYPE_CHECKING:
     from waterfall.core.planning.writing import NodesWritten, Place, Write, Writer
     from waterfall.platform.audit import Act
 
-NOT_FOUND = "NOT_FOUND"
-VALIDATION_FAILED = "VALIDATION_FAILED"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 UNKNOWN_TASK = "UNKNOWN_TASK"
 NODE_NOT_SIBLING = "NODE_NOT_SIBLING"
 

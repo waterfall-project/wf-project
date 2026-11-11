@@ -51,7 +51,11 @@ from waterfall.core.revisions.interface import (
     read_revision,
     revisions_present,
 )
-from waterfall.platform.errors import FieldError, UnprocessableError
+from waterfall.platform.errors import (
+    VALIDATION_FAILED,
+    FieldError,
+    UnprocessableError,
+)
 from waterfall.platform.logs import get_logger
 from waterfall.platform.registry import Registry
 from waterfall.witness import timeline
@@ -81,7 +85,6 @@ PROJECT_FILE = "project.json"
 PROJECTS_FILE = "projects.json"
 CONTRIBUTORS_FILE = "contributors.json"
 MANAGER = "project_manager"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_REQUIRED = "VALUE_REQUIRED"
 PRICING = "pricing"
 IN_PROGRESS = "in_progress"

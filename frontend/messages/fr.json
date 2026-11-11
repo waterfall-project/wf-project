@@ -4014,6 +4014,7 @@
       "sheet": "Onglet",
       "dateMismatches": "{count, plural, one {# tâche datée autrement par le fichier : ce que Waterfall recalcule fait foi} other {# tâches datées autrement par le fichier : ce que Waterfall recalcule fait foi}}",
       "dateMismatchesTable": "Tâches datées autrement par le fichier",
+      "unitConstants": "Constantes du fichier : heures par jour {fileDay}, heures par semaine {fileWeek}, jours par mois {fileMonth} ; constantes de l’installation : heures par jour {installationDay}, heures par semaine {installationWeek}, jours par mois {installationMonth} — les durées et les décalages gardent leurs heures, lues aux constantes de l’installation.",
       "unchanged": "Parmi elles, {count, plural, =0 {aucune n’est inchangée} one {# est inchangée} other {# sont inchangées}}.",
       "signals": "{count, plural, one {# valeur du fichier gardée et signalée} other {# valeurs du fichier gardées et signalées}}",
       "signalsTable": "Valeurs du fichier gardées et signalées",

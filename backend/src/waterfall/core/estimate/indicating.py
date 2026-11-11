@@ -33,7 +33,7 @@ from waterfall.core.projects.interface import (
     work_breakdown_items,
 )
 from waterfall.core.revisions.interface import aimed_structure, read_revision_for
-from waterfall.platform.errors import FieldError, UnprocessableError
+from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Sequence
@@ -46,7 +46,6 @@ if TYPE_CHECKING:
 HOURLY_RATE_MISSING = "hourly_rate_missing"
 NO_TOTAL = "no_total"
 WORK_PACKAGE_WITHOUT_TASK = "work_package_without_task"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 UNKNOWN_SUBPROJECT = "UNKNOWN_SUBPROJECT"
 PROJECT = "project"
 UNASSIGNED = "unassigned"

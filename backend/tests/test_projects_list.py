@@ -179,7 +179,7 @@ def test_a_project_renamed_is_found_by_its_new_label_alone(
 ) -> None:
     path = f"{PROJECTS}/{stage.project['project_id']}"
     renamed = api.patch(
-        path, headers=stage.manager.headers, json={"label": "Lorient", "lock_version": 0}
+        path, headers=stage.manager.headers, json={"label": "Lorient", "lock_version": 1}
     )
     assert renamed.status_code == 200
     assert labels(listed(api, stage.manager, f"{EVERY_STATE}&search=lorient")) == ["Lorient"]

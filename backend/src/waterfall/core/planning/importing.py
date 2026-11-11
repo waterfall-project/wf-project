@@ -30,7 +30,8 @@ the lock of the structure, so that the application judges again what the analysi
   (``NON_WORKING_DAY``, WF-PLA-0020).
 - **The units.** A duration and a lag keep their hours and their unit, their value the hours over
   those of the unit at the constants of the installation (WF-PLA-0160): the constants of the file
-  are not imported, the report says their difference by its own words, the durations.
+  are not imported, and the report gives them beside those of the installation when they differ
+  (``unit_constants``, #2580).
 - **The report.** The differences — the start of the structure (``planning_start_on``), each task
   added, updated (``label``, ``description``, ``scheduling_mode``, ``duration``, ``start``,
   ``finish`` for a manual leaf, ``parent``), removed — the work package or order item it bore
@@ -57,6 +58,7 @@ from waterfall.core.planning.dating import (
     constants_of,
     duration_of,
 )
+from waterfall.core.planning.entries import decimal_text
 from waterfall.core.planning.interface.facets import calendars_of
 from waterfall.core.planning.msproject import (
     DATE_CONSTRAINTS,
@@ -70,6 +72,9 @@ from waterfall.core.planning.msproject import (
 )
 from waterfall.core.planning.msproject import (
     calendars_of as file_calendars_of,
+)
+from waterfall.core.planning.msproject import (
+    constants_of as file_constants_of,
 )
 from waterfall.core.planning.msproject import (
     duration_of as file_duration_of,
@@ -205,6 +210,7 @@ class Plan:
     signals: list[Json]
     refusals: list[Json]
     schedule: Schedule | None = None
+    constants: UnitConstants | None = None
 
     def parent_of(self, node_id: UUID) -> UUID | None:
         """Give the parent a task has in the structure the import leaves."""
@@ -552,6 +558,7 @@ def plan_import(
     _place(plan, project)
     _judge_milestones(plan, file_children)
     constants = constants_of(session)
+    plan.constants = constants
     default = default_calendar(session)
     held: Mapping[UUID, Applicable] = (
         calendars_of(session, aimed.project_id, list(tree.tasks)) if tree.tasks else {}
@@ -718,6 +725,27 @@ def _label(aimed: Aimed) -> str | None:
     return None if aimed.facts is None else aimed.facts.label
 
 
+def _constants(constants: UnitConstants) -> Json:
+    """Give three constants of the units as the report writes them (``UnitConstantValues``)."""
+    return {
+        "hours_per_day": decimal_text(constants.hours_per_day),
+        "hours_per_week": decimal_text(constants.hours_per_week),
+        "days_per_month": decimal_text(constants.days_per_month),
+    }
+
+
+def _unit_constants(plan: Plan, project: MsProject) -> Json | None:
+    """Give the constants of the file and of the installation when they differ (WF-PLA-0160).
+
+    A constant the file does not carry is the default of MS Project; ``None`` when they are equal.
+    """
+    installation = plan.constants
+    found = file_constants_of(project)
+    if installation is None or found == installation:
+        return None
+    return {"file": _constants(found), "installation": _constants(installation)}
+
+
 def report_of(plan: Plan, read: ReadProject, items: Mapping[UUID, WorkBreakdownItem]) -> Json:
     """Give the report of an import (``ImportReport``), in codes and parameters."""
     aimed = plan.aimed
@@ -745,4 +773,5 @@ def report_of(plan: Plan, read: ReadProject, items: Mapping[UUID, WorkBreakdownI
         "date_mismatches": _mismatches(plan),
         "signals": plan.signals,
         "requires_confirmation_reasons": [],
+        "unit_constants": _unit_constants(plan, read.project),
     }

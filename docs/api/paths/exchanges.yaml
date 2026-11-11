@@ -374,7 +374,9 @@
       completes on the review date the file carries (WF-INTF-0120); for an MS Project schedule,
       the planning start date of the structure that it changes (`cost_structure`), the dates of
       manual tasks kept on a day without working hours, and the manual summary tasks imported in
-      automatic mode, signalled (`ImportReport.signals`, WF-PLA-0020, WF-INTF-0040; #1271); for
+      automatic mode, signalled (`ImportReport.signals`, WF-PLA-0020, WF-INTF-0040; #1271), and
+      unit constants other than those of the installation, the file's and the installation's
+      (`ImportReport.unit_constants`, `import_planning_other_constants`, WF-PLA-0160; #2580); for
       an actual cost extraction, the columns of the file neither read nor declared kept, ignored
       and named by their label (`ImportIgnoredKind`, `columns`, WF-REF-0190), each cost line
       designated by its document and its item, the lines of the file with the same document and
@@ -409,6 +411,7 @@
               remaining_subproject_held: { $ref: ../../../fixtures/api/import_remaining_subproject_held.json }
               remaining_completed_tasks: { $ref: ../../../fixtures/api/import_remaining_completed_tasks.json }
               planning_non_working_day: { $ref: ../../../fixtures/api/import_planning_non_working_day.json }
+              planning_other_constants: { $ref: ../../../fixtures/api/import_planning_other_constants.json }
               planning_provision_moved: { $ref: ../../../fixtures/api/import_planning_provision_moved.json }
               estimate_task_without_hours: { $ref: ../../../fixtures/api/import_estimate_task_without_hours.json }
               actual_costs_wbs_invalid: { $ref: ../../../fixtures/api/import_actual_costs_wbs_invalid.json }
