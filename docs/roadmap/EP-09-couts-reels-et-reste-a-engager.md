@@ -1,7 +1,7 @@
 ---
 id: EP-09
 titre: Suivre ce qui a été dépensé, et réestimer ce qui reste à engager
-statut: en cours
+statut: livré
 depend_de: EP-07
 famille: front, back
 issue: 2389

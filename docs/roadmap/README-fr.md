@@ -157,10 +157,10 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | livré | EP-16, EP-18, EP-19, EP-20 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | livré | EP-05 |
 | [EP-06](EP-06-planification.md) | Planification | livré | EP-04 |
-| [EP-07](EP-07-chiffrage-et-devis.md) | Chiffrage et devis | en cours | EP-06 |
-| [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Coûts réels, reste à engager et import des coûts | en cours | EP-07 |
+| [EP-07](EP-07-chiffrage-et-devis.md) | Chiffrage et devis | livré | EP-06 |
+| [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Coûts réels, reste à engager et import des coûts | livré | EP-07 |
 | [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | en cours | EP-09 |
-| [EP-23](EP-23-dette-constats-ep02-ep03.md) | Dette des constats d'EP-02 et d'EP-03 | en cours | EP-02, EP-03, EP-06 |
+| [EP-23](EP-23-dette-constats-ep02-ep03.md) | Dette des constats d'EP-02 et d'EP-03 | livré | EP-02, EP-03, EP-06 |
 | [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | à planifier | EP-10 |
 | [EP-11](EP-11-portefeuille.md) | Portefeuille | à planifier | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | abandonné : chaque aller-retour se valide dans son bloc fonctionnel | — |
