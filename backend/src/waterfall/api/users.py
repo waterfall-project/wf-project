@@ -20,10 +20,12 @@ closed by the provider once the write is committed (WF-SEC-0020). A local accoun
 removed from it before the anonymisation is written, once checked: while the provider does not
 answer, nothing is written (WF-ADM-0060).
 
-Every transaction of a route that locks or writes an account takes first the lock of the rule of the
-last administrator, as the guarded writes and the reading of the accounts of the provider do
-(WF-ADM-0120, #2227): a route that changes an account and holds its row, then waits for the row of
-its author, never waits on a reading that holds that author and waits for the account.
+Every transaction of a route of this module that changes an account (``updateUser``,
+``anonymizeUser``, ``createPasswordSetupLink``, ``resendInvitation``, ``createUser``) takes first
+the lock of the rule of the last administrator, as the guarded writes and the reading of the
+accounts of the provider do (WF-ADM-0120, #2227): such a route, holding the row of an account then
+waiting for the row of its author, never waits on a reading that holds that author and waits for
+the account. The routes of the caller's own account (preferences, avatar, sessions) do not take it.
 """
 
 from collections.abc import Generator, Mapping, Sequence
@@ -153,7 +155,7 @@ type UserColumn = Literal[
 
 @contextmanager
 def account_transaction(services: Services) -> Generator[Session]:
-    """Open a transaction that locks or writes an account, under the lock of the rule held first.
+    """Open a transaction of a route of the administration that changes an account, under the lock.
 
     The lock of the rule of the last administrator, taken before any row of an account, as the
     guarded writes and the reading of the accounts of the provider take it (WF-ADM-0120, #2227).
