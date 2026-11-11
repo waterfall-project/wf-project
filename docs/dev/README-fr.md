@@ -404,7 +404,8 @@ d'identité, ouvre la session — ses jetons dans Redis pour la durée que Keycl
 `refresh_expires_in` — et mène à l'écran visé, son adresse entière ; un `state` inconnu, déjà
 employé ou trop vieux recommence la connexion ; une connexion que le royaume refuse — une erreur au
 retour, un code refusé, un nonce faux — mène à l'accueil sans session, jamais à `/login`, que la
-session de Keycloak bouclerait. Keycloak ou Redis injoignable, ou Keycloak muet au-delà du délai,
+session de Keycloak bouclerait, et laisse un témoin court (`wf_sign_in_refused`, quelques minutes,
+`HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`) qu'une connexion réussie efface (#2914). Keycloak ou Redis injoignable, ou Keycloak muet au-delà du délai,
 `/login` et `/auth/callback` mènent à `/login/unavailable` en oubliant le témoin `__Host-wf_session`
 — la page relirait sinon Redis pour lui —, qui dit le service injoignable et offre de recommencer
 vers l'écran visé, jamais à une erreur 500 nue (#687). `/login` efface aussi le témoin
@@ -421,12 +422,13 @@ injoignable : connexion refusée, hôte inconnu ou hors d'atteinte, certificat r
 que l'écran dit comme tel. Redis injoignable pendant une requête ordinaire l'est de même, un
 composant de la plateforme hors d'atteinte (WF-EXP-0040) : `requestBearer` change le
 `StoreUnreachable` du magasin en `Unreachable`, et l'écran dit le service injoignable, jamais une
-erreur inattendue (#861). Quand la session que nomme le témoin ne vit plus, la requête ne part pas
-(`SessionLost`) : une lecture mène à la connexion aussitôt, sans clic — l'écran de panne charge
+erreur inattendue (#861). Quand la session que nomme le témoin ne vit plus, ou qu'il n'y a aucun témoin (WF-SEC-0020, #2914),
+la requête ne part pas (`SessionLost`) : une lecture mène à la connexion aussitôt, sans clic — l'écran de panne charge
 `/login?next=<écran>` —, une écriture n'est pas appliquée, et l'écran le dit avant d'y mener par un
-lien (`decode`). Sans témoin, la requête part sans jeton, et un 401 de l'API (`SignedOut`), comme le
-refus d'un jeton vivant, offre la connexion par un lien sans y mener seul : une connexion refusée
-revient sans témoin, et y mener bouclerait. Sur un 401 `SESSION_REVOKED` seulement — un jeton d'une
+lien (`decode`) ; c'est `requestBearer` qui en décide, une fois pour tous les écrans. Seul le témoin
+`wf_sign_in_refused`, laissé par une connexion que le royaume a refusée, fait partir sans jeton une
+requête sans témoin de session, et un 401 de l'API (`SignedOut`), comme le refus d'un jeton vivant,
+offre la connexion par un lien sans y mener seul : y mener bouclerait. Sur un 401 `SESSION_REVOKED` seulement — un jeton d'une
 connexion antérieure à la fermeture des sessions du compte —, ce lien, l'écran de panne
 (`failure.revoked`) comme l'avis d'une action, mène à `/login?next=…&reauthenticate=1`, que `/login`
 envoie au royaume avec `prompt=login` : Keycloak, dont la session a pu survivre à une fermeture

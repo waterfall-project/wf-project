@@ -70,6 +70,29 @@ export function forgottenSessionCookie(): string {
   return `${SESSION_COOKIE}=; ${SESSION_ATTRIBUTES}; Max-Age=0`;
 }
 
+/** The cookie that says a sign-in was refused by the realm a moment ago (#2914). */
+export const SIGN_IN_REFUSED_COOKIE = "wf_sign_in_refused";
+
+/** How long a refused sign-in is remembered, in seconds: a few minutes, no more. */
+export const SIGN_IN_REFUSED_LIFETIME = 5 * 60;
+
+const SIGN_IN_REFUSED_ATTRIBUTES = "Path=/; HttpOnly; Secure; SameSite=Lax";
+
+/**
+ * The cookie the return of a sign-in the realm refused gives the browser (WF-SEC-0020, #2914):
+ * while it lives, a screen opened without a session does not lead to the sign-in page by itself,
+ * which would refuse again and loop, but offers it by a link. Short, so that the next visit leads
+ * there again.
+ */
+export function signInRefusedCookie(): string {
+  return `${SIGN_IN_REFUSED_COOKIE}=1; ${SIGN_IN_REFUSED_ATTRIBUTES}; Max-Age=${String(SIGN_IN_REFUSED_LIFETIME)}`;
+}
+
+/** The cookie that forgets a refused sign-in: a sign-in that succeeds clears it. */
+export function forgottenSignInRefusedCookie(): string {
+  return `${SIGN_IN_REFUSED_COOKIE}=; ${SIGN_IN_REFUSED_ATTRIBUTES}; Max-Age=0`;
+}
+
 /**
  * The cookie that binds a sign-in under way to the browser that asked for it, one per state, so
  * that two tabs may sign in together: only the browser that went to `/login` may open the session
@@ -101,7 +124,8 @@ export async function holdsSignIn(state: string): Promise<boolean> {
  * The session the cookie of the request names lives no more — closed by the back channel, its
  * refresh refused, or over —, and the request does not leave for the API. Its digest, the one
  * thing of it Next forwards, has the screen of failure lead to the sign-in page at once: it cannot
- * loop, since the session a sign-in opens lives, and one it refuses forgets the cookie. A token
+ * loop, since the session a sign-in opens lives, and one it refuses leaves a short cookie that
+ * keeps the next screen from leading there (`signInRefusedCookie`, #2914). A token
  * that lives and that the API refuses is another failure, `SignedOut` (`src/api/problem.ts`),
  * whose screen leads to the sign-in page by a link only.
  */
@@ -229,9 +253,10 @@ export async function armRequestSignOut(): Promise<string | undefined> {
 }
 
 /**
- * The access token of the session of the request; none without its cookie, and `SessionLost` when
- * the session it names lives no more. Redis out of reach is a component of the platform out of
- * reach, as Keycloak is (WF-EXP-0040): the request is `Unreachable`, which every screen says as
+ * The access token of the session of the request; `SessionLost` without its cookie — none
+ * open, the sign-in page being where it leads (#2914) — or when the session it names lives no
+ * more; none (a request without a token) only just after a sign-in the realm refused. Redis out
+ * of reach is a component of the platform out of reach, as Keycloak is (WF-EXP-0040): the request is `Unreachable`, which every screen says as
  * the service out of reach, never as an unexpected error (#861), and the log of the server as Redis
  * out of reach. Only the network fails so: a variable missing, an address badly written, a
  * password or a database Redis refuses, a certificate of Redis the front refuses, is a defect,
@@ -239,8 +264,14 @@ export async function armRequestSignOut(): Promise<string | undefined> {
  */
 export async function requestBearer(): Promise<string | undefined> {
   const id = await requestSessionId();
-  if (id === undefined) {
-    return undefined;
+  if (id === undefined || id === "") {
+    // No cookie of session: the request does not leave, and the screen leads to the sign-in page
+    // at once (WF-SEC-0020, #2914) — unless the realm just refused a sign-in, which would loop:
+    // the request leaves without a token, and the API's 401 offers the sign-in by a link.
+    if ((await cookies()).get(SIGN_IN_REFUSED_COOKIE) !== undefined) {
+      return undefined;
+    }
+    throw new SessionLost();
   }
   let token: string | undefined;
   try {

@@ -403,7 +403,9 @@ the code, checks the nonce of the identity token, opens the session — its toke
 duration Keycloak gives its session, `refresh_expires_in` — and leads to the target screen, its
 whole address; an unknown `state`, already used or too old, starts the sign-in again; a sign-in
 the realm refuses — an error on return, a refused code, a wrong nonce — leads to the home page
-without a session, never to `/login`, which the Keycloak session would loop. Keycloak or Redis
+without a session, never to `/login`, which the Keycloak session would loop, and leaves a short
+cookie (`wf_sign_in_refused`, a few minutes, `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`) that a
+successful sign-in forgets (#2914). Keycloak or Redis
 unreachable, or Keycloak mute beyond the timeout, `/login` and `/auth/callback` lead to
 `/login/unavailable`, forgetting the `__Host-wf_session` cookie — the page would otherwise re-read
 Redis for it —, which says the service is unreachable and offers to start again towards the target
@@ -422,12 +424,14 @@ service unreachable (`Unreachable`), which the screen says as such. Redis unreac
 ordinary request is the same, a component of the platform out of reach (WF-EXP-0040):
 `requestBearer` turns the `StoreUnreachable` of the store into `Unreachable`, and the screen says
 the service is unreachable, never an unexpected error (#861). When the session the cookie names no
-longer lives, the request does not leave (`SessionLost`): a read leads to the sign-in at once,
+longer lives — or when there is no cookie at all (WF-SEC-0020, #2914) —, the request does not leave
+(`SessionLost`): a read leads to the sign-in at once,
 without a click — the failure screen loads `/login?next=<écran>` —, a write is not applied, and the
-screen says so before leading there by a link (`decode`). Without a cookie, the request leaves
-without a token, and a 401 from the API (`SignedOut`), like the refusal of a living token, offers
-the sign-in by a link without leading there by itself: a refused sign-in comes back without a
-cookie, and leading there would loop. On a 401 `SESSION_REVOKED` only — a token of a sign-in
+screen says so before leading there by a link (`decode`); it is `requestBearer` that decides, once
+for every screen. Only with the `wf_sign_in_refused` cookie, left by a sign-in the realm refused,
+does a request without a session cookie leave without a token, and a 401 from the API
+(`SignedOut`), like the refusal of a living token, offers the sign-in by a link without leading
+there by itself: leading there would loop. On a 401 `SESSION_REVOKED` only — a token of a sign-in
 earlier than the closing of the sessions of the account —, this link, the failure screen
 (`failure.revoked`) as well as the notice of an action, leads to
 `/login?next=…&reauthenticate=1`, which `/login` sends to the realm with `prompt=login`: Keycloak,
