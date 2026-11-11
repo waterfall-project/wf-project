@@ -42,6 +42,7 @@ import { readPeriod, refusedPeriod } from "@/components/grid/period";
 import { CONTRACT_ADDRESS, readGridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import { platformOffer } from "@/components/commands/offer";
+import { NoOpenableProject } from "@/components/projects/no-openable-project";
 import { homeQuery } from "@/components/projects/home-list";
 import { CreateProject } from "@/components/projects/project-form";
 import {
@@ -58,7 +59,7 @@ import {
 import { ProjectPeriodFilter, ProjectStateFilter } from "@/components/projects/project-list-view";
 import { GROUP_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
-import { NoOpenableProject, ReferenceIncomplete } from "@/components/system/empty-states";
+import { ReferenceIncomplete } from "@/components/system/empty-states";
 import { type PageSearchParams, pageSearch, searchQuery } from "@/navigation/context";
 import {
   isContributorFiltered,
@@ -184,7 +185,16 @@ export default async function HomePage({
   // answer 404), and the home says so and leads to what the account holds (WF-IHM-0120, #2915).
   // Decided on the permission, never on the name of a role.
   if (session !== undefined && !permissions.includes("project_settings.read")) {
-    return <NoOpenableProject permissions={permissions} />;
+    const readiness = await readOrFail("getReferenceReadiness", () =>
+      client.GET("/reference/readiness"),
+    );
+    return (
+      <NoOpenableProject
+        permissions={permissions}
+        hasRole={session.access_role_ids.length > 0}
+        readiness={readiness}
+      />
+    );
   }
   // Without the permission to read every project, the list lifted is the list filtered: it is
   // filtered whatever the address says, and no link promises otherwise (WF-IHM-0090, #522).

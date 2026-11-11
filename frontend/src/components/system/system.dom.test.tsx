@@ -16,7 +16,7 @@ import { example } from "@/test/fixtures";
 import { loadDocument } from "@/navigation/document";
 
 import { useBrowserLocale } from "./browser-locale";
-import { NoOpenableProject, NoProjects, ReferenceIncomplete } from "./empty-states";
+import { NoProjects, ReferenceIncomplete } from "./empty-states";
 import {
   type BoundaryError,
   correlationDigest,
@@ -302,27 +302,5 @@ describe("the empty states", () => {
       <ReferenceIncomplete readiness={readiness} permissions={[]} />,
     );
     expect(container).toBeEmptyDOMElement();
-  });
-});
-
-describe("NoOpenableProject [WF-IHM-0120] #2915", () => {
-  it("leads to the functions the account holds, in French, accessibly [WF-IHM-0120-A]", async () => {
-    const { container } = inLanguage(
-      <NoOpenableProject permissions={["audit_log.read", "users.read"]} />,
-    );
-    expect(screen.getByRole("heading", { level: 1, name: "Aucun projet à ouvrir" })).toBeVisible();
-    const nav = screen.getByRole("navigation", { name: "Fonctions de votre compte" });
-    expect(within(nav).getByRole("link", { name: "Journal d’audit" })).toHaveAttribute(
-      "href",
-      "/admin/audit-log",
-    );
-    await expectAccessible(container);
-  });
-
-  it("says that a role is missing for an account that holds no function, accessibly [WF-IHM-0120-A]", async () => {
-    const { container } = inLanguage(<NoOpenableProject permissions={[]} />, "en");
-    expect(screen.getByText(/has no role yet/)).toBeVisible();
-    expect(screen.queryByRole("link")).toBeNull();
-    await expectAccessible(container);
   });
 });

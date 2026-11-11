@@ -8,10 +8,6 @@
  * (`getReferenceReadiness`, WF-CYC-0120) and leads to the function of the reference that provides
  * it, when the session may read it.
  *
- * The home of an account that cannot read any project (`project_settings.read`, WF-IHM-0120,
- * #2915) is a page that says so, never a refusal: it leads to the functions the account holds
- * outside any project, or, holding none, says it has no role yet.
- *
  * Each is shown on an example of the contract named after it (`fixtures/api/`): `empty` for
  * the projects, `incomplete` for the reference.
  */
@@ -20,8 +16,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
-import { PageHeader, Screen } from "@/components/shell/page-header";
-import { functionOf, type PlatformFunction, readableGroups } from "@/navigation/functions";
+import { functionOf, type PlatformFunction } from "@/navigation/functions";
 
 const EMPTY = "flex flex-col items-start gap-2 py-6 text-sm text-muted-foreground";
 const SENTENCE = "flex items-center gap-2";
@@ -100,58 +95,5 @@ export function ReferenceIncomplete({ readiness, permissions }: ReferenceIncompl
         })}
       </ul>
     </section>
-  );
-}
-
-/** The permissions of the session, which decide what the home of an account without project says. */
-export interface NoOpenableProjectProps {
-  readonly permissions: readonly components["schemas"]["PermissionCode"][];
-}
-
-/**
- * Say that the account opens no project, and lead to the functions it holds outside any project,
- * as the navigation offers them; with none, that it has no role yet and that an administrator
- * must give it one. Decided on the permissions, never on the name of a role (WF-IHM-0120, #2915).
- */
-export function NoOpenableProject({ permissions }: NoOpenableProjectProps) {
-  const t = useTranslations();
-  const groups = readableGroups(permissions)
-    .map((group) => ({
-      ...group,
-      functions: group.functions.filter((fn) => fn.scope === "platform"),
-    }))
-    .filter((group) => group.functions.length > 0);
-  return (
-    <Screen density="airy">
-      <PageHeader title={t("homeWithoutProject.title")} icon={FolderSearch} helped={false} />
-      {groups.length === 0 ? (
-        <div className={EMPTY}>
-          <p className={SENTENCE}>
-            <FolderSearch aria-hidden="true" className={ICON} />
-            {t("homeWithoutProject.withoutRole")}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4 py-2 text-sm">
-          <p>{t("homeWithoutProject.withFunctions")}</p>
-          <nav aria-label={t("homeWithoutProject.functions")} className="space-y-3">
-            {groups.map((group) => (
-              <section key={group.code} aria-label={t(group.label)} className="space-y-1">
-                <h2 className="text-base font-semibold">{t(group.label)}</h2>
-                <ul className="list-disc space-y-1 pl-6">
-                  {group.functions.map((fn) => (
-                    <li key={fn.code}>
-                      <Link href={fn.route} className={LINK}>
-                        {t(fn.label)}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </nav>
-        </div>
-      )}
-    </Screen>
   );
 }

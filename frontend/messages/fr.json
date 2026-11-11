@@ -2312,6 +2312,7 @@
     "title": "Aucun projet à ouvrir",
     "withFunctions": "Votre compte ne peut ouvrir aucun projet. Il détient d’autres fonctions, auxquelles vous accédez d’ici ou par la navigation :",
     "withoutRole": "Votre compte n’a pas encore de rôle. Un administrateur doit vous en donner un avant que vous puissiez utiliser Waterfall.",
+    "inProjectOnly": "Votre compte détient des fonctions qui s’exercent dans un projet, mais il ne peut ouvrir aucun projet. Demandez à un administrateur de vous donner la lecture des projets.",
     "functions": "Fonctions de votre compte"
   },
   "referenceReadiness": {
