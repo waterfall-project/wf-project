@@ -14,10 +14,13 @@ import { Shell } from "./shell";
 // The server of Next, as far as the shell needs it: the fake back behind serverClient, the
 // Accept-Language of the browser, and the refresh a server action asks for, which renders
 // the layout again.
-const server = vi.hoisted((): { client: ApiClient | undefined; refresh: () => unknown } => ({
-  client: undefined,
-  refresh: () => undefined,
-}));
+const server = vi.hoisted(
+  (): { client: ApiClient | undefined; down: boolean; refresh: () => unknown } => ({
+    client: undefined,
+    down: false,
+    refresh: () => undefined,
+  }),
+);
 
 // The screen the browser shows, which the way to the sign-in page comes back to.
 const SCREEN = "/projects/01926f3a-7c00-7000-8000-000000000001/lifecycle";
@@ -29,7 +32,14 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams({ revision_id: REVISION }),
 }));
 
-vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+vi.mock("@/api/server", () => ({
+  serverClient: () => {
+    if (server.down) {
+      throw new TypeError("fetch failed");
+    }
+    return server.client;
+  },
+}));
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "fr-FR,fr;q=0.9" })),
 }));
@@ -95,6 +105,7 @@ async function choose(language: string) {
 }
 
 beforeEach(() => {
+  server.down = false;
   server.refresh = () => undefined;
 });
 
@@ -203,6 +214,26 @@ describe("the language in the menu of the account", () => {
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toBe("Le service est injoignable\u202F; réessayez dans un instant.");
     expect(screen.getByRole("main")).toBeInTheDocument();
+  });
+
+  it("keeps the language and the page when the server action itself rejects, and tells it under the bar [WF-INTF-0160-A]", async () => {
+    const refresh = vi.fn();
+    await open({ "GET /me": "me" });
+    server.refresh = refresh;
+    // The server of Next is out of reach: the action rejects, it gives no outcome back.
+    server.down = true;
+
+    await choose("English");
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe("Le service est injoignable\u202F; réessayez dans un instant.");
+    expect(screen.getByRole("main")).toBeInTheDocument();
+    expect(refresh).not.toHaveBeenCalled();
+    await languages();
+    expect(screen.getByRole("menuitemradio", { name: "Langue du navigateur" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
   });
 
   it("shows the preference a new render reads, not the one it was first given", async () => {

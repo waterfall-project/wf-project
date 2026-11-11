@@ -113,6 +113,7 @@ Year:
 LockVersion:
   type: integer
   minimum: 0
+  maximum: 2147483647
   description: >-
     Write counter of the object. Every modification carries it and requires it, a
     creation has none; a stale value is refused with 412, which makes
@@ -220,8 +221,9 @@ Problem:
         reviews, at most `104` weeks, the hours of a day of a calendar, at most `24`, the hours
         of a work instant sent (`/start/hours`, `/finish/hours` of `updateTaskFacet`), at most
         the hours the task's calendar grants that day, never `0` — a day without a working hour
-        is refused by its date, `NON_WORKING_DAY` (#1244, #1271) —, or the day of a weekly
-        backup, at most `7`), `component` (a `PlatformComponent`, WF-EXP-0040),
+        is refused by its date, `NON_WORKING_DAY` (#1244, #1271) —, the day of a weekly
+        backup, at most `7`, or the write counter of an object, at most `2147483647`, in the
+        body as `/lock_version` or as a parameter as `/query/lock_version`, #2232), `component` (a `PlatformComponent`, WF-EXP-0040),
         `expected_format` (an `ExchangeKind`) and `expected_version` (a string) for an import
         file whose format or version is not recognised (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070)
         — absent for an uploaded backup whose archive cannot be read (`uploadFile`,

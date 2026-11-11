@@ -15,7 +15,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
-from waterfall.api.contract.base import NUL_FAULT
+from waterfall.api.contract.base import PLACED_FAULTS
 from waterfall.api.contract.models import ErrorCode, FieldProblem, Problem, ProblemParams
 from waterfall.platform.correlation import HEADER, SCOPE_KEY
 from waterfall.platform.errors import FieldError, ServiceError, json_pointer
@@ -163,8 +163,9 @@ def _field_of(fault: Mapping[str, Any]) -> FieldError:
     """Say a fault of Pydantic as the refusal of one field."""
     kind: str = fault["type"]
     place, *path = fault["loc"]
-    if kind == NUL_FAULT:
-        # The NUL is pointed at the item of the field that holds it, as any fault of an item is.
+    if kind in PLACED_FAULTS:
+        # A NUL, or a digit not of 0 to 9, is pointed at the item of the field that holds it, as
+        # any fault of an item is.
         path = [*path, *fault["ctx"]["path"]]
     if path[-1:] == [KEY_FAULT]:
         # A key refused is pointed at the object that holds it, as a NUL in a key is: the key is

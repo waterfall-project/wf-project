@@ -19,6 +19,7 @@ import { useBrowserLocale } from "./browser-locale";
 import { NoProjects, ReferenceIncomplete } from "./empty-states";
 import {
   type BoundaryError,
+  componentDigest,
   correlationDigest,
   failureOf,
   ACCOUNT_DEACTIVATED_DIGEST,
@@ -192,6 +193,25 @@ describe("the screen of failure", () => {
       "/auth/sign-out",
     );
   });
+
+  it.each([
+    ["fr", "Composant indisponible", "Composant indisponible : Fournisseur d’identité"],
+    ["en", "Component unavailable", "Unavailable component: Identity provider"],
+  ] as const)(
+    "names the component of the platform a read was refused for, in the words of the catalogue, never an unexpected error (%s) [WF-EXP-0040-A]",
+    async (locale, title, named) => {
+      const { container } = inLanguage(
+        <SystemFailure error={forwarded(componentDigest("identity_provider"))} retry={vi.fn()} />,
+        locale,
+      );
+      expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(title);
+      const alert = screen.getByRole("alert");
+      expect(alert).toHaveTextContent(named);
+      expect(alert).not.toHaveTextContent(/Référence|Reference/);
+      expect(screen.getByRole("button", { name: /Réessayer|Try again/ })).toBeVisible();
+      await expectAccessible(container);
+    },
+  );
 
   it("names no reference for an empty correlation identifier", () => {
     expect(failureOf(forwarded(correlationDigest("")))).toEqual({

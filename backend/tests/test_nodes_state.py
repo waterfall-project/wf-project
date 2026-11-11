@@ -61,7 +61,7 @@ def tree(api: ContractClient, stage: Scene) -> Tree:
 # --- The state and the rights ------------------------------------------------------------------
 
 
-@pytest.mark.requirement("WF-DAT-0020-A")
+@pytest.mark.requirement("WF-REV-0020-A")
 def test_a_marked_revision_reads_as_the_current_one_and_refuses_every_write(
     tree: Tree, stage: Scene
 ) -> None:

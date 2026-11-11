@@ -89,20 +89,27 @@ function Writing({ order, roles, children }: WritesProps) {
     }
     const role = newer(read, answers?.answered.get(id));
     const codes = asked.get(id);
-    return { role, codes: codes ?? new Set(role.permissions), writing: codes !== undefined };
+    return {
+      role,
+      codes: codes ?? new Set(role.permissions),
+      // Any write of the role, a renaming or a deletion as well as a cell (#2261).
+      writing: answers?.writing.has(id) === true || codes !== undefined,
+    };
   };
   const write = (
-    { role: shown, writing }: Holding,
+    { role: shown }: Holding,
     code: PermissionCode,
     held: boolean,
     cell: HTMLElement | null,
   ) => {
-    if (writing) {
-      return;
-    }
     // The role as the screen holds it now: an answer may have arrived since the last render.
     const role = answers?.latest(shown) ?? shown;
     const id = role.access_role_id;
+    if (answers?.isWriting(id) === true) {
+      // Marked busy and unavailable: the write of the role under way is answered first.
+      return;
+    }
+    answers?.begin(id);
     const next = new Set(role.permissions);
     if (held) {
       next.add(code);
@@ -115,18 +122,24 @@ function Writing({ order, roles, children }: WritesProps) {
     const permissions = order.filter((each) => next.has(each));
     void heldWrite(
       updateAccessRole(id, { label: role.label, permissions, lock_version: role.lock_version }),
-    ).then((outcome) => {
-      setAsked((before) => {
-        const after = new Map(before);
-        after.delete(id);
-        return after;
+    )
+      .then((outcome) => {
+        if (outcome.kind === "done") {
+          answers?.record(outcome.data);
+        } else {
+          list?.report({ outcome, generation, names: {}, target: `permissions ${id}`, back: cell });
+        }
+      })
+      .finally(() => {
+        // Whatever the answer, a rejection included: the cell no longer shows the value asked, and
+        // the role is free again.
+        setAsked((before) => {
+          const after = new Map(before);
+          after.delete(id);
+          return after;
+        });
+        answers?.end(id);
       });
-      if (outcome.kind === "done") {
-        answers?.record(outcome.data);
-      } else {
-        list?.report({ outcome, generation, names: {}, target: `permissions ${id}`, back: cell });
-      }
-    });
   };
   return <WritesContext value={{ holding, write }}>{children}</WritesContext>;
 }

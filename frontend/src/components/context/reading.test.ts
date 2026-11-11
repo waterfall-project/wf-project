@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type ApiClient, createApiClient, Unreachable } from "@/api/client";
-import { SignedOut, UnexpectedAnswer } from "@/api/problem";
+import { ComponentUnavailable, SignedOut } from "@/api/problem";
 import { CONTEXT_PARAMETERS, type ContextParameter, readContext } from "@/navigation/context";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
@@ -201,7 +201,7 @@ describe("what a screen of a project reads in", () => {
     },
   );
 
-  it("still refuses a failure of the service the API tells in its envelope, by its correlation identifier", async () => {
+  it("still refuses a component unavailable the API tells in its envelope, naming it, never the API out of reach [WF-EXP-0040-A]", async () => {
     server.cached.clear();
     server.client = createApiClient({
       address: "http://api.invalid",
@@ -220,10 +220,10 @@ describe("what a screen of a project reads in", () => {
     });
     const context = readContext(LIFECYCLE, new URLSearchParams());
     const failure = context && readProjectContext(LIFECYCLE, context, CONTEXT_PARAMETERS);
-    await expect(failure).rejects.toBeInstanceOf(UnexpectedAnswer);
+    await expect(failure).rejects.toBeInstanceOf(ComponentUnavailable);
     await expect(failure).rejects.toMatchObject({
-      status: 503,
-      digest: "WATERFALL_CORRELATION;req-7f3a",
+      component: "database",
+      digest: "WATERFALL_COMPONENT_UNAVAILABLE;database",
     });
   });
 

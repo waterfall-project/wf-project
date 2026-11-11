@@ -335,7 +335,7 @@ def get_revision(
 def delete_revision(
     project_id: UUID,
     revision_id: UUID,
-    lock_version: Annotated[int, Query(ge=0)],
+    lock_version: Annotated[int, Query(ge=0, le=2147483647)],
     actor: Acting,
     session: Transaction,
 ) -> Response:

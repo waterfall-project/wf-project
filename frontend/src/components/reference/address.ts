@@ -16,7 +16,7 @@
 import type { ExpectedRefusal, ReadOrRefused } from "@/api/problem";
 import { type RefusedBounds, refusedBounds } from "@/components/grid/filters";
 import { type GridAddress, pagedList } from "@/components/grid/query";
-import type { SearchParameters } from "@/navigation/context";
+import { isUuid, type SearchParameters } from "@/navigation/context";
 import type { ListPage } from "@/navigation/pages";
 import type { Account, Permission } from "@/session/request";
 
@@ -25,9 +25,6 @@ export const INCLUDE_INACTIVE = "include_inactive";
 
 /** The parameter of the contract that filters a list of the reference data on the state. */
 export const IS_ACTIVE = "is_active";
-
-/** An identifier of the address the API may know. */
-const IDENTIFIER = /^[\w-]+$/;
 
 /** Whether the address asks for the deactivated objects too. */
 export function asksInactive(search: SearchParameters): boolean {
@@ -46,10 +43,10 @@ export function inactiveQuery(
   return asked && permissions.includes(permission) ? { include_inactive: true } : {};
 }
 
-/** An identifier the address names under a parameter, if the API may know it. */
+/** An identifier the address names under a parameter, if it is a `Uuid` the API takes. */
 export function identifierOf(search: SearchParameters, name: string): string | undefined {
   const value = search.get(name);
-  return value !== null && IDENTIFIER.test(value) ? value : undefined;
+  return value !== null && isUuid(value) ? value : undefined;
 }
 
 /**

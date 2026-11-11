@@ -24,10 +24,18 @@ import { Shell } from "./shell";
 
 // The server of Next, as far as signing out needs it: the fake back behind serverClient, which
 // grants its own session (`WATERFALL_AUTH=mock`).
-const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
+const server = vi.hoisted((): { client: ApiClient | undefined; down: boolean } => ({
+  client: undefined,
+  down: false,
+}));
 
 vi.mock("@/api/server", () => ({
-  serverClient: () => server.client,
+  serverClient: () => {
+    if (server.down) {
+      throw new TypeError("fetch failed");
+    }
+    return server.client;
+  },
   isMockAuthentication: () => true,
 }));
 vi.mock("@/navigation/document", () => ({ loadDocument: vi.fn() }));
@@ -114,6 +122,7 @@ function rememberedContext(): string | undefined {
 
 beforeEach(() => {
   vi.mocked(loadDocument).mockClear();
+  server.down = false;
   window.sessionStorage.clear();
   document.cookie = `${LAST_CONTEXT_COOKIE}=${encodeURIComponent(SCREEN)}; path=/`;
 });
@@ -175,6 +184,18 @@ describe("signing out from the menu of the account", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Le service est injoignable ; réessayez dans un instant.",
     );
+    expect(rememberedContext()).toBe(encodeURIComponent(SCREEN));
+    expect(loadDocument).not.toHaveBeenCalled();
+  });
+
+  it("says the API out of reach, and keeps the session, when the server action itself rejects [WF-SEC-0020-A]", async () => {
+    server.down = true;
+    shell();
+    await signOut();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Le service est injoignable ; réessayez dans un instant.",
+    );
+    expect(screen.getByRole("main")).toBeInTheDocument();
     expect(rememberedContext()).toBe(encodeURIComponent(SCREEN));
     expect(loadDocument).not.toHaveBeenCalled();
   });

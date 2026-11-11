@@ -772,7 +772,7 @@ def test_a_plan_is_applied_once_by_the_account_that_previewed_it_on_its_structur
     assert labels_of(tree) == ["Études"]
 
 
-@pytest.mark.requirement("WF-DAT-0020-A")
+@pytest.mark.requirement("WF-REV-0020-A")
 def test_a_paste_confirmed_on_a_revision_marked_since_is_refused_by_the_state(
     tree: Tree, stage: Scene, who: Person
 ) -> None:

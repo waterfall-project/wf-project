@@ -499,6 +499,129 @@ def test_values_in_default_are_refused_before_a_stale_counter(
     assert version(installed) == 1
 
 
+# A decimal of twenty thousand decimals, which PostgreSQL would not keep (#2234); one of eleven, a
+# final zero counted, as written; one of eleven digits before the point.
+OVERFLOWING = "0." + "9" * 20_000
+ELEVEN_DECIMALS = "0.90000000000"
+ELEVEN_DIGITS = "12345678901"
+PRECISION = "VALIDATION_FAILED"
+
+
+@pytest.mark.requirement("WF-REF-0170-A")
+@pytest.mark.parametrize("name", ["cost_watch", "cost_alert", "schedule_watch", "schedule_alert"])
+@pytest.mark.parametrize("value", [OVERFLOWING, ELEVEN_DECIMALS])
+def test_a_threshold_of_more_than_ten_decimals_is_refused_at_its_field_and_nothing_is_written(
+    api: ContractClient, installed: Database, session_of: Any, name: str, value: str
+) -> None:
+    # In range, its precision judged last: refused at its field alone, never by the database (500);
+    # an alert refused is not judged against its watch.
+    sent = {"index_thresholds": {**THRESHOLDS, name: value}, "lock_version": 1}
+    refused = api.patch(SETTINGS, headers=session_of(INDICATORS), json=sent)
+    assert refusal(refused) == (422, "VALIDATION_FAILED", {}, [threshold(name, PRECISION)])
+    assert version(installed) == 1
+
+
+@pytest.mark.requirement("WF-REF-0170-A")
+def test_a_threshold_is_judged_in_its_form_then_its_range_before_its_precision(
+    api: ContractClient, installed: Database, session_of: Any
+) -> None:
+    thresholds = {
+        "cost_watch": "0,9" + "9" * 20,
+        "cost_alert": "1." + "9" * 20,
+        "schedule_watch": OVERFLOWING,
+        "schedule_alert": "0.8",
+    }
+    sent = {"index_thresholds": thresholds, "lock_version": 1}
+    refused = api.patch(SETTINGS, headers=session_of(INDICATORS), json=sent)
+    assert refusal(refused) == (
+        422,
+        "VALIDATION_FAILED",
+        {},
+        [
+            threshold("cost_watch", NUMBER),
+            threshold("cost_alert", BETWEEN),
+            threshold("schedule_watch", PRECISION),
+        ],
+    )
+    assert version(installed) == 1
+
+
+@pytest.mark.requirement("WF-REF-0170-A")
+def test_thresholds_of_ten_decimals_are_written(api: ContractClient, session_of: Any) -> None:
+    thresholds = {
+        "cost_watch": "0.9000000001",
+        "cost_alert": "0.8000000002",
+        "schedule_watch": "0.9999999999",
+        "schedule_alert": "0.0000000001",
+    }
+    sent = {"index_thresholds": thresholds, "lock_version": 1}
+    written = api.patch(SETTINGS, headers=session_of(INDICATORS), json=sent)
+    assert written.status_code == 200, written.text
+    assert written.json()["index_thresholds"] == thresholds
+
+
+def bound(axis: str, rank: int, code: str) -> dict[str, str]:
+    """Give the refusal of a bound of the matrix at its pointer."""
+    return {"pointer": f"/risk_matrix/{axis}_bounds/{rank}", "code": code}
+
+
+@pytest.mark.requirement("WF-REF-0160-A")
+@pytest.mark.parametrize(
+    "place", [(axis, rank) for axis in ("probability", "severity") for rank in range(3)]
+)
+@pytest.mark.parametrize("value", [OVERFLOWING, ELEVEN_DECIMALS, ELEVEN_DIGITS])
+def test_a_bound_of_more_than_ten_decimals_or_digits_is_refused_at_its_rank_alone(
+    api: ContractClient, installed: Database, session_of: Any, place: tuple[str, int], value: str
+) -> None:
+    # Refused for its precision, a bound is not judged in its order, before or after it: one field.
+    axis, rank = place
+    bounds = {"probability": ["0.25", "0.5", "0.75"], "severity": ["0.01", "0.05", "0.1"]}
+    bounds[axis][rank] = value
+    matrix = matrix_with(bounds["probability"], bounds["severity"])
+    refused = api.patch(
+        SETTINGS, headers=session_of(RISKS), json={"risk_matrix": matrix, "lock_version": 1}
+    )
+    assert refusal(refused) == (422, "VALIDATION_FAILED", {}, [bound(axis, rank, PRECISION)])
+    assert version(installed) == 1
+
+
+@pytest.mark.requirement("WF-REF-0160-A")
+def test_bounds_too_precise_and_out_of_order_are_refused_all_at_once(
+    api: ContractClient, installed: Database, session_of: Any
+) -> None:
+    sent = {
+        "risk_matrix": matrix_with(
+            [OVERFLOWING, "0.5", "0.4"], ["0.01", ELEVEN_DIGITS, "0.1" + "0" * 10]
+        ),
+        "lock_version": 1,
+    }
+    refused = api.patch(SETTINGS, headers=session_of(RISKS), json=sent)
+    assert refusal(refused) == (
+        422,
+        "VALIDATION_FAILED",
+        {},
+        [
+            bound("probability", 0, PRECISION),
+            bound("probability", 2, "BOUNDS_NOT_ORDERED"),
+            bound("severity", 1, PRECISION),
+            bound("severity", 2, PRECISION),
+        ],
+    )
+    assert version(installed) == 1
+
+
+@pytest.mark.requirement("WF-REF-0160-A")
+def test_bounds_of_ten_decimals_and_ten_digits_before_the_point_are_written(
+    api: ContractClient, session_of: Any
+) -> None:
+    probability = ["0.2500000001", "0.5", "0.7500000002"]
+    severity = ["0.0000000001", "0.05", "1234567890.0000000001"]
+    sent = {"risk_matrix": matrix_with(probability, severity), "lock_version": 1}
+    written = api.patch(SETTINGS, headers=session_of(RISKS), json=sent)
+    assert written.status_code == 200, written.text
+    assert written.json()["risk_matrix"] == matrix_with(probability, severity)
+
+
 @pytest.mark.requirement("WF-EXP-0020-A")
 def test_settings_the_bootstrap_has_not_written_are_unavailable(
     api: ContractClient, owner: Engine, database: Database, realm: TestRealm

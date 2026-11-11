@@ -35,7 +35,6 @@ const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: un
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 // The router of Next, as far as a notice needs it: the refresh that reads the screen anew.
 const router = vi.hoisted(() => ({ refresh: vi.fn() }));
-
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
@@ -411,6 +410,34 @@ describe("the tracker of background tasks", () => {
     expect(window.sessionStorage.getItem(STORAGE_KEY)).toBeNull();
     await tick(2);
     expect(reads(client)).toHaveLength(1);
+  });
+
+  it("reads a task again after a read refused by 503, and tells its success without interrupting the follow-up [WF-IHM-0080-A]", async () => {
+    const client = serve({
+      [TASK]: [
+        // The contract has no 503 example for getBackgroundTask: borrow this one, only the status is read.
+        { problem: example("invitation_provider_unavailable") as Problem & { status: 503 } },
+        "task_running",
+        "task_succeeded",
+      ],
+    });
+    await started(task("task_mark_queued"));
+    await tick(3);
+    expect(reads(client)).toHaveLength(3);
+    expect(screen.queryByText("Suivi interrompu")).toBeNull();
+    expect(ends()).toEqual([["Tâche terminée\u00A0: Marquage d’une révision."]]);
+  });
+
+  it("reads a task again after a read refused by 500, and tells the refusal once [WF-IHM-0080-A]", async () => {
+    const client = serve({
+      [TASK]: { problem: example("internal_error") as Problem & { status: 500 } },
+    });
+    await started(task("task_mark_queued"));
+    await tick(3);
+    expect(reads(client)).toHaveLength(3);
+    expect(screen.queryByText("Suivi interrompu")).toBeNull();
+    const told = readMessages().messages.filter((m) => m.sentence.startsWith("Le service est"));
+    expect(told).toHaveLength(1);
   });
 
   it("leads to the sign-in page when the session is gone during the follow-up", async () => {

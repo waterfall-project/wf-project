@@ -198,6 +198,18 @@ d'écriture, ou pas contributeur, c'est 403 avec la condition nommée.
 **`412` pour un `lock_version` périmé**, distinct du `409` d'un conflit d'état. Le front
 peut ainsi proposer de recharger dans un cas et d'expliquer dans l'autre.
 
+**Le compteur est borné à ce que la base tient, et refusé au-delà par 422** (#2232, issue
+« contrat » ; décision de l'auteur du 2026-11-11, EP-23/US-1810). `LockVersion` porte
+`maximum: 2147483647`, le plus grand entier des colonnes `lock_version` : une valeur au-delà
+atteignait PostgreSQL, qui la refusait par une erreur interne. Elle est refusée par la
+validation, comme toute valeur hors de ses bornes : 422 `VALIDATION_FAILED`, `fields` désignant
+`/lock_version` — `/query/lock_version` pour un paramètre de requête — par `VALUE_OUT_OF_RANGE`,
+`params.maximum` à `2147483647`, et rien n'est écrit. Une modification du contrat figé (« La règle
+d'après le gel »). Écarté : le `412` que demandait #2232, par une comparaison du compteur en
+Python, ligne verrouillée, dans chaque module qui le compare en SQL — huit modules à corriger un
+par un, et le prochain à oublier ; une valeur qu'aucun objet ne peut porter n'est pas une version
+périmée, mais une valeur hors de son domaine.
+
 **Un identifiant de chemin mal formé est un 404, un autre paramètre de chemin mal formé un
 422** (EP-03/US-0330/L1). Un identifiant qui n'est pas un UUID ne peut nommer aucun objet : il
 reçoit la réponse d'un objet inexistant ou invisible, 404 `NOT_FOUND` (README, 404 contre 403).

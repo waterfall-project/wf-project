@@ -19,6 +19,7 @@ from sqlalchemy import Text, delete, func, insert, literal, select, update
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import insert as insert_if_absent
 
+from waterfall.core.cost_settings.refusals import ACTUAL_COST_MAPPING, not_bootstrapped
 from waterfall.core.cost_settings.tables import (
     SINGLE_ROW,
     SOURCE_COLUMNS,
@@ -119,7 +120,10 @@ def create_actual_cost_mapping(session: Session, act: Act) -> bool:
 
 
 def read_actual_cost_mapping(session: Session) -> ActualCostMappingView:
-    """Read the mapping, its columns in the fixed order and its labels in the order declared."""
+    """Read the mapping, its columns in the fixed order and its labels in the order declared.
+
+    Refused (503) while the bootstrap has not written its row.
+    """
     head = session.execute(
         select(
             ActualCostMapping.lock_version,
@@ -128,7 +132,9 @@ def read_actual_cost_mapping(session: Session) -> ActualCostMappingView:
             ActualCostMapping.updated_at,
             ActualCostMapping.updated_by,
         ).where(ActualCostMapping.id == SINGLE_ROW)
-    ).one()
+    ).one_or_none()
+    if head is None:
+        raise not_bootstrapped(ACTUAL_COST_MAPPING)
     named: dict[str, list[str]] = {column: [] for column in SOURCE_COLUMNS}
     kept: list[str] = []
     for column, label in session.execute(
@@ -263,7 +269,8 @@ def replace_actual_cost_mapping(
     The refusals come in turn, and a turn names every field in default of its kind: the shape of
     the columns first (the pointers of the others rest on it), then the sizes, then the doubles
     (folded by the database). A body in default of two kinds hears of the first; it is sent again.
-    A malformed body is refused (422) before its counter is looked at (412).
+    A malformed body is refused (422) before its counter is looked at (412). Refused (503) while
+    the bootstrap has not written the row.
     """
     _refuse_if_malformed(write)
     rows = _label_rows(write, _fold_without_doubles(session, write))
@@ -281,7 +288,9 @@ def replace_actual_cost_mapping(
         .returning(ActualCostMapping.id)
     ).first()
     if taken is None:
-        current = session.execute(select(ActualCostMapping.lock_version)).scalar_one()
+        current = session.execute(select(ActualCostMapping.lock_version)).scalar_one_or_none()
+        if current is None:
+            raise not_bootstrapped(ACTUAL_COST_MAPPING)
         raise PreconditionFailedError(STALE_LOCK_VERSION, {"expected_lock_version": current})
     session.execute(delete(ActualCostMappingLabel))
     if rows:

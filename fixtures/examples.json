@@ -92,6 +92,11 @@
       "sentence": "Une offre incluse à 40 %, dont le devis porte 100 hors provisions et une provision de 50, apporte 40 au budget cumulé final et 60 à la projection."
     },
     {
+      "key": "WF-REF-0100-A#91525288dcb7",
+      "requirement": "WF-REF-0100-A",
+      "sentence": "Un rôle de deux personnes sur un calendrier de 35 heures par semaine dispose de 2 × 35 × 52 / 12, soit environ 303,33 heures par mois ; un effectif de 0,5 sur le même calendrier en dispose de 75,83."
+    },
+    {
       "key": "WF-REF-0160-A#0fa3e0540e72",
       "requirement": "WF-REF-0160-A",
       "sentence": "Avec des bornes de gravité à 1 %, 5 % et 10 %, un risque de gravité 60 est au troisième niveau sur un projet de budget 1 000 (6 %) et au deuxième sur un projet de budget 2 000 (3 %)."

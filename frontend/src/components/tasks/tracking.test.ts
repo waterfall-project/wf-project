@@ -96,6 +96,19 @@ describe("what the tracker follows", () => {
     expect(answered("read")).toMatchObject({ resultUnavailable: false });
   });
 
+  it("does not follow a restoration the API lists [WF-ADM-0160-A]", () => {
+    const before = following(task("task_running"));
+    const restoration = {
+      ...task("task_mark_queued"),
+      task_id: "restore-1",
+      kind: "restore",
+    } as const;
+    expect(tracking(before, { type: "found", tasks: [restoration] })).toBe(before);
+    expect(tracking(NOTHING_TRACKED, { type: "found", tasks: [restoration] })).toBe(
+      NOTHING_TRACKED,
+    );
+  });
+
   it("drops the answer to a task dismissed since it was asked", () => {
     const dismissed = tracking(following(task("task_running")), { type: "dismiss", key: MARKING });
     const after = tracking(dismissed, {

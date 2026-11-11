@@ -245,18 +245,38 @@ class BackupTask:
             path = folder / "backup.tar"
             archive(path, manifest(taken_at, revision, dumps), dumps)
             self.bucket.upload(key, path)
-            stored = folder / "stored.tar"
-            self.bucket.download(key, stored)
-            is_verified = verified(stored, folder)
-            size_bytes = path.stat().st_size
-        taken = TakenBackup(
-            task.task_id, taken_at, size_bytes, key, __version__, revision, is_verified=is_verified
-        )
-        backup_id = add_backup(session, taken, Act(task.requested_by, taken_at))
+            try:
+                stored = folder / "stored.tar"
+                self.bucket.download(key, stored)
+                is_verified = verified(stored, folder)
+                size_bytes = path.stat().st_size
+                taken = TakenBackup(
+                    task.task_id,
+                    taken_at,
+                    size_bytes,
+                    key,
+                    __version__,
+                    revision,
+                    is_verified=is_verified,
+                )
+                backup_id = add_backup(session, taken, Act(task.requested_by, taken_at))
+            except BaseException:
+                self._discard(key)
+                raise
         logger.info(
             "backup.taken", backup_id=str(backup_id), size_bytes=size_bytes, verified=is_verified
         )
         return {"backup_id": str(backup_id), "verification": "passed" if is_verified else "failed"}
+
+    def _discard(self, key: str) -> None:
+        """Remove an archive no backup names (WF-DAT-0120); a removal that fails is logged only.
+
+        It runs while the fault of the backup is being raised, which it must not hide.
+        """
+        try:
+            self.bucket.remove(key)
+        except Exception:
+            logger.exception("backup.archive_not_removed", key=key)
 
 
 def manifest(taken_at: datetime, revision: str, dumps: list[Dumped]) -> dict[str, Any]:
