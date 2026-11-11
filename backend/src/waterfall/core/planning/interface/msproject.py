@@ -70,6 +70,7 @@ class MsProjectFormat:
     """
 
     header_length = HEADER_LENGTH
+    judged_first = False
     scope: ImportScope = "structure"
     permission = "planning.write"
 

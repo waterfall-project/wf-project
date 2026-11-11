@@ -172,6 +172,7 @@ def test_the_first_revision_is_born_current_with_its_main_structure_alone(
         "abandon": [],
         "export_planning": [],
         "export_estimate": [],
+        "export_remaining": [],
         "export_task_tree_image": [],
     }
     [main] = structures(api, stage, revision["revision_id"])
