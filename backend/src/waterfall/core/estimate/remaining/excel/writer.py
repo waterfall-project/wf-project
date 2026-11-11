@@ -178,28 +178,25 @@ def _write_parameters(sheet: Worksheet, ctx: _Context) -> str:
 
 
 def _write_tasks(sheet: Worksheet, ctx: _Context) -> tuple[str, ...]:
-    """Write « Tâches »; give, for each tab of lines, the list of choice of its tasks."""
-    sheet.write(
-        "A1", "Tâches non terminées par sous-projet : la liste de chaque onglet.", ctx.fmt["bold"]
-    )
-    rows: list[list[Any]] = []
-    ranges: list[str] = []
+    """Write « Tâches »; give, for each tab of lines, the list of choice of its tasks.
+
+    Every tab offers every task not completed, not only those it bears a line of (#2834): the
+    list of each is the whole table.
+    """
+    sheet.write("A1", "Tâches non terminées : la liste de chaque onglet.", ctx.fmt["bold"])
     top = 3
-    for tab in ctx.tabs:
-        begin = top + len(rows)
-        rows.extend(
-            [
-                _task_entry(task),
-                task.lineage,
-                tab.code,
-                layout.STATES[task.state],
-                float(task.inflation),
-                task.description,
-            ]
-            for task in tab.tasks
-        )
-        count = max(1, len(tab.tasks))
-        ranges.append(f"='{TASKS}'!$A${begin + 2}:$A${begin + 1 + count}")
+    rows: list[list[Any]] = [
+        [
+            _task_entry(task),
+            task.lineage,
+            layout.STATES[task.state],
+            float(task.inflation),
+            task.description,
+        ]
+        for task in ctx.book.tasks
+    ]
+    whole = f"='{TASKS}'!$A${top + 2}:$A${top + 1 + max(1, len(rows))}"
+    ranges = [whole for _ in ctx.tabs]
     sheet.add_table(
         top,
         0,
@@ -351,7 +348,7 @@ def _write_tab(
         },
     )
     for header, source, message in (
-        ("Tâche", tasks_list, "Choisis une tâche non terminée du sous-projet (onglet Tâches)."),
+        ("Tâche", tasks_list, "Choisis une tâche non terminée (onglet Tâches)."),
         ("Rôle ou catégorie", roles_list, "Choisis un rôle ou une catégorie du référentiel."),
     ):
         sheet.data_validation(

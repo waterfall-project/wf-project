@@ -124,8 +124,8 @@ REFERENCE_HEADERS = (
     "Taux horaire",
 )
 REFERENCE_WIDTHS = (34, 10, 10, 26, 24, 22, 18, 14, 11)
-TASK_HEADERS = ("Entrée", "ID tâche", "Sous-projet", "État", "Coefficient", "Description")
-TASK_WIDTHS = (38, 10, 16, 14, 11, 50)
+TASK_HEADERS = ("Entrée", "ID tâche", "État", "Coefficient", "Description")
+TASK_WIDTHS = (38, 10, 14, 11, 50)
 STATES = {"started": "démarrée", "not_started": "non démarrée"}
 TABLE_STYLE = "Table Style Light 1"
 LINES_STYLE = "Table Style Light 9"

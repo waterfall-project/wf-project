@@ -410,24 +410,24 @@ def test_the_lists_of_choice_cover_the_tasks_the_roles_and_the_amounts_left(
         str(item.sqref): (item.type, item.formula1)
         for item in sheet.data_validations.dataValidation
     }
-    assert validations["A16:A415"] == ("list", "'Tâches'!$A$5:$A$6")
+    # Every tab offers every task not completed: the four of the workbook, whichever it bears.
+    assert validations["A16:A415"] == ("list", "'Tâches'!$A$5:$A$8")
     assert validations["D16:D415"] == ("list", "'Paramètres'!$A$5:$A$8")
     assert validations["H16:H415"][0] == "decimal"
     assert validations["I16:I415"][0] == "decimal"
     assert _open(content)["sp-pre (2)"].data_validations.dataValidation[0].formula1 == (
-        "'Tâches'!$A$7:$A$7"
+        "'Tâches'!$A$5:$A$8"
     )
 
 
 @pytest.mark.requirement("WF-INTF-0130-A")
-def test_the_tasks_tab_gives_the_lineage_the_subproject_the_state_and_the_inflation(
+def test_the_tasks_tab_gives_each_task_once_with_its_lineage_its_state_and_its_inflation(
     content: bytes,
 ) -> None:
     sheet = _open(content)["Tâches"]
     assert [cell.value for cell in sheet[4]] == [
         "Entrée",
         "ID tâche",
-        "Sous-projet",
         "État",
         "Coefficient",
         "Description",
@@ -435,13 +435,18 @@ def test_the_tasks_tab_gives_the_lineage_the_subproject_the_state_and_the_inflat
     assert [cell.value for cell in sheet[5]] == [
         "1.1.2 Développement du logiciel",
         "t-1.1.2",
-        "SP-PRE",
         "démarrée",
         1,
         "Description de Développement du logiciel",
     ]
-    assert [cell.value for cell in sheet[6]][3:5] == ["non démarrée", 1.02]
-    assert sheet["C9"].value in ("", None)  # a task outside any subproject has no code
+    # The tasks are those of the workbook, each once, in the order of the plan.
+    assert [cell.value for cell in sheet["A"]][4:] == [
+        "1.1.2 Développement du logiciel",
+        "1.2.1 Approvisionnement",
+        "1.2.2 Câblage",
+        "3 Gestion de projet",
+    ]
+    assert [cell.value for cell in sheet[7]][2:4] == ["non démarrée", 1.02]
 
 
 @pytest.mark.requirement("WF-INTF-0130-A")

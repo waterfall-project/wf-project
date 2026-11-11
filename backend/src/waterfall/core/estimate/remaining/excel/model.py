@@ -113,3 +113,21 @@ class RemainingWorkbook:
     roles: tuple[Role, ...]
     subprojects: tuple[RemainingTab, ...]
     outside: RemainingTab | None = None
+
+    @property
+    def tasks(self) -> tuple[RemainingTask, ...]:
+        """Give the tasks not finished of the workbook, each once, in the order of the plan.
+
+        A task is in each tab it bears a line in, and in the tab outside any subproject if it
+        bears none: the choice of every tab is all of them, not those the tab bears (#2834).
+        """
+        found: dict[str, RemainingTask] = {}
+        for tab in (*self.subprojects, *([] if self.outside is None else [self.outside])):
+            for task in tab.tasks:
+                found.setdefault(task.lineage, task)
+        return tuple(sorted(found.values(), key=lambda each: _outline(each.number)))
+
+
+def _outline(number: str) -> tuple[int, ...]:
+    """Give the outline number of a task as integers: "1.10" comes after "1.2"."""
+    return tuple(int(part) for part in number.split(".") if part.isdigit())

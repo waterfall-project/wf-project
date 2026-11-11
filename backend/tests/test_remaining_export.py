@@ -23,28 +23,31 @@ from imports_trial import AT_ONCE, read
 from nodes_support import set_progress
 from openpyxl import load_workbook
 from planning_support import DAY, insert_task
-from project_rows import lifted_kind_check, structure_row
+from project_rows import delete_structure, lifted_kind_check, structure_row
 from projects_support import PROJECTS, Scene, put_in_state
 from projects_support import scene as make_scene
 from remaining_support import Review, in_progress, line_named, task_named
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import insert, update
 from support import ContractClient
 from test_remaining_import import (
+    NEXT,
     OUTSIDE,
     REVIEW,
+    YEAR,
     Rows,
     analysed,
     applied,
+    inflating,
     labour,
     material,
     report,
     row_of,
+    workbook,
 )
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.estimate.tables import EstimateLine
-from waterfall.core.planning.tables import Node, Task
 from waterfall.core.revisions.tables import CostStructure
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.worker.exchanges import ExportTask, ImportTasks
@@ -323,12 +326,13 @@ def test_a_provision_line_is_not_exported_and_is_summed_in_the_provisions_of_its
 
 
 @pytest.mark.requirement("WF-INTF-0130-A")
-def test_a_task_bearing_lines_in_two_subprojects_is_listed_in_the_tasks_of_each_tab(
+def test_the_choice_of_the_task_in_every_tab_is_every_task_not_completed(
     api: ContractClient, stage: Scene, worker: Worker, scene: Rows
 ) -> None:
-    # A task is listed in each tab it bears a line in (the choice put to the author, #2834): the
-    # wiring, whose supplies are in SP-1 and whose connection is in no subproject, is in the list
-    # of both tabs of « Tâches ».
+    # The list of validation « Tâches » of a tab, of a subproject or outside any, offers every task
+    # not completed of the structure, not those the tab bears a line of (the choice of the author,
+    # #2834): the wiring, whose supplies are in SP-1 and whose connection is in no subproject, is
+    # in « Tâches » once, and the reception, which bears no line of SP-1, is offered in SP-1 too.
     made = api.post(
         f"{PROJECTS}/{stage.project['project_id']}/subprojects",
         headers=stage.manager.headers,
@@ -342,13 +346,52 @@ def test_a_task_bearing_lines_in_two_subprojects_is_listed_in_the_tasks_of_each_
             .values(subproject_id=UUID(made.json()["subproject_id"]))
         )
     content = exported(api, stage, worker, scene.tree.revision["revision_id"])
-    listed = [
-        (str(row[0]), str(row[2] or ""))
-        for row in book_of(content)["Tâches"].iter_rows(min_row=5, values_only=True)
-        if row[0] is not None
+    book = book_of(content)
+    entries = [
+        str(row[0]) for row in book["Tâches"].iter_rows(min_row=5, values_only=True) if row[0]
     ]
-    assert sorted(tab for entry, tab in listed if entry == "1 Câblage") == ["", "SP-1"]
+    assert entries == list(scene.tasks())
+    assert len(set(entries)) == len(entries)
+    choices = {
+        name: [
+            each.formula1
+            for each in book[name].data_validations.dataValidation
+            if each.type == "list" and str(each.sqref).startswith("A")
+        ]
+        for name in ("SP-1", OUTSIDE)
+    }
+    whole = f"'Tâches'!$A$5:$A${4 + len(entries)}"
+    assert choices == {"SP-1": [whole], OUTSIDE: [whole]}
     assert [each["Tâche"] for each in lines_of(content, "SP-1")] == ["1 Câblage"]
+
+
+@pytest.mark.requirement("WF-INTF-0130-A")
+def test_the_coefficient_of_a_task_over_two_years_is_the_one_the_import_converts_by(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # « Tâches » gives the coefficient of the inflation of a task as the mean of the coefficients of
+    # its years weighted by their shares (#2848), not that of the year it consumes most in, so that
+    # the formula of the workbook gives the amount the application does: a task from 28 December
+    # to 8 January works four days of ten in the first year, six in the second, at 3 %, 1.018.
+    inflating(stage, scene.tree, date(YEAR, 12, 28), date(NEXT, 1, 8), days=10)
+    content = exported(api, stage, worker, scene.tree.revision["revision_id"])
+    coefficients = {
+        str(row[0]): row[3]
+        for row in book_of(content)["Tâches"].iter_rows(min_row=5, values_only=True)
+        if row[0]
+    }
+    shown = Decimal(str(coefficients[scene.task("Essais")]))
+    assert shown == pytest.approx(Decimal("1.018"))
+    # The import converts an amount typed by the same coefficient: 103 typed on a line created
+    # under that task is the unit disbursement the coefficient of « Tâches » gives back.
+    rows = scene.exported()
+    rows.append([scene.task("Essais"), scene.stuff, "Rallonge", None, 103, None])
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    applied(api, stage, worker, import_id)
+    created = row_of(stage, line_named(scene.tree, "Rallonge")["node_id"])
+    assert created.unit_disbursement == (Decimal(103) / shown).quantize(Decimal("0.01"))
+    # Another year of the task would have been 1.00 or 1.03: neither is shown.
+    assert shown not in (Decimal(1), Decimal("1.03"))
 
 
 @pytest.mark.requirement("WF-INTF-0130-A")
@@ -380,12 +423,7 @@ def test_the_export_of_a_structure_that_is_not_the_main_one_keeps_the_tasks_comp
             content = exported(api, stage, worker, str(revision_id), structure_id=str(structure_id))
             assert len(lines_of(content, OUTSIDE)) == 1
         finally:
-            with stage.owner.begin() as connection:
-                nodes = select(Node.id).where(Node.structure_id == structure_id)
-                connection.execute(delete(EstimateLine).where(EstimateLine.node_id.in_(nodes)))
-                connection.execute(delete(Task).where(Task.node_id.in_(nodes)))
-                connection.execute(delete(Node).where(Node.structure_id == structure_id))
-                connection.execute(delete(CostStructure).where(CostStructure.id == structure_id))
+            delete_structure(stage.owner, structure_id)
 
 
 # --- The command of the revision, the project that ended ------------------------------------------
