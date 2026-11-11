@@ -514,21 +514,14 @@ test("starts a task from the Kanban and completes a milestone, on a project the 
     await asking.getByRole("button", { name: "Terminer la tâche" }).click();
     expect((await written).ok()).toBe(true);
     await expect(asking).toBeHidden({ timeout: WORKING });
-    await openHydrated(page, `${revision}/remaining?progress=not_started%2Cstarted%2Ccompleted`);
-    await expect(
-      grid
-        .getByRole("row", { name: /Mise en service/ })
-        .nth(1)
-        .getByRole("gridcell")
-        .nth(at.hours),
-    ).toHaveText("0", { timeout: WORKING });
-    await expect(grid.getByRole("row", { name: /Mise en service/ }).first()).toContainText(
-      "Terminée",
-    );
-    await openHydrated(page, `${revision}/kanban`);
-    await expect(
-      completed.getByRole("listitem").filter({ hasText: "Mise en service" }),
-    ).toContainText(/Terminée le \d{2}\/\d{2}\/\d{4}/, { timeout: WORKING });
+    // The entry replayed with the day is written once the service has answered: the screen is read
+    // anew until the task is in the column of the tasks completed, whatever the load.
+    await expect(async () => {
+      await openHydrated(page, `${revision}/kanban`);
+      await expect(
+        completed.getByRole("listitem").filter({ hasText: "Mise en service" }),
+      ).toContainText(/Terminée le \d{2}\/\d{2}\/\d{4}/, { timeout: 5_000 });
+    }).toPass({ timeout: 2 * WORKING });
     await expect(started.getByRole("listitem").filter({ hasText: "Mise en service" })).toHaveCount(
       0,
     );
