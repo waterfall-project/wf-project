@@ -1,7 +1,7 @@
 ---
 id: EP-23
-titre: Les constats laissés ouverts par EP-02 et EP-03 sont soldés — le suivi des tâches, les refus, les écrans de l'administration, les comptes, les sauvegardes et le compteur d'écriture
-statut: à planifier
+titre: Les constats laissés ouverts par EP-02 et EP-03, et quatre d'EP-06, sont soldés — le suivi des tâches, les refus, les écrans de l'administration, les comptes, les sauvegardes, le compteur d'écriture et le moteur de planning
+statut: prêt
 depend_de: EP-02, EP-03, EP-06
 famille: front, back
 issue:
@@ -21,7 +21,10 @@ inattendue ou perd la référence d'un refus inconnu, des actions serveur dont l
 page, deux écrans de l'administration qui écrivent deux fois un même rôle ou ignorent une commande
 indisponible, et, côté service, le renvoi de l'invitation, un interblocage possible, le journal
 technique de l'admission, la liste des sauvegardes après une restauration venue d'ailleurs, une
-archive orpheline et un compteur d'écriture qui déborde.
+archive orpheline et un compteur d'écriture qui déborde. Le même jour, l'auteur lui a confié quatre
+constats laissés par EP-06, livré : deux du moteur de planning — la passe arrière d'un décalage
+écoulé, le départ au plus tard d'une durée écoulée —, et deux de tests — des citations d'exigence et
+des exemples lus par un cast.
 
 Il ne sert aucun EPIC de domaine et n'en attend aucun : il se livre en parallèle d'EP-07 et d'EP-09,
 sur sa propre branche tirée de `main` après la fusion d'EP-06 (#2855), sans toucher aux fichiers que
@@ -46,7 +49,12 @@ leurs derniers lots écrivent (« Préalables »).
 - le service des sauvegardes : la liste réécrite à la restauration, et l'archive retirée du
   compartiment quand son enregistrement échoue (#2230, #2242) — US-1800 ;
 - la borne du compteur d'écriture au contrat, `LockVersion` à `2147483647` au plus, et les
-  paramètres de requête qui le portent (#2232) — US-1810.
+  paramètres de requête qui le portent (#2232) — US-1810 ;
+- les casts restants de `i18n/problem.test.ts` (#2846, d'EP-06) — US-1760 ;
+- le moteur de planning (`core/planning/scheduling`) : la passe arrière d'un décalage écoulé qui
+  atteint un jour sans heure de travail, le départ au plus tard d'une durée écoulée éprouvé pour
+  d'autres durées, et trois tests d'API qui citent l'exigence que leur refus porte (#2816, #2832,
+  #2845, d'EP-06) — US-1820.
 
 ## Ce qui n'en fait pas partie
 
@@ -60,6 +68,11 @@ leurs derniers lots écrivent (« Préalables »).
   2026-11-11) ;
 - le parcours de bout en bout des sauvegardes (`frontend/e2e/service/backups.spec.ts`), que des
   lots d'EP-07 et d'EP-09 écrivent : aucun lot d'EP-23 ne touche un parcours ;
+- le jour courant pris en UTC, faute d'un fuseau de l'installation (#2527, d'EP-06) : EP-13
+  (décision de l'auteur du 2026-11-11, « Constats reçus » d'EP-13) ;
+- la copie privée d'`identifierOf` dans `components/portfolio/address.ts`, qui laisse passer un
+  identifiant qui n'est pas un UUID comme celle que corrige US-1770 : une issue mineure, reportée à
+  EP-11 (décision de l'auteur du 2026-11-11) ;
 - toute modification de la spécification ; toute modification du contrat autre que la borne de
   `LockVersion` (US-1810).
 
@@ -71,7 +84,8 @@ dont ses tests relèvent ; les phrases qu'elle ne touche pas sont des écarts qu
 constate. Leur portée reste celle des EPIC qui les ouvrent et les closent : `WF-IHM-0080-A` (close
 par EP-09), `WF-ADM-0160-A` (EP-04), `WF-EXP-0040-A` et `WF-OBS-0020-A` (EP-13),
 `WF-INTF-0160-A`, `WF-SEC-0020-A`, `WF-ADM-0010-A`, `WF-ADM-0120-A`, `WF-ADM-0140-A` (EP-03),
-`WF-ADM-0040-A` (EP-04), `WF-IHM-0090-A` (EP-02).
+`WF-ADM-0040-A` (EP-04), `WF-IHM-0090-A` (EP-02), `WF-PLA-0100-A` et `WF-PLA-0160-A` (EP-06),
+`WF-REV-0020-A` (EP-07).
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
@@ -84,7 +98,8 @@ Déjà servies, et reprises ici pour ce que les constats y corrigent : `getBackg
 filtrées par un identifiant de l'adresse (US-1770) ; `updateAccessRole`, `deleteAccessRole`,
 `setUserAccessRoles`, `listUsers` (US-1780) ; `resendInvitation`, `createUser`, `updateUser`,
 `anonymizeUser`, `createPasswordSetupLink`, `getMe` (US-1790) ; `startRestore`, `listBackups`,
-`startBackup` (US-1800) ; toute écriture qui porte un `lock_version` (US-1810).
+`startBackup` (US-1800) ; toute écriture qui porte un `lock_version` (US-1810) ; aucune pour
+US-1820, qui corrige le moteur et des tests.
 
 Une seule modification du contrat : `LockVersion` gagne `maximum: 2147483647`
 (`docs/api/components/common.yaml`), avec son entrée dans `docs/api/DECISIONS.md` (US-1810).
@@ -110,9 +125,12 @@ Décisions de l'auteur du 2026-11-11.
 - `PATCH /access-roles/{id}` avec un `lock_version` de 2147483648 répond 422 ; `make
   build-openapi`, `make inventory`, `make client-up-to-date` et `make server-models-up-to-date`
   passent, et `docs/api/DECISIONS.md` a son entrée ;
+- la chaîne de #2816 — A (4 j) → B (1 j), B fin à fin C avec +2 ej, C (1 j) — porte des marges
+  nulles et A, B, C critiques ; le départ au plus tard d'une durée écoulée est éprouvé pour 1, 2, 3
+  et 5 ej, une avance de 1 à 10 j et un calendrier à jour férié ;
 - `make check` passe sur la branche de l'EPIC, la file de fusion est verte ; `make roadmap` et
   `make requirements` passent ;
-- les quinze constats sont fermés par la fusion de leur lot.
+- les dix-neuf constats sont fermés par la fusion de leur lot.
 
 ## Constats reçus
 
@@ -145,10 +163,22 @@ l'auteur le 2026-11-11 ; renommés `[EP-23]` et passés au label `EP-23` à l'ou
 - #2232 — back : un `lock_version` au-delà de 2^31−1 donne 500 au lieu de 412 (la borne au contrat)
   → US-1810.
 
+Laissés par EP-06, livré, et confiés à EP-23 par l'auteur le 2026-11-11 ; renommés `[EP-23]` et
+passés au label `EP-23` à l'ouverture des issues :
+
+- #2816 — back : la passe arrière d'un décalage écoulé qui atteint un jour sans heure de travail
+  → US-1820 ;
+- #2832 — back : le départ au plus tard d'une durée écoulée n'est éprouvé que pour 2 jours écoulés
+  → US-1820 ;
+- #2845 — back : trois tests d'API citent encore WF-DAT-0020-A, dont le Vérif est une écriture en
+  base → US-1820 ;
+- #2846 — front : `problem.test.ts` lit encore cinq exemples par un cast → US-1760.
+
 ## Conception
 
 Écrite le 2026-11-11 sur `main` (d421d4e2, EP-06 fusionné), après la validation des US par
-l'auteur le même jour. Courte, comme celle d'EP-18 : chaque issue porte sa proposition, ses
+l'auteur le même jour ; validée par lui le même jour, puis étendue aux quatre constats d'EP-06 qu'il
+a confiés à EP-23 (US-1820, et #2846 dans US-1760). Courte, comme celle d'EP-18 : chaque issue porte sa proposition, ses
 fichiers et ses tests, et fait foi pour le détail ; ce qui suit ne dit que ce qu'elles laissent
 ouvert, ce qui s'en écarte, et ce que les décisions de l'auteur du 2026-11-11 y changent.
 
@@ -175,7 +205,9 @@ borne de US-1810 couvre exactement.
   catalogue quand il est une chaîne non vide. `session/request.ts` ne change pas : une session
   illisible reste `unreadable`, et la navigation garde l'écran d'état ; c'est la lecture de l'écran
   qui nomme le composant. Le guide (« Les pages système : lecture, panne et « introuvable » ») suit,
-  dans ses deux langues.
+  dans ses deux langues. Le même lot retire les casts restants de `i18n/problem.test.ts` (#2846),
+  sur la forme de `NODE_CYCLE` : `toMatchObject` sur ce que le test lit de l'exemple, puis un
+  `ProblemText` littéral.
 - *Front, actions rejetées* (`components/shell/account-menu.tsx`, `components/grid/settings.ts`,
   `components/reference/address.ts`, US-1770) : `apply()` et `signOut()` du menu, et `write` de
   `useKeptWriter.send`, passent leur rejet à `rejected` (`components/commands/rejection.ts`) ;
@@ -209,6 +241,14 @@ borne de US-1810 couvre exactement.
   `replace_by_kept(connection, Backup)`, comme les dépôts ; `worker/backup.py` retire l'archive
   (`Bucket.remove`, déjà dans `main` par EP-06) sur toute exception levée après son écriture, puis
   relève l'exception d'origine ; un retrait qui échoue à son tour se journalise sans la masquer.
+- *Moteur de planning* (`core/planning/scheduling/engine.py`, `backend/tests/examples/test_scheduling_examples.py`,
+  US-1820) : dans `_Engine.bound`, un décalage écoulé recule depuis la lecture de début du dernier
+  instant de l'horloge qui tient le compte de la cible (`calendar.moment(calendar.count(target),
+  finish=False)`), comme le début tardif d'une durée écoulée depuis #2648 (`start_for(…,
+  latest=True)`) ; la passe avant ne change pas. `_Engine.latest_start` ne change que si le test
+  paramétré de #2832 révèle un écart, auquel cas sa correction est dans le lot. Aucune autre pièce du
+  moteur, ni de son interface, ne change. Les trois tests d'API de #2845 (`test_nodes_state.py`,
+  `test_paste.py`, `test_reference_designation.py`) changent leur seul marqueur.
 - *Contrat et service, compteur* (US-1810) : voir « Modifications du contrat ». Les quatre
   paramètres de requête servis (`api/access_roles.py`, `api/subprojects.py`, `api/revisions.py`,
   `api/nodes.py`) passent à `Query(ge=0, le=2147483647)`, que `test_contract_declarations.py`
@@ -232,13 +272,18 @@ parallèle, à deux contraintes près.
   deux sections différentes : elles ne se livrent pas en même temps (« pas avec »).
 - US-1810 change le contrat et régénère le client : aucun autre lot ne touche `docs/api` ni les
   fichiers engendrés, et ses tests ne vont pas dans `test_access_roles.py`, que US-1790 écrit.
+- US-1820 ne partage aucun fichier avec un autre lot d'EP-23.
 
 `epic/EP-23` se tire de `main` au premier lot, EP-06 y étant fusionné. Vérifié sur
 `origin/epic/EP-09` le 2026-11-11 : EP-07 et EP-09 ne touchent ni les sections du guide qu'écrivent
 US-1760 et US-1780 (« Les pages système », « Les écrans de l'administration »), ni celles d'US-1650/L3
 (#2416, les entrées non rejouées de l'e2e), ni `LockVersion` ni l'endroit de `DECISIONS.md` où
-s'écrit l'entrée ; ils ne changent dans les fichiers du back d'EP-23 que des imports (#2763). Aucun
-lot d'EP-23 n'attend donc #2416, et EP-23 se fusionne dans `main` avant ou après EP-07 et EP-09,
+s'écrit l'entrée ; ils ne changent dans les fichiers du back d'EP-23 que des imports (#2763). Ils
+ne touchent ni `engine.py`, ni `test_scheduling_examples.py`, ni `i18n/problem.test.ts` (leurs
+seuls changements du moteur sont des ajouts à `scheduling/calendar.py`, qu'US-1820 ne touche pas),
+et les lots qui leur restent (US-1570/L3 #2386, US-1650/L3 #2416) n'y vont pas. EP-07 réécrit les
+trois fichiers de tests de #2845, mais loin des trois marqueurs, qui ne changent que d'une ligne
+chacun. Aucun lot d'EP-23 n'attend donc #2416, et EP-23 se fusionne dans `main` avant ou après EP-07 et EP-09,
 celui qui vient second reprenant `main`.
 
 **Décisions.**
@@ -280,10 +325,24 @@ celui qui vient second reprenant `main`.
   d'enregistrement unique, `account.admitted`, qui ne dirait plus la création.
 - **Une archive écrite et non enregistrée est retirée par la tâche** (#2242), sur toute exception
   levée par elle après l'écriture. Un échec du `commit` qui suit la tâche, dans le runner, n'est pas
-  couvert : la rotation d'EP-13 le reprendra, qui liste le compartiment. Écarté : une ligne `backup`
+  couvert : la rotation d'EP-13 le reprendra, qui liste le compartiment (limite acceptée par
+  l'auteur le 2026-11-11). Écarté : une ligne `backup`
   écrite avant l'archive, qui listerait une sauvegarde qui n'existe pas.
-- **Les reports** : #2229, #2231, #2241 et #2258 vont à EP-13 (ses « Constats reçus »), #2779 attend
-  la v1, et le fichier d'EP-03, livré, n'est pas touché (décisions de l'auteur du 2026-11-11).
+- **La passe arrière et le départ au plus tard d'une durée écoulée vont ensemble** (#2816, #2832 ;
+  décision de l'auteur du 2026-11-11), dans une US du moteur, au modèle `opus` : les deux touchent
+  la symétrie des deux passes sur un jour sans heure de travail. Écarté : un lot de suite d'EP-06,
+  livré, que la décision du 2026-11-11 reportait après la livraison.
+- **Chaque test de #2845 cite l'exigence dont il éprouve le Vérif**, au cas par cas (décision de
+  l'auteur du 2026-11-11) : le refus d'une écriture sur une révision marquée, par l'état ou par un
+  collage, cite `WF-REV-0020-A` (« quel que soit le point d'entrée »), plutôt que `WF-CYC-0100-A`
+  que l'issue proposait en exemple, qui vise un projet terminal ; la désignation d'une révision
+  marquée comme référence garde `WF-DAT-0020-A`, dont le Vérif dit « La désignation d'une révision
+  marquée comme référence aboutit ». Le lot les relit un par un, et sa pull request dit ce qu'il a
+  retenu pour chacun.
+- **La copie d'`identifierOf` du portefeuille** reste hors d'EP-23 (décision de l'auteur du
+  2026-11-11) : une issue mineure la suit, reportée à EP-11.
+- **Les reports** : #2229, #2231, #2241, #2258 et #2527 vont à EP-13 (ses « Constats reçus »),
+  #2779 attend la v1, et le fichier d'EP-03, livré, n'est pas touché (décisions de l'auteur du 2026-11-11).
 
 ---
 
@@ -342,7 +401,7 @@ morceaux interrompu (#2258, EP-13).
 est refusée parce qu'un composant de la plateforme est indisponible me dise lequel, et qu'un refus
 que mon front ne connaît pas me donne la référence que l'exploitant retrouve dans ses journaux,
 **afin de** savoir qu'il faut attendre ou quoi signaler, plutôt qu'une « erreur inattendue » muette
-(#2265, #2264).
+(#2265, #2264, #2846).
 
 **Critères d'acceptation.**
 
@@ -361,6 +420,8 @@ que mon front ne connaît pas me donne la référence que l'exploitant retrouve 
   l'erreur inattendue, mais garde le `correlation_id` qu'elle porte quand il a la forme du contrat,
   et l'avis le présente ; le suivi d'un import de bout en bout est d'EP-13.
 - écart : `WF-OBS-0020-A` — « Une recherche des secrets et des jetons connus dans les journaux ne les trouve pas. » : EP-13.
+- propre à l'US : `i18n/problem.test.ts` ne lit plus aucun exemple par un cast (#2846) : il
+  affirme ce qu'il en lit (`toMatchObject`), puis le rend par un `ProblemText` littéral.
 - propre à l'US : une enveloppe 503 qui ne nomme pas un composant du contrat, et toute autre réponse
   que le décodeur ne reconnaît pas, restent l'erreur inattendue ; une réponse 502, 503 ou 504 sans
   enveloppe reste l'API injoignable.
@@ -579,3 +640,56 @@ la comparaison du compteur en Python que proposait #2232 : c'est une modificatio
 (« La règle d'après le gel », `docs/api/DECISIONS.md`).
 
 **Hors périmètre.** Les compteurs qui naissent à 0 (#2779).
+
+---
+
+## US-1820 — Le moteur de planning : un décalage et une durée écoulés reculent juste, et trois tests citent leur exigence
+
+- **statut** : à faire
+- **exigences** : `WF-PLA-0100-A`, `WF-PLA-0160-A`, `WF-REV-0020-A`
+- **opérations** : aucune en propre — le moteur, et des tests d'API qui ne changent que leur marqueur
+- **issue** :
+
+**En tant que** chef de projet, **je veux** qu'un décalage ou une durée écoulés qui atteignent une fin
+de semaine donnent la même marge en arrière qu'en avant, **afin qu'**aucune tâche ne se dise critique,
+ou en marge négative, sans conflit qui l'explique (#2816, #2832) ; **en tant que** développeur, que
+trois tests d'API citent l'exigence dont ils éprouvent le Vérif (#2845).
+
+**Critères d'acceptation.**
+
+- `WF-PLA-0100-A` — « Sur un planning à deux branches parallèles de durées différentes, la branche la plus longue est critique et l'autre porte une marge égale à leur écart. » : sa forme
+  pour un décalage écoulé qui atteint un jour sans heure de travail : sur un calendrier de 8 h du
+  lundi au vendredi, planning au lundi 2 mars 2026, A (4 j) → B (1 j, le vendredi 6), B fin à fin
+  C avec +2 ej, C (1 j) : A, B et C portent une marge nulle et sont critiques, sans
+  `link_conflicts` ; la variante qui finit un jour ouvré de même ; la passe avant est inchangée.
+- `WF-PLA-0100-A` — « Allonger une tâche de la branche courte au-delà de sa marge la rend critique à son tour. » : sa forme pour une durée écoulée : pour une
+  durée de 1, 2, 3 et 5 ej, une avance de 1 à 10 j, et un calendrier à jour férié, sur la chaîne A,
+  B, C de `test_the_latest_start_of_an_elapsed_duration_goes_back_from_the_day_it_may_reach`,
+  décaler une tâche de sa marge laisse la fin du projet inchangée, et décaler A d'un jour de plus la
+  décale ; un écart que ce test révèle est corrigé dans `_Engine.latest_start`.
+- écart : `WF-PLA-0100-A` — « Une tâche en mode manuel n'affiche aucune marge et n'apparaît jamais sur le chemin critique, alors que ses successeurs automatiques voient leurs marges calculées à partir de ses dates. » : constaté par EP-06 (US-1390), inchangé.
+- écart : `WF-PLA-0100-A` — « Un prédécesseur automatique qui ne peut pas finir avant le début d'une tâche manuelle porte une marge négative, apparaît sur le chemin critique et est signalé. » : idem.
+- écart : `WF-PLA-0100-A` — « Une récapitulative dont une subordonnée est critique est critique et affiche la marge de cette subordonnée, nulle ou négative. » : idem.
+- écart : `WF-PLA-0100-A` — « Un prédécesseur lié début à début à une tâche manuelle, et qui ne peut pas commencer avant elle, porte une marge négative et est signalé. » : idem.
+- écart : `WF-PLA-0160-A` — « Avec les valeurs par défaut, une durée saisie « 2 j » vaut seize heures, « 1 sem » quarante heures et « 1 m » cent soixante heures. » : constaté par EP-06 (US-1390), inchangé.
+- écart : `WF-PLA-0160-A` — « Un décalage saisi « 1 sem » est exporté puis réimporté sans changer d'unité. » : idem.
+- `WF-PLA-0160-A` — « Un décalage de 2 ej sur une liaison fin à début dont le prédécesseur finit à la dernière heure travaillée d'un vendredi s'achève le dimanche ; le successeur, sur un calendrier du lundi au vendredi, commence le lundi à la première heure travaillée, de même qu'avec un décalage de 2 eh. » : la passe avant, inchangée,
+  reste éprouvée ; la passe arrière du même décalage, sur une liaison fin à fin, donne au
+  prédécesseur la marge qu'elle lui donne en fin à début, nulle.
+- écart : `WF-PLA-0160-A` — « Un décalage de 2 j sur la même liaison le fait commencer le mercredi. » : constaté par EP-06 (US-1390), inchangé.
+- écart : `WF-PLA-0160-A` — « Un fichier MS Project dont les constantes diffèrent de celles de l'installation est importé avec les mêmes durées en heures, et le compte rendu signale la différence. » : idem.
+- écart : `WF-PLA-0160-A` — « « 1 m » est lu comme un mois et « 1 min » comme une minute, dans chacune des langues de l'interface. » : idem.
+- écart : `WF-PLA-0160-A` — « En anglais, « 1 j » et « 1 d » valent chacun un jour ; « 3 », saisi sans suffixe, vaut trois jours. » : idem.
+- écart : `WF-PLA-0160-A` — « Après passage des heures par jour de 8 à 7, une durée saisie « 2 j » dans une révision en cours vaut quatorze heures, et ses dates sont recalculées ; dans une révision marquée, elle vaut toujours seize heures. » : idem.
+- écart : `WF-REV-0020-A` — « Le marquage est refusé tant que le nom de version n'est pas renseigné. » : constaté par EP-04, inchangé ; EP-07 clôt.
+- `WF-REV-0020-A` — « Toute tentative de modification d'une révision marquée est refusée, quel que soit le point d'entrée. » : les tests d'API qui l'éprouvent par l'état
+  et par un collage (`test_nodes_state.py`, `test_paste.py`) la citent au lieu de `WF-DAT-0020-A`,
+  dont le Vérif est une écriture en base ; celui de la désignation (`test_reference_designation.py`)
+  garde `WF-DAT-0020-A`, son Vérif disant la désignation (« Conception »).
+- écart : `WF-REV-0020-A` — « Le marquage d'une révision sous un nom de version déjà employé dans le projet est refusé. » : constaté par EP-04, inchangé.
+
+**Notes de réalisation.** Les propositions de #2816 et #2832 font foi ; #2845 se tranche test par test
+(décision de l'auteur du 2026-11-11). Le test de #2816 va dans `test_scheduling_examples.py`, à côté
+de celui de #2648.
+
+**Hors périmètre.** Toute autre pièce du moteur ; le jour courant en UTC (#2527, EP-13).
