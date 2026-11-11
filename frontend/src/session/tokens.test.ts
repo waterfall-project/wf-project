@@ -142,6 +142,12 @@ describe("the token of a request", () => {
     expect(await requestBearer()).toBeUndefined();
   });
 
+  it("is none, for a read of the shell, without a cookie, and still the session lost for a cookie that names a session gone [WF-SEC-0020] (#2914)", async () => {
+    expect(await requestBearer(true)).toBeUndefined();
+    state.jar = cookieJar({ [SESSION_COOKIE]: randomUUID() });
+    await expect(requestBearer(true)).rejects.toMatchObject({ digest: SESSION_LOST_DIGEST });
+  });
+
   it("is the access token of the session its cookie names, and the session lost once the session lives no more", async () => {
     const id = await signedIn();
     const session = await readSession(id);

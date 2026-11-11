@@ -406,11 +406,11 @@ the realm refuses — an error on return, a refused code, a wrong nonce — lead
 without a session, never to `/login`, which the Keycloak session would loop, and leaves a short
 cookie (`wf_sign_in_refused`, a few minutes, `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`) that a
 successful sign-in forgets (#2914). Keycloak or Redis unreachable, or Keycloak mute beyond the
-timeout, `/login` and `/auth/callback` lead to
-`/login/unavailable`, forgetting the `__Host-wf_session` cookie — the page would otherwise re-read
-Redis for it —, which says the service is unreachable and offers to start again towards the target
-screen, never a bare 500 error (#687). `/login` also clears the `__Host-wf_session` cookie: the
-sign-out leads there without touching it (#724).
+timeout, `/login` and `/auth/callback` lead to `/login/unavailable`, forgetting the
+`__Host-wf_session` cookie — the page would otherwise re-read Redis for it —, which says the service
+is unreachable and offers to start again towards the target screen, never a bare 500 error (#687).
+`/login` also clears the `__Host-wf_session` cookie: the sign-out leads there without touching it
+(#724).
 `serverClient()` is the only place that carries the token to the API (`src/session/tokens.ts`): on
 each request, it reads the session from the cookie and refreshes an access token that expires in
 less than thirty seconds, under a Redis lock per session that lives twice the timeout of a request
@@ -436,76 +436,73 @@ cookie leave without a token, and a 401 from the API (`SignedOut`), like the ref
 token, offers the sign-in by a link without leading there by itself: leading there would loop. On a
 401 `SESSION_REVOKED` only — a token of a sign-in earlier than the closing of the sessions of the
 account —, this link, the failure screen (`failure.revoked`) as well as the notice of an action,
-leads to
-`/login?next=…&reauthenticate=1`, which `/login` sends to the realm with `prompt=login`: Keycloak,
-whose session may have survived a missed closing, asks for the credentials again and renews
-`auth_time`; a `SESSION_EXPIRED` does not ask for them again (#855). The sign-out (`signOut`)
-closes the sessions of the account by `closeMySessions`, then clears those the front keeps of
-this account, without waiting for Keycloak — the administration API also closes the Keycloak
-session of the browser, and `/login` asks for the credentials again. It does not touch the cookie:
-a server action that changes a cookie makes the page render again in its response, which would
-read the API without a session (#724); `/login` clears it. A not admitted account keeps a Keycloak
-session the API does not close: the browser goes to the sign-out endpoint of the realm. The shell
-offers it neither bar nor account menu: the failure `failure.notAdmitted` offers « Sign out », a
-link to `/auth/sign-out`, which leads to the same endpoint (`signOutAddress`); the realm, without
-an identity token, asks to confirm, then leads to `/login`, which asks for the credentials again
-(#664). When the session the cookie names no longer lives,
-the request does not leave, and the browser goes through a silent sign-in
-(`/login?sign_out=<ticket>`, `prompt=none`). Only the `signOut` action arms it: a ticket drawn at
-random, kept one minute in Redis and bound to the identifier the `__Host-wf_session` cookie of the
-request carries, without touching the cookie (`armRequestSignOut`, `armSignOut`); `/login` takes
-it, once only, only if the cookie of the browser carries that same identifier (`takeSignOut`). An
-unknown ticket, already taken or too old — a link from another site, which a top-level navigation
-sends with the `SameSite=Lax` cookie —, or bound to another cookie, or a browser without a cookie,
-make an ordinary sign-in, which closes nothing and leaves the ticket: the identifier of the action
-is public, and a third party who calls it from its server, with a cookie of its own, obtains a
-ticket that signs out only that cookie. Its return closes the sessions of the account by
-`closeMySessions`, with the token it obtained (`tokenClient`), on all its workstations, then leads
-to `/login`; without a Keycloak session either, there is no workstation left to close (#689). A
-token the API then refuses by `SESSION_REVOKED` — the Keycloak session survived a missed closing —
-leads, like the refusal of `closeMySessions` by this code in `signOut`, to
-`/login?…&reauthenticate=1`, which asks for the credentials again: never a new silent sign-in,
-which would bring back the same refusal (#855). A click on a link of the front waits for the
-writes of the page (`holdNavigation`, `useNavigationHold`): a committed cell, an applied paste, a
-command — the button of a command (`Command`), of a list or of a form of the reference data, the
+leads to `/login?next=…&reauthenticate=1`, which `/login` sends to the realm with `prompt=login`:
+Keycloak, whose session may have survived a missed closing, asks for the credentials again and
+renews `auth_time`; a `SESSION_EXPIRED` does not ask for them again (#855). The sign-out (`signOut`)
+closes the sessions of the account by `closeMySessions`, then clears those the front keeps of this
+account, without waiting for Keycloak — the administration API also closes the Keycloak session of
+the browser, and `/login` asks for the credentials again. It does not touch the cookie: a server
+action that changes a cookie makes the page render again in its response, which would read the API
+without a session (#724); `/login` clears it. A not admitted account keeps a Keycloak session the
+API does not close: the browser goes to the sign-out endpoint of the realm. The shell offers it
+neither bar nor account menu: the failure `failure.notAdmitted` offers « Sign out », a link to
+`/auth/sign-out`, which leads to the same endpoint (`signOutAddress`); the realm, without an
+identity token, asks to confirm, then leads to `/login`, which asks for the credentials again
+(#664). When the session the cookie names no longer lives, the request does not leave, and the
+browser goes through a silent sign-in (`/login?sign_out=<ticket>`, `prompt=none`). Only the
+`signOut` action arms it: a ticket drawn at random, kept one minute in Redis and bound to the
+identifier the `__Host-wf_session` cookie of the request carries, without touching the cookie
+(`armRequestSignOut`, `armSignOut`); `/login` takes it, once only, only if the cookie of the browser
+carries that same identifier (`takeSignOut`). An unknown ticket, already taken or too old — a link
+from another site, which a top-level navigation sends with the `SameSite=Lax` cookie —, or bound to
+another cookie, or a browser without a cookie, make an ordinary sign-in, which closes nothing and
+leaves the ticket: the identifier of the action is public, and a third party who calls it from its
+server, with a cookie of its own, obtains a ticket that signs out only that cookie. Its return
+closes the sessions of the account by `closeMySessions`, with the token it obtained (`tokenClient`),
+on all its workstations, then leads to `/login`; without a Keycloak session either, there is no
+workstation left to close (#689). A token the API then refuses by `SESSION_REVOKED` — the Keycloak
+session survived a missed closing — leads, like the refusal of `closeMySessions` by this code in
+`signOut`, to `/login?…&reauthenticate=1`, which asks for the credentials again: never a new silent
+sign-in, which would bring back the same refusal (#855). A click on a link of the front waits for
+the writes of the page (`holdNavigation`, `useNavigationHold`): a committed cell, an applied paste,
+a command — the button of a command (`Command`), of a list or of a form of the reference data, the
 saving of the preferences, the sending or the removal of the avatar, the request of an export, the
 retry of a task, the sending of a file to import, which all go through `useHeldCommand`
-(`components/commands/held.ts`); one refused — the lost session included —, the navigation does
-not take place, and the screen says the refusal where the write was made (#688). The hold belongs
-to whoever says the refusal: a form or a row of a list of the reference data takes that of the
-list (`held` of `useListReport`), which says above itself the refusal of a dialog closed during
-the sending; closing the dialog therefore does not release its write. The list says a refusal only
-on the reading from which it left: read otherwise — a search, a state filter —, it releases its
-writes, whose refusal is no longer said by the list, nor on return to that reading, whose clicks
-are no longer held — a reading left and then found again is another one
-(`useHeldCommand(generation)`); still under way and refused afterwards, the notice of the bar says
-them, like those of a screen left (below). Every refusal holds the click, even said elsewhere than
-on the screen left: the retry of a refused task holds the navigation, although its refusal is said
-in the tasks panel of the shell, which outlives the screen — a rule without exception rather than a
-write to judge one by one. The click is
-judged by its gesture, which begins when the pointer goes down or a key is pressed: it waits for
-the writes still under way and for those that left since the start of the gesture, even already
-answered — the cell committed when the pointer goes down on the link, whose lost session answers
-before the click, holds that click. Only the last held click is redone; a screen left releases its
-writes, which hold nothing of the next screen. Not held: a programmatic navigation
-(`router.push`), « Back » and « Forward » of the browser, a link that opens elsewhere — another
-tab, modifier key, download, another site. « Back » and « Forward » change the address at once,
-but since Next 16.4 the router shows the entry found again only once the action under way has
-answered (vercel/next.js#99612, entry of 16.4.0): `runAction`
-(`next/dist/client/components/app-router-instance.js`) now applies the state of the traversal in
-the transition that `traverse` opens, where 16.3 applied it a microtask later, outside it; and
-React gives a transition requested during an asynchronous action the lane of that action
-(`requestTransitionLane`, `currentEntangledLane` of `react-dom`), which commits only on its
-response — here the write awaited in `startTransition(async …)`. The screen left therefore stays
-displayed until the response, and a write refused while it is left for another path — made before
-the traversal or after — goes to the bar, even when what requested it says it still says it
-(`told`), since it goes away with the screen (`away` of `holdNavigation`, `useHeldWrites`); brought
-back to its path before the refusal, the screen says it itself. Brought back after the refusal,
-before the router has shown the entry traversed to — « Forward » pressed while it reads it —, the
-screen, which never left, says it too, and the bar takes back what it said of it (`broughtBack`,
-#1476): the refusal is said twice, one after the other, never at the same time, and noted once in
-the message history, by the identity of its response — for a refusal carried by an `outcome`; a
-boolean response has no identity, and the history notes it apart from what the screen says of it.
+(`components/commands/held.ts`); one refused — the lost session included —, the navigation does not
+take place, and the screen says the refusal where the write was made (#688). The hold belongs to
+whoever says the refusal: a form or a row of a list of the reference data takes that of the list
+(`held` of `useListReport`), which says above itself the refusal of a dialog closed during the
+sending; closing the dialog therefore does not release its write. The list says a refusal only on
+the reading from which it left: read otherwise — a search, a state filter —, it releases its writes,
+whose refusal is no longer said by the list, nor on return to that reading, whose clicks are no
+longer held — a reading left and then found again is another one (`useHeldCommand(generation)`);
+still under way and refused afterwards, the notice of the bar says them, like those of a screen left
+(below). Every refusal holds the click, even said elsewhere than on the screen left: the retry of a
+refused task holds the navigation, although its refusal is said in the tasks panel of the shell,
+which outlives the screen — a rule without exception rather than a write to judge one by one. The
+click is judged by its gesture, which begins when the pointer goes down or a key is pressed: it
+waits for the writes still under way and for those that left since the start of the gesture, even
+already answered — the cell committed when the pointer goes down on the link, whose lost session
+answers before the click, holds that click. Only the last held click is redone; a screen left
+releases its writes, which hold nothing of the next screen. Not held: a programmatic navigation
+(`router.push`), « Back » and « Forward » of the browser, a link that opens elsewhere — another tab,
+modifier key, download, another site. « Back » and « Forward » change the address at once, but since
+Next 16.4 the router shows the entry found again only once the action under way has answered
+(vercel/next.js#99612, entry of 16.4.0): `runAction`
+(`next/dist/client/components/app-router-instance.js`) now applies the state of the traversal in the
+transition that `traverse` opens, where 16.3 applied it a microtask later, outside it; and React
+gives a transition requested during an asynchronous action the lane of that action
+(`requestTransitionLane`, `currentEntangledLane` of `react-dom`), which commits only on its response
+— here the write awaited in `startTransition(async …)`. The screen left therefore stays displayed
+until the response, and a write refused while it is left for another path — made before the
+traversal or after — goes to the bar, even when what requested it says it still says it (`told`),
+since it goes away with the screen (`away` of `holdNavigation`, `useHeldWrites`); brought back to
+its path before the refusal, the screen says it itself. Brought back after the refusal, before the
+router has shown the entry traversed to — « Forward » pressed while it reads it —, the screen, which
+never left, says it too, and the bar takes back what it said of it (`broughtBack`, #1476): the
+refusal is said twice, one after the other, never at the same time, and noted once in the message
+history, by the identity of its response — for a refusal carried by an `outcome`; a boolean response
+has no identity, and the history notes it apart from what the screen says of it.
 Until its response, the write awaited in the
 transition still holds the clicks: the screen left by « Back », still displayed, releases it only
 as it leaves. This holds as long as the router keeps this order, perhaps an upstream defect. A
