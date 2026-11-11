@@ -33,7 +33,7 @@ import { seedPlanning } from "./planning-seed";
 // The others read the volume of the generator by its marks — six thousand rows, the task of row 15,
 // the milestone of row 6000 —, which the witness of the service does not hold: its structure counts
 // 5 999 nodes of its own, and the volumes are EP-13's (#2696). Nor does a path of the remaining to
-// commit play there before EP-09.
+// commit write there: the account of the run is no contributor of PRJ-001 (#2193).
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const GRID = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;

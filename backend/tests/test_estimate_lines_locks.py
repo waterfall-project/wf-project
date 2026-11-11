@@ -38,6 +38,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from support import ContractClient
 
+    from waterfall.core.estimate.excel.reader import WorkbookRead
+    from waterfall.core.planning.msproject import ReadProject
     from waterfall.platform.audit import Act
     from waterfall.platform.database import Database
 
@@ -200,18 +202,16 @@ def test_the_application_of_an_import_shares_the_lock_of_the_natures_before_it_l
         msg = "stopped once the structure is locked"
         raise LookupError(msg)
 
-    def read(_content: bytes) -> object:
-        return object()
-
     def shared(_session: object) -> None:
         taken.append("natures")
 
-    monkeypatch.setattr(applying, "read_workbook", read)
     monkeypatch.setattr(applying, "share_natures", shared)
     monkeypatch.setattr(applying, "structure_facts", locked)
     target = ImportTarget(uuid4(), uuid4(), uuid4(), None)
     with pytest.raises(LookupError, match="stopped"):
-        applying.apply(cast("Session", None), target, b"", {}, cast("Act", None))
+        applying.apply(
+            cast("Session", None), target, cast("WorkbookRead", None), {}, cast("Act", None)
+        )
     assert taken == ["natures", "structure"]
 
 
@@ -248,9 +248,10 @@ def test_the_import_of_ms_project_and_the_load_of_lines_share_the_natures_before
             loading.load_line_nodes(session, place, (), act)
     else:
         monkeypatch.setattr(msproject, "hold_before_lock", natures)
-        monkeypatch.setattr(msproject, "_read", nothing)
         monkeypatch.setattr(importing, "plan_import", structure)
         target = ImportTarget(uuid4(), uuid4(), uuid4(), None)
+        # The planning is read before any lock (``prepare``): apply takes it read.
+        prepared = cast("ReadProject", None)
         with pytest.raises(LookupError, match="stopped"):
-            msproject.MS_PROJECT_FORMAT.apply(session, target, b"", {}, act)
+            msproject.MS_PROJECT_FORMAT.apply(session, target, prepared, {}, act)
     assert taken == ["natures", "structure"]

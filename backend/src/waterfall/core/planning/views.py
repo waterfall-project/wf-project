@@ -4,8 +4,9 @@
 
 What ``listNodes`` and every write of the tree give back (``Node``, ``NodesWritten``): each node
 with what is computed on the whole structure — its number, its level, its place —, its facet task
-with what the planning derives at the reading — the state of a summary from its subordinates
-(WF-PLA-0040), the finish overdue of a started task (WF-RAE-0040), its calendar (WF-PLA-0010), its
+with what the planning derives at the reading — the state of a summary from its subordinates and
+its own lines (WF-PLA-0040), whether it awaits only these (``awaiting_own_lines``, #1775; US-1590),
+the finish overdue of a started task (WF-RAE-0040), its calendar (WF-PLA-0010), its
 links in conflict (WF-PLA-0020) —, its predecessors named by their number (WF-PLA-0080), and the
 fields it computes and accepts (``computed_fields``, ``editable_fields``, WF-IHM-0030, WF-IHM-0040).
 A node of another kind — an estimate line, EP-07 — is read by the hooks of its facet
@@ -24,7 +25,7 @@ from waterfall.core.planning.tree import TASK, tracking_of
 from waterfall.core.projects.interface import work_breakdown_items
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Mapping
     from datetime import date, datetime
     from decimal import Decimal
     from uuid import UUID
@@ -80,8 +81,10 @@ class TrackingView:
 class TaskView:
     """The facet task of a node as it is read (``TaskFacet``), its derived values computed.
 
-    ``calendar_hours`` are the hours of the applicable calendar, Monday first; ``total_float`` is
-    in days, none for a task in manual mode and for a summary none of whose subordinates has one.
+    ``awaiting_own_lines`` tells a summary started whose subordinates are all completed, which an
+    own line holds open (WF-PLA-0040); ``calendar_hours`` are the hours of the applicable calendar,
+    Monday first; ``total_float`` is in days, none for a task in manual mode and for a summary none
+    of whose subordinates has one.
     """
 
     label: str
@@ -95,6 +98,7 @@ class TaskView:
     started_on: date | None
     completed_on: date | None
     finish_overdue: bool
+    awaiting_own_lines: bool
     is_summary: bool
     is_milestone: bool
     calendar_id: UUID | None
@@ -155,28 +159,84 @@ class State:
     completed_on: date | None
 
 
-def _derived(states: list[State]) -> State:
+def _derived(states: list[State], own: tuple[bool, date | None] = (False, None)) -> State:
     """Give the state of a summary: started as soon as one is, completed when all are (0040).
 
-    Its start date is the first of its subordinates', its completion date the last of theirs.
+    ``own`` is what its own lines tell: whether one holds it open, and the day they were set to
+    nought, if that completed it. Held, it stays started when all its subordinates are completed.
+    Its start date is the first of its subordinates', its completion date the last of theirs and
+    of that day (WF-PLA-0130).
     """
+    held, closed_on = own
     started = [state.started_on for state in states if state.started_on is not None]
     first = min(started, default=None)
-    if all(state.progress == COMPLETED for state in states):
+    if not held and all(state.progress == COMPLETED for state in states):
         completed = [state.completed_on for state in states if state.completed_on is not None]
+        completed += [closed_on] if closed_on is not None else []
         return State(COMPLETED, first, max(completed, default=None))
     if any(state.progress != NOT_STARTED for state in states):
         return State(STARTED, first, None)
     return State(NOT_STARTED, None, None)
 
 
+def own_lines(tree: Tree, node_id: UUID) -> tuple[bool, date | None]:
+    """Tell what the own lines of a summary tell its state: held open, and the day they closed.
+
+    Held, as the tree was read (``Tree.held``). The day is the one the entry that set the last of
+    them to nought completed the summary at (``write_remaining``), kept on its facet; a summary
+    that bears no line besides the provisions has none.
+    """
+    task = tree.tasks[node_id]
+    lines = any(tree.nodes[each].origin_risk_id is None for each in tree.lines(node_id))
+    closed = task.completed_on if lines and task.progress == COMPLETED else None
+    return node_id in tree.held, closed
+
+
 def state_of(tree: Tree, node_id: UUID) -> State:
-    """Give the state of a task of a tree: its own for a leaf, its subordinates' for a summary."""
+    """Give the state of a task of a tree: its own for a leaf, derived for a summary (0040).
+
+    A summary's, from its subordinates and from its own lines (``own_lines``).
+    """
     below = tree.subtasks(node_id)
     if below:
-        return _derived([state_of(tree, child) for child in below])
+        return _derived([state_of(tree, child) for child in below], own_lines(tree, node_id))
     task = tree.tasks[node_id]
     return State(task.progress, task.started_on, task.completed_on)
+
+
+def states_without(
+    tree: Tree, gone: Collection[UUID], own: Mapping[UUID, tuple[bool, date | None]]
+) -> dict[UUID, State]:
+    """Give the state each ancestor of tasks will have once they and their subtrees are gone.
+
+    Derived from the subordinates left (WF-PLA-0040), and from what ``own`` tells of the own lines
+    of a summary — held open, and the day they closed it —, ``own_lines`` for one it does not name.
+    A summary left without subordinate becomes a leaf in the state it had (``emptied``). The
+    deepest first, so that a summary reads the state its subordinates will have.
+    """
+    left = set(gone)
+    above = {each for node_id in left for each in tree.ancestors(node_id)}
+    found: dict[UUID, State] = {}
+    for each in sorted(above, key=tree.level.__getitem__, reverse=True):
+        below = [sub for sub in tree.subtasks(each) if sub not in left]
+        if not below:
+            found[each] = state_of(tree, each)
+            continue
+        states = [found[sub] if sub in found else state_of(tree, sub) for sub in below]
+        found[each] = _derived(states, own.get(each, own_lines(tree, each)))
+    return found
+
+
+def awaits(tree: Tree, node_id: UUID, states: list[State]) -> bool:
+    """Tell whether a summary awaits only its own lines: its subordinates' ``states`` completed.
+
+    An own line holds it open (``Tree.held``); a leaf never awaits, whatever its lines (#1775).
+    """
+    return (
+        bool(states)
+        and node_id in tree.held
+        and all(state.progress == COMPLETED for state in states)
+    )
 
 
 class Reading:
@@ -223,13 +283,17 @@ class Reading:
                 self.figures.update(hooks.totals(session, project_id, held))
         self._facets: dict[UUID, FacetRead] = {}
         self.states: dict[UUID, State] = {}
+        self.awaiting: set[UUID] = set()
         self.sums: dict[UUID, Amounts] = {}
         for node_id in reversed(tree.order):
             if node_id not in tree.tasks:
                 continue
             below = tree.subtasks(node_id)
             if below:
-                self.states[node_id] = _derived([self.states[child] for child in below])
+                states = [self.states[child] for child in below]
+                self.states[node_id] = _derived(states, own_lines(tree, node_id))
+                if awaits(tree, node_id, states):
+                    self.awaiting.add(node_id)
             else:
                 task = tree.tasks[node_id]
                 self.states[node_id] = State(task.progress, task.started_on, task.completed_on)
@@ -347,6 +411,7 @@ class Reading:
             started_on=state.started_on,
             completed_on=state.completed_on,
             finish_overdue=self._overdue(node_id),
+            awaiting_own_lines=node_id in self.awaiting,
             is_summary=tree.is_summary(node_id),
             is_milestone=tree.is_milestone(node_id),
             calendar_id=applicable.calendar_id,

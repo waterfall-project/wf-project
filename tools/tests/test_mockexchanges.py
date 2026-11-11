@@ -61,6 +61,15 @@ def _named(line: Node) -> dict[str, Any]:
     return {"subproject": named}
 
 
+def test_a_lineage_carried_twice_rejects_both_lines_each_naming_the_other() -> None:
+    """The example of #2798 rejects the two lines, not one, each naming the other."""
+    report = cast("dict[str, Any]", mockexchanges.import_remaining_duplicate_lineage()["report"])
+    first, second = report["rejected"]
+    assert (first["code"], second["code"]) == ("DUPLICATE_LINEAGE", "DUPLICATE_LINEAGE")
+    assert first["params"]["lines"] == [{"sheet": second["sheet"], "row": second["row"]}]
+    assert second["params"]["lines"] == [{"sheet": first["sheet"], "row": first["row"]}]
+
+
 def test_every_refusal_is_an_example_the_contract_cites_under_its_answer() -> None:
     examples = mockexchanges.examples()
     assert "paste_plan_subproject_held" in _cited(
@@ -75,6 +84,9 @@ def test_every_refusal_is_an_example_the_contract_cites_under_its_answer() -> No
     assert "import_estimate_main_in_progress" in _cited(
         _operation("exchanges.yaml", "openImport"), "409"
     )
+    assert "import_remaining_duplicate_lineage" in _cited(
+        _operation("exchanges.yaml", "getImport"), "200"
+    )
     assert "import_actual_costs_first" in _cited(_operation("exchanges.yaml", "getImport"), "200")
     assert "export_revision_not_found" in _cited(
         _operation("exchanges.yaml", "requestExport"), "404"
@@ -83,6 +95,7 @@ def test_every_refusal_is_an_example_the_contract_cites_under_its_answer() -> No
         "paste_plan_subproject_held.json",
         "import_remaining_subproject_held.json",
         "import_remaining_completed_tasks.json",
+        "import_remaining_duplicate_lineage.json",
         "import_estimate_main_in_progress.json",
         "import_actual_costs_first.json",
         "export_revision_not_found.json",

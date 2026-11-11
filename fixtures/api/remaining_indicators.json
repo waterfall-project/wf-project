@@ -1,20 +1,20 @@
 {
-  "summary": "Le reste à engager de la révision courante au 3 juin 2026, sur toute la structure de mille tâches : 67 470 133,69, inflation comprise — les tâches non démarrées à leur montant réestimé, calculé faute de réestimation depuis les grandeurs de la référence, aux taux de 2026 que la révision conserve et sur leur année de consommation courante, les tâches démarrées, le câblage des armoires parmi elles, à leur montant réestimé, les tâches terminées pour rien, les lignes fusionnées par la survenance, budgétées à zéro, à leur montant réestimé et la provision du risque identifié (WF-RAE-0010). Par sous-projet, le coût réel et le reste à engager face au budget : « Poste de commande » nominal, « Essais et mise en service » nominal, l'ensemble hors sous-projet nominal ; la marge sur le budget de référence, 1 405 592,07 — le budget moins le coût réel et le reste à engager, dans le sens des sous-projets — ; l'écart à la revue précédente, -1 803 418,08 — le reste à engager courant moins celui de la référence à son marquage ; la couverture des risques (WF-RAE-0020, WF-RIS-0050).",
+  "summary": "Le reste à engager de la révision courante au 3 juin 2026, sur toute la structure de mille tâches : 67 497 090,97, inflation comprise — les tâches non démarrées à leur montant réestimé, calculé faute de réestimation depuis les grandeurs de la référence, aux taux de 2026 que la révision conserve et sur leur année de consommation courante, les tâches démarrées, le câblage des armoires parmi elles, à leur montant réestimé, les tâches terminées pour rien, les lignes fusionnées par la survenance, budgétées à zéro, à leur montant réestimé et la provision du risque identifié (WF-RAE-0010). Par sous-projet, le coût réel et le reste à engager face au budget : « Poste de commande » nominal, « Essais et mise en service » nominal, l'ensemble hors sous-projet nominal ; la marge sur le budget de référence, 1 406 335,39 — le budget moins le coût réel et le reste à engager, dans le sens des sous-projets — ; l'écart à la revue précédente, -1 803 418,08 — le reste à engager courant moins celui de la référence à son marquage ; la couverture des risques (WF-RAE-0020, WF-RIS-0050).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000102","revision_status":"draft","computed_at":"2026-06-03T14:05:00Z","scope":"project","is_stored":false},
-    "total": "67470133.69",
+    "total": "67497090.97",
     "by_cost_type": [
-      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":"9335463.24","share":{"is_computable":true,"value":"0.1384","reason":null}},
-      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":"57634670.45","share":{"is_computable":true,"value":"0.8542","reason":null}},
+      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":"9338785.31","share":{"is_computable":true,"value":"0.1384","reason":null}},
+      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":"57658305.66","share":{"is_computable":true,"value":"0.8542","reason":null}},
       {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":"500000.00","share":{"is_computable":true,"value":"0.0074","reason":null}}
     ],
     "by_subproject": [
-      {"key":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande","budget":"23949334.84","actual_cost":"2400.00","remaining":"23314197.74","variance":"632737.10","is_over_budget":false,"zone":"nominal"},
-      {"key":"01926f3a-7c00-7000-8000-000000000802","label":"Essais et mise en service","budget":"22257364.13","actual_cost":"831352.97","remaining":"20814267.10","variance":"611744.06","is_over_budget":false,"zone":"nominal"},
-      {"key":"unassigned","budget":"24081996.99","actual_cost":"579217.23","remaining":"23341668.85","variance":"161110.91","is_over_budget":false,"zone":"nominal"}
+      {"key":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande","budget":"23958109.83","actual_cost":"2400.00","remaining":"23322741.24","variance":"632968.59","is_over_budget":false,"zone":"nominal"},
+      {"key":"01926f3a-7c00-7000-8000-000000000802","label":"Essais et mise en service","budget":"22269183.00","actual_cost":"831352.97","remaining":"20825768.55","variance":"612061.48","is_over_budget":false,"zone":"nominal"},
+      {"key":"unassigned","budget":"24089103.73","actual_cost":"579217.23","remaining":"23348581.18","variance":"161305.32","is_over_budget":false,"zone":"nominal"}
     ],
-    "delta_to_reference": "1405592.07",
+    "delta_to_reference": "1406335.39",
     "delta_to_previous_revision": "-1803418.08",
     "coverage": {"reserve":"850060.00","remaining_provisions":"500000.00","occurred_cost":"200.00","occurred_reestimated":"200.00","coverage_variance":"349860.00"}
   }

@@ -17,7 +17,7 @@
  * Pure, and neither server nor client.
  */
 import type { components } from "@/api/generated/schema";
-import { SEARCH_LENGTH } from "@/components/grid/query";
+import { SEARCH, SEARCH_LENGTH } from "@/components/grid/query";
 import type { SearchParameters } from "@/navigation/context";
 
 /** The state of a task, as the contract names it. */
@@ -44,6 +44,9 @@ const STARTED: readonly TaskProgress[] = ["started"];
 
 /** What the grid shows once the tasks not started are asked for too. */
 const STARTED_AND_NOT: readonly TaskProgress[] = ["not_started", "started"];
+
+/** What the grid shows to a summary task refused for a subordinate started or completed. */
+const STARTED_AND_COMPLETED: readonly TaskProgress[] = ["started", "completed"];
 
 /**
  * The states of the tasks the address asks the lines of, in the order of the contract, each once;
@@ -120,4 +123,32 @@ export function kanbanFilterHref(
   }
   const text = next.toString();
   return text === "" ? pathname : `${pathname}?${text}`;
+}
+
+/**
+ * The address of the grid of the remaining to commit of a revision where a task refused to be
+ * deleted because it is started is brought to zero (WF-PLA-0070): a leaf task, found by its label
+ * (`search`); a summary task, whose refusal does not say which of its subordinates is the cause,
+ * the tasks started and the tasks completed (`progress`) — never the ones not started, which cause
+ * no refusal —, so that the subordinate is shown whichever of the two it is, and nothing is
+ * deduced here of what the service knows (#2819).
+ */
+export function taskRemainingHref(
+  projectId: string,
+  revisionId: string,
+  label: string | undefined,
+): string {
+  const path = `/projects/${projectId}/revisions/${revisionId}/remaining`;
+  const query =
+    label === undefined
+      ? { [PROGRESS]: STARTED_AND_COMPLETED.join(",") }
+      : { [SEARCH]: label.slice(0, SEARCH_LENGTH) };
+  return `${path}?${new URLSearchParams(query).toString()}`;
+}
+
+/** The day, as a date of the planning, in the time of the workstation: what a date asked proposes. */
+export function today(): string {
+  const now = new Date();
+  const two = (value: number) => value.toString().padStart(2, "0");
+  return `${now.getFullYear().toString()}-${two(now.getMonth() + 1)}-${two(now.getDate())}`;
 }

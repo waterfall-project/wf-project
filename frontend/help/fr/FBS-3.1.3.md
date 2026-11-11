@@ -4,9 +4,16 @@
 
 Comment Waterfall lit l’extraction des coûts réels de l’ERP, pour toute l’installation. L’ERP nomme ses colonnes à sa façon : pour chacune des cinq colonnes que l’import lit — **Sous-projet** (l’élément d’OTP), **N° de pièce**, **Poste**, **Date de pièce**, **Montant** —, la liste des intitulés qui la désignent dans l’extraction ; puis les **Colonnes conservées**, celles de l’extraction que Waterfall garde à titre d’information et restitue à la consultation des lignes importées.
 
-Le poste est facultatif, les quatre autres colonnes sont exigées. Au-dessus des listes, une barre dit les colonnes exigées qui n’ont pas d’intitulé, ou que la correspondance est complète. Elle est vide à l’installation, et se règle avant l’import des coûts réels, qui n’est pas encore offert : il lira cette correspondance.
+Le poste est facultatif, les quatre autres colonnes sont exigées. Au-dessus des listes, une barre dit les colonnes exigées qui n’ont pas d’intitulé, ou que la correspondance est complète. Elle est vide à l’installation, et se règle avant l’import des coûts réels, qui lit cette correspondance.
 
 Un intitulé se compare à l’en-tête du fichier, et aux autres intitulés, sans égard à la casse, aux accents ni aux espaces en bout. La correspondance s’enregistre entière, même incomplète, et se relit telle qu’enregistrée. Un intitulé qui en double un autre, dans la même colonne, dans une autre colonne lue ou parmi les colonnes conservées, est refusé : rien n’est enregistré.
+
+L’[import des coûts réels](FBS-4.3.4.md) lit l’en-tête de l’extraction et le compare aux intitulés de la correspondance :
+
+- tant que la correspondance est incomplète, l’import est refusé, et la commande de l’import le dit d’avance : le serveur répond 409, `actual_cost_mapping_complete`, et nomme les colonnes exigées sans intitulé ;
+- une colonne exigée dont aucun intitulé ne figure dans l’en-tête du fichier fait refuser le fichier, 422 `FILE_FORMAT_UNREADABLE`, qui nomme les intitulés attendus ;
+- une colonne du fichier que la correspondance ne désigne ni comme lue ni comme conservée est ignorée : le compte rendu de l’analyse la compte parmi les colonnes ignorées ;
+- la correspondance lue à l’analyse est gardée avec son compte rendu : l’application l’exécute telle que l’analyse l’a lue, même si la correspondance change entre-temps.
 
 ## Ses commandes
 

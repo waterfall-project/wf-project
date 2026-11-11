@@ -8,14 +8,16 @@ designates a reference without asking for them, in silence. Each entry point —
 (``create_app``), the worker (``handlers``), the loader of the witness (``load_witness``) — is
 imported in a process of its own, and its registries compared with those of a process that imports
 every module of the core and of the witness: none lacks an extension that a module registers — the
-worker those of the estimate included, which it imports from US-1500/L2 on (EP-07, "Le worker").
-What the socles of EP-06 and EP-07 register is named, so that the comparison is never between two
-empty lists.
+worker those of the estimate included, which it imports from US-1500/L2 on (EP-07, "Le worker"), and
+those of the actual costs, which it imports from US-1610/L2 on (EP-09, "Le worker"). What the socles
+of EP-06, EP-07 and EP-09 register is named, so that the comparison is never between two empty
+lists.
 
 Then how each registry acts, details of the realization which reprise no Vérif: the closing of a
 revision, what its marking keeps and what follows the designation of a reference (EP-07), the guard
 and the recalculation of the reference, the categories a line employs (EP-07), the attachments of
-the work breakdown, the facets, the formats and the exporters, the fillers of the witness.
+the work breakdown, the facets, the formats and the exporters, the coverage of the risks (EP-09),
+the fillers of the witness.
 """
 
 import json
@@ -36,6 +38,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from waterfall.core.cost_settings.interface import category_is_employed, register_employment
+from waterfall.core.costs.interface import ACTUAL_COSTS_FORMAT
+from waterfall.core.estimate.interface import (
+    NO_COVERAGE,
+    REMAINING_EXPORTER,
+    REMAINING_FORMAT,
+    Coverage,
+    register_coverage,
+    risk_coverage,
+)
 from waterfall.core.exchanges.interface import (
     exporters,
     formats,
@@ -46,7 +57,6 @@ from waterfall.core.history.interface import close_history
 from waterfall.core.planning.interface import (
     MS_PROJECT_EXPORTER,
     MS_PROJECT_FORMAT,
-    TASK_TREE_EXPORTER,
     delete_nodes,
     facets,
     register_facet,
@@ -141,7 +151,11 @@ print(json.dumps(held))
 """
 # The registry whose order of registration does not count across its stages (#2470).
 CLOSING = "revisions.closing"
-# Every registry of the core and of the witness EP-04, EP-06 and EP-07 declare.
+# The registries whose order of registration does not count at all: a format and an exporter are
+# found by their kind, which has one at most — the actual costs, which the planning neither imports
+# nor is imported by, register theirs before or after the planning's, as a process imports them.
+BY_KIND = {"exchanges.formats", "exchanges.exporters"}
+# Every registry of the core and of the witness EP-04, EP-06, EP-07 and EP-09 declare.
 DECLARED = {
     "revisions.copy",
     "revisions.tasks_and_lines",
@@ -156,10 +170,14 @@ DECLARED = {
     "projects.attachments",
     "projects.opening",
     "projects.estimate_facts",
+    "projects.cost_facts",
     "planning.facets",
+    "planning.open_lines",
+    "planning.zeroed_at",
     "exchanges.formats",
     "exchanges.exporters",
     "witness.revision_fillers",
+    "estimate.coverage",
 }
 PLANNING = "waterfall.core.planning.interface"
 # What EP-06 registers (US-1380/L1, US-1390/L2), the copy of the nodes after the structures', and
@@ -244,6 +262,38 @@ REGISTERED_BY_EP07 = {
     "revisions.marking": [f"{ESTIMATE}.rates.keep_images"],
     "revisions.designation": [f"{ESTIMATE}.rates.refresh_budgeted"],
 }
+COSTS = "waterfall.core.costs.interface"
+# What the socle of EP-09 registers without effect (US-1580/L1), each in the order it acts: the copy
+# of the remaining to commit of the review before, after the lines and the rates; the formats and
+# the exporter of the remaining to commit and of the actual costs, by their kind; and what the
+# actual costs answer the projects of a subproject (US-1610/L3), in the order of ``CostFacts``; and
+# the own lines that hold a summary task open, which the estimate tells the planning (US-1590/L1),
+# and when they were set to nought (US-1650/L2, #2803).
+REGISTERED_BY_EP09 = {
+    "revisions.copy": [f"{ESTIMATE}.remaining.copy_previous"],
+    "projects.cost_facts": [
+        (
+            f"CostFacts({COSTS}.subprojects.subproject_has_actual_costs, "
+            f"{COSTS}.subprojects.impute_waiting_lines)"
+        )
+    ],
+    "exchanges.formats": [
+        f"actual_costs:{COSTS}.actual_costs.ActualCostsFormat",
+        f"remaining:{ESTIMATE}.remaining_excel.RemainingFormat",
+    ],
+    "exchanges.exporters": [f"remaining:{ESTIMATE}.remaining_excel.RemainingExporter"],
+    "planning.open_lines": [f"{ESTIMATE}.kanban.open_lines"],
+    "planning.zeroed_at": [f"{ESTIMATE}.kanban.zeroed_lines"],
+}
+
+
+def before(*socles: dict[str, list[str]]) -> dict[str, set[str]]:
+    """Give the entries the socles before one register, by registry."""
+    held: dict[str, set[str]] = {}
+    for socle in socles:
+        for name, entries in socle.items():
+            held.setdefault(name, set()).update(entries)
+    return held
 
 
 def as_run(name: str, entries: list[str]) -> list[str]:
@@ -251,8 +301,11 @@ def as_run(name: str, entries: list[str]) -> list[str]:
 
     The closings run stage by stage whatever the order of the imports (``closers``), each stage in
     the order of its registrations: a process that imports the planning before the history holds
-    the same closings, which run in the same order.
+    the same closings, which run in the same order. The formats and the exporters are found by
+    their kind, in any order.
     """
+    if name in BY_KIND:
+        return sorted(entries)
     if name != CLOSING:
         return entries
     return sorted(entries, key=lambda entry: CLOSING_STAGES.index(entry.split(":")[0]))
@@ -282,7 +335,10 @@ def test_every_registry_holds_what_the_socle_of_ep06_registers(
 ) -> None:
     assert set(everything) == DECLARED
     for name, entries in REGISTERED.items():
-        assert everything[name][: len(entries)] == entries, name
+        if name in BY_KIND:
+            assert set(entries) <= set(everything[name]), name
+        else:
+            assert everything[name][: len(entries)] == entries, name
 
 
 def test_every_registry_holds_what_the_socle_of_ep07_registers_after_the_planning(
@@ -290,9 +346,24 @@ def test_every_registry_holds_what_the_socle_of_ep07_registers_after_the_plannin
 ) -> None:
     # The extensions of the estimate, each after those of EP-06 in its registry; the marking and the
     # designation filled by US-1500/L2.
+    others = before(REGISTERED, REGISTERED_BY_EP09)
     for name, entries in REGISTERED_BY_EP07.items():
-        held = [entry for entry in everything[name] if entry not in REGISTERED.get(name, [])]
+        held = [entry for entry in everything[name] if entry not in others.get(name, set())]
         assert held == entries, name
+
+
+def test_every_registry_holds_what_the_socle_of_ep09_registers_after_the_estimate(
+    everything: dict[str, list[str]],
+) -> None:
+    # The extensions of the remaining to commit and of the actual costs, beside those of EP-06 and
+    # EP-07; the copy of the remaining of the review before comes last, after the lines and the
+    # rates it reads. Nothing answers the coverage of the risks before EP-08.
+    others = before(REGISTERED, REGISTERED_BY_EP07)
+    for name, entries in REGISTERED_BY_EP09.items():
+        held = [entry for entry in everything[name] if entry not in others.get(name, set())]
+        assert held == entries, name
+    assert everything["revisions.copy"][-1] == f"{ESTIMATE}.remaining.copy_previous"
+    assert everything["estimate.coverage"] == []
 
 
 @pytest.mark.parametrize("entry_point", sorted(ENTRY_POINTS))
@@ -300,7 +371,9 @@ def test_each_entry_point_holds_every_extension_of_the_registries_it_reads(
     entry_point: str, everything: dict[str, list[str]]
 ) -> None:
     # The API and the worker read no registry of the witness; the loader reads them all. The worker
-    # imports the interface of the estimate (US-1500/L2): nothing lacks, its marking keeps images.
+    # imports the interface of the estimate (US-1500/L2): nothing lacks, its marking keeps images;
+    # and that of the actual costs (US-1610/L2): it analyses and applies an extraction, and the
+    # import of an estimate it applies asks whether a subproject bears costs.
     held = registered_in(ENTRY_POINTS[entry_point])
     read = {
         name: entries
@@ -308,6 +381,8 @@ def test_each_entry_point_holds_every_extension_of_the_registries_it_reads(
         if entry_point == "loader" or not name.startswith(WITNESS)
     }
     assert {name: held.get(name) for name in read} == read
+    assert held["projects.cost_facts"] == REGISTERED_BY_EP09["projects.cost_facts"]
+    assert f"actual_costs:{COSTS}.actual_costs.ActualCostsFormat" in held["exchanges.formats"]
 
 
 @pytest.fixture
@@ -570,9 +645,15 @@ def test_the_attachments_registered_tell_and_detach_an_element_of_the_work_break
 
 
 def test_a_kind_has_one_facet_one_format_and_one_exporter_at_most() -> None:
-    # Those of the planning and of the estimate, registered at the import of their interfaces,
-    # serve another kind here.
+    # Every kind of import and of export has its format and its exporter from the socle of EP-09
+    # on, registered at the import of the interfaces of the planning, the estimate and the actual
+    # costs: a second is refused. A facet of another kind is added, then withdrawn.
     held = (dict(facets()), dict(formats()), dict(exporters()))
+    assert (held[1]["remaining"], held[1]["actual_costs"], held[2]["remaining"]) == (
+        REMAINING_FORMAT,
+        ACTUAL_COSTS_FORMAT,
+        REMAINING_EXPORTER,
+    )
 
     def copy(copy: RevisionCopy) -> None:
         del copy
@@ -580,22 +661,47 @@ def test_a_kind_has_one_facet_one_format_and_one_exporter_at_most() -> None:
     hooks = replace(facets()["estimate_line"], copy=copy)
     with ExitStack() as registered:
         registered.callback(register_facet("remaining", hooks))
-        registered.callback(register_format("remaining", MS_PROJECT_FORMAT))
-        registered.callback(register_exporter("remaining", TASK_TREE_EXPORTER))
-        assert (list(facets()), list(formats()), list(exporters())) == (
-            ["estimate_line", "remaining"],
-            ["ms_project_schedule", "estimate", "remaining"],
-            ["ms_project_schedule", "task_tree_image", "estimate", "remaining"],
-        )
+        assert list(facets()) == ["estimate_line", "remaining"]
         with pytest.raises(ValueError, match="registered already"):
             register_facet("estimate_line", hooks)
         with pytest.raises(ValueError, match="registered already"):
             register_facet("remaining", hooks)
-        with pytest.raises(ValueError, match="has a format already"):
-            register_format("remaining", MS_PROJECT_FORMAT)
-        with pytest.raises(ValueError, match="has an exporter already"):
-            register_exporter("remaining", MS_PROJECT_EXPORTER)
+        for kind in ("ms_project_schedule", "estimate", "remaining", "actual_costs"):
+            with pytest.raises(ValueError, match="has a format already"):
+                register_format(kind, MS_PROJECT_FORMAT)
+        for kind in ("ms_project_schedule", "task_tree_image", "estimate", "remaining"):
+            with pytest.raises(ValueError, match="has an exporter already"):
+                register_exporter(kind, MS_PROJECT_EXPORTER)
     assert (dict(facets()), dict(formats()), dict(exporters())) == held
+
+
+def test_the_coverage_of_the_risks_is_zero_until_the_risks_answer_it_once(
+    session: Session,
+) -> None:
+    # What EP-08 answers for a revision of a project; zero before, and after its withdrawal; a
+    # second answer refused, the risks being one module's.
+    project_id, revision_id = uuid4(), uuid4()
+    asked: list[tuple[UUID, UUID]] = []
+    answered = Coverage(
+        Decimal("1000.00"),
+        Decimal("400.00"),
+        Decimal("250.00"),
+        Decimal("260.00"),
+        Decimal("350.00"),
+    )
+
+    def cover(_session: Session, project: UUID, revision: UUID) -> Coverage:
+        asked.append((project, revision))
+        return answered
+
+    assert risk_coverage(session, project_id, revision_id) == Coverage(*(Decimal("0.00"),) * 5)
+    with ExitStack() as registered:
+        registered.callback(register_coverage(cover))
+        assert risk_coverage(session, project_id, revision_id) == answered
+        with pytest.raises(ValueError, match="has its answer already"):
+            register_coverage(cover)
+    assert risk_coverage(session, project_id, revision_id) == NO_COVERAGE
+    assert asked == [(project_id, revision_id)]
 
 
 @pytest.fixture

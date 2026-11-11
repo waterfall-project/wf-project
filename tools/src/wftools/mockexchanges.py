@@ -34,7 +34,7 @@ from wftools.mockwitness import (
     N,
     fixture,
 )
-from wftools.mockwitnesscosts import APRIL, CostLine
+from wftools.mockwitnesscosts import APRIL, CostImport, CostLine
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -274,6 +274,42 @@ def import_remaining_subproject_held() -> JsonObject:
     }
 
 
+# --- A remaining to commit whose lines carry one lineage ----------------------------------------
+
+LINEAGE_IMPORT, LINEAGE_IMPORT_TASK = hex_identifier(0xA32), universe(951)
+LINEAGE_SUBMITTED, LINEAGE_ANALYSED, LINEAGE_EXPIRES = (
+    "2026-06-03T10:42:05Z",
+    "2026-06-03T10:43:00Z",
+    "2026-06-04T10:43:00Z",
+)
+"""The import and its task, and when it was opened today, analysed, and until when it applies."""
+
+
+def import_remaining_duplicate_lineage() -> JsonObject:
+    """Return the remaining of IMPORTED whose two last lines carry one lineage (#2798)."""
+    imported = import_remaining_subproject_held()
+    task = cast("JsonObject", imported["task"])
+    report = cast("JsonObject", imported["report"])
+    imported["import_id"], task["task_id"] = LINEAGE_IMPORT, LINEAGE_IMPORT_TASK
+    imported["created_at"], task["submitted_at"] = LINEAGE_SUBMITTED, LINEAGE_SUBMITTED
+    task["finished_at"], imported["expires_at"] = LINEAGE_ANALYSED, LINEAGE_EXPIRES
+    sheet = tab_name(TAB)
+    first, second = FIRST_ROW + 1, FIRST_ROW + 2
+    rejected: list[JsonValue] = [
+        {
+            "sheet": sheet,
+            "row": row,
+            "code": "DUPLICATE_LINEAGE",
+            "params": {"lines": [{"sheet": sheet, "row": other}]},
+        }
+        for row, other in ((first, second), (second, first))
+    ]
+    report["rejected"] = rejected
+    report["read_count"] = len(cast("list[JsonValue]", report["differences"])) + len(rejected)
+    report["unchanged_count"] = 0
+    return imported
+
+
 # --- A remaining to commit imported, that completes tasks --------------------------------------
 
 REVIEW_ON = date(2026, 6, 1)
@@ -508,52 +544,68 @@ def other_project() -> str:
     return next(each["code"] for each in fixture("projects")["items"] if each["code"] != witness)
 
 
+def brought(entry: CostImport, *, created: bool) -> list[CostLine]:
+    """Return the lines an import created, or updated, in the order of their documents."""
+    found = [
+        line
+        for line in mockcosts.lines()
+        if (line.imports[0] is entry) == created and entry in line.imports
+    ]
+    return sorted(found, key=lambda line: (line.document, line.item or ""))
+
+
 def april_added() -> list[CostLine]:
     """Return the lines the extraction of April created, in the order of their documents."""
-    created = [line for line in mockcosts.lines() if line.imports[0] is APRIL]
-    return sorted(created, key=lambda line: (line.document, line.item or ""))
+    return brought(APRIL, created=True)
 
 
-def april_report() -> JsonObject:
-    """Return the report of the extraction of April, as its analysis presented it.
+def _difference(line: CostLine, change: str) -> JsonObject:
+    return {
+        "change": change,
+        "target": "actual_cost_line",
+        "lineage_id": None,
+        "label": line.document,
+        "document_item": line.item,
+        "predecessor_label": None,
+        "fields": [],
+    }
 
-    Each line whose document and item were not yet imported is added, named by its document and
-    its item (WF-INTF-0140, D-4); each line of another project the journal counts is rejected, its
-    element named as the file carries it, with the code of project read (WF-CRE-0020), last in the
-    file. A code of subproject no subproject of the project carries is kept, and asks for an
-    explicit confirmation, as the lines of another project do.
+
+def cost_report(entry: CostImport) -> JsonObject:
+    """Return the report of an extraction of costs, as its analysis presented it.
+
+    Each line whose document and item were not yet imported is added, each one already imported
+    and brought back updated, both named by their document and their item (WF-INTF-0140, D-4);
+    the lines it brings back as they were are counted unchanged; each line of another project the
+    journal counts is rejected, its element named as the file carries it, with the code of project
+    read (WF-CRE-0020), last in the file. The witness does not say which columns an update
+    changes: an updated line names none. A code of subproject no subproject of the project
+    carries is kept, and asks for an explicit confirmation, as the lines of another project do.
     """
-    added = april_added()
+    added = brought(entry, created=True)
+    updated = brought(entry, created=False)
     code = other_project()
+    first = FIRST_ROW + len(added) + len(updated) + entry.unchanged
     rejected: list[JsonValue] = [
         {
             "sheet": None,
-            "row": FIRST_ROW + len(added) + offset,
+            "row": first + offset,
             "code": "WBS_ELEMENT_OUTSIDE_PROJECT",
             "params": {"wbs_element": f"{code}/{OUTSIDE_SUBPROJECT}", "project_code": code},
         }
-        for offset in range(APRIL.rejected)
+        for offset in range(entry.rejected)
     ]
     differences: list[JsonValue] = [
-        {
-            "change": "added",
-            "target": "actual_cost_line",
-            "lineage_id": None,
-            "label": line.document,
-            "document_item": line.item,
-            "predecessor_label": None,
-            "fields": [],
-        }
-        for line in added
+        *(_difference(line, "added") for line in added),
+        *(_difference(line, "updated") for line in updated),
     ]
     reasons: list[JsonValue] = ["lines_outside_project"] if rejected else []
-    if unknown_codes(added):
+    if unknown_codes([*added, *updated]):
         reasons.append("unknown_subproject")
-    read = len(added) + len(rejected)
     return {
         "format_version": None,
-        "read_count": read,
-        "unchanged_count": read - len(rejected) - len(differences),
+        "read_count": len(differences) + entry.unchanged + len(rejected),
+        "unchanged_count": entry.unchanged,
         "rejected": rejected,
         "refusals": [],
         "differences": differences,
@@ -564,6 +616,11 @@ def april_report() -> JsonObject:
         "requires_confirmation_reasons": reasons,
         "unit_constants": None,
     }
+
+
+def april_report() -> JsonObject:
+    """Return the report of the extraction of April, as its analysis presented it."""
+    return cost_report(APRIL)
 
 
 def unknown_codes(added: Sequence[CostLine]) -> list[str]:
@@ -683,6 +740,14 @@ def examples() -> dict[str, JsonObject]:
             f"nomme le « {_subproject(imported_refusal)} », qui a reçu des coûts réels "
             f"(WF-INTF-0120, WF-PRJ-0050, WF-INTF-0080).",
             imported,
+        ),
+        "import_remaining_duplicate_lineage.json": mocktext.example(
+            f"Une variante du reste à engager importé aujourd'hui : les lignes {FIRST_ROW + 1} et "
+            f"{FIRST_ROW + 2} de l'onglet « {tab_name(TAB)} » portent la même lignée, une ligne "
+            f"copiée dans le tableur : toutes deux rejetées, aucune préférée, chacune nommant "
+            f"l'autre ; la ligne de la révision que cette lignée désigne est laissée telle quelle "
+            f"(WF-INTF-0100, WF-INTF-0120, #2798).",
+            import_remaining_duplicate_lineage(),
         ),
         "import_actual_costs_first.json": mocktext.example(
             _april_said(), import_actual_costs_first()

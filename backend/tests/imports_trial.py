@@ -2,22 +2,25 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """A format of the tests, which tries the whole mechanics of the imports before any real format.
 
-Its file is a head, ``WF-TRIAL``, then one label of a task per line. Its analysis reports each line
-as a task added, and a line that reads ``REFUSE`` rejects the whole file; its application writes
-each task, at the root of the structure aimed at, after the tasks there. What it does besides — a
-condition of its kind refused, an analysis or an application that refuses, breaks, or is stopped
-— a test asks of it by its attributes (#1790, EP-06, "Les tests du back"). And what the tests of
-the imports share: the platform, its client, its worker, the deposit and the opening of a file.
+Its file is a head, ``WF-TRIAL``, then one label of a task per line, which its preparation reads.
+Its analysis reports each line as a task added, and a line that reads ``REFUSE`` rejects the whole
+file; its application writes each task, at the root of the structure aimed at, after the tasks
+there. What it does besides — a condition of its kind refused, an analysis or an application that
+refuses, breaks, or is stopped — a test asks of it by its attributes (#1790, EP-06, "Les tests du
+back"). It stands in for the format a module registered for a kind (``stand_in``). And what the
+tests of the imports share: the platform, its client, its worker, the deposit and the opening of a
+file.
 """
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, get_protocol_members
 from uuid import UUID
 
 from planning_support import insert_task
 from sqlalchemy import delete, func, select
 
 from waterfall.core.access_roles.tables import AccessRolePermission, Permission, UserAccessRole
+from waterfall.core.exchanges.interface import Format, formats
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.planning.tables import Node
 from waterfall.platform.errors import ConflictError, UnprocessableError
@@ -28,11 +31,12 @@ from waterfall.worker.runner import Timing, Worker
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    import pytest
     from projects_support import Person, Scene
     from sqlalchemy.orm import Session
     from support import ContractClient
 
-    from waterfall.core.exchanges.interface import ImportScope, ImportTarget
+    from waterfall.core.exchanges.interface import ExchangeKind, ImportScope, ImportTarget
     from waterfall.platform.audit import Act
     from waterfall.platform.database import Database
     from waterfall.platform.queue import TaskQueue
@@ -57,14 +61,17 @@ class TrialFormat:
 
     ``condition`` a condition of the kind the import lacks (409); ``analysis`` and ``application``
     what their step does besides: ``None``, nothing; ``refuse``, a refusal; ``break``, an error;
-    ``stop``, the worker stopped once its writes are done (``application`` alone).
+    ``stop``, the worker stopped once its writes are done (``application`` alone). ``preparation``
+    ``refuse`` refuses the file as unreadable (422), ``break`` breaks on it (``ValueError``).
     """
 
     scope: ImportScope = "structure"
     permission: str = "remaining.write"
     header_length: int = len(HEAD)
+    judged_first: bool = False
     condition: str | None = None
     analysis: str | None = None
+    preparation: str | None = None
     application: str | None = None
     seen: list[ImportTarget] = field(default_factory=list[Any])
 
@@ -115,16 +122,30 @@ class TrialFormat:
             "unit_constants": None,
         }
 
+    def prepare(self, content: bytes) -> list[str]:
+        """Read the labels of a trial file, before the application takes any lock."""
+        if self.preparation == "refuse":
+            expected = {"expected_format": "remaining", "expected_version": "1"}
+            raise UnprocessableError(UNREADABLE, expected)
+        if self.preparation == "break":
+            msg = "the preparation breaks"
+            raise ValueError(msg)
+        return labels_of(content)
+
     def apply(
         self,
         session: Session,
         target: ImportTarget,
-        content: bytes,
+        prepared: list[str],
         report: Mapping[str, Any],
         act: Act,
     ) -> None:
         """Write each task the report adds at the root of the structure, then do what is asked."""
         del act
+        if self.scope == "project":
+            # An import of the project writes no node: what it was given is on ``seen``.
+            self._besides(self.application)
+            return
         assert target.revision_id is not None
         assert target.structure_id is not None
         connection = session.connection()
@@ -142,7 +163,7 @@ class TrialFormat:
                 rank=offset,
                 label=difference["label"],
             )
-        assert labels_of(content)
+        assert prepared
         self._besides(self.application)
 
     @staticmethod
@@ -154,6 +175,26 @@ class TrialFormat:
             raise RuntimeError(msg)
         if what == "stop":
             raise Stopped
+
+
+# What the exchanges read of a format, which the format of the tests stands in for: every member of
+# the protocol, so that one added to ``Format`` leaves no part of the real format acting.
+FORMAT_PARTS = tuple(sorted(get_protocol_members(Format)))
+
+
+def stand_in[Trial: TrialFormat](
+    monkeypatch: pytest.MonkeyPatch, kind: ExchangeKind, form: Trial
+) -> Trial:
+    """Make the format a module registered for a kind act as ``form`` for the test; give ``form``.
+
+    Every kind has its format from the socle of EP-09 on (US-1580/L1), and a kind holds one at most:
+    the format of the tests takes the place of the one registered — what the exchanges read of it —,
+    the end of the test giving it back, as ``test_exports.py`` stands in for an exporter.
+    """
+    held = formats()[kind]
+    for part in FORMAT_PARTS:
+        monkeypatch.setattr(held, part, getattr(form, part))
+    return form
 
 
 def labels_of(content: bytes) -> list[str]:

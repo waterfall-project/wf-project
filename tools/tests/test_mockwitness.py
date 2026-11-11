@@ -374,6 +374,8 @@ _KEYS = {
     "timeline_id": ("chronologies",),
     "cost_line_id": ("lignes de coût réel", "lignes de coût réel engendrées"),
     "cost_import_id": ("imports de coûts réels",),
+    "created_by_cost_import_id": ("imports de coûts réels",),
+    "updated_by_cost_import_ids": ("imports de coûts réels",),
 }
 """The families an identifier may be of, by the key that carries it."""
 

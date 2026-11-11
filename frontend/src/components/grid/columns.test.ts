@@ -10,6 +10,7 @@ import { example } from "@/test/fixtures";
 import { alignment, formatCell, sortColumns } from "./columns";
 import { ESTIMATE_GRID } from "./estimate";
 import { NODE_COLUMNS, type NodeList, pasteSpan } from "./nodes";
+import { PLANNING_GRID } from "./planning";
 import { REMAINING_GRID } from "./remaining";
 
 // The schemas of the contract the nodes of a structure are written in.
@@ -53,6 +54,19 @@ describe("a cell of a grid", () => {
     expect(alignment({ format: "money" })).toBe("end");
     expect(alignment({ format: "date", align: "start" })).toBe("start");
   });
+});
+
+describe("what a grid creates", () => {
+  it.each([
+    ["planning", PLANNING_GRID, "tasks"],
+    ["estimate", ESTIMATE_GRID, "lines"],
+    ["remaining to commit", REMAINING_GRID, "lines"],
+  ] as const)(
+    "the %s says it creates %s, the preview of a paste reads it (#2753)",
+    (_, grid, creates) => {
+      expect(grid.creates).toBe(creates);
+    },
+  );
 });
 
 describe("the sort of a grid of the tree", () => {
@@ -148,14 +162,14 @@ describe("the columns of the grid of the estimate", () => {
     expect(row("Génie civil")?.task?.is_summary).toBe(true);
     expect(amounts(row("Génie civil"))).toEqual([
       "7\u202f828\u202f839,16",
-      "7\u202f847\u202f988,97",
+      "7\u202f855\u202f371,27",
     ]);
     expect(row("Reprise 2.1.22")?.task?.start?.date).toBe("2027-01-06");
     expect(amounts(row("Reprise 2.1.22"))).toEqual(["40\u202f758,82", "41\u202f981,58"]);
     const totals = ESTIMATE_GRID.columns
       .filter((column) => ["base_amount", "reestimated_amount"].includes(column.key))
       .map((column) => column.total?.(volume.totals));
-    expect(totals).toEqual(["66105223.89", "68923691.77"]);
+    expect(totals).toEqual(["66105223.89", "68950649.05"]);
   });
 
   it("have the label alone pinned, the amount computed whole, and the figures and the sub-project of a line where its node says so", () => {
