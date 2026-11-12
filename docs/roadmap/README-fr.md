@@ -161,7 +161,7 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Coûts réels, reste à engager et import des coûts | livré | EP-07 |
 | [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | en cours | EP-09 |
 | [EP-23](EP-23-dette-constats-ep02-ep03.md) | Dette des constats d'EP-02 et d'EP-03 | livré | EP-02, EP-03, EP-06 |
-| [EP-24](EP-24-consolidation-apres-v0-3-0.md) | Consolidation après la v0.3.0 | à planifier | EP-09, EP-23 |
+| [EP-24](EP-24-consolidation-apres-v0-3-0.md) | Consolidation après la v0.3.0 | prêt | EP-09, EP-23 |
 | [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | à planifier | EP-10 |
 | [EP-11](EP-11-portefeuille.md) | Portefeuille | à planifier | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | abandonné : chaque aller-retour se valide dans son bloc fonctionnel | — |
@@ -216,8 +216,8 @@ d'EP-06, sans toucher aux fichiers de leurs derniers lots. EP-24 consolide aprè
 version 0.3.0 (décision de l'auteur du 2026-11-12) : il achève le travail resté en plan sur les
 filtres des tables et la gestion des utilisateurs, stabilise la file de fusion, solde les constats
 d'EP-09 et d'EP-23 et ceux de la recette MS Project, et suit la révision 1.0.5 de la
-spécification ; par exception, sa branche de livraison est `epic/cadrage`, tirée de `main` au tag
-`v0.3.0`, et non `epic/EP-24`.
+spécification ; par exception, sa branche, `epic/EP-24`, est tirée dès le cadrage d'`epic/cadrage`,
+qui portait déjà une part de ce travail.
 
 EP-13 ne dépend que d'EP-04 : il peut commencer tôt, mais il clôt des exigences transverses
 dont la dernière action arrive tard, et il finit en dernier.

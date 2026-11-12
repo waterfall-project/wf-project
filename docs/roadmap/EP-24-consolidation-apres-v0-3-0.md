@@ -1,7 +1,7 @@
 ---
 id: EP-24
 titre: Consolider après la v0.3.0 — les filtres des tables et la gestion des utilisateurs achevés, une file de fusion qui n'échoue plus sans régression, les constats d'EP-09 et d'EP-23 soldés, l'aller-retour MS Project tenu dans MS Project, la spécification 1.0.5
-statut: à planifier
+statut: prêt
 depend_de: EP-09, EP-23
 famille: front, back, plateforme
 issue:
@@ -33,7 +33,7 @@ Dans l'ordre de priorité que l'auteur a fixé le 2026-11-12 :
    arborescentes, dont la vérification finale de L5 et de L6 s'est arrêtée à 04 h 07 (#2916, PR
    #2929 à #2931) — US-1850 ; la gestion des utilisateurs, ses filtres, « Sans rôle » et ses actions
    groupées (#2917) — US-1860 ; l'écran ouvert sans session et l'accueil d'un compte qui ne peut
-   ouvrir aucun projet, dont le code est dans `epic/cadrage` (#2914, #2915, PR #2927 et #2928) —
+   ouvrir aucun projet, dont le code est dans `epic/EP-24` (#2914, #2915, PR #2927 et #2928) —
    US-1870.
 2. **La chaîne, stabilisée puis raccourcie** : une mesure suivie du taux d'échec de la file hors
    régression et de la durée du palier complet, et l'inventaire des instabilités — US-1880 ; les
@@ -125,13 +125,12 @@ consomme :
 ## Préalables
 
 - EP-09 et EP-23 livrés, `v0.3.0` posé (fait, 2026-11-12).
-- **La branche de livraison est `epic/cadrage`**, et non `epic/EP-24` (décision de l'auteur du
-  2026-11-12, contre la règle du README, « Branches », qui nomme `epic/EP-nn`). Elle est tirée de
-  `main` au tag `v0.3.0`, sa file de fusion est paramétrée (jeu de règles « merge queue
-  epic/cadrage »), et elle reçoit le travail de la nuit par #2926 à #2931 : le thème de la page de
-  connexion, #2914, #2915, #2916 L1 à L6. Aucun livreur ne tire `epic/EP-24` ; chaque lot part
-  d'`epic/cadrage` et y revient, et `BASE=origin/epic/cadrage` partout où un agent écrirait
-  `origin/epic/EP-nn`. Ce que l'outillage suppose encore d'`epic/EP-nn` est réglé par la conception.
+- **La branche de livraison est `epic/EP-24`**, tirée d'`epic/cadrage` (630d9c0a) le 2026-11-12, au
+  cadrage, par le cadreur à la demande de l'auteur — une exception à la règle qui réserve cette
+  poussée au livreur du premier lot. `epic/cadrage`, tirée de `main` au tag `v0.3.0`, avait reçu le
+  thème de la page de connexion (#2926) et #2915 (#2928) ; les pull requests encore ouvertes vers
+  elle — #2927 (#2914) et #2929 à #2931 (#2916, L1 à L6) — sont redirigées vers `epic/EP-24`, et
+  `epic/cadrage` ne reçoit plus rien. L'auteur paramètre la file de fusion d'`epic/EP-24`.
 - La révision 1.0.5 de la spécification, écrite par l'auteur, précède le lot qui réalise #2922 et
   celui qui relie ses phrases aux US.
 - Le fichier 02 du corpus, repris par l'auteur dans MS Project avec une liaison à décalage négatif
@@ -139,14 +138,14 @@ consomme :
 
 ## Définition de fini
 
-- sur les 100 derniers passages de la file d'`epic/cadrage` (`chain`, `merge_group`), au plus 2
+- sur les 100 derniers passages de la file d'`epic/EP-24` (`chain`, `merge_group`), au plus 2
   échecs qui ne soient pas une régression, classés par l'outil de mesure et relus ; la durée de mur
   du palier complet y est de 12 minutes au plus en médiane (16 minutes les 10 et 11 novembre) ;
 - chaque instabilité de l'inventaire est corrigée, ou suivie par une issue qui porte sa décision ;
 - un lot qui touche la chaîne a prouvé son effet par des passages réels, avant et après, et non par
   une mesure sur le poste ;
 - les parcours contre le service qui échouaient à la vérification interrompue du 2026-11-12 passent
-  sur `epic/cadrage`, L4, L5 et L6 fusionnés ;
+  sur `epic/EP-24`, L4, L5 et L6 fusionnés ;
 - sur *Administration › Gestion des utilisateurs*, filtrer « Créé par le fournisseur d'identité » et
   « Sans rôle », tout sélectionner, puis « Ajouter un rôle » donne un rôle à chaque compte retenu, et
   dit ceux qui ont été refusés ;
@@ -161,7 +160,7 @@ consomme :
 - un planning synthétique saisi en jours à 7 heures par jour est importé, l'écart de calendrier dit
   au compte rendu, en gardant les durées puis en gardant les dates ;
 - la spécification est en révision 1.0.5, et `make roadmap` passe sur ses phrases nouvelles ;
-- `make check` passe sur `epic/cadrage`, la file est verte ; `make roadmap` et `make requirements`
+- `make check` passe sur `epic/EP-24`, la file est verte ; `make roadmap` et `make requirements`
   passent ;
 - chaque issue de « Constats reçus » est fermée par la fusion de son lot, ou reportée par sa
   décision.
@@ -236,7 +235,274 @@ issue ouverte sous #2427.
 
 ## Conception
 
-À écrire après la validation des US (étape 2 de « Démarrer un EPIC »).
+Écrite le 2026-11-12 sur `main` (b9cc1f51) et sur les branches du travail de la nuit, tirées vers
+`epic/cadrage` (#2926 à #2931), après la validation des US par l'auteur le même jour ;
+validée par lui le même jour. Courte pour les constats,
+comme celles d'EP-18 et d'EP-23 : chaque issue porte sa proposition, ses fichiers et ses tests, et
+fait foi pour le détail. Elle est longue pour la chaîne, que nulle issue ne décrit en entier : ses
+mesures sont celles de la file elle-même (`gh run list`, l'API des jobs et leurs journaux), relevées
+le 2026-11-12, jamais celles du poste.
+
+### La chaîne : ce qui est mesuré
+
+**La file du 2026-11-05 au 2026-11-12** (`chain`, `merge_group`) : 370 passages, 272 réussis, 88 en
+échec, 6 annulés, 4 en cours au relevé. Par jour, passages et échecs : le 5, 39 et 5 ; le 6, 49 et
+8 ; le 7, 50 et 1 ; le 8, 53 et 6 ; le 9, 56 et 29 ; le 10, 63 et 21 ; le 11, 54 et 17. La file
+tenait jusqu'au 8 (20 échecs sur 191) et ne tient plus depuis le 9 (67 sur 173), quand les parcours
+d'EP-07 puis d'EP-09 contre le service y sont entrés.
+
+**Par job en échec** (un passage peut en compter plusieurs) :
+
+| Job, étape | Passages | Classement |
+|---|---|---|
+| `service / paths`, `make check-service` | 68 | instabilités pour l'essentiel, familles ci-dessous ; 4 sans parcours en échec relevé au journal |
+| `e2e / paths`, `e2e / measure` (« Install make ») et `service / paths` (`make e2e-browsers`) | 6 | infrastructure : `archive.ubuntu.com`, le 2026-11-11 (#2913) |
+| `e2e / paths` et `e2e / measure`, contre le faux back | 6 | à classer : deux passages d'EP-20 le 5, quatre du 8 et du 9 |
+| `keycloak / check` | 5 | à classer |
+| `back / check` (`make check-back-static`, `make check-back`) | 6 | régressions présumées : l'analyse statique ne dépend pas de la charge |
+| `back / tests` | 3 passages | un `LockNotAvailable` au chargement du témoin (42799623736) ; des 500 en série sur une pull request (42449690648), régression présumée |
+| `front / tests (lint)` | 2 | instabilité connue de l'audit du 5, corrigée depuis (les gardes sans couverture) |
+| `e2e`, « Install the Python of tools/.python-version » | 1 | infrastructure |
+| `spec / check`, « Install pandoc » | 1 | infrastructure : un 503 de GitHub Releases |
+| `contract / check`, `production / trial` | 1 chacun | à classer |
+
+**Les parcours contre le service**, par famille de cause — l'hypothèse est celle du message d'échec
+lu au journal, que le lot d'US-1890 établit par une mesure :
+
+| Famille | Parcours (passages) | Ce que dit l'échec | Hypothèse |
+|---|---|---|---|
+| A. Le projet de la course n'est pas créé en 15 s | `structure.spec.ts:414` à `:452` (6), `planning-service.spec.ts:16` à `:154` (6), `project-start.spec.ts:179` et `:181` (3), `task-tree.spec.ts:13`, `timelines.spec.ts:353` et `:391`, `undo.spec.ts:139` (2), `revision-cycle.spec.ts` (2) | `own-project.ts:39` : l'adresse reste `/` au-delà de `WORKING` (15 s) après « Créer » | l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois ; chaque parcours qui écrit passe par là |
+| B. Un état partagé entre parcours | `projects.spec.ts:113` à `:194` (9), `reference-resources.spec.ts:27`, `:110` et `:112` (8), `reference-settings.spec.ts:18`, `reference-costs.spec.ts:448` | les préférences relues portent le filtre d'un autre parcours (`states: created,pricing`) ; « the restorations that failed » : le calendrier par défaut n'est plus celui que le parcours a désigné | deux parcours `@shared` écrivent la même préférence d'un compte, ou le même réglage du référentiel, en même temps |
+| C. Une lecture lourde de PRJ-001 | `revisions.spec.ts:238` à `:253` (8), `:121` (2), `:164`, `:35` (2) ; `structure.spec.ts:333` (3), `:361` ; `workload.spec.ts:110` | l'adresse garde `difference=` au-delà de 15 s ; 30 s dépassées sur trois lectures de la comparaison | 5 966 nœuds ; #2924 a ramené `getRemainingIndicators` de 2 845 à 58 requêtes et `compareRevisions` de 1 903 à 57 ; le reste est à mesurer après elle |
+| D. La restauration | `service/backups.spec.ts:155` (11) et `:240` (5) | « Restaurer cette sauvegarde » absent après 60 s ; la grille « Sauvegardes » absente 10 s après la restauration | tous du 9 et du 10, sur trois pull requests d'EP-07 remises en file : une régression de leur branche, ou le dépôt d'une archive devenue plus lourde ; aucune issue ne les suit |
+
+`timelines.spec.ts:263` n'a échoué dans aucun passage de la file. Ni #859 ni #1026 n'ont été
+retrouvées dans les journaux lus.
+
+**Les durées** (minutes de mur, passages réussis) : la médiane d'un passage vaut 11,4 le 8, 14,2 le
+9, 15,7 le 10, 15,9 le 11 et 21,3 le 12 ; le 90e centile, 21 le 10 et le 11. Par job, sur trois
+passages complets :
+
+| Job | 2026-11-10 (42767057088) | 2026-11-11 (43083057552) | 2026-11-12 (43169119148) |
+|---|---|---|---|
+| `service / paths` | 13,8 | 17,5 | 24,1 |
+| `back / tests (1/2)` et `(2/2)` | 8,2 et 9,6 | 15,3 et 10,0 | 15,8 et 18,7 |
+| `tools / check` | 3,8 | 6,5 | 8,3 |
+| `keycloak / check` | 3,7 | 4,6 | 4,8 |
+| `e2e / paths`, de 1/5 à 5/5 | 2,9 à 4,1 | 2,9 à 4,4 | 3,3 à 4,3 |
+| `front / tests` | 2,3 et 3,7 | 2,9 et 3,4 | 3,9 et 3,8 |
+
+Le chemin critique est `service / paths`, à une minute de son délai de 25, puis `back / tests`, à une
+minute du sien de 20 : les 3 min 40 par moitié du 2026-11-07 ne tiennent plus, EP-07 et EP-09 ayant
+ajouté leurs tests. Un passage qui ne joue que le back et le service coûte 56 minutes-runner
+(43164020689). Les morceaux de l'e2e, eux, sont devenus égaux à une minute et demie près.
+
+**Le cache d'Actions** : 10,87 Go pour 268 entrées, au-dessus du quota de 10 Go. Deux causes lues
+dans la liste : chaque passage de la file sur une branche neuve y écrit sa copie du magasin de pnpm
+(188 Mo par référence `gh-readonly-queue/…`, qu'aucun autre passage ne relit) ; et les branches
+livrées — `epic/EP-09`, `epic/EP-23` — gardent leurs couches d'images (environ 200 Mo chacune).
+
+**Les dépendances réseau** : `archive.ubuntu.com` (le paquet `make` de l'image de Playwright,
+`e2e.yml` ; les paquets système de `make e2e-browsers`, `service.yml`) ; Docker Hub pour onze images
+— `postgres`, `redis`, `caddy`, `axllent/mailpit`, `dxflrs/garage`, `curlimages/curl`, `node`,
+`python`, `debian`, `maven`, `adorsys/keycloak-config-cli` — et `keycloak/keycloak` ; le registre de
+npm pour Prism et Redocly (`npx --yes`, `make mock-tools`) ; `mcr.microsoft.com` pour l'image de
+Playwright ; GitHub Releases pour pandoc ; le miroir d'Astral pour Python.
+
+### La chaîne : ce que les lots font
+
+- **La mesure (US-1880)**. Un module des outils, `wftools.queue`, et sa cible `make queue-report
+  BRANCH=<branche> [LAST=<n>] [SINCE=<date>]`, lisent par `gh` les passages `merge_group` de
+  `chain` : leur nombre, les échecs par job et par étape, les parcours et les tests en échec avec
+  fichier et ligne (lus au journal du job), la durée de mur en médiane et au 90e centile, et les
+  minutes-runner. Le classement se fait contre un fichier versionné, `tools/queue-known.toml` : une
+  entrée par instabilité connue — un motif de job, d'étape ou de test, sa famille, son issue. Ce que
+  nulle entrée ne reconnaît sort « à classer » : l'outil ne décide jamais seul qu'un échec est une
+  régression. L'inventaire ci-dessus y est versé, et la pull request d'un lot de la chaîne en cite la
+  sortie avant et après. Rien ne tourne dans la chaîne : la commande se lance du poste.
+- **La règle d'un parcours lent (US-1890)** s'écrit dans le guide, « Un parcours de bout en bout »
+  (`docs/dev/README-fr.md` et sa traduction), en trois degrés : corriger la lecture d'abord, comme
+  #2924 ; sinon isoler le parcours — un compte, un projet, un réglage à lui — ou le sérialiser
+  (`shared-serial`) ; n'élargir une attente qu'en dernier recours, la mesure dans le commentaire.
+- **Famille A** : la création du projet de la course est mesurée dans la chaîne (l'accueil,
+  `createProject`, la navigation) ; si la lecture est en cause, elle se corrige au back ou au
+  front ; sinon `createOwnProject` (`frontend/e2e/own-project.ts`) crée par l'API ce que le parcours
+  n'éprouve pas, et le seul parcours de la création garde le geste de l'écran.
+- **Famille B** : chaque parcours qui écrit une préférence joue sous un compte à lui ; ceux qui
+  écrivent un réglage du référentiel commun — le calendrier par défaut, les unités de durée —
+  passent dans `shared-serial`.
+- **Famille C** : `compareRevisions` et les lectures du planning de PRJ-001 sont mesurées après
+  #2924 ; `revisions.spec.ts:121` lit la comparaison une fois, ou ses trois lectures sont
+  justifiées ; `test.slow()` ne reste que sur mesure.
+- **Famille D** : reproduite sur `epic/EP-24` ; classée régression corrigée si elle ne reparaît
+  pas sur cinquante passages, sinon corrigée comme les autres.
+- **Le réseau (US-1900)** : le paquet `make` et les paquets système du navigateur sortent des
+  miroirs d'Ubuntu — une image de travail de l'e2e publiée sur ghcr.io, bâtie de l'image de
+  Playwright avec `make` et le Python des outils, que `e2e.yml` et `service.yml` emploient toutes
+  deux (`service.yml` y joue ses parcours par le réseau de l'hôte) ; les images de Docker Hub sont
+  tirées d'un miroir sous `ghcr.io/waterfall-project/mirror/`, tenu par `images.yml` aux mêmes
+  empreintes ; Prism et Redocly deviennent des dépendances de développement épinglées du front, lues
+  du magasin de pnpm, sans `npx --yes` ; pandoc est gardé en cache.
+- **Les tests (US-1920)** : les propositions de #859 et de #1026 ; `installation.setup` attend
+  l'état qu'il affirme ; le chargement du témoin prend ses verrous dans un ordre constant, ou attend
+  celui qu'il n'obtient pas.
+- **Le chemin critique (US-1910)**, pour 12 minutes en médiane : `service / paths` se coupe en
+  quatre — trois morceaux des projets `service` et `shared`, et un quatrième pour `shared-serial`,
+  `realm` et `restoration`, qui restent en série —, chacun sur sa plateforme ; `back / tests` passe
+  de deux à quatre morceaux ; les morceaux de l'e2e sont pesés par durée mesurée, les durées gardées
+  dans un fichier versionné que la mesure rafraîchit ; un passage de la file lit les caches sans en
+  écrire (`front-cache.yml` et `images.yml` restent seuls à écrire, sur la branche), une branche
+  neuve reçoit ses caches à sa création, et ceux d'une branche supprimée sont retirés ;
+  `.next/cache` est gardé par `front-cache.yml`. Le prix est dit : quatre plateformes démarrées au
+  lieu d'une, donc plus de minutes-runner pour moins de mur ; le lot le mesure, et l'auteur tranche
+  si le compte de minutes dépasse ce qu'il accepte.
+- **Le poste (US-1930)** : le défaut de `E2E_WORKERS` pour `make e2e-service` se calcule dans le
+  Makefile, de `WATERFALL_PROCESSORS`, par le rapport que la mesure de 8, 10 et 12 workers retient ;
+  `frontend/playwright.config.ts` ne change pas. La règle du worktree hors de `/tmp` va dans le
+  guide (« Commandes ») et dans `docs/dev/agents.md` (« Le pilote »).
+
+### Tables et migrations
+
+Une seule : `import_report` gagne `duration_rule`, un texte nul hors d'un import MS Project en écart
+de calendrier, contraint à `keep_durations` ou `keep_dates` (migration 0028, US-2000). Le compte
+rendu reste le JSON de `report`. Rien d'autre : `filters_open` est une clé des préférences d'une
+grille, le filtre « sans rôle » une requête, et les bornes d'US-1980 se tiennent sous les colonnes
+existantes.
+
+### Modules touchés, et ce que chacun expose
+
+- *Filtres des tables (US-1850)* : ce que #2929 à #2931 posent — `GridToolbar`, le panneau,
+  `FilterChips`, `row-selection.tsx`, `filters.ts`, `kept-filters.ts`. Le lot ne refait rien : il
+  rejoue, relit, et solde les trois mineurs de L2.
+- *Gestion des utilisateurs (US-1860)* : `api/users.py` lit le nouveau paramètre et `core/users`
+  l'applique en union avec `access_role_ids` ; au front, `components/admin` (les listes des comptes,
+  leurs filtres, la barre d'actions par `RowCommands`). Une action groupée enchaîne ses appels en
+  série, compte par compte, par le chemin d'écriture d'un compte déjà en place, et rend la liste des
+  refus avec leur raison.
+- *Session et accueil (US-1870)* : déjà dans #2927 et #2928 ; le lot n'ajoute que les tests qui
+  manqueraient aux phrases de la 1.0.5.
+- *Classeurs (US-1940)* : `core/estimate/remaining/excel/writer.py` (`_context`) tient deux index
+  de libellés, comme `_Labels` de `core/estimate/excel/writer.py` ; `core/exchanges` expose la liste
+  des exceptions d'un classeur abîmé, que lisent le lecteur de devis et `core/costs/extraction.py`.
+- *Parcours du reste à engager (US-1950)* : `frontend/e2e/remaining.spec.ts`, par
+  `bringInProgress`.
+- *Écran des rôles et refus (US-1970)* : `components/admin/role-commands.tsx`,
+  `role-answers.tsx`, `admin-grids.tsx` ; `api/problem.ts` (`UnexpectedAnswer`, par
+  `isCorrelation`).
+- *Entrée du service (US-1980)* : les routes de `api/` pour les paramètres de requête ; pour les
+  décimaux, `core/resource_settings/interface/duration_units.py`, `core/planning/entries.py` et
+  `core/estimate/entries.py`, chacun refusant à son champ, par une fonction de précision partagée
+  avec `core/indicator_settings/thresholds.py` (US-1840). Les mois, les trimestres et la durée d'une
+  cellule collée passent de `\d` à `[0-9]`, comme les bornes d'US-1840.
+- *MS Project (US-1990, US-2000)* : `core/planning/msproject/writer.py` (`_task`, l'en-tête) et
+  `reader.py` (les champs `Manual*`) ; `core/planning/importing.py` et `msproject/translation.py`
+  pour la règle de conversion ; `core/exchanges` pour `duration_rule` et la relance de l'analyse ;
+  au front, l'écran du compte rendu d'un import.
+
+### Modifications du contrat
+
+Chacune par une issue `contract` et une entrée de `docs/api/DECISIONS.md`, avant le code, le client
+et les modèles régénérés.
+
+- **`Offset`** : `maximum: 2147483647` (`components/parameters.yaml`) ; #2778 devient l'issue.
+- **`listUsers`** : un paramètre booléen `without_access_role` ; vrai, il retient les comptes sans
+  rôle, en union avec `access_role_ids` quand les deux sont donnés ; la description
+  d'`access_role_ids` (« An account without a role is retained by no value ») le dit.
+- **L'import MS Project en écart de calendrier** : `ImportReport` gagne `calendar_gap`, toujours
+  rendu, nul sans écart — les heures par jour et les plages horaires du calendrier du projet du
+  fichier, les heures par jour du calendrier de l'installation, les tâches dont le calendrier propre
+  diffère de leur calendrier Waterfall, et la règle sous laquelle le compte rendu a été calculé
+  (`duration_rule`, `keep_durations` par défaut). Une opération nouvelle, `setImportDurationRule`
+  (`PUT /projects/{project_id}/imports/{import_id}/duration-rule`), change la règle d'un import
+  analysé et non appliqué, et relance son analyse ; elle refuse un import sans écart. `applyImport`
+  ne change pas : il applique le compte rendu tel qu'analysé. `unit_constants` reste, sa description
+  reprise.
+- **`filters_open`** : déjà écrite par #2916/L1 (#2929).
+
+### Ordre de construction
+
+- **La branche d'abord** : #2927 et #2929 à #2931 se fusionnent dans `epic/EP-24`, puis le lot d'US-1850
+  termine leur vérification. Il précède tout lot qui touche `frontend/e2e/`, les catalogues
+  `frontend/messages/*.json` ou le guide : L5 et L6 réécrivent `structure.spec.ts`,
+  `planning-service.spec.ts`, `planning.spec.ts`, `grid.spec.ts`, `projects.spec.ts`,
+  `reference-costs.spec.ts`, deux parcours de `e2e/service/`, les deux catalogues, les deux guides
+  et `DECISIONS.md`.
+- **La mesure avant la chaîne** : US-1880 précède US-1890, US-1900, US-1910 et US-1920, qui se
+  prouvent par elle.
+- **La stabilité avant la vitesse** : le découpage de `service / paths` (US-1910) vient après
+  US-1890, pour ne pas multiplier par quatre des parcours instables.
+- **Le contrat avant son code** ; les trois issues `contract` écrivent toutes `DECISIONS.md` et
+  régénèrent le client : leurs lots ne se livrent pas en même temps.
+- **La spécification** : la 1.0.5 précède le lot de l'import d'US-2000 et le lot qui relie ses
+  phrases ; l'export et le lecteur d'US-1990 ne l'attendent pas.
+- **Les fichiers partagés** — `.github/workflows/`, `Makefile`, `frontend/playwright.config.ts`,
+  les catalogues, les guides, `DECISIONS.md` — font les « pas avec » du plan de lots.
+
+### La 1.0.4 relue contre `main`
+
+| Exigence | Ce que la 1.0.4 change | Classement |
+|---|---|---|
+| `WF-CRE-0010` | le montant arrondi au centime, la moitié au plus loin de zéro | réalisée : `core/costs/extraction.py` ; `test_an_amount_is_rounded_half_a_cent_away_from_zero` (`test_actual_costs_analysis.py`) |
+| `WF-CRE-0020` | une barre oblique suivie d'aucun code n'est pas de la forme | réalisée : `WBS_ELEMENT_INVALID` ; `test_a_wbs_element_without_the_expected_form_or_of_another_project_is_rejected` (#2721) |
+| `WF-DAT-0080` | l'historique annulable et les plans de collage se suppriment selon leur règle (corps seul) | réalisée : `core/history/interface/purge.py`, `core/exchanges/interface/purge.py` ; `test_purge.py`, `test_history.py` |
+| `WF-DEV-0030` | une part d'une année antérieure à l'année de référence n'est pas projetée | réalisée (`inflation_factor`) ; **écart corrigé ici** : son test ne cite pas l'exigence (US-2010) |
+| `WF-INTF-0100` | une lignée en double rejette ses lignes | réalisée : `DUPLICATE_LINEAGE` ; `test_a_lineage_that_two_rows_carry_rejects_both_and_leaves_its_line_as_it_is` |
+| `WF-INTF-0120` | la lignée en double, le fichier sans date de revue, la cellule de reste effacée | réalisée : `core/estimate/remaining/analysing.py` ; `test_a_task_the_file_completes_without_a_date_of_review_rejects_its_lines_set_to_nought`, `test_a_cell_left_empty_on_a_line_known_reads_nought` (`test_remaining_import.py`) |
+| `WF-PLA-0040` | un déplacement sous soi-même est refusé | réalisée : `NODE_CYCLE` ; `test_a_selection_moved_under_itself_or_one_of_its_subordinates_closes_a_loop_refused` ; #2546 se ferme |
+| `WF-PLA-0140` | la disposition en couloirs gardée d'une session à l'autre | réalisée (`DisplayPreferences.timelines`, EP-15) ; **écart corrigé ici** : le parcours qui enregistre les couloirs (`timelines.spec.ts:143`) cite `WF-IHM-0100-A` seul, et aucun test ne cite `WF-PLA-0140-A` pour cette phrase ; le fichier d'EP-06 la note à tort en écart (US-2010) |
+| `WF-REF-0100`, glossaire | la capacité déduite de l'effectif et du calendrier | **écart d'EP-10** (décision de l'auteur du 2026-11-12) |
+| `WF-REV-0080` | entre deux années de référence, chaque ligne de débours diffère aussi | réalisée par le calcul (`WF-DEV-0030`) ; **à confirmer par le lot** : `test_between_two_reference_years_only_the_re_estimated_amounts_differ_by_the_rates` (`test_comparison.py`) éprouve les taux, et la ligne de débours n'a pas de test repéré ; le lot l'ajoute s'il manque (US-2010) |
+
+### Décisions
+
+- **La branche de livraison est `epic/EP-24`, tirée d'`epic/cadrage`** (décision de l'auteur du
+  2026-11-12, qui revient sur celle du matin de livrer dans `epic/cadrage`) : l'outillage —
+  `make merge-queue-check EPIC=EP-nn`, la consigne d'`epic-deliverer`, `make check
+  BASE=origin/epic/EP-nn` — vaut alors tel quel, sans exception à écrire dans chaque issue. Le
+  cadreur l'a poussée, à la demande de l'auteur, contre `docs/dev/agents.md` (« Où un agent
+  s'arrête ») ; aucun livreur n'a donc à la tirer au premier lot. Écartées : livrer dans
+  `epic/cadrage`, que l'outillage ne sait pas nommer ; tirer `epic/EP-24` de `main`, qui aurait
+  laissé #2926 et #2928 à reporter.
+- **Les deux reprises** : la réalisation de #2922 reste dans EP-24 ; la capacité d'un rôle
+  (`WF-REF-0100-A`) va à EP-10 (décisions de l'auteur du 2026-11-12). Écarté pour la seconde : EP-24,
+  qui y aurait ajouté un contrat, une migration de données et une saisie.
+- **#859 et #1026 reviennent d'EP-13** (décision de l'auteur du 2026-11-12, contre celle du
+  2026-10-11) : ce sont des instabilités de la chaîne, que ce volet traite.
+- **`Offset` borné au contrat** (#2778), comme `LockVersion`. Écartés : la borne dans le code seul,
+  que le client engendré ignorerait ; rien.
+- **« Sans rôle » par un paramètre booléen** (#2917). Écartés : une valeur sentinelle dans
+  `access_role_ids`, qui ne serait plus une liste d'identifiants ; « Sans rôle » hors d'EP-24.
+- **Un appel par compte pour une action groupée** (#2917, décision de l'auteur du 2026-11-11).
+  Écartée : une opération groupée au contrat.
+- **Les décimaux, champ par champ, dans le code** (#2875), par la règle d'US-1840. Écartée : une
+  règle commune dans la base des modèles, qui ne connaît pas la colonne de chaque champ.
+- **Le NUL : recenser, éprouver, corriger** (#2891). Écarté : tout passer en `Text` sans épreuve.
+- **Un seul propriétaire de la liste des classeurs abîmés, dans `core/exchanges`** (#2723). Écarté :
+  un renvoi de `core/costs` à `core/estimate`, qui ferait dépendre l'un de l'autre pour une
+  constante.
+- **Un renommage attend que son rôle soit libre** (#2897). Écartés : l'ignorer en silence ; fermer
+  l'issue.
+- **Le lecteur MS Project préfère `Manual*`** pour une tâche manuelle (#2923 ; décision de l'auteur
+  du 2026-11-12). Écarté : un lecteur inchangé, qui aurait gardé le corpus tel quel mais lu d'un
+  fichier réel autre chose que MS Project.
+- **L'écart de calendrier compare aussi les calendriers de tâche** ; « Garder les durées » par
+  défaut ; les décalages gardent leur valeur sous « Garder les dates » (#2922 ; décisions de l'auteur
+  du 2026-11-12). Écartés : le calendrier du projet seul ; les décalages recalculés, qui n'ont pas de
+  valeur déterminée quand un autre prédécesseur pilote la tâche.
+- **Changer de règle relance l'analyse, par une opération** (#2922). Un état est une ressource
+  (`DECISIONS.md`, « Forme des chemins ») : `PUT …/duration-rule`. Écartés : un compte rendu qui
+  porterait les écarts des deux règles, deux fois plus lourd pour un planning de six mille tâches ;
+  la règle portée par `applyImport`, qui appliquerait un compte rendu que l'utilisateur n'a pas lu ;
+  rouvrir l'import, qui redéposerait le fichier.
+- **Un contrôle des inodes de `/tmp` n'est pas outillé** (décision de l'auteur du 2026-11-12).
+- **La mesure se lance du poste, pas dans la chaîne.** Écarté : un rapport écrit par un job de la
+  chaîne, qui ajouterait une dépendance et des minutes à ce qu'on veut raccourcir.
+- **`service / paths` coupé en quatre plateformes** plutôt qu'une plateforme partagée par plusieurs
+  runners, que GitHub ne sait pas offrir. Écarté : retirer des parcours.
+- **Une image de travail de l'e2e sur ghcr.io** plutôt qu'un miroir des paquets d'Ubuntu. Écarté :
+  le seul paquet `make` déposé ailleurs, qui laisserait `make e2e-browsers` sur les miroirs.
+- **La révision 1.0.5 va dans `main`** par une pull request de l'auteur, puis `epic/EP-24`
+  reprend `main` ; son lot est au tableau de suivi pour que ses dépendants l'attendent.
 
 ---
 
@@ -354,7 +620,7 @@ premier écran (#2914, #2915).
   permissions, jamais sur le nom d'un rôle, et n'offre aucune redirection ;
 - écart : `WF-IHM-0120-A` — « Un contributeur de deux projets les voit à sa connexion ; la levée du filtre montre aussi les projets qu'il peut ouvrir sans en être contributeur, et aucun autre. » : constaté par EP-04, inchangé ;
 - écart : `WF-IHM-0120-A` — « Sur une installation au référentiel incomplet, l'accueil nomme les prérequis manquants et mène au référentiel. » : idem ;
-- la réalisation, déjà dans `epic/cadrage` par #2927 et #2928, est vérifiée une fois la 1.0.5
+- la réalisation, déjà dans `epic/EP-24` par #2927 et #2928, est vérifiée une fois la 1.0.5
   acceptée : chaque phrase nouvelle du Vérif a un test qui la cite, ou le lot l'écrit.
 
 **Notes de réalisation.** Les décisions de #2914 et de #2915 font foi. La couverture de #2914 est
@@ -819,7 +1085,7 @@ soient écrites dans le document, et que chaque phrase de la 1.0.4 ait son test 
   ajouté la phrase du refus `NODE_CYCLE`.
 
 **Notes de réalisation.** Une modification de la spécification va dans `main`, par une pull request
-de l'auteur, puis `epic/cadrage` reprend `main` ; elle n'est pas le travail d'un livreur. Le lot est
+de l'auteur, puis `epic/EP-24` reprend `main` ; elle n'est pas le travail d'un livreur. Le lot est
 dans le tableau de suivi pour que ses dépendants l'attendent.
 
 **Hors périmètre.** La capacité d'un rôle (`WF-REF-0100-A`), à EP-10.
