@@ -24,6 +24,7 @@ path = [
     "frontend/messages/*.json",
     "frontend/components.json",
     "frontend/public/*.svg",
+    "deploy/keycloak/themes/waterfall/login/resources/img/*",
     "frontend/src/app/icon.svg",
     "frontend/src/navigation/functions.json",
     "frontend/src/api/generated/**",
@@ -77,3 +78,11 @@ path = "backend/src/waterfall/core/exchanges/fonts/DejaVuSans.ttf"
 precedence = "override"
 SPDX-FileCopyrightText = "2003 Bitstream, Inc."
 SPDX-License-Identifier = "Bitstream-Vera"
+
+# The font of the login pages of Keycloak (deploy/keycloak/themes/waterfall/login): Geist, the
+# font of the front, copied from its package, as Keycloak serves no file of the front.
+[[annotations]]
+path = "deploy/keycloak/themes/waterfall/login/resources/fonts/Geist-Variable.woff2"
+precedence = "override"
+SPDX-FileCopyrightText = "2023 Vercel, in collaboration with basement.studio"
+SPDX-License-Identifier = "OFL-1.1"

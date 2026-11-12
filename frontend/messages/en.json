@@ -2364,6 +2364,13 @@
     "noProjects": "No project.",
     "noContributedProjects": "You contribute to no project."
   },
+  "homeWithoutProject": {
+    "title": "No project to open",
+    "withFunctions": "Your account cannot open any project. It holds other functions, which you reach from here or from the navigation:",
+    "withoutRole": "Your account has no role yet. An administrator must give you one before you can use Waterfall.",
+    "inProjectOnly": "Your account holds functions that are exercised in a project, but it cannot open any project. Ask an administrator to give you the reading of the projects.",
+    "functions": "Functions of your account"
+  },
   "referenceReadiness": {
     "title": "Incomplete reference data",
     "explanation": "No project can be created until the common reference data has:"

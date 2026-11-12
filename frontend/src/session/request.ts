@@ -57,7 +57,7 @@ function refusedState(code: unknown): SessionState {
 
 /** The state of the session of the request, read once per request, however many ask. */
 export const requestSessionState = cache(async (): Promise<SessionState> => {
-  const answer = await reach(() => serverClient().GET("/me"));
+  const answer = await reach(() => serverClient({ session: "optional" }).GET("/me"));
   if (answer?.data !== undefined) {
     return { kind: "open", account: answer.data };
   }
