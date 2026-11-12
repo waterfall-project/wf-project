@@ -112,14 +112,14 @@ describe("the chips of the filters of the backups", () => {
   it.each(CASES)(
     "tell $name, and lift it by the parameters of the address that say it [WF-IHM-0130-A]",
     async ({ search, chip, lifts }) => {
-      page.search = `sort_by=taken_at&${search}`;
+      page.search = `sort_by=taken_at&offset=50&${search}`;
       render(list());
       const cross = screen.getByRole("button", {
         name: (name) => name.replace(/\s/g, " ") === `Retirer le filtre ${chip}`,
       });
       await userEvent.click(cross);
       const rest = new URLSearchParams(page.search);
-      for (const name of lifts) {
+      for (const name of [...lifts, "offset"]) {
         rest.delete(name);
       }
       expect(router.push.mock.calls.at(-1)?.[0]).toBe(`/admin/backups?${rest.toString()}`);

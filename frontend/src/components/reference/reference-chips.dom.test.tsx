@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -119,10 +119,10 @@ describe("the chips of the filters of the resource roles", () => {
       lifts: ["role_code"],
     },
     {
-      name: "a node of organisation the screen does not offer, by its identifier",
+      name: "a node of organisation the screen does not offer, by its kind and never its identifier",
       search: "role_org_node_id=unknown",
       filters: { orgNode: "unknown" },
-      chip: "Nœud d’organisation : unknown",
+      chip: "Nœud d’organisation : Un nœud",
       lifts: ["role_org_node_id"],
     },
     {
@@ -239,6 +239,24 @@ describe("the chips of the filters of the other lists of the reference data", ()
     unmount();
     render(list(false));
     expect(screen.queryByRole("button", { name: /^Filtres/ })).toBeNull();
+    cleanup();
+    // A session that cannot read the deactivated ones, whose address carries a state all the same:
+    // the chip and « Effacer » lift it.
+    page.search = "calendar_is_active=false";
+    render(
+      inFrench(
+        <CalendarList
+          rows={calendars.items}
+          page={calendars.meta}
+          query={QUERY}
+          preferences={undefined}
+          editable={false}
+          state={false}
+        />,
+      ),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
+    expect(lastAddress()).toBe("/reference/resources");
   });
 
   it("tell the types of the natures of cost and their state [WF-IHM-0130-A]", async () => {

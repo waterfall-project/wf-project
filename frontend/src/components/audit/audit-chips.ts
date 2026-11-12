@@ -86,7 +86,8 @@ function useTold(names: AuditNames | undefined) {
     project: (id: string): string => {
       const project = names?.projects.find((each) => each.id === id) ?? names?.named.project;
       if (project === undefined) {
-        return id;
+        // Never an identifier: a project the journal does not name is told by its kind.
+        return t("grid.filtering.projectUnknown");
       }
       return project.code === null
         ? project.label
@@ -137,7 +138,7 @@ export function useAuditChips(
     kit.add(
       OBJECT,
       t("grid.columns.auditObject"),
-      object === undefined ? filters.object : objectName(object),
+      object === undefined ? t("grid.filtering.objectUnknown") : objectName(object),
       [OBJECT],
     );
   }

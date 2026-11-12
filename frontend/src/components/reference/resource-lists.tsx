@@ -446,17 +446,19 @@ export function CalendarList({
   const t = useTranslations("reference");
   const title = t("calendars.title");
   const narrowed = some(query.search, state);
-  // The state is the one filter of the calendars, offered to a session that reads the deactivated ones.
-  const panel = editable ? (
-    <FilterFields hint={false}>
-      <StateFilter
-        name={CALENDAR_STATE}
-        label={t("stateFilter.of", { list: title })}
-        chosen={state}
-        page={CALENDAR_ADDRESS.offset}
-      />
-    </FilterFields>
-  ) : undefined;
+  // The state is the one filter of the calendars, offered to a session that reads the deactivated ones,
+  // and to any whose address already carries one: its chip and « Effacer » lift it.
+  const panel =
+    editable || state !== undefined ? (
+      <FilterFields hint={false}>
+        <StateFilter
+          name={CALENDAR_STATE}
+          label={t("stateFilter.of", { list: title })}
+          chosen={state}
+          page={CALENDAR_ADDRESS.offset}
+        />
+      </FilterFields>
+    ) : undefined;
   return (
     <CommandedList kind="calendar">
       <ReferenceSection

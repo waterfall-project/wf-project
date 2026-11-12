@@ -790,6 +790,75 @@ describe("the filters of the journal", () => {
     );
   });
 
+  it.each([
+    {
+      name: "the period",
+      search: "from=2026-05-01T06%3A00%3A00Z&to=2026-06-01T00%3A00%3A00Z",
+      chip: /^Date : du .* au /,
+      lifts: ["from", "to"],
+    },
+    {
+      name: "the nature of the author",
+      search: "actor_kind=platform",
+      chip: /^Nature de l’auteur : La plateforme$/,
+      lifts: ["actor_kind"],
+    },
+    {
+      name: "the author",
+      search: `user_id=${CAMILLE}`,
+      chip: /^Auteur : Camille Martin$/,
+      lifts: ["user_id"],
+    },
+    {
+      name: "the actions",
+      search: "actions=backup",
+      chip: /^Action : Sauvegarde$/,
+      lifts: ["actions"],
+    },
+    {
+      name: "the project",
+      search: `project_id=${PROJECT}`,
+      chip: /^Projet : PRJ-001 · /,
+      lifts: ["project_id"],
+    },
+    {
+      name: "the nature of the object",
+      search: "object_kind=revision",
+      chip: /^Nature de l’objet : Révision$/,
+      lifts: ["object_kind"],
+    },
+    {
+      name: "the object whose history is asked",
+      search: "object_id=01926f3a-7c00-7000-8000-000000000101",
+      chip: /^Objet : Référence$/,
+      lifts: ["object_id"],
+    },
+    {
+      name: "the correlation",
+      search: `correlation_id=${MERGE}`,
+      chip: new RegExp(`^Corrélation : ${MERGE}$`),
+      lifts: ["correlation_id"],
+    },
+  ])(
+    "tell $name by a chip, which a cross lifts by its parameters, back to the first page [WF-IHM-0130-A] (#2916)",
+    async ({ search, chip, lifts }) => {
+      page.search = `sort_by=occurred_at&offset=50&${search}`;
+      render(journal({ named: { ...NAMED, object: { label: "Référence", kind: "revision" } } }));
+      const chips = screen.getByRole("list", { name: "Filtres actifs" });
+      expect(chips.children).toHaveLength(1);
+      await userEvent.click(
+        within(chips).getByRole("button", {
+          name: (name) => chip.test(name.replace(/^Retirer le filtre /, "").replace(/\s/g, " ")),
+        }),
+      );
+      const rest = new URLSearchParams(page.search);
+      for (const name of [...lifts, "offset"]) {
+        rest.delete(name);
+      }
+      expect(lastAddress()).toBe(`/admin/audit-log?${rest.toString()}`);
+    },
+  );
+
   it("tell the period, the authors, the project and the correlation by chips, and clear them all, the sort kept [WF-IHM-0130-A] (#2916)", async () => {
     page.search = `sort_by=occurred_at&actor_kind=platform&project_id=${PROJECT}&correlation_id=${MERGE}&from=2026-05-01T06%3A00%3A00Z`;
     render(journal());

@@ -56,12 +56,18 @@ function useStateChip(): (kit: ChipKit, key: string, state: boolean | undefined)
 }
 
 /** An object chosen, told by its code and its name as the screen offers it, else its identifier. */
-function useChosen(): (id: string, offered: readonly Choice[] | undefined) => string {
+function useChosen(): (
+  id: string,
+  offered: readonly Choice[] | undefined,
+  unknown: "node" | "category" | "calendar" | "nature",
+) => string {
   const t = useTranslations("reference");
-  return (id, offered) => {
+  const told = useTranslations("grid.filtering");
+  return (id, offered, unknown) => {
     const found = offered?.find((choice) => choice.id === id);
     if (found === undefined) {
-      return id;
+      // Never an identifier: an object the screen does not offer is told by its kind.
+      return told(`${unknown}Unknown`);
     }
     return found.code === undefined || found.code === ""
       ? found.label
@@ -108,13 +114,13 @@ export function useRoleChips(
     kit.add(ROLE_CODE, t("code"), filters.code, [ROLE_CODE]);
   }
   const objects = [
-    [ROLE_ORG_NODE, t("orgNode"), filters.orgNode, offered.nodes],
-    [ROLE_COST_CATEGORY, t("costCategory"), filters.category, offered.categories],
-    [ROLE_CALENDAR, t("calendar"), filters.calendar, offered.calendars],
+    [ROLE_ORG_NODE, t("orgNode"), filters.orgNode, offered.nodes, "node"],
+    [ROLE_COST_CATEGORY, t("costCategory"), filters.category, offered.categories, "category"],
+    [ROLE_CALENDAR, t("calendar"), filters.calendar, offered.calendars, "calendar"],
   ] as const;
-  for (const [key, name, id, list] of objects) {
+  for (const [key, name, id, list, unknown] of objects) {
     if (id !== undefined) {
-      kit.add(key, name, chosen(id, list), [key]);
+      kit.add(key, name, chosen(id, list, unknown), [key]);
     }
   }
   state(kit, ROLE_STATE, filters.state);
@@ -161,7 +167,9 @@ export function useCostCategoryChips(
   const kit = useChipKit();
   const chosen = useChosen();
   if (nature !== undefined) {
-    kit.add(CATEGORY_COST_TYPE, t("costType"), chosen(nature, natures), [CATEGORY_COST_TYPE]);
+    kit.add(CATEGORY_COST_TYPE, t("costType"), chosen(nature, natures, "nature"), [
+      CATEGORY_COST_TYPE,
+    ]);
   }
   useStateChip()(kit, CATEGORY_STATE, active);
   return kit.chips;
