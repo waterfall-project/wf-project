@@ -105,12 +105,11 @@ jobs:
   # The front built for production once for the whole run (US-0590): each part of the end-to-end
   # paths, the measure and the paths against the service download this build and play it, and
   # build nothing again (E2E_BUILT). Here, whenever either of them runs: e2e.yml and service.yml
-  # are two called workflows, whose jobs no `needs` joins. On the runner, as front.yml builds: the
-  # parts of e2e.yml start it in Playwright's image, on its Node 24 (built here on Node 26: pnpm 12
-  # does not stop on `engines` without engine-strict, and `next start` runs the built files on the
-  # image's Node, which Next supports) and its Ubuntu noble, amd64, at another path of the
-  # workspace, which the build should not depend on (checked by moving the build on a workstation;
-  # the proof in the chain is a run of `chain` on the branch); service.yml on the runner.
+  # are two called workflows, whose jobs no `needs` joins. On the runner, as front.yml builds, on
+  # Node 26: the parts of e2e.yml and the paths of service.yml start it in the work image of the
+  # paths (deploy/e2e), on the same Node 26 and on Ubuntu noble, amd64; the parts at another path
+  # of the workspace, which the build should not depend on (checked by moving the build on a
+  # workstation; the proof in the chain is a run of `chain` on the branch).
   front-build:
     needs: changes
     if: >-
