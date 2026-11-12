@@ -56,6 +56,12 @@ function AllLists() {
   );
 }
 
+/** Open the panel of the filters of the list of a title (#2916): closed, it is hidden from the reader. */
+async function openFilters(title: string): Promise<void> {
+  const list = screen.getByRole("region", { name: title });
+  await userEvent.click(within(list).getByRole("button", { name: /^Filtres/ }));
+}
+
 /** The address of the last navigation the screen asked. */
 function lastAddress(): unknown {
   return router.push.mock.calls.at(-1)?.[0];
@@ -184,6 +190,7 @@ describe("the grids of the settings of a project", () => {
       "Armoires{Enter}",
     );
     expect(lastAddress()).toBe(`${PATH}?contributor_kinds=contributor&breakdown_search=Armoires`);
+    await openFilters("Lotissement");
     await pick("Filtrer par nature", "Livrable");
     expect(lastAddress()).toBe(
       `${PATH}?contributor_kinds=contributor&breakdown_search=Armoires&breakdown_kinds=deliverable`,
@@ -213,11 +220,13 @@ describe("the grids of the settings of a project", () => {
   it("filter the sub-projects on their actual costs and the contributors on the state of their account, under the names of their grid", async () => {
     page.search = "subproject_search=SP";
     render(settings());
+    await openFilters("Sous-projets");
     await userEvent.selectOptions(
       screen.getByRole("combobox", { name: "Coûts réels" }),
       "Sans coût réel imputé",
     );
     expect(lastAddress()).toBe(`${PATH}?subproject_search=SP&subproject_has_actual_costs=false`);
+    await openFilters("Contributeurs");
     await userEvent.selectOptions(
       screen.getByRole("combobox", { name: "État du compte" }),
       "Comptes désactivés",
@@ -236,6 +245,7 @@ describe("the grids of the settings of a project", () => {
   it("filter the contributors by capacity under the names of their grid, the capacities in the order of the contract [WF-IHM-0130-A]", async () => {
     page.search = "subproject_search=SP";
     const { rerender } = render(settings());
+    await openFilters("Contributeurs");
     await pick("Filtrer par qualité", "Contributeur");
     expect(lastAddress()).toBe(`${PATH}?subproject_search=SP&contributor_kinds=contributor`);
     page.search = "subproject_search=SP&contributor_kinds=contributor";
@@ -250,6 +260,8 @@ describe("the grids of the settings of a project", () => {
     expect(
       screen.getByRole("grid", { name: "Contributeurs" }).querySelector("tfoot tr")?.textContent,
     ).toBe("3 contributeurs");
+    // The list was mounted anew by the rendering above: its panel is closed again.
+    await openFilters("Contributeurs");
     await pick("Filtrer par qualité", "Chef de projet");
     // Every capacity retained is no filter: it is lifted, and « every capacity » is checked.
     expect(lastAddress()).toBe(`${PATH}?subproject_search=SP`);
@@ -273,5 +285,44 @@ describe("the grids of the settings of a project", () => {
     cleanup();
     render(tree(PROJECT));
     expect(rows()).toHaveLength(3);
+  });
+});
+
+describe("the chips of the filters of the settings of a project", () => {
+  it("tell the kinds of the work breakdown, lifted with the rest of the address kept [WF-IHM-0130-A] (#2916)", async () => {
+    page.search = "contributor_kinds=contributor&breakdown_kinds=deliverable";
+    render(
+      settings(
+        <WorkBreakdownList breakdown={breakdown} project={PROJECT} kinds={["deliverable"]} />,
+      ),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Retirer le filtre Nature : Livrable" }),
+    );
+    expect(lastAddress()).toBe(`${PATH}?contributor_kinds=contributor`);
+  });
+
+  it("tell the actual costs of the sub-projects, and clear them [WF-IHM-0130-A] (#2916)", async () => {
+    page.search = "subproject_search=SP&subproject_has_actual_costs=false";
+    render(settings(<SubprojectList subprojects={subprojects} actualCosts={false} />));
+    const chips = screen.getByRole("list", { name: "Filtres actifs" });
+    expect(chips).toHaveTextContent("Coûts réels : Sans coût réel imputé");
+    await userEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
+    expect(lastAddress()).toBe(`${PATH}?subproject_search=SP`);
+  });
+
+  it("tell the capacities and the accounts of the contributors, counted on the button of the filters [WF-IHM-0130-A] (#2916)", async () => {
+    page.search = "contributor_kinds=contributor&contributor_is_active=false";
+    render(
+      settings(
+        <ContributorList contributors={contributors} kinds={["contributor"]} active={false} />,
+      ),
+    );
+    expect(screen.getByRole("list", { name: "Filtres actifs" }).children).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Filtres (2)" })).toBeVisible();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Retirer le filtre Compte : Comptes désactivés" }),
+    );
+    expect(lastAddress()).toBe(`${PATH}?contributor_kinds=contributor`);
   });
 });
