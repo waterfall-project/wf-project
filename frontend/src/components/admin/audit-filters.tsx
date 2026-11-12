@@ -8,11 +8,14 @@
  * and an author (`AuthorFilter`), an account chosen that the page does not offer named as the page
  * read it.
  *
+ * The filters stand in a section folded at the bottom of the panel (`AuditSection`, #2916).
+ *
  * Neither server nor client: the pages render it with their filters.
  */
 import { useTranslations } from "next-intl";
 import { Fragment } from "react";
 
+import { AuditSection } from "@/components/grid/filter-fields";
 import { PeriodFilter } from "@/components/grid/period-filter";
 
 import { AUTHORS, type AuditFilters, type AuthorChoice, PERIODS, WRITTEN } from "./audit-address";
@@ -34,25 +37,29 @@ export function AuditFilterBar({
   readonly page?: string | undefined;
 }) {
   const t = useTranslations("grid.columns");
-  return WRITTEN.map((column) => (
-    <Fragment key={column}>
-      <PeriodFilter
-        label={t(`${column}At`)}
-        kind="day"
-        period={filters.periods[column]}
-        refused={filters.refused?.[column]}
-        names={PERIODS[column]}
-        page={page}
-      />
-      <AuthorFilter
-        label={t(`${column}By`)}
-        names={AUTHORS[column]}
-        chosen={filters.authors[column]}
-        offered={authors}
-        named={filters.named ?? []}
-        searchable={searchable}
-        page={page}
-      />
-    </Fragment>
-  ));
+  return (
+    <AuditSection forced={filters.refused !== undefined}>
+      {WRITTEN.map((column) => (
+        <Fragment key={column}>
+          <PeriodFilter
+            label={t(`${column}At`)}
+            kind="day"
+            period={filters.periods[column]}
+            refused={filters.refused?.[column]}
+            names={PERIODS[column]}
+            page={page}
+          />
+          <AuthorFilter
+            label={t(`${column}By`)}
+            names={AUTHORS[column]}
+            chosen={filters.authors[column]}
+            offered={authors}
+            named={filters.named ?? []}
+            searchable={searchable}
+            page={page}
+          />
+        </Fragment>
+      ))}
+    </AuditSection>
+  );
 }

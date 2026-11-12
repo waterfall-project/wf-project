@@ -16,16 +16,17 @@
  */
 "use client";
 
-import { Circle, CircleCheck, Eye, EyeOff, ListFilter } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useOptimistic, useTransition } from "react";
 
+import { CheckMenu } from "@/components/grid/check-menu";
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import { filterHref } from "@/components/grid/filters";
 import { usePendingAddress, usePendingLink } from "@/components/grid/pending-address";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 
 import { INCLUDE_INACTIVE } from "./address";
 import { treeLabel } from "./org-tree";
@@ -123,7 +124,7 @@ export function StateFilter({
 }: {
   /** The parameter of the address the filter writes. */
   readonly name: string;
-  /** The name of the group of buttons: the state of which list. */
+  /** The name of the menu: the state of which list. */
   readonly label: string;
   /** The state the address filters on; none, every state. */
   readonly chosen: boolean | undefined;
@@ -138,34 +139,22 @@ export function StateFilter({
   // it (défaut n° 21 de `typescript.md`).
   const [shown, show] = useOptimistic(chosen);
   const [, startTransition] = useTransition();
-  const states: readonly { readonly value: boolean | undefined; readonly text: string }[] = [
-    { value: undefined, text: t("every") },
-    { value: true, text: t("active") },
-    { value: false, text: t("inactive") },
-  ];
   return (
-    <div role="group" aria-label={label} className="flex flex-wrap items-center gap-1.5">
-      {states.map(({ value, text }) => {
-        const pressed = shown === value;
-        const Icon = value === undefined ? ListFilter : pressed ? CircleCheck : Circle;
-        return (
-          <Button
-            key={text}
-            size="sm"
-            variant={pressed ? "default" : "outline"}
-            aria-pressed={pressed}
-            onClick={() => {
-              startTransition(() => {
-                show(value);
-                request((query) => filterHref(pathname, query, name, value?.toString(), page));
-              });
-            }}
-          >
-            <Icon aria-hidden="true" className="size-4" />
-            {text}
-          </Button>
-        );
-      })}
-    </div>
+    <CheckMenu
+      label={label}
+      every={t("every")}
+      multiple={false}
+      options={[
+        { value: "true", text: t("active") },
+        { value: "false", text: t("inactive") },
+      ]}
+      chosen={shown === undefined ? [] : [String(shown)]}
+      onChange={([value]) => {
+        startTransition(() => {
+          show(value === undefined ? undefined : value === "true");
+          request((query) => filterHref(pathname, query, name, value, page));
+        });
+      }}
+    />
   );
 }

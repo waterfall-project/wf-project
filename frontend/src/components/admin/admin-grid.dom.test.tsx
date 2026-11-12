@@ -15,8 +15,9 @@ import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { openMenu, pick } from "@/test/check-menu";
 import { refusedBounds } from "@/components/grid/filters";
-import { NO_AUDIT } from "@/test/accounts";
+import { NO_AUDIT, openFilters } from "@/test/accounts";
 import { example, type FakeClient, fakeClient, held, type Problem } from "@/test/fixtures";
 import { heldLink } from "@/test/held-link";
 import { keysOf } from "@/test/grid-preferences";
@@ -195,10 +196,10 @@ describe("the grid of the accounts", () => {
   it("presents each account with its origin, its roles and its node as the server names them, and says in its totals how many the server retained", () => {
     render(userList());
     const grid = screen.getByRole("grid", { name: "Comptes utilisateurs" });
-    const moreau = within(grid).getByRole("row", { name: /^Moreau/ });
+    const moreau = within(grid).getByRole("row", { name: /^\d+ — poignée de la ligne Moreau/ });
     // Its audit columns after its state, each instant in the local time of the workstation.
     expect(moreau.textContent).toMatch(
-      /^MoreauAlixalix\.moreau@example\.comCréé dans WaterfallBureau d'études électricitéChef de projetDésactivé.+Camille Martin.+Camille Martin$/,
+      /^\d+MoreauAlixalix\.moreau@example\.comCréé dans WaterfallBureau d'études électricitéChef de projetDésactivé.+Camille Martin.+Camille Martin$/,
     );
     expect([...moreau.querySelectorAll("time")].map((time) => time.dateTime)).toEqual([
       "2026-01-12T10:00:00Z",
@@ -244,42 +245,37 @@ describe("the grid of the accounts", () => {
   it("is filtered by origin under the name of the contract, the values in its order, back to the first page", async () => {
     page.search = "sort_by=email&sort_order=desc&offset=2";
     const { rerender } = render(userList(NO_QUERY, second));
-    const filter = screen.getByRole("group", { name: "Filtrer par origine" });
-    expect(within(filter).getByRole("button", { name: "Toutes les origines" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    await userEvent.click(within(filter).getByRole("button", { name: "Importé de l’annuaire" }));
+    await openFilters();
+    await openMenu("Filtrer par origine");
+    expect(screen.getByRole("checkbox", { name: "Toutes les origines" })).toBeChecked();
+    await userEvent.click(screen.getByRole("checkbox", { name: "Importé de l’annuaire" }));
     expect(lastAddress()).toBe("/admin/users?sort_by=email&sort_order=desc&origins=directory");
     // The page answers; a second origin chosen keeps the first, written in the order of the
     // contract.
     page.search = "sort_by=email&sort_order=desc&origins=directory";
     rerender(userList(NO_QUERY, users, { origins: ["directory"] }));
-    expect(within(filter).getByRole("button", { name: "Importé de l’annuaire" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    await userEvent.click(within(filter).getByRole("button", { name: "Créé dans Waterfall" }));
+    expect(screen.getByRole("checkbox", { name: "Importé de l’annuaire" })).toBeChecked();
+    await userEvent.click(screen.getByRole("checkbox", { name: "Créé dans Waterfall" }));
     expect(lastAddress()).toBe(
       "/admin/users?sort_by=email&sort_order=desc&origins=local%2Cdirectory",
     );
-    await userEvent.click(within(filter).getByRole("button", { name: "Toutes les origines" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Toutes les origines" }));
     expect(lastAddress()).toBe("/admin/users?sort_by=email&sort_order=desc");
   });
 
   it("is filtered by access role under the name of the contract, choosing every role still filtering, back to the first page [WF-IHM-0130-A]", async () => {
     page.search = "offset=2";
     const { rerender } = render(userList(NO_QUERY, second));
-    const filter = screen.getByRole("group", { name: "Filtrer par rôle" });
+    await openFilters();
     const first = roleChoices[0] ?? { id: "", label: "" };
-    await userEvent.click(within(filter).getByRole("button", { name: first.label }));
+    await pick("Filtrer par rôle", first.label);
     expect(lastAddress()).toBe(`/admin/users?access_role_ids=${first.id}`);
     // Every role chosen still filters: an account without a role is retained by none.
     const every = roleChoices.map((role) => role.id);
     page.search = `access_role_ids=${every.slice(0, -1).join("%2C")}`;
     rerender(userList(NO_QUERY, users, { accessRoles: every.slice(0, -1) }));
     const last = roleChoices.at(-1) ?? first;
-    await userEvent.click(within(filter).getByRole("button", { name: last.label }));
+    await pick("Filtrer par rôle", last.label);
     expect(lastAddress()).toBe(`/admin/users?access_role_ids=${every.join("%2C")}`);
   });
 
@@ -287,6 +283,7 @@ describe("the grid of the accounts", () => {
     // Every account by default: « Tous les états » chosen, and no other control of the state.
     page.search = "offset=2";
     const { rerender } = render(userList(NO_QUERY, second));
+    await openFilters();
     const state = () => screen.getByRole("combobox", { name: "État du compte" });
     expect(state()).toHaveValue("");
     expect(screen.queryByRole("link", { name: /les désactivés$/ })).toBeNull();
@@ -306,6 +303,7 @@ describe("the grid of the accounts", () => {
   it("is filtered by node of organisation under the name of the contract, back to the first page", async () => {
     page.search = "offset=2";
     render(userList(NO_QUERY, second));
+    await openFilters();
     const bureau = nodes[1]?.id ?? "";
     await userEvent.selectOptions(
       screen.getByRole("combobox", { name: "Nœud d’organisation" }),
@@ -332,8 +330,8 @@ describe("the grid of the accounts", () => {
   it("turns a page from a filter under way to the first page of the accounts", async () => {
     page.search = "offset=2";
     render(userList(NO_QUERY, second));
-    const filter = screen.getByRole("group", { name: "Filtrer par origine" });
-    await userEvent.click(within(filter).getByRole("button", { name: "Importé de l’annuaire" }));
+    await openFilters();
+    await pick("Filtrer par origine", "Importé de l’annuaire");
     expect(lastAddress()).toBe("/admin/users?origins=directory");
     // The origin asked and not arrived: the accounts read otherwise start from their first page.
     await userEvent.click(screen.getByRole("link", { name: /Page suivante/ }));
@@ -358,7 +356,7 @@ describe("an anonymised account", () => {
     const grid = screen.getByRole("grid", { name: "Comptes utilisateurs" });
     const row = within(grid).getAllByRole("row")[1];
     expect(row).toHaveTextContent(
-      /^Compte anonymiséCréé dans WaterfallBureau d'études électricitéChef de projetDésactivé.+Camille Martin.+Camille Martin$/,
+      /^\d+Compte anonymiséCréé dans WaterfallBureau d'études électricitéChef de projetDésactivé.+Camille Martin.+Camille Martin$/,
     );
     expect(grid).not.toHaveTextContent(/Alix|Moreau|alix\.moreau/);
   });
@@ -784,10 +782,10 @@ describe("the grid of the access roles", () => {
     render(roleList(false));
     const bounds = screen.getByRole("form", { name: "Bornes des rôles d’habilitation" });
     await userEvent.type(
-      within(bounds).getByRole("textbox", { name: "Comptes porteurs, max." }),
+      within(bounds).getByRole("textbox", { name: "Comptes porteurs, au" }),
       "0",
     );
-    await userEvent.click(within(bounds).getByRole("button", { name: "Filtrer" }));
+    await userEvent.keyboard("{Enter}");
     expect(lastAddress()).toBe("/admin/access-roles?holder_count_max=0");
   });
 
@@ -805,7 +803,7 @@ describe("the grid of the access roles", () => {
         [],
       ),
     );
-    const most = screen.getByRole("textbox", { name: "Comptes porteurs, max." });
+    const most = screen.getByRole("textbox", { name: "Comptes porteurs, au" });
     expect(most).toHaveAttribute("aria-invalid", "true");
     expect(most).toHaveFocus();
     expect(most).toHaveAccessibleDescription(

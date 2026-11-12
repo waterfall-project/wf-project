@@ -21,6 +21,7 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { CurrencyProvider } from "@/currency/context";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
+import { closeMenu, openMenu, pick } from "@/test/check-menu";
 import { roomForCharts } from "@/test/chart-room";
 import { example, fakeClient } from "@/test/fixtures";
 
@@ -319,7 +320,7 @@ describe("the list of the projects of the portfolio", () => {
         </>,
       ),
     );
-    await userEvent.click(screen.getByRole("button", { name: "Alerte" }));
+    await pick("Filtre par zone des indices", "Alerte");
     expect(await lastAddress()).toBe(`${PATHNAME}?zones=alert`);
     // The zone asked and not arrived: the projects read otherwise start from their first page.
     await userEvent.click(screen.getByRole("link", { name: /Projets suivants/ }));
@@ -328,34 +329,33 @@ describe("the list of the projects of the portfolio", () => {
 });
 
 describe("the filter of the list of the projects by zone", () => {
-  it("offers each zone of the contract by its signal, every zone pressed when the address names none, and asks the server for a zone chosen, back to the first page", async () => {
+  it("offers each zone of the contract by its signal, every zone checked when the address names none, and asks the server for a zone chosen, back to the first page", async () => {
     // #313, WF-IHM-0130: the zones `getPortfolioProjects` filters on, offered like the states.
     page.search = "states=in_progress&offset=50";
     const { container } = render(inLanguage(<ZoneFilter zones={[]} />));
-    const filter = screen.getByRole("group", { name: "Filtre par zone des indices" });
-    expect(within(filter).getByRole("button", { name: "Toutes les zones" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    const list = await openMenu("Filtre par zone des indices");
+    expect(within(list).getByRole("checkbox", { name: "Toutes les zones" })).toBeChecked();
     expect(
-      within(filter)
-        .getAllByRole("button")
+      within(list)
+        .getAllByRole("checkbox")
         .slice(1)
-        .map((button) => button.textContent),
+        .map((box) => box.closest("label")?.textContent),
     ).toEqual(["Nominal", "Vigilance", "Alerte"]);
-    await userEvent.click(within(filter).getByRole("button", { name: "Alerte" }));
+    await userEvent.click(within(list).getByRole("checkbox", { name: "Alerte" }));
     expect(await lastAddress()).toBe(`${PATHNAME}?states=in_progress&zones=alert`);
+    await closeMenu();
     await expectAccessible(container);
   });
 
-  it("adds a zone to those asked, and releases one pressed", async () => {
+  it("adds a zone to those asked, and releases one checked", async () => {
     page.search = "zones=watch,alert";
     render(inLanguage(<ZoneFilter zones={["watch", "alert"]} />));
-    const alert = screen.getByRole("button", { name: "Alerte" });
-    expect(alert).toHaveAttribute("aria-pressed", "true");
+    await openMenu("Filtre par zone des indices");
+    const alert = screen.getByRole("checkbox", { name: "Alerte" });
+    expect(alert).toBeChecked();
     await userEvent.click(alert);
     expect(await lastAddress()).toBe(`${PATHNAME}?zones=watch`);
-    await userEvent.click(screen.getByRole("button", { name: "Toutes les zones" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Toutes les zones" }));
     expect(await lastAddress()).toBe(PATHNAME);
   });
 });

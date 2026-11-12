@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { closeMenu, menuButton, openMenu, pick } from "./check-menu";
 import { expect, type Locator, type Page } from "@playwright/test";
 
 import { compile } from "./compile";
@@ -75,17 +76,14 @@ async function restoreHome(
     return;
   }
   await page.goto("/");
-  const states = page.getByRole("group", { name: "Filtre par état" });
-  await expect(states).toBeVisible({ timeout: WORKING });
-  await states.getByRole("button", { name: "Tous les états" }).click();
-  await states.getByRole("button", { name: "Créé" }).click();
-  await states.getByRole("button", { name: "Chiffrage" }).click();
-  await states.getByRole("button", { name: "En cours" }).click();
-  await expect(states.getByRole("button", { name: "En cours" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-    { timeout: WORKING },
-  );
+  await expect(menuButton(page, "Filtre par état")).toBeVisible({ timeout: WORKING });
+  await pick(page, "Filtre par état", "Tous les états");
+  await pick(page, "Filtre par état", "Créé");
+  await pick(page, "Filtre par état", "Chiffrage");
+  await pick(page, "Filtre par état", "En cours");
+  await expect(menuButton(page, "Filtre par état")).toContainText("3 sélectionnés", {
+    timeout: WORKING,
+  });
   await liftSort(list);
   // What the account keeps of the home: no sort, and no state chosen, the default being unwritten.
   await expect
@@ -173,40 +171,26 @@ test("the home sorts its projects and filters them by state on the server, from 
       list,
       "/?sort_by=code&sort_order=asc",
     );
-    const states = page.getByRole("group", { name: "Filtre par état" });
     // The filter by default is said, Créé, Chiffrage and En cours pressed (US-0660/L4, #1401;
     // US-1030, #1748).
     await expect(
       page.getByRole("region", { name: "Filtre par défaut de la liste par état" }),
     ).toBeVisible();
-    await expect(states.getByRole("button", { name: "Créé" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    await expect(states.getByRole("button", { name: "Chiffrage" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    await expect(states.getByRole("button", { name: "Perdu" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+    const states = await openMenu(page, "Filtre par état");
+    await expect(states.getByRole("checkbox", { name: "Créé", exact: true })).toBeChecked();
+    await expect(states.getByRole("checkbox", { name: "Chiffrage", exact: true })).toBeChecked();
+    await expect(states.getByRole("checkbox", { name: "Perdu", exact: true })).not.toBeChecked();
+    await closeMenu(page);
     // « Tous les états » lifts it, the rest of the address kept, and says so in the address.
-    await states.getByRole("button", { name: "Tous les états" }).click();
+    await pick(page, "Filtre par état", "Tous les états");
     await expect(page).toHaveURL("/?sort_by=code&sort_order=asc&states=all", { timeout: WORKING });
-    await expect(states.getByRole("button", { name: "Tous les états" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    await states.getByRole("button", { name: "Chiffrage" }).click();
+    await expect(menuButton(page, "Filtre par état")).toContainText("Tous les états");
+    await pick(page, "Filtre par état", "Chiffrage");
     await expect(page).toHaveURL("/?sort_by=code&sort_order=asc&states=pricing", {
       timeout: WORKING,
     });
     // The state the address names stays pressed, whatever the fake back says it retained.
-    await expect(states.getByRole("button", { name: "Chiffrage" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    await expect(menuButton(page, "Filtre par état")).toContainText("Chiffrage");
     // The grid holds in the window: its totals in view.
     const total = list.getByRole("gridcell", { name: inService ? /^\d+ projets?$/ : "2 projets" });
     expect(await withinBox(list, total)).toBe(true);
@@ -230,9 +214,9 @@ test("the home filters its projects by the period of their last modification on 
     );
     const period = page.getByRole("form", { name: "Période de modification" });
     await period.getByLabel("Du").fill("2026-03-01");
-    await period.getByLabel("Au").fill("2026-03-16");
-    const apply = period.getByRole("button", { name: "Filtrer" });
-    await apply.click();
+    const apply = period.getByLabel("Au");
+    await apply.fill("2026-03-16");
+    await apply.press("Enter");
     // Two instants under the names of the contract, drawn in the time zone of the browser: the start
     // of the first day, the start of the day after the last; the sort kept, back to the first page.
     const [from, to] = await page.evaluate(() => [
@@ -241,7 +225,7 @@ test("the home filters its projects by the period of their last modification on 
     ]);
     const asked = new URLSearchParams({ sort_by: "code", sort_order: "asc", from, to });
     await expect(page).toHaveURL(`/?${asked.toString()}`, { timeout: WORKING });
-    // The form is never remounted: the period shows, and the button keeps the focus.
+    // The form is never remounted: the period shows, and the field keeps the focus.
     await expect(period.getByLabel("Du")).toHaveValue("2026-03-01");
     await expect(period.getByLabel("Au")).toHaveValue("2026-03-16");
     await expect(apply).toBeFocused();
@@ -432,10 +416,7 @@ test("the settings of a project search the sub-projects, filter the contributors
   await expect(page).toHaveURL(`${PROJECT}/settings?breakdown_search=Armoires`, {
     timeout: WORKING,
   });
-  await main
-    .getByRole("group", { name: "Filtrer par nature" })
-    .getByRole("button", { name: "Lot" })
-    .click();
+  await pick(page, "Filtrer par nature", "Lot");
   await expect(page).toHaveURL(
     `${PROJECT}/settings?breakdown_search=Armoires&breakdown_kinds=work_package`,
     { timeout: WORKING },
@@ -448,10 +429,7 @@ test("the settings of a project search the sub-projects, filter the contributors
   // Back to the whole screen, for the filters of the other grids.
   await openHydrated(page, `${PROJECT}/settings`);
 
-  await main
-    .getByRole("group", { name: "Filtrer par qualité" })
-    .getByRole("button", { name: "Chef de projet" })
-    .click();
+  await pick(page, "Filtrer par qualité", "Chef de projet");
   await expect(page).toHaveURL(`${PROJECT}/settings?contributor_kinds=project_manager`, {
     timeout: WORKING,
   });

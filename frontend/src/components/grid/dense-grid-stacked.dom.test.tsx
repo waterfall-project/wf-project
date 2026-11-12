@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, render } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
+import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -11,6 +12,7 @@ import { allShown } from "@/test/grid-preferences";
 
 import type { GridConfig } from "./columns";
 import { DenseGrid } from "./dense-grid";
+import type { FilterChip } from "./filter-chips";
 import { ESTIMATE_GRID, type EstimateNode } from "./estimate";
 import { type NodeList, type NodeSortColumn, type NodeTotals } from "./nodes";
 
@@ -130,5 +132,42 @@ describe("the grid a screen stacks under its cards", () => {
     vi.restoreAllMocks();
     layOut(900, 0, 1000);
     expect(renderGrid(true).style.maxHeight).toBe("");
+  });
+
+  it("is measured again as the panel of the filters opens or closes above it and as their chips appear or go [WF-IHM-0100-A, #2916]", async () => {
+    const grid = (chips: readonly FilterChip[]) => (
+      <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">
+        <DenseGrid
+          config={PLAIN}
+          rows={witness.items}
+          totals={witness.totals}
+          totalsCaption={() => "—"}
+          query={{ sort: undefined, search: undefined, size: undefined }}
+          preferences={allShown(ESTIMATE_GRID.columns)}
+          stacked
+          filtering={{ panel: <p>The filters</p>, chips }}
+        />
+      </NextIntlClientProvider>
+    );
+    layOut(900, 0, 300);
+    const { container, rerender } = render(grid([]));
+    const scroller = container.querySelector<HTMLElement>(".max-h-svh");
+    expect(scroller?.style.maxHeight).toBe("600px");
+    // The panel opens: the frame starts lower, and the room below it is what is left.
+    layOut(900, 0, 380);
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    expect(scroller?.style.maxHeight).toBe("520px");
+    // A filter on: its chip comes above the frame.
+    layOut(900, 0, 420);
+    rerender(grid([{ key: "origins", name: "Origin", value: "Local", params: ["origins"] }]));
+    expect(scroller?.style.maxHeight).toBe("480px");
+    // The panel closes, the chip stays.
+    layOut(900, 0, 340);
+    await userEvent.click(screen.getByRole("button", { name: "Filters (1)" }));
+    expect(scroller?.style.maxHeight).toBe("560px");
+    // The chip goes.
+    layOut(900, 0, 300);
+    rerender(grid([]));
+    expect(scroller?.style.maxHeight).toBe("600px");
   });
 });

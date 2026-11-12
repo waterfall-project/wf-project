@@ -139,6 +139,7 @@ export function recordedPreferences(
   filters?: Readonly<Record<string, string>>,
   size?: number,
   shape?: GridShape,
+  extra: { readonly filtersOpen?: boolean | undefined } = {},
 ): GridPreferences {
   const ended = shape?.ended ?? new Set<string>();
   const recorded: GridPreferences = {
@@ -157,7 +158,9 @@ export function recordedPreferences(
   const sized = pageSizeOf(size);
   const paged = sized === undefined ? recorded : { ...recorded, page_size: sized };
   const sorted = sort === undefined ? paged : { ...paged, sort };
-  return filters === undefined ? sorted : { ...sorted, filters };
+  const opened =
+    extra.filtersOpen === undefined ? sorted : { ...sorted, filters_open: extra.filtersOpen };
+  return filters === undefined ? opened : { ...opened, filters };
 }
 
 /** What the writer of the settings gives the grid. */
@@ -167,6 +170,8 @@ export type SettingsWriter = KeptWriter<GridPreferences>;
 export interface KeptWriter<P> {
   /** Record preferences once the user pauses — or once the page is shown, if it is awaited. */
   readonly record: (preferences: P) => void;
+  /** The same, the preferences built when they go rather than when they are asked. */
+  readonly recordLater: (build: () => P) => void;
   /**
    * Record preferences once the page shows what they go with (`shown`), built then — from the
    * settings of that moment —, whatever waited dropped: they replace it. Left, hidden or gone
@@ -245,18 +250,24 @@ export function useKeptWriter<P>(
     };
   }, [flush]);
 
-  const record = useCallback(
-    (preferences: P) => {
+  const recordLater = useCallback(
+    (build: () => P) => {
       // Awaiting the page, what waits is built once it is shown, from the settings of then: this
       // change among them.
       if (awaitsPage.current) {
         return;
       }
-      waiting.current = () => preferences;
+      waiting.current = build;
       clearTimeout(timer.current);
       timer.current = setTimeout(flush, WRITE_DELAY);
     },
     [flush],
+  );
+  const record = useCallback(
+    (preferences: P) => {
+      recordLater(() => preferences);
+    },
+    [recordLater],
   );
   const writeNow = useCallback(
     (preferences: P) => {
@@ -278,5 +289,5 @@ export function useKeptWriter<P>(
   const clear = useCallback(() => {
     setOutcome(undefined);
   }, []);
-  return { record, recordShown, shown, flush, writeNow, outcome, clear };
+  return { record, recordLater, recordShown, shown, flush, writeNow, outcome, clear };
 }

@@ -9,7 +9,10 @@
  * them; the authors of the page of the accounts shown — and, there, those a search finds among the
  * accounts (`findAccounts`, `listUsers` searched), the contract having no list of the authors. A
  * choice only changes the address, under the names of the contract — the account, or the kind of
- * author —, back to the first page (`ChoiceFilter`). An account chosen that the page does not offer
+ * author —, back to the first page, at once. The list has its search inside (`CheckMenu`): a text
+ * typed filters the accounts offered, and, where the accounts may be searched, is sent to the
+ * server once the typing pauses, the accounts it finds joining the list — no button to press
+ * (#2916). An account chosen that the page does not offer
  * is named as the page read it (`named`), never by its identifier.
  *
  * Every prop is data — the texts are given translated —, never a function: a server component
@@ -17,20 +20,18 @@
  */
 "use client";
 
-import { Search } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useId, useState } from "react";
+import { useCallback, useOptimistic, useRef, useState, useTransition } from "react";
 
 import { findAccounts } from "@/api/actions/users";
 import type { Outcome } from "@/api/problem";
 import { useAccountNaming } from "@/components/account/account-name";
 import { rejected } from "@/components/commands/rejection";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
-import { ChoiceFilter } from "@/components/grid/choice-filter";
-import { SEARCH_LENGTH } from "@/components/grid/query";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { CheckMenu } from "@/components/grid/check-menu";
+import { filterHref } from "@/components/grid/filters";
+import { usePendingAddress } from "@/components/grid/pending-address";
 
 import type { Author, AuthorChoice, AuthorNames, NamedAuthor } from "./audit-address";
 
@@ -67,123 +68,106 @@ export function AuthorFilter({
 }: AuthorFilterProps) {
   const t = useTranslations();
   const naming = useAccountNaming();
+  const pathname = usePathname();
+  const { request } = usePendingAddress();
   // The accounts the last search found, already named: they join those the page offers.
   const [found, setFound] = useState<readonly { id: string; name: string }[]>([]);
+  const [told, setTold] = useState<number | undefined>(undefined);
+  const [failure, setFailure] = useState<Outcome<unknown> | undefined>(undefined);
   const offeredIds = new Set(offered.map((author) => author.id));
   const accounts = [
     ...offered.map((author) => ({ value: author.id, text: naming.kept(author.name) })),
     ...found
       .filter((account) => !offeredIds.has(account.id))
-      .map((account) => ({ value: account.id, text: account.name })),
+      .map((account) => ({ value: account.id, text: account.name, found: true })),
   ];
   // The account chosen, if the page does not offer it: by its names, as everywhere it is cited.
   const unoffered = named.find((account) => account.user_id === chosen.user);
-  return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
-      <ChoiceFilter
-        name={names.user}
-        label={label}
-        every={t("admin.audit.everyAuthor")}
-        choices={[
-          { value: "user", text: t("admin.audit.anyAccount"), name: names.kind },
-          { value: "platform", text: t("enums.AuditActorKind.platform"), name: names.kind },
-          ...accounts,
-        ]}
-        chosen={chosen.user ?? chosen.kind}
-        unknown={unoffered === undefined ? undefined : naming.person(unoffered)}
-        page={page}
-      />
-      {searchable ? (
-        <AuthorSearch
-          column={label}
-          onFound={(accounts) => {
+  const value = chosen.user ?? chosen.kind ?? "";
+  const options = [
+    { value: "user", text: t("admin.audit.anyAccount") },
+    { value: "platform", text: t("enums.AuditActorKind.platform") },
+    ...accounts,
+    ...(value === "" ||
+    ["user", "platform"].includes(value) ||
+    accounts.some((account) => account.value === value)
+      ? []
+      : [{ value, text: unoffered === undefined ? value : naming.person(unoffered) }]),
+  ];
+  const [shown, show] = useOptimistic(value);
+  const [, startTransition] = useTransition();
+  // The search of the server, one at a time: an answer for a text typed since is not told (défaut n° 1).
+  const latest = useRef("");
+  const query = useCallback(
+    (text: string) => {
+      latest.current = text;
+      if (text === "") {
+        // The search is cleared: what it found goes with it.
+        setTold(undefined);
+        setFound([]);
+        setFailure(undefined);
+        return;
+      }
+      void findAccounts(text)
+        .catch(rejected)
+        .then((outcome) => {
+          if (latest.current !== text) {
+            return;
+          }
+          if (outcome.kind === "done") {
+            setFailure(undefined);
+            setTold(outcome.data.length);
             setFound(
-              accounts.map((account) => ({ id: account.user_id, name: naming.person(account) })),
+              outcome.data.map((account) => ({
+                id: account.user_id,
+                name: naming.person(account),
+              })),
             );
+          } else {
+            setTold(undefined);
+            setFailure(outcome);
+          }
+        });
+    },
+    [naming],
+  );
+  const footer =
+    searchable && (told !== undefined || failure !== undefined) ? (
+      <div className="flex flex-col gap-1">
+        <span role="status" className="px-1 text-xs text-muted-foreground">
+          {told === undefined ? null : t("admin.audit.found", { count: told, column: label })}
+        </span>
+        <OutcomeNotice
+          outcome={failure}
+          onClear={() => {
+            setFailure(undefined);
           }}
         />
-      ) : null}
-    </div>
-  );
-}
-
-/** The accounts a search finds, by their identifiers and their names. */
-type Found = readonly NamedAuthor[];
-
-/**
- * The search of the accounts that may be chosen as the author of a column: a text sent to the server,
- * which finds the accounts on their names and address; one search at a time, the button busy till its
- * answer (défaut n° 1 de `typescript.md`). How many it found is said, a refusal told by the
- * catalogue of the codes of error.
- */
-function AuthorSearch({
-  column,
-  onFound,
-}: {
-  readonly column: string;
-  readonly onFound: (accounts: Found) => void;
-}) {
-  const t = useTranslations("admin.audit");
-  const field = useId();
-  const [text, setText] = useState("");
-  const [told, setTold] = useState<number | undefined>(undefined);
-  const [failure, setFailure] = useState<Outcome<unknown> | undefined>(undefined);
-  // Busy from the search sent last to its answer, and lifted in the very update that tells it — not a
-  // transition, whose end would wait for every other async action of the page (#1484).
-  const [busy, setBusy] = useState(false);
-  const submit = (event: SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const search = text.trim();
-    if (search === "") {
-      return;
-    }
-    setBusy(true);
-    void findAccounts(search)
-      .catch(rejected)
-      .then((outcome) => {
-        setBusy(false);
-        if (outcome.kind === "done") {
-          setFailure(undefined);
-          setTold(outcome.data.length);
-          onFound(outcome.data);
-        } else {
-          setTold(undefined);
-          setFailure(outcome);
-        }
-      });
-  };
+      </div>
+    ) : null;
   return (
-    <form
-      aria-label={t("find", { column })}
-      onSubmit={submit}
-      className="flex flex-wrap items-center gap-2 text-sm"
-    >
-      <Label htmlFor={field} className="sr-only">
-        {t("find", { column })}
-      </Label>
-      <Input
-        id={field}
-        type="search"
-        value={text}
-        maxLength={SEARCH_LENGTH}
-        onChange={(event) => {
-          setText(event.target.value);
-        }}
-        className="h-8 w-44"
-      />
-      <Button type="submit" size="sm" variant="outline" disabled={busy}>
-        <Search aria-hidden="true" className="size-4" />
-        {t("findButton")}
-      </Button>
-      <span role="status" className="text-muted-foreground">
-        {told === undefined ? null : t("found", { count: told, column })}
-      </span>
-      <OutcomeNotice
-        outcome={failure}
-        onClear={() => {
-          setFailure(undefined);
-        }}
-      />
-    </form>
+    <CheckMenu
+      label={label}
+      every={t("admin.audit.everyAuthor")}
+      multiple={false}
+      searchable
+      options={options}
+      chosen={shown === "" ? [] : [shown]}
+      onQuery={searchable ? query : undefined}
+      footer={footer}
+      onChange={([next]) => {
+        const picked = next ?? "";
+        const written = picked === "user" || picked === "platform" ? names.kind : names.user;
+        startTransition(() => {
+          show(picked);
+          request((query) =>
+            filterHref(pathname, query, written, picked, [
+              ...(page === undefined ? [] : [page]),
+              ...[names.user, names.kind].filter((each) => each !== written),
+            ]),
+          );
+        });
+      }}
+    />
   );
 }

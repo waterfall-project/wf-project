@@ -19,7 +19,7 @@ import { Signal } from "@/components/signal/signal";
 
 import { type AlertZone, INDEX_ZONES, ZONES } from "./address";
 
-/** Render the filter of the projects by the zone of their indices, the zones asked pressed. */
+/** Render the filter of the projects by the zone of their indices, the zones asked checked. */
 export function ZoneFilter({ zones }: { readonly zones: readonly AlertZone[] }) {
   const t = useTranslations("portfolio.projects");
   return (
@@ -31,7 +31,6 @@ export function ZoneFilter({ zones }: { readonly zones: readonly AlertZone[] }) 
       chosen={zones}
       page={OFFSET}
       exhaustive={false}
-      shaded
     />
   );
 }

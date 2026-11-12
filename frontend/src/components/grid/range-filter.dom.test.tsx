@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
+import { pick } from "@/test/check-menu";
 
 import type { Bounds, FigureKind } from "./filters";
 import { PendingAddress } from "./pending-address";
@@ -76,6 +77,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   router.push.mockClear();
 });
 
@@ -84,13 +86,13 @@ describe("the filter of a list on the bounds of its figures", () => {
     page.search = "role_sort_by=label&role_offset=50&role_headcount_max=9";
     render(filter(roleColumns(NONE, { min: undefined, max: "9" })));
     const form = screen.getByRole("form", { name: "Bornes des rôles" });
-    const least = within(form).getByRole("textbox", { name: "Heures par mois, min." });
-    const most = within(form).getByRole("textbox", { name: "Effectif, max." });
+    const least = within(form).getByRole("textbox", { name: "Heures par mois, du" });
+    const most = within(form).getByRole("textbox", { name: "Effectif, au" });
     expect(most).toHaveValue("9");
     // As French writes a number: spaces between the thousands, a comma before the decimals.
     await userEvent.type(least, "300 000,5");
     await userEvent.clear(most);
-    await userEvent.click(within(form).getByRole("button", { name: "Filtrer" }));
+    await userEvent.keyboard("{Enter}");
     expect(lastAddress()).toBe(
       "/reference/resources?role_sort_by=label&role_monthly_hours_min=300000.5",
     );
@@ -99,7 +101,7 @@ describe("the filter of a list on the bounds of its figures", () => {
   it("writes the bounds as the contract writes them whatever the language", async () => {
     render(filter(roleColumns(), { locale: "en" }));
     await userEvent.type(
-      screen.getByRole("textbox", { name: "Heures par mois, max" }),
+      screen.getByRole("textbox", { name: "Heures par mois, to" }),
       "1,234.5{Enter}",
     );
     expect(lastAddress()).toBe("/reference/resources?role_monthly_hours_max=1234.5");
@@ -108,21 +110,21 @@ describe("the filter of a list on the bounds of its figures", () => {
   it("names each field by the column and the side written beside it", () => {
     render(filter(roleColumns()));
     const group = screen.getByRole("group", { name: "Heures par mois" });
-    expect(group).toHaveTextContent("Heures par moismin.max.");
+    expect(group).toHaveTextContent("Heures par moisduau");
     // The name holds what the eye reads (WCAG 2.5.3).
     expect(
       within(group)
         .getAllByRole("textbox")
         .map((field) => field.getAttribute("aria-label")),
-    ).toEqual(["Heures par mois, min.", "Heures par mois, max."]);
+    ).toEqual(["Heures par mois, du", "Heures par mois, au"]);
   });
 
   it("says at its field a bound that is no number of the language, gives it the focus, and asks nothing", async () => {
     render(filter(roleColumns()));
-    const least = screen.getByRole("textbox", { name: "Effectif, min." });
+    const least = screen.getByRole("textbox", { name: "Effectif, du" });
     await userEvent.type(least, "1.5");
     // Sent from another field: the focus goes to the first one wrong.
-    await userEvent.type(screen.getByRole("textbox", { name: "Heures par mois, max." }), "{Enter}");
+    await userEvent.type(screen.getByRole("textbox", { name: "Heures par mois, au" }), "{Enter}");
     expect(router.push).not.toHaveBeenCalled();
     expect(least).toHaveAttribute("aria-invalid", "true");
     expect(least).toHaveAccessibleDescription("Ce n’est pas un nombre valide.");
@@ -143,7 +145,7 @@ describe("the filter of a list on the bounds of its figures", () => {
         }),
       ),
     );
-    const most = screen.getByRole("textbox", { name: "Heures par mois, max." });
+    const most = screen.getByRole("textbox", { name: "Heures par mois, au" });
     expect(most).toHaveValue("500");
     expect(most).toHaveAttribute("aria-invalid", "true");
     // The list comes back refused: the focus on the bound refused.
@@ -151,7 +153,7 @@ describe("the filter of a list on the bounds of its figures", () => {
     expect(most).toHaveAccessibleDescription(
       "La borne supérieure ne peut précéder la borne inférieure, 1\u202F000.",
     );
-    expect(screen.getByRole("textbox", { name: "Heures par mois, min." })).not.toHaveAttribute(
+    expect(screen.getByRole("textbox", { name: "Heures par mois, du" })).not.toHaveAttribute(
       "aria-invalid",
     );
     await expectAccessible(container);
@@ -167,13 +169,13 @@ describe("the filter of a list on the bounds of its figures", () => {
     page.search = "";
     rerender(filter(roleColumns()));
     expect(screen.queryByRole("button", { name: "Lever les bornes" })).toBeNull();
-    expect(screen.getByRole("textbox", { name: "Heures par mois, min." })).toHaveValue("");
+    expect(screen.getByRole("textbox", { name: "Heures par mois, du" })).toHaveValue("");
   });
 
   it("sets the fields anew when the address changes the bounds, back in the history", async () => {
     page.search = "role_monthly_hours_min=10";
     const { rerender } = render(filter(roleColumns({ min: "10", max: undefined })));
-    const least = () => screen.getByRole("textbox", { name: "Heures par mois, min." });
+    const least = () => screen.getByRole("textbox", { name: "Heures par mois, du" });
     await userEvent.type(least(), "0");
     expect(least()).toHaveValue("100");
     page.search = "role_monthly_hours_min=20.5";
@@ -194,12 +196,13 @@ describe("the filter of a list on the bounds of its figures", () => {
     // The first year offered, when the address names none.
     expect(year).toHaveValue("2025");
     await userEvent.selectOptions(year, "2026");
-    await userEvent.type(screen.getByRole("textbox", { name: "Taux horaire, min." }), "110{Enter}");
+    await userEvent.type(screen.getByRole("textbox", { name: "Taux horaire, du" }), "110{Enter}");
     expect(lastAddress()).toBe("/reference/resources?rate_min=110&rate_year=2026");
     // An amount keeps two decimals at most.
-    const most = screen.getByRole("textbox", { name: "Taux horaire, max." });
+    const most = screen.getByRole("textbox", { name: "Taux horaire, au" });
     await userEvent.type(most, "150,555{Enter}");
-    expect(router.push).toHaveBeenCalledOnce();
+    // The year chosen was applied at once, the bound with it.
+    expect(router.push).toHaveBeenCalledTimes(2);
     expect(most).toHaveAttribute("aria-invalid", "true");
     expect(most).toHaveAccessibleDescription("Deux décimales au plus.");
     page.search = "rate_min=110&rate_year=2026";
@@ -224,10 +227,10 @@ describe("the filter of a list on the bounds of its figures", () => {
 });
 
 describe("the entry of the bounds, dated by the address (#553)", () => {
-  const least = () => screen.getByRole("textbox", { name: "Heures par mois, min." });
-  const most = () => screen.getByRole("textbox", { name: "Heures par mois, max." });
+  const least = () => screen.getByRole("textbox", { name: "Heures par mois, du" });
+  const most = () => screen.getByRole("textbox", { name: "Heures par mois, au" });
 
-  it("keeps the focus on the field that sent the bounds, and on the button, once the address arrives", async () => {
+  it("keeps the focus on the field that sent the bounds once the address arrives", async () => {
     const { rerender } = render(filter(roleColumns()));
     const field = least();
     await userEvent.type(field, "10{Enter}");
@@ -238,14 +241,13 @@ describe("the entry of the bounds, dated by the address (#553)", () => {
     expect(least()).toBe(field);
     expect(field).toHaveFocus();
     expect(field).toHaveValue("10");
-    // Sent by its button, the next bound keeps the focus on the button.
-    await userEvent.type(most(), "20");
-    const apply = screen.getByRole("button", { name: "Filtrer" });
-    await userEvent.click(apply);
+    // Sent from the next field, it keeps the focus as well.
+    const next = most();
+    await userEvent.type(next, "20{Enter}");
     page.search = "role_monthly_hours_min=10&role_monthly_hours_max=20";
     rerender(filter(roleColumns({ min: "10", max: "20" })));
-    expect(screen.getByRole("button", { name: "Filtrer" })).toBe(apply);
-    expect(apply).toHaveFocus();
+    expect(most()).toBe(next);
+    expect(next).toHaveFocus();
     expect(most()).toHaveValue("20");
   });
 
@@ -292,13 +294,14 @@ describe("the entry of the bounds, dated by the address (#553)", () => {
       page.search = search;
       const address = new URLSearchParams(search);
       const min = address.get("role_monthly_hours_min") ?? undefined;
+      const max = address.get("role_monthly_hours_max") ?? undefined;
       return (
         <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
           <PendingAddress>
             <RangeFilter
               label="Bornes des rôles"
               kind="decimal"
-              columns={roleColumns({ min, max: undefined })}
+              columns={roleColumns({ min, max })}
             />
             <ValuesFilter
               name="role_is_active"
@@ -316,11 +319,12 @@ describe("the entry of the bounds, dated by the address (#553)", () => {
     await userEvent.type(least(), "10{Enter}");
     // Typed before the server answers, then a filter chosen, which carries the bound sent.
     await userEvent.type(most(), "20");
-    await userEvent.click(screen.getByRole("button", { name: "Actifs" }));
+    await pick("État", "Actifs");
+    // Leaving the form with a bound typed sends it, with the filter chosen after.
     expect(lastAddress()).toBe(
-      "/reference/resources?role_monthly_hours_min=10&role_is_active=true",
+      "/reference/resources?role_monthly_hours_min=10&role_monthly_hours_max=20&role_is_active=true",
     );
-    rerender(screenAt("role_monthly_hours_min=10&role_is_active=true"));
+    rerender(screenAt("role_monthly_hours_min=10&role_monthly_hours_max=20&role_is_active=true"));
     expect(least()).toHaveValue("10");
     expect(most()).toHaveValue("20");
   });
@@ -352,15 +356,14 @@ describe("the entry of the bounds, dated by the address (#553)", () => {
     page.search = "role_monthly_hours_min=1000&role_monthly_hours_max=500";
     const { rerender } = render(inverted("1000", "500"));
     expect(most()).toHaveFocus();
-    // Sent again by its button, still below the same lower bound: the list comes back with the
+    // Sent again by Enter, still below the same lower bound: the list comes back with the
     // same refusal of the same side, which takes the focus anew.
     await userEvent.clear(most());
-    await userEvent.type(most(), "400");
-    await userEvent.click(screen.getByRole("button", { name: "Filtrer" }));
+    await userEvent.type(most(), "400{Enter}");
     expect(lastAddress()).toBe(
       "/reference/resources?role_monthly_hours_min=1000&role_monthly_hours_max=400",
     );
-    expect(screen.getByRole("button", { name: "Filtrer" })).toHaveFocus();
+    expect(most()).toHaveFocus();
     page.search = "role_monthly_hours_min=1000&role_monthly_hours_max=400";
     rerender(inverted("1000", "400"));
     expect(most()).toHaveFocus();
@@ -386,13 +389,13 @@ describe("the entry of the bounds, dated by the address (#553)", () => {
     );
     const year = screen.getByRole("combobox", { name: "Année du taux" });
     expect(year).toHaveFocus();
-    const most = screen.getByRole("textbox", { name: "Taux horaire, max." });
+    const most = screen.getByRole("textbox", { name: "Taux horaire, au" });
     await userEvent.type(most, "abc{Enter}");
     expect(router.push).not.toHaveBeenCalled();
     // The year is still refused, and comes first in the form: the bound typed wrong takes the focus.
     expect(year).toHaveAttribute("aria-invalid", "true");
     expect(most).toHaveAttribute("aria-invalid", "true");
-    await userEvent.click(screen.getByRole("button", { name: "Filtrer" }));
+    await userEvent.keyboard("{Enter}");
     expect(most).toHaveFocus();
   });
 
@@ -422,7 +425,7 @@ describe("the entry of the bounds, dated by the address (#553)", () => {
         }),
       );
     const { rerender } = render(refused());
-    const headcount = screen.getByRole("textbox", { name: "Effectif, min." });
+    const headcount = screen.getByRole("textbox", { name: "Effectif, du" });
     await userEvent.type(headcount, "3");
     // A sort arrives meanwhile, the bounds as they were: neither the entry nor the focus moves.
     page.search = "role_monthly_hours_min=1000&role_monthly_hours_max=500&role_sort_by=label";
@@ -437,7 +440,7 @@ describe("the refusals of the server on the bounds of a list", () => {
     render(
       filter(roleColumns(NONE, { min: undefined, max: "3" }, { min: { code: "NUMBER_INVALID" } })),
     );
-    const least = screen.getByRole("textbox", { name: "Heures par mois, min." });
+    const least = screen.getByRole("textbox", { name: "Heures par mois, du" });
     expect(least).toHaveAttribute("aria-invalid", "true");
     expect(least).toHaveAccessibleDescription("Ce n’est pas un nombre valide.");
     expect(least).toHaveFocus();
@@ -464,12 +467,71 @@ describe("the refusals of the server on the bounds of a list", () => {
 
   it("bounds the depth of a tree by whole numbers from 1", async () => {
     render(filter([{ column: "org_level", label: "Niveau", bounds: NONE }], { kind: "level" }));
-    const least = screen.getByRole("textbox", { name: "Niveau, min." });
+    const least = screen.getByRole("textbox", { name: "Niveau, du" });
     await userEvent.type(least, "1,5{Enter}");
     expect(router.push).not.toHaveBeenCalled();
     expect(least).toHaveAccessibleDescription("Ce n’est pas un nombre valide.");
     await userEvent.clear(least);
     await userEvent.type(least, "2{Enter}");
     expect(lastAddress()).toBe("/reference/resources?org_level_min=2");
+  });
+});
+
+describe("the bounds as one command « du … au … » (#2916)", () => {
+  it("offers no button to apply, sends on leaving the form with something typed and not before, and refuses a fault without taking the focus back", async () => {
+    render(
+      <>
+        {filter(roleColumns())}
+        <button type="button">ailleurs</button>
+      </>,
+    );
+    expect(screen.queryByRole("button", { name: "Filtrer" })).toBeNull();
+    const least = screen.getByRole("textbox", { name: "Heures par mois, du" });
+    const most = screen.getByRole("textbox", { name: "Heures par mois, au" });
+    await userEvent.type(least, "10");
+    // To another field of the same form: nothing is sent yet.
+    await userEvent.click(most);
+    expect(router.push).not.toHaveBeenCalled();
+    // Out of the form: the bound is sent.
+    await userEvent.click(screen.getByRole("button", { name: "ailleurs" }));
+    expect(lastAddress()).toBe("/reference/resources?role_monthly_hours_min=10");
+  });
+
+  it("says a bound that is no number on leaving the field, sends nothing, and leaves the focus where it went", async () => {
+    render(
+      <>
+        {filter(roleColumns())}
+        <button type="button">ailleurs</button>
+      </>,
+    );
+    const most = screen.getByRole("textbox", { name: "Heures par mois, au" });
+    await userEvent.type(most, "abc");
+    await userEvent.click(screen.getByRole("button", { name: "ailleurs" }));
+    expect(router.push).not.toHaveBeenCalled();
+    expect(most).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("button", { name: "ailleurs" })).toHaveFocus();
+  });
+
+  it("keeps a single bound possible, the other left empty", async () => {
+    render(filter(roleColumns()));
+    await userEvent.type(screen.getByRole("textbox", { name: "Heures par mois, au" }), "40{Enter}");
+    expect(lastAddress()).toBe("/reference/resources?role_monthly_hours_max=40");
+  });
+
+  it("lifts the bounds by Enter on the button that lifts them, and applies a field by Enter in it", async () => {
+    page.search = "role_monthly_hours_min=10";
+    render(filter(roleColumns({ min: "10", max: undefined })));
+    screen.getByRole("button", { name: "Lever les bornes" }).focus();
+    await userEvent.keyboard("{Enter}");
+    expect(lastAddress()).toBe("/reference/resources");
+  });
+
+  it("sends nothing when the window loses the focus with a bound half typed", async () => {
+    render(filter(roleColumns()));
+    const least = screen.getByRole("textbox", { name: "Heures par mois, du" });
+    await userEvent.type(least, "1");
+    vi.spyOn(document, "hasFocus").mockReturnValue(false);
+    least.blur();
+    expect(router.push).not.toHaveBeenCalled();
   });
 });

@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { SIGN_IN_REFUSED_COOKIE } from "@/session/tokens";
 import { cookieJar } from "@/test/session";
 
 import { API_PREFIX } from "./client";
@@ -18,9 +19,11 @@ import {
   tokenClient,
 } from "./server";
 
-// A request without a session: no cookie, so no token — the session itself is tried by
-// src/session/tokens.test.ts, against Redis.
-vi.mock("next/headers", () => ({ cookies: () => Promise.resolve(cookieJar()) }));
+// A request without a session, a sign-in refused just before (#2914) — without it the request does
+// not leave, which src/session/tokens.test.ts tries, against Redis, with the session itself.
+vi.mock("next/headers", () => ({
+  cookies: () => Promise.resolve(cookieJar({ [SIGN_IN_REFUSED_COOKIE]: "1" })),
+}));
 
 /** Stub the platform's fetch, which the server client uses: the addresses it is asked for. */
 function stubFetch(authorizations: (string | null)[] = []): string[] {
