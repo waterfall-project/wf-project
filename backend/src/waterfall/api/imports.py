@@ -40,6 +40,7 @@ from waterfall.api.contract.models import (
     PaginationMeta,
 )
 from waterfall.api.evaluation import Acting, RequiresProject
+from waterfall.api.queries import Offset
 from waterfall.api.tasks import task_ref
 from waterfall.core.access_roles.interface import Actor, require_project
 from waterfall.core.exchanges.interface import (
@@ -241,7 +242,7 @@ def get_imports(
     project_id: UUID,
     session: Transaction,
     limit: Annotated[int, Query(ge=1, le=GREATEST_LIMIT)] = DEFAULT_LIMIT,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Offset = 0,
 ) -> dict[str, Any]:
     """Give a page of the imports of a project, the latest opened first (WF-INTF-0080)."""
     read = list_imports(session, project_id, limit, offset, utc_now())

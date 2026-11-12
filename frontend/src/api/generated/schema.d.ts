@@ -6165,7 +6165,7 @@ export interface components {
     parameters: {
         /** @description Page size: 50 when absent, at most 500 (WF-IHM-0060). The screens offer 10, 25, 50 or 100 lines per page (`GridPreferences.page_size`); the larger pages serve the lists read as a choice, such as the categories and roles of an estimate line, which are read page after page up to `meta.total` with the largest page. */
         Limit: number;
-        /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. */
+        /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. At most 2147483647, the bound of `LockVersion`: beyond it, the list is refused with 422 `VALIDATION_FAILED`, `fields` designating `/query/offset` with `VALUE_OUT_OF_RANGE` and `params.maximum` at `2147483647` (#2778). */
         Offset: number;
         TaskId: components["schemas"]["Uuid"];
         /** @description Start, inclusive, of the creation period: restricts to the rows created at this instant or after it (`audit.created_at`, WF-IHM-0130). */
@@ -6537,7 +6537,7 @@ export interface operations {
                 finished_since?: components["schemas"]["Timestamp"];
                 /** @description Page size: 50 when absent, at most 500 (WF-IHM-0060). The screens offer 10, 25, 50 or 100 lines per page (`GridPreferences.page_size`); the larger pages serve the lists read as a choice, such as the categories and roles of an estimate line, which are read page after page up to `meta.total` with the largest page. */
                 limit?: components["parameters"]["Limit"];
-                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. */
+                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. At most 2147483647, the bound of `LockVersion`: beyond it, the list is refused with 422 `VALIDATION_FAILED`, `fields` designating `/query/offset` with `VALUE_OUT_OF_RANGE` and `params.maximum` at `2147483647` (#2778). */
                 offset?: components["parameters"]["Offset"];
             };
             header?: never;
@@ -6813,7 +6813,7 @@ export interface operations {
             query?: {
                 /** @description Page size: 50 when absent, at most 500 (WF-IHM-0060). The screens offer 10, 25, 50 or 100 lines per page (`GridPreferences.page_size`); the larger pages serve the lists read as a choice, such as the categories and roles of an estimate line, which are read page after page up to `meta.total` with the largest page. */
                 limit?: components["parameters"]["Limit"];
-                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. */
+                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. At most 2147483647, the bound of `LockVersion`: beyond it, the list is refused with 422 `VALIDATION_FAILED`, `fields` designating `/query/offset` with `VALUE_OUT_OF_RANGE` and `params.maximum` at `2147483647` (#2778). */
                 offset?: components["parameters"]["Offset"];
                 /** @description Search on the last name, the first name, the email address, and on the first name followed by the last name, as the table shows them: an account is retained as soon as one of them contains the text, compared like any search of the contract, ignoring case and accents (README, "A search…"; WF-IHM-0130): "ines roux" finds Inès Roux by the first name followed by the last name, which no column carries whole. */
                 search?: string;
@@ -7604,7 +7604,7 @@ export interface operations {
             query?: {
                 /** @description Page size: 50 when absent, at most 500 (WF-IHM-0060). The screens offer 10, 25, 50 or 100 lines per page (`GridPreferences.page_size`); the larger pages serve the lists read as a choice, such as the categories and roles of an estimate line, which are read page after page up to `meta.total` with the largest page. */
                 limit?: components["parameters"]["Limit"];
-                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. */
+                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. At most 2147483647, the bound of `LockVersion`: beyond it, the list is refused with 422 `VALIDATION_FAILED`, `fields` designating `/query/offset` with `VALUE_OUT_OF_RANGE` and `params.maximum` at `2147483647` (#2778). */
                 offset?: components["parameters"]["Offset"];
                 /** @description Retains the backups taken at this instant or after it (WF-IHM-0130). */
                 from?: components["schemas"]["Timestamp"];
@@ -8014,7 +8014,7 @@ export interface operations {
             query?: {
                 /** @description Page size: 50 when absent, at most 500 (WF-IHM-0060). The screens offer 10, 25, 50 or 100 lines per page (`GridPreferences.page_size`); the larger pages serve the lists read as a choice, such as the categories and roles of an estimate line, which are read page after page up to `meta.total` with the largest page. */
                 limit?: components["parameters"]["Limit"];
-                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. */
+                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. At most 2147483647, the bound of `LockVersion`: beyond it, the list is refused with 422 `VALIDATION_FAILED`, `fields` designating `/query/offset` with `VALUE_OUT_OF_RANGE` and `params.maximum` at `2147483647` (#2778). */
                 offset?: components["parameters"]["Offset"];
                 /** @description Retains the entries made at this instant or after it. */
                 from?: components["schemas"]["Timestamp"];
@@ -8423,7 +8423,7 @@ export interface operations {
             query?: {
                 /** @description Page size: 50 when absent, at most 500 (WF-IHM-0060). The screens offer 10, 25, 50 or 100 lines per page (`GridPreferences.page_size`); the larger pages serve the lists read as a choice, such as the categories and roles of an estimate line, which are read page after page up to `meta.total` with the largest page. */
                 limit?: components["parameters"]["Limit"];
-                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. */
+                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. At most 2147483647, the bound of `LockVersion`: beyond it, the list is refused with 422 `VALIDATION_FAILED`, `fields` designating `/query/offset` with `VALUE_OUT_OF_RANGE` and `params.maximum` at `2147483647` (#2778). */
                 offset?: components["parameters"]["Offset"];
                 /** @description Includes the deactivated objects of a reference data list (WF-REF-0150), under the modification permission that the operation requires: without it, the request is refused with 403 (`PERMISSION_MISSING`), as for `is_active` false. Specific to reference data: a list that does not follow this rule carries its own parameter — the accounts, whose deactivated ones are read like the active ones (`listUsers`, WF-ADM-0060, #1736). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
@@ -8728,7 +8728,7 @@ export interface operations {
             query?: {
                 /** @description Page size: 50 when absent, at most 500 (WF-IHM-0060). The screens offer 10, 25, 50 or 100 lines per page (`GridPreferences.page_size`); the larger pages serve the lists read as a choice, such as the categories and roles of an estimate line, which are read page after page up to `meta.total` with the largest page. */
                 limit?: components["parameters"]["Limit"];
-                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. */
+                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. At most 2147483647, the bound of `LockVersion`: beyond it, the list is refused with 422 `VALIDATION_FAILED`, `fields` designating `/query/offset` with `VALUE_OUT_OF_RANGE` and `params.maximum` at `2147483647` (#2778). */
                 offset?: components["parameters"]["Offset"];
                 /** @description Includes the deactivated objects of a reference data list (WF-REF-0150), under the modification permission that the operation requires: without it, the request is refused with 403 (`PERMISSION_MISSING`), as for `is_active` false. Specific to reference data: a list that does not follow this rule carries its own parameter — the accounts, whose deactivated ones are read like the active ones (`listUsers`, WF-ADM-0060, #1736). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
@@ -9001,7 +9001,7 @@ export interface operations {
             query?: {
                 /** @description Page size: 50 when absent, at most 500 (WF-IHM-0060). The screens offer 10, 25, 50 or 100 lines per page (`GridPreferences.page_size`); the larger pages serve the lists read as a choice, such as the categories and roles of an estimate line, which are read page after page up to `meta.total` with the largest page. */
                 limit?: components["parameters"]["Limit"];
-                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. */
+                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. At most 2147483647, the bound of `LockVersion`: beyond it, the list is refused with 422 `VALIDATION_FAILED`, `fields` designating `/query/offset` with `VALUE_OUT_OF_RANGE` and `params.maximum` at `2147483647` (#2778). */
                 offset?: components["parameters"]["Offset"];
                 /** @description Includes the deactivated objects of a reference data list (WF-REF-0150), under the modification permission that the operation requires: without it, the request is refused with 403 (`PERMISSION_MISSING`), as for `is_active` false. Specific to reference data: a list that does not follow this rule carries its own parameter — the accounts, whose deactivated ones are read like the active ones (`listUsers`, WF-ADM-0060, #1736). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
@@ -9205,7 +9205,7 @@ export interface operations {
             query?: {
                 /** @description Page size: 50 when absent, at most 500 (WF-IHM-0060). The screens offer 10, 25, 50 or 100 lines per page (`GridPreferences.page_size`); the larger pages serve the lists read as a choice, such as the categories and roles of an estimate line, which are read page after page up to `meta.total` with the largest page. */
                 limit?: components["parameters"]["Limit"];
-                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. */
+                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. At most 2147483647, the bound of `LockVersion`: beyond it, the list is refused with 422 `VALIDATION_FAILED`, `fields` designating `/query/offset` with `VALUE_OUT_OF_RANGE` and `params.maximum` at `2147483647` (#2778). */
                 offset?: components["parameters"]["Offset"];
                 /** @description Includes the deactivated objects of a reference data list (WF-REF-0150), under the modification permission that the operation requires: without it, the request is refused with 403 (`PERMISSION_MISSING`), as for `is_active` false. Specific to reference data: a list that does not follow this rule carries its own parameter — the accounts, whose deactivated ones are read like the active ones (`listUsers`, WF-ADM-0060, #1736). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
@@ -9418,7 +9418,7 @@ export interface operations {
             query?: {
                 /** @description Page size: 50 when absent, at most 500 (WF-IHM-0060). The screens offer 10, 25, 50 or 100 lines per page (`GridPreferences.page_size`); the larger pages serve the lists read as a choice, such as the categories and roles of an estimate line, which are read page after page up to `meta.total` with the largest page. */
                 limit?: components["parameters"]["Limit"];
-                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. */
+                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. At most 2147483647, the bound of `LockVersion`: beyond it, the list is refused with 422 `VALIDATION_FAILED`, `fields` designating `/query/offset` with `VALUE_OUT_OF_RANGE` and `params.maximum` at `2147483647` (#2778). */
                 offset?: components["parameters"]["Offset"];
                 /** @description Includes the deactivated objects of a reference data list (WF-REF-0150), under the modification permission that the operation requires: without it, the request is refused with 403 (`PERMISSION_MISSING`), as for `is_active` false. Specific to reference data: a list that does not follow this rule carries its own parameter — the accounts, whose deactivated ones are read like the active ones (`listUsers`, WF-ADM-0060, #1736). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
@@ -9662,7 +9662,7 @@ export interface operations {
             query?: {
                 /** @description Page size: 50 when absent, at most 500 (WF-IHM-0060). The screens offer 10, 25, 50 or 100 lines per page (`GridPreferences.page_size`); the larger pages serve the lists read as a choice, such as the categories and roles of an estimate line, which are read page after page up to `meta.total` with the largest page. */
                 limit?: components["parameters"]["Limit"];
-                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. */
+                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. At most 2147483647, the bound of `LockVersion`: beyond it, the list is refused with 422 `VALIDATION_FAILED`, `fields` designating `/query/offset` with `VALUE_OUT_OF_RANGE` and `params.maximum` at `2147483647` (#2778). */
                 offset?: components["parameters"]["Offset"];
                 /** @description Search on the label; an operation that also searches on another field, the code for example, says so in its description. The text is compared like any search of the contract, regardless of case and accents (README, "A search…"). */
                 search?: components["parameters"]["Search"];
@@ -10488,7 +10488,7 @@ export interface operations {
             query?: {
                 /** @description Page size: 50 when absent, at most 500 (WF-IHM-0060). The screens offer 10, 25, 50 or 100 lines per page (`GridPreferences.page_size`); the larger pages serve the lists read as a choice, such as the categories and roles of an estimate line, which are read page after page up to `meta.total` with the largest page. */
                 limit?: components["parameters"]["Limit"];
-                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. */
+                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. At most 2147483647, the bound of `LockVersion`: beyond it, the list is refused with 422 `VALIDATION_FAILED`, `fields` designating `/query/offset` with `VALUE_OUT_OF_RANGE` and `params.maximum` at `2147483647` (#2778). */
                 offset?: components["parameters"]["Offset"];
                 /** @description The states retained, current or marked; when absent, all (WF-IHM-0130). */
                 status?: components["schemas"]["RevisionStatus"][];
@@ -12611,7 +12611,7 @@ export interface operations {
                 revision_id?: components["parameters"]["RiskRevision"];
                 /** @description Page size: 50 when absent, at most 500 (WF-IHM-0060). The screens offer 10, 25, 50 or 100 lines per page (`GridPreferences.page_size`); the larger pages serve the lists read as a choice, such as the categories and roles of an estimate line, which are read page after page up to `meta.total` with the largest page. */
                 limit?: components["parameters"]["Limit"];
-                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. */
+                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. At most 2147483647, the bound of `LockVersion`: beyond it, the list is refused with 422 `VALIDATION_FAILED`, `fields` designating `/query/offset` with `VALUE_OUT_OF_RANGE` and `params.maximum` at `2147483647` (#2778). */
                 offset?: components["parameters"]["Offset"];
                 /** @description Restricts to the risks in one of these states (WF-RIS-0040). */
                 states?: components["schemas"]["RiskState"][];
@@ -13153,7 +13153,7 @@ export interface operations {
             query?: {
                 /** @description Page size: 50 when absent, at most 500 (WF-IHM-0060). The screens offer 10, 25, 50 or 100 lines per page (`GridPreferences.page_size`); the larger pages serve the lists read as a choice, such as the categories and roles of an estimate line, which are read page after page up to `meta.total` with the largest page. */
                 limit?: components["parameters"]["Limit"];
-                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. */
+                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. At most 2147483647, the bound of `LockVersion`: beyond it, the list is refused with 422 `VALIDATION_FAILED`, `fields` designating `/query/offset` with `VALUE_OUT_OF_RANGE` and `params.maximum` at `2147483647` (#2778). */
                 offset?: components["parameters"]["Offset"];
                 /** @description `unassigned` for what falls under no subproject (WF-IND-0020, WF-CRE-0020). */
                 subproject_id?: components["parameters"]["SubprojectFilter"];
@@ -13253,7 +13253,7 @@ export interface operations {
             query?: {
                 /** @description Page size: 50 when absent, at most 500 (WF-IHM-0060). The screens offer 10, 25, 50 or 100 lines per page (`GridPreferences.page_size`); the larger pages serve the lists read as a choice, such as the categories and roles of an estimate line, which are read page after page up to `meta.total` with the largest page. */
                 limit?: components["parameters"]["Limit"];
-                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. */
+                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. At most 2147483647, the bound of `LockVersion`: beyond it, the list is refused with 422 `VALIDATION_FAILED`, `fields` designating `/query/offset` with `VALUE_OUT_OF_RANGE` and `params.maximum` at `2147483647` (#2778). */
                 offset?: components["parameters"]["Offset"];
             };
             header?: never;
@@ -13449,7 +13449,7 @@ export interface operations {
             query?: {
                 /** @description Page size: 50 when absent, at most 500 (WF-IHM-0060). The screens offer 10, 25, 50 or 100 lines per page (`GridPreferences.page_size`); the larger pages serve the lists read as a choice, such as the categories and roles of an estimate line, which are read page after page up to `meta.total` with the largest page. */
                 limit?: components["parameters"]["Limit"];
-                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. */
+                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. At most 2147483647, the bound of `LockVersion`: beyond it, the list is refused with 422 `VALIDATION_FAILED`, `fields` designating `/query/offset` with `VALUE_OUT_OF_RANGE` and `params.maximum` at `2147483647` (#2778). */
                 offset?: components["parameters"]["Offset"];
             };
             header?: never;
@@ -13706,7 +13706,7 @@ export interface operations {
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
                 /** @description Page size: 50 when absent, at most 500 (WF-IHM-0060). The screens offer 10, 25, 50 or 100 lines per page (`GridPreferences.page_size`); the larger pages serve the lists read as a choice, such as the categories and roles of an estimate line, which are read page after page up to `meta.total` with the largest page. */
                 limit?: components["parameters"]["Limit"];
-                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. */
+                /** @description Number of items skipped before the page, from 0, in the order of the list as sorted (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. At most 2147483647, the bound of `LockVersion`: beyond it, the list is refused with 422 `VALIDATION_FAILED`, `fields` designating `/query/offset` with `VALUE_OUT_OF_RANGE` and `params.maximum` at `2147483647` (#2778). */
                 offset?: components["parameters"]["Offset"];
                 /** @description Search on the label; an operation that also searches on another field, the code for example, says so in its description. The text is compared like any search of the contract, regardless of case and accents (README, "A search…"). */
                 search?: components["parameters"]["Search"];

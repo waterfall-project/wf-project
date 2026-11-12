@@ -33,6 +33,7 @@ from waterfall.api.contract.models import (
     SortOrder,
 )
 from waterfall.api.evaluation import Acting, Requires, RequiresForInactive
+from waterfall.api.queries import GREATEST_OFFSET
 from waterfall.core.resource_settings.interface import (
     DAYS,
     CalendarColumn,
@@ -194,7 +195,7 @@ class CalendarQueryParams(BaseModel):
     sort_by: CalendarColumn = "label"
     sort_order: SortOrder = SortOrder.asc
     limit: int = Field(default=DEFAULT_LIMIT, ge=1, le=GREATEST_LIMIT)
-    offset: int = Field(default=0, ge=0)
+    offset: int = Field(default=0, ge=0, le=GREATEST_OFFSET)
 
 
 def calendar_query(params: Annotated[CalendarQueryParams, Query()]) -> CalendarQuery:

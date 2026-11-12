@@ -877,7 +877,7 @@ font sur un projet que la course crée (#2193) ». Les jumeaux vont dans `remain
 
 ## US-1960 — Le paramètre `Offset` borné par le contrat
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — correction du contrat et du service
 - **opérations** : toute liste paginée, par le paramètre commun `Offset`
 - **issue** : #2959
