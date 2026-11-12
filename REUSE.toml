@@ -32,6 +32,7 @@ path = [
     "fixtures/**",
     "docs/spec/exemples/*.xlsx",
     "tools/src/wftools/py.typed",
+    "tools/tests/queue/*.log",
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 waterfall-project"

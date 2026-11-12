@@ -1,0 +1,71 @@
+2026-11-10T10:37:05.6246308Z ........................................................................ [ 91%]
+2026-11-10T10:37:44.9441403Z ........................................................................ [ 95%]
+2026-11-10T10:39:03.1817171Z ........................................................................ [ 99%]
+2026-11-10T10:39:08.4537285Z .                                                                        [100%]
+2026-11-10T10:39:08.4538019Z ==================================== ERRORS ====================================
+2026-11-10T10:39:08.4539003Z _ ERROR at setup of test_the_witness_loads_the_nodes_of_the_example_then_deactivates_those_it_says_deactivated _
+2026-11-10T10:39:08.4540821Z [gw0] linux -- Python 3.14.4 /home/runner/work/wf-project/wf-project/backend/.venv/bin/python
+2026-11-10T10:39:08.4541489Z 
+2026-11-10T10:39:08.4541770Z database = <waterfall.platform.database.Database object at 0x7e70e54c2690>
+2026-11-10T10:39:08.4542715Z owner = Engine(postgresql+psycopg://postgres@localhost:5432/waterfall_test_a5a4b150698a4b88ab37cd43578c0340)
+2026-11-10T10:39:08.4545360Z service_database_url = '***localhost:5432/waterfall_test_a5a4b150698a4b88ab37cd43578c0340'
+2026-11-10T10:39:08.4546039Z 
+2026-11-10T10:39:08.4546214Z     @pytest.fixture
+2026-11-10T10:39:08.4547228Z     def witness(database: Database, owner: Engine, service_database_url: str) -> Database:
+2026-11-10T10:39:08.4548237Z         """Install the database as the bootstrap does, load the witness by the command; give it.
+2026-11-10T10:39:08.4549066Z     
+2026-11-10T10:39:08.4549715Z         The row of the installation and the reference the bootstrap writes — the settings, the units,
+2026-11-10T10:39:08.4550475Z         the mapping, the default calendar, the provision —, as the owner of the tables, then the
+2026-11-10T10:39:08.4551129Z         witness as the service (#2143): the slices that set what the bootstrap wrote have it to set.
+2026-11-10T10:39:08.4551769Z         Emptied with the database after the test, as any row. Loaded once by each process: the tests
+2026-11-10T10:39:08.4552397Z         after the first find its rows laid again (``witness_rows``); a test that reads what the
+2026-11-10T10:39:08.4552867Z         command says asks for ``witness_loaded``.
+2026-11-10T10:39:08.4553161Z         """
+2026-11-10T10:39:08.4553398Z         rows = WITNESS_ROWS.get(service_database_url)
+2026-11-10T10:39:08.4553713Z         if rows is None:
+2026-11-10T10:39:08.4554070Z >           WITNESS_ROWS[service_database_url] = loaded(owner, service_database_url)
+2026-11-10T10:39:08.4554500Z                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-10T10:39:08.4554727Z 
+2026-11-10T10:39:08.4565770Z tests/conftest.py:454: 
+2026-11-10T10:39:08.4566161Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+2026-11-10T10:39:08.4566421Z 
+2026-11-10T10:39:08.4567271Z owner = Engine(postgresql+psycopg://postgres@localhost:5432/waterfall_test_a5a4b150698a4b88ab37cd43578c0340)
+2026-11-10T10:39:08.4568554Z service_database_url = '***localhost:5432/waterfall_test_a5a4b150698a4b88ab37cd43578c0340'
+2026-11-10T10:39:08.4568907Z 
+2026-11-10T10:39:08.4569107Z     def loaded(owner: Engine, service_database_url: str) -> WitnessRows:
+2026-11-10T10:39:08.4569656Z         """Install the database, load the witness by the command; give the rows it wrote, copied."""
+2026-11-10T10:39:08.4570101Z         install(owner)
+2026-11-10T10:39:08.4570336Z         settings = WitnessSettings(
+2026-11-10T10:39:08.4570722Z             database_url=SecretStr(service_database_url), witness_path=str(WITNESS)
+2026-11-10T10:39:08.4571112Z         )
+2026-11-10T10:39:08.4571322Z >       assert load_witness(settings) == 0
+2026-11-10T10:39:08.4571614Z E       AssertionError: assert 1 == 0
+2026-11-10T10:39:08.4572291Z E        +  where 1 = load_witness(WitnessSettings(database_url=SecretStr('**********'), log_level='INFO', witness_path='/home/runner/work/wf-project/wf-project/fixtures/api'))
+2026-11-10T10:39:08.4572874Z 
+2026-11-10T10:39:08.4572977Z tests/conftest.py:474: AssertionError
+2026-11-10T10:39:08.4573341Z ---------------------------- Captured stdout setup -----------------------------
+2026-11-10T10:39:08.4573947Z 2026-11-10 10:35:56 [error    ] witness.failed                 actor=platform correlation_id=7948aa18-c995-4242-b586-5c89fc9b4180
+2026-11-10T10:39:08.4664727Z │ ╰──────────────────────────────────────────────────────────────────────────╯ │
+2026-11-10T10:39:08.4665481Z ╰──────────────────────────────────────────────────────────────────────────────╯
+2026-11-10T10:39:08.4666136Z LockNotAvailable: could not obtain lock on relation "public.revision"
+2026-11-10T10:39:08.4667229Z CONTEXT:  SQL statement "LOCK TABLE ONLY public.user_account, ONLY 
+2026-11-10T10:39:08.5422331Z OperationalError: (psycopg.errors.LockNotAvailable) could not obtain lock on 
+2026-11-10T10:39:08.5422489Z relation "public.revision"
+2026-11-10T10:39:08.5422791Z CONTEXT:  SQL statement "LOCK TABLE ONLY public.user_account, ONLY 
+2026-11-10T10:39:08.5423175Z public.cost_category, ONLY public.resource_role, ONLY public.subproject, ONLY 
+2026-11-10T10:39:08.5423526Z public.work_package, ONLY public.order_item, ONLY public.revision, ONLY 
+2026-11-10T10:39:08.5423745Z public.cost_structure, ONLY public.node, ONLY public.task, ONLY 
+2026-11-10T10:39:08.5423965Z public.task_link, ONLY public.estimate_line IN SHARE ROW EXCLUSIVE MODE NOWAIT"
+2026-11-10T10:39:08.5424176Z PL/pgSQL function public.create_project_partitions(uuid) line 50 at EXECUTE
+2026-11-10T10:39:08.5424461Z [SQL: SELECT create_project_partitions(%(create_project_partitions_2)s::UUID) AS
+2026-11-10T10:39:08.5424639Z create_project_partitions_1]
+2026-11-10T10:39:08.5424855Z [parameters: {'create_project_partitions_2': 
+2026-11-10T10:39:08.5425033Z UUID('01926f3a-7c00-7000-8000-000000000002')}]
+2026-11-10T10:39:08.5425327Z (Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-11-10T10:39:08.5425338Z 
+2026-11-10T10:39:08.5425583Z =========================== short test summary info ============================
+2026-11-10T10:39:08.5426520Z ERROR tests/test_resource_settings_nodes.py::test_the_witness_loads_the_nodes_of_the_example_then_deactivates_those_it_says_deactivated - AssertionError: assert 1 == 0
+2026-11-10T10:39:08.5427717Z  +  where 1 = load_witness(WitnessSettings(database_url=SecretStr('**********'), log_level='INFO', witness_path='/home/runner/work/wf-project/wf-project/fixtures/api'))
+2026-11-10T10:39:08.5427940Z 1712 passed, 16 skipped, 1 error in 510.30s (0:08:30)
+2026-11-10T10:39:09.4577725Z make: *** [Makefile:438: coverage-back] Error 1
+2026-11-10T10:39:09.4591189Z ##[error]Process completed with exit code 2.

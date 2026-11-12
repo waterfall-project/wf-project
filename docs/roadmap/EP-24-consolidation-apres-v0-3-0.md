@@ -635,7 +635,7 @@ de service adaptés (`session.spec.ts`, `sign-in.spec.ts`).
 
 ## US-1880 — La file dit son taux d'échec hors régression et la durée de son palier complet
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2934

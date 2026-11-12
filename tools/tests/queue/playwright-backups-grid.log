@@ -1,0 +1,41 @@
+2026-11-10T08:46:41.4809976Z   ✘  142 [restoration] › e2e/service/backups.spec.ts:240:1 › a backup taken, downloaded, deposited and restored: the screen says the restoration waiting, then its end, and the administrator signs in again [WF-ADM-0150-A] [WF-ADM-0160-A] @platform-wide (14.0s)
+2026-11-10T08:46:47.0770401Z 
+2026-11-10T08:46:47.0771345Z 
+2026-11-10T08:46:47.0790716Z   1) [restoration] › e2e/service/backups.spec.ts:240:1 › a backup taken, downloaded, deposited and restored: the screen says the restoration waiting, then its end, and the administrator signs in again [WF-ADM-0150-A] [WF-ADM-0160-A] @platform-wide 
+2026-11-10T08:46:47.0793347Z 
+2026-11-10T08:46:47.0795608Z     Error: expect(locator).toBeVisible() failed
+2026-11-10T08:46:47.0796055Z 
+2026-11-10T08:46:47.0796401Z     Locator: getByRole('grid', { name: 'Sauvegardes' })
+2026-11-10T08:46:47.0797050Z     Expected: visible
+2026-11-10T08:46:47.0797511Z     Timeout: 10000ms
+2026-11-10T08:46:47.0797971Z     Error: element(s) not found
+2026-11-10T08:46:47.0798285Z 
+2026-11-10T08:46:47.0798447Z     Call log:
+2026-11-10T08:46:47.0798996Z       - Expect "toBeVisible" getByRole('grid', { name: 'Sauvegardes' }) with timeout 10000ms
+2026-11-10T08:46:47.0799590Z       - waiting for getByRole('grid', { name: 'Sauvegardes' })
+2026-11-10T08:46:47.0799883Z 
+2026-11-10T08:46:47.0799890Z 
+2026-11-10T08:46:47.0800231Z       270 |     // nothing, and the row of a backup taken an hour before was taken for that of the path.
+2026-11-10T08:46:47.0800873Z       271 |     const grid = page.getByRole("grid", { name: "Sauvegardes" });
+2026-11-10T08:46:47.0801889Z     > 272 |     await expect(grid).toBeVisible();
+2026-11-10T08:46:47.0802537Z           |                        ^
+2026-11-10T08:46:47.0803003Z       273 |     await untilHydrated(page);
+2026-11-10T08:46:47.0803734Z       274 |     const downloads = grid.getByRole("link", { name: /^Télécharger la sauvegarde du / });
+2026-11-10T08:46:47.0804638Z       275 |     const rowsListed = async () => Number((await grid.getAttribute("aria-rowcount")) ?? "0") - 2;
+2026-11-10T08:46:47.0805385Z         at /home/runner/work/wf-project/wf-project/frontend/e2e/service/backups.spec.ts:272:24
+2026-11-10T08:46:47.0805768Z 
+2026-11-10T08:46:47.0806265Z     Error Context: test-results/service-backups-a-backup-t-e6094-F-ADM-0150-A-WF-ADM-0160-A--restoration/error-context.md
+2026-11-10T08:46:47.0807076Z 
+2026-11-10T08:46:47.0807923Z     attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-11-10T08:46:47.0809431Z     test-results/service-backups-a-backup-t-e6094-F-ADM-0150-A-WF-ADM-0160-A--restoration/trace.zip
+2026-11-10T08:46:47.0810378Z     Usage:
+2026-11-10T08:46:47.0810585Z 
+2026-11-10T08:46:47.0811904Z         pnpm exec playwright show-trace test-results/service-backups-a-backup-t-e6094-F-ADM-0150-A-WF-ADM-0160-A--restoration/trace.zip
+2026-11-10T08:46:47.0812965Z 
+2026-11-10T08:46:47.0813708Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-10T08:46:47.0814315Z 
+2026-11-10T08:46:47.0814490Z   1 failed
+2026-11-10T08:46:47.0816667Z     [restoration] › e2e/service/backups.spec.ts:240:1 › a backup taken, downloaded, deposited and restored: the screen says the restoration waiting, then its end, and the administrator signs in again [WF-ADM-0150-A] [WF-ADM-0160-A] @platform-wide 
+2026-11-10T08:46:47.0818524Z   17 skipped
+2026-11-10T08:46:47.0819032Z   125 passed (11.9m)
+2026-11-10T08:46:47.1054740Z make: *** [Makefile:619: e2e-service] Error 1

@@ -1,0 +1,6 @@
+2026-11-05T20:52:08.6393819Z Downloading cpython-3.14.10-linux-x86_64-gnu (download) (35.1MiB)
+2026-11-05T20:52:09.3688225Z  Downloaded cpython-3.14.10-linux-x86_64-gnu (download)
+2026-11-05T20:52:09.3705582Z Installed Python 3.14.10 in 855ms
+2026-11-05T20:52:09.3706234Z  + cpython-3.14.10-linux-x86_64-gnu (python3.14)
+2026-11-05T20:52:09.5210217Z /__w/_temp/7f5f9510-f45c-4237-89b1-7cbd4801c8ad.sh: 4: Bad substitution
+2026-11-05T20:52:09.5257253Z ##[error]Process completed with exit code 2.
