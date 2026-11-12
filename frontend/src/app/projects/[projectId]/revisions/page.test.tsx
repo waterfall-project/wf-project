@@ -634,7 +634,7 @@ describe("« Écarts seulement » on the comparison of two revisions [WF-REV-008
   const ALL = "added,removed,modified";
   const COMPARISON_ROUTE = "GET /projects/{project_id}/revisions/comparison";
   const BUTTON =
-    /<button[^>]*aria-pressed="(true|false)"[^>]*>(?:(?!<\/button>).)*Écarts seulement<\/button>/;
+    /<button[^>]*aria-pressed="(true|false)"[^>]*>(?:(?!<\/button>).)*Écarts seulement(?:<\/span>)?<\/button>/;
   const chips = (page: string) =>
     /<ul aria-label="Filtres actifs"(?:(?!<\/ul>).)*<\/ul>/.exec(page)?.[0] ?? "";
 

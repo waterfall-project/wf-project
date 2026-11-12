@@ -16,7 +16,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { readNodeTotals, setLineRemaining } from "@/api/actions/nodes";
 
@@ -66,6 +66,8 @@ interface Dating {
 
 /** What the grid of the remaining to commit shows. */
 export interface RemainingGridProps {
+  /** The filters of the screen, as menus in the bar of the grid (#2916/L6). */
+  readonly treeFilters?: ReactNode;
   /** The rows of the answer of `listNodes`, as the grid reads them, and its totals. */
   readonly nodes: NodeRows<RemainingNode>;
   /** The structure the rows belong to. */
@@ -148,6 +150,7 @@ export function RemainingGrid({
   subprojects,
   query,
   preferences,
+  treeFilters,
 }: RemainingGridProps) {
   const t = useTranslations("estimateGrid");
   // A reader for each reading: an answer names rows a new reading may have renumbered.
@@ -240,6 +243,7 @@ export function RemainingGrid({
         narrowing={nodeNarrowing(filters, SCOPE)}
         undoable={editable}
         commands={gestures}
+        treeFilters={treeFilters}
         around={(rows, grid) => <OwnLinesOpen rows={rows}>{grid}</OwnLinesOpen>}
       />
     </>

@@ -2291,7 +2291,9 @@ nor the exclusion of a cost line can be undone. Such a grid shows them as button
 the context menu of its cells (right click, Shift+F10, Menu key — `CellMenu`, without one more tab
 stop), with their shortcuts, and takes Ctrl+Z and Ctrl+Shift+Z — Cmd on a Mac — in the grid or its
 bar, outside a menu or a box it opens. A field being entered — the editor of a cell, the search —
-keeps Ctrl+Z for itself: the browser's undo stays there.
+keeps Ctrl+Z for itself: the browser's undo stays there. A filter button of the bar (work package
+or order item, « Écarts seulement », risk occurred) is no field: Ctrl+Z there undoes the grid, as on
+Columns or on the outline menu, and does not undo the filter (#2916).
 
 **Wired (planning, US-1450).** The planning grid wires them to `undoLastChange` and `redoLastUndo`
 (`src/api/actions/history.ts`) through `useUndoRedo` (`undo-run.ts`), which `DenseGrid` receives as

@@ -2288,7 +2288,9 @@ l'exclusion d'une ligne de coût ne s'annulent. Une telle grille les montre en b
 et dans le menu contextuel de ses cellules (clic droit, Maj+F10, touche Menu — `CellMenu`, sans
 arrêt de tabulation de plus), avec leurs raccourcis, et prend Ctrl+Z et Ctrl+Maj+Z — Cmd sur un Mac —
 dans la grille ou sa barre, hors d'un menu ou d'une boîte qu'elle ouvre. Un champ en cours de saisie
-— l'éditeur d'une cellule, la recherche — garde Ctrl+Z pour lui : l'annulation du navigateur y reste.
+— l'éditeur d'une cellule, la recherche — garde Ctrl+Z pour lui : l'annulation du navigateur y reste. Un bouton de filtre de la barre
+(lot ou poste, « Écarts seulement », risque survenu) n'est pas un champ : Ctrl+Z y annule la grille,
+comme sur Colonnes ou sur le menu du plan, sans défaire le filtre (#2916).
 
 **Branchées (planning, US-1450).** La grille de planning les branche sur `undoLastChange` et
 `redoLastUndo` (`src/api/actions/history.ts`) par `useUndoRedo` (`undo-run.ts`), que `DenseGrid`

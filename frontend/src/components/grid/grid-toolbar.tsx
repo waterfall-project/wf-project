@@ -45,6 +45,18 @@ import { configColumn, type GridTable } from "./grid-table";
 import { type GridAddress, SEARCH_LENGTH } from "./query";
 import { UndoCommands, type UndoControl } from "./undo-commands";
 
+/**
+ * The classes of the line of a bar that is not folded: it is never narrower than what it needs on
+ * one line; with the filters of a tree it keeps the width of its frame instead, its controls giving
+ * up their width down to their floor, and it scrolls sideways when even that does not hold; the
+ * padding and the negative margin leave the focus ring of a button room without taller bar.
+ */
+function barClass(scrolling: boolean): string {
+  return scrolling
+    ? "-my-0.5 flex max-w-full items-center gap-2 overflow-x-auto py-0.5"
+    : "flex min-w-min max-w-full items-center gap-2";
+}
+
 /** Nothing to do, for a panel that cannot be opened. */
 function noop(): void {
   return undefined;
@@ -126,6 +138,8 @@ export interface GridToolbarProps {
   readonly covered?: boolean | undefined;
   /** The commands the screen gives the bar, first in it: those of the work breakdown on its rows. */
   readonly commands?: ReactNode;
+  /** The filters of a tree grid, as compact menus of the bar after its search (#2916/L6). */
+  readonly treeFilters?: ReactNode;
   /**
    * For a flat table whose screen folds its filters into the bar: the button « Filtres (n) », the
    * panel under the bar and the chips of the filters on (`filter-bar.tsx`); none, the bar as before.
@@ -259,6 +273,7 @@ export function GridToolbar({
   grid,
   width,
   commands,
+  treeFilters,
   covered,
   filters: filtering,
   open,
@@ -284,7 +299,7 @@ export function GridToolbar({
       data-grid-toolbar=""
       inert={covered}
       className={cn(
-        folded ? "flex w-full items-center gap-2" : "flex min-w-min max-w-full items-center gap-2",
+        folded ? "flex w-full items-center gap-2" : barClass(treeFilters !== undefined),
         covered ? "invisible" : null,
       )}
       style={folded ? undefined : sized}
@@ -293,6 +308,7 @@ export function GridToolbar({
       {onSearch === undefined ? null : (
         <SearchField search={search} onSearch={onSearch} grid={grid} />
       )}
+      {treeFilters}
       {filters === undefined ? null : (
         <FiltersButton
           ref={toggle}

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { type Download, expect, type Locator } from "@playwright/test";
 
+import { closeMenu, menuButton, openMenu, pick } from "./check-menu";
 import { columnsOf } from "./columns";
 import { holdScripts, openHydrated, WORKING } from "./hydration";
 import { test } from "./mode";
@@ -347,18 +348,19 @@ test("filters the planning by the post « Poste 1.1 » chosen among the work bre
   // here, and what the page sends is proven by `planning/page.test.tsx`. The subtree and the
   // ancestors the server retains are its own, and are not checked here.
   await openHydrated(page, `${IN_REVISION}/planning`);
-  const filter = page.getByRole("combobox", { name: "Lot ou poste" });
-  await expect(filter.getByRole("option")).toHaveText([
+  const filter = menuButton(page, "Lot ou poste");
+  await expect((await openMenu(page, "Lot ou poste")).getByRole("radio")).toHaveText([
     "Tous les lots et postes",
     "Lot : Lot 1",
     "Poste : Poste 1.1",
   ]);
-  await filter.selectOption({ label: "Poste\u00a0: Poste 1.1" });
+  await closeMenu(page);
+  await pick(page, "Lot ou poste", "Poste\u00a0: Poste 1.1", "radio");
   await expect(page).toHaveURL(
     `${IN_REVISION}/planning?order_item_id=01926f3a-7c00-7000-8000-000000000712`,
     { timeout: WORKING },
   );
-  await expect(filter).toHaveValue("01926f3a-7c00-7000-8000-000000000712");
+  await expect(filter).toContainText("Poste : Poste 1.1");
   const chips = page
     .getByRole("region", { name: "Contexte de lecture" })
     .getByRole("list", { name: "Filtres actifs" })
@@ -366,7 +368,7 @@ test("filters the planning by the post « Poste 1.1 » chosen among the work bre
   await expect(chips).toHaveText(["Poste : Poste 1.1"]);
   await chips.getByRole("link", { name: "Lever le filtre « Poste : Poste 1.1 »" }).click();
   await expect(page).toHaveURL(`${IN_REVISION}/planning`, { timeout: WORKING });
-  await expect(filter).toHaveValue("");
+  await expect(filter).toContainText("Tous les lots et postes");
   await expect(chips).toHaveCount(0);
 });
 

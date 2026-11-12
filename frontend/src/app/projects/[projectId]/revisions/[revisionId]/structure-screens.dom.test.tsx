@@ -135,10 +135,8 @@ async function sortByReferenceAmount() {
 
 /** Filter the grid by the lot of the witness, from the choice above it. */
 async function chooseLot() {
-  await userEvent.selectOptions(
-    screen.getByRole("combobox", { name: "Lot ou poste" }),
-    screen.getByRole("option", { name: `Lot${NB}: Lot 1` }),
-  );
+  await userEvent.click(screen.getByRole("button", { name: /^Lot ou poste/ }));
+  await userEvent.click(screen.getByRole("radio", { name: `Lot${NB}: Lot 1` }));
 }
 
 /** Choose the amendment 2 in the banner, the main structure read. */

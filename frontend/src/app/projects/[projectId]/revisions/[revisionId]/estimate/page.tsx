@@ -39,7 +39,7 @@ import type { ProjectReading } from "@/components/context/reading";
 import { EstimateSummary } from "@/components/estimate/estimate-summary";
 import { ExchangesLink } from "@/components/exchanges/exchanges-link";
 import { breakdownChip } from "@/components/grid/breakdown-filter";
-import { GridFilters } from "@/components/grid/grid-filters";
+import { TreeFilters } from "@/components/grid/tree-filters";
 import { originNames } from "@/components/grid/origin-filter";
 import {
   ESTIMATE_FIELDS,
@@ -325,12 +325,6 @@ export default async function EstimatePage({
           permissions={session?.permissions ?? []}
           currency={currency}
         />
-        <GridFilters
-          breakdown={screen.breakdown}
-          difference={screen.difference}
-          differential={screen.kind === "amendment"}
-          origin={screen.origin}
-        />
         <EstimateGrid
           key={screen.structure.structure_id}
           nodes={subprojectsEntered ? screen.nodes : withoutSubprojectIds(screen.nodes)}
@@ -344,6 +338,14 @@ export default async function EstimatePage({
           preferences={screen.preferences}
           differential={screen.kind === "amendment"}
           origins={originNames(screen.origin)}
+          treeFilters={
+            <TreeFilters
+              breakdown={screen.breakdown}
+              difference={screen.difference}
+              differential={screen.kind === "amendment"}
+              origin={screen.origin}
+            />
+          }
           inflation={inflationOf(screen.reading)}
         />
       </Screen>
