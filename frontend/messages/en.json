@@ -285,7 +285,19 @@
     "selection": {
       "handle": "{number} — row handle",
       "hint": "Space selects the row, Shift and an arrow extend the selection, Escape lifts it. Alt+Shift and an arrow move it — Alt+Shift+Up and Alt+Shift+Down by a rank, Alt+Shift+Right and Alt+Shift+Left indenting and outdenting it —, as dragging the handle with the mouse does.",
-      "count": "{count, plural, one {# row selected} other {# rows selected}}"
+      "hintPick": "Space adds the row to the selection or takes it off (Ctrl+Space too), Shift and an arrow extend the selection, Ctrl+A or Cmd+A, from any cell but one entered, selects all the rows shown, Escape lifts it. With the mouse, Ctrl+click or Cmd+click adds or removes a row, Shift+click extends, Ctrl+Shift+click adds the extent.",
+      "count": "{count, plural, one {# row selected} other {# rows selected}}",
+      "none": "No row selected",
+      "every": "All the rows shown are selected",
+      "state": {
+        "all": "All the rows shown are selected",
+        "some": "Some of the rows shown are selected",
+        "none": "No row is selected"
+      },
+      "all": "Select all the rows shown",
+      "bar": "Actions on the selection",
+      "barCount": "{count, plural, one {# row selected} other {# rows selected}}",
+      "clear": "Clear the selection"
     },
     "structure": {
       "insertFirst": "Insert a task",
@@ -343,6 +355,23 @@
       "openIn": "Columns of “{grid}”",
       "title": "Columns shown"
     },
+    "filtering": {
+      "open": "{count, plural, =0 {Filters} other {Filters ({count})}}",
+      "panel": "Filters",
+      "active": "Active filters",
+      "chip": "{name}: {value}",
+      "remove": "Remove the filter {name}: {value}",
+      "clear": "Clear the filters",
+      "between": "from {from} to {to}",
+      "since": "since {from}",
+      "until": "until {to}",
+      "authorUnknown": "An account",
+      "selected": "{count, plural, one {# selected} other {# selected}}",
+      "search": "Search in “{label}”",
+      "noMatch": "No value matches.",
+      "hint": "A choice applies at once; a period or a bound, on Enter or on leaving the field.",
+      "audit": "Audit filters — creation and modification"
+    },
     "fold": {
       "open": "Tree",
       "title": "Fold and unfold the tree",
@@ -380,11 +409,10 @@
       "unretainedRows": "The pasted block would write rows of the plan that the search or the filter hides: lift the search or the filter before pasting, or paste a shorter block."
     },
     "range": {
-      "min": "{column}, min",
-      "max": "{column}, max",
-      "minShort": "min",
-      "maxShort": "max",
-      "apply": "Filter",
+      "min": "{column}, from",
+      "max": "{column}, to",
+      "minShort": "from",
+      "maxShort": "to",
       "lift": "Lift the bounds",
       "inverted": "The upper bound may not precede the lower one, {minimum}.",
       "money": "Two decimals at most."
@@ -392,13 +420,13 @@
     "period": {
       "from": "From",
       "to": "To",
-      "apply": "Filter",
       "inverted": "The end of the period may not precede its start, {minimum}.",
       "invertedUndated": "The end of the period may not precede its start.",
       "late": "The start of the period may not follow its end, {maximum}.",
       "lateUndated": "The start of the period may not follow its end.",
       "invertedDefault": "The end of the period may not precede its default start, {minimum}.",
-      "lateDefault": "The start of the period may not follow its default end, the date of calculation, {maximum}."
+      "lateDefault": "The start of the period may not follow its default end, the date of calculation, {maximum}.",
+      "invertedEntry": "The start of the period cannot follow its end."
     }
   },
   "estimateGrid": {
@@ -616,8 +644,7 @@
       "unknownSubproject": "Unknown subproject",
       "period": "Period of the documents",
       "from": "Documents from",
-      "to": "Documents up to",
-      "apply": "Filter"
+      "to": "Documents up to"
     },
     "pages": {
       "costs": {
@@ -2580,6 +2607,7 @@
     },
     "users": {
       "title": "User accounts",
+      "selected": "{count, plural, one {# account selected} other {# accounts selected}}",
       "noRole": "No role",
       "noOrgNode": "None",
       "none": "No account.",
@@ -2880,7 +2908,6 @@
         "period": "Period",
         "from": "From",
         "to": "Before",
-        "apply": "Apply",
         "actorKind": "Filter by kind of author",
         "everyActor": "Every author",
         "user": "Author",

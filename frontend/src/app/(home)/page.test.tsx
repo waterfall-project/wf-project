@@ -287,12 +287,10 @@ describe("the home, the list of projects", () => {
 
   it("says the filter by default while it applies, with Created, Pricing and In progress pressed, and lifts it by « Every state » [WF-IHM-0130]", async () => {
     const html = await home();
-    expect(html).toMatch(/role="group" aria-label="Filter by state"/);
+    // The menu of the states, closed, says how many it retains (`CheckMenu`, #2916); the default
+    // filter says which.
+    expect(text(html)).toContain("Filter by state 3 selected");
     expect(html).toContain('aria-label="Default filter of the list by state"');
-    const pressed = [...html.matchAll(/aria-pressed="true"[^>]*>(.*?)<\/button>/g)].map((match) =>
-      text(match[1] ?? ""),
-    );
-    expect(pressed).toEqual(["Created", "Pricing", "In progress"]);
   });
 
   it("reads the project created today on the home by default, the example of the contract the fake back serves [WF-IHM-0130]", async () => {
@@ -318,7 +316,7 @@ describe("the home, the list of projects", () => {
   it("presses every state, and says no default, for `states=all` [WF-IHM-0130]", async () => {
     const html = await home({ states: "all" });
     expect(html).not.toContain("Default filter of the list by state");
-    expect(html).toMatch(/aria-pressed="true"[^>]*>.*?Every state/);
+    expect(text(html)).toContain("Filter by state Every state");
   });
 
   it("takes the states the account kept when the address names none, and the address over them [WF-IHM-0060-A]", async () => {
@@ -340,10 +338,7 @@ describe("the home, the list of projects", () => {
 
   it("presses in the filter by state the states the address names: the address is the truth of the filter", async () => {
     const html = await home({ states: "pricing" });
-    const pressed = [...html.matchAll(/aria-pressed="true"[^>]*>(.*?)<\/button>/g)].map((match) =>
-      text(match[1] ?? ""),
-    );
-    expect(pressed).toEqual(["Pricing"]);
+    expect(text(html)).toContain("Filter by state Pricing");
   });
 
   it("asks the period of the last modification the address holds, two instants as it names them, back to the first page", async () => {
@@ -363,9 +358,8 @@ describe("the home, the list of projects", () => {
     // Only the browser knows its time zone: the days show, and the period is sent, once hydrated.
     expect(html.match(/<input[^>]*type="date"[^>]*value=""/g)).toHaveLength(2);
     const period = html.slice(html.indexOf('<form aria-label="Modification period"'));
-    expect(period.slice(0, period.indexOf("</form>"))).toMatch(
-      /<button[^>]*type="submit"[^>]*disabled=""/,
-    );
+    // No button to press: the period is sent on Enter and on leaving it (#2916).
+    expect(period.slice(0, period.indexOf("</form>"))).not.toContain("<button");
     expect(grids.props[0]?.projects.map((project) => project.code)).toEqual(["PRJ-002"]);
     // A bound that is no instant — a day alone, a 30 February — is not asked: the API would
     // refuse it.
@@ -399,7 +393,7 @@ describe("the home, the list of projects", () => {
       `<p id="${described ?? ""}" class="text-xs text-destructive">The end of the period may not precede its start.</p>`,
     );
     // The states of the address stay pressed, to be changed.
-    expect(html).toMatch(/aria-pressed="true"[^>]*>.*?Pricing/);
+    expect(text(html)).toContain("Filter by state Pricing");
   });
 
   it("is filtered on the projects the user contributes to, by the filter of the contract, shown with the link that lifts it", async () => {
@@ -466,22 +460,10 @@ describe("the home, the list of projects", () => {
     expect(await home()).not.toMatch(/role="note"|Mock-up/);
   });
 
-  it("offers the six states of the lifecycle and no other in its filter, under their labels [WF-CYC-0010-A]", async () => {
+  it("shows every state when the address lifts the filter, the six states being offered by the menu itself [WF-CYC-0010-A]", async () => {
+    // The six states, and no other, are listed by the menu once open (`project-list.dom.test.tsx`).
     const html = await home({ states: "all" });
-    const group =
-      /role="group" aria-label="Filter by state"[^>]*>(.*?)<\/div>/.exec(html)?.[1] ?? "";
-    const labels = [...group.matchAll(/<button[^>]*>(.*?)<\/button>/g)].map((m) =>
-      text(m[1] ?? ""),
-    );
-    expect(labels).toEqual([
-      "Every state",
-      "Created",
-      "Pricing",
-      "In progress",
-      "Completed",
-      "Lost",
-      "Abandoned",
-    ]);
+    expect(text(html)).toContain("Filter by state Every state");
   });
 
   it("presents the creation of a project unavailable while the minimum reference data is incomplete, which the server would refuse", async () => {
@@ -515,7 +497,7 @@ describe("the empty states of the home", () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home({ states: "all" });
     expect(text(html)).toMatch(
-      /^Projects Help Create a project Projects you contribute to Show all projects Every state .* You contribute to no project\.$/,
+      /^Projects Help Create a project Projects you contribute to Show all projects Filter by state Every state .* You contribute to no project\.$/,
     );
     expect(links(html)).toEqual(["/?states=all&is_contributor=false"]);
     expect(html).not.toContain('role="grid"');
@@ -538,13 +520,13 @@ describe("the empty states of the home", () => {
     },
   );
 
-  it("keeps an empty grid, the badge of the states by default and « Every state », when the states by default retain no project and the address names none (WF-IHM-0130)", async () => {
+  it("keeps an empty grid, the badge of the states by default and the menu of the states, when the states by default retain no project and the address names none (WF-IHM-0130)", async () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home({ is_contributor: "false" });
     expect(listQuery()).toEqual({ states: DEFAULT_STATES });
     expect(html).toMatch(/role="grid"[^>]*aria-label="List of projects"/);
     expect(text(html)).toContain("By default:");
-    expect(text(html)).toContain("Every state");
+    expect(text(html)).toContain("Filter by state 3 selected");
     expect(text(html)).not.toContain("No project.");
     expect(grids.props[0]?.projects).toEqual([]);
   });
@@ -553,7 +535,7 @@ describe("the empty states of the home", () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home({ is_contributor: "false", states: "all" });
     expect(text(html)).toMatch(
-      /^Projects Help Create a project Show only my projects Every state .* No project\.$/,
+      /^Projects Help Create a project Show only my projects Filter by state Every state .* No project\.$/,
     );
   });
 
@@ -580,7 +562,7 @@ describe("the empty states of the home", () => {
       const html = await home({ states: "all" });
       expect(text(html)).toMatch(
         new RegExp(
-          `^Projects Help Create a project The minimum reference data is incomplete\\. Projects you contribute to Show all projects Incomplete reference data No project can be created until the common reference data has: ${missing} Every state`,
+          `^Projects Help Create a project The minimum reference data is incomplete\\. Projects you contribute to Show all projects Incomplete reference data No project can be created until the common reference data has: ${missing} Filter by state Every state`,
         ),
       );
       expect(links(html).slice(1, 1 + provided.length)).toEqual(provided);
@@ -620,7 +602,7 @@ describe("the empty states of the home", () => {
       "Projects Help Create a project The minimum reference data is incomplete. Show only my projects " +
         `Incomplete reference data No project can be created until the common reference data has: ` +
         "an active labour category an active resource role " +
-        "Every state Created Pricing In progress Completed Lost Abandoned From To Filter No project.",
+        "Filter by state Every state Modification period From To No project.",
     );
   });
 

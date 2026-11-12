@@ -8288,6 +8288,11 @@ toute écriture de la grille enregistre (#1260, de #1232). Décisions de l'auteu
 Le front — la colonne des prédécesseurs qui résout un numéro hors des lignes lues, `grid/settings.ts`
 qui lit et écrit `known_columns` — est US-0650/L2.
 
+- **L'état du panneau de filtres.** `GridPreferences.filters_open` (#2916, WF-IHM-0060) : booléen,
+  optionnel ; absent, le panneau est fermé. Gardé tel qu'écrit, la grille remplacée entière comme
+  ses voisines, sans que le service connaisse les grilles ; `null` est
+  refusé par 422 sur `/grids/<grille>/filters_open`.
+
 ### Les exemples manquants et les descriptions du contrat (US-0640/L1, #1329)
 
 Les mineurs des relectures d'EP-14 (L42p, L42q, L42s, L44c, L44d, L53) reportés jusqu'ici : #764,

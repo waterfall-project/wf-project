@@ -34,6 +34,7 @@ import {
   DIFF_MARK_KEY,
   MAX_WIDTH,
   MIN_WIDTH,
+  hasRowNumbers,
   ROW_NUMBER_KEY,
   sortedBy,
   WIDEST,
@@ -86,18 +87,17 @@ function tableColumns<Row extends RowData, Sort extends string, Totals>(
             enableResizing: false,
           }),
         ];
-  const numbers =
-    config.rowNumber === undefined
-      ? []
-      : [
-          helper.display({
-            id: ROW_NUMBER_KEY,
-            size: ROW_NUMBER_WIDTH,
-            enableHiding: false,
-            enableSorting: false,
-            enableResizing: false,
-          }),
-        ];
+  const numbers = !hasRowNumbers(config)
+    ? []
+    : [
+        helper.display({
+          id: ROW_NUMBER_KEY,
+          size: ROW_NUMBER_WIDTH,
+          enableHiding: false,
+          enableSorting: false,
+          enableResizing: false,
+        }),
+      ];
   return [
     ...marks,
     ...numbers,
@@ -139,7 +139,7 @@ export function endMaxOf<Row extends RowData, Sort extends string, Totals>(
   }
   const fixed =
     (config.difference === undefined ? 0 : DIFF_MARK_WIDTH) +
-    (config.rowNumber === undefined ? 0 : ROW_NUMBER_WIDTH);
+    (hasRowNumbers(config) ? ROW_NUMBER_WIDTH : 0);
   const start = config.columns
     .filter((column) => column.pinned === true)
     .reduce((width, column) => width + widthOf(column, settings), fixed);
@@ -203,7 +203,7 @@ export function useGridTable<Row extends RowData, Sort extends string, Totals>({
   const pinned = useMemo(
     () => [
       ...(config.difference === undefined ? [] : [DIFF_MARK_KEY]),
-      ...(config.rowNumber === undefined ? [] : [ROW_NUMBER_KEY]),
+      ...(hasRowNumbers(config) ? [ROW_NUMBER_KEY] : []),
       ...config.columns.filter((column) => column.pinned === true).map((column) => column.key),
     ],
     [config],

@@ -325,7 +325,7 @@ describe("the settings of a project", () => {
     // Searched by the server on its labels, filtered on its kinds; read whole, nothing says it
     // partial.
     expect(region).toContain('type="search"');
-    expect(text(region ?? "")).toContain("Every kind Work package Order item Deliverable");
+    expect(text(region ?? "")).toContain("Every kind");
     expect(text(region ?? "")).not.toContain("show only what the search and the filter retain");
   });
 
@@ -483,8 +483,9 @@ describe("the settings of a project", () => {
     expect(capacities).toHaveLength(4);
     expect(capacities[0]).toMatch(/<svg[^>]*aria-hidden="true"[^>]*>.*<\/svg>Project manager/);
     expect(capacities.slice(1).every((cell) => !cell.includes("<svg"))).toBe(true);
+    expect(text(page)).toContain("Every capacity");
     expect(text(page)).toContain(
-      "Every capacity Project manager Contributor Account state Every account Active accounts Deactivated accounts",
+      "Account state Every account Active accounts Deactivated accounts",
     );
   });
 

@@ -1078,6 +1078,17 @@ the whole structure against the service, where that of PRJ-001 counts 5,966 node
 5,999 nodes staying with the fake back until EP-13 (#2696). The amount gaps remain a table under the
 grid, and the screen is one of those of the accessibility harness (`DIFFERENTIAL_SCREENS`).
 
+A flat table may let its rows be picked one by one (`DenseGrid.selecting`, off by default,
+#2916/L4): Ctrl or Cmd and a click on the handle of the number, Space alone from the keyboard
+(Ctrl+Space as an alias), Ctrl or Cmd and A for every row shown (outside a cell being entered), the
+box of the header of the handles, and, as soon as a row is, a dark bar (`SelectionBar`) that covers
+the bar of the grid in the same place and at the same height, without moving the frame nor computing
+its height again: the selection prevails, the search, « Colonnes » and the commands of the screen
+are inert and hidden while it lasts (their state, the search typed included, is kept), and « Annuler
+la sélection » or Escape gives them back. The focus that was in one of the two bars when the other
+replaces it comes back to the active cell (`useBarFocus`). A tree grid keeps the contiguous
+selection, its drag and drop and its keyboard.
+
 ### The planning grid and the Gantt
 
 Above the grid, the planning start date of the structure read (`CostStructure.planning_start_on`,

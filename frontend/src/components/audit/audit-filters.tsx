@@ -275,7 +275,6 @@ export function AuditFilterBar({ filters, users, projects, named, refused }: Aud
           texts={{
             from: t("admin.auditLog.filters.from"),
             to: t("admin.auditLog.filters.to"),
-            apply: t("admin.auditLog.filters.apply"),
           }}
           names={{ from: FROM, to: TO }}
           page={AUDIT_PAGE}

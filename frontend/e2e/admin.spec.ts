@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { menuButton, openAudit, pick } from "./check-menu";
 import { expect, type Page } from "@playwright/test";
 
 import { compile } from "./compile";
@@ -70,7 +71,7 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
     // The node before the roles (#379), each a list the session may choose from: the cell names it.
     await expect(
       accounts.getByRole("row", {
-        name: /^Moreau Alix alix\.moreau@example\.com Créé dans Waterfall BE-ELEC · Bureau d'études électricité Rôles de/,
+        name: /^\d+ — poignée de la ligne Moreau Alix alix\.moreau@example\.com Créé dans Waterfall BE-ELEC · Bureau d'études électricité Rôles de/,
       }),
     ).toHaveCount(1);
     await expect(accounts.getByRole("row").last()).toHaveText("7 comptes");
@@ -266,26 +267,23 @@ test("sorts and filters the backups by the server, under the names of the contra
     "/admin/backups?sort_by=size_bytes&sort_order=asc",
   );
   // An origin and a marking chosen keep the sort, under the names of the contract.
-  const origins = page.getByRole("group", { name: "Filtrer par déclenchement" });
-  await origins.getByRole("button", { name: "Planifiée" }).click();
+  await pick(page, "Filtrer par déclenchement", "Planifiée");
   await expect(page).toHaveURL(
     "/admin/backups?sort_by=size_bytes&sort_order=asc&origins=scheduled",
     {
       timeout: WORKING,
     },
   );
-  await expect(origins.getByRole("button", { name: "Planifiée" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(menuButton(page, "Filtrer par déclenchement")).toContainText("Planifiée");
   const retention = page.getByRole("combobox", { name: "Conservation" });
   await retention.selectOption({ label: "Marquées à conserver" });
   await expect(retention).toHaveValue("true");
   await expect(page).toHaveURL(/origins=scheduled&is_retained=true$/, { timeout: WORKING });
   // A bound of the size, in bytes, as the contract counts it.
   const bounds = page.getByRole("form", { name: "Bornes des sauvegardes" });
-  await bounds.getByRole("textbox", { name: "Taille (octets), max." }).fill("2000000000");
-  await bounds.getByRole("button", { name: "Filtrer" }).click();
+  const sizeMost = bounds.getByRole("textbox", { name: "Taille (octets), au" });
+  await sizeMost.fill("2000000000");
+  await sizeMost.press("Enter");
   await expect(page).toHaveURL(/is_retained=true&size_bytes_max=2000000000$/, {
     timeout: WORKING,
   });
@@ -304,17 +302,18 @@ test("sorts, searches and filters the accounts by the server, under the names of
     accounts,
     "/admin/users?sort_by=org_node&sort_order=asc",
   );
+  // The filters are folded into a panel, closed until the bar opens it (#2916).
+  const toggle = page.getByRole("button", { name: /^Filtres( \(|$)/ });
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(menuButton(page, "Filtrer par origine")).toBeHidden();
+  await setExpanded(toggle, true);
   // An origin chosen keeps the sort; a second keeps the first, in the order of the contract.
-  const origins = page.getByRole("group", { name: "Filtrer par origine" });
-  await origins.getByRole("button", { name: "Importé de l’annuaire" }).click();
+  await pick(page, "Filtrer par origine", "Importé de l’annuaire");
   await expect(page).toHaveURL("/admin/users?sort_by=org_node&sort_order=asc&origins=directory", {
     timeout: WORKING,
   });
-  await expect(origins.getByRole("button", { name: "Importé de l’annuaire" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  await origins.getByRole("button", { name: "Créé dans Waterfall" }).click();
+  await expect(menuButton(page, "Filtrer par origine")).toContainText("Importé de l’annuaire");
+  await pick(page, "Filtrer par origine", "Créé dans Waterfall");
   await expect(page).toHaveURL(
     "/admin/users?sort_by=org_node&sort_order=asc&origins=local%2Cdirectory",
     { timeout: WORKING },
@@ -325,15 +324,11 @@ test("sorts, searches and filters the accounts by the server, under the names of
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/origins=local%2Cdirectory&search=Mor$/, { timeout: WORKING });
   // A role chosen, under the name of the contract, by its identifier.
-  const roles = page.getByRole("group", { name: "Filtrer par rôle" });
-  await roles.getByRole("button", { name: "Manager" }).click();
+  await pick(page, "Filtrer par rôle", "Manager");
   await expect(page).toHaveURL(/search=Mor&access_role_ids=01926f3a-7c00-7000-8000-000000000702$/, {
     timeout: WORKING,
   });
-  await expect(roles.getByRole("button", { name: "Manager" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(menuButton(page, "Filtrer par rôle")).toContainText("Manager");
   // The active accounts alone, by the one choice of the state, under the name of the contract.
   const state = page.getByRole("combobox", { name: "État du compte" });
   await state.selectOption({ label: "Comptes actifs" });
@@ -341,6 +336,38 @@ test("sorts, searches and filters the accounts by the server, under the names of
   await expect(page).toHaveURL(/access_role_ids=[\w-]+&is_active=true$/, { timeout: WORKING });
   // The fake back answers its example whatever is asked: what the screen asks is what this proves.
   await expect(accounts.getByRole("row").last()).toHaveText("7 comptes");
+  // The filters on are told as chips, the panel closed or open, and counted by the button.
+  await expect(toggle).toHaveAccessibleName("Filtres (3)");
+  await setExpanded(toggle, false);
+  const chips = page.getByRole("list", { name: "Filtres actifs" });
+  await expect(chips.getByRole("listitem")).toHaveCount(3);
+  await expect(chips).toContainText("Origine : Créé dans Waterfall, Importé de l’annuaire");
+  // A chip lifted changes the address, the server filtering still.
+  await chips.getByRole("button", { name: /^Retirer le filtre État du compte/ }).click();
+  await expect(page).not.toHaveURL(/is_active/, { timeout: WORKING });
+  await expect(toggle).toHaveAccessibleName("Filtres (2)");
+  // The cross lifted took the focus with it: it goes to the cross of the previous chip.
+  await expect(chips.getByRole("button", { name: /^Retirer le filtre Rôles/ })).toBeFocused();
+  // All lifted, the search kept: it has its own field in the bar.
+  await page.getByRole("button", { name: "Effacer les filtres" }).click();
+  await expect(page).toHaveURL(/search=Mor$/, { timeout: WORKING });
+  await expect(page.getByRole("list", { name: "Filtres actifs" })).toHaveCount(0);
+  await expect(toggle).toBeFocused();
+});
+
+test("writes whether the panel of the filters of the accounts is open with the settings of the grid [WF-IHM-0060-A]", async ({
+  page,
+}) => {
+  // The fake back keeps nothing: that the write leaves with the state is what this proves; that it
+  // is read again is proven by the tests of the table, and against the service.
+  await page.goto("/admin/users");
+  const toggle = page.getByRole("button", { name: /^Filtres( \(|$)/ });
+  const written = page.waitForRequest(
+    (request) =>
+      request.method() === "POST" && (request.postData() ?? "").includes('"filters_open":true'),
+  );
+  await setExpanded(toggle, true);
+  await written;
 });
 
 test("enters the table of the accounts — a state on its switch, the roles of an account, a local account created, a link given, a deactivated one anonymised once confirmed — and offers to delete none [WF-ADM-0060-A]", async ({
@@ -483,8 +510,9 @@ test("filters the access roles by their kind and between bounds of their holders
     },
   );
   const bounds = page.getByRole("form", { name: "Bornes des rôles d’habilitation" });
-  await bounds.getByRole("textbox", { name: "Comptes porteurs, max." }).fill("0");
-  await bounds.getByRole("button", { name: "Filtrer" }).click();
+  const holdersMost = bounds.getByRole("textbox", { name: "Comptes porteurs, au" });
+  await holdersMost.fill("0");
+  await holdersMost.press("Enter");
   await expect(page).toHaveURL(/is_predefined=false&holder_count_max=0$/, { timeout: WORKING });
   // The fake back answers its example whatever is asked: what the screen asks is what this proves.
   await expect(roles.getByRole("row").last()).toHaveText("7 rôles");
@@ -503,8 +531,8 @@ test("sorts the access roles by the author of their last modification, names eac
   // A role delivered with the installation, by the platform; one composed since, by its account.
   await expect(roles.getByRole("row", { name: /^Administrateur/ })).toContainText("La plateforme");
   await expect(roles.getByRole("row", { name: /^Auditeur/ })).toContainText("Camille Martin");
-  const author = page.getByRole("combobox", { name: "Créé par" });
-  await author.selectOption({ label: "La plateforme" });
+  await openAudit(page);
+  await pick(page, "Créé par", "La plateforme", "radio");
   await expect(page).toHaveURL(
     "/admin/access-roles?sort_by=updated_by&sort_order=asc&created_by_kind=platform",
     { timeout: WORKING },
@@ -548,4 +576,40 @@ test("enters the node an account is attached to in its cell, among the active no
     await list.selectOption({ label: "Aucun" });
     await expect(list.locator("option:checked")).toHaveText("Aucun");
   }
+});
+
+test("picks accounts one by one or all at once, and lifts the selection from the bar above the table [WF-IHM-0040-A] [WF-IHM-0100-A] #2916", async ({
+  page,
+}) => {
+  await page.goto("/admin/users");
+  const accounts = page.getByRole("grid", { name: "Comptes utilisateurs" });
+  const handles = accounts.getByRole("gridcell", { name: /poignée de la ligne/ });
+  await expect(handles.first()).toBeVisible({ timeout: WORKING });
+  const bar = page.getByRole("group", { name: "Actions sur la sélection" });
+  await expect(bar).toHaveCount(0);
+  const frame = accounts.locator("xpath=..");
+  const top = async () => (await handles.nth(0).boundingBox())?.y;
+  await handles.nth(0).scrollIntoViewIfNeeded();
+  const rowsAt = await top();
+  const frameAt = await frame.boundingBox();
+  // The handles are cells of the grid: the pointer picks the first and the third, not the second.
+  // The page hydrates meanwhile: a click before it is lost, so the pick is made until it shows.
+  await expect(async () => {
+    await handles.nth(0).click();
+    await handles.nth(2).click({ modifiers: ["ControlOrMeta"] });
+    await expect(bar).toContainText("2 comptes sélectionnés", { timeout: 1_000 });
+  }).toPass({ timeout: WORKING });
+  await expect(accounts.getByRole("row", { selected: true })).toHaveCount(2);
+  // The bar lies over the bar of the grid: the rows did not move when it came, so that the second
+  // click fell on the row aimed at.
+  expect(await top()).toBe(rowsAt);
+  expect(await frame.boundingBox()).toEqual(frameAt);
+  const all = accounts.getByRole("checkbox", { name: "Sélectionner toutes les lignes affichées" });
+  await expect(all).toHaveAttribute("aria-checked", "mixed");
+  await all.click();
+  await expect(all).toHaveAttribute("aria-checked", "true");
+  await expect(bar).toContainText("7 comptes sélectionnés");
+  await bar.getByRole("button", { name: "Annuler la sélection" }).click();
+  await expect(bar).toHaveCount(0);
+  await expect(accounts.getByRole("row", { selected: true })).toHaveCount(0);
 });

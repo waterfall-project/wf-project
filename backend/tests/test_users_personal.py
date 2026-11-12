@@ -229,6 +229,48 @@ def test_the_columns_a_grid_knew_are_kept_with_its_hidden_ones_and_read_again(
     assert preferences_of(database, user_id) == {"grids": {"users": USERS_GRID}}
 
 
+@pytest.mark.requirement("WF-IHM-0060-A")
+def test_the_state_of_the_filter_panel_of_a_grid_is_kept_and_read_again_absent_when_unwritten(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # #2916: `filters_open`, kept as written, the grid replaced whole like its neighbours; absent,
+    # the front reads the panel as closed.
+    user_id, headers = person(database, realm, display_preferences={"grids": {"users": USERS_GRID}})
+    read = api.get(ME, headers=headers).json()["display_preferences"]["grids"]
+    assert "filters_open" not in read["users"]
+    for opened in (True, False):
+        grid = {**USERS_GRID, "filters_open": opened}
+        response = api.patch(PREFERENCES, headers=headers, json={"grids": {"users": grid}})
+        assert response.status_code == 200, response.text
+        assert response.json() == {"grids": {"users": grid}}
+        read = api.get(ME, headers=headers).json()["display_preferences"]["grids"]
+        assert read == {"users": grid}
+        assert read["users"]["filters_open"] is opened
+    # A grid written without it no longer holds it, as for its neighbours: absent.
+    response = api.patch(PREFERENCES, headers=headers, json={"grids": {"users": USERS_GRID}})
+    assert response.json() == {"grids": {"users": USERS_GRID}}
+    assert preferences_of(database, user_id) == {"grids": {"users": USERS_GRID}}
+
+
+@pytest.mark.requirement("WF-IHM-0060-A")
+def test_the_filter_panel_state_is_read_as_a_boolean_by_the_lax_models_and_refuses_other_words(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # #2916: the models are lax, as for the neighbours of the field: "true" is read as true,
+    # and a word that is no boolean, "open", is refused on the field.
+    _, headers = person(database, realm, display_preferences={})
+    grid = {"grids": {"users": {"filters_open": "true"}}}
+    response = api.patch(PREFERENCES, headers=headers, json=grid)
+    assert response.status_code == 200, response.text
+    assert api.get(ME, headers=headers).json()["display_preferences"]["grids"]["users"] == {
+        "filters_open": True
+    }
+    grid = {"grids": {"users": {"filters_open": "open"}}}
+    response = api.patch(PREFERENCES, headers=headers, json=grid)
+    assert refusal(response)[:2] == (422, "VALIDATION_FAILED")
+    assert [field["pointer"] for field in refusal(response)[2]] == ["/grids/users/filters_open"]
+
+
 @pytest.mark.requirement("WF-ADM-0040-A")
 def test_the_layout_of_a_timeline_is_kept_by_timeline_and_forgotten_when_sent_null(
     api: ContractClient, database: Database, realm: TestRealm
@@ -274,6 +316,8 @@ def test_the_state_of_a_chart_is_kept_by_chart_and_forgotten_when_sent_null(
         ({"grids": {"users": {"known_columns": None}}}, "/grids/users/known_columns"),
         ({"grids": {"a/b": {"filters": None}}}, "/grids/a~1b/filters"),
         ({"grids": {"users": {"page_size": None}}}, "/grids/users/page_size"),
+        ({"grids": {"users": {"filters_open": None}}}, "/grids/users/filters_open"),
+        ({"grids": {"users": {"filters_open": "open"}}}, "/grids/users/filters_open"),
         ({"timelines": None}, "/timelines"),
         ({"timelines": {"t1": {"lanes": None}}}, "/timelines/t1/lanes"),
         ({"timelines": {"t1": {}}}, "/timelines/t1/lanes"),

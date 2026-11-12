@@ -16,7 +16,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useMemo } from "react";
+import { type ReactNode, useMemo } from "react";
 
 import { useAccountNaming } from "@/components/account/account-name";
 import { DenseGrid } from "@/components/grid/dense-grid";
@@ -36,6 +36,7 @@ import {
   userGrid,
 } from "./admin-grids";
 import { newer, useUserWrites } from "./user-commands";
+import { type UserFilters, useUserChips } from "./user-chips";
 
 /**
  * Render the grid of a page of the accounts, its totals row the number the server retained — its
@@ -50,6 +51,8 @@ export function UserGrid({
   roles,
   nodes,
   editable,
+  filters,
+  panel,
 }: {
   readonly users: readonly User[];
   readonly page: UserPage;
@@ -61,8 +64,13 @@ export function UserGrid({
   readonly nodes: readonly NodeChoice[];
   /** Whether the session may modify the accounts (`platformOffer`). */
   readonly editable: boolean;
+  /** What the address filters the accounts on, told as chips under the bar. */
+  readonly filters: UserFilters;
+  /** The filters of the screen, which the bar folds into its panel. */
+  readonly panel: ReactNode;
 }) {
   const t = useTranslations("admin.users");
+  const chips = useUserChips(filters, nodes, roles);
   const naming = useAccountNaming();
   const writes = useUserWrites();
   const queue = writes?.queue;
@@ -103,6 +111,9 @@ export function UserGrid({
       totalsCaption={(retained) => t("count", { count: retained.total })}
       query={query}
       preferences={preferences}
+      filtering={{ panel, chips }}
+      // The accounts are picked one by one; their actions on a selection come with #2917.
+      selecting={{ label: (count) => t("selected", { count }) }}
     />
   );
 }

@@ -77,6 +77,11 @@ function measureGrids(page: Page): Promise<Measure[]> {
     if (main === null) {
       throw new Error("the screen has no main");
     }
+    // A bar that folds its filters stacks its line, its panel and its chips: the line is the bar.
+    const lineOf = (bar: HTMLElement): HTMLElement => {
+      const first = bar.firstElementChild;
+      return bar.dataset.folded !== undefined && first instanceof HTMLElement ? first : bar;
+    };
     const grids = Array.from(main.querySelectorAll("[role='grid'], [role='treegrid']"));
     return grids.map((grid) => {
       const frame = grid.parentElement;
@@ -98,24 +103,25 @@ function measureGrids(page: Page): Promise<Measure[]> {
         }
         level = level.parentElement;
       }
+      const line = lineOf(bar);
       const measure = {
         name: grid.getAttribute("aria-label") ?? "",
         covered,
         frame: frame.offsetWidth,
         bar: bar.offsetWidth,
-        barHeight: bar.offsetHeight,
+        barHeight: line.offsetHeight,
       };
       // A table narrower than the bar: the bar keeps what it needs for one line.
       bar.style.width = "100px";
-      const children = Array.from(bar.children).filter(
+      const children = Array.from(line.children).filter(
         (child): child is HTMLElement => child instanceof HTMLElement,
       );
-      const searching = bar.querySelector("[role='search']");
+      const searching = line.querySelector("[role='search']");
       const narrowBar = {
-        width: bar.offsetWidth,
-        height: bar.offsetHeight,
+        width: line.offsetWidth,
+        height: line.offsetHeight,
         children: children.map((child) => child.offsetWidth),
-        gap: Number.parseFloat(getComputedStyle(bar).columnGap) || 0,
+        gap: Number.parseFloat(getComputedStyle(line).columnGap) || 0,
         search: searching instanceof HTMLElement ? searching.offsetWidth : undefined,
       };
       bar.style.width = "";
