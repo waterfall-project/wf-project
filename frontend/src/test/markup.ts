@@ -35,14 +35,14 @@ export function links(markup: string): string[] {
   return [...markup.matchAll(/<a [^>]*href="([^"]*)"/g)].map((match) => match[1] ?? "");
 }
 
-/** The headings of the columns a grid of a page sorts: those whose header holds a button. */
+/** The headings of the columns a grid of a page sorts: those whose header holds a button — the box that selects all the rows is no sort. */
 export function sortable(markup: string, table: string): string[] {
   const found = [...markup.matchAll(/<table[^>]*aria-label="([^"]*)"[^>]*>(.*?)<\/table>/g)].find(
     (match) => match[1] === table,
   );
   const head = /<thead[^>]*>(.*?)<\/thead>/.exec(found?.[2] ?? "")?.[1] ?? "";
   return [...head.matchAll(/<th[^>]*>(.*?)<\/th>/g)]
-    .filter((header) => (header[1] ?? "").includes("<button"))
+    .filter((header) => /<button(?![^>]*role="checkbox")/.test(header[1] ?? ""))
     .map((header) => text(header[1] ?? ""));
 }
 

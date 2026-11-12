@@ -15,6 +15,9 @@
  * the page is hydrated, and the period is sent from then on — before, the browser would send the
  * form itself.
  *
+ * The period is one command, « du … au … », applied on Enter or on leaving it with something typed,
+ * no button to press (#2916); a start typed after the end is said and not sent.
+ *
  * The server filters, never the front, and decides alone whether the period holds: a side it
  * refuses (422) — a bound it does not take, an end before the start, which it names
  * (`params.minimum`) — is said at its field, the start named as the field shows it, which takes the
@@ -31,12 +34,18 @@
  */
 "use client";
 
-import { ListFilter } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { type SubmitEvent, useEffect, useId, useRef } from "react";
+import {
+  type FocusEvent,
+  type KeyboardEvent,
+  type SubmitEvent,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useHydrated } from "@/components/use-hydrated";
@@ -64,11 +73,10 @@ import {
 /** The fields marked wrong, of which the first takes the focus when a list comes back refused. */
 const WRONG = '[aria-invalid="true"]';
 
-/** The texts of a filter of a period, translated: its two fields and its button. */
+/** The texts of a filter of a period, translated: its two fields. */
 export interface PeriodTexts {
   readonly from: string;
   readonly to: string;
-  readonly apply: string;
 }
 
 /** What a filter of a period shows. */
@@ -81,7 +89,7 @@ export interface PeriodFilterProps {
   readonly period: Period;
   /** What the API refused of it (422); none when it refused nothing. */
   readonly refused?: PeriodRefusals | undefined;
-  /** The texts of its fields and of its button; those of a period, « Du », « Au », by default. */
+  /** The texts of its fields; those of a period, « Du », « Au », by default. */
   readonly texts?: PeriodTexts | undefined;
   /** The parameters it writes; those of the contract, `from` and `to`, by default. */
   readonly names?: PeriodNames | undefined;
@@ -157,7 +165,7 @@ export function PeriodFilter({
   page,
 }: PeriodFilterProps) {
   const t = useTranslations("grid.period");
-  const shownTexts = texts ?? { from: t("from"), to: t("to"), apply: t("apply") };
+  const shownTexts = texts ?? { from: t("from"), to: t("to") };
   const problemOf = usePeriodProblem(kind);
   const id = useId();
   const hydrated = useHydrated();
@@ -191,28 +199,72 @@ export function PeriodFilter({
     const entry = entered[side];
     return entry === undefined ? period[side] : addressOf(kind, side, entry);
   };
-  const submit = (event: SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  // A side typed that the form cannot take: the start after the end, said at once and not sent.
+  const [inverted, setInverted] = useState<string | undefined>(undefined);
+  const apply = () => {
+    // A date half typed reads as empty: it is not a side lifted.
+    if (
+      [...(form.current?.querySelectorAll("input") ?? [])].some((field) => field.validity.badInput)
+    ) {
+      return;
+    }
     const asked = { from: sent("from"), to: sent("to") };
+    if (fields.from !== "" && fields.to !== "" && fields.from > fields.to) {
+      setInverted(over);
+      return;
+    }
+    setInverted(undefined);
     // Sent, the period arrives as the address writes it: only what is typed after it stays.
     settle();
     request((query) => periodHref(pathname, query, asked, { names, page }));
+  };
+  const touched = Object.keys(entered).length > 0;
+  const badEntry =
+    inverted === over && fields.from !== "" && fields.to !== "" && fields.from > fields.to;
+  const submit = (event: SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (ready) {
+      apply();
+    }
+  };
+  const confirm = (event: KeyboardEvent<HTMLFormElement>) => {
+    if (event.key === "Enter" && ready && event.target instanceof HTMLInputElement) {
+      event.preventDefault();
+      apply();
+    }
+  };
+  const leave = (event: FocusEvent<HTMLFormElement>) => {
+    const next = event.relatedTarget;
+    if (next === null && !document.hasFocus()) {
+      // The window lost the focus, the field did not: nothing was left.
+      return;
+    }
+    if (ready && touched && !(next instanceof Node && event.currentTarget.contains(next))) {
+      apply();
+    }
   };
   return (
     <form
       ref={form}
       aria-label={label}
       onSubmit={submit}
-      className="flex flex-wrap items-start gap-x-4 gap-y-2"
+      onKeyDown={confirm}
+      onBlur={leave}
+      className="flex min-w-0 flex-col gap-1"
     >
-      {PERIOD_SIDES.map((side) => {
-        const field = `${id}-${side}`;
-        const problem = `${field}-problem`;
-        const sideRefusal = refused?.[side];
-        return (
-          <div key={side} className="flex flex-col gap-1">
-            <div className="flex items-center gap-2 text-sm">
-              <Label htmlFor={field}>{shownTexts[side]}</Label>
+      <span aria-hidden="true" className="text-sm leading-none font-medium">
+        {label}
+      </span>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+        {PERIOD_SIDES.map((side) => {
+          const field = `${id}-${side}`;
+          const problem = `${field}-problem`;
+          const sideRefusal = refused?.[side];
+          return (
+            <div key={side} className="flex items-center gap-1.5">
+              <Label htmlFor={field} className="font-normal text-muted-foreground lowercase">
+                {shownTexts[side]}
+              </Label>
               <Input
                 id={field}
                 type={kind === "instant" ? "datetime-local" : "date"}
@@ -221,27 +273,30 @@ export function PeriodFilter({
                 {...(side === "from"
                   ? { max: fields.to === "" ? undefined : fields.to }
                   : { min: fields.from === "" ? undefined : fields.from })}
-                aria-invalid={sideRefusal === undefined ? undefined : true}
+                aria-invalid={sideRefusal === undefined && !badEntry ? undefined : true}
                 aria-describedby={sideRefusal === undefined ? undefined : problem}
                 onChange={(event) => {
                   enter(side, event.target.value);
                 }}
-                className={kind === "instant" ? "h-8 w-52" : "h-8 w-40"}
+                className={kind === "instant" ? "h-8 w-48" : "h-8 w-36"}
               />
             </div>
-            {sideRefusal === undefined ? null : (
-              <p id={problem} className="text-xs text-destructive">
-                {problemOf(sideRefusal)}
-              </p>
-            )}
-          </div>
+          );
+        })}
+      </div>
+      {PERIOD_SIDES.map((side) => {
+        const sideRefusal = refused?.[side];
+        return sideRefusal === undefined ? null : (
+          <p key={side} id={`${id}-${side}-problem`} className="text-xs text-destructive">
+            {problemOf(sideRefusal)}
+          </p>
         );
       })}
-      {/* Sent by React alone: before the hydration, the browser would send the form itself. */}
-      <Button type="submit" size="sm" variant="outline" disabled={!ready}>
-        <ListFilter aria-hidden="true" className="size-4" />
-        {shownTexts.apply}
-      </Button>
+      {badEntry ? (
+        <p role="alert" className="text-xs text-destructive">
+          {t("invertedEntry")}
+        </p>
+      ) : null}
     </form>
   );
 }

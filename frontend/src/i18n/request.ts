@@ -47,7 +47,9 @@ async function languageOf(account: Account | undefined): Promise<RequestLanguage
   if (decided !== undefined) {
     return { locale: decided, preference };
   }
-  const installation = await reach(() => serverClient().GET("/installation"));
+  const installation = await reach(() =>
+    serverClient({ session: "optional" }).GET("/installation"),
+  );
   return { locale: installation?.data?.default_language ?? FALLBACK_LOCALE, preference };
 }
 

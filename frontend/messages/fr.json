@@ -285,7 +285,19 @@
     "selection": {
       "handle": "{number} — poignée de la ligne",
       "hint": "Espace sélectionne la ligne, Maj et une flèche étendent la sélection, Échap la lève. Alt+Maj et une flèche la déplacent — Alt+Maj+↑ et Alt+Maj+↓ d’un rang, Alt+Maj+→ et Alt+Maj+← en l’indentant et en la désindentant —, comme le glisser de la poignée à la souris.",
-      "count": "{count, plural, one {# ligne sélectionnée} other {# lignes sélectionnées}}"
+      "hintPick": "Espace ajoute la ligne à la sélection ou l’en retire (Ctrl+Espace aussi), Maj et une flèche étendent la sélection, Ctrl+A ou Cmd+A, depuis n’importe quelle cellule hors saisie, sélectionne toutes les lignes affichées, Échap la lève. À la souris, Ctrl+clic ou Cmd+clic ajoute ou retire une ligne, Maj+clic étend, Ctrl+Maj+clic ajoute l’étendue.",
+      "count": "{count, plural, one {# ligne sélectionnée} other {# lignes sélectionnées}}",
+      "none": "Aucune ligne sélectionnée",
+      "every": "Toutes les lignes affichées sont sélectionnées",
+      "state": {
+        "all": "Toutes les lignes affichées sont sélectionnées",
+        "some": "Une partie des lignes affichées est sélectionnée",
+        "none": "Aucune ligne n’est sélectionnée"
+      },
+      "all": "Sélectionner toutes les lignes affichées",
+      "bar": "Actions sur la sélection",
+      "barCount": "{count, plural, one {# ligne sélectionnée} other {# lignes sélectionnées}}",
+      "clear": "Annuler la sélection"
     },
     "structure": {
       "insertFirst": "Insérer une tâche",
@@ -343,6 +355,23 @@
       "openIn": "Colonnes de « {grid} »",
       "title": "Colonnes affichées"
     },
+    "filtering": {
+      "open": "{count, plural, =0 {Filtres} other {Filtres ({count})}}",
+      "panel": "Filtres",
+      "active": "Filtres actifs",
+      "chip": "{name} : {value}",
+      "remove": "Retirer le filtre {name} : {value}",
+      "clear": "Effacer les filtres",
+      "between": "du {from} au {to}",
+      "since": "depuis le {from}",
+      "until": "jusqu’au {to}",
+      "authorUnknown": "Un compte",
+      "selected": "{count, plural, one {# sélectionné} other {# sélectionnés}}",
+      "search": "Rechercher dans « {label} »",
+      "noMatch": "Aucune valeur ne correspond.",
+      "hint": "Un choix s’applique aussitôt ; une période ou une borne, à Entrée ou en quittant le champ.",
+      "audit": "Filtres d’audit — création et modification"
+    },
     "fold": {
       "open": "Arbre",
       "title": "Plier et déplier l’arbre",
@@ -380,11 +409,10 @@
       "unretainedRows": "Le bloc collé écrirait dans des lignes du plan que la recherche ou le filtre cache : levez la recherche ou le filtre avant de coller, ou collez un bloc moins haut."
     },
     "range": {
-      "min": "{column}, min.",
-      "max": "{column}, max.",
-      "minShort": "min.",
-      "maxShort": "max.",
-      "apply": "Filtrer",
+      "min": "{column}, du",
+      "max": "{column}, au",
+      "minShort": "du",
+      "maxShort": "au",
       "lift": "Lever les bornes",
       "inverted": "La borne supérieure ne peut précéder la borne inférieure, {minimum}.",
       "money": "Deux décimales au plus."
@@ -392,13 +420,13 @@
     "period": {
       "from": "Du",
       "to": "Au",
-      "apply": "Filtrer",
       "inverted": "La fin de la période ne peut précéder son début, {minimum}.",
       "invertedUndated": "La fin de la période ne peut précéder son début.",
       "late": "Le début de la période ne peut suivre sa fin, {maximum}.",
       "lateUndated": "Le début de la période ne peut suivre sa fin.",
       "invertedDefault": "La fin de la période ne peut précéder son début par défaut, {minimum}.",
-      "lateDefault": "Le début de la période ne peut suivre sa fin par défaut, la date de calcul, {maximum}."
+      "lateDefault": "Le début de la période ne peut suivre sa fin par défaut, la date de calcul, {maximum}.",
+      "invertedEntry": "Le début de la période ne peut suivre sa fin."
     }
   },
   "estimateGrid": {
@@ -616,8 +644,7 @@
       "unknownSubproject": "Sous-projet inconnu",
       "period": "Période des pièces",
       "from": "Pièces du",
-      "to": "Pièces jusqu’au",
-      "apply": "Filtrer"
+      "to": "Pièces jusqu’au"
     },
     "pages": {
       "costs": {
@@ -2580,6 +2607,7 @@
     },
     "users": {
       "title": "Comptes utilisateurs",
+      "selected": "{count, plural, one {# compte sélectionné} other {# comptes sélectionnés}}",
       "noRole": "Aucun rôle",
       "noOrgNode": "Aucun",
       "none": "Aucun compte.",
@@ -2880,7 +2908,6 @@
         "period": "Période",
         "from": "Depuis le",
         "to": "Avant le",
-        "apply": "Appliquer",
         "actorKind": "Filtrer par nature d’auteur",
         "everyActor": "Tous les auteurs",
         "user": "Auteur",

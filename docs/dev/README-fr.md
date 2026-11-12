@@ -404,70 +404,76 @@ d'identité, ouvre la session — ses jetons dans Redis pour la durée que Keycl
 `refresh_expires_in` — et mène à l'écran visé, son adresse entière ; un `state` inconnu, déjà
 employé ou trop vieux recommence la connexion ; une connexion que le royaume refuse — une erreur au
 retour, un code refusé, un nonce faux — mène à l'accueil sans session, jamais à `/login`, que la
-session de Keycloak bouclerait. Keycloak ou Redis injoignable, ou Keycloak muet au-delà du délai,
-`/login` et `/auth/callback` mènent à `/login/unavailable` en oubliant le témoin `__Host-wf_session`
-— la page relirait sinon Redis pour lui —, qui dit le service injoignable et offre de recommencer
-vers l'écran visé, jamais à une erreur 500 nue (#687). `/login` efface aussi le témoin
-`__Host-wf_session` : la déconnexion y mène sans y toucher (#724). `serverClient()` est le seul
-endroit qui porte le jeton à l'API (`src/session/tokens.ts`) : à chaque requête, il lit la session
-du témoin et rafraîchit un jeton d'accès qui expire dans moins de trente secondes, sous un verrou
-Redis par session qui vit deux fois le délai d'une requête au royaume (`REFRESH_TIMEOUT`, cinq
-secondes), pour que deux requêtes ne présentent jamais le même jeton de rafraîchissement. Un
-rafraîchissement qui échoue une fois parti — refusé, sans réponse dans ce délai, la connexion coupée
-pendant la réponse, un mandataire qui répond à sa place — ferme la session : Keycloak a pu prendre
-le jeton, qui n'est jamais présenté deux fois (#687). Seule une requête qui n'a pu partir (Keycloak
-injoignable : connexion refusée, hôte inconnu ou hors d'atteinte, certificat refusé) ne la ferme pas
-: le jeton d'accès sert tant qu'il vit, puis la requête est le service injoignable (`Unreachable`),
-que l'écran dit comme tel. Redis injoignable pendant une requête ordinaire l'est de même, un
-composant de la plateforme hors d'atteinte (WF-EXP-0040) : `requestBearer` change le
-`StoreUnreachable` du magasin en `Unreachable`, et l'écran dit le service injoignable, jamais une
-erreur inattendue (#861). Quand la session que nomme le témoin ne vit plus, la requête ne part pas
+session de Keycloak bouclerait, et laisse un témoin court (`wf_sign_in_refused`, quelques minutes,
+`HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`) qu'une connexion réussie efface (#2914). Keycloak ou
+Redis injoignable, ou Keycloak muet au-delà du délai, `/login` et `/auth/callback` mènent à
+`/login/unavailable` en oubliant le témoin `__Host-wf_session` — la page relirait sinon Redis pour
+lui —, qui dit le service injoignable et offre de recommencer vers l'écran visé, jamais à une erreur
+500 nue (#687). `/login` efface aussi le témoin `__Host-wf_session` : la déconnexion y mène sans y
+toucher (#724). `serverClient()` est le seul endroit qui porte le jeton à l'API
+(`src/session/tokens.ts`) : à chaque requête, il lit la session du témoin et rafraîchit un jeton
+d'accès qui expire dans moins de trente secondes, sous un verrou Redis par session qui vit deux fois
+le délai d'une requête au royaume (`REFRESH_TIMEOUT`, cinq secondes), pour que deux requêtes ne
+présentent jamais le même jeton de rafraîchissement. Un rafraîchissement qui échoue une fois parti —
+refusé, sans réponse dans ce délai, la connexion coupée pendant la réponse, un mandataire qui répond
+à sa place — ferme la session : Keycloak a pu prendre le jeton, qui n'est jamais présenté deux fois
+(#687). Seule une requête qui n'a pu partir (Keycloak injoignable : connexion refusée, hôte inconnu
+ou hors d'atteinte, certificat refusé) ne la ferme pas : le jeton d'accès sert tant qu'il vit, puis
+la requête est le service injoignable (`Unreachable`), que l'écran dit comme tel. Redis injoignable
+pendant une requête ordinaire l'est de même, un composant de la plateforme hors d'atteinte
+(WF-EXP-0040) : `requestBearer` change le `StoreUnreachable` du magasin en `Unreachable`, et l'écran
+dit le service injoignable, jamais une erreur inattendue (#861). Quand la session que nomme le
+témoin ne vit plus, ou qu'il n'y a aucun témoin (WF-SEC-0020, #2914), la requête ne part pas
 (`SessionLost`) : une lecture mène à la connexion aussitôt, sans clic — l'écran de panne charge
 `/login?next=<écran>` —, une écriture n'est pas appliquée, et l'écran le dit avant d'y mener par un
-lien (`decode`). Sans témoin, la requête part sans jeton, et un 401 de l'API (`SignedOut`), comme le
-refus d'un jeton vivant, offre la connexion par un lien sans y mener seul : une connexion refusée
-revient sans témoin, et y mener bouclerait. Sur un 401 `SESSION_REVOKED` seulement — un jeton d'une
-connexion antérieure à la fermeture des sessions du compte —, ce lien, l'écran de panne
-(`failure.revoked`) comme l'avis d'une action, mène à `/login?next=…&reauthenticate=1`, que `/login`
-envoie au royaume avec `prompt=login` : Keycloak, dont la session a pu survivre à une fermeture
-manquée, redemande les identifiants et renouvelle `auth_time` ; un `SESSION_EXPIRED` ne les
-redemande pas (#855). La déconnexion (`signOut`) ferme les sessions du compte par `closeMySessions`,
-puis efface celles que le front garde de ce compte, sans attendre Keycloak — l'API d'administration
-ferme aussi la session de Keycloak du navigateur, et `/login` redemande les identifiants. Elle ne
-touche pas au témoin : une action serveur qui change un témoin fait rendre à nouveau la page dans sa
-réponse, qui lirait l'API sans session (#724) ; `/login` l'efface. Un compte non admis garde une
-session de Keycloak que l'API ne ferme pas : le navigateur va au point de déconnexion du royaume. La
-coquille ne lui offre ni barre ni menu du compte : la panne `failure.notAdmitted` offre « Se
-déconnecter », un lien vers `/auth/sign-out`, qui mène au même point (`signOutAddress`) ; le
-royaume, sans jeton d'identité, demande de confirmer, puis mène à `/login`, qui redemande les
-identifiants (#664). Quand la session que nomme le témoin ne vit plus, la requête ne part pas, et le
-navigateur passe par une connexion silencieuse (`/login?sign_out=<ticket>`, `prompt=none`). Seule
-l'action `signOut` l'arme : un ticket tiré au hasard, gardé une minute dans Redis et lié à
-l'identifiant que porte le témoin `__Host-wf_session` de la requête, sans toucher au témoin
-(`armRequestSignOut`, `armSignOut`) ; `/login` ne le prend, une seule fois, que si le témoin du
-navigateur porte ce même identifiant (`takeSignOut`). Un ticket inconnu, déjà pris ou trop vieux —
-un lien d'un autre site, qu'une navigation de premier niveau envoie avec le témoin `SameSite=Lax` —,
-ou lié à un autre témoin, ou un navigateur sans témoin, font une connexion ordinaire, qui ne ferme
-rien et laisse le ticket : l'identifiant de l'action est public, et un tiers qui l'appelle depuis
-son serveur, avec un témoin à lui, obtient un ticket qui ne déconnecte que ce témoin. Son retour
-ferme les sessions du compte par `closeMySessions`, avec le jeton qu'elle a obtenu (`tokenClient`),
-sur tous ses postes, puis mène à `/login` ; sans session de Keycloak non plus, il n'y a plus de
-poste à fermer (#689). Un jeton que l'API refuse alors par `SESSION_REVOKED` — la session de
-Keycloak a survécu à une fermeture manquée — mène, comme le refus de `closeMySessions` par ce code
-dans `signOut`, à `/login?…&reauthenticate=1`, qui redemande les identifiants : jamais une nouvelle
-connexion silencieuse, qui ramènerait le même refus (#855). Un clic sur un lien du front attend les
-écritures de la page (`holdNavigation`, `useNavigationHold`) : une cellule validée, un collage
-appliqué, une commande — le bouton d'une commande (`Command`), d'une liste ou d'un formulaire du
-référentiel, l'enregistrement des préférences, l'envoi ou le retrait de l'avatar, la demande d'un
-export, la relance d'une tâche, l'envoi d'un fichier à importer, qui passent tous par
-`useHeldCommand` (`components/commands/held.ts`) ; une refusée — la session perdue comprise —, la
-navigation n'a pas lieu, et l'écran dit le refus là où l'écriture a été faite (#688). La retenue
-appartient à qui dit le refus : un formulaire ou une ligne d'une liste du référentiel prend celle de
-la liste (`held` de `useListReport`), qui dit au-dessus d'elle le refus d'un dialogue fermé pendant
-l'envoi ; fermer le dialogue ne libère donc pas son écriture. La liste ne dit un refus que sur la
-lecture d'où il est parti : lue autrement — une recherche, un filtre d'état —, elle libère ses
-écritures, dont le refus n'est plus dit par la liste, ni au retour sur cette lecture, dont les clics
-ne sont plus retenus — une lecture quittée puis retrouvée en est une autre
+lien (`decode`) ; c'est `requestBearer` qui en décide, une fois pour les écrans, les lectures de la
+coquille — le compte de la mise en page, l'installation qui décide la langue — exceptées :
+`serverClient({ session: "optional" })` les fait partir sans jeton, pour que la page « service
+injoignable » (`/login/unavailable`) se rende au lieu de mener à la connexion, qui bouclerait. Seul
+le témoin `wf_sign_in_refused`, laissé par une connexion que le royaume a refusée, fait partir sans
+jeton une requête sans témoin de session, et un 401 de l'API (`SignedOut`), comme le refus d'un
+jeton vivant, offre la connexion par un lien sans y mener seul : y mener bouclerait. Sur un 401
+`SESSION_REVOKED` seulement — un jeton d'une connexion antérieure à la fermeture des sessions du
+compte —, ce lien, l'écran de panne (`failure.revoked`) comme l'avis d'une action, mène à
+`/login?next=…&reauthenticate=1`, que `/login` envoie au royaume avec `prompt=login` : Keycloak,
+dont la session a pu survivre à une fermeture manquée, redemande les identifiants et renouvelle
+`auth_time` ; un `SESSION_EXPIRED` ne les redemande pas (#855). La déconnexion (`signOut`) ferme les
+sessions du compte par `closeMySessions`, puis efface celles que le front garde de ce compte, sans
+attendre Keycloak — l'API d'administration ferme aussi la session de Keycloak du navigateur, et
+`/login` redemande les identifiants. Elle ne touche pas au témoin : une action serveur qui change un
+témoin fait rendre à nouveau la page dans sa réponse, qui lirait l'API sans session (#724) ;
+`/login` l'efface. Un compte non admis garde une session de Keycloak que l'API ne ferme pas : le
+navigateur va au point de déconnexion du royaume. La coquille ne lui offre ni barre ni menu du
+compte : la panne `failure.notAdmitted` offre « Se déconnecter », un lien vers `/auth/sign-out`, qui
+mène au même point (`signOutAddress`) ; le royaume, sans jeton d'identité, demande de confirmer,
+puis mène à `/login`, qui redemande les identifiants (#664). Quand la session que nomme le témoin ne
+vit plus, la requête ne part pas, et le navigateur passe par une connexion silencieuse
+(`/login?sign_out=<ticket>`, `prompt=none`). Seule l'action `signOut` l'arme : un ticket tiré au
+hasard, gardé une minute dans Redis et lié à l'identifiant que porte le témoin `__Host-wf_session`
+de la requête, sans toucher au témoin (`armRequestSignOut`, `armSignOut`) ; `/login` ne le prend,
+une seule fois, que si le témoin du navigateur porte ce même identifiant (`takeSignOut`). Un ticket
+inconnu, déjà pris ou trop vieux — un lien d'un autre site, qu'une navigation de premier niveau
+envoie avec le témoin `SameSite=Lax` —, ou lié à un autre témoin, ou un navigateur sans témoin, font
+une connexion ordinaire, qui ne ferme rien et laisse le ticket : l'identifiant de l'action est
+public, et un tiers qui l'appelle depuis son serveur, avec un témoin à lui, obtient un ticket qui ne
+déconnecte que ce témoin. Son retour ferme les sessions du compte par `closeMySessions`, avec le
+jeton qu'elle a obtenu (`tokenClient`), sur tous ses postes, puis mène à `/login` ; sans session de
+Keycloak non plus, il n'y a plus de poste à fermer (#689). Un jeton que l'API refuse alors par
+`SESSION_REVOKED` — la session de Keycloak a survécu à une fermeture manquée — mène, comme le refus
+de `closeMySessions` par ce code dans `signOut`, à `/login?…&reauthenticate=1`, qui redemande les
+identifiants : jamais une nouvelle connexion silencieuse, qui ramènerait le même refus (#855). Un
+clic sur un lien du front attend les écritures de la page (`holdNavigation`, `useNavigationHold`) :
+une cellule validée, un collage appliqué, une commande — le bouton d'une commande (`Command`), d'une
+liste ou d'un formulaire du référentiel, l'enregistrement des préférences, l'envoi ou le retrait de
+l'avatar, la demande d'un export, la relance d'une tâche, l'envoi d'un fichier à importer, qui
+passent tous par `useHeldCommand` (`components/commands/held.ts`) ; une refusée — la session perdue
+comprise —, la navigation n'a pas lieu, et l'écran dit le refus là où l'écriture a été faite (#688).
+La retenue appartient à qui dit le refus : un formulaire ou une ligne d'une liste du référentiel
+prend celle de la liste (`held` de `useListReport`), qui dit au-dessus d'elle le refus d'un dialogue
+fermé pendant l'envoi ; fermer le dialogue ne libère donc pas son écriture. La liste ne dit un refus
+que sur la lecture d'où il est parti : lue autrement — une recherche, un filtre d'état —, elle
+libère ses écritures, dont le refus n'est plus dit par la liste, ni au retour sur cette lecture,
+dont les clics ne sont plus retenus — une lecture quittée puis retrouvée en est une autre
 (`useHeldCommand(generation)`) ; encore en route et refusées ensuite, l'avis de la barre les dit,
 comme celles d'un écran quitté (ci-dessous). Tout refus retient le clic, même dit ailleurs que sur
 l'écran quitté : la relance d'une tâche refusée retient la navigation, bien que son refus soit dit
@@ -1064,6 +1070,17 @@ joue l'exemple de la fenêtre contre le faux back, qui sert le premier exemple d
 toute la structure contre le service, où celle de PRJ-001 compte 5 966 nœuds, la volumétrie de 5 999
 nœuds restant au faux back jusqu'à EP-13 (#2696). Les écarts de montants restent une table sous la
 grille, et l'écran est l'un de ceux du harnais d'accessibilité (`DIFFERENTIAL_SCREENS`).
+
+Une table plate peut laisser choisir ses lignes une à une (`DenseGrid.selecting`, désactivé par
+défaut, #2916/L4) : Ctrl ou Cmd et un clic sur la poignée du numéro, Espace seul au clavier
+(Ctrl+Espace en alias), Ctrl ou Cmd et A pour toutes les lignes affichées (hors d'une cellule en
+saisie), la case de l'en-tête des poignées, et, dès qu'une ligne l'est, une barre sombre
+(`SelectionBar`) qui recouvre la barre de la grille à la même place et à la même hauteur, sans
+décaler le cadre ni recalculer sa hauteur : la sélection prime, la recherche, « Colonnes » et les
+commandes de l'écran sont inertes et masquées tant qu'elle dure (leur état, la recherche saisie
+comprise, est gardé), et « Annuler la sélection » ou Échap les rend. Le focus qui était dans l'une
+des deux barres quand l'autre la remplace revient à la cellule active (`useBarFocus`). Une grille
+arborescente garde la sélection contiguë, son glisser-déposer et son clavier.
 
 ### La grille de planning et le Gantt
 

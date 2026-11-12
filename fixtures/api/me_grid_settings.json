@@ -95,6 +95,7 @@
             "anonymize"
           ],
           "column_widths": {},
+          "filters_open": true,
           "filters": {
             "origins": "local",
             "is_active": "true"

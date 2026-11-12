@@ -10,6 +10,7 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridQuery } from "@/components/grid/query";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { pick } from "@/test/check-menu";
 import { example, fakeClient } from "@/test/fixtures";
 
 import { readRiskFilters, RISK_ZONES, riskFilterQuery, RISKS_LIST, universalDay } from "./address";
@@ -130,13 +131,13 @@ describe("the filters of the register on its columns", () => {
     const { unmount } = renderFilters([], "2026-02-01", false);
     const toggle = screen.getByRole("button", { name: "Filtres des colonnes" });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("group", { name: "Filtrer par zone" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Filtrer par zone/ })).toBeNull();
     expect(
       screen.getByRole("link", { name: "Non réexaminés depuis le dernier marquage" }),
     ).toBeVisible();
     await userEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("group", { name: "Filtrer par zone" })).toBeVisible();
+    expect(screen.getByRole("button", { name: /^Filtrer par zone/ })).toBeVisible();
     unmount();
     page.search = "zones=alert";
     const zone = renderFilters([], undefined, false);
@@ -198,9 +199,9 @@ describe("the filters of the register on its columns", () => {
 
   it("offers the zone, the bounds of the probability and of the four columns of amounts, and the period of the last review [WF-IHM-0130-A]", async () => {
     const { container } = renderFilters();
-    expect(screen.getByRole("group", { name: "Filtrer par zone" })).toBeVisible();
+    expect(screen.getByRole("button", { name: /^Filtrer par zone/ })).toBeVisible();
     const probability = screen.getByRole("form", { name: "Bornes de la probabilité, de 0 à 1" });
-    expect(within(probability).getByRole("textbox", { name: "Probabilité, min." })).toBeVisible();
+    expect(within(probability).getByRole("textbox", { name: "Probabilité, du" })).toBeVisible();
     const amounts = screen.getByRole("form", { name: "Bornes des montants" });
     for (const column of [
       "Gravité",
@@ -208,8 +209,8 @@ describe("the filters of the register on its columns", () => {
       "Coût à la survenance",
       "Réestimé des survenus",
     ]) {
-      expect(within(amounts).getByRole("textbox", { name: `${column}, min.` })).toBeVisible();
-      expect(within(amounts).getByRole("textbox", { name: `${column}, max.` })).toBeVisible();
+      expect(within(amounts).getByRole("textbox", { name: `${column}, du` })).toBeVisible();
+      expect(within(amounts).getByRole("textbox", { name: `${column}, au` })).toBeVisible();
     }
     expect(screen.getByRole("form", { name: "Période du dernier réexamen" })).toBeVisible();
     await expectAccessible(container);
@@ -219,15 +220,12 @@ describe("the filters of the register on its columns", () => {
     page.search = "sort_by=provision_amount&sort_order=desc";
     renderFilters();
     const amounts = screen.getByRole("form", { name: "Bornes des montants" });
+    await userEvent.type(within(amounts).getByRole("textbox", { name: "Provision, du" }), "100000");
     await userEvent.type(
-      within(amounts).getByRole("textbox", { name: "Provision, min." }),
-      "100000",
-    );
-    await userEvent.type(
-      within(amounts).getByRole("textbox", { name: "Réestimé des survenus, max." }),
+      within(amounts).getByRole("textbox", { name: "Réestimé des survenus, au" }),
       "300,5",
     );
-    await userEvent.click(within(amounts).getByRole("button", { name: "Filtrer" }));
+    await userEvent.keyboard("{Enter}");
     await waitFor(() => {
       expect(router.push).toHaveBeenCalled();
     });
@@ -239,8 +237,8 @@ describe("the filters of the register on its columns", () => {
   it("writes the bounds of the probability as a rate [WF-IHM-0130-A]", async () => {
     renderFilters();
     const form = screen.getByRole("form", { name: "Bornes de la probabilité, de 0 à 1" });
-    await userEvent.type(within(form).getByRole("textbox", { name: "Probabilité, min." }), "0,2");
-    await userEvent.click(within(form).getByRole("button", { name: "Filtrer" }));
+    await userEvent.type(within(form).getByRole("textbox", { name: "Probabilité, du" }), "0,2");
+    await userEvent.keyboard("{Enter}");
     await waitFor(() => {
       expect(router.push).toHaveBeenCalledWith(`${PATHNAME}?probability_min=0.2`, {
         scroll: false,
@@ -251,11 +249,7 @@ describe("the filters of the register on its columns", () => {
   it("filters on a zone of the matrix, by the address [WF-IHM-0130-A]", async () => {
     page.search = "states=identified";
     renderFilters();
-    await userEvent.click(
-      within(screen.getByRole("group", { name: "Filtrer par zone" })).getByRole("button", {
-        name: "Vigilance",
-      }),
-    );
+    await pick("Filtrer par zone", "Vigilance");
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?states=identified&zones=watch`, {
       scroll: false,
     });
@@ -266,7 +260,7 @@ describe("the filters of the register on its columns", () => {
     const form = screen.getByRole("form", { name: "Période du dernier réexamen" });
     fireEvent.change(within(form).getByLabelText("Du"), { target: { value: "2026-02-01" } });
     fireEvent.change(within(form).getByLabelText("Au"), { target: { value: "2026-03-01" } });
-    await userEvent.click(within(form).getByRole("button", { name: "Filtrer" }));
+    fireEvent.keyDown(within(form).getByLabelText("Au"), { key: "Enter" });
     await waitFor(() => {
       expect(router.push).toHaveBeenCalled();
     });
@@ -338,7 +332,7 @@ describe("the filters of the register on its columns", () => {
       </NextIntlClientProvider>,
     );
     fireEvent.click(screen.getByRole("button", { name: "Column filters" }));
-    expect(screen.getByRole("group", { name: "Filter by zone" })).toBeVisible();
+    expect(screen.getByRole("button", { name: /^Filter by zone/ })).toBeVisible();
     expect(screen.getByRole("link", { name: "Not reviewed since the last marking" })).toBeVisible();
   });
 });

@@ -233,7 +233,7 @@ describe("the settings of the resources", () => {
       ["3", "3"],
     ]);
     expect(page).toContain('aria-label="Code du nœud"');
-    expect(page).toContain('aria-label="État des objets de «\u00a0Arbre d’organisation\u00a0»"');
+    expect(page).toContain("État des objets de «\u00a0Arbre d’organisation\u00a0»");
   });
 
   it("present each role with its code, its node, its category, its calendar and its capacity, named as the server resolves them, on a grid sorted by each of its columns, filtered by each and bounded on its figures [WF-IHM-0060-A]", async () => {
@@ -281,8 +281,8 @@ describe("the settings of the resources", () => {
     ]);
     // Its figures are bounded, the least and the most of each.
     expect(page).toContain('aria-label="Bornes de «\u00a0Rôles de ressources\u00a0»"');
-    expect(page).toContain('aria-label="Heures par mois, min."');
-    expect(page).toContain('aria-label="Effectif, max."');
+    expect(page).toContain('aria-label="Heures par mois, du"');
+    expect(page).toContain('aria-label="Effectif, au"');
   });
 
   it("present each calendar by its seven values of hours, the default one marked, sorted by each of its columns, and the units of duration [WF-IHM-0060-A]", async () => {
@@ -314,7 +314,7 @@ describe("the settings of the resources", () => {
     const page = await resourcesAt();
     expect(page).not.toContain('aria-label="Bornes de «\u00a0Calendriers\u00a0»"');
     expect(page).not.toMatch(/aria-label="(Lun|Mar|Mer|Jeu|Ven|Sam|Dim)\.[^"]*(min|max)\.?"/);
-    expect(page).toContain('aria-label="État des objets de «\u00a0Calendriers\u00a0»"');
+    expect(page).toContain("État des objets de «\u00a0Calendriers\u00a0»");
   });
 
   it("ask each list of the server by the names of the contract, as the address asks it under the names of its grid [WF-IHM-0060-A] [WF-IHM-0130-A]", async () => {
@@ -438,7 +438,7 @@ describe("the settings of the resources", () => {
     expect(text(page)).toContain(
       "La liste n’est pas lue : le serveur refuse les bornes demandées.",
     );
-    expect(page).toMatch(/aria-label="Heures par mois, max."[^>]*aria-invalid="true"/);
+    expect(page).toMatch(/aria-label="Heures par mois, au"[^>]*aria-invalid="true"/);
     expect(page).not.toContain('aria-label="Rôles de ressources" role="grid"');
     expect(page).not.toMatch(/<table[^>]*aria-label="Rôles de ressources"/);
     // The calendars and the tree, read as the address asks them.
@@ -467,7 +467,7 @@ describe("the settings of the resources", () => {
     };
     const page = await resourcesAt({ org_level_min: "3", org_level_max: "2" });
     expect(queriesOf("GET /reference/org-nodes")).toEqual([{ level_min: "3", level_max: "2" }, {}]);
-    expect(page).toMatch(/aria-label="Niveau, max."[^>]*aria-invalid="true"/);
+    expect(page).toMatch(/aria-label="Niveau, au"[^>]*aria-invalid="true"/);
     expect(text(page)).toContain("La borne supérieure ne peut précéder la borne inférieure, 3.");
     expect(page).not.toMatch(/<table[^>]*aria-label="Arbre d’organisation"/);
     expect(optionsOf(page, "Nœud d’organisation")).toHaveLength(4);

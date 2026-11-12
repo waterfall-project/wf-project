@@ -14,8 +14,10 @@
  *
  * A sign-in the realm refused — an error in the return, a code refused, a wrong nonce — opens no
  * session, forgets the cookie of the one it replaced, and leads home: not to `/login`, which the
- * session of Keycloak would answer at once with the same refusal, again and again. Home, without
- * the cookie, offers the sign-in page and goes nowhere by itself (`requestBearer`).
+ * session of Keycloak would answer at once with the same refusal, again and again. It leaves a
+ * short cookie (`signInRefusedCookie`, #2914): home, without a session, then offers the sign-in
+ * page and goes nowhere by itself (`requestBearer`), where any other screen opened without a
+ * session leads to it. A sign-in that succeeds forgets that cookie.
  *
  * The sign-out of a session the front lost (`signOut`, #689) comes back here from its silent
  * sign-in: its token closes the sessions of the account on all its workstations
@@ -45,8 +47,10 @@ import {
 } from "@/session/store";
 import {
   forgottenSessionCookie,
+  forgottenSignInRefusedCookie,
   holdsSignIn,
   sessionCookie,
+  signInRefusedCookie,
   spentSignInCookie,
 } from "@/session/tokens";
 
@@ -90,7 +94,10 @@ async function returned(search: string, state: string, signIn: SignIn): Promise<
   const signedIn = await identityProvider().exchange(search, state, signIn.nonce, signIn.verifier);
   if (signedIn === undefined) {
     // Refused: home, which offers the sign-in — or, signing out, the sign-in, nothing left to close.
-    return redirect(signIn.signOut ? LOGIN_ROUTE : HOME, forgottenSessionCookie(), spent);
+    // A short cookie says so, for home not to lead to the sign-in by itself (#2914).
+    return signIn.signOut
+      ? redirect(LOGIN_ROUTE, forgottenSessionCookie(), spent)
+      : redirect(HOME, forgottenSessionCookie(), signInRefusedCookie(), spent);
   }
   if (signIn.signOut) {
     return closeEverywhere(signedIn, spent);
@@ -99,7 +106,7 @@ async function returned(search: string, state: string, signIn: SignIn): Promise<
   const id = randomBytes(32).toString("base64url");
   await openSession(id, session, lifetime);
   // Relative, as the target is: behind a proxy, the address of the request is not the browser's.
-  return redirect(signIn.target, sessionCookie(id), spent);
+  return redirect(signIn.target, sessionCookie(id), forgottenSignInRefusedCookie(), spent);
 }
 
 /** Whether a failure is the realm or Redis out of reach: the sign-in could not be made. */
