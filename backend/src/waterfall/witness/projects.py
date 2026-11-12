@@ -11,7 +11,8 @@ created by the interface of the accounts without any identity provider, its subj
 identifier, and the one the witness says deactivated is deactivated after, each under an address of
 the domain ``waterfall.test``, all at the instant of the first event of the chronology, the
 installation. The projects are created by
-the very rules of the creation (``load_project``), the minimal reference included, in the state
+the very rules of the creation (``load_project``), the minimal reference included, their
+partitions excepted, which the loader creates first of all (``partition``), in the state
 ``created``, at the instant the chronology creates them: PRJ-001 at its ``project_created``,
 PRJ-002, which the chronology does not date, at the same one. A project bears its code from its
 creation unless the chronology enters it (PRJ-001: the order received); its states and its
@@ -29,6 +30,7 @@ from waterfall.core.projects.interface import (
     load_project,
     projects_present,
 )
+from waterfall.core.revisions.interface import create_project_partitions
 from waterfall.core.users.interface import Identity, create_local_account, set_account_activation
 from waterfall.witness import timeline
 from waterfall.witness.description import is_loaded
@@ -65,6 +67,26 @@ class Users(BaseModel):
     """The accounts of the witness, as ``listUsers`` answers them."""
 
     items: list[User]
+
+
+def partition(session: Session, witness: Witness) -> None:
+    """Create the partitions of the projects of the witness, first thing of the transaction.
+
+    Before any write, as the service creates a project (``docs/dev/sql.md``, "Verrous"). Created
+    with each project, after the reference and the accounts, they asked their locks of a
+    transaction that already held some of these tables: an autovacuum of one of them, whose
+    truncation is not done while that transaction holds the table, tried again five seconds by
+    table holding its own lock, and the creation, which never waits and so never cancels it, gave
+    up after ten (#2937). Taken first, the locks are held to the commit: the projects find them.
+    Nothing on a platform that holds one of the projects already: the slice writes nothing, or
+    refuses the platform half loaded.
+    """
+    projects = witness.read(PROJECTS_FILE, Projects).items
+    imposed = sorted(project.project_id.root for project in projects)
+    if projects_present(session, imposed):
+        return
+    for project_id in imposed:
+        create_project_partitions(session, project_id)
 
 
 def load(session: Session, witness: Witness) -> bool:
