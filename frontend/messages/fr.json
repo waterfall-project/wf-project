@@ -2049,8 +2049,7 @@
       "apply": "N’afficher que mes projets",
       "states": "Filtre par état",
       "everyState": "Tous les états",
-      "defaultLabel": "Filtre par défaut de la liste par état",
-      "defaultStates": "Par défaut :",
+      "defaultChip": "{states} (par défaut)",
       "period": "Période de modification"
     },
     "periodRefused": "La liste n’est pas lue : le serveur refuse la période demandée."

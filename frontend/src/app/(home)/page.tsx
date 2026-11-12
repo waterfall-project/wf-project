@@ -33,6 +33,7 @@ import type { ReactNode } from "react";
 import type { ApiClient } from "@/api/client";
 import { readOrFail, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
+import { FilterFields } from "@/components/grid/filter-fields";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { readPeriod, refusedPeriod } from "@/components/grid/period";
 import { CONTRACT_ADDRESS, readGridQuery } from "@/components/grid/query";
@@ -42,7 +43,6 @@ import { homeQuery } from "@/components/projects/home-list";
 import { CreateProject } from "@/components/projects/project-form";
 import {
   ContributorFilter,
-  DefaultStatesFilter,
   ProjectList,
   ProjectsRefused,
 } from "@/components/projects/project-list";
@@ -58,7 +58,6 @@ import { ReferenceIncomplete } from "@/components/system/empty-states";
 import { type PageSearchParams, pageSearch, searchQuery } from "@/navigation/context";
 import {
   isContributorFiltered,
-  isDefaultStates,
   mayLiftContributorFilter,
   readHomeStates,
   STATES_PARAMETER,
@@ -137,31 +136,38 @@ function ProjectsShown({
     period.from !== undefined ||
     period.to !== undefined ||
     query.search !== undefined;
-  return (
-    <>
-      <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
-        {isDefaultStates(states) ? <DefaultStatesFilter /> : null}
-        <ProjectStateFilter states={states} />
-        <ProjectPeriodFilter
-          period={period}
-          refused={
-            projects.kind === "refused" ? refusedPeriod(projects.problem.fields ?? []) : undefined
-          }
-        />
-      </div>
-      {projects.kind === "refused" ? (
+  const panel = (
+    <FilterFields hint={false}>
+      <ProjectStateFilter states={states} />
+      <ProjectPeriodFilter
+        period={period}
+        refused={
+          projects.kind === "refused" ? refusedPeriod(projects.problem.fields ?? []) : undefined
+        }
+      />
+    </FilterFields>
+  );
+  if (projects.kind === "refused") {
+    // The list unread: the filters stand above the sentence that stands for the grid.
+    return (
+      <>
+        {panel}
         <ProjectsRefused />
-      ) : (
-        <ProjectList
-          projects={projects.data.items.map(listedProject)}
-          page={projects.data.meta}
-          filtered={asked.filtered}
-          narrowed={narrowed}
-          query={query}
-          preferences={preferences}
-        />
-      )}
-    </>
+      </>
+    );
+  }
+  return (
+    <ProjectList
+      projects={projects.data.items.map(listedProject)}
+      page={projects.data.meta}
+      filtered={asked.filtered}
+      narrowed={narrowed}
+      query={query}
+      preferences={preferences}
+      states={states}
+      period={period}
+      panel={panel}
+    />
   );
 }
 

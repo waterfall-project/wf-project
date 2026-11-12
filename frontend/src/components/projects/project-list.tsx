@@ -14,16 +14,17 @@
 import { ListFilter, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
+import type { Period } from "@/components/grid/period";
 import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import { parametersHref } from "@/components/portfolio/address";
 import { NoProjects } from "@/components/system/empty-states";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { CONTRIBUTOR_PARAMETER, DEFAULT_STATES, HOME } from "@/navigation/home";
+import { CONTRIBUTOR_PARAMETER, HOME, type ProjectState } from "@/navigation/home";
 
-import { ProjectStateBadge } from "./project-state-badge";
 import type { ListedProjectPage, ListedProjectRow, ListedProjectSort } from "./project-list-grid";
 import { ProjectListGrid } from "./project-list-view";
 
@@ -77,27 +78,6 @@ export function ContributorFilter({ filtered, mayLift, query }: ContributorFilte
   );
 }
 
-/**
- * The filter by default of the list by state, said as the filter of the contributor is: shown while
- * it applies — the states retained are created, pricing and in progress, by the address, the
- * account's settings or neither —, and lifted by « Tous les états » of the filter by state beside
- * it.
- */
-export function DefaultStatesFilter() {
-  const t = useTranslations("projectList.filter");
-  return (
-    <section aria-label={t("defaultLabel")} className="flex flex-wrap items-center gap-2 text-sm">
-      <Badge variant="outline">
-        <ListFilter aria-hidden="true" />
-        {t("defaultStates")}
-      </Badge>
-      {DEFAULT_STATES.map((state) => (
-        <ProjectStateBadge key={state} state={state} />
-      ))}
-    </section>
-  );
-}
-
 /** What the list of projects shows: a page of the projects the server retained. */
 export interface ProjectListProps {
   readonly projects: readonly ListedProjectRow[];
@@ -107,13 +87,19 @@ export interface ProjectListProps {
   readonly narrowed: boolean;
   readonly query: GridQuery<ListedProjectSort>;
   readonly preferences: GridPreferences | undefined;
+  /** The states and the period the address filters the list on, told as chips under the bar. */
+  readonly states: readonly ProjectState[];
+  readonly period: Period;
+  /** The filters of the list, which the bar of its grid folds into its panel. */
+  readonly panel: ReactNode;
 }
 
 /**
  * The projects of a page of the list, or that there is none: only when the list holds none at
  * all, and nothing narrows it but its filter — a page asked beyond its end is no empty list, and
  * leads back into it; a list emptied by states (the states by default count as a filter), a period
- * or a search keeps its grid, whose bar and filters change them. The filter that would empty it
+ * or a search keeps its grid, whose bar and filters change them — the states by default said by a
+ * chip, like any filter. The filter that would empty it
  * is lifted by the link the header shows.
  */
 export function ProjectList({
@@ -123,12 +109,23 @@ export function ProjectList({
   narrowed,
   query,
   preferences,
+  states,
+  period,
+  panel,
 }: ProjectListProps) {
   if (page.total === 0 && !narrowed) {
     return <NoProjects filtered={filtered} />;
   }
   return (
-    <ProjectListGrid projects={projects} page={page} query={query} preferences={preferences} />
+    <ProjectListGrid
+      projects={projects}
+      page={page}
+      query={query}
+      preferences={preferences}
+      states={states}
+      period={period}
+      panel={panel}
+    />
   );
 }
 

@@ -27,7 +27,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 
-import { type FilterChip, liftedHref, liftedParams } from "./filter-chips";
+import { type FilterChip, liftedHref, liftedInstead, liftedParams } from "./filter-chips";
 import { usePendingAddress } from "./pending-address";
 import { CONTRACT_ADDRESS, type GridAddress } from "./query";
 
@@ -206,7 +206,14 @@ export function FilterChips({
     lifted.current = { gone: gone.map((chip) => chip.key), next };
     const params = all ? [...every, ...liftedParams(gone)] : liftedParams(gone);
     startTransition(() => {
-      request((query) => liftedHref(pathname, query, params, page));
+      request((query) => {
+        const href = liftedHref(pathname, query, params, page, liftedInstead(gone));
+        // An address that does not change is no navigation: nothing will arrive to give the focus for.
+        if (new URLSearchParams(href.split("?")[1] ?? "").toString() === query.toString()) {
+          lifted.current = undefined;
+        }
+        return href;
+      });
     });
   };
   return (

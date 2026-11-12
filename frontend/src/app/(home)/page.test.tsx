@@ -201,10 +201,10 @@ describe("the home, the list of projects", () => {
 
   it("says the filter by default while it applies, with Created, Pricing and In progress pressed, and lifts it by « Every state » [WF-IHM-0130]", async () => {
     const html = await home();
-    // The menu of the states, closed, says how many it retains (`CheckMenu`, #2916); the default
-    // filter says which.
+    // The menu of the states, closed, says how many it retains (`CheckMenu`, #2916); the chip of the
+    // filter by default says which, and that they are the default.
     expect(text(html)).toContain("Filter by state 3 selected");
-    expect(html).toContain('aria-label="Default filter of the list by state"');
+    expect(text(html)).toContain("State: Created, Pricing, In progress (by default)");
   });
 
   it("reads the project created today on the home by default, the example of the contract the fake back serves [WF-IHM-0130]", async () => {
@@ -224,12 +224,12 @@ describe("the home, the list of projects", () => {
     kept.grids = { projects: { filters: { states: "pricing" } } };
     const html = await home();
     expect(listQuery()).toEqual({ is_contributor: "true", states: "pricing" });
-    expect(html).not.toContain("Default filter of the list by state");
+    expect(text(html)).not.toContain("(by default)");
   });
 
   it("presses every state, and says no default, for `states=all` [WF-IHM-0130]", async () => {
     const html = await home({ states: "all" });
-    expect(html).not.toContain("Default filter of the list by state");
+    expect(text(html)).not.toContain("(by default)");
     expect(text(html)).toContain("Filter by state Every state");
   });
 
@@ -240,7 +240,7 @@ describe("the home, the list of projects", () => {
       is_contributor: "true",
       states: "pricing,in_progress,completed",
     });
-    expect(html).not.toContain("Default filter of the list by state");
+    expect(text(html)).not.toContain("(by default)");
     server.clients = [];
     kept.grids = { projects: { filters: { states: "all" } } };
     await home();
@@ -411,7 +411,7 @@ describe("the empty states of the home", () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home({ states: "all" });
     expect(text(html)).toMatch(
-      /^Projects Help Create a project Projects you contribute to Show all projects Filter by state Every state .* You contribute to no project\.$/,
+      /^Projects Help Create a project Projects you contribute to Show all projects You contribute to no project\.$/,
     );
     expect(links(html)).toEqual(["/?states=all&is_contributor=false"]);
     expect(html).not.toContain('role="grid"');
@@ -439,7 +439,7 @@ describe("the empty states of the home", () => {
     const html = await home({ is_contributor: "false" });
     expect(listQuery()).toEqual({ states: DEFAULT_STATES });
     expect(html).toMatch(/role="grid"[^>]*aria-label="List of projects"/);
-    expect(text(html)).toContain("By default:");
+    expect(text(html)).toContain("State: Created, Pricing, In progress (by default)");
     expect(text(html)).toContain("Filter by state 3 selected");
     expect(text(html)).not.toContain("No project.");
     expect(grids.props[0]?.projects).toEqual([]);
@@ -449,7 +449,7 @@ describe("the empty states of the home", () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home({ is_contributor: "false", states: "all" });
     expect(text(html)).toMatch(
-      /^Projects Help Create a project Show only my projects Filter by state Every state .* No project\.$/,
+      /^Projects Help Create a project Show only my projects No project\.$/,
     );
   });
 
@@ -476,7 +476,7 @@ describe("the empty states of the home", () => {
       const html = await home({ states: "all" });
       expect(text(html)).toMatch(
         new RegExp(
-          `^Projects Help Create a project The minimum reference data is incomplete\\. Projects you contribute to Show all projects Incomplete reference data No project can be created until the common reference data has: ${missing} Filter by state Every state`,
+          `^Projects Help Create a project The minimum reference data is incomplete\\. Projects you contribute to Show all projects Incomplete reference data No project can be created until the common reference data has: ${missing}`,
         ),
       );
       expect(links(html).slice(1, 1 + provided.length)).toEqual(provided);
@@ -516,7 +516,7 @@ describe("the empty states of the home", () => {
       "Projects Help Create a project The minimum reference data is incomplete. Show only my projects " +
         `Incomplete reference data No project can be created until the common reference data has: ` +
         "an active labour category an active resource role " +
-        "Filter by state Every state Modification period From To No project.",
+        "No project.",
     );
   });
 
