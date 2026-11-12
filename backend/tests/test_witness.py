@@ -260,6 +260,42 @@ def test_the_partitions_of_the_projects_are_created_before_any_slice_writes(
     assert {"user_account", "cost_category", "resource_role", "revision"} <= held
 
 
+def test_the_partitions_are_not_created_on_a_platform_that_holds_a_project_of_the_witness(
+    witness: Database, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A platform that holds the witness, or half of it: nothing to create first, the slice writes
+    # nothing or refuses the platform (ALREADY_EXISTS), as before the partitions came first.
+    created: list[UUID] = []
+
+    def record(_session: Session, project_id: UUID) -> None:
+        created.append(project_id)
+
+    monkeypatch.setattr(projects, "create_project_partitions", record)
+    description = Witness(WITNESS, Act(None, utc_now()))
+    with witness.transaction() as session:
+        projects.partition(session, description)
+        projects.partition(session, description)
+    assert created == []
+
+
+def test_the_partitions_are_created_for_each_project_of_the_witness_on_a_new_platform(
+    database: Database, owner: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    install(owner)
+    created: list[UUID] = []
+
+    def record(_session: Session, project_id: UUID) -> None:
+        created.append(project_id)
+
+    monkeypatch.setattr(projects, "create_project_partitions", record)
+    description = Witness(WITNESS, Act(None, utc_now()))
+    listed = description.read(projects.PROJECTS_FILE, projects.Projects).items
+    imposed = sorted(each.project_id.root for each in listed)
+    with database.transaction() as session:
+        projects.partition(session, description)
+    assert created == imposed
+
+
 def test_an_example_is_read_in_the_form_of_the_contract(tmp_path: Path) -> None:
     witness = Witness(WITNESS, Act(None, utc_now()))
     units = witness.read("duration_units.json", DurationUnits)
