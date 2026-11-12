@@ -256,7 +256,8 @@
       "placeholder": "Search a label"
     },
     "differenceFilter": {
-      "label": "Differences only"
+      "label": "Differences only",
+      "help": "Keep only the rows the amendment adds, removes or modifies."
     },
     "breakdownFilter": {
       "label": "Work package or order item",
@@ -356,6 +357,7 @@
       "title": "Columns shown"
     },
     "filtering": {
+      "barHelp": "Filters the grid on: {label}. Choice: {value}.",
       "open": "{count, plural, =0 {Filters} other {Filters ({count})}}",
       "panel": "Filters",
       "active": "Active filters",

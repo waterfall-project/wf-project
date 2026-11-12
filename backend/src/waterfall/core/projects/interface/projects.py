@@ -538,18 +538,29 @@ def _inscribe_creation(session: Session, project: Project, act: Act) -> None:
     record(session, Inscription("project_create", actor, audited, act.at, project=named))
 
 
-def _create(session: Session, draft: ProjectDraft, act: Act, project_id: UUID | None) -> Project:
+def _create(
+    session: Session,
+    draft: ProjectDraft,
+    act: Act,
+    project_id: UUID | None,
+    *,
+    partitioned: bool = False,
+) -> Project:
     """Create a project and what is born with it, once the minimal reference holds.
 
     The lock of the reference is shared before the four questions are asked, and held until the
     commit: a write that could empty the reference waits for the project, or is waited for (#2154).
     The partitions of the project are created right after, before any write of the transaction:
     their function waits for no lock while it holds one, and the transaction holds none yet that a
-    writer or another creation waits for (#2603, #2667).
+    writer or another creation waits for (#2603, #2667). Unless ``partitioned``: the witness has
+    created them at the start of its transaction, before its first write (``load_project``). That
+    is a precondition of the caller, not checked here: without them the first insertion of the
+    project fails on its partitioned tables, with no cause named.
     """
     share_reference(session)
     identifier = new_id() if project_id is None else project_id
-    session.execute(select(func.create_project_partitions(identifier)))
+    if not partitioned:
+        session.execute(select(func.create_project_partitions(identifier)))
     missing = missing_prerequisites(session)
     if missing:
         raise ConflictError(REFERENCE_INCOMPLETE, {"missing_prerequisites": list(missing)})
@@ -629,9 +640,13 @@ def load_project(session: Session, load: ProjectLoad, act: Act) -> None:
     """Write a project of the witness, with the identifier and the instant it imposes.
 
     By the very rules of the creation, the minimal reference included (#1402, #2155): a platform
-    whose reference lacks a prerequisite refuses the witness, and the command stops.
+    whose reference lacks a prerequisite refuses the witness, and the command stops. But for its
+    partitions, which the witness creates before any write of its transaction
+    (``create_project_partitions`` of the revisions), as a creation of the service does: created
+    here, after the reference and the accounts the witness writes first, they met an autovacuum
+    those writes held up, and gave up (#2937).
     """
-    _create(session, load.draft, act, load.project_id)
+    _create(session, load.draft, act, load.project_id, partitioned=True)
 
 
 def _written_code(changed: Mapping[str, object]) -> str | None:

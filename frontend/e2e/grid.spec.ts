@@ -11,6 +11,7 @@ import {
   scrollToPosition,
   withinBox,
 } from "./scroll";
+import { closeMenu, menuButton, openMenu as openFilterMenu, pick } from "./check-menu";
 import { columnsOf } from "./columns";
 import { seedEstimate } from "./estimate-seed";
 import { holdRoute, openHydrated, openMenu, pause, WORKING } from "./hydration";
@@ -106,13 +107,14 @@ test("filters the estimate by the lot « Lot 1 » chosen among the work breakdow
   // the contract has no reading filtered by a lot or a post —: what the page sends is proven by
   // `estimate/page.test.tsx`. The indicators stay those of the whole project, broken down by lot.
   await openHydrated(page, GRID);
-  const filter = page.getByRole("combobox", { name: "Lot ou poste" });
-  await expect(filter.getByRole("option")).toHaveText([
+  const filter = menuButton(page, "Lot ou poste");
+  await expect((await openFilterMenu(page, "Lot ou poste")).getByRole("radio")).toHaveText([
     "Tous les lots et postes",
     "Lot : Lot 1",
     "Poste : Poste 1.1",
   ]);
-  await filter.selectOption({ label: "Lot\u00a0: Lot 1" });
+  await closeMenu(page);
+  await pick(page, "Lot ou poste", "Lot\u00a0: Lot 1", "radio");
   await expect(page).toHaveURL(`${GRID}?work_package_id=01926f3a-7c00-7000-8000-000000000711`, {
     timeout: WORKING,
   });
@@ -121,7 +123,7 @@ test("filters the estimate by the lot « Lot 1 » chosen among the work breakdow
     .getByRole("list", { name: "Filtres actifs" })
     .getByRole("listitem");
   await expect(chips).toHaveText(["Lot : Lot 1, sur la grille seulement"]);
-  await expect(filter).toHaveValue("01926f3a-7c00-7000-8000-000000000711");
+  await expect(filter).toContainText("Lot : Lot 1");
 });
 
 test("opens the estimate of a thousand tasks and five thousand lines, and scrolls down to its last row [WF-IHM-0060-A]", async ({
@@ -284,9 +286,7 @@ test.describe("on a narrow window", () => {
     await expect(source).toBeVisible();
     expect(await isUncut(source)).toBe(true);
 
-    await page
-      .getByRole("combobox", { name: "Lot ou poste" })
-      .selectOption({ label: "Lot\u00a0: Lot 1" });
+    await pick(page, "Lot ou poste", "Lot\u00a0: Lot 1", "radio");
     const chip = banner.getByRole("list", { name: "Filtres actifs" }).getByRole("listitem");
     await expect(chip).toHaveText(["Lot : Lot 1, sur la grille seulement"], { timeout: WORKING });
     await expect(chip).toBeInViewport({ ratio: 1 });

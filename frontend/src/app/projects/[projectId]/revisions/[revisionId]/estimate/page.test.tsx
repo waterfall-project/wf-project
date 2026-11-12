@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { estimateGrid } from "@/components/grid/estimate";
 import type { EstimateGridProps } from "@/components/grid/estimate-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { filtersOf, menuText } from "@/test/filter-menu";
 import { type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
 
@@ -34,7 +35,7 @@ const grids = vi.hoisted((): { estimate: EstimateGridProps[] } => ({ estimate: [
 vi.mock("@/components/grid/estimate-grid", () => ({
   EstimateGrid: (props: EstimateGridProps) => {
     grids.estimate.push(props);
-    return null;
+    return props.treeFilters;
   },
 }));
 // The session of the contract, some of its permissions withdrawn for a test.
@@ -286,12 +287,12 @@ describe("the shares of the estimate (#626)", () => {
 describe("the filter of the estimate by a lot or a post", () => {
   it("offers the lots and the posts of the work breakdown read whole, named by their kind", async () => {
     const page = await estimatePage("me");
-    expect(page).toMatch(/<label[^>]*>Work package or order item<\/label>/);
-    expect(page).toContain(
-      `<option value="" selected="">All work packages and order items</option>` +
-        `<option value="${LOT}">Work package: Lot 1</option>` +
-        `<option value="${ITEM}">Order item: Poste 1.1</option>`,
-    );
+    expect(menuText(page, "Work package or order item")).toBe("All work packages and order items");
+    // The lot, then its post, in the order of the work breakdown, which the menu of the bar lists.
+    expect(filtersOf(grids.estimate.at(-1)).breakdown?.items.map((item) => item.id)).toEqual([
+      LOT,
+      ITEM,
+    ]);
     expect(queryOf("/work-breakdown")?.toString()).toBe("");
   });
 
@@ -301,7 +302,7 @@ describe("the filter of the estimate by a lot or a post", () => {
     expect(queryOf("/estimate-indicators")?.has("work_package_id")).toBe(false);
     // The grid reads its totals anew, those of the structure a write answers not being its own.
     expect(grids.estimate.at(-1)?.filters).toMatchObject({ work_package_id: LOT });
-    expect(page).toContain(`<option value="${LOT}" selected="">Work package: Lot 1</option>`);
+    expect(menuText(page, "Work package or order item")).toBe("Work package: Lot 1");
     expect(page).toContain("Work package: Lot 1, on the grid only");
     expect(page).toContain(
       'aria-label="Remove the filter “Work package: Lot 1, on the grid only”"',
@@ -327,7 +328,7 @@ describe("« Écarts seulement » on the grid of the estimate [WF-REV-0100-A]", 
   const RISK = "01926f3a-7c00-7000-8000-000000000204";
   const ALL = "added,removed,modified";
   const BUTTON =
-    /<button[^>]*aria-pressed="(true|false)"[^>]*>(?:(?!<\/button>).)*Differences only<\/button>/;
+    /<button[^>]*aria-pressed="(true|false)"[^>]*>(?:(?!<\/button>).)*Differences only(?:<\/span>)?<\/button>/;
 
   it("passes the differences to the server on a differential, presses the button and says in the banner it restricts the grid alone", async () => {
     const page = await estimatePage("me", { structure: AMENDMENT, difference: ALL });
@@ -368,12 +369,10 @@ describe("the filter of the estimate on the rows a risk occurred merged", () => 
 
   it("offers « Coming from a risk » and the risks occurred of the project alone, never one identified [WF-RIS-0060-A]", async () => {
     const page = await estimatePage("me");
-    expect(page).toMatch(/<label[^>]*>Origin<\/label>/);
-    expect(page).toContain(
-      `<option value="" selected="">All rows</option>` +
-        `<option value="true">Coming from a risk</option>` +
-        `<option value="${OCCURRED}">Retard de livraison des armoires</option>`,
-    );
+    expect(menuText(page, "Origin")).toBe("All rows");
+    expect(filtersOf(grids.estimate.at(-1)).origin?.risks.map((risk) => risk.id)).toEqual([
+      OCCURRED,
+    ]);
     expect(page).not.toContain(IDENTIFIED);
     expect(queryOf("/risks")?.getAll("states")).toEqual(["occurred"]);
     expect(queryOf("/nodes")?.has("is_from_risk")).toBe(false);
@@ -384,7 +383,7 @@ describe("the filter of the estimate on the rows a risk occurred merged", () => 
     const page = await estimatePage("me", { is_from_risk: "true" });
     expect(queryOf("/nodes")?.get("is_from_risk")).toBe("true");
     expect(grids.estimate.at(-1)?.filters).toMatchObject({ is_from_risk: true });
-    expect(page).toContain(`<option value="true" selected="">Coming from a risk</option>`);
+    expect(menuText(page, "Origin")).toBe("Coming from a risk");
   });
 
   it("asks the server for the rows of the risk the address names, and hands the grid its label to name it by [WF-RIS-0060-A]", async () => {
@@ -394,9 +393,7 @@ describe("the filter of the estimate on the rows a risk occurred merged", () => 
     expect(grids.estimate.at(-1)?.origins).toEqual({
       [OCCURRED]: "Retard de livraison des armoires",
     });
-    expect(page).toContain(
-      `<option value="${OCCURRED}" selected="">Retard de livraison des armoires</option>`,
-    );
+    expect(menuText(page, "Origin")).toBe("Retard de livraison des armoires");
   });
 
   it("reads no value that is no identifier, as if the address named nothing [WF-RIS-0060-A]", async () => {
@@ -429,7 +426,8 @@ describe("the filter of the estimate on the rows a risk occurred merged", () => 
       .filter((call) => call.route === NODE_ROUTE);
     expect(asked.map((call) => call.query.has("origin_risk_ids"))).toEqual([true, false]);
     expect(grids.estimate.at(-1)?.filters).not.toHaveProperty("origin_risk_ids");
-    expect(page).toContain(`<option value="true">Coming from a risk</option>`);
+    expect(menuText(page, "Origin")).toBe("All rows");
+    expect(filtersOf(grids.estimate.at(-1)).origin?.risks).toEqual([]);
   });
 
   it("falls into error, the nodes read once, when the server refuses the rows for another cause than an unknown risk [WF-RIS-0060-A]", async () => {
@@ -475,7 +473,7 @@ describe("the filter of the estimate on the rows a risk occurred merged", () => 
       [RISKS]: { problem: { code: "NOT_FOUND", status: 404 } },
     };
     const page = await estimatePage("me");
-    expect(page).toContain(`<option value="true">Coming from a risk</option>`);
-    expect(page).not.toContain("Retard de livraison");
+    expect(menuText(page, "Origin")).toBe("All rows");
+    expect(filtersOf(grids.estimate.at(-1)).origin?.risks).toEqual([]);
   });
 });

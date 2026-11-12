@@ -70,7 +70,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	check-contract check-back check-back-static check-back-tests coverage-back-merge lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
-	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size tracking merge-queue merge-queue-check \
+	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size tracking merge-queue merge-queue-check queue-report \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -102,6 +102,14 @@ WORKERS ?=
 # always free. `env` keeps the variables set before the command a command of their own.
 SLOTS = python3 $(CURDIR)/tools/src/wftools/slots.py
 heavy = $(if $(TESTS),,$(SLOTS) run --heavy -- env)
+# A ceiling of memory on the tests of the tools (2026-11-12: a test whose fake never ended its pages
+# filled the 122 GB of the workstation twice, and the kernel killed the whole session of the pilot
+# with its four deliverers). Under systemd the run is a scope of its own: past TOOLS_MEMORY the
+# kernel kills the run, not the session. The probe asks for the same properties as the run: a host
+# whose user systemd does not delegate the memory controller gets no scope, so no ceiling it ignores.
+# Without a user systemd (a runner of the chain), no ceiling.
+TOOLS_MEMORY ?= 24G
+capped = $(if $(shell systemd-run --user --scope --quiet -p MemoryMax=$(TOOLS_MEMORY) -p MemorySwapMax=0 -- true 2>/dev/null && echo yes),systemd-run --user --scope --quiet -p MemoryMax=$(TOOLS_MEMORY) -p MemorySwapMax=0 --,)
 # The same for tests that need services (US-1110: db, redis, storage, as `slots.py run --services`
 # names them): once the slot is taken, if any, it starts those whose WATERFALL_TEST_*_URL the
 # environment does not give (make test-services), sets the variables on them, and runs the command.
@@ -196,7 +204,7 @@ dev-down: ## Stop the development platform
 # worker's queue: on four cores, eleven minutes become under five. A heavy run, which takes its
 # share of the processors, unless it selects a single file (TESTS).
 test-tools: ## Run the tests of the repository tools (TESTS=<file> runs one file)
-	@cd $(TOOLS) && $(heavy) uv run --frozen pytest -n $(WATERFALL_PROCESSORS) --dist worksteal $(TESTS)
+	@cd $(TOOLS) && $(capped) $(heavy) uv run --frozen pytest -n $(WATERFALL_PROCESSORS) --dist worksteal $(TESTS)
 
 # The entrypoint of the directory, tried in Docker on throwaway volumes: a minute of starts that the
 # tools leave out (the marker openldap), run by the keycloak family, which deploy/openldap wakes.
@@ -673,6 +681,12 @@ merge-queue: ## Create the merge queue ruleset of an epic's branch from .github/
 
 merge-queue-check: ## Check that an active ruleset with a merge queue targets an epic's branch (EPIC=EP-nn)
 	@$(WFTOOLS).mergequeue check "$(EPIC)"
+
+# The runs of the merge queue of a branch, read by gh from a workstation, never in the chain: their
+# failures by job and step, the tests and paths that failed, classified against
+# tools/queue-known.toml, the wall time and the runner minutes (wftools.queue, US-1880).
+queue-report: ## Report the merge queue runs of the chain on a branch and classify their failures (BRANCH=epic/EP-nn or main, all if empty; LAST=<n>, 50 by default; SINCE=YYYY-MM-DD)
+	@$(WFTOOLS).queue --branch "$(BRANCH)" --last "$(LAST)" --since "$(SINCE)"
 
 changes: ## Print which families of checks the change touches (BASE; HEAD, or the working tree)
 	@$(WFTOOLS).changes "$(BASE)" $(HEAD)

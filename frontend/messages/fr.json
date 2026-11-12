@@ -256,7 +256,8 @@
       "placeholder": "Rechercher un libellé"
     },
     "differenceFilter": {
-      "label": "Écarts seulement"
+      "label": "Écarts seulement",
+      "help": "Ne garder que les lignes ajoutées, supprimées ou modifiées par l’avenant."
     },
     "breakdownFilter": {
       "label": "Lot ou poste",
@@ -356,6 +357,7 @@
       "title": "Colonnes affichées"
     },
     "filtering": {
+      "barHelp": "Filtre la grille sur : {label}. Choix : {value}.",
       "open": "{count, plural, =0 {Filtres} other {Filtres ({count})}}",
       "panel": "Filtres",
       "active": "Filtres actifs",

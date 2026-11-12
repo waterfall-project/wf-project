@@ -553,7 +553,7 @@ provisoire d'une pastille de période avant hydratation, accepté. La chaîne de
 
 ## US-1860 — La gestion des utilisateurs : ses filtres, « Sans rôle » et ses actions groupées
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ADM-0180-A`
 - **opérations** : `listUsers`, `updateUser`, `setUserActivation`, `setUserAccessRoles`
 - **issue** : #2954
@@ -635,7 +635,7 @@ de service adaptés (`session.spec.ts`, `sign-in.spec.ts`).
 
 ## US-1880 — La file dit son taux d'échec hors régression et la durée de son palier complet
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2934
@@ -931,7 +931,7 @@ pas rester devant une ligne inerte ni lire « serveur injoignable » à tort (#2
 
 ## US-1980 — Un caractère NUL ou un décimal démesuré à l'entrée du service est refusé par 422
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — correction du service
 - **opérations** : toute lecture qui porte un paramètre de requête libre ; `setDurationUnits`, les
   écritures d'un nœud du planning et d'une ligne de devis

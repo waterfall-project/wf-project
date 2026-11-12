@@ -34,7 +34,7 @@ import { ContextBanner, type Restrictions } from "@/components/context/context-b
 import { askSubprojects } from "@/components/context/reading";
 import { ExchangesLink } from "@/components/exchanges/exchanges-link";
 import { breakdownChip } from "@/components/grid/breakdown-filter";
-import { BreakdownFilterChoice } from "@/components/grid/breakdown-filter-choice";
+import { TreeFilters } from "@/components/grid/tree-filters";
 import type { NodeTotals } from "@/components/grid/nodes";
 import { PendingAddress } from "@/components/grid/pending-address";
 import {
@@ -284,9 +284,6 @@ export default async function RemainingPage({
         />
         <RemainingSummary indicators={indicators} currency={currency} />
         <PendingAddress>
-          {screen.breakdown === undefined ? null : (
-            <BreakdownFilterChoice choices={screen.breakdown} />
-          )}
           <RemainingGrid
             nodes={screen.nodes}
             structure={screen.structure}
@@ -298,6 +295,7 @@ export default async function RemainingPage({
             subprojects={subprojects}
             query={screen.query}
             preferences={screen.preferences}
+            treeFilters={<TreeFilters breakdown={screen.breakdown} />}
           />
         </PendingAddress>
       </Screen>

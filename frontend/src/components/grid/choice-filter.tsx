@@ -16,14 +16,12 @@
  */
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useId, useOptimistic, useTransition } from "react";
+import { useId } from "react";
 
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 
-import { filterHref } from "./filters";
-import { usePendingAddress } from "./pending-address";
+import { useChoice } from "./use-choice";
 
 /** An object a list may be filtered on, by its identifier and the text that names it. */
 export interface Choice {
@@ -72,16 +70,10 @@ export function ChoiceFilter({
 }) {
   const own = useId();
   const select = id ?? own;
-  const pathname = usePathname();
-  const { request } = usePendingAddress();
-  // The object chosen, shown until the server answers for it: a controlled list would otherwise
-  // show the address until the navigation arrives — the choice seemingly undone for as long as
-  // the page is read anew —, and again the address should another navigation replace it.
-  const [shown, show] = useOptimistic(chosen ?? "");
-  const [, startTransition] = useTransition();
-  const offered = chosen === undefined || choices.some((choice) => choice.value === chosen);
-  // Every parameter the choices write: the one a choice writes, the others lifted.
-  const names = [...new Set([name, ...choices.map((choice) => choice.name ?? name)])];
+  const { shown, unoffered, choose } = useChoice(name, choices, chosen, [
+    ...(page === undefined ? [] : [page]),
+    ...lifts,
+  ]);
   return (
     <div className="flex min-w-48 flex-col gap-1 text-sm">
       <Label htmlFor={select}>{label}</Label>
@@ -90,18 +82,7 @@ export function ChoiceFilter({
           id={select}
           value={shown}
           onChange={(event) => {
-            const value = event.target.value;
-            const written = choices.find((choice) => choice.value === value)?.name ?? name;
-            startTransition(() => {
-              show(value);
-              request((query) =>
-                filterHref(pathname, query, written, value, [
-                  ...(page === undefined ? [] : [page]),
-                  ...lifts,
-                  ...names.filter((each) => each !== written),
-                ]),
-              );
-            });
+            choose(event.target.value);
           }}
         >
           <option value="">{every}</option>
@@ -110,7 +91,9 @@ export function ChoiceFilter({
               {choice.text}
             </option>
           ))}
-          {offered ? null : <option value={chosen}>{unknown ?? chosen}</option>}
+          {unoffered === undefined ? null : (
+            <option value={unoffered}>{unknown ?? unoffered}</option>
+          )}
         </NativeSelect>
       </div>
     </div>

@@ -16,9 +16,15 @@ from uuid import UUID, uuid4
 import pytest
 from cost_settings_examples import LABOUR, NON_LABOUR, PROVISION, UNSHARED
 from installed_reference import install
-from project_rows import drop_partitions, projects_with_partitions, unguarded
+from project_rows import (
+    drop_partitions,
+    insert_project,
+    partition_of,
+    projects_with_partitions,
+    unguarded,
+)
 from pydantic import SecretStr, ValidationError
-from sqlalchemy import delete, insert, select, text
+from sqlalchemy import delete, func, insert, select, text
 from support import WITNESS
 
 from waterfall import __version__
@@ -46,7 +52,7 @@ from waterfall.platform.database import Base, utc_now
 from waterfall.platform.errors import ConflictError
 from waterfall.platform.logs import logging_context
 from waterfall.platform.settings import WitnessSettings
-from waterfall.witness import chronology, loader
+from waterfall.witness import chronology, loader, projects
 from waterfall.witness.description import Witness, is_loaded
 from waterfall.witness.main import WITNESS_LOCK, load_witness, main
 
@@ -136,7 +142,9 @@ def test_the_slices_of_the_projects_are_loaded_in_their_order_after_the_referenc
     # The slices of the projects are filled: on a platform that holds none they write, and the
     # entry tells so; on a platform that holds them it writes nothing.
     with logging_context(correlation_id="witness-slices"):
-        # The projects ask the reference of the witness, which the slices before them load (#2155).
+        # The projects ask the reference of the witness, which the slices before them load (#2155);
+        # their partitions are created first, as the loader does (#2937).
+        projects.partition(session, witness)
         for _, load in loader.SLICES[:-1]:
             load(session, witness)
         assert chronology.load(session, witness) is True
@@ -222,6 +230,102 @@ def test_the_slices_are_loaded_under_the_lock_of_the_loader(
     monkeypatch.setattr(loader, "SLICES", (("org_nodes", locked),))
     assert load_witness(settings) == 0
     assert held == [1]
+
+
+# The tables the transaction of the loader holds ``SHARE ROW EXCLUSIVE``: those the creation of the
+# partitions of a project locks so, the tables their keys bind.
+HELD_SHARE_ROW_EXCLUSIVE = text(
+    "SELECT relation::regclass::text FROM pg_locks WHERE locktype = 'relation' AND granted "
+    "AND pid = pg_backend_pid() AND mode = 'ShareRowExclusiveLock'"
+)
+# The tables of the catalogue among those named.
+NAMED_TABLES = text("SELECT relname FROM pg_class WHERE relname = ANY (:names)")
+
+
+def test_the_partitions_of_the_projects_are_created_before_any_slice_writes(
+    settings: WitnessSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #2937: created with each project, after the reference and the accounts, the partitions asked
+    # their locks of a transaction that held some of their tables already; an autovacuum of one of
+    # them, whose truncation waited for that transaction, held its own five seconds by table, and
+    # the creation, which never waits, gave up after ten (``LockNotAvailable``). Created first,
+    # before the first slice writes: the transaction holds their locks, and they are there.
+    seen: list[tuple[set[str], set[str]]] = []
+
+    def first(session: Session, witness: Witness) -> bool:
+        imposed = witness.read(projects.PROJECTS_FILE, projects.Projects).items
+        expected = [partition_of(each.project_id.root) for each in imposed]
+        missing = set(expected) - set(session.scalars(NAMED_TABLES, {"names": expected}))
+        seen.append((missing, set(session.scalars(HELD_SHARE_ROW_EXCLUSIVE))))
+        return False
+
+    monkeypatch.setattr(loader, "SLICES", (("reference_settings", first),))
+    assert load_witness(settings) == 0
+    [(missing, held)] = seen
+    assert missing == set()
+    assert {"user_account", "cost_category", "resource_role", "revision"} <= held
+
+
+def test_the_partitions_are_not_created_on_a_platform_that_holds_a_project_of_the_witness(
+    witness: Database, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A platform that holds the witness, or half of it: nothing to create first, the slice writes
+    # nothing or refuses the platform (ALREADY_EXISTS), as before the partitions came first.
+    created: list[UUID] = []
+
+    def record(_session: Session, project_id: UUID) -> None:
+        created.append(project_id)
+
+    monkeypatch.setattr(projects, "create_project_partitions", record)
+    description = Witness(WITNESS, Act(None, utc_now()))
+    with witness.transaction() as session:
+        projects.partition(session, description)
+        projects.partition(session, description)
+    assert created == []
+
+
+def test_a_platform_half_loaded_is_refused_as_already_existing_not_by_the_partitions(
+    database: Database, owner: Engine, service_database_url: str, logs: Logs
+) -> None:
+    # #2937: one project of the witness is there, with its partitions. The creation of the
+    # partitions skips (``projects_present``), else it would fail on those already there; the slice
+    # of the projects then refuses the platform half loaded: ALREADY_EXISTS, naming that project,
+    # and nothing stays of the slices before it.
+    install(owner)
+    description = Witness(WITNESS, Act(None, utc_now()))
+    listed = description.read(projects.PROJECTS_FILE, projects.Projects).items
+    held = min(each.project_id.root for each in listed)
+    with owner.begin() as connection:
+        connection.execute(insert_project(id=held))
+        connection.execute(select(func.create_project_partitions(held)))
+    try:
+        assert load(service_database_url) == 1
+    finally:
+        with owner.begin() as connection:
+            drop_partitions(connection, held)
+    refusals = [(record["code"], record["params"]) for record in logs.named("witness.refused")]
+    assert refusals == [(ALREADY_EXISTS, {"conflicting_object_id": str(held)})]
+    with database.transaction() as session:
+        for model, column in OBJECTS:
+            assert rows_of(session, model, column) == [], model
+
+
+def test_the_partitions_are_created_for_each_project_of_the_witness_on_a_new_platform(
+    database: Database, owner: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    install(owner)
+    created: list[UUID] = []
+
+    def record(_session: Session, project_id: UUID) -> None:
+        created.append(project_id)
+
+    monkeypatch.setattr(projects, "create_project_partitions", record)
+    description = Witness(WITNESS, Act(None, utc_now()))
+    listed = description.read(projects.PROJECTS_FILE, projects.Projects).items
+    imposed = sorted(each.project_id.root for each in listed)
+    with database.transaction() as session:
+        projects.partition(session, description)
+    assert created == imposed
 
 
 def test_an_example_is_read_in_the_form_of_the_contract(tmp_path: Path) -> None:
