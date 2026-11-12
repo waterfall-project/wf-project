@@ -308,6 +308,91 @@ def test_the_restoration_family_recognizes_the_failures_read_in_the_logs_of_the_
     assert (kind, entry.family if entry else None) == ("known flakiness", "D. restauration")
 
 
+@pytest.mark.parametrize(
+    ("name", "run", "job", "classified"),
+    [
+        (
+            "webserver-actionlint",
+            42473098952,
+            "e2e / paths (5/5)",
+            (queue.INFRASTRUCTURE, "GitHub Releases, actionlint"),
+        ),
+        (
+            "pytest-purge",
+            42597453085,
+            "back / tests (2/2)",
+            (queue.FLAKY, "purge attendue à moitié"),
+        ),
+        (
+            "eslint-complexity",
+            43297947594,
+            "front / check",
+            (queue.REGRESSION, "la pull request #2930 (L5 des tables plates)"),
+        ),
+        (
+            "playwright-review",
+            43297945985,
+            "e2e / paths (3/5)",
+            (queue.REGRESSION, "la pull request #2930 (L5 des tables plates)"),
+        ),
+    ],
+)
+def test_the_failures_left_to_classify_outside_the_paths_are_classified_by_their_reading(
+    name: str, run: int, job: str, classified: tuple[str, str]
+) -> None:
+    # US-1920/L3: what the inventory of US-1880 left to classify outside the paths against the
+    # service, each failure the excerpt of its real log, in the run it was read in.
+    failed = queue.Job(9, job, "failure", None, None, "Run make x")
+    found = queue.failures_of(run, failed, log(name))
+    assert found
+    catalogue = queue.read_catalogue()
+    for failure in found:
+        kind, entry = catalogue.classify(failure)
+        assert (kind, entry.family if entry else None) == classified
+
+
+def test_a_regression_read_in_a_run_leaves_the_same_failure_elsewhere_to_classify() -> None:
+    (review, _) = queue.failures_of(
+        43297945985,
+        queue.Job(9, "e2e / paths (3/5)", "failure", None, None, "x"),
+        log("playwright-review"),
+    )
+    assert review.test == "e2e/review.spec.ts:207"
+    elsewhere = replace(review, run=43302246856)
+    assert queue.read_catalogue().classify(elsewhere) == (queue.TO_CLASSIFY, None)
+
+
+def test_the_crash_of_a_worker_of_vitest_is_recognized_in_its_run_alone() -> None:
+    # The fatal error of V8 is said in the middle of the log, far from the end the report reads.
+    crash = queue.Failure(
+        run=41134811730,
+        job="front / tests (1/2)",
+        step="Run make check-front-tests",
+        target="coverage-front",
+        message="-------------------|---------|----------|---------|---------|-----------",
+    )
+    catalogue = queue.read_catalogue()
+    kind, entry = catalogue.classify(crash)
+    assert (kind, entry.family if entry else None) == (
+        queue.FLAKY,
+        "V8 de Node 24, contrôle interne",
+    )
+    assert catalogue.classify(replace(crash, run=41134811731)) == (queue.TO_CLASSIFY, None)
+
+
+def test_a_web_server_that_built_actionlint_and_then_timed_out_is_not_that_download() -> None:
+    (stuck,) = queue.failures_of(
+        42473098952,
+        queue.Job(9, "e2e / paths (5/5)", "failure", None, None, "x"),
+        log("webserver-actionlint"),
+    )
+    built = replace(
+        stuck,
+        evidence=stuck.evidence.replace("Downloaded pygments", "Built actionlint-py==1.7.12.25"),
+    )
+    assert queue.read_catalogue().classify(built) == (queue.TO_CLASSIFY, None)
+
+
 def test_a_list_that_cannot_be_read_is_said(tmp_path: Path) -> None:
     broken = tmp_path / "known.toml"
     broken.write_text("[[known]\n")

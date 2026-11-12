@@ -1,0 +1,49 @@
+2026-11-09T10:05:58.5651999Z =================================== FAILURES ===================================
+2026-11-09T10:05:58.5653245Z _ test_the_platform_purges_what_expired_at_its_interval_by_the_second_loop_of_its_schedule _
+2026-11-09T10:05:58.5654174Z [gw1] linux -- Python 3.14.4 /home/runner/work/wf-project/wf-project/backend/.venv/bin/python
+2026-11-09T10:05:58.5654734Z 
+2026-11-09T10:05:58.5655102Z database = <waterfall.platform.database.Database object at 0x7c8794d3bb30>
+2026-11-09T10:05:58.5655933Z backups_bucket = <waterfall.platform.storage.Bucket object at 0x7c87a8682ed0>
+2026-11-09T10:05:58.5658350Z service_environment = {'WATERFALL_DATABASE_URL': '***localhost:5432/waterfall_test_18b9cbdf3dbd4338bef3378b8e71a8ab', 'WATERFALL_REDIS_URL': 'redis://127.0.0.1:6379/1'}
+2026-11-09T10:05:58.5659288Z 
+2026-11-09T10:05:58.5659461Z     @pytest.mark.requirement("WF-DAT-0120-A")
+2026-11-09T10:05:58.5660134Z     def test_the_platform_purges_what_expired_at_its_interval_by_the_second_loop_of_its_schedule(
+2026-11-09T10:05:58.5660970Z         database: Database, backups_bucket: Bucket, service_environment: dict[str, str]
+2026-11-09T10:05:58.5661570Z     ) -> None:
+2026-11-09T10:05:58.5662457Z         # « Un fichier déposé et jamais confirmé disparaît au terme du délai d'expiration. » : the
+2026-11-09T10:05:58.5663397Z         # schedule purges at the interval of ``WATERFALL_PURGE_INTERVAL``, ten minutes by default, while
+2026-11-09T10:05:58.5664601Z         # the loop of the reading of the accounts waits for its day.
+2026-11-09T10:05:58.5665089Z         scheduled_with, shell = scheduler()
+2026-11-09T10:05:58.5665539Z         assert scheduled_with[PURGE] == f"${{{PURGE}:-600}}"
+2026-11-09T10:05:58.5665978Z         upload_id = uuid4()
+2026-11-09T10:05:58.5666310Z         key = object_key_of(upload_id)
+2026-11-09T10:05:58.5666681Z         backups_bucket.put(key, b"WF")
+2026-11-09T10:05:58.5667269Z         user = holder(database)
+2026-11-09T10:05:58.5667659Z         with database.transaction() as session:
+2026-11-09T10:05:58.5668298Z             record_whole(session, upload_id, Whole("oublie.wft", 2, user), utc_now() - LIFETIME * 2)
+2026-11-09T10:05:58.5668912Z         environment = {
+2026-11-09T10:05:58.5669228Z             **service_environment,
+2026-11-09T10:05:58.5669615Z             **storage_environment(backups_bucket),
+2026-11-09T10:05:58.5670071Z             "WATERFALL_IDENTITY_SYNC_INTERVAL": "3600",
+2026-11-09T10:05:58.5670483Z             PURGE: str(INTERVAL),
+2026-11-09T10:05:58.5670820Z         }
+2026-11-09T10:05:58.5671067Z     
+2026-11-09T10:05:58.5671327Z         def purged() -> bool:
+2026-11-09T10:05:58.5671697Z             with database.transaction() as session:
+2026-11-09T10:05:58.5672174Z                 return session.get(FileUpload, upload_id) is None
+2026-11-09T10:05:58.5672602Z     
+2026-11-09T10:05:58.5672865Z         with started(shell, environment):
+2026-11-09T10:05:58.5673802Z             wait_for(purged)
+2026-11-09T10:05:58.5700504Z >       assert backups_bucket.size(key) is None
+2026-11-09T10:05:58.5700972Z E       AssertionError: assert 2 is None
+2026-11-09T10:05:58.5701484Z E        +  where 2 = size('uploads/e95a19df-ec6a-4211-afeb-e50159e5b5a9')
+2026-11-09T10:05:58.5702193Z E        +    where size = <waterfall.platform.storage.Bucket object at 0x7c87a8682ed0>.size
+2026-11-09T10:05:58.5702693Z 
+2026-11-09T10:05:58.5702873Z tests/test_worker_process.py:185: AssertionError
+2026-11-09T10:05:58.5703375Z =========================== short test summary info ============================
+2026-11-09T10:05:58.5704482Z FAILED tests/test_worker_process.py::test_the_platform_purges_what_expired_at_its_interval_by_the_second_loop_of_its_schedule - AssertionError: assert 2 is None
+2026-11-09T10:05:58.5705527Z  +  where 2 = size('uploads/e95a19df-ec6a-4211-afeb-e50159e5b5a9')
+2026-11-09T10:05:58.5706200Z  +    where size = <waterfall.platform.storage.Bucket object at 0x7c87a8682ed0>.size
+2026-11-09T10:05:58.5706840Z 1 failed, 1508 passed, 1 skipped in 388.71s (0:06:28)
+2026-11-09T10:05:59.6301539Z make: *** [Makefile:438: coverage-back] Error 1
+2026-11-09T10:05:59.6318090Z ##[error]Process completed with exit code 2.
