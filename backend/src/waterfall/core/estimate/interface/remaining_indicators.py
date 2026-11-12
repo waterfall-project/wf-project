@@ -38,7 +38,11 @@ from waterfall.core.estimate.remaining.comparing import (
     reference_budgets,
     summed_by_subproject,
 )
-from waterfall.core.estimate.remaining.reviewing import provisions_of, revision_remaining
+from waterfall.core.estimate.remaining.reviewing import (
+    provisions_of,
+    remaining_of_placed,
+    revision_remaining,
+)
 from waterfall.core.estimate.remaining.summing import NOUGHT
 from waterfall.core.projects.interface import subproject_labels
 from waterfall.core.revisions.interface import read_revision_for
@@ -53,7 +57,7 @@ if TYPE_CHECKING:
 
     from waterfall.core.costs.interface import CostScope
     from waterfall.core.estimate.indicating import AmountByKey
-    from waterfall.core.estimate.tables import EstimateLine
+    from waterfall.core.estimate.placing import Placed
     from waterfall.core.revisions.interface import RevisionRead
 
 
@@ -171,18 +175,19 @@ def _ventilated(
     session: Session,
     project_id: UUID,
     read: RevisionRead,
-    lines: Sequence[EstimateLine],
+    placed: Sequence[Placed],
     remaining: RevisionRemaining,
 ) -> tuple[AmountByKey, ...]:
     """Ventilate the remaining by the nature of cost of the category of each line that counts.
 
     The nature provision is served at nought: each type of cost of the provision kind the lines of
     the main structure bear, whatever the state of their task, figures with nothing, its share
-    nought (WF-RAE-0020).
+    nought (WF-RAE-0020). ``placed`` are the lines of the revision on their tasks, read once.
     """
-    placed = [each.line for each in placed_lines(session, project_id, read.revision_id)]
-    provisions = provisions_of(session, placed)
-    kept = [*lines, *(line for line in placed if line.node_id in provisions)]
+    every = [each.line for each in placed]
+    provisions = provisions_of(session, every)
+    counted = [line for line in every if line.node_id in remaining.by_line]
+    kept = [*counted, *(line for line in every if line.node_id in provisions)]
     natures = natures_of(session, project_id, read, {line.cost_category_id for line in kept})
     amounts: dict[str, Decimal] = {}
     labels: dict[str, str | None] = {}
@@ -206,7 +211,9 @@ def remaining_indicators(
     before none without a revision marked In progress before this one. A revision unknown is 404.
     """
     read = read_revision_for(session, project_id, revision_id)
-    held = remaining_of_revision(session, project_id, read.revision_id)
+    # The lines on their tasks, the costliest read: once for the remaining and its ventilation.
+    placed = placed_lines(session, project_id, read.revision_id)
+    held = RevisionRemaining(*remaining_of_placed(session, placed))
     lines = rows_of(session, project_id, list(held.by_line))
     remainings = summed_by_subproject(lines, held.by_line)
     actual_costs = {
@@ -227,7 +234,7 @@ def remaining_indicators(
             read.revision_id, "marked" if read.marked else "draft", at, "project", is_stored=False
         ),
         total=held.total,
-        by_cost_type=_ventilated(session, project_id, read, lines, held),
+        by_cost_type=_ventilated(session, project_id, read, placed, held),
         by_subproject=tuple(
             SubprojectBalance(
                 each.key,
