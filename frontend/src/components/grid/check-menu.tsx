@@ -93,7 +93,13 @@ function summaryOf(
 function Announced({ text }: { readonly text: string }) {
   const [told, setTold] = useState("");
   useEffect(() => {
-    setTold(text);
+    // After the region is in the document, so that the reader sees the text arrive.
+    const timer = setTimeout(() => {
+      setTold(text);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [text]);
   return (
     <p role="status" className="sr-only">
