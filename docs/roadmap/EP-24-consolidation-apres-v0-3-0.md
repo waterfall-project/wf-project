@@ -664,7 +664,7 @@ lot de la chaîne par ses passages, avant et après, et non par une mesure sur l
 
 ## US-1890 — Les parcours contre le service ne font plus échouer la file sans régression
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune en propre — les lectures que les parcours instables attendent
 - **issue** : #2939

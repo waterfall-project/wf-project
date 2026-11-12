@@ -293,19 +293,40 @@ def test_the_versioned_list_holds_its_inventory_and_the_reference() -> None:
 
 
 @pytest.mark.parametrize(
-    ("name", "test", "where"),
+    ("name", "run", "where", "classified"),
     [
-        ("restore", "e2e/service/backups.spec.ts:155", "e2e/service/backups.spec.ts:226"),
-        ("grid", "e2e/service/backups.spec.ts:240", "e2e/service/backups.spec.ts:272"),
+        (
+            "restore",
+            42786655299,
+            "e2e/service/backups.spec.ts:155 at :226",
+            (queue.FLAKY, "D. restauration : une part du dépôt réécrite par Prism"),
+        ),
+        (
+            "restoration-end",
+            42622915790,
+            "e2e/service/backups.spec.ts:155 at :262",
+            (queue.REGRESSION, "D. restauration : plus de verrous qu'une transaction n'en a"),
+        ),
+        (
+            "grid",
+            42782577852,
+            "e2e/service/backups.spec.ts:240 at :272",
+            (queue.REGRESSION, "D. restauration : la grille attendue sur une liste vide"),
+        ),
     ],
 )
-def test_the_restoration_family_recognizes_the_failures_read_in_the_logs_of_the_queue(
-    name: str, test: str, where: str
+def test_the_restoration_family_is_classified_by_its_three_causes_in_their_runs_alone(
+    name: str, run: int, where: str, classified: tuple[str, str]
 ) -> None:
-    (found,) = failures(f"playwright-backups-{name}")
-    assert (found.test, found.where) == (test, where)
-    kind, entry = queue.read_catalogue().classify(found)
-    assert (kind, entry.family if entry else None) == ("known flakiness", "D. restauration")
+    # US-1890/L4: the three causes of the family, each corrected before 2026-11-10 at 10:24 UTC;
+    # the same failure in another run — the path failing again — is left to classify.
+    (found,) = queue.failures_of(run, SERVICE, log(f"playwright-backups-{name}"))
+    test, line = where.split(" at :")
+    assert (found.test, found.where) == (test, f"e2e/service/backups.spec.ts:{line}")
+    catalogue = queue.read_catalogue()
+    kind, entry = catalogue.classify(found)
+    assert (kind, entry.family if entry else None) == classified
+    assert catalogue.classify(replace(found, run=43325185785)) == (queue.TO_CLASSIFY, None)
 
 
 @pytest.mark.parametrize(
