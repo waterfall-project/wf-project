@@ -15,7 +15,8 @@ import { example } from "@/test/fixtures";
 import { UserList } from "./account-lists";
 import type { AccessRole, User } from "./admin-grids";
 import { type AuditFilters, authorsOf, readAuditFilters } from "./audit-address";
-import { PENDING_DAY, type UserFilters, useUserChips } from "./user-chips";
+import { PENDING_DAY } from "@/components/grid/chip-kit";
+import { type UserFilters, useUserChips } from "./user-chips";
 import { USER_KEPT } from "./user-address";
 
 // The chips of every filter of the table of the accounts, told from the address (#2916): their text,

@@ -37,7 +37,7 @@ const HEADING = {
 export function useRiskChips(
   states: readonly RiskState[] | undefined,
   filters: RiskFilters | undefined,
-  lastMarkedOn?: string | undefined,
+  lastMarkedOn?: string,
 ): FilterChip[] {
   const t = useTranslations();
   const locale = useLocale();

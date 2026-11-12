@@ -24,7 +24,7 @@ import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import type { NodeChoice } from "@/components/reference/reference-filters";
 
-import { useRoleChips } from "./role-chips";
+import { useAccessRoleChips } from "./role-chips";
 import { useRoleAnswers } from "./role-answers";
 import {
   type AccessRole,
@@ -140,7 +140,7 @@ export function AccessRoleGrid({
   readonly panel: ReactNode;
 }) {
   const t = useTranslations("admin.accessRoles");
-  const chips = useRoleChips(filters);
+  const chips = useAccessRoleChips(filters);
   // The roles the server answered, which the renaming writes from, shared with the matrix.
   const answers = useRoleAnswers();
   const latest = answers?.latest;

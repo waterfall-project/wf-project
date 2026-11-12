@@ -14,10 +14,10 @@ import type { FilterChip } from "@/components/grid/filter-chips";
 
 import type { RoleFilters } from "./account-lists";
 import { HOLDER_COUNT, PREDEFINED } from "./role-address";
-import { useAuditChips } from "./user-chips";
+import { useAccountAuditChips } from "./user-chips";
 
 /** The chips of the filters of the access roles that are on, in the order of the panel. */
-export function useRoleChips(filters: RoleFilters): FilterChip[] {
+export function useAccessRoleChips(filters: RoleFilters): FilterChip[] {
   const t = useTranslations();
   const kit = useChipKit();
   if (filters.predefined !== undefined) {
@@ -31,5 +31,5 @@ export function useRoleChips(filters: RoleFilters): FilterChip[] {
     );
   }
   kit.bounds(HOLDER_COUNT, t("grid.columns.holders"), "count", filters.holders);
-  return [...kit.chips, ...useAuditChips(filters.audit, filters.authors)];
+  return [...kit.chips, ...useAccountAuditChips(filters.audit, filters.authors)];
 }
