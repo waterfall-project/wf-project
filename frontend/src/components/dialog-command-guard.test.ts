@@ -27,6 +27,8 @@ const SAYS = 'aria-haspopup="dialog"';
 const OTHERWISE_OPENED: Readonly<Record<string, string>> = {
   "components/grid/structure-gestures.tsx":
     "TimelineForm and GestureDialog are exempted and named: opened by gestures of the grid, not by a button of this source",
+  "components/grid/completion-date.tsx":
+    "the date is asked when the service refuses an entry that completes a task, not by a button",
   "components/grid/paste-dialog.tsx": "the paste of a block is opened by Ctrl+V, not by a button",
   "components/reference/reference-form.tsx":
     "the form is mounted by the commands of reference/commands.tsx and settings-forms.tsx, which bear aria-haspopup",

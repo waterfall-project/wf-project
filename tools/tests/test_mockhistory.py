@@ -275,11 +275,11 @@ def test_the_reference_bears_a_reserve_of_its_provisions_and_a_budget_the_occurr
     assert budget == mockhistory.reference_budget(mockcore.current())
     # The lines the amendment 1 did not designate keep the budget of the offer, at its rates and
     # projected from its reference year, 2025 (#467, #1628): the core's alone are budgeted
-    # 124,030.60, the whole structure 70,288,695.96, inflation included.
+    # 124,048.77, the whole structure 70,316,396.56, inflation included.
     assert mockhistory.reference_budget(mockcore.core(mockwitnessrisks.reference())) == Decimal(
-        "124030.60"
+        "124048.77"
     )
-    assert budget == Decimal("70288695.96")
+    assert budget == Decimal("70316396.56")
     numbers = {row.number for row in rows}
     assert mockwitnessrisks.MERGED not in numbers
     assert {557, 567} <= numbers
@@ -464,7 +464,7 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
     # The budgeted deltas leave the rates and the years out: every line drawn keeps the budget of
     # the offer (#467, #1628).
     offer = mockhistory.offer_rows()
-    for key, expected in (("budgeted", "852890.95"), ("reestimated", "-1012313.24")):
+    for key, expected in (("budgeted", "852890.95"), ("reestimated", "-1013056.56")):
         difference = sum(
             (
                 getattr(row.amounts, key)
@@ -540,7 +540,7 @@ def test_the_comparison_is_read_by_the_window_of_a_subtree_as_list_nodes_reads_o
     def amount(rows: dict[int, mockcore.Row], number: int, key: str) -> Decimal:
         return getattr(rows[number].amounts, key) if number in rows else Decimal(0)
 
-    for key, total in (("budgeted", "602639.50"), ("reestimated", "602480.50")):
+    for key, total in (("budgeted", "602639.50"), ("reestimated", "602480.33")):
         expected = sum(
             (amount(referenced, n, key) - amount(offer, n, key) for n in lines), Decimal(0)
         )
@@ -680,7 +680,8 @@ def test_the_offer_is_priced_at_the_rates_of_its_reference_year(whole: Node) -> 
     # #232 proposes (WF-REV-0030): 78.50 for the electrical engineering, 73.50 for the
     # commissioning; the reference at those of 2026, one rate a category, the lines the amendment 1
     # did not designate keeping the budget of the offer, projected from 2025, its reference year
-    # (WF-REV-0050, #467, #1628): 9,420.00 and 5,880.00 consumed in 2026, 9,702.60 and 6,056.40.
+    # (WF-REV-0050, #467, #1628): 9,420.00 and 5,880.00 consumed in 2026, 9,702.60 and 6,074.57
+    # (the second task crosses two years, WF-DEV-0040).
     offer = {row.number: row for row in mockhistory.offer_rows()}
     reference = {row.number: row for row in mockhistory.reference_rows()}
     for number, hours, rate in ((553, 10, "78.50"), (563, 120, "78.50"), (566, 80, "73.50")):
@@ -692,20 +693,20 @@ def test_the_offer_is_priced_at_the_rates_of_its_reference_year(whole: Node) -> 
     ]
     assert [reference[n].amounts.budgeted for n in (563, 566)] == [
         Decimal("9702.60"),
-        Decimal("6056.40"),
+        Decimal("6074.57"),
     ]
     labour = next(entry for entry in whole["amount_deltas"] if entry["key"] == mockstructure.LABOR)
     # Read whole: the budget of the core changes by 3,191.45 — the 1,000.00 of the connection of
     # the terminal blocks for the 808.55 of the offer, and the 3,000.00 of the assistance it adds
     # —, the two lines the amendment does not designate keeping the offer's; the re-estimate by
-    # its 3,032.45, those two at the rates of 2026 under their budget, and on the labour drawn
+    # its 3,032.28, those two at the rates of 2026 under their budget, and on the labour drawn
     # about it by the rate of 2026 projected from 2026 in place of that of 2025 projected from
     # 2025 — a step of 1.50 an hour, 174,026.25 before inflation, and a year of inflation less.
     offered = {row.number: row for row in mockhistory.offer_rows()}
     drawn = [row for row in reference.values() if row.number >= GENERATED and row.hours]
     step = sum(row.amounts.reestimated - offered[row.number].amounts.reestimated for row in drawn)
     assert Decimal(labour["budgeted_delta"]) == Decimal("3191.45")
-    assert Decimal(labour["reestimated_delta"]) == Decimal("3032.45") + step
+    assert Decimal(labour["reestimated_delta"]) == Decimal("3032.28") + step
     assert sum((row.hours for row in drawn), Decimal(0)) * mockstructure.RATE_STEP == Decimal(
         "174026.25"
     )

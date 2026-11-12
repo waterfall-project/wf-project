@@ -164,12 +164,15 @@ def _subproject(
     faults: _Faults,
     held: tuple[UUID, BearingTask, UUID | None],
     entry: LineEntry,
+    *,
+    locking: bool = True,
 ) -> UUID | None:
     """Judge the subproject a write leaves the line in, of its project (WF-PRJ-0050).
 
     ``held`` is the project, the task that bears the line and its subproject before the write. The
     subproject named is read ``FOR KEY SHARE`` (#2616): one a concurrent deletion took away is
-    unknown, as one that never was.
+    unknown, as one that never was. The analysis of an import writes nothing, in a transaction
+    that cannot lock: it reads them as they are (``locking`` false).
     """
     project_id, bearer, before = held
     if not entry.given("subproject_id"):
@@ -178,7 +181,7 @@ def _subproject(
     if after is not None and not recalled(
         session,
         ("subproject", project_id, after),
-        lambda: subproject_labels(session, project_id, [after], held=True),
+        lambda: subproject_labels(session, project_id, [after], held=locking),
     ):
         faults.add("subproject_id", UNKNOWN_SUBPROJECT)
     if (
@@ -269,10 +272,13 @@ def judged_line(
     held: tuple[UUID, BearingTask],
     entry: LineEntry,
     current: EstimateLine | None,
+    *,
+    locking: bool = True,
 ) -> Draft:
     """Judge what a write sends of a line, created (``current`` none) or changed; or refuse (422).
 
-    ``held`` is the project and the task that bears the line.
+    ``held`` is the project and the task that bears the line. ``locking`` false for the analysis
+    of an import, which cannot lock what it reads.
     """
     project_id, bearer = held
     faults = _Faults("/estimate_line" if current is None else "")
@@ -283,7 +289,9 @@ def judged_line(
     disbursement = _figure(faults, entry, "unit_disbursement", (before_disbursement, not labour))
     quantity, delay = _scalars(faults, entry, current)
     before_subproject = None if current is None else current.subproject_id
-    subproject = _subproject(session, faults, (project_id, bearer, before_subproject), entry)
+    subproject = _subproject(
+        session, faults, (project_id, bearer, before_subproject), entry, locking=locking
+    )
     faults.raise_any()
     if category is None or category_id is None:
         msg = "a line judged names its category"

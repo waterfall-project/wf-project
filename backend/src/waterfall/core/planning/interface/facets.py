@@ -26,7 +26,12 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-from waterfall.core.planning.calendars import applicable_of, default_calendar
+from waterfall.core.planning.calendars import (
+    applicable_among,
+    applicable_of,
+    default_calendar,
+    weeks_of,
+)
 from waterfall.platform.registry import Registry
 
 if TYPE_CHECKING:
@@ -266,4 +271,5 @@ def calendars_of(
     """Give the calendar applicable to each task named, the default and the facets read once."""
     default = default_calendar(session)
     named = named_calendars(session, project_id, task_ids)
-    return {task_id: applicable_of(session, named[task_id], default) for task_id in task_ids}
+    weeks = weeks_of(session, [each for held in named.values() for each in held])
+    return {task_id: applicable_among(named[task_id], default, weeks) for task_id in task_ids}

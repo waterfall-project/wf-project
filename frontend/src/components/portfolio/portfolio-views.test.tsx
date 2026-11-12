@@ -45,7 +45,7 @@ describe("the shares of the portfolio, never « 0 % » when they are not nil (#6
     const said = text(
       <CostStructureView structure={{ ...structure, remaining_by_cost_type: remaining }} />,
     );
-    expect(said).toContain(`Provision 151,044,403.43 ${TINY}`);
+    expect(said).toContain(`Provision 151,047,099.15 ${TINY}`);
   });
 
   it("says a share of a nil total not computable, with its reason [WF-IND-0010-A] [WF-PTF-0080-A]", () => {

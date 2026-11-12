@@ -2353,7 +2353,10 @@
       another cell than its label — a task created by its label alone being a write of the
       three grids, as by `createNode` —, asks for `planning.write`, and is refused whole
       otherwise with 403 `PERMISSION_MISSING`, `params.missing_permission` naming it, before
-      any line is judged; no plan is kept (#2775).
+      any line is judged; no plan is kept (#2775). The columns of a task's execution —
+      `physical_progress`, `started_on`, `completed_on`, which `setTaskProgress` writes — ask for
+      `remaining.write` in place of `planning.write`, as it does (#2805): a block that writes
+      both kinds asks for both, and names `planning.write` first when neither is held.
       States what will be written and what will be refused, with the reason for each refusal;
       nothing is written at this stage (WF-IHM-0050). Once confirmed, the paste will write the
       accepted lines and not the refused lines (`applyPaste`). The block fills, starting from
@@ -2447,8 +2450,9 @@
       `PERMISSION_MISSING`, `params.missing_permission` naming `planning.write`, the first of
       them (#2601).
       A plan that writes the columns of a task asks again for `planning.write`, as its preview
-      did (`previewPaste`): refused whole otherwise with 403 `PERMISSION_MISSING`,
-      `params.missing_permission` naming it; nothing is written (#2775).
+      did (`previewPaste`) — `remaining.write` for those of its execution (#2805) —: refused
+      whole otherwise with 403 `PERMISSION_MISSING`, `params.missing_permission` naming it;
+      nothing is written (#2775).
       The valid lines of the plan are written in a single operation, and the refused lines are
       not; an abandoned paste leaves the grid unchanged (WF-IHM-0050; EP-14/L42q). Carries
       the counter of the structure, refused with 412 if it is stale; the plan also retains the

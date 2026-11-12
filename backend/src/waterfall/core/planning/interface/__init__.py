@@ -109,6 +109,9 @@ from waterfall.core.planning.interface.lines import (
     bearers_of as bearers_of,
 )
 from waterfall.core.planning.interface.lines import (
+    bearing_tasks as bearing_tasks,
+)
+from waterfall.core.planning.interface.lines import (
     create_line_node as create_line_node,
 )
 from waterfall.core.planning.interface.lines import (
@@ -269,6 +272,27 @@ from waterfall.core.planning.interface.nodes import (
     write_creation as write_creation,
 )
 
+# ``open_lines`` (US-1590/L1; US-1650/L2): the own lines that hold a summary task open, and when
+# they were set to nought, which the estimate tells.
+from waterfall.core.planning.interface.open_lines import (
+    OpenLines as OpenLines,
+)
+from waterfall.core.planning.interface.open_lines import (
+    ZeroedAt as ZeroedAt,
+)
+from waterfall.core.planning.interface.open_lines import (
+    held_open as held_open,
+)
+from waterfall.core.planning.interface.open_lines import (
+    register_open_lines as register_open_lines,
+)
+from waterfall.core.planning.interface.open_lines import (
+    register_zeroed_at as register_zeroed_at,
+)
+from waterfall.core.planning.interface.open_lines import (
+    zeroed_at as zeroed_at,
+)
+
 # ``paste`` (US-1380/L1; US-1450/L2): the paste of a block of cells.
 from waterfall.core.planning.interface.paste import (
     PasteApplied as PasteApplied,
@@ -303,7 +327,18 @@ from waterfall.core.planning.interface.predecessors import (
     set_predecessors as set_predecessors,
 )
 
-# ``progress`` (US-1380/L1; US-1410): the state of a task.
+# ``progress`` (US-1380/L1; US-1410; US-1580/L2; US-1590/L1): the state of a task, its completion
+# by the re-estimate that sets its last open line to nought (``write_remaining``), the gestures of
+# a card of the Kanban (``progress_commands``).
+from waterfall.core.planning.interface.progress import (
+    KanbanCommand as KanbanCommand,
+)
+from waterfall.core.planning.interface.progress import (
+    KanbanCommandAvailability as KanbanCommandAvailability,
+)
+from waterfall.core.planning.interface.progress import (
+    KanbanCondition as KanbanCondition,
+)
 from waterfall.core.planning.interface.progress import (
     ProgressEntry as ProgressEntry,
 )
@@ -311,10 +346,22 @@ from waterfall.core.planning.interface.progress import (
     ProgressLoad as ProgressLoad,
 )
 from waterfall.core.planning.interface.progress import (
+    RemainingChange as RemainingChange,
+)
+from waterfall.core.planning.interface.progress import (
+    TaskProgress as TaskProgress,
+)
+from waterfall.core.planning.interface.progress import (
     load_progress as load_progress,
 )
 from waterfall.core.planning.interface.progress import (
+    progress_commands as progress_commands,
+)
+from waterfall.core.planning.interface.progress import (
     set_task_progress as set_task_progress,
+)
+from waterfall.core.planning.interface.progress import (
+    write_remaining as write_remaining,
 )
 
 # ``reference`` (US-1380/L1; US-1390/L2): what the planning answers to the reference.

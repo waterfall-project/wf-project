@@ -380,7 +380,11 @@ Problem:
         WF-REF-0190; EP-16/US-0620); `rows`, the row numbers, as an array of integers, of the
         other lines of the file that carry the same document and the same item as a rejected
         line of an actual cost extraction (`DUPLICATE_COST_LINE`, `ImportRejection.params`,
-        WF-INTF-0140; EP-16/US-0630); `wbs_element`, the WBS element of a rejected line of an
+        WF-INTF-0140; EP-16/US-0630); `lines`, the tab and the row number of the other lines of the
+        file that carry the same lineage as a rejected line of an estimate or of a remaining to
+        commit, as an array of objects (`sheet`, `row`), in the order of the file
+        (`DUPLICATE_LINEAGE`, `ImportRejection.params`, WF-INTF-0100, WF-INTF-0120; #2798);
+        `wbs_element`, the WBS element of a rejected line of an
         actual cost extraction, as the file carries it, and `project_code`, the project code it
         carries when it is that of another project, everything before the slash, dots included
         (`WBS_ELEMENT_INVALID`,
@@ -392,7 +396,14 @@ Problem:
         `ImportRejection.params`); `header`, the header of the column of the workbook of an
         estimate that carries the refused cell, as the workbook carries it, for `NUMBER_INVALID`
         and the reason of a field of an imported line (`ImportRejection.params`, annex B; #2609)
-        — not `column`, which names a column of an actual cost extraction by its identifier;
+        — and `column`, which names instead a column of an actual cost extraction, by its
+        identifier (`ActualCostSourceColumn`), in every refusal of a cell of a line of such an
+        extraction (`VALUE_REQUIRED`, `VALUE_TOO_LONG`, `VALUE_OUT_OF_RANGE`, `NUMBER_INVALID`,
+        `DATE_INVALID`, `ImportRejection.params`, WF-CRE-0020; #2722), where `minimum` and
+        `maximum` are the bounds of the amount, `-999999999999.99` and `999999999999.99`, as
+        strings (`VALUE_OUT_OF_RANGE`, `column` at `amount`), and `max_length` the largest number
+        of characters of the document number, `200`, or of the subproject code of the WBS
+        element, `50` (`VALUE_TOO_LONG`, `column` at `document_number` or `wbs_element`);
         `label`, the label of a task that several tasks carry, with `tasks` those that carry it
         (`AMBIGUOUS_TASK_LABEL`, `ImportRejection.params`, annex B); `start` and `finish`, the
         dates that an MS Project planning gives to a summary task in manual mode, imported in
@@ -772,6 +783,12 @@ ErrorCode:
     # same document and the same item, null included (`ImportRejection`, WF-INTF-0140, D-4;
     # EP-16/US-0630): each is rejected, `params.rows` naming the row numbers of the others.
     - DUPLICATE_COST_LINE
+    # A line of an estimate or of a remaining to commit whose lineage — the « ID ligne » column —
+    # another line of the same file carries, on the same tab or on another (`ImportRejection`,
+    # WF-INTF-0100, WF-INTF-0120; #2798): each is rejected, none is preferred, and the line of the
+    # revision that the lineage names is left as it is; `params.lines` names the tab and the row of
+    # the others.
+    - DUPLICATE_LINEAGE
     # 5xx — component unavailable, `params.component` (WF-EXP-0040, 503 `ServiceUnavailable`), or
     # unexpected error, traced by its `correlation_id` (WF-OBS-0020, 500 `InternalError`, which
     # every operation declares; J-07, US-0702/L1).

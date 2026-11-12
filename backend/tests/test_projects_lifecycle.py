@@ -376,6 +376,9 @@ def test_no_operation_leads_to_pricing_or_in_progress_by_an_exit(
         "generate_skeleton",
         "import_planning",
         "import_estimate",
+        "import_remaining",
+        "import_actual_costs",
+        "exclude_cost_lines",
     }
     assert set(commands) - changing == {"complete", "lose", "abandon"}
 

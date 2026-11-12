@@ -14,13 +14,17 @@ is negotiated over months, the baseline moves only by contract, and the question
 still where we said we would be? » has to be answerable years after the people who
 answered it first have left.
 
-> **Status: the foundation, the mockup and the accounts are in place, the product is not yet.**
-> The specification and the interface contract come first; the repository also carries the
-> tooling and the chain every line of product code passes through, a front that shows every
-> screen against a simulated contract (EP-02), and the back for accounts, authentication and
-> access (EP-03). The rest of the back comes next, epic by epic, as
-> [`docs/roadmap`](docs/roadmap/README.md) plans it, starting with the company reference
-> data (EP-05).
+> **Status: the service serves the product from the reference data to the actual costs; the
+> indicators, the risks and the portfolio not yet.** The specification and the interface
+> contract, frozen at 1.0.0, come first; the repository also carries the tooling and the chain
+> every line of product code passes through, and a front that shows every screen against a
+> simulated contract (EP-02). The service serves accounts, authentication and access (EP-03), the
+> company reference data (EP-05), projects and their revisions (EP-04), the schedule and the round
+> trip with MS Project (EP-06), costing and the estimate (EP-07), the actual costs imported from
+> the ERP and the estimate to complete (EP-09). The screens of the indicators (EP-10), of
+> amendments and risks (EP-08) and of the portfolio (EP-11) still run against the fake back. They
+> come next, in that order, as [`docs/roadmap`](docs/roadmap/README.md) plans it, along with
+> operations and production (EP-13).
 
 ## What makes it different
 
@@ -63,8 +67,8 @@ fifty-thousand deal the same weight as a million-euro one, and measures nothing.
 | `backend/` | one Python package: the business core, the API service and the worker |
 | `frontend/` | the Next.js application, its client generated from the contract, its end-to-end paths |
 | `tools/` | the repository tools: requirement coverage, roadmap check, source rules, lot size |
-| `fixtures/` | the numeric examples of the specification, and the data the fake back serves |
-| `deploy/` | packaging: the Compose files (development, service, demonstration, production), the Helm chart later |
+| `fixtures/` | the numeric examples of the specification; the witness, the contract's examples that the fake back serves and `make service-witness` loads on the service (`fixtures/api`); the corpus of MS Project schedules the date computation is tested against (`fixtures/msproject`) |
+| `deploy/` | packaging: the Compose files (development, service, tests, demonstration, production), the Keycloak image and its extension, the test directory; the Helm chart comes with EP-13 |
 | `.github/workflows/` | the chain, run on every pull request |
 | `.claude/agents/` | the agents that frame an epic, deliver its lots, develop and review |
 
@@ -112,7 +116,13 @@ make check BASE=origin/epic/EP-nn  # the checks of what my change touches
 make check-all            # run every family of checks
 make dev                  # the front against the fake back, on http://localhost:3000
 make mock                 # the fake back alone, served from the contract's examples
+make mock-data            # regenerate the volumes and the witness readings the fake back serves
 make e2e                  # the end-to-end paths, in a browser
+make service-up           # the service platform: databases, API, worker, Keycloak, directory
+make service-install      # bootstrap the installation, and print the first administrator's link
+make service-witness      # load the witness on the bootstrapped service platform
+make e2e-service          # the end-to-end paths against the real service
+make service-down         # stop the service platform
 make requirements         # which requirements the tests cover
 make roadmap              # the roadmap confronted with the specification
 make build-doc            # regenerate the Markdown projection from Word and draw.io
@@ -121,8 +131,9 @@ make generate-client      # regenerate the front's API client from the contract
 
 Prerequisites: [uv](https://docs.astral.sh/uv/), which brings Python 3.14 for the back and
 the tools; a Python 3.14 or later on the `PATH` as `python3`, which builds the projection;
-Node 26 and pnpm (`npm install --global pnpm`, once); Docker, for `make dev`; the PostgreSQL 18
-client, for the backup tests; `pandoc` 3.13, the version the projection is generated with;
+Node 26 and pnpm (`npm install --global pnpm`, once); Docker, for `make dev`, the test services
+and the service platform, which also needs its secrets; the PostgreSQL 18 client, for the backup
+tests; `pandoc` 3.13, the version the projection is generated with;
 `openssl`, to draw another Garage secret than the workflow's; and, to validate the diagrams, `mmdc`,
 installed through npm. [`INSTALL.md`](INSTALL.md) (in French) says where to find pandoc 3.13 on
 Ubuntu 26.04, how to install `mmdc` and what to put in `~/.bashrc`.
@@ -137,8 +148,8 @@ an **S3-compatible** store for files in transit and backups; **Helm** for Kubern
 **Compose** for development and small installations.
 
 The contract is written by hand and is authoritative: the front's client is generated from
-it, the fake back serves its examples, and the chain will reject a service whose responses
-drift from it.
+it, the fake back serves its examples, and the chain rejects a service whose responses drift
+from it.
 
 ## Contributing
 

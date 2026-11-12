@@ -94,7 +94,6 @@ UNREACHED = {
         "available_commands": "the commands follow the state of the revision",
     },
     "subproject": {
-        "has_actual_costs": "the actual costs are imported (EP-09)",
         "lock_version": "the counter follows the writes of the slice",
         "audit": "the platform is the author; the instant is the creation of the project",
         "available_commands": "the commands follow the state of the subproject",

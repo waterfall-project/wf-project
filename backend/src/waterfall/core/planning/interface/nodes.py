@@ -51,17 +51,21 @@ from waterfall.core.planning.reading import reading_of
 from waterfall.core.planning.scheduling import Move, WorkInstant
 from waterfall.core.planning.shaping import (
     Placing,
+    closed_above,
+    closed_again,
+    completed_again,
     deleted,
     emptied,
     judge_place,
     place,
     placed,
+    reopened,
     stamp,
 )
 from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tables import Node, Task, TaskLink
 from waterfall.core.planning.tree import TASK, Tree, read_tree
-from waterfall.core.planning.views import NOT_STARTED, NodeView, state_of
+from waterfall.core.planning.views import COMPLETED, NOT_STARTED, NodeView, state_of
 from waterfall.core.planning.writing import (
     NodesWritten,
     Place,
@@ -393,7 +397,9 @@ class CreationJudged:
     """A task to create as judged on a tree: its node, its facet and attachment, its place.
 
     ``shifted`` are the siblings its rank moves down; ``made_summary``: its parent, a manual leaf,
-    becomes an automatic summary (WF-PLA-0040).
+    becomes an automatic summary (WF-PLA-0040); ``closed``: the tasks above it whose facet keeps a
+    completion that it, not completed, makes stale — put back to started, their day cleared
+    (``closed_above``, WF-PLA-0040, WF-PLA-0130; #2769).
     """
 
     node_id: UUID
@@ -402,13 +408,17 @@ class CreationJudged:
     rank: int
     shifted: tuple[UUID, ...]
     made_summary: bool
+    closed: tuple[UUID, ...] = ()
 
     @property
     def touched(self) -> tuple[UUID, ...]:
-        """Give the nodes its write touches: itself, its parent made a summary, its siblings."""
+        """Give the nodes its write touches: itself, its parent made a summary, its siblings.
+
+        And the summaries above it whose completion it makes stale (``closed``, #2769).
+        """
         parent = self.creation.parent_id
         above = (parent,) if parent is not None and self.made_summary else ()
-        return (self.node_id, *above, *self.shifted)
+        return tuple(dict.fromkeys((self.node_id, *above, *self.shifted, *self.closed)))
 
 
 def _together[Judged](judge: Callable[[], Judged], attached: Attached) -> Judged:
@@ -457,7 +467,8 @@ def judge_creation(ground: Ground, creation: NodeCreation, node_id: UUID) -> Cre
         and not tree.is_summary(parent)
         and tree.tasks[parent].scheduling_mode == MANUAL
     )
-    return CreationJudged(node_id, creation, (facet, attached), rank, shifted, made_summary)
+    closed = closed_above(tree, parent)
+    return CreationJudged(node_id, creation, (facet, attached), rank, shifted, made_summary, closed)
 
 
 def _made(
@@ -519,6 +530,7 @@ def write_creation(write: Write, judged: CreationJudged) -> Task:
     if parent is not None and judged.made_summary:
         write.tree.tasks[parent].scheduling_mode = AUTOMATIC
         stamp(write.tree.nodes[parent], act)
+    reopened(write.tree, judged.closed, act)
     if judged.shifted:
         session.execute(
             update(Node)
@@ -617,7 +629,7 @@ def traced(ground: Ground) -> Ground:
         node_id: Task(**{attr.key: getattr(task, attr.key) for attr in inspect(Task).column_attrs})
         for node_id, task in ground.tree.tasks.items()
     }
-    tree = Tree(ground.tree.nodes, tasks)
+    tree = ground.tree.with_nodes(ground.tree.nodes, tasks)
     return Ground(ground.session, ground.project_id, tree, ground.is_main)
 
 
@@ -639,7 +651,8 @@ def traced_creation(
         tasks[parent] = Task(**{**_columns(tasks[parent]), "scheduling_mode": AUTOMATIC})
     node, task = _made(place, act, judged, planning_start)
     nodes[node.id], tasks[node.id] = node, task
-    return Ground(ground.session, ground.project_id, Tree(nodes, tasks), ground.is_main)
+    tree = ground.tree.with_nodes(nodes, tasks)
+    return Ground(ground.session, ground.project_id, tree, ground.is_main)
 
 
 def update_task_facet(
@@ -798,8 +811,9 @@ def delete_node(
     lines, its links and the inscriptions of its lineages with it (WF-DAT-0090); a summary left
     without subordinate becomes a leaf in its state (WF-PLA-0040) and is given back among the
     ancestors, with the tasks the links taken away redate — and the task a line leaves, whose
-    calendar may change (WF-PLA-0010) — and the totals without them. No provision line moves
-    before EP-08: ``nodes`` is empty.
+    calendar may change (WF-PLA-0010) — and the totals without them; a summary it leaves completed
+    again reads the zeroing of its lines (``closed_again``, #2803). No provision line moves before
+    EP-08: ``nodes`` is empty.
     """
     with writing(session, place, writer, ("node_delete", (node_id,))) as write:
         tree = write.tree
@@ -818,11 +832,14 @@ def delete_node(
         former = () if parent is None else (parent, *tree.ancestors(parent))
         subtree = list(tree.subtree(node_id))
         left_bare = parent is not None and tree.subtasks(parent) == [node_id]
-        touched = (*subtree, *((parent,) if left_bare and parent is not None else ()))
+        again = closed_again(session, place.project_id, tree, (node_id,))
+        bare = (parent,) if left_bare and parent is not None else ()
+        touched = (*subtree, *bare, *again)
         write.before(touched)
         if left_bare and parent is not None:
             emptied(tree, parent)
             stamp(tree.nodes[parent], writer.act)
+        completed_again(tree, again, writer.act)
         deleted(session, place.project_id, tree, subtree)
         redated = write.redate(None)
         write.after(touched)
@@ -957,11 +974,18 @@ def _moved(write: Write, placing: Placing) -> NodesWritten:
         each for each in node_ids if each not in tree.tasks and tree.nodes[each].parent_id != parent
     ]
     above = (parent,) if made_summary and parent is not None else ()
-    touched = (*node_ids, *shifted, *above, *left_bare)
+    # A task not completed placed under a parent makes it and the summaries above not completed.
+    open_below = any(state_of(tree, each).progress != COMPLETED for each in tasks_moved)
+    closed = closed_above(tree, parent) if open_below else ()
+    receiving = () if parent is None else (parent, *tree.ancestors(parent))
+    again = closed_again(write.session, write.place.project_id, tree, tasks_moved, receiving)
+    touched = tuple(dict.fromkeys((*node_ids, *shifted, *above, *left_bare, *closed, *again)))
     write.before(touched)
+    reopened(tree, closed, act)
     for each in left_bare:
         emptied(tree, each)
         stamp(tree.nodes[each], act)
+    completed_again(tree, again, act)
     if made_summary and parent is not None:
         tree.tasks[parent].scheduling_mode = AUTOMATIC
         stamp(tree.nodes[parent], act)

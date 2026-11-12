@@ -54,9 +54,9 @@ function serve(answers: FakeAnswers, timing?: FakeTiming) {
 }
 
 /** The correspondence in French, editable or read only. */
-function shown(mapping: Mapping, writes: boolean) {
+function shown(mapping: Mapping, writes: boolean, locale: "fr" | "en" = "fr") {
   return render(
-    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+    <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
       <ActualCostMapping mapping={mapping} writes={writes} />
     </NextIntlClientProvider>,
   );
@@ -81,16 +81,32 @@ describe("the correspondence of the extraction of the actual costs, read", () =>
         .getAllByRole("listitem")
         .map((item) => item.textContent),
     ).toEqual(["Fournisseur", "Texte de commande"]);
-    expect(screen.getAllByRole("status")[0]).toHaveTextContent("La correspondance est complète");
+    expect(screen.getAllByRole("status")[0]).toHaveTextContent(
+      "La correspondance est complète : l’import des coûts réels n’est plus refusé pour elle, il lit les colonnes de l’extraction sous ces intitulés.",
+    );
     expect(screen.queryByRole("button")).toBeNull();
     expect(screen.queryByRole("textbox")).toBeNull();
     await expectAccessible(container);
   });
 
+  it.each([
+    [
+      "fr",
+      "La correspondance est complète : l’import des coûts réels n’est plus refusé pour elle, il lit les colonnes de l’extraction sous ces intitulés.",
+    ],
+    [
+      "en",
+      "The mapping is complete: the import of actual costs is no longer refused for it, and it reads the columns of the extraction under these labels.",
+    ],
+  ] as const)("says a complete correspondence in %s [WF-REF-0190-A]", (locale, message) => {
+    shown(witness, false, locale);
+    expect(screen.getAllByRole("status")[0]).toHaveTextContent(message);
+  });
+
   it("names, on an empty correspondence, the four columns required that have no label, the post left out, as the server computes them [WF-REF-0190-A]", () => {
     shown(empty, false);
     expect(screen.getByText(/Colonnes exigées sans intitulé/)).toHaveTextContent(
-      "Colonnes exigées sans intitulé : Élément d’OTP, N° de pièce, Date de pièce, Montant. L’import des coûts réels est refusé",
+      "Colonnes exigées sans intitulé : Élément d’OTP, N° de pièce, Date de pièce, Montant. L’import des coûts réels est refusé tant que la correspondance est incomplète.",
     );
     expect(screen.getByText("Aucune colonne conservée.")).toBeInTheDocument();
   });

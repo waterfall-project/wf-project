@@ -23,7 +23,8 @@ make check BASE=origin/epic/EP-nn # only what your change touches, before you pu
 
 You need [uv](https://docs.astral.sh/uv/), which installs Python 3.14 for the back and the tools; a
 Python 3.14 or later on the `PATH` as `python3`, which builds the specification projection; Node 26
-and pnpm (`npm install --global pnpm`, once); Docker, for `make dev`; the PostgreSQL 18 client
+and pnpm (`npm install --global pnpm`, once); Docker, for `make dev`, the test services and
+the service platform, which also needs its secrets; the PostgreSQL 18 client
 (`postgresql-client-18`), whose `pg_dump` and `pg_restore` the backup tests call; `pandoc` 3.13 —
 the version the projection is generated with, since another one writes another Markdown; `openssl`,
 to draw another Garage secret than the workflow's; and `mmdc`, installed through npm, if you want

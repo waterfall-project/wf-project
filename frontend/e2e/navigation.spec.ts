@@ -88,7 +88,7 @@ test("a user who opened no project reaches the administration and the status scr
 });
 
 // Against the fake back only: it leads to the remaining and to the risks of PRJ-001, screens the
-// service serves with EP-09 and EP-08 (listed as not replayed in the guide).
+// service serves with EP-08 (listed as not replayed in the guide).
 test("the way back to the previous project from a function outside any project finds the same context [WF-IHM-0010-A]", async ({
   page,
 }) => {

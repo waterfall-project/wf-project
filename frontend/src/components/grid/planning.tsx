@@ -138,6 +138,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
   searched: true,
   sorts: false,
   name: "planning",
+  creates: "tasks",
   rowKey: nodeKey,
   fresher: nodeFresher,
   rowNumber: nodeNumber,

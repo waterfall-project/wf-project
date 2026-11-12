@@ -31,44 +31,42 @@ Examples of the contract, written under ``fixtures/api/volume/`` and cited by it
   and ``portfolio_risks.json``, of ``getPortfolioValue``, ``getPortfolioPerformance``,
   ``getPortfolioCostStructure`` and ``getPortfolioRisks``: the views of the same projects,
   summed from their rows, so that the list and the views tell the same story;
-- ``cost_categories.json``, ``listCostCategories``: the categories of §4.6.2, most of them
-  labour — the rows of the grid of hourly rates —, and their second page
-  (``wftools.mockreference``);
+- ``cost_categories.json``, ``listCostCategories``: the categories of §4.6.2, most of them labour —
+  the rows of the grid of hourly rates —, and their second page (``wftools.mockreference``);
 - ``hourly_rates.json``, ``listHourlyRates``: fifteen years of rates of one labour category;
 - ``hourly_rate_grid.json``, ``getHourlyRateGrid``: the grid of hourly rates, the labour
   categories in rows and the fifteen years in columns (#162), and its first page sorted by the
   rate of the reference year (``wftools.mockreference``).
 
 And the named examples of ``listNodes`` and of ``getComputedValueDependencies``, written under
-``fixtures/api/`` by their name — ``nodes``, ``nodes_core``, ``nodes_planning``,
-``nodes_estimate``, ``nodes_estimate_sorted`` and ``nodes_estimate_hours`` (sorted by
-``wftools.mocksort``), ``nodes_installation``, ``nodes_milestone``, ``nodes_risk_occurred``,
-``dependencies_summary``, ``dependencies_summary_moved``, ``dependencies_labour``,
-``dependencies_labour_category``, ``dependencies_task_amount``, ``dependencies_provision``,
-``dependencies_manual_float``, ``dependencies_provision_subproject`` —:
-readings of the readable core of the witness, described once in ``wftools.mockwitness`` and
-dated in ``wftools.mockcore``, so that every example names each node by one identifier, one
-lineage and one figure (EP-02/L21, #287); and the answers of the writes of the grids, made on
-that core or on the structure of a thousand tasks, written beside them by ``wftools.mockwrites``
-(EP-02/L22), and those of the gestures of the structure and of the entries of a task, by
-``wftools.mockgestures`` (EP-15/US-0460) — those of the estimate made on the amendment 2 by
-``wftools.mockamendmentwrites`` (#1214) —, and the refusals of a paste and of an import, by
+``fixtures/api/`` by their name — ``nodes``, ``nodes_core``, ``nodes_planning``, ``nodes_estimate``,
+``nodes_estimate_sorted`` and ``nodes_estimate_hours`` (sorted by ``wftools.mocksort``),
+``nodes_installation``, ``nodes_milestone``, ``nodes_risk_occurred``, ``dependencies_summary``,
+``dependencies_summary_moved``, ``dependencies_labour``, ``dependencies_labour_category``,
+``dependencies_task_amount``, ``dependencies_provision``, ``dependencies_manual_float``,
+``dependencies_provision_subproject`` —: readings of the readable core of the witness, described
+once in ``wftools.mockwitness`` and dated in ``wftools.mockcore``, so that every example names each
+node by one identifier, one lineage and one figure (EP-02/L21, #287); and the answers of the writes
+of the grids, made on that core or on the structure of a thousand tasks, written beside them by
+``wftools.mockwrites`` (EP-02/L22), and those of the gestures of the structure and of the entries of
+a task, by ``wftools.mockgestures`` (EP-15/US-0460) — those of the estimate made on the amendment 2
+by ``wftools.mockamendmentwrites`` (#1214) —, and the refusals of a paste and of an import, by
 ``wftools.mockexchanges`` (EP-15/US-0460), and those of a date on a day without hours of work,
-refused entered and kept imported, by ``wftools.mocknonworking`` (#1271); and the answers of
-the entries of a risk, by ``wftools.mockriskwrites`` (EP-15/US-0520); and the revisions of the
-witness while the designation of its reference is open, by ``wftools.mockcycle`` (US-0490/L2);
-and its exit, its code refused and its readings by the quality of its reader, by
-``wftools.mockproject`` (US-0701/L9); and the refusals of one form each, by
-``wftools.mockrefusals`` (US-0702/L1); and the refusals the contract declared without a code,
-a condition nor an example, by ``wftools.mockdeclared`` (US-0702/L2); and the examples of the
-majors of the review of the 2026-10-31, by ``wftools.mockreview`` (US-0704), with the Kanban of
-the summary that awaits its own lines (US-1240); and the chronology, the tasks and the lines of the
-witness, by ``wftools.mockchronology``, ``mockwitnesstasks`` and ``mockwitnesslines``.
+refused entered and kept imported, by ``wftools.mocknonworking`` (#1271); and the answers of the
+entries of a risk, by ``wftools.mockriskwrites`` (EP-15/US-0520); and the revisions of the witness
+while the designation of its reference is open, by ``wftools.mockcycle`` (US-0490/L2); and its exit,
+its code refused and its readings by the quality of its reader, by ``wftools.mockproject``
+(US-0701/L9); and the refusals of one form each, by ``wftools.mockrefusals`` (US-0702/L1); and the
+refusals the contract declared without a code, a condition nor an example, by
+``wftools.mockdeclared`` (US-0702/L2); and the examples of the majors of the review of the
+2026-10-31, by ``wftools.mockreview`` (US-0704), with the Kanban of the summary that awaits its own
+lines (US-1240); and the chronology, the tasks, the lines and the costs of the witness, by
+``wftools.mockchronology`` and ``mockwitness*``.
 
-They live in the universe of the other examples: identifiers are kept, and what the
-witness project, the offer and the labels of the universe say is read from their fixtures,
-never copied here. Nothing here reads the clock or draws at random, so that two runs write
-the same bytes. Amounts are ``Decimal`` and travel as the strings of the contract.
+They live in the universe of the other examples: identifiers are kept, and what the witness project,
+the offer and the labels of the universe say is read from their fixtures, never copied here. Nothing
+here reads the clock or draws at random, so that two runs write the same bytes. Amounts are
+``Decimal`` and travel as the strings of the contract.
 
 With ``--check``, nothing is written: the volumes directory is compared with what the
 generator writes, and a file missing, outdated or unreadable, or any entry left over, fails; a
@@ -120,6 +118,7 @@ from wftools import (
     mocktext,
     mocktoday,
     mockwitness,
+    mockwitnesscostfile,
     mockwitnesslines,
     mockwitnesstasks,
     mockwrites,
@@ -328,7 +327,7 @@ def named() -> dict[str, JsonObject]:
     form each (``mockrefusals``), those the contract declared without a code, a condition nor an
     example (``mockdeclared``), those of the administration (``mockadminrefusals``), those served
     undeclared (``mockservedrefusals``); the majors of the review (``mockreview``); the loaders'
-    (``mockchronology``, ``mockwitnesstasks``, ``mockwitnesslines``).
+    (``mockwitness*``, ``mockchronology``).
     """
     marked = mocksnapshot.revisions(categories())
     return {
@@ -363,6 +362,7 @@ def named() -> dict[str, JsonObject]:
         **mockchronology.examples(),
         **mockwitnesstasks.examples(),
         **mockwitnesslines.examples(),
+        **mockwitnesscostfile.examples(),
     }
 
 

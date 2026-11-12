@@ -5,7 +5,8 @@
 A line of estimate is a node of the structure, under the task that bears it (EP-06, "Ce que le
 cadrage décide"): the planning owns ``node``, and gives the estimate the lines of tasks
 (``lines_of``) and the task of lines (``bearers_of``, US-1500), the lineages of lines
-(``lineages_of``, ``lines_of_revision``), the structures that hold nodes (``structures_of``) and
+(``lineages_of``, ``lines_of_revision``), the tasks of a structure that bear a line besides the
+provisions (``bearing_tasks``, US-1590/L2), the structures that hold nodes (``structures_of``) and
 whether a revision bears one (``revision_bears``). It places a line it creates
 (``create_line_node``, from ``createNode``): under a task of the structure, a milestone included
 (``UNKNOWN_TASK`` otherwise, WF-PLA-0050), among its lines before its subtasks, after
@@ -131,6 +132,30 @@ def bearers_of(session: Session, project_id: UUID, node_ids: Collection[UUID]) -
         )
     )
     return {node_id: parent for node_id, parent in rows if parent is not None}
+
+
+def bearing_tasks(session: Session, project_id: UUID, structure_id: UUID) -> frozenset[UUID]:
+    """Give the tasks of a structure that bear a line besides the provisions, in one statement.
+
+    A provision is the line of a risk (``origin_risk_id``, EP-08): it holds a task back from
+    nothing, and does not send it to the entry of its remaining to commit (WF-PLA-0050). The
+    judgement of ``setTaskProgress`` is the same, so that a card and the refusal agree (US-1590).
+
+    "Besides the provisions" is judged here by ``origin_risk_id`` null, as ``setTaskProgress``
+    does; ``open_lines`` (``estimate``) judges by the category of provision of the line. The two
+    meet once EP-08 gives every provision line its risk.
+    """
+    parents = session.scalars(
+        select(Node.parent_id)
+        .where(
+            Node.project_id == project_id,
+            Node.structure_id == structure_id,
+            Node.kind == LINE,
+            Node.origin_risk_id.is_(None),
+        )
+        .distinct()
+    )
+    return frozenset(each for each in parents if each is not None)
 
 
 def lineages_of(session: Session, project_id: UUID, node_ids: Collection[UUID]) -> dict[UUID, UUID]:

@@ -11608,6 +11608,19 @@ paramètres et `params.header` la colonne qui porte le champ : l'utilisateur ret
 La version reste `1.0.0` : un motif et un paramètre de plus, que `ProblemParams` laissait ouverts.
 Écarté : `params.column`, qui aurait donné deux types à une même clé.
 
+### Les descriptions d'un import de coûts réels : le double d'un autre projet, l'arrondi, l'OTP sans suffixe, `params.column` (US-1610/L2, #2721, #2722, #2724)
+
+Décisions de l'auteur du 2026-11-10, qui ne changent aucune forme, seulement ce que les descriptions
+disent. `requires_confirmation_reasons` : une ligne d'un autre projet compte pour
+`lines_outside_project` même quand elle est rejetée `DUPLICATE_COST_LINE` (#2724) : la confirmation
+garde contre un fichier du mauvais projet, que le double n'excuse pas. `ImportRejection` : le montant
+est arrondi au centime, la moitié au plus loin de zéro (`-0.005` donne `-0.01`), avant d'être jugé
+contre ses bornes ; un élément d'OTP sans rien après la barre oblique (`A.ABC.26001/`) est
+`WBS_ELEMENT_INVALID` (#2721). `ProblemParams` : les rejets par cellule d'une ligne de coût réel
+portent `params.column`, l'identifiant de la colonne de la correspondance, et `minimum`, `maximum`
+(les bornes du montant) et `max_length` tels que le service les émet (#2722) ; la description disait
+`header` et « not `column` » pour le seul devis. La version reste `1.0.0`.
+
 ### Les tâches d'un refus, d'une forme ou de l'autre (US-1550/L5, #2635)
 
 `ProblemParams.tasks` — le rapport d'un import, et le refus d'un collage par

@@ -41,6 +41,7 @@ from wftools import (
     mockwitness,
     mockwrites,
 )
+from wftools.mockcalendar import Calendar, Instant
 from wftools.mockwitness import Line, Task
 
 
@@ -301,3 +302,26 @@ def test_a_summary_whose_own_line_keeps_no_remaining_completes() -> None:
     # its last subordinate and says nothing (WF-RAE-0040).
     nought = Line(2, "Avoir", mockwitness.EQUIPMENT, unit=Decimal("500.00"), quantity=Decimal(0))
     assert _awaiting(nought) == ("completed", False)
+
+
+def test_an_amount_is_spread_over_the_years_of_a_task_by_the_hours_worked_in_each() -> None:
+    # The generator shares an amount as the service does (WF-DEV-0040, #2838): a task from Monday
+    # 28 December 2026 to Friday 8 January 2027 works four days in 2026 and six in 2027 on a week
+    # of five days of eight hours, so a thousand falls 400 on the first year and 600 on the second;
+    # each part is projected at the 3 % of the witness on its year, the sum rounded once.
+    week = Calendar("standard", tuple(Decimal(hours) for hours in (8, 8, 8, 8, 8, 0, 0)))
+    span = mockdating.Span(week, Instant(date(2026, 12, 28)), Instant(date(2027, 1, 8), Decimal(8)))
+    assert span.years(Decimal(1000)) == {2026: Decimal(400), 2027: Decimal(600)}
+    assert span.year(Decimal(1000)) == 2027
+    assert span.projected(Decimal(1000), mockstructure.WITNESS) == Decimal("1018.00")
+    # The parts add up to the amount whatever the shares: the last takes what the others leave.
+    third = mockdating.Span(
+        week, Instant(date(2026, 12, 29)), Instant(date(2027, 1, 4), Decimal(8))
+    )
+    assert sum(third.years(Decimal("100.00")).values(), Decimal(0)) == Decimal("100.00")
+    # A task within one year is projected on it, as the whole line was before.
+    within = mockdating.Span(week, Instant(date(2027, 3, 1)), Instant(date(2027, 3, 5), Decimal(8)))
+    assert within.years(Decimal(500)) == {2027: Decimal(500)}
+    assert within.projected(Decimal(500), mockstructure.WITNESS) == mockstructure.inflated(
+        Decimal(500), 2027
+    )

@@ -1,0 +1,224 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+"""A line reviewed, private to the module (US-1580/L2; EP-09, "Modules").
+
+The re-estimate of a line writes its figures by the function that writes the estimate
+(``change_line``, the facet of EP-07): the re-estimated amount recomputed, the budgeted amount and
+the lineage left as they are, the previous figures too; it marks the line (``reestimated_at``) and
+keeps the reason sent, overwritten by each re-estimate (``remaining_reason``). A figure of
+``reestimated_amount_basis`` refused is named under that object (``/reestimated_amount_basis/…``).
+A line keeps a task open while its re-estimated amount is not nought, a provision line never: its
+amount is the one its risk computes (WF-RIS-0010), none before EP-08. A task none of whose lines
+keeps one was set to nought at the latest mark of its lines (``zeroed_tasks``), which a summary
+completed again reads (WF-PLA-0130, #2803).
+
+The copy of a revision gives each line copied, after the copy of the lines, the figures and the
+re-estimated amount its source holds as its remaining to commit before the review (``previous_*``)
+when the source was marked once its project was In progress — the instant of the passage compared
+to that of the marking —, none otherwise: an offer marked in pricing is no review (EP-09, "Ce que
+le cadrage décide"). The mark and the reason are those of the line copied, as every column of it.
+
+The remaining to commit of a revision sums the re-estimated amounts of the lines, provisions left
+out, of the tasks not completed of its main structure, at the state of its tasks (EP-09, "Les
+indicateurs du reste à engager").
+"""
+
+from typing import TYPE_CHECKING
+
+from sqlalchemy import select, update
+
+from waterfall.core.cost_settings.interface import category_labels
+from waterfall.core.estimate.placing import placed_lines
+from waterfall.core.estimate.reading import rows_of
+from waterfall.core.estimate.remaining.summing import LineAmount, remaining_sum
+from waterfall.core.estimate.tables import EstimateLine
+from waterfall.core.estimate.writing import change_line, read_line
+from waterfall.core.projects.interface import list_state_transitions
+from waterfall.core.revisions.interface import revision_marked_at
+from waterfall.platform.errors import FieldError, UnprocessableError
+
+if TYPE_CHECKING:
+    from collections.abc import Collection, Mapping, Sequence
+    from datetime import datetime
+    from decimal import Decimal
+    from uuid import UUID
+
+    from sqlalchemy.orm import Session
+
+    from waterfall.core.estimate.entries import LineEntry
+    from waterfall.core.estimate.placing import Placed
+    from waterfall.core.planning.interface import FacetWrite
+    from waterfall.core.revisions.interface import RevisionCopy
+
+BASIS = "/reestimated_amount_basis"
+FIGURES = frozenset({"/quantity", "/hours", "/unit_disbursement"})
+PROVISION = "provision"
+IN_PROGRESS = "in_progress"
+
+
+def _pointed(refused: UnprocessableError) -> UnprocessableError:
+    """Name the figures a re-estimate refuses under the object that sends them."""
+    fields = tuple(
+        FieldError(f"{BASIS}{each.pointer}", each.code, each.params)
+        if each.pointer in FIGURES
+        else each
+        for each in refused.fields
+    )
+    return UnprocessableError(refused.code, refused.params, fields)
+
+
+def reestimate(write: FacetWrite, figures: LineEntry, reason: str | None) -> None:
+    """Write the figures sent of a line, priced again, marked and with its reason; or refuse (422).
+
+    Refused as the entry of the estimate refuses a figure: one the line does not accept
+    (``FIELD_NOT_ACCEPTED``), one below nought (``VALUE_OUT_OF_RANGE``), a category without a rate
+    (``HOURLY_RATE_MISSING``).
+    """
+    try:
+        change_line(write, figures)
+    except UnprocessableError as refused:
+        raise _pointed(refused) from None
+    line = read_line(write.session, write.project_id, write.node_id)
+    line.reestimated_at = write.act.at
+    line.remaining_reason = reason
+    write.session.flush()
+
+
+def provisions_of(session: Session, rows: Collection[EstimateLine]) -> frozenset[UUID]:
+    """Give, of the lines read, the provision lines: their category is of the provision kind."""
+    categories = category_labels(session, {row.cost_category_id for row in rows})
+    return frozenset(
+        row.node_id
+        for row in rows
+        if (category := categories.get(row.cost_category_id)) is not None
+        and category.cost_type_kind == PROVISION
+    )
+
+
+def keeps_open(session: Session, project_id: UUID, line_ids: Sequence[UUID]) -> bool:
+    """Tell whether one of the lines named keeps a remaining to commit, a provision never."""
+    return bool(open_tasks(session, project_id, {project_id: line_ids}))
+
+
+def open_tasks(
+    session: Session, project_id: UUID, lines_by_task: Mapping[UUID, Sequence[UUID]]
+) -> frozenset[UUID]:
+    """Give the tasks one of whose lines named keeps a remaining to commit, a provision never.
+
+    The lines whose re-estimated amount is not nought read in one statement, then their categories.
+    """
+    named = [line for lines in lines_by_task.values() for line in lines]
+    if not named:
+        return frozenset()
+    rows = list(
+        session.scalars(
+            select(EstimateLine).where(
+                EstimateLine.project_id == project_id,
+                EstimateLine.node_id.in_(named),
+                EstimateLine.reestimated_amount != 0,
+            )
+        )
+    )
+    if not rows:
+        return frozenset()
+    provisions = provisions_of(session, rows)
+    held = {row.node_id for row in rows if row.node_id not in provisions}
+    return frozenset(task for task, lines in lines_by_task.items() if held.intersection(lines))
+
+
+def zeroed_tasks(
+    session: Session, project_id: UUID, lines_by_task: Mapping[UUID, Sequence[UUID]]
+) -> dict[UUID, datetime]:
+    """Give, of the tasks named, those none of whose lines keeps a remaining, a provision never.
+
+    Each with the latest instant one of its lines was re-estimated (``reestimated_at``); a task
+    none of whose lines was re-estimated, or bearing none but provisions, is left out. The lines
+    read in one statement, then their categories.
+    """
+    named = [line for lines in lines_by_task.values() for line in lines]
+    if not named:
+        return {}
+    rows = list(
+        session.scalars(
+            select(EstimateLine).where(
+                EstimateLine.project_id == project_id, EstimateLine.node_id.in_(named)
+            )
+        )
+    )
+    provisions = provisions_of(session, rows)
+    kept = {row.node_id: row for row in rows if row.node_id not in provisions}
+    found: dict[UUID, datetime] = {}
+    for task, lines in lines_by_task.items():
+        own = [kept[line] for line in lines if line in kept]
+        marks = [row.reestimated_at for row in own if row.reestimated_at is not None]
+        if marks and all(row.reestimated_amount == 0 for row in own):
+            found[task] = max(marks)
+    return found
+
+
+def first_passage(session: Session, project_id: UUID) -> datetime | None:
+    """Give the instant a project first passed to In progress; none if it never did."""
+    passages = [
+        each.occurred_at
+        for each in list_state_transitions(session, project_id)
+        if each.to_state == IN_PROGRESS
+    ]
+    return min(passages, default=None)
+
+
+def was_reviewed_at(passage: datetime | None, marked: datetime | None) -> bool:
+    """Tell whether a marking at ``marked`` came once the project had passed In progress."""
+    return passage is not None and marked is not None and passage <= marked
+
+
+def was_reviewed(session: Session, project_id: UUID, revision_id: UUID) -> bool:
+    """Tell whether a revision was marked once its project was In progress (a review)."""
+    return was_reviewed_at(
+        first_passage(session, project_id), revision_marked_at(session, revision_id)
+    )
+
+
+def copy_previous(copy: RevisionCopy) -> None:
+    """Give the lines copied the remaining to commit of their source, if it was a review."""
+    session = copy.session
+    sources = rows_of(session, copy.project_id, list(copy.identifiers))
+    if not sources:
+        return
+    reviewed = was_reviewed(session, copy.project_id, copy.source)
+    session.execute(
+        update(EstimateLine),
+        [
+            {
+                "project_id": copy.project_id,
+                "node_id": copy.identifiers[row.node_id],
+                "previous_quantity": row.quantity if reviewed else None,
+                "previous_hours": row.hours if reviewed else None,
+                "previous_unit_disbursement": row.unit_disbursement if reviewed else None,
+                "previous_reestimated_amount": row.reestimated_amount if reviewed else None,
+            }
+            for row in sources
+        ],
+    )
+
+
+def revision_remaining(
+    session: Session, project_id: UUID, revision_id: UUID
+) -> tuple[Decimal, dict[UUID, Decimal]]:
+    """Give the remaining to commit of a revision, and each line's, at the state of its tasks."""
+    return remaining_of_placed(session, placed_lines(session, project_id, revision_id))
+
+
+def remaining_of_placed(
+    session: Session, placed: Sequence[Placed]
+) -> tuple[Decimal, dict[UUID, Decimal]]:
+    """Give the remaining to commit of the lines of a revision placed already on their tasks."""
+    provisions = provisions_of(session, [each.line for each in placed])
+    return remaining_sum(
+        LineAmount(
+            each.line.node_id,
+            each.line.reestimated_amount,
+            each.is_completed,
+            each.line.node_id in provisions,
+        )
+        for each in placed
+    )

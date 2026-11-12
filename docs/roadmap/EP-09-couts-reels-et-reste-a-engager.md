@@ -1,7 +1,7 @@
 ---
 id: EP-09
 titre: Suivre ce qui a été dépensé, et réestimer ce qui reste à engager
-statut: en cours
+statut: livré
 depend_de: EP-07
 famille: front, back
 issue: 2389
@@ -425,6 +425,10 @@ l'option écartée :
   suppression d'une subordonnée, et y efface la date comme US-1590/L1 le fait à la réouverture
   (WF-PLA-0040, WF-PLA-0130). Écartée : garder la date et ne la lire que si la récapitulative est
   encore terminée, qui laisse en base une date périmée.
+- **La date d'une récapitulative refermée se relit sur la mise à zéro de ses lignes** (#2803,
+  `register_zeroed_at`) : deux limites connues. La date relue est l'instant de la saisie de la mise à
+  zéro, `reestimated_at`, non le jour déclaré à la validation, que la réouverture efface (#2769) ; la
+  même relecture vaut au déplacement d'une subordonnée hors de la récapitulative.
 - **Le libellé de l'aperçu du collage se lit dans la configuration de la grille** (#2753, EP-07) :
   un champ déclaratif `GridConfig.creates: "tasks" | "lines"`, posé par US-1640/L1, la grille de
   reste à engager étant la deuxième à créer des lignes. Écarté : `config.name === "estimate"`.
@@ -559,7 +563,7 @@ révisionné et son déclencheur d'immuabilité d'EP-07, qui les protège sans r
 
 | Module | Tables | Interface offerte |
 |---|---|---|
-| `waterfall.core.estimate`, sous-paquet `remaining/` (FBS-4.5) | les six colonnes nouvelles d'`estimate_line` | `set_line_remaining` (la réestimation, la mise à zéro qui termine) ; `copy_previous` (le second enregistrement de `register_copy`) ; `open_lines(session, project_id, lines_by_task)` pour le registre de `planning` ; `startable_tasks(session, project_id, viewer)` (le Kanban ; #2799) ; `remaining_indicators(project_id, revision_id)` et `register_coverage` ; `remaining_of_revision(session, project_id, revision_id)` — le total et le reste par ligne des tâches non terminées, à l'état des tâches de la révision — pour les indicateurs et EP-10 ; le format et l'exporteur `remaining` ; `remaining_entry` et `previous_*` rendus par la lecture de la facette d'EP-07, que le lot de la réestimation complète après #2372 |
+| `waterfall.core.estimate`, sous-paquet `remaining/` (FBS-4.5) | les six colonnes nouvelles d'`estimate_line` | `set_line_remaining` (la réestimation, la mise à zéro qui termine) ; `copy_previous` (le second enregistrement de `register_copy`) ; `open_lines(session, project_id, lines_by_task)` pour le registre de `planning` ; `startable_tasks(session, project_id, viewer)` (le Kanban ; #2799) ; `remaining_indicators(project_id, revision_id, at)` et `register_coverage` ; `remaining_of_revision(session, project_id, revision_id)` — le total et le reste par ligne des tâches non terminées, à l'état des tâches de la révision — pour les indicateurs et EP-10 ; le format et l'exporteur `remaining` ; `remaining_entry` et `previous_*` rendus par la lecture de la facette d'EP-07, que le lot de la réestimation complète après #2372 |
 | `waterfall.core.costs` (FBS-4.7) | `cost_line`, `cost_import` | le format `actual_costs` (l'en-tête selon la correspondance, l'analyse, l'application) ; `list_actual_costs` (filtres, tri, totaux, colonnes conservées, dernier import), `set_tracked_scope`, `list_cost_imports` ; `actual_cost_by_subproject(project_id)` et `actual_costs_until(project_id, date, scope)` — les lignes suivies, pour les indicateurs du reste à engager et pour EP-10 — ; `subproject_has_actual_costs` et `impute_waiting_lines(project_id, subproject_id, code)` pour le registre de `projects` ; `load_cost_import`, `load_cost_lines` et `load_exclusion` avec identifiants et instants imposés |
 
 - **La couche** : `estimate` importe l'interface de `costs` (le coût réel par sous-projet des
@@ -596,6 +600,7 @@ worker, le chargeur — s'étend à chacun.
 | Module | Registre | Qui le déclare | Qui le remplit | Ce qu'il fait |
 |---|---|---|---|---|
 | `core/planning` | `register_open_lines` (nouveau) | US-1590, après #2324, #2338 et #2339 | `estimate` (`open_lines(session, project_id, lines_by_task)`) | la dernière subordonnée terminée ne termine la récapitulative que si aucune ligne propre hors provision ne garde un reste ; `awaiting_own_lines` est vrai pour une récapitulative démarrée dont toutes les subordonnées sont terminées et qu'une ligne propre retient ; la feuille qu'une récapitulative devient reste démarrée si une ligne propre retient (WF-PLA-0040) |
+| `core/planning` | `register_zeroed_at` (nouveau) | US-1650/L2 (#2803) | `estimate` (`zeroed_lines(session, project_id, lines_by_task)`) | l'instant de la mise à zéro des lignes propres, hors provisions (`reestimated_at`), qu'une récapitulative refermée relit à la suppression ou au déplacement d'une subordonnée (WF-PLA-0130) |
 | `core/planning` | `progress_commands(task, bears_lines)` (fonction nouvelle, pas un registre) | US-1590, après #2324 | — | les gestes d'une carte du Kanban et l'état que chacun envoie, par la fonction qui juge le 409 de `setTaskProgress` (US-1410), pour que la carte et le refus nomment la même condition |
 | `core/revisions` | `register_copy` (EP-04) | EP-04 | `estimate`, second enregistrement (`copy_previous`), après la copie des lignes | `previous_*` des lignes copiées depuis une révision marquée En cours |
 | `core/projects` | `register_cost_facts` (nouveau) | US-1610, après #2373 | `costs` | `subproject_has_actual_costs` (la suppression refusée, `has_actual_costs` de la liste et son filtre), `impute_waiting_lines` dans la transaction de `createSubproject` ; `updateSubproject` ne l'appelle pas |
@@ -706,7 +711,10 @@ worker, le chargeur — s'étend à chacun.
   sans référence), `actual_cost` par `actual_cost_by_subproject` de `costs` (les lignes suivies,
   `subproject_id` nul vers `unassigned`), `remaining` par `remaining_of_revision`, `variance` =
   budget − coût réel − reste, `is_over_budget` quand elle est négative, `zone` `alert` ou `nominal`
-  — ; `delta_to_reference` = budget de référence − (coût réel + reste), nul sans référence ;
+  — ; « nul sans référence » dit un montant zéro (`0.00`) et non un budget absent, puisque le contrat
+  exige un `Money` pour `budget` et `variance` : sans référence, la marge d'un sous-projet est
+  l'opposé de ce qu'il a engagé (#2715) ; `delta_to_reference` = budget de référence − (coût réel
+  + reste), nul sans référence ;
   `delta_to_previous_revision` = reste courant − `remaining_of_revision` de la dernière révision
   marquée après le passage En cours, nul sans elle ; `coverage` par `register_coverage` ;
   `context` avec `is_stored` faux. Tout se calcule à la lecture ; la conservation au marquage et le
@@ -986,7 +994,7 @@ leur objet ; la vérification d'ensemble en dernier ; le plan de lots (étape 3)
 
 ## US-1580 — La réestimation d'une ligne, le reste à engager précédent et le plan de charge sur le reste
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-RAE-0010-A`, `WF-RAE-0040-A`, `WF-RAE-0050-A`, `WF-DEV-0070-A`
 - **opérations** : `setLineRemaining`, `listNodes`, `createRevision`, `getProjectWorkload` ;
   `createNode`, `updateEstimateLine` pour la ligne ajoutée après la référence
@@ -1148,7 +1156,7 @@ provision et la fusion (EP-08) ; les projections et l'indice de coût (EP-10).
 
 ## US-1590 — Les tâches en exécution : le Kanban servi, la récapitulative qui n'attend que ses lignes, la suppression renvoyée
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-RAE-0030-A`, `WF-PLA-0040-A`, `WF-PLA-0050-A`, `WF-PLA-0070-A`
 - **opérations** : `listStartableTasks`, `setTaskProgress`, `setLineRemaining`, `deleteNode`,
   `listNodes`
@@ -1274,7 +1282,7 @@ provision (EP-08) ; la valeur acquise (EP-10).
 
 ## US-1600 — Les indicateurs de reste à engager
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-RAE-0020-A`
 - **opérations** : `getRemainingIndicators`
 - **issue** : 2392
@@ -1330,7 +1338,7 @@ portefeuille (EP-11).
 
 ## US-1610 — L'import des coûts réels (FLX-07) : la correspondance, l'imputation, l'idempotence et le journal
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0140-A`, `WF-REF-0190-A`, `WF-CRE-0010-A`, `WF-CRE-0020-A`,
   `WF-CRE-0050-A`, `WF-DAT-0110-A`, `WF-DAT-0070-A`, `WF-INTF-0070-A`
 - **opérations** : `uploadFile`, `openImport`, `getImport`, `abandonImport`, `applyImport`,
@@ -1473,7 +1481,7 @@ d'engagements et d'heures (PO-01) ; les indicateurs (EP-10).
 
 ## US-1620 — La consultation des coûts réels, l'exclusion du périmètre suivi et l'écran branché
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-CRE-0030-A`, `WF-CRE-0040-A`, `WF-PRJ-0050-A`, `WF-CYC-0100-A`,
   `WF-CYC-0110-A`
 - **opérations** : `listActualCosts`, `setActualCostTrackedScope`, `listCostImports`,
@@ -1563,7 +1571,7 @@ la ligne de provision (EP-08).
 
 ## US-1630 — Le format Excel du reste à engager : export (FLX-06), import (FLX-05) et aller-retour
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0120-A`, `WF-INTF-0130-A`, `WF-INTF-0070-A`, `WF-REV-0060-A`,
   `WF-IHM-0080-A`
 - **opérations** : `requestExport` (`remaining`), `getBackgroundTaskResult` ; `uploadFile`,
@@ -1690,7 +1698,7 @@ provision et l'import sur un différentiel (EP-08) ; l'écran des échanges lui-
 
 ## US-1640 — La grille de reste à engager et le Kanban branchés sur le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-RAE-0040-A`, `WF-RAE-0030-A`, `WF-REF-0010-A`
 - **opérations** : `listNodes`, `setLineRemaining`, `createNode`, `deleteNode`, `moveNodes`,
   `updateEstimateLine`, `listStartableTasks`, `setTaskProgress`, `getRemainingIndicators`,
@@ -1791,7 +1799,7 @@ valeur acquise (EP-10) ; les écrans des coûts réels (US-1620).
 
 ## US-1650 — Le témoin : la tranche des coûts réels et du reste à engager, et les parcours rejoués
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-QUA-0040-A`, `WF-INTF-0010-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
 - **issue** : 2397

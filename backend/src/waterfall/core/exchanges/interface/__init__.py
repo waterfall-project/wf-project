@@ -9,7 +9,7 @@ stories filling two files write two places of this one. Every function the desig
 fills it, but for those a caller relies on before (the purge), without effect until then. Another
 module imports them from here, never from the file. The formats and the exporters are registered
 by the modules that serve them, at the import of their interface (``register_format``,
-``register_exporter``).
+``register_exporter``). The witness writes its imports as they ended (``load_import``, EP-09).
 """
 
 # ``exports`` (US-1380/L1; US-1430/L2): the exporters, the task that runs one, and its result.
@@ -131,6 +131,14 @@ from waterfall.core.exchanges.interface.imports import (
 )
 from waterfall.core.exchanges.interface.imports import (
     run_apply as run_apply,
+)
+
+# ``loading`` (US-1650/L2): an import of the witness, written as it ended, without file nor task.
+from waterfall.core.exchanges.interface.loading import (
+    ImportLoad as ImportLoad,
+)
+from waterfall.core.exchanges.interface.loading import (
+    load_import as load_import,
 )
 
 # ``purge`` (US-1380/L1; US-1420/L2): the purge of the exchanges, and what the storage loses.

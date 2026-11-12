@@ -329,6 +329,7 @@
       "refusedAt": "Refusé à la ligne {number}, « {label} » :",
       "refusedAtRow": "Refusé à la ligne {number} :",
       "refusedCreating": "Création de « {label} » refusée :",
+      "toRemaining": "Mettre son reste à engager à zéro",
       "onRow": "Ligne {number}, « {label} »",
       "timelines": "Chronologies",
       "milestoneTracking": "Suivi temps/temps",
@@ -512,6 +513,12 @@
     }
   },
   "remainingGrid": {
+    "completionTitle": "Terminer la tâche",
+    "completionHint": "Cette saisie met à zéro le reste à engager de la dernière ligne ouverte de la tâche : elle la termine. Indiquez la date de sa terminaison.",
+    "completionDate": "Date de terminaison",
+    "completionRequired": "Indiquez la date de terminaison.",
+    "completionCancel": "Abandonner la saisie",
+    "completionConfirm": "Terminer la tâche",
     "finishOverdue": "Tâche démarrée dont la fin est dépassée",
     "ownLinesOpen": "Lignes propres ouvertes",
     "showNotStarted": "Montrer aussi les tâches non démarrées",
@@ -1524,6 +1531,9 @@
       },
       "ownLinesOpen": {
         "help": "Marque une récapitulative dont toutes les subordonnées sont terminées et qui attend ses seules lignes propres, et ces lignes, hors provision, qui gardent un reste à engager."
+      },
+      "inactiveObject": {
+        "help": "Marque une ligne qui emploie un objet désactivé du référentiel, resté lisible."
       },
       "budgetedAmount": {
         "help": "Montant budgété de la ligne, tel que le budget de référence l’a figé."
@@ -2541,7 +2551,7 @@
     "actualCostMapping": {
       "form": "Correspondance de l’extraction des coûts réels",
       "summary": "Les intitulés sous lesquels l’extraction de l’ERP nomme les colonnes que Waterfall lit, et les colonnes qu’il conserve à titre d’information. Un intitulé se compare à l’en-tête du fichier, et aux autres intitulés, sans égard à la casse, aux accents ni aux espaces en bout.",
-      "complete": "La correspondance est complète : une extraction de coûts réels peut être importée.",
+      "complete": "La correspondance est complète : l’import des coûts réels n’est plus refusé pour elle, il lit les colonnes de l’extraction sous ces intitulés.",
       "missing": "{count, plural, one {Colonne exigée sans intitulé} other {Colonnes exigées sans intitulé}} : {columns}. L’import des coûts réels est refusé tant que la correspondance est incomplète.",
       "required": "(exigée)",
       "optional": "(facultative)",
@@ -3029,6 +3039,7 @@
     "PROJECT_CODE_INVALID": "Le code du projet ne peut pas contenir de barre oblique.",
     "DUPLICATE_COLUMN_LABEL": "Cet intitulé de colonne figure déjà dans la correspondance, sans égard à la casse, aux accents ni aux espaces en bout : chacun ne désigne qu’une colonne.",
     "DUPLICATE_COST_LINE": "Cette ligne partage sa pièce et son poste, poste vide compris, avec d’autres lignes du fichier : toutes sont rejetées, aucune n’est préférée. Corrigez ou retirez les doublons dans le fichier.",
+    "DUPLICATE_LINEAGE": "Cette ligne porte un identifiant de ligne (« ID ligne ») que d’autres lignes du fichier portent aussi : toutes sont rejetées, aucune n’est préférée, et la ligne de la révision est laissée telle quelle. Retirez ou corrigez les copies dans le fichier.",
     "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",
     "INTERNAL_ERROR": "Erreur inattendue du service.",
     "ACCOUNT_DEACTIVATED": "Ce compte est désactivé ; contactez un administrateur.",

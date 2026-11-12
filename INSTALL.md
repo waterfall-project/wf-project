@@ -15,7 +15,7 @@ Pour installer une plateforme de démonstration à partir des images publiées, 
 | [uv](https://docs.astral.sh/uv/) | la version de `tools/.python-version` et les dépendances du back et des outils du dépôt |
 | La version de `tools/.python-version`, sous le nom `python3` | la projection de la spécification |
 | Node 26 (par nvm, par exemple) | le front, et pnpm, que `npm install --global pnpm` installe une fois |
-| Docker et son greffon Compose | `make dev`, la plateforme de service, les images |
+| Docker et son greffon Compose | `make dev`, les services des tests, la plateforme de service, les images |
 | Le client PostgreSQL 18 (`postgresql-client-18`, celui d'Ubuntu 26.04) | `pg_dump` et `pg_restore` dans `/usr/bin`, que les tests des sauvegardes et des restaurations appellent : ceux de la majeure du serveur, ni plus récents ni plus anciens (#982) |
 | `openssl` | tirer un autre secret que celui du workflow, pour Garage (« Les secrets », plus bas) |
 | `pandoc` 3.13 | la projection de la spécification (une autre version écrit un autre Markdown) |
@@ -181,16 +181,19 @@ services :
   le `slapd` de Debian ;
 - Mailpit.
 
-**Elle ne contient pas le front** : on le lance sur le poste (étape 3 ci-dessous).
+**Elle ne contient pas le front** : on le lance sur le poste (étape 4 ci-dessous).
 
-**Le service ne sert que ce qui est livré dans `main`**, soit, depuis EP-03 :
-- les comptes et les rôles ;
-- la session ;
-- le journal d'audit ;
-- les sauvegardes et la restauration.
+**Le service sert :**
+- les comptes, l'authentification et les habilitations, le journal d'audit, les sauvegardes et la
+  restauration (EP-03) ;
+- le référentiel de l'entreprise (EP-05) ;
+- les projets et leurs révisions (EP-04) ;
+- le planning et l'aller-retour avec MS Project (EP-06) ;
+- le chiffrage et le devis (EP-07) ;
+- les coûts réels importés de l'ERP et le reste à engager (EP-09).
 
-Contre lui, les écrans des projets et du référentiel n'ont pas de données : leurs lectures
-répondent 404, parce qu'EP-04 et EP-05 ne sont pas livrés.
+Les écrans des avenants et des risques (EP-08), des indicateurs (EP-10) et du portefeuille (EP-11)
+ne sont pas encore servis : ils se parcourent contre le faux back.
 
 Le front ne lit qu'une adresse d'API à la fois, il n'y a pas de mode mixte. Pour parcourir ces
 écrans, on lance la maquette (`make dev`) à la place du front contre le service : les deux
@@ -256,10 +259,26 @@ make service-up           # Keycloak sur https://localhost:8443/auth, l'API sur 
 Le certificat de Keycloak vient d'une autorité locale, dont `make service-up` copie la racine dans
 `deploy/compose/.authority/root.crt`. Le navigateur avertit, sauf si on importe cette racine.
 
-### 3. Lancer le front
+### 3. Amorcer l'installation et charger le témoin
 
-Dans le même terminal, depuis la racine, avant d'ouvrir le lien de l'étape 4 : à la fin de
-l'amorçage, Keycloak renvoie au front, sur `http://localhost:3000`.
+```bash
+make service-install      # écrit le lien du premier administrateur
+make service-witness      # charge le témoin sur la plateforme amorcée
+```
+
+`make service-install` écrit le lien qui fixe le mot de passe du premier administrateur
+(`administrateur@waterfall.test` par défaut, ou `WATERFALL_ADMIN_EMAIL`). Le lien vaut jusqu'à son
+emploi : on le garde pour l'étape 4. Relancée, la commande écrit un nouveau lien, qui remplace le
+précédent, tant que l'administrateur n'a pas de mot de passe.
+
+`make service-witness` charge le témoin : l'univers que décrivent les exemples du contrat
+(`fixtures/api`), celui que sert le faux back. Elle demande une plateforme amorcée ; relancée, elle
+n'écrit rien. Sans le témoin, la plateforme ne porte que ce que l'amorçage écrit.
+
+### 4. Lancer le front et se connecter
+
+Depuis la racine, avant d'ouvrir le lien de l'étape 3 : à la fin de l'amorçage, Keycloak renvoie
+au front, sur `http://localhost:3000`.
 
 ```bash
 (cd frontend && \
@@ -268,7 +287,7 @@ l'amorçage, Keycloak renvoie au front, sur `http://localhost:3000`.
   WATERFALL_FRONT_ADDRESS=http://localhost:3000 \
   WATERFALL_REDIS_URL="redis://:${WATERFALL_REDIS_PASSWORD}@127.0.0.1:6379/0" \
   NODE_EXTRA_CA_CERTS=../deploy/compose/.authority/root.crt \
-  pnpm exec next dev --hostname 0.0.0.0)
+  pnpm dev -H 0.0.0.0)
 ```
 
 **À propos de cette commande :**
@@ -277,7 +296,7 @@ l'amorçage, Keycloak renvoie au front, sur `http://localhost:3000`.
 - **Le secret du client du front.** `WATERFALL_FRONT_CLIENT_SECRET` est déjà exporté (étape 1).
 - **L'écoute sur toutes les interfaces.** Keycloak notifie la fermeture des sessions au front par
   `http://host.docker.internal:3000`. Le front doit donc écouter sur toutes les interfaces du
-  poste.
+  poste (`-H 0.0.0.0`).
 - **L'adresse du front.** Le royaume l'apprend à chaque `make service-up`
   (`WATERFALL_FRONT_ADDRESS`, `http://localhost:3000` par défaut), et `make e2e-service` la
   remplace par celle de ses parcours jusqu'au démarrage suivant. Après un `make e2e-service`,
@@ -286,19 +305,9 @@ l'amorçage, Keycloak renvoie au front, sur `http://localhost:3000`.
   n'éprouve que `make e2e-service`, qui donne les mêmes réglages au front, mais à travers le
   mandataire Prism.
 
-### 4. Amorcer l'installation
-
-Dans un second terminal, à la racine, les secrets exportés :
-
-```bash
-make service-install
-```
-
-La commande écrit le lien qui fixe le mot de passe du premier administrateur
-(`administrateur@waterfall.test` par défaut, ou `WATERFALL_ADMIN_EMAIL`). Le lien vaut jusqu'à son
-emploi. On l'ouvre dans le navigateur, on fixe le mot de passe, puis le bouton de retour mène au
-front, où l'on se connecte. Les courriels des autres comptes arrivent dans Mailpit, sur
-`http://127.0.0.1:8025`.
+On ouvre ensuite le lien de l'étape 3 dans le navigateur, on fixe le mot de passe, puis le bouton
+de retour mène au front, où l'on se connecte. Les courriels des autres comptes arrivent dans
+Mailpit, sur `http://127.0.0.1:8025`.
 
 ### Arrêter
 
