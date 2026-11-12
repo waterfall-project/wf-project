@@ -53,7 +53,13 @@ export interface ChipKit {
     names?: PeriodNames,
   ) => void;
   /** The bounds of a column of figures, nothing when neither side is set. */
-  readonly bounds: (column: string, name: string, kind: FigureKind, bounds: Bounds) => void;
+  readonly bounds: (
+    column: string,
+    name: string,
+    kind: FigureKind,
+    bounds: Bounds,
+    key?: string,
+  ) => void;
 }
 
 /** The kit of a screen: its chips are built by calling it, in the order of its panel. */
@@ -106,7 +112,7 @@ export function useChipKit(): ChipKit {
         add(key, name, told, [names.from, names.to]);
       }
     },
-    bounds: (column, name, kind, bounds) => {
+    bounds: (column, name, kind, bounds, key = `${column}-bounds`) => {
       if (!bounded(bounds)) {
         return;
       }
@@ -120,7 +126,7 @@ export function useChipKit(): ChipKit {
         told = t("atMost", { max: figure(kind, max ?? "") });
       }
       const names = boundNames(column);
-      add(column, name, told, [names.min, names.max]);
+      add(key, name, told, [names.min, names.max]);
     },
   };
 }

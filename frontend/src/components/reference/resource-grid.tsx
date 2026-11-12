@@ -21,16 +21,19 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useMemo } from "react";
+import { type ReactNode, useMemo } from "react";
 
 import type { GridConfig } from "@/components/grid/columns";
+import type { FilterChip } from "@/components/grid/filter-chips";
 import { DenseGrid } from "@/components/grid/dense-grid";
 import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import type { ListPage } from "@/navigation/pages";
 
 import { useAnswered } from "./commands";
-import type { ReferenceObject } from "./kinds";
+import type { Choice, ReferenceObject } from "./kinds";
+import { useCalendarChips, useOrgNodeChips, useRoleChips } from "./reference-chips";
+import type { OrgNodeFilters, RoleFilters } from "./resource-lists";
 import {
   type Calendar,
   type CalendarSort,
@@ -49,6 +52,8 @@ export interface ReferenceGridProps<Row, Sort extends string> {
   readonly preferences: GridPreferences | undefined;
   /** Whether the session may modify the function of the grid (`platformOffer`). */
   readonly editable: boolean;
+  /** The filters of the screen, which the bar of the grid folds into its panel (#2916); none, no panel. */
+  readonly panel?: ReactNode;
 }
 
 /** What a list the server pages adds: where its page stands in it. */
@@ -62,14 +67,32 @@ interface Paged {
  */
 interface Narrowed {
   readonly narrowing: Readonly<Record<string, unknown>>;
+  /** The filters of the tree, told as chips under the bar. */
+  readonly filters?: OrgNodeFilters | undefined;
+}
+
+/** What the grid of the roles adds: the filters it tells as chips, and the objects they choose among. */
+interface RoleFiltered {
+  readonly filters?: RoleFilters | undefined;
+  readonly nodes?: readonly Choice[] | undefined;
+  readonly categories?: readonly Choice[] | undefined;
+  readonly calendars?: readonly Choice[] | undefined;
+}
+
+/** What the grid of the calendars adds: the state it is filtered on, told as a chip. */
+interface CalendarFiltered {
+  readonly state?: boolean | undefined;
 }
 
 /** The three grids of the settings of the resources, by their kind. */
 export type ResourceGridProps =
   | ({ readonly kind: "orgNodes" } & ReferenceGridProps<OrgNode, never> & Narrowed)
   | ({ readonly kind: "resourceRoles" } & ReferenceGridProps<ResourceRole, ResourceRoleSort> &
-      Paged)
-  | ({ readonly kind: "calendars" } & ReferenceGridProps<Calendar, CalendarSort> & Paged);
+      Paged &
+      RoleFiltered)
+  | ({ readonly kind: "calendars" } & ReferenceGridProps<Calendar, CalendarSort> &
+      Paged &
+      CalendarFiltered);
 
 /**
  * A grid of its configuration for the session, made once, its rows as the server last answered them:
@@ -85,7 +108,11 @@ export function ReferenceGrid<Row extends ReferenceObject, Sort extends string>(
   editable,
   page,
   narrowing,
+  panel,
+  chips,
 }: ReferenceGridProps<Row, Sort> & {
+  /** The filters on, told as chips under the bar, with the panel of the filters. */
+  readonly chips?: readonly FilterChip[] | undefined;
   readonly make: (editable: boolean) => GridConfig<Row, Sort, null>;
   /** What the totals row says of the number of rows the list holds. */
   readonly count: (rows: number) => string;
@@ -104,37 +131,61 @@ export function ReferenceGrid<Row extends ReferenceObject, Sort extends string>(
       query={query}
       preferences={preferences}
       narrowing={narrowing}
+      filtering={panel === undefined ? undefined : { panel, chips: chips ?? [] }}
+    />
+  );
+}
+
+/** The tree of the nodes of the organisation, its filters told as chips. */
+function OrgNodeGrid(props: Extract<ResourceGridProps, { kind: "orgNodes" }>) {
+  const t = useTranslations("reference");
+  const chips = useOrgNodeChips(props.filters);
+  return (
+    <ReferenceGrid
+      {...props}
+      chips={chips}
+      make={orgNodeGrid}
+      count={(count) => t("orgNodes.count", { count })}
+    />
+  );
+}
+
+/** The grid of the resource roles, its filters told as chips. */
+function RoleGrid(props: Extract<ResourceGridProps, { kind: "resourceRoles" }>) {
+  const t = useTranslations("reference");
+  const chips = useRoleChips(props.filters, props);
+  return (
+    <ReferenceGrid
+      {...props}
+      chips={chips}
+      make={resourceRoleGrid}
+      count={(count) => t("resourceRoles.count", { count })}
+    />
+  );
+}
+
+/** The grid of the calendars, its filter told as a chip. */
+function CalendarGrid(props: Extract<ResourceGridProps, { kind: "calendars" }>) {
+  const t = useTranslations("reference");
+  const chips = useCalendarChips(props.state);
+  return (
+    <ReferenceGrid
+      {...props}
+      chips={chips}
+      make={calendarGrid}
+      count={(count) => t("calendars.count", { count })}
     />
   );
 }
 
 /** Render a grid of the settings of the resources, by its kind. */
 export function ResourceGrid(props: ResourceGridProps) {
-  const t = useTranslations("reference");
   switch (props.kind) {
     case "orgNodes":
-      return (
-        <ReferenceGrid
-          {...props}
-          make={orgNodeGrid}
-          count={(count) => t("orgNodes.count", { count })}
-        />
-      );
+      return <OrgNodeGrid {...props} />;
     case "resourceRoles":
-      return (
-        <ReferenceGrid
-          {...props}
-          make={resourceRoleGrid}
-          count={(count) => t("resourceRoles.count", { count })}
-        />
-      );
+      return <RoleGrid {...props} />;
     case "calendars":
-      return (
-        <ReferenceGrid
-          {...props}
-          make={calendarGrid}
-          count={(count) => t("calendars.count", { count })}
-        />
-      );
+      return <CalendarGrid {...props} />;
   }
 }
