@@ -716,6 +716,7 @@ paths = [
     "fixtures/api/import_apply_refused_permission.json",
     "fixtures/api/import_remaining_completed_task.json",
     "fixtures/api/users_by_access_role.json",
+    "fixtures/api/users_without_access_role.json",
     "fixtures/api/users_search.json",
     "fixtures/api/users_inactive.json",
     "fixtures/api/users_created_by_platform.json",

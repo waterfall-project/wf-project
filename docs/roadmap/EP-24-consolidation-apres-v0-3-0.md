@@ -553,7 +553,7 @@ provisoire d'une pastille de période avant hydratation, accepté. La chaîne de
 
 ## US-1860 — La gestion des utilisateurs : ses filtres, « Sans rôle » et ses actions groupées
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ADM-0180-A`
 - **opérations** : `listUsers`, `updateUser`, `setUserActivation`, `setUserAccessRoles`
 - **issue** : #2954

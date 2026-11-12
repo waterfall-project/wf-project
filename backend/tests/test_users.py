@@ -373,6 +373,78 @@ def test_the_accounts_are_filtered_on_the_roles_they_hold(
     assert set(table).isdisjoint(names(api, headers, f"?access_role_ids={ids}"))
 
 
+@pytest.fixture
+def roleless(database: Database, table: dict[str, UUID]) -> UUID:
+    """Write accounts beside the table; give the identifier of the role « Gestion ».
+
+    A holder of « Gestion », an account whose only role was deleted, and a deactivated account
+    without a role.
+    """
+    del table
+    managing = role(database, "Gestion")
+    account(database, "Garnier", "Hugo", roles=(managing,))
+    account(database, "Nadal", "Zoé", roles=(role(database, "Ancien", deleted=True),))
+    account(database, "Olivier", "Paul", state="deactivated")
+    return managing
+
+
+# The active accounts without a role, in the order of the table unsorted: Sacha Lefèvre, whom the
+# identity provider created, Zoé Nadal, whose only role was deleted, and Élise Émery.
+WITHOUT_ROLE = ["Lefèvre Sacha", "Nadal Zoé", "Émery Élise"]
+WITHOUT = "?without_access_role=true"
+
+
+@pytest.mark.requirement("WF-ADM-0180-A")
+def test_the_accounts_without_a_role_are_retained_alone_or_with_the_roles_asked(
+    api: ContractClient, headers: dict[str, str], roleless: UUID
+) -> None:
+    # « Avec un fournisseur externe, la première connexion d'une personne inconnue crée son
+    # compte, sans rôle » : the table retains them by a parameter, the screen offering « Sans
+    # rôle » among the roles (US-1860, #2976). A deleted role is held no more.
+    page = read(api, headers, WITHOUT)
+    assert [f"{each['last_name']} {each['first_name']}" for each in page["items"]] == WITHOUT_ROLE
+    assert all(each["access_role_ids"] == [] for each in page["items"])
+    assert page["meta"]["total"] == len(WITHOUT_ROLE)
+    # With the roles asked, their union: the holders of « Gestion » are added to them.
+    union = f"{WITHOUT}&access_role_ids={roleless}"
+    assert names(api, headers, union) == ["Garnier Hugo", *WITHOUT_ROLE]
+    assert names(api, headers, f"?access_role_ids={roleless},{uuid4()}&{WITHOUT[1:]}") == [
+        "Garnier Hugo",
+        *WITHOUT_ROLE,
+    ]
+    # Absent or false, nothing changes.
+    assert names(api, headers, "?without_access_role=false") == names(api, headers)
+    assert "Lefèvre Sacha" in names(api, headers)
+    only_held = f"?access_role_ids={roleless}"
+    assert names(api, headers, f"{only_held}&without_access_role=false") == ["Garnier Hugo"]
+    assert names(api, headers, only_held) == ["Garnier Hugo"]
+
+
+@pytest.mark.requirement("WF-ADM-0180-A")
+@pytest.mark.parametrize(
+    ("query", "kept", "total"),
+    [
+        # « Créé par le fournisseur d'identité » and « Sans rôle »: the newcomers to welcome.
+        (f"{WITHOUT}&origins=identity_provider", ["Lefèvre Sacha"], 1),
+        (f"{WITHOUT}&origins=local,directory", ["Nadal Zoé", "Émery Élise"], 2),
+        (f"{WITHOUT}&search=zoé", ["Nadal Zoé"], 1),
+        (f"{WITHOUT}&include_inactive=true", [*WITHOUT_ROLE[:2], "Olivier Paul", "Émery Élise"], 4),
+        (f"{WITHOUT}&is_active=false", ["Olivier Paul"], 1),
+        (f"{WITHOUT}&sort_by=last_name&sort_order=desc", WITHOUT_ROLE[::-1], 3),
+        (f"{WITHOUT}&limit=2", WITHOUT_ROLE[:2], 3),
+        (f"{WITHOUT}&limit=2&offset=2", WITHOUT_ROLE[2:], 3),
+        (f"{WITHOUT}&limit=2&offset=4", [], 3),
+    ],
+)
+@pytest.mark.usefixtures("roleless")
+def test_the_accounts_without_a_role_combine_with_the_other_filters_and_the_pages(
+    api: ContractClient, headers: dict[str, str], query: str, kept: list[str], total: int
+) -> None:
+    page = read(api, headers, query)
+    assert [f"{each['last_name']} {each['first_name']}" for each in page["items"]] == kept
+    assert page["meta"]["total"] == total
+
+
 def problem(response: Any) -> tuple[int, str, list[dict[str, Any]]]:
     """Give the status, the code and the fields of a refusal."""
     body = response.json()
@@ -389,6 +461,7 @@ def problem(response: Any) -> tuple[int, str, list[dict[str, Any]]]:
         ("?origins=local,ldap", "/query/origins"),
         ("?origins=", "/query/origins"),
         ("?access_role_ids=nope", "/query/access_role_ids"),
+        ("?without_access_role=perhaps", "/query/without_access_role"),
         ("?org_node_id=nope", "/query/org_node_id"),
     ],
 )

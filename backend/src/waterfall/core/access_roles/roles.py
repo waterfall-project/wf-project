@@ -247,6 +247,19 @@ def holding_one_of(role_ids: Collection[UUID]) -> AccountExpression[bool]:
     return holds
 
 
+def holding_none(user_id: SQLColumnExpression[UUID]) -> ColumnElement[bool]:
+    """Keep an account that holds no role, a deleted one not counting (``listUsers``, #2976).
+
+    The account the identity provider created at its first sign-in, which has no permission until
+    a role is given to it (WF-ADM-0180); as ``roles_held_by`` reads them, its roles are none.
+    """
+    return ~exists().where(
+        UserAccessRole.user_account_id == user_id,
+        AccessRole.id == UserAccessRole.access_role_id,
+        AccessRole.deleted_at.is_(None),
+    )
+
+
 def labels_held(user_id: SQLColumnExpression[UUID]) -> ColumnElement[Sequence[str] | None]:
     """Give the labels of the roles an account holds, in the order it holds them (``roles_held``).
 

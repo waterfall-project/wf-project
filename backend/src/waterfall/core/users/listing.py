@@ -73,7 +73,9 @@ class AccountFilters:
     """What the table keeps; a filter absent keeps everything (WF-IHM-0130).
 
     ``states`` keeps the active accounts alone unless asked for more. ``held`` is the criterion of
-    another module, the roles an account holds; ``attached``, that of the tree of the organisation,
+    another module, the roles an account holds; ``roleless``, its criterion of an account that
+    holds none, which keeps its accounts in union with those of ``held`` when both are given
+    (#2976); ``attached``, that of the tree of the organisation,
     the node an account is attached to, or one of its descendants (WF-REF-0070). ``audit``, the
     filters of the columns of audit.
     """
@@ -83,6 +85,7 @@ class AccountFilters:
     states: frozenset[str] = frozenset({ACTIVE})
     attached: NodeCriterion | None = None
     held: AccountExpression[bool] | None = None
+    roleless: AccountExpression[bool] | None = None
     audit: AuditColumnFilters = field(default_factory=AuditColumnFilters)
 
 
@@ -119,8 +122,10 @@ def _criteria(filters: AccountFilters) -> list[ColumnElement[bool]]:
         criteria.append(UserAccount.origin.in_(filters.origins))
     if filters.attached is not None:
         criteria.append(filters.attached(UserAccount.org_node_id))
-    if filters.held is not None:
-        criteria.append(filters.held(UserAccount.id))
+    # The roles asked and the absence of a role are the choices of one filter: their union.
+    roles = [kept(UserAccount.id) for kept in (filters.held, filters.roleless) if kept is not None]
+    if roles:
+        criteria.append(or_(*roles))
     criteria += audit_criteria(AUDIT, filters.audit)
     return criteria
 

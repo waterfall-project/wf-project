@@ -18,8 +18,8 @@ screens ask them:
   ``contributors_search.json``, searched on it; ``contributors_inactive.json``, those whose account
   was deactivated since they were entered;
 - ``users_by_access_role.json``, ``listUsers`` restricted to the accounts that hold one of two
-  roles; ``users_search.json``, a search that finds an account by its displayed name, without
-  its accent;
+  roles, ``users_without_access_role.json`` to them and those without a role (#2976);
+  ``users_search.json``, a search that finds an account by its displayed name, without its accent;
   ``users_inactive.json``, the accounts deactivated alone; ``users_created_by_platform.json``,
   those the platform created; ``users_by_created_at.json``, sorted by the moment of their
   creation (#936);
@@ -690,6 +690,7 @@ def administration() -> dict[str, JsonObject]:
     roles = cast("list[JsonObject]", fixture("access_roles"))
     named = {cast("str", role["access_role_id"]): role["label"] for role in roles}
     held = holding(users, HELD_ROLES)
+    held_or_none = [each for each in users if each in held or not each["access_role_ids"]]
     deactivated = in_state(users, active=False)
     found = searched_users(users, SEARCHED_ACCOUNT)
     composed = of_nature(roles, predefined=False)
@@ -707,6 +708,13 @@ def administration() -> dict[str, JsonObject]:
             f"sans tri, par nom ; "
             f"meta.total compte les comptes retenus (WF-IHM-0130, WF-ADM-0050).",
             user_page(held),
+        ),
+        "users_without_access_role.json": _example(
+            f"Les comptes qui ne portent aucun rôle (without_access_role=true), en union avec "
+            f"ceux qui portent l'un au moins des rôles {asked} (access_role_ids), désactivés "
+            f"compris (include_inactive=true) : {_accounts(held_or_none)}, dans l'ordre sans "
+            f"tri, par nom ; meta.total compte les comptes retenus (WF-ADM-0180, WF-IHM-0130).",
+            user_page(held_or_none),
         ),
         "users_search.json": _example(
             f"Les comptes cherchés par « {SEARCHED_ACCOUNT} », désactivés compris "

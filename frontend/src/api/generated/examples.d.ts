@@ -234,7 +234,7 @@ export interface Examples {
     200: "identity_sync_succeeded" | "task_exit_mark_failed" | "task_exit_mark_relaunched" | "task_exit_mark_relaunched_succeeded" | "task_exit_mark_running" | "task_exit_mark_succeeded" | "task_export_succeeded" | "task_export_tree_image_too_large" | "task_failed" | "task_import_analysis_failed" | "task_import_succeeded" | "task_interrupted_by_restore" | "task_mark_relaunched" | "task_merge_horizon_exceeded" | "task_merge_link_cycle" | "task_merge_link_forbidden" | "task_merge_outside_work_package" | "task_merge_running" | "task_merge_succeeded" | "task_restore_backup_newer_version" | "task_restore_verification_failed" | "task_running" | "task_succeeded";
   };
   "GET /users": {
-    200: "users" | "users_anonymized" | "users_by_access_role" | "users_by_created_at" | "users_created_by_platform" | "users_inactive" | "users_page" | "users_search";
+    200: "users" | "users_anonymized" | "users_by_access_role" | "users_by_created_at" | "users_created_by_platform" | "users_inactive" | "users_page" | "users_search" | "users_without_access_role";
   };
   "GET /users/{user_id}": {
     200: "user" | "user_anonymized" | "user_deactivated";
