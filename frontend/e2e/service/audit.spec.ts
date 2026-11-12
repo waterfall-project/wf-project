@@ -131,11 +131,13 @@ test("an attribution of a role, the journal filtered on its author and its actio
     await expect(french).toContainText("Hors projet");
     await datedOfTheDay(french, before, "fr");
     // Nothing on the view modifies nor deletes an inscription: no control in its rows, and none
-    // that says so around them.
+    // that says so around them: « Effacer les filtres » clears the chips, it erases no inscription.
     await expect(french.getByRole("button")).toHaveCount(0);
     await expect(french.getByRole("textbox")).toHaveCount(0);
     await expect(
-      author.getByRole("main").getByRole("button", { name: /Modifier|Supprimer|Effacer/ }),
+      author
+        .getByRole("main")
+        .getByRole("button", { name: /Modifier|Supprimer|Effacer(?! les filtres)/ }),
     ).toHaveCount(0);
 
     // A month without any action — before the platform was — presents nothing.

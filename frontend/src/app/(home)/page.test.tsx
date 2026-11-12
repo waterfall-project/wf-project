@@ -411,7 +411,7 @@ describe("the empty states of the home", () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home({ states: "all" });
     expect(text(html)).toMatch(
-      /^Projects Help Create a project Projects you contribute to Show all projects You contribute to no project\.$/,
+      /^Projects Help Create a project Projects you contribute to Show all projects Filter by state Every state .* You contribute to no project\.$/,
     );
     expect(links(html)).toEqual(["/?states=all&is_contributor=false"]);
     expect(html).not.toContain('role="grid"');
@@ -449,7 +449,7 @@ describe("the empty states of the home", () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home({ is_contributor: "false", states: "all" });
     expect(text(html)).toMatch(
-      /^Projects Help Create a project Show only my projects No project\.$/,
+      /^Projects Help Create a project Show only my projects Filter by state Every state .* No project\.$/,
     );
   });
 
@@ -476,7 +476,7 @@ describe("the empty states of the home", () => {
       const html = await home({ states: "all" });
       expect(text(html)).toMatch(
         new RegExp(
-          `^Projects Help Create a project The minimum reference data is incomplete\\. Projects you contribute to Show all projects Incomplete reference data No project can be created until the common reference data has: ${missing}`,
+          `^Projects Help Create a project The minimum reference data is incomplete\\. Projects you contribute to Show all projects Incomplete reference data No project can be created until the common reference data has: ${missing} Filters Columns`,
         ),
       );
       expect(links(html).slice(1, 1 + provided.length)).toEqual(provided);
@@ -516,7 +516,7 @@ describe("the empty states of the home", () => {
       "Projects Help Create a project The minimum reference data is incomplete. Show only my projects " +
         `Incomplete reference data No project can be created until the common reference data has: ` +
         "an active labour category an active resource role " +
-        "No project.",
+        "Filter by state Every state Modification period From To No project.",
     );
   });
 

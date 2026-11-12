@@ -114,7 +114,13 @@ export function ProjectList({
   panel,
 }: ProjectListProps) {
   if (page.total === 0 && !narrowed) {
-    return <NoProjects filtered={filtered} />;
+    // No grid to hold the bar: the filters stand above the notice, as they always did.
+    return (
+      <>
+        {panel}
+        <NoProjects filtered={filtered} />
+      </>
+    );
   }
   return (
     <ProjectListGrid
