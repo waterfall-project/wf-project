@@ -3468,8 +3468,8 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
 - **dans l'image de travail des parcours** (`deploy/e2e/Dockerfile`, US-1900), bâtie de l'image de
   Playwright (`mcr.microsoft.com/playwright`) à la version de `@playwright/test` que résout
   `frontend/pnpm-lock.yaml`, épinglée par son empreinte, avec `make`, le Python de
-  `tools/.python-version` en `python3`, le Node sur lequel le front est construit, pnpm à la version
-  de `packageManager` et le client de Docker : Chromium et ses paquets système y sont, rien ne vient du miroir d'Ubuntu, dont le débit
+  `tools/.python-version` en `python3`, pnpm à la version de `packageManager` et le client de
+  Docker : Chromium et ses paquets système y sont, rien ne vient du miroir d'Ubuntu, dont le débit
   et la réponse ne sont pas les nôtres (#472, #2913). Elle est publiée sur
   `ghcr.io/waterfall-project/e2e`, étiquetée par l'empreinte de son répertoire : le travail
   `e2e-image` de `ci.yml`, qui tourne dès qu'`e2e` ou `service` tourne, à côté de `front-build`,
@@ -3490,9 +3490,8 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   `docker buildx imagetools inspect mcr.microsoft.com/playwright:v<X>-noble`, ou l'en-tête
   `docker-content-digest` de
   `curl -sI -H 'Accept: application/vnd.oci.image.index.v1+json' https://mcr.microsoft.com/v2/playwright/manifests/v<X>-noble`.
-  Le paquet `make` d'Ubuntu noble, l'archive du client de Docker et celle de Node ne se
-  téléchargent qu'à la construction de l'image, épinglés et vérifiés par leur empreinte, pnpm par
-  sa version ;
+  Le paquet `make` d'Ubuntu noble et l'archive du client de Docker ne se téléchargent qu'à la
+  construction de l'image, épinglés et vérifiés par leur empreinte, pnpm par sa version ;
 - **répartis sur cinq runners** (`make e2e SHARD=i/5`, soit `playwright test --shard=i/5`),
   la mesure du §4.6.2 sur un sixième, seule (`make e2e-measure`), par une matrice dont aucun
   morceau n'annule les autres ; le résultat d'`e2e` est un échec dès qu'un morceau échoue ou
@@ -3514,14 +3513,13 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   ne joint pas les travaux de l'un à ceux de l'autre ; ni l'un ni l'autre n'a d'autre
   déclencheur que cet appel, si bien qu'aucun ne construit le front. Un build en échec saute les
   deux, et la porte, qui l'attend aussi, échoue. Il construit sur le runner, comme `front.yml`, en
-  Node 26 : les morceaux et les parcours de `service.yml` le démarrent dans l'image de travail des
-  parcours, en Node 26 aussi (l'image de Playwright porte Node 24 ; l'image de travail y ajoute le
-  Node 26 de nodejs.org, épinglé, devant lui dans le `PATH` : sous Node 24, les parcours du service
-  duraient 15 % de plus, 16 à 17 minutes au lieu de 11 à 15, mesuré sur les passages de la
-  branche d'US-1900/L1), sur Ubuntu noble en amd64 ; les morceaux, à un autre chemin de l'espace de
-  travail (`/__w/…` au lieu de `/home/runner/work/…`). Le build ne dépend pas de ce chemin : seul
-  `required-server-files.json`, que lit la sortie autonome de l'image et non `next start`, le
-  nomme, et un build déplacé ailleurs, son
+  Node 26 : les morceaux le démarrent dans l'image de Playwright, en Node 24 (son
+  `NODE_VERSION`, que le lot de Node 26 ne change pas ; `next start` y exécute les fichiers
+  construits, et Next 16 accepte Node 24, tandis que pnpm 12 ne s'arrête pas sur `engines` sans
+  `engine-strict`, que le front ne pose pas), sur la même Ubuntu noble en amd64, et à un autre
+  chemin de l'espace de travail (`/__w/…` au lieu de `/home/runner/work/…`) ; `service.yml`, sur le
+  runner. Le build ne dépend pas de ce chemin : seul `required-server-files.json`, que lit la
+  sortie autonome de l'image et non `next start`, le nomme, et un build déplacé ailleurs, son
   dossier d'origine retiré, sert ses pages (vérifié le 2026-10-25 sur le poste, en déplaçant le
   build ; la preuve dans la chaîne viendra d'une exécution de `chain` sur la branche du lot).
 

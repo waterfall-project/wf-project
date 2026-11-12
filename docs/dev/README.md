@@ -3446,8 +3446,7 @@ The full tier aims at under eight minutes in the queue for its longest job
 - **in the work image of the paths** (`deploy/e2e/Dockerfile`, US-1900), built from the Playwright
   image (`mcr.microsoft.com/playwright`) at the version of `@playwright/test` that
   `frontend/pnpm-lock.yaml` resolves, pinned by its digest, with `make`, the Python of
-  `tools/.python-version` as `python3`, the Node the front is built on, pnpm at the version of
-  `packageManager` and Docker's client:
+  `tools/.python-version` as `python3`, pnpm at the version of `packageManager` and Docker's client:
   Chromium and its system packages are there, nothing comes from the Ubuntu mirror, whose throughput
   and answers are not ours (#472, #2913). It is published on `ghcr.io/waterfall-project/e2e`,
   tagged by the digest of its directory: the job `e2e-image` of `ci.yml`, which runs whenever `e2e`
@@ -3467,8 +3466,8 @@ The full tier aims at under eight minutes in the queue for its longest job
   `Digest:` of `docker buildx imagetools inspect mcr.microsoft.com/playwright:v<X>-noble` gives, or
   the `docker-content-digest` header of
   `curl -sI -H 'Accept: application/vnd.oci.image.index.v1+json' https://mcr.microsoft.com/v2/playwright/manifests/v<X>-noble`.
-  The `make` package of Ubuntu noble, the archive of Docker's client and that of Node are downloaded
-  only when the image is built, pinned and verified by their digest, pnpm by its version;
+  The `make` package of Ubuntu noble and the archive of Docker's client are downloaded only when the
+  image is built, pinned and verified by their digest, pnpm by its version;
 - **spread over five runners** (`make e2e SHARD=i/5`, that is `playwright test --shard=i/5`),
   the measure of §4.6.2 on a sixth, alone (`make e2e-measure`), through a matrix none of whose
   shards cancels the others; the result of `e2e` is a failure as soon as a shard fails or
@@ -3489,12 +3488,11 @@ The full tier aims at under eight minutes in the queue for its longest job
   workflows: `e2e.yml` and `service.yml` are two called workflows, and a `needs` does not join the
   jobs of one to those of the other; neither has any other trigger than that call, so that none
   builds the front. A failed build skips the two, and the gate, which waits for it too, fails. It
-  builds on the runner, like `front.yml`, in Node 26: the shards and the paths of `service.yml`
-  start it in the work image of the paths, in Node 26 too (the Playwright image carries Node 24; the
-  work image adds the Node 26 of nodejs.org, pinned, ahead of it in the `PATH`: under Node 24, the
-  paths against the service lasted 15 % longer, 16 to 17 minutes instead of 11 to 15, measured on
-  the runs of the branch of US-1900/L1), on Ubuntu noble in amd64; the shards, at another path of
-  the workspace (`/__w/…` instead of `/home/runner/work/…`).
+  builds on the runner, like `front.yml`, in Node 26: the shards start it in the Playwright image,
+  in Node 24 (its `NODE_VERSION`, which the Node 26 lot does not change; `next start` runs the built
+  files there, and Next 16 accepts Node 24, while pnpm 12 does not stop on `engines` without
+  `engine-strict`, which the front does not set), on the same Ubuntu noble in amd64, and at another
+  path of the workspace (`/__w/…` instead of `/home/runner/work/…`); `service.yml`, on the runner.
   The build does not depend on that path: only `required-server-files.json`, which the standalone
   output of the image reads and not `next start`, names it, and a build moved elsewhere, its
   original folder removed, serves its pages (checked on 2026-10-25 on the workstation, by moving the

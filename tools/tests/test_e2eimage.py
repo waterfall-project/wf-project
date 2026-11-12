@@ -124,18 +124,6 @@ def test_the_image_carries_the_pnpm_the_front_names() -> None:
     assert re.findall(r"npm install --global pnpm@(\S+)", dockerfile()) == [named.group(1)]
 
 
-def test_the_image_carries_the_node_the_front_is_built_on() -> None:
-    # The front is built on the runner (front-build) and started in the image: on the same major.
-    built = {
-        str(step["with"]["node-version"])
-        for step in steps("ci.yml", "front-build")
-        if "setup-node" in step.get("uses", "")
-    }
-    carried = re.findall(r"https://nodejs\.org/dist/v(\d+)\.\d+\.\d+/", dockerfile())
-    assert len(built) == 1
-    assert carried == list(built)
-
-
 def test_every_source_of_the_image_is_pinned() -> None:
     text = re.sub(r"\\\n", " ", dockerfile())
     for line in text.splitlines():
