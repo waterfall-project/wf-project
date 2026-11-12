@@ -146,6 +146,17 @@ def test_every_paginated_list_refuses_an_offset_beyond_the_bound_of_the_contract
 ) -> None:
     lists = paginated(contract)
     service = served(api)
+    # The bound written here is the one of the common parameter ``Offset``, read where it is used.
+    maxima = {
+        each["schema"]["maximum"]
+        for taken in lists.values()
+        for each in taken
+        if each["in"] == "query" and each["name"] == "offset"
+    }
+    assert maxima == {GREATEST_OFFSET}
+    # The reverse: a list the service serves with an ``offset`` is a list of the contract.
+    outside = sorted(name for name, taken in service.items() if "offset" in taken)
+    assert [name for name in outside if name not in lists] == []
     tried = sorted(set(lists) & set(service))
     # The lists of the contract, by its common parameter: fourteen served when US-1960 was written.
     assert len(tried) >= 14, tried
