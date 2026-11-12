@@ -258,6 +258,28 @@ test = 'src/i18n/text-guard\.test\.ts'
 frequency = "2 passages, le 2026-11-05"
 cause = "établie : le premier test de la garde construisait le programme TypeScript sous la mesure de couverture, au-delà de 60 s ; corrigé le 2026-11-05 (812d9120, par #2015)"
 
+# Avant la fenêtre de la référence : le crash d'un worker de Vitest, relevé par l'audit du
+# 2026-11-05. Son message est au milieu du journal, loin de la fin que l'outil relit : l'entrée le
+# reconnaît par son passage.
+[[known]]
+class = "known flakiness"
+family = "V8 de Node 24, contrôle interne"
+issue = "#2980"
+job = "^front / tests"
+runs = [41134811730]
+frequency = "1 passage, le 2026-10-30, sur 565 depuis le 2026-10-25 ; aucun depuis le passage à Node 26"
+cause = "établie : `# Fatal error … Check failed: static_cast<unsigned>(index) < … word_count()` (`V8_Fatal`), le worker de `dense-grid.dom.test.tsx` tué par SIGTRAP sous Node 24.22.1 ; une assertion du moteur, pas du test. La chaîne joue Node 26 depuis le 2026-11-05 (04738eaf, US-1170)"
+
+[[known]]
+class = "known flakiness"
+family = "purge attendue à moitié"
+issue = "#2566"
+job = "^back / tests"
+test = 'tests/test_worker_process\.py:185\b'
+message = 'assert backups_bucket\.size\(key\) is None'
+frequency = "1 passage du 2026-11-05 au 2026-11-12 (42597453085, le 2026-11-09)"
+cause = "établie : le test attendait la seule disparition de la ligne, puis affirmait celle de l'objet, que la purge retire dans une autre étape ; corrigé le 2026-11-10 (aacf6928, #2566), le test attend les deux"
+
 # L'infrastructure : un miroir, un registre ou un téléchargement tiers. US-1900.
 
 [[known]]
@@ -292,6 +314,17 @@ issue = "#2981"
 message = 'download failed for https://github\.com/rhysd/actionlint/'
 frequency = "2 passages du 2026-11-05 au 2026-11-12 : `contract / check`, et le serveur web de `e2e / paths` et d'`e2e / measure`"
 cause = "établie : `actionlint-py` télécharge son binaire de GitHub Releases à l'installation des outils, et reçoit un 504 ; dépendance absente de l'inventaire d'US-1900"
+
+# Le même téléchargement, qui ne finit pas : le serveur du faux back attend l'environnement des
+# outils (`make mock-spec`), et `Building actionlint-py` n'a pas rendu en deux minutes, quand les
+# six autres paquets étaient téléchargés en une seconde (US-1920/L3).
+[[known]]
+class = "infrastructure"
+family = "GitHub Releases, actionlint"
+issue = "#2981"
+message = '(?s)Building actionlint-py\b(?:(?!Built actionlint-py).)*Timed out waiting \d+ms from config\.webServer'
+frequency = "1 passage du 2026-11-05 au 2026-11-12 : `e2e / paths` (42473098952, le 2026-11-08)"
+cause = "établie : `Building actionlint-py` commencé à 10:53:03, rien jusqu'à l'arrêt du serveur web à 10:55:00 ; le binaire de GitHub Releases ne vient pas, et le délai de 120 s de `webServer` expire"
 
 [[known]]
 class = "infrastructure"
@@ -374,3 +407,40 @@ runs = [41981582686, 41983575296]
 message = "SyntaxError: multiple exception types must be parenthesized"
 frequency = "2 passages, le 2026-11-05 : `e2e / paths` et `e2e / measure`"
 cause = "établie : `except A, B:` sans parenthèses, que seul Python 3.14 lit, lancé dans l'image de l'e2e par un Python plus ancien"
+
+[[known]]
+class = "regression"
+family = "la pull request #2930 (L5 des tables plates)"
+issue = "#2932"
+runs = [43297945985, 43297947594]
+job = '^(front / check|e2e / paths)'
+message = "Function 'CheckMenu' has a complexity|e2e/review\\.spec\\.ts:257\\b"
+frequency = "2 passages, le 2026-11-12 : `front / check` (`make lint-front`), et `e2e/review.spec.ts:207` en fr et en en contre le faux back"
+cause = "établie : ESLint refuse `CheckMenu` (`check-menu.tsx`, complexité 15 pour 14), que #2930 modifie ; le parcours de la revue échoue à ses deux langues sur les deux seuls passages qui portent #2930, et passe sans elle (43302246856, #2931 sur la même base)"
+
+# Avant la fenêtre de la référence : `installation.setup` (« 1 compte ») tombé deux fois, la grille
+# des comptes jamais affichée. Deux régressions déterministes, de causes distinctes, chacune
+# corrigée par sa pull request avant sa fusion : la page des comptes lisait par `readOrFail` une
+# opération que le service, en retard sur le contrat, ne servait pas encore ; son 404 rendait la
+# page introuvable (US-1920/L3). Une entrée par passage.
+[[known]]
+class = "regression"
+family = "page des comptes introuvable sous le 404 de /identity-sync-schedule"
+issue = "#2932"
+runs = [41132886833]
+job = "^service / paths$"
+test = 'e2e/service/installation\.setup\.ts:39\b'
+message = "getByRole\\('grid', \\{ name: 'Comptes utilisateurs' \\}\\)"
+frequency = "1 passage, avant la référence : le 2026-10-30 (41132886833, #1676) ; aucun du 2026-11-05 au 2026-11-12"
+cause = "établie : `GET /identity-sync-schedule` (#1676), lu par `readOrFail`, répond 404 — le service ne le servait pas encore — et `notFound()` remplace la page, `listUsers` lu à 200 ; corrigé dans la pull request avant sa fusion (db57e5ae). Le parcours attend depuis le titre de l'écran des comptes, qui dit « Introuvable » à sa place"
+
+[[known]]
+class = "regression"
+family = "page des comptes introuvable sous le 404 de /reference/org-nodes"
+issue = "#2932"
+runs = [41319278707]
+job = "^service / paths$"
+test = 'e2e/service/installation\.setup\.ts:39\b'
+message = "getByRole\\('grid', \\{ name: 'Comptes utilisateurs' \\}\\)"
+frequency = "1 passage, avant la référence : le 2026-11-01 (41319278707, #1807) ; aucun du 2026-11-05 au 2026-11-12"
+cause = "établie : `GET /reference/org-nodes` (#1807), lu par `readOrFail`, répond 404 — le service ne le servait pas encore — et `notFound()` remplace la page ; corrigé dans la pull request avant sa fusion (db6a135e). Le parcours attend depuis le titre de l'écran des comptes, qui dit « Introuvable » à sa place"

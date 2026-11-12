@@ -1,0 +1,23 @@
+2026-11-08T10:53:03.7653549Z [WebServer] Using CPython 3.14.10
+2026-11-08T10:53:03.7654254Z [WebServer] Creating virtual environment at: tools/.venv
+2026-11-08T10:53:03.7717608Z [WebServer]    Building wftools @ file:///__w/wf-project/wf-project/tools
+2026-11-08T10:53:03.7778039Z [WebServer]       Built wftools @ file:///__w/wf-project/wf-project/tools
+2026-11-08T10:53:03.8645587Z [WebServer]    Building actionlint-py==1.7.12.25
+2026-11-08T10:53:03.8767633Z [WebServer] Downloading ruff (10.1MiB)
+2026-11-08T10:53:03.8769389Z [WebServer] Downloading nodejs-wheel-binaries (58.3MiB)
+2026-11-08T10:53:03.8772193Z [WebServer] Downloading shellcheck-py (3.6MiB)
+2026-11-08T10:53:03.8773160Z [WebServer] Downloading pyright (5.9MiB)
+2026-11-08T10:53:03.8773790Z [WebServer] Downloading[WebServer]  pygments (1.2MiB)
+2026-11-08T10:53:03.8774632Z [WebServer] Downloading hadolint-py (11.6MiB)
+2026-11-08T10:53:04.2096748Z [WebServer]  Downloaded pygments
+2026-11-08T10:53:04.3220016Z [WebServer]  Downloaded shellcheck-py
+2026-11-08T10:53:04.4248129Z [WebServer]  Downloaded ruff
+2026-11-08T10:53:04.4442352Z [WebServer]  Downloaded pyright
+2026-11-08T10:53:04.4525413Z [WebServer]  Downloaded hadolint-py
+2026-11-08T10:53:04.8921246Z [WebServer]  Downloaded nodejs-wheel-binaries
+2026-11-08T10:55:00.0441862Z [WebServer] make[1]: *** [Makefile:177: mock-spec] Terminated
+2026-11-08T10:55:00.0514982Z Error: Timed out waiting 120000ms from config.webServer.
+2026-11-08T10:55:00.0515297Z 
+2026-11-08T10:55:00.0678939Z make: *** [Makefile:576: e2e] Error 1
+2026-11-08T10:55:00.0722027Z ##[error]Process completed with exit code 2.
+2026-11-08T10:55:00.0800558Z Post job cleanup.
