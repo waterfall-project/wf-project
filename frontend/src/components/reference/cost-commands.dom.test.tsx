@@ -810,14 +810,13 @@ describe("the activation of a nature or a category", () => {
       rerender(natures([{ ...disbursements, label: "Débours relus", lock_version: 3 }, ...others]));
       await Promise.resolve();
     });
-    await vi.waitFor(() => {
-      expect(state()).not.toHaveTextContent("Désactivé");
-    });
+    // The label read is the proof that the reading prevailed; the state is that of the reading.
     await vi.waitFor(() => {
       expect(document.querySelector('td[data-row="0"][data-column="label"]')).toHaveTextContent(
         "Débours relus",
       );
     });
+    expect(state()).toHaveTextContent("Actif");
   });
 
   it("reactivates a deactivated category by its own activation, from the version read", async () => {
