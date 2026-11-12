@@ -41,6 +41,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatPlanningDate } from "@/i18n/format";
 
+import { today } from "./address";
 import { type CardGesture, type KanbanCard, remainingHref } from "./kanban-cards";
 
 type KanbanCommand = components["schemas"]["KanbanCommand"];
@@ -73,13 +74,6 @@ export type Notice =
 export interface Asking {
   readonly id: string;
   readonly gesture: CardGesture;
-}
-
-/** The day, as a date of the planning, in the time of the workstation: what the date proposes. */
-function today(): string {
-  const now = new Date();
-  const two = (value: number) => value.toString().padStart(2, "0");
-  return `${now.getFullYear().toString()}-${two(now.getMonth() + 1)}-${two(now.getDate())}`;
 }
 
 /**

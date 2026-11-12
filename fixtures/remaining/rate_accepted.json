@@ -1,0 +1,13 @@
+{
+  "summary": "Une révision créée en 2027, le taux de 2027 de sa catégorie, 70, accepté : la ligne de 10 heures d'une tâche non démarrée consommée en 2027 compte 700,00, et non 669,50, le taux de 2026, 65, corrigé d'une année d'inflation à 3 % (WF-RAE-0010, WF-REV-0060).",
+  "examples": ["WF-RAE-0010-A#0d404554bc50"],
+  "quantity": "1",
+  "effort": "10",
+  "rate_of_2026": "65",
+  "rate_of_2027": "70",
+  "inflation_rate": "0.03",
+  "reference_year": 2027,
+  "consumption_year": 2027,
+  "remaining": "700.00",
+  "remaining_at_2026_projected": "669.50"
+}

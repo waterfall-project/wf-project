@@ -290,6 +290,81 @@ def test_a_plan_of_the_columns_of_a_task_is_not_applied_once_planning_write_is_w
     assert (counter(tree), tree.items()) == before
 
 
+REMAINING_MISSING = (403, "PERMISSION_MISSING", {"missing_permission": "remaining.write"})
+
+
+@pytest.mark.requirement("WF-ADM-0100-A")
+@pytest.mark.parametrize(
+    "cell",
+    [
+        ("physical_progress", "50", "COMPUTED_VALUE"),
+        ("started_on", "2026-06-01", "FIELD_NOT_ACCEPTED"),
+        ("completed_on", "2026-06-02", "FIELD_NOT_ACCEPTED"),
+    ],
+)
+def test_pasting_the_execution_of_a_task_asks_for_remaining_write_as_set_task_progress_does(
+    stage: Scene, tree: Tree, realm: TestRealm, cell: tuple[str, str, str]
+) -> None:
+    # The progress and the days of execution of a task are written by ``setTaskProgress`` under
+    # ``remaining.write`` (#2805): a paste of one is judged for that permission, not for the
+    # planning's, whose grid does not enter them. Whoever holds ``remaining.write`` alone is
+    # answered cell by cell (these columns are no input of the paste, their cells refused with
+    # their own reason); whoever holds ``planning.write`` or ``estimate.write`` alone is refused
+    # whole by 403, naming ``remaining.write``; nothing is kept.
+    column, text, code = cell
+    task = tree.made("Câblage")
+    before = (counter(tree), tree.items())
+    rows = [[text]]
+    for held in ("planning.write", "estimate.write"):
+        who = contributor(stage, realm, held)
+        assert refusal(pasted(tree, task, column, rows, who)) == REMAINING_MISSING, held
+    for held in (("remaining.write",), ("planning.write", "remaining.write")):
+        who = contributor(stage, realm, *held)
+        answer = pasted(tree, task, column, rows, who)
+        assert answer.status_code == 200, answer.text
+        body = answer.json()
+        assert [(each["column"], each["code"]) for each in body["rejected"]] == [(column, code)]
+        assert body["accepted"] == 0
+    assert (counter(tree), tree.items()) == before
+
+
+@pytest.mark.requirement("WF-ADM-0100-A")
+def test_a_row_that_mixes_the_columns_of_a_task_and_its_execution_asks_for_both_permissions(
+    stage: Scene, tree: Tree, realm: TestRealm
+) -> None:
+    # A block that writes a column of the planning (the duration) and one of the execution (the day
+    # it started on) asks for both permissions (#2805): refused whole to whoever holds one alone,
+    # naming the one it lacks, the planning's first when it holds neither; judged cell by cell to
+    # whoever holds both, the row refused whole for its day. A column of the planning alone
+    # still asks for ``planning.write`` alone, and ``remaining.write`` does not open it.
+    task = tree.made("Câblage")
+    mixed = [["3", "", "", "", "", "", "2026-06-01"]]
+    before = (counter(tree), tree.items())
+    for held, missing in (
+        (("planning.write",), REMAINING_MISSING),
+        (("remaining.write",), PLANNING_MISSING),
+        (("estimate.write",), PLANNING_MISSING),
+    ):
+        who = contributor(stage, realm, *held)
+        assert refusal(pasted(tree, task, "duration", mixed, who)) == missing, held
+    alone = contributor(stage, realm, "remaining.write")
+    assert refusal(pasted(tree, task, "duration", [["3"]], alone)) == PLANNING_MISSING
+    both = contributor(stage, realm, "planning.write", "remaining.write")
+    answer = pasted(tree, task, "duration", mixed, both)
+    assert answer.status_code == 200, answer.text
+    body = answer.json()
+    assert [(each["column"], each["code"]) for each in body["rejected"]] == [
+        ("started_on", "FIELD_NOT_ACCEPTED")
+    ]
+    assert (counter(tree), tree.items()) == before
+    # The row is refused whole for its day, the duration with it; the duration alone is written.
+    assert body["accepted"] == 0
+    plan = pasted(tree, task, "duration", [["3"]], both)
+    assert plan.status_code == 200, plan.text
+    assert apply(tree, plan.json(), both).status_code == 200
+    assert tree.items()[0]["task"]["duration"] == {"value": "3", "unit": "d"}
+
+
 # --- The undoing, under the permission of the write it turns (#2774) -----------------------------
 
 

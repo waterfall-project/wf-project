@@ -416,6 +416,15 @@ def last_marked_revision(session: Session, project_id: UUID) -> UUID | None:
     return _last_marked(session, project_id)
 
 
+def revision_marked_at(session: Session, revision_id: UUID) -> datetime | None:
+    """Give the instant a revision was marked at, none for one not marked (US-1580/L2).
+
+    What the copy of the remaining to commit before the review compares with the passage of its
+    project to In progress (EP-09, "Ce que le cadrage décide").
+    """
+    return session.scalar(select(Revision.marked_at).where(Revision.id == revision_id))
+
+
 def marked_revisions(session: Session, project_id: UUID) -> frozenset[UUID]:
     """Give the marked revisions of a project (WF-CYC-0050)."""
     return frozenset(
@@ -425,6 +434,16 @@ def marked_revisions(session: Session, project_id: UUID) -> frozenset[UUID]:
             )
         )
     )
+
+
+def marked_revisions_at(session: Session, project_id: UUID) -> dict[UUID, datetime]:
+    """Give the instant each marked revision of a project was marked at, in one statement."""
+    rows = session.execute(
+        select(Revision.id, Revision.marked_at).where(
+            Revision.project_id == project_id, Revision.status == "marked"
+        )
+    )
+    return {identifier: at for identifier, at in rows if at is not None}
 
 
 def last_marked_revisions(session: Session, project_ids: Collection[UUID]) -> dict[UUID, UUID]:

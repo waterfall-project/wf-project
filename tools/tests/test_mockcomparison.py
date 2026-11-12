@@ -198,7 +198,7 @@ def test_the_deltas_of_the_witness_by_subproject_sum_to_those_by_nature() -> Non
             entry["budgeted_delta"]
         )
     assert by == {"cost_type": Decimal("602639.50"), "subproject": Decimal("602639.50")}
-    assert _summed(value) == {Decimal("602639.50"), Decimal("602480.50")}
+    assert _summed(value) == {Decimal("602639.50"), Decimal("602480.33")}
     assert "la somme des écarts par sous-projet égale celle par nature" in str(compared["summary"])
 
 
@@ -252,6 +252,7 @@ def test_the_witness_comparison_moves_the_reestimates_only_of_the_lines_the_amen
     # A line that changes its key alone — its subproject, its cost category — changes no amount
     # (#1751): what is tried here is what moves of its amounts.
     lines = [node for node in whole["items"] if node["kind"] == "estimate_line"]
+    tasks = {node["node_id"]: node for node in whole["items"] if node["kind"] == "task"}
     budget_changed = [node for node in lines if "budgeted_amount" in _amounts(node)]
     assert [node["node_id"] for node in budget_changed] == [universe(N.LABOUR)]
     assert _amounts(budget_changed[0]) == ["budgeted_amount", "reestimated_amount"]
@@ -272,8 +273,15 @@ def test_the_witness_comparison_moves_the_reestimates_only_of_the_lines_the_amen
             disbursements += 1
             amount = Decimal(after["base_amount"])
             assert before["base_amount"] == after["base_amount"]
-            assert before["reestimated_amount"] == money(OFFER_PROJECTION(amount, year))
-            assert after["reestimated_amount"] == money(WITNESS(amount, year))
+            # Over the years of its task, by the hours worked in each (WF-DEV-0040): on its year
+            # alone when its task crosses no other.
+            task = tasks[node["parent_id"]]["task"]
+            years = range(int(task["start"]["date"][:4]), int(task["finish"]["date"][:4]) + 1)
+            for facet, projection in ((before, OFFER_PROJECTION), (after, WITNESS)):
+                low, high = projection(amount, years[0]), projection(amount, years[-1])
+                assert low <= Decimal(facet["reestimated_amount"]) <= high
+                if len(years) == 1:
+                    assert facet["reestimated_amount"] == money(projection(amount, year))
             continue
         # A labour line moves because the reference keeps the rates of 2026, the offer those of
         # 2025: its amount at the rates of the reference year says it.
@@ -349,7 +357,7 @@ def test_the_volume_of_the_comparison_is_the_whole_comparison_read_with_the_fiel
     summary = str(volume["summary"])
     assert "5 999 nœuds" in summary
     assert "4 997 modifiés par leurs propres valeurs" in summary
-    assert "852 890,95 et -1 012 313,24 en tout" in summary
+    assert "852 890,95 et -1 013 056,56 en tout" in summary
 
 
 VOLUME_BOUND = 1_500_000

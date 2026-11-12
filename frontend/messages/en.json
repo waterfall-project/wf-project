@@ -328,6 +328,7 @@
       "refusedAt": "Refused at row {number}, “{label}”:",
       "refusedAtRow": "Refused at row {number}:",
       "refusedCreating": "Creation of “{label}” refused:",
+      "toRemaining": "Bring its remaining to commit to zero",
       "onRow": "Row {number}, “{label}”",
       "timelines": "Timelines",
       "milestoneTracking": "Time/time tracking",
@@ -510,6 +511,12 @@
     }
   },
   "remainingGrid": {
+    "completionTitle": "Complete the task",
+    "completionHint": "This entry brings the remaining to commit of the last open line of the task to zero: it completes the task. Give the date of its completion.",
+    "completionDate": "Completion date",
+    "completionRequired": "Give the completion date.",
+    "completionCancel": "Give up the entry",
+    "completionConfirm": "Complete the task",
     "finishOverdue": "Started task past its finish",
     "ownLinesOpen": "Own lines open",
     "showNotStarted": "Show the tasks not started too",
@@ -1522,6 +1529,9 @@
       },
       "ownLinesOpen": {
         "help": "Marks a summary task whose subordinates are all completed and which waits only for its own lines, and those lines, provisions excepted, that still hold a remaining to commit."
+      },
+      "inactiveObject": {
+        "help": "Marks a line that uses a deactivated object of the reference data, still readable."
       },
       "budgetedAmount": {
         "help": "Budgeted amount of the line, as the reference budget froze it."
@@ -2539,7 +2549,7 @@
     "actualCostMapping": {
       "form": "Mapping of the actual cost extraction",
       "summary": "The labels under which the ERP extraction names the columns Waterfall reads, and the columns it keeps for information. A label is compared with the header of the file, and with the other labels, regardless of case, accents and spaces at the ends.",
-      "complete": "The mapping is complete: an actual cost extraction can be imported.",
+      "complete": "The mapping is complete: the import of actual costs is no longer refused for it, and it reads the columns of the extraction under these labels.",
       "missing": "{count, plural, one {Required column without a label} other {Required columns without a label}}: {columns}. The import of actual costs is refused while the mapping is incomplete.",
       "required": "(required)",
       "optional": "(optional)",
@@ -3027,6 +3037,7 @@
     "PROJECT_CODE_INVALID": "The project code cannot contain a slash.",
     "DUPLICATE_COLUMN_LABEL": "This column label is already in the mapping, regardless of case, accents or surrounding spaces: each one names a single column.",
     "DUPLICATE_COST_LINE": "This line shares its document and item, blank item included, with other lines of the file: all of them are rejected, none is preferred. Correct or remove the duplicates in the file.",
+    "DUPLICATE_LINEAGE": "This line carries a line identifier (“ID ligne”) that other lines of the file carry too: all of them are rejected, none is preferred, and the line of the revision is left as it is. Remove or correct the copies in the file.",
     "COMPONENT_UNAVAILABLE": "A component of the service is unavailable.",
     "INTERNAL_ERROR": "Unexpected service error.",
     "ACCOUNT_DEACTIVATED": "This account is deactivated; contact an administrator.",

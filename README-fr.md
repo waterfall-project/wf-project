@@ -15,13 +15,17 @@ pendant des mois, où le budget de référence ne se déplace que par un acte co
 la question « en sommes-nous encore où nous l'avions dit ? » doit trouver sa réponse des
 années après le départ de ceux qui y ont répondu la première fois.
 
-> **État : le socle, la maquette et les comptes sont en place, le produit pas encore.** La
-> spécification et le contrat d'interface viennent d'abord ; le dépôt porte aussi l'outillage et
-> la chaîne par lesquels passe chaque ligne du produit, un front qui montre chaque écran contre
-> un contrat simulé (EP-02), et le back des comptes, de l'authentification et des habilitations
-> (EP-03). Le reste du back vient ensuite, EPIC par EPIC, comme le planifie
-> [`docs/roadmap`](docs/roadmap/README-fr.md), en commençant par le référentiel de l'entreprise
-> (EP-05).
+> **État : le service sert le produit du référentiel aux coûts réels ; les indicateurs, les
+> risques et le portefeuille pas encore.** La spécification et le contrat d'interface, figé en
+> 1.0.0, viennent d'abord ; le dépôt porte aussi l'outillage et la chaîne par lesquels passe chaque
+> ligne du produit, et un front qui montre chaque écran contre un contrat simulé (EP-02). Le
+> service sert les comptes, l'authentification et les habilitations (EP-03), le référentiel de
+> l'entreprise (EP-05), les projets et leurs révisions (EP-04), le planning et l'aller-retour avec
+> MS Project (EP-06), le chiffrage et le devis (EP-07), les coûts réels importés de l'ERP et le
+> reste à engager (EP-09). Les écrans des indicateurs (EP-10), des avenants et des risques (EP-08)
+> et du portefeuille (EP-11) se parcourent encore contre le faux back. Ils viennent ensuite, dans
+> cet ordre, comme le planifie [`docs/roadmap`](docs/roadmap/README-fr.md), avec l'exploitation
+> et la mise en production (EP-13).
 
 ## Ce qui le distingue
 
@@ -67,8 +71,8 @@ elle ne mesure rien.
 | `backend/` | un seul paquet Python : le noyau métier, le service d'API et le worker |
 | `frontend/` | l'application Next.js, son client engendré du contrat, ses parcours de bout en bout |
 | `tools/` | les outils du dépôt : couverture des exigences, contrôle de la roadmap, règles des sources, taille des lots |
-| `fixtures/` | les exemples chiffrés de la spécification, et les données que sert le faux back |
-| `deploy/` | l'empaquetage : les Compose (développement, service, démonstration, production), le chart Helm plus tard |
+| `fixtures/` | les exemples chiffrés de la spécification ; le témoin, les exemples du contrat que sert le faux back et que `make service-witness` charge sur le service (`fixtures/api`) ; le corpus de plannings MS Project contre lequel le calcul des dates est éprouvé (`fixtures/msproject`) |
+| `deploy/` | l'empaquetage : les Compose (développement, service, tests, démonstration, production), l'image de Keycloak et son extension, l'annuaire de test ; le chart Helm viendra avec EP-13 |
 | `.github/workflows/` | la chaîne, exécutée sur chaque pull request |
 | `.claude/agents/` | les agents qui cadrent un EPIC, en livrent les lots, développent et relisent |
 
@@ -117,7 +121,13 @@ make check BASE=origin/epic/EP-nn  # les contrôles de ce que ma modification to
 make check-all            # toutes les familles de contrôles
 make dev                  # le front contre le faux back, sur http://localhost:3000
 make mock                 # le faux back seul, servi depuis les exemples du contrat
+make mock-data            # régénère les volumes et les lectures du témoin que sert le faux back
 make e2e                  # les parcours de bout en bout, dans un navigateur
+make service-up           # la plateforme de service : bases, API, worker, Keycloak, annuaire
+make service-install      # amorce l'installation, et écrit le lien du premier administrateur
+make service-witness      # charge le témoin sur la plateforme de service amorcée
+make e2e-service          # les parcours de bout en bout contre le service réel
+make service-down         # arrête la plateforme de service
 make requirements         # quelles exigences les tests couvrent
 make roadmap              # la roadmap confrontée à la spécification
 make build-doc            # régénère la projection Markdown depuis Word et draw.io
@@ -126,8 +136,9 @@ make generate-client      # régénère le client d'API du front depuis le contr
 
 Prérequis : [uv](https://docs.astral.sh/uv/), qui apporte Python 3.14 pour le back et les outils ;
 un Python 3.14 ou plus sur le `PATH`, sous le nom `python3`, qui construit la projection ; Node 26
-et pnpm (`npm install --global pnpm`, une fois) ; Docker, pour `make dev` ; le client PostgreSQL 18,
-pour les tests des sauvegardes ; `pandoc` 3.13, la version avec laquelle la projection est
+et pnpm (`npm install --global pnpm`, une fois) ; Docker, pour `make dev`, les services des tests
+et la plateforme de service, qui demande aussi ses secrets ; le client PostgreSQL 18, pour les
+tests des sauvegardes ; `pandoc` 3.13, la version avec laquelle la projection est
 engendrée ; `openssl`, pour tirer un autre secret de Garage que celui du workflow ; et, pour valider
 les diagrammes, `mmdc`, installé par npm. [`INSTALL.md`](INSTALL.md) dit où trouver pandoc 3.13 sur
 Ubuntu 26.04, comment installer `mmdc` et quoi poser dans le `~/.bashrc`.
@@ -142,7 +153,7 @@ de tâches, un stockage **compatible S3** pour les fichiers en transit et les sa
 **Helm** pour Kubernetes et **Compose** pour le développement et les petites installations.
 
 Le contrat est écrit à la main et fait foi : le client du front en est engendré, le faux back
-sert ses exemples, et la chaîne rejettera un service dont les réponses s'en écartent.
+sert ses exemples, et la chaîne rejette un service dont les réponses s'en écartent.
 
 ## Contribuer
 

@@ -16,10 +16,11 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { readNodeTotals, setLineRemaining } from "@/api/actions/nodes";
 
+import { CompletionDate } from "./completion-date";
 import { DenseGrid } from "./dense-grid";
 import { OwnLinesOpen } from "./remaining-cells";
 import { nodeDependencies } from "./node-dependencies";
@@ -34,6 +35,7 @@ import {
 import type { GridQuery } from "./query";
 import {
   REMAINING_FIELDS,
+  needsCompletionDate,
   remainingGrid,
   type RemainingNode,
   type RemainingWrites,
@@ -49,6 +51,18 @@ import type { LineCategory } from "./structure-rules";
  * started ones, the not started on demand (WF-RAE-0040) —, which unfolds nothing.
  */
 const SCOPE = ["progress"] as const;
+
+/**
+ * The number of the last date asked, which names the next one (the `key` of its dialog): a counter,
+ * not `crypto.randomUUID()`, which a page served over HTTP outside localhost does not have (#2818).
+ */
+let lastDating = 0;
+
+/** A date asked of the user, which the entry that asked it waits for; `null` gives the entry up. */
+interface Dating {
+  readonly id: number;
+  readonly resolve: (date: string | null) => void;
+}
 
 /** What the grid of the remaining to commit shows. */
 export interface RemainingGridProps {
@@ -93,14 +107,26 @@ function structureWrites(
   structure: StructurePath,
   filters: NodeFilters,
   reach: (version: number) => void,
+  askDate: () => Promise<string | null>,
 ): RemainingWrites {
   return {
     totals: () => readNodeTotals(structure, filters),
     line: async (node, basis) => {
-      const outcome = await setLineRemaining(structure, node.node_id, {
-        reestimated_amount_basis: basis,
-        lock_version: node.lock_version,
-      });
+      const send = (completedOn?: string) =>
+        setLineRemaining(structure, node.node_id, {
+          reestimated_amount_basis: basis,
+          lock_version: node.lock_version,
+          ...(completedOn === undefined ? {} : { completed_on: completedOn }),
+        });
+      let outcome = await send();
+      // The entry completes the task: nothing was written, the date is asked and the entry replayed
+      // from the same version; given up, the refusal is told at the cell (WF-RAE-0040).
+      if (needsCompletionDate(outcome)) {
+        const date = await askDate();
+        if (date !== null) {
+          outcome = await send(date);
+        }
+      }
       if (outcome.kind !== "done") {
         return outcome;
       }
@@ -161,26 +187,61 @@ export function RemainingGrid({
     account,
     choices,
   );
-  const config = useMemo(
-    () => remainingGrid(editable ? structureWrites(structure, filters, reach) : undefined),
-    [editable, structure, filters, reach],
+  // The dates a re-estimation that completes a task asks, one dialog at a time, in the order asked:
+  // the writes of two rows may ask together, and a grid gone gives up the dates asked.
+  const [asking, setAsking] = useState<readonly Dating[]>([]);
+  const askDate = useCallback(
+    () =>
+      new Promise<string | null>((resolve) => {
+        setAsking((before) => [...before, { id: (lastDating += 1), resolve }]);
+      }),
+    [],
   );
-  return (
-    <DenseGrid
-      config={config}
-      rows={nodes.items}
-      totals={nodes.totals}
-      totalsCaption={(totals) =>
-        t("totals", { tasks: totals.task_count, lines: totals.estimate_line_count })
+  // What the grid gone still asks is given up, or its writes would wait for ever.
+  const unanswered = useRef(asking);
+  useEffect(() => {
+    unanswered.current = asking;
+  });
+  useEffect(
+    () => () => {
+      for (const dating of unanswered.current) {
+        dating.resolve(null);
       }
-      query={query}
-      preferences={preferences}
-      dependencies={dependencies}
-      foldScope={structure.revision_id}
-      narrowing={nodeNarrowing(filters, SCOPE)}
-      undoable={editable}
-      commands={gestures}
-      around={(rows, grid) => <OwnLinesOpen rows={rows}>{grid}</OwnLinesOpen>}
-    />
+    },
+    [],
+  );
+  const config = useMemo(
+    () => remainingGrid(editable ? structureWrites(structure, filters, reach, askDate) : undefined),
+    [editable, structure, filters, reach, askDate],
+  );
+  const [first] = asking;
+  return (
+    <>
+      {first === undefined ? null : (
+        <CompletionDate
+          key={first.id}
+          onAnswer={(date) => {
+            setAsking((before) => before.filter((dating) => dating !== first));
+            first.resolve(date);
+          }}
+        />
+      )}
+      <DenseGrid
+        config={config}
+        rows={nodes.items}
+        totals={nodes.totals}
+        totalsCaption={(totals) =>
+          t("totals", { tasks: totals.task_count, lines: totals.estimate_line_count })
+        }
+        query={query}
+        preferences={preferences}
+        dependencies={dependencies}
+        foldScope={structure.revision_id}
+        narrowing={nodeNarrowing(filters, SCOPE)}
+        undoable={editable}
+        commands={gestures}
+        around={(rows, grid) => <OwnLinesOpen rows={rows}>{grid}</OwnLinesOpen>}
+      />
+    </>
   );
 }

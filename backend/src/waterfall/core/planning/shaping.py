@@ -17,13 +17,15 @@ from typing import TYPE_CHECKING
 from sqlalchemy import delete, select
 
 from waterfall.core.planning.interface.facets import facets
+from waterfall.core.planning.interface.open_lines import held_open, zeroed_at
 from waterfall.core.planning.tables import Node, TrackingEntry
 from waterfall.core.planning.tree import LINE, TASK
-from waterfall.core.planning.views import STARTED, state_of
+from waterfall.core.planning.views import COMPLETED, STARTED, State, state_of, states_without
+from waterfall.core.projects.interface import current_day
 from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Mapping
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -70,6 +72,89 @@ def emptied(tree: Tree, parent_id: UUID) -> None:
     task.scheduling_mode = AUTOMATIC
     if task.duration_value == 0 and state.progress == STARTED:
         task.duration_value, task.duration_unit = Decimal(1), "d"
+
+
+def closed_above(tree: Tree, parent_id: UUID | None) -> tuple[UUID, ...]:
+    """Give the tasks, a task and the summaries above it, whose facet keeps a completion.
+
+    A task not completed under ``parent_id`` — created or moved there — makes it and every
+    summary above it not completed: what their facet keeps of the completion — the state and the
+    day the last own line set to nought gave (``own_lines``) — is stale, and a later completion
+    must not read it (WF-PLA-0040, WF-PLA-0130; #2769).
+    """
+    if parent_id is None:
+        return ()
+    return tuple(
+        each
+        for each in (parent_id, *tree.ancestors(parent_id))
+        if tree.tasks[each].progress == COMPLETED
+    )
+
+
+def reopened(tree: Tree, node_ids: Collection[UUID], act: Act) -> None:
+    """Put back to started the tasks whose completion is stale, and clear the day they closed at.
+
+    Written once: a task whose facet keeps no completion any more is left as it is.
+    """
+    for each in node_ids:
+        task = tree.tasks[each]
+        if task.progress == COMPLETED:
+            task.progress, task.completed_on = STARTED, None
+            stamp(tree.nodes[each], act)
+
+
+def closed_again(
+    session: Session,
+    project_id: UUID,
+    tree: Tree,
+    gone: Collection[UUID],
+    receiving: Collection[UUID] = (),
+) -> dict[UUID, State]:
+    """Give the summaries tasks taken away leave completed again, each in the state to keep.
+
+    A summary reopened by a subordinate created or moved under it (``reopened``) lost the day its
+    own lines closed it. That subordinate deleted or moved away (``gone``, a line left out), the
+    others completed and none of its own lines keeping a remaining, it is completed again at the
+    latest of their days and of the zeroing of its lines, read on them (``zeroed_at``; WF-PLA-0130,
+    #2803), and its facet keeps that completion as the entry that closed it did. A summary whose
+    facet keeps its completion, left without subordinate (``emptied``), or ``receiving`` the tasks
+    moved — their new parent and the summaries above it —, is not among them.
+    """
+    left = {each for each in gone if each in tree.tasks}
+    asked = {
+        each: lines
+        for each in {above for node_id in left for above in tree.ancestors(node_id)}
+        if each not in receiving
+        and tree.tasks[each].progress != COMPLETED
+        and (
+            lines := [line for line in tree.lines(each) if tree.nodes[line].origin_risk_id is None]
+        )
+    }
+    if not asked:
+        return {}
+    held = held_open(session, project_id, asked)
+    days = {each: current_day(at) for each, at in zeroed_at(session, project_id, asked).items()}
+    own = {each: (each in held, days.get(each)) for each in asked}
+    states = states_without(tree, left, own)
+    return {
+        each: states[each]
+        for each in tree.ordered(asked)
+        if each in days
+        and states[each].progress == COMPLETED
+        and any(sub not in left for sub in tree.subtasks(each))
+    }
+
+
+def completed_again(tree: Tree, again: Mapping[UUID, State], act: Act) -> None:
+    """Write on their facet the completion of the summaries completed again (``closed_again``)."""
+    for each, state in again.items():
+        task = tree.tasks[each]
+        task.progress, task.started_on, task.completed_on = (
+            COMPLETED,
+            state.started_on,
+            state.completed_on,
+        )
+        stamp(tree.nodes[each], act)
 
 
 def deleted(session: Session, project_id: UUID, tree: Tree, node_ids: list[UUID]) -> None:

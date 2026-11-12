@@ -8,10 +8,10 @@ WF-CRE-0030, WF-CRE-0050); the events of the imports are those of the chronology
 """
 
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from decimal import Decimal
 
-from wftools.mockwitness import COST_IMPORTS, Event, fixture
+from wftools.mockwitness import COST_IMPORTS, RECEPTION_EXCLUDED, Event, fixture
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,7 +130,7 @@ COSTS = (
         "Traiteur Lumière",
         "Réception du client sur site",
         (MARCH, APRIL_AGAIN),
-        (datetime(2026, 4, 6, 9, 15, tzinfo=UTC), "Réception du client, non budgétée"),
+        (RECEPTION_EXCLUDED.instant, "Réception du client, non budgétée"),
     ),
     CostLine(
         0xC06,

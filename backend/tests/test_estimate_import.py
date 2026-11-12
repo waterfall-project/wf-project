@@ -432,27 +432,53 @@ def test_a_line_without_its_task_or_its_role_or_with_too_long_a_label_is_rejecte
 
 
 @pytest.mark.requirement("WF-INTF-0100-A")
-def test_a_line_moved_to_another_task_is_updated_and_a_repeated_lineage_is_a_new_line(
+def test_a_line_moved_to_another_task_is_updated_and_an_unknown_lineage_is_a_new_line(
     api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any]
 ) -> None:
-    # A row copied in Excel keeps the hidden lineage: the first row updates the line, the copy is
-    # created; a lineage the structure does not hold is a new line too.
+    # A lineage the structure does not hold is a new line.
     labour, stuff = as_exported(held, {"Tâche": "2 Essais"})
     unknown = row("2 Essais", held["stuff"], {"Débours unitaire": 5, "ID ligne": "not-a-lineage"})
-    rows = [labour, stuff, list(stuff), unknown]
+    rows = [labour, stuff, unknown]
     report = analysed(api, stage, worker, workbook(rows, held["tasks"]))
     assert [(each["change"], each["fields"]) for each in report["differences"]] == [
         ("updated", ["parent"]),
         ("added", []),
-        ("added", []),
     ]
-    assert (report["read_count"], report["unchanged_count"]) == (4, 1)
+    assert (report["read_count"], report["unchanged_count"]) == (3, 1)
     # From a completed task of the main structure, the line does not move: rejected as its entry.
     set_progress(stage, held["first"]["node_id"], "completed", date(2026, 1, 5))
     report = analysed(api, stage, worker, workbook([labour, stuff], held["tasks"]))
     assert [(each["row"], each["params"]["missing_condition"]) for each in report["rejected"]] == [
         (2, "task_not_completed")
     ]
+
+
+@pytest.mark.requirement("WF-INTF-0100-A")
+def test_a_lineage_that_two_rows_carry_rejects_both_and_leaves_its_line_as_it_is(
+    api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any]
+) -> None:
+    # #2798: a row copied in Excel keeps the hidden lineage; neither row is the line, none is
+    # preferred, and the line of the structure is neither updated nor removed.
+    labour, stuff = as_exported(held)
+    copied = list(stuff)
+    copied[HEADERS.index("Débours unitaire")] = 99
+    report = analysed(api, stage, worker, workbook([labour, stuff, copied], held["tasks"]))
+    assert report["rejected"] == [
+        {
+            "sheet": SHEET,
+            "row": 3,
+            "code": "DUPLICATE_LINEAGE",
+            "params": {"lines": [{"sheet": SHEET, "row": 4}]},
+        },
+        {
+            "sheet": SHEET,
+            "row": 4,
+            "code": "DUPLICATE_LINEAGE",
+            "params": {"lines": [{"sheet": SHEET, "row": 3}]},
+        },
+    ]
+    assert report["differences"] == []
+    assert report["unchanged_count"] == 1
 
 
 @pytest.mark.requirement("WF-INTF-0100-A")

@@ -17,7 +17,9 @@ tasks over the budget of its subtree, is not found here: ``wftools.mockcore`` co
 import functools
 import heapq
 from dataclasses import dataclass, field
-from decimal import Decimal
+from datetime import date
+from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Context, Decimal
+from fractions import Fraction
 from typing import TYPE_CHECKING
 
 from wftools.mockcalendar import (
@@ -32,6 +34,7 @@ from wftools.mockcalendar import (
 )
 from wftools.mocklinks import refuse_through_summaries
 from wftools.mockstructure import (
+    CENT,
     LABOUR_RATES,
     WITNESS,
     JsonObject,
@@ -49,7 +52,6 @@ from wftools.mockwitness import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
-    from datetime import date
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +97,15 @@ class Dated:
         if self.late_finish is None:
             return None
         return self.calendar.work_between(self.finish, self.late_finish) / HOURS_PER_DAY
+
+
+def span_of(placed: Dated, line: Line) -> Span:
+    """Return where the amount of a line is spread: its task's dates, on the calendar of its role.
+
+    The calendar of the task if the line has no role (WF-DEV-0040).
+    """
+    calendar = placed.calendar if line.role is None else role_calendars()[line.role]
+    return Span(calendar, placed.start, placed.finish)
 
 
 def float_of(dated: Mapping[int, Dated], number: int) -> Decimal | None:
@@ -366,6 +377,86 @@ def payment_delay(line: Line) -> int | None:
     return None if line.is_provision else line.payment_delay_days
 
 
+PART_PLACES = 10
+"""The scale of a part of an amount spread over the years, a ten-billionth, as the service keeps."""
+
+EXACT = Context(prec=34, rounding=ROUND_HALF_EVEN)
+"""The context the last part is found in: what the others leave, exact to the places."""
+
+
+def _to_places(share: Fraction) -> Decimal:
+    """Round a fraction to the places of a part once, a half going away from zero."""
+    quotient, rest = divmod(abs(share.numerator) * 10**PART_PLACES, share.denominator)
+    if 2 * rest >= share.denominator:
+        quotient += 1
+    return Decimal(quotient if share >= 0 else -quotient).scaleb(-PART_PLACES)
+
+
+@dataclass(frozen=True, slots=True)
+class Span:
+    """The work of a task on the calendar a line is worked on: where an amount is spread.
+
+    The calendar is that of the role of the line, the task's for a line without one; the amount
+    is shared among the years the task crosses in proportion to the hours worked in each, the
+    last part taking what the others leave (WF-DEV-0040).
+    """
+
+    calendar: Calendar
+    start: Instant
+    finish: Instant
+
+    def years(self, amount: Decimal) -> dict[int, Decimal]:
+        """Share an amount among the years of the task, in the order of the years."""
+        total = self.calendar.work_between(self.start, self.finish)
+        if total == 0:
+            # No hour worked: the whole falls where the task ends (a milestone: where it stands).
+            return {self.finish.day.year: amount}
+        edges: list[Decimal] = []
+        years = range(self.start.day.year, self.finish.day.year + 1)
+        for year in years:
+            first = min(max(Instant(date(year, 1, 1)), self.start), self.finish)
+            edges.append(self.calendar.elapsed(first))
+        edges.append(self.calendar.elapsed(self.finish))
+        hours = [(year, edges[index + 1] - edges[index]) for index, year in enumerate(years)]
+        worked = [(year, each) for year, each in hours if each > 0]
+        parts: dict[int, Decimal] = {}
+        left = amount
+        for year, each in worked[:-1]:
+            share = Fraction(amount) * Fraction(each) / Fraction(total)
+            part = _to_places(share)
+            parts[year] = part
+            left = EXACT.subtract(left, part)
+        parts[worked[-1][0]] = left
+        return parts
+
+    def year(self, amount: Decimal) -> int:
+        """Return the year where the task consumes the most of an amount, the first of a tie."""
+        return max(self.years(amount).items(), key=lambda part: part[1])[0]
+
+    def projected(self, amount: Decimal, projection: Projection) -> Decimal:
+        """Return an amount spread over the years, each part projected, rounded to the cent once."""
+        total = sum(
+            (
+                part * (1 + projection.rate) ** (year - projection.reference_year)
+                for year, part in self.years(amount).items()
+            ),
+            Decimal(0),
+        )
+        return total.quantize(CENT, rounding=ROUND_HALF_UP)
+
+
+def _amounts_of(line: Line, rates: Mapping[str, Decimal]) -> tuple[Decimal, Decimal]:
+    """Return the amount of a line at the rates of the reference year, and its budget."""
+    if line.hours is not None:
+        amount = line.quantity * line.hours * rates[line.category]
+    elif line.unit is not None:
+        amount = line.quantity * line.unit
+    else:
+        message = f"the line {line.number} has neither hours nor a unit disbursement"
+        raise ValueError(message)
+    return amount, amount if line.budgeted is None else line.budgeted
+
+
 def price(
     line: Line,
     year: int,
@@ -386,16 +477,31 @@ def price(
     one its risk computes, the own estimate of the risk bearing its projection already
     (WF-DEV-0030, WF-PRJ-0040). The hourly rates are those of the reference year of the revision
     priced, one for each category: by default, the core's, of 2026 (WF-DEV-0020, WF-REV-0060).
+    ``price_spread`` prices a line over the years of its task.
     """
-    if line.hours is not None:
-        amount = line.quantity * line.hours * rates[line.category]
-    elif line.unit is not None:
-        amount = line.quantity * line.unit
-    else:
-        message = f"the line {line.number} has neither hours nor a unit disbursement"
-        raise ValueError(message)
-    budgeted = amount if line.budgeted is None else line.budgeted
+    amount, budgeted = _amounts_of(line, rates)
     if line.is_provision:
         return Amounts(amount, budgeted, amount)
     on = year if budget_year is None else budget_year
     return Amounts(amount, projection(budgeted, on), projection(amount, year))
+
+
+def price_spread(
+    line: Line,
+    span: Span,
+    rates: Mapping[str, Decimal] = LABOUR_RATES,
+    *,
+    budget_span: Span | None = None,
+    projection: Projection = WITNESS,
+) -> Amounts:
+    """Return the amounts of a line spread over the years of its task (WF-DEV-0040).
+
+    As ``price``, but the amount is shared among the years of ``span`` by the hours worked in each
+    and every part projected on its year, the sum rounded once, as the service does; the budget the
+    same over ``budget_span``, the placement the reference gave the task, the line's by default.
+    """
+    amount, budgeted = _amounts_of(line, rates)
+    if line.is_provision:
+        return Amounts(amount, budgeted, amount)
+    kept = span if budget_span is None else budget_span
+    return Amounts(amount, kept.projected(budgeted, projection), span.projected(amount, projection))

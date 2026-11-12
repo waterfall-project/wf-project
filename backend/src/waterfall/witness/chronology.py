@@ -8,8 +8,9 @@ fills, in the order of their dependencies: the projects and the local accounts o
 contributors, the contributors, the subprojects, the work breakdown, the timelines (EP-06), then
 the revisions and the events of the chronology at the instants it imposes (``Act.at``;
 WF-CYC-0130). The tasks, then the lines, fill each revision between its opening and the next
-event, by the fillers this entry registers (``register_revision_filler``, EP-06, EP-07). Each tells
-whether it wrote, as a slice of the loader does; this entry, whether one of them did.
+event, by the fillers this entry registers (``register_revision_filler``, EP-06, EP-07); the actual
+costs come after them, at the instants of their events (EP-09). Each tells whether it wrote, as a
+slice of the loader does; this entry, whether one of them did.
 
 The chronology of the witness, ``make mock-data`` writes it beside the examples
 (``project_state_transitions.json``, US-0990/L1): this entry reads it first (``timeline``), so that
@@ -50,7 +51,8 @@ SLICES: tuple[tuple[str, Slice], ...] = (
     ("revisions", revisions.load),
 )
 # The tasks of a revision, then its lines, which name them, written once it is opened, before its
-# marking.
+# marking; the actual costs come after them, written by the march of the events at their instants
+# (``witness.costs``, EP-09).
 revisions.register_revision_filler(tasks.fill)
 revisions.register_revision_filler(estimate_lines.fill)
 

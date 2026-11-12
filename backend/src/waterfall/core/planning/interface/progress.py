@@ -14,23 +14,50 @@ the main structure alone, by the rule the commands of a structure state
 (``structure_phase_conditions``, #2494), then those of the revision (``revision_draft``,
 ``no_background_task_running``). A summary is refused by 422 ``SUMMARY_TASK_DERIVED``, naming its
 direct subordinates: its state and its dates are derived from theirs at the reading (``Reading``,
-WF-PLA-0040), never written. A completion is not dated before the start of its task (422
-``VALUE_OUT_OF_RANGE`` on ``/occurred_on``, the start named; WF-PLA-0130, #2495); the day of the
-gesture is the current day by default (``current_day``). A milestone completed carries
-``started_on`` equal to ``completed_on``; reopened, it loses both, the only task that returns to
-not started. ``load_progress`` writes the state of a task of the witness at the instant it
-imposes.
+WF-PLA-0040), never sent. The gestures of a card of the Kanban, and the conditions each lacks, are
+judged by the same rule (``progress_commands``, US-1590/L1). A completion is not dated before the
+start of its task (422 ``VALUE_OUT_OF_RANGE`` on ``/occurred_on``, the start named; WF-PLA-0130,
+#2495); the day of the gesture is the current day by default (``current_day``). A milestone
+completed carries ``started_on`` equal to ``completed_on``; reopened, it loses both, the only task
+that returns to not started. ``load_progress`` writes the state of a task of the witness at the
+instant it imposes.
+
+A task bearing a line besides the provisions is completed by its remaining to commit instead
+(US-1580/L2): ``write_remaining`` frames the re-estimate of a line (``setLineRemaining``), whose
+facet the estimate writes, and completes its task when the last of its open lines is set to nought
+— none of its lines keeps a remaining, the estimate tells (``RemainingChange.keeps_open``) —, in
+the same write, at the date the entry sends (``completed_on``, WF-RAE-0040, WF-PLA-0130). A task
+not started is started and completed that day, a milestone too, which never goes through the
+started state: both carry ``started_on`` equal to ``completed_on`` (WF-RAE-0030); a task started
+keeps its start, which the completion may not precede (422 ``VALUE_OUT_OF_RANGE`` on
+``/completed_on``). Without a date, 422 ``COMPLETION_DATE_REQUIRED`` on ``/completed_on``, the task
+named, and nothing is written. The state of a summary is derived (WF-PLA-0040), its own lines
+included (US-1590/L1): one of them set to nought, the last that held open a summary whose
+subordinates are all completed, completes it at the date sent — kept on its facet, the latest of
+which and of its subordinates' it is completed at (WF-PLA-0130) —, refused as a leaf's is without
+a date or before its start. Reopening or restarting a leaf puts back to started the summaries above
+it that their own line completed, and clears the day they were completed at (``_closed_above``): a
+completion kept on their facet would be stale, and read by the next one (WF-PLA-0130, #2768); the
+history keeps them in the entry of the gesture, which undone completes them again at that day. The
+line is judged before the revision, in the order of its
+``remaining_entry``: ``task_not_completed`` — ``line_not_provision`` is never missing before EP-08
+—, then the phase of the project (``project_in_progress``), then ``revision_draft``,
+``project_not_terminal`` and ``no_background_task_running``.
 """
 
 from contextlib import ExitStack
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, cast
 
 from sqlalchemy import exists, select
 
+from waterfall.core.planning.carrying import bearing
+from waterfall.core.planning.interface.facets import FacetWrite
+from waterfall.core.planning.shaping import stamp
+from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tables import Node, Task
 from waterfall.core.planning.tree import TASK, read_tree
-from waterfall.core.planning.views import COMPLETED, NOT_STARTED, STARTED
+from waterfall.core.planning.views import COMPLETED, NOT_STARTED, STARTED, state_of
 from waterfall.core.planning.writing import (
     NodesWritten,
     Place,
@@ -53,23 +80,58 @@ from waterfall.platform.errors import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
     from datetime import date
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
     from waterfall.core.planning.tree import Tree
+    from waterfall.core.planning.views import TaskView
     from waterfall.platform.audit import Act
 
 SUMMARY_TASK_DERIVED = "SUMMARY_TASK_DERIVED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
-TASK_IS_MILESTONE = "task_is_milestone"
-TASK_WITHOUT_LINES = "task_without_lines"
-TASK_NOT_MILESTONE = "task_not_milestone"
-COMPLETED_MILESTONE = "completed_milestone"
+TASK_NOT_COMPLETED = "task_not_completed"
+COMPLETION_DATE_REQUIRED = "COMPLETION_DATE_REQUIRED"
+COMPLETED_ON = "/completed_on"
 # The command of a structure a gesture on the state of a task is an entry of (WF-RAE-0040).
 EDIT_REMAINING = "edit_remaining"
 STATES = (NOT_STARTED, STARTED, COMPLETED)
+
+# The gestures of a card of the Kanban, in their order (``KanbanCommand``); the state a gesture
+# sends (``TaskProgress``); the conditions a card names (``CommandCondition``): a gesture's own,
+# then those of the entry of the remaining to commit of the main structure (#2714).
+type KanbanCommand = Literal["start", "complete", "reopen", "enter_remaining"]
+type TaskProgress = Literal["not_started", "started", "completed"]
+type GestureCondition = Literal[
+    "task_is_milestone", "task_without_lines", "task_not_milestone", "completed_milestone"
+]
+type KanbanCondition = (
+    GestureCondition
+    | Literal[
+        "is_contributor", "project_in_progress", "revision_draft", "no_background_task_running"
+    ]
+)
+
+
+@dataclass(frozen=True, slots=True)
+class KanbanCommandAvailability:
+    """A gesture of a card, what it lacks and the state it sends (``KanbanCommandAvailability``).
+
+    ``progress`` the state ``setTaskProgress`` receives, none for ``enter_remaining``, which writes
+    nothing. The planning gives a gesture's own conditions (``progress_commands``); the board adds
+    those of the entry of the remaining to commit after them.
+    """
+
+    command: KanbanCommand
+    progress: TaskProgress | None
+    missing_conditions: tuple[KanbanCondition, ...] = ()
+
+    @property
+    def is_available(self) -> bool:
+        """Whether nothing is lacking."""
+        return not self.missing_conditions
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +141,23 @@ class ProgressEntry:
     progress: str
     lock_version: int
     occurred_on: date | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RemainingChange:
+    """A re-estimate of a line: the line, the counter read, what writes it, the date it completes.
+
+    ``apply`` writes the facet of the line, the estimate's (``FacetWrite``); ``keeps_open`` tells,
+    of the lines a task bears, in their order, whether one still holds a remaining to commit — a
+    line besides the provisions whose re-estimated amount is not nought —, read once the facet is
+    written; ``completed_on`` the date of the completion of the task, if the entry completes it.
+    """
+
+    node_id: UUID
+    lock_version: int
+    apply: Callable[[FacetWrite], None]
+    keeps_open: Callable[[Session, UUID, Sequence[UUID]], bool]
+    completed_on: date | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,20 +175,67 @@ def _refuse(missing: str) -> ConflictError:
     return ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": missing})
 
 
+def _lacking(
+    progress: str, target: TaskProgress, *, milestone: bool, bears_lines: bool
+) -> tuple[GestureCondition, ...]:
+    """Name the conditions a gesture to ``target`` lacks on a task, in the order of the card.
+
+    ``progress`` its state, ``bears_lines`` whether it bears a line besides the provisions.
+    """
+    if target == STARTED:
+        return ("task_not_milestone",) if milestone else ()
+    if target == COMPLETED:
+        found: list[GestureCondition] = []
+        if progress == NOT_STARTED and not milestone:
+            found.append("task_is_milestone")
+        if bears_lines:
+            found.append("task_without_lines")
+        return tuple(found)
+    return () if progress == COMPLETED and milestone else ("completed_milestone",)
+
+
+def progress_commands(
+    task: TaskView, *, bears_lines: bool
+) -> tuple[KanbanCommandAvailability, ...]:
+    """Give the gestures of the card of a task, in the order of ``KanbanCommand`` (WF-RAE-0030).
+
+    ``bears_lines`` whether it bears a line besides the provisions (WF-PLA-0050). ``start`` on a
+    task not started that is no milestone; ``complete`` on one not completed, lacking what
+    ``setTaskProgress`` refuses it for; ``reopen`` on one completed, to not started for a milestone
+    and to started for another; ``enter_remaining`` on one not completed that bears a line, the
+    gesture that completes it. Each with the conditions of its own that it lacks, judged as the 409
+    of ``setTaskProgress`` is (``_lacking``), so that the card and the refusal name the same.
+    """
+    progress, milestone = task.progress, task.is_milestone
+
+    def lacking(target: TaskProgress) -> tuple[KanbanCondition, ...]:
+        return _lacking(progress, target, milestone=milestone, bears_lines=bears_lines)
+
+    found: list[KanbanCommandAvailability] = []
+    if progress == NOT_STARTED and not milestone:
+        found.append(KanbanCommandAvailability("start", "started", lacking("started")))
+    if progress != COMPLETED:
+        found.append(KanbanCommandAvailability("complete", "completed", lacking("completed")))
+    else:
+        back: TaskProgress = "not_started" if milestone else "started"
+        found.append(KanbanCommandAvailability("reopen", back, lacking(back)))
+    if progress != COMPLETED and bears_lines:
+        found.append(KanbanCommandAvailability("enter_remaining", None))
+    return tuple(found)
+
+
 def _missing_gesture(tree: Tree, node_id: UUID, target: str) -> str | None:
     """Name the first condition a gesture on a leaf lacks, as the card of the Kanban states it."""
-    task = tree.tasks[node_id]
-    milestone = tree.is_milestone(node_id)
-    if target == STARTED:
-        return TASK_NOT_MILESTONE if milestone else None
-    if target == COMPLETED:
-        if task.progress == NOT_STARTED and not milestone:
-            return TASK_IS_MILESTONE
-        # A provision is written for information (WF-PLA-0050): it holds a task back from nothing.
-        if any(tree.nodes[each].origin_risk_id is None for each in tree.lines(node_id)):
-            return TASK_WITHOUT_LINES
-        return None
-    return None if task.progress == COMPLETED and milestone else COMPLETED_MILESTONE
+    # A provision is written for information (WF-PLA-0050): it holds a task back from nothing.
+    bears = any(tree.nodes[each].origin_risk_id is None for each in tree.lines(node_id))
+    # ``ProgressEntry.progress`` is the contract's ``TaskProgress``, validated at the edge.
+    found = _lacking(
+        tree.tasks[node_id].progress,
+        cast("TaskProgress", target),
+        milestone=tree.is_milestone(node_id),
+        bears_lines=bears,
+    )
+    return found[0] if found else None
 
 
 def _judge(
@@ -145,17 +271,27 @@ def _judge(
         raise _refuse(phase[0])
 
 
-def _dated(tree: Tree, node_id: UUID, target: str, day: date) -> None:
+def _not_before_start(task: Task, day: date, pointer: str) -> None:
     """Refuse a completion dated before the start of its task, the start named (WF-PLA-0130).
 
     A task completed without having been started takes its completion for its start, and one
-    completed already is left as it is: only a task started has a start to precede (#2495).
+    completed already is left as it is: only a task started has a start to precede (#2495). The
+    refusal (422) designates the field of the date, ``pointer``.
     """
-    task = tree.tasks[node_id]
-    started = task.started_on
-    if target == COMPLETED and task.progress == STARTED and started is not None and day < started:
-        fault = FieldError("/occurred_on", VALUE_OUT_OF_RANGE, {"minimum": started.isoformat()})
+    _not_before(task.started_on if task.progress == STARTED else None, day, pointer)
+
+
+def _not_before(started: date | None, day: date, pointer: str) -> None:
+    """Refuse a completion dated before a start, the start named (422 on ``pointer``)."""
+    if started is not None and day < started:
+        fault = FieldError(pointer, VALUE_OUT_OF_RANGE, {"minimum": started.isoformat()})
         raise UnprocessableError(VALIDATION_FAILED, fields=(fault,))
+
+
+def _dated(tree: Tree, node_id: UUID, target: str, day: date) -> None:
+    """Refuse a completion dated before the start of its task (``/occurred_on``, WF-PLA-0130)."""
+    if target == COMPLETED:
+        _not_before_start(tree.tasks[node_id], day, "/occurred_on")
 
 
 def _apply(task: Task, *, milestone: bool, target: str, day: date) -> None:
@@ -209,20 +345,170 @@ def set_task_progress(
         act = writer.act
         day = entry.occurred_on or current_day(act.at)
         _dated(tree, node_id, entry.progress, day)
-        write.before((node_id,))
+        reopened = _closed_above(tree, node_id) if entry.progress != COMPLETED else ()
+        kept = (node_id, *reopened)
+        write.before(kept)
         _apply(
             tree.tasks[node_id],
             milestone=tree.is_milestone(node_id),
             target=entry.progress,
             day=day,
         )
+        for each in reopened:
+            tree.tasks[each].progress, tree.tasks[each].completed_on = STARTED, None
+            stamp(tree.nodes[each], act)
         node = tree.nodes[node_id]
         node.lock_version += 1
         node.updated_at = act.at
         node.updated_by = act.author
         redated = write.redate((node_id, tree.tasks[node_id].label))
-        write.after((node_id,))
+        write.after(kept)
         return redated.written((node_id,))
+
+
+def _closed_above(tree: Tree, node_id: UUID) -> tuple[UUID, ...]:
+    """Give the summaries above a completed task that a reopening of it reopens.
+
+    Their facet keeps the state and the day the last line set to nought gave (``_close``); a
+    subordinate reopened makes both stale, and a later completion must not read the old day.
+    """
+    if tree.tasks[node_id].progress != COMPLETED:
+        return ()
+    return tuple(each for each in tree.ancestors(node_id) if tree.tasks[each].progress == COMPLETED)
+
+
+def _bearer_of(tree: Tree, node_id: UUID) -> UUID:
+    """Give the task that bears a line of the structure; refuse a node that is none (404)."""
+    node = tree.nodes.get(node_id)
+    if node is None or node_id in tree.tasks or node.parent_id is None:
+        raise NotFoundError(NOT_FOUND)
+    return node.parent_id
+
+
+def _judge_entry(session: Session, where: tuple[Place, bool], tree: Tree, task_id: UUID) -> None:
+    """Refuse a re-estimate the line, then the phase of its project, forbid; the first named.
+
+    The lines of a completed task of the main structure are not re-estimated
+    (``task_not_completed``, WF-RAE-0040); a provision line never is (``line_not_provision``), none
+    before EP-08. Then the rule of ``edit_remaining``: the project in progress, on the main
+    structure. A terminal project is left to the judgement of its revision
+    (``project_not_terminal``).
+    """
+    place, main = where
+    if main and state_of(tree, task_id).progress == COMPLETED:
+        raise _refuse(TASK_NOT_COMPLETED)
+    state = project_facts(session, place.project_id).state
+    if state in TERMINAL:
+        return
+    phase = structure_phase_conditions(EDIT_REMAINING, state, main=main)
+    if phase:
+        raise _refuse(phase[0])
+
+
+def _complete(tree: Tree, task_id: UUID, day: date | None, act: Act) -> bool:
+    """Complete a leaf whose last open line is set to nought, on the day sent; or refuse (422).
+
+    Not started, it is started and completed that day, a milestone without going through the
+    started state (WF-RAE-0030); started, it keeps its start, which the day may not precede
+    (``_not_before_start``). A leaf completed already, as on a differential structure where the
+    lines of a completed task are still re-estimated, asks for no date and is left as it is
+    (WF-RAE-0040): none is written, and the answer is false.
+    """
+    task = tree.tasks[task_id]
+    if task.progress == COMPLETED:
+        return False
+    day = _required(task_id, day)
+    _not_before_start(task, day, COMPLETED_ON)
+    _apply(task, milestone=tree.is_milestone(task_id), target=COMPLETED, day=day)
+    stamp(tree.nodes[task_id], act)
+    return True
+
+
+def _required(task_id: UUID, day: date | None) -> date:
+    """Give the date of a completion by the remaining to commit; refuse one not sent (422)."""
+    if day is None:
+        named = {"task_node_id": str(task_id)}
+        fault = FieldError(COMPLETED_ON, COMPLETION_DATE_REQUIRED, named)
+        raise UnprocessableError(VALIDATION_FAILED, fields=(fault,))
+    return day
+
+
+def _close(tree: Tree, task_id: UUID, day: date | None, act: Act) -> bool:
+    """Complete a summary whose last open own line is set to nought, on the day sent (0040).
+
+    Only once its subordinates are all completed, their own lines included: before, the line set
+    to nought completes nothing, and asks for no date. Started — an own line held it open —, it is
+    completed on the day sent, refused without one or before its start, the first of its
+    subordinates' (422); the day is kept on its facet, the latest of which and of its
+    subordinates' completions it is completed at (``own_lines``, WF-PLA-0130). Completed already, as
+    on a differential structure, it is left as it is: the answer is false.
+    """
+    below = [state_of(tree, each) for each in tree.subtasks(task_id)]
+    if not all(each.progress == COMPLETED for each in below):
+        return False
+    state = state_of(tree, task_id)
+    if state.progress == COMPLETED:
+        return False
+    day = _required(task_id, day)
+    _not_before(state.started_on, day, COMPLETED_ON)
+    task = tree.tasks[task_id]
+    task.progress, task.started_on, task.completed_on = COMPLETED, state.started_on, day
+    stamp(tree.nodes[task_id], act)
+    return True
+
+
+def write_remaining(
+    session: Session, place: Place, change: RemainingChange, writer: Writer
+) -> NodesWritten:
+    """Re-estimate a line at the counter read, and complete its task by it; the nodes written.
+
+    The completion of a task by its remaining to commit (``setLineRemaining``, US-1580/L2), which
+    the estimate calls with what writes the facet of the line. Under the lock of the structure: the
+    line is no line of the structure (404), the counter read is not its own (412), then its entry
+    lacks a condition (409, ``_judge_entry``). The facet is written, refusing what it does not
+    accept (422); then, when none of the lines of a task keeps a remaining to commit, the task is
+    completed in the same write — a leaf (``_complete``), a summary whose subordinates are all
+    completed (``_close``) —: the line and the task written, and both kept by
+    the entry of the history, the task only when it is completed. When the revision itself refuses
+    the write, the entry is judged on the tree as it is first, as a gesture is. The structure is
+    replayed, its lines priced again.
+    """
+    node_id = change.node_id
+    stack = ExitStack()
+    try:
+        write = stack.enter_context(writing(session, place, writer, ("remaining", (node_id,))))
+    except ConflictError:
+        main = facts_of(session, place, lock=False).is_main
+        tree = read_tree(session, place.project_id, place.structure_id)
+        _judge_entry(session, (place, main), tree, _bearer_of(tree, node_id))
+        raise
+    with stack:
+        tree, act = write.tree, writer.act
+        task_id = _bearer_of(tree, node_id)
+        node = tree.nodes[node_id]
+        if node.lock_version != change.lock_version:
+            raise PreconditionFailedError(
+                STALE_LOCK_VERSION, {"expected_lock_version": node.lock_version}
+            )
+        main = write.facts.is_main
+        _judge_entry(session, (place, main), tree, task_id)
+        before = taken(session, place.project_id, (node_id, task_id))
+        bearer = bearing(session, place.project_id, tree, task_id, is_main=main)
+        change.apply(FacetWrite(session, place.project_id, place.revision_id, node_id, bearer, act))
+        stamp(node, act)
+        written: tuple[UUID, ...] = (node_id,)
+        closes = not change.keeps_open(session, place.project_id, tree.lines(task_id))
+        completes = _close if tree.is_summary(task_id) else _complete
+        if closes and completes(tree, task_id, change.completed_on, act):
+            written = (node_id, task_id)
+        # The task enters the entry of the history only when it is written: kept unchanged, it
+        # would refuse the undoing of the line after another write of the task (UNDO_CONFLICT).
+        write.touched.update(written)
+        write.frame.keep_before(tuple(state for state in before if state.object_id in written))
+        write.name(written)
+        redated = write.redate((task_id, tree.tasks[task_id].label), None, (task_id,))
+        write.after(written)
+        return redated.written(written)
 
 
 def load_progress(session: Session, project_id: UUID, load: ProgressLoad, act: Act) -> None:

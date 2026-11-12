@@ -227,8 +227,8 @@ def test_the_estimate_today_sums_the_lines_of_the_whole_structure(today: dict[st
     whole: Any = mockcore.whole(mockcore.current())["totals"]
     core: Any = mockcore.whole(mockcore.alone())["totals"]
     total = _amount(estimate["total"])
-    assert total == Decimal(whole["reestimated_amount"]) == Decimal("68923691.77")
-    assert Decimal(core["reestimated_amount"]) == Decimal("621034.56")
+    assert total == Decimal(whole["reestimated_amount"]) == Decimal("68950649.05")
+    assert Decimal(core["reestimated_amount"]) == Decimal("621052.56")
     for parts in (estimate["by_cost_type"], estimate["by_subproject"]):
         assert sum(_amount(part["amount"]) for part in parts) == total
         assert sum(_amount(part["share"]) for part in parts) == 1
@@ -387,7 +387,7 @@ def test_the_remaining_counts_each_line_by_the_state_of_its_task(today: dict[str
         "started": Decimal("416710.83"),
         "provision": Decimal("500000.00"),
         "merged": Decimal("200.00"),
-        "not_started": Decimal("66553222.86"),
+        "not_started": Decimal("66580180.14"),
     }
     # The core alone counts as it did before the structure was summed (EP-02/L24).
     core = mockindicators.today(CORE)
@@ -421,7 +421,7 @@ def test_the_balances_sum_to_the_project_and_signal_a_scope_by_the_sign_of_its_m
     # WF-RAE-0010, #1628).
     assert (balances[CONTROL]["actual_cost"], balances[CONTROL]["variance"]) == (
         "2400.00",
-        "632737.10",
+        "632968.59",
     )
     assert [entry["zone"] for entry in balances.values()] == ["nominal"] * 3
     assert Decimal(balances[TESTS]["actual_cost"]) == sum(
@@ -451,14 +451,14 @@ def test_the_variant_over_budget_signals_the_scope_its_worsened_risk_overruns_th
         assert balances[key] == witness[key]
     outside = balances["unassigned"]
     assert Decimal(outside["remaining"]) - Decimal(witness["unassigned"]["remaining"]) == 250000
-    assert (witness["unassigned"]["variance"], outside["variance"]) == ("161110.91", "-88889.09")
+    assert (witness["unassigned"]["variance"], outside["variance"]) == ("161305.32", "-88694.68")
     assert over["coverage"]["remaining_provisions"] == "750000.00"
     assert Decimal(over["total"]) == Decimal(today["remaining_indicators"]["total"]) + 250000
     # Declared a counterfactual, and saying the overrun it signals.
     summary = str(examples["remaining_indicators_over_budget.json"]["summary"])
     assert summary.startswith("Variante contrefactuelle : ")
     assert "60 % au lieu de 40 %" in summary
-    overrun = mocktext.amount(Decimal("88889.09"))
+    overrun = mocktext.amount(Decimal("88694.68"))
     assert f"l'ensemble hors sous-projet, en alerte, dépasse son budget de {overrun}" in summary
 
 
@@ -514,7 +514,7 @@ def test_the_indicators_of_the_scopes_sum_to_those_of_the_project() -> None:
     # own; the occurrence earns nothing. The actual cost is the invoices of the tracked scope.
     assert project["earned_value"] == "1493354.19"
     assert project["actual_cost"] == "1412970.20"
-    assert project["reference_budget"] == "70288695.96"
+    assert project["reference_budget"] == "70316396.56"
     drawn = sum(
         line.amounts.budgeted
         for line in witness.lines
@@ -540,11 +540,11 @@ def test_the_marked_reference_keeps_its_indicators_at_its_marking(today: dict[st
     reestimated = sum(line.amounts.reestimated for line in mockindicators.budgeted(base))
     reserve = mockhistory.reserve(mockhistory.reference_rows())
     assert reserve == Decimal("850060.00")
-    assert Decimal(marked["remaining"]) == reestimated + reserve == Decimal("69273551.77")
+    assert Decimal(marked["remaining"]) == reestimated + reserve == Decimal("69300509.05")
     # Under the budget: the lines keep the budget of the offer, projected from 2025, and count
     # the rates of 2026 projected from 2026 (#1628).
     assert Decimal(marked["remaining"]) < Decimal(marked["reference_budget"]) + reserve
-    assert marked["reference_budget"] == "70288695.96"
+    assert marked["reference_budget"] == "70316396.56"
     assert marked["schedule_index"]["value"]["reason"] == "no_planned_value"
 
 
@@ -561,7 +561,7 @@ def test_the_marks_the_review_journey_reads(today: dict[str, Any]) -> None:
         project["schedule_variance"],
         project["schedule_index"]["value"]["value"],
         project["cost_index"]["value"]["value"],
-    ) == ("67470133.69", "70288695.96", "1721585.56", "-228231.37", "0.8674", "1.0569")
+    ) == ("67497090.97", "70316396.56", "1721585.56", "-228231.37", "0.8674", "1.0569")
     assert (project["schedule_index"]["zone"], project["cost_index"]["zone"]) == (
         "watch",
         "nominal",
@@ -600,7 +600,7 @@ def test_an_amendment_steps_the_budget_by_two_points_at_its_date(today: dict[str
     # The amendment 1, and the counterfactual one, which budgets the studies at their amount of
     # 2026, 115,000, in place of the 103,000 the offer fixed (#1628).
     assert [step["amount"] for step in curve["steps"]] == ["2830.95", "12000.00"]
-    assert budget[-1]["amount"] == "70300695.96"
+    assert budget[-1]["amount"] == "70328396.56"
 
 
 def test_the_amendment_of_the_curve_is_another_than_the_amendment_2_of_the_witness(

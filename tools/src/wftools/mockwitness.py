@@ -135,6 +135,10 @@ COST_IMPORTS = tuple(
         (date(2026, 6, 3), time(8, 30)),
     )
 )
+RECEPTION_EXCLUDED = Event(date(2026, 4, 6), "Exclusion de la réception du client", time(9, 15))
+"""The line of the reception of the customer, imported on 3 April, is excluded from the tracked
+scope three days later (WF-CRE-0030): the event of the exclusion, which the loader of the costs
+writes (EP-09, « Le chargeur du témoin »)."""
 PLANNING_IMPORT_ABANDONED = Event(date(2026, 5, 20), "Import de planning, abandonné")
 APRIL_EXTRACTION_REPLAYED = Event(
     date(2026, 6, 2), "Extraction d'avril rejouée et analysée ; expirée le lendemain", time(9, 1)
@@ -161,6 +165,7 @@ CHRONOLOGY = tuple(
             RISK_752_OCCURRED,
             STUDIES_STARTED,
             *COST_IMPORTS,
+            RECEPTION_EXCLUDED,
             PLANNING_IMPORT_ABANDONED,
             ESTIMATE_IMPORT_ANALYSED,
             APRIL_EXTRACTION_REPLAYED,
@@ -296,6 +301,8 @@ class Line:
     knew, counted to the reserve, never to the budget (WF-RIS-0050); the offer's for a line the
     amendment 1 did not designate (#467). Its payment delay, nought unless said (WF-IND-0100).
     ``origin_risk``, the risk whose occurrence merged it (`Node.origin_risk_id`, #1761).
+    ``reason``, the reason sent with its last re-estimate (`EstimateLineFacet.remaining_reason`,
+    #2420), none unless said.
     """
 
     number: int
@@ -310,6 +317,7 @@ class Line:
     payment_delay_days: int = 0
     quantity: Decimal = Decimal(1)
     origin_risk: int | None = None
+    reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
