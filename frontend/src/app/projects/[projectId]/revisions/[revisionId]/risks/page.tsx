@@ -56,7 +56,7 @@ import {
   universalDay,
   ZONES,
 } from "@/components/risks/address";
-import { RiskColumnFilters } from "@/components/risks/risk-filters";
+import { RiskFilterPanel } from "@/components/risks/risk-filters";
 import { FiguresGrid } from "@/components/figures-card";
 import { ProvisionSummary } from "@/components/risks/provision-totals";
 import { RiskCoverageSummary } from "@/components/risks/risk-coverage";
@@ -73,7 +73,6 @@ import {
 import { ProjectRiskMatrix } from "@/components/risks/risk-bubble-chart";
 import type { RiskMatrix } from "@/components/risks/risk-matrix";
 import { RisksGrid } from "@/components/risks/risks-grid";
-import { RiskStateFilter } from "@/components/risks/state-filter";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { MockupNotice } from "@/components/shell/mockup-notice";
@@ -241,18 +240,38 @@ function RisksBlock({
   query,
   preferences,
   originGrid,
+  states,
+  filters,
+  panel,
 }: {
   readonly risks: RisksRead;
   readonly query: GridQuery<RiskSortColumn>;
   readonly preferences: GridPreferences | undefined;
   readonly originGrid: string | undefined;
+  readonly states: readonly RiskState[];
+  readonly filters: RiskFilters;
+  /** The filters, in the bar of the grid, or above the sentence that stands for it. */
+  readonly panel: ReactNode;
 }) {
   if (risks.kind === "refused") {
-    return <FiltersRefused />;
+    return (
+      <>
+        {panel}
+        <FiltersRefused />
+      </>
+    );
   }
   return (
     <>
-      <RisksGrid risks={risks} query={query} preferences={preferences} originGrid={originGrid} />
+      <RisksGrid
+        risks={risks}
+        query={query}
+        preferences={preferences}
+        originGrid={originGrid}
+        states={states}
+        filters={filters}
+        panel={panel}
+      />
       <ListPages
         list={RISKS_LIST}
         texts="risks.pages"
@@ -391,13 +410,6 @@ export default async function RisksPage({
               {risks.kind === "read" ? <ProvisionSummary totals={risks.totals} /> : null}
               <RiskCoverageSummary coverage={coverage} context={coverage.context} />
             </FiguresGrid>
-            <RiskColumnFilters
-              filters={filters}
-              fields={refusedFields(risks)}
-              lastMarkedOn={marked}
-            >
-              <RiskStateFilter states={states} />
-            </RiskColumnFilters>
           </div>
           <RiskMatrixSection
             reading={read}
@@ -416,6 +428,16 @@ export default async function RisksPage({
                 query={query}
                 preferences={preferences}
                 originGrid={occurredGrid}
+                states={states}
+                filters={filters}
+                panel={
+                  <RiskFilterPanel
+                    states={states}
+                    filters={filters}
+                    fields={refusedFields(risks)}
+                    lastMarkedOn={marked}
+                  />
+                }
               />
             </div>
             {detail === undefined ? null : (

@@ -532,6 +532,7 @@
     "filters": {
       "toggle": "Filtres des colonnes",
       "zone": "Filtrer par zone",
+      "zoneChip": "Zone de la matrice",
       "everyZone": "Toutes les zones",
       "probabilityBounds": "Bornes de la probabilité, de 0 à 1",
       "amountBounds": "Bornes des montants",

@@ -532,6 +532,7 @@
     "filters": {
       "toggle": "Column filters",
       "zone": "Filter by zone",
+      "zoneChip": "Matrix zone",
       "everyZone": "Every zone",
       "probabilityBounds": "Bounds of the probability, from 0 to 1",
       "amountBounds": "Bounds of the amounts",
