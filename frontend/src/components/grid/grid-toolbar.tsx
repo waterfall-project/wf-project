@@ -45,6 +45,18 @@ import { configColumn, type GridTable } from "./grid-table";
 import { type GridAddress, SEARCH_LENGTH } from "./query";
 import { UndoCommands, type UndoControl } from "./undo-commands";
 
+/**
+ * The classes of the line of a bar that is not folded: it is never narrower than what it needs on
+ * one line; with the filters of a tree it keeps the width of its frame instead, its controls giving
+ * up their width down to their floor, and it scrolls sideways when even that does not hold; the
+ * padding and the negative margin leave the focus ring of a button room without taller bar.
+ */
+function barClass(scrolling: boolean): string {
+  return scrolling
+    ? "-my-0.5 flex max-w-full items-center gap-2 overflow-x-auto py-0.5"
+    : "flex min-w-min max-w-full items-center gap-2";
+}
+
 /** Nothing to do, for a panel that cannot be opened. */
 function noop(): void {
   return undefined;
@@ -287,7 +299,7 @@ export function GridToolbar({
       data-grid-toolbar=""
       inert={covered}
       className={cn(
-        folded ? "flex w-full items-center gap-2" : "flex min-w-min max-w-full items-center gap-2",
+        folded ? "flex w-full items-center gap-2" : barClass(treeFilters !== undefined),
         covered ? "invisible" : null,
       )}
       style={folded ? undefined : sized}

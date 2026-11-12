@@ -455,7 +455,7 @@ describe("« Écarts seulement » on the grid of the planning [WF-REV-0100-A] [W
   const ALL = "added,removed,modified";
   /** The button the page offers, from its tag to its name; none when it does not. */
   const BUTTON =
-    /<button[^>]*aria-pressed="(true|false)"[^>]*>(?:(?!<\/button>).)*Differences only<\/button>/;
+    /<button[^>]*aria-pressed="(true|false)"[^>]*>(?:(?!<\/button>).)*Differences only(?:<\/span>)?<\/button>/;
   const chips = (page: string) =>
     /<ul aria-label="Active filters"(?:(?!<\/ul>).)*<\/ul>/.exec(page)?.[0] ?? "";
 

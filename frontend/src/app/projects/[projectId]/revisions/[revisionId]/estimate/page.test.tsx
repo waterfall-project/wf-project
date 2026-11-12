@@ -328,7 +328,7 @@ describe("« Écarts seulement » on the grid of the estimate [WF-REV-0100-A]", 
   const RISK = "01926f3a-7c00-7000-8000-000000000204";
   const ALL = "added,removed,modified";
   const BUTTON =
-    /<button[^>]*aria-pressed="(true|false)"[^>]*>(?:(?!<\/button>).)*Differences only<\/button>/;
+    /<button[^>]*aria-pressed="(true|false)"[^>]*>(?:(?!<\/button>).)*Differences only(?:<\/span>)?<\/button>/;
 
   it("passes the differences to the server on a differential, presses the button and says in the banner it restricts the grid alone", async () => {
     const page = await estimatePage("me", { structure: AMENDMENT, difference: ALL });

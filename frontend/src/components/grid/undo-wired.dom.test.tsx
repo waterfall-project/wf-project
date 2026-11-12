@@ -21,6 +21,7 @@ import { holdReading, Reading, releaseReading } from "@/test/held-reading";
 
 import type { NodeList, NodeSortColumn } from "./nodes";
 import { PLANNING_GRID } from "./planning";
+import { DifferencesOnly } from "./differences-only";
 import { PlanningGrid } from "./planning-grid";
 import type { GridQuery } from "./query";
 
@@ -91,6 +92,7 @@ function grid(locale: "fr" | "en" = "fr", structure = STRUCTURE) {
         preferences={PREFERENCES}
         undoable
         editable
+        treeFilters={<DifferencesOnly filter={undefined} />}
       />
     </NextIntlClientProvider>
   );
@@ -231,6 +233,19 @@ describe("undo and redo of the grid of the planning, wired on the server's histo
     // The refusal is dismissed, and told no more.
     await userEvent.click(within(alert).getByRole("button"));
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("takes Ctrl+Z on a filter of the bar as on any button of the bar: it undoes the grid, and the press of the filter is not undone (#2916)", async () => {
+    const client = serve({ [UNDO]: refused("undo_history_empty") });
+    render(grid());
+    const only = screen.getByRole("button", { name: "Écarts seulement" });
+    await act(async () => {
+      only.focus();
+      await Promise.resolve();
+    });
+    await userEvent.keyboard("{Control>}z{/Control}");
+    await screen.findByRole("alert");
+    expect(sent(client, UNDO)).toHaveLength(1);
   });
 
   it("tells a token that carries no session of sign-in, for which nothing can be undone [WF-IHM-0110-A]", async () => {

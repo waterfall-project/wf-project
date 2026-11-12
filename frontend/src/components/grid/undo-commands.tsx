@@ -239,7 +239,8 @@ export function UndoCommands({ control }: { readonly control?: UndoControl | und
       {control === undefined ? (
         <p
           id={reason}
-          className="min-w-0 shrink basis-56 truncate contain-inline-size text-xs text-muted-foreground"
+          title={t("unavailable")}
+          className="min-w-0 shrink basis-56 truncate text-xs text-muted-foreground"
         >
           {t("unavailable")}
         </p>

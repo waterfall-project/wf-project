@@ -45,13 +45,13 @@ afterEach(() => {
 });
 
 describe("the filters of the estimate, of the planning and of the remaining, in the bar of the grid [WF-IHM-0130-A] [WF-PLA-0080-A] (#2916)", () => {
-  it("adds nothing to the bar when the grid offers no filter", () => {
-    const { container } = bar();
-    const toolbar = container.querySelector("[data-grid-toolbar]");
-    expect(toolbar).not.toBeNull();
-    expect(within(container).queryByRole("group")).toBeNull();
-    expect(screen.queryByRole("button", { name: /Differences only/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /Work package or order item/ })).toBeNull();
+  it("renders nothing when the grid offers no filter, so that the bar keeps its line", () => {
+    const { container } = render(
+      <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">
+        <TreeFilters />
+      </NextIntlClientProvider>,
+    );
+    expect(container).toBeEmptyDOMElement();
   });
 
   it("puts the menus and the toggle in the one line of the bar, each named", () => {

@@ -4,7 +4,7 @@
  * The filters of the grids of the structure — the estimate, the planning, the remaining to commit:
  * a lot or a post of the work breakdown, « Écarts seulement » on a differential, a risk occurred.
  * A server component that renders them as compact controls for the bar of the grid
- * (`GridToolbar.barFilters`, #2916/L6, WF-IHM-0130, WF-PLA-0080), and nothing when the screen offers
+ * (`GridToolbar.treeFilters`, #2916/L6, WF-IHM-0130, WF-PLA-0080), and nothing when the screen offers
  * none: the bar keeps its one line.
  */
 import type { BreakdownChoices } from "./breakdown-filter";
@@ -31,7 +31,7 @@ export function TreeFilters({ breakdown, difference, differential, origin }: Tre
   return (
     <>
       {breakdown === undefined ? null : <BreakdownFilterChoice choices={breakdown} />}
-      <DifferencesOnly filter={difference} offered={differential === true} compact />
+      <DifferencesOnly filter={difference} offered={differential === true} />
       {origin === undefined ? null : <OriginFilterChoice choices={origin} />}
     </>
   );

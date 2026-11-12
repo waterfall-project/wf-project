@@ -17,6 +17,7 @@ import { Circle, CircleCheck } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useOptimistic, useTransition } from "react";
 
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { Button } from "@/components/ui/button";
 
 import { differencesOnlyHref } from "./difference-filter";
@@ -25,15 +26,15 @@ import { usePendingAddress } from "./pending-address";
 /** Render the button that retains the differences alone, pressed when the address does. */
 export function DifferenceFilterToggle({
   label,
+  help,
   pressed,
-  compact = false,
 }: {
   /** What the button says: « Écarts seulement ». */
   readonly label: string;
+  /** What the button does, said in its tooltip. */
+  readonly help: string;
   /** Whether the address retains every difference. */
   readonly pressed: boolean;
-  /** For the bar of a grid (#2916/L6): on the height of its buttons. */
-  readonly compact?: boolean;
 }) {
   const pathname = usePathname();
   const { request } = usePendingAddress();
@@ -41,22 +42,24 @@ export function DifferenceFilterToggle({
   const [, startTransition] = useTransition();
   const Icon = shown ? CircleCheck : Circle;
   return (
-    <div className={compact ? "min-w-0 shrink basis-36 contain-inline-size" : "flex items-center"}>
-      <Button
-        size="sm"
-        variant={shown ? "default" : "outline"}
-        aria-pressed={shown}
-        className={compact ? "h-7 w-full text-xs" : undefined}
-        onClick={() => {
-          startTransition(() => {
-            show(!shown);
-            request((query) => differencesOnlyHref(pathname, query, !shown));
-          });
-        }}
-      >
-        <Icon aria-hidden="true" className={compact ? "size-3.5" : "size-4"} />
-        {label}
-      </Button>
+    <div className="flex min-w-24 shrink basis-36 items-center">
+      <CommandTooltip label={label} help={help}>
+        <Button
+          size="sm"
+          variant={shown ? "default" : "outline"}
+          aria-pressed={shown}
+          className="h-7 min-w-0 flex-1 gap-1 text-xs"
+          onClick={() => {
+            startTransition(() => {
+              show(!shown);
+              request((query) => differencesOnlyHref(pathname, query, !shown));
+            });
+          }}
+        >
+          <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+          <span className="truncate">{label}</span>
+        </Button>
+      </CommandTooltip>
     </div>
   );
 }
