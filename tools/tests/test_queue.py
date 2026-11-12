@@ -334,7 +334,7 @@ def test_gh_is_asked_for_the_merge_group_runs_of_the_chain_the_jobs_and_a_log() 
                 "event=merge_group&per_page=100&page=2&created=>=2026-11-05"
             ),
         ],
-        ["api", "repos/{owner}/{repo}/actions/runs/9/jobs?per_page=100"],
+        ["api", "repos/{owner}/{repo}/actions/runs/9/jobs?per_page=100&page=1"],
         ["api", "--allow-escape-sequences", "repos/{owner}/{repo}/actions/jobs/5/logs"],
     ]
 
@@ -461,11 +461,29 @@ def test_the_jobs_of_a_run_are_read_page_by_page() -> None:
 
     def call(arguments: list[str]) -> str:
         asked.append(arguments[1])
-        count = queue.PAGE if "page=1" in arguments[1] else 3
+        count = queue.PAGE if arguments[1].endswith("&page=1") else 3
         return json.dumps({"jobs": [job_data(n, "j", "success", 0, 1) for n in range(count)]})
 
     assert len(queue.GitHub(call).jobs(5)) == queue.PAGE + 3
     assert [path.rsplit("&", 1)[1] for path in asked] == ["page=1", "page=2"]
+
+
+def test_a_source_that_never_ends_its_pages_is_refused_not_read_without_end() -> None:
+    asked: list[str] = []
+
+    def call(arguments: list[str]) -> str:
+        asked.append(arguments[1])
+        return json.dumps({"jobs": [{"id": n} for n in range(queue.PAGE)]})
+
+    with pytest.raises(queue.QueueError, match="after 100 pages"):
+        queue.GitHub(call).jobs(5)
+    assert len(asked) == queue.MAX_PAGES
+
+    full = [run_data(n, "main") for n in range(queue.PAGE)]
+    endless = FakeSource([full] * (queue.MAX_PAGES + 5), {}, {})
+    with pytest.raises(queue.QueueError, match="after 100 pages"):
+        list(queue.select(endless, "epic/EP-09", None, None))
+    assert len(endless.asked) == queue.MAX_PAGES
 
 
 def test_the_report_counts_classifies_and_measures_the_runs() -> None:

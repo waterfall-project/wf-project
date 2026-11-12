@@ -51,6 +51,9 @@ GATE = "gate"
 WHOLE_RUN = "(run)"
 DEFAULT_LAST = 50
 PAGE = 100
+# A run lists a few hundred jobs at most, the chain a few thousand runs: a source that still answers
+# a full page past this many is not paging, and the loop must stop rather than grow without end.
+MAX_PAGES = 100
 
 FLAKY = "known flakiness"
 INFRASTRUCTURE = "infrastructure"
@@ -255,8 +258,7 @@ class GitHub:
     def jobs(self, run: int) -> list[dict[str, object]]:
         """Return all the jobs of a run, with their steps, page by page."""
         found: list[dict[str, object]] = []
-        page = 1
-        while True:
+        for page in range(1, MAX_PAGES + 1):
             path = f"repos/{{owner}}/{{repo}}/actions/runs/{run}/jobs?per_page={PAGE}&page={page}"
             answer = _json(self.call(["api", path]), f"the jobs of run {run}")
             jobs = _member(answer, "jobs")
@@ -267,7 +269,8 @@ class GitHub:
             found.extend(cast("dict[str, object]", job) for job in listed)
             if len(listed) < PAGE:
                 return found
-            page += 1
+        message = f"gh api still listed jobs of run {run} after {MAX_PAGES} pages"
+        raise QueueError(message)
 
     def log(self, job: int) -> str:
         """Return the log of a job; its colours are escape sequences ``gh`` must let through."""
@@ -346,8 +349,9 @@ def select(
 ) -> Iterator[Run]:
     """Yield the runs of the branch, the most recent first, read page by page as far as needed."""
     count = 0
-    page = 1
-    while last is None or count < last:
+    for page in range(1, MAX_PAGES + 1):
+        if last is not None and count >= last:
+            return
         listed = source.runs(page, since)
         for data in listed:
             run = read_run(data)
@@ -359,7 +363,8 @@ def select(
                 return
         if len(listed) < PAGE:
             return
-        page += 1
+    message = f"gh api still listed runs of the chain after {MAX_PAGES} pages"
+    raise QueueError(message)
 
 
 def clean(log: str) -> list[str]:

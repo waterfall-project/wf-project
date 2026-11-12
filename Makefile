@@ -102,6 +102,12 @@ WORKERS ?=
 # always free. `env` keeps the variables set before the command a command of their own.
 SLOTS = python3 $(CURDIR)/tools/src/wftools/slots.py
 heavy = $(if $(TESTS),,$(SLOTS) run --heavy -- env)
+# A ceiling of memory on the tests of the tools (2026-11-12: a test whose fake never ended its pages
+# filled the 122 GB of the workstation twice, and the kernel killed the whole session of the pilot
+# with its four deliverers). Under systemd the run is a scope of its own: past TOOLS_MEMORY the
+# kernel kills the run, not the session. Without a user systemd (a runner of the chain), no ceiling.
+TOOLS_MEMORY ?= 24G
+capped = $(if $(shell systemd-run --user --scope --quiet true 2>/dev/null && echo yes),systemd-run --user --scope --quiet -p MemoryMax=$(TOOLS_MEMORY) -p MemorySwapMax=0 --,)
 # The same for tests that need services (US-1110: db, redis, storage, as `slots.py run --services`
 # names them): once the slot is taken, if any, it starts those whose WATERFALL_TEST_*_URL the
 # environment does not give (make test-services), sets the variables on them, and runs the command.
@@ -196,7 +202,7 @@ dev-down: ## Stop the development platform
 # worker's queue: on four cores, eleven minutes become under five. A heavy run, which takes its
 # share of the processors, unless it selects a single file (TESTS).
 test-tools: ## Run the tests of the repository tools (TESTS=<file> runs one file)
-	@cd $(TOOLS) && $(heavy) uv run --frozen pytest -n $(WATERFALL_PROCESSORS) --dist worksteal $(TESTS)
+	@cd $(TOOLS) && $(capped) $(heavy) uv run --frozen pytest -n $(WATERFALL_PROCESSORS) --dist worksteal $(TESTS)
 
 # The entrypoint of the directory, tried in Docker on throwaway volumes: a minute of starts that the
 # tools leave out (the marker openldap), run by the keycloak family, which deploy/openldap wakes.
