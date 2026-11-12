@@ -69,7 +69,7 @@ describe("the chips of the bounds of a column of figures", () => {
         kit.bounds("size", "Taille", kind, { min: bounds.min, max: bounds.max });
       }, currency),
     );
-    return (container.textContent ?? "").replace(/\s/g, " ");
+    return container.textContent.replace(/\s/g, " ");
   }
 
   it("tell a size in bytes by its unit, an amount with its currency, a decimal as it is [WF-IHM-0130-A]", () => {
