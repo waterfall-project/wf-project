@@ -9,12 +9,14 @@ import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { example, fakeClient } from "@/test/fixtures";
+import { closeMenu, openMenu, menuButton } from "@/test/check-menu";
 import { allShown } from "@/test/grid-preferences";
 
 import type { GridConfig } from "./columns";
 import { DenseGrid } from "./dense-grid";
 import { ESTIMATE_GRID, type EstimateNode } from "./estimate";
 import { type NodeList, type NodeSortColumn, type NodeTotals } from "./nodes";
+import { CheckMenu } from "./check-menu";
 import type { Filtering } from "./filter-bar";
 import type { SelectionBarOptions } from "./selection-bar";
 
@@ -494,5 +496,36 @@ describe("the bar of the selection over a bar that folds filters #2916", () => {
     expect(bar.style.width).not.toBe("");
     expect(bar.style.width).toBe(folded?.style.width);
     vi.unstubAllGlobals();
+  });
+});
+
+describe("the menu of a filter with a selection #2916", () => {
+  it("opens and closes over a selection without lifting it, the focus back to its button, while the panel is open under the bar of the selection", async () => {
+    const user = userEvent.setup();
+    const changed = vi.fn();
+    const filtering: Filtering = {
+      panel: (
+        <CheckMenu
+          label="État"
+          every="Tous les états"
+          options={[{ value: "a", text: "Actif" }]}
+          chosen={[]}
+          multiple
+          onChange={changed}
+        />
+      ),
+      chips: [],
+    };
+    render(grid({}, FLAT, false, undefined, ROWS, filtering));
+    await user.click(screen.getByRole("button", { name: /^Filtres/ }));
+    await user.click(handle(1));
+    fireEvent.click(handle(3), { ctrlKey: true });
+    const list = await openMenu("État");
+    await user.click(within(list).getByRole("checkbox", { name: "Actif" }));
+    expect(changed).toHaveBeenCalledTimes(1);
+    await closeMenu();
+    expect(menuButton("État")).toHaveFocus();
+    expect(screen.getByRole("group", { name: "Actions sur la sélection" })).toBeVisible();
+    expect(selected()).toEqual([1, 3]);
   });
 });
