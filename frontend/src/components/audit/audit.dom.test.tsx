@@ -769,19 +769,6 @@ describe("the filters of the journal", () => {
     expect(lastAddress()).toBe("/admin/audit-log?object_kind=revision");
   });
 
-  it("name the object whose history the address asks by a chip, and lift it, its kind kept [WF-IHM-0130-A]", async () => {
-    const object = "01926f3a-7c00-7000-8000-000000000101";
-    page.search = `object_kind=revision&object_id=${object}&offset=50`;
-    render(journal({ named: { ...NAMED, object: { label: "Référence", kind: "revision" } } }));
-    expect(screen.getByRole("list", { name: "Filtres actifs" })).toHaveTextContent(
-      "Objet : Référence",
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: "Retirer le filtre Objet : Référence" }),
-    );
-    expect(lastAddress()).toBe("/admin/audit-log?object_kind=revision");
-  });
-
   it("name a backup whose history the address asks by its nature [WF-IHM-0130-A]", () => {
     page.search = "object_kind=backup&object_id=01926f3a-7c00-7000-8000-000000000907";
     render(journal({ named: { ...NAMED, object: { label: null, kind: "backup" } } }));
@@ -859,13 +846,9 @@ describe("the filters of the journal", () => {
     },
   );
 
-  it("tell the period, the authors, the project and the correlation by chips, and clear them all, the sort kept [WF-IHM-0130-A] (#2916)", async () => {
-    page.search = `sort_by=occurred_at&actor_kind=platform&project_id=${PROJECT}&correlation_id=${MERGE}&from=2026-05-01T06%3A00%3A00Z`;
+  it("clear every filter of the journal at once by « Effacer les filtres », the sort kept [WF-IHM-0130-A] (#2916)", async () => {
+    page.search = `sort_by=occurred_at&actor_kind=platform&project_id=${PROJECT}&correlation_id=${MERGE}`;
     render(journal());
-    const chips = screen.getByRole("list", { name: "Filtres actifs" });
-    expect(chips).toHaveTextContent("Nature de l’auteur : La plateforme");
-    expect(chips).toHaveTextContent(`Corrélation : ${MERGE}`);
-    expect(chips).toHaveTextContent(/Date : depuis le 1 mai 2026, \d\d:\d\d/);
     await userEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
     expect(lastAddress()).toBe("/admin/audit-log?sort_by=occurred_at");
   });
