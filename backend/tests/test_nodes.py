@@ -734,7 +734,7 @@ def test_a_finish_entered_fifteen_years_and_a_day_after_the_start_is_refused_nam
 @pytest.mark.parametrize(
     "duration",
     [
-        {"value": "99999999999", "unit": "d"},
+        {"value": "9999999999", "unit": "d"},
         {"value": "9999999", "unit": "mo"},
     ],
     ids=["days-beyond-the-calendar", "months-beyond-the-calendar"],

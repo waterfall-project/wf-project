@@ -195,7 +195,7 @@ COLUMN_OF: dict[str, NodeColumn] = {
     "work_package_id": "work_breakdown",
     "order_item_id": "work_breakdown",
 }
-DURATION = re.compile(r"(\d+(?:[.,]\d+)?)\s*([a-z]+)?")
+DURATION = re.compile(r"([0-9]+(?:[.,][0-9]+)?)\s*([a-z]+)?")
 DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
