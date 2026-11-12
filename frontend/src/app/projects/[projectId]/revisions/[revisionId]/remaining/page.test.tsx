@@ -9,6 +9,7 @@ import { nodeFieldNames } from "@/components/grid/nodes";
 import { REMAINING_FIELDS } from "@/components/grid/remaining";
 import type { RemainingGridProps } from "@/components/grid/remaining-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { filtersOf, menuText } from "@/test/filter-menu";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import RemainingPage, { generateMetadata } from "./page";
@@ -387,9 +388,8 @@ describe("the screen of the remaining to commit", () => {
     // Le lot ou le poste porté par une tâche rattachée : the server retains its subtree and its
     // ancestors, the banner says the filter restricts the grid alone.
     const page = await remainingAt({ order_item_id: ITEM });
-    expect(page).toMatch(/<label[^>]*>Work package or order item<\/label>/);
-    expect(page).toContain(`<option value="${LOT}">Work package: Lot 1</option>`);
-    expect(page).toContain(`<option value="${ITEM}" selected="">Order item: Poste 1.1</option>`);
+    expect(menuText(page, "Work package or order item")).toBe("Order item: Poste 1.1");
+    expect(filtersOf(handed[0]).breakdown?.items.map((item) => item.id)).toEqual([LOT, ITEM]);
     expect(queryOf(NODES)).toMatchObject({ progress: "started", order_item_id: ITEM });
     expect(text(page.slice(0, page.indexOf("</section>")))).toContain(
       "Order item: Poste 1.1, on the grid only",

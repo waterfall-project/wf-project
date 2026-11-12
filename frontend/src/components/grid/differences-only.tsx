@@ -15,13 +15,20 @@ import { DifferenceFilterToggle } from "./difference-filter-toggle";
 export function DifferencesOnly({
   filter,
   offered = true,
+  compact = false,
 }: {
   readonly filter: readonly DifferenceValue[] | undefined;
   /** Whether the structure read bears differences: a differential does, no other structure. */
   readonly offered?: boolean;
+  /** For the bar of a grid (#2916/L6). */
+  readonly compact?: boolean;
 }) {
   const t = useTranslations("grid.differenceFilter");
   return offered ? (
-    <DifferenceFilterToggle label={t("label")} pressed={isDifferencesOnly(filter)} />
+    <DifferenceFilterToggle
+      label={t("label")}
+      pressed={isDifferencesOnly(filter)}
+      compact={compact}
+    />
   ) : null;
 }

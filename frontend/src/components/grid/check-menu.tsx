@@ -108,6 +108,19 @@ function Announced({ text }: { readonly text: string }) {
   );
 }
 
+/** The classes of the button of the menu: that of a bar is the height of its buttons. */
+function buttonClass(compact: boolean | undefined): string {
+  return cn(
+    "w-full min-w-0 justify-between font-normal",
+    compact === true ? "h-7 max-w-56 gap-1 text-xs" : null,
+  );
+}
+
+/** The label a compact button carries before the choice, which names it; none above a menu. */
+function ButtonLabel({ label }: { readonly label: string | undefined }) {
+  return label === undefined ? null : <span className="text-muted-foreground">{label} </span>;
+}
+
 /** Render the menu of a list of values, those chosen checked. */
 export function CheckMenu({
   label,
@@ -119,6 +132,7 @@ export function CheckMenu({
   onChange,
   onQuery,
   footer,
+  compact,
 }: {
   /** What the menu filters on: it stands above the button and names it. */
   readonly label: string;
@@ -143,6 +157,11 @@ export function CheckMenu({
   readonly onQuery?: ((text: string) => void) | undefined;
   /** What stands under the list: the outcome of a search of the server. */
   readonly footer?: ReactNode;
+  /**
+   * For a menu in a bar (#2916/L6): the button on the height of the bar's, the label on it before
+   * the choice — it names the button — and not above, the width of what it says.
+   */
+  readonly compact?: boolean | undefined;
 }) {
   const t = useTranslations("grid.filtering");
   const id = useId();
@@ -223,8 +242,13 @@ export function CheckMenu({
     radio("", every)
   );
   return (
-    <div className="flex min-w-48 flex-col gap-1 text-sm">
-      <Label id={`${id}-label`}>{label}</Label>
+    <div
+      className={cn(
+        "flex flex-col gap-1 text-sm",
+        compact === true ? "min-w-0 shrink basis-56 contain-inline-size" : "min-w-48",
+      )}
+    >
+      {compact === true ? null : <Label id={`${id}-label`}>{label}</Label>}
       <Popover
         modal
         open={open}
@@ -242,10 +266,13 @@ export function CheckMenu({
             variant="outline"
             size="sm"
             id={`${id}-button`}
-            aria-labelledby={`${id}-label ${id}-button`}
-            className="w-full min-w-0 justify-between font-normal"
+            aria-labelledby={compact === true ? undefined : `${id}-label ${id}-button`}
+            className={buttonClass(compact)}
           >
-            <span className="truncate">{summary}</span>
+            <span className="truncate">
+              <ButtonLabel label={compact === true ? label : undefined} />
+              {summary}
+            </span>
             <ChevronDown aria-hidden="true" className="size-4 shrink-0" />
           </Button>
         </PopoverTrigger>

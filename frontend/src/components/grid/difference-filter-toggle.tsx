@@ -26,11 +26,14 @@ import { usePendingAddress } from "./pending-address";
 export function DifferenceFilterToggle({
   label,
   pressed,
+  compact = false,
 }: {
   /** What the button says: « Écarts seulement ». */
   readonly label: string;
   /** Whether the address retains every difference. */
   readonly pressed: boolean;
+  /** For the bar of a grid (#2916/L6): on the height of its buttons. */
+  readonly compact?: boolean;
 }) {
   const pathname = usePathname();
   const { request } = usePendingAddress();
@@ -38,11 +41,12 @@ export function DifferenceFilterToggle({
   const [, startTransition] = useTransition();
   const Icon = shown ? CircleCheck : Circle;
   return (
-    <div className="flex items-center">
+    <div className={compact ? "min-w-0 shrink basis-36 contain-inline-size" : "flex items-center"}>
       <Button
         size="sm"
         variant={shown ? "default" : "outline"}
         aria-pressed={shown}
+        className={compact ? "h-7 w-full text-xs" : undefined}
         onClick={() => {
           startTransition(() => {
             show(!shown);
@@ -50,7 +54,7 @@ export function DifferenceFilterToggle({
           });
         }}
       >
-        <Icon aria-hidden="true" className="size-4" />
+        <Icon aria-hidden="true" className={compact ? "size-3.5" : "size-4"} />
         {label}
       </Button>
     </div>

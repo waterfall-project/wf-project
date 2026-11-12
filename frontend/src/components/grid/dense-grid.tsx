@@ -197,6 +197,8 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
    * around the grid, never a prop of each row (défaut n° 14).
    */
   readonly around?: ((rows: readonly Row[], grid: ReactNode) => ReactNode) | undefined;
+  /** The filters of the screen, as menus in the bar of the grid (#2916/L6); none, the bar as it is. */
+  readonly treeFilters?: ReactNode;
   /**
    * What the folds of a tree are kept for in the session, besides the grid: the revision it reads.
    */
@@ -441,6 +443,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   undoable,
   undo: undoControl,
   around,
+  treeFilters,
   foldScope,
   narrowing,
   commands,
@@ -754,6 +757,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         undo={undoControl}
         outline={folding.outline}
         commands={screenCommands.bar(cursor.active.row)}
+        treeFilters={treeFilters}
         filters={filtering}
         open={filtersOpen}
         onOpen={openFilters}

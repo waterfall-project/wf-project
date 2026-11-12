@@ -126,6 +126,8 @@ export interface GridToolbarProps {
   readonly covered?: boolean | undefined;
   /** The commands the screen gives the bar, first in it: those of the work breakdown on its rows. */
   readonly commands?: ReactNode;
+  /** The filters of a tree grid, as compact menus of the bar after its search (#2916/L6). */
+  readonly treeFilters?: ReactNode;
   /**
    * For a flat table whose screen folds its filters into the bar: the button « Filtres (n) », the
    * panel under the bar and the chips of the filters on (`filter-bar.tsx`); none, the bar as before.
@@ -259,6 +261,7 @@ export function GridToolbar({
   grid,
   width,
   commands,
+  treeFilters,
   covered,
   filters: filtering,
   open,
@@ -293,6 +296,7 @@ export function GridToolbar({
       {onSearch === undefined ? null : (
         <SearchField search={search} onSearch={onSearch} grid={grid} />
       )}
+      {treeFilters}
       {filters === undefined ? null : (
         <FiltersButton
           ref={toggle}

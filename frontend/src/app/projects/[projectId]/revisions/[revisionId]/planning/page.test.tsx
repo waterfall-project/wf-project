@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlanningGridProps } from "@/components/grid/planning-grid";
 import type { StructureChoiceProps } from "@/components/context/structure-choice";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { filtersOf, menuText } from "@/test/filter-menu";
 import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 
 import PlanningPage from "./page";
@@ -224,7 +225,7 @@ describe("the screen of the planning", () => {
     const page = await planning();
     const [read] = callsOf(BREAKDOWN);
     expect(read?.query.toString()).toBe("");
-    expect(page).toContain(`<option value="${ITEM}">Order item: Poste 1.1</option>`);
+    expect(filtersOf(grid.given.at(-1)).breakdown?.items.map((item) => item.id)).toContain(ITEM);
     expect(page).not.toContain(CATALOGUES.en.mockup.notKept);
   });
 });
@@ -232,13 +233,12 @@ describe("the screen of the planning", () => {
 describe("the filter of the planning by a lot or a post", () => {
   it("offers the lots and the posts of the work breakdown read whole, named by their kind, and filters nothing by default", async () => {
     const page = await planning();
-    expect(page).toMatch(/<label[^>]*>Work package or order item<\/label>/);
-    // The lot, then its post, in the order of the work breakdown, after the choice that lifts it.
-    expect(page).toContain(
-      `<option value="" selected="">All work packages and order items</option>` +
-        `<option value="${LOT}">Work package: Lot 1</option>` +
-        `<option value="${ITEM}">Order item: Poste 1.1</option>`,
-    );
+    expect(menuText(page, "Work package or order item")).toBe("All work packages and order items");
+    // The lot, then its post, in the order of the work breakdown, which the menu of the bar lists.
+    expect(filtersOf(grid.given.at(-1)).breakdown?.items.map((item) => item.id)).toEqual([
+      LOT,
+      ITEM,
+    ]);
     const [read] = callsOf(NODES);
     expect(read?.query.get("work_package_id")).toBeNull();
     expect(read?.query.get("order_item_id")).toBeNull();
@@ -251,7 +251,7 @@ describe("the filter of the planning by a lot or a post", () => {
     expect(read?.query.get("order_item_id")).toBe(ITEM);
     expect(read?.query.get("work_package_id")).toBeNull();
     expect(read?.query.get("search")).toBe("Revue");
-    expect(page).toContain(`<option value="${ITEM}" selected="">Order item: Poste 1.1</option>`);
+    expect(menuText(page, "Work package or order item")).toBe("Order item: Poste 1.1");
     const chips = /<ul aria-label="Active filters"(?:(?!<\/ul>).)*<\/ul>/.exec(page)?.[0] ?? "";
     expect(chips).toContain("Order item: Poste 1.1");
     expect(chips).toContain(`aria-label="Remove the filter “Order item: Poste 1.1”"`);
@@ -262,7 +262,7 @@ describe("the filter of the planning by a lot or a post", () => {
     const [read] = callsOf(NODES);
     expect(read?.query.get("work_package_id")).toBe(LOT);
     expect(read?.query.get("order_item_id")).toBeNull();
-    expect(page).toContain(`<option value="${LOT}" selected="">Work package: Lot 1</option>`);
+    expect(menuText(page, "Work package or order item")).toBe("Work package: Lot 1");
     // The chip is the lot's alone: it lifts both parameters, the post left in the address taking the
     // place of the lot (`structure-screens.dom.test.tsx`).
     expect(page).toContain('aria-label="Remove the filter “Work package: Lot 1');
@@ -514,12 +514,8 @@ describe("the filter of the planning on the rows a risk occurred merged", () => 
 
   it("offers « Coming from a risk » and the risks occurred of the project alone, never one identified [WF-RIS-0060-A]", async () => {
     const page = await planning();
-    expect(page).toMatch(/<label[^>]*>Origin<\/label>/);
-    expect(page).toContain(
-      `<option value="" selected="">All rows</option>` +
-        `<option value="true">Coming from a risk</option>` +
-        `<option value="${OCCURRED}">Retard de livraison des armoires</option>`,
-    );
+    expect(menuText(page, "Origin")).toBe("All rows");
+    expect(filtersOf(grid.given.at(-1)).origin?.risks.map((risk) => risk.id)).toEqual([OCCURRED]);
     expect(page).not.toContain(IDENTIFIED);
     expect(queryOf("/risks")?.getAll("states")).toEqual(["occurred"]);
     expect(queryOf("/nodes")?.has("is_from_risk")).toBe(false);
@@ -530,7 +526,7 @@ describe("the filter of the planning on the rows a risk occurred merged", () => 
     const page = await planning({ is_from_risk: "true" });
     expect(queryOf("/nodes")?.get("is_from_risk")).toBe("true");
     expect(grid.given.at(-1)?.filters).toMatchObject({ is_from_risk: true });
-    expect(page).toContain(`<option value="true" selected="">Coming from a risk</option>`);
+    expect(menuText(page, "Origin")).toBe("Coming from a risk");
   });
 
   it("asks the server for the rows of the risk the address names, and hands the grid its label to name it by [WF-RIS-0060-A]", async () => {
@@ -538,9 +534,7 @@ describe("the filter of the planning on the rows a risk occurred merged", () => 
     expect(queryOf("/nodes")?.get("origin_risk_ids")).toBe(OCCURRED);
     expect(queryOf("/nodes")?.has("is_from_risk")).toBe(false);
     expect(grid.given.at(-1)?.origins).toEqual({ [OCCURRED]: "Retard de livraison des armoires" });
-    expect(page).toContain(
-      `<option value="${OCCURRED}" selected="">Retard de livraison des armoires</option>`,
-    );
+    expect(menuText(page, "Origin")).toBe("Retard de livraison des armoires");
   });
 
   it("reads no value that is no identifier, as if the address named nothing [WF-RIS-0060-A]", async () => {
@@ -551,7 +545,7 @@ describe("the filter of the planning on the rows a risk occurred merged", () => 
   it("asks for no risk that the project does not list as occurred — one since back to identified, or of another revision — and keeps the page [WF-RIS-0060-A]", async () => {
     const page = await planning({ origin_risk_ids: IDENTIFIED });
     expect(queryOf("/nodes")?.has("origin_risk_ids")).toBe(false);
-    expect(page).toContain(`<option value="" selected="">All rows</option>`);
+    expect(menuText(page, "Origin")).toBe("All rows");
   });
 
   it("keeps the page, unfiltered and the filter lifted, when the session lists no risk and the server finds the one named unknown [WF-RIS-0060-A]", async () => {
@@ -572,8 +566,8 @@ describe("the filter of the planning on the rows a risk occurred merged", () => 
     const page = await planning({ origin_risk_ids: OCCURRED });
     expect(callsOf(NODES).map((call) => call.query.has("origin_risk_ids"))).toEqual([true, false]);
     expect(grid.given.at(-1)?.filters).not.toHaveProperty("origin_risk_ids");
-    expect(page).toContain(`<option value="true">Coming from a risk</option>`);
-    expect(page).not.toContain('selected="">Retard');
+    expect(menuText(page, "Origin")).toBe("All rows");
+    expect(filtersOf(grid.given.at(-1)).origin?.risks).toEqual([]);
   });
 
   it("falls into error, the nodes read once, when the server refuses the rows for another cause than an unknown risk [WF-RIS-0060-A]", async () => {
@@ -661,7 +655,7 @@ describe("the filter of the planning on the rows a risk occurred merged", () => 
       [RISKS]: { problem: { code: "NOT_FOUND", status: 404 } },
     };
     const page = await planning();
-    expect(page).toContain(`<option value="true">Coming from a risk</option>`);
-    expect(page).not.toContain("Retard de livraison");
+    expect(menuText(page, "Origin")).toBe("All rows");
+    expect(filtersOf(grid.given.at(-1)).origin?.risks).toEqual([]);
   });
 });
