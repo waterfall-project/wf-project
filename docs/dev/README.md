@@ -3588,7 +3588,9 @@ _Check_: `make reuse` fails on a file covered neither by a header nor by
 ## Repository tools
 
 The tools live in `tools/`, in Python, with their tests (`make test-tools`, which needs Docker:
-the test of the service Compose runs `docker compose config` and fails without it). The tests of
+the test of the service Compose runs `docker compose config` and fails without it). It runs under a ceiling of
+memory, `TOOLS_MEMORY` (24G by default): under a user systemd the kernel kills the run that passes
+it, not the session; without a user systemd (a runner of the chain) there is no ceiling. The tests of
 the entrypoint of the directory, which start its image on throwaway volumes, are left out of them
 (marker `openldap`): `make test-openldap` runs them, and the `keycloak` family, which
 `deploy/openldap` wakes, tries them. Every tool

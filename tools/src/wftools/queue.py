@@ -675,10 +675,12 @@ def read_reference(data: object) -> str:
         within = cast("dict[str, int]", table["failed_in"])
         days = cast("list[date]", table["wall_days"])
         detail = ", ".join(f"{n} in {job}" for job, n in within.items())
+        on = " and ".join(str(day) for day in days)
         return (
             f"reference, every branch, from {table['since']} to {table['until']}: "
-            f"{table['runs']} runs, {table['failed']} failed ({detail}); median wall time "
-            f"{table['wall_median']} min on {' and '.join(str(day) for day in days)}"
+            f"{table['runs']} runs, {table['failed']} failed ({detail}); wall time of the "
+            f"{table['wall_runs']} complete succeeded runs of {on} (as above): "
+            f"median {table['wall_median']} min, 90th percentile {table['wall_p90']} min"
         )
     except (KeyError, AttributeError, TypeError) as error:
         message = f"the reference of the known failures is incomplete: {error}"

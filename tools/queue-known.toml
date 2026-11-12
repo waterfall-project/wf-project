@@ -26,20 +26,28 @@
 #
 # Une entrée qui nomme un test donne aussi, quand l'inventaire le connaît, le `message` qui
 # l'accompagne, pour qu'une autre défaillance du même test reste « à classer » : les entrées de la
-# famille A attendent `own-project.ts:39`, celles de la famille D le libellé de l'attente. Ce
-# libellé est celui que l'inventaire décrit, non relu dans un journal de la file : il se corrige
-# à la première lecture d'un échec de la famille D. Les entrées des familles B et C et du back
-# reconnaissent encore un test par sa seule ligne, faute d'un message relevé.
+# famille A attendent `own-project.ts:39`, celles de la famille D le localisateur de l'attente, relu
+# dans les journaux de 12 passages du 2026-11-10 (extraits : tests/queue/playwright-backups-*.log).
+# Les entrées des familles B et C et du back reconnaissent encore un test par sa seule ligne, faute
+# d'un message relevé.
 
-# La référence contre laquelle un lot de la chaîne se juge, avant et après : toutes branches,
-# du 2026-11-05 au 2026-11-12 ; la médiane de mur est celle des passages réussis des 10 et 11.
+# La référence contre laquelle un lot de la chaîne se juge, avant et après. Les comptes sont ceux de
+# la conception : toutes branches, du 2026-11-05 au 2026-11-12. La durée est celle que l'outil
+# mesure (`make queue-report`, toutes branches, passages créés les 2026-11-10 et 2026-11-11) : le
+# mur des passages réussis dont le palier est complet (`Run.complete` : un job réussi de `service`
+# et un d'`e2e`), du début du passage à la fin de son dernier job ; 40 passages, médiane 17,8 min,
+# 90e centile 21,8. La conception en donne 16 min : sa médiane (15,7 le 10, 15,9 le 11) compte tous
+# les passages réussis, dont ceux qui sautent `service` et l'e2e, ce qui l'abaisse. Les critères
+# d'US-1910 se jugent à la mesure de l'outil.
 [reference]
 since = 2026-11-05
 until = 2026-11-12
 runs = 370
 failed = 88
 failed_in = { "service / paths" = 68 }
-wall_median = 16
+wall_runs = 40
+wall_median = 17.8
+wall_p90 = 21.8
 wall_days = [2026-11-10, 2026-11-11]
 
 # Famille A — le projet de la course n'est pas créé en 15 s (`own-project.ts:39` : l'adresse
@@ -208,8 +216,8 @@ family = "D. restauration"
 issue = "#2943"
 job = "^service / paths$"
 test = 'e2e/service/backups\.spec\.ts:(155|240)\b'
-message = 'Restaurer cette sauvegarde|Sauvegardes'
-frequency = "11 passages pour :155, 5 pour :240, tous des 9 et 10 novembre, sur trois pull requests d'EP-07"
+message = '''name: 'Restaurer cette sauvegarde' \}\)|getByRole\('grid', \{ name: 'Sauvegardes' \}\)'''
+frequency = "11 passages pour :155, 5 pour :240, tous des 9 et 10 novembre, sur trois pull requests d'EP-07 ; relu au journal de 12 passages du 10"
 cause = "hypothèse : une régression de leur branche, ou le dépôt d'une archive devenue plus lourde"
 
 # Les tests du back et du front. US-1920.

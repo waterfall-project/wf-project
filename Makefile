@@ -105,9 +105,11 @@ heavy = $(if $(TESTS),,$(SLOTS) run --heavy -- env)
 # A ceiling of memory on the tests of the tools (2026-11-12: a test whose fake never ended its pages
 # filled the 122 GB of the workstation twice, and the kernel killed the whole session of the pilot
 # with its four deliverers). Under systemd the run is a scope of its own: past TOOLS_MEMORY the
-# kernel kills the run, not the session. Without a user systemd (a runner of the chain), no ceiling.
+# kernel kills the run, not the session. The probe asks for the same properties as the run: a host
+# whose user systemd does not delegate the memory controller gets no scope, so no ceiling it ignores.
+# Without a user systemd (a runner of the chain), no ceiling.
 TOOLS_MEMORY ?= 24G
-capped = $(if $(shell systemd-run --user --scope --quiet true 2>/dev/null && echo yes),systemd-run --user --scope --quiet -p MemoryMax=$(TOOLS_MEMORY) -p MemorySwapMax=0 --,)
+capped = $(if $(shell systemd-run --user --scope --quiet -p MemoryMax=$(TOOLS_MEMORY) -p MemorySwapMax=0 -- true 2>/dev/null && echo yes),systemd-run --user --scope --quiet -p MemoryMax=$(TOOLS_MEMORY) -p MemorySwapMax=0 --,)
 # The same for tests that need services (US-1110: db, redis, storage, as `slots.py run --services`
 # names them): once the slot is taken, if any, it starts those whose WATERFALL_TEST_*_URL the
 # environment does not give (make test-services), sets the variables on them, and runs the command.

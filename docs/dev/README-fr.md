@@ -3612,7 +3612,10 @@ _Contrôle_ : `make reuse` échoue sur un fichier couvert ni par un en-tête ni 
 ## Outils du dépôt
 
 Les outils vivent dans `tools/`, en Python, avec leurs tests (`make test-tools`, qui exige Docker :
-le test du Compose de service lance `docker compose config` et échoue sans lui). Les tests de
+le test du Compose de service lance `docker compose config` et échoue sans lui). Il tourne sous un plafond de
+mémoire, `TOOLS_MEMORY` (24G par défaut) : sous systemd utilisateur, le noyau tue le run qui le
+dépasse, non la session ; sans systemd utilisateur (un runner de la chaîne), il n'y a pas de
+plafond. Les tests de
 l'entrypoint de l'annuaire, qui démarrent son image sur des volumes jetables, en sont écartés
 (marqueur `openldap`) : `make test-openldap` les lance, et la famille `keycloak`, que
 `deploy/openldap` réveille, les éprouve. Tout outil

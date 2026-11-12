@@ -287,8 +287,25 @@ def test_the_versioned_list_holds_its_inventory_and_the_reference() -> None:
     assert all(entry.issue.startswith("#") for entry in catalogue.entries)
     assert catalogue.reference == (
         "reference, every branch, from 2026-11-05 to 2026-11-12: 370 runs, 88 failed "
-        "(68 in service / paths); median wall time 16 min on 2026-11-10 and 2026-11-11"
+        "(68 in service / paths); wall time of the 40 complete succeeded runs of 2026-11-10 and "
+        "2026-11-11 (as above): median 17.8 min, 90th percentile 21.8 min"
     )
+
+
+@pytest.mark.parametrize(
+    ("name", "test", "where"),
+    [
+        ("restore", "e2e/service/backups.spec.ts:155", "e2e/service/backups.spec.ts:226"),
+        ("grid", "e2e/service/backups.spec.ts:240", "e2e/service/backups.spec.ts:272"),
+    ],
+)
+def test_the_restoration_family_recognizes_the_failures_read_in_the_logs_of_the_queue(
+    name: str, test: str, where: str
+) -> None:
+    (found,) = failures(f"playwright-backups-{name}")
+    assert (found.test, found.where) == (test, where)
+    kind, entry = queue.read_catalogue().classify(found)
+    assert (kind, entry.family if entry else None) == ("known flakiness", "D. restauration")
 
 
 def test_a_list_that_cannot_be_read_is_said(tmp_path: Path) -> None:
