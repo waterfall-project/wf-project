@@ -284,6 +284,43 @@ describe("the chips of the filters of the accounts", () => {
     expect(screen.getByRole("button", { name: "Filtres (8)" })).toBeVisible();
   });
 
+  it("clear a parameter the reading set aside too: « Effacer les filtres » leaves nothing of the filters in the address [WF-IHM-0130-A] (#2916)", async () => {
+    page.search = "origins=nope&is_active=true&search=a";
+    render(table({ active: true }));
+    await userEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
+    // The search is no filter: it stays; the origin the contract would refuse goes with the others.
+    expect(lastAddress()).toBe("/admin/users?search=a");
+  });
+
+  it("tell the hiding of the deactivated accounts of an old address, `include_inactive` alone, as the active accounts, and lift it [WF-ADM-0060-A] (#2916)", async () => {
+    page.search = "include_inactive=false&sort_by=email";
+    render(table({ active: true }));
+    expect(screen.getByRole("list", { name: "Filtres actifs" })).toHaveTextContent(
+      "État du compte : Comptes actifs",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Retirer le filtre État du compte : Comptes actifs" }),
+    );
+    expect(lastAddress()).toBe("/admin/users?sort_by=email");
+  });
+
+  it("tell nothing of `include_inactive=true`, which every account satisfies [WF-ADM-0060-A] (#2916)", () => {
+    page.search = "include_inactive=true";
+    render(table());
+    expect(screen.queryByRole("list", { name: "Filtres actifs" })).toBeNull();
+  });
+
+  it("leave the focus where it is when a chip lifted changes nothing of the address, the chips going later [WF-IHM-0130-A] (#2916)", async () => {
+    // The chip told by the props and not by the address: lifting it asks no navigation that would arrive.
+    page.search = "";
+    const { rerender } = render(table({ active: true }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Retirer le filtre État du compte : Comptes actifs" }),
+    );
+    rerender(table());
+    expect(screen.getByRole("button", { name: /^Filtres/ })).not.toHaveFocus();
+  });
+
   it("tell a period in the local days of the workstation, whatever its time zone [WF-IHM-0130-A]", () => {
     // Midnight of the 1st to midnight of the 6th at Auckland (UTC+13 in March): the days are the 1st
     // to the 5th there, though the instants fall on the 28th of February and the 5th in UTC.
