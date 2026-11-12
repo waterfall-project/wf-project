@@ -1,7 +1,7 @@
 ---
 id: EP-23
 titre: Les constats laissés ouverts par EP-02 et EP-03, quatre d'EP-06 et huit d'EP-05, sont soldés — le suivi des tâches, les refus, les écrans de l'administration, les comptes, les sauvegardes, le compteur d'écriture, le moteur de planning et le référentiel
-statut: en cours
+statut: livré
 depend_de: EP-02, EP-03, EP-06
 famille: front, back
 issue: 2858

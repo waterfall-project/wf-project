@@ -748,10 +748,9 @@
     description: >-
       A subproject of the current project (WF-PRJ-0050), as its `update` command states
       (`Subproject.available_commands`): its code and its label, at any time, whether actual costs
-      are charged or not. A new code changes no imputation: the actual cost lines already charged
-      to the subproject stay attached to it by its identifier, not by its code (WF-DAT-0060), and
-      a line imported under the old code or the new one is charged by the code it carries at its
-      next import (WF-CRE-0020, WF-INTF-0140).
+      are charged or not. A recoding changes the imputation of no actual cost line: the lines
+      imputed to the subproject stay imputed to it (WF-DAT-0060); those that awaited the former
+      code or the new one move only at their reimport (WF-CRE-0020, WF-INTF-0140).
     tags: [projects]
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId

@@ -439,8 +439,12 @@ ImportReport:
       type: array
       description: >-
         Reasons for an explicit confirmation, specific to actual costs: lines of another
-        project, rejected, or an unknown subproject, kept by its code (WF-CRE-0020). A
-        difference in dates or durations is no longer one: it is stated by `date_mismatches`.
+        project, rejected, or an unknown subproject, kept by its code (WF-CRE-0020). A line of
+        another project counts for `lines_outside_project` even when it is rejected
+        `DUPLICATE_COST_LINE`, another line of the file bearing its document and its item
+        (#2724): the confirmation guards against a file of the wrong project, which a double does
+        not excuse. A difference in dates or durations is no longer one: it is stated by
+        `date_mismatches`.
       items:
         type: string
         enum: [lines_outside_project, unknown_subproject]
@@ -643,15 +647,25 @@ ImportRejection:
     extraction, a line for which another line of the file carries the same document and the same
     item, null included: `DUPLICATE_COST_LINE`, each of these lines rejected, `params.rows`
     naming the rows of the others in the order of the file — the line cannot be identified, and
-    none is preferred to the other (WF-INTF-0140, D-4; EP-16/US-0630). And a line rejected for
+    none is preferred to the other (WF-INTF-0140, D-4; EP-16/US-0630). For an estimate or a
+    remaining to commit, likewise a line whose lineage — the « ID ligne » column — another line of
+    the file carries, on the same tab or on another: `DUPLICATE_LINEAGE`, each of these lines
+    rejected, `params.lines` naming the tab and the row of the others in the order of the file,
+    and the line of the revision that the lineage names left as it is (WF-INTF-0100,
+    WF-INTF-0120; #2798). And a line rejected for
     its WBS element (WF-CRE-0020), `params.wbs_element` the element as the file carries it:
     `WBS_ELEMENT_INVALID`, an element that does not have the form of a project code optionally
     followed by a slash and a subproject code — empty, or with nothing before the slash —, only
     the slash separating the two codes, and the project code possibly containing dots
-    (`A.ABC.26001/10001`, WF-PRJ-0010);
+    (`A.ABC.26001/10001`, WF-PRJ-0010) — an element with nothing after the slash,
+    `A.ABC.26001/`, is one as well (#2721);
     `WBS_ELEMENT_OUTSIDE_PROJECT`, an element of another project, `params.project_code` the
-    project code read, which is not that of the imported project. A line whose subproject code
-    is that of no subproject is not rejected: imported and charged to the project alone, it
+    project code read, which is not that of the imported project. The amount of a line is
+    rounded to the cent, half away from zero — `-0.005` gives `-0.01` — before it is judged
+    against its bounds (#2721). A cell of a line of an actual cost extraction that is refused
+    (`VALUE_REQUIRED`, `VALUE_TOO_LONG`, `VALUE_OUT_OF_RANGE`, `NUMBER_INVALID`, `DATE_INVALID`)
+    names its column in `params.column`, by the identifier of the mapping (#2722). A line whose
+    subproject code is that of no subproject is not rejected: imported and charged to the project alone, it
     requires confirmation (`unknown_subproject`). For an estimate or a remaining to commit, a
     line that cites a task, a role or a subproject that the revision does not have
     (`UNKNOWN_TASK`, `UNKNOWN_RESOURCE_ROLE`, `UNKNOWN_SUBPROJECT`), `params.value` the value of
@@ -667,7 +681,17 @@ ImportRejection:
     a field, by the reason of that field (`VALUE_REQUIRED`, `VALUE_TOO_LONG`,
     `VALUE_OUT_OF_RANGE`, `FIELD_NOT_ACCEPTED`, `RESOURCE_ROLE_REQUIRED`,
     `INACTIVE_REFERENCE_OBJECT`), its parameters and `params.header` the header of the column
-    that carries the field.
+    that carries the field. For a remaining to commit, the lines that the file sets to nought
+    on a task that it would complete at the date of the review (« Synthèse », cell B9), when that
+    date forbids it (WF-RAE-0040, WF-INTF-0120): each of these lines is rejected, `params.tasks`
+    naming the task by its lineage and its label (`lineage_id`, `label`), with
+    `COMPLETION_DATE_REQUIRED` when the file carries no date of review; `DATE_INVALID`,
+    `params.value` the content of the cell as the file carries it — without `params.column`, the
+    cell being that of the review and no column of the lines — when it holds something that is
+    not a date; `VALUE_OUT_OF_RANGE`, `params.minimum` the date of the start of the task started
+    (ISO 8601), when the date of the review precedes it. The task is then not completed, its
+    lines left as they are. The lines of a task that is already completed carry
+    `task_not_completed` as above.
   properties:
     sheet:
       anyOf: [{ type: string }, { type: 'null' }]

@@ -181,10 +181,10 @@ describe("the screen of the indicators of a project", () => {
   it("shows the amounts as the API gives them, nothing summed nor divided", async () => {
     const page = text(html(await IndicatorsPage(at())));
     expect(page).toContain(
-      "Actual cost €1,412,970.20 Remaining to commit €67,470,133.69 Reference budget €70,288,695.96",
+      "Actual cost €1,412,970.20 Remaining to commit €67,497,090.97 Reference budget €70,316,396.56",
     );
     expect(page).toContain(
-      "At budget €70,208,311.97 -€80,383.99 Project manager’s €68,883,103.89 -€1,405,592.07",
+      "At budget €70,236,012.57 -€80,383.99 Project manager’s €68,910,061.17 -€1,406,335.39",
     );
     expect(page).toContain(
       "Schedule variance -€228,231.37 Earned value €1,493,354.19 Planned value €1,721,585.56",

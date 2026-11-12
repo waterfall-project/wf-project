@@ -12,6 +12,7 @@ searched text is compared as the service will compare it, through the table Post
 import re
 from dataclasses import dataclass
 from datetime import date, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -19,7 +20,6 @@ from wftools import REPOSITORY
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
-    from decimal import Decimal
 
     from wftools.mockstructure import JsonObject, JsonValue
 
@@ -78,6 +78,29 @@ def count(value: int) -> str:
 def amount(value: Decimal, places: int = 2) -> str:
     """Write an amount as French does: 60 553 621,36."""
     return f"{value:,.{places}f}".replace(",", "\u202f").replace(".", ",")
+
+
+def plural(answer: JsonObject) -> str:
+    """Give the plural mark of the tasks a write redates: none for a single one."""
+    return "" if len(cast("list[JsonObject]", answer["rescheduled"])) == 1 else "s"
+
+
+def which(answer: JsonObject) -> str:
+    """Give the relative of the tasks a write redates, « la tâche qu' » or « les tâches qu' »."""
+    one = len(cast("list[JsonObject]", answer["rescheduled"])) == 1
+    return "la tâche qu'" if one else "les tâches qu'"
+
+
+def totals_change(before: JsonObject, after: JsonObject) -> str:
+    """Say what a write does to the totals of the structure: nothing, or its re-estimate.
+
+    ``before`` and ``after`` are the readings of the structure and the answer of the write.
+    """
+    totals = [cast("dict[str, str]", each["totals"]) for each in (before, after)]
+    if totals[0] == totals[1]:
+        return "les totaux de la structure ne changent pas"
+    was, now = (Decimal(each["reestimated_amount"]) for each in totals)
+    return f"le total réestimé de la structure passe de {amount(was)} à {amount(now)}"
 
 
 def listed(items: list[str]) -> str:

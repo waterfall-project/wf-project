@@ -14,9 +14,11 @@ from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
 import asked_actual_cost_mapping
+import asked_actual_costs
 import asked_calendars
 import asked_comparison
 import asked_contributors
+import asked_cost_imports
 import asked_cost_types
 import asked_estimate_indicators
 import asked_estimate_lines
@@ -32,10 +34,13 @@ import asked_projects
 import asked_rate_update
 import asked_reference
 import asked_reference_settings
+import asked_remaining_indicators
+import asked_remaining_lines
 import asked_resource_roles
 import asked_revisions
 import asked_scheduling
 import asked_skeleton
+import asked_startable_tasks
 import asked_subprojects
 import asked_timelines
 import asked_work_breakdown
@@ -457,6 +462,14 @@ ESTIMATE = (
     asked_workload,
     asked_comparison,
 )
+# The operations of the remaining to commit and of the actual costs, router by router (EP-09).
+COSTS = (
+    asked_remaining_lines,
+    asked_startable_tasks,
+    asked_remaining_indicators,
+    asked_cost_imports,
+    asked_actual_costs,
+)
 # The permissions each served operation asks for, in the order they are evaluated.
 ASKED: dict[str, tuple[str, ...]] = {
     "getLiveness": (),
@@ -500,10 +513,13 @@ ASKED: dict[str, tuple[str, ...]] = {
     **{name: asked for router in PROJECTS for name, asked in router.ASKED.items()},
     **{name: asked for router in PLANNING for name, asked in router.ASKED.items()},
     **{name: asked for router in ESTIMATE for name, asked in router.ASKED.items()},
+    **{name: asked for router in COSTS for name, asked in router.ASKED.items()},
 }
 # Two files that declare the same operation would overwrite each other in the table above.
 DECLARED = [
-    name for router in (*REFERENCE, *PROJECTS, *PLANNING, *ESTIMATE) for name in router.ASKED
+    name
+    for router in (*REFERENCE, *PROJECTS, *PLANNING, *ESTIMATE, *COSTS)
+    for name in router.ASKED
 ]
 assert len(DECLARED) == len(set(DECLARED)), sorted(
     name for name in set(DECLARED) if DECLARED.count(name) > 1
@@ -511,7 +527,7 @@ assert len(DECLARED) == len(set(DECLARED)), sorted(
 # The quality on its project each operation of a project asks for, by ``RequiresProject``.
 ON_PROJECT: dict[str, str] = {
     name: quality
-    for router in (*PROJECTS, *PLANNING, *ESTIMATE)
+    for router in (*PROJECTS, *PLANNING, *ESTIMATE, *COSTS)
     for name, quality in router.ON_PROJECT.items()
 }
 # The permission each list of the reference asks for besides when it asks for deactivated objects.

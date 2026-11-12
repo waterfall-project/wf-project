@@ -5,6 +5,7 @@ import { expect, type Page } from "@playwright/test";
 import { columnsOf } from "./columns";
 import { idle, PHASE, seedEstimate } from "./estimate-seed";
 import { openHydrated, WORKING } from "./hydration";
+import { MARKING } from "./in-progress";
 import { inService, test } from "./mode";
 import { rowAt } from "./scroll";
 
@@ -16,9 +17,6 @@ import { rowAt } from "./scroll";
 // designated as the reference, the code of the project entered. The fifty entries undone and
 // redone are `undo.spec.ts`'s, the estimate exported and imported back without a difference
 // `exchanges.spec.ts`'s: this path is the course that leads to En cours.
-
-/** How long the worker is given to mark: a task taken from the queue, one transaction. */
-const MARKING = 60_000;
 
 /** Mark the revision shown on the screen of the revisions, and wait for the worker to finish. */
 async function mark(page: Page, version: string): Promise<void> {

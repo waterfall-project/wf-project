@@ -253,7 +253,7 @@ test("adds a task from the remaining to commit of a project in progress, below a
   test.slow();
   // Une tâche ajoutée depuis la grille de reste à engager : the structure lists `edit_remaining`
   // available, and the gesture is the planning's; that it appears in the planning, the reference
-  // unchanged, is the service's (EP-09).
+  // unchanged, is the service's (EP-09, served); this path has no twin against it yet (#2909).
   const { cell } = await focusRow(
     page,
     "remaining",
@@ -302,7 +302,9 @@ test("inserts a line in the remaining to commit of a project in progress, named,
   test.slow();
   // Sur un projet En cours, la grille de reste à engager propose la création d'une ligne et d'une
   // tâche : the structure lists `edit_remaining` available. The categories come from the reference.
-  // Not played against the service before EP-09, which serves the remaining to commit.
+  // Not played against the service: it writes the remaining of PRJ-001, whose project manager the
+  // account of the run is not (#2193); `remaining.spec.ts` plays the writes on a project the run
+  // creates.
   const { cell } = await focusRow(
     page,
     "remaining",
@@ -328,7 +330,7 @@ test("inserts a line in the remaining to commit of a project in progress, named,
   await expect(cell).toBeFocused();
 });
 
-test("filters the remaining to commit by the post « Poste 1.1 » chosen among the work breakdown, the filter shown active in the banner and lifted from it", async ({
+test("filters the remaining to commit by the post « Poste 1.1 » chosen among the work breakdown, the filter shown active in the banner and lifted from it @shared", async ({
   page,
 }) => {
   test.slow();

@@ -236,8 +236,8 @@ def test_a_link_set_on_a_task_not_started_redates_what_follows_and_nothing_past(
     whole: dict[str, Any],
 ) -> None:
     # The mounting on site, not started, two days after the factory acceptance: it and the
-    # commissioning move, the commissioning still starts in 2026 — nothing is moved in time —,
-    # within the float the commissioning of the control station leaves them: nothing else moves,
+    # commissioning move, the commissioning still starts in 2026, within the float the
+    # commissioning of the control station leaves them: nothing else moves,
     # the end of the structure is where it was (#376); the acceptance stays on 30 June (C13).
     linked = write("predecessor_set")
     [mounting] = linked["nodes"]
@@ -256,9 +256,28 @@ def test_a_link_set_on_a_task_not_started_redates_what_follows_and_nothing_past(
     assert [entry["node_id"] for entry in linked["rescheduled"]] == [universe(COMMISSIONING)]
     [moved] = linked["rescheduled"]
     assert moved["start"]["date"] == "2026-12-23"
-    assert linked["reinflated"] == []
+    # It crosses the turn of the year otherwise, so that its amounts, spread over the two years by
+    # the hours worked in each (WF-DEV-0040), change, and the total re-estimate with them, by the
+    # very difference of the two nodes of the commissioning alone.
+    read = numbered(whole["items"])
+    assert [entry["node_id"] for entry in linked["reinflated"]] == [
+        universe(COMMISSIONING),
+        universe(COMMISSIONING_LINE),
+    ]
+    spread = Decimal(linked["reinflated"][1]["reestimated_amount"]) - Decimal(
+        read[COMMISSIONING_LINE]["estimate_line"]["reestimated_amount"]
+    )
+    assert spread > 0
     assert sorted(numbered(linked["ancestors"])) == [INSTALLATION]
-    assert linked["totals"] == whole["totals"]
+    assert {**linked["totals"], "reestimated_amount": None} == {
+        **whole["totals"],
+        "reestimated_amount": None,
+    }
+    assert (
+        Decimal(linked["totals"]["reestimated_amount"])
+        - Decimal(whole["totals"]["reestimated_amount"])
+        == spread
+    )
 
 
 def test_no_write_moves_a_fact_already_recorded(
@@ -301,11 +320,19 @@ def test_a_role_on_another_calendar_redates_its_task_and_moves_its_successor_in_
     [line] = redated["nodes"]
     assert line["estimate_line"]["resource_role_id"] == CABLE_FITTER
     assert line["estimate_line"]["resource_role_label"] == "Monteur câbleur"
-    assert {**line["estimate_line"], "resource_role_id": None, "resource_role_label": None} == {
+    # The line keeps its quantities and its budget; the mounting now crosses the turn of the
+    # year, so that its re-estimate, spread over the two years by the hours worked in each
+    # (WF-DEV-0040), is between its projections on the first and on the last of them.
+    moved_off = {"resource_role_id": None, "resource_role_label": None}
+    unspread = {"reestimated_amount": None, "consumption_year": None}
+    assert {**line["estimate_line"], **moved_off, **unspread} == {
         **read[ON_SITE]["estimate_line"],
-        "resource_role_id": None,
-        "resource_role_label": None,
+        **moved_off,
+        **unspread,
     }
+    base = money(line["estimate_line"]["base_amount"])
+    assert mockstructure.inflated(base, 2026) < money(line["estimate_line"]["reestimated_amount"])
+    assert money(line["estimate_line"]["reestimated_amount"]) < mockstructure.inflated(base, 2027)
     # The task and its successor redated; the tasks without a successor, their float alone.
     above = numbered(redated["ancestors"])
     moved = numbered(redated["rescheduled"])
@@ -317,9 +344,10 @@ def test_a_role_on_another_calendar_redates_its_task_and_moves_its_successor_in_
     assert sorted(moved) == [MOUNTING, COMMISSIONING]
     assert len(redated["rescheduled"]) == len(moved)
     # Its line consumed a year later, re-estimated anew at the inflation of the witness, and the
-    # commissioning, which sums it; the mounting, still started in 2026, keeps its lines' year.
+    # commissioning, which sums it; the other line of the mounting, which now crosses the turn of
+    # the year, is spread over the two years as the line written is.
     amounts = {int(entry["node_id"][-3:]): entry for entry in redated["reinflated"]}
-    assert list(amounts) == [COMMISSIONING, COMMISSIONING_LINE]
+    assert list(amounts) == [TESTS, COMMISSIONING, COMMISSIONING_LINE]
     was = read[COMMISSIONING_LINE]["estimate_line"]
     assert amounts[COMMISSIONING_LINE]["consumption_year"] == 2027
     assert money(amounts[COMMISSIONING_LINE]["reestimated_amount"]) == mockstructure.inflated(
@@ -328,7 +356,17 @@ def test_a_role_on_another_calendar_redates_its_task_and_moves_its_successor_in_
     assert amounts[COMMISSIONING]["consumption_year"] is None
     line_amount = amounts[COMMISSIONING_LINE]["reestimated_amount"]
     assert amounts[COMMISSIONING]["reestimated_amount"] == line_amount
-    delta = money(line_amount) - money(was["reestimated_amount"])
+    tests_base = money(read[TESTS]["estimate_line"]["base_amount"])
+    assert mockstructure.inflated(tests_base, 2026) < money(amounts[TESTS]["reestimated_amount"])
+    assert money(amounts[TESTS]["reestimated_amount"]) < mockstructure.inflated(tests_base, 2027)
+    delta = (
+        money(line_amount)
+        - money(was["reestimated_amount"])
+        + money(amounts[TESTS]["reestimated_amount"])
+        - money(read[TESTS]["estimate_line"]["reestimated_amount"])
+        + money(line["estimate_line"]["reestimated_amount"])
+        - money(read[ON_SITE]["estimate_line"]["reestimated_amount"])
+    )
     assert money(above[INSTALLATION]["task"]["reestimated_amount"]) == (
         money(read[INSTALLATION]["task"]["reestimated_amount"]) + delta
     )

@@ -3,7 +3,7 @@
 
 [project]
 name = "waterfall"
-version = "0.1.0"
+version = "0.3.0"
 description = "Waterfall: the business core, the API service and the worker, in one package."
 requires-python = ">=3.14"
 dependencies = [
@@ -113,10 +113,10 @@ type = "layers"
 layers = ["waterfall.witness", "waterfall.bootstrap | waterfall.restore", "waterfall.api | waterfall.worker | waterfall.migrations", "waterfall.schema", "waterfall.core", "waterfall.platform"]
 
 [[tool.importlinter.contracts]]
-name = "The modules of the core are ordered: the one above imports the one below, never the reverse (the cycle of #2124); the estimate registers in the planning, the exchanges, the revisions, the projects, the cost settings and the resource settings; the planning registers in the exchanges, the history, the revisions, the projects and the resource settings; projects and revisions sit between them and cost_settings; resource_settings imports no other module of the core"
+name = "The modules of the core are ordered: the one above imports the one below, never the reverse (the cycle of #2124); the estimate reads the actual costs and registers in the planning, the exchanges, the revisions, the projects, the cost settings and the resource settings; the actual costs register in the exchanges and neither import nor are imported by the planning; the planning registers in the exchanges, the history, the revisions, the projects and the resource settings; projects and revisions sit between them and cost_settings; resource_settings imports no other module of the core"
 type = "layers"
 containers = ["waterfall.core"]
-layers = ["access_roles | backups | indicator_settings | risk_settings", "estimate", "planning", "exchanges | history", "revisions", "projects", "cost_settings", "users", "resource_settings"]
+layers = ["access_roles | backups | indicator_settings | risk_settings", "estimate", "costs | planning", "exchanges | history", "revisions", "projects", "cost_settings", "users", "resource_settings"]
 
 [[tool.importlinter.contracts]]
 name = "A module of the core reaches another only through its public interface"

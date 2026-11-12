@@ -1,0 +1,13 @@
+{
+  "summary": "Une ligne de main-d'oeuvre de quantité 1 budgétée à 100 heures, au taux de 50, consommée l'année suivant l'année de référence avec 3 % d'inflation : la saisie de 80 heures donne 80 fois le taux, 4 000,00, projeté sur l'année de consommation, 4 120,00 (WF-RAE-0040, WF-DEV-0030).",
+  "examples": ["WF-RAE-0040-A#a27e44651c10"],
+  "quantity": "1",
+  "budgeted_effort": "100",
+  "effort": "80",
+  "hourly_rate": "50",
+  "inflation_rate": "0.03",
+  "reference_year": 2026,
+  "consumption_year": 2027,
+  "base_amount": "4000.00",
+  "reestimated_amount": "4120.00"
+}

@@ -268,7 +268,7 @@ describe("the link of the estimate to the workload (#1069)", () => {
 
 describe("the shares of the estimate (#626)", () => {
   it("says a share too small to show below the smallest shown, never « 0% »", async () => {
-    // The estimate the offer v1.0 kept at its marking: its work package, 2,080.15 of 70,285,865.01,
+    // The estimate the offer v1.0 kept at its marking: its work package, 2,080.15 of 70,313,565.61,
     // the server gives a share of « 0.00003 », to its first significant digit (EP-14/L42o).
     server.answers = {
       ...server.answers,
@@ -279,7 +279,7 @@ describe("the shares of the estimate (#626)", () => {
       .replace(/&lt;/g, "<")
       .replace(/\s+/g, " ");
     expect(page).toContain("By work package Computed on Lot 1 €2,080.15 (<0.01%)");
-    expect(page).toContain("Computed on No subproject €70,285,865.01 (100%)");
+    expect(page).toContain("Computed on No subproject €70,313,565.61 (100%)");
   });
 });
 

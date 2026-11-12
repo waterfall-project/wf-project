@@ -207,12 +207,12 @@ describe("the screen of the remaining to commit", () => {
     const summary = section(await remainingAt(), "Remaining to commit indicators");
     expect(summary).toMatch(/Computed on <time dateTime="2026-06-03T14:05:00Z"/);
     expect(text(summary)).toContain(
-      "Remaining to commit 67,470,133.69 Margin on the reference budget 1,405,592.07 " +
+      "Remaining to commit 67,497,090.97 Margin on the reference budget 1,406,335.39 " +
         "Deviation from the previous review -1,803,418.08 By cost type",
     );
     // Each amount bears the one mark of a computed value.
     expect(summary.match(/aria-label="Computed"/g)).toHaveLength(8);
-    expect(text(summary)).toContain("Débours: €57,634,670.45 (85.42%)");
+    expect(text(summary)).toContain("Débours: €57,658,305.66 (85.42%)");
     expect(text(summary)).toContain(
       "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 reestimated Reestimated cost of the occurred risks (information) 200.00 Coverage variance 349,860.00",
     );
@@ -227,9 +227,9 @@ describe("the screen of the remaining to commit", () => {
     server.answers = { ...server.answers, [INDICATORS]: "remaining_indicators_over_budget" };
     const markup = section(await remainingAt(), "Remaining to commit indicators");
     const summary = text(markup);
-    expect(summary).toContain("Poste de commande: €23,314,197.74, margin €632,737.10");
-    expect(summary).toContain("Essais et mise en service: €20,814,267.10, margin €611,744.06");
-    expect(summary).toContain("No subproject: €23,591,668.85, margin -€88,889.09");
+    expect(summary).toContain("Poste de commande: €23,322,741.24, margin €632,968.59");
+    expect(summary).toContain("Essais et mise en service: €20,825,768.55, margin €612,061.48");
+    expect(summary).toContain("No subproject: €23,598,581.18, margin -€88,694.68");
     // Each by the zone the server gives it, named: the whole outside the sub-projects alone is
     // over its budget, signalled; the two sub-projects within theirs are not.
     expect(
@@ -237,7 +237,7 @@ describe("the screen of the remaining to commit", () => {
     ).toEqual(["Nominal", "Nominal", "Alert"]);
     // The margin on the reference budget, in the sense of the balances: 250,000 less of it, the
     // provision the review adds.
-    expect(summary).toContain("Margin on the reference budget 1,155,592.07");
+    expect(summary).toContain("Margin on the reference budget 1,156,335.39");
     expect(summary).toContain("Deviation from the previous review -1,553,418.08");
   });
 
@@ -423,9 +423,9 @@ describe("the screen of the remaining to commit", () => {
 });
 
 describe("the note of the fake back on the remaining to commit", () => {
-  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
+  it("shows none: the service serves the screen, its grid and its indicators", async () => {
     const page = await remainingAt();
-    expect(page.match(/<p role="note"/g)).toHaveLength(1);
-    expect(page).toContain("Filters, search, sort and pages are ignored");
+    expect(page).not.toContain('role="note"');
+    expect(page).not.toContain("Filters, search, sort and pages are ignored");
   });
 });

@@ -1,9 +1,14 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { closeMenu, menuButton, openFilters, openMenu, pick } from "./check-menu";
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 
+import { closeMenu, menuButton, openFilters, openMenu, pick } from "./check-menu";
 import { openHydrated, WORKING } from "./hydration";
+import { inService, test } from "./mode";
+import { bringInProgress, importActualCosts } from "./in-progress";
+import { createOwnProject, openRevision } from "./own-project";
+import { seedPlanning } from "./planning-seed";
+import { API } from "./service/realm";
 import { scrollToFoot, scrollToPosition, withinBox } from "./scroll";
 
 // The fake back serves the first example of each read: the actual costs of the project at 3 June
@@ -11,12 +16,15 @@ import { scrollToFoot, scrollToPosition, withinBox } from "./scroll";
 // them excluded, one to its sub-project, and the invoices of the twenty-one tasks drawn around
 // the core and completed (EP-14/L45a) — and the journal of its five imports, whatever the
 // filters, the sort or the page asked: the component and page tests prove what the screen asks
-// of each.
+// of each. Tagged `@shared`, the paths play against the service too (EP-09, US-1620). The lines
+// above are the witness's, whose costs the service loads (US-1650): the paths play them there too.
+// The paths that write play there on a project the run creates and takes In progress
+// (`in-progress.ts`), whose extraction they import by the API.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const COSTS = `/projects/${PROJECT}/revisions/${REVISION}/actual-costs`;
 
-test("reads the actual costs of a project: the lines and their three totals, the last import, its journal, the sort and the filter asked of the server [WF-CRE-0040-A]", async ({
+test("reads the actual costs of a project: the lines and their three totals, the last import, its journal, the sort and the filter asked of the server @shared [WF-CRE-0040-A]", async ({
   page,
 }) => {
   // The opening and the dense grid read anew by each click, each in the bound of a grid
@@ -85,25 +93,33 @@ test("reads the actual costs of a project: the lines and their three totals, the
   await expect(apply).toBeFocused();
 });
 
-test("chooses the number of rows per page of the actual costs, carried by the address and back to the first page, the rest of the query kept [WF-IHM-0060-A]", async ({
+test("chooses the number of rows per page of the actual costs, carried by the address and back to the first page, the rest of the query kept @shared [WF-IHM-0060-A]", async ({
   page,
 }) => {
   test.slow();
-  await openHydrated(page, `${COSTS}?in_tracked_scope=false&offset=50`);
+  await openHydrated(page, `${COSTS}?sort_by=amount&sort_order=asc&offset=10`);
   const size = page.getByRole("combobox", { name: "Lignes par page", exact: true });
   await expect(size).toBeInViewport();
   await expect(size).toHaveValue("50");
   await expect(size.getByRole("option")).toHaveText(["10", "25", "50", "100"]);
   await size.selectOption("25");
-  await expect(page).toHaveURL(`${COSTS}?in_tracked_scope=false&limit=25`, { timeout: WORKING });
+  await expect(page).toHaveURL(`${COSTS}?sort_by=amount&sort_order=asc&limit=25`, {
+    timeout: WORKING,
+  });
   // A larger one is chosen as easily, from the address of the one before.
   await size.selectOption("100");
-  await expect(page).toHaveURL(`${COSTS}?in_tracked_scope=false&limit=100`, { timeout: WORKING });
+  await expect(page).toHaveURL(`${COSTS}?sort_by=amount&sort_order=asc&limit=100`, {
+    timeout: WORKING,
+  });
 });
 
-test("shows a line from the list to exclude it from the tracked scope with a reason, the page read anew once the server has written it (#291) [WF-CRE-0040-A]", async ({
+test("shows a line from the list to exclude it from the tracked scope with a reason, the page read anew once the server has written it (#291) @shared [WF-CRE-0040-A]", async ({
   page,
 }) => {
+  test.skip(
+    inService,
+    "the account of the run is no project manager of PRJ-001 and the exclusion would write the witness (#2193): the path of the run below excludes a line it imports",
+  );
   test.slow();
   await openHydrated(page, COSTS);
   const grid = page.getByRole("grid", { name: "Coûts réels" });
@@ -138,4 +154,111 @@ test("shows a line from the list to exclude it from the tracked scope with a rea
   await expect(
     reception.getByRole("button", { name: "Réintégrer dans le périmètre suivi" }),
   ).toBeVisible();
+});
+
+test("reads the actual costs of a project the run creates, none imported yet: no line, three totals at zero, no last import, an empty journal, no note of the mock-up, as the service answers @shared [WF-CRE-0040-A] [WF-CRE-0050-A]", async ({
+  page,
+}) => {
+  test.skip(!inService, "the fake back keeps nothing of the project it is asked to create");
+  test.slow();
+  const own = await createOwnProject(page, "Coûts réels");
+  await openRevision(page, own);
+  await page.goto(own.path);
+  await expect(page).toHaveURL(new RegExp(`${own.path}/revisions/[^/]+/planning$`), {
+    timeout: WORKING,
+  });
+  const revision = new URL(page.url()).pathname.replace(/\/planning$/, "");
+  await openHydrated(page, `${revision}/actual-costs`);
+  const totals = page.getByRole("region", { name: "Totaux des lignes retenues" });
+  await expect(totals).toContainText("Aucun import", { timeout: WORKING });
+  await expect(totals).toHaveText(
+    /^Totaux des lignes retenues\s*Périmètre suivi\s*0,00\s€\s*Exclu du périmètre suivi\s*0,00\s€\s*Total général\s*0,00\s€\s*Dernier import\s*Aucun import/,
+  );
+  const grid = page.getByRole("grid", { name: "Coûts réels" });
+  // No line: the number of each document is a link, and the foot of the grid says the total zero.
+  await expect(grid.getByRole("link")).toHaveCount(0);
+  await expect(grid.getByRole("row").last()).toHaveText(
+    /^Total général des lignes retenues\s*0,00\s€$/,
+  );
+  await expect(page.getByRole("region", { name: "Journal des imports" })).toContainText(
+    "Aucun coût réel n’a encore été importé.",
+  );
+  await expect(page.getByRole("note")).toHaveCount(0);
+});
+
+test("imports the actual costs of a project the run creates, then excludes a line from the tracked scope: the totals move from the tracked scope to the excluded, the sort and the filter asked of the service @shared [WF-CRE-0040-A] [WF-CRE-0030-A] [WF-CRE-0020-A] [WF-CRE-0050-A]", async ({
+  page,
+  browser,
+  playwright,
+  manager,
+}) => {
+  test.skip(!inService, "the fake back keeps nothing of the extraction it is asked to import");
+  test.slow();
+  const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
+  try {
+    const seeded = await seedPlanning(page, browser, calls, manager, "Coûts importés");
+    const code = await bringInProgress(page, calls, seeded);
+    // A subproject of the project, so that one line is charged to it and the others to the project
+    // alone (WF-CRE-0020).
+    const made = await calls.post(`${API}/projects/${seeded.ids.project}/subprojects`, {
+      headers: seeded.headers,
+      data: { code: "10001", label: "Lot câblage" },
+    });
+    expect(made.status(), "POST subprojects").toBe(201);
+    await importActualCosts(calls, seeded, [
+      [code, "FA-0001", "2026-03-02", 1000],
+      [code, "FA-0002", "2026-03-09", 250.5],
+      [code, "FA-0003", "2026-03-16", 100],
+      [`${code}/10001`, "FA-0004", "2026-03-23", 10],
+    ]);
+
+    const address = `${seeded.revision}/actual-costs`;
+    await openHydrated(page, address);
+    const grid = page.getByRole("grid", { name: "Coûts réels" });
+    const lines = grid.getByRole("row", { name: /FA-000\d/ });
+    await expect(lines).toHaveCount(4, { timeout: WORKING });
+    const totals = page.getByRole("region", { name: "Totaux des lignes retenues" });
+    await expect(totals).toHaveText(
+      /^Totaux des lignes retenues\s*Périmètre suivi\s*1\s360,50\s€\s*Exclu du périmètre suivi\s*0,00\s€\s*Total général\s*1\s360,50\s€\s*Dernier import/,
+    );
+    // The date of the last import is the one the service served after a real import (WF-CRE-0050-A):
+    // an instant of the last minutes, not the placeholder of a project with no import.
+    await expect(totals).not.toContainText("Aucun import");
+    const imported = await totals.locator("time").getAttribute("datetime");
+    expect(imported, "the date of the last import").not.toBeNull();
+    expect(Math.abs(Date.now() - Date.parse(imported ?? ""))).toBeLessThan(10 * 60_000);
+
+    // The sort by amount and the filter on the lines of no subproject, asked of the service.
+    await grid.getByRole("columnheader", { name: "Montant" }).getByRole("button").click();
+    await expect(page).toHaveURL(`${address}?sort_by=amount&sort_order=asc`, { timeout: WORKING });
+    await expect(lines.first()).toContainText("FA-0004", { timeout: WORKING });
+    await openHydrated(page, `${address}?subproject_id=unassigned`);
+    await expect(lines).toHaveCount(3, { timeout: WORKING });
+    await expect(grid.getByRole("row", { name: /FA-0004/ })).toHaveCount(0);
+    // The filter applies to the three totals (WF-CRE-0040-A): the line charged to the sub-project
+    // leaves the tracked scope and the general total alike.
+    await expect(totals).toHaveText(
+      /^Totaux des lignes retenues\s*Périmètre suivi\s*1\s350,50\s€\s*Exclu du périmètre suivi\s*0,00\s€\s*Total général\s*1\s350,50\s€\s*Dernier import/,
+      { timeout: WORKING },
+    );
+
+    // A line excluded with its reason: the page read anew, the totals moved to the excluded.
+    await openHydrated(page, address);
+    await grid.getByRole("link", { name: "FA-0003" }).click();
+    await expect(page).toHaveURL(/\?line=[0-9a-f-]{36}$/, { timeout: WORKING });
+    const line = page.getByRole("region", { name: "Ligne FA-0003" });
+    await expect(line).toContainText("Suivie");
+    await line.getByLabel("Motif de l’exclusion").fill("Câbles d'un autre projet, à réimputer");
+    const command = line.getByRole("button", { name: "Exclure du périmètre suivi" });
+    await command.click();
+    await expect(command).toHaveAttribute("aria-busy", "false", { timeout: WORKING });
+    await expect(line.getByRole("alert")).toHaveCount(0);
+    await expect(totals).toHaveText(
+      /^Totaux des lignes retenues\s*Périmètre suivi\s*1\s260,50\s€\s*Exclu du périmètre suivi\s*100,00\s€\s*Total général\s*1\s360,50\s€\s*Dernier import/,
+      { timeout: WORKING },
+    );
+    await expect(grid.getByRole("row", { name: /FA-0003/ })).toContainText("Exclue");
+  } finally {
+    await calls.dispose();
+  }
 });

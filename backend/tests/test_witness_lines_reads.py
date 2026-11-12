@@ -14,10 +14,8 @@ named with its cause where the test stands:
 - the provisions are EP-08's, the lines of the risks: a line of provision is absent, with the row
   numbers it shifts and the amounts it adds to the tasks above it, to the totals, to the indicators
   and to the comparisons;
-- the previous figures (``previous_*``) and the actual costs that lock the subproject of a line
-  (``editable_fields``) are EP-09's;
-- a line whose task straddles two years is spread over them by the service, by the hours of each
-  (WF-DEV-0040), where the generator of the examples kept the first year;
+- the previous figures (``previous_*``) are EP-09's; the actual costs, which lock the subproject of
+  a line (``editable_fields``), are loaded since US-1650/L2;
 - the authors are the platform's, and the commands of a reader are those of its rights, not of
   the example's.
 """
@@ -48,7 +46,6 @@ from test_witness_tasks import REVISIONS, difference, structure_of
 from waterfall.core.estimate.interface import roles_employed
 from waterfall.core.estimate.tables import RevisionCategory
 from waterfall.core.planning.tables import Node
-from waterfall.core.revisions.interface import reference_year_of
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -72,8 +69,7 @@ PREVIOUS = {
     "previous_reestimated_amount",
 }
 # What the service computes otherwise than the examples, compared apart, line by line.
-APART = PREVIOUS | {"budgeted_amount", "reestimated_amount", "consumption_year"}
-CENT = Decimal("0.01")
+APART = PREVIOUS | {"budgeted_amount"}
 
 READS = {
     "nodes_estimate": f"?subtree_of={CORE}",
@@ -178,17 +174,6 @@ def the_day(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("waterfall.api.estimate_indicators.utc_now", lambda: READ_AT)
 
 
-def inflated(base_amount: Decimal, basis: tuple[int, Decimal], year: int) -> Decimal:
-    """Give an amount inflated to a year: once per year since the reference year, never deflated."""
-    reference_year, rate = basis
-    return base_amount * (1 + rate) ** max(year - reference_year, 0)
-
-
-def year_of(instant_: dict[str, Any]) -> str:
-    """Give the year of a start or a finish of a task as a reading writes it."""
-    return str(instant_["date"])[:4]
-
-
 def amounts_under(items: dict[str, dict[str, Any]], name: str) -> dict[str, Decimal]:
     """Sum an amount of the lines of a reading under each task that bears them, summaries too."""
     sums: dict[str, Decimal] = {}
@@ -203,70 +188,16 @@ def amounts_under(items: dict[str, dict[str, Any]], name: str) -> dict[str, Deci
 
 
 # How many lines of each read differ from the example in what is read apart: the budgeted amount
-# (the reference is the 100, the example's the 101), the re-estimated one and the year (a task on
-# two years), the fields editable (an actual cost, EP-09).
+# (the reference is the 100, the example's the 101). The re-estimated amount and the year are the
+# example's: the generator spreads a line over the years of its task as the service does
+# (WF-DEV-0040, #2838).
 LINES_APART = {
-    "nodes_estimate": {"budgeted": 1, "reestimated": 0, "year": 0, "editable": 2},
-    "nodes_estimate_sorted": {
-        "budgeted": 1,
-        "reestimated": 0,
-        "year": 0,
-        "editable": 2,
-    },
-    "nodes_estimate_filtered": {
-        "budgeted": 1,
-        "reestimated": 0,
-        "year": 0,
-        "editable": 2,
-    },
-    "nodes_estimate_hours": {
-        "budgeted": 1,
-        "reestimated": 0,
-        "year": 0,
-        "editable": 2,
-    },
-    "volume/nodes_thousand": {
-        "budgeted": 120,
-        "reestimated": 118,
-        "year": 48,
-        "editable": 18,
-    },
+    "nodes_estimate": {"budgeted": 1},
+    "nodes_estimate_sorted": {"budgeted": 1},
+    "nodes_estimate_filtered": {"budgeted": 1},
+    "nodes_estimate_hours": {"budgeted": 1},
+    "volume/nodes_thousand": {"budgeted": 2},
 }
-
-
-def projection_apart(
-    sheet: dict[str, Any],
-    example_sheet: dict[str, Any],
-    task: dict[str, Any],
-    basis: tuple[int, Decimal],
-) -> list[str]:
-    """Check how a line is projected otherwise than the example, and name what differs.
-
-    On a task straddling two years the line is spread by the hours of each (WF-DEV-0040): it costs
-    between its base amount inflated to the year the task starts and to the year it ends, where the
-    example kept the first, and its year of consumption is one of the two. Elsewhere nothing
-    differs: the service rounds a half cent away from zero, as ``Money`` and the generator do
-    (#2618).
-    """
-    label = sheet["label"]
-    starts, ends = int(year_of(task["start"])), int(year_of(task["finish"]))
-    ours, theirs = (
-        Decimal(sheet["reestimated_amount"]),
-        Decimal(example_sheet["reestimated_amount"]),
-    )
-    found: list[str] = []
-    if starts != ends:
-        low = inflated(Decimal(sheet["base_amount"]), basis, starts)
-        high = inflated(Decimal(sheet["base_amount"]), basis, ends)
-        assert abs(theirs - low) <= CENT, label
-        assert low - CENT <= ours <= high + CENT, label
-        assert starts <= int(sheet["consumption_year"]) <= ends, label
-        found += ["reestimated"] * (ours != theirs)
-        found += ["year"] * (sheet["consumption_year"] != example_sheet["consumption_year"])
-        return found
-    assert sheet["consumption_year"] == example_sheet["consumption_year"], label
-    assert ours == theirs, label
-    return found
 
 
 def sums_hold(
@@ -315,10 +246,6 @@ def test_the_estimate_read_of_the_loaded_witness_is_the_example_but_for_what_it_
     with witness.transaction() as session:
         structure = structure_of(session, REVISION_102)
         offer = line_rows(session, REVISION_100)
-        basis = (
-            reference_year_of(session, REVISION_102),
-            Decimal(example("project")["inflation_rate"]),
-        )
     base = f"{PROJECTS}/{PRJ_001}/revisions/{REVISION_102}/structures/{structure}/nodes"
     body = read(api, witness, realm, f"{base}{READS[name]}")
     expected = example(name)
@@ -341,39 +268,28 @@ def test_the_estimate_read_of_the_loaded_witness_is_the_example_but_for_what_it_
     # The lines: everything the file enters, the base amount and the place are the example's; what
     # is read apart is counted, and each difference has its cause.
     lines = {key: item for key, item in got.items() if item["kind"] == "estimate_line"}
-    found = {"budgeted": 0, "reestimated": 0, "year": 0, "editable": 0}
+    found = {"budgeted": 0}
     for key, item in lines.items():
         theirs = wanted[key]
         assert not line_differences(item, theirs), (name, item["estimate_line"]["label"])
         sheet, example_sheet = item["estimate_line"], theirs["estimate_line"]
-        task = got[item["parent_id"]]["task"]
         before = offer.get(UUID(item["lineage_id"]))
         # The budgeted amount: the re-estimated one of the lineage in the offer, the reference.
         assert Decimal(sheet["budgeted_amount"]) == (
             Decimal(0) if before is None else before[1].reestimated_amount
         ), sheet["label"]
         found["budgeted"] += sheet["budgeted_amount"] != example_sheet["budgeted_amount"]
-        # The re-estimated amount and the year: the same but where the task straddles two years.
-        for each in projection_apart(sheet, example_sheet, task, basis):
-            found[each] += 1
         # The risk that originates a line is EP-08's.
         assert item["origin_risk_id"] is None
         # The previous figures are EP-09's; the subproject of a line of a started task is locked
-        # by the actual costs the example holds (EP-09).
+        # by the actual costs the witness loads (US-1650/L2), as in the example.
         assert all(sheet[each] is None for each in PREVIOUS)
-        if item["editable_fields"] != theirs["editable_fields"]:
-            assert set(item["editable_fields"]) - set(theirs["editable_fields"]) == {
-                "estimate_line.subproject_id"
-            }
-            assert set(theirs["editable_fields"]) <= set(item["editable_fields"])
-            assert task["progress"] != "not_started"
-            found["editable"] += 1
+        assert item["editable_fields"] == theirs["editable_fields"], sheet["label"]
     assert found == LINES_APART[name]
     sums_hold(name, (body, expected), got, absent)
 
 
 INDICATORS = {
-    "/by_cost_type[]/amount/value",
     "/by_cost_type[]/share/value",
     "/by_cost_type[len]",
     "/by_subproject[]/amount/value",
@@ -385,27 +301,6 @@ INDICATORS = {
     "/provisions_identified",
     "/total/value",
 }
-
-
-def volume_excess(witness: Database) -> Decimal:
-    """Give how much more the lines of the revision in progress cost than the example's, in all.
-
-    The lines on two years, spread by the service, and the provision the witness lacks (EP-08),
-    which the example sums: the difference of the re-estimated amounts of the lines they share. The
-    lines are those the database holds, which the read of the structure compares with the example
-    (``test_the_estimate_read_of_the_loaded_witness_is_the_example_but_for_what_it_does_not_reach``):
-    read through the API, their 5 999 nodes would cost each process some twenty seconds (#2716).
-    """
-    with witness.transaction() as session:
-        ours = {str(node.id): facet for node, facet in line_rows(session, REVISION_102).values()}
-    wanted = keyed(example("volume/nodes_thousand")["items"])
-    return sum(
-        (
-            facet.reestimated_amount - Decimal(wanted[key]["estimate_line"]["reestimated_amount"])
-            for key, facet in ours.items()
-        ),
-        Decimal(0),
-    ) - Decimal(wanted[PROVISION]["estimate_line"]["reestimated_amount"])
 
 
 @pytest.mark.parametrize("name", ["estimate_indicators", "volume/estimate_indicators_volume"])
@@ -421,10 +316,10 @@ def test_the_indicators_are_the_example_but_for_the_provisions_and_the_reference
         each["key"] for each in expected["by_cost_type"] if each["label"] != "Provision"
     ]
     assert body["provisions_identified"] == "0.00"
-    # The total is the lines', the example's but for its provision and the lines on two years: the
-    # difference is exactly that of the lines read.
+    # The total is the lines', the example's but for its provision, which the witness lacks.
     ours, theirs = Decimal(body["total"]["value"]), Decimal(expected["total"]["value"])
-    assert ours - theirs == volume_excess(witness)
+    wanted = keyed(example("volume/nodes_thousand")["items"])
+    assert ours - theirs == -Decimal(wanted[PROVISION]["estimate_line"]["reestimated_amount"])
     assert body["by_work_package"][0]["amount"]["value"] == "2434.56"
     for dimension in ("by_cost_type", "by_subproject"):
         assert sum(Decimal(each["amount"]["value"]) for each in body[dimension]) == ours
@@ -675,8 +570,8 @@ def test_the_amount_deltas_of_the_whole_comparison_are_the_lines_of_the_two_revi
     # US-1530 (#1752): each line counts under the key it bears in each revision, the keys at two
     # nought deltas left out, the sum by subproject equal to the sum by nature. Read whole, the
     # deltas are the amounts of the lines of the 101 less those of the 100, summed by key straight
-    # from the rows; the example's differ by the lines on two years (re-estimated), the reference
-    # (budgeted) and the provision the witness lacks (EP-08), the nature of which is absent. The
+    # from the rows; the example's differ by the reference (budgeted) and the provision the witness
+    # lacks (EP-08), the nature of which is absent. The
     # budgeted deltas are held to the sum by subproject equal to the sum by nature (#1752). The
     # nodes reduced to their kind: the deltas are those of the whole comparison, which the fields
     # do not reduce, and its 10 000 nodes in full cost some twenty seconds of validation (#2716).

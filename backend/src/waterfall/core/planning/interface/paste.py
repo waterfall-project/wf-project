@@ -45,7 +45,11 @@ of a task's own are the planning's (#2775): a block one of whose rows writes a c
 column of ``TASK_COLUMNS``, the label included —, or creates a task with another cell than its
 label, as ``createNode`` does from the three grids, is refused whole to whoever does not hold
 ``planning.write``, by 403 ``PERMISSION_MISSING`` naming it, at its preview before any row is
-judged, and again at its confirmation; nothing is kept nor written then.
+judged, and again at its confirmation; nothing is kept nor written then. The columns of the
+execution of a task — its physical progress and the days it started and completed on, the
+Kanban's ``setTaskProgress`` writes them — are the remaining to commit's (#2805, EP-09): they ask
+for ``remaining.write`` instead, and a block that writes both kinds asks for both, the planning's
+named first when neither is held.
 
 Declared by US-1380/L1; filled by US-1450/L2, L5; the lines by US-1560/L1; the permission of the
 columns of a task by US-1570/L7.
@@ -66,7 +70,12 @@ from waterfall.core.planning.carrying import (
     TASK_NOT_COMPLETED,
     bearing,
 )
-from waterfall.core.planning.entries import ONE_DAY, PERMISSION_MISSING, PLANNING_WRITE
+from waterfall.core.planning.entries import (
+    ONE_DAY,
+    PERMISSION_MISSING,
+    PLANNING_WRITE,
+    REMAINING_WRITE,
+)
 from waterfall.core.planning.interface.facets import CellsPasted, FacetWrite, facets
 from waterfall.core.planning.interface.lines import (
     judge_line_creation,
@@ -144,6 +153,9 @@ TASK_COLUMNS: tuple[NodeColumn, ...] = (
     "predecessors",
     "work_breakdown",
 )
+# The columns of a task that its execution writes, which ``setTaskProgress`` writes under
+# ``remaining.write`` (EP-09): the others of ``TASK_COLUMNS`` are the planning's.
+EXECUTION_COLUMNS: frozenset[str] = frozenset(("physical_progress", "started_on", "completed_on"))
 # The columns of the estimate line, after its label, in the order of ``NodeColumn`` (EP-07).
 LINE_COLUMNS: tuple[NodeColumn, ...] = (
     "cost_category",
@@ -477,7 +489,7 @@ def _traced_line(ground: Ground, held: tuple[Place, Act, date], judged: LineJudg
     for each in judged.shifted:
         nodes[each] = _copied(nodes[each], rank=nodes[each].rank + 1)
     nodes[judged.node_id] = new_line_node(held[0], held[1], judged)
-    tree = Tree(nodes, ground.tree.tasks)
+    tree = ground.tree.with_nodes(nodes, ground.tree.tasks)
     return Ground(ground.session, ground.project_id, tree, ground.is_main)
 
 
@@ -643,26 +655,45 @@ def _row_at(
     return _Row(index, new_id(), given, creates=True)
 
 
-def _writes_task(tree: Tree, target: UUID, row: _Row) -> bool:
-    """Tell whether a row writes a column of a task's own (#2775).
+def _task_columns(tree: Tree, target: UUID, row: _Row) -> set[str]:
+    """Give the columns of a task's own that a row writes (#2775).
 
     A row on a task writes its columns, whichever they are; a row that creates a task, its label
     alone being a creation the three grids make alike (#2601), writes them with any other cell.
     """
     columns = {column for column, _ in row.cells}
-    if row.creates:
-        return tree.nodes[target].kind == TASK and bool(columns - {"label"})
-    return row.node_id in tree.tasks and not columns.isdisjoint(TASK_COLUMNS)
+    kept: set[str] = set()
+    if row.creates and tree.nodes[target].kind == TASK:
+        kept = columns - {"label"}
+    elif not row.creates and row.node_id in tree.tasks:
+        kept = columns & set(TASK_COLUMNS)
+    return kept
 
 
 def _refuse_task_columns(
     tree: Tree, target: UUID, rows: Iterable[_Row], permissions: Collection[str]
 ) -> None:
-    """Refuse a block that writes the columns of a task to whoever may not write the planning."""
-    if PLANNING_WRITE in permissions:
-        return
-    if any(_writes_task(tree, target, each) for each in rows):
-        raise ForbiddenError(PERMISSION_MISSING, {"missing_permission": PLANNING_WRITE})
+    """Refuse a block that writes the columns of a task to whoever may not write them.
+
+    The planning's for the columns of a task's own, the remaining to commit's for those of its
+    execution (#2805); whoever holds both writes both, a block that mixes them asks for both.
+
+    The ``REMAINING_WRITE`` branch is defensive: the paste refuses the three columns of the
+    execution cell by cell, so no plan kept holds one and the replay at the confirmation never
+    asks for it. It stays so that the day the paste writes them, the permission is already asked
+    on both paths; no test carries it, a plan holding such a cell being buildable only by hand
+    in the database.
+    """
+    written: set[str] = set()
+    for each in rows:
+        written |= _task_columns(tree, target, each)
+    asked = (
+        (PLANNING_WRITE, bool(written - EXECUTION_COLUMNS)),
+        (REMAINING_WRITE, bool(written & EXECUTION_COLUMNS)),
+    )
+    for permission, needed in asked:
+        if needed and permission not in permissions:
+            raise ForbiddenError(PERMISSION_MISSING, {"missing_permission": permission})
 
 
 def preview_paste(
@@ -682,7 +713,8 @@ def preview_paste(
     before it leave — written on a copy, never in the session —, as the confirmation judges it; a
     row past the last node creates a task there, under the identifier the plan keeps for it. A
     block that writes the columns of a task is refused first to whoever does not hold
-    ``permissions`` ``planning.write`` (403, #2775).
+    ``permissions`` ``planning.write`` — ``remaining.write`` for the columns of its execution
+    (403, #2775, #2805).
     """
     facts = facts_of(session, place, lock=False)
     tree = read_tree(session, place.project_id, place.structure_id)
@@ -852,7 +884,8 @@ def apply_paste(
     history, ``paste``, which names them all and holds none of those created before it. Without
     any row to write, nothing is written: no entry, the counter as it was. A plan that writes the
     columns of a task is refused, under the lock, to whoever no longer holds ``planning.write``
-    among ``permissions`` (403, #2775); nothing is written then.
+    among ``permissions`` — ``remaining.write`` for the columns of its execution — (403, #2775,
+    #2805); nothing is written then.
     """
     facts = facts_of(session, place, lock=False)
     judge_revision(session, place.project_id, place.revision_id)

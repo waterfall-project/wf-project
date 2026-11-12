@@ -22,7 +22,7 @@ from uuid import UUID
 
 from waterfall.core.projects.interface import current_day
 from waterfall.core.revisions.interface import list_cost_structures, read_revision
-from waterfall.platform.database import utc_now
+from waterfall.platform.database import frozen_reading, utc_now
 from waterfall.platform.errors import (
     NOT_FOUND,
     STATE_FORBIDS_OPERATION,
@@ -94,7 +94,11 @@ class ExportedFile:
 
 
 class Exporter(Protocol):
-    """What gives the file of a kind of export, in the transaction of the task ``export``."""
+    """What gives the file of a kind of export, for the task ``export``.
+
+    It reads in a transaction frozen at its first read (``REPEATABLE READ``, read only), beside
+    that of the task: what commits while it reads is not seen (#2679).
+    """
 
     def export(self, session: Session, order: ExportOrder) -> ExportedFile:
         """Give the file of an export, writing nothing."""
@@ -180,8 +184,10 @@ def request_export(
 def run_export(session: Session, task: Task, bucket: Bucket) -> Mapping[str, Any]:
     """Write the file of an export under ``exports/<task_id>.<ext>``, in the task's transaction.
 
-    The exporter of the kind gives the file, and the task keeps where it lies. The object is
-    written before the transaction commits: a task run again writes the same key.
+    The exporter of the kind gives the file, reading in a frozen transaction of its own
+    (``frozen_reading``: a structure, its tree and its links as they stood together, #2679), and
+    the task keeps where it lies. The object is written before the transaction commits: a task run
+    again writes the same key.
     """
     payload = task.payload
     if task.requested_by is None:
@@ -197,7 +203,8 @@ def run_export(session: Session, task: Task, bucket: Bucket) -> Mapping[str, Any
         depth=payload["depth"],
         review_date=None if review_date is None else date.fromisoformat(review_date),
     )
-    made = exporters()[kind].export(session, order)
+    with frozen_reading(session) as frozen:
+        made = exporters()[kind].export(frozen, order)
     key = f"{EXPORTS_PREFIX}{task.task_id}{PurePosixPath(made.filename).suffix}"
     bucket.put(key, made.content, made.media_type)
     return {"object_key": key, "filename": made.filename, "media_type": made.media_type}

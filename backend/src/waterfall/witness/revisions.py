@@ -26,7 +26,9 @@ The state a transition write names is checked against the transitions the writes
 The content of a revision is written between its opening and the next event, by the fillers
 registered (``register_revision_filler``, EP-06): the tasks (``witness.tasks``), then the lines
 (``witness.estimate_lines``), each reconciling what the copy gave the revision with what the witness
-describes of it, before its marking comes.
+describes of it, before its marking comes. The actual costs come after the lines, at the instants of
+their events (``witness.costs``, EP-09): the imports applied, the line excluded and the extraction
+expired, by the project manager, the account an import is requested by.
 """
 
 from dataclasses import dataclass
@@ -58,12 +60,15 @@ from waterfall.platform.errors import (
 )
 from waterfall.platform.logs import get_logger
 from waterfall.platform.registry import Registry
-from waterfall.witness import timeline
+from waterfall.witness import costs, timeline
 from waterfall.witness.description import is_loaded
 from waterfall.witness.filling import number_of
 from waterfall.witness.timeline import (
     CodeEntered,
+    CostImportApplied,
+    CostLineExcluded,
     DesignationAttempted,
+    ImportExpired,
     ProjectCreated,
     RateUpdateApplied,
     RevisionMarked,
@@ -143,6 +148,8 @@ class _Walk:
         }
         self.manager = self._manager(witness)
         self.designated: set[UUID] = set()
+        # What the slice of the costs reads of the description, at its first write.
+        self.costs: costs.Costs | None = None
 
     @staticmethod
     def _manager(witness: Witness) -> Viewer:
@@ -182,7 +189,7 @@ class _Walk:
         }
 
     def write(self, event: Event, write: Write) -> None:
-        """Make a write of the chronology at its event's instant; the others are passed over."""
+        """Make each write of the chronology at its event's instant."""
         act = timeline.at(self.witness, event.occurred_at)
         match write:
             case ProjectCreated():
@@ -204,8 +211,19 @@ class _Walk:
                 self._enter(write, act)
             case StateTransition():
                 self._check(write, event)
-            case _:
-                pass
+            case CostImportApplied() | CostLineExcluded() | ImportExpired():
+                self._cost(write, act)
+
+    def _cost(self, write: CostImportApplied | CostLineExcluded | ImportExpired, act: Act) -> None:
+        """Make a write of the actual costs at its instant, by the project manager (EP-09).
+
+        An import is requested by an account, which the platform is not: the manager of the
+        witness applies the imports and excludes the line, as he enters the code.
+        """
+        if self.costs is None:
+            self.costs = costs.Costs.read(self.witness)
+        made = costs.CostWrite(self.project(write.project), self.manager.user_id, act.at)
+        costs.write(self.session, self.costs, write, made)
 
     def _mark(self, write: RevisionMarked, act: Act) -> None:
         revision = self.revision(write)

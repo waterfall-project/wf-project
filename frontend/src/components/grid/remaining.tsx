@@ -18,7 +18,7 @@
  * (`computed_fields`), and where the line says it takes a re-estimation (`remaining_entry`) — the
  * lines of a task completed do not —, never deduced here from the progress of its task.
  */
-import { CalendarX2, Contrast, ListTodo } from "lucide-react";
+import { CalendarX2, Contrast, ListTodo, ToggleLeft } from "lucide-react";
 
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
@@ -44,6 +44,7 @@ import {
   type NodeTotals,
   type RowOf,
 } from "./nodes";
+import { InactiveObjectCell } from "./estimate-cells";
 import { ProgressCell } from "./planning-cells";
 import { OverdueCell, OwnLinesCell } from "./remaining-cells";
 
@@ -74,6 +75,7 @@ export const REMAINING_FIELDS = {
     "previous_unit_disbursement",
     "previous_reestimated_amount",
     "remaining_entry",
+    "uses_inactive_object",
     "subproject_id",
     "subproject_label",
   ],
@@ -101,6 +103,7 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
   key: "remaining",
   searched: true,
   name: "remaining",
+  creates: "lines",
   rowKey: nodeKey,
   fresher: nodeFresher,
   rowNumber: nodeNumber,
@@ -155,6 +158,21 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
       sorts: false,
       value: () => undefined,
       render: (node) => <OwnLinesCell node={node} />,
+    },
+    // A line that employs a deactivated object of the reference data, which the server says and
+    // the grid keeps readable (WF-REF-0010): the mark of the estimate's, a narrow column headed by
+    // the same icon, sorted by none.
+    {
+      key: "inactive_object",
+      label: "inactiveObject",
+      help: "remaining.inactiveObject",
+      format: "text",
+      align: "center",
+      width: 44,
+      icon: ToggleLeft,
+      sorts: false,
+      value: () => undefined,
+      render: (node) => <InactiveObjectCell node={node} />,
     },
     {
       key: "budgeted_amount",
@@ -272,6 +290,21 @@ export const REMAINING_SORT_COLUMNS = sortColumns(REMAINING_GRID);
 
 /** What a write of the grid of the remaining to commit answers, as the grid reads it. */
 export type RemainingWritten = RowsWritten<RemainingNode, NodeTotals>;
+
+/**
+ * Whether the service refused an entry for want of the date that completes the task
+ * (`COMPLETION_DATE_REQUIRED` on `/completed_on`, a refusal by field of a 422): the screen asks the
+ * date and replays the entry (WF-RAE-0040).
+ */
+export function needsCompletionDate(outcome: Outcome<unknown>): boolean {
+  return (
+    "problem" in outcome &&
+    outcome.problem.status === 422 &&
+    (outcome.problem.fields ?? []).some(
+      (field) => field.code === "COMPLETION_DATE_REQUIRED" && field.pointer === "/completed_on",
+    )
+  );
+}
 
 /** The figures of a re-estimation an entry writes: the cell entered, nothing else. */
 export type RemainingBasis = components["schemas"]["RemainingUpdate"]["reestimated_amount_basis"];

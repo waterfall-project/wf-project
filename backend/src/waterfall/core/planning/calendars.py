@@ -21,7 +21,7 @@ from waterfall.core.resource_settings.interface import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Mapping
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -66,8 +66,24 @@ def applicable_of(session: Session, named: Collection[UUID], default: Applicable
 
     None named, the default; one, its own; several, their intersection, which has no identifier.
     """
+    return applicable_among(named, default, weeks_of(session, named))
+
+
+def weeks_of(session: Session, calendar_ids: Collection[UUID]) -> dict[UUID, Calendar]:
+    """Read the hours of each calendar named, each once, however many tasks name it."""
+    return {
+        each: week_of(read_calendar(session, each).weekly_hours)
+        for each in sorted(set(calendar_ids))
+    }
+
+
+def applicable_among(
+    named: Collection[UUID], default: Applicable, weeks: Mapping[UUID, Calendar]
+) -> Applicable:
+    """Give the calendar applicable to a task, the hours of the calendars it names read already."""
     if not named:
         return default
-    weeks = [week_of(read_calendar(session, each).weekly_hours) for each in sorted(named)]
     only = next(iter(named)) if len(set(named)) == 1 else None
-    return Applicable(only, applicable_calendar(weeks, default.calendar))
+    return Applicable(
+        only, applicable_calendar([weeks[each] for each in sorted(named)], default.calendar)
+    )

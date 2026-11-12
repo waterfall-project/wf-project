@@ -14,7 +14,7 @@ En tête de l’écran :
 
 - **Montrer aussi les tâches non démarrées** ajoute à la grille les tâches qui n’ont pas démarré ; **Ne montrer que les tâches démarrées** revient à la lecture par défaut.
 - **Kanban — démarrage des tâches** mène au Kanban, où les tâches se démarrent et se terminent.
-- **Plan de charge**, une icône seule, mène à la répartition mensuelle des charges, par rôle.
+- **Plan de charge**, une icône seule, mène à la répartition mensuelle des charges, par rôle, sur le reste à engager de la révision en cours.
 - **Imports et exports**, quand le projet offre l’import d’un reste à engager.
 
 Au-dessus de la grille : **Lot ou poste**, **Rechercher un libellé**, **Colonnes**, **Arbre**, et **Annuler** (`Ctrl+Z`) et **Rétablir** (`Ctrl+Maj+Z`), indisponibles tant que le serveur ne conserve pas l’historique des saisies.
