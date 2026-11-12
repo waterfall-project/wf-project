@@ -362,6 +362,34 @@ def test_a_regression_read_in_a_run_leaves_the_same_failure_elsewhere_to_classif
     assert queue.read_catalogue().classify(elsewhere) == (queue.TO_CLASSIFY, None)
 
 
+@pytest.mark.parametrize(
+    ("name", "run"),
+    [
+        ("playwright-installation-schedule", 41132886833),
+        ("playwright-installation-nodes", 41319278707),
+    ],
+)
+def test_the_accounts_of_the_installation_not_found_under_a_404_of_the_service_are_a_regression(
+    name: str, run: int
+) -> None:
+    # US-1920/L3: « 1 compte » never read, the grid of the accounts never shown — the page not
+    # found, a read it could not do without answered 404 by the service; elsewhere, to classify.
+    (found,) = queue.failures_of(
+        run, queue.Job(9, "service / paths", "failure", None, None, "x"), log(name)
+    )
+    assert (found.test, found.where) == (
+        "e2e/service/installation.setup.ts:39",
+        "e2e/service/installation.setup.ts:64",
+    )
+    catalogue = queue.read_catalogue()
+    kind, entry = catalogue.classify(found)
+    assert (kind, entry.family if entry else None) == (
+        queue.REGRESSION,
+        "page des comptes introuvable sous un 404 du service",
+    )
+    assert catalogue.classify(replace(found, run=43302246856)) == (queue.TO_CLASSIFY, None)
+
+
 def test_the_crash_of_a_worker_of_vitest_is_recognized_in_its_run_alone() -> None:
     # The fatal error of V8 is said in the middle of the log, far from the end the report reads.
     crash = queue.Failure(

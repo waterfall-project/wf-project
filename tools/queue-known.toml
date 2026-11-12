@@ -417,3 +417,18 @@ job = '^(front / check|e2e / paths)'
 message = "Function 'CheckMenu' has a complexity|e2e/review\\.spec\\.ts:257\\b"
 frequency = "2 passages, le 2026-11-12 : `front / check` (`make lint-front`), et `e2e/review.spec.ts:207` en fr et en en contre le faux back"
 cause = "établie : ESLint refuse `CheckMenu` (`check-menu.tsx`, complexité 15 pour 14), que #2930 modifie ; le parcours de la revue échoue à ses deux langues sur les deux seuls passages qui portent #2930, et passe sans elle (43302246856, #2931 sur la même base)"
+
+# Avant la fenêtre de la référence : `installation.setup` (« 1 compte ») tombé deux fois, la grille
+# des comptes jamais affichée. Deux régressions, chacune corrigée par sa pull request avant sa
+# fusion : la page des comptes lisait par `readOrFail` une opération que le service, en retard sur
+# le contrat, ne servait pas encore ; son 404 rendait la page introuvable (US-1920/L3).
+[[known]]
+class = "regression"
+family = "page des comptes introuvable sous un 404 du service"
+issue = "#2938"
+runs = [41132886833, 41319278707]
+job = "^service / paths$"
+test = 'e2e/service/installation\.setup\.ts:39\b'
+message = "getByRole\\('grid', \\{ name: 'Comptes utilisateurs' \\}\\)"
+frequency = "2 passages, avant la référence : le 2026-10-30 (41132886833, #1676) et le 2026-11-01 (41319278707, #1807) ; aucun du 2026-11-05 au 2026-11-12"
+cause = "établie : `GET /identity-sync-schedule` (#1676), puis `GET /reference/org-nodes` (#1807), lus par `readOrFail`, répondent 404 — le service ne les servait pas encore — et `notFound()` remplace la page, `listUsers` lu à 200 ; corrigé dans chaque pull request avant sa fusion (db57e5ae, db6a135e). Le parcours attend depuis le titre de l'écran des comptes, qui dit « Introuvable » à sa place"
