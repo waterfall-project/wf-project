@@ -32,8 +32,6 @@ The columns kept are read as texts, an empty one left out.
 
 import math
 import re
-import zipfile
-import zlib
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal
@@ -41,7 +39,6 @@ from io import BytesIO
 from typing import TYPE_CHECKING, Any
 
 from openpyxl import load_workbook
-from openpyxl.utils.exceptions import InvalidFileException
 
 from waterfall.core.cost_settings.interface import (
     fold_labels,
@@ -49,6 +46,7 @@ from waterfall.core.cost_settings.interface import (
     read_folded_labels,
 )
 from waterfall.core.costs.tables import DOCUMENT_NUMBER_LENGTH, SUBPROJECT_CODE_LENGTH
+from waterfall.core.exchanges.interface import DAMAGES
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
@@ -81,22 +79,6 @@ LARGEST_AMOUNT = Decimal("999999999999.99")
 _BOUNDS = {"column": "amount", "minimum": str(-LARGEST_AMOUNT), "maximum": str(LARGEST_AMOUNT)}
 ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
-# What a damaged file raises as openpyxl opens or reads it, as the reader of an estimate names it:
-# SyntaxError is the parent of the errors of XML, zlib.error and EOFError a cut deflate stream,
-# RuntimeError and NotImplementedError a member zipfile cannot decode; none is an OSError.
-_DAMAGES = (
-    zipfile.BadZipFile,
-    zlib.error,
-    EOFError,
-    RuntimeError,
-    NotImplementedError,
-    InvalidFileException,
-    KeyError,
-    ValueError,
-    OSError,
-    SyntaxError,
-)
-
 
 def unreadable(params: Mapping[str, Any] | None = None) -> UnprocessableError:
     """Refuse a file that is no extraction of the actual costs (422), naming the format expected.
@@ -123,7 +105,7 @@ def sheet_rows(content: bytes, max_row: int | None = None) -> list[tuple[Any, ..
             return list(sheets[0].iter_rows(max_row=max_row, values_only=True))
         finally:
             workbook.close()
-    except _DAMAGES as error:
+    except DAMAGES as error:
         raise unreadable() from error
 
 

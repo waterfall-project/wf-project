@@ -17,7 +17,7 @@ from uuid import UUID
 
 import pytest
 from costs_support import cost, load_import
-from estimate_support import Costing, costing, give_a_line
+from estimate_support import Costing, Lines, costing, give_a_line
 from fastapi.testclient import TestClient
 from imports_trial import AT_ONCE, read
 from nodes_support import set_progress
@@ -27,7 +27,7 @@ from project_rows import delete_structure, lifted_kind_check, structure_row
 from projects_support import PROJECTS, Scene, put_in_state
 from projects_support import scene as make_scene
 from remaining_support import Review, in_progress, line_named, task_named
-from sqlalchemy import insert, update
+from sqlalchemy import insert, select, update
 from support import ContractClient
 from test_remaining_import import (
     NEXT,
@@ -47,15 +47,18 @@ from test_remaining_import import (
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.core.cost_settings.interface import CostCategoryDraft, create_cost_category
+from waterfall.core.cost_settings.tables import CostType
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.revisions.tables import CostStructure
+from waterfall.platform.audit import Act
+from waterfall.platform.database import utc_now
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.worker.exchanges import ExportTask, ImportTasks
 from waterfall.worker.marking import mark as marking
 from waterfall.worker.runner import Worker
 
 if TYPE_CHECKING:
-    from estimate_support import Lines
     from nodes_support import Tree
     from openapi_core import OpenAPI
     from openpyxl import Workbook
@@ -480,6 +483,38 @@ def test_a_remaining_exported_then_imported_again_presents_no_difference_and_cha
     assert scene.tree.items() == before
     marks = [row_of(stage, line_named(scene.tree, label)["node_id"]) for label in ("Banc",)]
     assert [each.reestimated_at for each in marks] == [None]
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_code_shared_by_a_role_and_a_category_keeps_each_line_of_its_kind_through_the_round_trip(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # « Un reste à engager exporté […] puis réimporté […] met à jour les lignes de même lignée
+    # sans en créer aucune. » for a code shared (#2752, as #2690 for the estimate): a code of a
+    # role is unique among the roles, an accounting code among the categories, not between them;
+    # the category « Outillage », accounted under ING as the role is coded, is exported under its
+    # own label, and its line comes back a line of that category, not of the role.
+    with stage.database.transaction() as session:
+        nature = session.scalars(select(CostType.id).where(CostType.code == "MAT")).one()
+        draft = CostCategoryDraft("OUT-001", "Outillage", "ING", nature)
+        tools = create_cost_category(session, draft, Act(None, utc_now())).cost_category_id
+    Lines(scene.tree).made(
+        task_named(scene.tree, "Essais"),
+        quantity="1",
+        cost_category_id=str(tools),
+        unit_disbursement="12.00",
+        label="Perceuse",
+    )
+    before = scene.tree.items()
+    content = exported(api, stage, worker, scene.tree.revision["revision_id"])
+    entries = {row["Désignation"]: row["Rôle ou catégorie"] for row in lines_of(content, OUTSIDE)}
+    assert entries["Perceuse"] == "Outillage (ING)"
+    assert entries["Raccordement"] == "Ingénieur (ING)"
+    found = clean(content, stage, worker, api)
+    assert found["read_count"] == 6
+    assert scene.tree.items() == before
+    drilled = row_of(stage, line_named(scene.tree, "Perceuse")["node_id"])
+    assert (drilled.cost_category_id, drilled.resource_role_id) == (tools, None)
 
 
 @pytest.mark.requirement("WF-INTF-0130-A")
