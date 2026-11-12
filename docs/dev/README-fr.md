@@ -3118,6 +3118,26 @@ pas la forme `EP-nn`. Elle est réservée à une personne : un livreur ne la lan
 vérification et, en échec, pose la question ; le garde (`guard.py`) refuse la cible `merge-queue` à
 un agent.
 
+`make queue-report BRANCH=epic/EP-nn [LAST=<n>] [SINCE=AAAA-MM-JJ]` relève, du poste et jamais
+dans la chaîne, les passages de la file de fusion d'une branche (`chain`, événement `merge_group`,
+lus par `gh` ; `wftools.queue`, US-1880) : leur nombre par conclusion, leurs échecs par job et par
+étape — avec la cible du Makefile que nomme `make: ***` —, les parcours et les tests en échec avec
+leur fichier et leur ligne, lus au journal du job (Playwright, pytest, Vitest), la durée de mur des
+passages réussis, en médiane et au 90e centile (au rang le plus proche), et les minutes-runner, la
+somme des durées des jobs. Sans `BRANCH`, toutes les branches comptent ; `SINCE` garde les passages
+créés ce jour-là ou après (en UTC), `LAST` les n plus récents ; sans l'un ni l'autre, les 50
+derniers. Chaque échec se classe contre `tools/queue-known.toml`, une entrée par instabilité connue
+— des motifs de job, d'étape, de test ou de message, sa famille, l'issue qui la suit, sa fréquence,
+sa cause établie ou son hypothèse — : instabilité connue, infrastructure, ou régression, qui ne
+s'écrit qu'après la relecture du passage et le nomme. Ce qu'aucune entrée ne reconnaît sort « à
+classer » (`to classify`) : l'outil ne décide jamais seul. `gate`, qui échoue parce qu'un autre job
+a échoué, ne compte que s'il échoue seul. Le fichier porte aussi la référence — 370 passages et 88
+échecs du 2026-11-05 au 2026-11-12, dont 68 dans `service / paths` ; 16 minutes de mur en médiane
+les 10 et 11 novembre —, que le rapport rappelle à sa fin ; la pull request d'un lot de la chaîne
+cite la sortie avant et après. La commande lit les jobs de chaque passage et le journal de chaque
+job en échec : comptez quelques secondes par passage, davantage quand `service / paths` échoue, son
+journal pesant plusieurs mégaoctets.
+
 Le poste n'admet que `WATERFALL_SLOTS` exécutions lourdes à la fois — les tests entiers et la
 couverture du back et du front, `make test-tools`, la construction du front pour la production,
 les parcours de bout en bout —, tous dépôts et worktrees confondus. Cette variable de

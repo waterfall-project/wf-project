@@ -70,7 +70,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	check-contract check-back check-back-static check-back-tests coverage-back-merge lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
-	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size tracking merge-queue merge-queue-check \
+	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size tracking merge-queue merge-queue-check queue-report \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -673,6 +673,12 @@ merge-queue: ## Create the merge queue ruleset of an epic's branch from .github/
 
 merge-queue-check: ## Check that an active ruleset with a merge queue targets an epic's branch (EPIC=EP-nn)
 	@$(WFTOOLS).mergequeue check "$(EPIC)"
+
+# The runs of the merge queue of a branch, read by gh from a workstation, never in the chain: their
+# failures by job and step, the tests and paths that failed, classified against
+# tools/queue-known.toml, the wall time and the runner minutes (wftools.queue, US-1880).
+queue-report: ## Report the merge queue runs of the chain on a branch and classify their failures (BRANCH=epic/EP-nn or main, all if empty; LAST=<n>, 50 by default; SINCE=YYYY-MM-DD)
+	@$(WFTOOLS).queue --branch "$(BRANCH)" --last "$(LAST)" --since "$(SINCE)"
 
 changes: ## Print which families of checks the change touches (BASE; HEAD, or the working tree)
 	@$(WFTOOLS).changes "$(BASE)" $(HEAD)

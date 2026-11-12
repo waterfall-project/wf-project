@@ -3108,6 +3108,26 @@ and refuses when a ruleset already targets the branch or when `EPIC` is missing 
 `EP-nn`. It is reserved to a person: a deliverer never runs it, it runs the check and, when it
 fails, asks the question; the guard (`guard.py`) refuses the `merge-queue` target to an agent.
 
+`make queue-report BRANCH=epic/EP-nn [LAST=<n>] [SINCE=YYYY-MM-DD]` reports, from the workstation
+and never in the chain, the runs of the merge queue of a branch (`chain`, event `merge_group`, read
+by `gh`; `wftools.queue`, US-1880): their number by conclusion, their failures by job and by step —
+with the target of the Makefile that `make: ***` names —, the paths and the tests that failed with
+their file and line, read from the log of the job (Playwright, pytest, Vitest), the wall time of the
+succeeded runs, as a median and at the 90th percentile (by the nearest rank), and the runner
+minutes, the sum of the durations of the jobs. Without `BRANCH`, every branch counts; `SINCE` keeps
+the runs created on that day or after (in UTC), `LAST` the n most recent; without either, the last
+50. Each failure is classified against `tools/queue-known.toml`, one entry per known flakiness —
+patterns of job, step, test or message, its family, the issue that follows it, its frequency, its
+established cause or its hypothesis —: known flakiness, infrastructure, or regression, which is only
+written after the run has been read again, and names it. What no entry recognizes comes out « à
+classer » (`to classify`): the tool never decides alone. `gate`, which fails because another job
+failed, only counts when it fails alone. The file also holds the reference — 370 runs and 88
+failures from 2026-11-05 to 2026-11-12, 68 of them in `service / paths`; 16 minutes of wall time as
+a median on 10 and 11 November —, which the report recalls at its end; the pull request of a lot of
+the chain quotes the output before and after. The command reads the jobs of each run and the log of
+each failed job: count a few seconds per run, more when `service / paths` fails, its log weighing
+several megabytes.
+
 The workstation admits only `WATERFALL_SLOTS` heavy runs at a time — the whole tests and the
 coverage of the back and the front, `make test-tools`, the production build of the front, the
 end-to-end paths —, whatever the repository or the worktree. This environment variable, set in the

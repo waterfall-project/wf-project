@@ -1,0 +1,88 @@
+2026-11-09T13:57:53.2668502Z   ✓   77 [shared] › e2e/planning-service.spec.ts:394:1 › the account of the run, holding « Chef de projet » beside « Manager », creates a project and reaches its planning and the exchanges of the planning, FLX-01 and FLX-02, against the service @shared [WF-INTF-0010-A] (4.7s)
+2026-11-09T13:57:54.5294275Z   ✓   78 [shared] › e2e/reference-actual-cost-mapping.spec.ts:75:1 › offers no deletion of an object on the correspondence of the extraction, which holds labels to enter and remove, not objects to deactivate (US-0880) @shared [WF-REF-0010-A] (493ms)
+2026-11-09T13:57:55.2607222Z   ✘   76 [shared] › e2e/projects.spec.ts:113:1 › the home lists the projects the user contributes to, a filter shown and lifted, never a restriction of reading @shared [WF-IHM-0120-A] (11.7s)
+2026-11-09T13:57:59.5963539Z   ✓   79 [shared] › e2e/reference-costs.spec.ts:40:1 › reads the settings of the costs outside any project with no mock-up notice, and enters a rate on the dense grid of the hourly rates, the service keeping it (US-0250) @shared [WF-REF-0050-A] (4.0s)
+2026-11-09T13:59:47.0453132Z   ✓  116 [shared] › e2e/revision-cycle.spec.ts:221:1 › a reference that bears a task and a line is designated, the project stays in pricing until the code is entered and then passes In progress (US-1540) @shared [WF-CYC-0020-A] [WF-CYC-0030-A] [WF-CYC-0050-A] [WF-PRJ-0010-A] (13.9s)
+2026-11-09T13:59:50.2585855Z   ✓  118 [shared] › e2e/task-tree.spec.ts:43:1 › leads from the planning to its task tree, read only, its depth in the address @shared [WF-PLA-0110-A] [WF-PLA-0120-A] (2.5s)
+2026-11-09T13:59:59.7058632Z   ✘  117 [shared] › e2e/structure.spec.ts:417:1 › deletes a task at once and a summary after its confirmation against the service, which keeps the rows gone @shared [WF-PLA-0080-A] (16.5s)
+2026-11-09T14:00:05.1342038Z   ✓  119 [shared] › e2e/timelines.spec.ts:391:1 › shows a task once inscribed to a timeline the path made, and no longer once taken out, on a project the run creates @shared [WF-PLA-0060-A] (14.0s)
+2026-11-09T14:03:03.1137060Z 
+2026-11-09T14:03:03.1146192Z 
+2026-11-09T14:03:03.1158818Z   1) [shared] › e2e/projects.spec.ts:113:1 › the home lists the projects the user contributes to, a filter shown and lifted, never a restriction of reading @shared [WF-IHM-0120-A] 
+2026-11-09T14:03:03.1160259Z 
+2026-11-09T14:03:03.1160580Z     Error: expect(locator).toBeVisible() failed
+2026-11-09T14:03:03.1160999Z 
+2026-11-09T14:03:03.1161793Z     Locator: getByRole('grid', { name: 'Liste des projets' }).getByRole('row', { name: /Extension de la ligne d.essais/ })
+2026-11-09T14:03:03.1162795Z     Expected: visible
+2026-11-09T14:03:03.1163238Z     Timeout: 10000ms
+2026-11-09T14:03:03.1163722Z     Error: element(s) not found
+2026-11-09T14:03:03.1164520Z 
+2026-11-09T14:03:03.1164724Z     Call log:
+2026-11-09T14:03:03.1166009Z       - Expect "toBeVisible" getByRole('grid', { name: 'Liste des projets' }).getByRole('row', { name: /Extension de la ligne d.essais/ }) with timeout 10000ms
+2026-11-09T14:03:03.1167868Z       - waiting for getByRole('grid', { name: 'Liste des projets' }).getByRole('row', { name: /Extension de la ligne d.essais/ })
+2026-11-09T14:03:03.1168738Z 
+2026-11-09T14:03:03.1168758Z 
+2026-11-09T14:03:03.1168982Z       133 |   if (inService) {
+2026-11-09T14:03:03.1170219Z       134 |     // The loader writes PRJ-001 in pricing and PRJ-002 created, neither with a code yet (US-0990).
+2026-11-09T14:03:03.1171641Z     > 135 |     await expect(list.getByRole("row", { name: /Extension de la ligne d.essais/ })).toBeVisible();
+2026-11-09T14:03:03.1172759Z           |                                                                                     ^
+2026-11-09T14:03:03.1173423Z       136 |   } else {
+2026-11-09T14:03:03.1174303Z       137 |     await expect(list.getByRole("row", { name: /PRJ-002/ })).toContainText("Chiffrage");
+2026-11-09T14:03:03.1175140Z       138 |   }
+2026-11-09T14:03:03.1175913Z         at /home/runner/work/wf-project/wf-project/frontend/e2e/projects.spec.ts:135:85
+2026-11-09T14:03:03.1176556Z 
+2026-11-09T14:03:03.1177421Z     Error Context: test-results/projects-the-home-lists-th-b33d9-ading-shared-WF-IHM-0120-A--shared/error-context.md
+2026-11-09T14:03:03.1178349Z 
+2026-11-09T14:03:03.1179200Z     attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-11-09T14:03:03.1181813Z     test-results/projects-the-home-lists-th-b33d9-ading-shared-WF-IHM-0120-A--shared/trace.zip
+2026-11-09T14:03:03.1182765Z     Usage:
+2026-11-09T14:03:03.1182972Z 
+2026-11-09T14:03:03.1183940Z         pnpm exec playwright show-trace test-results/projects-the-home-lists-th-b33d9-ading-shared-WF-IHM-0120-A--shared/trace.zip
+2026-11-09T14:03:03.1184955Z 
+2026-11-09T14:03:03.1185725Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-09T14:03:03.1186324Z 
+2026-11-09T14:03:03.1187777Z   2) [shared] › e2e/structure.spec.ts:417:1 › deletes a task at once and a summary after its confirmation against the service, which keeps the rows gone @shared [WF-PLA-0080-A] 
+2026-11-09T14:03:03.1189019Z 
+2026-11-09T14:03:03.1189334Z     Error: expect(page).toHaveURL(expected) failed
+2026-11-09T14:03:03.1189933Z 
+2026-11-09T14:03:03.1190247Z     Expected pattern: /\/projects\/[0-9a-f-]{36}$/
+2026-11-09T14:03:03.1190972Z     Received string:  "http://127.0.0.1:3100/"
+2026-11-09T14:03:03.1191654Z     Timeout: 15000ms
+2026-11-09T14:03:03.1191922Z 
+2026-11-09T14:03:03.1192086Z     Call log:
+2026-11-09T14:03:03.1192586Z       - Expect "toHaveURL" with timeout 15000ms
+2026-11-09T14:03:03.1193647Z         33 × locator resolved to <html lang="fr" class="Vsm_ZG_variable">…</html>
+2026-11-09T14:03:03.1194540Z            - unexpected value "http://127.0.0.1:3100/"
+2026-11-09T14:03:03.1195319Z 
+2026-11-09T14:03:03.1195333Z 
+2026-11-09T14:03:03.1195540Z        at own-project.ts:39
+2026-11-09T14:03:03.1195836Z 
+2026-11-09T14:03:03.1196482Z       37 |   await creation.getByRole("textbox", { name: "Libellé" }).fill(label);
+2026-11-09T14:03:03.1197758Z       38 |   await creation.getByRole("button", { name: "Créer", exact: true }).click();
+2026-11-09T14:03:03.1198942Z     > 39 |   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/, { timeout: WORKING });
+2026-11-09T14:03:03.1200084Z          |                      ^
+2026-11-09T14:03:03.1200797Z       40 |   return { path: new URL(page.url()).pathname, label };
+2026-11-09T14:03:03.1201524Z       41 | }
+2026-11-09T14:03:03.1201934Z       42 |
+2026-11-09T14:03:03.1202935Z         at createOwnProject (/home/runner/work/wf-project/wf-project/frontend/e2e/own-project.ts:39:22)
+2026-11-09T14:03:03.1204356Z         at seedPlanning (/home/runner/work/wf-project/wf-project/frontend/e2e/planning-seed.ts:215:15)
+2026-11-09T14:03:03.1205892Z         at /home/runner/work/wf-project/wf-project/frontend/e2e/structure.spec.ts:425:18
+2026-11-09T14:03:03.1206580Z 
+2026-11-09T14:03:03.1207458Z     Error Context: test-results/structure-deletes-a-task-a-60b0b--gone-shared-WF-PLA-0080-A--shared/error-context.md
+2026-11-09T14:03:03.1208384Z 
+2026-11-09T14:03:03.1209233Z     attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-11-09T14:03:03.1210921Z     test-results/structure-deletes-a-task-a-60b0b--gone-shared-WF-PLA-0080-A--shared/trace.zip
+2026-11-09T14:03:03.1211863Z     Usage:
+2026-11-09T14:03:03.1212070Z 
+2026-11-09T14:03:03.1213045Z         pnpm exec playwright show-trace test-results/structure-deletes-a-task-a-60b0b--gone-shared-WF-PLA-0080-A--shared/trace.zip
+2026-11-09T14:03:03.1214080Z 
+2026-11-09T14:03:03.1214829Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-09T14:03:03.1215414Z 
+2026-11-09T14:03:03.1215606Z   2 failed
+2026-11-09T14:03:03.1217307Z     [shared] › e2e/projects.spec.ts:113:1 › the home lists the projects the user contributes to, a filter shown and lifted, never a restriction of reading @shared [WF-IHM-0120-A] 
+2026-11-09T14:03:03.1220555Z     [shared] › e2e/structure.spec.ts:417:1 › deletes a task at once and a summary after its confirmation against the service, which keeps the rows gone @shared [WF-PLA-0080-A] 
+2026-11-09T14:03:03.1221938Z   17 skipped
+2026-11-09T14:03:03.1222316Z   7 did not run
+2026-11-09T14:03:03.1222726Z   109 passed (9.3m)
+2026-11-09T14:03:03.1412470Z make: *** [Makefile:619: e2e-service] Error 1
+2026-11-09T14:03:03.1440942Z ##[error]Process completed with exit code 2.
