@@ -3533,8 +3533,25 @@ rôles par compte, et l'écran choisit les rôles qu'il veut voir, comme les ori
 rôle n'est retenu par aucune valeur ; un identifiant qui ne désigne aucun rôle ne retient aucun
 compte, sans refus, comme `org_node_id` un nœud inconnu : les valeurs viennent de
 `listAccessRoles`. Écarté : une valeur « aucun rôle », à la manière d'`unassigned` des
-sous-projets, qu'aucune exigence ne demande. Exemple `users_by_access_role` : les porteurs du chef
+sous-projets, qu'aucune exigence ne demande (traitée depuis par un paramètre booléen,
+`without_access_role`, #2976, plus bas). Exemple `users_by_access_role` : les porteurs du chef
 de projet ou du manager, Alix Moreau, désactivée, comprise.
+
+**Les comptes sans rôle se retiennent par un paramètre booléen, `without_access_role`** (#2976,
+issue « contrat » ; décision de l'auteur du 2026-11-12, EP-24/US-1860). La maquette de la gestion
+des utilisateurs (#2917) offre « Sans rôle » parmi les rôles du filtre, pour retrouver les comptes
+que le fournisseur d'identité a créés à leur première connexion, sans droit tant qu'un rôle ne
+leur est pas donné (WF-ADM-0180) ; la liste étant paginée par le serveur, le front ne peut pas les
+filtrer lui-même. Vrai, `without_access_role` retient les comptes qui ne portent aucun rôle — un
+rôle supprimé ne compte plus, comme `User.access_role_ids` ne le nomme plus — ; donné avec
+`access_role_ids`, les deux retiennent leur union, comme une case de plus du même filtre ; absent
+ou faux, rien ne change. Il se combine aux autres filtres, au tri et à la pagination comme eux. La
+description d'`access_role_ids` le dit, à la place de « An account without a role is retained by no
+value ». Une modification du contrat figé (« La règle d'après le gel »), qui revient sur la valeur
+« aucun rôle » écartée au paragraphe précédent, qu'une exigence demande désormais. Écartés : une
+valeur sentinelle dans `access_role_ids`, qui ne serait plus une liste d'identifiants ; « Sans
+rôle » hors d'EP-24. Exemple `users_without_access_role` : Sacha Lefèvre, sans rôle, avec les
+porteurs du chef de projet ou du manager.
 
 **La recherche des comptes porte sur le nom, le prénom, l'adresse et le nom affiché** (#560). Ce
 sont les trois textes que WF-ADM-0050 donne à un compte, et le nom affiché — le prénom, une espace,

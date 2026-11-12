@@ -384,6 +384,19 @@ def test_the_readings_of_the_accounts_follow_their_parameters(lists: dict[str, A
     assert not any(asked & set(row["access_role_ids"]) for row in others)
     # Held by an account deactivated: the reading counts it, as the role counts its holders.
     assert [row["is_active"] for row in held["items"]] == [True, False]
+    # Without a role, in union with the roles asked (#2976): Sacha Lefèvre holds none.
+    held_or_none = lists["users_without_access_role"]
+    assert [mocklists.display_name(row) for row in held_or_none["items"]] == [
+        "Dominique Bernard",
+        "Sacha Lefèvre",
+        "Alix Moreau",
+    ]
+    assert held_or_none["meta"]["total"] == 3
+    roleless = [row for row in held_or_none["items"] if not row["access_role_ids"]]
+    assert [mocklists.display_name(row) for row in roleless] == ["Sacha Lefèvre"]
+    others = [row for row in written if row not in held_or_none["items"]]
+    assert all(row["access_role_ids"] for row in others)
+    assert not any(asked & set(row["access_role_ids"]) for row in others)
     [found] = lists["users_search"]["items"]
     assert mocklists.display_name(found) == "Inès Roux"
     # Found by the address alone: neither the name nor the first name holds the text.
