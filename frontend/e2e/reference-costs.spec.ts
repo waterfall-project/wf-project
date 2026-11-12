@@ -19,6 +19,7 @@
  */
 import { expect, type Locator } from "@playwright/test";
 
+import { openFilters } from "./check-menu";
 import { sortUntilAddress, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 import { rowAt, scroller, withinBox } from "./scroll";
@@ -177,7 +178,8 @@ for (const { width, height } of WINDOWS) {
     });
     await expect(totals).toBeInViewport();
     expect(await withinBox(rates, totals)).toBe(true);
-    // The filters of the rates come with their grid, under its title.
+    // The filters of the rates come with their grid, in the panel of its bar (#2916).
+    await openFilters(page, page.getByRole("region", { name: "Taux horaires" }));
     await expect(
       page.getByRole("form", { name: "Bornes de «\u00a0Grille des taux horaires\u00a0»" }),
     ).toHaveCount(1);
@@ -227,6 +229,7 @@ test("sorts the grid of the hourly rates by the rate of a year, filters the cate
   // The categories filtered by nature, under the names of their grid, the sort of the rates kept:
   // the nature shows chosen at once, and the address carries it once the server has read the
   // screen anew — its three dense grids, in the bound of a grid (`WORKING`).
+  await openFilters(page, page.getByRole("region", { name: "Catégories de coût" }));
   const nature = page.getByRole("combobox", { name: "Nature" });
   await nature.selectOption({ label: "MO · Main-d'œuvre" });
   await expect(nature).toHaveValue("01926f3a-7c00-7000-8000-000000000461");
@@ -235,6 +238,7 @@ test("sorts the grid of the hourly rates by the rate of a year, filters the cate
     { timeout: WORKING },
   );
   // The rate of a year between bounds, under the names of the contract (#545), the rest kept.
+  await openFilters(page, page.getByRole("region", { name: "Taux horaires" }));
   const rateBounds = page.getByRole("form", {
     name: "Bornes de «\u00a0Grille des taux horaires\u00a0»",
   });
@@ -259,6 +263,7 @@ test("filters the roles by calendar, bounds their monthly hours and filters thei
   // and each navigation would replace the one before. A choice made before the hydration stays in
   // the list, which React then takes for none: the list is emptied first.
   await page.goto("/reference/resources?role_offset=50");
+  await openFilters(page, page.getByRole("region", { name: "Rôles de ressources" }));
   const calendar = page.getByRole("combobox", { name: "Calendrier" });
   const standard = "01926f3a-7c00-7000-8000-000000000481";
   await expect(async () => {

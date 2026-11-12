@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { menuButton, pick } from "./check-menu";
+import { menuButton, openFilters, pick } from "./check-menu";
 import { type Download, expect, type Locator, test } from "@playwright/test";
 
 import { compile } from "./compile";
@@ -81,6 +81,7 @@ test("reads the risks of a revision: the register and its totals, the detail of 
   await expect(page).toHaveURL(`${RISKS}?sort_by=provision_amount&sort_order=asc`, {
     timeout: WORKING,
   });
+  await openFilters(page);
   await pick(page, "Filtrer par état", "Survenu");
   await expect(page).toHaveURL(`${RISKS}?sort_by=provision_amount&sort_order=asc&states=occurred`, {
     timeout: WORKING,
