@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { closeMenu, menuButton, openMenu, pick } from "./check-menu";
 import { expect, test } from "@playwright/test";
 
 import { openHydrated, WORKING } from "./hydration";
@@ -56,20 +57,25 @@ test("reads the actual costs of a project: the lines and their three totals, the
   // The sort by amount, and the filter on the excluded lines, asked of the server by the address.
   await grid.getByRole("columnheader", { name: "Montant" }).getByRole("button").click();
   await expect(page).toHaveURL(`${COSTS}?sort_by=amount&sort_order=asc`, { timeout: WORKING });
-  const scope = page.getByRole("group", { name: "Périmètre" });
-  await scope.getByRole("button", { name: "Exclues" }).click();
+  // The arrows only move the focus in a menu of one choice: nothing is chosen, the menu stays open (#2916).
+  const scopeList = await openMenu(page, "Périmètre");
+  await scopeList.getByRole("radio", { name: "Toutes les lignes" }).focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(scopeList.getByRole("radio", { name: "Suivies" })).toBeFocused();
+  await expect(scopeList).toBeVisible();
+  await expect(page).toHaveURL(`${COSTS}?sort_by=amount&sort_order=asc`);
+  await closeMenu(page);
+  await pick(page, "Périmètre", "Exclues", "radio");
   await expect(page).toHaveURL(`${COSTS}?sort_by=amount&sort_order=asc&in_tracked_scope=false`, {
     timeout: WORKING,
   });
-  await expect(scope.getByRole("button", { name: "Exclues" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  // A period applied: the form stays once the address arrives, and the focus on its button (#537).
+  // A menu of one choice closes on the choice, and says it.
+  await expect(menuButton(page, "Périmètre")).toContainText("Exclues");
+  // A period applied on Enter: the form stays once the address arrives, and the focus on its field (#537).
   const period = page.getByRole("form", { name: "Période des pièces" });
-  await period.getByLabel("Pièces du").fill("2026-04-01");
-  const apply = period.getByRole("button", { name: "Filtrer" });
-  await apply.click();
+  const apply = period.getByLabel("Pièces du");
+  await apply.fill("2026-04-01");
+  await apply.press("Enter");
   await expect(page).toHaveURL(
     `${COSTS}?sort_by=amount&sort_order=asc&in_tracked_scope=false&from=2026-04-01`,
     { timeout: WORKING },

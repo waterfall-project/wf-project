@@ -10,6 +10,7 @@ import type { ApiClient } from "@/api/client";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { pick } from "@/test/check-menu";
 import { example, fakeClient } from "@/test/fixtures";
 
 import { type Contributor, type Subproject, type WorkBreakdown } from "./settings-grids";
@@ -183,11 +184,7 @@ describe("the grids of the settings of a project", () => {
       "Armoires{Enter}",
     );
     expect(lastAddress()).toBe(`${PATH}?contributor_kinds=contributor&breakdown_search=Armoires`);
-    await userEvent.click(
-      within(screen.getByRole("group", { name: "Filtrer par nature" })).getByRole("button", {
-        name: "Livrable",
-      }),
-    );
+    await pick("Filtrer par nature", "Livrable");
     expect(lastAddress()).toBe(
       `${PATH}?contributor_kinds=contributor&breakdown_search=Armoires&breakdown_kinds=deliverable`,
     );
@@ -239,8 +236,7 @@ describe("the grids of the settings of a project", () => {
   it("filter the contributors by capacity under the names of their grid, the capacities in the order of the contract [WF-IHM-0130-A]", async () => {
     page.search = "subproject_search=SP";
     const { rerender } = render(settings());
-    const filter = screen.getByRole("group", { name: "Filtrer par qualité" });
-    await userEvent.click(within(filter).getByRole("button", { name: "Contributeur" }));
+    await pick("Filtrer par qualité", "Contributeur");
     expect(lastAddress()).toBe(`${PATH}?subproject_search=SP&contributor_kinds=contributor`);
     page.search = "subproject_search=SP&contributor_kinds=contributor";
     rerender(
@@ -254,12 +250,8 @@ describe("the grids of the settings of a project", () => {
     expect(
       screen.getByRole("grid", { name: "Contributeurs" }).querySelector("tfoot tr")?.textContent,
     ).toBe("3 contributeurs");
-    await userEvent.click(
-      within(screen.getByRole("group", { name: "Filtrer par qualité" })).getByRole("button", {
-        name: "Chef de projet",
-      }),
-    );
-    // Every capacity retained is no filter: it is lifted, and « every capacity » is pressed.
+    await pick("Filtrer par qualité", "Chef de projet");
+    // Every capacity retained is no filter: it is lifted, and « every capacity » is checked.
     expect(lastAddress()).toBe(`${PATH}?subproject_search=SP`);
   });
 

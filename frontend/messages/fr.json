@@ -364,7 +364,12 @@
       "between": "du {from} au {to}",
       "since": "depuis le {from}",
       "until": "jusqu’au {to}",
-      "authorUnknown": "Un compte"
+      "authorUnknown": "Un compte",
+      "selected": "{count, plural, one {# sélectionné} other {# sélectionnés}}",
+      "search": "Rechercher dans « {label} »",
+      "noMatch": "Aucune valeur ne correspond.",
+      "hint": "Un choix s’applique aussitôt ; une période ou une borne, à Entrée ou en quittant le champ.",
+      "audit": "Filtres d’audit — création et modification"
     },
     "fold": {
       "open": "Arbre",
@@ -403,11 +408,10 @@
       "unretainedRows": "Le bloc collé écrirait dans des lignes du plan que la recherche ou le filtre cache : levez la recherche ou le filtre avant de coller, ou collez un bloc moins haut."
     },
     "range": {
-      "min": "{column}, min.",
-      "max": "{column}, max.",
-      "minShort": "min.",
-      "maxShort": "max.",
-      "apply": "Filtrer",
+      "min": "{column}, du",
+      "max": "{column}, au",
+      "minShort": "du",
+      "maxShort": "au",
       "lift": "Lever les bornes",
       "inverted": "La borne supérieure ne peut précéder la borne inférieure, {minimum}.",
       "money": "Deux décimales au plus."
@@ -415,13 +419,13 @@
     "period": {
       "from": "Du",
       "to": "Au",
-      "apply": "Filtrer",
       "inverted": "La fin de la période ne peut précéder son début, {minimum}.",
       "invertedUndated": "La fin de la période ne peut précéder son début.",
       "late": "Le début de la période ne peut suivre sa fin, {maximum}.",
       "lateUndated": "Le début de la période ne peut suivre sa fin.",
       "invertedDefault": "La fin de la période ne peut précéder son début par défaut, {minimum}.",
-      "lateDefault": "Le début de la période ne peut suivre sa fin par défaut, la date de calcul, {maximum}."
+      "lateDefault": "Le début de la période ne peut suivre sa fin par défaut, la date de calcul, {maximum}.",
+      "invertedEntry": "Le début de la période ne peut suivre sa fin."
     }
   },
   "estimateGrid": {
@@ -633,8 +637,7 @@
       "unknownSubproject": "Sous-projet inconnu",
       "period": "Période des pièces",
       "from": "Pièces du",
-      "to": "Pièces jusqu’au",
-      "apply": "Filtrer"
+      "to": "Pièces jusqu’au"
     },
     "pages": {
       "costs": {
@@ -2888,7 +2891,6 @@
         "period": "Période",
         "from": "Depuis le",
         "to": "Avant le",
-        "apply": "Appliquer",
         "actorKind": "Filtrer par nature d’auteur",
         "everyActor": "Tous les auteurs",
         "user": "Auteur",

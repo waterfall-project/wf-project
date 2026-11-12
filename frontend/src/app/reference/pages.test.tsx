@@ -307,8 +307,7 @@ describe("the settings of the costs", () => {
       [LABOUR, "MO · Main-d'œuvre"],
       ["01926f3a-7c00-7000-8000-000000000463", "PRV · Provision"],
     ]);
-    expect(page).toContain('aria-label="Types de nature"');
-    expect(text(page)).toContain("Tous les types Main-d’œuvre Hors main-d’œuvre Provision");
+    expect(text(page)).toContain("Types de nature Tous les types");
   });
 
   it("ask each list of the server by the names of the contract, as the address asks it under the names of its grid [WF-IHM-0130-A]", async () => {
@@ -500,7 +499,7 @@ describe("the settings of the costs", () => {
     expect(grids.rates).toEqual([]);
     expect(text(page)).toContain("La borne supérieure ne peut précéder la borne inférieure, 100.");
     expect(text(page)).toContain("La liste n’est pas lue");
-    expect(page).toMatch(/aria-label="Taux horaire, max."[^>]*aria-invalid="true"/);
+    expect(page).toMatch(/aria-label="Taux horaire, au"[^>]*aria-invalid="true"/);
     // The year asked stays chosen, the grid that would name the others unread.
     expect(optionsOf(page, "Année du taux")).toEqual([]);
     expect(page).toContain('<option value="2026" selected="">2026</option>');

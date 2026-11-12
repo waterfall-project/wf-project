@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { pick } from "./check-menu";
 import { expect, test } from "@playwright/test";
 
 import { axeViolations } from "./axe";
@@ -162,10 +163,7 @@ test("sorts the journal on its columns both ways and filters it by the server, u
   });
 
   // The platform alone, then the backups, in a menu of the actions.
-  await page
-    .getByRole("group", { name: "Filtrer par nature d’auteur" })
-    .getByRole("button", { name: "La plateforme" })
-    .click();
+  await pick(page, "Filtrer par nature d’auteur", "La plateforme");
   await expect(page).toHaveURL(
     `${JOURNAL}?sort_by=occurred_at&sort_order=desc&actor_kind=platform`,
     {

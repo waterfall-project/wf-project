@@ -205,8 +205,8 @@ describe("the backups", () => {
     // The totals row counts what the server retained of the filtered list.
     expect(rows(page, "Sauvegardes").at(-1)).toBe("3 sauvegardes");
     expect(page).toContain('aria-label="Période des sauvegardes"');
-    expect(page).toContain('aria-label="Filtrer par déclenchement"');
-    expect(page).toContain('aria-label="Filtrer par vérification"');
+    expect(text(page)).toContain("Filtrer par déclenchement 2 sélectionnés");
+    expect(text(page)).toContain("Filtrer par vérification 2 sélectionnés");
     expect(page).toContain('aria-label="Bornes des sauvegardes"');
     expect(page).toContain('<option value="false" selected="">Soumises à la rotation</option>');
     expect(text(page)).toContain("Conservation Toutes les sauvegardes Marquées à conserver");
@@ -310,15 +310,8 @@ describe("the backups", () => {
     // backups — no start, no marking, no restoration, no deposit.
     expect(buttons(page)).toEqual([
       "Aide",
-      "Filtrer",
       "Tous les déclenchements",
-      "Manuelle",
-      "Planifiée",
       "Toutes les vérifications",
-      "Vérification en attente",
-      "Vérifiée",
-      "Vérification échouée",
-      "Filtrer",
       "Colonnes",
       "Date",
       "Taille",
@@ -435,9 +428,9 @@ describe("the backups", () => {
     ]);
     const narrowed = rendered(await BackupsPage(searched({ origins: "manual" })));
     expect(text(narrowed)).not.toContain("Aucune sauvegarde.");
-    expect(narrowed).toContain('aria-label="Filtrer par déclenchement"');
+    expect(text(narrowed)).toContain("Filtrer par déclenchement Manuelle");
     expect(text(narrowed)).toMatch(
-      /Taille \(octets\) min\. max\. Filtrer Aucune sauvegarde Restaurer une sauvegarde/,
+      /Taille \(octets\) du au Aucune sauvegarde Restaurer une sauvegarde/,
     );
   });
 

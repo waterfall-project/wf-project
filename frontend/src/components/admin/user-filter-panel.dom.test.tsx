@@ -69,7 +69,7 @@ function list(
 }
 
 const lastAddress = (): unknown => router.push.mock.calls.at(-1)?.[0];
-const toggle = () => screen.getByRole("button", { name: /^Filtres/ });
+const toggle = () => screen.getByRole("button", { name: /^Filtres( \(|$)/ });
 
 beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
@@ -98,7 +98,7 @@ describe("the panel of the filters of the table of the accounts", () => {
   it("is closed by default, its button saying it and naming the panel it controls [WF-IHM-0060-A]", () => {
     render(list());
     expect(toggle()).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("group", { name: "Filtrer par origine" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Filtrer par origine/ })).toBeNull();
     const panel = document.getElementById(toggle().getAttribute("aria-controls") ?? "");
     expect(panel).not.toBeNull();
     expect(panel).not.toBeVisible();
@@ -108,7 +108,7 @@ describe("the panel of the filters of the table of the accounts", () => {
     const { unmount } = render(list());
     await userEvent.click(toggle());
     expect(toggle()).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("group", { name: "Filtrer par origine" })).toBeVisible();
+    expect(screen.getByRole("button", { name: /^Filtrer par origine/ })).toBeVisible();
     await waitFor(() => {
       expect(recorded().at(-1)).toMatchObject({ filters_open: true });
     });
@@ -120,7 +120,7 @@ describe("the panel of the filters of the table of the accounts", () => {
     unmount();
     render(list({ filters_open: true }));
     expect(toggle()).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("group", { name: "Filtrer par origine" })).toBeVisible();
+    expect(screen.getByRole("button", { name: /^Filtrer par origine/ })).toBeVisible();
   });
 
   it("tells the filters on as chips from the address, counted by the button, whether the panel is open or not [WF-IHM-0130-A]", () => {

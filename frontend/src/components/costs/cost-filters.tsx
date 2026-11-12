@@ -11,16 +11,15 @@
  */
 "use client";
 
-import { Circle, CircleCheck, ListFilter } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useOptimistic, useTransition } from "react";
 
+import { CheckMenu } from "@/components/grid/check-menu";
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import { PendingAddress, usePendingAddress } from "@/components/grid/pending-address";
 import type { PeriodRefusals } from "@/components/grid/period";
 import { PeriodFilter } from "@/components/grid/period-filter";
-import { Button } from "@/components/ui/button";
 import { UNASSIGNED } from "@/navigation/context";
 
 import {
@@ -65,42 +64,32 @@ function useFilter() {
 }
 
 /**
- * The filter by scope: a button for each, pressed as last asked until the server answers, then as
- * the address shows it.
+ * The filter by scope, a menu of one choice: every line, the tracked ones, the excluded ones — as
+ * last asked until the server answers, then as the address shows it.
  */
 function ScopeFilter({ scope }: { readonly scope: Scope | undefined }) {
   const t = useTranslations("actualCosts.filters");
   const filter = useFilter();
-  // The scope asked, pressed until the server answers for it: the buttons would otherwise show the
+  // The scope asked, shown until the server answers for it: the menu would otherwise show the
   // address until the navigation arrives, and again the address should another navigation replace
   // it (défaut n° 21 de `typescript.md`).
   const [shown, show] = useOptimistic(scope);
   const [, startTransition] = useTransition();
-  const choices: readonly (Scope | undefined)[] = [undefined, ...SCOPES];
   return (
-    <div role="group" aria-label={t("scope")} className="flex flex-wrap items-center gap-1.5">
-      {choices.map((choice) => {
-        const pressed = choice === shown;
-        const Icon = choice === undefined ? ListFilter : pressed ? CircleCheck : Circle;
-        return (
-          <Button
-            key={choice ?? "every"}
-            size="sm"
-            variant={pressed ? "default" : "outline"}
-            aria-pressed={pressed}
-            onClick={() => {
-              startTransition(() => {
-                show(choice);
-                filter(() => ({ scope: choice }));
-              });
-            }}
-          >
-            <Icon aria-hidden="true" className="size-4" />
-            {t(choice ?? "everyLine")}
-          </Button>
-        );
-      })}
-    </div>
+    <CheckMenu
+      label={t("scope")}
+      every={t("everyLine")}
+      multiple={false}
+      options={SCOPES.map((choice) => ({ value: choice, text: t(choice) }))}
+      chosen={shown === undefined ? [] : [shown]}
+      onChange={([value]) => {
+        const choice = SCOPES.find((each) => each === value);
+        startTransition(() => {
+          show(choice);
+          filter(() => ({ scope: choice }));
+        });
+      }}
+    />
   );
 }
 
@@ -154,7 +143,7 @@ export function CostFilterBar({ filters, subproject, subprojects, refused }: Cos
           kind="date"
           period={{ from: filters.from, to: filters.to }}
           refused={refused}
-          texts={{ from: t("from"), to: t("to"), apply: t("apply") }}
+          texts={{ from: t("from"), to: t("to") }}
           page={COSTS_PAGE}
         />
       </section>

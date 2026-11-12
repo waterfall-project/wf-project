@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { menuButton, openAudit, pick } from "./check-menu";
 import { expect, type Page } from "@playwright/test";
 
 import { compile } from "./compile";
@@ -266,26 +267,23 @@ test("sorts and filters the backups by the server, under the names of the contra
     "/admin/backups?sort_by=size_bytes&sort_order=asc",
   );
   // An origin and a marking chosen keep the sort, under the names of the contract.
-  const origins = page.getByRole("group", { name: "Filtrer par déclenchement" });
-  await origins.getByRole("button", { name: "Planifiée" }).click();
+  await pick(page, "Filtrer par déclenchement", "Planifiée");
   await expect(page).toHaveURL(
     "/admin/backups?sort_by=size_bytes&sort_order=asc&origins=scheduled",
     {
       timeout: WORKING,
     },
   );
-  await expect(origins.getByRole("button", { name: "Planifiée" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(menuButton(page, "Filtrer par déclenchement")).toContainText("Planifiée");
   const retention = page.getByRole("combobox", { name: "Conservation" });
   await retention.selectOption({ label: "Marquées à conserver" });
   await expect(retention).toHaveValue("true");
   await expect(page).toHaveURL(/origins=scheduled&is_retained=true$/, { timeout: WORKING });
   // A bound of the size, in bytes, as the contract counts it.
   const bounds = page.getByRole("form", { name: "Bornes des sauvegardes" });
-  await bounds.getByRole("textbox", { name: "Taille (octets), max." }).fill("2000000000");
-  await bounds.getByRole("button", { name: "Filtrer" }).click();
+  const sizeMost = bounds.getByRole("textbox", { name: "Taille (octets), au" });
+  await sizeMost.fill("2000000000");
+  await sizeMost.press("Enter");
   await expect(page).toHaveURL(/is_retained=true&size_bytes_max=2000000000$/, {
     timeout: WORKING,
   });
@@ -305,21 +303,17 @@ test("sorts, searches and filters the accounts by the server, under the names of
     "/admin/users?sort_by=org_node&sort_order=asc",
   );
   // The filters are folded into a panel, closed until the bar opens it (#2916).
-  const toggle = page.getByRole("button", { name: /^Filtres/ });
+  const toggle = page.getByRole("button", { name: /^Filtres( \(|$)/ });
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
-  await expect(page.getByRole("group", { name: "Filtrer par origine" })).toBeHidden();
+  await expect(menuButton(page, "Filtrer par origine")).toBeHidden();
   await setExpanded(toggle, true);
   // An origin chosen keeps the sort; a second keeps the first, in the order of the contract.
-  const origins = page.getByRole("group", { name: "Filtrer par origine" });
-  await origins.getByRole("button", { name: "Importé de l’annuaire" }).click();
+  await pick(page, "Filtrer par origine", "Importé de l’annuaire");
   await expect(page).toHaveURL("/admin/users?sort_by=org_node&sort_order=asc&origins=directory", {
     timeout: WORKING,
   });
-  await expect(origins.getByRole("button", { name: "Importé de l’annuaire" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  await origins.getByRole("button", { name: "Créé dans Waterfall" }).click();
+  await expect(menuButton(page, "Filtrer par origine")).toContainText("Importé de l’annuaire");
+  await pick(page, "Filtrer par origine", "Créé dans Waterfall");
   await expect(page).toHaveURL(
     "/admin/users?sort_by=org_node&sort_order=asc&origins=local%2Cdirectory",
     { timeout: WORKING },
@@ -330,15 +324,11 @@ test("sorts, searches and filters the accounts by the server, under the names of
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/origins=local%2Cdirectory&search=Mor$/, { timeout: WORKING });
   // A role chosen, under the name of the contract, by its identifier.
-  const roles = page.getByRole("group", { name: "Filtrer par rôle" });
-  await roles.getByRole("button", { name: "Manager" }).click();
+  await pick(page, "Filtrer par rôle", "Manager");
   await expect(page).toHaveURL(/search=Mor&access_role_ids=01926f3a-7c00-7000-8000-000000000702$/, {
     timeout: WORKING,
   });
-  await expect(roles.getByRole("button", { name: "Manager" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(menuButton(page, "Filtrer par rôle")).toContainText("Manager");
   // The active accounts alone, by the one choice of the state, under the name of the contract.
   const state = page.getByRole("combobox", { name: "État du compte" });
   await state.selectOption({ label: "Comptes actifs" });
@@ -371,7 +361,7 @@ test("writes whether the panel of the filters of the accounts is open with the s
   // The fake back keeps nothing: that the write leaves with the state is what this proves; that it
   // is read again is proven by the tests of the table, and against the service.
   await page.goto("/admin/users");
-  const toggle = page.getByRole("button", { name: /^Filtres/ });
+  const toggle = page.getByRole("button", { name: /^Filtres( \(|$)/ });
   const written = page.waitForRequest(
     (request) =>
       request.method() === "POST" && (request.postData() ?? "").includes('"filters_open":true'),
@@ -520,8 +510,9 @@ test("filters the access roles by their kind and between bounds of their holders
     },
   );
   const bounds = page.getByRole("form", { name: "Bornes des rôles d’habilitation" });
-  await bounds.getByRole("textbox", { name: "Comptes porteurs, max." }).fill("0");
-  await bounds.getByRole("button", { name: "Filtrer" }).click();
+  const holdersMost = bounds.getByRole("textbox", { name: "Comptes porteurs, au" });
+  await holdersMost.fill("0");
+  await holdersMost.press("Enter");
   await expect(page).toHaveURL(/is_predefined=false&holder_count_max=0$/, { timeout: WORKING });
   // The fake back answers its example whatever is asked: what the screen asks is what this proves.
   await expect(roles.getByRole("row").last()).toHaveText("7 rôles");
@@ -540,8 +531,8 @@ test("sorts the access roles by the author of their last modification, names eac
   // A role delivered with the installation, by the platform; one composed since, by its account.
   await expect(roles.getByRole("row", { name: /^Administrateur/ })).toContainText("La plateforme");
   await expect(roles.getByRole("row", { name: /^Auditeur/ })).toContainText("Camille Martin");
-  const author = page.getByRole("combobox", { name: "Créé par" });
-  await author.selectOption({ label: "La plateforme" });
+  await openAudit(page);
+  await pick(page, "Créé par", "La plateforme", "radio");
   await expect(page).toHaveURL(
     "/admin/access-roles?sort_by=updated_by&sort_order=asc&created_by_kind=platform",
     { timeout: WORKING },
