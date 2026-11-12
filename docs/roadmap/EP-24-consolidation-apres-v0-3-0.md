@@ -755,7 +755,7 @@ passage de la file coûte moins, en mur comme en minutes-runner.
 
 ## US-1920 — Les tests instables du back et du front attendent ce qu'ils affirment
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2935

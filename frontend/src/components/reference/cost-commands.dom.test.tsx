@@ -448,8 +448,13 @@ describe("the modification of a nature or a category", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(client.calls).toEqual([]);
     const read = example("cost_types_reader") as { items: CostType[] };
-    rerender(natures(read.items, false));
-    expect(screen.queryByRole("button", { name: /^(Nouvelle|Modifier|Désactiver)/ })).toBeNull();
+    await act(async () => {
+      rerender(natures(read.items, false));
+      await Promise.resolve();
+    });
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("button", { name: /^(Nouvelle|Modifier|Désactiver)/ })).toBeNull();
+    });
   });
 });
 
@@ -551,7 +556,10 @@ describe("a write whose dialog is closed, and the focus", () => {
       expect(screen.queryByRole("dialog")).toBeNull();
       // The deactivated categories hidden: the list reads otherwise.
       address.query = "category_is_active=true";
-      rerender(categoryList());
+      await act(async () => {
+        rerender(categoryList());
+        await Promise.resolve();
+      });
       link.click();
       await act(async () => {
         answer.release();
@@ -582,9 +590,15 @@ describe("a write whose dialog is closed, and the focus", () => {
       expect(screen.queryByRole("dialog")).toBeNull();
       // The deactivated categories hidden, then shown again: the list is back on its reading.
       address.query = "category_is_active=true";
-      rerender(categoryList());
+      await act(async () => {
+        rerender(categoryList());
+        await Promise.resolve();
+      });
       address.query = "";
-      rerender(categoryList());
+      await act(async () => {
+        rerender(categoryList());
+        await Promise.resolve();
+      });
       link.click();
       await act(async () => {
         answer.release();
@@ -703,7 +717,10 @@ describe("a write whose dialog is closed, and the focus", () => {
       }),
     );
     // A reading that no longer retains the subcontracting arrives meanwhile.
-    rerender(categoryList(first.slice(1)));
+    await act(async () => {
+      rerender(categoryList(first.slice(1)));
+      await Promise.resolve();
+    });
     answer.release();
     await vi.waitFor(() => {
       expect(screen.queryByRole("dialog")).toBeNull();
@@ -783,14 +800,24 @@ describe("the activation of a nature or a category", () => {
       expect(state()).toHaveTextContent("Désactivé");
     });
     // A reading of the version read before the answer (1, the fake back): the answer (2) stays.
-    rerender(natures([{ ...disbursements }, ...others]));
+    await act(async () => {
+      rerender(natures([{ ...disbursements }, ...others]));
+      await Promise.resolve();
+    });
     expect(state()).toHaveTextContent("Désactivé");
     // A reading newer than the answer (3): the reading prevails.
-    rerender(natures([{ ...disbursements, label: "Débours relus", lock_version: 3 }, ...others]));
-    expect(state()).not.toHaveTextContent("Désactivé");
-    expect(document.querySelector('td[data-row="0"][data-column="label"]')).toHaveTextContent(
-      "Débours relus",
-    );
+    await act(async () => {
+      rerender(natures([{ ...disbursements, label: "Débours relus", lock_version: 3 }, ...others]));
+      await Promise.resolve();
+    });
+    await vi.waitFor(() => {
+      expect(state()).not.toHaveTextContent("Désactivé");
+    });
+    await vi.waitFor(() => {
+      expect(document.querySelector('td[data-row="0"][data-column="label"]')).toHaveTextContent(
+        "Débours relus",
+      );
+    });
   });
 
   it("reactivates a deactivated category by its own activation, from the version read", async () => {
