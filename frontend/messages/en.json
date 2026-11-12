@@ -719,6 +719,7 @@
     "projects": {
       "retained": "{count, plural, =0 {No project retained} one {# project retained} other {# projects retained}}",
       "reason": " — {reason}",
+      "zoneChip": "Index zone",
       "zones": "Filter by zone of the indices",
       "everyZone": "Every zone"
     },

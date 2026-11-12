@@ -16,11 +16,12 @@
  */
 "use client";
 
-import { CalendarRange, Circle, CircleCheck } from "lucide-react";
+import { CalendarRange } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { type SubmitEvent, useEffect, useId, useOptimistic, useRef, useTransition } from "react";
 
+import { CheckMenu } from "@/components/grid/check-menu";
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import { useDatedEntry } from "@/components/grid/dated-entry";
 import { PendingAddress, usePendingAddress } from "@/components/grid/pending-address";
@@ -64,9 +65,9 @@ function useParameters() {
 }
 
 /**
- * The filter by state: a button for each state of a portfolio, pressed as retained — or as last
- * asked, until the server answers —, the state by its badge (#523), as the filter of the home shows
- * it. Without the states the server retained — a view it did not read —, the states the address
+ * The filter by state: a menu of boxes, a box for each state of a portfolio, checked as retained —
+ * or as last asked, until the server answers —, the state by its badge (#523), as the filter of the
+ * home shows it (`CheckMenu`, #2916). « Par défaut » lifts the states: the server chooses. Without the states the server retained — a view it did not read —, the states the address
  * names show pressed; naming none, the filter is not offered: nothing would say what is retained,
  * and a state pressed would restrict the perimeter to it alone in silence.
  */
@@ -89,46 +90,40 @@ function StatesFilter({
     return null;
   }
   return (
-    <div
-      role="group"
-      aria-label={t("portfolio.perimeter.states")}
-      className="flex flex-wrap items-center gap-1.5"
-    >
-      {PORTFOLIO_STATES.map((state) => {
-        const pressed = shown.includes(state);
+    <CheckMenu
+      label={t("portfolio.perimeter.states")}
+      every={t("portfolio.perimeter.byDefault")}
+      multiple
+      searchable={false}
+      options={PORTFOLIO_STATES.map((state) => ({
+        value: state,
+        text: <ProjectStateBadge state={state} />,
+        plain: t(`enums.ProjectState.${state}`),
+      }))}
+      chosen={shown}
+      onChange={(_values, toggled) => {
         // The last state retained stays: releasing it would leave a perimeter of nothing.
-        const kept = pressed && shown.length === 1;
-        const Icon = pressed ? CircleCheck : Circle;
-        return (
-          <Button
-            key={state}
-            size="sm"
-            variant={pressed ? "default" : "outline"}
-            aria-pressed={pressed}
-            aria-disabled={kept ? true : undefined}
-            onClick={() => {
-              if (kept) {
-                return;
-              }
-              startTransition(() => {
-                change((query) => {
-                  const before = readStates(query);
-                  const from = before.length === 0 ? (retained ?? []) : before;
-                  const next = from.includes(state)
-                    ? from.filter((each) => each !== state)
-                    : [...from, state];
-                  show(next);
-                  return { [STATES]: statesValue(next) };
-                });
-              });
-            }}
-          >
-            <Icon aria-hidden="true" className="size-4" />
-            <ProjectStateBadge state={state} />
-          </Button>
-        );
-      })}
-    </div>
+        if (toggled !== undefined && !toggled.checked && shown.length === 1) {
+          return;
+        }
+        startTransition(() => {
+          change((query) => {
+            // « Par défaut » lifts the states: the server chooses.
+            if (toggled === undefined) {
+              show([]);
+              return { [STATES]: undefined };
+            }
+            const before = readStates(query);
+            const from = before.length === 0 ? (retained ?? []) : before;
+            const next = toggled.checked
+              ? [...from.filter((each) => each !== toggled.value), toggled.value as ProjectState]
+              : from.filter((each) => each !== toggled.value);
+            show(next);
+            return { [STATES]: statesValue(next) };
+          });
+        });
+      }}
+    />
   );
 }
 
