@@ -42,6 +42,9 @@ from waterfall.platform.database import CODE_POINTS, Base, UtcDateTime, bounded,
 # The bound the contract puts on the label of a line; the years of a consumption (``Year``); the
 # origins of a rate kept; the kinds of a nature of cost (``CostTypeKind``), which an image keeps.
 LABEL_LENGTH = 300
+# The precision and the scale of the figures a line keeps: the write judges against them (#2875).
+QUANTITY_PRECISION, QUANTITY_SCALE = 14, 4
+DISBURSEMENT_PRECISION, DISBURSEMENT_SCALE = 14, 2
 YEARS = (2000, 2100)
 RATE_ORIGINS = ("reference", "projected")
 COST_TYPE_KINDS = ("labor", "non_labor", "provision")
@@ -124,9 +127,11 @@ class EstimateLine(Base):
     resource_role_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("resource_role.id", ondelete="RESTRICT")
     )
-    quantity: Mapped[Decimal] = mapped_column(Numeric(14, 4))
+    quantity: Mapped[Decimal] = mapped_column(Numeric(QUANTITY_PRECISION, QUANTITY_SCALE))
     hours: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
-    unit_disbursement: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    unit_disbursement: Mapped[Decimal | None] = mapped_column(
+        Numeric(DISBURSEMENT_PRECISION, DISBURSEMENT_SCALE)
+    )
     payment_delay_days: Mapped[int] = mapped_column(Integer)
     subproject_id: Mapped[UUID | None]
     # Written by the merge of an amendment (EP-08), null until then.
