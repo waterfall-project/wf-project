@@ -62,6 +62,10 @@ STAMP = re.compile(r"^\d{4}-\d\d-\d\dT[\d:.]+Z ?")
 ESCAPE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 MAKE_ERROR = re.compile(r"^make(?:\[\d+\])?: \*\*\* \[[^:\]]+:\d+: ([^\]]+)\]")
 RUNNER_ERROR = "##[error]"
+# The runner's own word when a command failed; any other is the cause: « The operation was
+# canceled. » for a job past its time.
+EXIT = "Process completed with exit code"
+UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 TELLING = re.compile(r"(?i)error|fail|could not|unable|cannot|denied|refused|timed? ?out|\b5\d\d\b")
 # Playwright: the list under « N failed », and the numbered block of each failure; its separator
 # is U+203A, written as its escape.
@@ -465,7 +469,9 @@ def outcome(lines: list[str]) -> tuple[str, str, str]:
     """Return the target of the Makefile that failed, the telling line, and the lines before it.
 
     The evidence is the end of the log before its first error of the runner, where a download
-    refused or a package missing is said; the telling line, the last of them that names an error.
+    refused or a package missing is said; the telling line, the runner's error when it is not the
+    exit code of a command, else the last line of the evidence that names an error. An identifier
+    of the run in it (the temporary script of a step) is elided, for the shards to be told alike.
     """
     target = ""
     for line in lines:
@@ -481,8 +487,11 @@ def outcome(lines: list[str]) -> tuple[str, str, str]:
     ]
     error = lines[end].removeprefix(RUNNER_ERROR).strip() if end < len(lines) else ""
     telling = [line for line in tail if TELLING.search(line) and not line.startswith("hint:")]
-    message = telling[-1] if telling else tail[-1] if tail else error
-    return target, message, "\n".join([*tail, error])
+    if error and not error.startswith(EXIT):
+        message = error
+    else:
+        message = telling[-1] if telling else tail[-1] if tail else error
+    return target, UUID.sub("…", message), "\n".join([*tail, error])
 
 
 def failures_of(run: int, job: Job, log: str) -> list[Failure]:

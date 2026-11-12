@@ -104,16 +104,6 @@ test = 'e2e/revision-cycle\.spec\.ts:'
 frequency = "2 passages du 2026-11-05 au 2026-11-12"
 cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
 
-# Tout autre parcours qui crée son projet et échoue au même endroit.
-[[known]]
-class = "known flakiness"
-family = "A. création du projet de la course"
-issue = "#2940"
-job = "^service / paths$"
-message = 'e2e/own-project\.ts:39\b'
-frequency = "chaque parcours qui écrit passe par là ; ceux ci-dessus en sont les relevés"
-cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
-
 # Famille B — un état partagé entre parcours : les préférences relues portent le filtre d'un
 # autre parcours, ou le calendrier par défaut n'est plus celui que le parcours a désigné.
 # US-1890/L2.
@@ -268,6 +258,94 @@ cause = "établie : un 503 de GitHub Releases au téléchargement de pandoc ; US
 class = "infrastructure"
 family = "Docker Hub"
 issue = "#2946"
-message = 'registry-1\.docker\.io|failed to fetch oauth token|toomanyrequests'
-frequency = "1 passage du 2026-11-05 au 2026-11-12 (`production / trial`)"
-cause = "établie : le registre de Docker Hub refuse ou interrompt un pull ; US-1900/L2 tire les images d'un miroir"
+message = 'registry-1\.docker\.io|cloudfront\.docker\.com|failed to fetch oauth token|toomanyrequests|failed to copy: read tcp .*connection reset by peer'
+frequency = "4 passages du 2026-11-05 au 2026-11-12 : `production / trial` (1), le pull des images de `keycloak / check` (3)"
+cause = "établie : le registre de Docker Hub refuse ou interrompt un pull ; US-1900/L2 tire les images d'un miroir. La conception laissait `keycloak / check` à classer : trois de ses cinq échecs sont ce pull, lu au journal"
+
+[[known]]
+class = "infrastructure"
+family = "GitHub Releases, actionlint"
+issue = "#2981"
+message = 'download failed for https://github\.com/rhysd/actionlint/'
+frequency = "2 passages du 2026-11-05 au 2026-11-12 : `contract / check`, et le serveur web de `e2e / paths` et d'`e2e / measure`"
+cause = "établie : `actionlint-py` télécharge son binaire de GitHub Releases à l'installation des outils, et reçoit un 504 ; dépendance absente de l'inventaire d'US-1900"
+
+[[known]]
+class = "infrastructure"
+family = "www.postgresql.org, clé PGDG"
+issue = "#2981"
+job = "^service / paths$"
+message = '''urlretrieve\('https://www\.postgresql\.org/'''
+frequency = "2 passages du 2026-11-05 au 2026-11-12, à `make service-up`"
+cause = "établie : la construction des images `api` et `worker` télécharge la clé du dépôt PGDG, et la connexion est fermée sans réponse ; dépendance absente de l'inventaire d'US-1900"
+
+# Le délai d'un job, dépassé : la chaîne trop longue, que US-1910 raccourcit.
+
+[[known]]
+class = "known flakiness"
+family = "délai de back / tests"
+issue = "#2950"
+job = "^back / tests"
+message = 'The operation was canceled\.'
+frequency = "2 passages du 2026-11-05 au 2026-11-12 (42739027879, 43046175348)"
+cause = "établie : les tests passent, mais le job dépasse son délai de 20 minutes ; US-1910/L2 coupe `back / tests` en quatre morceaux"
+
+# Famille A, à défaut des entrées ci-dessus : tout autre parcours qui crée son projet et échoue
+# au même endroit. En dernier, pour que l'inventaire nomme d'abord ce qu'il a relevé.
+
+[[known]]
+class = "known flakiness"
+family = "A. création du projet de la course"
+issue = "#2940"
+job = "^service / paths$"
+message = 'e2e/own-project\.ts:39\b'
+frequency = "chaque parcours qui écrit passe par là ; les entrées de la famille A en sont les relevés"
+cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
+
+# Les régressions, chacune après la relecture des passages qu'elle nomme : le code ou le workflow
+# d'une pull request, pas la file.
+
+[[known]]
+class = "regression"
+family = "analyse statique du back"
+issue = "#2932"
+job = "^back / check$"
+runs = [42449690648, 42552505001, 42553672723, 42553837695]
+frequency = "4 passages du 2026-11-05 au 2026-11-12 (`make lint-back`)"
+cause = "établie : Ruff refuse le code de la pull request (une clé répétée, par exemple) ; l'analyse statique ne dépend pas de la charge"
+
+[[known]]
+class = "regression"
+family = "des 500 en série"
+issue = "#2932"
+job = "^back / tests"
+runs = [42449690648]
+frequency = "1 passage, dix-huit tests de `test_nodes_move.py` et de `test_work_breakdown_attachments.py`"
+cause = "hypothèse : la pull request a cassé le déplacement et le rattachement des nœuds ; la conception d'EP-24 la présume régression"
+
+[[known]]
+class = "regression"
+family = "cycle d'imports entre users et resource_settings"
+issue = "#2932"
+runs = [42216703915, 42218136094]
+message = '''cannot import name 'Author' from partially initialized module|Found 1 error\.|container waterfall-service-api-1 exited'''
+frequency = "2 passages le 2026-11-06 : `back / check`, `keycloak / check` et `service / paths` ensemble"
+cause = "établie : `ImportError` d'un import circulaire de `waterfall.core.users.interface`, lu au journal de `keycloak / check` ; le service ne démarre pas"
+
+[[known]]
+class = "regression"
+family = "script d'une étape de l'e2e"
+issue = "#2934"
+runs = [42106995179]
+step = '^Install the Python of tools/\.python-version as python3$'
+frequency = "1 passage, le 2026-11-05 : les six jobs de l'e2e"
+cause = "établie : « Bad substitution », le script de l'étape lancé par `sh` ; la conception d'EP-24 le comptait en infrastructure, le journal dit le workflow"
+
+[[known]]
+class = "regression"
+family = "syntaxe de Python 3.14 sous un autre Python"
+issue = "#2934"
+runs = [41981582686, 41983575296]
+message = "SyntaxError: multiple exception types must be parenthesized"
+frequency = "2 passages, le 2026-11-05 : `e2e / paths` et `e2e / measure`"
+cause = "établie : `except A, B:` sans parenthèses, que seul Python 3.14 lit, lancé dans l'image de l'e2e par un Python plus ancien"

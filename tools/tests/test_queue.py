@@ -154,6 +154,10 @@ def test_a_vitest_log_gives_the_test_its_line_and_error_without_colours() -> Non
     [
         ("install-make", "curl: (6) Could not resolve host: archive.ubuntu.com", ""),
         ("pandoc", "curl: (22) The requested URL returned error: 503", ""),
+        # A job past its time: the runner says so, after the last line of the tests.
+        ("back-tests-cancelled", "The operation was canceled.", ""),
+        # The temporary script of the step is named after an identifier of the run, elided.
+        ("python-install", "/__w/_temp/….sh: 4: Bad substitution", ""),
         (
             "keycloak-import",
             (
@@ -172,7 +176,8 @@ def test_a_log_without_tests_gives_the_job_with_its_telling_line(
     (found,) = failures(name, queue.Job(3, "e2e / paths (2/5)", "failure", None, None, "Install"))
     assert (found.test, found.message, found.target) == ("", message, target)
     assert found.step == "Install"
-    assert "Process completed with exit code" in found.evidence
+    # The evidence ends on the runner's error, its prefix taken away.
+    assert log(name).rstrip().endswith("##[error]" + found.evidence.splitlines()[-1])
 
 
 def test_the_same_failure_said_twice_in_a_log_counts_once() -> None:
