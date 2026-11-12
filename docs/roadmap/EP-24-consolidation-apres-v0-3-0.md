@@ -931,7 +931,7 @@ pas rester devant une ligne inerte ni lire « serveur injoignable » à tort (#2
 
 ## US-1980 — Un caractère NUL ou un décimal démesuré à l'entrée du service est refusé par 422
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune — correction du service
 - **opérations** : toute lecture qui porte un paramètre de requête libre ; `setDurationUnits`, les
   écritures d'un nœud du planning et d'une ligne de devis
