@@ -1,10 +1,10 @@
 ---
 id: EP-24
 titre: Consolider après la v0.3.0 — les filtres des tables et la gestion des utilisateurs achevés, une file de fusion qui n'échoue plus sans régression, les constats d'EP-09 et d'EP-23 soldés, l'aller-retour MS Project tenu dans MS Project, la spécification 1.0.5
-statut: prêt
+statut: en cours
 depend_de: EP-09, EP-23
 famille: front, back, plateforme
-issue:
+issue: 2932
 ---
 
 # EP-24 — Consolidation après la v0.3.0
@@ -168,7 +168,9 @@ consomme :
 ## Constats reçus
 
 Tranchés par l'auteur le 2026-11-12, au cadrage ; renommés `[EP-24]`, passés au label `EP-24` et
-rattachés à leur US à l'ouverture des issues.
+rattachés à leur US ou à leur lot à l'ouverture des issues, le même jour. Deux issues `contract`
+en sont nées : #2976 (`listUsers`, « sans rôle », US-1860) et #2977 (l'écart de calendrier d'un import
+MS Project, US-2000).
 
 Le travail de la nuit du 11 au 12 novembre :
 
@@ -230,8 +232,8 @@ La recette MS Project du 2026-11-11, laissés par EP-06 :
 - #2546 — spec : le Vérif de `WF-PLA-0040-A` ne nomme pas le refus `NODE_CYCLE` : la 1.0.4 a ajouté
   la phrase ; US-2010 le constate et la ferme.
 
-Reporté par ce cadrage : la capacité d'un rôle (`WF-REF-0100-A`, #2836, fermée) → EP-10, par une
-issue ouverte sous #2427.
+Reporté par ce cadrage : la capacité d'un rôle (`WF-REF-0100-A`, #2836, fermée) → EP-10, par
+#2978, ouverte sous #2427.
 
 ## Conception
 
@@ -511,7 +513,7 @@ et les modèles régénérés.
 - **statut** : à faire
 - **exigences** : `WF-IHM-0060-A`
 - **opérations** : `getMe`, `updateMyPreferences`
-- **issue** :
+- **issue** : #2933
 
 **En tant que** chef de projet, manager ou administrateur, **je veux** que la barre, le panneau
 repliable et les pastilles des filtres, livrés la nuit du 11 au 12 novembre sur toutes les tables
@@ -554,7 +556,7 @@ provisoire d'une pastille de période avant hydratation, accepté. La chaîne de
 - **statut** : à faire
 - **exigences** : `WF-ADM-0180-A`
 - **opérations** : `listUsers`, `updateUser`, `setUserActivation`, `setUserAccessRoles`
-- **issue** :
+- **issue** : #2954
 
 **En tant qu'**administrateur, **je veux** retrouver d'un filtre les comptes arrivés sans rôle et
 leur en donner un d'un geste, sur un écran dont les filtres ne prennent plus les deux tiers de la
@@ -596,7 +598,7 @@ une issue `contract`). Dépend de L2 à L4 de #2916 (#2929).
 - **statut** : à faire
 - **exigences** : `WF-SEC-0020-A`, `WF-IHM-0120-A`
 - **opérations** : `getMe`, `listProjects`
-- **issue** :
+- **issue** : #2971
 
 **En tant que** visiteur sans session, administrateur d'une installation neuve ou personne arrivée
 sans rôle, **je veux** arriver sur la page de connexion plutôt que sur un écran de panne, puis sur
@@ -636,7 +638,7 @@ de service adaptés (`session.spec.ts`, `sign-in.spec.ts`).
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** :
+- **issue** : #2934
 
 **En tant que** développeur, **je veux** relever d'une commande, sur les passages réels de la file,
 le taux d'échec qui n'est pas une régression et la durée du palier complet, **afin de** juger chaque
@@ -665,7 +667,7 @@ lot de la chaîne par ses passages, avant et après, et non par une mesure sur l
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune en propre — les lectures que les parcours instables attendent
-- **issue** :
+- **issue** : #2939
 
 **En tant que** développeur, **je veux** que les parcours contre le service passent dans la file
 quand le code n'a pas régressé, **afin de** ne plus remettre une pull request en file à la main
@@ -703,7 +705,7 @@ et `planning-service.spec.ts`.
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** :
+- **issue** : #2944
 
 **En tant que** développeur, **je veux** qu'une panne d'un miroir ou d'un registre tiers ne fasse
 pas échouer la file avant le premier test, **afin qu'**un passage ne dépende que du code (#2913).
@@ -729,7 +731,7 @@ pas échouer la file avant le premier test, **afin qu'**un passage ne dépende q
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** :
+- **issue** : #2948
 
 **En tant que** développeur, **je veux** un palier complet de 12 minutes en médiane, **afin qu'**un
 passage de la file coûte moins, en mur comme en minutes-runner.
@@ -756,7 +758,7 @@ passage de la file coûte moins, en mur comme en minutes-runner.
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** :
+- **issue** : #2935
 
 **En tant que** développeur, **je veux** que les tests du back et du front que la charge fait
 échouer soient corrigés, **afin que** ni la file ni `make check` sur un poste chargé n'échouent sans
@@ -786,7 +788,7 @@ régression (#859, #1026).
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** :
+- **issue** : #2953
 
 **En tant que** développeur, **je veux** que `make e2e-service` passe sur le poste sans que je
 choisisse son nombre de workers, **afin de** ne pas lire 18 à 23 échecs de navigation qui ne sont
@@ -811,7 +813,7 @@ que la charge (#2890).
 - **statut** : à faire
 - **exigences** : `WF-INTF-0120-A`
 - **opérations** : `requestExport`, `openImport`, `applyImport`
-- **issue** :
+- **issue** : #2958
 
 **En tant que** chef de projet, **je veux** qu'un reste à engager exporté puis réimporté rende
 chaque ligne à sa nature, même quand un rôle et une catégorie portent le même code, **afin que**
@@ -845,7 +847,7 @@ de version 0.3.0, à retirer avec elle.
 - **statut** : à faire
 - **exigences** : `WF-RAE-0040-A`
 - **opérations** : celles que jouent les deux parcours, inchangées
-- **issue** :
+- **issue** : #2964
 
 **En tant que** développeur, **je veux** que les deux écritures du reste à engager que seuls des
 parcours contre le faux back éprouvent soient jouées contre le service, **afin que** leur régression
@@ -878,7 +880,7 @@ font sur un projet que la course crée (#2193) ». Les jumeaux vont dans `remain
 - **statut** : à faire
 - **exigences** : aucune — correction du contrat et du service
 - **opérations** : toute liste paginée, par le paramètre commun `Offset`
-- **issue** :
+- **issue** : #2959
 
 **En tant que** développeur d'un client de l'API, **je veux** qu'un `offset` hors de ce que la base
 sait lire soit refusé par 422, **afin de** ne jamais recevoir un 500 d'une liste (#2778).
@@ -902,7 +904,7 @@ sait lire soit refusé par 422, **afin de** ne jamais recevoir un 500 d'une list
 - **statut** : à faire
 - **exigences** : `WF-ADM-0010-A`, `WF-OBS-0020-A`
 - **opérations** : `updateAccessRole`, `deleteAccessRole`, et toute lecture d'un écran
-- **issue** :
+- **issue** : #2963
 
 **En tant qu'**administrateur, **je veux** qu'un rôle dont la suppression est rejetée redevienne
 modifiable, et qu'un renommage validé pendant une écriture parte sans message faux, **afin de** ne
@@ -933,7 +935,7 @@ pas rester devant une ligne inerte ni lire « serveur injoignable » à tort (#2
 - **exigences** : aucune — correction du service
 - **opérations** : toute lecture qui porte un paramètre de requête libre ; `setDurationUnits`, les
   écritures d'un nœud du planning et d'une ligne de devis
-- **issue** :
+- **issue** : #2960
 
 **En tant que** développeur d'un client de l'API, **je veux** qu'une valeur que PostgreSQL ne sait
 pas lire soit refusée par 422 à son champ, **afin de** ne jamais recevoir un 500 (#2891, #2875).
@@ -966,7 +968,7 @@ La capacité d'un rôle (`monthly_hours`, `headcount`) est laissée à EP-10, qu
 - **statut** : à faire
 - **exigences** : `WF-INTF-0050-A`, `WF-INTF-0040-A`, `WF-QUA-0080-A`
 - **opérations** : `requestExport`, `openImport`
-- **issue** :
+- **issue** : #2965
 
 **En tant que** chef de projet, **je veux** qu'un planning exporté s'ouvre dans MS Project aux dates
 que Waterfall affiche, tâches manuelles comprises, **afin de** le retravailler dans MS Project sans
@@ -1001,7 +1003,7 @@ suffisantes sur le planning éprouvé. Aucun test ne lit, ne cite ni ne nomme un
 - **statut** : à faire
 - **exigences** : `WF-INTF-0040-A`, `WF-PLA-0160-A`, `WF-INTF-0080-A`
 - **opérations** : `openImport`, `getImport`, `applyImport`, `abandonImport`
-- **issue** :
+- **issue** : #2972
 
 **En tant que** chef de projet, **je veux** qu'un planning saisi dans MS Project sur des journées de
 7 heures soit importé en gardant ses durées dans leur unité, ou ses dates, **afin de** ne pas perdre
@@ -1056,7 +1058,7 @@ une issue `contract`. Dépend de la révision 1.0.5 (US-2010).
 - **statut** : à faire
 - **exigences** : `WF-DEV-0030-A`
 - **opérations** : aucune
-- **issue** :
+- **issue** : #2968
 
 **En tant qu'**auteur de la spécification, **je veux** que les décisions prises depuis la 1.0.4
 soient écrites dans le document, et que chaque phrase de la 1.0.4 ait son test ou son écart nommé,
