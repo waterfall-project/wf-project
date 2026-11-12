@@ -2892,7 +2892,6 @@
         "then": "{first}; {second}"
       },
       "filters": {
-        "label": "Filters of the log",
         "period": "Period",
         "from": "From",
         "to": "Before",
@@ -2900,16 +2899,13 @@
         "everyActor": "Every author",
         "user": "Author",
         "everyUser": "Every account",
+        "actions": "Action",
+        "actorChip": "Author kind",
         "everyAction": "Every action",
-        "actionsChosen": "{count, plural, one {# action} other {# actions}}",
-        "actionsNamed": "Filter by action: {chosen}",
         "project": "Project",
         "everyProject": "Every project",
         "objectKind": "Kind of object",
         "everyObjectKind": "Every kind",
-        "object": "Object: {object}",
-        "lift": "Lift",
-        "liftObject": "Lift the filter on “{object}”",
         "correlation": "Correlation",
         "correlationForm": "Letters, digits, “.”, “_”, “-”; 64 at most."
       }

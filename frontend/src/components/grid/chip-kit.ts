@@ -21,6 +21,7 @@ import {
   formatDecimal,
   formatMoney,
   formatPlanningDate,
+  formatTimestamp,
   isPlanningDate,
 } from "@/i18n/format";
 
@@ -81,6 +82,9 @@ export function useChipKit(): ChipKit {
     // No local day before the browser: the local day of an instant is not the server's.
     if (kind !== "date" && !hydrated) {
       return PENDING_DAY;
+    }
+    if (kind === "instant") {
+      return formatTimestamp(bound, locale);
     }
     const field = fieldOf(kind, side, bound);
     return isPlanningDate(field) ? formatPlanningDate(field, locale) : field;

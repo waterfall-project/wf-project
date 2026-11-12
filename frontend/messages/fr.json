@@ -2892,7 +2892,6 @@
         "then": "{first} ; {second}"
       },
       "filters": {
-        "label": "Filtres du journal",
         "period": "Période",
         "from": "Depuis le",
         "to": "Avant le",
@@ -2900,16 +2899,13 @@
         "everyActor": "Tous les auteurs",
         "user": "Auteur",
         "everyUser": "Tous les comptes",
+        "actions": "Action",
+        "actorChip": "Nature de l’auteur",
         "everyAction": "Toutes les actions",
-        "actionsChosen": "{count, plural, one {# action} other {# actions}}",
-        "actionsNamed": "Filtrer par action : {chosen}",
         "project": "Projet",
         "everyProject": "Tous les projets",
         "objectKind": "Nature de l’objet",
         "everyObjectKind": "Toutes les natures",
-        "object": "Objet : {object}",
-        "lift": "Lever",
-        "liftObject": "Lever le filtre sur « {object} »",
         "correlation": "Corrélation",
         "correlationForm": "Lettres, chiffres, « . », « _ », « - » ; 64 au plus."
       }
