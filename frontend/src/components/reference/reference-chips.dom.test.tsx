@@ -262,7 +262,7 @@ describe("the chips of the filters of the other lists of the reference data", ()
     expect(lastAddress()).toBe("/reference/resources");
   });
 
-  it("tell the nature of the categories of cost by its code and its label [WF-IHM-0130-A]", async () => {
+  it("tell the nature of the categories of cost by its code and its label [WF-IHM-0130-A]", () => {
     const nature = NATURES[0];
     page.search = `category_cost_type_id=${nature?.id ?? ""}`;
     render(

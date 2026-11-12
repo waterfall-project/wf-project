@@ -35,7 +35,10 @@ export function liftedParams(chips: readonly FilterChip[]): string[] {
 
 /** What lifting some chips writes in the place of what they removed, the last chip prevailing. */
 export function liftedInstead(chips: readonly FilterChip[]): Record<string, string> {
-  return Object.assign({}, ...chips.map((chip) => chip.instead ?? {}));
+  return chips.reduce<Record<string, string>>(
+    (written, chip) => ({ ...written, ...chip.instead }),
+    {},
+  );
 }
 
 /**

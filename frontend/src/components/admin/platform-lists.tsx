@@ -397,6 +397,57 @@ function BackupFilterBar({
 }
 
 /**
+ * What stands under the head of the list of the backups: the grid with its filters in its bar, or,
+ * the list unread because the API refused a filter (422), the filters above the sentence that stands
+ * for the grid — that of the period when it refused the period, that of the bounds otherwise —, or
+ * that the list holds none at all, nothing narrowing it.
+ */
+function BackupBody({
+  read,
+  filters,
+  query,
+  preferences,
+  bar,
+}: {
+  readonly read: BackupsRead;
+  readonly filters: BackupFilters;
+  readonly query: GridQuery<BackupSort>;
+  readonly preferences: GridPreferences | undefined;
+  /** The filters, in the bar of the grid or above the sentence that stands for it. */
+  readonly bar: ReactNode;
+}) {
+  const t = useTranslations("admin.backups");
+  if (read.kind === "refused") {
+    return (
+      <>
+        {bar}
+        {refusedPeriod(read.problem.fields ?? []) !== undefined ? (
+          <p className="text-sm text-destructive">{t("periodRefused")}</p>
+        ) : (
+          <BoundsRefused />
+        )}
+      </>
+    );
+  }
+  if (read.items.length === 0 && !narrows(filters)) {
+    return (
+      <p className="text-sm text-muted-foreground">{t("count", { count: read.page.total })}</p>
+    );
+  }
+  // A list the filters leave empty keeps its grid, and with it the bar that lifts them.
+  return (
+    <BackupGrid
+      backups={read.items}
+      page={read.page}
+      query={query}
+      preferences={preferences}
+      filters={filters}
+      panel={bar}
+    />
+  );
+}
+
+/**
  * The backups of a page of the list, on the dense grid (`BackupGrid`), filtered and sorted as the
  * address asks, or that there is none — only when the list holds none at all and nothing narrows
  * it: a page asked beyond its end shows no grid, and its pages say where it stands (`ListPages`);
@@ -433,38 +484,9 @@ export function BackupList({
       refused={read.kind === "refused" ? read.problem : undefined}
     />
   );
-  let body: ReactNode;
-  if (read.kind === "refused" && refusedPeriod(read.problem.fields ?? []) !== undefined) {
-    body = (
-      <>
-        {bar}
-        <p className="text-sm text-destructive">{t("periodRefused")}</p>
-      </>
-    );
-  } else if (read.kind === "refused") {
-    body = (
-      <>
-        {bar}
-        <BoundsRefused />
-      </>
-    );
-  } else if (read.items.length === 0 && !narrows(filters)) {
-    body = (
-      <p className="text-sm text-muted-foreground">{t("count", { count: read.page.total })}</p>
-    );
-  } else {
-    // A list the filters leave empty keeps its grid, and with it the bar that lifts them.
-    body = (
-      <BackupGrid
-        backups={read.items}
-        page={read.page}
-        query={query}
-        preferences={preferences}
-        filters={filters}
-        panel={bar}
-      />
-    );
-  }
+  const body = (
+    <BackupBody read={read} filters={filters} query={query} preferences={preferences} bar={bar} />
+  );
   return (
     <BackupCommands backups={backups}>
       <Reactivations reads={BACKUPS_READS}>

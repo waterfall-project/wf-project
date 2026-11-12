@@ -66,14 +66,43 @@ export interface AuditNames {
   };
 }
 
+/** How an author and a project are told: as the journal names them, else as the screen read them. */
+function useTold(names: AuditNames | undefined) {
+  const t = useTranslations();
+  const naming = useAccountNaming();
+  return {
+    author: (id: string): string => {
+      const found = names?.users.find((user) => user.id === id);
+      if (found !== undefined) {
+        return naming.kept(found.name);
+      }
+      if (names?.named.account !== undefined) {
+        return naming.person(names.named.account);
+      }
+      return names?.named.user === undefined
+        ? t("grid.filtering.authorUnknown")
+        : naming.kept(names.named.user);
+    },
+    project: (id: string): string => {
+      const project = names?.projects.find((each) => each.id === id) ?? names?.named.project;
+      if (project === undefined) {
+        return id;
+      }
+      return project.code === null
+        ? project.label
+        : t("admin.auditLog.project", { code: project.code, label: project.label });
+    },
+  };
+}
+
 /** The chips of the filters of the journal that are on, in the order of the panel. */
 export function useAuditChips(
   filters: AuditFilters | undefined,
   names: AuditNames | undefined,
 ): FilterChip[] {
   const t = useTranslations();
-  const naming = useAccountNaming();
   const objectName = useObjectName();
+  const told = useTold(names);
   const kit = useChipKit();
   if (filters === undefined || names === undefined) {
     return kit.chips;
@@ -85,17 +114,7 @@ export function useAuditChips(
     filters.actorKinds.map((kind) => t(`enums.AuditActorKind.${kind}`)),
   );
   if (filters.user !== undefined) {
-    const found = names.users.find((user) => user.id === filters.user);
-    const { named } = names;
-    let who: string;
-    if (found !== undefined) {
-      who = naming.kept(found.name);
-    } else if (named.account !== undefined) {
-      who = naming.person(named.account);
-    } else {
-      who = named.user === undefined ? t("grid.filtering.authorUnknown") : naming.kept(named.user);
-    }
-    kit.add(USER, t("grid.columns.author"), who, [USER]);
+    kit.add(USER, t("grid.columns.author"), told.author(filters.user), [USER]);
   }
   kit.values(
     ACTIONS,
@@ -103,18 +122,7 @@ export function useAuditChips(
     filters.actions.map((action) => t(`enums.AuditAction.${action}`)),
   );
   if (filters.project !== undefined) {
-    const found = names.projects.find((project) => project.id === filters.project);
-    const project = found ?? names.named.project;
-    kit.add(
-      PROJECT,
-      t("grid.columns.project"),
-      project === undefined
-        ? filters.project
-        : project.code === null
-          ? project.label
-          : t("admin.auditLog.project", { code: project.code, label: project.label }),
-      [PROJECT],
-    );
+    kit.add(PROJECT, t("grid.columns.project"), told.project(filters.project), [PROJECT]);
   }
   if (filters.objectKind !== undefined) {
     kit.add(
