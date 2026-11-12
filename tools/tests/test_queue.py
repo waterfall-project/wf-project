@@ -376,7 +376,11 @@ def fake_queue() -> FakeSource:
         run_data(4, "epic/EP-09", "cancelled"),
     ]
     jobs = {
-        1: [job_data(10, "back / tests (1/2)", "success", 0, 16)],
+        1: [
+            job_data(10, "back / tests (1/2)", "success", 0, 16),
+            job_data(11, "service / paths", "success", 0, 0),
+            job_data(12, "e2e / paths (1/5)", "success", 0, 0),
+        ],
         2: [
             job_data(20, "service / paths", "failure", 1, 15),
             job_data(21, "gate", "failure", 15, 16),
@@ -421,6 +425,49 @@ def test_gate_is_not_read_when_another_job_failed_and_is_when_none_did() -> None
     )
 
 
+def test_a_failed_run_whose_jobs_name_no_failure_is_a_failure_of_the_run_to_classify() -> None:
+    source = FakeSource([[run_data(9, "main", "failure")]], {}, {})
+    runs, found = queue.gather(source, queue.select(source, "main", None, None))
+    assert [(f.run, f.job) for f in found] == [(9, queue.WHOLE_RUN)]
+    text = queue.report(runs, found, queue.Catalogue(), "main")
+    assert "  9  (run) — : the run failed and the jobs read name none that failed" in text
+    assert "[to classify]" in text
+    catalogue = queue.Catalogue(entries=[known(runs=[9])])
+    assert catalogue.classify(found[0])[0] == queue.FLAKY
+
+
+def test_a_partial_run_is_left_out_of_the_median_of_the_wall_time() -> None:
+    partial = replace(
+        queue.read_run(run_data(1, "main")),
+        jobs=(queue.read_job(job_data(1, "back / tests", "success", 0, 5)),),
+    )
+    skipped = queue.read_job(job_data(3, "service / paths", "skipped", 0, 0))
+    whole = replace(
+        queue.read_run(run_data(2, "main")),
+        jobs=(
+            queue.read_job(job_data(2, "service / paths", "success", 0, 16)),
+            queue.read_job(job_data(4, "e2e / paths (2/5)", "success", 0, 9)),
+        ),
+    )
+    assert not replace(partial, jobs=(*partial.jobs, skipped)).complete
+    assert queue.durations([partial, whole])[0] == (
+        "wall time of the 1 complete succeeded runs (service and e2e ran): "
+        "median 16.0 min, 90th percentile 16.0 min"
+    )
+
+
+def test_the_jobs_of_a_run_are_read_page_by_page() -> None:
+    asked: list[str] = []
+
+    def call(arguments: list[str]) -> str:
+        asked.append(arguments[1])
+        count = queue.PAGE if "page=1" in arguments[1] else 3
+        return json.dumps({"jobs": [job_data(n, "j", "success", 0, 1) for n in range(count)]})
+
+    assert len(queue.GitHub(call).jobs(5)) == queue.PAGE + 3
+    assert [path.rsplit("&", 1)[1] for path in asked] == ["page=1", "page=2"]
+
+
 def test_the_report_counts_classifies_and_measures_the_runs() -> None:
     source = fake_queue()
     runs, found = queue.gather(source, queue.select(source, "epic/EP-09", None, None))
@@ -438,7 +485,10 @@ def test_the_report_counts_classifies_and_measures_the_runs() -> None:
             "  failed without regression: 1 of 3 finished runs (33.3 %) — known flakiness 1, "
             "infrastructure 0; to classify 1; regression 0"
         ),
-        "  wall time of the 1 succeeded runs: median 16.0 min, 90th percentile 16.0 min",
+        (
+            "  wall time of the 1 complete succeeded runs (service and e2e ran): "
+            "median 16.0 min, 90th percentile 16.0 min"
+        ),
         "  runner minutes of the 4 finished runs: 37.0 in all, median 10.0 a run",
     ]
     assert "     1  service / paths — Run service / paths (make e2e-service)" in text
@@ -475,6 +525,7 @@ def test_the_command_prints_the_report_of_the_last_runs(capsys: pytest.CaptureFi
     assert queue.main(["--branch", "epic/EP-09", "--last", "2"], fake_queue()) == 0
     printed = capsys.readouterr().out
     assert printed.startswith("chain, merge_group, epic/EP-09: 2 runs")
+    assert "  1 succeeded, 1 failed," in printed
     assert "reference, every branch" in printed
 
 

@@ -3128,7 +3128,10 @@ and never in the chain, the runs of the merge queue of a branch (`chain`, event 
 by `gh`; `wftools.queue`, US-1880): their number by conclusion, their failures by job and by step —
 with the target of the Makefile that `make: ***` names —, the paths and the tests that failed with
 their file and line, read from the log of the job (Playwright, pytest, Vitest), the wall time of the
-succeeded runs, as a median and at the 90th percentile (by the nearest rank), and the runner
+succeeded runs where the full tier ran in whole — a *complete* run is one where a job of `service`
+and a job of `e2e` succeeded, `ci.yml` skipping in the merge queue the families a change does not
+touch — as a median and at the 90th percentile (by the nearest rank), with the number of runs the
+measure keeps, and the runner
 minutes, the sum of the durations of the jobs. Without `BRANCH`, every branch counts; `SINCE` keeps
 the runs created on that day or after (in UTC), `LAST` the n most recent; without either, the last
 50. Each failure is classified against `tools/queue-known.toml`, one entry per known flakiness —

@@ -292,6 +292,8 @@ cause = "établie : les tests passent, mais le job dépasse son délai de 20 min
 
 # Famille A, à défaut des entrées ci-dessus : tout autre parcours qui crée son projet et échoue
 # au même endroit. En dernier, pour que l'inventaire nomme d'abord ce qu'il a relevé.
+# À retirer quand US-1890/L1 corrige la famille A. Elle classe instabilité connue tout échec à cet
+# endroit : elle masque donc une régression de la création de projet qui échouerait là.
 
 [[known]]
 class = "known flakiness"

@@ -3140,7 +3140,10 @@ dans la chaîne, les passages de la file de fusion d'une branche (`chain`, évé
 lus par `gh` ; `wftools.queue`, US-1880) : leur nombre par conclusion, leurs échecs par job et par
 étape — avec la cible du Makefile que nomme `make: ***` —, les parcours et les tests en échec avec
 leur fichier et leur ligne, lus au journal du job (Playwright, pytest, Vitest), la durée de mur des
-passages réussis, en médiane et au 90e centile (au rang le plus proche), et les minutes-runner, la
+passages réussis où le palier complet a tourné en entier — un passage *complet* est un passage où un
+job de `service` et un job de `e2e` ont réussi, `ci.yml` sautant dans la file les familles que le
+changement ne touche pas —, en médiane et au 90e centile (au rang le plus proche), avec le nombre de
+passages que la mesure retient, et les minutes-runner, la
 somme des durées des jobs. Sans `BRANCH`, toutes les branches comptent ; `SINCE` garde les passages
 créés ce jour-là ou après (en UTC), `LAST` les n plus récents ; sans l'un ni l'autre, les 50
 derniers. Chaque échec se classe contre `tools/queue-known.toml`, une entrée par instabilité connue

@@ -48,6 +48,7 @@ KNOWN = REPOSITORY / "tools" / "queue-known.toml"
 WORKFLOW = "ci.yml"
 QUEUE = "gh-readonly-queue/"
 GATE = "gate"
+WHOLE_RUN = "(run)"
 DEFAULT_LAST = 50
 PAGE = 100
 
@@ -127,6 +128,23 @@ class Run:
         if self.status != "completed" or not ends:
             return None
         return (max(ends) - self.started).total_seconds() / 60
+
+    @property
+    def complete(self) -> bool:
+        """Tell whether the full tier ran in whole: the service and the end-to-end paths ran.
+
+        In the merge queue ``ci.yml`` skips the families a change does not touch. ``service`` and
+        the parts of ``e2e`` are the longest jobs and are skipped unless the change reaches them;
+        a run is complete when jobs of both succeeded (a skipped job concludes ``skipped``).
+        """
+
+        def ran(workflow: str) -> bool:
+            return any(
+                job.name.startswith(f"{workflow} / ") and job.conclusion == "success"
+                for job in self.jobs
+            )
+
+        return ran("service") and ran("e2e")
 
 
 @dataclass(frozen=True, slots=True)
@@ -235,14 +253,21 @@ class GitHub:
         return [cast("dict[str, object]", run) for run in cast("list[object]", runs)]
 
     def jobs(self, run: int) -> list[dict[str, object]]:
-        """Return the jobs of a run, with their steps."""
-        path = f"repos/{{owner}}/{{repo}}/actions/runs/{run}/jobs?per_page=100"
-        answer = _json(self.call(["api", path]), f"the jobs of run {run}")
-        jobs = _member(answer, "jobs")
-        if not isinstance(jobs, list):
-            message = f"gh api did not answer the jobs of run {run}"
-            raise QueueError(message)
-        return [cast("dict[str, object]", job) for job in cast("list[object]", jobs)]
+        """Return all the jobs of a run, with their steps, page by page."""
+        found: list[dict[str, object]] = []
+        page = 1
+        while True:
+            path = f"repos/{{owner}}/{{repo}}/actions/runs/{run}/jobs?per_page={PAGE}&page={page}"
+            answer = _json(self.call(["api", path]), f"the jobs of run {run}")
+            jobs = _member(answer, "jobs")
+            if not isinstance(jobs, list):
+                message = f"gh api did not answer the jobs of run {run}"
+                raise QueueError(message)
+            listed = cast("list[object]", jobs)
+            found.extend(cast("dict[str, object]", job) for job in listed)
+            if len(listed) < PAGE:
+                return found
+            page += 1
 
     def log(self, job: int) -> str:
         """Return the log of a job; its colours are escape sequences ``gh`` must let through."""
@@ -521,7 +546,17 @@ def gather(source: Source, runs: Iterable[Run]) -> tuple[list[Run], list[Failure
         read.append(run)
         if run.conclusion != "failure":
             continue
-        for job in failed_jobs(run):
+        failed = failed_jobs(run)
+        if not failed:
+            failures.append(
+                Failure(
+                    run=run.identifier,
+                    job=WHOLE_RUN,
+                    step="",
+                    message="the run failed and the jobs read name none that failed",
+                )
+            )
+        for job in failed:
             try:
                 log = source.log(job.identifier)
             except (TrackingError, QueueError) as error:
@@ -680,13 +715,21 @@ def _label(kind: str, entry: Known | None) -> str:
 
 
 def durations(runs: list[Run]) -> list[str]:
-    """Return the wall time of the succeeded runs and the runner minutes of the finished ones."""
-    walls = [run.wall for run in runs if run.conclusion == "success" and run.wall is not None]
+    """Return the wall time of the complete succeeded runs and the runner minutes of finished ones.
+
+    The wall time keeps only the runs that succeeded with the full tier whole (``Run.complete``):
+    a partial run skips the longest jobs and would lower the median. The line says how many.
+    """
+    walls = [
+        run.wall
+        for run in runs
+        if run.conclusion == "success" and run.complete and run.wall is not None
+    ]
     used = [sum(job.minutes for job in run.jobs) for run in runs if run.status == "completed"]
     lines: list[str] = []
     if walls:
         lines.append(
-            f"wall time of the {len(walls)} succeeded runs: median "
+            f"wall time of the {len(walls)} complete succeeded runs (service and e2e ran): median "
             f"{statistics.median(walls):.1f} min, 90th percentile {percentile(walls, 0.9):.1f} min"
         )
     if used:
