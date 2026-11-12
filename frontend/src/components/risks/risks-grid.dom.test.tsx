@@ -396,7 +396,6 @@ function RiskStateFilter({ states }: { readonly states: readonly RiskState[] }) 
       states={states}
       filters={readRiskFilters(new URLSearchParams(), [])}
       fields={[]}
-      lastMarkedOn={undefined}
     />
   );
 }

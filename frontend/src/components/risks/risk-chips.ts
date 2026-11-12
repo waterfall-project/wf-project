@@ -8,10 +8,11 @@
  */
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { useChipKit } from "@/components/grid/chip-kit";
 import type { FilterChip } from "@/components/grid/filter-chips";
+import { formatPlanningDate, isPlanningDate } from "@/i18n/format";
 
 import {
   AMOUNT_COLUMNS,
@@ -36,8 +37,10 @@ const HEADING = {
 export function useRiskChips(
   states: readonly RiskState[] | undefined,
   filters: RiskFilters | undefined,
+  lastMarkedOn?: string | undefined,
 ): FilterChip[] {
   const t = useTranslations();
+  const locale = useLocale();
   const kit = useChipKit();
   kit.values(
     STATES,
@@ -61,6 +64,17 @@ export function useRiskChips(
   for (const column of AMOUNT_COLUMNS) {
     kit.bounds(column, t(`grid.columns.${HEADING[column]}`), "money", filters.amounts[column]);
   }
-  kit.period("review", t("grid.columns.lastReview"), "date", filters.review, REVIEW_PERIOD);
+  const { review } = filters;
+  if (lastMarkedOn !== undefined && review.to === lastMarkedOn && review.from === undefined) {
+    // The shortcut of the periodic review (WF-RIS-0020), told as what it asks.
+    kit.add(
+      "review",
+      t("risks.filters.unreviewed"),
+      isPlanningDate(lastMarkedOn) ? formatPlanningDate(lastMarkedOn, locale) : lastMarkedOn,
+      [REVIEW_PERIOD.from, REVIEW_PERIOD.to],
+    );
+  } else {
+    kit.period("review", t("grid.columns.lastReview"), "date", review, REVIEW_PERIOD);
+  }
   return kit.chips;
 }

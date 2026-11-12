@@ -14,7 +14,7 @@ import { pick } from "@/test/check-menu";
 import { example, fakeClient } from "@/test/fixtures";
 
 import { readRiskFilters, RISK_ZONES, riskFilterQuery, RISKS_LIST, universalDay } from "./address";
-import { RiskFilterPanel } from "./risk-filters";
+import { RiskFilterPanel, UnreviewedSince } from "./risk-filters";
 import { riskRow, type RiskRows, type RiskSortColumn } from "./risk-grid";
 import { RisksGrid } from "./risks-grid";
 
@@ -41,12 +41,8 @@ function renderFilters(fields: readonly FieldProblem[] = [], lastMarkedOn?: stri
   return render(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <PendingAddress>
-        <RiskFilterPanel
-          states={[]}
-          filters={readRiskFilters(search, zones)}
-          fields={fields}
-          lastMarkedOn={lastMarkedOn}
-        />
+        <RiskFilterPanel states={[]} filters={readRiskFilters(search, zones)} fields={fields} />
+        {lastMarkedOn === undefined ? null : <UnreviewedSince day={lastMarkedOn} />}
       </PendingAddress>
     </NextIntlClientProvider>,
   );
@@ -135,14 +131,8 @@ describe("the filters of the register on its columns", () => {
             preferences={undefined}
             states={["identified"]}
             filters={filters}
-            panel={
-              <RiskFilterPanel
-                states={["identified"]}
-                filters={filters}
-                fields={[]}
-                lastMarkedOn="2026-02-01"
-              />
-            }
+            lastMarkedOn="2026-02-01"
+            panel={<RiskFilterPanel states={["identified"]} filters={filters} fields={[]} />}
           />
         </PendingAddress>
       </NextIntlClientProvider>,
@@ -154,12 +144,26 @@ describe("the filters of the register on its columns", () => {
     expect(chips).toHaveTextContent("Zone de la matrice : Alerte");
     expect(chips).toHaveTextContent("Probabilité : 0,1 au moins");
     expect(chips).toHaveTextContent("Gravité : 100,00 au moins");
-    expect(chips).toHaveTextContent("Dernier réexamen : jusqu’au 1 févr. 2026");
+    // The period ending the day of the last marking is the shortcut of the review, told as such.
+    expect(chips).toHaveTextContent("Non réexaminés depuis le dernier marquage : 1 févr. 2026");
+    // The shortcut stays within reach with the panel closed.
+    expect(
+      screen.getByRole("link", { name: "Non réexaminés depuis le dernier marquage" }),
+    ).toBeVisible();
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Retirer le filtre Non réexaminés depuis le dernier marquage : 1 févr. 2026",
+      }),
+    );
+    expect(router.push).toHaveBeenLastCalledWith(
+      `${PATHNAME}?sort_by=provision_amount&states=identified&zones=alert&probability_min=0.1&severity_min=100`,
+      { scroll: false },
+    );
     await userEvent.click(
       screen.getByRole("button", { name: "Retirer le filtre Probabilité : 0,1 au moins" }),
     );
     expect(router.push).toHaveBeenLastCalledWith(
-      `${PATHNAME}?sort_by=provision_amount&states=identified&zones=alert&severity_min=100&last_review_on_to=2026-02-01`,
+      `${PATHNAME}?sort_by=provision_amount&states=identified&zones=alert&severity_min=100`,
       { scroll: false },
     );
     await userEvent.click(toggle);
@@ -293,12 +297,8 @@ describe("the filters of the register on its columns", () => {
     render(
       <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">
         <PendingAddress>
-          <RiskFilterPanel
-            states={[]}
-            filters={readRiskFilters(search, [])}
-            fields={[]}
-            lastMarkedOn="2026-02-01"
-          />
+          <RiskFilterPanel states={[]} filters={readRiskFilters(search, [])} fields={[]} />
+          <UnreviewedSince day="2026-02-01" />
         </PendingAddress>
       </NextIntlClientProvider>,
     );

@@ -18,6 +18,7 @@ import type { GridPreferences } from "@/components/grid/settings";
 
 import type { RiskFilters, RiskState } from "./address";
 import { useRiskChips } from "./risk-chips";
+import { UnreviewedSince } from "./risk-filters";
 import { OccurredLines } from "./risk-cells";
 import { RISK_GRID, type RiskRows, type RiskSortColumn } from "./risk-grid";
 
@@ -36,6 +37,8 @@ export interface RisksGridProps {
   /** The states and the filters of the columns the address asks, told as chips under the bar. */
   readonly states?: readonly RiskState[] | undefined;
   readonly filters?: RiskFilters | undefined;
+  /** The day of the last marking of the project, for the shortcut of the review; none, no shortcut. */
+  readonly lastMarkedOn?: string | undefined;
   /** The filters of the screen, which the bar folds into its panel (#2916); none, no panel. */
   readonly panel?: ReactNode;
 }
@@ -48,12 +51,18 @@ export function RisksGrid({
   originGrid,
   states,
   filters,
+  lastMarkedOn,
   panel,
 }: RisksGridProps) {
   const t = useTranslations("risks");
-  const chips = useRiskChips(states, filters);
+  const chips = useRiskChips(states, filters, lastMarkedOn);
   return (
     <OccurredLines originGrid={originGrid}>
+      {lastMarkedOn === undefined ? null : (
+        <div className="flex justify-end">
+          <UnreviewedSince day={lastMarkedOn} />
+        </div>
+      )}
       <DenseGrid
         config={RISK_GRID}
         rows={risks.items}

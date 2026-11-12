@@ -242,6 +242,7 @@ function RisksBlock({
   originGrid,
   states,
   filters,
+  lastMarkedOn,
   panel,
 }: {
   readonly risks: RisksRead;
@@ -250,6 +251,8 @@ function RisksBlock({
   readonly originGrid: string | undefined;
   readonly states: readonly RiskState[];
   readonly filters: RiskFilters;
+  /** The day of the last marking of the project, if it has marked a revision. */
+  readonly lastMarkedOn: string | undefined;
   /** The filters, in the bar of the grid, or above the sentence that stands for it. */
   readonly panel: ReactNode;
 }) {
@@ -270,6 +273,7 @@ function RisksBlock({
         originGrid={originGrid}
         states={states}
         filters={filters}
+        lastMarkedOn={lastMarkedOn}
         panel={panel}
       />
       <ListPages
@@ -430,12 +434,12 @@ export default async function RisksPage({
                 originGrid={occurredGrid}
                 states={states}
                 filters={filters}
+                lastMarkedOn={marked}
                 panel={
                   <RiskFilterPanel
                     states={states}
                     filters={filters}
                     fields={refusedFields(risks)}
-                    lastMarkedOn={marked}
                   />
                 }
               />

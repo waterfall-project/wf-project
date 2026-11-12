@@ -55,7 +55,7 @@ const HEADING = {
 } as const satisfies Readonly<Record<AmountColumn | typeof PROBABILITY, string>>;
 
 /** The shortcut of the periodic review: the register of the risks not reviewed since a day. */
-function UnreviewedSince({ day }: { readonly day: string }) {
+export function UnreviewedSince({ day }: { readonly day: string }) {
   const t = useTranslations("risks.filters");
   const pathname = usePathname();
   const asked = useSearchParams().get(REVIEW_PERIOD.to) === day;
@@ -78,19 +78,17 @@ function UnreviewedSince({ day }: { readonly day: string }) {
 
 /**
  * The panel of the filters of the register: what the address asks, the refusals of the server
- * (`fields` of its 422) and, for the shortcut of the review, the day of the last marking of the
- * project — none while it has marked no revision, the shortcut then not offered.
+ * (`fields` of its 422). The shortcut of the review stands beside the bar (`UnreviewedSince`), within
+ * reach with the panel closed.
  */
 export function RiskFilterPanel({
   states,
   filters,
   fields,
-  lastMarkedOn,
 }: {
   readonly states: readonly RiskState[];
   readonly filters: RiskFilters;
   readonly fields: readonly components["schemas"]["FieldProblem"][];
-  readonly lastMarkedOn: string | undefined;
 }) {
   const t = useTranslations();
   const columns = useTranslations("grid.columns");
@@ -139,7 +137,6 @@ export function RiskFilterPanel({
         refused={refusedPeriod(fields, REVIEW_PERIOD)}
         page={OFFSET}
       />
-      {lastMarkedOn === undefined ? null : <UnreviewedSince day={lastMarkedOn} />}
     </FilterFields>
   );
 }
