@@ -230,10 +230,10 @@ export interface RoleFilters {
 }
 
 /**
- * The filters of the access roles: their kind, a choice, the bounds of their holders, and their audit
- * columns.
+ * The filters of the access roles, in the panel of the bar of their grid (#2916): their kind, a
+ * choice, the bounds of their holders, and their audit columns.
  */
-function RoleFilterBar({ filters }: { readonly filters: RoleFilters }) {
+function RoleFilterPanel({ filters }: { readonly filters: RoleFilters }) {
   const t = useTranslations();
   return (
     <FilterFields>
@@ -286,23 +286,31 @@ export function AccessRoleList({
 }) {
   const t = useTranslations("admin.accessRoles");
   const narrowed = rolesNarrowed({ ...filters, query });
-  let list: ReactNode;
+  const panel = <RoleFilterPanel filters={filters} />;
+  let shown: ReactNode;
   if (filters.refused !== undefined || filters.audit.refused !== undefined) {
-    list = <BoundsRefused />;
+    // The list unread: the filters stand above the sentence that stands for the grid.
+    shown = (
+      <>
+        {panel}
+        <BoundsRefused />
+      </>
+    );
   } else if (roles.length === 0 && !narrowed) {
     // Empty only when nothing narrows it; the command that creates a role is offered all the same.
-    list = <p className="text-sm text-muted-foreground">{t("none")}</p>;
+    shown = <p className="text-sm text-muted-foreground">{t("none")}</p>;
   } else {
-    list = (
-      <AccessRoleGrid roles={roles} query={query} preferences={preferences} editable={editable} />
+    shown = (
+      <AccessRoleGrid
+        roles={roles}
+        query={query}
+        preferences={preferences}
+        editable={editable}
+        filters={filters}
+        panel={panel}
+      />
     );
   }
-  const shown = (
-    <>
-      <RoleFilterBar filters={filters} />
-      {list}
-    </>
-  );
   return (
     <ReferenceSection title={t("title")} icon={ShieldCheck}>
       {editable ? (

@@ -92,7 +92,7 @@ export function useUserChips(
 }
 
 /** The chips of the periods and the authors of the audit columns that are on. */
-function useAuditChips(audit: AuditFilters, authors: readonly AuthorChoice[]): FilterChip[] {
+export function useAuditChips(audit: AuditFilters, authors: readonly AuthorChoice[]): FilterChip[] {
   const t = useTranslations();
   const locale = useLocale();
   const naming = useAccountNaming();

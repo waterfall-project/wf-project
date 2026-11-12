@@ -128,7 +128,8 @@ function roleList(
   query: GridQuery<AccessRoleSort> = NO_QUERY,
   filters: RoleFilters = NO_ROLE_FILTER,
   shown: readonly AccessRole[] = roles,
-  preferences?: GridPreferences,
+  // The panel of the filters is closed unless the account keeps it open: kept open for the tests that drive it.
+  preferences: GridPreferences = { filters_open: true },
 ) {
   return inFrench(
     <AccessRoleList
@@ -695,10 +696,34 @@ describe("the grid of the access roles", () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 
+  it("tells its kind and the bounds of its holders by chips, each lifted by its parameters, the rest of the address kept [WF-IHM-0130-A] (#2916)", async () => {
+    page.path = "/admin/access-roles";
+    page.search = "sort_by=label&is_predefined=false&holder_count_min=2&holder_count_max=9";
+    render(
+      roleList(
+        false,
+        NO_QUERY,
+        {
+          ...NO_ROLE_FILTER,
+          predefined: false,
+          holders: { min: "2", max: "9" },
+        },
+        roles,
+      ),
+    );
+    const chips = screen.getByRole("list", { name: "Filtres actifs" });
+    expect(chips).toHaveTextContent("Nature : Rôles composés");
+    expect(chips).toHaveTextContent("Comptes porteurs : de 2 à 9");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Retirer le filtre Comptes porteurs : de 2 à 9" }),
+    );
+    expect(lastAddress()).toBe("/admin/access-roles?sort_by=label&is_predefined=false");
+  });
+
   it("says in the address a reading whose last filter is lifted, which empties the filters kept and is never filled in [WF-IHM-0060-A]", async () => {
     page.path = "/admin/access-roles";
     page.search = "is_predefined=false";
-    const kept: GridPreferences = { filters: { is_predefined: "false" } };
+    const kept: GridPreferences = { filters: { is_predefined: "false" }, filters_open: true };
     const { rerender } = render(
       roleList(false, NO_QUERY, { ...NO_ROLE_FILTER, predefined: false }, roles, kept),
     );
@@ -722,6 +747,7 @@ describe("the grid of the access roles", () => {
           column_widths: {},
           known_columns: keysOf(accessRoleGrid(false).columns),
           filters: {},
+          filters_open: true,
         },
       },
     });
