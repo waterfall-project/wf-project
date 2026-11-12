@@ -374,7 +374,7 @@
       "nodeUnknown": "Un nœud",
       "categoryUnknown": "Une catégorie",
       "calendarUnknown": "Un calendrier",
-      "natureUnknown": "Une nature",
+      "costTypeUnknown": "Une nature",
       "authorUnknown": "Un compte",
       "selected": "{count, plural, one {# sélectionné} other {# sélectionnés}}",
       "search": "Rechercher dans « {label} »",

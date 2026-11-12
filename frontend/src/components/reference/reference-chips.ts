@@ -59,7 +59,7 @@ function useStateChip(): (kit: ChipKit, key: string, state: boolean | undefined)
 function useChosen(): (
   id: string,
   offered: readonly Choice[] | undefined,
-  unknown: "node" | "category" | "calendar" | "nature",
+  unknown: "node" | "category" | "calendar" | "costType",
 ) => string {
   const t = useTranslations("reference");
   const told = useTranslations("grid.filtering");
@@ -167,7 +167,7 @@ export function useCostCategoryChips(
   const kit = useChipKit();
   const chosen = useChosen();
   if (nature !== undefined) {
-    kit.add(CATEGORY_COST_TYPE, t("costType"), chosen(nature, natures, "nature"), [
+    kit.add(CATEGORY_COST_TYPE, t("costType"), chosen(nature, natures, "costType"), [
       CATEGORY_COST_TYPE,
     ]);
   }

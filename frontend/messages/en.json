@@ -374,7 +374,7 @@
       "nodeUnknown": "A node",
       "categoryUnknown": "A category",
       "calendarUnknown": "A calendar",
-      "natureUnknown": "A nature",
+      "costTypeUnknown": "A cost type",
       "authorUnknown": "An account",
       "selected": "{count, plural, one {# selected} other {# selected}}",
       "search": "Search in “{label}”",
