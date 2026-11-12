@@ -17,6 +17,7 @@ from waterfall.api.actors import actor_ref
 from waterfall.api.authentication import Transaction
 from waterfall.api.contract.models import CostImport, PaginationMeta
 from waterfall.api.evaluation import RequiresProject
+from waterfall.api.queries import Offset
 from waterfall.core.costs.interface import CostImportView, list_cost_imports
 
 router = APIRouter(tags=["actual-costs"])
@@ -54,7 +55,7 @@ def get_cost_imports(
     project_id: UUID,
     session: Transaction,
     limit: Annotated[int, Query(ge=1, le=GREATEST_LIMIT)] = DEFAULT_LIMIT,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Offset = 0,
 ) -> dict[str, Any]:
     """Give a page of the log of the imports of a project, the latest first (WF-CRE-0050)."""
     read = list_cost_imports(session, project_id, limit, offset)

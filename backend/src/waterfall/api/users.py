@@ -58,6 +58,7 @@ from waterfall.api.contract.models import (
 from waterfall.api.evaluation import Acting, Requires
 from waterfall.api.queries import (
     FiltersRead,
+    Offset,
     Search,
     audit_column_filters,
     read_list,
@@ -301,7 +302,7 @@ def account_sort(
 
 def page_of(
     limit: Annotated[int, Query(ge=1, le=GREATEST_LIMIT)] = DEFAULT_LIMIT,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Offset = 0,
 ) -> Page:
     """Read the page asked for: fifty accounts from the first one, unless said otherwise."""
     return Page(limit, offset)

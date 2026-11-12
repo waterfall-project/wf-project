@@ -282,6 +282,18 @@ décalage garde son unité (`lag`, `lag_unit` : jours, semaines ou mois, WF-PLA-
 EP-02). C'est un filtre que l'utilisateur voit et lève, jamais une restriction de lecture :
 la consultation ne dépend que des habilitations (WF-PRJ-0060).
 
+**Le rang d'une page est borné comme le compteur d'écriture, et refusé au-delà par 422** (#2778,
+issue « contrat » ; décision de l'auteur du 2026-11-12, EP-24/US-1960). Le paramètre commun
+`Offset` porte `maximum: 2147483647`, la borne de `LockVersion` (« Session et erreurs ») : sans
+borne haute, un entier démesuré passait la validation et atteignait la base, que le service
+n'aurait pas su lire. Il est refusé par la validation, comme toute valeur hors de ses bornes, sur
+chaque liste paginée : 422 `VALIDATION_FAILED`, `fields` désignant `/query/offset` par
+`VALUE_OUT_OF_RANGE`, `params.maximum` à `2147483647`, et aucune lecture n'est faite. Un rang
+jusqu'à la borne reste servi : au-delà de `meta.total`, une page vide. Une modification du contrat
+figé (« La règle d'après le gel »). Écarté : borner dans chaque route sans le contrat, une borne
+que le client engendré et le faux back n'auraient pas connue. `Limit`, déjà borné à 500, ne change
+pas.
+
 ## Révision de la spécification du 2026-10-03 (EP-02/L7)
 
 Ce que la spécification revue impose, et la forme retenue pour chaque chose (#213).

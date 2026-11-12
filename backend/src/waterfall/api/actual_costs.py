@@ -29,6 +29,7 @@ from waterfall.api.contract.models import (
     Timestamp,
 )
 from waterfall.api.evaluation import Acting, RequiresProject
+from waterfall.api.queries import Offset
 from waterfall.core.costs.interface import (
     CostLineFilters,
     CostLinePage,
@@ -102,7 +103,7 @@ def cost_line_sort(
 
 def page_asked(
     limit: Annotated[int, Query(ge=1, le=GREATEST_LIMIT)] = DEFAULT_LIMIT,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Offset = 0,
 ) -> CostLinePage:
     """Read the page asked for: its size and the lines skipped before it."""
     return CostLinePage(limit, offset)

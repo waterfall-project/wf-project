@@ -36,7 +36,7 @@ from waterfall.api.contract.models import (
     SortOrder,
 )
 from waterfall.api.evaluation import Acting, Requires, RequiresForInactive
-from waterfall.api.queries import refuse_query
+from waterfall.api.queries import Offset, refuse_query
 from waterfall.api.resource_role_admission import (
     category_admission,
     category_admission_for_change,
@@ -271,7 +271,7 @@ def role_sort(sort_by: RoleColumn = "label", sort_order: SortOrder = SortOrder.a
 
 def role_window(
     limit: Annotated[int, Query(ge=1, le=GREATEST_LIMIT)] = DEFAULT_LIMIT,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Offset = 0,
 ) -> RoleWindow:
     """Read the page asked for: fifty roles from the first one, unless said otherwise."""
     return RoleWindow(limit, offset)

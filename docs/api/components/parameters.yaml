@@ -15,8 +15,11 @@ Offset:
   in: query
   description: >-
     Number of items skipped before the page, from 0, in the order of the list as sorted
-    (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page.
-  schema: { type: integer, minimum: 0, default: 0 }
+    (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page. At most 2147483647,
+    the bound of `LockVersion`: beyond it, the list is refused with 422 `VALIDATION_FAILED`,
+    `fields` designating `/query/offset` with `VALUE_OUT_OF_RANGE` and `params.maximum` at
+    `2147483647` (#2778).
+  schema: { type: integer, minimum: 0, maximum: 2147483647, default: 0 }
 
 Search:
   name: search
