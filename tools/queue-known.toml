@@ -23,6 +23,13 @@
 # sur les passages du 2026-11-05 au 2026-11-12. Une ligne de parcours bouge avec son fichier :
 # l'intervalle `lines` est celui des passages relevés, et le lot qui corrige une famille
 # retire ou met à jour ses entrées.
+#
+# Une entrée qui nomme un test donne aussi, quand l'inventaire le connaît, le `message` qui
+# l'accompagne, pour qu'une autre défaillance du même test reste « à classer » : les entrées de la
+# famille A attendent `own-project.ts:39`, celles de la famille D le libellé de l'attente. Ce
+# libellé est celui que l'inventaire décrit, non relu dans un journal de la file : il se corrige
+# à la première lecture d'un échec de la famille D. Les entrées des familles B et C et du back
+# reconnaissent encore un test par sa seule ligne, faute d'un message relevé.
 
 # La référence contre laquelle un lot de la chaîne se juge, avant et après : toutes branches,
 # du 2026-11-05 au 2026-11-12 ; la médiane de mur est celle des passages réussis des 10 et 11.
@@ -45,6 +52,7 @@ issue = "#2940"
 job = "^service / paths$"
 test = 'e2e/structure\.spec\.ts:'
 lines = [414, 452]
+message = 'e2e/own-project\.ts:39\b'
 frequency = "6 passages du 2026-11-05 au 2026-11-12"
 cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
 
@@ -55,6 +63,7 @@ issue = "#2940"
 job = "^service / paths$"
 test = 'e2e/planning-service\.spec\.ts:'
 lines = [16, 154]
+message = 'e2e/own-project\.ts:39\b'
 frequency = "6 passages du 2026-11-05 au 2026-11-12"
 cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
 
@@ -65,6 +74,7 @@ issue = "#2940"
 job = "^service / paths$"
 test = 'e2e/project-start\.spec\.ts:'
 lines = [179, 181]
+message = 'e2e/own-project\.ts:39\b'
 frequency = "3 passages du 2026-11-05 au 2026-11-12"
 cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
 
@@ -74,6 +84,7 @@ family = "A. création du projet de la course"
 issue = "#2940"
 job = "^service / paths$"
 test = 'e2e/task-tree\.spec\.ts:13\b'
+message = 'e2e/own-project\.ts:39\b'
 frequency = "1 passage du 2026-11-05 au 2026-11-12"
 cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
 
@@ -83,6 +94,7 @@ family = "A. création du projet de la course"
 issue = "#2940"
 job = "^service / paths$"
 test = 'e2e/timelines\.spec\.ts:(353|391)\b'
+message = 'e2e/own-project\.ts:39\b'
 frequency = "1 passage chacun, :353 et :391, du 2026-11-05 au 2026-11-12"
 cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
 
@@ -92,6 +104,7 @@ family = "A. création du projet de la course"
 issue = "#2940"
 job = "^service / paths$"
 test = 'e2e/undo\.spec\.ts:139\b'
+message = 'e2e/own-project\.ts:39\b'
 frequency = "2 passages du 2026-11-05 au 2026-11-12"
 cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
 
@@ -101,6 +114,7 @@ family = "A. création du projet de la course"
 issue = "#2940"
 job = "^service / paths$"
 test = 'e2e/revision-cycle\.spec\.ts:'
+message = 'e2e/own-project\.ts:39\b'
 frequency = "2 passages du 2026-11-05 au 2026-11-12"
 cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
 
@@ -194,6 +208,7 @@ family = "D. restauration"
 issue = "#2943"
 job = "^service / paths$"
 test = 'e2e/service/backups\.spec\.ts:(155|240)\b'
+message = 'Restaurer cette sauvegarde|Sauvegardes'
 frequency = "11 passages pour :155, 5 pour :240, tous des 9 et 10 novembre, sur trois pull requests d'EP-07"
 cause = "hypothèse : une régression de leur branche, ou le dépôt d'une archive devenue plus lourde"
 

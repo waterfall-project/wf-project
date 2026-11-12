@@ -11,6 +11,7 @@ import subprocess
 from dataclasses import replace
 from datetime import date
 from typing import TYPE_CHECKING
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
@@ -219,6 +220,23 @@ def test_the_first_entry_that_recognizes_a_failure_classifies_it_and_none_says_t
     kind, entry = catalogue.classify(found)
     assert (kind, entry.issue if entry else None) == (queue.INFRASTRUCTURE, "#2")
     assert queue.Catalogue().classify(found) == (queue.TO_CLASSIFY, None)
+
+
+def test_an_entry_with_a_test_and_a_message_leaves_another_failure_of_that_test_to_classify() -> (
+    None
+):
+    (found,) = failures("playwright-service-paths")[1:]
+    entry = known(test="structure", message=r"own-project\.ts:39")
+    assert found.test.startswith("e2e/structure.spec.ts")
+    assert entry.recognizes(found)
+    other = replace(
+        found, where="e2e/structure.spec.ts:430", message="expect(received) failed", evidence=""
+    )
+    assert not entry.recognizes(other)
+    assert queue.Catalogue(entries=[entry]).classify(other) == (queue.TO_CLASSIFY, None)
+    versioned = queue.read_catalogue()
+    assert versioned.classify(found)[0] == queue.FLAKY
+    assert versioned.classify(other)[0] == queue.TO_CLASSIFY
 
 
 @pytest.mark.parametrize(
@@ -460,12 +478,15 @@ def test_the_jobs_of_a_run_are_read_page_by_page() -> None:
     asked: list[str] = []
 
     def call(arguments: list[str]) -> str:
-        asked.append(arguments[1])
-        count = queue.PAGE if arguments[1].endswith("&page=1") else 3
+        # The page is read as its own parameter: "page=1" alone is also inside "per_page=100",
+        # and a fake that matched it so answered a full page forever (2026-11-12).
+        (page,) = parse_qs(urlsplit(arguments[1]).query)["page"]
+        asked.append(page)
+        count = queue.PAGE if page == "1" else 3
         return json.dumps({"jobs": [job_data(n, "j", "success", 0, 1) for n in range(count)]})
 
     assert len(queue.GitHub(call).jobs(5)) == queue.PAGE + 3
-    assert [path.rsplit("&", 1)[1] for path in asked] == ["page=1", "page=2"]
+    assert asked == ["1", "2"]
 
 
 def test_a_source_that_never_ends_its_pages_is_refused_not_read_without_end() -> None:
