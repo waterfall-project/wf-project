@@ -187,6 +187,9 @@ paths = [
     ".github/actions/**",
     # The variant of the contract Prism serves as a proxy (make mock-spec).
     "tools/src/wftools/mock*.py",
+    # The work image the paths play in (US-1900), and what finds it and plays them in it.
+    "deploy/e2e/**",
+    "tools/src/wftools/e2eimage.py",
 ]
 target = "check-service"
 
@@ -236,6 +239,9 @@ paths = [
     "tools/src/wftools/frontimage.py",
     "tools/src/wftools/images.py",
     "tools/src/wftools/mock*.py",
+    # The work image the parts of the paths run in (US-1900), and what finds it.
+    "deploy/e2e/**",
+    "tools/src/wftools/e2eimage.py",
 ]
 target = "check-front"
 

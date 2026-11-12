@@ -702,7 +702,7 @@ et `planning-service.spec.ts`.
 
 ## US-1900 — La chaîne ne dépend plus d'un réseau qu'elle ne tient pas
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2944

@@ -3356,10 +3356,14 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   `service.yml` joue les parcours contre le vrai service, au palier complet seulement
   (`make check-service`, soit `make e2e-service`, sur le build du front que partagent les parcours
   d'`e2e.yml`) : la famille `service` se réveille sur le front, le back, le contrat et les fichiers
-  de la plateforme. Il tourne sur le runner même, non dans l'image de Playwright : les parcours
-  joignent la plateforme sur les ports que Docker publie sur le runner, qu'un conteneur de travail
-  ne voit pas ; le navigateur s'y installe avec ses paquets système
-  (`make e2e-browsers PLAYWRIGHT_INSTALL=--with-deps`). `front-image.yml` construit et démarre
+  de la plateforme. La plateforme démarre sur le runner même, par le Makefile ; les parcours se
+  jouent dans l'image de travail des parcours (ci-dessous), sur le réseau du runner
+  (`E2E_IMAGE=<référence>`, que `make e2e-service` passe à `wftools.e2eimage`, qui lance
+  `docker run --network host`, le dépôt monté à son propre chemin, avec la socket de Docker) : un
+  conteneur de travail ne verrait pas les ports que Docker publie sur le runner, et les fichiers
+  que la plateforme monte sont nommés par leur chemin sur le runner. Aucun paquet d'Ubuntu ne s'y
+  installe (#2913) ; sur un poste, sans `E2E_IMAGE`, les parcours se jouent sur le poste, avec le
+  navigateur de `make e2e-browsers`. `front-image.yml` construit et démarre
   l'image de production du front, que `images.yml` ne publie qu'après la fusion, aux deux paliers
   (`make check-front-image`) : la famille `front-image` se réveille sur ce qui la fait —
   `frontend/Dockerfile` et son `.dockerignore`, `next.config.ts`, `package.json`, `pnpm-lock.yaml`,
@@ -3461,10 +3465,23 @@ branche d'un lot, avant de le fusionner : `gh workflow run chain --ref <branche>
 Le palier complet vise moins de huit minutes dans la file pour son travail le plus long
 (#492). Les parcours de bout en bout, la moitié la plus longue, s'y prennent ainsi :
 
-- **dans l'image de Playwright** (`mcr.microsoft.com/playwright`), à la version de
-  `@playwright/test` que résout `frontend/pnpm-lock.yaml`, épinglée par son empreinte (`container:`
-  d'`e2e.yml`) : Chromium et ses paquets système y sont, rien ne vient du miroir d'Ubuntu, dont le
-  débit n'est pas le nôtre (#472). Le travail appelle `make e2e`, qui trouve le navigateur de
+- **dans l'image de travail des parcours** (`deploy/e2e/Dockerfile`, US-1900), bâtie de l'image de
+  Playwright (`mcr.microsoft.com/playwright`) à la version de `@playwright/test` que résout
+  `frontend/pnpm-lock.yaml`, épinglée par son empreinte, avec `make`, le Python de
+  `tools/.python-version` en `python3`, pnpm à la version de `packageManager` et le client de
+  Docker : Chromium et ses paquets système y sont, rien ne vient du miroir d'Ubuntu, dont le débit
+  et la réponse ne sont pas les nôtres (#472, #2913). Elle est publiée sur
+  `ghcr.io/waterfall-project/e2e`, étiquetée par l'empreinte de son répertoire : le travail
+  `e2e-image` de `ci.yml`, qui tourne dès qu'`e2e` ou `service` tourne, à côté de `front-build`,
+  la demande au registre (`make e2e-image PUSH=yes`) ; présente, il en donne la référence par son
+  empreinte, que les morceaux (`container:` d'`e2e.yml`) et `service.yml` tirent ; absente, il la
+  construit et la publie, une fois, au premier passage qui en a besoin — celui de la file, ou du
+  palier complet lancé à la main sur une branche —, d'où ses `packages: write`. `images.yml` ne la
+  publie pas : il passe après la fusion, donc après le premier passage de la file qui en a besoin.
+  Un registre qui ne répond pas fait échouer ce travail en le nommant, et saute les parcours, ce
+  que la porte compte ; une image qui ne se tire pas fait échouer l'initialisation du morceau, en
+  nommant le registre, avant toute étape. `tools/tests/test_e2eimage.py` tient les versions de
+  l'image, ses sources épinglées, et l'absence de paquet d'Ubuntu dans `e2e.yml` et `service.yml`. Le travail appelle `make e2e`, qui trouve le navigateur de
   l'image (`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`), et non `make check-front-e2e`, qui en
   installerait un. Monter `@playwright/test` monte l'image avec lui, étiquette et empreinte : sinon
   les parcours s'arrêtent d'emblée sur un navigateur introuvable, et
@@ -3473,8 +3490,8 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   `docker buildx imagetools inspect mcr.microsoft.com/playwright:v<X>-noble`, ou l'en-tête
   `docker-content-digest` de
   `curl -sI -H 'Accept: application/vnd.oci.image.index.v1+json' https://mcr.microsoft.com/v2/playwright/manifests/v<X>-noble`.
-  L'image n'a pas `make` : son paquet d'Ubuntu noble est téléchargé, épinglé et vérifié par son
-  empreinte, comme pandoc ;
+  Le paquet `make` d'Ubuntu noble et l'archive du client de Docker ne se téléchargent qu'à la
+  construction de l'image, épinglés et vérifiés par leur empreinte, pnpm par sa version ;
 - **répartis sur cinq runners** (`make e2e SHARD=i/5`, soit `playwright test --shard=i/5`),
   la mesure du §4.6.2 sur un sixième, seule (`make e2e-measure`), par une matrice dont aucun
   morceau n'annule les autres ; le résultat d'`e2e` est un échec dès qu'un morceau échoue ou
