@@ -810,7 +810,7 @@ que la charge (#2890).
 
 ## US-1940 — Le classeur du reste à engager garde la nature d'une ligne à l'aller-retour, et les classeurs abîmés n'ont qu'une liste
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0120-A`
 - **opérations** : `requestExport`, `openImport`, `applyImport`
 - **issue** : #2958

@@ -13,8 +13,6 @@ the lineage of the task each entry names, and the header alone is read at the op
 """
 
 import math
-import zipfile
-import zlib
 from dataclasses import dataclass
 from decimal import Decimal
 from io import BytesIO
@@ -22,7 +20,6 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 from openpyxl import load_workbook
-from openpyxl.utils.exceptions import InvalidFileException
 
 from waterfall.core.estimate.excel.writer import (
     FIXED_TABS,
@@ -30,6 +27,7 @@ from waterfall.core.estimate.excel.writer import (
     FORMAT_VERSION,
     TASKS,
 )
+from waterfall.core.exchanges.interface import DAMAGES
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
@@ -128,24 +126,6 @@ class WorkbookRead:
     unread_sheets: tuple[str, ...] = ()
     missing_headers: Mapping[str, tuple[str, ...]] = MappingProxyType({})
     tasks: Mapping[str, str] = MappingProxyType({})
-
-
-# What a damaged file raises as openpyxl opens or reads it. SyntaxError is the parent of
-# ElementTree.ParseError and of lxml's XMLSyntaxError; zlib.error and EOFError are a cut deflate
-# stream, RuntimeError and NotImplementedError a member that zipfile cannot decode (encrypted,
-# unknown compression): none of them is an OSError.
-DAMAGES = (
-    zipfile.BadZipFile,
-    zlib.error,
-    EOFError,
-    RuntimeError,
-    NotImplementedError,
-    InvalidFileException,
-    KeyError,
-    ValueError,
-    OSError,
-    SyntaxError,
-)
 
 
 def unreadable(
