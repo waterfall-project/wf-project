@@ -63,8 +63,14 @@ vi.mock("next/navigation", async (original) => ({
 }));
 // The session of the contract, the sizes of pages its account keeps set for a test.
 const kept = vi.hoisted(
-  (): { grids: Record<string, { page_size?: number; filters?: Record<string, string> }> } => ({
+  (): {
+    grids: Record<string, { page_size?: number; filters?: Record<string, string> }>;
+    permissions: string[] | undefined;
+    roles: string[] | undefined;
+  } => ({
     grids: {},
+    permissions: undefined,
+    roles: undefined,
   }),
 );
 vi.mock("@/session/request", async (original) => {
@@ -77,6 +83,10 @@ vi.mock("@/session/request", async (original) => {
         ? undefined
         : {
             ...session,
+            ...(kept.permissions === undefined
+              ? {}
+              : { permissions: kept.permissions as typeof session.permissions }),
+            ...(kept.roles === undefined ? {} : { access_role_ids: kept.roles }),
             display_preferences: {
               ...session.display_preferences,
               grids: { ...session.display_preferences?.grids, ...kept.grids },
@@ -136,6 +146,8 @@ function listQuery(): Record<string, string> {
 
 beforeEach(() => {
   kept.grids = {};
+  kept.permissions = undefined;
+  kept.roles = undefined;
   grids.props = [];
   server.clients = [];
   server.unreachable = false;
@@ -144,6 +156,80 @@ beforeEach(() => {
     "GET /projects": "projects",
     "GET /reference/readiness": "reference_readiness",
   };
+});
+
+describe("the home of an account that cannot read any project [WF-IHM-0120] #2915", () => {
+  /** Whether the home asked the API for the list of projects. */
+  function askedList(): boolean {
+    return server.clients.some((client) =>
+      client.calls.some((call) => call.route === "GET /projects"),
+    );
+  }
+
+  it("lists the projects for an account that holds project_settings.read [WF-IHM-0120-A]", async () => {
+    const html = await home();
+    expect(askedList()).toBe(true);
+    expect(text(html)).not.toContain("No project to open");
+  });
+
+  it("says that the account opens no project and leads to the functions it holds, without reading the list [WF-IHM-0120-A]", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_auditor" };
+    const html = await home();
+    expect(askedList()).toBe(false);
+    expect(html).toMatch(/<h1[^>]*>.*No project to open<\/h1>/);
+    expect(text(html)).toContain("Your account cannot open any project");
+    expect(links(html)).toContain("/admin/audit-log");
+    expect(links(html)).not.toContain("/admin/users");
+    expect(text(html)).not.toContain("no role yet");
+  });
+
+  it("keeps stating the prerequisites the reference data lacks, linked when the account may read them, without reading the list [WF-IHM-0120-A]", async () => {
+    kept.permissions = ["cost_settings.read"];
+    server.answers = {
+      ...server.answers,
+      "GET /reference/readiness": "reference_readiness_incomplete",
+    };
+    const html = await home();
+    expect(askedList()).toBe(false);
+    expect(text(html)).toContain("Incomplete reference data");
+    expect(links(html)).toContain("/reference/costs");
+  });
+
+  it("does not say a role is missing to an account that holds functions of a project only, nor one that holds a command [WF-IHM-0120-A]", async () => {
+    for (const permissions of [["planning.read"], ["all_projects_read"]]) {
+      kept.permissions = permissions;
+      const html = await home();
+      expect(askedList()).toBe(false);
+      expect(text(html)).toContain("exercised in a project, but it cannot open any project");
+      expect(text(html)).not.toContain("no role yet");
+      expect(links(html)).toEqual([]);
+    }
+  });
+
+  it("says that the account has no role yet when it carries no access role [WF-IHM-0120-A]", async () => {
+    kept.roles = [];
+    kept.permissions = [];
+    const html = await home();
+    expect(text(html)).toContain("no role yet");
+  });
+
+  it("leads to the portfolio and the reference data an account holds [WF-IHM-0120-A]", async () => {
+    kept.permissions = ["portfolio_projects.read", "cost_settings.read"];
+    const html = await home();
+    expect(links(html)).toEqual(
+      expect.arrayContaining(["/portfolio/projects", "/reference/costs"]),
+    );
+  });
+
+  it("says that the account has no role yet when it holds no function at all [WF-IHM-0120-A]", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_without_roles" };
+    const html = await home();
+    expect(askedList()).toBe(false);
+    expect(text(html)).toContain(
+      "Your account has no role yet. An administrator must give you one",
+    );
+    expect(links(html)).toEqual([]);
+  });
 });
 
 describe("the home, the list of projects", () => {
