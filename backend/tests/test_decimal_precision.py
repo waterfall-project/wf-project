@@ -143,11 +143,12 @@ def test_a_lag_of_more_than_ten_decimals_is_refused_at_its_rank_and_nothing_is_w
 
 
 @pytest.mark.requirement("WF-DEV-0020-A")
-@pytest.mark.parametrize("value", ["1" + "0" * 13, "1" + "0" * 12, "1.00000000001", OVERFLOWING])
+@pytest.mark.parametrize("value", ["1" + "0" * 13, "1" + "0" * 12])
 def test_a_unit_disbursement_beyond_its_column_is_refused_at_its_field_and_nothing_is_created(
     tree: Tree, lines: Lines, costs: Costing, value: str
 ) -> None:
-    # Thirteen digits before the point overflow numeric(14, 2): the scenario of #2875.
+    # Thirteen digits before the point overflow numeric(14, 2): the scenario of #2875. The decimals
+    # of a disbursement are bounded by ``Money`` (two) before the service, so none is tried here.
     task = tree.made("Câblage")
     refused = lines.create(
         task, quantity="1", cost_category_id=str(costs.material), unit_disbursement=value
@@ -170,6 +171,20 @@ def test_a_quantity_beyond_its_column_is_refused_at_its_field_at_the_creation_an
     changed = lines.change(line, quantity=value)
     assert faults(changed) == [("/quantity", PRECISION, {})]
     assert len(tree.items("?kinds=estimate_line")) == 1
+
+
+@pytest.mark.requirement("WF-DEV-0020-A")
+def test_a_negative_quantity_beyond_its_column_has_one_fault_at_its_field(
+    tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    task = tree.made("Câblage")
+    refused = lines.create(
+        task,
+        quantity="-1" + "0" * 11,
+        cost_category_id=str(costs.material),
+        unit_disbursement="3.00",
+    )
+    assert faults(refused) == [("/estimate_line/quantity", "VALUE_OUT_OF_RANGE", {"minimum": 0})]
 
 
 @pytest.mark.requirement("WF-DEV-0020-A")

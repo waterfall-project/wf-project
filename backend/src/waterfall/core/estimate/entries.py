@@ -25,7 +25,13 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.cost_settings.interface import category_labels
 from waterfall.core.estimate.recalling import recalled
-from waterfall.core.estimate.tables import LABEL_LENGTH
+from waterfall.core.estimate.tables import (
+    DISBURSEMENT_PRECISION,
+    DISBURSEMENT_SCALE,
+    LABEL_LENGTH,
+    QUANTITY_PRECISION,
+    QUANTITY_SCALE,
+)
 from waterfall.core.projects.interface import subproject_has_actual_costs, subproject_labels
 from waterfall.core.resource_settings.interface import read_roles
 from waterfall.platform.decimals import exceeds_precision
@@ -57,9 +63,9 @@ PROVISION = "provision"
 NOT_STARTED = "not_started"
 SEPARATOR = " — "
 NOUGHT = Decimal(0)
-# The digits before the point the columns keep: ``numeric(14, 2)`` and ``numeric(14, 4)``.
-DISBURSEMENT_DIGITS = 12
-QUANTITY_DIGITS = 10
+# The digits before the point the columns keep, from their precision and scale.
+DISBURSEMENT_DIGITS = DISBURSEMENT_PRECISION - DISBURSEMENT_SCALE
+QUANTITY_DIGITS = QUANTITY_PRECISION - QUANTITY_SCALE
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,7 +134,13 @@ def _not_negative[T: (Decimal, int)](faults: _Faults, name: str, value: T | None
 
 
 def _kept(faults: _Faults, name: str, value: Decimal | None, whole_digits: int) -> None:
-    """Refuse a figure of more than ten decimals or than the digits its column keeps (#2875)."""
+    """Refuse a figure of more than ten decimals or than the digits its column keeps (#2875).
+
+    One fault per field, as the first refusal stops: a figure below nought is refused as such. The
+    decimals of a disbursement are bounded by ``Money`` before the service; the digits are its.
+    """
+    if value is not None and value < 0:
+        return
     if value is not None and exceeds_precision(value, whole_digits):
         faults.add(name, VALIDATION_FAILED)
 
