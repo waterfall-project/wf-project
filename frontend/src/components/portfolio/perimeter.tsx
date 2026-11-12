@@ -8,9 +8,9 @@
  * server orders —, and the horizon
  * and the threshold of under-load (WF-PTF-0060), for the views that take them. A choice only
  * changes the address, under the names of the contract, and the page reads anew what the server
- * computes on it. A state shows pressed as the address asks it, or, when the address asks none, as
+ * computes on it. A state shows checked as the address asks it, or, when the address asks none, as
  * the server retained it by default (`scope.states`): the front assumes no default of its own; the
- * last state pressed cannot be released, a perimeter retaining at least one. A period the server
+ * last state checked cannot be released, a perimeter retaining at least one. A period the server
  * refuses (422) is said at its field, the start named. A change goes on from the address last asked
  * (`usePendingAddress`).
  */
@@ -67,9 +67,11 @@ function useParameters() {
 /**
  * The filter by state: a menu of boxes, a box for each state of a portfolio, checked as retained —
  * or as last asked, until the server answers —, the state by its badge (#523), as the filter of the
- * home shows it (`CheckMenu`, #2916). « Par défaut » lifts the states: the server chooses. Without the states the server retained — a view it did not read —, the states the address
- * names show pressed; naming none, the filter is not offered: nothing would say what is retained,
- * and a state pressed would restrict the perimeter to it alone in silence.
+ * home shows it (`CheckMenu`, #2916). « Par défaut » is checked while the address names no state:
+ * the server chooses, and the states it retained show checked beside it. Without the states the
+ * server retained — a view it did not read —, the states the address names show checked; naming
+ * none, the filter is not offered: nothing would say what is retained, and a state checked would
+ * restrict the perimeter to it alone in silence.
  */
 function StatesFilter({
   asked,
@@ -80,9 +82,9 @@ function StatesFilter({
 }) {
   const t = useTranslations();
   const change = useParameters();
-  // The states asked, pressed until the server answers for them: the buttons would otherwise show
-  // the address until the navigation arrives, and again the address should another navigation
-  // replace it (défaut n° 21 de `typescript.md`).
+  // The states asked, checked until the server answers for them: the menu would otherwise show the
+  // address until the navigation arrives, and again the address should another navigation replace
+  // it (défaut n° 21 de `typescript.md`).
   const [last, show] = useOptimistic(asked);
   const [, startTransition] = useTransition();
   const shown = last.length === 0 ? (retained ?? []) : last;
@@ -99,13 +101,12 @@ function StatesFilter({
         value: state,
         text: <ProjectStateBadge state={state} />,
         plain: t(`enums.ProjectState.${state}`),
+        // The last state retained stays: releasing it would leave a perimeter of nothing.
+        disabled: shown.length === 1 && shown.includes(state),
       }))}
       chosen={shown}
+      lifted={last.length === 0}
       onChange={(_values, toggled) => {
-        // The last state retained stays: releasing it would leave a perimeter of nothing.
-        if (toggled !== undefined && !toggled.checked && shown.length === 1) {
-          return;
-        }
         startTransition(() => {
           change((query) => {
             // « Par défaut » lifts the states: the server chooses.

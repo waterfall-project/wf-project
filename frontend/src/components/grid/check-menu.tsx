@@ -53,6 +53,8 @@ export interface CheckOption {
   readonly plain?: string | undefined;
   /** Whether the search of the list leaves it: a value the server found for that very search. */
   readonly found?: boolean | undefined;
+  /** Whether the value cannot be changed: the last one a filter keeps, for instance. */
+  readonly disabled?: boolean | undefined;
 }
 
 /** A text as the search compares it: lower case, without accents. */
@@ -115,6 +117,7 @@ export function CheckMenu({
   options,
   chosen,
   multiple,
+  lifted,
   searchable,
   onChange,
   onQuery,
@@ -129,6 +132,12 @@ export function CheckMenu({
   readonly chosen: readonly string[];
   /** Whether several values may be chosen. */
   readonly multiple: boolean;
+  /**
+   * Whether the choice that lifts the filter is the one made, when `chosen` does not say it: a
+   * filter whose values are shown checked though none is asked (the states a server retained by
+   * default). By default, none chosen is every value.
+   */
+  readonly lifted?: boolean | undefined;
   /** Whether the menu offers a search; by default, from eleven values. */
   readonly searchable?: boolean | undefined;
   /**
@@ -164,7 +173,9 @@ export function CheckMenu({
   const shown = options.filter(
     (option) => needle === "" || option.found === true || folded(plainOf(option)).includes(needle),
   );
-  const { summary, said } = summaryOf(options, chosen, every, (count) => t("selected", { count }));
+  const everyChosen = lifted ?? chosen.length === 0;
+  const summed = summaryOf(options, chosen, every, (count) => t("selected", { count }));
+  const { summary, said } = everyChosen ? { summary: every, said: every } : summed;
   /** Close the list, and forget what was searched in it. */
   const close = () => {
     setOpen(false);
@@ -209,10 +220,10 @@ export function CheckMenu({
   const lift = multiple ? (
     <label className={ROW}>
       <Checkbox
-        checked={chosen.length === 0}
+        checked={everyChosen}
         onCheckedChange={() => {
           // Every value is already the choice: nothing to ask of the server.
-          if (chosen.length > 0) {
+          if (!everyChosen) {
             onChange([]);
           }
         }}
@@ -271,6 +282,7 @@ export function CheckMenu({
                 <label key={option.value} className={ROW}>
                   <Checkbox
                     checked={chosen.includes(option.value)}
+                    disabled={option.disabled}
                     onCheckedChange={(checked) => {
                       const on = checked === true;
                       onChange(

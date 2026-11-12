@@ -567,9 +567,39 @@ describe("the perimeter of a view of the portfolio", () => {
     const list = await openMenu("États retenus");
     const last = within(list).getByRole("checkbox", { name: "Chiffrage" });
     expect(last).toBeChecked();
+    // Disabled, not ignored in silence.
+    expect(last).toBeDisabled();
+    expect(within(list).getByRole("checkbox", { name: "En cours" })).toBeEnabled();
     await userEvent.click(last);
     expect(router.push).not.toHaveBeenCalled();
     expect(last).toBeChecked();
+  });
+
+  it("checks « Par défaut » while the address names no state, unchecks it once a state is chosen, and checks it again when lifted [WF-IHM-0130-A] (#2916)", async () => {
+    let arrive: () => void = () => undefined;
+    const navigation = new Promise<void>((resolve) => {
+      arrive = resolve;
+    });
+    router.push.mockImplementation(() => {
+      startTransition(() => navigation);
+    });
+    render(perimeterBar(""));
+    const list = await openMenu("États retenus");
+    const byDefault = () => within(list).getByRole("checkbox", { name: "Par défaut" });
+    // The states the server retained are checked beside it, and the button says the default.
+    expect(byDefault()).toBeChecked();
+    expect(within(list).getByRole("checkbox", { name: "En cours" })).toBeChecked();
+    // Lifted already: a click asks nothing.
+    await userEvent.click(byDefault());
+    expect(router.push).not.toHaveBeenCalled();
+    await userEvent.click(within(list).getByRole("checkbox", { name: "Terminé" }));
+    expect(byDefault()).not.toBeChecked();
+    await userEvent.click(byDefault());
+    expect(byDefault()).toBeChecked();
+    await act(async () => {
+      arrive();
+      await navigation;
+    });
   });
 
   it("removes a state the address asks, back to the first page, the sort kept", async () => {
