@@ -3533,7 +3533,8 @@ rôles par compte, et l'écran choisit les rôles qu'il veut voir, comme les ori
 rôle n'est retenu par aucune valeur ; un identifiant qui ne désigne aucun rôle ne retient aucun
 compte, sans refus, comme `org_node_id` un nœud inconnu : les valeurs viennent de
 `listAccessRoles`. Écarté : une valeur « aucun rôle », à la manière d'`unassigned` des
-sous-projets, qu'aucune exigence ne demande. Exemple `users_by_access_role` : les porteurs du chef
+sous-projets, qu'aucune exigence ne demande (reprise depuis par `without_access_role`, #2976, plus
+bas). Exemple `users_by_access_role` : les porteurs du chef
 de projet ou du manager, Alix Moreau, désactivée, comprise.
 
 **Les comptes sans rôle se retiennent par un paramètre booléen, `without_access_role`** (#2976,

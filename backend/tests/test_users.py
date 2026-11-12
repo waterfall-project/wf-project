@@ -382,7 +382,13 @@ def roleless(database: Database, table: dict[str, UUID]) -> UUID:
     """
     del table
     managing = role(database, "Gestion")
-    account(database, "Garnier", "Hugo", roles=(managing,))
+    # Hugo Garnier holds a live role and a deleted one: he is no more without a role for that.
+    account(
+        database,
+        "Garnier",
+        "Hugo",
+        roles=(managing, role(database, "Révolu", deleted=True)),
+    )
     account(database, "Nadal", "Zoé", roles=(role(database, "Ancien", deleted=True),))
     account(database, "Olivier", "Paul", state="deactivated")
     return managing
@@ -391,7 +397,8 @@ def roleless(database: Database, table: dict[str, UUID]) -> UUID:
 # The active accounts without a role, in the order of the table unsorted: Sacha Lefèvre, whom the
 # identity provider created, Zoé Nadal, whose only role was deleted, and Élise Émery.
 WITHOUT_ROLE = ["Lefèvre Sacha", "Nadal Zoé", "Émery Élise"]
-WITHOUT = "?without_access_role=true"
+WITHOUT_PARAM = "without_access_role=true"
+WITHOUT = f"?{WITHOUT_PARAM}"
 
 
 @pytest.mark.requirement("WF-ADM-0180-A")
@@ -405,10 +412,11 @@ def test_the_accounts_without_a_role_are_retained_alone_or_with_the_roles_asked(
     assert [f"{each['last_name']} {each['first_name']}" for each in page["items"]] == WITHOUT_ROLE
     assert all(each["access_role_ids"] == [] for each in page["items"])
     assert page["meta"]["total"] == len(WITHOUT_ROLE)
+    assert "Garnier Hugo" not in names(api, headers, WITHOUT)
     # With the roles asked, their union: the holders of « Gestion » are added to them.
     union = f"{WITHOUT}&access_role_ids={roleless}"
     assert names(api, headers, union) == ["Garnier Hugo", *WITHOUT_ROLE]
-    assert names(api, headers, f"?access_role_ids={roleless},{uuid4()}&{WITHOUT[1:]}") == [
+    assert names(api, headers, f"?access_role_ids={roleless},{uuid4()}&{WITHOUT_PARAM}") == [
         "Garnier Hugo",
         *WITHOUT_ROLE,
     ]

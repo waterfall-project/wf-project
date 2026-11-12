@@ -75,9 +75,8 @@ class AccountFilters:
     ``states`` keeps the active accounts alone unless asked for more. ``held`` is the criterion of
     another module, the roles an account holds; ``roleless``, its criterion of an account that
     holds none, which keeps its accounts in union with those of ``held`` when both are given
-    (#2976); ``attached``, that of the tree of the organisation,
-    the node an account is attached to, or one of its descendants (WF-REF-0070). ``audit``, the
-    filters of the columns of audit.
+    (#2976); ``attached``, that of the tree of the organisation, the node an account is attached
+    to, or one of its descendants (WF-REF-0070). ``audit``, the filters of the columns of audit.
     """
 
     search: str | None = None
