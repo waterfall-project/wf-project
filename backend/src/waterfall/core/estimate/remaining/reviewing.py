@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.estimate.entries import LineEntry
+    from waterfall.core.estimate.placing import Placed
     from waterfall.core.planning.interface import FacetWrite
     from waterfall.core.revisions.interface import RevisionCopy
 
@@ -204,7 +205,13 @@ def revision_remaining(
     session: Session, project_id: UUID, revision_id: UUID
 ) -> tuple[Decimal, dict[UUID, Decimal]]:
     """Give the remaining to commit of a revision, and each line's, at the state of its tasks."""
-    placed = placed_lines(session, project_id, revision_id)
+    return remaining_of_placed(session, placed_lines(session, project_id, revision_id))
+
+
+def remaining_of_placed(
+    session: Session, placed: Sequence[Placed]
+) -> tuple[Decimal, dict[UUID, Decimal]]:
+    """Give the remaining to commit of the lines of a revision placed already on their tasks."""
     provisions = provisions_of(session, [each.line for each in placed])
     return remaining_sum(
         LineAmount(
