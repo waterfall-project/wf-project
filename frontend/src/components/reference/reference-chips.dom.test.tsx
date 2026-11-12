@@ -15,7 +15,8 @@ import type { CostCategory, CostType } from "./cost-grids";
 import { natureChoice } from "./cost-kinds";
 import { CostCategoryList, CostTypeList } from "./cost-lists";
 import type { Calendar, OrgNode, ResourceRole } from "./resource-grids";
-import { CalendarList, OrgNodeList, ResourceRoleList } from "./resource-lists";
+import { type HourlyRateGrid, RateGrid } from "./rate-grid";
+import { CalendarList, OrgNodeList, ResourceRoleList, type RoleFilters } from "./resource-lists";
 
 // The filters of the lists of the reference data folded into the bar of their table (#2916,
 // WF-IHM-0130, WF-IHM-0060): the chips told from the address, each lifted by the parameters it says,
@@ -68,7 +69,7 @@ function inFrench(children: ReactNode) {
   );
 }
 
-const noRoleFilters = {
+const noRoleFilters: RoleFilters = {
   code: undefined,
   orgNode: undefined,
   category: undefined,
@@ -78,7 +79,7 @@ const noRoleFilters = {
   headcount: NONE,
 };
 
-function roleList(filters: Partial<typeof noRoleFilters>) {
+function roleList(filters: Partial<RoleFilters>) {
   return inFrench(
     <ResourceRoleList
       rows={roles.items}
@@ -281,5 +282,40 @@ describe("the chips of the filters of the other lists of the reference data", ()
     expect(screen.getByRole("list", { name: "Filtres actifs" })).toHaveTextContent(
       `Nature : ${nature?.code ?? ""}`,
     );
+  });
+});
+
+describe("the chips of the filters of the grid of the hourly rates", () => {
+  const grid = example("volume/hourly_rate_grid") as HourlyRateGrid;
+  const years = grid.years;
+  const last = years.at(-1)?.toString() ?? "";
+
+  it("tell the state and the bounds of the rate of the year the address names, lifted with that year [WF-IHM-0130-A]", async () => {
+    page.search = `is_active=true&rate_year=${last}&rate_min=10&rate_max=20.5`;
+    render(
+      inFrench(
+        <RateGrid
+          grid={{ ...grid, rows: grid.rows.slice(0, 3) }}
+          currency="EUR"
+          editable
+          query={QUERY}
+          preferences={undefined}
+          filters={{
+            state: true,
+            year: Number(last),
+            rate: { min: "10", max: "20.5" },
+          }}
+          panel={<p>filters</p>}
+        />,
+      ),
+    );
+    const chips = screen.getByRole("list", { name: "Filtres actifs" });
+    expect(chips.children).toHaveLength(2);
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: named(`Retirer le filtre Taux horaire ${last} : de 10,00 à 20,50`),
+      }),
+    );
+    expect(lastAddress()).toBe("/reference/resources?is_active=true");
   });
 });

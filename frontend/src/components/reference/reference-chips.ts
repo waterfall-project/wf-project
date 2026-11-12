@@ -23,6 +23,8 @@ import {
   type CostTypeKind,
 } from "./cost-grids";
 import type { Choice } from "./kinds";
+import { RATE_COLUMN, RATE_STATE, RATE_YEAR } from "./rate-columns";
+import type { RateFilters } from "./cost-lists";
 import type { OrgNodeFilters, RoleFilters } from "./resource-lists";
 import {
   CALENDAR_STATE,
@@ -162,5 +164,28 @@ export function useCostCategoryChips(
     kit.add(CATEGORY_COST_TYPE, t("costType"), chosen(nature, natures), [CATEGORY_COST_TYPE]);
   }
   useStateChip()(kit, CATEGORY_STATE, active);
+  return kit.chips;
+}
+
+/**
+ * The chips of the filters of the grid of the hourly rates that are on: the state of the
+ * categories, and the bounds of the rate of a year — the one the address names, else the last of
+ * the grid —, lifted together with that year.
+ */
+export function useRateChips(
+  filters: RateFilters | undefined,
+  years: readonly number[],
+): FilterChip[] {
+  const t = useTranslations("reference.rates.bounds");
+  const kit = useChipKit();
+  const state = useStateChip();
+  if (filters === undefined) {
+    return kit.chips;
+  }
+  state(kit, RATE_STATE, filters.state);
+  const year = filters.year ?? years.at(-1);
+  kit.bounds(RATE_COLUMN, t("chip", { year: year?.toString() ?? "" }), "money", filters.rate, {
+    with: [RATE_YEAR],
+  });
   return kit.chips;
 }

@@ -2442,6 +2442,7 @@
       },
       "bounds": {
         "year": "Année du taux",
+        "chip": "Taux horaire {year}",
         "rate": "Taux horaire"
       }
     },

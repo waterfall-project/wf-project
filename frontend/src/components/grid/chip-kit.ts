@@ -58,7 +58,12 @@ export interface ChipKit {
     name: string,
     kind: FigureKind,
     bounds: Bounds,
-    key?: string,
+    options?: {
+      /** Tells the chip among the others; the column and « -bounds » by default. */
+      readonly key?: string;
+      /** The parameters besides the two bounds that lifting them removes. */
+      readonly with?: readonly string[];
+    },
   ) => void;
 }
 
@@ -112,7 +117,7 @@ export function useChipKit(): ChipKit {
         add(key, name, told, [names.from, names.to]);
       }
     },
-    bounds: (column, name, kind, bounds, key = `${column}-bounds`) => {
+    bounds: (column, name, kind, bounds, options = {}) => {
       if (!bounded(bounds)) {
         return;
       }
@@ -126,7 +131,11 @@ export function useChipKit(): ChipKit {
         told = t("atMost", { max: figure(kind, max ?? "") });
       }
       const names = boundNames(column);
-      add(key, name, told, [names.min, names.max]);
+      add(options.key ?? `${column}-bounds`, name, told, [
+        names.min,
+        names.max,
+        ...(options.with ?? []),
+      ]);
     },
   };
 }

@@ -311,7 +311,7 @@ export function RateFilterBar({
   const list = names("hourlyRates");
   const offset = CONTRACT_ADDRESS.offset;
   return (
-    <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
+    <FilterFields>
       {editable ? (
         <StateFilter
           name={RATE_STATE}
@@ -342,6 +342,6 @@ export function RateFilterBar({
           page={offset}
         />
       )}
-    </div>
+    </FilterFields>
   );
 }

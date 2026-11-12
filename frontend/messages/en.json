@@ -2442,6 +2442,7 @@
       },
       "bounds": {
         "year": "Year of the rate",
+        "chip": "Hourly rate {year}",
         "rate": "Hourly rate"
       }
     },
