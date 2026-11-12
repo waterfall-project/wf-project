@@ -779,6 +779,19 @@ régression (#859, #1026).
   le crash d'un worker Vitest et les cinq échecs de `keycloak / check` — ont leur cause établie et
   leur correction, ou une issue.
 
+**Ce qui tient chaque critère.** #859 : le lot L1 (`cost-commands.dom.test.tsx` attend son
+`rerender` et son `act`). #1026 : le lot L2 (cause établie, le témoin crée les partitions avant
+toute écriture). `installation.setup` : ses deux échecs connus (passages 41132886833 et
+41319278707) étaient deux régressions déterministes, de causes distinctes (`/identity-sync-schedule`,
+#1676 ; `/reference/org-nodes`, #1807), corrigées dans leur pull request avant leur fusion, et
+classées comme telles, une entrée chacune, dans `tools/queue-known.toml` ; l'attente du titre de
+l'écran des comptes, ajoutée au parcours, en rend l'échec lisible (« Introuvable »), elle n'est pas
+ce qui le rend déterministe. Les autres échecs que l'inventaire dit instables sont classés dans le
+même catalogue, chacun éprouvé par un extrait réel de son journal. `fini` ne clôt pas deux
+constats, qui restent ouverts, « à trancher » : #2980 (le crash d'un worker Vitest par une
+assertion de V8 sous Node 24, aucun depuis le passage à Node 26) et #2982 (`LockNotAvailable` en
+production, derrière un autovacuum).
+
 **Hors périmètre.** Les parcours de bout en bout (US-1890).
 
 ---

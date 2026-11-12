@@ -363,14 +363,22 @@ def test_a_regression_read_in_a_run_leaves_the_same_failure_elsewhere_to_classif
 
 
 @pytest.mark.parametrize(
-    ("name", "run"),
+    ("name", "run", "family"),
     [
-        ("playwright-installation-schedule", 41132886833),
-        ("playwright-installation-nodes", 41319278707),
+        (
+            "playwright-installation-schedule",
+            41132886833,
+            "page des comptes introuvable sous le 404 de /identity-sync-schedule",
+        ),
+        (
+            "playwright-installation-nodes",
+            41319278707,
+            "page des comptes introuvable sous le 404 de /reference/org-nodes",
+        ),
     ],
 )
 def test_the_accounts_of_the_installation_not_found_under_a_404_of_the_service_are_a_regression(
-    name: str, run: int
+    name: str, run: int, family: str
 ) -> None:
     # US-1920/L3: « 1 compte » never read, the grid of the accounts never shown — the page not
     # found, a read it could not do without answered 404 by the service; elsewhere, to classify.
@@ -385,20 +393,23 @@ def test_the_accounts_of_the_installation_not_found_under_a_404_of_the_service_a
     kind, entry = catalogue.classify(found)
     assert (kind, entry.family if entry else None) == (
         queue.REGRESSION,
-        "page des comptes introuvable sous un 404 du service",
+        family,
     )
     assert catalogue.classify(replace(found, run=43302246856)) == (queue.TO_CLASSIFY, None)
+    other = 41319278707 if run == 41132886833 else 41132886833
+    assert catalogue.classify(replace(found, run=other))[1] != catalogue.classify(found)[1]
 
 
 def test_the_crash_of_a_worker_of_vitest_is_recognized_in_its_run_alone() -> None:
-    # The fatal error of V8 is said in the middle of the log, far from the end the report reads.
-    crash = queue.Failure(
-        run=41134811730,
-        job="front / tests (1/2)",
-        step="Run make check-front-tests",
-        target="coverage-front",
-        message="-------------------|---------|----------|---------|---------|-----------",
+    # The fatal error of V8 is said in the middle of the log, far from the end the report reads: the
+    # tool reads, of this real excerpt, the last line of the coverage table, not the crash.
+    (crash,) = queue.failures_of(
+        41134811730,
+        queue.Job(9, "front / tests (1/2)", "failure", None, None, "Run make check-front-tests"),
+        log("vitest-worker-crash"),
     )
+    assert crash.target == "coverage-front"
+    assert "Fatal error" not in crash.evidence
     catalogue = queue.read_catalogue()
     kind, entry = catalogue.classify(crash)
     assert (kind, entry.family if entry else None) == (
@@ -408,16 +419,29 @@ def test_the_crash_of_a_worker_of_vitest_is_recognized_in_its_run_alone() -> Non
     assert catalogue.classify(replace(crash, run=41134811731)) == (queue.TO_CLASSIFY, None)
 
 
+def test_the_purge_failing_at_another_line_of_its_test_is_left_to_classify() -> None:
+    (half,) = queue.failures_of(
+        42597453085,
+        queue.Job(9, "back / tests (2/2)", "failure", None, None, "Run make x"),
+        log("pytest-purge"),
+    )
+    assert half.test.endswith("test_worker_process.py:185")
+    moved = replace(half, line=188)
+    assert queue.read_catalogue().classify(moved) == (queue.TO_CLASSIFY, None)
+
+
 def test_a_web_server_that_built_actionlint_and_then_timed_out_is_not_that_download() -> None:
     (stuck,) = queue.failures_of(
         42473098952,
         queue.Job(9, "e2e / paths (5/5)", "failure", None, None, "x"),
         log("webserver-actionlint"),
     )
+    assert "Downloaded pygments" in stuck.evidence
     built = replace(
         stuck,
         evidence=stuck.evidence.replace("Downloaded pygments", "Built actionlint-py==1.7.12.25"),
     )
+    assert built.evidence != stuck.evidence
     assert queue.read_catalogue().classify(built) == (queue.TO_CLASSIFY, None)
 
 
