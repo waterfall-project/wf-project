@@ -86,6 +86,22 @@ function summaryOf(
     : { summary: unoffered, said: unoffered };
 }
 
+/**
+ * The region that tells a reader the choice while the list hides the page: mounted empty and
+ * filled after, so that the text is announced, and again at each change.
+ */
+function Announced({ text }: { readonly text: string }) {
+  const [told, setTold] = useState("");
+  useEffect(() => {
+    setTold(text);
+  }, [text]);
+  return (
+    <p role="status" className="sr-only">
+      {told}
+    </p>
+  );
+}
+
 /** Render the menu of a list of values, those chosen checked. */
 export function CheckMenu({
   label,
@@ -147,7 +163,12 @@ export function CheckMenu({
   const close = () => {
     setOpen(false);
     setText("");
+    onQuery?.("");
   };
+  // The one radio Tab reaches: the one chosen if it is shown, else the first shown.
+  const current = chosen[0] ?? "";
+  const tabbable =
+    current === "" || shown.some((option) => option.value === current) ? current : "";
   /** A value of a menu of one choice: a radio the arrows only reach. */
   const radio = (value: string, text: ReactNode) => {
     const checked = (chosen[0] ?? "") === value;
@@ -157,7 +178,7 @@ export function CheckMenu({
         type="button"
         role="radio"
         aria-checked={checked}
-        tabIndex={checked ? 0 : -1}
+        tabIndex={value === tabbable ? 0 : -1}
         className={cn(
           ROW,
           "w-full text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
@@ -272,9 +293,7 @@ export function CheckMenu({
           {shown.length === 0 ? (
             <p className="px-1 text-xs text-muted-foreground">{t("noMatch")}</p>
           ) : null}
-          <p role="status" className="sr-only">
-            {said}
-          </p>
+          <Announced text={said} />
           {footer}
         </PopoverContent>
       </Popover>

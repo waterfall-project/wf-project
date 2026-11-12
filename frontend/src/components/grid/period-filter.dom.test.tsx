@@ -77,6 +77,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   router.push.mockClear();
 });
 
@@ -289,7 +290,6 @@ describe("the period left by the window, or half typed", () => {
     vi.spyOn(document, "hasFocus").mockReturnValue(false);
     field("Du").blur();
     expect(router.push).not.toHaveBeenCalled();
-    vi.restoreAllMocks();
   });
 
   it("lifts no side while a date is half typed: the bound of the address stays", () => {

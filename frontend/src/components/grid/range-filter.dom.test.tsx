@@ -77,6 +77,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   router.push.mockClear();
 });
 
@@ -532,6 +533,5 @@ describe("the bounds as one command « du … au … » (#2916)", () => {
     vi.spyOn(document, "hasFocus").mockReturnValue(false);
     least.blur();
     expect(router.push).not.toHaveBeenCalled();
-    vi.restoreAllMocks();
   });
 });

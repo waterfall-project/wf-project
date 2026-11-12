@@ -346,4 +346,21 @@ describe("the search inside the list of authors, cleared", () => {
     expect(screen.queryByText(/compte trouvé/)).toBeNull();
     expect(within(modified).queryByRole("radio", { name: "Inès Roux" })).toBeNull();
   });
+
+  it("forgets what the server found when the list is closed and opened again", async () => {
+    serve({ "GET /users": "users_search" });
+    render(accounts());
+    const modified = await author("Modifié par");
+    await userEvent.type(
+      within(modified).getByRole("searchbox", {
+        name: "Rechercher dans «\u00A0Modifié par\u00A0»",
+      }),
+      "ines roux",
+    );
+    expect(await screen.findByText(/^1 compte trouvé/)).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    const again = await author("Modifié par");
+    expect(screen.queryByText(/compte trouvé/)).toBeNull();
+    expect(within(again).queryByRole("radio", { name: "Inès Roux" })).toBeNull();
+  });
 });

@@ -161,3 +161,34 @@ describe("the menu of several values", () => {
     expect(menuSummary("État")).toBe("2 sélectionnés");
   });
 });
+
+describe("the keyboard in a menu of one choice", () => {
+  it.each([
+    ["a value the search leaves out", ["a"], "b"],
+    ["a value the menu does not offer", ["zzz"], ""],
+  ])("reaches a radio by Tab when the chosen one is %s", async (_name, chosen, search) => {
+    render(
+      inFrench(
+        <CheckMenu
+          label="Choix"
+          every="Tous"
+          options={OPTIONS}
+          chosen={chosen}
+          multiple={false}
+          searchable
+          onChange={() => undefined}
+        />,
+      ),
+    );
+    const list = await openMenu("Choix");
+    if (search !== "") {
+      await userEvent.type(within(list).getByRole("searchbox"), search);
+    }
+    const radios = within(list).getAllByRole("radio");
+    expect(radios.filter((radio) => radio.tabIndex === 0)).toHaveLength(1);
+    within(list).getByRole("searchbox").focus();
+    await userEvent.tab();
+    expect(list.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement?.getAttribute("role")).toBe("radio");
+  });
+});
