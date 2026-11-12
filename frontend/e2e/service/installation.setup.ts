@@ -63,9 +63,9 @@ test("the administrator of a new installation sets its password by the link of t
 
   // Its account, found by its address, holds the role « Administrateur ».
   await page.goto(`${USERS}?search=${encodeURIComponent(ADMINISTRATOR.email)}`);
-  // The screen of the accounts first: a read the service does not serve yet, which the page cannot
-  // do without, finds it « Introuvable » in its place, under the status 200 of a streamed page —
-  // twice in the queue (US-1920), said then as a grid not found.
+  // The page streams under a status 200: a read the service does not serve renders « Introuvable »
+  // in place of the screen, so its heading is read first, to fail on the screen it shows rather
+  // than on a grid not found.
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Gestion des utilisateurs", {
     timeout: WORKING,
   });
