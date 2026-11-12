@@ -31,6 +31,7 @@ import type { components } from "@/api/generated/schema";
 import type { Problem } from "@/api/problem";
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import { refusedBounds, refusedSides } from "@/components/grid/filters";
+import { FilterFields } from "@/components/grid/filter-fields";
 import { ListPages } from "@/components/grid/list-pages";
 import { refusedPeriod } from "@/components/grid/period";
 import { PeriodFilter } from "@/components/grid/period-filter";
@@ -340,7 +341,7 @@ function BackupFilterBar({
   const verifications = useTranslations("enums.BackupVerification");
   const fields = refused?.fields ?? [];
   return (
-    <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
+    <FilterFields>
       <PeriodFilter
         label={t("admin.backups.period")}
         kind="day"
@@ -391,7 +392,7 @@ function BackupFilterBar({
         ]}
         page={OFFSET}
       />
-    </div>
+    </FilterFields>
   );
 }
 
@@ -426,18 +427,42 @@ export function BackupList({
   const backups = read.kind === "read" ? read.items : [];
   const listed = backups.some((backup) => backup.available_commands.length > 0);
   const empty = read.kind === "read" && read.page.total === 0 && !narrows(filters);
+  const bar = (
+    <BackupFilterBar
+      filters={filters}
+      refused={read.kind === "refused" ? read.problem : undefined}
+    />
+  );
   let body: ReactNode;
   if (read.kind === "refused" && refusedPeriod(read.problem.fields ?? []) !== undefined) {
-    body = <p className="text-sm text-destructive">{t("periodRefused")}</p>;
+    body = (
+      <>
+        {bar}
+        <p className="text-sm text-destructive">{t("periodRefused")}</p>
+      </>
+    );
   } else if (read.kind === "refused") {
-    body = <BoundsRefused />;
-  } else if (read.items.length === 0) {
+    body = (
+      <>
+        {bar}
+        <BoundsRefused />
+      </>
+    );
+  } else if (read.items.length === 0 && !narrows(filters)) {
     body = (
       <p className="text-sm text-muted-foreground">{t("count", { count: read.page.total })}</p>
     );
   } else {
+    // A list the filters leave empty keeps its grid, and with it the bar that lifts them.
     body = (
-      <BackupGrid backups={read.items} page={read.page} query={query} preferences={preferences} />
+      <BackupGrid
+        backups={read.items}
+        page={read.page}
+        query={query}
+        preferences={preferences}
+        filters={filters}
+        panel={bar}
+      />
     );
   }
   return (
@@ -450,10 +475,6 @@ export function BackupList({
           empty={empty ? t("none") : undefined}
           commands={startable || listed ? <BackupHead startable={startable} /> : undefined}
         >
-          <BackupFilterBar
-            filters={filters}
-            refused={read.kind === "refused" ? read.problem : undefined}
-          />
           {body}
           {read.kind === "read" ? (
             <ListPages

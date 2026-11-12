@@ -11,14 +11,15 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useMemo } from "react";
+import { type ReactNode, useMemo } from "react";
 
 import { DenseGrid } from "@/components/grid/dense-grid";
 import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import type { ListPage } from "@/navigation/pages";
 
-import type { Backup, BackupSort } from "./backup-address";
+import type { Backup, BackupFilters, BackupSort } from "./backup-address";
+import { useBackupChips } from "./backup-chips";
 import { backupGrid, listedCommands } from "./backup-columns";
 import { useShownBackups } from "./backup-commands";
 
@@ -31,13 +32,20 @@ export function BackupGrid({
   page,
   query,
   preferences,
+  filters,
+  panel,
 }: {
   readonly backups: readonly Backup[];
   readonly page: ListPage;
   readonly query: GridQuery<BackupSort>;
   readonly preferences: GridPreferences | undefined;
+  /** What the address filters the backups on, told as chips under the bar. */
+  readonly filters: BackupFilters;
+  /** The filters of the screen, which the bar folds into its panel. */
+  readonly panel: ReactNode;
 }) {
   const t = useTranslations("admin.backups");
+  const chips = useBackupChips(filters);
   const shown = useShownBackups(backups);
   const { marks, downloads, restores } = listedCommands(shown);
   const config = useMemo(
@@ -52,6 +60,7 @@ export function BackupGrid({
       totalsCaption={(retained) => t("count", { count: retained.total })}
       query={query}
       preferences={preferences}
+      filtering={{ panel, chips }}
     />
   );
 }
