@@ -117,13 +117,14 @@ export function FiltersButton({
     >
       <ListFilter aria-hidden="true" />
       {t("panel")}
+      {/* What is seen, « Filtres (3) », is the name: axe's « label in name » (WCAG 2.5.3). */}
       {count === 0 ? null : (
-        <span
-          aria-hidden="true"
-          className="min-w-4 rounded-full bg-primary px-1 text-center text-[0.7rem] leading-4 text-primary-foreground"
-        >
-          {count}
-        </span>
+        <>
+          {" "}
+          <span aria-hidden="true" className="font-semibold text-primary tabular-nums">
+            {t("count", { count })}
+          </span>
+        </>
       )}
       <Chevron aria-hidden="true" />
     </Button>
