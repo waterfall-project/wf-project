@@ -56,6 +56,37 @@ def _altered() -> bytes:
     return bytes(raw)
 
 
+def _marked(part: str, *, flags: int = 0, method: int | None = None) -> bytes:
+    """Give the workbook whose directory entry of ``part`` says it is encrypted or its method."""
+    raw = bytearray(_workbook())
+    at = raw.find(b"PK\x01\x02")
+    while at >= 0:
+        name_length = int.from_bytes(raw[at + 28 : at + 30], "little")
+        if raw[at + 46 : at + 46 + name_length].decode() == part:
+            raw[at + 8] |= flags
+            if method is not None:
+                raw[at + 10 : at + 12] = method.to_bytes(2, "little")
+        at = raw.find(b"PK\x01\x02", at + 4)
+    return bytes(raw)
+
+
+def _without(part: str, replacement: bytes | None = None) -> bytes:
+    """Give the workbook with ``part`` dropped, or replaced when a ``replacement`` is given."""
+    out = BytesIO()
+    with zipfile.ZipFile(BytesIO(_workbook())) as source, zipfile.ZipFile(out, "w") as target:
+        for item in source.infolist():
+            if item.filename != part:
+                target.writestr(item, source.read(item.filename))
+            elif replacement is not None:
+                target.writestr(item, replacement)
+    return out.getvalue()
+
+
+_NO_PART = (
+    b'<?xml version="1.0"?>'
+    b'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>'
+)
+
 READERS: dict[str, Callable[[bytes], Any]] = {
     "estimate": reader.read_workbook,
     "actual costs": extraction.sheet_rows,
@@ -77,6 +108,10 @@ def test_the_two_readers_of_a_workbook_read_one_list_of_damages() -> None:
         pytest.param(_truncated("xl/worksheets/sheet1.xml"), id="sheet-cut"),
         pytest.param(_truncated("xl/workbook.xml"), id="workbook-cut"),
         pytest.param(_altered(), id="deflate-altered"),
+        pytest.param(_marked("xl/worksheets/sheet1.xml", flags=1), id="member-encrypted"),
+        pytest.param(_marked("xl/worksheets/sheet1.xml", method=99), id="method-unknown"),
+        pytest.param(_without("[Content_Types].xml"), id="types-missing"),
+        pytest.param(_without("[Content_Types].xml", _NO_PART), id="no-workbook-part"),
     ],
 )
 def test_a_damaged_workbook_is_refused_as_unreadable_by_each_reader(

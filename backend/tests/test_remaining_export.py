@@ -511,7 +511,7 @@ def test_a_code_shared_by_a_role_and_a_category_keeps_each_line_of_its_kind_thro
     assert entries["Perceuse"] == "Outillage (ING)"
     assert entries["Raccordement"] == "Ingénieur (ING)"
     found = clean(content, stage, worker, api)
-    assert found["read_count"] == 6
+    assert found["read_count"] == len(lines_of(content, OUTSIDE)) == len(entries)
     assert scene.tree.items() == before
     drilled = row_of(stage, line_named(scene.tree, "Perceuse")["node_id"])
     assert (drilled.cost_category_id, drilled.resource_role_id) == (tools, None)
