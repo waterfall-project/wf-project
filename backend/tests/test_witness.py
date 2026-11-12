@@ -16,9 +16,15 @@ from uuid import UUID, uuid4
 import pytest
 from cost_settings_examples import LABOUR, NON_LABOUR, PROVISION, UNSHARED
 from installed_reference import install
-from project_rows import drop_partitions, partition_of, projects_with_partitions, unguarded
+from project_rows import (
+    drop_partitions,
+    insert_project,
+    partition_of,
+    projects_with_partitions,
+    unguarded,
+)
 from pydantic import SecretStr, ValidationError
-from sqlalchemy import delete, insert, select, text
+from sqlalchemy import delete, func, insert, select, text
 from support import WITNESS
 
 from waterfall import __version__
@@ -276,6 +282,32 @@ def test_the_partitions_are_not_created_on_a_platform_that_holds_a_project_of_th
         projects.partition(session, description)
         projects.partition(session, description)
     assert created == []
+
+
+def test_a_platform_half_loaded_is_refused_as_already_existing_not_by_the_partitions(
+    database: Database, owner: Engine, service_database_url: str, logs: Logs
+) -> None:
+    # #2937: one project of the witness is there, with its partitions. The creation of the
+    # partitions skips (``projects_present``), else it would fail on those already there; the slice
+    # of the projects then refuses the platform half loaded: ALREADY_EXISTS, naming that project,
+    # and nothing stays of the slices before it.
+    install(owner)
+    description = Witness(WITNESS, Act(None, utc_now()))
+    listed = description.read(projects.PROJECTS_FILE, projects.Projects).items
+    held = min(each.project_id.root for each in listed)
+    with owner.begin() as connection:
+        connection.execute(insert_project(id=held))
+        connection.execute(select(func.create_project_partitions(held)))
+    try:
+        assert load(service_database_url) == 1
+    finally:
+        with owner.begin() as connection:
+            drop_partitions(connection, held)
+    refusals = [(record["code"], record["params"]) for record in logs.named("witness.refused")]
+    assert refusals == [(ALREADY_EXISTS, {"conflicting_object_id": str(held)})]
+    with database.transaction() as session:
+        for model, column in OBJECTS:
+            assert rows_of(session, model, column) == [], model
 
 
 def test_the_partitions_are_created_for_each_project_of_the_witness_on_a_new_platform(

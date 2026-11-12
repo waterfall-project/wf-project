@@ -553,7 +553,9 @@ def _create(
     The partitions of the project are created right after, before any write of the transaction:
     their function waits for no lock while it holds one, and the transaction holds none yet that a
     writer or another creation waits for (#2603, #2667). Unless ``partitioned``: the witness has
-    created them at the start of its transaction, before its first write (``load_project``).
+    created them at the start of its transaction, before its first write (``load_project``). That
+    is a precondition of the caller, not checked here: without them the first insertion of the
+    project fails on its partitioned tables, with no cause named.
     """
     share_reference(session)
     identifier = new_id() if project_id is None else project_id
