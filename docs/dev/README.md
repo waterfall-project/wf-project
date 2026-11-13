@@ -3996,8 +3996,7 @@ duration of each step of what it waits for, and the log of the service says the 
 `createOwnProject` (`frontend/e2e/own-project.ts`) is the example: each creation writes to the log
 "Own project created", the home, the dialog, then, from "Créer", the server action asked and
 answered, the screen of the project asked, answered and finished, and the address reached; missed,
-what the dialog shows. Over 52 creations of a full run under three workers (43386149437; two in the
-seventeen failed runs), the whole creation takes 2.2 s in the median and 5.8 s at most, the address
+what the dialog shows. Over the 52 creations of the full run 43386149437, the whole creation takes 2.2 s in the median and 5.8 s at most, the address
 0.7 s after "Créer", and the API answers `POST /projects` in 0.24 s in the median, 1.9 s at most:
 nothing there justifies widening `WORKING`.
 

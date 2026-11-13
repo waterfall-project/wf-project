@@ -59,9 +59,13 @@ export async function createOwnProject(page: Page, prefix: string): Promise<OwnP
       await expect(page).toHaveURL(PROJECT_SCREEN, { timeout: WORKING });
     } catch (error) {
       // A creation refused — a 500 of the service, as the deadlock of the partitions was (#2940) —
-      // keeps the address of the home: what the dialog says names the cause in the log.
+      // keeps the address of the home: what the dialog says names the cause in the log. Read
+      // without waiting (`isVisible`, then `textContent` of the resolved dialog), so the failure is
+      // not delayed.
       steps.mark("address not reached");
-      steps.tell(await creation.innerText({ timeout: 1_000 }).catch(() => "the dialog closed"));
+      steps.tell(
+        (await creation.isVisible()) ? ((await creation.textContent()) ?? "") : "the dialog closed",
+      );
       throw error;
     }
     steps.mark("address");
@@ -77,9 +81,8 @@ export async function createOwnProject(page: Page, prefix: string): Promise<OwnP
  * (`createProject`, asked and answered), the screen of the project the form leads to (its payload
  * asked, its headers answered, its body finished) and the address reached. Written in the log of the
  * run and in an annotation of the test, whether the creation passed or not — the slow path of the
- * guide measures before it corrects. The address missed in seventeen runs of the merge queue (family
- * A of EP-24) was a creation refused: a deadlock of PostgreSQL between two creations of partitions,
- * which migration `0026` puts one after the other (US-1560/L3); none was slow.
+ * guide measures before it corrects. An address missed is a refused creation (a deadlock, #2940),
+ * not a slow one; see « Un parcours de bout en bout » in the guide.
  */
 class CreationSteps {
   private readonly started = Date.now();
@@ -98,7 +101,9 @@ class CreationSteps {
     this.note(request, "finished");
   };
   private readonly onFailed = (request: Request): void => {
-    this.note(request, "failed");
+    // A request cancelled by a navigation is not a failure: only the others are named so.
+    const cancelled = request.failure()?.errorText.includes("ERR_ABORTED") === true;
+    this.note(request, cancelled ? "aborted" : "failed");
   };
 
   constructor(private readonly page: Page) {
