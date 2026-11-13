@@ -13,12 +13,14 @@ import os
 import re
 import subprocess
 import tomllib
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from wftools import REPOSITORY
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 CORE = REPOSITORY / "backend" / "src" / "waterfall" / "core"
 COMPOSE = REPOSITORY / "deploy" / "compose" / "compose.service.yaml"
