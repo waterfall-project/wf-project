@@ -263,14 +263,15 @@ séparerait plus.
   et réessaie cinq secondes en gardant le sien, sans que rien l'annule puisque la création n'attend
   pas ; deux tables ainsi, et la création échoue. C'est ce qui faisait échouer le chargement du
   témoin, qui créait les partitions de ses projets après avoir écrit la référence et les comptes
-  (#2937). Une autre session qui tient l'une de ces tables — une lecture de `user_account`, sa
-  transaction ouverte — retient de même la troncature, mais d'une seule table, cinq secondes : la
-  création réessaie, et passe en cinq secondes environ, dans sa borne, quand l'autovacuum y renonce
-  (#2982 ; mesuré par `test_partitions.py`, qui échoue sans ce nouvel essai). Elle lit dans le catalogue les tables partitionnées par `project_id` et celles que leurs
-  clés relient : une table révisionnée nouvelle, ou une clé nouvelle, y entre sans qu'aucune
+  (#2937). Elle lit dans le catalogue les tables partitionnées par `project_id` et celles que
+  leurs clés relient : une table révisionnée nouvelle, ou une clé nouvelle, y entre sans qu'aucune
   migration la remplace. Une création qui aurait déjà écrit tiendrait, en attendant le verrou
   consultatif, un verrou que la création en cours ne peut prendre : celle-ci réessaierait en vain,
-  puis échouerait.
+  puis échouerait. Une autre session qui tient l'une de ces tables — une lecture de
+  `user_account`, sa transaction ouverte — retient de même la troncature, mais d'une seule table,
+  cinq secondes : la création réessaie, et passe en cinq secondes environ, dans sa borne, quand
+  l'autovacuum y renonce (#2982). `test_partitions.py` le mesure : il échoue quand la borne du
+  nouvel essai est réduite sous les cinq secondes du vacuum (essayé à 0 et à 2 s).
 - Les migrations d'une même base s'appliquent l'une après l'autre : l'environnement d'Alembic
   prend un verrou consultatif de session, pour que deux instances qui démarrent ensemble
   n'appliquent pas la même migration deux fois.

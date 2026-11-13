@@ -819,15 +819,16 @@ l'écran des comptes, ajoutée au parcours, en rend l'échec lisible (« Introuv
 ce qui le rend déterministe. Les cinq échecs de `keycloak / check` sont classés dans le même
 catalogue : trois sont des pulls de Docker Hub, que US-1900/L2 (#2946) tire désormais d'un miroir ;
 deux sont le cycle d'imports entre `users` et `resource_settings`, une régression classée dans le
-catalogue sous l'issue #2932. Les autres échecs que l'inventaire dit instables sont classés dans le même
-catalogue, chacun éprouvé par un extrait réel de son journal. `fini` ne clôt pas un constat, qui
-reste ouvert, « à trancher » : #2980 (le crash d'un worker Vitest par une assertion de V8 sous
+catalogue sous l'issue #2932. Les autres échecs que l'inventaire dit instables sont classés dans
+le même catalogue, chacun éprouvé par un extrait réel de son journal. `fini` ne clôt pas un constat,
+qui reste ouvert, « à trancher » : #2980 (le crash d'un worker Vitest par une assertion de V8 sous
 Node 24, aucun depuis le passage à Node 26). #2982 (`LockNotAvailable` en production, derrière un
 autovacuum) est clos par le lot L7 : mesurée, une création de projet du service, qu'une autre
 session expose à un vacuum de `user_account` qui tente de le tronquer, attend cinq secondes que
 celui-ci y renonce et passe, par le nouvel essai borné à dix secondes de `create_project_partitions`
-(décision de l'auteur : `NOWAIT` gardé) ; sans ce nouvel essai, elle échoue
-(`test_a_creation_waits_out_the_truncation_of_a_vacuum_another_session_holds_up`).
+(décision de l'auteur : `NOWAIT` gardé) ; le test
+`test_a_creation_waits_out_the_truncation_of_a_vacuum_another_session_holds_up` échoue quand la
+borne du nouvel essai est réduite sous les cinq secondes du vacuum (essayé à 0 et à 2 s).
 
 **Hors périmètre.** Les parcours de bout en bout (US-1890).
 

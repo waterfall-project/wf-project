@@ -506,7 +506,9 @@ def test_a_creation_waits_out_the_truncation_of_a_vacuum_another_session_holds_u
 
             until(owner, asleep_behind_the_vacuum, "the creation asleep while the vacuum truncates")
             project_id = creation.result(timeout=15)
-        # The vacuum kept its lock the five seconds of its attempts, and the creation outlasted it.
+        # The vacuum kept its lock the five seconds of its attempts (PostgreSQL's hard-coded
+        # VACUUM_TRUNCATE_LOCK_TIMEOUT, which the lower bound relies on), and the creation
+        # outlasted it.
         assert 4 < vacuum.result(timeout=15) < 10
     with database.engine.connect() as connection:
         assert partition_of(project_id) in partitions(connection)
