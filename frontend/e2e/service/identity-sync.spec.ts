@@ -15,7 +15,7 @@
 import { expect, type Locator, test } from "@playwright/test";
 
 import { compileAnswered } from "../compile";
-import { WORKING } from "../hydration";
+import { setExpanded, WORKING } from "../hydration";
 import { heldToTheContract } from "./contract";
 import { accountAdministrator, localAccount, signIn, withdrawRoles } from "./realm";
 
@@ -63,7 +63,11 @@ test("the reading of the accounts asked from the screen gives the hand back at o
   try {
     await administrator.give(holder.id, SYNCHRONISER, ["users.read", "users.write"]);
     await signIn(page, holder, USERS);
-    const reading = page.getByRole("region", {
+    // The reading stands behind the menu « ⋯ » of the head of the screen (US-1860).
+    const menu = page.getByRole("button", {
+      name: "Lecture des comptes du fournisseur d’identité : état et commandes",
+    });
+    const reading = page.getByRole("dialog", {
       name: "Lecture des comptes du fournisseur d’identité",
     });
     const followed = page.getByRole("button", { name: /^Tâches et messages\s: 1 tâche suivie/ });
@@ -72,6 +76,7 @@ test("the reading of the accounts asked from the screen gives the hand back at o
     // The end of the last reading shown before the press — none yet, or one the platform asked —,
     // to which the report read anew is later: no clock but the service's.
     const ended = reading.getByRole("time");
+    await setExpanded(menu, true);
     await expect(
       ended.or(reading.getByText("Aucune lecture des comptes n’a encore abouti.")),
     ).toBeVisible();
@@ -91,6 +96,7 @@ test("the reading of the accounts asked from the screen gives the hand back at o
     // The screen read anew shows the report of a reading that ended after the one shown before.
     await entries.getByRole("button", { name: "Recharger l’écran" }).click();
     await expect(async () => {
+      await setExpanded(menu, true);
       const after = await ended.getAttribute("datetime", { timeout: 1_000 });
       expect(after).not.toBeNull();
       if (before !== null) {
