@@ -88,14 +88,16 @@ export const EMAIL_LENGTH = 254;
 
 /**
  * The parameters of the address the screen filters the accounts by, besides their search: those its
- * grid keeps with its settings — an address of before that hid the deactivated accounts is read, never
- * kept.
+ * grid keeps with its settings. An address of before that hid the deactivated accounts filters too —
+ * the active ones alone (`readAccountState`) —: alone in the address, it says something of the grid,
+ * which the filters kept do not replace, and it is kept as the others (#2916).
  */
 export const USER_FILTERS: readonly string[] = [
   ORIGINS,
   ORG_NODE,
   ACCESS_ROLES,
   IS_ACTIVE,
+  INCLUDE_INACTIVE,
   ...AUDIT_FILTERS,
 ];
 
@@ -106,15 +108,7 @@ export const USER_FILTERS: readonly string[] = [
 export const USER_KEPT = keptReading(CONTRACT_ADDRESS, USER_FILTERS);
 
 /** The list of the accounts: its sort, its search and its filters. */
-export const USERS_LIST: PagedList = pagedList(
-  CONTRACT_ADDRESS,
-  ORIGINS,
-  ORG_NODE,
-  ACCESS_ROLES,
-  IS_ACTIVE,
-  INCLUDE_INACTIVE,
-  ...AUDIT_FILTERS,
-);
+export const USERS_LIST: PagedList = pagedList(CONTRACT_ADDRESS, ...USER_FILTERS);
 
 /**
  * What the list of the accounts reads of the address, its page included, which a refusal is told on

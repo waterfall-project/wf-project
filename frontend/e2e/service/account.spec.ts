@@ -283,6 +283,94 @@ test("the hidden columns and the widths of the table of the accounts are found a
   }
 });
 
+/** The button that opens and closes the panel of the filters of the table of a screen. */
+function filtersButton(page: Page) {
+  return page.getByRole("button", { name: /^Filtres( \(|$)/ });
+}
+
+/** Whether an account keeps the panel of the filters of a grid open: absent, closed. */
+function keptOpen(email: string, grid: string): boolean | undefined {
+  const kept = gridPreferences(email, grid) as { filters_open?: boolean } | null;
+  return kept?.filters_open;
+}
+
+test("the panel of the filters of the table of the accounts, closed by default, is found open or closed as each user left it, without changing that of the table of the roles; its filters on stay told, panel closed, each one lifted [WF-IHM-0060-A]", async ({
+  browser,
+}) => {
+  test.setTimeout(90_000);
+  const pages: Page[] = [];
+  try {
+    for (const person of [first, second]) {
+      const page = await workstation(browser, "fr-FR");
+      pages.push(page);
+      await signInAt(page, person, ACCOUNT);
+      await administrator.give(person.id, READER, ["users.read", "access_roles.read"]);
+    }
+    const [mine, hers] = pages as [Page, Page];
+
+    // Closed by default; the first opens it, which her account keeps for this grid alone.
+    await mine.goto(USERS);
+    const toggle = filtersButton(mine);
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await setExpanded(toggle, true);
+    await expect.poll(() => keptOpen(first.email, "users")).toBe(true);
+
+    // Opened again, as she left it — the server renders it so —; the table of the roles, closed.
+    await mine.goto(USERS);
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(mine.getByRole("group", { name: "Filtres" })).toBeVisible();
+    // The writes of a page are server actions, POSTs that carry the header `Next-Action`: watched
+    // from the visit of the table of the roles, the page rendered and stable is the witness that
+    // none was sent for the grid (a write deferred past it is one the page never asks for).
+    const writes: string[] = [];
+    const watch = (page: Page, into: string[]) =>
+      page.on("request", (request) => {
+        if (request.method() === "POST" && request.headers()["next-action"] !== undefined) {
+          into.push(request.url());
+        }
+      });
+    watch(mine, writes);
+    await mine.goto(ROLES);
+    await expect(filtersButton(mine)).toHaveAttribute("aria-expanded", "false");
+    expect(writes).toEqual([]);
+    expect(keptOpen(first.email, "access_roles")).toBeUndefined();
+
+    // The second opens the same table: her own panel, closed, and no write for it either.
+    const hersWrites: string[] = [];
+    watch(hers, hersWrites);
+    await hers.goto(USERS);
+    await expect(filtersButton(hers)).toHaveAttribute("aria-expanded", "false");
+    expect(hersWrites).toEqual([]);
+    expect(keptOpen(second.email, "users")).toBeUndefined();
+
+    // A filter on, the panel closed: kept closed, and the filter still told by its chip, counted.
+    await mine.goto(`${USERS}?is_active=true`);
+    await setExpanded(toggle, false);
+    await expect.poll(() => keptOpen(first.email, "users")).toBe(false);
+    await mine.goto(`${USERS}?is_active=true`);
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(toggle).toHaveAccessibleName("Filtres (1)");
+    const chips = mine.getByRole("list", { name: "Filtres actifs" });
+    await expect(chips.getByRole("listitem")).toHaveText(["État du compte : Comptes actifs"]);
+    // Lifted by its cross, the panel still closed; the page hydrated first, which the button says.
+    await setExpanded(toggle, true);
+    await setExpanded(toggle, false);
+    await chips
+      .getByRole("button", { name: "Retirer le filtre État du compte : Comptes actifs" })
+      .click();
+    await expect(mine).not.toHaveURL(/is_active/);
+    await expect(mine.getByRole("list", { name: "Filtres actifs" })).toHaveCount(0);
+    await expect(toggle).toHaveAccessibleName("Filtres");
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  } finally {
+    for (const page of pages) {
+      await page.context().close();
+    }
+    withdrawRoles(first.email);
+    withdrawRoles(second.email);
+  }
+});
+
 test("the filters kept for the table of the roles are found again by an address that says nothing of them, typed or followed from the navigation, and « Précédent » never comes back to it (#848)", async ({
   browser,
 }) => {

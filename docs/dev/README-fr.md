@@ -1784,7 +1784,8 @@ retenu par aucun, `exhaustive: false`, EP-02/L42f) et par état, un seul choix (
 les actifs seuls, les désactivés seuls —, qui dit ce que la grille montre : la page demande toujours
 les désactivés aussi (`include_inactive=true`, le contrat les masquant par défaut), une adresse
 d'avant qui les masquait (`include_inactive=false`) se lit « Comptes actifs » (`readAccountState`),
-et tout choix lève ce paramètre ancien (`lifts` de `ChoiceFilter`) — et paginés par le serveur, sous
+un filtre de la grille, gardé avec ses réglages comme les autres (`USER_FILTERS`, #2916) — seul
+dans l'adresse, il n'est donc pas remplacé par les filtres gardés —, et tout choix lève ce paramètre ancien (`lifts` de `ChoiceFilter`) — et paginés par le serveur, sous
 les noms du contrat — un tri, une recherche ou un filtre ramenant à la première page —, la ligne des
 totaux disant combien le serveur en retient (`meta.total`), l'écran remplissant la fenêtre ; la
 recherche porte sur le nom, le prénom, l'adresse et le nom affiché, sans égard à la casse ni aux

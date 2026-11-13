@@ -1784,7 +1784,9 @@ being kept by none, `exhaustive: false`, EP-02/L42f) and by state, a single choi
 all, the active ones only, the deactivated ones only —, which says what the grid shows: the page
 always asks for the deactivated ones too (`include_inactive=true`, the contract hiding them by
 default), an address from before that hid them (`include_inactive=false`) reads as « Active
-accounts » (`readAccountState`), and any choice lifts that old parameter (`lifts` of
+accounts » (`readAccountState`), a filter of the grid, kept with its settings like the others
+(`USER_FILTERS`, #2916) — alone in the address, it is therefore not replaced by the filters kept —,
+and any choice lifts that old parameter (`lifts` of
 `ChoiceFilter`) — and paginated by the server, under the names of the contract — a sort, a search
 or a filter bringing back to the first page —, the totals row saying how many the server keeps
 (`meta.total`), the screen filling the window; the search covers the surname, the first name, the

@@ -143,7 +143,12 @@ export function usePendingAddress() {
       router.push(href, { scroll: false });
     }
   };
-  return { base, request };
+  return {
+    base,
+    request,
+    /** The navigation asked from the address shown and not arrived yet; none. Read in an event. */
+    underWay,
+  };
 }
 
 /**
