@@ -48,6 +48,16 @@ export async function createUser(
   return readAnew(await decode(() => serverClient().POST("/users", { body: user })));
 }
 
+/**
+ * Read an account anew (`getUser`), once a write of it was refused as stale (412): a reading, which
+ * reads nothing anew — the answer takes the place of the account the screen holds.
+ */
+export async function readUser(userId: string): Promise<Outcome<User>> {
+  return decode(() =>
+    serverClient().GET("/users/{user_id}", { params: { path: { user_id: userId } } }),
+  );
+}
+
 /** Modify an account from the version read. */
 export async function updateUser(
   userId: string,

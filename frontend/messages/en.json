@@ -2646,6 +2646,7 @@
         "apply": "Apply: {command}",
         "applyShort": "Apply"
       },
+      "stale": "This account was modified in the meantime: its row now shows its latest version. Make the change again if it still applies.",
       "bulkDone": "{count, plural, one {# account modified.} other {# accounts modified.}}",
       "bulkPartial": "{done, plural, =0 {No account modified} one {# account modified} other {# accounts modified}}, {refused, plural, one {# account refused} other {# accounts refused}}: the reason of each is told above.",
       "told": "Commands of the accounts",
