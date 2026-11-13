@@ -42,9 +42,10 @@ jobs:
       matrix:
         part: ["1/4", "2/4", "3/4", "4/4"]
     # Each half took 10 to 16 minutes before the witness was loaded once by each process (#2157),
-    # then 10 to 18 on 2026-11-12 and 13, a minute or two from this delay: four parts of a quarter of
-    # the tests each (US-1910) play in about half of that, so the delay stays, a margin to the slowest
-    # runner rather than a wait.
+    # then 10 to 18 on 2026-11-12 and 13, a minute or two from this delay: four parts of a quarter
+    # of the tests each (US-1910) should play in less than that, the fixed cost of a runner
+    # (services, `uv sync`, collection) apart. The delay stays, a margin to the slowest runner
+    # rather than a wait, until the queue has measured the quarters.
     timeout-minutes: 20
     services:
       postgres:
