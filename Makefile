@@ -584,7 +584,9 @@ e2e-image: ## Find the work image of the end-to-end paths in the registry by the
 # of the host (service.yml): the browser and its system packages are the image's, where the runner
 # would install them from the mirrors of Ubuntu. Empty, on a workstation, they play on it.
 E2E_IMAGE ?=
-e2e-in-image = $(if $(E2E_IMAGE),uv run --frozen --project $(CURDIR)/$(TOOLS) python -m wftools.e2eimage run --image $(E2E_IMAGE) --)
+E2E_BROWSER_PORT ?= 3990
+e2e-in-image = uv run --frozen --project $(CURDIR)/$(TOOLS) python -m wftools.e2eimage run --image $(E2E_IMAGE) --
+e2e-browser = $(if $(E2E_IMAGE),$(e2e-in-image) node node_modules/@playwright/test/cli.js run-server --host 127.0.0.1 --port $(E2E_BROWSER_PORT) & browser=$$! && trap 'kill $$browser' EXIT && timeout 120 sh -c 'until curl --silent --output /dev/null http://127.0.0.1:$(E2E_BROWSER_PORT)/; do sleep 1; done' && export PW_TEST_CONNECT_WS_ENDPOINT=ws://127.0.0.1:$(E2E_BROWSER_PORT)/ &&)
 
 # The paths play against the front built for production (US-0590): built first by build-front, which
 # Next's cache (.next/cache) shortens after the first time, then started by the harness, told it is
@@ -647,7 +649,7 @@ e2e-service: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End
 		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 && \
 		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
 		export E2E_INSTALLATION_LINK E2E_CONTRACT_PROXY E2E_SERVICE_DATABASE WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
-		cd $(FRONT) && $(PNPM_ENV) $(e2e-in-image) pnpm exec playwright test $(TESTS)
+		cd $(FRONT) && { $(e2e-browser) $(PNPM_ENV) pnpm exec playwright test $(TESTS); }
 
 # The slot of the worktree, among the N of WATERFALL_SLOTS, in the register of the workstation
 # ($XDG_RUNTIME_DIR/waterfall-slots, /tmp/waterfall-slots without it), whatever the repository.
