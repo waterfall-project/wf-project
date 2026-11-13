@@ -166,8 +166,12 @@ export function UserCommands({ children }: { readonly children: ReactNode }) {
   const locale = useLocale();
   const timeZone = useTimeZone();
   const messages = useMessages();
-  // A write refused as stale says here what to do on this screen, where the row shows the account as
-  // it stands now: the sentence of the code, shared by every screen, is left as it is.
+  // A write refused as stale says here what to do on this screen: the sentence of the code, shared by
+  // every screen, is left as it is. Two constraints follow. The provider below copies the props of
+  // the one of the shell (`shell.tsx`: locale, messages, time zone): a prop the shell adds there
+  // (`now`, `formats`, `onError`) must be copied here too, or this subtree loses it unseen. And the
+  // sentence holds for every 412 of the subtree: each write of it must go through `reserve`, which
+  // reads the account anew, or the sentence would promise a row that is not checked.
   const own = useMemo(
     () => ({ ...messages, errors: { ...messages.errors, STALE_LOCK_VERSION: t("stale") } }),
     [messages, t],

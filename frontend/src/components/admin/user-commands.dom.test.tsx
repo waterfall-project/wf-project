@@ -333,7 +333,7 @@ describe("the anonymisation of an account", () => {
     [
       "the account changed since it was read",
       { code: "STALE_LOCK_VERSION", status: 412 } satisfies Problem & { status: 412 },
-      "Refaites la modification si elle vaut encore.",
+      "refaites la modification si elle vaut encore.",
     ],
   ])(
     "tells by the catalogue the anonymisation the server refuses — %s [WF-ADM-0060-A]",
