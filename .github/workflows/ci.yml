@@ -146,20 +146,23 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # The work image of the end-to-end paths (deploy/e2e, US-1900), whenever e2e or service runs, beside
-  # the build of the front: Playwright's image with make, the Python of the tools, pnpm and Docker's
-  # client, so that no job of the paths downloads a package of Ubuntu (#2913). Found in the registry
-  # by the hash of its directory, or built and published here, once, by the first run that needs it:
-  # images.yml, after a merge, would come after the merge queue. Here, in the full tier alone — the
-  # merge queue and a run by hand —, the token may publish. A registry that does not answer fails
-  # this job, naming it, and skips the paths, which the gate counts.
+  # The work image of the end-to-end paths (deploy/e2e, US-1900), whenever e2e or service could run,
+  # beside the build of the front: Playwright's image with make, the Python of the tools, pnpm and
+  # Docker's client, so that no job of the paths downloads a package of Ubuntu (#2913). Found in the
+  # registry by the hash of its directory, or built here. In the full tier — the merge queue and a run
+  # by hand — the image built is published, once, by the first run that needs it: images.yml, after a
+  # merge, would come after the merge queue. In the fast tier, an image that changed is built and not
+  # published, so that a build that fails stops the pull request before the queue; an image that did
+  # not change is a lookup. Each request to the registry, the build and its publication are tried
+  # again (wftools.e2eimage, #2530); a registry that still does not answer fails this job, naming it,
+  # and skips the paths, which the gate counts. The build alone, when the image changed, pulls
+  # Playwright's image from mcr.microsoft.com and downloads the package of make from
+  # archive.ubuntu.com: a run whose image is in the registry downloads from neither.
   e2e-image:
     needs: changes
-    if: >-
-      needs.changes.outputs.tier == 'full'
-      && (needs.changes.outputs.front == 'true' || needs.changes.outputs.service == 'true')
+    if: needs.changes.outputs.front == 'true' || needs.changes.outputs.service == 'true'
     runs-on: ubuntu-26.04
-    # A lookup in the registry; a build and its publication when the image changed, about three
+    # A lookup in the registry; a build, and its publication, when the image changed: about three
     # minutes, most of it the pull of Playwright's image.
     timeout-minutes: 15
     permissions:
@@ -181,7 +184,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: image
-        run: make e2e-image PUSH=yes >> "$GITHUB_OUTPUT"
+        env:
+          PUSH: ${{ needs.changes.outputs.tier == 'full' && 'yes' || 'no' }}
+        run: make e2e-image PUSH="$PUSH" >> "$GITHUB_OUTPUT"
 
   # The other half of the front family: skipped in the fast tier as when the front is not
   # touched, which the gate does not count as a failure.

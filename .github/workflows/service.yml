@@ -73,8 +73,9 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: tools/uv.lock
-      # The work image of the paths, pulled first: a registry that does not answer fails the job
-      # here, naming it, before the platform is built and started.
+      # The work image of the paths, pulled first, four times at most, twenty seconds apart, as
+      # e2e-image asks the registry (#2530): a registry that still does not answer fails the job here,
+      # naming it, before the platform is built and started.
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
@@ -83,7 +84,13 @@ jobs:
       - name: Pull the work image of the paths
         env:
           E2E_IMAGE: ${{ inputs.image }}
-        run: docker pull --quiet "$E2E_IMAGE"
+        run: |
+          for attempt in 1 2 3 4; do
+            docker pull --quiet "$E2E_IMAGE" && exit 0
+            echo "ghcr.io did not give $E2E_IMAGE at attempt $attempt" >&2
+            [ "$attempt" = 4 ] || sleep 20
+          done
+          exit 1
       # Keycloak's image built from the cache first: the build of the platform by Compose, on the same
       # builder, finds it there, where it would otherwise compile its extension again.
       - run: make build-keycloak

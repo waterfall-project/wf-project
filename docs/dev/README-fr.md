@@ -3470,18 +3470,31 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   `frontend/pnpm-lock.yaml`, épinglée par son empreinte, avec `make`, le Python de
   `tools/.python-version` en `python3`, pnpm à la version de `packageManager` et le client de
   Docker : Chromium et ses paquets système y sont, rien ne vient du miroir d'Ubuntu, dont le débit
-  et la réponse ne sont pas les nôtres (#472, #2913). Elle est publiée sur
-  `ghcr.io/waterfall-project/e2e`, étiquetée par l'empreinte de son répertoire : le travail
-  `e2e-image` de `ci.yml`, qui tourne dès qu'`e2e` ou `service` tourne, à côté de `front-build`,
-  la demande au registre (`make e2e-image PUSH=yes`) ; présente, il en donne la référence par son
-  empreinte, que les morceaux (`container:` d'`e2e.yml`) et `service.yml` tirent ; absente, il la
-  construit et la publie, une fois, au premier passage qui en a besoin — celui de la file, ou du
-  palier complet lancé à la main sur une branche —, d'où ses `packages: write`. `images.yml` ne la
-  publie pas : il passe après la fusion, donc après le premier passage de la file qui en a besoin.
-  Un registre qui ne répond pas fait échouer ce travail en le nommant, et saute les parcours, ce
-  que la porte compte ; une image qui ne se tire pas fait échouer l'initialisation du morceau, en
-  nommant le registre, avant toute étape. `tools/tests/test_e2eimage.py` tient les versions de
-  l'image, ses sources épinglées, et l'absence de paquet d'Ubuntu dans `e2e.yml` et `service.yml`. Le travail appelle `make e2e`, qui trouve le navigateur de
+  et la réponse ne sont pas les nôtres (#472, #2913). Elle est construite pour amd64 seulement,
+  l'architecture des runners et des postes. Elle est publiée sur `ghcr.io/waterfall-project/e2e`,
+  étiquetée par l'empreinte de son répertoire : le travail `e2e-image` de `ci.yml`, qui tourne dès
+  qu'`e2e` ou `service` peuvent tourner, à côté de `front-build`, la demande au registre
+  (`make e2e-image`). Présente, il en donne la référence par l'empreinte que le registre lui
+  connaît, que les morceaux (`container:` d'`e2e.yml`) et `service.yml` tirent. Absente, il la
+  construit ; au palier complet (`PUSH=yes`), il la publie, une fois, au premier passage qui en a
+  besoin — celui de la file, ou du palier complet lancé à la main sur une branche —, d'où ses
+  `packages: write` ; au palier rapide, il la construit sans la publier, pour qu'une construction
+  qui échoue arrête la pull request avant la file. `images.yml` ne la publie pas : il passe après
+  la fusion, donc après le premier passage de la file qui en a besoin.
+
+  Chaque demande au registre, la construction et la publication se refont quatre fois au plus,
+  à vingt secondes d'intervalle (#2530) ; une construction refaite repart des couches déjà
+  construites. Un registre qui ne répond toujours pas fait échouer ce travail en le nommant, et
+  saute les parcours, ce que la porte compte ; une image qui ne se tire pas fait échouer
+  l'initialisation du morceau, en nommant le registre, avant toute étape. Deux passages de la
+  file qui ne trouvent pas l'étiquette peuvent la publier chacun : la construction n'est pas
+  reproductible à l'octet, mais chacun tire l'image qu'il a publiée, par son empreinte, et le
+  contenu que nomme l'étiquette est le même.
+
+  `tools/tests/test_e2eimage.py` tient les versions de l'image, ses sources épinglées, et
+  l'absence de paquet d'Ubuntu dans `ci.yml`, `e2e.yml` et `service.yml`.
+
+  Le travail appelle `make e2e`, qui trouve le navigateur de
   l'image (`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`), et non `make check-front-e2e`, qui en
   installerait un. Monter `@playwright/test` monte l'image avec lui, étiquette et empreinte : sinon
   les parcours s'arrêtent d'emblée sur un navigateur introuvable, et
@@ -3490,8 +3503,9 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   `docker buildx imagetools inspect mcr.microsoft.com/playwright:v<X>-noble`, ou l'en-tête
   `docker-content-digest` de
   `curl -sI -H 'Accept: application/vnd.oci.image.index.v1+json' https://mcr.microsoft.com/v2/playwright/manifests/v<X>-noble`.
-  Le paquet `make` d'Ubuntu noble et l'archive du client de Docker ne se téléchargent qu'à la
-  construction de l'image, épinglés et vérifiés par leur empreinte, pnpm par sa version ;
+  Le paquet `make` d'Ubuntu noble, l'archive du client de Docker et celles de pnpm et de son
+  binaire ne se téléchargent qu'à la construction de l'image, épinglés et vérifiés par leur
+  empreinte, le Python par sa version, que uv vérifie par l'empreinte qu'il en porte ;
 - **répartis sur cinq runners** (`make e2e SHARD=i/5`, soit `playwright test --shard=i/5`),
   la mesure du §4.6.2 sur un sixième, seule (`make e2e-measure`), par une matrice dont aucun
   morceau n'annule les autres ; le résultat d'`e2e` est un échec dès qu'un morceau échoue ou

@@ -8,8 +8,11 @@
 # of e2e.yml run in it, and service.yml plays its paths in it, on the network of the runner. It is
 # never built by a job that plays the paths: the chain finds it in the registry by the hash of this
 # directory, or builds and publishes it once, before the paths (make e2e-image, wftools.e2eimage).
-# Every source is pinned: the images by the digest of their index, the files by their hash, pnpm by
-# its version. No `syntax` line: the frontend of BuildKit that Docker carries reads `ADD --checksum`
+# Every source is pinned: the images by the digest of their index, the files by their hash, pnpm and
+# its binary among them, and the Python of uv by its version, which uv checks by the hash it carries. A download
+# that fails fails the build, which wftools.e2eimage tries again from the layers already built
+# (#2530). The image is built for amd64 alone, the runners' and the workstations': the archives of
+# Docker and of make are those of x86_64. No `syntax` line: the frontend of BuildKit that Docker carries reads `ADD --checksum`
 # and `RUN --mount`, where a named one would be pulled from Docker Hub.
 
 # Docker's client alone, from the static build of Docker, out of its archive.
@@ -36,12 +39,22 @@ COPY --from=docker-client /docker/docker /usr/local/bin/docker
 
 # The Python of tools/.python-version, which tools/tests/test_e2eimage.py holds: the guard and
 # slots.py run by python3 (Makefile, SLOTS), ahead of noble's 3.12 in the PATH.
+# Its patch is pinned here, and uv, pinned by digest, checks the archive against the hash it carries
+# for that version; uv tries a download again five times (#2530).
 ENV UV_PYTHON_INSTALL_DIR=/opt/python
 RUN --mount=from=uv,source=/uv,target=/usr/local/bin/uv \
-    uv python install 3.14 \
-    && ln -s "$(uv python find --managed-python 3.14)" /usr/local/bin/python3 \
+    UV_HTTP_RETRIES=5 uv python install 3.14.10 \
+    && ln -s "$(uv python find --managed-python 3.14.10)" /usr/local/bin/python3 \
     && python3 --version
 
 # pnpm at the version `packageManager` names in frontend/package.json, which
-# tools/tests/test_e2eimage.py holds: another one would download that one at its first command.
-RUN npm install --global pnpm@12.17.0 && pnpm --version
+# tools/tests/test_e2eimage.py holds: another one would download that one at its first command. Its
+# two archives from npm's registry, checked by their hash: pnpm, which bundles its dependencies, and
+# its binary for linux-x64, the one optional dependency it runs here — without it, pnpm would
+# download it at its first command. npm installs them without the network.
+ADD --checksum=sha256:6d776e285187f9e334d8826cc5a88e82e41606345f196a5a93f4403bd332553e \
+    https://registry.npmjs.org/pnpm/-/pnpm-12.17.0.tgz /tmp/pnpm/pnpm.tgz
+ADD --checksum=sha256:6c1c71d00f82765d8f7488df6d1a94533fd1ad5d47c86da41211b1da1093c9d4 \
+    https://registry.npmjs.org/@pnpm/exe.linux-x64/-/exe.linux-x64-12.17.0.tgz /tmp/pnpm/exe.tgz
+RUN npm install --global --offline /tmp/pnpm/pnpm.tgz /tmp/pnpm/exe.tgz && rm -r /tmp/pnpm \
+    && pnpm --version

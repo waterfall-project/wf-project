@@ -575,8 +575,9 @@ e2e-browsers: install-front ## Install the browser the end-to-end tests run in
 # The work image of the end-to-end paths (deploy/e2e, US-1900): Playwright's, with make, the Python
 # of the tools, pnpm and Docker's client, so that no job of the paths downloads a package of Ubuntu
 # (#2913). Tagged by the hash of its directory, it is found in the registry, or built here, and
-# published with PUSH=yes, which the chain runs before the paths (ci.yml); the line it prints,
-# image=<reference by digest>, is the output of that step (wftools.e2eimage).
+# published with PUSH=yes, which the full tier of the chain runs before the paths, the fast one
+# building without it (ci.yml); the line it prints, image=<reference>, is the output of that step
+# (wftools.e2eimage).
 e2e-image: ## Find the work image of the end-to-end paths in the registry by the hash of deploy/e2e, or build it — PUSH=yes publishes it —; prints image=<reference>
 	@$(WFTOOLS).e2eimage publish $(if $(filter yes,$(PUSH)),--push)
 

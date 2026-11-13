@@ -3448,17 +3448,29 @@ The full tier aims at under eight minutes in the queue for its longest job
   `frontend/pnpm-lock.yaml` resolves, pinned by its digest, with `make`, the Python of
   `tools/.python-version` as `python3`, pnpm at the version of `packageManager` and Docker's client:
   Chromium and its system packages are there, nothing comes from the Ubuntu mirror, whose throughput
-  and answers are not ours (#472, #2913). It is published on `ghcr.io/waterfall-project/e2e`,
-  tagged by the digest of its directory: the job `e2e-image` of `ci.yml`, which runs whenever `e2e`
-  or `service` runs, beside `front-build`, asks the registry for it (`make e2e-image PUSH=yes`);
-  present, it gives its reference by digest, which the shards (`container:` of `e2e.yml`) and
-  `service.yml` pull; missing, it builds and publishes it, once, at the first run that needs it —
-  that of the queue, or of the full tier run by hand on a branch —, hence its `packages: write`.
-  `images.yml` does not publish it: it runs after the merge, so after the first run of the queue
-  that needs it. A registry that does not answer fails that job, naming it, and skips the paths,
-  which the gate counts; an image that cannot be pulled fails the initialisation of the shard,
-  naming the registry, before any step. `tools/tests/test_e2eimage.py` holds the versions of the
-  image, its pinned sources, and the absence of any Ubuntu package in `e2e.yml` and `service.yml`. The job calls `make e2e`, which finds the browser of the image
+  and answers are not ours (#472, #2913). It is built for amd64 alone, the architecture of the
+  runners and of the workstations. It is published on `ghcr.io/waterfall-project/e2e`, tagged by
+  the hash of its directory: the job `e2e-image` of `ci.yml`, which runs whenever `e2e` or
+  `service` could run, beside `front-build`, asks the registry for it (`make e2e-image`). Present,
+  it gives its reference by the digest the registry knows it by, which the shards (`container:` of
+  `e2e.yml`) and `service.yml` pull. Missing, it builds it; in the full tier (`PUSH=yes`), it
+  publishes it, once, at the first run that needs it — that of the queue, or of the full tier run by
+  hand on a branch —, hence its `packages: write`; in the fast tier, it builds it without
+  publishing it, so that a build that fails stops the pull request before the queue. `images.yml`
+  does not publish it: it runs after the merge, so after the first run of the queue that needs it.
+
+  Each request to the registry, the build and the publication are made again four times at most,
+  twenty seconds apart (#2530); a build made again starts from the layers already built. A registry
+  that still does not answer fails that job, naming it, and skips the paths, which the gate counts;
+  an image that cannot be pulled fails the initialisation of the shard, naming the registry, before
+  any step. Two runs of the queue that do not find the tag may each publish it: the build is not
+  reproducible to the byte, but each pulls the image it published, by its digest, and the content
+  the tag names is the same.
+
+  `tools/tests/test_e2eimage.py` holds the versions of the image, its pinned sources, and the
+  absence of any Ubuntu package in `ci.yml`, `e2e.yml` and `service.yml`.
+
+  The job calls `make e2e`, which finds the browser of the image
   (`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`), and not `make check-front-e2e`, which would install
   one. Raising `@playwright/test` raises the image with it, tag and digest: otherwise the paths stop
   at once on a browser not found, and `tools/tests/test_playwrightimage.py` fails before them, in
@@ -3466,8 +3478,9 @@ The full tier aims at under eight minutes in the queue for its longest job
   `Digest:` of `docker buildx imagetools inspect mcr.microsoft.com/playwright:v<X>-noble` gives, or
   the `docker-content-digest` header of
   `curl -sI -H 'Accept: application/vnd.oci.image.index.v1+json' https://mcr.microsoft.com/v2/playwright/manifests/v<X>-noble`.
-  The `make` package of Ubuntu noble and the archive of Docker's client are downloaded only when the
-  image is built, pinned and verified by their digest, pnpm by its version;
+  The `make` package of Ubuntu noble, the archive of Docker's client and those of pnpm and of its
+  binary are downloaded only when the image is built, pinned and verified by their hash, the Python
+  by its version, which uv verifies by the hash it carries for it;
 - **spread over five runners** (`make e2e SHARD=i/5`, that is `playwright test --shard=i/5`),
   the measure of §4.6.2 on a sixth, alone (`make e2e-measure`), through a matrix none of whose
   shards cancels the others; the result of `e2e` is a failure as soon as a shard fails or

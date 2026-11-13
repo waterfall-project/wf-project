@@ -12,8 +12,9 @@ the chain before the paths, asks the registry for that tag: held, it prints its 
 missing, it builds the image, and with ``--push`` publishes it, then prints that reference. A change
 of the image is thus built once, by the first run of the chain that needs it — that of a pull
 request in the merge queue, or of a branch run by hand —, and pulled by every other: the publication
-after a merge (images.yml) would come after the first run that needs it. A registry that does not
-answer fails the run here, naming it, before any job of the paths starts. The line it prints,
+after a merge (images.yml) would come after the first run that needs it; the fast tier builds it
+without ``--push``. A registry that does not answer, a build or a publication that fails, is tried again,
+then fails the run here, naming it, before any job of the paths starts. The line it prints,
 ``image=<reference>``, is the output of a step of GitHub Actions.
 
 ``run`` plays a command in the image, on the network of the host, as service.yml plays the paths
@@ -23,6 +24,10 @@ its own path, so that every path the command is given — the authority of Keycl
 front — reads the same inside, and so is Docker's socket, which the paths read the log of the proxy
 and write into PostgreSQL through. The command is given the variables of the environment the paths
 read, by name: their values never appear on a command line.
+
+``run`` is made for a runner of the chain, not for a workstation: the command runs as root in the
+image, and the files it writes in the checkout are root's; Docker's socket is the one at its usual
+path, whatever DOCKER_HOST says. On a workstation the paths play without the image.
 """
 
 import argparse
@@ -31,6 +36,8 @@ import os
 import re
 import subprocess
 import sys
+import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -52,16 +59,24 @@ TAG_LENGTH = 16
 """The hexadecimal digits of the hash the tag keeps: 64 bits, enough to never meet twice."""
 
 SOCKET = "/var/run/docker.sock"
-"""Docker's socket on the host, mounted at the same path in the image."""
+"""Docker's socket on a runner, mounted at the same path in the image; DOCKER_HOST is not read."""
+
+ATTEMPTS = 4
+"""The attempts at a request to the registry, or at a build, before its failure is said (#2530)."""
+
+PAUSE = 20.0
+"""The seconds between two attempts, as curl waited between its own for the package of make."""
 
 # The variables of the environment the paths and the front they start read: the settings of the
 # platform and of the harness, those of Node and of Next, and two of the run itself. Never PATH,
-# HOME or the variables of Playwright, which are the image's.
-PASSED = re.compile(r"(?:WATERFALL|E2E|NODE|NEXT)_[A-Z0-9_]+|CI|TZ")
+# HOME or the variables of Playwright, which are the image's, nor NODE_OPTIONS or NODE_PATH, which
+# would load in the image what the runner's Node was told to.
+PASSED = re.compile(r"(?!NODE_(?:OPTIONS|PATH)$)(?:WATERFALL|E2E|NODE|NEXT)_[A-Z0-9_]+|CI|TZ")
 # What the registry answers for a tag it does not hold.
 UNKNOWN_TAG = re.compile(r"not found|manifest unknown|name unknown", re.IGNORECASE)
 # What it answers for a package it does not hold yet, the first time, as for one it refuses to show:
-# a refusal. The image is then built, and its publication says which it was.
+# a refusal — `403 Forbidden`, or `requested access to the resource is denied`. The image is then
+# built, and its publication says which it was.
 REFUSED = re.compile(r"403 Forbidden|denied", re.IGNORECASE)
 # The digest of the index or of the manifest, as `docker buildx imagetools inspect` says it.
 DIGEST = re.compile(r"^Digest:\s+(sha256:[0-9a-f]{64})\s*$", re.MULTILINE)
@@ -73,13 +88,13 @@ class ImageError(Exception):
 
 def tag(context: Path = CONTEXT) -> str:
     """Return the tag of the image: the hash of every file of its directory, path and content."""
-    digest = hashlib.sha256()
+    hashed = hashlib.sha256()
     for path in sorted(p for p in context.rglob("*") if p.is_file()):
-        digest.update(path.relative_to(context).as_posix().encode())
-        digest.update(b"\0")
-        digest.update(path.read_bytes())
-        digest.update(b"\0")
-    return digest.hexdigest()[:TAG_LENGTH]
+        hashed.update(path.relative_to(context).as_posix().encode())
+        hashed.update(b"\0")
+        hashed.update(path.read_bytes())
+        hashed.update(b"\0")
+    return hashed.hexdigest()[:TAG_LENGTH]
 
 
 def reference(context: Path = CONTEXT) -> str:
@@ -87,28 +102,58 @@ def reference(context: Path = CONTEXT) -> str:
     return f"{NAME}:{tag(context)}"
 
 
-def held_digest(tagged: str, read: Callable[[list[str]], tuple[int, str]]) -> str | None:
+def held_digest(
+    tagged: str,
+    read: Callable[[list[str]], tuple[int, str]],
+    wait: Callable[[float], None] = time.sleep,
+) -> str | None:
     """Return the digest the registry holds for the tag, None if it does not hold it.
 
     A refusal is taken for a package not yet published: ghcr.io answers so for a name it does not
     hold, before the image is first published, and the publication that follows fails on a true
-    refusal. Any other answer — the registry unreachable — is an error that names the registry and
-    what it said: the paths would not find their image either.
+    refusal. Any other answer — the registry unreachable, a 5xx, a delay — is asked again,
+    ATTEMPTS times in all, then is an error that names the registry and what it said last: the paths
+    would not find their image either.
     """
-    code, answer = read(["docker", "buildx", "imagetools", "inspect", tagged])
-    said = (answer.strip().splitlines() or ["nothing"])[-1]
-    if code == 0:
-        if found := DIGEST.search(answer):
-            return found.group(1)
-        message = f"the registry held {tagged} but said no digest"
-        raise ImageError(message)
-    if UNKNOWN_TAG.search(answer):
-        return None
-    if REFUSED.search(answer):
-        print(f"wftools.e2eimage: {REGISTRY} refused to show {tagged}: {said}", file=sys.stderr)
-        return None
-    message = f"{REGISTRY} did not say whether it holds {tagged}: {said}"
+    said = "nothing"
+    for attempt in range(1, ATTEMPTS + 1):
+        code, answer = read(["docker", "buildx", "imagetools", "inspect", tagged])
+        said = (answer.strip().splitlines() or ["nothing"])[-1]
+        if code == 0:
+            if found := DIGEST.search(answer):
+                return found.group(1)
+            message = f"the registry held {tagged} but said no digest"
+            raise ImageError(message)
+        if UNKNOWN_TAG.search(answer):
+            return None
+        if REFUSED.search(answer):
+            print(f"wftools.e2eimage: {REGISTRY} refused to show {tagged}: {said}", file=sys.stderr)
+            return None
+        _again(attempt, f"{REGISTRY} did not answer for {tagged}: {said}", wait)
+    message = f"{REGISTRY} did not say whether it holds {tagged}, in {ATTEMPTS} attempts: {said}"
     raise ImageError(message)
+
+
+def _again(attempt: int, what: str, wait: Callable[[float], None]) -> None:
+    """Say a failed attempt, and wait before the next one; the last waits for nothing."""
+    if attempt < ATTEMPTS:
+        print(f"wftools.e2eimage: {what}; attempt {attempt + 1} in {PAUSE:g} s", file=sys.stderr)
+        wait(PAUSE)
+
+
+def _attempted(
+    command: list[str], run: Callable[[list[str]], int], wait: Callable[[float], None]
+) -> bool:
+    """Run a command of Docker until it succeeds, ATTEMPTS times at most; say whether it did.
+
+    A build tried again starts from the layers its cache kept: only the download that failed is done
+    again — an archive, the package of make, the Python of uv, pnpm from npm.
+    """
+    for attempt in range(1, ATTEMPTS + 1):
+        if run(command) == 0:
+            return True
+        _again(attempt, f"{' '.join(command[:2])} failed", wait)
+    return False
 
 
 def publish(
@@ -117,25 +162,30 @@ def publish(
     run: Callable[[list[str]], int],
     read: Callable[[list[str]], tuple[int, str]],
     context: Path = CONTEXT,
+    wait: Callable[[float], None] = time.sleep,
 ) -> str:
     """Find the image in the registry, or build it — and publish it with ``push``; return its name.
 
-    Held or published, the name is pinned by its digest; built without ``push``, it is its tag.
+    Held or published, the name is pinned by its digest; built without ``push``, it is its tag. Two
+    runs of the merge queue that both miss the tag may both build and publish it, and the second
+    replaces the first under the tag: the build is not reproducible to the byte, but each run reads
+    the image it published by its digest, and the content the tag names — the files of the
+    directory — is the same.
     """
     tagged = reference(context)
-    if (digest := held_digest(tagged, read)) is not None:
+    if (digest := held_digest(tagged, read, wait)) is not None:
         print(f"wftools.e2eimage: {tagged} is in the registry", file=sys.stderr)
         return f"{tagged}@{digest}"
     print(f"wftools.e2eimage: {tagged} is not in the registry: built here", file=sys.stderr)
-    if run(["docker", "build", "--tag", tagged, str(context)]) != 0:
-        message = f"the build of {tagged} failed"
+    if not _attempted(["docker", "build", "--tag", tagged, str(context)], run, wait):
+        message = f"the build of {tagged} failed, in {ATTEMPTS} attempts"
         raise ImageError(message)
     if not push:
         return tagged
-    if run(["docker", "push", tagged]) != 0:
-        message = f"the publication of {tagged} to {REGISTRY} failed"
+    if not _attempted(["docker", "push", tagged], run, wait):
+        message = f"the publication of {tagged} to {REGISTRY} failed, in {ATTEMPTS} attempts"
         raise ImageError(message)
-    if (digest := held_digest(tagged, read)) is None:
+    if (digest := held_digest(tagged, read, wait)) is None:
         message = f"{REGISTRY} does not hold {tagged}, just published"
         raise ImageError(message)
     return f"{tagged}@{digest}"
@@ -197,14 +247,27 @@ def _play(command: list[str]) -> int:
     return subprocess.run(command, check=False).returncode
 
 
+@dataclass(frozen=True)
+class Docker:
+    """The commands of Docker the tool runs, and its wait between two attempts: a test's own."""
+
+    run: Callable[[list[str]], int] = _run
+    """Run a command, what it prints on the error stream; return its code."""
+    read: Callable[[list[str]], tuple[int, str]] = _read
+    """Run a command; return its code and what it printed."""
+    play: Callable[[list[str]], int] = _play
+    """Play a command, on the streams of the tool; return its code."""
+    wait: Callable[[float], None] = time.sleep
+    """Wait so many seconds."""
+
+
 def main(
     arguments: Sequence[str],
-    run: Callable[[list[str]], int] = _run,
-    read: Callable[[list[str]], tuple[int, str]] = _read,
-    play: Callable[[list[str]], int] = _play,
+    docker: Docker | None = None,
     environment: Mapping[str, str] = os.environ,
 ) -> int:
     """Publish the image, or play a command in it; say where it stopped on failure."""
+    docker = docker or Docker()
     parser = argparse.ArgumentParser(
         prog="wftools.e2eimage", description="The work image of the end-to-end paths."
     )
@@ -217,10 +280,11 @@ def main(
     options = parser.parse_args(arguments)
     try:
         if options.action == "publish":
-            print(f"image={publish(push=options.push, run=run, read=read)}")
+            found = publish(push=options.push, run=docker.run, read=docker.read, wait=docker.wait)
+            print(f"image={found}")
             return 0
         command = options.command[1:] if options.command[:1] == ["--"] else options.command
-        return play(run_command(options.image, command, Path.cwd(), environment))
+        return docker.play(run_command(options.image, command, Path.cwd(), environment))
     except ImageError as error:
         print(f"wftools.e2eimage: {error}", file=sys.stderr)
     except OSError as error:
