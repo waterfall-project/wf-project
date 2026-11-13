@@ -3,10 +3,13 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
+import { createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
+import { FilterChips } from "@/components/grid/filter-bar";
+import type { FilterChip } from "@/components/grid/filter-chips";
 import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
@@ -249,7 +252,7 @@ describe("the focus beside the chips lifted", () => {
     expect(toggle()).toHaveFocus();
   });
 
-  it("is moved by no later navigation once the lift is forgotten — another address shown that still holds the chip [défaut n° 20, #2916]", async () => {
+  it("is moved by no later navigation once the lift is forgotten — another address shown that still holds the chip [WF-IHM-0130-A, défaut n° 20, #2916]", async () => {
     page.search = "origins=local&is_active=true";
     const { rerender } = render(list());
     await userEvent.click(cross("Origine : Créé dans Waterfall"));
@@ -260,6 +263,31 @@ describe("the focus beside the chips lifted", () => {
     // Later, the chip goes by another way — the history —: the focus stays where it was.
     page.search = "is_active=true";
     rerender(list());
+    expect(document.body).toHaveFocus();
+  });
+
+  it("forgets the lift once the address asked arrives with the chip still in it, moved by no later removal [WF-IHM-0130-A, défaut n° 20, #2916]", async () => {
+    const chip = { key: "states", name: "État", value: "Actifs", params: ["states"] };
+    const opener = createRef<HTMLButtonElement>();
+    const bar = (chips: FilterChip[]) => (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <PendingAddress>
+          <button ref={opener} type="button">
+            Filtres
+          </button>
+          <FilterChips chips={chips} page={undefined} every={[]} toggle={opener} />
+        </PendingAddress>
+      </NextIntlClientProvider>
+    );
+    page.search = "states=active";
+    const { rerender } = render(bar([chip]));
+    await userEvent.click(screen.getByRole("button", { name: "Retirer le filtre État : Actifs" }));
+    // The address asked arrives (it is in the streak) and the chip stays in it.
+    page.search = String(lastAddress()).split("?")[1] ?? "";
+    rerender(bar([chip]));
+    (document.activeElement as HTMLElement | null)?.blur();
+    // Later the chip goes by another way, at the same address: the focus stays where it was.
+    rerender(bar([]));
     expect(document.body).toHaveFocus();
   });
 

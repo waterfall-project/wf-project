@@ -201,7 +201,9 @@ export function FilterChips({
     if (waiting.gone.some((key) => chips.some((c) => c.key === key))) {
       // Another address than the one asked from, and none of the navigation asked: it will not
       // arrive, and nothing is left to give the focus for.
-      if (shown !== waiting.from && !waiting.asked.streak.has(shown)) {
+      // The address asked arrives and the chip stays in it (a key rewritten by `liftedInstead`):
+      // nothing is left to wait for either, and a later removal is none of this lift's.
+      if (shown !== waiting.from) {
         lifted.current = undefined;
       }
       return;
