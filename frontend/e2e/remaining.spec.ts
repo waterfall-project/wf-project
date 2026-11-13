@@ -542,10 +542,11 @@ const EXPENSE = "Sous-traitance";
 
 /**
  * What the screens say of the reference of a project in progress: its row of the history of the
- * revisions, and the reference budget and the planned value of its indicators, read on the
- * revision in progress.
+ * revisions, and the revision it designates. The reference budget and the planned value are not
+ * read: the service does not serve `getProjectIndicators` yet (EP-10), and the fake back answers
+ * the same figures whatever is written.
  */
-async function referenceOf(page: Page, seeded: Seeded, revision: string) {
+async function referenceOf(page: Page, seeded: Seeded) {
   await openHydrated(page, `${seeded.own.path}/revisions`);
   const history = page.getByRole("table", { name: "Historique des révisions" });
   // Case-sensitive: the header « Année de référence » is not the row of the reference.
@@ -554,24 +555,7 @@ async function referenceOf(page: Page, seeded: Seeded, revision: string) {
   const designated = await row.innerText();
   const href = (await row.getByRole("link").first().getAttribute("href")) ?? "";
   const reference = new URL(href, "http://localhost").searchParams.get("revision_id") ?? "";
-  await openHydrated(page, `${revision}/indicators`);
-  const figure = async (term: string) => {
-    const definition = page
-      .getByRole("term")
-      .filter({ hasText: new RegExp(`^${term}$`) })
-      .first()
-      .locator("..")
-      .getByRole("definition")
-      .first();
-    await expect(definition).toHaveText(/\d/, { timeout: WORKING });
-    return definition.innerText();
-  };
-  return {
-    reference,
-    designated,
-    budget: await figure("Budget de référence"),
-    planned: await figure("Valeur planifiée"),
-  };
+  return { reference, designated };
 }
 
 /**
@@ -589,6 +573,9 @@ async function openOwnRemaining(
 ) {
   const seeded = await seedPlanning(page, browser, calls, manager, name);
   await bringInProgress(page, calls, seeded);
+  // The reference as the project in progress has it, read before the grid is opened (the read
+  // leaves the page).
+  const reference = await referenceOf(page, seeded);
   await openRevision(page, seeded.own);
   const open = new URL(page.url()).searchParams.get("revision_id") ?? "";
   const revision = `${seeded.own.path}/revisions/${open}`;
@@ -603,7 +590,7 @@ async function openOwnRemaining(
   await expect(cell).toBeVisible({ timeout: WORKING });
   await cell.click();
   await expect(cell).toBeFocused();
-  return { seeded, revision, grid, cell };
+  return { seeded, reference, revision, grid, cell };
 }
 
 test("adds a task from the remaining to commit of a project in progress the run creates: it appears in the planning of the revision in progress @shared [WF-RAE-0040-A]", async ({
@@ -618,15 +605,13 @@ test("adds a task from the remaining to commit of a project in progress the run 
   test.slow();
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   try {
-    const { seeded, revision, grid, cell } = await openOwnRemaining(
+    const { seeded, reference, revision, grid, cell } = await openOwnRemaining(
       page,
       browser,
       calls,
       manager,
       "Reste ajouté",
     );
-    // The reference and its figures before the addition: it moves neither (WF-RAE-0040-A, WF-RAE-0050-A).
-    const before = await referenceOf(page, seeded, revision);
     await page.keyboard.press("Insert");
     const dialog = page.getByRole("dialog", { name: "Insérer au-dessous" });
     await dialog.getByRole("textbox", { name: "Libellé" }).fill("Reprise des borniers");
@@ -647,10 +632,9 @@ test("adds a task from the remaining to commit of a project in progress the run 
         .getByRole("treegrid", { name: "Grille de planning" })
         .getByRole("row", { name: /Reprise des borniers/ }),
     ).toBeVisible({ timeout: WORKING });
-    // ... while the reference revision is the same, without the task, and its budget and its
-    // planned value are those read before.
-    expect(await referenceOf(page, seeded, revision)).toEqual(before);
-    await openHydrated(page, `${seeded.own.path}/revisions/${before.reference}/planning`);
+    // ... while the reference is the same revision, without the task.
+    expect(await referenceOf(page, seeded)).toEqual(reference);
+    await openHydrated(page, `${seeded.own.path}/revisions/${reference.reference}/planning`);
     const referenced = page.getByRole("treegrid", { name: "Grille de planning" });
     await expect(referenced.getByRole("row", { name: /Mise en service/ })).toBeVisible({
       timeout: WORKING,
