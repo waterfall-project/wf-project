@@ -15,7 +15,16 @@
  * their own cells — empty in the witness, or a rate they write the same each time — and their own
  * codes, for the installation to be played again. Every path that plays this screen alone is tagged
  * `@shared`; the one that plays the screens of the resources, the risks and the indicators too is
- * not, those being served later (US-0850).
+ * not, those being served later (US-0850). In service the first path writes the rate of 2014 of
+ * MO-003, a cell of its own: the first rate of a year refused with a conflict when another writer
+ * enters it at the same time, the 2015 cell is written by the path of the category alone and the
+ * 2013 cell by `service/reference-manager.spec.ts`, which no project orders (US-1890).
+ *
+ * The known failure of the Escape closing the modification of the nature « Main-d'œuvre »
+ * (`tools/queue-known.toml`) is not tied to that rate. By reading alone, what its description of
+ * conditions lists depends on the roles and the categories the installation holds then, which
+ * `reference-resources.spec.ts` (now `@serial`) and `service/reference-manager.spec.ts` write;
+ * that cause is retained, not proven.
  */
 import { expect, type Locator } from "@playwright/test";
 
@@ -35,6 +44,12 @@ const ENTERED = inService ? "85,00 €" : "85,48 €";
 const ROWS_READ = inService ? 50 : 150;
 /** The rows of the grid then: those read, its header and its totals row. */
 const ROW_COUNT = String(ROWS_READ + 2);
+/**
+ * The cell the first path writes in the row of MO-003, counted from its code: the code, the label,
+ * the state, then 2012 to 2015. The fake back answers the rate of 2015 (index 6) whatever the cell;
+ * the service takes 2014 (index 5), which no other path writes.
+ */
+const RATE_CELL = inService ? 5 : 6;
 /** The address that reads the grid of the rates by code, as the fake back serves it: the service has no other order. */
 const BY_CODE = "/reference/costs?sort_by=code&sort_order=asc";
 
@@ -61,11 +76,10 @@ test("reads the settings of the costs outside any project with no mock-up notice
   // No project is opened here, nothing witnesses the hydration: the cell is clicked and the cursor
   // moved again until React answers them, each try starting from the code of the category.
   const mechanical = rowAt(grid, 3);
-  // The code, the label, the state, then 2012 to 2015.
-  const rate = mechanical.getByRole("gridcell").nth(6);
+  const rate = mechanical.getByRole("gridcell").nth(RATE_CELL);
   await expect(async () => {
     await mechanical.getByRole("gridcell", { name: "MO-003" }).click();
-    for (let step = 0; step < 6; step += 1) {
+    for (let step = 0; step < RATE_CELL; step += 1) {
       await page.keyboard.press("ArrowRight");
     }
     await expect(rate).toBeFocused({ timeout: 1_000 });
@@ -81,7 +95,7 @@ test("reads the settings of the costs outside any project with no mock-up notice
   await expect(rate).not.toHaveAttribute("aria-busy", "true");
   await expect(rate).toHaveText(ENTERED);
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
-  await expect(rowAt(grid, 4).getByRole("gridcell").nth(6)).toBeFocused();
+  await expect(rowAt(grid, 4).getByRole("gridcell").nth(RATE_CELL)).toBeFocused();
 
   // Beside it, the natures and the categories of cost, on the dense grid.
   await expect(page.getByRole("grid", { name: "Natures de coût" })).toBeVisible();
@@ -101,7 +115,7 @@ test("reads the settings of the costs outside any project with no mock-up notice
     await expect(
       rowAt(page.getByRole("grid", { name: "Grille des taux horaires" }), 3)
         .getByRole("gridcell")
-        .nth(6),
+        .nth(RATE_CELL),
     ).toHaveText(ENTERED, { timeout: WORKING });
   }
 });
@@ -335,7 +349,7 @@ test("creates a category and enters a rate beside it, the page read anew droppin
 
   // A rate entered on the grid, in a cell the witness leaves empty (MO-003 holds none for 2015, the
   // cell of the example of `setHourlyRate`, which is where the fake back answers), so that no rate
-  // of the witness is overwritten; the first path enters the same rate in it. Answered by the
+  // of the witness is overwritten; in the fake back the first path enters the same rate in it. Answered by the
   // service — by that example at the fake back. The page the creation read anew may arrive before the rate leaves, between its leaving and its answer, or
   // after it: the same address read anew drops neither the cell pending nor its answer (défaut
   // n° 22 de `typescript.md`), and the path does not depend on the order.
