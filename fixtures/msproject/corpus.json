@@ -29,13 +29,14 @@
         "lag_ew",
         "lag_emo",
         "lag_percent",
+        "lag_negative_w",
         "lag_elapsed_over_weekend"
       ],
       "project_start": "2009-11-16",
       "hours_per_day": 8,
       "hours_per_week": 40,
       "days_per_month": 20,
-      "notes": "une chaîne FD dont chaque liaison porte une unité : 30 min, 4 h, 1 j, 1 sem, 1 m, 90 emin (qui tombe dans la pause), 2 eh, 2 ej après une fin vendredi soir, 2 esem, 1 em ; T12 décalée de 10 % de T11, T13 avec un décalage négatif de −3 j"
+      "notes": "une chaîne FD dont chaque liaison porte une unité : 30 min, 4 h, 1 j, 1 sem, 1 m, 90 emin (qui tombe dans la pause), 2 eh, 2 ej après une fin vendredi soir, 2 esem, 1 em ; T12 décalée de 10 % de T11, T13 avec un décalage négatif de −3 j, T14 avec un décalage négatif de −1 sem"
     },
     {
       "file": "03-durations-every-unit.xml",
