@@ -4362,8 +4362,8 @@ the epic that lifts it; that epic removes the guard and its entry:
   `computed.spec.ts`, `keyboard.spec.ts`), which no epic reverses; the paths of these files that
   read the witness play on both sides. The paths of the remaining to commit of `structure.spec.ts`
   that write to PRJ-001 (the addition of a task, the insertion of a named line with a category and
-  a quantity) stay on the fake back and **have no twin** against the service: `remaining.spec.ts`
-  replays neither on a project of the run (#2909: port them there, a decision to take). The one
+  a quantity) stay on the fake back; their `@shared` twins in `remaining.spec.ts` replay them against the
+  service on a project of the run taken In progress (`bringInProgress`, US-1950, #2909). The one
   that reads — the filter by item — plays on both sides (EP-09).
 - `planning.spec.ts` — the read of the planning start date and of its headers « Démarrée le » and
   « Terminée le » plays on both sides; only its write (`updateCostStructure`) stays on the fake
@@ -4383,9 +4383,9 @@ the epic that lifts it; that epic removes the guard and its entry:
   of a risk and of the differential (`paste.spec.ts`, `entry.spec.ts`, guarded by `inService` or
   untagged until **EP-08**). The untagged paths of the remaining to commit of
   PRJ-001 do not replay, the account of the run being no contributor of PRJ-001 (#2193), and their
-  twin is not always the one believed: the sort after a write in `grid.spec.ts` and the addition of
-  a task or of a line in `structure.spec.ts` have no twin against the service (#2909 for the last
-  two); the path of `undo.spec.ts` writes nothing, it asserts the history unavailable, which the
+  twin is not always the one believed: the sort after a write in `grid.spec.ts` has no twin against the service;
+  the addition of a task or of a line in `structure.spec.ts` has its own in `remaining.spec.ts`
+  (US-1950); the path of `undo.spec.ts` writes nothing, it asserts the history unavailable, which the
   fake back says, and the service is covered by the three `@shared` undo paths of the same file
   (planning, line of the estimate, deleted task). The passage of a project to In progress
   plays: the estimate of the main structure read only against PRJ-001 (`structure.spec.ts`), and the
@@ -5320,8 +5320,7 @@ the guard and the entry above:
   contributor (#2193): their twins play the service on a project of the run (`FAKE_BACK_ONLY`,
   `FAKE_BACK_KEEPS_NOTHING`, `NOT_REPLAYED_IN_SERVICE`, `WITNESS_KEPT`), the untagged paths of the
   remaining to commit (`undo.spec.ts`: memory background without history, the service being covered by
-  its `@shared` undo paths; `grid.spec.ts`; `structure.spec.ts`: the addition of a task and of a line,
-  with no twin, #2909) and the imports screen of PRJ-001 (`exchanges.spec.ts`), which only reads that
+  its `@shared` undo paths; `grid.spec.ts`) and the imports screen of PRJ-001 (`exchanges.spec.ts`), which only reads that
   screen: the `@shared` path exporting and re-importing the remaining to commit covers another
   gesture, on a project of the run.
 

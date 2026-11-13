@@ -4402,9 +4402,9 @@ chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son ent
   `structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`), que nul EPIC ne renverse ; les
   parcours de ces fichiers qui lisent le témoin se jouent des deux côtés. Les parcours du reste à
   engager de `structure.spec.ts` qui écrivent sur PRJ-001 (l'ajout d'une tâche, l'insertion d'une
-  ligne nommée, avec catégorie et quantité) restent sur le faux back et **n'ont aucun jumeau**
-  contre le service : `remaining.spec.ts` ne rejoue ni l'un ni l'autre sur un projet de la course
-  (#2909 : les y porter, décision à trancher). Celui qui lit — le filtre par poste — se joue des
+  ligne nommée, avec catégorie et quantité) restent sur le faux back ; leurs jumeaux
+  `@shared` de `remaining.spec.ts` les rejouent contre le service sur un projet de la course porté
+  En cours (`bringInProgress`, US-1950, #2909). Celui qui lit — le filtre par poste — se joue des
   deux côtés (EP-09).
 - `planning.spec.ts` — la lecture de la date de début de planning, de ses en-têtes « Démarrée le » et
   « Terminée le » se joue des deux côtés ; seule son écriture (`updateCostStructure`) reste sur le
@@ -4425,9 +4425,9 @@ chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son ent
   par `inService` ou sans étiquette jusqu'à **EP-08**). Les parcours sans étiquette du reste à
   engager de PRJ-001 ne se rejouent pas, le compte de la course n'étant pas contributeur de PRJ-001
   (#2193), et leur jumeau n'est pas toujours celui qu'on croit : le tri après une écriture de
-  `grid.spec.ts` et l'ajout d'une tâche ou d'une ligne de `structure.spec.ts` n'ont pas de jumeau
-  contre le service (#2909 pour ces deux derniers) ; le parcours d'`undo.spec.ts` n'écrit rien, il
-  affirme l'historique indisponible, ce que dit le faux back, et le service est couvert par les
+  `grid.spec.ts` n'a pas de jumeau contre le service ; l'ajout d'une tâche ou d'une ligne de
+  `structure.spec.ts` a le sien dans `remaining.spec.ts` (US-1950) ; le parcours d'`undo.spec.ts`
+  n'écrit rien, il affirme l'historique indisponible, ce que dit le faux back, et le service est couvert par les
   trois parcours d'annulation `@shared` du même fichier (planning, ligne du devis, tâche
   supprimée). Le passage d'un projet En cours
   se joue : le devis de la structure principale en lecture seule contre PRJ-001
@@ -4518,8 +4518,7 @@ la garde et l'entrée ci-dessus :
   pas contributeur (#2193) : leurs jumeaux jouent le service sur un projet de la course
   (`FAKE_BACK_ONLY`, `FAKE_BACK_KEEPS_NOTHING`, `NOT_REPLAYED_IN_SERVICE`, `WITNESS_KEPT`), les
   parcours sans étiquette du reste à engager (`undo.spec.ts` : fond mémoire sans historique, le service
-  étant couvert par ses parcours d'annulation `@shared` ; `grid.spec.ts` ; `structure.spec.ts` : l'ajout
-  d'une tâche et d'une ligne, sans jumeau, #2909) et l'écran des imports de PRJ-001
+  étant couvert par ses parcours d'annulation `@shared` ; `grid.spec.ts`) et l'écran des imports de PRJ-001
   (`exchanges.spec.ts`), qui ne fait que lire cet écran : le parcours `@shared` d'export et de
   réimport du reste à engager couvre un autre geste, sur un projet de la course.
 

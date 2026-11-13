@@ -254,7 +254,8 @@ test("adds a task from the remaining to commit of a project in progress, below a
   test.slow();
   // Une tâche ajoutée depuis la grille de reste à engager : the structure lists `edit_remaining`
   // available, and the gesture is the planning's; that it appears in the planning, the reference
-  // unchanged, is the service's (EP-09, served); this path has no twin against it yet (#2909).
+  // unchanged, is the service's (EP-09, served); its twin against the service, on a project the run
+  // creates, is in `remaining.spec.ts` (#2909).
   const { cell } = await focusRow(
     page,
     "remaining",
@@ -304,8 +305,8 @@ test("inserts a line in the remaining to commit of a project in progress, named,
   // Sur un projet En cours, la grille de reste à engager propose la création d'une ligne et d'une
   // tâche : the structure lists `edit_remaining` available. The categories come from the reference.
   // Not played against the service: it writes the remaining of PRJ-001, whose project manager the
-  // account of the run is not (#2193); `remaining.spec.ts` plays the writes on a project the run
-  // creates.
+  // account of the run is not (#2193); its twin in `remaining.spec.ts` plays the insertion on a
+  // project the run creates (#2909).
   const { cell } = await focusRow(
     page,
     "remaining",
