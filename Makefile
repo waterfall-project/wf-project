@@ -617,9 +617,13 @@ E2E_ADMIN_EMAIL ?= administrateur@waterfall.test
 # (WATERFALL_PROCESSORS), at least 1, at most 40 (the fronts of a slot), instead of the half of the
 # processors of the workstation that playwright.config.ts takes, 16 of 32, where 18 to 23 paths
 # failed to navigate. Measured on 8 processors (US-1930): 8 workers and more failed to navigate in
-# every pass, 6 in none. An E2E_WORKERS given, in the environment or on the command line, wins.
-E2E_SERVICE_WORKERS = $(shell workers=$$(($(WATERFALL_PROCESSORS) * 3 / 4)); echo $$((workers < 1 ? 1 : (workers > 40 ? 40 : workers))))
-e2e-service: export E2E_WORKERS ?= $(E2E_SERVICE_WORKERS)
+# two passes, no failure to navigate at 6. An E2E_WORKERS given, in the environment or on the command
+# line, wins (an empty one does not count); a WATERFALL_PROCESSORS that is not a positive integer is
+# refused, where the default is read only.
+E2E_WORKERS_GIVEN := $(E2E_WORKERS)
+E2E_SERVICE_PROCESSORS = $(if $(shell printf '%s' '$(WATERFALL_PROCESSORS)' | grep -Eq '^[1-9][0-9]*$$' && echo ok),$(WATERFALL_PROCESSORS),$(error WATERFALL_PROCESSORS must be a positive integer, got '$(WATERFALL_PROCESSORS)'))
+E2E_SERVICE_WORKERS = $(shell workers=$$(($(E2E_SERVICE_PROCESSORS) * 3 / 4)); echo $$((workers < 1 ? 1 : (workers > 40 ? 40 : workers))))
+e2e-service: export E2E_WORKERS = $(or $(E2E_WORKERS_GIVEN),$(E2E_SERVICE_WORKERS))
 e2e-service: export WATERFALL_FRONT_ADDRESS = http://127.0.0.1:$(E2E_FRONT_PORT)
 e2e-service: export WATERFALL_FRONT_BACKCHANNEL = http://host.docker.internal:$(E2E_FRONT_PORT)
 e2e-service: export E2E_PART = service

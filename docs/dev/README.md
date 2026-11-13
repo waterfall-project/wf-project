@@ -3925,8 +3925,9 @@ workstation, where paths fail by timeout (#736). `make e2e-service` has a defaul
 (#2890): three quarters of `WATERFALL_PROCESSORS`, the share of processors of the slot, at least 1 and
 at most 40 — 6 on 8 processors —, and not half the processors of the workstation, 16 of 32, where
 18 to 23 paths failed to navigate (`toHaveURL`); measured at 8, 10 and 12 workers on 8 processors,
-four slots taken, they still failed to navigate, at 6 never. An `E2E_WORKERS` given, in the
-environment or on the command line, prevails. With `WATERFALL_API_ADDRESS`, the harness plays
+four slots taken, they still failed to navigate, at 6 no failure to navigate over two passes.
+`WORKERS=<n>` holds only for `make e2e`; `make e2e-service` takes `E2E_WORKERS=<n>`, in the
+environment or on the command line, which prevails (empty, it is ignored). With `WATERFALL_API_ADDRESS`, the harness plays
 against the API it names and starts no fake back.
 
 **The paths are played against the front built for production** (US-0590), the one users open: one
