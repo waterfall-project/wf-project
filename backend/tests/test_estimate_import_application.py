@@ -704,3 +704,20 @@ def test_the_write_of_the_lines_refuses_an_unknown_task_and_an_unknown_line_writ
         written_directly(stage, tree, lost)
     assert (missing.value.status, missing.value.code) == (404, "NOT_FOUND")
     assert (nodes(stage.database), tree.items()) == before
+
+
+@pytest.mark.requirement("WF-DEV-0020-A")
+def test_a_labour_product_beyond_the_base_amount_fails_the_application_writing_nothing(
+    api: ContractClient, stage: Scene, worker: Worker, tree: Tree, held: dict[str, Any]
+) -> None:
+    # #3035: 10^6 x 10^6 hours x 65.00, each cell within its column: the analysis does not price,
+    # the application does and refuses the product beyond base_amount; the import fails, nothing
+    # of the file is written.
+    rows = as_exported(held, {"Quantité": 1000000, "Heures": 1000000})
+    import_id = analysed_import(api, stage, worker, workbook(rows, held["tasks"]))
+    assert read(api, stage, import_id)["report"]["rejected"] == []
+    before = tree.items()
+    assert apply(api, stage, import_id).status_code == 202
+    run(worker)
+    assert stored(stage.database, import_id).status == "failed"
+    assert tree.items() == before

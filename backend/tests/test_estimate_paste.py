@@ -635,3 +635,20 @@ def test_the_plan_of_a_block_that_creates_lines_is_the_example_of_the_contract(
     }
     UUID(plan["paste_id"])
     assert uuid4() != UUID(plan["paste_id"])
+
+
+@pytest.mark.requirement("WF-IHM-0050-A")
+def test_a_block_whose_labour_product_crosses_the_base_amount_is_refused_at_the_quantity(
+    tree: Tree, lines: Lines, costs: Costing, who: Person
+) -> None:
+    # #3035: 10^6 x 10^6 hours x 65.00, each cell within its column, the product beyond
+    # base_amount: refused at the preview, by the row and the column of the quantity; confirmed,
+    # nothing is written.
+    task = tree.made("Étude", who=who)
+    target = lines.made(task, who, **labour(costs))["nodes"][0]
+    before = estimate_lines(tree)
+    plan = planned(tree, target, "quantity", [["1000000", "1000000"]], who)
+    assert (plan["accepted"], reasons(plan)) == (0, [(0, "quantity", "VALIDATION_FAILED")])
+    body = applied(tree, plan, who)
+    assert (body["nodes"], reasons(body)) == ([], reasons(plan))
+    assert estimate_lines(tree) == before

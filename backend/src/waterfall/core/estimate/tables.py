@@ -143,7 +143,7 @@ class EstimateLine(Base):
     base_amount: Mapped[Decimal] = mapped_column(Numeric(AMOUNT_PRECISION, AMOUNT_SCALE))
     # Fixed by the lineage in the reference revision: null without one (WF-REV-0070).
     budgeted_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
-    reestimated_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    reestimated_amount: Mapped[Decimal] = mapped_column(Numeric(AMOUNT_PRECISION, AMOUNT_SCALE))
     consumption_year: Mapped[int] = mapped_column(SmallInteger)
     # The remaining to commit of the line in the last revision marked in the state In progress,
     # copied at the opening of the revision (EP-09); null before the first review, and for a line

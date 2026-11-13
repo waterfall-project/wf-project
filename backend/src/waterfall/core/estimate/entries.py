@@ -75,6 +75,23 @@ HOURS_DIGITS = HOURS_PRECISION - HOURS_SCALE
 AMOUNT_DIGITS = AMOUNT_PRECISION - AMOUNT_SCALE
 
 
+CREATED_LINE = "/estimate_line"
+
+
+class AmountOverflowError(UnprocessableError):
+    """The amounts of a line, priced, cross the digits of their columns (#3035, #3039).
+
+    Raised without a field by a price again that no line of the request names; the writes of a line
+    name its quantity (``refuse_overflow``), and a change that reprices written lines (the rate of a
+    category, the inflation) the field that carries it.
+    """
+
+
+def overflowing(*amounts: Decimal) -> bool:
+    """Tell whether an amount crosses the digits ``base_amount`` and ``reestimated_amount`` keep."""
+    return any(exceeds_precision(each, AMOUNT_DIGITS) for each in amounts)
+
+
 @dataclass(frozen=True, slots=True)
 class LineEntry:
     """What a write sends of a line (``EstimateLineWrite``, ``EstimateLineUpdate``).
@@ -264,7 +281,7 @@ def _product_kept(faults: _Faults, quantity: Decimal | None, disbursement: Decim
     """
     if quantity is None or disbursement is None or faults.has("quantity", "unit_disbursement"):
         return
-    if exceeds_precision(disbursement_base_amount(quantity, disbursement), AMOUNT_DIGITS):
+    if overflowing(disbursement_base_amount(quantity, disbursement)):
         faults.add("quantity", VALIDATION_FAILED)
 
 
@@ -333,7 +350,7 @@ def judged_line(
     of an import, which cannot lock what it reads.
     """
     project_id, bearer = held
-    faults = _Faults("/estimate_line" if current is None else "")
+    faults = _Faults(CREATED_LINE if current is None else "")
     role_id, role, category_id, category = _kind(session, faults, entry, current)
     labour = role_id is not None
     hours = _figure(faults, entry, "hours", (None if current is None else current.hours, labour))
