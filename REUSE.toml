@@ -33,6 +33,7 @@ path = [
     "docs/spec/exemples/*.xlsx",
     "tools/src/wftools/py.typed",
     "tools/tests/queue/*.log",
+    "tools/e2e-durations.json",
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 waterfall-project"
