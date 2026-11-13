@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { type Download, expect, type Locator, test } from "@playwright/test";
 
+import { menuButton, pick } from "./check-menu";
 import { compile } from "./compile";
 import { sortUntilAddress, WORKING } from "./hydration";
 import { withinBox } from "./scroll";
@@ -76,16 +77,12 @@ test("reads the portfolio of three hundred projects: its value, its perimeter, t
     grid,
     `${PROJECTS}?sort_by=cost_index&sort_order=asc`,
   );
-  const states = page.getByRole("group", { name: "États retenus" });
-  await states.getByRole("button", { name: "Terminé" }).click();
+  await pick(page, "États retenus", "Terminé");
   await expect(page).toHaveURL(
     `${PROJECTS}?sort_by=cost_index&sort_order=asc&states=in_progress%2Cpricing%2Ccompleted`,
     { timeout: WORKING },
   );
-  await expect(states.getByRole("button", { name: "Terminé" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(menuButton(page, "États retenus")).toContainText("3 sélectionnés");
 });
 
 test("paints the same zone of an index the same colour in the list of the projects, in the indicators of the project and in the performance of the portfolio [WF-IHM-0070-A]", async ({

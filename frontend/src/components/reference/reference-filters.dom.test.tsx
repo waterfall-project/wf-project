@@ -204,6 +204,7 @@ describe("the filters of a list of the reference data", () => {
         />,
       ),
     );
+    await userEvent.click(screen.getByRole("button", { name: /^Filtres/ }));
     await userEvent.type(screen.getByRole("searchbox", { name: "Code du rôle" }), "AUT{Enter}");
     expect(lastAddress()).toBe("/reference/resources?role_code=AUT");
   });

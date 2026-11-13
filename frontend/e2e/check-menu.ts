@@ -7,6 +7,8 @@
  */
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import { setExpanded } from "./hydration";
+
 /** The button of the menu of a label, not the header of a column of the same name. */
 export function menuButton(page: Page, label: string): Locator {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -39,6 +41,15 @@ export async function pick(
   const list = await openMenu(page, label);
   await list.getByRole(role, { name: value, exact: true }).click();
   await closeMenu(page);
+}
+
+/**
+ * Open the panel of the filters of a table, closed until the bar opens it (#2916): pressed until the
+ * button says it is open, as the page may not be hydrated yet. A screen of several tables gives the
+ * region of the one it means (`within`).
+ */
+export async function openFilters(page: Page, within?: Locator): Promise<void> {
+  await setExpanded((within ?? page).getByRole("button", { name: /^Filtres( \(|$)/ }), true);
 }
 
 /** Open the section of the filters of audit of a panel, folded until opened. */

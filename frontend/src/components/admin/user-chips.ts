@@ -8,14 +8,12 @@
  */
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 
 import { useAccountNaming } from "@/components/account/account-name";
+import { useChipKit } from "@/components/grid/chip-kit";
 import type { FilterChip } from "@/components/grid/filter-chips";
-import { fieldOf, type Period } from "@/components/grid/period";
 import type { NodeChoice } from "@/components/reference/reference-filters";
-import { useHydrated } from "@/components/use-hydrated";
-import { formatPlanningDate, isPlanningDate } from "@/i18n/format";
 
 import type { RoleChoice } from "./admin-grids";
 import { AUTHORS, type AuditFilters, type AuthorChoice, PERIODS, WRITTEN } from "./audit-address";
@@ -27,9 +25,6 @@ import {
   ORIGINS,
   type UserOrigin,
 } from "./user-address";
-
-/** What a day of a period is told as before the browser knows its time zone. */
-export const PENDING_DAY = "…";
 
 /** What the address filters the accounts on, as the page read it. */
 export interface UserFilters {
@@ -49,10 +44,8 @@ export function useUserChips(
   roles: readonly RoleChoice[],
 ): FilterChip[] {
   const t = useTranslations();
-  const chips: FilterChip[] = [];
-  const add = (key: string, name: string, value: string, params: readonly string[]) => {
-    chips.push({ key, name, value, params });
-  };
+  const kit = useChipKit();
+  const add = kit.add;
   if (filters.origins.length > 0) {
     add(
       ORIGINS,
@@ -88,50 +81,25 @@ export function useUserChips(
       [IS_ACTIVE, INCLUDE_INACTIVE],
     );
   }
-  return [...chips, ...useAuditChips(filters.audit, filters.authors)];
+  return [...kit.chips, ...useAccountAuditChips(filters.audit, filters.authors)];
 }
 
 /** The chips of the periods and the authors of the audit columns that are on. */
-function useAuditChips(audit: AuditFilters, authors: readonly AuthorChoice[]): FilterChip[] {
+export function useAccountAuditChips(
+  audit: AuditFilters,
+  authors: readonly AuthorChoice[],
+): FilterChip[] {
   const t = useTranslations();
-  const locale = useLocale();
   const naming = useAccountNaming();
-  const hydrated = useHydrated();
-  const chips: FilterChip[] = [];
-  const add = (key: string, name: string, value: string, params: readonly string[]) => {
-    chips.push({ key, name, value, params });
-  };
-  const day = (side: "from" | "to", bound: string) => {
-    // No day before the browser: the local day of an instant is not the server's, and the end of a
-    // period is excluded, the day it names being the next one.
-    if (!hydrated) {
-      return PENDING_DAY;
-    }
-    const local = fieldOf("day", side, bound);
-    return isPlanningDate(local) ? formatPlanningDate(local, locale) : local;
-  };
-  const told = (period: Period): string | undefined => {
-    if (period.from !== undefined && period.to !== undefined) {
-      return t("grid.filtering.between", {
-        from: day("from", period.from),
-        to: day("to", period.to),
-      });
-    }
-    if (period.from !== undefined) {
-      return t("grid.filtering.since", { from: day("from", period.from) });
-    }
-    return period.to === undefined
-      ? undefined
-      : t("grid.filtering.until", { to: day("to", period.to) });
-  };
+  const kit = useChipKit();
   for (const column of WRITTEN) {
-    const period = told(audit.periods[column]);
-    if (period !== undefined) {
-      add(`${column}-period`, t(`grid.columns.${column}At`), period, [
-        PERIODS[column].from,
-        PERIODS[column].to,
-      ]);
-    }
+    kit.period(
+      `${column}-period`,
+      t(`grid.columns.${column}At`),
+      "day",
+      audit.periods[column],
+      PERIODS[column],
+    );
     const { user, kind } = audit.authors[column];
     if (user !== undefined || kind !== undefined) {
       const offered = authors.find((author) => author.id === user);
@@ -146,11 +114,11 @@ function useAuditChips(audit: AuditFilters, authors: readonly AuthorChoice[]): F
         who =
           unoffered === undefined ? t("grid.filtering.authorUnknown") : naming.person(unoffered);
       }
-      add(`${column}-author`, t(`grid.columns.${column}By`), who, [
+      kit.add(`${column}-author`, t(`grid.columns.${column}By`), who, [
         AUTHORS[column].user,
         AUTHORS[column].kind,
       ]);
     }
   }
-  return chips;
+  return kit.chips;
 }

@@ -36,7 +36,7 @@
 
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useCallback, useId, useMemo, useState } from "react";
+import { type ReactNode, type SubmitEvent, useCallback, useId, useMemo, useState } from "react";
 
 import { setHourlyRate } from "@/api/actions/reference";
 import type { components } from "@/api/generated/schema";
@@ -63,6 +63,8 @@ import {
   type RateSort,
   rateSort,
 } from "./rate-columns";
+import type { RateFilters } from "./cost-lists";
+import { useRateChips } from "./reference-chips";
 import { rateWritten, type RateRow, withYears, type YearCell } from "./rate-cells";
 import { ActiveState } from "./section";
 
@@ -230,6 +232,10 @@ export interface RateGridProps {
   readonly editable: boolean;
   readonly query: GridQuery<RateSort>;
   readonly preferences: GridPreferences | undefined;
+  /** What the address filters the grid on, told as chips under the bar (#2916). */
+  readonly filters?: RateFilters | undefined;
+  /** The filters of the screen, which the bar folds into its panel; none, no panel. */
+  readonly panel?: ReactNode;
 }
 
 /** What the form of a year says of the last year asked: added, already there, or not a year. */
@@ -322,7 +328,15 @@ function AddYear({
 }
 
 /** Render the grid of the hourly rates, its totals row the currency they are expressed in. */
-export function RateGrid({ grid, currency, editable, query, preferences }: RateGridProps) {
+export function RateGrid({
+  grid,
+  currency,
+  editable,
+  query,
+  preferences,
+  filters,
+  panel,
+}: RateGridProps) {
   const t = useTranslations("reference.rates");
   const names = useTranslations("grid.names");
   // One count of the answers for the life of the grid, never taken back by a new configuration:
@@ -351,6 +365,7 @@ export function RateGrid({ grid, currency, editable, query, preferences }: RateG
       return next;
     });
   }, []);
+  const chips = useRateChips(filters, grid.years);
   const years = useMemo(() => gridYears(grid.years, added), [grid.years, added]);
   // Each row with the year of each of its cells, which a rate answered finds its cell by.
   const rows = useMemo(() => withYears(grid.rows, years), [grid.rows, years]);
@@ -382,6 +397,7 @@ export function RateGrid({ grid, currency, editable, query, preferences }: RateG
         totalsCaption={() => t("caption", { count: grid.meta.total, currency })}
         query={query}
         preferences={preferences}
+        filtering={panel === undefined ? undefined : { panel, chips }}
       />
       <ListPages
         list={{ page: OFFSET, size: LIMIT, reads: RATE_READS }}

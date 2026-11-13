@@ -15,7 +15,7 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridQuery } from "@/components/grid/query";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { menuSummary, pick } from "@/test/check-menu";
+import { menuSummary, openMenu, pick } from "@/test/check-menu";
 import { example, fakeClient } from "@/test/fixtures";
 
 import { AUDIT_LIST, type AuditFilters, readAuditFilters } from "./audit-address";
@@ -26,7 +26,7 @@ import {
   type AuditSort,
   NEWEST_FIRST,
 } from "./audit-columns";
-import { AuditFilterBar, type AuditFilterBarProps } from "./audit-filters";
+import { AuditFilterPanel, type AuditFilterPanelProps } from "./audit-filters";
 import { AuditGrid } from "./audit-grid";
 
 // The server of Next, as far as the screen needs it: the fake back, which keeps the settings of
@@ -61,17 +61,17 @@ function permissionsOf(name: string): readonly components["schemas"]["Permission
 const second = example("audit_events_page") as Journal;
 const NEWEST: GridQuery<AuditSort> = { sort: NEWEST_FIRST, search: undefined, size: undefined };
 const facets = example("audit_facets") as components["schemas"]["AuditFacets"];
-const AUTHORS: AuditFilterBarProps["users"] = facets.actors.map((actor) => ({
+const AUTHORS: AuditFilterPanelProps["users"] = facets.actors.map((actor) => ({
   id: actor.user_id,
   name: actor.display_name,
 }));
-const PROJECTS: AuditFilterBarProps["projects"] = facets.projects.map((project) => ({
+const PROJECTS: AuditFilterPanelProps["projects"] = facets.projects.map((project) => ({
   id: project.project_id,
   code: project.code,
   label: project.label,
 }));
 const MERGE = "01926f3a-7c00-7000-8000-000800000025";
-const NAMED: AuditFilterBarProps["named"] = {
+const NAMED: AuditFilterPanelProps["named"] = {
   user: undefined,
   project: undefined,
   object: undefined,
@@ -100,21 +100,14 @@ function journal({
   /** The example of the session, whose permissions say which screens the links lead to. */
   session?: string;
   filters?: AuditFilters;
-  named?: AuditFilterBarProps["named"];
-  users?: AuditFilterBarProps["users"];
-  projects?: AuditFilterBarProps["projects"];
-  refused?: AuditFilterBarProps["refused"];
+  named?: AuditFilterPanelProps["named"];
+  users?: AuditFilterPanelProps["users"];
+  projects?: AuditFilterPanelProps["projects"];
+  refused?: AuditFilterPanelProps["refused"];
 } = {}): ReactNode {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <PendingAddress>
-        <AuditFilterBar
-          filters={filters}
-          users={users}
-          projects={projects}
-          named={named}
-          refused={refused}
-        />
         <AuditGrid
           events={shown.items.map((event) =>
             event.project === null
@@ -129,8 +122,20 @@ function journal({
           )}
           page={shown.meta}
           query={query}
-          preferences={undefined}
+          // The panel of the filters, closed unless the account keeps it open: kept open here.
+          preferences={{ filters_open: true }}
           reach={auditReach(permissionsOf(session))}
+          filters={filters}
+          names={{ users, projects, named }}
+          panel={
+            <AuditFilterPanel
+              filters={filters}
+              users={users}
+              projects={projects}
+              named={named}
+              refused={refused}
+            />
+          }
         />
         <ListPages
           list={AUDIT_LIST}
@@ -710,21 +715,13 @@ describe("the filters of the journal", () => {
   it("filter by actions, checked in a menu in the order of the contract, back to the first page", async () => {
     page.search = "actions=backup&offset=50";
     render(journal());
-    const opener = screen.getByRole("button", { name: "Filtrer par action\u00a0: 1 action" });
-    await userEvent.click(opener);
-    const menu = screen.getByRole("menu");
-    expect(within(menu).getByRole("menuitemcheckbox", { name: "Sauvegarde" })).toHaveAttribute(
-      "aria-checked",
-      "true",
-    );
-    await userEvent.click(
-      within(menu).getByRole("menuitemcheckbox", { name: "Marquage d’une révision" }),
-    );
+    expect(menuSummary("Action")).toBe("Sauvegarde");
+    const list = await openMenu("Action");
+    expect(within(list).getByRole("checkbox", { name: "Sauvegarde" })).toBeChecked();
+    await userEvent.click(within(list).getByRole("checkbox", { name: "Marquage d’une révision" }));
     expect(lastAddress()).toBe("/admin/audit-log?actions=revision_mark%2Cbackup");
     // The menu stays open while actions are checked; one lifts them all.
-    await userEvent.click(
-      within(screen.getByRole("menu")).getByRole("menuitem", { name: "Toutes les actions" }),
-    );
+    await userEvent.click(within(list).getByRole("checkbox", { name: "Toutes les actions" }));
     expect(lastAddress()).toBe("/admin/audit-log");
   });
 
@@ -738,20 +735,13 @@ describe("the filters of the journal", () => {
       startTransition(() => navigation);
     });
     const { rerender } = render(journal());
-    await userEvent.click(
-      screen.getByRole("button", { name: "Filtrer par action\u00a0: Toutes les actions" }),
-    );
-    const backup = () =>
-      within(screen.getByRole("menu")).getByRole("menuitemcheckbox", { name: "Sauvegarde" });
+    const list = await openMenu("Action");
+    const backup = () => within(list).getByRole("checkbox", { name: "Sauvegarde" });
     await userEvent.click(backup());
     expect(lastAddress()).toBe("/admin/audit-log?actions=backup");
-    // The address has not changed yet: the menu, still open, shows the action asked checked, and
-    // its button — hidden from the tree of accessibility while the menu is open — the count asked,
-    // never the address before them.
-    expect(backup()).toHaveAttribute("aria-checked", "true");
-    expect(
-      screen.getByRole("button", { name: "Filtrer par action\u00a0: 1 action", hidden: true }),
-    ).toBeInTheDocument();
+    // The address has not changed yet: the menu, still open, shows the action asked checked, never
+    // the address before it.
+    expect(backup()).toBeChecked();
     // The server answers: the address names the action, which the menu goes on showing checked.
     page.search = "actions=backup";
     await act(async () => {
@@ -759,7 +749,7 @@ describe("the filters of the journal", () => {
       await navigation;
     });
     rerender(journal());
-    expect(backup()).toHaveAttribute("aria-checked", "true");
+    expect(backup()).toBeChecked();
   });
 
   it("filter by project, one the journal names, back to the first page", async () => {
@@ -779,40 +769,88 @@ describe("the filters of the journal", () => {
     expect(lastAddress()).toBe("/admin/audit-log?object_kind=revision");
   });
 
-  it("name the object whose history the address asks, and lift it, its kind kept, the focus given to the filter of the kind", async () => {
-    const object = "01926f3a-7c00-7000-8000-000000000101";
-    page.search = `object_kind=revision&object_id=${object}&offset=50`;
-    render(journal({ named: { ...NAMED, object: { label: "Référence", kind: "revision" } } }));
-    const lift = screen.getByRole("link", {
-      name: "Lever le filtre sur «\u00a0Référence\u00a0»",
-    });
-    expect(lift).toHaveAttribute("href", "/admin/audit-log?object_kind=revision");
-    await userEvent.click(lift);
-    expect(lastAddress()).toBe("/admin/audit-log?object_kind=revision");
-    expect(screen.getByRole("combobox", { name: "Nature de l’objet" })).toHaveFocus();
-  });
-
-  it("leave the focus where it is when the lifting opens in a tab, the browser's to follow", async () => {
-    page.search = "object_kind=revision&object_id=01926f3a-7c00-7000-8000-000000000101";
-    render(journal({ named: { ...NAMED, object: { label: "Référence", kind: "revision" } } }));
-    const lift = screen.getByRole("link", {
-      name: "Lever le filtre sur «\u00a0Référence\u00a0»",
-    });
-    // The page lets the browser follow a click with Ctrl: no navigation of its own, no focus moved.
-    const user = userEvent.setup();
-    await user.keyboard("{Control>}");
-    await user.click(lift);
-    await user.keyboard("{/Control}");
-    expect(router.push).not.toHaveBeenCalled();
-    expect(screen.getByRole("combobox", { name: "Nature de l’objet" })).not.toHaveFocus();
-  });
-
-  it("name a backup whose history the address asks by its nature", () => {
+  it("name a backup whose history the address asks by its nature [WF-IHM-0130-A]", () => {
     page.search = "object_kind=backup&object_id=01926f3a-7c00-7000-8000-000000000907";
     render(journal({ named: { ...NAMED, object: { label: null, kind: "backup" } } }));
-    expect(
-      screen.getByRole("link", { name: "Lever le filtre sur «\u00a0Sauvegarde\u00a0»" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Filtres actifs" })).toHaveTextContent(
+      "Objet : Sauvegarde",
+    );
+  });
+
+  it.each([
+    {
+      name: "the period",
+      search: "from=2026-05-01T06%3A00%3A00Z&to=2026-06-01T00%3A00%3A00Z",
+      chip: /^Date : du .* au /,
+      lifts: ["from", "to"],
+    },
+    {
+      name: "the nature of the author",
+      search: "actor_kind=platform",
+      chip: /^Nature de l’auteur : La plateforme$/,
+      lifts: ["actor_kind"],
+    },
+    {
+      name: "the author",
+      search: `user_id=${CAMILLE}`,
+      chip: /^Auteur : Camille Martin$/,
+      lifts: ["user_id"],
+    },
+    {
+      name: "the actions",
+      search: "actions=backup",
+      chip: /^Action : Sauvegarde$/,
+      lifts: ["actions"],
+    },
+    {
+      name: "the project",
+      search: `project_id=${PROJECT}`,
+      chip: /^Projet : PRJ-001 · /,
+      lifts: ["project_id"],
+    },
+    {
+      name: "the nature of the object",
+      search: "object_kind=revision",
+      chip: /^Nature de l’objet : Révision$/,
+      lifts: ["object_kind"],
+    },
+    {
+      name: "the object whose history is asked",
+      search: "object_id=01926f3a-7c00-7000-8000-000000000101",
+      chip: /^Objet : Référence$/,
+      lifts: ["object_id"],
+    },
+    {
+      name: "the correlation",
+      search: `correlation_id=${MERGE}`,
+      chip: new RegExp(`^Corrélation : ${MERGE}$`),
+      lifts: ["correlation_id"],
+    },
+  ])(
+    "tell $name by a chip, which a cross lifts by its parameters, back to the first page [WF-IHM-0130-A] (#2916)",
+    async ({ search, chip, lifts }) => {
+      page.search = `sort_by=occurred_at&offset=50&${search}`;
+      render(journal({ named: { ...NAMED, object: { label: "Référence", kind: "revision" } } }));
+      const chips = screen.getByRole("list", { name: "Filtres actifs" });
+      expect(chips.children).toHaveLength(1);
+      await userEvent.click(
+        within(chips).getByRole("button", {
+          name: (name) => chip.test(name.replace(/^Retirer le filtre /, "").replace(/\s/g, " ")),
+        }),
+      );
+      const rest = new URLSearchParams(page.search);
+      for (const name of [...lifts, "offset"]) {
+        rest.delete(name);
+      }
+      expect(lastAddress()).toBe(`/admin/audit-log?${rest.toString()}`);
+    },
+  );
+
+  it("clear every filter of the journal at once by « Effacer les filtres », the sort kept [WF-IHM-0130-A] (#2916)", async () => {
+    page.search = `sort_by=occurred_at&actor_kind=platform&project_id=${PROJECT}&correlation_id=${MERGE}`;
+    render(journal());
+    await userEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
+    expect(lastAddress()).toBe("/admin/audit-log?sort_by=occurred_at");
   });
 
   it("say the creation of a project and the abandon of a revision in progress, the abandoned revision, which has no label, named by its nature without a link as any object of a null label [WF-SEC-0030-A]", () => {
@@ -904,9 +942,9 @@ describe("an anonymised account in the journal", () => {
     expect(
       within(grid()).getAllByRole("link", { name: "Histoire de «\u00A0Compte anonymisé\u00A0»" }),
     ).toHaveLength(4);
-    expect(
-      screen.getByRole("link", { name: "Lever le filtre sur «\u00A0Compte anonymisé\u00A0»" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Filtres actifs" })).toHaveTextContent(
+      "Objet : Compte anonymisé",
+    );
     expect(document.body).not.toHaveTextContent(/Alix|Moreau/);
   });
 

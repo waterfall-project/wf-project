@@ -17,7 +17,7 @@ import catalogue from "../messages/fr.json" with { type: "json" };
 import type { Locale } from "../src/i18n/locale";
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
-import { WORKING } from "./hydration";
+import { setExpanded, WORKING } from "./hydration";
 import { rowAt } from "./scroll";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -43,6 +43,7 @@ interface Language {
     readonly planningGrid: string;
     readonly actualCosts: string;
     readonly subprojectFilter: string;
+    readonly filtersPanel: string;
     readonly remaining: string;
     readonly remainingGrid: string;
     readonly risks: string;
@@ -83,6 +84,7 @@ const FRENCH: Language = {
     planningGrid: "Grille de planning",
     actualCosts: "Coûts réels",
     subprojectFilter: "Sous-projet",
+    filtersPanel: "Filtres",
     remaining: "Estimation du reste à engager",
     remainingGrid: "Grille de reste à engager",
     risks: "Gestion des risques",
@@ -123,6 +125,7 @@ const ENGLISH: Language = {
     planningGrid: "Planning grid",
     actualCosts: "Actual costs",
     subprojectFilter: "Subproject",
+    filtersPanel: "Filters",
     remaining: "Remaining to commit",
     remainingGrid: "Remaining to commit grid",
     risks: "Risk management",
@@ -249,8 +252,13 @@ for (const language of [FRENCH, ENGLISH]) {
 
       // The actual costs, where the user filters a sub-project: the address carries it.
       await follow(page, language, names.actualCosts);
-      // The choice is the filter's once React answers it: chosen again until the address says it.
+      // The filters are folded into a panel, closed until the bar opens it, and the sub-project is
+      // a select in it (#2916): chosen again until the address says it.
       const subprojects = page.getByRole("combobox", { name: names.subprojectFilter, exact: true });
+      await setExpanded(
+        page.getByRole("button", { name: new RegExp(`^${names.filtersPanel}( \\(|$)`) }),
+        true,
+      );
       await expect(async () => {
         await subprojects.selectOption(SUBPROJECT);
         await expect(page).toHaveURL(new RegExp(`subproject_id=${SUBPROJECT}`), { timeout: 1_000 });

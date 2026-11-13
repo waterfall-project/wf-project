@@ -31,6 +31,7 @@ import { PerimeterBar } from "@/components/portfolio/perimeter";
 import { PortfolioHeader, portfolioLabel } from "@/components/portfolio/portfolio-header";
 import { PROJECT_GRID, PROJECT_SORT_COLUMNS } from "@/components/portfolio/portfolio-grid";
 import { PortfolioValueView } from "@/components/portfolio/portfolio-value";
+import { FilterFields } from "@/components/grid/filter-fields";
 import { ProjectsGrid } from "@/components/portfolio/projects-grid";
 import { ZoneFilter } from "@/components/portfolio/zone-filter";
 import { MockupNotice } from "@/components/shell/mockup-notice";
@@ -105,12 +106,17 @@ export default async function PortfolioProjectsPage({
         <PerimeterBar perimeter={perimeter} retained={projects.data.scope.states} nodes={nodes} />
         <PortfolioValueView value={value.data} />
         <div className="flex min-h-0 flex-1 flex-col gap-2">
-          <ZoneFilter zones={zones} />
           <ProjectsGrid
             projects={projects.data.items}
             page={projects.data.meta}
             query={query}
             preferences={preferences}
+            zones={zones}
+            panel={
+              <FilterFields hint={false}>
+                <ZoneFilter zones={zones} />
+              </FilterFields>
+            }
           />
           <ListPages
             list={PROJECTS_LIST}

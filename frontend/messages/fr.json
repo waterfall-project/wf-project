@@ -359,6 +359,7 @@
     "filtering": {
       "barHelp": "Filtre la grille sur : {label}. Choix : {value}.",
       "open": "{count, plural, =0 {Filtres} other {Filtres ({count})}}",
+      "count": "({count})",
       "panel": "Filtres",
       "active": "Filtres actifs",
       "chip": "{name} : {value}",
@@ -367,6 +368,15 @@
       "between": "du {from} au {to}",
       "since": "depuis le {from}",
       "until": "jusqu’au {to}",
+      "boundsBetween": "de {min} à {max}",
+      "atLeast": "{min} au moins",
+      "atMost": "{max} au plus",
+      "projectUnknown": "Un projet",
+      "objectUnknown": "Un objet",
+      "nodeUnknown": "Un nœud",
+      "categoryUnknown": "Une catégorie",
+      "calendarUnknown": "Un calendrier",
+      "costTypeUnknown": "Une nature",
       "authorUnknown": "Un compte",
       "selected": "{count, plural, one {# sélectionné} other {# sélectionnés}}",
       "search": "Rechercher dans « {label} »",
@@ -538,6 +548,7 @@
     "filters": {
       "toggle": "Filtres des colonnes",
       "zone": "Filtrer par zone",
+      "zoneChip": "Zone de la matrice",
       "everyZone": "Toutes les zones",
       "probabilityBounds": "Bornes de la probabilité, de 0 à 1",
       "amountBounds": "Bornes des montants",
@@ -725,6 +736,7 @@
     "projects": {
       "retained": "{count, plural, =0 {Aucun projet retenu} one {# projet retenu} other {# projets retenus}}",
       "reason": " — {reason}",
+      "zoneChip": "Zone des indices",
       "zones": "Filtre par zone des indices",
       "everyZone": "Toutes les zones"
     },
@@ -2058,8 +2070,7 @@
       "apply": "N’afficher que mes projets",
       "states": "Filtre par état",
       "everyState": "Tous les états",
-      "defaultLabel": "Filtre par défaut de la liste par état",
-      "defaultStates": "Par défaut :",
+      "defaultChip": "{states} (par défaut)",
       "period": "Période de modification"
     },
     "periodRefused": "La liste n’est pas lue : le serveur refuse la période demandée."
@@ -2458,6 +2469,7 @@
       },
       "bounds": {
         "year": "Année du taux",
+        "chip": "Taux horaire {year}",
         "rate": "Taux horaire"
       }
     },
@@ -2906,7 +2918,6 @@
         "then": "{first} ; {second}"
       },
       "filters": {
-        "label": "Filtres du journal",
         "period": "Période",
         "from": "Depuis le",
         "to": "Avant le",
@@ -2914,16 +2925,13 @@
         "everyActor": "Tous les auteurs",
         "user": "Auteur",
         "everyUser": "Tous les comptes",
+        "actions": "Action",
+        "actorChip": "Nature de l’auteur",
         "everyAction": "Toutes les actions",
-        "actionsChosen": "{count, plural, one {# action} other {# actions}}",
-        "actionsNamed": "Filtrer par action : {chosen}",
         "project": "Projet",
         "everyProject": "Tous les projets",
         "objectKind": "Nature de l’objet",
         "everyObjectKind": "Toutes les natures",
-        "object": "Objet : {object}",
-        "lift": "Lever",
-        "liftObject": "Lever le filtre sur « {object} »",
         "correlation": "Corrélation",
         "correlationForm": "Lettres, chiffres, « . », « _ », « - » ; 64 au plus."
       }

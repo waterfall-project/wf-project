@@ -140,7 +140,9 @@ consomme :
 
 - sur les 100 derniers passages de la file d'`epic/EP-24` (`chain`, `merge_group`), au plus 2
   échecs qui ne soient pas une régression, classés par l'outil de mesure et relus ; la durée de mur
-  du palier complet y est de 12 minutes au plus en médiane (16 minutes les 10 et 11 novembre) ;
+  du palier complet y est de 12 minutes au plus en médiane, telle que `make queue-report` la mesure (17,8
+  minutes de médiane et 21,8 au 90e centile les 10 et 11 novembre ; décision de l'auteur du 2026-11-13,
+  #2989) ;
 - chaque instabilité de l'inventaire est corrigée, ou suivie par une issue qui porte sa décision ;
 - un lot qui touche la chaîne a prouvé son effet par des passages réels, avant et après, et non par
   une mesure sur le poste ;
@@ -282,8 +284,10 @@ lu au journal, que le lot d'US-1890 établit par une mesure :
 retrouvées dans les journaux lus.
 
 **Les durées** (minutes de mur, passages réussis) : la médiane d'un passage vaut 11,4 le 8, 14,2 le
-9, 15,7 le 10, 15,9 le 11 et 21,3 le 12 ; le 90e centile, 21 le 10 et le 11. Par job, sur trois
-passages complets :
+9, 15,7 le 10, 15,9 le 11 et 21,3 le 12 ; le 90e centile, 21 le 10 et le 11. Ces médianes comptent
+tous les passages réussis, partiels compris ; sur les seuls passages au palier complet, que mesure
+`make queue-report`, la référence est de 17,8 minutes de médiane et 21,8 au 90e centile (#2989,
+décision de l'auteur du 2026-11-13). Par job, sur trois passages complets :
 
 | Job | 2026-11-10 (42767057088) | 2026-11-11 (43083057552) | 2026-11-12 (43169119148) |
 |---|---|---|---|
@@ -656,7 +660,10 @@ lot de la chaîne par ses passages, avant et après, et non par une mesure sur l
 - l'inventaire des instabilités depuis le 2026-11-05 est versionné : pour chaque test instable, son
   fichier et sa ligne, sa fréquence, sa cause établie ou son hypothèse, et l'issue qui le suit ;
 - la référence est écrite : 370 passages et 88 échecs du 2026-11-05 au 2026-11-12, dont 68 dans
-  `service / paths` ; 16 minutes de mur en médiane les 10 et 11 novembre.
+  `service / paths` ; 17,8 minutes de mur en médiane et 21,8 au 90e centile les 10 et 11 novembre, sur
+  les passages au palier complet, tels que `make queue-report` les mesure (décision de l'auteur du
+  2026-11-13, #2989 : les 16 minutes d'abord citées comptaient aussi les passages partiels, qui
+  sautent `service` et l'e2e).
 
 **Hors périmètre.** Un tableau de bord ; une alerte.
 
@@ -747,7 +754,9 @@ passage de la file coûte moins, en mur comme en minutes-runner.
 - `service / paths`, le plus long des jobs (environ 16,5 minutes pour 160 parcours), ne tient plus
   le chemin critique au-delà de la cible ;
 - la durée de mur du palier complet est de 12 minutes au plus en médiane sur 100 passages de la
-  file (décision de l'auteur du 2026-11-12), sans qu'aucun lot dégrade le taux d'US-1880.
+  file (décision de l'auteur du 2026-11-12), mesurée sur les passages au palier complet comme le fait
+  `make queue-report`, dont la référence est de 17,8 minutes (décision de l'auteur du 2026-11-13,
+  #2989), sans qu'aucun lot dégrade le taux d'US-1880.
 
 **Hors périmètre.** Retirer un test ou un parcours pour gagner du temps.
 
@@ -772,6 +781,12 @@ régression (#859, #1026).
 - `test_an_account_whose_address_another_holds_whatever_its_case_is_not_created` a sa cause établie
   — ordre ou état partagé des tests — et sa correction (#1026) ;
 - `installation.setup` (« 1 compte ») est déterministe ;
+- les tests du back qui lisent des lignes triées par `created_at` seul, à dates égales, sont
+  départagés par l'identifiant (`history_support.py`, `test_msproject_export.py`,
+  `test_msproject_import.py` ; même cause que #1026, #2986) ; l'aller-retour du reste à engager de
+  `exchanges.spec.ts` attend la fin de l'application en `WORKING` et passe dans la file (#3003), et la
+  lecture d'un téléchargement par son flux est un helper commun des parcours de `frontend/e2e`
+  (#3012) ;
 - le chargement du témoin ne rencontre plus `LockNotAvailable`
   (`test_the_witness_loads_the_nodes_of_the_example_then_deactivates_those_it_says_deactivated`,
   passage 42799623736) ;
@@ -798,7 +813,7 @@ production, derrière un autovacuum).
 
 ## US-1930 — Le poste local : un nombre de workers qui ne le sature pas, et pas de worktree sous `/tmp`
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2953
@@ -962,8 +977,14 @@ pas lire soit refusée par 422 à son champ, **afin de** ne jamais recevoir un 5
 - hors des seuils et de la matrice, chaque décimal que #2875 relève refuse par 422
   `VALIDATION_FAILED`, à son pointeur, une valeur de plus de dix décimales ou dont la partie entière
   dépasse sa colonne, comme US-1840 : les trois constantes des unités de durée, les durées et les
-  décalages du planning, le débours unitaire et la quantité d'une ligne de devis ; le contrat et
-  `docs/api/DECISIONS.md` ne changent pas (décision de l'auteur du 2026-11-12) ;
+  décalages du planning, le débours unitaire et la quantité d'une ligne de devis, les heures d'une
+  ligne de main-d'œuvre (`numeric(12,2)`, #2997) ; le contrat et `docs/api/DECISIONS.md` ne changent
+  pas (décision de l'auteur du 2026-11-12, et du 2026-11-13 pour les heures) ;
+- le produit d'un débours unitaire et d'une quantité, chacun dans sa colonne, qui dépasse le montant
+  d'une ligne de devis (`base_amount`, `numeric(14,2)`) est refusé par 422 `VALIDATION_FAILED`, au
+  pointeur de la quantité, et non par un 500 (#2996, décision de l'auteur du 2026-11-13) ;
+- le recalcul du planning avec une constante d'unité de durée à son maximum est éprouvé, et corrigé
+  s'il échoue (#2998) ;
 - le scénario de #2875 — `hours_per_day` à `8.` suivi de vingt mille zéros, un débours unitaire de
   quatorze chiffres — répond 422, rejoué sur une base.
 

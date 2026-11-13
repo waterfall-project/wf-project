@@ -306,7 +306,7 @@ describe("the journal of audit", () => {
     };
     const markup = await journal();
     const page = text(markup);
-    expect(page).toContain("Auteur Tous les comptes Camille Martin Toutes les actions");
+    expect(page).toContain("Auteur Tous les comptes Camille Martin Action Toutes les actions");
     expect(page).toContain("Projet Tous les projets PRJ-001 · Modernisation du poste de commande");
     expect(queriesOf(FACETS)).toEqual([{}]);
     expect(queriesOf("GET /users")).toEqual([]);
@@ -402,7 +402,8 @@ describe("the journal of audit", () => {
     const page = await journal({ from: "2026-06-03T14:00:00Z", to: "2026-06-01T00:00:00Z" });
     expect(text(page)).toContain("La période finit avant de commencer");
     expect(page).not.toContain("<table");
-    expect(page).toContain('aria-label="Filtres du journal"');
+    // The filters stay above the sentence, to be changed.
+    expect(text(page)).toContain("Période Depuis le Avant le");
     // The end refused, said at its field; the start the API names is said in the local time once
     // hydrated, which only the browser knows (`audit.dom.test.tsx`).
     const fields = page.match(/<input[^>]*type="datetime-local"[^>]*>/g) ?? [];
@@ -452,7 +453,7 @@ describe("the journal of audit", () => {
       "Aucune inscription",
     ]);
     expect(text(page)).not.toContain("Le journal ne tient aucune inscription.");
-    expect(page).toContain('aria-label="Filtres du journal"');
+    expect(page).toContain('role="group" aria-label="Filtres"');
   });
 
   it("says the journal holds nothing only when nothing narrows it", async () => {
@@ -477,13 +478,13 @@ describe("the journal of audit", () => {
     expect(page).toContain(
       `<option value="${PROJECT}" selected="">PRJ-001 · Modernisation du poste de commande</option>`,
     );
-    expect(text(page)).toContain("Objet : couts-reels-2026-05.xlsx Lever");
+    expect(text(page)).toContain("Objet : couts-reels-2026-05.xlsx Effacer les filtres");
   });
 
   it("names a backup whose history the address asks by its nature, never by its identifier", async () => {
     const backup = "01926f3a-7c00-7000-8000-000000000907";
     const page = text(await journal({ object_kind: "backup", object_id: backup }));
-    expect(page).toContain("Objet : Sauvegarde Lever");
+    expect(page).toContain("Objet : Sauvegarde");
     expect(page).not.toContain(`Objet : ${backup}`);
   });
 });

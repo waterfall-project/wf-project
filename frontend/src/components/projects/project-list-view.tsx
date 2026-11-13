@@ -16,6 +16,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import { DenseGrid } from "@/components/grid/dense-grid";
 import { ListPages } from "@/components/grid/list-pages";
@@ -32,6 +33,7 @@ import {
 } from "@/navigation/home";
 
 import { HOME_LIST } from "./home-list";
+import { useProjectChips } from "./project-chips";
 import {
   type ListedProjectPage,
   type ListedProjectRow,
@@ -88,11 +90,25 @@ export interface ProjectListGridProps {
   readonly page: ListedProjectPage;
   readonly query: GridQuery<ListedProjectSort>;
   readonly preferences: GridPreferences | undefined;
+  /** The states and the period the address filters the list on, told as chips under the bar. */
+  readonly states?: readonly ProjectState[] | undefined;
+  readonly period?: Period | undefined;
+  /** The filters of the screen, which the bar folds into its panel (#2916); none, no panel. */
+  readonly panel?: ReactNode;
 }
 
 /** Render the grid of the projects of a page, its totals row the number retained, and its pages. */
-export function ProjectListGrid({ projects, page, query, preferences }: ProjectListGridProps) {
+export function ProjectListGrid({
+  projects,
+  page,
+  query,
+  preferences,
+  states,
+  period,
+  panel,
+}: ProjectListGridProps) {
   const t = useTranslations("projectList");
+  const chips = useProjectChips(states, period);
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       <DenseGrid
@@ -102,6 +118,7 @@ export function ProjectListGrid({ projects, page, query, preferences }: ProjectL
         totalsCaption={(retained) => t("count", { count: retained.total })}
         query={query}
         preferences={preferences}
+        filtering={panel === undefined ? undefined : { panel, chips }}
       />
       <ListPages list={HOME_LIST} texts="portfolio.pages" page={page} shown={projects.length} />
     </div>

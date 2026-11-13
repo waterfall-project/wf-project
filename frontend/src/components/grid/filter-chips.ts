@@ -21,11 +21,24 @@ export interface FilterChip {
   readonly value: string;
   /** The parameters of the address that lifting it removes. */
   readonly params: readonly string[];
+  /**
+   * What lifting it writes in their place: a filter applied by default — the states of the home —
+   * is lifted by naming that it is none, not by saying nothing.
+   */
+  readonly instead?: Readonly<Record<string, string>> | undefined;
 }
 
 /** The parameters of the address that lifting some chips removes, each once. */
 export function liftedParams(chips: readonly FilterChip[]): string[] {
   return [...new Set(chips.flatMap((chip) => chip.params))];
+}
+
+/** What lifting some chips writes in the place of what they removed, the last chip prevailing. */
+export function liftedInstead(chips: readonly FilterChip[]): Record<string, string> {
+  return chips.reduce<Record<string, string>>(
+    (written, chip) => ({ ...written, ...chip.instead }),
+    {},
+  );
 }
 
 /**
@@ -37,6 +50,21 @@ export function liftedHref(
   query: URLSearchParams,
   params: readonly string[],
   page: string | undefined,
+  instead: Readonly<Record<string, string>> = {},
 ): string {
-  return withoutParameters(pathname, query, page === undefined ? params : [...params, page]);
+  const lifted = withoutParameters(
+    pathname,
+    query,
+    page === undefined ? params : [...params, page],
+  );
+  const written = Object.entries(instead);
+  if (written.length === 0) {
+    return lifted;
+  }
+  const [path = pathname, rest = ""] = lifted.split("?");
+  const next = new URLSearchParams(rest);
+  for (const [name, value] of written) {
+    next.set(name, value);
+  }
+  return `${path}?${next.toString()}`;
 }
