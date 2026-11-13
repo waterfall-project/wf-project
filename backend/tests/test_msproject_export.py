@@ -145,7 +145,7 @@ def nodes(stage: Scene) -> list[tuple[Node, Task]]:
         structure_id = session.scalars(
             select(CostStructure.id)
             .where(CostStructure.project_id == project_id, CostStructure.kind == "main")
-            .order_by(CostStructure.created_at.desc())
+            .order_by(CostStructure.created_at.desc(), CostStructure.id.desc())
         ).first()
         assert structure_id is not None
         tree = read_tree(session, project_id, structure_id)
@@ -162,7 +162,7 @@ def planning_start(stage: Scene) -> date | None:
                 CostStructure.project_id == UUID(stage.project["project_id"]),
                 CostStructure.kind == "main",
             )
-            .order_by(CostStructure.created_at.desc())
+            .order_by(CostStructure.created_at.desc(), CostStructure.id.desc())
         ).first()
 
 

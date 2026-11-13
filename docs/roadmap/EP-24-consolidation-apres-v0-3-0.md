@@ -778,7 +778,7 @@ passage de la file coûte moins, en mur comme en minutes-runner.
 
 ## US-1920 — Les tests instables du back et du front attendent ce qu'ils affirment
 
-- **statut** : fini
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2935
@@ -810,13 +810,17 @@ régression (#859, #1026).
 
 **Ce qui tient chaque critère.** #859 : le lot L1 (`cost-commands.dom.test.tsx` attend son
 `rerender` et son `act`). #1026 : le lot L2 (cause établie, le témoin crée les partitions avant
-toute écriture). `installation.setup` : ses deux échecs connus (passages 41132886833 et
+toute écriture). Le témoin (`LockNotAvailable`, passage 42799623736) : le lot L2 (#2937), par la
+même correction. `installation.setup` : ses deux échecs connus (passages 41132886833 et
 41319278707) étaient deux régressions déterministes, de causes distinctes (`/identity-sync-schedule`,
 #1676 ; `/reference/org-nodes`, #1807), corrigées dans leur pull request avant leur fusion, et
 classées comme telles, une entrée chacune, dans `tools/queue-known.toml` ; l'attente du titre de
 l'écran des comptes, ajoutée au parcours, en rend l'échec lisible (« Introuvable »), elle n'est pas
-ce qui le rend déterministe. Les autres échecs que l'inventaire dit instables sont classés dans le
-même catalogue, chacun éprouvé par un extrait réel de son journal. `fini` ne clôt pas deux
+ce qui le rend déterministe. Les cinq échecs de `keycloak / check` sont classés dans le même
+catalogue : trois sont des pulls de Docker Hub, que US-1900/L2 (#2946) tire désormais d'un miroir ;
+deux sont le cycle d'imports entre `users` et `resource_settings`, une régression corrigée dans sa
+pull request (#2932). Les autres échecs que l'inventaire dit instables sont classés dans le même
+catalogue, chacun éprouvé par un extrait réel de son journal. `fini` ne clôt pas deux
 constats, qui restent ouverts, « à trancher » : #2980 (le crash d'un worker Vitest par une
 assertion de V8 sous Node 24, aucun depuis le passage à Node 26) et #2982 (`LockNotAvailable` en
 production, derrière un autovacuum).

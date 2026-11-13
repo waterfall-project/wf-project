@@ -197,7 +197,7 @@ def main_structure(stage: Scene) -> UUID:
                 CostStructure.project_id == UUID(stage.project["project_id"]),
                 CostStructure.kind == "main",
             )
-            .order_by(CostStructure.created_at.desc())
+            .order_by(CostStructure.created_at.desc(), CostStructure.id.desc())
         ).first() or UUID(int=0)
 
 

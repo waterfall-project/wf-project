@@ -129,11 +129,10 @@ def test_comparing_revisions_refuses_a_nul_character_in_a_bare_text_parameter(
 
 
 @pytest.mark.requirement("WF-IHM-0130-A")
-@parameters("states")
 def test_listing_projects_refuses_a_nul_character_in_the_states(
-    api: ContractClient, reader: Person, paths: dict[str, str], parameter: str
+    api: ContractClient, reader: Person, paths: dict[str, str]
 ) -> None:
-    refuse(api, reader, paths["listProjects"], parameter)
+    refuse(api, reader, paths["listProjects"], "states")
 
 
 @pytest.mark.requirement("WF-PRJ-0060-A")
@@ -145,27 +144,24 @@ def test_listing_contributors_refuses_a_nul_character_in_a_bare_text_parameter(
 
 
 @pytest.mark.requirement("WF-PRJ-0020-A")
-@parameters("kinds")
 def test_the_work_breakdown_refuses_a_nul_character_in_the_kinds(
-    api: ContractClient, reader: Person, paths: dict[str, str], parameter: str
+    api: ContractClient, reader: Person, paths: dict[str, str]
 ) -> None:
-    refuse(api, reader, paths["getWorkBreakdown"], parameter)
+    refuse(api, reader, paths["getWorkBreakdown"], "kinds")
 
 
 @pytest.mark.requirement("WF-REV-0070-A")
-@parameters("status")
 def test_listing_revisions_refuses_a_nul_character_in_the_status(
-    api: ContractClient, reader: Person, paths: dict[str, str], parameter: str
+    api: ContractClient, reader: Person, paths: dict[str, str]
 ) -> None:
-    refuse(api, reader, paths["listRevisions"], parameter)
+    refuse(api, reader, paths["listRevisions"], "status")
 
 
 @pytest.mark.requirement("WF-IND-0020-A")
-@parameters("scope")
 def test_the_estimate_indicators_refuse_a_nul_character_in_the_scope(
-    api: ContractClient, reader: Person, paths: dict[str, str], parameter: str
+    api: ContractClient, reader: Person, paths: dict[str, str]
 ) -> None:
-    refuse(api, reader, paths["getEstimateIndicators"], parameter)
+    refuse(api, reader, paths["getEstimateIndicators"], "scope")
 
 
 @pytest.mark.requirement("WF-CRE-0040-A")
