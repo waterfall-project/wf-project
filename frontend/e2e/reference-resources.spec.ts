@@ -5,9 +5,12 @@
  * organisation, the calendars and the units of duration, against the fake back and, for the paths
  * tagged `@shared`, against the service (US-0850). The service keeps what is written: the paths
  * that write leave a state equivalent to the one they found — the units of duration alternate
- * between 7 and 8 — and the screen shows no mock-up notice. The units of duration, one object of
- * the installation, are written by a path tagged `@serial` too: the project `shared-serial` plays
- * it alone, after the others (US-1330).
+ * between 7 and 8 — and the screen shows no mock-up notice. Every path of this file writes what the
+ * installation holds once — the units of duration, the default calendar, the position of a node, the
+ * activity of a role, a calendar or a node — and is read by the paths beside it (the roles and the
+ * calendars of the settings of the costs, the schedules of every project, which the default calendar
+ * dates): each is tagged `@serial`, so that the project `shared-serial` plays them alone, after the
+ * others, and no worker reads the installation as one of them restores it (US-1330, US-1890).
  */
 import { expect, type Locator } from "@playwright/test";
 
@@ -25,7 +28,7 @@ const STAMP = Date.now().toString(36);
 // level 1, the third row of the grid, which has none before 2016. What the screens ask of each is
 // proven by the tests of the pages and of the grid.
 
-test("sorts and searches each list of the settings of the resources by the server, folds the tree, and shows and reactivates the deactivated objects @shared [WF-IHM-0060-A] [WF-REF-0150-A]", async ({
+test("sorts and searches each list of the settings of the resources by the server, folds the tree, and shows and reactivates the deactivated objects @shared @serial [WF-IHM-0060-A] [WF-REF-0150-A]", async ({
   page,
 }) => {
   test.slow();
@@ -110,7 +113,7 @@ test("sorts and searches each list of the settings of the resources by the serve
   );
 });
 
-test("creates a role in its form, moves a node under an active one, and designates the default calendar as its row lists it, with no mock-up notice @shared [WF-REF-0090-A] [WF-REF-0080-A] [WF-REF-0120-A]", async ({
+test("creates a role in its form, moves a node under an active one, and designates the default calendar as its row lists it, with no mock-up notice @shared @serial [WF-REF-0090-A] [WF-REF-0080-A] [WF-REF-0120-A]", async ({
   page,
 }) => {
   test.slow();
@@ -328,7 +331,7 @@ test("modifies the units of duration from the settings of the resources, and say
 /** What a command to delete is called: the settings of the resources offer none (WF-REF-0010-A). */
 const DELETION = /supprim|effac|delete/i;
 
-test("shows the deactivated roles, calendars and nodes asked for, still named by the roles that employ them, offers no deletion, proposes only the active nodes and calendars to a role, and each again once reactivated (US-0880) @shared [WF-REF-0010-A] [WF-REF-0150-A]", async ({
+test("shows the deactivated roles, calendars and nodes asked for, still named by the roles that employ them, offers no deletion, proposes only the active nodes and calendars to a role, and each again once reactivated (US-0880) @shared @serial [WF-REF-0010-A] [WF-REF-0150-A]", async ({
   page,
 }) => {
   test.slow();

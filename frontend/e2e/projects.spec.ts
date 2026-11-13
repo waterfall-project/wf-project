@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 import { closeMenu, menuButton, openFilters, openMenu, pick } from "./check-menu";
-import { expect, type Locator, type Page } from "@playwright/test";
+import { type Browser, expect, type Page, type PlaywrightWorkerArgs } from "@playwright/test";
 
 import { compile } from "./compile";
 import { openHydrated, sortUntilAddress, WORKING } from "./hydration";
@@ -17,12 +17,7 @@ import {
 } from "./own-project";
 import { seedPlanning } from "./planning-seed";
 import { withinBox } from "./scroll";
-import {
-  accountAdministrator,
-  gridPreferences,
-  localAccount,
-  type LocalPerson,
-} from "./service/realm";
+import { accountAdministrator, localAccount, signIn } from "./service/realm";
 
 // The projects, against the fake back and, tagged `@shared`, against the service.
 //
@@ -43,70 +38,40 @@ const CREATED = "/projects/01926f3a-7c00-7000-8000-000000000003";
 const CURRENT = "01926f3a-7c00-7000-8000-000000000102";
 
 /**
- * Lift the sort of the home, which the account keeps (WF-IHM-0060) and applies to an address that
- * says nothing: the paths that follow, played with the same account, find the list as they expect.
+ * The page a path that writes a preference of the home plays on, against the service: an account of
+ * its own, made for it and signed in a context of its own, so that the sort and the states it
+ * chooses (WF-IHM-0060) are kept for it alone — the account of the worker, which every other path of
+ * the worker reads its home with, is never written, and nothing is restored afterwards. Against the
+ * fake back, which keeps nothing, the page of the path itself.
  */
-async function liftSort(list: Locator): Promise<void> {
-  const header = list.getByRole("columnheader", { name: "Code" });
-  await expect(async () => {
-    const [sorted, busy] = await Promise.all([
-      header.getAttribute("aria-sort"),
-      list.getAttribute("aria-busy"),
-    ]);
-    if ((sorted === "ascending" || sorted === "descending") && busy !== "true") {
-      await header.getByRole("button").click();
-    }
-    await expect(header).not.toHaveAttribute("aria-sort", /^(ascending|descending)$/, {
-      timeout: 1_000,
-    });
-  }).toPass({ timeout: 2 * WORKING });
-}
-
-/**
- * Give the home back as the paths that follow expect it, against the service, where the account of
- * the run keeps the sort and the states it chose (WF-IHM-0060): the defaults pressed again, the sort
- * lifted, and the preference read in the database until it says so. Run whatever became of the path.
- */
-async function restoreHome(
+async function homeOfItsOwn(
+  browser: Browser,
+  playwright: PlaywrightWorkerArgs["playwright"],
   page: Page,
-  list: Locator,
-  manager: LocalPerson | undefined,
-): Promise<void> {
-  if (manager === undefined) {
-    return;
+): Promise<{ page: Page; close: () => Promise<void> }> {
+  if (!inService) {
+    return { page, close: () => Promise.resolve() };
   }
-  await page.goto("/");
-  await openFilters(page);
-  await expect(menuButton(page, "Filtre par état")).toBeVisible({ timeout: WORKING });
-  // Each choice is waited for on the summary of the button before the next: a navigation that comes
-  // late changes the chips, the frame is measured again and the open menu moves under the click.
-  const summary = menuButton(page, "Filtre par état");
-  for (const [value, says] of [
-    ["Tous les états", "Tous les états"],
-    ["Créé", "Créé"],
-    ["Chiffrage", "2 sélectionnés"],
-    ["En cours", "3 sélectionnés"],
-  ] as const) {
-    await pick(page, "Filtre par état", value);
-    await expect(summary).toContainText(says, { timeout: WORKING });
-  }
-  await liftSort(list);
-  // What the account keeps of the home: no sort, and no state chosen, the default being unwritten.
-  await expect
-    .poll(
-      () => {
-        const kept = gridPreferences(manager.email, "projects");
-        if (typeof kept !== "object" || kept === null) {
-          return { sort: null, filters: {} };
-        }
-        return {
-          sort: "sort" in kept ? kept.sort : null,
-          filters: "filters" in kept ? kept.filters : {},
-        };
+  const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
+  const context = await browser.newContext({ ignoreHTTPSErrors: true });
+  try {
+    const administrator = await accountAdministrator(browser, calls);
+    const own = await localAccount(browser, administrator);
+    await administrator.giveAlso(own.id, [["Manager", []]]);
+    const owned = await context.newPage();
+    await signIn(owned, own, "/account");
+    return {
+      page: owned,
+      close: async () => {
+        await context.close();
+        await calls.dispose();
       },
-      { timeout: WORKING },
-    )
-    .toEqual({ sort: null, filters: {} });
+    };
+  } catch (failure) {
+    await context.close();
+    await calls.dispose();
+    throw failure;
+  }
 }
 
 const FAKE_BACK_ONLY =
@@ -165,9 +130,13 @@ test("the home lists the projects the user contributes to, a filter shown and li
 });
 
 test("the home sorts its projects and filters them by state on the server, from the address (#522) @shared [WF-IHM-0130-A]", async ({
-  page,
-  manager,
+  browser,
+  page: shared,
+  playwright,
 }) => {
+  test.slow();
+  const home = await homeOfItsOwn(browser, playwright, shared);
+  const page = home.page;
   await page.goto("/");
   const list = page.getByRole("grid", { name: "Liste des projets" });
   try {
@@ -202,14 +171,18 @@ test("the home sorts its projects and filters them by state on the server, from 
     const total = list.getByRole("gridcell", { name: inService ? /^\d+ projets?$/ : "2 projets" });
     expect(await withinBox(list, total)).toBe(true);
   } finally {
-    await restoreHome(page, list, manager);
+    await home.close();
   }
 });
 
 test("the home filters its projects by the period of their last modification on the server, from the address, the focus kept (#522) @shared [WF-IHM-0130-A]", async ({
-  page,
-  manager,
+  browser,
+  page: shared,
+  playwright,
 }) => {
+  test.slow();
+  const home = await homeOfItsOwn(browser, playwright, shared);
+  const page = home.page;
   await page.goto("/");
   const list = page.getByRole("grid", { name: "Liste des projets" });
   try {
@@ -238,7 +211,7 @@ test("the home filters its projects by the period of their last modification on 
     await expect(period.getByLabel("Au")).toHaveValue("2026-03-16");
     await expect(apply).toBeFocused();
   } finally {
-    await restoreHome(page, list, manager);
+    await home.close();
   }
 });
 

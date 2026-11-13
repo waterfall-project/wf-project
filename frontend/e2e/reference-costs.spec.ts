@@ -15,7 +15,9 @@
  * their own cells — empty in the witness, or a rate they write the same each time — and their own
  * codes, for the installation to be played again. Every path that plays this screen alone is tagged
  * `@shared`; the one that plays the screens of the resources, the risks and the indicators too is
- * not, those being served later (US-0850).
+ * not, those being served later (US-0850). The one that enters a rate in a cell of the witness is
+ * tagged `@serial` too: that rate is one object of the installation, which two workers writing it at
+ * once answer with a conflict, and the project `shared-serial` plays it alone (US-1890).
  */
 import { expect, type Locator } from "@playwright/test";
 
@@ -38,7 +40,7 @@ const ROW_COUNT = String(ROWS_READ + 2);
 /** The address that reads the grid of the rates by code, as the fake back serves it: the service has no other order. */
 const BY_CODE = "/reference/costs?sort_by=code&sort_order=asc";
 
-test("reads the settings of the costs outside any project with no mock-up notice, and enters a rate on the dense grid of the hourly rates, the service keeping it (US-0250) @shared [WF-REF-0050-A]", async ({
+test("reads the settings of the costs outside any project with no mock-up notice, and enters a rate on the dense grid of the hourly rates, the service keeping it (US-0250) @shared @serial [WF-REF-0050-A]", async ({
   page,
 }) => {
   await page.goto(BY_CODE);
