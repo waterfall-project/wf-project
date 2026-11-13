@@ -3469,6 +3469,32 @@ le bouton « Merge when ready », ou par la mutation `enqueuePullRequest` de l'A
 dépôt. Une branche sans file de fusion fait tourner le palier complet à la main sur la
 branche d'un lot, avant de le fusionner : `gh workflow run chain --ref <branche>`.
 
+Les images tierces de Docker Hub — PostgreSQL, Redis, Caddy, Mailpit, Garage, curl, Node, Python,
+Debian, Maven, Keycloak et son `keycloak-config-cli` — ne se tirent pas de Docker Hub : les
+fichiers Compose, les `Dockerfile` et les services des travaux (`back.yml`, `front.yml`) les
+nomment sous `ghcr.io/waterfall-project/mirror/`, épinglées par l'empreinte qu'elles avaient sur
+Docker Hub (`mirror/postgres:18-trixie@sha256:…` est `docker.io/library/postgres` à cette
+empreinte). Un pull de Docker Hub (« failed to fetch oauth token », `toomanyrequests`) a fait
+échouer quatre passages de la file avant leur premier test (US-1900). Le miroir est tenu par
+`make mirror PUSH=yes` (`wftools.mirror`) : il lit les références du miroir dans ces fichiers,
+demande à ghcr.io si l'empreinte y est — présente, rien d'autre n'est lu, Docker Hub non plus —,
+et copie celles qui manquent de Docker Hub, par empreinte (`docker buildx imagetools create`
+écrit le manifeste tel quel, l'empreinte est vérifiée après), sous une étiquette qui porte le début
+de l'empreinte : une même étiquette de Docker Hub a deux empreintes dans nos fichiers (Caddy). Le
+travail `mirror` de `ci.yml`, que tout travail qui tire une image attend, le fait à chaque
+passage, au palier rapide comme au complet : `images.yml` passe après la fusion, donc après le
+premier passage qui a besoin d'une image ajoutée ou d'une empreinte relevée (`images.yml` le
+refait avant de construire, une consultation). Chaque demande est refaite quatre fois au plus
+(`wftools.registry`, #2530) ; une image que ni le miroir ni Docker Hub ne donnent fait échouer ce
+travail en nommant Docker Hub, et saute les travaux qui en dépendent, ce que la porte compte.
+Pour changer une image tierce : changer sa référence et son empreinte dans les fichiers, sous le
+préfixe du miroir ; le premier passage copie la nouvelle. Les travaux qui tirent du miroir demandent
+`packages: read` et s'y connectent (`docker/login-action`, ou `credentials:` d'un service) : un
+paquet que GitHub crée est privé. Sur un poste, `docker compose` tire du miroir sans connexion une
+fois ses paquets rendus publics (réglage de l'organisation, une fois par paquet) ; `docker login
+ghcr.io` sinon. Dependabot ne voit plus les mises à jour de ces images, dont la référence n'est plus
+celle de Docker Hub.
+
 Le palier complet vise moins de huit minutes dans la file pour son travail le plus long
 (#492). Les parcours de bout en bout, la moitié la plus longue, s'y prennent ainsi :
 

@@ -85,9 +85,10 @@ def test_the_job_that_publishes_alone_writes_packages_and_runs_the_makefile() ->
     assert document["permissions"] == {"contents": "read"}
     jobs = document["jobs"]
     # The trial of the production platform on the images published reads them alone (US-0430/L2);
-    # the cache of the builds is written beside them, with no right on the packages.
+    # the cache of the builds is written beside them, with no right to write packages: its builds
+    # read the mirror of the images of Docker Hub (US-1900).
     assert list(jobs) == ["publish", "trial", "cache"]
-    assert "permissions" not in jobs["cache"]
+    assert jobs["cache"]["permissions"] == {"contents": "read", "packages": "read"}
     assert jobs["cache"]["steps"][-1] == {"run": "make build-cache"}
     assert jobs["trial"]["permissions"] == {"contents": "read", "packages": "read"}
     job = jobs["publish"]

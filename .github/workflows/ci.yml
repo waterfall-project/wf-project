@@ -88,15 +88,57 @@ jobs:
     if: needs.changes.outputs.contract == 'true'
     uses: ./.github/workflows/contract.yml
 
-  back:
+  # The mirror of the images of Docker Hub (wftools.mirror, US-1900): the services of the jobs, the
+  # Compose files and the Dockerfiles pull postgres, redis, caddy, mailpit, garage, curl, node,
+  # python, debian, maven and keycloak's from ghcr.io/waterfall-project/mirror/, by the digest they
+  # had on Docker Hub, so that a pull of Docker Hub ("failed to fetch oauth token") no longer fails
+  # a run before its first test. The mirror is asked first; only an image it does not hold yet is
+  # copied from Docker Hub, once, here — in every tier, since images.yml runs after a merge, and
+  # the first run to need an image is the pull request that adds it. Every job that pulls an image
+  # waits for this one. A mirror that holds everything reads Docker Hub for nothing; one that lacks
+  # an image Docker Hub does not give fails this job, naming Docker Hub, and skips those jobs.
+  mirror:
     needs: changes
+    if: >-
+      needs.changes.outputs.back == 'true' || needs.changes.outputs.front == 'true' ||
+      needs.changes.outputs.front-image == 'true' || needs.changes.outputs.keycloak == 'true' ||
+      needs.changes.outputs.service == 'true' || needs.changes.outputs.production == 'true'
+    runs-on: ubuntu-26.04
+    # About thirteen lookups; a copy, a few seconds each, on the first run after a digest changed.
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/uv.lock
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: make mirror PUSH=yes
+
+  back:
+    needs: [changes, mirror]
+    permissions:
+      contents: read
+      packages: read
     if: needs.changes.outputs.back == 'true'
     uses: ./.github/workflows/back.yml
     with:
       tier: ${{ needs.changes.outputs.tier }}
 
   front:
-    needs: changes
+    needs: [changes, mirror]
+    permissions:
+      contents: read
+      packages: read
     if: needs.changes.outputs.front == 'true'
     uses: ./.github/workflows/front.yml
     with:
@@ -204,7 +246,10 @@ jobs:
   # The production image of the front, built and started when a pull request changes what makes
   # it (US-0430): images.yml publishes it after the merge alone.
   front-image:
-    needs: changes
+    needs: [changes, mirror]
+    permissions:
+      contents: read
+      packages: read
     if: needs.changes.outputs.front-image == 'true'
     uses: ./.github/workflows/front-image.yml
 
@@ -214,13 +259,16 @@ jobs:
     uses: ./.github/workflows/roadmap.yml
 
   keycloak:
-    needs: changes
+    needs: [changes, mirror]
+    permissions:
+      contents: read
+      packages: read
     if: needs.changes.outputs.keycloak == 'true'
     uses: ./.github/workflows/keycloak.yml
 
   # Skipped in the fast tier as when nothing it traverses is touched.
   service:
-    needs: [changes, front-build, e2e-image]
+    needs: [changes, mirror, front-build, e2e-image]
     if: needs.changes.outputs.service == 'true' && needs.changes.outputs.tier == 'full'
     permissions:
       contents: read
@@ -232,7 +280,10 @@ jobs:
   # The production platform on the three images built here (US-0430): in the full tier only, as
   # when nothing it is made of is touched; images.yml holds it again on the images it publishes.
   production:
-    needs: changes
+    needs: [changes, mirror]
+    permissions:
+      contents: read
+      packages: read
     if: needs.changes.outputs.production == 'true' && needs.changes.outputs.tier == 'full'
     uses: ./.github/workflows/production.yml
 
@@ -247,6 +298,7 @@ jobs:
       - tools
       - spec
       - contract
+      - mirror
       - back
       - front
       - front-build

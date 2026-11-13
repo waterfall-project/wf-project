@@ -17,7 +17,7 @@ services:
     # The version the platform targets, pinned by the digest of its index. Trusting the connections
     # of the workstation, as the service of the chain does: the role is a superuser who may create
     # the database of each run. The health check asks by TCP, as the platform's (US-1130).
-    image: postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    image: ghcr.io/waterfall-project/mirror/postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
     environment:
       POSTGRES_HOST_AUTH_METHOD: trust
     tmpfs:
@@ -31,7 +31,7 @@ services:
       retries: 30
 
   redis:
-    image: redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
+    image: ghcr.io/waterfall-project/mirror/redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
     # Nothing is kept: no snapshot, and nothing on disk.
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     ports:
@@ -43,7 +43,7 @@ services:
       retries: 30
 
   storage:
-    image: dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
+    image: ghcr.io/waterfall-project/mirror/dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
     command: ["/garage", "server", "--single-node", "--default-access-key"]
     environment:
       GARAGE_RPC_SECRET: c0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ff

@@ -7,7 +7,7 @@
 # and its clients are pinned to their series, as the client of PostgreSQL of the image waterfall.
 # The image holds no directory: the entrypoint makes it at the first start, in the volumes of the
 # platform, and seeds it with the LDIF the platform mounts.
-FROM debian:trixie-slim@sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4
+FROM ghcr.io/waterfall-project/mirror/debian:trixie-slim@sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4
 
 # The package configures a directory of its own when it is installed; it is removed, so that the
 # volumes start empty and the entrypoint makes the one of the platform. slapd writes its pid in

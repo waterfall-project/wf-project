@@ -22,7 +22,7 @@ x-keycloak-address: &keycloak-address https://${WATERFALL_DOMAIN:?set WATERFALL_
 
 x-waterfall-image: &waterfall-image ghcr.io/waterfall-project/waterfall:${WATERFALL_IMAGE_TAG:?set WATERFALL_IMAGE_TAG in .env}
 x-keycloak-image: &keycloak-image ghcr.io/waterfall-project/keycloak:${WATERFALL_IMAGE_TAG:?set WATERFALL_IMAGE_TAG in .env}
-x-postgres-image: &postgres-image postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+x-postgres-image: &postgres-image ghcr.io/waterfall-project/mirror/postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
 
 # The API, the worker and the schedule connect as the role of the service, which holds only what the
 # tables grant it, waterfall_service (#701); the migrations and the bootstrap, as waterfall, the
@@ -69,7 +69,7 @@ services:
   # the domain under its own name too, inside the network: the front reaches Keycloak there, in
   # HTTPS, at the address the browser knows.
   caddy:
-    image: caddy:2.11.7-alpine@sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5
+    image: ghcr.io/waterfall-project/mirror/caddy:2.11.7-alpine@sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5
     command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile.prod", "--adapter", "caddyfile"]
     environment:
       WATERFALL_DOMAIN: ${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}
@@ -154,7 +154,7 @@ services:
 
   # Nothing durable is kept in Redis: the queue and the sessions are lost with it, not the data.
   redis:
-    image: redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
+    image: ghcr.io/waterfall-project/mirror/redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
     user: redis
     command: ["sh", "-c", "exec redis-server --requirepass \"$$REDISCLI_AUTH\" --save ''"]
     environment:
@@ -354,7 +354,7 @@ services:
   # The object storage (PBS-3.3): Garage on one node, its layout made at its start and the key of the
   # platform taken from the environment (garage.toml), its memory bounded (WF-CMP-0020).
   storage:
-    image: dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
+    image: ghcr.io/waterfall-project/mirror/dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
     command: ["/garage", "server", "--single-node", "--default-access-key"]
     environment:
       GARAGE_RPC_SECRET: ${WATERFALL_STORAGE_RPC_SECRET:?set WATERFALL_STORAGE_RPC_SECRET in .env}
@@ -373,7 +373,7 @@ services:
 
   # Creates the buckets of the platform when missing, then stops: the backups, and the imports.
   storage-buckets:
-    image: curlimages/curl:8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93
+    image: ghcr.io/waterfall-project/mirror/curlimages/curl:8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93
     entrypoint: ["/bin/sh", "/storage-buckets.sh"]
     environment:
       STORAGE_ADDRESS: http://storage:3900

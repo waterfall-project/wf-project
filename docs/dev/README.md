@@ -3446,6 +3446,30 @@ the « Merge when ready » button, or through the `enqueuePullRequest` mutation 
 repository. A branch without a merge queue runs the full tier by hand on the
 branch of a lot, before merging it: `gh workflow run chain --ref <branche>`.
 
+The third-party images of Docker Hub — PostgreSQL, Redis, Caddy, Mailpit, Garage, curl, Node,
+Python, Debian, Maven, Keycloak and its `keycloak-config-cli` — are not pulled from Docker Hub: the
+Compose files, the `Dockerfile`s and the services of the jobs (`back.yml`, `front.yml`) name them
+under `ghcr.io/waterfall-project/mirror/`, pinned by the digest they had on Docker Hub
+(`mirror/postgres:18-trixie@sha256:…` is `docker.io/library/postgres` at that digest). A pull of
+Docker Hub ("failed to fetch oauth token", `toomanyrequests`) failed four runs of the queue before
+their first test (US-1900). The mirror is kept by `make mirror PUSH=yes` (`wftools.mirror`): it
+reads the references to the mirror in those files, asks ghcr.io whether the digest is there — held,
+nothing else is read, Docker Hub neither —, and copies those that are missing from Docker Hub, by
+digest (`docker buildx imagetools create` writes the manifest as it is, the digest is checked
+after), under a tag that carries the start of the digest: one tag of Docker Hub has two digests in
+our files (Caddy). The job `mirror` of `ci.yml`, which every job that pulls an image waits for,
+does it at each run, in the fast tier as in the full one: `images.yml` runs after a merge, so after
+the first run that needs an image added or a digest raised (`images.yml` does it again before
+building, a lookup). Each request is tried again four times at most (`wftools.registry`, #2530); an
+image neither the mirror nor Docker Hub gives fails that job, naming Docker Hub, and skips the jobs
+that depend on it, which the gate counts. To change a third-party image: change its reference and
+its digest in the files, under the prefix of the mirror; the first run copies the new one. The jobs
+that pull from the mirror ask for `packages: read` and log in to it (`docker/login-action`, or the
+`credentials:` of a service): a package GitHub creates is private. On a workstation, `docker
+compose` pulls from the mirror without logging in once its packages are made public (an
+organisation setting, once per package); `docker login ghcr.io` otherwise. Dependabot no longer
+sees the updates of these images, whose reference is no longer Docker Hub's.
+
 The full tier aims at under eight minutes in the queue for its longest job
 (#492). The end-to-end paths, the longest half, go about it this way:
 

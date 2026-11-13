@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 import pytest
 from test_worktree_slots import MAKEFILE, SLOTS, Workstation, docker_asked
 
-from wftools import REPOSITORY, slots
+from wftools import REPOSITORY, mirror, slots
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -291,7 +291,7 @@ def test_the_compose_file_has_the_images_the_platform_has_and_the_ports_of_slot_
     platform = COMPOSE_SERVICE.read_text()
     images = re.findall(r"^\s+image: (\S+)$", text, flags=re.MULTILINE)
     assert len(images) == 3
-    assert images[0].startswith("postgres:18-")
+    assert images[0].startswith(f"{mirror.MIRROR}/postgres:18-")
     for image in images:
         assert "@sha256:" in image
         assert image in platform
