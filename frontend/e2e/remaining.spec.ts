@@ -621,7 +621,12 @@ test("adds a task from the remaining to commit of a project in progress the run 
     });
     await expect(dialog).toHaveCount(0);
     await expect(cell).toBeFocused();
-    // The task, not started, is among the tasks of the grid read anew...
+    // The task is among the tasks of the grid read anew...
+    await expect(grid.getByRole("row", { name: /Reprise des borniers/ })).toBeVisible({
+      timeout: WORKING,
+    });
+    // ... among the tasks not started alone (WF-RAE-0040-A): a task created is not started.
+    await openHydrated(page, `${revision}/remaining?progress=not_started`);
     await expect(grid.getByRole("row", { name: /Reprise des borniers/ })).toBeVisible({
       timeout: WORKING,
     });
@@ -633,7 +638,9 @@ test("adds a task from the remaining to commit of a project in progress the run 
         .getByRole("row", { name: /Reprise des borniers/ }),
     ).toBeVisible({ timeout: WORKING });
     // ... while the reference is the same revision, without the task.
-    expect(await referenceOf(page, seeded)).toEqual(reference);
+    const kept = await referenceOf(page, seeded);
+    expect(kept.reference).toBe(reference.reference);
+    expect(kept.designated).toMatch(/Référence/);
     await openHydrated(page, `${seeded.own.path}/revisions/${reference.reference}/planning`);
     const referenced = page.getByRole("treegrid", { name: "Grille de planning" });
     await expect(referenced.getByRole("row", { name: /Mise en service/ })).toBeVisible({
@@ -678,7 +685,8 @@ test("inserts a line in the remaining to commit of a project in progress the run
     await expect(cell).toBeFocused();
     const created = grid.getByRole("row", { name: /Consommables d’essais/ });
     await expect(created).toBeVisible({ timeout: WORKING });
-    await expect(created).toContainText(/2,5/);
+    const at = await columnsOf(grid, { quantity: /^Qté$/ });
+    await expect(created.getByRole("gridcell").nth(at.quantity)).toHaveText("2,5");
     // The grid does not name the category: it marks the line as a line of expense (a role would
     // make a line of labour), and the quantity is the one entered.
     await expect(created.getByRole("img", { name: "Ligne de débours" })).toBeVisible();
