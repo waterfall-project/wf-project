@@ -3,10 +3,11 @@
 """The mirror of the images of Docker Hub, and the jobs that pull from it (US-1900).
 
 The criterion of US-1900 this lot closes — the pull of Docker Hub (« failed to fetch oauth token »)
-no longer fails a run — is held here on what the repository says: no file pulls from Docker Hub,
-the mirror is filled before the jobs that pull from it, and an image neither the mirror nor Docker
-Hub gives fails the run naming the source. That the runs of the chain then pass when Docker Hub
-does not answer is seen in the queue (``make queue-report``).
+no longer fails a run — is held here on what the repository says: no file the chain pulls from
+names an image of Docker Hub bare (outside the chain they stay Docker Hub's by default), the mirror
+is filled before the jobs that pull from it, and an image neither the mirror nor Docker Hub gives
+fails the run naming the source. That the runs of the chain then pass when Docker Hub does not
+answer is seen in the queue (``make queue-report``).
 """
 
 import re
@@ -28,42 +29,49 @@ NOT_FOUND = (1, "ERROR: ghcr.io/waterfall-project/mirror/postgres: not found")
 UNREACHABLE = (1, "ERROR: dial tcp: lookup ghcr.io: no such host")
 POSTGRES = mirror.Mirrored("postgres", "18-trixie", DIGEST)
 MAILPIT = mirror.Mirrored("axllent/mailpit", "v1.33.0", DIGEST)
-# The families whose jobs pull from the mirror; production stays on Docker Hub.
-PULLING_JOBS = ("back", "front", "front-image", "keycloak", "service")
+# The families whose jobs pull from the mirror.
+PULLING_JOBS = ("back", "front", "front-image", "keycloak", "production", "service")
 # The workflows that build or run Compose on the mirror, and so pose its prefix.
-BUILDING = ("back.yml", "front-image.yml", "keycloak.yml", "images.yml", "service.yml")
+BUILDING = (
+    "back.yml",
+    "front-image.yml",
+    "keycloak.yml",
+    "images.yml",
+    "production.yml",
+    "service.yml",
+)
 
 
 class Registry:
     """A registry that answers each inspection in turn, and records the commands and the waits.
 
-    ``copying`` is the code of the copy from Docker Hub: 0, or that of its failure.
+    ``copying`` is the code of the copy from Docker Hub: 0, or that of its failure, with what the
+    tool said in ``said``.
     """
 
-    def __init__(self, *answers: tuple[int, str], copying: int = 0) -> None:
+    def __init__(self, *answers: tuple[int, str], copying: int = 0, said: str = "") -> None:
         self.answers = list(answers)
         self.copying = copying
+        self.said = said
         self.commands: list[list[str]] = []
         self.waits: list[float] = []
 
     def read(self, command: list[str]) -> tuple[int, str]:
         self.commands.append(command)
+        if command[3] == "create":
+            return self.copying, self.said
         return self.answers.pop(0)
-
-    def run(self, command: list[str]) -> int:
-        self.commands.append(command)
-        return self.copying
 
     def wait(self, seconds: float) -> None:
         self.waits.append(seconds)
 
     def ensure(self, images: list[mirror.Mirrored], *, push: bool = True) -> list[mirror.Mirrored]:
         """Make sure the mirror holds the images, through this registry, waiting for nothing."""
-        return mirror.ensure(images, push=push, run=self.run, read=self.read, wait=self.wait)
+        return mirror.ensure(images, push=push, read=self.read, wait=self.wait)
 
     def main(self, root: Path, *arguments: str) -> int:
         """Play the tool on the files of a directory."""
-        return mirror.main(list(arguments), self.run, self.read, self.wait, root)
+        return mirror.main(list(arguments), self.read, self.wait, root)
 
     def verbs(self) -> list[str]:
         """Return the commands given, by their fourth word: inspect, create."""
@@ -109,9 +117,29 @@ def test_outside_the_chain_the_files_name_docker_hub_by_default() -> None:
             assert "${WATERFALL_MIRROR}" not in text, name
         elif "WATERFALL_MIRROR" in text:
             assert "\nARG WATERFALL_MIRROR=\n" in text, name
-    for name in ("compose.prod.yaml", "compose.prod.local.yaml", "compose.demo.yaml"):
-        compose = REPOSITORY / "deploy" / "compose" / name
-        assert "MIRROR" not in compose.read_text(encoding="utf-8")
+    # Production and the demonstration stay on Docker Hub too: the chain alone poses the variable.
+    prod = (REPOSITORY / "deploy" / "compose" / "compose.prod.yaml").read_text(encoding="utf-8")
+    assert "${WATERFALL_MIRROR:-}postgres:" in prod
+    assert mirror.MIRROR not in prod
+    demo = REPOSITORY / "deploy" / "compose" / "compose.demo.yaml"
+    assert "MIRROR" not in demo.read_text(encoding="utf-8")
+
+
+BARE = re.compile(
+    r"^\s*(?:image:\s*|FROM\s+(?:--platform=\S+\s+)?)"
+    r"(?![^/\s]*\.[^/\s]*/|\$\{WATERFALL_MIRROR|ghcr\.io/|\*|waterfall-|\$\{|[a-z-]+\s+AS\b)"
+    r"(?P<name>[a-z0-9./_-]+:[^\s@]+@sha256:\S+)",
+    re.MULTILINE,
+)
+
+
+def test_a_file_the_chain_pulls_from_names_no_image_of_docker_hub_bare() -> None:
+    # A bare image added later would be pulled from Docker Hub by the chain: caught here.
+    # compose.demo.yaml and the production files' defaults are not in the chain's reach.
+    for path in scanned():
+        if path.name == "compose.demo.yaml" or path.parent.name == "workflows":
+            continue
+        assert not BARE.findall(path.read_text(encoding="utf-8")), str(path.relative_to(REPOSITORY))
 
 
 def test_every_image_of_docker_hub_the_files_name_is_pinned_by_a_digest() -> None:
@@ -291,6 +319,24 @@ def test_main_fails_on_a_missing_image_without_push_and_on_a_source_that_fails(
     assert "make mirror PUSH=yes" in capsys.readouterr().err
     assert Registry(NOT_FOUND, copying=1).main(tmp_path, "--push") == 2
     assert "Docker Hub did not give" in capsys.readouterr().err
+
+
+def test_a_copy_ghcr_refuses_is_not_blamed_on_docker_hub() -> None:
+    said = "ERROR: failed to push ghcr.io/waterfall-project/mirror/postgres: denied"
+    registry = Registry(NOT_FOUND, copying=1, said=said)
+    with pytest.raises(shared.ImageError, match=r"^ghcr\.io refused to write"):
+        registry.ensure([POSTGRES])
+    assert registry.verbs().count("create") == 1
+
+
+def test_main_without_a_login_says_ghcr_refused_to_answer(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    dockerfile(tmp_path).write_text(
+        f"FROM {mirror.MIRROR}/postgres:18-trixie@{DIGEST}\n", encoding="utf-8"
+    )
+    assert Registry((1, "requested access to the resource is denied")).main(tmp_path) == 1
+    assert "refused to answer" in capsys.readouterr().err
 
 
 def test_main_fails_when_no_file_names_the_mirror(tmp_path: Path) -> None:

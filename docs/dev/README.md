@@ -3453,14 +3453,18 @@ branch of a lot, before merging it: `gh workflow run chain --ref <branche>`.
 
 The third-party images of Docker Hub — PostgreSQL, Redis, Caddy, Mailpit, Garage, curl, Node,
 Python, Debian, Maven, Keycloak and its `keycloak-config-cli` — stay named, in the Compose files and
-the `Dockerfile`s, as on Docker Hub, by their digest: the workstation, production, the demonstration
-and Dependabot are unchanged. Only the chain pulls them from a mirror, `ghcr.io/waterfall-project/mirror/`:
+the `Dockerfile`s, as on Docker Hub, by their digest: the workstation, production and the demonstration
+are unchanged. Only the chain pulls them from a mirror, `ghcr.io/waterfall-project/mirror/`:
 a pull of Docker Hub ("failed to fetch oauth token", `toomanyrequests`) failed four runs of the
 queue before their first test (US-1900). The files read the prefix of the mirror in
 `WATERFALL_MIRROR` (`${WATERFALL_MIRROR:-}postgres:18-trixie@sha256:…` in Compose, `ARG
 WATERFALL_MIRROR=` before the `FROM` of a `Dockerfile`, which `--build-arg WATERFALL_MIRROR` or
-`args: [WATERFALL_MIRROR]` fills from the environment); empty, it is Docker Hub. The workflows that
-build or run Compose (`back.yml`, `keycloak.yml`, `front-image.yml`, `service.yml`, `images.yml`)
+`args: [WATERFALL_MIRROR]` fills from the environment); empty, it is Docker Hub. Dependabot may no longer read these parameterised references
+(`${WATERFALL_MIRROR:-}…`, `FROM ${WATERFALL_MIRROR}…`): raising the version of an image needs the
+mirror to hold the new digest (`make mirror PUSH=yes`, by a person if the token of the pull request
+cannot write). The workflows that
+build or run Compose (`back.yml`, `keycloak.yml`, `front-image.yml`, `service.yml`, `production.yml`,
+`images.yml`)
 set `WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/` and log in to it; the services of
 `back.yml` and `front.yml` name the mirror in full. The mirror is kept by `make mirror PUSH=yes`
 (`wftools.mirror`): it reads those references, asks ghcr.io whether the digest is there — held,

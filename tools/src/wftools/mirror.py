@@ -39,7 +39,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from wftools import REPOSITORY, registry
-from wftools.registry import ATTEMPTS, REGISTRY, ImageError
+from wftools.registry import ATTEMPTS, REFUSED, REGISTRY, UNKNOWN_TAG, ImageError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
@@ -117,13 +117,29 @@ def referenced(root: Path = REPOSITORY, patterns: Iterable[str] = SCANNED) -> li
 def fill(
     image: Mirrored,
     *,
-    run: Callable[[list[str]], int],
     read: Callable[[list[str]], tuple[int, str]],
     wait: Callable[[float], None],
 ) -> None:
-    """Copy an image of Docker Hub to the mirror, by digest, and check the copy kept it."""
+    """Copy an image of Docker Hub to the mirror, by digest, and check the copy kept it.
+
+    A copy that fails says who failed: ghcr.io when it refuses the write (``denied``, ``403``, in a
+    message that names it), Docker Hub otherwise.
+    """
     command = ["docker", "buildx", "imagetools", "create", "--tag", image.tagged, image.source]
-    if not registry.attempted(command, run, wait, tool=TOOL):
+    said = ""
+    for attempt in range(1, ATTEMPTS + 1):
+        code, said = read(command)
+        print(said, end="", file=sys.stderr)
+        if code == 0:
+            break
+        if REFUSED.search(said) and REGISTRY in said:
+            message = (
+                f"{REGISTRY} refused to write {image.tagged} ({said.strip().splitlines()[-1]}): "
+                f"log in to {REGISTRY} with a token that writes packages"
+            )
+            raise ImageError(message)
+        registry.again(attempt, "docker buildx failed", wait, tool=TOOL)
+    else:
         message = (
             f"{SOURCE} did not give {image.source} to copy to {image.tagged}, "
             f"in {ATTEMPTS} attempts, and {REGISTRY} does not hold it"
@@ -138,7 +154,6 @@ def ensure(
     images: Sequence[Mirrored],
     *,
     push: bool,
-    run: Callable[[list[str]], int],
     read: Callable[[list[str]], tuple[int, str]],
     wait: Callable[[float], None] = time.sleep,
 ) -> list[Mirrored]:
@@ -154,13 +169,8 @@ def ensure(
         missing.append(image)
         if push:
             print(f"{TOOL}: {image.pinned} is not in the mirror: copying it", file=sys.stderr)
-            fill(image, run=run, read=read, wait=wait)
+            fill(image, read=read, wait=wait)
     return missing
-
-
-def _run(command: list[str]) -> int:
-    # What Docker prints goes to the error stream, as in wftools.e2eimage.
-    return subprocess.run(command, cwd=REPOSITORY, stdout=sys.stderr, check=False).returncode
 
 
 def _read(command: list[str]) -> tuple[int, str]:
@@ -170,7 +180,6 @@ def _read(command: list[str]) -> tuple[int, str]:
 
 def main(
     arguments: Sequence[str],
-    run: Callable[[list[str]], int] = _run,
     read: Callable[[list[str]], tuple[int, str]] = _read,
     wait: Callable[[float], None] = time.sleep,
     root: Path = REPOSITORY,
@@ -183,8 +192,17 @@ def main(
     if not images:
         print(f"{TOOL}: no image of the mirror is named in the files", file=sys.stderr)
         return 2
+    refused: set[str] = set()
+
+    def watching(command: list[str]) -> tuple[int, str]:
+        # What ghcr.io refuses to show is not what it does not hold: the message tells them apart.
+        code, answer = read(command)
+        if code and REFUSED.search(answer) and not UNKNOWN_TAG.search(answer):
+            refused.add(command[-1])
+        return code, answer
+
     try:
-        missing = ensure(images, push=options.push, run=run, read=read, wait=wait)
+        missing = ensure(images, push=options.push, read=watching, wait=wait)
     except ImageError as error:
         print(f"{TOOL}: {error}", file=sys.stderr)
         return 2
@@ -193,7 +211,11 @@ def main(
         return 2
     if missing and not options.push:
         for image in missing:
-            print(f"{TOOL}: {image.pinned} is missing (make mirror PUSH=yes)", file=sys.stderr)
+            if image.pinned in refused:
+                what = f"{REGISTRY} refused to answer for {image.pinned}: log in to {REGISTRY}"
+            else:
+                what = f"{image.pinned} is missing (make mirror PUSH=yes)"
+            print(f"{TOOL}: {what}", file=sys.stderr)
         return 1
     print(f"{TOOL}: {len(images)} images, {len(missing)} copied", file=sys.stderr)
     return 0

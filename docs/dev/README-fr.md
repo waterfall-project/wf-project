@@ -3476,15 +3476,18 @@ branche d'un lot, avant de le fusionner : `gh workflow run chain --ref <branche>
 
 Les images tierces de Docker Hub — PostgreSQL, Redis, Caddy, Mailpit, Garage, curl, Node, Python,
 Debian, Maven, Keycloak et son `keycloak-config-cli` — restent nommées, dans les fichiers Compose et
-les `Dockerfile`, comme sur Docker Hub, par leur empreinte : le poste, la production, la démonstration
-et Dependabot n'en changent pas. Seule la chaîne les tire d'un miroir, `ghcr.io/waterfall-project/mirror/` :
+les `Dockerfile`, comme sur Docker Hub, par leur empreinte : le poste, la production et la démonstration
+n'en changent pas. Seule la chaîne les tire d'un miroir, `ghcr.io/waterfall-project/mirror/` :
 un pull de Docker Hub (« failed to fetch oauth token », `toomanyrequests`) a fait échouer quatre
 passages de la file avant leur premier test (US-1900). Les fichiers lisent le préfixe du miroir dans
 `WATERFALL_MIRROR` (`${WATERFALL_MIRROR:-}postgres:18-trixie@sha256:…` en Compose, `ARG
 WATERFALL_MIRROR=` avant le `FROM` dans un `Dockerfile`, que `--build-arg WATERFALL_MIRROR` ou
-`args: [WATERFALL_MIRROR]` remplit depuis l'environnement) ; vide, c'est Docker Hub. Les workflows
+`args: [WATERFALL_MIRROR]` remplit depuis l'environnement) ; vide, c'est Docker Hub. Dependabot ne lit peut-être plus ces
+références paramétrées (`${WATERFALL_MIRROR:-}…`, `FROM ${WATERFALL_MIRROR}…`) : une montée de version
+d'image demande que le miroir tienne la nouvelle empreinte (`make mirror PUSH=yes`, par une personne
+si le jeton de la pull request ne peut pas écrire). Les workflows
 qui construisent ou lancent Compose (`back.yml`, `keycloak.yml`, `front-image.yml`, `service.yml`,
-`images.yml`) posent `WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/` et s'y connectent ; les
+`production.yml`, `images.yml`) posent `WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/` et s'y connectent ; les
 services de `back.yml` et de `front.yml` nomment le miroir en toutes lettres. Le miroir est tenu par
 `make mirror PUSH=yes` (`wftools.mirror`) : il lit ces références, demande à ghcr.io si l'empreinte
 y est — présente, rien d'autre n'est lu, Docker Hub non plus —, et copie celles qui manquent de

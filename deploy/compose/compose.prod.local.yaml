@@ -18,7 +18,7 @@ services:
 
   # Copies the root, which Caddy keeps for itself alone, where the front reads it, then stops.
   authority:
-    image: caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
+    image: ${WATERFALL_MIRROR:-}caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
     command: ["install", "-m", "0644", "/data/caddy/pki/authorities/local/root.crt", "/authority/root.crt"]
     volumes:
       - caddy-data:/data:ro

@@ -103,7 +103,8 @@ jobs:
     if: >-
       needs.changes.outputs.back == 'true' || needs.changes.outputs.front == 'true' ||
       needs.changes.outputs.front-image == 'true' || needs.changes.outputs.keycloak == 'true' ||
-      needs.changes.outputs.service == 'true'
+      needs.changes.outputs.service == 'true' ||
+      (needs.changes.outputs.production == 'true' && needs.changes.outputs.tier == 'full')
     runs-on: ubuntu-26.04
     # About thirteen lookups; a copy, a few seconds each, on the first run after a digest changed.
     timeout-minutes: 15
@@ -281,7 +282,10 @@ jobs:
   # The production platform on the three images built here (US-0430): in the full tier only, as
   # when nothing it is made of is touched; images.yml holds it again on the images it publishes.
   production:
-    needs: changes
+    needs: [changes, mirror]
+    permissions:
+      contents: read
+      packages: read
     if: needs.changes.outputs.production == 'true' && needs.changes.outputs.tier == 'full'
     uses: ./.github/workflows/production.yml
 
