@@ -50,10 +50,10 @@ import type { AccessRoleSort, RoleChoice, User, UserPage, UserSort } from "./adm
 import { type AuditFilters, auditNarrowed, type AuthorChoice } from "./audit-address";
 import { AuditFilterBar } from "./audit-filters";
 import { PermissionCell, RoleLabel } from "./permission-matrix";
-import { RolesFilter } from "./roles-filter";
 import { HOLDER_COUNT, PREDEFINED, rolesNarrowed } from "./role-address";
 import { CreateRole, RoleCommands } from "./role-commands";
 import {
+  ACCESS_ROLES,
   INCLUDE_INACTIVE,
   IS_ACTIVE,
   ORG_NODE,
@@ -61,8 +61,12 @@ import {
   USER_ORIGINS,
   type UserOrigin,
   USERS_LIST,
+  WITHOUT_ACCESS_ROLE,
 } from "./user-address";
 import { CreateUser, UserCommands } from "./user-commands";
+
+/** The value of the box « Sans rôle »: no identifier of a role is written so. */
+const WITHOUT = "without";
 
 type AccessRole = components["schemas"]["AccessRole"];
 type Permission = components["schemas"]["Permission"];
@@ -110,14 +114,18 @@ function UserFilterPanel({
         page={OFFSET}
       />
       {/* « Sans rôle » is offered whatever roles the session reads. */}
-      <RolesFilter
+      <ValuesFilter
+        name={ACCESS_ROLES}
         label={t("roleFilter")}
         every={t("everyRole")}
-        without={t("withoutRole")}
-        roles={roles}
-        chosen={accessRoles}
-        withoutRole={withoutRole}
+        values={[
+          { value: WITHOUT, text: t("withoutRole") },
+          ...roles.map((role) => ({ value: role.id, text: role.label })),
+        ]}
+        chosen={withoutRole ? [WITHOUT, ...accessRoles] : accessRoles}
         page={OFFSET}
+        exhaustive={false}
+        flag={{ value: WITHOUT, name: WITHOUT_ACCESS_ROLE }}
       />
       <ValuesFilter
         name={IS_ACTIVE}
@@ -130,6 +138,7 @@ function UserFilterPanel({
         chosen={active === undefined ? [] : [active ? "true" : "false"]}
         page={OFFSET}
         lifts={[INCLUDE_INACTIVE]}
+        said={{ name: INCLUDE_INACTIVE, value: "false", reads: "true" }}
       />
       <OrgNodeFilter name={ORG_NODE} nodes={nodes} chosen={orgNode} page={OFFSET} />
       <AuditFilterBar filters={audit} authors={authors} searchable page={OFFSET} />
@@ -138,16 +147,15 @@ function UserFilterPanel({
 }
 
 /**
- * The accounts of a page of the list, filtered by origin, by node, by access role — one at least of
- * those chosen, an account without a role retained by none: choosing every role still filters —, by
- * state — the active or the deactivated ones alone; none, every account — and by the period and the
+ * The accounts of a page of the list, filtered by origin, by node, by access role — the accounts
+ * that hold one of those chosen, or none at all when « Sans rôle » is checked —, by state — the active or the deactivated ones alone; none, every account — and by the period and the
  * author of their creation and of their last modification (`AuditFilterBar`), a period the API
  * refused said at its field, the list unread; or that the installation has none — only when the
  * list holds none at all and nothing narrows it: a page asked beyond its end is no empty list; its
- * pages say where it stands (`ListPages`). For a session that may modify the accounts, the commands
- * of the table (`UserCommands`): « Créer un compte local » at its head — offered on an empty list
- * too —, the region that says what a write did, the refusals told above it, and the grid its own
- * entry.
+ * pages say where it stands (`ListPages`). At the head of the section, « Créer un compte local »
+ * for a session that may modify the accounts (`UserCommands`) — offered on an empty list too — and
+ * the menu « ⋯ » of the reading of the identity provider (`identity`); for that session too, the
+ * region that says what a write did, the refusals told above it, and the grid its own entry.
  */
 export function UserList({
   users,
@@ -159,7 +167,7 @@ export function UserList({
   orgNode,
   roles,
   accessRoles,
-  withoutRole = false,
+  withoutRole,
   active,
   audit,
   authors,
@@ -181,7 +189,7 @@ export function UserList({
   /** The access roles the address restricts the accounts to; none, every account. */
   readonly accessRoles: readonly string[];
   /** Whether the address retains the accounts without any role (« Sans rôle »). */
-  readonly withoutRole?: boolean;
+  readonly withoutRole: boolean;
   /**
    * The state the address restricts the accounts to: the active ones alone, the deactivated ones
    * alone; none, every account — what the grid shows, the choice says.
@@ -257,10 +265,12 @@ export function UserList({
       icon={Users}
       fill
       commands={
-        <div className="flex items-center gap-2">
-          {editable ? <CreateUser /> : null}
-          {identity}
-        </div>
+        editable || identity !== undefined ? (
+          <div className="flex items-center gap-2">
+            {editable ? <CreateUser /> : null}
+            {identity}
+          </div>
+        ) : undefined
       }
     >
       {list}

@@ -41,6 +41,8 @@ export function ValuesFilter<Value extends string>({
   lifted,
   unnamed,
   lifts = [],
+  said,
+  flag,
 }: Pick<ValuesAddress<Value>, "name" | "page" | "exhaustive" | "lifted" | "unnamed"> & {
   /** The name of the menu: what the filter filters on. */
   readonly label: string;
@@ -55,12 +57,26 @@ export function ValuesFilter<Value extends string>({
    * (`include_inactive=false`, which the state of the accounts now says).
    */
   readonly lifts?: readonly string[] | undefined;
+  /**
+   * What an address of before says of the values, by a parameter that `lifts` removes
+   * (`include_inactive=false`: the active ones alone): the value it reads as, while the parameter
+   * of the filter names none.
+   */
+  readonly said?:
+    | { readonly name: string; readonly value: string; readonly reads: Value }
+    | undefined;
+  /**
+   * One of the `values` that the address writes under a parameter of its own, `true` when checked
+   * (« Sans rôle », `without_access_role`), beside the others, in union with them; it does not count
+   * among the values of the filter (`exhaustive`).
+   */
+  readonly flag?: { readonly value: Value; readonly name: string } | undefined;
 }) {
   const pathname = usePathname();
   const { request } = usePendingAddress();
   const filter = {
     name,
-    values: values.map(({ value }) => value),
+    values: values.map(({ value }) => value).filter((value) => value !== flag?.value),
     page,
     exhaustive,
     lifted,
@@ -79,9 +95,28 @@ export function ValuesFilter<Value extends string>({
         for (const lift of lifts) {
           base.delete(lift);
         }
-        const href = valuesHref(pathname, base, filter, make(readFilter(query, filter)));
+        let asked = readFilter(query, filter);
+        if (said !== undefined && query.get(name) === null && query.get(said.name) === said.value) {
+          asked = [said.reads];
+        }
+        const next = make([
+          ...(flag !== undefined && query.get(flag.name) === "true" ? [flag.value] : []),
+          ...asked,
+        ]);
+        if (flag !== undefined) {
+          if (next.includes(flag.value)) {
+            base.set(flag.name, "true");
+          } else {
+            base.delete(flag.name);
+          }
+        }
+        const href = valuesHref(pathname, base, filter, next);
         // As the address asked names them: every value of an exhaustive filter lifts it.
-        show(readValues(new URLSearchParams(href.split("?")[1] ?? ""), name, filter.values));
+        const written = new URLSearchParams(href.split("?")[1] ?? "");
+        show([
+          ...(flag !== undefined && written.get(flag.name) === "true" ? [flag.value] : []),
+          ...readValues(written, name, filter.values),
+        ]);
         return href;
       });
     });

@@ -3,7 +3,7 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import type { ReactNode } from "react";
+import { type ReactNode, startTransition } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
@@ -306,6 +306,18 @@ describe("the grid of the accounts", () => {
     expect(lastAddress()).toBe("/admin/users?origins=local");
   });
 
+  it("reads an address of before that hid the deactivated accounts as the active ones, to which « Désactivé » is added", async () => {
+    page.search = "origins=local&include_inactive=false";
+    render(userList(NO_QUERY, second, { origins: ["local"], active: true }));
+    await openFilters();
+    await openMenu("État du compte");
+    expect(screen.getByRole("checkbox", { name: "Actif" })).toBeChecked();
+    await userEvent.click(screen.getByRole("checkbox", { name: "Désactivé" }));
+    // Both states: the filter is lifted, with the parameter of before; the active ones not undone.
+    expect(lastAddress()).toBe("/admin/users?origins=local");
+    expect(screen.getByRole("checkbox", { name: "Tous les états" })).toBeChecked();
+  });
+
   it("offers « Sans rôle » first among the roles, written under the name of the contract beside the roles, in union with them, back to the first page [WF-ADM-0180-A]", async () => {
     page.search = "offset=2";
     const { rerender } = render(userList(NO_QUERY, second));
@@ -331,6 +343,37 @@ describe("the grid of the accounts", () => {
     expect(lastAddress()).toBe(`/admin/users?access_role_ids=${first.id}`);
     await userEvent.click(screen.getByRole("checkbox", { name: "Tous les rôles" }));
     expect(lastAddress()).toBe("/admin/users");
+  });
+
+  it("shows « Sans rôle » and the role checked while the page reads anew, the second choice going on from the first address asked [WF-ADM-0180-A]", async () => {
+    let arrive: () => void = () => undefined;
+    const navigation = new Promise<void>((resolve) => {
+      arrive = resolve;
+    });
+    // A navigation of Next stays pending until the server has answered for the new address.
+    router.push.mockImplementation(() => {
+      startTransition(() => navigation);
+    });
+    const first = roleChoices[0] ?? { id: "", label: "" };
+    const { rerender } = render(userList(NO_QUERY, second));
+    await openFilters();
+    await openMenu("Filtrer par rôle");
+    await userEvent.click(screen.getByRole("checkbox", { name: "Sans rôle" }));
+    expect(lastAddress()).toBe("/admin/users?without_access_role=true");
+    // The address has not changed: the box stays checked until the page has answered.
+    expect(screen.getByRole("checkbox", { name: "Sans rôle" })).toBeChecked();
+    await userEvent.click(screen.getByRole("checkbox", { name: first.label }));
+    expect(lastAddress()).toBe(`/admin/users?without_access_role=true&access_role_ids=${first.id}`);
+    expect(screen.getByRole("checkbox", { name: "Sans rôle" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: first.label })).toBeChecked();
+    page.search = `without_access_role=true&access_role_ids=${first.id}`;
+    await act(async () => {
+      arrive();
+      await navigation;
+    });
+    rerender(userList(NO_QUERY, users, { withoutRole: true, accessRoles: [first.id] }));
+    expect(screen.getByRole("checkbox", { name: "Sans rôle" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: first.label })).toBeChecked();
   });
 
   it("tells « Sans rôle » as a chip with the roles, lifted whole by its cross, and keeps its grid when it retains no account [WF-ADM-0180-A]", async () => {

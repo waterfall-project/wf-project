@@ -343,6 +343,7 @@ describe("the chips of a period before the browser", () => {
       origins: [],
       orgNode: undefined,
       accessRoles: [],
+      withoutRole: false,
       active: undefined,
       audit: readAuditFilters(new URLSearchParams(`created_at_to=${TO}`)),
       authors: [],
