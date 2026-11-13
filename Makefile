@@ -100,8 +100,9 @@ TESTS ?=
 SHARD ?=
 # A part of the paths does not combine with a file of them: the file may be in another part.
 # Refused as the Makefile is read, before the installation and the build of the front, which the
-# recipe would otherwise wait for to say so (#3026).
-ifneq ($(and $(SHARD),$(TESTS),$(filter e2e e2e-service check-service,$(MAKECMDGOALS))),)
+# recipe would otherwise wait for to say so (#3026). Every goal that reaches the paths is named,
+# the families that run them included.
+ifneq ($(and $(SHARD),$(TESTS),$(filter e2e e2e-service check-service check-front-e2e check-front check-all check,$(MAKECMDGOALS))),)
 $(error SHARD and TESTS do not combine for the end-to-end paths: the file may be in another part)
 endif
 # How many workers `make e2e` plays the paths on (E2E_WORKERS, frontend/playwright.config.ts), each
@@ -165,6 +166,13 @@ full-only = $(if $(filter full,$(TIER)),$(1))
 # The coverage run executes the same tests: in the full tier it replaces the plain run.
 full-else = $(if $(filter full,$(TIER)),$(1),$(2))
 WFTOOLS := uv run --frozen --project $(TOOLS) python -m wftools
+# A part of the paths against the service of a shape the plan refuses (i/N, N >= 2) is refused as the
+# Makefile is read too, before the installation and the build of the front.
+ifneq ($(and $(SHARD),$(filter e2e-service check-service,$(MAKECMDGOALS))),)
+ifneq ($(shell $(WFTOOLS).e2eparts service-part '$(SHARD)' >/dev/null 2>&1 || echo refused),)
+$(error SHARD must be i/N with 1 <= i <= N and N >= 2 for the paths against the service: $(SHARD))
+endif
+endif
 
 help: ## List the commands
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[1m%-18s\033[0m %s\n", $$1, $$2}'

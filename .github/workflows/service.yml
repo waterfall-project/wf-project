@@ -20,9 +20,14 @@
 # the critical path of the full tier: 22 minutes in 43500472946, 5.5 of them before the first path
 # (images, platform, installation, witness) and 16.5 of paths, 1839 s of tests of `service` and
 # `shared` on 3 workers, then 2.7 minutes of the projects in series. Each part pays the 5.5 minutes
-# of its platform again: about 10 minutes for a part of the three, about 8.5 for the fourth, 40
-# runner minutes in all against 22, for 10 to 11 of wall time against 22 (the decision of
-# EP-24, « `service / paths` coupé en quatre plateformes »).
+# of its platform again. Measured, once, on a run of the branch at the full tier, not yet on the
+# queue (43511917976, `gh workflow run chain -f tier=full`): 13.5 minutes of wall time for the
+# whole run; the parts took 8.8, 11.5, 12.0 and 8.2 minutes, 40.5 runner minutes in all against 22,
+# and `back / tests (4/4)`, 11.4 minutes, is now as long as they are. Whether `service / paths`
+# leaves the critical path, and whether the median of the queue falls to 12 minutes, is read on 100
+# runs of the queue, by its report, after the merge. The 18.5 runner minutes more are the price of
+# the cut, which the author weighs (the decision of EP-24, « `service / paths` coupé en quatre
+# plateformes »).
 name: service
 
 on:
@@ -60,9 +65,12 @@ jobs:
     # Docker's filter of system calls lifted changed anything; 13.5 to 18.2, 14.2 in the median, with
     # the browser alone in the image (43338277921, 43341377423, 43346839952) — back to the median of
     # epic/EP-24, within the spread of its runners. The job as a whole takes 4 to 6 minutes more.
-    # In four parts, a part should take about 10 minutes; 20 leaves room for a slow runner, whose
-    # paths took 1.3 times the median above, not for a path stuck.
-    timeout-minutes: 20
+    # In four parts, a part took 8.2 to 12.0 minutes (43511917976); 25 leaves room for a slow
+    # runner, whose paths took 1.3 times the median above, and for a restoration that expires
+    # (600 s in backups.spec.ts, no retry) in the fourth part: cancelled by GitHub before Playwright
+    # ends, the job would skip its steps `if: failure()`, the logs of the platform among them. Not
+    # for a path stuck.
+    timeout-minutes: 25
     # The work image of the paths is read from the registry, where it may be private.
     permissions:
       contents: read

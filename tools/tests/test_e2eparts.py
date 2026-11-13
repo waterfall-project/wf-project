@@ -405,12 +405,25 @@ def make_dry(*arguments: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-@pytest.mark.parametrize("target", ["e2e", "e2e-service", "check-service"])
+@pytest.mark.parametrize(
+    "target", ["e2e", "e2e-service", "check-service", "check-front-e2e", "check-front", "check-all"]
+)
 def test_a_part_with_a_file_is_refused_before_anything_is_built(target: str) -> None:
     # #3026: the refusal waited for the installation and the build of the front
     done = make_dry(target, "SHARD=1/2", "TESTS=e2e/a.spec.ts")
     assert done.returncode != 0
     assert "SHARD and TESTS do not combine" in done.stderr
+    assert done.stdout == ""
+
+
+@pytest.mark.parametrize("shard", ["1/1", "x", "3/2", "0/4"])
+@pytest.mark.parametrize("target", ["e2e-service", "check-service"])
+def test_a_part_of_the_service_paths_of_a_wrong_shape_is_refused_before_anything_is_built(
+    target: str, shard: str
+) -> None:
+    done = make_dry(target, f"SHARD={shard}")
+    assert done.returncode != 0
+    assert "SHARD must be i/N" in done.stderr
     assert done.stdout == ""
 
 
@@ -425,3 +438,29 @@ def test_a_part_of_the_paths_against_the_service_is_checked_then_planned() -> No
     planned = next(line for line in lines if "e2eparts plan --service 2/4" in line)
     assert "export E2E_SERVICE_SERIAL=1" in planned
     assert lines.index(planned) < lines.index(played)
+
+
+def test_the_service_durations_follow_the_files_the_service_projects_play() -> None:
+    # A file added, renamed or removed leaves tools/e2e-service-durations.json stale otherwise:
+    # `make e2e-durations` from a run refreshes it. The files the projects `service` and `shared`
+    # play are those of e2e/service/ and, elsewhere, those that name @shared (playwright.config.ts);
+    # one the file lacks plays only in the projects in series, which its tags say.
+    durations = json.loads(e2eparts.SERVICE_DURATIONS.read_text(encoding="utf-8"))
+    unit_name = re.compile(rf"\[(?P<project>\w+)\]{SEPARATOR}(?P<file>[^ ]+?)(?:{SEPARATOR}.*)?$")
+    matches = [unit_name.match(unit) for unit in durations]
+    named = {(match["project"], match["file"]) for match in matches if match}
+    assert named
+    assert all(project in {"service", "shared"} for project, _ in named)
+    root = e2eparts.FRONT / "e2e"
+    played: dict[tuple[str, str], str] = {}
+    for path in sorted(root.rglob("*.spec.ts")):
+        file = path.relative_to(root).as_posix()
+        text = path.read_text(encoding="utf-8")
+        if file.startswith("service/"):
+            played[("service", file)] = text
+        elif not re.search(r"(opening|departure)\.spec\.ts$", file) and "@shared" in text:
+            played[("shared", file)] = text
+    assert sorted(named - played.keys()) == [], "run make e2e-durations: files gone from the paths"
+    in_series = re.compile(r"@(?:serial|realm-wide|platform-wide)")
+    missing = sorted(key for key in played.keys() - named if not in_series.search(played[key]))
+    assert missing == [], "run make e2e-durations: files the durations do not know"

@@ -3358,17 +3358,23 @@ The chain is made of GitHub Actions workflows (`.github/workflows/`):
   The list of a part names the project of each line (`[service] › service/x.spec.ts`): a file
   without its project would make `realm` play its tests in the part, and with them, unfiltered,
   every project it depends on. Played whole on one runner, they held the critical path of the full
-  tier: 22 minutes, 5.5 of them before the first path. Each part pays those 5.5 minutes again:
-  about 40 runner minutes instead of 22, for 10 to 11 minutes of wall time (the comment of
-  `service.yml` cites the run). The platform, the front and `playwright test` run on the runner itself, through the
-  Makefile; the browser alone runs in the work image of the paths (below), as Playwright's server
-  (`run-server`), on the network of the runner, and `playwright test` connects to it
-  (`PW_TEST_CONNECT_WS_ENDPOINT`). `E2E_IMAGE=<reference>` asks `make e2e-service` for it, which
-  starts that server through `wftools.e2eimage` (`docker run --network host`, the repository mounted
-  at its own path): a job container would not see the ports that Docker publishes on the runner.
-  No Ubuntu package is installed there (#2913). The paths played whole in the image took 17.3
-  minutes of `playwright test` in the median of four runs, against 14.2 in three with the browser
-  alone in the image, the median of the runner before (the comment of `service.yml` cites the runs). A download is read there through
+  tier: 22 minutes, 5.5 of them before the first path. Each part pays those 5.5 minutes again.
+  Measured once, on a run of the branch at the full tier, not yet of the queue (43511917976): 13.5
+  minutes of wall time for the whole run; the parts took 8.8, 11.5, 12.0 and 8.2 minutes, 40.5
+  runner minutes against 22, and `back / tests (4/4)`, 11.4 minutes, is now as long as they are.
+  Whether `service / paths` leaves the critical path, and whether the median of the queue falls to
+  12 minutes, is read on 100 runs of the queue by `make queue-report`, after the merge; the 18.5
+  runner minutes more are the price of the cut, which the author weighs (the comment of
+  `service.yml` cites the run). The platform, the front and `playwright test` run on the runner
+  itself, through the Makefile; the browser alone runs in the work image of the paths (below), as
+  Playwright's server (`run-server`), on the network of the runner, and `playwright test` connects
+  to it (`PW_TEST_CONNECT_WS_ENDPOINT`). `E2E_IMAGE=<reference>` asks `make e2e-service` for it,
+  which starts that server through `wftools.e2eimage` (`docker run --network host`, the repository
+  mounted at its own path): a job container would not see the ports that Docker publishes on the
+  runner. No Ubuntu package is installed there (#2913). The paths played whole in the image took
+  17.3 minutes of `playwright test` in the median of four runs, against 14.2 in three with the
+  browser alone in the image, the median of the runner before (the comment of `service.yml` cites
+  the runs). A download is read there through
   `download.createReadStream()`, never `download.path()`, which Playwright refuses to a remote
   browser. `wftools.e2eimage run` is made for the chain: root in the image, Docker's socket at its
   path on a runner, `DOCKER_HOST` unread. On a workstation, without `E2E_IMAGE`, the paths play on

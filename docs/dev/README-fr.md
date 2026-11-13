@@ -3376,22 +3376,28 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   (`[service] › service/x.spec.ts`) : un fichier sans son projet ferait jouer à `realm` ses tests
   dans le morceau, et avec eux, sans filtre, chaque projet dont il dépend. Joués entiers sur un
   runner, ils tenaient le chemin critique du palier complet : 22 minutes, dont 5,5 avant le premier
-  parcours. Chaque morceau repaie ces 5,5 minutes : environ 40 minutes-runner au lieu de 22, pour
-  10 à 11 minutes de mur (le commentaire de `service.yml` cite le passage). La plateforme, le front et `playwright test` tournent sur le runner même, par
-  le Makefile ; seul le navigateur tourne dans l'image de travail des parcours (ci-dessous), en
+  parcours. Chaque morceau repaie ces 5,5 minutes. Mesuré une fois, sur un passage de la branche
+  au palier complet, pas encore de la file (43511917976) : 13,5 minutes de mur pour le passage
+  entier ; les morceaux ont pris 8,8, 11,5, 12,0 et 8,2 minutes, soit 40,5 minutes-runner contre
+  22, et `back / tests (4/4)`, 11,4 minutes, est désormais au coude à coude. Que `service / paths`
+  quitte le chemin critique, et que la médiane de la file tombe à 12 minutes, se constate sur 100
+  passages de la file par `make queue-report`, après la fusion ; les 18,5 minutes-runner de plus
+  sont le prix du découpage, que l'auteur tranche (le commentaire de `service.yml` cite le
+  passage). La plateforme, le front et `playwright test` tournent sur le runner même, par le
+  Makefile ; seul le navigateur tourne dans l'image de travail des parcours (ci-dessous), en
   serveur de Playwright (`run-server`), sur le réseau du runner, et `playwright test` s'y connecte
   (`PW_TEST_CONNECT_WS_ENDPOINT`). `E2E_IMAGE=<référence>` le demande à `make e2e-service`, qui
-  lance ce serveur par `wftools.e2eimage` (`docker run --network host`, le dépôt monté à son propre
-  chemin) : un conteneur de travail ne verrait pas les ports que Docker publie sur le runner.
-  Aucun paquet d'Ubuntu ne s'y installe (#2913). Les parcours joués entiers dans l'image prenaient
-  17,3 minutes de `playwright test` en médiane de quatre passages, contre 14,2 en trois le navigateur
-  seul dans l'image, la médiane d'avant sur le runner (le commentaire de `service.yml` cite les
-  passages). Un téléchargement s'y lit par
-  `download.createReadStream()`, jamais par `download.path()`, que Playwright refuse à un navigateur
-  distant. `wftools.e2eimage run` est fait pour la chaîne : root dans l'image, la socket de Docker
-  à son chemin d'un runner, `DOCKER_HOST` non lu. Sur un poste, sans `E2E_IMAGE`, les parcours se
-  jouent sur le poste, avec le navigateur de `make e2e-browsers`. `front-image.yml` construit et démarre
-  l'image de production du front, que `images.yml` ne publie qu'après la fusion, aux deux paliers
+  lance ce serveur par `wftools.e2eimage` (`docker run --network host`, le dépôt monté à son
+  propre chemin) : un conteneur de travail ne verrait pas les ports que Docker publie sur le
+  runner. Aucun paquet d'Ubuntu ne s'y installe (#2913). Les parcours joués entiers dans l'image
+  prenaient 17,3 minutes de `playwright test` en médiane de quatre passages, contre 14,2 en trois
+  le navigateur seul dans l'image, la médiane d'avant sur le runner (le commentaire de
+  `service.yml` cite les passages). Un téléchargement s'y lit par `download.createReadStream()`,
+  jamais par `download.path()`, que Playwright refuse à un navigateur distant. `wftools.e2eimage
+  run` est fait pour la chaîne : root dans l'image, la socket de Docker à son chemin d'un runner,
+  `DOCKER_HOST` non lu. Sur un poste, sans `E2E_IMAGE`, les parcours se jouent sur le poste, avec
+  le navigateur de `make e2e-browsers`. `front-image.yml` construit et démarre l'image de
+  production du front, que `images.yml` ne publie qu'après la fusion, aux deux paliers
   (`make check-front-image`) : la famille `front-image` se réveille sur ce qui la fait —
   `frontend/Dockerfile` et son `.dockerignore`, `next.config.ts`, `package.json`, `pnpm-lock.yaml`,
   `pnpm-workspace.yaml`, et ce que son serveur vérifie au démarrage, `src/instrumentation.ts`,
