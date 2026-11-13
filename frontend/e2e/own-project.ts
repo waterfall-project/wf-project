@@ -7,7 +7,15 @@
  */
 import { randomBytes } from "node:crypto";
 
-import { type APIRequestContext, type Browser, expect, type Page } from "@playwright/test";
+import {
+  type APIRequestContext,
+  type Browser,
+  expect,
+  type Page,
+  type Request,
+  type Response,
+  test,
+} from "@playwright/test";
 
 import type { components } from "../src/api/generated/schema";
 import { openHydrated, WORKING } from "./hydration";
@@ -21,26 +29,114 @@ export interface OwnProject {
   readonly label: string;
 }
 
+/** The address of the screen of a project, which the creation leads to. */
+const PROJECT_SCREEN = /\/projects\/[0-9a-f-]{36}$/;
+
 /**
  * Create a project from the home, as a user does, and stay on its screen. No project is opened on
  * the home, nothing witnesses the hydration: the creation is pressed again until React opens its
  * form, and never once it is open.
  */
 export async function createOwnProject(page: Page, prefix: string): Promise<OwnProject> {
-  await page.goto("/");
-  const main = page.getByRole("main");
-  const creation = page.getByRole("dialog", { name: "Créer un projet" });
-  await expect(async () => {
-    if (!(await creation.isVisible())) {
-      await main.getByRole("button", { name: "Créer un projet" }).click();
+  const steps = new CreationSteps(page);
+  try {
+    await page.goto("/");
+    steps.mark("home");
+    const main = page.getByRole("main");
+    const creation = page.getByRole("dialog", { name: "Créer un projet" });
+    await expect(async () => {
+      if (!(await creation.isVisible())) {
+        await main.getByRole("button", { name: "Créer un projet" }).click();
+      }
+      await expect(creation).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: WORKING });
+    steps.mark("dialog");
+    const label = `${prefix} ${randomBytes(4).toString("hex")}`;
+    await creation.getByRole("textbox", { name: "Libellé" }).fill(label);
+    steps.press();
+    await creation.getByRole("button", { name: "Créer", exact: true }).click();
+    await expect(page).toHaveURL(PROJECT_SCREEN, { timeout: WORKING });
+    steps.mark("address");
+    return { path: new URL(page.url()).pathname, label };
+  } finally {
+    steps.report(prefix);
+  }
+}
+
+/**
+ * The steps of the creation of a project, timed in the browser (US-1890): the home loaded, the
+ * dialog open, then, from the press of « Créer », the server action that creates the project
+ * (`createProject`, asked and answered), the screen of the project the form leads to (its payload
+ * asked, its headers answered, its body finished) and the address reached. Written in the log of the
+ * run and in an annotation of the test, whether the creation passed or not: the merge queue showed it
+ * overrunning its fifteen seconds under six workers (family A of EP-24).
+ */
+class CreationSteps {
+  private readonly started = Date.now();
+  private last = this.started;
+  private pressed: number | undefined;
+  private readonly done: string[] = [];
+  private readonly network = new Map<string, number>();
+  private readonly onRequest = (request: Request): void => {
+    this.note(request, "asked");
+  };
+  private readonly onResponse = (response: Response): void => {
+    this.note(response.request(), "answered");
+  };
+  private readonly onFinished = (request: Request): void => {
+    this.note(request, "finished");
+  };
+  private readonly onFailed = (request: Request): void => {
+    this.note(request, "failed");
+  };
+
+  constructor(private readonly page: Page) {
+    page.on("request", this.onRequest);
+    page.on("response", this.onResponse);
+    page.on("requestfinished", this.onFinished);
+    page.on("requestfailed", this.onFailed);
+  }
+
+  /** A step reached: its duration since the one before. */
+  mark(step: string): void {
+    const now = Date.now();
+    this.done.push(`${step} ${String(now - this.last)} ms`);
+    this.last = now;
+  }
+
+  /** « Créer » about to be pressed: what follows is timed from it. */
+  press(): void {
+    this.pressed = Date.now();
+    this.last = this.pressed;
+  }
+
+  /** Write the steps reached, and when each request of the creation went, from the press. */
+  report(prefix: string): void {
+    this.page.off("request", this.onRequest);
+    this.page.off("response", this.onResponse);
+    this.page.off("requestfinished", this.onFinished);
+    this.page.off("requestfailed", this.onFailed);
+    const network = [...this.network].map(([step, at]) => `${step} +${String(at)} ms`);
+    const measured =
+      `${this.done.join(", ")}; from the press: ${network.join(", ") || "no request"}; ` +
+      `total ${String(Date.now() - this.started)} ms`;
+    console.log(`Own project created (${prefix}): ${measured}`);
+    test.info().annotations.push({ type: "own project", description: measured });
+  }
+
+  /** The first time a request of the creation reaches an event, from the press. */
+  private note(request: Request, event: string): void {
+    if (this.pressed === undefined) {
+      return;
     }
-    await expect(creation).toBeVisible({ timeout: 1_000 });
-  }).toPass({ timeout: WORKING });
-  const label = `${prefix} ${randomBytes(4).toString("hex")}`;
-  await creation.getByRole("textbox", { name: "Libellé" }).fill(label);
-  await creation.getByRole("button", { name: "Créer", exact: true }).click();
-  await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/, { timeout: WORKING });
-  return { path: new URL(page.url()).pathname, label };
+    const headers = request.headers();
+    const action = request.method() === "POST" && headers["next-action"] !== undefined;
+    const screen = headers.rsc === "1" && PROJECT_SCREEN.test(new URL(request.url()).pathname);
+    const step = `${action ? "action" : "screen"} ${event}`;
+    if ((action || screen) && !this.network.has(step)) {
+      this.network.set(step, Date.now() - this.pressed);
+    }
+  }
 }
 
 /**
