@@ -5,7 +5,8 @@
  * and the page (`offset`) of its grid: the filters of the list (WF-IHM-0130), under the names of the
  * contract — the origins of the accounts, `origins`, its values separated by commas, the node of
  * organisation they come under, `org_node_id`, the access roles they hold, `access_role_ids`, an
- * account retained when it holds one at least of them, and their state, `is_active` — the active
+ * account retained when it holds one at least of them — or none at all, `without_access_role`,
+ * « Sans rôle » —, and their state, `is_active` — the active
  * ones alone, or the deactivated ones alone; none, every account, the deactivated ones listed by
  * default (WF-ADM-0060), the page always asking `include_inactive=true`. An address of before, which
  * hid the deactivated accounts by `include_inactive=false`, reads as the active ones alone, which it
@@ -38,6 +39,18 @@ export const ORG_NODE = "org_node_id";
 
 /** The parameter of the address the access roles filtered on go by, as the contract names it. */
 export const ACCESS_ROLES = "access_role_ids";
+
+/**
+ * The parameter of the address that asks the accounts without any access role, as the contract
+ * names it (`without_access_role`): `true`, those accounts are retained, in union with those of
+ * `access_role_ids` when both are given (WF-ADM-0180). Any other value asks nothing.
+ */
+export const WITHOUT_ACCESS_ROLE = "without_access_role";
+
+/** Whether the address asks the accounts without any access role. */
+export function readWithoutRole(search: SearchParameters): boolean {
+  return search.get(WITHOUT_ACCESS_ROLE) === "true";
+}
 
 /**
  * The parameter of the address the state filtered on goes by, as the contract names it: `true`, the
@@ -96,6 +109,7 @@ export const USER_FILTERS: readonly string[] = [
   ORIGINS,
   ORG_NODE,
   ACCESS_ROLES,
+  WITHOUT_ACCESS_ROLE,
   IS_ACTIVE,
   INCLUDE_INACTIVE,
   ...AUDIT_FILTERS,
@@ -130,13 +144,15 @@ export function usersQuery<Sort extends NonNullable<UsersQuery["sort_by"]>>(aske
   readonly orgNode: string | undefined;
   /** The access roles the accounts are restricted to, by their identifiers; none, every account. */
   readonly accessRoles: readonly string[];
+  /** Whether the accounts without any role are retained too; by default they are not asked. */
+  readonly withoutRole?: boolean | undefined;
   /** The state the accounts are restricted to: active, deactivated; none, every account. */
   readonly active: boolean | undefined;
   /** The periods and the authors of their creation and of their last modification. */
   readonly audit: AuditFilters;
   readonly offset: number | undefined;
 }): UsersQuery {
-  const { query, origins, orgNode, accessRoles, active, audit, offset } = asked;
+  const { query, origins, orgNode, accessRoles, withoutRole, active, audit, offset } = asked;
   return {
     // Every account unless a state is chosen, which prevails: the contract hides the deactivated
     // ones by default.
@@ -147,6 +163,7 @@ export function usersQuery<Sort extends NonNullable<UsersQuery["sort_by"]>>(aske
     ...(origins.length === 0 ? {} : { origins: [...origins] }),
     ...(orgNode === undefined ? {} : { org_node_id: orgNode }),
     ...(accessRoles.length === 0 ? {} : { access_role_ids: [...accessRoles] }),
+    ...(withoutRole === true ? { without_access_role: true } : {}),
     ...(active === undefined ? {} : { is_active: active }),
     ...auditQuery(audit),
     ...(query.sort === undefined

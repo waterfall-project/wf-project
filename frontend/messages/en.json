@@ -2633,6 +2633,9 @@
       "anonymizeUser": "Anonymise “{name}”",
       "roleFilter": "Filter by role",
       "everyRole": "Every role",
+      "withoutRole": "Without a role",
+      "activeState": "Active",
+      "inactiveState": "Deactivated",
       "stateFilter": "Account state",
       "everyState": "Every state",
       "activeAccounts": "Active accounts",
@@ -2676,6 +2679,7 @@
       "rowBusy": "A write of “{name}” is under way: nothing was written, ask again once it is answered."
     },
     "identitySync": {
+      "menu": "Reading of the accounts of the identity provider: state and commands",
       "title": "Reading of the identity provider accounts",
       "schedule": {
         "title": "Reading periodicity",

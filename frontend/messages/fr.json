@@ -2633,6 +2633,9 @@
       "anonymizeUser": "Anonymiser « {name} »",
       "roleFilter": "Filtrer par rôle",
       "everyRole": "Tous les rôles",
+      "withoutRole": "Sans rôle",
+      "activeState": "Actif",
+      "inactiveState": "Désactivé",
       "stateFilter": "État du compte",
       "everyState": "Tous les états",
       "activeAccounts": "Comptes actifs",
@@ -2676,6 +2679,7 @@
       "rowBusy": "Une écriture de « {name} » est en cours : rien n’a été écrit, renouvelez la demande une fois la réponse donnée."
     },
     "identitySync": {
+      "menu": "Lecture des comptes du fournisseur d’identité : état et commandes",
       "title": "Lecture des comptes du fournisseur d’identité",
       "schedule": {
         "title": "Périodicité de la lecture",
