@@ -4,9 +4,11 @@
 # Which dependencies may run a script at installation. None needs one: unrs-resolver, used
 # by ESLint to resolve imports, ships prebuilt binaries; @parcel/watcher and @swc/core come
 # with next-intl for its message extractor, which the front does not use — the catalogues
-# are written by hand — and ship prebuilt binaries too.
+# are written by hand — and ship prebuilt binaries too. @scarf/scarf, pulled by Redocly, only
+# sends usage statistics at installation: refused.
 allowBuilds:
   "@parcel/watcher": false
+  "@scarf/scarf": false
   "@swc/core": false
   unrs-resolver: false
 

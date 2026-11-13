@@ -136,7 +136,11 @@ def test_every_service_that_builds_is_built_by_the_recipes_that_start_it() -> No
     The runner of the family `repo` has it; the guide does not say so yet (#2304).
     """
     makefile = (REPOSITORY / "Makefile").read_text("utf-8")
-    prism = re.search(r"^PRISM_VERSION\s*:?=\s*(\S+)", makefile, re.MULTILINE)
+    prism = re.search(
+        r'^\s*"@stoplight/prism-cli":\s*"([^"]+)"',
+        (REPOSITORY / "frontend/package.json").read_text("utf-8"),
+        re.MULTILINE,
+    )
     assert prism is not None
     shown = subprocess.run(
         [
@@ -157,7 +161,7 @@ def test_every_service_that_builds_is_built_by_the_recipes_that_start_it() -> No
         check=False,
         capture_output=True,
         text=True,
-        env={**os.environ, **stand_ins(makefile), "PRISM_VERSION": prism.group(1)},
+        env={**os.environ, **stand_ins(makefile), "PRISM_VERSION": prism[1]},
     )
     assert shown.returncode == 0, shown.stderr
     config = json.loads(shown.stdout)

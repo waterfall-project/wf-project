@@ -3,8 +3,6 @@
 """Tests of the variant of the contract the fake back serves."""
 
 import json
-import re
-import shutil
 import subprocess
 from pathlib import Path
 from typing import Any, cast
@@ -313,15 +311,14 @@ def test_the_bundle_of_the_repository_serves_the_amendment_203_the_volume_and_th
     tmp_path: Path,
 ) -> None:
     root = Path(__file__).resolve().parents[2]
-    makefile = (root / "Makefile").read_text(encoding="utf-8")
-    version = re.search(r"^REDOCLY_VERSION := (\S+)$", makefile, re.MULTILINE)
-    assert version is not None
+    # The Redocly of the front, from the store of pnpm that `make install-front` fills (make
+    # test-tools runs it first): no registry is reached.
+    redocly = root / "frontend/node_modules/.bin/redocly"
+    assert redocly.exists(), "run make install-front: Redocly is a dependency of the front"
     bundle = tmp_path / "contract.json"
     subprocess.run(
         [
-            str(shutil.which("npx")),
-            "--yes",
-            f"@redocly/cli@{version[1]}",
+            str(redocly),
             "bundle",
             str(root / "docs/api/openapi.yaml"),
             "--ext",
