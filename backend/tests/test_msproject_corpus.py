@@ -18,7 +18,7 @@ file of the manifest, but for a negative lag in weeks, which no file carries (#2
 
 import json
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -321,6 +321,7 @@ def test_the_manual_tasks_of_the_corpus_are_read_at_the_dates_of_their_start_and
     # a manual task in its fields ``Manual…`` (US-1990), which MS Project wrote equal to ``Start``
     # and ``Finish`` in each file of the corpus: replayed, the corpus changes no date.
     read: list[str] = []
+    lasting: list[str] = []
     for entry in FILES:
         content = (CORPUS / entry["file"]).read_bytes()
         tasks = {each.uid: each for each in read_project(content).project.tasks}
@@ -336,9 +337,16 @@ def test_the_manual_tasks_of_the_corpus_are_read_at_the_dates_of_their_start_and
                 datetime.fromisoformat(start or ""),
                 datetime.fromisoformat(finish or ""),
             ), uid
+            # The duration read is the ``ManualDuration`` when the file has it, not ``Duration``.
+            manual_duration = element.findtext("{*}ManualDuration")
+            if manual_duration is not None:
+                hours = int(manual_duration.removeprefix("PT").removesuffix("H0M0S"))
+                assert tasks[uid].duration == timedelta(hours=hours), uid
+                lasting.append(f"{entry['file']} {uid}")
             read.append(f"{entry['file']} {uid}")
     # The file 06, of the tasks in manual mode, carries them: the test does not pass on none.
     assert [each for each in read if each.startswith("06-manual-tasks.xml")], read
+    assert [each for each in lasting if each.startswith("06-manual-tasks.xml")], lasting
 
 
 @pytest.fixture

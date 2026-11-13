@@ -264,9 +264,9 @@ def _scheduled(element: Tag, name: str, *, manual: bool) -> str:
     """Name the field a task's start, finish or duration is read in: ``Manual…`` for a manual one.
 
     MS Project reads the dates and the duration of a task in manual mode in ``ManualStart``,
-    ``ManualFinish`` and ``ManualDuration``, and the import reads them as it does (decision of the
-    author of 2026-11-12, US-1990): ``Start``, ``Finish`` and ``Duration`` when the file does not
-    carry them, or for an automatic task, whose ``Manual…`` MS Project writes but does not read.
+    ``ManualFinish`` and ``ManualDuration``, and the import reads them as it does: ``Start``,
+    ``Finish`` and ``Duration`` when the file does not carry them, or for an automatic task, whose
+    ``Manual…`` MS Project writes but does not read.
     """
     own = f"Manual{name}"
     return own if manual and _value(element, own) is not None else name
