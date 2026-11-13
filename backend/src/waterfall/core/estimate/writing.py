@@ -35,11 +35,19 @@ from waterfall.core.estimate.costing import (
     rates_of,
     refuse_missing_rate,
 )
-from waterfall.core.estimate.entries import Draft, LineEntry, judged_line
+from waterfall.core.estimate.entries import (
+    CREATED_LINE,
+    AmountOverflowError,
+    Draft,
+    LineEntry,
+    judged_line,
+    overflowing,
+)
 from waterfall.core.estimate.pricing import CENT
 from waterfall.core.estimate.recalling import recalled, remembers
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.resource_settings.interface import role_calendars
+from waterfall.platform.errors import VALIDATION_FAILED, FieldError
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -122,7 +130,13 @@ def _priced_draft(
     product = product_of(figures, rate)
     if product is None:
         raise refuse_missing_rate((draft.cost_category_id, draft.category.label), basis)
-    return priced(product, bearer, basis, week)
+    amounts = priced(product, bearer, basis, week)
+    if overflowing(amounts.base, amounts.reestimated):
+        pointer = f"{CREATED_LINE if held[2] is None else ''}/quantity"
+        raise AmountOverflowError(
+            VALIDATION_FAILED, fields=(FieldError(pointer, VALIDATION_FAILED),)
+        )
+    return amounts
 
 
 def judged_priced(
@@ -283,6 +297,8 @@ def reprice(
         amounts = priced(
             row.base_amount if product is None else product, lines[row.node_id], basis, week
         )
+        if overflowing(amounts.base, amounts.reestimated):
+            raise AmountOverflowError(VALIDATION_FAILED)
         before = (row.base_amount, row.reestimated_amount, row.consumption_year)
         after = (amounts.base, amounts.reestimated, amounts.consumption_year)
         if before != after:
