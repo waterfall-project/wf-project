@@ -7,7 +7,7 @@
  */
 import { expect, type Locator, type Page } from "@playwright/test";
 
-import { setExpanded } from "./hydration";
+import { setExpanded, WORKING } from "./hydration";
 
 /** The button of the menu of a label, not the header of a column of the same name. */
 export function menuButton(page: Page, label: string): Locator {
@@ -20,18 +20,16 @@ export function menuButton(page: Page, label: string): Locator {
 /** Open the menu of a label, if it is not open; its list. */
 export async function openMenu(page: Page, label: string): Promise<Locator> {
   const button = menuButton(page, label);
-  // Web-first: the state is read with a wait, not once, as the page may still be settling.
-  const open = await expect(button)
-    .toHaveAttribute("aria-expanded", "true", { timeout: 500 })
-    .then(
-      () => true,
-      () => false,
-    );
-  if (!open) {
-    await button.click();
-  }
   const list = page.getByRole("dialog");
-  await expect(list).toBeVisible();
+  // The state is read, not guessed: the button is pressed only while it says the menu is closed (a
+  // menu opening says so at once, and is not pressed again), and until the list shows. An open
+  // menu is modal and hides its button from the tree: the list is what says it opened.
+  await expect(async () => {
+    if (!(await list.isVisible()) && (await button.getAttribute("aria-expanded")) === "false") {
+      await button.click();
+    }
+    await expect(list).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: WORKING });
   return list;
 }
 

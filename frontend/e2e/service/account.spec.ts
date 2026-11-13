@@ -319,25 +319,29 @@ test("the panel of the filters of the table of the accounts, closed by default, 
     await mine.goto(USERS);
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
     await expect(mine.getByRole("group", { name: "Filtres" })).toBeVisible();
+    // The writes of a page are server actions, POSTs that carry the header `Next-Action`: watched
+    // from the visit of the table of the roles, the page rendered and stable is the witness that
+    // none was sent for the grid (a write deferred past it is one the page never asks for).
+    const writes: string[] = [];
+    const watch = (page: Page, into: string[]) =>
+      page.on("request", (request) => {
+        if (request.method() === "POST" && request.headers()["next-action"] !== undefined) {
+          into.push(request.url());
+        }
+      });
+    watch(mine, writes);
     await mine.goto(ROLES);
     await expect(filtersButton(mine)).toHaveAttribute("aria-expanded", "false");
-    // Absence is proved after the writes of the page have settled (a deferred one would pass it empty):
-    // the users' write was seen above, the network is quiet, and the grid still has none.
-    await mine.waitForLoadState("networkidle");
-    await expect
-      .poll(() => keptOpen(first.email, "access_roles"), {
-        intervals: [250, 250, 500],
-        timeout: 2_000,
-      })
-      .toBeUndefined();
+    expect(writes).toEqual([]);
+    expect(keptOpen(first.email, "access_roles")).toBeUndefined();
 
-    // The second opens the same table: her own panel, closed.
+    // The second opens the same table: her own panel, closed, and no write for it either.
+    const hersWrites: string[] = [];
+    watch(hers, hersWrites);
     await hers.goto(USERS);
     await expect(filtersButton(hers)).toHaveAttribute("aria-expanded", "false");
-    await hers.waitForLoadState("networkidle");
-    await expect
-      .poll(() => keptOpen(second.email, "users"), { intervals: [250, 250, 500], timeout: 2_000 })
-      .toBeUndefined();
+    expect(hersWrites).toEqual([]);
+    expect(keptOpen(second.email, "users")).toBeUndefined();
 
     // A filter on, the panel closed: kept closed, and the filter still told by its chip, counted.
     await mine.goto(`${USERS}?is_active=true`);

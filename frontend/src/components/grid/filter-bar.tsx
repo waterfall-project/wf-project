@@ -203,7 +203,10 @@ export function FilterChips({
       // arrive, and nothing is left to give the focus for.
       // The address asked arrives and the chip stays in it (a key rewritten by `liftedInstead`):
       // nothing is left to wait for either, and a later removal is none of this lift's.
-      if (shown !== waiting.from) {
+      // An address of the streak that is not its last (Next shows a step of a chain asked before the
+      // first arrived) keeps the chips, and the lift: the last is still to come.
+      const step = waiting.asked.streak.has(shown) && shown !== waiting.asked.query;
+      if (shown !== waiting.from && !step) {
         lifted.current = undefined;
       }
       return;

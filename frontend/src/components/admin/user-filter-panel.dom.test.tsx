@@ -291,6 +291,38 @@ describe("the focus beside the chips lifted", () => {
     expect(document.body).toHaveFocus();
   });
 
+  it("keeps the lift through the step of a streak Next shows, and gives the focus when the last address arrives without the chip [WF-IHM-0130-A, défaut n° 20, #2916]", async () => {
+    const states = { key: "states", name: "État", value: "Actifs", params: ["states"] };
+    const origins = { key: "origins", name: "Origine", value: "Locale", params: ["origins"] };
+    const opener = createRef<HTMLButtonElement>();
+    const bar = (chips: FilterChip[]) => (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <PendingAddress>
+          <button ref={opener} type="button">
+            Filtres
+          </button>
+          <FilterChips chips={chips} page={undefined} every={[]} toggle={opener} />
+        </PendingAddress>
+      </NextIntlClientProvider>
+    );
+    page.search = "states=active&origins=local";
+    const { rerender } = render(bar([states, origins]));
+    await userEvent.click(screen.getByRole("button", { name: "Retirer le filtre État : Actifs" }));
+    const step = String(lastAddress()).split("?")[1] ?? "";
+    await userEvent.click(
+      screen.getByRole("button", { name: "Retirer le filtre Origine : Locale" }),
+    );
+    const last = String(lastAddress()).split("?")[1] ?? "";
+    expect(step).not.toBe(last);
+    // Next shows the step: the chip of the origins is still there, the lift is kept.
+    page.search = step;
+    rerender(bar([origins]));
+    // The last address arrives, the cross lifted is gone and took the focus with it.
+    page.search = last;
+    rerender(bar([]));
+    expect(opener.current).toHaveFocus();
+  });
+
   it("goes to the button of the filters when every filter is cleared [défaut n° 20]", async () => {
     page.search = "origins=local&is_active=true";
     const { rerender } = render(list());
