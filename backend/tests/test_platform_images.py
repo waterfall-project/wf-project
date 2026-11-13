@@ -8,7 +8,9 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-IMAGE = re.compile(r"image:\s*(postgres:\S+@sha256:[0-9a-f]{64})\s*$", re.MULTILINE)
+# The mirror of the chain (US-1900) precedes the image, by its registry or by the variable.
+MIRROR = r"(?:\$\{WATERFALL_MIRROR:-\}|ghcr\.io/waterfall-project/mirror/)?"
+IMAGE = re.compile(rf"image:\s*{MIRROR}(postgres:\S+@sha256:[0-9a-f]{{64}})\s*$", re.MULTILINE)
 
 
 def postgres_images(path: Path) -> list[str]:
@@ -27,7 +29,7 @@ def test_the_postgresql_of_the_chain_is_the_image_of_the_service_platform() -> N
 
 
 def test_the_redis_of_the_chain_is_the_image_of_the_service_platform() -> None:
-    redis = re.compile(r"image:\s*(redis:\S+@sha256:[0-9a-f]{64})\s*$", re.MULTILINE)
+    redis = re.compile(rf"image:\s*{MIRROR}(redis:\S+@sha256:[0-9a-f]{{64}})\s*$", re.MULTILINE)
     workflows = ROOT / ".github" / "workflows"
     compose = ROOT / "deploy" / "compose" / "compose.service.yaml"
     platform = redis.findall(compose.read_text(encoding="utf-8"))

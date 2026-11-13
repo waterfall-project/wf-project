@@ -26,6 +26,7 @@ x-back-environment: &back-environment
 x-back: &back
   build:
     context: ../../backend
+    args: [WATERFALL_MIRROR]
   environment: *back-environment
 
 # Where the browser and the server of Next reach Keycloak, through its front end: the issuer of
@@ -66,6 +67,7 @@ x-keycloak-database: &keycloak-database
 x-keycloak: &keycloak
   build:
     context: ../keycloak
+    args: [WATERFALL_MIRROR]
   image: ${WATERFALL_KEYCLOAK_IMAGE:-waterfall-keycloak}
 
 services:
@@ -74,7 +76,7 @@ services:
   # Read-only, as root, who reads the data whatever their owner. `make service-up` prints its log
   # when the platform does not start.
   postgres-volume:
-    image: ghcr.io/waterfall-project/mirror/postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    image: ${WATERFALL_MIRROR:-}postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
     entrypoint: ["/bin/sh", "/postgres-volume.sh"]
     command: ["Drop the data of the service platform: make service-down WATERFALL_RESET_DATA=yes."]
     volumes:
@@ -87,7 +89,7 @@ services:
     # <major>/docker of the volume, the layout of the images since 18. The health check asks by
     # TCP: the server of the first initialisation, which stops before the real one starts, listens
     # on the socket alone (US-1130).
-    image: ghcr.io/waterfall-project/mirror/postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    image: ${WATERFALL_MIRROR:-}postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
     # One partition of each partitioned table per project: the restoration drops the schema, and
     # pg_restore makes it again, in one transaction that locks every one of them. The default of 64
     # locks per transaction refuses it ("out of shared memory") from a few hundred projects.
@@ -112,7 +114,7 @@ services:
       retries: 30
 
   redis:
-    image: ghcr.io/waterfall-project/mirror/redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
+    image: ${WATERFALL_MIRROR:-}redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
     # Nothing durable is kept in Redis: the queue and the sessions are lost with it, not the data.
     # The shell of the container reads the password from the environment (`$$` keeps Compose from
     # expanding it): the command line `docker inspect` shows names the variable, not its value.
@@ -146,7 +148,7 @@ services:
   # Lets the role of the service, which the migrations create, sign in with its password, at
   # each start of the platform, then stops: the API and the worker connect as it.
   service-database-role:
-    image: ghcr.io/waterfall-project/mirror/postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    image: ${WATERFALL_MIRROR:-}postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
     user: postgres
     command: ["psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--file=/service-database-role.sql"]
     environment:
@@ -165,7 +167,7 @@ services:
   # The role of the backup, created when missing, and its password, at each start of the platform,
   # then stops (#895): the worker dumps the databases as it.
   backup-database-role:
-    image: ghcr.io/waterfall-project/mirror/postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    image: ${WATERFALL_MIRROR:-}postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
     user: postgres
     command: ["psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--file=/backup-database-role.sql"]
     environment:
@@ -334,7 +336,7 @@ services:
   # the platform taken from the environment (garage.toml). It keeps its data in a volume, as the
   # databases do; its memory is bounded, for the machine of a demonstration (WF-CMP-0020).
   storage:
-    image: ghcr.io/waterfall-project/mirror/dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
+    image: ${WATERFALL_MIRROR:-}dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
     command: ["/garage", "server", "--single-node", "--default-access-key"]
     environment:
       GARAGE_RPC_SECRET: ${WATERFALL_STORAGE_RPC_SECRET:?export WATERFALL_STORAGE_RPC_SECRET}
@@ -354,7 +356,7 @@ services:
   # Creates the buckets of the platform when missing, by the CreateBucket of S3 signed with its key,
   # then stops: the backups, and the imports to come (EP-06).
   storage-buckets:
-    image: ghcr.io/waterfall-project/mirror/curlimages/curl:8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93
+    image: ${WATERFALL_MIRROR:-}curlimages/curl:8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93
     entrypoint: ["/bin/sh", "/storage-buckets.sh"]
     environment:
       STORAGE_ADDRESS: http://storage:3900
@@ -370,7 +372,7 @@ services:
 
   # The database of Keycloak, on the same server, created with its role when missing (#215).
   keycloak-database:
-    image: ghcr.io/waterfall-project/mirror/postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    image: ${WATERFALL_MIRROR:-}postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
     user: postgres
     command: ["psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--file=/keycloak-database.sql"]
     environment:
@@ -424,7 +426,7 @@ services:
   # Keycloak in HTTPS, by Caddy's own authority (Caddyfile.service): the only door to Keycloak from
   # the workstation, as the front end of the demonstration is.
   keycloak-front-end:
-    image: ghcr.io/waterfall-project/mirror/caddy:2.11.7-alpine@sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5
+    image: ${WATERFALL_MIRROR:-}caddy:2.11.7-alpine@sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5
     command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile.service", "--adapter", "caddyfile"]
     volumes:
       - ./Caddyfile.service:/etc/caddy/Caddyfile.service:ro
@@ -493,6 +495,7 @@ services:
   openldap:
     build:
       context: ../openldap
+      args: [WATERFALL_MIRROR]
     image: ${WATERFALL_OPENLDAP_IMAGE:-waterfall-openldap}
     environment:
       WATERFALL_DIRECTORY_ADMIN_PASSWORD: development-only-directory-admin
@@ -509,7 +512,7 @@ services:
 
   # Receives every mail Keycloak sends; read at http://127.0.0.1:8025.
   mailpit:
-    image: ghcr.io/waterfall-project/mirror/axllent/mailpit:v1.33.0@sha256:9b3a463be15354c0f0eba91697d80e3e0d8a5623ef0e627cacc836bc17fd5231
+    image: ${WATERFALL_MIRROR:-}axllent/mailpit:v1.33.0@sha256:9b3a463be15354c0f0eba91697d80e3e0d8a5623ef0e627cacc836bc17fd5231
     user: "1000:1000"
     ports:
       - "127.0.0.1:${WATERFALL_MAILPIT_PORT:-8025}:8025"
@@ -535,7 +538,7 @@ services:
   # the API.
   contract-proxy:
     profiles: [e2e]
-    image: ghcr.io/waterfall-project/mirror/node:26-alpine@sha256:c6ad9e9c1d80f6eb607c26b4b0a132ff7a2344fad1c78ea3baa2a7d4c8de6d94
+    image: ${WATERFALL_MIRROR:-}node:26-alpine@sha256:c6ad9e9c1d80f6eb607c26b4b0a132ff7a2344fad1c78ea3baa2a7d4c8de6d94
     command:
       - node
       - /bench/contract-proxy.ts

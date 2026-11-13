@@ -35,7 +35,7 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
 from wftools import REPOSITORY
-from wftools.images import cache_source
+from wftools.images import MIRROR, cache_source
 
 IMAGE = os.environ.get("WATERFALL_FRONT_CHECK_IMAGE") or "waterfall-front:check"
 """The local tag of the image built here, never pushed: the one of the slot of the worktree, which
@@ -220,7 +220,7 @@ def main(
         help="the prerender manifest of a build of the front, held without building the image",
     )
     options = parser.parse_args(arguments)
-    build = ["docker", "build", "--target", "production", *cache_source("front")]
+    build = ["docker", "build", *MIRROR, "--target", "production", *cache_source("front")]
     build += ["--tag", IMAGE, "frontend"]
     try:
         if options.manifest is not None:

@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 import yaml
 
-from wftools import REPOSITORY, mirror
+from wftools import REPOSITORY, images, mirror
 from wftools import registry as shared
 
 if TYPE_CHECKING:
@@ -28,11 +28,10 @@ NOT_FOUND = (1, "ERROR: ghcr.io/waterfall-project/mirror/postgres: not found")
 UNREACHABLE = (1, "ERROR: dial tcp: lookup ghcr.io: no such host")
 POSTGRES = mirror.Mirrored("postgres", "18-trixie", DIGEST)
 MAILPIT = mirror.Mirrored("axllent/mailpit", "v1.33.0", DIGEST)
-# The registries a pinned image may name beside the mirror: those that are not Docker Hub.
-OTHER_REGISTRIES = ("mcr.microsoft.com/", "ghcr.io/astral-sh/")
-# A pinned image as a Compose file, a Dockerfile or a service names it.
-PINNED = re.compile(r"^\s*(?:image:|FROM)\s+(?P<image>\S+@sha256:[0-9a-f]{64})", re.MULTILINE)
-PULLING_JOBS = ("back", "front", "front-image", "keycloak", "production", "service")
+# The families whose jobs pull from the mirror; production stays on Docker Hub.
+PULLING_JOBS = ("back", "front", "front-image", "keycloak", "service")
+# The workflows that build or run Compose on the mirror, and so pose its prefix.
+BUILDING = ("back.yml", "front-image.yml", "keycloak.yml", "images.yml", "service.yml")
 
 
 class Registry:
@@ -97,16 +96,22 @@ def logs_in(steps: list[dict[str, Any]]) -> bool:
 # What the repository pulls, and from where.
 
 
-def test_no_file_pulls_an_image_from_docker_hub() -> None:
-    # A pinned image that names no registry is Docker Hub's: the Compose files, the Dockerfiles
-    # and the services of the jobs name the mirror's, or another registry's, never that one.
-    pulled = {
-        f"{path.relative_to(REPOSITORY)}: {found['image']}"
-        for path in scanned()
-        for found in PINNED.finditer(path.read_text(encoding="utf-8"))
-        if not found["image"].startswith((mirror.MIRROR, *OTHER_REGISTRIES))
-    }
-    assert not pulled
+def test_outside_the_chain_the_files_name_docker_hub_by_default() -> None:
+    # Compose and the Dockerfiles read the mirror from WATERFALL_MIRROR, empty by default: the
+    # workstation, production, the demonstration and Dependabot see Docker Hub's names.
+    for path in scanned():
+        text = path.read_text(encoding="utf-8")
+        if path.parent.name == "workflows":
+            continue
+        name = str(path.relative_to(REPOSITORY))
+        assert mirror.MIRROR not in text, name
+        if "WATERFALL_MIRROR" in text and path.suffix == ".yaml":
+            assert "${WATERFALL_MIRROR}" not in text, name
+        elif "WATERFALL_MIRROR" in text:
+            assert "\nARG WATERFALL_MIRROR=\n" in text, name
+    for name in ("compose.prod.yaml", "compose.prod.local.yaml", "compose.demo.yaml"):
+        compose = REPOSITORY / "deploy" / "compose" / name
+        assert "MIRROR" not in compose.read_text(encoding="utf-8")
 
 
 def test_every_image_of_docker_hub_the_files_name_is_pinned_by_a_digest() -> None:
@@ -131,7 +136,8 @@ def test_every_image_of_docker_hub_the_files_name_is_pinned_by_a_digest() -> Non
 
 def test_a_reference_without_a_digest_is_not_one_of_the_mirror_images(tmp_path: Path) -> None:
     (tmp_path / "Dockerfile").write_text(
-        f"FROM {mirror.MIRROR}/node:26-alpine\nFROM {mirror.MIRROR}/redis:8@{DIGEST}\n",
+        "FROM ${WATERFALL_MIRROR}node:26-alpine\n"
+        f"image: ${{WATERFALL_MIRROR:-}}redis:8@{DIGEST}\n",
         encoding="utf-8",
     )
     assert mirror.referenced(tmp_path, ["Dockerfile"]) == [mirror.Mirrored("redis", "8", DIGEST)]
@@ -185,12 +191,11 @@ def test_a_container_started_by_a_step_is_pulled_after_the_login() -> None:
     assert login < started
 
 
-@pytest.mark.parametrize("name", ["front-image.yml", "keycloak.yml", "production.yml"])
-def test_the_jobs_that_build_on_the_mirror_log_in_to_it(name: str) -> None:
+@pytest.mark.parametrize("name", BUILDING)
+def test_the_workflows_that_build_on_the_mirror_pose_it_and_log_in_to_it(name: str) -> None:
     called = workflow(name)
-    assert called["permissions"]["packages"] == "read"
-    for job in called["jobs"].values():
-        assert logs_in(job["steps"])
+    assert called["env"]["WATERFALL_MIRROR"] == f"{mirror.MIRROR}/"
+    assert any(logs_in(job["steps"]) for job in called["jobs"].values())
 
 
 def test_images_yml_fills_the_mirror_and_reads_it_from_every_job() -> None:
@@ -290,3 +295,9 @@ def test_main_fails_on_a_missing_image_without_push_and_on_a_source_that_fails(
 
 def test_main_fails_when_no_file_names_the_mirror(tmp_path: Path) -> None:
     assert Registry().main(tmp_path) == 2
+
+
+def test_every_build_of_an_image_hands_the_registry_of_the_mirror_down() -> None:
+    builds = images.builds("main", "a" * 40, "0.3.0")
+    assert builds
+    assert all("--build-arg" in command and "WATERFALL_MIRROR" in command for command in builds)

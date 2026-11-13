@@ -25,6 +25,10 @@ on:
 permissions:
   contents: read
 
+# The Dockerfiles and the Compose files pull Docker Hub's images from the mirror (ci.yml, mirror).
+env:
+  WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/
+
 jobs:
   paths:
     runs-on: ubuntu-26.04

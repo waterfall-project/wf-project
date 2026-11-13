@@ -326,7 +326,7 @@ lint-compose: ## Validate the Compose files
 	@docker compose -f deploy/compose/compose.test.yaml config --quiet
 
 build-keycloak: ## Build the image of Keycloak: the extension compiled and tested, the themes, the realm (deploy/keycloak)
-	@docker build $(call build-cache-from,keycloak) --tag $(WATERFALL_KEYCLOAK_IMAGE) deploy/keycloak
+	@docker build --build-arg WATERFALL_MIRROR $(call build-cache-from,keycloak) --tag $(WATERFALL_KEYCLOAK_IMAGE) deploy/keycloak
 
 # The cache of the builds of the images on GitHub Actions (type=gha, .github/actions/build-cache):
 # every build of an image reads it, under the name of the image (wftools.images); after a merge,
@@ -337,9 +337,9 @@ build-cache-from = --cache-from type=gha,scope=$(1)
 build-cache-to = --output type=cacheonly --cache-to type=gha,mode=max,scope=$(1) $(call build-cache-from,$(1))
 
 build-cache: ## Write the builds of the images front, waterfall and keycloak into the cache of GitHub Actions (images.yml)
-	@docker build --target production $(call build-cache-to,front) frontend
-	@docker build --target production $(call build-cache-to,waterfall) backend
-	@docker build --target production $(call build-cache-to,keycloak) deploy/keycloak
+	@docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,front) frontend
+	@docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,waterfall) backend
+	@docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,keycloak) deploy/keycloak
 
 # The images the chain publishes (US-0430): front, waterfall and keycloak, under
 # ghcr.io/waterfall-project, tagged by the commit and the branch they are built from, and by the

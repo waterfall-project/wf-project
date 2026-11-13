@@ -25,6 +25,10 @@ concurrency:
   group: images-${{ github.ref }}
   cancel-in-progress: false
 
+# The Dockerfiles and the Compose files pull Docker Hub's images from the mirror (ci.yml, mirror).
+env:
+  WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/
+
 jobs:
   publish:
     runs-on: ubuntu-26.04

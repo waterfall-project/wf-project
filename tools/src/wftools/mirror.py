@@ -4,12 +4,14 @@
 
 Usage: ``python -m wftools.mirror [--push]``.
 
-The Compose files, the Dockerfiles and the services of the workflows name the third-party images
-of Docker Hub — PostgreSQL, Redis, Caddy, Mailpit, Garage, curl, Node, Python, Debian, Maven,
-Keycloak and its config CLI — under ``ghcr.io/waterfall-project/mirror/``, pinned by the digest
-they had on Docker Hub: ``mirror/postgres:18-trixie@sha256:…`` is ``docker.io/library/postgres``
-at that digest. A pull of Docker Hub failed three runs of ``keycloak / check`` and one of
-``production / trial`` in a week (« failed to fetch oauth token »): the chain now reads Docker Hub
+The Compose files and the Dockerfiles name the third-party images of Docker Hub — PostgreSQL,
+Redis, Caddy, Mailpit, Garage, curl, Node, Python, Debian, Maven, Keycloak and its config CLI — by
+the digest they have there, behind ``${WATERFALL_MIRROR:-}`` (``ARG WATERFALL_MIRROR=`` in a
+Dockerfile): empty, they are Docker Hub's, on the workstation, in production and for Dependabot; the
+chain poses ``ghcr.io/waterfall-project/mirror/``, and ``mirror/postgres:18-trixie@sha256:…`` is
+``docker.io/library/postgres`` at that digest. The services of the workflows name the mirror itself.
+A pull of Docker Hub failed three runs of ``keycloak / check`` and one of ``production / trial``
+in a week (« failed to fetch oauth token »): the chain now reads Docker Hub
 only to fill the mirror, once per digest, never to run.
 
 The tool reads every reference to the mirror in those files and asks ghcr.io whether it holds the
@@ -24,9 +26,8 @@ first run that needs it, on the pull request that adds an image or raises a dige
 runs after a merge, which is too late. A request is tried again (wftools.registry, #2530); an image
 neither the mirror nor Docker Hub gives fails the run before any job starts, naming Docker Hub.
 
-A package GitHub creates is private; the jobs that pull from the mirror ask for ``packages: read``
-and log in, and a workstation that has not logged in pulls from it once the packages are made
-public (docs/dev/README-fr.md, « La chaîne »).
+A package GitHub creates is private: the jobs that pull from the mirror ask for ``packages: read``
+and log in, and nothing outside the chain reads it (docs/dev/README-fr.md, « La chaîne »).
 """
 
 import argparse
@@ -61,11 +62,15 @@ SCANNED = (
     "deploy/compose/*.yaml",
     ".github/workflows/*.yml",
 )
-"""The files that name an image of the mirror: Dockerfiles, Compose files, the services of jobs."""
+"""The files that name an image of the mirror: Dockerfiles, Compose files, services of jobs."""
 
+# Where a file names the mirror: the registry itself, in the services of the workflows, or the
+# variable the chain poses (WATERFALL_MIRROR, the mirror and a slash, empty on the workstation).
 REFERENCE = re.compile(
-    re.escape(MIRROR)
-    + r"/(?P<path>[a-z0-9][a-z0-9_.-]*(?:/[a-z0-9][a-z0-9_.-]*)*)"
+    "(?:"
+    + re.escape(MIRROR)
+    + r"/|\$\{WATERFALL_MIRROR(?::-)?\})"
+    + r"(?P<path>[a-z0-9][a-z0-9_.-]*(?:/[a-z0-9][a-z0-9_.-]*)*)"
     + r":(?P<tag>[A-Za-z0-9_][A-Za-z0-9_.-]*)@(?P<digest>sha256:[0-9a-f]{64})"
 )
 DIGEST_DIGITS = 12

@@ -24,7 +24,9 @@
 #   set at start by `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, which Next reads before the one of the
 #   build, and without which the server does not start (#825).
 # The base image is pinned by digest: a tag can be moved, a digest cannot.
-FROM ghcr.io/waterfall-project/mirror/node:26-alpine@sha256:c6ad9e9c1d80f6eb607c26b4b0a132ff7a2344fad1c78ea3baa2a7d4c8de6d94 AS node
+# Docker Hub, unless the chain gives the registry of its mirror (docs/dev/README.md, « The chain »).
+ARG WATERFALL_MIRROR=
+FROM ${WATERFALL_MIRROR}node:26-alpine@sha256:c6ad9e9c1d80f6eb607c26b4b0a132ff7a2344fad1c78ea3baa2a7d4c8de6d94 AS node
 
 ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
