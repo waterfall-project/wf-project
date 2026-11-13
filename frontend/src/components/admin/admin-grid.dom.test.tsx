@@ -308,13 +308,15 @@ describe("the grid of the accounts", () => {
 
   it("reads an address of before that hid the deactivated accounts as the active ones, to which « Désactivé » is added", async () => {
     page.search = "origins=local&include_inactive=false";
-    render(userList(NO_QUERY, second, { origins: ["local"], active: true }));
+    const { rerender } = render(userList(NO_QUERY, second, { origins: ["local"], active: true }));
     await openFilters();
     await openMenu("État du compte");
     expect(screen.getByRole("checkbox", { name: "Actif" })).toBeChecked();
     await userEvent.click(screen.getByRole("checkbox", { name: "Désactivé" }));
     // Both states: the filter is lifted, with the parameter of before; the active ones not undone.
     expect(lastAddress()).toBe("/admin/users?origins=local");
+    page.search = "origins=local";
+    rerender(userList(NO_QUERY, second, { origins: ["local"] }));
     expect(screen.getByRole("checkbox", { name: "Tous les états" })).toBeChecked();
   });
 
