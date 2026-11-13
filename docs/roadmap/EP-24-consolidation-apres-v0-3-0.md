@@ -886,7 +886,7 @@ de version 0.3.0, à retirer avec elle.
 
 ## US-1950 — L'ajout d'une tâche et l'insertion d'une ligne au reste à engager se jouent contre le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-RAE-0040-A`
 - **opérations** : celles que jouent les deux parcours, inchangées
 - **issue** : #2964
