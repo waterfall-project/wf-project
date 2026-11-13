@@ -154,6 +154,7 @@ export function AccessRoleGrid({
   const isWriting = answers?.isWriting;
   const begin = answers?.begin;
   const end = answers?.end;
+  const idle = answers?.idle;
   const config = useMemo(
     () =>
       accessRoleGrid(
@@ -162,11 +163,12 @@ export function AccessRoleGrid({
           record === undefined ||
           isWriting === undefined ||
           begin === undefined ||
-          end === undefined
+          end === undefined ||
+          idle === undefined
           ? undefined
-          : { latest, record, isWriting, begin, end },
+          : { latest, record, isWriting, begin, end, idle },
       ),
-    [editable, latest, record, isWriting, begin, end],
+    [editable, latest, record, isWriting, begin, end, idle],
   );
   return (
     <DenseGrid

@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -508,7 +508,7 @@ describe("the writes of a same role, one at a time (#2261)", () => {
     expect(label("Administrateur")).toHaveAttribute("aria-busy", "false");
   });
 
-  it("sends no renaming validated while a cell of the role is written, the entry kept, and renames from the version the cell answered once it is free [WF-ADM-0010-A]", async () => {
+  it("holds a renaming validated while a cell of the role is written until the role is free, then sends it once from the version the cell answered, with no message [WF-ADM-0010-A]", async () => {
     const hold = holdRoute(WRITTEN);
     const client = serve(
       { [WRITTEN]: ["access_role_updated", "access_role_renamed"] },
@@ -516,33 +516,69 @@ describe("the writes of a same role, one at a time (#2261)", () => {
     );
     const shown = permissions.filter(({ code }) => code === "planning.write");
     render(inFrench(tableAndMatrix(shown)));
-    // The entry is opened first, then a cell of the same role is checked, then the entry validated.
+    // The entry is opened first, then validated and, before the write it queues leaves, a cell of
+    // the same role is checked by a click from the code: the one way a renaming reaches its write
+    // while the role is being written (a click of a hand makes the entry validate first).
     labelCell("Manager").focus();
     await userEvent.keyboard("Resp");
-    // A click from the code, which leaves the focus, and so the entry, where they are.
+    const entry = document.activeElement as HTMLInputElement;
     act(() => {
+      fireEvent.keyDown(entry, { key: "Enter" });
       cell("Manager").click();
     });
     await waitFor(() => {
-      expect(cell("Manager")).toHaveAttribute("aria-busy", "true");
+      expect(client.calls).toHaveLength(1);
     });
-    await userEvent.keyboard("{Enter}");
-    expect(client.calls).toHaveLength(1);
+    expect(client.calls[0]?.body).toHaveProperty("permissions");
+    expect(client.calls[0]?.body).not.toMatchObject({ label: "Resp" });
     hold.release();
-    await waitFor(() => {
-      expect(cell("Manager")).toHaveAttribute("aria-busy", "false");
-    });
-    // The role is free: the renaming goes from the version the cell answered.
-    labelCell("Manager").focus();
-    await userEvent.keyboard("Resp{Enter}");
+    // The role is free: the renaming goes by itself, once, from the version the cell answered.
     await waitFor(() => {
       expect(client.calls).toHaveLength(2);
+    });
+    await waitFor(() => {
+      expect(cell("Manager")).toHaveAttribute("aria-busy", "false");
     });
     const checked = example("access_role_updated") as Schemas["AccessRole"];
     expect(client.calls[1]?.body).toMatchObject({
       label: "Resp",
       lock_version: checked.lock_version,
     });
+    expect(client.calls).toHaveLength(2);
+    expect(screen.queryByText(/injoignable/i)).toBeNull();
+    expect(told().textContent).toBe("");
+  });
+
+  it("frees a role whose confirmed deletion the server does not answer, its row, label, cells and « Supprimer » active again [WF-ADM-0010-A]", async () => {
+    // Held, then refused by the server: the deletion ends in a failure, not in a role deleted.
+    const hold = holdRoute(DELETED);
+    serve(
+      {
+        [DELETED]: { problem: { code: "INTERNAL_ERROR", status: 500 } },
+        [WRITTEN]: "access_role_updated",
+      },
+      hold.timing,
+    );
+    const shown = permissions.filter(({ code }) => code === "planning.write");
+    render(inFrench(tableAndMatrix(shown)));
+    const grid = screen.getByRole("grid", { name: "Rôles d’habilitation" });
+    const name = "Supprimer «\u00a0Administrateur\u00a0»";
+    await userEvent.click(within(grid).getByRole("button", { name }));
+    const confirmation = await screen.findByRole("alertdialog");
+    await userEvent.click(within(confirmation).getByRole("button", { name: "Supprimer" }));
+    const remove = within(grid).getByRole("button", { name });
+    await waitFor(() => {
+      expect(remove).toHaveAttribute("aria-busy", "true");
+    });
+    hold.release();
+    await waitFor(() => {
+      expect(remove).toHaveAttribute("aria-busy", "false");
+    });
+    expect(remove).not.toHaveAttribute("aria-disabled", "true");
+    expect(label("Administrateur")).toHaveAttribute("aria-busy", "false");
+    expect(label("Administrateur")).not.toHaveAttribute("aria-disabled");
+    expect(cell("Administrateur")).toHaveAttribute("aria-busy", "false");
+    expect(cell("Administrateur")).not.toHaveAttribute("aria-disabled");
   });
 
   it("keeps a confirmation opened before a write of the role open and its command busy, deleting once the role is free [WF-ADM-0010-A]", async () => {

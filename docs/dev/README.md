@@ -4432,9 +4432,10 @@ the epic that lifts it; that epic removes the guard and its entry:
   the estimate and the remaining to commit (`:192`), which opens the imports screen of PRJ-001 whose
   account of the run is no contributor (#2193): it stays untagged, like the refusal of a file too
   large; the import of a remaining to commit plays against the service on a project of the run
-  (`:451`), that of an extraction in `actual-costs.spec.ts`, by the API. The export of the planning, imported back and confirmed, plays against the service on a
-  project of the run (US-1430, #2683), as does the export of the remaining to commit, imported back
-  in two steps and left while it is applied (`:451`, US-1630).
+  (`:451`), that of an extraction in `actual-costs.spec.ts`, by the API. The export of the
+  planning, imported back and confirmed, plays against the service on a project of the run
+  (US-1430, #2683), as does the export of the remaining to commit, imported back in two steps and
+  left while it is applied (`:451`, US-1630).
 - `projects.spec.ts` — the paths that write to PRJ-001 or reach it through its planning: the screen
   of the project, its settings and its lifecycle, the exit, the sub-projects and the contributors,
   the work breakdown (`FAKE_BACK_ONLY`): the account of the run is not a project manager of PRJ-001,

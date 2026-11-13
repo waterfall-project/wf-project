@@ -170,8 +170,10 @@ export class UnexpectedAnswer extends Error {
   ) {
     super(`${operation} answered ${String(status)}`);
     this.name = "UnexpectedAnswer";
-    const correlation = isProblem(body) ? body.correlation_id : undefined;
-    this.digest = correlation === undefined ? undefined : correlationDigest(correlation);
+    // A reference of the form of the contract only, as `envelope()` keeps it: any other value would
+    // stand on the screen of failure as a reference (WF-OBS-0020, #2882).
+    const correlation: unknown = isProblem(body) ? body.correlation_id : undefined;
+    this.digest = isCorrelation(correlation) ? correlationDigest(correlation) : undefined;
   }
 }
 

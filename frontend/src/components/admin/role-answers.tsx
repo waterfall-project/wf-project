@@ -12,7 +12,9 @@
  * The roles being written are kept beside them: a renaming, a cell of the matrix and a confirmed
  * deletion each mark their role until the server answers, whatever the answer, and the label, the
  * cells and « Supprimer » of a role so marked are busy and send nothing — the next write goes from the
- * role answered, never from the version a write under way is about to leave (US-1780, #2261).
+ * role answered, never from the version a write under way is about to leave (US-1780, #2261); a
+ * renaming validated meanwhile waits for the role to be free (`idle`), then goes from that version
+ * (#2897).
  */
 "use client";
 
@@ -81,15 +83,31 @@ export function RoleAnswers({ children }: { readonly children: ReactNode }) {
     latestWriting.current = next;
     setWriting(next);
   }, []);
+  // Those waiting for a role to be free, by its identifier, woken when it is freed.
+  const waiting = useRef<Map<string, (() => void)[]>>(new Map());
   const end = useCallback((id: string) => {
     const next = new Set(latestWriting.current);
     next.delete(id);
     latestWriting.current = next;
     setWriting(next);
+    const woken = waiting.current.get(id) ?? [];
+    waiting.current.delete(id);
+    for (const wake of woken) {
+      wake();
+    }
   }, []);
+  const idle = useCallback(
+    (id: string) =>
+      latestWriting.current.has(id)
+        ? new Promise<void>((resolve) => {
+            waiting.current.set(id, [...(waiting.current.get(id) ?? []), resolve]);
+          })
+        : Promise.resolve(),
+    [],
+  );
   const value = useMemo(
-    () => ({ answered, writing, latest, record, isWriting, begin, end }),
-    [answered, writing, latest, record, isWriting, begin, end],
+    () => ({ answered, writing, latest, record, isWriting, begin, end, idle }),
+    [answered, writing, latest, record, isWriting, begin, end, idle],
   );
   return <AnswersContext value={around ?? value}>{children}</AnswersContext>;
 }

@@ -16,9 +16,9 @@
  *   deactivated or not admitted (`ACCOUNT_DEACTIVATED_DIGEST`, `ACCOUNT_NOT_ADMITTED_DIGEST`),
  *   which it does not — signing in again would loop —, a component of the platform unavailable
  *   (`componentDigest`), which the notice names as the refusal of the API does, or the unexpected
- *   error (`INTERNAL_ERROR`, WF-ARC-0110) with its reference — the correlation identifier of the API, or the digest Next computed —,
- *   kept only when it has the form the contract gives a `correlation_id`: the notice shows it as
- *   the screen of failure does (WF-OBS-0020).
+ *   error (`INTERNAL_ERROR`, WF-ARC-0110) with its reference — the correlation identifier of the
+ *   API, or the digest Next computed —, kept only when it has the form the contract gives a
+ *   `correlation_id`: the notice shows it as the screen of failure does (WF-OBS-0020).
  *
  * Never "unreachable" for a defect: a user told to try again in a moment would try for ever.
  * Pure, and free of the client of the API: a client component calls it.

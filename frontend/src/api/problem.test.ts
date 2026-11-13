@@ -342,7 +342,7 @@ describe("a read a screen cannot do without", () => {
     },
   );
 
-  it("throws any other answer as unexpected, with the correlation identifier of the envelope", async () => {
+  it("throws any other answer as unexpected, with the correlation identifier of the envelope [WF-OBS-0020-A]", async () => {
     const read = readiness(answering(() => Promise.resolve(failure("req-7f3a"))));
     await expect(read).rejects.toBeInstanceOf(UnexpectedAnswer);
     await expect(read).rejects.toMatchObject({
@@ -362,9 +362,27 @@ describe("a read a screen cannot do without", () => {
       },
       (thrown: unknown) => thrown as UnexpectedAnswer,
     );
-    expect(error.digest?.startsWith("NEXT_")).toBe(false);
-    expect(failureOf(error)).toEqual({ kind: "unexpected", reference: hostile });
+    expect(error.digest).toBeUndefined();
   });
+
+  it.each([
+    ["with a space", "req 7f3a"],
+    ["with a semicolon", "req;7f3a"],
+    ["empty", ""],
+    ["too long", "a".repeat(65)],
+  ])(
+    "keeps no correlation identifier %s in its digest, as the contract forms it [WF-OBS-0020-A]",
+    async (_, correlation) => {
+      const error = await readiness(answering(() => Promise.resolve(failure(correlation)))).then(
+        () => {
+          throw new Error("the read should have been refused");
+        },
+        (thrown: unknown) => thrown as UnexpectedAnswer,
+      );
+      expect(error.digest).toBeUndefined();
+      expect(failureOf(error)).toEqual({ kind: "unexpected", reference: undefined });
+    },
+  );
 });
 
 describe("the decoder of a background task", () => {

@@ -952,7 +952,7 @@ sait lire soit refusé par 422, **afin de** ne jamais recevoir un 500 d'une list
 
 ## US-1970 — L'écran des rôles libère un rôle après un rejet et fait partir un renommage différé, et une référence hors forme ne s'affiche pas
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ADM-0010-A`, `WF-OBS-0020-A`
 - **opérations** : `updateAccessRole`, `deleteAccessRole`, et toute lecture d'un écran
 - **issue** : #2963
