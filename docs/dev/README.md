@@ -3169,6 +3169,11 @@ images: two deliverers play the end-to-end paths, the tests of Keycloak or the p
 service together without colliding. The main repository, like every runner of the chain, is at
 slot 0: its ports and its names are those of before the slots.
 
+**A worktree is never checked out under `/tmp`** (#2953). The tmpfs of `/tmp` ran out of inodes on
+2026-11-12 under the `node_modules` of worktrees checked out in scratchpads: a worktree is checked
+out under the repository (`.claude/worktrees/`) or elsewhere on the disk, never in `/tmp` nor in a
+scratchpad. No tool checks it: `make slot` and `make slots` do not count inodes.
+
 | Command             | What it does                                                                                                                                                                                                                                                                                                            |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `make slot`         | takes for the worktree it is run in the first free slot from 1 to N, or says its own; if the N are taken, it fails, holders named; in the main repository (its `.git` is a directory), it says slot 0, taking nothing                                                                                                   |
@@ -3916,7 +3921,12 @@ i-th of N shards of the paths, like each of the chain's runners (« The chain »
 `make e2e WORKERS=<n>` plays them on `n` workers (`E2E_WORKERS`, which `playwright.config.ts` reads;
 an integer from 1 to 40, nothing else: one front per worker, and a slot's block holds only forty),
 fewer than Playwright takes on its own — half the processors, capped at forty — on a loaded
-workstation, where paths fail by timeout (#736). With `WATERFALL_API_ADDRESS`, the harness plays
+workstation, where paths fail by timeout (#736). `make e2e-service` has a default of its own
+(#2890): three quarters of `WATERFALL_PROCESSORS`, the share of processors of the slot, at least 1 and
+at most 40 — 6 on 8 processors —, and not half the processors of the workstation, 16 of 32, where
+18 to 23 paths failed to navigate (`toHaveURL`); measured at 8, 10 and 12 workers on 8 processors,
+four slots taken, they still failed to navigate, at 6 never. An `E2E_WORKERS` given, in the
+environment or on the command line, prevails. With `WATERFALL_API_ADDRESS`, the harness plays
 against the API it names and starts no fake back.
 
 **The paths are played against the front built for production** (US-0590), the one users open: one

@@ -798,7 +798,7 @@ production, derrière un autovacuum).
 
 ## US-1930 — Le poste local : un nombre de workers qui ne le sature pas, et pas de worktree sous `/tmp`
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2953

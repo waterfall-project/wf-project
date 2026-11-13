@@ -659,3 +659,32 @@ def test_the_tests_run_with_an_empty_process_table() -> None:
     root = Path(os.environ["WATERFALL_SLOTS_PROC"])
     assert root.is_dir()
     assert not any(root.iterdir())
+
+
+def service_workers(processors: int, tmp_path: Path) -> str:
+    """Return the workers `make e2e-service` hands to Playwright for a share of processors."""
+    outer = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TESTS", "WATERFALL_SLOTS", "E2E_WORKERS")
+    environment = {k: v for k, v in os.environ.items() if k not in outer}
+    environment |= slots.variables(0) | {"WATERFALL_PROCESSORS": str(processors)}
+    environment |= {"XDG_RUNTIME_DIR": str(tmp_path)}
+    printing = "print: ; @echo $(E2E_SERVICE_WORKERS)"
+    done = subprocess.run(
+        ["make", "--no-print-directory", "--eval", printing, "print"],
+        cwd=REPOSITORY,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return done.stdout.strip()
+
+
+@pytest.mark.parametrize(
+    ("processors", "workers"),
+    [(1, "1"), (2, "1"), (8, "6"), (32, "24"), (100, "40")],
+)
+def test_the_workers_of_the_service_paths_are_three_quarters_of_the_share(
+    tmp_path: Path, processors: int, workers: str
+) -> None:
+    """US-1930: the default of E2E_WORKERS follows WATERFALL_PROCESSORS, 1 to 40 (#2890)."""
+    assert service_workers(processors, tmp_path) == workers
