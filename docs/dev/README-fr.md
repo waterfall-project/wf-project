@@ -4029,9 +4029,9 @@ job quand un parcours échoue). Puis :
 `createOwnProject` (`frontend/e2e/own-project.ts`) en est l'exemple : chaque création écrit au
 journal « Own project created », l'accueil, la boîte, puis, depuis « Créer », l'action serveur
 demandée et répondue, l'écran du projet demandé, répondu et fini, et l'adresse atteinte ; manquée,
-ce que la boîte affiche. Sur les 52 créations du passage complet 43386149437, la création entière prend 2,2 s en médiane et 5,8 s au
-plus, l'adresse 0,7 s après « Créer », et l'API répond `POST /projects` en 0,24 s en médiane, 1,9 s
-au plus : rien n'y justifie d'élargir `WORKING`.
+ce que la boîte affiche. Sur les 52 créations du passage complet 43386149437, la création entière
+prend 2,2 s en médiane et 5,8 s au plus, l'adresse 0,7 s après « Créer », et l'API répond `POST
+/projects` en 0,24 s en médiane, 1,9 s au plus : rien n'y justifie d'élargir `WORKING`.
 
 `make e2e` : Redocly et Prism sont des dépendances de développement du front, à version exacte
 (`frontend/package.json`, verrouillées par `pnpm-lock.yaml`) : `make install-front`, que la cible

@@ -59,13 +59,12 @@ export async function createOwnProject(page: Page, prefix: string): Promise<OwnP
       await expect(page).toHaveURL(PROJECT_SCREEN, { timeout: WORKING });
     } catch (error) {
       // A creation refused — a 500 of the service, as the deadlock of the partitions was (#2940) —
-      // keeps the address of the home: what the dialog says names the cause in the log. Read
-      // without waiting (`isVisible`, then `textContent` of the resolved dialog), so the failure is
-      // not delayed.
+      // keeps the address of the home: what the dialog says names the cause in the log. One read,
+      // bounded and tolerant (a dialog closed meanwhile is no error), so the failure is delayed by
+      // 1 s at most and keeps its own cause.
       steps.mark("address not reached");
-      steps.tell(
-        (await creation.isVisible()) ? ((await creation.textContent()) ?? "") : "the dialog closed",
-      );
+      const said = await creation.textContent({ timeout: 1_000 }).catch(() => null);
+      steps.tell(said ?? "the dialog closed");
       throw error;
     }
     steps.mark("address");
