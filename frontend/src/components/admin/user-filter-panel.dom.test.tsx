@@ -18,7 +18,7 @@ import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 import { UserList } from "./account-lists";
 import type { User, UserSort } from "./admin-grids";
 import { authorsOf } from "./audit-address";
-import { USER_KEPT } from "./user-address";
+import { readAccountState, USER_KEPT } from "./user-address";
 
 // Filters folded into the bar of the table of the accounts (#2916): the panel, closed by default
 // and kept with the settings of the grid, and the chips of the filters on, built from the address.
@@ -58,7 +58,7 @@ function list(
           orgNode={undefined}
           roles={[]}
           accessRoles={[]}
-          active={page.search.includes("is_active=true") ? true : undefined}
+          active={readAccountState(new URLSearchParams(page.search))}
           audit={NO_AUDIT}
           authors={authorsOf(users.items)}
           editable={false}
@@ -149,6 +149,37 @@ describe("the panel of the filters of the table of the accounts", () => {
     expect(lastAddress()).toBe("/admin/users?search=Mor");
   });
 
+  it("lifts by « Effacer les filtres » a parameter the reading set aside too, which no chip tells [WF-IHM-0130-A, #2916]", async () => {
+    // `origins=nope` is no origin of the contract: the page reads none, and no chip says it.
+    page.search = "origins=nope&is_active=true";
+    render(list());
+    expect(toggle()).toHaveAccessibleName("Filtres (1)");
+    await userEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
+    // Nothing left of the table: the address says the reading lifted, the search empty.
+    expect(lastAddress()).toBe("/admin/users?search=");
+  });
+
+  it("tells an address that hid the deactivated accounts as the active ones alone, kept with the settings of the grid, and lifted by its chip or by « Effacer les filtres » [WF-IHM-0060-A, #2916]", async () => {
+    page.search = "include_inactive=false";
+    render(list({ filters: { include_inactive: "false" } }));
+    const chips = screen.getByRole("list", { name: "Filtres actifs" });
+    expect(within(chips).getByText("État du compte : Comptes actifs")).toBeVisible();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Retirer le filtre État du compte : Comptes actifs" }),
+    );
+    expect(lastAddress()).toBe("/admin/users?search=");
+    await userEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
+    expect(lastAddress()).toBe("/admin/users?search=");
+  });
+
+  it("records `include_inactive=false` with the filters of the grid, a filter the page reads [WF-IHM-0060-A, #2916]", async () => {
+    page.search = "include_inactive=false";
+    render(list());
+    await waitFor(() => {
+      expect(recorded().at(-1)).toMatchObject({ filters: { include_inactive: "false" } });
+    });
+  });
+
   it("offers no chip, and no way to clear, while no filter is on, and breaks no rule of accessibility", async () => {
     const { container } = render(list());
     expect(screen.queryByRole("list", { name: "Filtres actifs" })).toBeNull();
@@ -216,6 +247,20 @@ describe("the focus beside the chips lifted", () => {
     page.search = "";
     rerender(list());
     expect(toggle()).toHaveFocus();
+  });
+
+  it("is moved by no later navigation once the lift is forgotten — another address shown that still holds the chip [défaut n° 20, #2916]", async () => {
+    page.search = "origins=local&is_active=true";
+    const { rerender } = render(list());
+    await userEvent.click(cross("Origine : Créé dans Waterfall"));
+    // The lift never arrives: another address is shown, the chip still in it.
+    page.search = "origins=local&is_active=true&sort_by=email&sort_order=asc";
+    rerender(list());
+    (document.activeElement as HTMLElement | null)?.blur();
+    // Later, the chip goes by another way — the history —: the focus stays where it was.
+    page.search = "is_active=true";
+    rerender(list());
+    expect(document.body).toHaveFocus();
   });
 
   it("goes to the button of the filters when every filter is cleared [défaut n° 20]", async () => {

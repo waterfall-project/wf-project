@@ -476,6 +476,14 @@ describe("the accounts", () => {
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true" }]);
   });
 
+  it("read an address that says `include_inactive=false` alone as a filter of the table, never replaced by the filters the account keeps [WF-IHM-0060-A, #2916]", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_grid_settings" };
+    await UsersPage(searched({ include_inactive: "false" }));
+    expect(queriesOf("GET /users")).toEqual([
+      { include_inactive: "true", is_active: "true", limit: "25" },
+    ]);
+  });
+
   it("ask the page the address names, and lead back to the one before it", async () => {
     server.answers = {
       ...server.answers,

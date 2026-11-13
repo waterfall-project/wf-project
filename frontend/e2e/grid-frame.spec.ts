@@ -262,6 +262,71 @@ for (const address of RESIZED) {
   });
 }
 
+/** The top and the bottom of the frame of the first grid of the screen, in the window. */
+async function frameBox(page: Page): Promise<{ top: number; bottom: number }> {
+  const box = await page
+    .locator("main [role='grid'], main [role='treegrid']")
+    .first()
+    .locator("xpath=..")
+    .boundingBox();
+  if (box === null) {
+    throw new Error("the grid has no frame in the window");
+  }
+  return { top: box.y, bottom: box.y + box.height };
+}
+
+test("the height of a grid is measured again when the panel of its filters or their chips open or close above it, its totals kept in the window [WF-IHM-0060-A]", async ({
+  page,
+}) => {
+  // The bar of the selection lies over the bar of the grid, in its place, and moves nothing: the
+  // path of the selection of the accounts measures it (`admin.spec.ts`).
+  const address = "/admin/users";
+  await compile(page.request, address);
+  const toggle = page.getByRole("button", { name: /^Filtres( \(|$)/ });
+  const totals = page.getByRole("grid").getByRole("row").last().locator("td, th").first();
+  // In a tall window, where the panel opened lies: how far it pushes the frame down.
+  await open(page, address, { width: 1366, height: 1400 });
+  const closed = await frameBox(page);
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await expect.poll(async () => (await frameBox(page)).top).toBeGreaterThan(closed.top);
+  const panel = (await frameBox(page)).top - closed.top;
+  // A window that leaves the frame of the open panel 200 points, under the content of the seven
+  // accounts (260) and over the floor (160): the frame is bounded to the room left below it.
+  const room = 200;
+  const height = Math.ceil(closed.top + panel + room);
+  await page.setViewportSize({ width: 1366, height });
+  await expect.poll(async () => (await frameBox(page)).bottom).toBeLessThanOrEqual(height + 1);
+  const opened = await frameBox(page);
+  expect(opened.bottom - opened.top).toBeLessThanOrEqual(room + 1);
+  await expect(totals).toBeInViewport({ ratio: 1 });
+
+  // Closed, the frame goes back up and takes the room the panel left.
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect.poll(async () => (await frameBox(page)).top).toBe(closed.top);
+  const shut = await frameBox(page);
+  expect(shut.bottom).toBeLessThanOrEqual(height + 1);
+  expect(shut.bottom - shut.top).toBeGreaterThan(opened.bottom - opened.top);
+  await expect(totals).toBeInViewport({ ratio: 1 });
+
+  // A filter on: its chip under the bar pushes the frame down, bounded still; lifted, it comes back.
+  await open(page, `${address}?is_active=true`, { width: 1366, height });
+  const chipped = await frameBox(page);
+  expect(chipped.top).toBeGreaterThan(closed.top);
+  expect(chipped.bottom).toBeLessThanOrEqual(height + 1);
+  await expect(totals).toBeInViewport({ ratio: 1 });
+  await page
+    .getByRole("button", { name: "Retirer le filtre État du compte : Comptes actifs" })
+    .click();
+  await expect(page.getByRole("list", { name: "Filtres actifs" })).toHaveCount(0, {
+    timeout: WORKING,
+  });
+  await expect.poll(async () => (await frameBox(page)).top).toBe(closed.top);
+  expect((await frameBox(page)).bottom).toBeLessThanOrEqual(height + 1);
+  await expect(totals).toBeInViewport({ ratio: 1 });
+});
+
 test("a grid of a few rows is no taller than its content, in a window that would hold more", async ({
   page,
 }) => {
