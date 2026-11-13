@@ -1735,6 +1735,10 @@ connaissent et de revenir sans écart.
 - `WF-INTF-0080-A` — « Si l’utilisateur abandonne à cette étape, le projet reste inchangé. »
 - `WF-INTF-0080-A` — « Si l’import est interrompu pendant son application, le projet revient à son
   état antérieur. » : les deux, constatées par EP-06 ; ici, sur un devis ;
+- écart : `WF-INTF-0080-A` — « Pour un planning MS Project saisi sur un autre calendrier, le compte
+  rendu propose de garder les durées ou les dates ; changer d'option rend un nouveau compte rendu,
+  et le projet reste inchangé jusqu'à la confirmation. » : ajouté par la spécification 1.0.5
+  (#2922) ; EP-24 le réalise (US-2000) ;
 - `WF-INTF-0090-A` — « On importe un planning MS Project, puis un devis, dans un projet qui comporte
   une révision marquée. »
 - `WF-INTF-0090-A` — « Seule la révision en cours est modifiée : les tâches, les dates et les
@@ -1913,6 +1917,11 @@ annulation, tri, filtres, indicateurs —, **afin de** chiffrer mon projet sans 
 - `WF-IHM-0060-A` — « Le nombre de lignes par page choisi pour une table est retrouvé à sa
   réouverture, sans changer celui des autres tables ; une grille arborescente n’offre pas ce
   choix. » : constaté par EP-15 ;
+- écart : `WF-IHM-0060-A` — « Le panneau des filtres d'une table plate, fermé par défaut, est
+  retrouvé ouvert ou fermé comme l'utilisateur l'a laissé, sans changer celui des autres tables ;
+  ses filtres actifs restent dits, panneau fermé, chacun ôtable. » : le panneau repliable des
+  filtres vient après la livraison (#2916 ; spécification 1.0.5, #2921) ; EP-24 le vérifie
+  (US-1850) ;
 - `WF-IHM-0110-A` — « La suppression d’une tâche puis son annulation restituent la tâche, ses lignes
   et ses liaisons. » : par US-1490 ; ici, depuis la grille ;
 - écart : `WF-IHM-0110-A` — « Le réexamen d’un risque puis son annulation lui rendent sa

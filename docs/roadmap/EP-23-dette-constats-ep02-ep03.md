@@ -658,6 +658,8 @@ que je lisais (#2259, #2269).
 - écart : `WF-SEC-0020-A` — « La désactivation d'un compte connecté sur deux postes interrompt les deux à leur requête suivante. » : constaté par EP-03 (US-0350), inchangé.
 - écart : `WF-SEC-0020-A` — « Un jeton de rafraîchissement inactif au-delà de deux heures est refusé, et l'utilisateur est ramené à l'écran de connexion puis, reconnecté, à l'écran visé. » : idem.
 - écart : `WF-SEC-0020-A` — « Une adresse de retour qui ne désigne pas un écran de Waterfall — l'adresse d'un autre site, un chemin qui commence par « // », ou qui contient une barre oblique inverse ou un caractère de contrôle — ramène à l'accueil après la connexion. » : idem.
+- écart : `WF-SEC-0020-A` — « Un visiteur sans session qui ouvre un écran arrive à l'écran de connexion puis, connecté, à cet écran. » : ajouté par la spécification 1.0.5 (#2914) ; réalisé par #2927, que vérifie EP-24 (US-1870).
+- écart : `WF-SEC-0020-A` — « Après une connexion que le fournisseur d'identité refuse, l'écran le dit et offre de recommencer, sans relancer la connexion de lui-même. » : ajouté par la spécification 1.0.5 (#2914) ; réalisé par #2927, que vérifie EP-24 (US-1870).
 - `WF-ADM-0040-A` — « Un utilisateur modifie ses préférences et ne peut pas modifier celles d’un autre. » : sa forme pour une écriture qui n'aboutit pas : le
   réglage d'une grille ou d'un graphique gardé (`updateMyPreferences`, par `useKeptWriter`) dont
   l'action est rejetée dit l'API injoignable, sans écran de panne ; le reste est constaté par EP-03
@@ -879,7 +881,7 @@ trois tests d'API citent l'exigence dont ils éprouvent le Vérif (#2845).
   reste éprouvée ; la passe arrière du même décalage, sur une liaison fin à fin, donne au
   prédécesseur la marge qu'elle lui donne en fin à début, nulle.
 - écart : `WF-PLA-0160-A` — « Un décalage de 2 j sur la même liaison le fait commencer le mercredi. » : constaté par EP-06 (US-1390), inchangé.
-- écart : `WF-PLA-0160-A` — « Un fichier MS Project dont les constantes diffèrent de celles de l'installation est importé avec les mêmes durées en heures, et le compte rendu signale la différence. » : idem.
+- écart : `WF-PLA-0160-A` — « Un fichier MS Project dont les constantes ou le calendrier diffèrent de ceux de l'installation est signalé au compte rendu ; importé en gardant les durées, une tâche de « 2 j » saisie à 7 h par jour vaut deux jours, soit seize heures avec les valeurs par défaut ; importé en gardant les dates, sa durée est le temps de travail entre ses dates du fichier sur son calendrier Waterfall. » : la phrase que la spécification 1.0.5 réécrit (#2922) ; EP-24 la réalise (US-2000).
 - écart : `WF-PLA-0160-A` — « « 1 m » est lu comme un mois et « 1 min » comme une minute, dans chacune des langues de l'interface. » : idem.
 - écart : `WF-PLA-0160-A` — « En anglais, « 1 j » et « 1 d » valent chacun un jour ; « 3 », saisi sans suffixe, vaut trois jours. » : idem.
 - écart : `WF-PLA-0160-A` — « Après passage des heures par jour de 8 à 7, une durée saisie « 2 j » dans une révision en cours vaut quatorze heures, et ses dates sont recalculées ; dans une révision marquée, elle vaut toujours seize heures. » : idem.
@@ -949,6 +951,7 @@ promet une réponse ou un refus nommé (#2228, #2233, #2235, #2237, #2239).
 - écart : `WF-IHM-0060-A` — « Le nombre de lignes par page choisi pour une table est retrouvé à sa
   réouverture, sans changer celui des autres tables ; une grille arborescente n'offre pas ce
   choix. » : constaté par EP-15 (US-0570), inchangé.
+- écart : `WF-IHM-0060-A` — « Le panneau des filtres d'une table plate, fermé par défaut, est retrouvé ouvert ou fermé comme l'utilisateur l'a laissé, sans changer celui des autres tables ; ses filtres actifs restent dits, panneau fermé, chacun ôtable. » : le panneau repliable des filtres vient après la livraison (#2916 ; spécification 1.0.5, #2921) ; EP-24 le vérifie (US-1850).
 - `WF-EXP-0040-A` — « Pendant l'arrêt du stockage objet, une demande d'import est refusée en nommant
   le composant, et la consultation comme la saisie continuent. » : sa forme pour une installation
   dont l'amorçage n'a pas écrit la correspondance des coûts réels : `getActualCostMapping` et
