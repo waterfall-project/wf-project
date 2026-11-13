@@ -642,3 +642,38 @@ test("picks accounts one by one or all at once, and lifts the selection from the
   await expect(bar).toHaveCount(0);
   await expect(accounts.getByRole("row", { selected: true })).toHaveCount(0);
 });
+
+test("welcomes the accounts that arrived without a role: filtered « Créé par le fournisseur d’identité » and « Sans rôle », all picked, a role added to each [WF-ADM-0180-A] #2917", async ({
+  page,
+}) => {
+  // The fake back answers its example whatever is asked, and one role for any account: what this
+  // proves is the address the filters write and the calls the bar chains, one for each account.
+  await page.goto("/admin/users");
+  const accounts = page.getByRole("grid", { name: "Comptes utilisateurs" });
+  await expect(accounts.getByRole("row").last()).toHaveText("7 comptes", { timeout: WORKING });
+  const toggle = page.getByRole("button", { name: /^Filtres( \(|$)/ });
+  await setExpanded(toggle, true);
+  await pick(page, "Filtrer par origine", "Créé par le fournisseur d’identité");
+  await expect(page).toHaveURL("/admin/users?origins=identity_provider", { timeout: WORKING });
+  await pick(page, "Filtrer par rôle", "Sans rôle");
+  await expect(page).toHaveURL("/admin/users?origins=identity_provider&without_access_role=true", {
+    timeout: WORKING,
+  });
+  await setExpanded(toggle, false);
+  const bar = page.getByRole("group", { name: "Actions sur la sélection" });
+  const all = accounts.getByRole("checkbox", { name: "Sélectionner toutes les lignes affichées" });
+  const role = bar.getByRole("combobox", { name: "Ajouter un rôle" });
+  // The page hydrates meanwhile: the pick is made until the bar shows.
+  await expect(async () => {
+    await all.click();
+    await expect(bar).toContainText("7 comptes sélectionnés", { timeout: 1_000 });
+  }).toPass({ timeout: WORKING });
+  await expect(role).toBeVisible();
+  await role.selectOption({ label: "Chiffreur" });
+  const told = page.getByRole("status", { name: "Commandes des comptes" });
+  await expect(told).toContainText(/comptes? modifiés?\./, { timeout: WORKING });
+  // « Rattacher à », « Activer » and « Désactiver » stand beside it.
+  await expect(bar.getByRole("combobox", { name: "Rattacher à" })).toBeVisible();
+  await expect(bar.getByRole("button", { name: "Activer", exact: true })).toBeVisible();
+  await expect(bar.getByRole("button", { name: "Désactiver" })).toBeVisible();
+});

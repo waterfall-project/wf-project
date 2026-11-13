@@ -1783,8 +1783,8 @@ to a session that does not read them; all of them chosen still filter, an accoun
 being kept by none, `exhaustive: false`, EP-02/L42f) and by state, a single choice (`is_active`) —
 all, the active ones only, the deactivated ones only —, which says what the grid shows: the page
 always asks for the deactivated ones too (`include_inactive=true`, the contract hiding them by
-default), an address from before that hid them (`include_inactive=false`) reads as « Active
-accounts » (`readAccountState`), a filter of the grid, kept with its settings like the others
+default), an address from before that hid them (`include_inactive=false`) reads as « Active »
+(`readAccountState`), a filter of the grid, kept with its settings like the others
 (`USER_FILTERS`, #2916) — alone in the address, it is therefore not replaced by the filters kept —,
 and any choice lifts that old parameter (`lifts` of
 `ChoiceFilter`) — and paginated by the server, under the names of the contract — a sort, a search
