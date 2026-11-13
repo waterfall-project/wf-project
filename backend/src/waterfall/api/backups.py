@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from waterfall.api.authentication import Caller, ServicesOf, Transaction
 from waterfall.api.contract.models import BackgroundTaskRef, Backup, PaginationMeta
 from waterfall.api.evaluation import Acting, Requires
+from waterfall.api.queries import Offset
 from waterfall.api.tasks import task_ref
 from waterfall.core.access_roles.interface import Actor
 from waterfall.core.backups.interface import BackupView, list_backups, read_backup
@@ -107,7 +108,7 @@ def get_backups(
     session: Transaction,
     actor: Acting,
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Offset = 0,
 ) -> dict[str, Any]:
     """Give a page of the backups, the latest first (WF-ADM-0150)."""
     views, total = list_backups(session, limit, offset)

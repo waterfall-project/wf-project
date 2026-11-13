@@ -2288,7 +2288,9 @@ l'exclusion d'une ligne de coût ne s'annulent. Une telle grille les montre en b
 et dans le menu contextuel de ses cellules (clic droit, Maj+F10, touche Menu — `CellMenu`, sans
 arrêt de tabulation de plus), avec leurs raccourcis, et prend Ctrl+Z et Ctrl+Maj+Z — Cmd sur un Mac —
 dans la grille ou sa barre, hors d'un menu ou d'une boîte qu'elle ouvre. Un champ en cours de saisie
-— l'éditeur d'une cellule, la recherche — garde Ctrl+Z pour lui : l'annulation du navigateur y reste.
+— l'éditeur d'une cellule, la recherche — garde Ctrl+Z pour lui : l'annulation du navigateur y reste. Un bouton de filtre de la barre
+(lot ou poste, « Écarts seulement », risque survenu) n'est pas un champ : Ctrl+Z y annule la grille,
+comme sur Colonnes ou sur le menu du plan, sans défaire le filtre (#2916).
 
 **Branchées (planning, US-1450).** La grille de planning les branche sur `undoLastChange` et
 `redoLastUndo` (`src/api/actions/history.ts`) par `useUndoRedo` (`undo-run.ts`), que `DenseGrid`
@@ -3135,6 +3137,29 @@ pas la forme `EP-nn`. Elle est réservée à une personne : un livreur ne la lan
 vérification et, en échec, pose la question ; le garde (`guard.py`) refuse la cible `merge-queue` à
 un agent.
 
+`make queue-report BRANCH=epic/EP-nn [LAST=<n>] [SINCE=AAAA-MM-JJ]` relève, du poste et jamais
+dans la chaîne, les passages de la file de fusion d'une branche (`chain`, événement `merge_group`,
+lus par `gh` ; `wftools.queue`, US-1880) : leur nombre par conclusion, leurs échecs par job et par
+étape — avec la cible du Makefile que nomme `make: ***` —, les parcours et les tests en échec avec
+leur fichier et leur ligne, lus au journal du job (Playwright, pytest, Vitest), la durée de mur des
+passages réussis où le palier complet a tourné en entier — un passage *complet* est un passage où un
+job de `service` et un job de `e2e` ont réussi, `ci.yml` sautant dans la file les familles que le
+changement ne touche pas —, en médiane et au 90e centile (au rang le plus proche), avec le nombre de
+passages que la mesure retient, et les minutes-runner, la
+somme des durées des jobs. Sans `BRANCH`, toutes les branches comptent ; `SINCE` garde les passages
+créés ce jour-là ou après (en UTC), `LAST` les n plus récents ; sans l'un ni l'autre, les 50
+derniers. Chaque échec se classe contre `tools/queue-known.toml`, une entrée par instabilité connue
+— des motifs de job, d'étape, de test ou de message, sa famille, l'issue qui la suit, sa fréquence,
+sa cause établie ou son hypothèse — : instabilité connue, infrastructure, ou régression, qui ne
+s'écrit qu'après la relecture du passage et le nomme. Ce qu'aucune entrée ne reconnaît sort « à
+classer » (`to classify`) : l'outil ne décide jamais seul. `gate`, qui échoue parce qu'un autre job
+a échoué, ne compte que s'il échoue seul. Le fichier porte aussi la référence — 370 passages et 88
+échecs du 2026-11-05 au 2026-11-12, dont 68 dans `service / paths` ; 16 minutes de mur en médiane
+les 10 et 11 novembre —, que le rapport rappelle à sa fin ; la pull request d'un lot de la chaîne
+cite la sortie avant et après. La commande lit les jobs de chaque passage et le journal de chaque
+job en échec : comptez quelques secondes par passage, davantage quand `service / paths` échoue, son
+journal pesant plusieurs mégaoctets.
+
 Le poste n'admet que `WATERFALL_SLOTS` exécutions lourdes à la fois — les tests entiers et la
 couverture du back et du front, `make test-tools`, la construction du front pour la production,
 les parcours de bout en bout —, tous dépôts et worktrees confondus. Cette variable de
@@ -3315,11 +3340,12 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   écrit ce cache et le magasin de pnpm après chaque fusion, sur la branche dont les pull requests et
   la file de fusion lisent les caches : sans lui, elles ne trouveraient rien.
   `back.yml` répartit de même le back : un runner tient le lint, les types et les frontières du
-  cœur (`make check-back-static`), deux jouent chacun la moitié des tests, avec leurs services
-  (`make check-back-tests`, `SHARD=1/2` et `SHARD=2/2`), et au palier complet un dernier rassemble
-  leur couverture et la tient à ses seuils (`make coverage-back-merge`). Une moitié est un test sur
-  deux dans l'ordre de leur collecte (`--shard`, `backend/tests/conftest.py`), plutôt que des
-  fichiers entiers : les fichiers qui chargent le témoin, les plus longs, sont répartis sur les deux.
+  cœur (`make check-back-static`), quatre jouent chacun le quart des tests, avec leurs services
+  (`make check-back-tests`, `SHARD=1/4` à `SHARD=4/4`), et au palier complet un dernier rassemble
+  leur couverture et la tient à ses seuils (`make coverage-back-merge`). Un quart est un test sur
+  quatre dans l'ordre de leur collecte (`--shard`, `backend/tests/conftest.py`), plutôt que des
+  fichiers entiers : les fichiers qui chargent le témoin, les plus longs, sont répartis sur les
+  quatre.
   Le témoin n'est chargé par la commande qu'une fois par processus de pytest ; les tests suivants
   retrouvent ses lignes recopiées (`backend/tests/witness_rows.py`, #2157). Sur un runner, chaque
   test qui le demandait payait son chargement, plus de six minutes en tout. `keycloak.yml`
@@ -3331,10 +3357,20 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   `service.yml` joue les parcours contre le vrai service, au palier complet seulement
   (`make check-service`, soit `make e2e-service`, sur le build du front que partagent les parcours
   d'`e2e.yml`) : la famille `service` se réveille sur le front, le back, le contrat et les fichiers
-  de la plateforme. Il tourne sur le runner même, non dans l'image de Playwright : les parcours
-  joignent la plateforme sur les ports que Docker publie sur le runner, qu'un conteneur de travail
-  ne voit pas ; le navigateur s'y installe avec ses paquets système
-  (`make e2e-browsers PLAYWRIGHT_INSTALL=--with-deps`). `front-image.yml` construit et démarre
+  de la plateforme. La plateforme, le front et `playwright test` tournent sur le runner même, par
+  le Makefile ; seul le navigateur tourne dans l'image de travail des parcours (ci-dessous), en
+  serveur de Playwright (`run-server`), sur le réseau du runner, et `playwright test` s'y connecte
+  (`PW_TEST_CONNECT_WS_ENDPOINT`). `E2E_IMAGE=<référence>` le demande à `make e2e-service`, qui
+  lance ce serveur par `wftools.e2eimage` (`docker run --network host`, le dépôt monté à son propre
+  chemin) : un conteneur de travail ne verrait pas les ports que Docker publie sur le runner.
+  Aucun paquet d'Ubuntu ne s'y installe (#2913). Les parcours joués entiers dans l'image prenaient
+  17,3 minutes de `playwright test` en médiane de quatre passages, contre 14,2 en trois le navigateur
+  seul dans l'image, la médiane d'avant sur le runner (le commentaire de `service.yml` cite les
+  passages). Un téléchargement s'y lit par
+  `download.createReadStream()`, jamais par `download.path()`, que Playwright refuse à un navigateur
+  distant. `wftools.e2eimage run` est fait pour la chaîne : root dans l'image, la socket de Docker
+  à son chemin d'un runner, `DOCKER_HOST` non lu. Sur un poste, sans `E2E_IMAGE`, les parcours se
+  jouent sur le poste, avec le navigateur de `make e2e-browsers`. `front-image.yml` construit et démarre
   l'image de production du front, que `images.yml` ne publie qu'après la fusion, aux deux paliers
   (`make check-front-image`) : la famille `front-image` se réveille sur ce qui la fait —
   `frontend/Dockerfile` et son `.dockerignore`, `next.config.ts`, `package.json`, `pnpm-lock.yaml`,
@@ -3436,10 +3472,36 @@ branche d'un lot, avant de le fusionner : `gh workflow run chain --ref <branche>
 Le palier complet vise moins de huit minutes dans la file pour son travail le plus long
 (#492). Les parcours de bout en bout, la moitié la plus longue, s'y prennent ainsi :
 
-- **dans l'image de Playwright** (`mcr.microsoft.com/playwright`), à la version de
-  `@playwright/test` que résout `frontend/pnpm-lock.yaml`, épinglée par son empreinte (`container:`
-  d'`e2e.yml`) : Chromium et ses paquets système y sont, rien ne vient du miroir d'Ubuntu, dont le
-  débit n'est pas le nôtre (#472). Le travail appelle `make e2e`, qui trouve le navigateur de
+- **dans l'image de travail des parcours** (`deploy/e2e/Dockerfile`, US-1900), bâtie de l'image de
+  Playwright (`mcr.microsoft.com/playwright`) à la version de `@playwright/test` que résout
+  `frontend/pnpm-lock.yaml`, épinglée par son empreinte, avec `make`, le Python de
+  `tools/.python-version` en `python3`, pnpm à la version de `packageManager` et le client de
+  Docker : Chromium et ses paquets système y sont, rien ne vient du miroir d'Ubuntu, dont le débit
+  et la réponse ne sont pas les nôtres (#472, #2913). Elle est construite pour amd64 seulement,
+  l'architecture des runners et des postes. Elle est publiée sur `ghcr.io/waterfall-project/e2e`,
+  étiquetée par l'empreinte de son répertoire : le travail `e2e-image` de `ci.yml`, qui tourne dès
+  qu'`e2e` ou `service` peuvent tourner, à côté de `front-build`, la demande au registre
+  (`make e2e-image`). Présente, il en donne la référence par l'empreinte que le registre lui
+  connaît, que les morceaux (`container:` d'`e2e.yml`) et `service.yml` tirent. Absente, il la
+  construit ; au palier complet (`PUSH=yes`), il la publie, une fois, au premier passage qui en a
+  besoin — celui de la file, ou du palier complet lancé à la main sur une branche —, d'où ses
+  `packages: write` ; au palier rapide, il la construit sans la publier, pour qu'une construction
+  qui échoue arrête la pull request avant la file. `images.yml` ne la publie pas : il passe après
+  la fusion, donc après le premier passage de la file qui en a besoin.
+
+  Chaque demande au registre, la construction et la publication se refont quatre fois au plus,
+  à vingt secondes d'intervalle (#2530) ; une construction refaite repart des couches déjà
+  construites. Un registre qui ne répond toujours pas fait échouer ce travail en le nommant, et
+  saute les parcours, ce que la porte compte ; une image qui ne se tire pas fait échouer
+  l'initialisation du morceau, en nommant le registre, avant toute étape. Deux passages de la
+  file qui ne trouvent pas l'étiquette peuvent la publier chacun : la construction n'est pas
+  reproductible à l'octet, mais chacun tire l'image qu'il a publiée, par son empreinte, et le
+  contenu que nomme l'étiquette est le même.
+
+  `tools/tests/test_e2eimage.py` tient les versions de l'image, ses sources épinglées, et
+  l'absence de paquet d'Ubuntu dans `ci.yml`, `e2e.yml` et `service.yml`.
+
+  Le travail appelle `make e2e`, qui trouve le navigateur de
   l'image (`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`), et non `make check-front-e2e`, qui en
   installerait un. Monter `@playwright/test` monte l'image avec lui, étiquette et empreinte : sinon
   les parcours s'arrêtent d'emblée sur un navigateur introuvable, et
@@ -3448,8 +3510,9 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   `docker buildx imagetools inspect mcr.microsoft.com/playwright:v<X>-noble`, ou l'en-tête
   `docker-content-digest` de
   `curl -sI -H 'Accept: application/vnd.oci.image.index.v1+json' https://mcr.microsoft.com/v2/playwright/manifests/v<X>-noble`.
-  L'image n'a pas `make` : son paquet d'Ubuntu noble est téléchargé, épinglé et vérifié par son
-  empreinte, comme pandoc ;
+  Le paquet `make` d'Ubuntu noble, l'archive du client de Docker et celles de pnpm et de son
+  binaire ne se téléchargent qu'à la construction de l'image, épinglés et vérifiés par leur
+  empreinte, le Python par sa version, que uv vérifie par l'empreinte qu'il en porte ;
 - **répartis sur cinq runners** (`make e2e SHARD=i/5`, soit `playwright test --shard=i/5`),
   la mesure du §4.6.2 sur un sixième, seule (`make e2e-measure`), par une matrice dont aucun
   morceau n'annule les autres ; le résultat d'`e2e` est un échec dès qu'un morceau échoue ou
@@ -3471,7 +3534,8 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   ne joint pas les travaux de l'un à ceux de l'autre ; ni l'un ni l'autre n'a d'autre
   déclencheur que cet appel, si bien qu'aucun ne construit le front. Un build en échec saute les
   deux, et la porte, qui l'attend aussi, échoue. Il construit sur le runner, comme `front.yml`, en
-  Node 26 : les morceaux le démarrent dans l'image de Playwright, en Node 24 (son
+  Node 26 : les morceaux le démarrent dans l'image de travail des parcours, bâtie de celle de
+  Playwright, en Node 24 (son
   `NODE_VERSION`, que le lot de Node 26 ne change pas ; `next start` y exécute les fichiers
   construits, et Next 16 accepte Node 24, tandis que pnpm 12 ne s'arrête pas sur `engines` sans
   `engine-strict`, que le front ne pose pas), sur la même Ubuntu noble en amd64, et à un autre
@@ -3589,7 +3653,10 @@ _Contrôle_ : `make reuse` échoue sur un fichier couvert ni par un en-tête ni 
 ## Outils du dépôt
 
 Les outils vivent dans `tools/`, en Python, avec leurs tests (`make test-tools`, qui exige Docker :
-le test du Compose de service lance `docker compose config` et échoue sans lui). Les tests de
+le test du Compose de service lance `docker compose config` et échoue sans lui). Il tourne sous un plafond de
+mémoire, `TOOLS_MEMORY` (24G par défaut) : sous systemd utilisateur, le noyau tue le run qui le
+dépasse, non la session ; sans systemd utilisateur (un runner de la chaîne), il n'y a pas de
+plafond. Les tests de
 l'entrypoint de l'annuaire, qui démarrent son image sur des volumes jetables, en sont écartés
 (marqueur `openldap`) : `make test-openldap` les lance, et la famille `keycloak`, que
 `deploy/openldap` réveille, les éprouve. Tout outil

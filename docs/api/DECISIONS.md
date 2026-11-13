@@ -282,6 +282,18 @@ décalage garde son unité (`lag`, `lag_unit` : jours, semaines ou mois, WF-PLA-
 EP-02). C'est un filtre que l'utilisateur voit et lève, jamais une restriction de lecture :
 la consultation ne dépend que des habilitations (WF-PRJ-0060).
 
+**Le rang d'une page est borné comme le compteur d'écriture, et refusé au-delà par 422** (#2778,
+issue « contrat » ; décision de l'auteur du 2026-11-12, EP-24/US-1960). Le paramètre commun
+`Offset` porte `maximum: 2147483647`, la borne de `LockVersion` (« Session et erreurs ») : sans
+borne haute, un entier démesuré passait la validation et atteignait la base, que le service
+n'aurait pas su lire. Il est refusé par la validation, comme toute valeur hors de ses bornes, sur
+chaque liste paginée : 422 `VALIDATION_FAILED`, `fields` désignant `/query/offset` par
+`VALUE_OUT_OF_RANGE`, `params.maximum` à `2147483647`, et aucune lecture n'est faite. Un rang
+jusqu'à la borne reste servi : au-delà de `meta.total`, une page vide. Une modification du contrat
+figé (« La règle d'après le gel »). Écarté : borner dans chaque route sans le contrat, une borne
+que le client engendré et le faux back n'auraient pas connue. `Limit`, déjà borné à 500, ne change
+pas.
+
 ## Révision de la spécification du 2026-10-03 (EP-02/L7)
 
 Ce que la spécification revue impose, et la forme retenue pour chaque chose (#213).
@@ -3533,8 +3545,25 @@ rôles par compte, et l'écran choisit les rôles qu'il veut voir, comme les ori
 rôle n'est retenu par aucune valeur ; un identifiant qui ne désigne aucun rôle ne retient aucun
 compte, sans refus, comme `org_node_id` un nœud inconnu : les valeurs viennent de
 `listAccessRoles`. Écarté : une valeur « aucun rôle », à la manière d'`unassigned` des
-sous-projets, qu'aucune exigence ne demande. Exemple `users_by_access_role` : les porteurs du chef
+sous-projets, qu'aucune exigence ne demande (traitée depuis par un paramètre booléen,
+`without_access_role`, #2976, plus bas). Exemple `users_by_access_role` : les porteurs du chef
 de projet ou du manager, Alix Moreau, désactivée, comprise.
+
+**Les comptes sans rôle se retiennent par un paramètre booléen, `without_access_role`** (#2976,
+issue « contrat » ; décision de l'auteur du 2026-11-12, EP-24/US-1860). La maquette de la gestion
+des utilisateurs (#2917) offre « Sans rôle » parmi les rôles du filtre, pour retrouver les comptes
+que le fournisseur d'identité a créés à leur première connexion, sans droit tant qu'un rôle ne
+leur est pas donné (WF-ADM-0180) ; la liste étant paginée par le serveur, le front ne peut pas les
+filtrer lui-même. Vrai, `without_access_role` retient les comptes qui ne portent aucun rôle — un
+rôle supprimé ne compte plus, comme `User.access_role_ids` ne le nomme plus — ; donné avec
+`access_role_ids`, les deux retiennent leur union, comme une case de plus du même filtre ; absent
+ou faux, rien ne change. Il se combine aux autres filtres, au tri et à la pagination comme eux. La
+description d'`access_role_ids` le dit, à la place de « An account without a role is retained by no
+value ». Une modification du contrat figé (« La règle d'après le gel »), qui revient sur la valeur
+« aucun rôle » écartée au paragraphe précédent, qu'une exigence demande désormais. Écartés : une
+valeur sentinelle dans `access_role_ids`, qui ne serait plus une liste d'identifiants ; « Sans
+rôle » hors d'EP-24. Exemple `users_without_access_role` : Sacha Lefèvre, sans rôle, avec les
+porteurs du chef de projet ou du manager.
 
 **La recherche des comptes porte sur le nom, le prénom, l'adresse et le nom affiché** (#560). Ce
 sont les trois textes que WF-ADM-0050 donne à un compte, et le nom affiché — le prénom, une espace,

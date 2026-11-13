@@ -1,0 +1,498 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Les échecs connus de la file de fusion (`chain`, `merge_group`), contre lesquels
+# `make queue-report` classe ce qu'il lit (wftools.queue, US-1880).
+#
+# Une entrée `[[known]]` par instabilité connue. Elle reconnaît un échec quand tous les motifs
+# qu'elle donne s'y retrouvent (expressions régulières de Python, cherchées et non ancrées) :
+#   job      le nom du job (« service / paths », « e2e / paths (2/5) ») ;
+#   step     l'étape en échec du job, ou la cible du Makefile que `make: ***` nomme ;
+#   test     le test ou le parcours, « fichier:ligne titre » (`e2e/revisions.spec.ts:238 …`,
+#            `tests/test_x.py test_y` quand pytest ne passe pas par le fichier du test) ;
+#   lines    [première, dernière] : la ligne du test dans cet intervalle, à côté de `test` ;
+#   message  l'endroit et le message de l'échec, et le passage du journal qui le porte ;
+#   runs     les passages, par leur identifiant : obligatoire pour une régression.
+# La première entrée qui reconnaît un échec le classe ; aucune, et il est « à classer »
+# (`to classify`) : l'outil ne décide jamais seul. `class` vaut `known flakiness`
+# (instabilité connue), `infrastructure` ou `regression` ; une régression ne s'écrit qu'après la
+# relecture du passage, qu'elle nomme par `runs`. `family`, `issue` (l'issue qui la suit),
+# `frequency` et `cause` sont dus ; la cause s'ouvre par « établie : » ou « hypothèse : ».
+#
+# L'inventaire est celui de la conception d'EP-24 (« La chaîne : ce qui est mesuré »), relevé
+# sur les passages du 2026-11-05 au 2026-11-12. Une ligne de parcours bouge avec son fichier :
+# l'intervalle `lines` est celui des passages relevés, et le lot qui corrige une famille
+# retire ou met à jour ses entrées.
+#
+# Une entrée qui nomme un test donne aussi, quand l'inventaire le connaît, le `message` qui
+# l'accompagne, pour qu'une autre défaillance du même test reste « à classer » : les entrées de la
+# famille A attendent `own-project.ts:39`, celles de la famille D le localisateur ou le délai de
+# l'attente, relu dans les journaux de ses 16 passages (extraits :
+# tests/queue/playwright-backups-*.log).
+# Les entrées des familles B et C et du back reconnaissent encore un test par sa seule ligne, faute
+# d'un message relevé.
+
+# La référence contre laquelle un lot de la chaîne se juge, avant et après. Les comptes sont ceux de
+# la conception : toutes branches, du 2026-11-05 au 2026-11-12. La durée est celle que l'outil
+# mesure (`make queue-report`, toutes branches, passages créés les 2026-11-10 et 2026-11-11) : le
+# mur des passages réussis dont le palier est complet (`Run.complete` : un job réussi de `service`
+# et un d'`e2e`), du début du passage à la fin de son dernier job ; 40 passages, médiane 17,8 min,
+# 90e centile 21,8. La conception en donne 16 min : sa médiane (15,7 le 10, 15,9 le 11) compte tous
+# les passages réussis, dont ceux qui sautent `service` et l'e2e, ce qui l'abaisse. Les critères
+# d'US-1910 se jugent à la mesure de l'outil.
+[reference]
+since = 2026-11-05
+until = 2026-11-12
+runs = 370
+failed = 88
+failed_in = { "service / paths" = 68 }
+wall_runs = 40
+wall_median = 17.8
+wall_p90 = 21.8
+wall_days = [2026-11-10, 2026-11-11]
+
+# Famille A — le projet de la course n'est pas créé en 15 s (`own-project.ts:39` : l'adresse
+# reste `/` au-delà de `WORKING` après « Créer »). US-1890/L1.
+
+[[known]]
+class = "known flakiness"
+family = "A. création du projet de la course"
+issue = "#2940"
+job = "^service / paths$"
+test = 'e2e/structure\.spec\.ts:'
+lines = [414, 452]
+message = 'e2e/own-project\.ts:39\b'
+frequency = "6 passages du 2026-11-05 au 2026-11-12"
+cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
+
+[[known]]
+class = "known flakiness"
+family = "A. création du projet de la course"
+issue = "#2940"
+job = "^service / paths$"
+test = 'e2e/planning-service\.spec\.ts:'
+lines = [16, 154]
+message = 'e2e/own-project\.ts:39\b'
+frequency = "6 passages du 2026-11-05 au 2026-11-12"
+cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
+
+[[known]]
+class = "known flakiness"
+family = "A. création du projet de la course"
+issue = "#2940"
+job = "^service / paths$"
+test = 'e2e/project-start\.spec\.ts:'
+lines = [179, 181]
+message = 'e2e/own-project\.ts:39\b'
+frequency = "3 passages du 2026-11-05 au 2026-11-12"
+cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
+
+[[known]]
+class = "known flakiness"
+family = "A. création du projet de la course"
+issue = "#2940"
+job = "^service / paths$"
+test = 'e2e/task-tree\.spec\.ts:13\b'
+message = 'e2e/own-project\.ts:39\b'
+frequency = "1 passage du 2026-11-05 au 2026-11-12"
+cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
+
+[[known]]
+class = "known flakiness"
+family = "A. création du projet de la course"
+issue = "#2940"
+job = "^service / paths$"
+test = 'e2e/timelines\.spec\.ts:(353|391)\b'
+message = 'e2e/own-project\.ts:39\b'
+frequency = "1 passage chacun, :353 et :391, du 2026-11-05 au 2026-11-12"
+cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
+
+[[known]]
+class = "known flakiness"
+family = "A. création du projet de la course"
+issue = "#2940"
+job = "^service / paths$"
+test = 'e2e/undo\.spec\.ts:139\b'
+message = 'e2e/own-project\.ts:39\b'
+frequency = "2 passages du 2026-11-05 au 2026-11-12"
+cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
+
+[[known]]
+class = "known flakiness"
+family = "A. création du projet de la course"
+issue = "#2940"
+job = "^service / paths$"
+test = 'e2e/revision-cycle\.spec\.ts:'
+message = 'e2e/own-project\.ts:39\b'
+frequency = "2 passages du 2026-11-05 au 2026-11-12"
+cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
+
+# Famille B — un état partagé entre parcours : les préférences relues portent le filtre d'un
+# autre parcours, ou le calendrier par défaut n'est plus celui que le parcours a désigné.
+# US-1890/L2.
+
+[[known]]
+class = "known flakiness"
+family = "B. état partagé entre parcours"
+issue = "#2941"
+job = "^service / paths$"
+test = 'e2e/projects\.spec\.ts:'
+lines = [113, 194]
+frequency = "9 passages du 2026-11-05 au 2026-11-12"
+cause = "hypothèse : deux parcours @shared écrivent la même préférence d'un compte en même temps (`states: created,pricing`)"
+
+[[known]]
+class = "known flakiness"
+family = "B. état partagé entre parcours"
+issue = "#2941"
+job = "^service / paths$"
+test = 'e2e/reference-resources\.spec\.ts:(27|110|112)\b'
+frequency = "8 passages du 2026-11-05 au 2026-11-12, :27, :110 et :112"
+cause = "hypothèse : deux parcours écrivent le même réglage du référentiel, le calendrier par défaut (« the restorations that failed »)"
+
+[[known]]
+class = "known flakiness"
+family = "B. état partagé entre parcours"
+issue = "#2941"
+job = "^service / paths$"
+test = 'e2e/reference-settings\.spec\.ts:18\b'
+frequency = "1 passage du 2026-11-05 au 2026-11-12"
+cause = "hypothèse : deux parcours écrivent le même réglage du référentiel en même temps"
+
+[[known]]
+class = "known flakiness"
+family = "B. état partagé entre parcours"
+issue = "#2941"
+job = "^service / paths$"
+test = 'e2e/reference-costs\.spec\.ts:448\b'
+frequency = "1 passage du 2026-11-05 au 2026-11-12"
+cause = "hypothèse : deux parcours écrivent le même réglage du référentiel en même temps"
+
+# Famille C — une lecture lourde de PRJ-001 (5 966 nœuds) : l'adresse garde `difference=`
+# au-delà de 15 s, 30 s dépassées sur trois lectures de la comparaison. US-1890/L3.
+
+[[known]]
+class = "known flakiness"
+family = "C. lecture lourde de PRJ-001"
+issue = "#2942"
+job = "^service / paths$"
+test = 'e2e/revisions\.spec\.ts:'
+lines = [238, 253]
+frequency = "8 passages du 2026-11-05 au 2026-11-12 (le parcours de WF-REV-0080-A)"
+cause = "hypothèse : la comparaison des révisions de PRJ-001, lente ; #2924 a ramené `compareRevisions` de 1 903 à 57 requêtes, le reste est à mesurer"
+
+[[known]]
+class = "known flakiness"
+family = "C. lecture lourde de PRJ-001"
+issue = "#2942"
+job = "^service / paths$"
+test = 'e2e/revisions\.spec\.ts:(35|121|164)\b'
+frequency = "2 passages pour :121, 1 pour :164, 2 pour :35, du 2026-11-05 au 2026-11-12"
+cause = "hypothèse : trois lectures de la comparaison complète de PRJ-001 dépassent 30 s"
+
+[[known]]
+class = "known flakiness"
+family = "C. lecture lourde de PRJ-001"
+issue = "#2942"
+job = "^service / paths$"
+test = 'e2e/structure\.spec\.ts:(333|361)\b'
+frequency = "3 passages pour :333, 1 pour :361, du 2026-11-05 au 2026-11-12"
+cause = "établie : pour :333, une requête par tâche pour son calendrier, corrigée par #2924 (`getRemainingIndicators` de 2 845 à 58 requêtes) ; pour :361, une hypothèse, la même lecture"
+
+[[known]]
+class = "known flakiness"
+family = "C. lecture lourde de PRJ-001"
+issue = "#2942"
+job = "^service / paths$"
+test = 'e2e/workload\.spec\.ts:110\b'
+frequency = "1 passage du 2026-11-05 au 2026-11-12"
+cause = "hypothèse : la lecture de la charge de PRJ-001, lente sous plusieurs workers"
+
+# Famille D — la restauration (US-1890/L4) : trois causes, lues au journal des 16 passages où
+# `backups.spec.ts` a échoué, du 2026-11-09 au 2026-11-10, toutes corrigées dans `epic/EP-07` avant
+# le 2026-11-10 à 10 h 24 UTC. Depuis, sur les passages de la file créés jusqu'au 2026-11-12 à
+# 23 h 18 UTC, `service / paths` a réussi 66 fois toutes branches confondues — le parcours joué et
+# passé, à `:218` — et aucun de ses échecs ne nomme `backups.spec.ts` (le projet `restoration` y
+# est sauté, 17 ou 18 parcours « skipped »). Seules les files dont le commit porte 38d0cfb2
+# éprouvent le correctif de la cause 1 (une installation qui a joué les parcours d'EP-07, archive
+# de plus de 5 Mio) : 44 des 66 (`git merge-base --is-ancestor 38d0cfb2 <headSha>` ; EP-07 8,
+# EP-09 13, EP-24 13, main 6, cadrage 3, EP-23 1) ; les 22 autres (EP-23, EP-06, EP-09 et main
+# avant EP-07) ne l'éprouvent pas. Ces comptes se refont par
+#   gh run list --workflow chain --event merge_group --limit 400 \
+#     --created '2026-11-10T10:24:00Z..2026-11-12T23:18:00Z' --json databaseId,headBranch,headSha
+# puis, pour chaque passage, `gh run view <id> --json jobs` (conclusion de `service / paths`).
+# Le seuil de cinquante passages de la conception n'est atteint nulle part : ni sur `epic/EP-24`
+# (13 passages sans échec de `backups.spec.ts`), ni sur les files qui portent les correctifs (44
+# jusqu'au 2026-11-12 à 23 h 18 UTC ; 46 avec 43327741296 et 43331074606, deux passages réussis
+# d'`epic/EP-24` du 12 au soir). Les causes 1 et 3 tiennent donc par leur cause établie au journal
+# et leur commit de correction, non par l'absence de récidive ; la cause 2 reste ouverte sous
+# #3005. Une ligne de parcours bouge avec son
+# fichier : `:155` et `:240` sont celles des versions de ces passages, et un échec du parcours
+# d'aujourd'hui reste « à classer ».
+
+[[known]]
+class = "known flakiness"
+family = "D. restauration : une part du dépôt réécrite par Prism"
+issue = "#2943"
+runs = [
+  42694339848,
+  42768480280,
+  42771364161,
+  42776667587,
+  42779115359,
+  42781594967,
+  42786653809,
+  42786655299,
+]
+job = "^service / paths$"
+test = 'e2e/service/backups\.spec\.ts:155\b'
+message = '''name: 'Restaurer cette sauvegarde' \}\)'''
+frequency = "8 passages, du 2026-11-09 à 20 h 35 au 2026-11-10 à 8 h 57 UTC, sur trois pull requests d'EP-07 (#2692, #2755, #2760) : « Restaurer cette sauvegarde » absent après 60 s (`backups.spec.ts:226`)"
+cause = "établie : Prism, mandataire du contrat du banc, réécrit en U+FFFD chaque octet au-delà de 0x7f d'un corps qu'il lit comme du texte ; l'archive d'une installation qui a joué les parcours d'EP-07 dépasse 5 Mio et se dépose en parts, et une coupure qui tombe dans une séquence réécrite change la taille de la part, que l'API refuse (422, `PUT /chunked-uploads/…/parts/1`, lu au journal de 42786655299) ; un aléa du contenu, mesuré dans #2695. Corrigée par les jambes de `deploy/compose/contract-proxy.mjs`, qui passent les octets d'un corps non JSON sans Prism (38d0cfb2, fusionnée dans `epic/EP-07` le 2026-11-10 à 10 h 23 UTC par #2761, 3b9f8ca9)"
+
+[[known]]
+class = "regression"
+family = "D. restauration : plus de verrous qu'une transaction n'en a"
+issue = "#3005"
+runs = [42598617718, 42599195472, 42622915790]
+job = "^service / paths$"
+test = 'e2e/service/backups\.spec\.ts:155\b'
+message = 'Timeout: 420000ms'
+frequency = "3 passages le 2026-11-09, de 10 h à 13 h UTC, sur #2638 et #2672 : la restauration ni terminée ni refusée en 420 s (`backups.spec.ts:262`)"
+cause = "hypothèse : `pg_restore --single-transaction` après `DROP SCHEMA public CASCADE` verrouille chaque table, partition par projet et index ; les parcours d'EP-07 créent assez de projets pour passer les 64 verrous par transaction du défaut, la restauration échoue (« out of shared memory ») et la plateforme reste en maintenance. Seule source : le message de 783db2ed, qui a mesuré la cause et l'a corrigée par `max_locks_per_transaction` à 1024 (fusionnée dans `epic/EP-07` le 2026-11-09 à 13 h 27 UTC par #2638, 97eeff48) ; 42622915790, de #2672, la précède dans la file. Le journal du worker n'est pas versé dans celui du job : ceux des trois passages (42598617718, 42599195472, 42622915790) ne portent ni `shared memory` ni `max_locks`. Décision à trancher sous #3005"
+
+[[known]]
+class = "regression"
+family = "D. restauration : la grille attendue sur une liste vide"
+issue = "#2943"
+runs = [42782577852, 42782637527, 42784575574, 42784577300, 42785248717]
+job = "^service / paths$"
+test = 'e2e/service/backups\.spec\.ts:240\b'
+message = '''getByRole\('grid', \{ name: 'Sauvegardes' \}\)'''
+frequency = "5 passages le 2026-11-10, de 8 h 25 à 8 h 46 UTC, chacun portant #2761 : la grille « Sauvegardes » absente après 10 s, avant la sauvegarde (`backups.spec.ts:272`)"
+cause = "établie : 217b891a (#2761) attend la grille avant de relever les sauvegardes déjà listées ; une installation neuve n'en a aucune et l'écran ne montre alors que leur décompte, sans grille. Le parcours échoue à chaque passage qui la porte ; corrigé dans la pull request avant sa fusion (5a9ed26b, qui attend « Sauvegarder maintenant » et ne lit la grille que si elle est là)"
+
+# Les tests du back et du front. US-1920.
+
+[[known]]
+class = "known flakiness"
+family = "chargement du témoin"
+issue = "#2937"
+job = "^back / tests"
+message = 'LockNotAvailable'
+frequency = "1 passage du 2026-11-05 au 2026-11-12 (42799623736)"
+cause = "hypothèse : le chargement du témoin prend ses verrous (`create_project_partitions`, `LOCK TABLE … NOWAIT`) dans un ordre qui n'est pas constant"
+
+[[known]]
+class = "known flakiness"
+family = "adresse déjà tenue, quelle que soit sa casse"
+issue = "#1026"
+job = "^back / tests"
+test = 'test_an_account_whose_address_another_holds_whatever_its_case_is_not_created'
+frequency = "aucun passage de la file du 2026-11-05 au 2026-11-12 ; vu sur le poste"
+cause = "hypothèse : un ordre ou un état partagé des tests ; US-1920/L2 (#2937) l'établit"
+
+[[known]]
+class = "known flakiness"
+family = "act non attendu"
+issue = "#859"
+job = "^front / tests"
+test = 'src/components/.*cost-commands\.dom\.test\.tsx'
+frequency = "aucun passage de la file du 2026-11-05 au 2026-11-12 ; vu sur le poste chargé"
+cause = "hypothèse : le test n'attend ni son `rerender` ni son `act` ; US-1920/L1 (#2936) le corrige"
+
+[[known]]
+class = "known flakiness"
+family = "gardes sans couverture"
+issue = "#904"
+job = '^front / tests \(lint\)$'
+test = 'src/i18n/text-guard\.test\.ts'
+frequency = "2 passages, le 2026-11-05"
+cause = "établie : le premier test de la garde construisait le programme TypeScript sous la mesure de couverture, au-delà de 60 s ; corrigé le 2026-11-05 (812d9120, par #2015)"
+
+# Avant la fenêtre de la référence : le crash d'un worker de Vitest, relevé par l'audit du
+# 2026-11-05. Son message est au milieu du journal, loin de la fin que l'outil relit : l'entrée le
+# reconnaît par son passage.
+[[known]]
+class = "known flakiness"
+family = "V8 de Node 24, contrôle interne"
+issue = "#2980"
+job = "^front / tests"
+runs = [41134811730]
+frequency = "1 passage, le 2026-10-30, sur 565 depuis le 2026-10-25 ; aucun depuis le passage à Node 26"
+cause = "établie : `# Fatal error … Check failed: static_cast<unsigned>(index) < … word_count()` (`V8_Fatal`), le worker de `dense-grid.dom.test.tsx` tué par SIGTRAP sous Node 24.22.1 ; une assertion du moteur, pas du test. La chaîne joue Node 26 depuis le 2026-11-05 (04738eaf, US-1170)"
+
+[[known]]
+class = "known flakiness"
+family = "purge attendue à moitié"
+issue = "#2566"
+job = "^back / tests"
+test = 'tests/test_worker_process\.py:185\b'
+message = 'assert backups_bucket\.size\(key\) is None'
+frequency = "1 passage du 2026-11-05 au 2026-11-12 (42597453085, le 2026-11-09)"
+cause = "établie : le test attendait la seule disparition de la ligne, puis affirmait celle de l'objet, que la purge retire dans une autre étape ; corrigé le 2026-11-10 (aacf6928, #2566), le test attend les deux"
+
+# L'infrastructure : un miroir, un registre ou un téléchargement tiers. US-1900.
+
+[[known]]
+class = "infrastructure"
+family = "archive.ubuntu.com"
+issue = "#2913"
+message = 'Could not resolve host: archive\.ubuntu\.com|(Failed to fetch|Could not connect to|Unable to connect to|Temporary failure resolving)\W+(https?://)?archive\.ubuntu\.com'
+frequency = "6 passages le 2026-11-11 : « Install make » d'`e2e / paths` et d'`e2e / measure`, `make e2e-browsers` de `service / paths`"
+cause = "établie : `archive.ubuntu.com` injoignable depuis les conteneurs ; US-1900/L1 (#2945) sort ces paquets des miroirs d'Ubuntu"
+
+[[known]]
+class = "infrastructure"
+family = "GitHub Releases, pandoc"
+issue = "#2947"
+step = '^Install pandoc$'
+message = 'returned error: 5\d\d'
+frequency = "1 passage du 2026-11-05 au 2026-11-12"
+cause = "établie : un 503 de GitHub Releases au téléchargement de pandoc ; US-1900/L3 le garde en cache"
+
+[[known]]
+class = "infrastructure"
+family = "Docker Hub"
+issue = "#2946"
+message = 'registry-1\.docker\.io|cloudfront\.docker\.com|failed to fetch oauth token|toomanyrequests|failed to copy: read tcp .*connection reset by peer'
+frequency = "4 passages du 2026-11-05 au 2026-11-12 : `production / trial` (1), le pull des images de `keycloak / check` (3)"
+cause = "établie : le registre de Docker Hub refuse ou interrompt un pull ; US-1900/L2 tire les images d'un miroir. La conception laissait `keycloak / check` à classer : trois de ses cinq échecs sont ce pull, lu au journal"
+
+[[known]]
+class = "infrastructure"
+family = "GitHub Releases, actionlint"
+issue = "#2981"
+message = 'download failed for https://github\.com/rhysd/actionlint/'
+frequency = "2 passages du 2026-11-05 au 2026-11-12 : `contract / check`, et le serveur web de `e2e / paths` et d'`e2e / measure`"
+cause = "établie : `actionlint-py` télécharge son binaire de GitHub Releases à l'installation des outils, et reçoit un 504 ; dépendance absente de l'inventaire d'US-1900"
+
+# Le même téléchargement, qui ne finit pas : le serveur du faux back attend l'environnement des
+# outils (`make mock-spec`), et `Building actionlint-py` n'a pas rendu en deux minutes, quand les
+# six autres paquets étaient téléchargés en une seconde (US-1920/L3).
+[[known]]
+class = "infrastructure"
+family = "GitHub Releases, actionlint"
+issue = "#2981"
+message = '(?s)Building actionlint-py\b(?:(?!Built actionlint-py).)*Timed out waiting \d+ms from config\.webServer'
+frequency = "1 passage du 2026-11-05 au 2026-11-12 : `e2e / paths` (42473098952, le 2026-11-08)"
+cause = "établie : `Building actionlint-py` commencé à 10:53:03, rien jusqu'à l'arrêt du serveur web à 10:55:00 ; le binaire de GitHub Releases ne vient pas, et le délai de 120 s de `webServer` expire"
+
+[[known]]
+class = "infrastructure"
+family = "www.postgresql.org, clé PGDG"
+issue = "#2981"
+job = "^service / paths$"
+message = '''urlretrieve\('https://www\.postgresql\.org/'''
+frequency = "2 passages du 2026-11-05 au 2026-11-12, à `make service-up`"
+cause = "établie : la construction des images `api` et `worker` télécharge la clé du dépôt PGDG, et la connexion est fermée sans réponse ; dépendance absente de l'inventaire d'US-1900"
+
+# Le délai d'un job, dépassé : la chaîne trop longue, que US-1910 raccourcit.
+
+[[known]]
+class = "known flakiness"
+family = "délai de back / tests"
+issue = "#2950"
+job = "^back / tests"
+message = 'The operation was canceled\.'
+frequency = "2 passages du 2026-11-05 au 2026-11-12 (42739027879, 43046175348)"
+cause = "établie : les tests passent, mais le job dépasse son délai de 20 minutes ; US-1910/L2 coupe `back / tests` en quatre morceaux"
+
+# Famille A, à défaut des entrées ci-dessus : tout autre parcours qui crée son projet et échoue
+# au même endroit. En dernier, pour que l'inventaire nomme d'abord ce qu'il a relevé.
+# À retirer quand US-1890/L1 corrige la famille A. Elle classe instabilité connue tout échec à cet
+# endroit : elle masque donc une régression de la création de projet qui échouerait là.
+
+[[known]]
+class = "known flakiness"
+family = "A. création du projet de la course"
+issue = "#2940"
+job = "^service / paths$"
+message = 'e2e/own-project\.ts:39\b'
+frequency = "chaque parcours qui écrit passe par là ; les entrées de la famille A en sont les relevés"
+cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
+
+# Les régressions, chacune après la relecture des passages qu'elle nomme : le code ou le workflow
+# d'une pull request, pas la file.
+
+[[known]]
+class = "regression"
+family = "analyse statique du back"
+issue = "#2932"
+job = "^back / check$"
+runs = [42449690648, 42552505001, 42553672723, 42553837695]
+frequency = "4 passages du 2026-11-05 au 2026-11-12 (`make lint-back`)"
+cause = "établie : Ruff refuse le code de la pull request (une clé répétée, par exemple) ; l'analyse statique ne dépend pas de la charge"
+
+[[known]]
+class = "regression"
+family = "des 500 en série"
+issue = "#2932"
+job = "^back / tests"
+runs = [42449690648]
+frequency = "1 passage, dix-huit tests de `test_nodes_move.py` et de `test_work_breakdown_attachments.py`"
+cause = "hypothèse : la pull request a cassé le déplacement et le rattachement des nœuds ; la conception d'EP-24 la présume régression"
+
+[[known]]
+class = "regression"
+family = "cycle d'imports entre users et resource_settings"
+issue = "#2932"
+runs = [42216703915, 42218136094]
+message = '''cannot import name 'Author' from partially initialized module|Found 1 error\.|container waterfall-service-api-1 exited'''
+frequency = "2 passages le 2026-11-06 : `back / check`, `keycloak / check` et `service / paths` ensemble"
+cause = "établie : `ImportError` d'un import circulaire de `waterfall.core.users.interface`, lu au journal de `keycloak / check` ; le service ne démarre pas"
+
+[[known]]
+class = "regression"
+family = "script d'une étape de l'e2e"
+issue = "#2934"
+runs = [42106995179]
+step = '^Install the Python of tools/\.python-version as python3$'
+frequency = "1 passage, le 2026-11-05 : les six jobs de l'e2e"
+cause = "établie : « Bad substitution », le script de l'étape lancé par `sh` ; la conception d'EP-24 le comptait en infrastructure, le journal dit le workflow"
+
+[[known]]
+class = "regression"
+family = "syntaxe de Python 3.14 sous un autre Python"
+issue = "#2934"
+runs = [41981582686, 41983575296]
+message = "SyntaxError: multiple exception types must be parenthesized"
+frequency = "2 passages, le 2026-11-05 : `e2e / paths` et `e2e / measure`"
+cause = "établie : `except A, B:` sans parenthèses, que seul Python 3.14 lit, lancé dans l'image de l'e2e par un Python plus ancien"
+
+[[known]]
+class = "regression"
+family = "la pull request #2930 (L5 des tables plates)"
+issue = "#2932"
+runs = [43297945985, 43297947594]
+job = '^(front / check|e2e / paths)'
+message = "Function 'CheckMenu' has a complexity|e2e/review\\.spec\\.ts:257\\b"
+frequency = "2 passages, le 2026-11-12 : `front / check` (`make lint-front`), et `e2e/review.spec.ts:207` en fr et en en contre le faux back"
+cause = "établie : ESLint refuse `CheckMenu` (`check-menu.tsx`, complexité 15 pour 14), que #2930 modifie ; le parcours de la revue échoue à ses deux langues sur les deux seuls passages qui portent #2930, et passe sans elle (43302246856, #2931 sur la même base)"
+
+# Avant la fenêtre de la référence : `installation.setup` (« 1 compte ») tombé deux fois, la grille
+# des comptes jamais affichée. Deux régressions déterministes, de causes distinctes, chacune
+# corrigée par sa pull request avant sa fusion : la page des comptes lisait par `readOrFail` une
+# opération que le service, en retard sur le contrat, ne servait pas encore ; son 404 rendait la
+# page introuvable (US-1920/L3). Une entrée par passage.
+[[known]]
+class = "regression"
+family = "page des comptes introuvable sous le 404 de /identity-sync-schedule"
+issue = "#2932"
+runs = [41132886833]
+job = "^service / paths$"
+test = 'e2e/service/installation\.setup\.ts:39\b'
+message = "getByRole\\('grid', \\{ name: 'Comptes utilisateurs' \\}\\)"
+frequency = "1 passage, avant la référence : le 2026-10-30 (41132886833, #1676) ; aucun du 2026-11-05 au 2026-11-12"
+cause = "établie : `GET /identity-sync-schedule` (#1676), lu par `readOrFail`, répond 404 — le service ne le servait pas encore — et `notFound()` remplace la page, `listUsers` lu à 200 ; corrigé dans la pull request avant sa fusion (db57e5ae). Le parcours attend depuis le titre de l'écran des comptes, qui dit « Introuvable » à sa place"
+
+[[known]]
+class = "regression"
+family = "page des comptes introuvable sous le 404 de /reference/org-nodes"
+issue = "#2932"
+runs = [41319278707]
+job = "^service / paths$"
+test = 'e2e/service/installation\.setup\.ts:39\b'
+message = "getByRole\\('grid', \\{ name: 'Comptes utilisateurs' \\}\\)"
+frequency = "1 passage, avant la référence : le 2026-11-01 (41319278707, #1807) ; aucun du 2026-11-05 au 2026-11-12"
+cause = "établie : `GET /reference/org-nodes` (#1807), lu par `readOrFail`, répond 404 — le service ne le servait pas encore — et `notFound()` remplace la page ; corrigé dans la pull request avant sa fusion (db6a135e). Le parcours attend depuis le titre de l'écran des comptes, qui dit « Introuvable » à sa place"

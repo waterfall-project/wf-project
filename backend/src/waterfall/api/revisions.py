@@ -34,7 +34,7 @@ from waterfall.api.contract.models import (
     RevisionStatus,
 )
 from waterfall.api.evaluation import Acting, RequiresProject
-from waterfall.api.queries import Search, listed
+from waterfall.api.queries import Offset, Search, listed
 from waterfall.api.tasks import task_ref
 from waterfall.core.estimate.interface import KeptReference, Stamp, kept_reference
 from waterfall.core.projects.interface import CommandAvailability, Viewer
@@ -254,7 +254,7 @@ def revision_filters(
 
 def page_of(
     limit: Annotated[int, Query(ge=1, le=GREATEST_LIMIT)] = DEFAULT_LIMIT,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Offset = 0,
 ) -> RevisionPage:
     """Read the page asked for: fifty revisions from the latest, unless said otherwise."""
     return RevisionPage(limit, offset)

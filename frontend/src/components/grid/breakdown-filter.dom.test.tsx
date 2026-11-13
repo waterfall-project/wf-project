@@ -91,43 +91,53 @@ afterEach(() => {
   page.search = "";
 });
 
-describe("the filter of a grid by a lot or a post", () => {
+/** The menu of the filter, in the bar of the grid, opened. */
+async function opened() {
+  await userEvent.click(screen.getByRole("button", { name: /^Lot ou poste/ }));
+  return screen.getByRole("radiogroup", { name: "Lot ou poste" });
+}
+
+describe("the filter of a grid by a lot or a post, a menu of the bar [WF-PLA-0080-A] (#2916)", () => {
   it("offers the lots and the posts of the work breakdown, each named by its kind, a lot before its posts", async () => {
     const { container } = filter("");
-    const list = screen.getByRole("combobox", { name: "Lot ou poste" });
+    expect(screen.getByRole("button", { name: /^Lot ou poste/ })).toHaveTextContent(
+      "Tous les lots et postes",
+    );
+    await expectAccessible(container);
+    const list = await opened();
     const names = within(list)
-      .getAllByRole("option")
+      .getAllByRole("radio")
       .map((option) => option.textContent);
     expect(names).toEqual(["Tous les lots et postes", WORK, POST]);
-    expect(list).toHaveValue("");
-    await expectAccessible(container);
+    expect(within(list).getByRole("radio", { name: /^Tous/ })).toBeChecked();
   });
 
   it("writes a post chosen under `order_item_id`, the lot lifted and the rest of the address kept", async () => {
     filter(`work_package_id=${LOT}&search=Revue`);
-    const list = screen.getByRole("combobox", { name: "Lot ou poste" });
-    expect(list).toHaveValue(LOT);
-    await userEvent.selectOptions(list, screen.getByRole("option", { name: POST }));
+    const list = await opened();
+    expect(within(list).getByRole("radio", { name: WORK })).toBeChecked();
+    await userEvent.click(within(list).getByRole("radio", { name: POST }));
     const asked = `${PLANNING}?search=Revue&order_item_id=${ITEM}`;
     expect(router.push).toHaveBeenLastCalledWith(asked, { scroll: false });
   });
 
   it("writes a lot chosen under `work_package_id`, and lifts both by the first choice", async () => {
     filter(`order_item_id=${ITEM}`);
-    const list = screen.getByRole("combobox", { name: "Lot ou poste" });
-    await userEvent.selectOptions(list, screen.getByRole("option", { name: WORK }));
+    const list = await opened();
+    await userEvent.click(within(list).getByRole("radio", { name: WORK }));
     const asked = `${PLANNING}?work_package_id=${LOT}`;
     expect(router.push).toHaveBeenLastCalledWith(asked, { scroll: false });
-    await userEvent.selectOptions(list, screen.getByRole("option", { name: /^Tous/ }));
+    const again = await opened();
+    await userEvent.click(within(again).getByRole("radio", { name: /^Tous/ }));
     expect(router.push).toHaveBeenLastCalledWith(PLANNING, { scroll: false });
   });
 
-  it("keeps chosen a post the work breakdown does not have, under its identifier, to be cleared", () => {
+  it("keeps chosen a post the work breakdown does not have, under its identifier, to be cleared", async () => {
     const unknown = "01926f3a-7c00-7000-8000-000000000799";
     filter(`order_item_id=${unknown}`);
-    const list = screen.getByRole("combobox", { name: "Lot ou poste" });
-    expect(list).toHaveValue(unknown);
-    expect(screen.getByRole("option", { name: unknown })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Lot ou poste/ })).toHaveTextContent(unknown);
+    const list = await opened();
+    expect(within(list).getByRole("radio", { name: unknown })).toBeChecked();
   });
 });
 

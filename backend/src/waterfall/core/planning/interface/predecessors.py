@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import insert, select
 
 from waterfall.core.planning.dating import LINK_CYCLE
+from waterfall.core.planning.entries import precision_faults
 from waterfall.core.planning.scheduling import Entry
 from waterfall.core.planning.tables import TaskLink
 from waterfall.core.planning.writing import writing
@@ -66,7 +67,7 @@ class PredecessorsEntry:
 
 
 def _faults(tree: Tree, sent: tuple[PredecessorSent, ...]) -> list[FieldError]:
-    """Name each predecessor sent again after its first, or that is no task of the structure."""
+    """Name each predecessor sent again, that is no task, or whose lag is too precise."""
     faults: list[FieldError] = []
     seen: set[UUID] = set()
     for rank, each in enumerate(sent):
@@ -76,6 +77,7 @@ def _faults(tree: Tree, sent: tuple[PredecessorSent, ...]) -> list[FieldError]:
         elif each.predecessor_id not in tree.tasks:
             faults.append(FieldError(pointer, UNKNOWN_TASK))
         seen.add(each.predecessor_id)
+        faults += precision_faults(each.lag_value, f"/predecessors/{rank}/lag/value")
     return faults
 
 

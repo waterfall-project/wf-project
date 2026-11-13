@@ -35,7 +35,7 @@ from waterfall.api.contract.models import (
     SortOrder,
 )
 from waterfall.api.evaluation import Acting, Requires, RequiresForInactive
-from waterfall.api.queries import Search, listed
+from waterfall.api.queries import Offset, Search, listed
 from waterfall.core.cost_settings.commands import CommandAvailability
 from waterfall.core.cost_settings.interface import (
     CostCategoryDraft,
@@ -161,7 +161,7 @@ def kept_states(
 
 def page_of(
     limit: Annotated[int, Query(ge=1, le=GREATEST_LIMIT)] = DEFAULT_LIMIT,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Offset = 0,
 ) -> Page:
     """Read the page asked for: fifty objects from the first one, unless said otherwise."""
     return Page(limit, offset)

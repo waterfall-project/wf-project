@@ -29,7 +29,7 @@ from waterfall.api.contract.models import (
     SortOrder,
 )
 from waterfall.api.evaluation import Requires
-from waterfall.api.queries import listed
+from waterfall.api.queries import Offset, listed
 from waterfall.core.projects.interface import projects_named
 from waterfall.core.users.interface import read_authors
 from waterfall.platform.audit import AuditEntry, AuditProject
@@ -164,7 +164,7 @@ def get_audit_events(
     filters: Annotated[AuditFilters, Depends(audit_filters)],
     sort: Annotated[AuditSort, Depends(audit_sort)],
     limit: Annotated[int, Query(ge=1, le=GREATEST_LIMIT)] = DEFAULT_LIMIT,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Offset = 0,
 ) -> dict[str, Any]:
     """Give a page of the journal, filtered and sorted by the server (WF-ADM-0190)."""
     page = list_entries(session, filters, sort, limit, offset)

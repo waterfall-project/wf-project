@@ -1,0 +1,45 @@
+2026-10-30T21:46:45.7428497Z   ✘   1 [installation] › e2e/service/installation.setup.ts:39:1 › the administrator of a new installation sets its password by the link of the bootstrap, signs in, holds the role « Administrateur », and finds the three predefined roles and the catalogue of the permissions [WF-EXP-0020-A] (18.3s)
+2026-10-30T21:46:50.3038179Z   ✓   2 [contract] › e2e/service/contract.teardown.ts:11:1 › the proxy of the contract refused nothing the paths asked, up to the last answer it wrote [WF-ARC-0060-A] (4.1s)
+2026-10-30T21:46:50.4045679Z 
+2026-10-30T21:46:50.4050669Z 
+2026-10-30T21:46:50.4062604Z   1) [installation] › e2e/service/installation.setup.ts:39:1 › the administrator of a new installation sets its password by the link of the bootstrap, signs in, holds the role « Administrateur », and finds the three predefined roles and the catalogue of the permissions [WF-EXP-0020-A] 
+2026-10-30T21:46:50.4064226Z 
+2026-10-30T21:46:50.4064634Z     Error: expect(locator).toHaveText(expected) failed
+2026-10-30T21:46:50.4064988Z 
+2026-10-30T21:46:50.4065475Z     Locator: getByRole('grid', { name: 'Comptes utilisateurs' }).getByRole('row').last()
+2026-10-30T21:46:50.4066000Z     Expected: "1 compte"
+2026-10-30T21:46:50.4066264Z     Timeout: 15000ms
+2026-10-30T21:46:50.4066522Z     Error: element(s) not found
+2026-10-30T21:46:50.4066697Z 
+2026-10-30T21:46:50.4066790Z     Call log:
+2026-10-30T21:46:50.4067320Z       - Expect "toHaveText" getByRole('grid', { name: 'Comptes utilisateurs' }).getByRole('row').last() with timeout 15000ms
+2026-10-30T21:46:50.4068405Z       - waiting for getByRole('grid', { name: 'Comptes utilisateurs' }).getByRole('row').last()
+2026-10-30T21:46:50.4068872Z 
+2026-10-30T21:46:50.4068879Z 
+2026-10-30T21:46:50.4069168Z       62 |   await page.goto(`${USERS}?search=${encodeURIComponent(ADMINISTRATOR.email)}`);
+2026-10-30T21:46:50.4069753Z       63 |   const accounts = page.getByRole("grid", { name: "Comptes utilisateurs" });
+2026-10-30T21:46:50.4070961Z     > 64 |   await expect(accounts.getByRole("row").last()).toHaveText("1 compte", { timeout: WORKING });
+2026-10-30T21:46:50.4071564Z          |                                                  ^
+2026-10-30T21:46:50.4072425Z       65 |   const name = `«\u00a0${ADMINISTRATOR.name}\u00a0»`;
+2026-10-30T21:46:50.4072982Z       66 |   const held = page.getByRole("group", { name: `Rôles de ${name}` });
+2026-10-30T21:46:50.4073622Z       67 |   await openMenu(accounts.getByRole("button", { name: `Rôles de ${name}` }), held);
+2026-10-30T21:46:50.4074276Z         at /home/runner/work/wf-project/wf-project/frontend/e2e/service/installation.setup.ts:64:50
+2026-10-30T21:46:50.4074654Z 
+2026-10-30T21:46:50.4075140Z     Error Context: test-results/service-installation.setup-ffe8a--permissions-WF-EXP-0020-A--installation/error-context.md
+2026-10-30T21:46:50.4075816Z 
+2026-10-30T21:46:50.4076344Z     attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-10-30T21:46:50.4077091Z     test-results/service-installation.setup-ffe8a--permissions-WF-EXP-0020-A--installation/trace.zip
+2026-10-30T21:46:50.4077641Z     Usage:
+2026-10-30T21:46:50.4078014Z 
+2026-10-30T21:46:50.4078704Z         pnpm exec playwright show-trace test-results/service-installation.setup-ffe8a--permissions-WF-EXP-0020-A--installation/trace.zip
+2026-10-30T21:46:50.4079251Z 
+2026-10-30T21:46:50.4079638Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-30T21:46:50.4079919Z 
+2026-10-30T21:46:50.4080021Z   1 failed
+2026-10-30T21:46:50.4081315Z     [installation] › e2e/service/installation.setup.ts:39:1 › the administrator of a new installation sets its password by the link of the bootstrap, signs in, holds the role « Administrateur », and finds the three predefined roles and the catalogue of the permissions [WF-EXP-0020-A] 
+2026-10-30T21:46:50.4082335Z   33 did not run
+2026-10-30T21:46:50.4082565Z   1 passed (26.0s)
+2026-10-30T21:46:50.4340964Z make: *** [Makefile:512: e2e-service] Error 1
+2026-10-30T21:46:50.4356485Z ##[error]Process completed with exit code 2.
+2026-10-30T21:46:50.6399159Z api-1                 | {"method": "GET", "path": "/api/v1/identity-sync-schedule", "status": 404, "duration_ms": 6.0, "event": "request.completed", "correlation_id": "c5e90f91-1d45-4fbf-9655-233622f51fb5", "actor": "anonymous", "level": "info", "timestamp": "2026-10-30T21:46:30.205967Z"}
+2026-10-30T21:46:50.6406294Z api-1                 | {"method": "GET", "path": "/api/v1/users", "status": 200, "duration_ms": 55.1, "event": "request.completed", "correlation_id": "94c7c6c1-5456-4bd3-b999-c3f755050eb3", "actor": "01a18ec7-3436-7273-a777-5941b2205be4", "level": "info", "timestamp": "2026-10-30T21:46:30.254872Z"}

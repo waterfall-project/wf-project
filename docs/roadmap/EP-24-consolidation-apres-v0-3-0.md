@@ -553,7 +553,7 @@ provisoire d'une pastille de période avant hydratation, accepté. La chaîne de
 
 ## US-1860 — La gestion des utilisateurs : ses filtres, « Sans rôle » et ses actions groupées
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ADM-0180-A`
 - **opérations** : `listUsers`, `updateUser`, `setUserActivation`, `setUserAccessRoles`
 - **issue** : #2954
@@ -635,7 +635,7 @@ de service adaptés (`session.spec.ts`, `sign-in.spec.ts`).
 
 ## US-1880 — La file dit son taux d'échec hors régression et la durée de son palier complet
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2934
@@ -664,7 +664,7 @@ lot de la chaîne par ses passages, avant et après, et non par une mesure sur l
 
 ## US-1890 — Les parcours contre le service ne font plus échouer la file sans régression
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune en propre — les lectures que les parcours instables attendent
 - **issue** : #2939
@@ -702,7 +702,7 @@ et `planning-service.spec.ts`.
 
 ## US-1900 — La chaîne ne dépend plus d'un réseau qu'elle ne tient pas
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2944
@@ -728,7 +728,7 @@ pas échouer la file avant le premier test, **afin qu'**un passage ne dépende q
 
 ## US-1910 — Le palier complet plus court : des morceaux équilibrés, des caches sous leur quota
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2948
@@ -755,7 +755,7 @@ passage de la file coûte moins, en mur comme en minutes-runner.
 
 ## US-1920 — Les tests instables du back et du front attendent ce qu'ils affirment
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2935
@@ -778,6 +778,19 @@ régression (#859, #1026).
 - les autres échecs du back, du front et de Keycloak que l'inventaire d'US-1880 dit instables — dont
   le crash d'un worker Vitest et les cinq échecs de `keycloak / check` — ont leur cause établie et
   leur correction, ou une issue.
+
+**Ce qui tient chaque critère.** #859 : le lot L1 (`cost-commands.dom.test.tsx` attend son
+`rerender` et son `act`). #1026 : le lot L2 (cause établie, le témoin crée les partitions avant
+toute écriture). `installation.setup` : ses deux échecs connus (passages 41132886833 et
+41319278707) étaient deux régressions déterministes, de causes distinctes (`/identity-sync-schedule`,
+#1676 ; `/reference/org-nodes`, #1807), corrigées dans leur pull request avant leur fusion, et
+classées comme telles, une entrée chacune, dans `tools/queue-known.toml` ; l'attente du titre de
+l'écran des comptes, ajoutée au parcours, en rend l'échec lisible (« Introuvable »), elle n'est pas
+ce qui le rend déterministe. Les autres échecs que l'inventaire dit instables sont classés dans le
+même catalogue, chacun éprouvé par un extrait réel de son journal. `fini` ne clôt pas deux
+constats, qui restent ouverts, « à trancher » : #2980 (le crash d'un worker Vitest par une
+assertion de V8 sous Node 24, aucun depuis le passage à Node 26) et #2982 (`LockNotAvailable` en
+production, derrière un autovacuum).
 
 **Hors périmètre.** Les parcours de bout en bout (US-1890).
 
@@ -810,7 +823,7 @@ que la charge (#2890).
 
 ## US-1940 — Le classeur du reste à engager garde la nature d'une ligne à l'aller-retour, et les classeurs abîmés n'ont qu'une liste
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0120-A`
 - **opérations** : `requestExport`, `openImport`, `applyImport`
 - **issue** : #2958
@@ -877,7 +890,7 @@ font sur un projet que la course crée (#2193) ». Les jumeaux vont dans `remain
 
 ## US-1960 — Le paramètre `Offset` borné par le contrat
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — correction du contrat et du service
 - **opérations** : toute liste paginée, par le paramètre commun `Offset`
 - **issue** : #2959
@@ -931,7 +944,7 @@ pas rester devant une ligne inerte ni lire « serveur injoignable » à tort (#2
 
 ## US-1980 — Un caractère NUL ou un décimal démesuré à l'entrée du service est refusé par 422
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — correction du service
 - **opérations** : toute lecture qui porte un paramètre de requête libre ; `setDurationUnits`, les
   écritures d'un nœud du planning et d'une ligne de devis
@@ -965,7 +978,7 @@ La capacité d'un rôle (`monthly_hours`, `headcount`) est laissée à EP-10, qu
 
 ## US-1990 — L'export MS Project s'ouvre aux mêmes dates dans MS Project, et le corpus porte un décalage négatif en semaines
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-INTF-0050-A`, `WF-INTF-0040-A`, `WF-QUA-0080-A`
 - **opérations** : `requestExport`, `openImport`
 - **issue** : #2965

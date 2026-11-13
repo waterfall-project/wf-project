@@ -14,8 +14,16 @@
 
 import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type KeyboardEvent, type ReactNode, useEffect, useId, useState } from "react";
+import {
+  type KeyboardEvent,
+  type ReactElement,
+  type ReactNode,
+  useEffect,
+  useId,
+  useState,
+} from "react";
 
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -110,6 +118,67 @@ function Announced({ text }: { readonly text: string }) {
   );
 }
 
+/** How a menu looks: above its field, or in the bar of a grid (#2916/L6). */
+interface Look {
+  /** The classes of the menu as a whole. */
+  readonly menu: string;
+  /** The classes of its button. */
+  readonly button: string;
+  /** Whether the label stands above the button; otherwise it stands on it, and names it. */
+  readonly above: boolean;
+}
+
+/** A menu beside the filters of a list: its label above, the button the width of the field. */
+const FIELD: Look = {
+  menu: "min-w-48",
+  button: "w-full min-w-0 justify-between font-normal",
+  above: true,
+};
+
+/**
+ * A menu in the bar of a grid: the height of the buttons of the bar, a floor under which it does not
+ * go (the chevron and a few characters), and a width it gives up before the bar scrolls.
+ */
+const BAR: Look = {
+  menu: "min-w-24 shrink basis-56",
+  button: "h-7 w-full min-w-0 max-w-56 justify-between gap-1 text-xs font-normal",
+  above: false,
+};
+
+/**
+ * The tooltip of the button of a menu in a bar, whose value may be cut to the room it has: it says
+ * the whole of it (`CommandTooltip`, never a `title`); a menu above its field has none.
+ */
+function BarTip({
+  look,
+  text,
+  help,
+  children,
+}: {
+  readonly look: Look;
+  readonly text: string;
+  readonly help: string;
+  readonly children: ReactElement;
+}) {
+  return look.above ? (
+    children
+  ) : (
+    <CommandTooltip label={text} help={help}>
+      {children}
+    </CommandTooltip>
+  );
+}
+
+/** The look of a menu, in a bar or not. */
+function lookOf(compact: boolean | undefined): Look {
+  return compact === true ? BAR : FIELD;
+}
+
+/** The label a button of the bar carries before the choice, which names it; none above a menu. */
+function ButtonLabel({ label }: { readonly label: string | undefined }) {
+  return label === undefined ? null : <span className="text-muted-foreground">{label} </span>;
+}
+
 /** Render the menu of a list of values, those chosen checked. */
 export function CheckMenu({
   label,
@@ -122,6 +191,7 @@ export function CheckMenu({
   onChange,
   onQuery,
   footer,
+  compact,
 }: {
   /** What the menu filters on: it stands above the button and names it. */
   readonly label: string;
@@ -152,8 +222,14 @@ export function CheckMenu({
   readonly onQuery?: ((text: string) => void) | undefined;
   /** What stands under the list: the outcome of a search of the server. */
   readonly footer?: ReactNode;
+  /**
+   * For a menu in a bar (#2916/L6): the button on the height of the bar's, the label on it before
+   * the choice — it names the button — and not above, the width of what it says.
+   */
+  readonly compact?: boolean | undefined;
 }) {
   const t = useTranslations("grid.filtering");
+  const look = lookOf(compact);
   const id = useId();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
@@ -234,8 +310,8 @@ export function CheckMenu({
     radio("", every)
   );
   return (
-    <div className="flex min-w-48 flex-col gap-1 text-sm">
-      <Label id={`${id}-label`}>{label}</Label>
+    <div className={cn("flex flex-col gap-1 text-sm", look.menu)}>
+      {look.above ? <Label id={`${id}-label`}>{label}</Label> : null}
       <Popover
         modal
         open={open}
@@ -247,19 +323,24 @@ export function CheckMenu({
           }
         }}
       >
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            id={`${id}-button`}
-            aria-labelledby={`${id}-label ${id}-button`}
-            className="w-full min-w-0 justify-between font-normal"
-          >
-            <span className="truncate">{summary}</span>
-            <ChevronDown aria-hidden="true" className="size-4 shrink-0" />
-          </Button>
-        </PopoverTrigger>
+        <BarTip look={look} text={`${label} ${said}`} help={t("barHelp", { label, value: said })}>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              id={`${id}-button`}
+              aria-labelledby={look.above ? `${id}-label ${id}-button` : undefined}
+              className={look.button}
+            >
+              <span className="truncate">
+                <ButtonLabel label={look.above ? undefined : label} />
+                {summary}
+              </span>
+              <ChevronDown aria-hidden="true" className="size-4 shrink-0" />
+            </Button>
+          </PopoverTrigger>
+        </BarTip>
         <PopoverContent align="start" className="flex max-h-80 w-64 flex-col gap-2 p-2">
           {searching ? (
             <Input

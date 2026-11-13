@@ -55,6 +55,18 @@ ZERO = Decimal(0)
 
 
 @dataclass(frozen=True)
+class _Labels:
+    """The label of every role and of every category, by code, each kind apart (#2752).
+
+    A code of a role is unique among the roles, an accounting code among the categories, not
+    between them: one index would give a category the label of a role of the same code.
+    """
+
+    roles: dict[str, str]
+    categories: dict[str, str]
+
+
+@dataclass(frozen=True)
 class _Context:
     """What the sheets share: the revision, its tabs with their names, the formats."""
 
@@ -63,7 +75,7 @@ class _Context:
     sheets: tuple[str, ...]
     tables: tuple[str, ...]
     fmt: dict[str, Format]
-    labels: dict[str, str]  # the label of a role or of a category, by code
+    labels: _Labels
     labour_codes: tuple[str, ...]  # the accounting codes of labour, which the summary sums in days
 
 
@@ -219,9 +231,10 @@ def _line_row(ctx: _Context, task: RemainingTask, line: RemainingLine) -> list[A
     """Give the cells a line writes; the calculated columns stay empty."""
     labour = line.role is not None
     code = line.role if line.role is not None else line.category or ""
+    label = ctx.labels.roles[code] if labour else ctx.labels.categories[code]
     values: dict[str, Any] = {
         "Tâche": _task_entry(task),
-        "Rôle ou catégorie": entry(ctx.labels[code], code),
+        "Rôle ou catégorie": entry(label, code),
         "Désignation": line.label or None,
         "Budget": line.budget,
         "Reste précédent": line.previous,
@@ -525,8 +538,10 @@ def _context(book: RemainingWorkbook, workbook: xlsxwriter.Workbook) -> _Context
     labour_codes = tuple(
         dict.fromkeys(c.code for c in book.categories if kinds[c.nature] == "labour")
     )
-    labels = {category.code: category.label for category in book.categories}
-    labels.update({role.code: role.label for role in book.roles})
+    labels = _Labels(
+        {role.code: role.label for role in book.roles},
+        {category.code: category.label for category in book.categories},
+    )
     return _Context(
         book,
         tabs,

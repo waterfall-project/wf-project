@@ -23,6 +23,11 @@ VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 # The parameter ``search`` of the contract, absent by default; a text, which refuses a NUL.
 Search = Annotated[Text | None, Query(min_length=1, max_length=200)]
 
+# The largest ``offset`` of a list, that of ``LockVersion``: beyond it, 422 and no query (#2778).
+GREATEST_OFFSET = 2147483647
+# The parameter ``offset`` of the contract, the items skipped before the page, 0 by default.
+Offset = Annotated[int, Query(ge=0, le=GREATEST_OFFSET)]
+
 
 def refuse_query(faults: Iterable[FieldError]) -> None:
     """Refuse a query at every parameter at fault, all named at once (422); none, nothing."""

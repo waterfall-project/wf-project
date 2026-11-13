@@ -170,6 +170,9 @@ describe("undo and redo, placed in the grids", () => {
     }
     // The reason is read by everyone, beside them.
     expect(screen.getByText(REASON)).toBeVisible();
+    // Truncated to the room the bar leaves, it keeps its whole text in its title (#2916), and the
+    // two buttons still describe themselves by it.
+    expect(screen.getByText(REASON)).toHaveAttribute("title", REASON);
     expect(client.calls).toEqual([]);
     // The bar that holds them: the grid around them is checked by estimate.dom.test.tsx, and the
     // first check of a file, on the whole grid, took longer than the test may last under load

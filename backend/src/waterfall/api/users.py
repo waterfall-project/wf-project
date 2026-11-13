@@ -58,6 +58,7 @@ from waterfall.api.contract.models import (
 from waterfall.api.evaluation import Acting, Requires
 from waterfall.api.queries import (
     FiltersRead,
+    Offset,
     Search,
     audit_column_filters,
     read_list,
@@ -67,6 +68,7 @@ from waterfall.core.access_roles.interface import (
     Actor,
     HeldRole,
     guard_deactivation,
+    holding_none,
     holding_one_of,
     labels_held,
     lock_administrators,
@@ -235,27 +237,42 @@ def account_states(
     return frozenset({"active" if is_active else "deactivated"})
 
 
+def role_filters(
+    access_role_ids: Text | None = None, *, without_access_role: bool = False
+) -> FiltersRead[AccountFilters]:
+    """Read the filter of the roles: the roles asked, and the accounts without one (#2976).
+
+    The accounts without a role are added to those that hold one of the roles asked, when both are
+    given: the choices of one filter. A list refused is a fault, given rather than raised.
+    """
+    roles, faults = read_list("access_role_ids", access_role_ids, UUID)
+    filters = AccountFilters(
+        held=None if roles is None else holding_one_of(roles),
+        roleless=holding_none if without_access_role else None,
+    )
+    return FiltersRead(filters, faults)
+
+
 def account_filters(
     states: Annotated[frozenset[str], Depends(account_states)],
+    roles: Annotated[FiltersRead[AccountFilters], Depends(role_filters)],
     search: Search = None,
     origins: Text | None = None,
     org_node_id: UUID | None = None,
-    access_role_ids: Text | None = None,
 ) -> FiltersRead[AccountFilters]:
     """Read the filters of the table; a list holds its values separated by commas.
 
     A list refused is a fault, given rather than raised: the table names it with the others.
     """
     kept_origins, origins_faults = read_list("origins", origins, UserOrigin)
-    roles, roles_faults = read_list("access_role_ids", access_role_ids, UUID)
-    filters = AccountFilters(
+    filters = replace(
+        roles.filters,
         search=search,
         origins=None if kept_origins is None else frozenset(kept_origins),
         states=states,
         attached=None if org_node_id is None else partial(within_node, org_node_id),
-        held=None if roles is None else holding_one_of(roles),
     )
-    return FiltersRead(filters, (*origins_faults, *roles_faults))
+    return FiltersRead(filters, (*origins_faults, *roles.faults))
 
 
 def table_filters(
@@ -285,7 +302,7 @@ def account_sort(
 
 def page_of(
     limit: Annotated[int, Query(ge=1, le=GREATEST_LIMIT)] = DEFAULT_LIMIT,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Offset = 0,
 ) -> Page:
     """Read the page asked for: fifty accounts from the first one, unless said otherwise."""
     return Page(limit, offset)

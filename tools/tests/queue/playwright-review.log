@@ -1,0 +1,52 @@
+2026-11-12T20:17:48.5888154Z   1) [chromium] › e2e/review.spec.ts:207:5 › a browser asking for fr › reviews a project from the list to its indicators, the revision and the sub-project kept from screen to screen, every figure the API's, and comes back to it from the portfolio [WF-QUA-0070-A] [WF-IHM-0010-A] [WF-ARC-0020-A] 
+2026-11-12T20:17:48.5889366Z 
+2026-11-12T20:17:48.5889762Z     Error: Timeout 15000ms exceeded while waiting on the predicate
+2026-11-12T20:17:48.5890177Z 
+2026-11-12T20:17:48.5890482Z       255 |         await subprojects.selectOption(SUBPROJECT);
+2026-11-12T20:17:48.5891788Z       256 |         await expect(page).toHaveURL(new RegExp(`subproject_id=${SUBPROJECT}`), { timeout: 1_000 });
+2026-11-12T20:17:48.5892611Z     > 257 |       }).toPass({ timeout: WORKING });
+2026-11-12T20:17:48.5893181Z           |          ^
+2026-11-12T20:17:48.5893563Z       258 |
+2026-11-12T20:17:48.5894171Z       259 |       // The remaining to commit, then the risks, then the indicators: the same revision, in the
+2026-11-12T20:17:48.5894874Z       260 |       // path, and the same sub-project, in the parameters, each time (WF-IHM-0010).
+2026-11-12T20:17:48.5895480Z         at /__w/wf-project/wf-project/frontend/e2e/review.spec.ts:257:10
+2026-11-12T20:17:48.5895952Z 
+2026-11-12T20:17:48.5896453Z     Error Context: test-results/review-a-browser-asking-fo-442f2-F-IHM-0010-A-WF-ARC-0020-A--chromium/error-context.md
+2026-11-12T20:17:48.5896963Z 
+2026-11-12T20:17:48.5897679Z     attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-11-12T20:17:48.5900449Z     test-results/review-a-browser-asking-fo-442f2-F-IHM-0010-A-WF-ARC-0020-A--chromium/trace.zip
+2026-11-12T20:17:48.5901651Z     Usage:
+2026-11-12T20:17:48.5901913Z 
+2026-11-12T20:17:48.5902551Z         pnpm exec playwright show-trace test-results/review-a-browser-asking-fo-442f2-F-IHM-0010-A-WF-ARC-0020-A--chromium/trace.zip
+2026-11-12T20:17:48.5903300Z 
+2026-11-12T20:17:48.5904048Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-12T20:17:48.5904594Z 
+2026-11-12T20:17:48.5906310Z   2) [chromium] › e2e/review.spec.ts:207:5 › a browser asking for en › reviews a project from the list to its indicators, the revision and the sub-project kept from screen to screen, every figure the API's, and comes back to it from the portfolio [WF-QUA-0070-A] [WF-IHM-0010-A] [WF-ARC-0020-A] 
+2026-11-12T20:17:48.5907802Z 
+2026-11-12T20:17:48.5908186Z     Error: Timeout 15000ms exceeded while waiting on the predicate
+2026-11-12T20:17:48.5908638Z 
+2026-11-12T20:17:48.5908943Z       255 |         await subprojects.selectOption(SUBPROJECT);
+2026-11-12T20:17:48.5909968Z       256 |         await expect(page).toHaveURL(new RegExp(`subproject_id=${SUBPROJECT}`), { timeout: 1_000 });
+2026-11-12T20:17:48.5910830Z     > 257 |       }).toPass({ timeout: WORKING });
+2026-11-12T20:17:48.5911603Z           |          ^
+2026-11-12T20:17:48.5912018Z       258 |
+2026-11-12T20:17:48.5912688Z       259 |       // The remaining to commit, then the risks, then the indicators: the same revision, in the
+2026-11-12T20:17:48.5913772Z       260 |       // path, and the same sub-project, in the parameters, each time (WF-IHM-0010).
+2026-11-12T20:17:48.5914687Z         at /__w/wf-project/wf-project/frontend/e2e/review.spec.ts:257:10
+2026-11-12T20:17:48.5915186Z 
+2026-11-12T20:17:48.5915877Z     Error Context: test-results/review-a-browser-asking-fo-0bcf4-F-IHM-0010-A-WF-ARC-0020-A--chromium/error-context.md
+2026-11-12T20:17:48.5916657Z 
+2026-11-12T20:17:48.5917333Z     attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-11-12T20:17:48.5918646Z     test-results/review-a-browser-asking-fo-0bcf4-F-IHM-0010-A-WF-ARC-0020-A--chromium/trace.zip
+2026-11-12T20:17:48.5919504Z     Usage:
+2026-11-12T20:17:48.5919685Z 
+2026-11-12T20:17:48.5920417Z         pnpm exec playwright show-trace test-results/review-a-browser-asking-fo-0bcf4-F-IHM-0010-A-WF-ARC-0020-A--chromium/trace.zip
+2026-11-12T20:17:48.5925655Z 
+2026-11-12T20:17:48.5926076Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-12T20:17:48.5926536Z 
+2026-11-12T20:17:48.5926708Z   2 failed
+2026-11-12T20:17:48.5928141Z     [chromium] › e2e/review.spec.ts:207:5 › a browser asking for fr › reviews a project from the list to its indicators, the revision and the sub-project kept from screen to screen, every figure the API's, and comes back to it from the portfolio [WF-QUA-0070-A] [WF-IHM-0010-A] [WF-ARC-0020-A] 
+2026-11-12T20:17:48.5930199Z     [chromium] › e2e/review.spec.ts:207:5 › a browser asking for en › reviews a project from the list to its indicators, the revision and the sub-project kept from screen to screen, every figure the API's, and comes back to it from the portfolio [WF-QUA-0070-A] [WF-IHM-0010-A] [WF-ARC-0020-A] 
+2026-11-12T20:17:48.5931418Z   121 passed (2.9m)
+2026-11-12T20:17:48.6117512Z make: *** [Makefile:582: e2e] Error 1
+2026-11-12T20:17:48.6165359Z ##[error]Process completed with exit code 2.

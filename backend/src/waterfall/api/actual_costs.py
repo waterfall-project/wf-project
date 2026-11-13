@@ -19,6 +19,7 @@ from fastapi import APIRouter, Depends, Query
 
 from waterfall.api.actors import actor_ref
 from waterfall.api.authentication import Transaction
+from waterfall.api.contract.base import Text
 from waterfall.api.contract.models import (
     ActualCostLine,
     ActualCostListMeta,
@@ -28,6 +29,7 @@ from waterfall.api.contract.models import (
     Timestamp,
 )
 from waterfall.api.evaluation import Acting, RequiresProject
+from waterfall.api.queries import Offset
 from waterfall.core.costs.interface import (
     CostLineFilters,
     CostLinePage,
@@ -47,7 +49,8 @@ EXCLUDE = "cost_line_exclude"
 # The size of a page the contract gives when none is asked for, and the largest it allows.
 DEFAULT_LIMIT = 50
 GREATEST_LIMIT = 500
-# The columns a sort names: those of the grid, or a column kept of the files.
+# The columns a sort names: those of the grid, or a column kept of the files. The ``.`` takes the
+# NUL character, which ``Text`` refuses (#2891).
 SORT_COLUMN = (
     r"^(document_date|document_number|document_item|amount|subproject|in_tracked_scope"
     r"|excluded_reason|passthrough\..+)$"
@@ -91,7 +94,7 @@ def cost_line_filters(
 
 
 def cost_line_sort(
-    sort_by: Annotated[str | None, Query(pattern=SORT_COLUMN)] = None,
+    sort_by: Annotated[Text | None, Query(pattern=SORT_COLUMN)] = None,
     sort_order: SortOrder = SortOrder.asc,
 ) -> CostLineSort:
     """Read the sort the list asks for; none, the most recent documents first."""
@@ -100,7 +103,7 @@ def cost_line_sort(
 
 def page_asked(
     limit: Annotated[int, Query(ge=1, le=GREATEST_LIMIT)] = DEFAULT_LIMIT,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Offset = 0,
 ) -> CostLinePage:
     """Read the page asked for: its size and the lines skipped before it."""
     return CostLinePage(limit, offset)

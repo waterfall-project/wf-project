@@ -31,6 +31,7 @@
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
+  type ReactNode,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -158,6 +159,8 @@ export interface PlanningGridProps {
    * names it by (`OriginMark`); none, and the mark says a risk without its name.
    */
   readonly origins?: Readonly<Record<string, string>> | undefined;
+  /** The filters of the screen, as menus in the bar of the grid (#2916/L6). */
+  readonly treeFilters?: ReactNode;
   /**
    * What the Gantt reads besides the rows: the graduations of hours of a day (`hoursOfDay`), and
    * where it comes from, which its exported image names. None, it stops at days and is not
@@ -326,6 +329,7 @@ export function PlanningGrid({
   timelineCreation,
   differential,
   origins,
+  treeFilters,
   gantt,
 }: PlanningGridProps) {
   const t = useTranslations("planningGrid");
@@ -582,6 +586,7 @@ export function PlanningGrid({
             undoable={undoable}
             undo={undo}
             commands={zoomed}
+            treeFilters={treeFilters}
             around={(rows, table) => (
               <GanttRows
                 rows={rows}

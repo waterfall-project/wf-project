@@ -206,7 +206,7 @@ export function UndoCommands({ control }: { readonly control?: UndoControl | und
   const said = useTranslations("commands");
   const reason = useId();
   return (
-    <div className="flex shrink-0 items-center gap-1">
+    <div className="flex min-w-15 shrink items-center gap-1">
       {COMMANDS.map((command) => (
         <CommandTooltip
           key={command}
@@ -237,7 +237,11 @@ export function UndoCommands({ control }: { readonly control?: UndoControl | und
         </CommandTooltip>
       ))}
       {control === undefined ? (
-        <p id={reason} className="max-w-56 text-xs text-muted-foreground">
+        <p
+          id={reason}
+          title={t("unavailable")}
+          className="min-w-0 shrink basis-56 truncate text-xs text-muted-foreground"
+        >
           {t("unavailable")}
         </p>
       ) : null}

@@ -43,7 +43,7 @@ import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import type { ListedStructure } from "@/components/context/structure";
 import { ContextBanner } from "@/components/context/context-banner";
 import { breakdownChip } from "@/components/grid/breakdown-filter";
-import { GridFilters } from "@/components/grid/grid-filters";
+import { TreeFilters } from "@/components/grid/tree-filters";
 import { originNames } from "@/components/grid/origin-filter";
 import type { NodeTotals } from "@/components/grid/nodes";
 import { PendingAddress } from "@/components/grid/pending-address";
@@ -254,12 +254,6 @@ export default async function PlanningPage({
           offer={findOffer(screen.reading.revision?.available_commands ?? [], "merge_structure")}
           revision={revision}
         />
-        <GridFilters
-          breakdown={screen.breakdown}
-          difference={screen.difference}
-          differential={screen.kind === "amendment"}
-          origin={screen.origin}
-        />
         <PlanningWithGantt
           key={screen.structure.structure_id}
           reading={screen.reading}
@@ -277,6 +271,14 @@ export default async function PlanningPage({
             editable,
             differential: screen.kind === "amendment",
             origins: originNames(screen.origin),
+            treeFilters: (
+              <TreeFilters
+                breakdown={screen.breakdown}
+                difference={screen.difference}
+                differential={screen.kind === "amendment"}
+                origin={screen.origin}
+              />
+            ),
             // The attachment is chosen among the same items, where the planning may be entered.
             breakdown: editable ? screen.breakdown?.items : undefined,
             skeleton,

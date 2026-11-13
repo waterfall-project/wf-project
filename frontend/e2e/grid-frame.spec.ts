@@ -38,6 +38,20 @@ const SCREENS = [
   path(`${REVISION}/risks`),
 ] as const;
 
+/**
+ * The screens whose bar holds the three filters of a tree — a lot or a post, « Écarts seulement »,
+ * a risk occurred — and the remaining to commit, which holds one: the amendment of the witness.
+ */
+const AMENDMENT = "01926f3a-7c00-7000-8000-000000000203";
+const FILTERED = [
+  path(`${REVISION}/estimate?structure=${AMENDMENT}`),
+  path(`${REVISION}/planning?structure=${AMENDMENT}`),
+  path(`${REVISION}/remaining`),
+] as const;
+
+/** The least width, in points, that a filter of the bar keeps when the bar is short of room. */
+const FILTER_FLOOR = 90;
+
 /** The height of a bar on one line, in pixels, at most: the buttons are 28 or 32 high. */
 const ONE_LINE = 34;
 
@@ -59,6 +73,13 @@ interface Measure {
   readonly frame: number;
   readonly bar: number;
   readonly barHeight: number;
+  /** The children of the bar as laid out in the window: their box, and whether each is a filter. */
+  readonly parts: readonly {
+    readonly left: number;
+    readonly right: number;
+    readonly width: number;
+    readonly filter: boolean;
+  }[];
   readonly narrowBar: {
     readonly width: number;
     readonly height: number;
@@ -104,7 +125,21 @@ function measureGrids(page: Page): Promise<Measure[]> {
         level = level.parentElement;
       }
       const line = lineOf(bar);
+      const parts = Array.from(line.children).flatMap((child) => {
+        const rect = child.getBoundingClientRect();
+        return rect.width === 0
+          ? []
+          : [
+              {
+                left: rect.left,
+                right: rect.right,
+                width: rect.width,
+                filter: child.querySelector("[aria-haspopup='dialog'], [aria-pressed]") !== null,
+              },
+            ];
+      });
       const measure = {
+        parts,
         name: grid.getAttribute("aria-label") ?? "",
         covered,
         frame: frame.offsetWidth,
@@ -118,7 +153,8 @@ function measureGrids(page: Page): Promise<Measure[]> {
       );
       const searching = line.querySelector("[role='search']");
       const narrowBar = {
-        width: line.offsetWidth,
+        // A bar that scrolls keeps the width of its frame: what it holds is its scroll width.
+        width: Math.max(line.offsetWidth, line.scrollWidth),
         height: line.offsetHeight,
         children: children.map((child) => child.offsetWidth),
         gap: Number.parseFloat(getComputedStyle(line).columnGap) || 0,
@@ -163,6 +199,38 @@ for (const address of SCREENS) {
             `the narrowed search of ${where} keeps its minimal width`,
           ).toBeGreaterThanOrEqual(95);
         }
+      }
+    }
+  });
+}
+
+for (const address of FILTERED) {
+  test(`${address}: at 911 points each filter of the bar keeps its floor and none overlaps its neighbour, the bar scrolling rather than crushing them`, async ({
+    page,
+  }) => {
+    await compile(page.request, address);
+    const [, narrow] = WINDOWS;
+    await open(page, address, narrow);
+    // The value may be cut to the room: its tooltip says the whole of it (#2916).
+    const menu = page.locator("[data-grid-toolbar] button[aria-haspopup='dialog']").first();
+    await menu.hover();
+    await expect(page.getByRole("tooltip").first()).toContainText(
+      "Choix : Tous les lots et postes",
+    );
+    const grids = await measureGrids(page);
+    expect(grids.length, `${address} has a grid`).toBeGreaterThan(0);
+    for (const grid of grids) {
+      const filters = grid.parts.filter((part) => part.filter);
+      expect(filters.length, `the filters of ${grid.name}`).toBeGreaterThan(0);
+      for (const part of filters) {
+        expect(part.width, `a filter of ${grid.name}`).toBeGreaterThanOrEqual(FILTER_FLOOR);
+      }
+      for (const [at, part] of grid.parts.slice(1).entries()) {
+        const before = grid.parts[at];
+        expect(
+          part.left,
+          `a part of the bar of ${grid.name} overlaps the one before`,
+        ).toBeGreaterThanOrEqual((before?.right ?? 0) - 1);
       }
     }
   });

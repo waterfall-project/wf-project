@@ -25,9 +25,16 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.cost_settings.interface import category_labels
 from waterfall.core.estimate.recalling import recalled
-from waterfall.core.estimate.tables import LABEL_LENGTH
+from waterfall.core.estimate.tables import (
+    DISBURSEMENT_PRECISION,
+    DISBURSEMENT_SCALE,
+    LABEL_LENGTH,
+    QUANTITY_PRECISION,
+    QUANTITY_SCALE,
+)
 from waterfall.core.projects.interface import subproject_has_actual_costs, subproject_labels
 from waterfall.core.resource_settings.interface import read_roles
+from waterfall.platform.decimals import exceeds_precision
 from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 
 if TYPE_CHECKING:
@@ -56,6 +63,9 @@ PROVISION = "provision"
 NOT_STARTED = "not_started"
 SEPARATOR = " — "
 NOUGHT = Decimal(0)
+# The digits before the point the columns keep, from their precision and scale.
+DISBURSEMENT_DIGITS = DISBURSEMENT_PRECISION - DISBURSEMENT_SCALE
+QUANTITY_DIGITS = QUANTITY_PRECISION - QUANTITY_SCALE
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,6 +131,18 @@ class _Faults:
 def _not_negative[T: (Decimal, int)](faults: _Faults, name: str, value: T | None) -> None:
     if value is not None and value < 0:
         faults.add(name, VALUE_OUT_OF_RANGE, {"minimum": 0})
+
+
+def _kept(faults: _Faults, name: str, value: Decimal | None, whole_digits: int) -> None:
+    """Refuse a figure of more than ten decimals or than the digits its column keeps (#2875).
+
+    One fault per field, as the first refusal stops: a figure below nought is refused as such. The
+    decimals of a disbursement are bounded by ``Money`` before the service; the digits are its.
+    """
+    if value is not None and value < 0:
+        return
+    if value is not None and exceeds_precision(value, whole_digits):
+        faults.add(name, VALIDATION_FAILED)
 
 
 def _role(
@@ -214,6 +236,8 @@ def _figure(
     if value is None:
         faults.add(name, VALUE_REQUIRED)
     _not_negative(faults, name, value)
+    if name == "unit_disbursement":
+        _kept(faults, name, value, DISBURSEMENT_DIGITS)
     return value
 
 
@@ -258,6 +282,7 @@ def _scalars(
     if quantity is None:
         faults.add("quantity", VALUE_REQUIRED)
     _not_negative(faults, "quantity", quantity)
+    _kept(faults, "quantity", quantity, QUANTITY_DIGITS)
     delay = entry.payment_delay_days if entry.given("payment_delay_days") else _delay(current)
     if delay is None:
         faults.add("payment_delay_days", VALUE_REQUIRED)

@@ -1,0 +1,24 @@
+2026-11-06T12:21:15.2931609Z  + types-s3transfer==0.19.3
+2026-11-06T12:21:15.2932068Z  + typing-extensions==4.16.0
+2026-11-06T12:21:15.2932292Z  + typing-inspection==0.4.5
+2026-11-06T12:21:15.2933363Z  + urllib3==2.8.0
+2026-11-06T12:21:15.2934069Z  + uuid-utils==1.2.0
+2026-11-06T12:21:15.2934852Z  + uvicorn==0.54.0
+2026-11-06T12:21:15.2935356Z  + waterfall==0.1.0 (from file:///home/runner/work/wf-project/wf-project/backend)
+2026-11-06T12:21:15.2935916Z  + werkzeug==3.1.9
+2026-11-06T12:21:18.7435535Z ImportError while loading conftest '/home/runner/work/wf-project/wf-project/backend/tests/conftest.py'.
+2026-11-06T12:21:18.8386515Z tests/conftest.py:14: in <module>
+2026-11-06T12:21:18.8387215Z     from installations import Installation, Take, installed, taker
+2026-11-06T12:21:18.8387712Z tests/installations.py:25: in <module>
+2026-11-06T12:21:18.8388315Z     from waterfall.core.backups.interface import keep_for_restoration, write_back_after_restoration
+2026-11-06T12:21:18.8388969Z src/waterfall/core/backups/interface.py:27: in <module>
+2026-11-06T12:21:18.8389502Z     from waterfall.core.users.interface import anonymize_again, inscribed_actor
+2026-11-06T12:21:18.8390039Z src/waterfall/core/users/interface.py:29: in <module>
+2026-11-06T12:21:18.8390499Z     from waterfall.core.resource_settings.interface import node_labels
+2026-11-06T12:21:18.8391452Z src/waterfall/core/resource_settings/interface/__init__.py:60: in <module>
+2026-11-06T12:21:18.8392374Z     from waterfall.core.resource_settings.interface.calendars import (
+2026-11-06T12:21:18.8392901Z src/waterfall/core/resource_settings/interface/calendars.py:23: in <module>
+2026-11-06T12:21:18.8393413Z     from waterfall.core.users.interface import Author, read_authors
+2026-11-06T12:21:18.8394514Z E   ImportError: cannot import name 'Author' from partially initialized module 'waterfall.core.users.interface' (most likely due to a circular import) (/home/runner/work/wf-project/wf-project/backend/src/waterfall/core/users/interface.py)
+2026-11-06T12:21:19.3445060Z make: *** [Makefile:360: test-keycloak] Error 4
+2026-11-06T12:21:19.3460648Z ##[error]Process completed with exit code 2.

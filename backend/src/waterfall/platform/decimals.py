@@ -14,6 +14,11 @@ This departs from ``RATIO_DECIMALS`` (``core/projects/interface/projects.py``), 
 decimals of the value normalised, a final zero dropped: ``0.1`` followed by 20 000 zeros is worth
 ``0.1`` there, but written as is it would overflow the ``numeric`` column of a threshold or a
 bound, which keeps them. Here the count is that of the text, so that no such value gets through.
+
+The same rule bounds the other decimals the service writes (#2875, US-1980): the constants of the
+units of duration, the durations and the lags of the planning (``numeric`` without precision, ten
+digits before the point), the quantity (``numeric(14, 4)``, ten) and the unit disbursement
+(``numeric(14, 2)``, twelve) of an estimate line.
 """
 
 from typing import TYPE_CHECKING
@@ -25,12 +30,14 @@ MOST_DECIMALS = 10
 MOST_WHOLE_DIGITS = 10
 
 
-def exceeds_precision(value: Decimal) -> bool:
-    """Tell a decimal of more than ten decimals, or of more than ten digits before the point.
+def exceeds_precision(value: Decimal, whole_digits: int = MOST_WHOLE_DIGITS) -> bool:
+    """Tell a decimal of more than ten decimals, or of more digits before the point than allowed.
 
     ``0.1234567890`` and ``1234567890.5`` are kept; ``0.12345678901`` and ``12345678901`` are not.
+    A column with a precision (``numeric(14, 2)``) passes the digits it keeps before the point
+    (``whole_digits=12``): a figure that crossed it would be a ``numeric field overflow``.
     """
     exponent = value.as_tuple().exponent
     decimals = -exponent if isinstance(exponent, int) and exponent < 0 else 0
-    whole_digits = max(value.adjusted() + 1, 0)
-    return decimals > MOST_DECIMALS or whole_digits > MOST_WHOLE_DIGITS
+    before_point = max(value.adjusted() + 1, 0)
+    return decimals > MOST_DECIMALS or before_point > whole_digits

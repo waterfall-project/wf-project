@@ -1,0 +1,41 @@
+2026-11-10T09:10:45.7124790Z   ✘  142 [restoration] › e2e/service/backups.spec.ts:155:1 › a backup taken, downloaded, deposited and restored: the screen says the restoration waiting, then its end, and the administrator signs in again [WF-ADM-0150-A] [WF-ADM-0160-A] @platform-wide (1.1m)
+2026-11-10T09:10:50.6947724Z 
+2026-11-10T09:10:50.6952025Z 
+2026-11-10T09:10:50.6960012Z   1) [restoration] › e2e/service/backups.spec.ts:155:1 › a backup taken, downloaded, deposited and restored: the screen says the restoration waiting, then its end, and the administrator signs in again [WF-ADM-0150-A] [WF-ADM-0160-A] @platform-wide 
+2026-11-10T09:10:50.6960754Z 
+2026-11-10T09:10:50.6960928Z     Error: expect(locator).toBeVisible() failed
+2026-11-10T09:10:50.6961127Z 
+2026-11-10T09:10:50.6961826Z     Locator: getByRole('region', { name: 'Restaurer une sauvegarde d’une autre installation' }).getByRole('button', { name: 'Restaurer cette sauvegarde' })
+2026-11-10T09:10:50.6962827Z     Expected: visible
+2026-11-10T09:10:50.6963051Z     Timeout: 60000ms
+2026-11-10T09:10:50.6963287Z     Error: element(s) not found
+2026-11-10T09:10:50.6963434Z 
+2026-11-10T09:10:50.6963517Z     Call log:
+2026-11-10T09:10:50.6965401Z       - Expect "toBeVisible" getByRole('region', { name: 'Restaurer une sauvegarde d’une autre installation' }).getByRole('button', { name: 'Restaurer cette sauvegarde' }) with timeout 60000ms
+2026-11-10T09:10:50.6966498Z       - waiting for getByRole('region', { name: 'Restaurer une sauvegarde d’une autre installation' }).getByRole('button', { name: 'Restaurer cette sauvegarde' })
+2026-11-10T09:10:50.6966959Z 
+2026-11-10T09:10:50.6966965Z 
+2026-11-10T09:10:50.6967235Z       224 |     await deposit.getByRole("button", { name: "Déposer" }).click();
+2026-11-10T09:10:50.6967756Z       225 |     const restore = deposit.getByRole("button", { name: "Restaurer cette sauvegarde" });
+2026-11-10T09:10:50.6968399Z     > 226 |     await expect(restore).toBeVisible({ timeout: 60_000 });
+2026-11-10T09:10:50.6968705Z           |                           ^
+2026-11-10T09:10:50.6969085Z       227 |     const deposited = await deposit.getByRole("time").getAttribute("datetime");
+2026-11-10T09:10:50.6969514Z       228 |     expect(Date.parse(deposited ?? "")).toBe(takenAt);
+2026-11-10T09:10:50.6969781Z       229 |
+2026-11-10T09:10:50.6970138Z         at /home/runner/work/wf-project/wf-project/frontend/e2e/service/backups.spec.ts:226:27
+2026-11-10T09:10:50.6970461Z 
+2026-11-10T09:10:50.6970911Z     Error Context: test-results/service-backups-a-backup-t-e6094-F-ADM-0150-A-WF-ADM-0160-A--restoration/error-context.md
+2026-11-10T09:10:50.6971355Z 
+2026-11-10T09:10:50.6971747Z     attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-11-10T09:10:50.6972336Z     test-results/service-backups-a-backup-t-e6094-F-ADM-0150-A-WF-ADM-0160-A--restoration/trace.zip
+2026-11-10T09:10:50.6972775Z     Usage:
+2026-11-10T09:10:50.6973091Z 
+2026-11-10T09:10:50.6973547Z         pnpm exec playwright show-trace test-results/service-backups-a-backup-t-e6094-F-ADM-0150-A-WF-ADM-0160-A--restoration/trace.zip
+2026-11-10T09:10:50.6974051Z 
+2026-11-10T09:10:50.6974391Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-10T09:10:50.6974646Z 
+2026-11-10T09:10:50.6974735Z   1 failed
+2026-11-10T09:10:50.6975787Z     [restoration] › e2e/service/backups.spec.ts:155:1 › a backup taken, downloaded, deposited and restored: the screen says the restoration waiting, then its end, and the administrator signs in again [WF-ADM-0150-A] [WF-ADM-0160-A] @platform-wide 
+2026-11-10T09:10:50.6976600Z   18 skipped
+2026-11-10T09:10:50.6976805Z   124 passed (8.3m)
+2026-11-10T09:10:50.7148042Z make: *** [Makefile:619: e2e-service] Error 1

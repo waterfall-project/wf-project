@@ -11,6 +11,7 @@ writer writes for a small planning.
 """
 
 import os
+from dataclasses import replace
 from datetime import datetime, time, timedelta
 from pathlib import Path
 from uuid import UUID
@@ -308,8 +309,10 @@ def test_the_writer_writes_the_elements_in_the_order_of_the_schema() -> None:
         "<?xml version='1.0' encoding='UTF-8' standalone='yes'?>\n"
         '<Project xmlns="http://schemas.microsoft.com/project/2007">'
         "<SaveVersion>14</SaveVersion><Name>Order</Name><StartDate>2026-03-02T08:00:00</StartDate>"
-        "<CurrencyCode></CurrencyCode><CalendarUID>1</CalendarUID><MinutesPerDay>480</MinutesPerDay>"
-        "<MinutesPerWeek>2400</MinutesPerWeek><DaysPerMonth>20</DaysPerMonth>"
+        "<CurrencyCode></CurrencyCode><CalendarUID>1</CalendarUID>"
+        "<DefaultStartTime>08:00:00</DefaultStartTime><DefaultFinishTime>17:00:00</DefaultFinishTime>"
+        "<MinutesPerDay>480</MinutesPerDay><MinutesPerWeek>2400</MinutesPerWeek>"
+        "<DaysPerMonth>20</DaysPerMonth>"
         "<ExtendedAttributes><ExtendedAttribute><FieldID>188743731</FieldID>"
         "<FieldName>Text1</FieldName><Alias>Waterfall.lineage</Alias></ExtendedAttribute>"
         "</ExtendedAttributes>"
@@ -320,15 +323,18 @@ def test_the_writer_writes_the_elements_in_the_order_of_the_schema() -> None:
         "<WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime>"
         "</WorkingTimes></WeekDay></WeekDays></Calendar></Calendars>"
         "<Tasks><Task><UID>1</UID><ID>1</ID><Name>A</Name><OutlineLevel>1</OutlineLevel>"
-        "<Milestone>0</Milestone><ConstraintType>0</ConstraintType><Manual>0</Manual></Task>"
+        "<Estimated>0</Estimated><Milestone>0</Milestone><ConstraintType>0</ConstraintType>"
+        "<Manual>0</Manual></Task>"
         "<Task><UID>2</UID><ID>2</ID><Name>B</Name><OutlineLevel>1</OutlineLevel>"
         "<Start>2026-03-02T08:00:00</Start><Finish>2026-03-02T09:30:30</Finish>"
-        "<Duration>PT1H30M30S</Duration><DurationFormat>3</DurationFormat>"
+        "<Duration>PT1H30M30S</Duration><DurationFormat>3</DurationFormat><Estimated>0</Estimated>"
         "<Milestone>0</Milestone><ConstraintType>0</ConstraintType><CalendarUID>1</CalendarUID>"
         "<Notes>N</Notes><PredecessorLink><PredecessorUID>1</PredecessorUID><Type>2</Type>"
         "<LinkLag>600</LinkLag><LagFormat>6</LagFormat></PredecessorLink>"
         f"<ExtendedAttribute><FieldID>188743731</FieldID><Value>{DESIGN}</Value>"
-        "</ExtendedAttribute><Manual>1</Manual></Task></Tasks></Project>"
+        "</ExtendedAttribute><Manual>1</Manual><ManualStart>2026-03-02T08:00:00</ManualStart>"
+        "<ManualFinish>2026-03-02T09:30:30</ManualFinish><ManualDuration>PT1H30M30S</ManualDuration>"
+        "</Task></Tasks></Project>"
     )
 
 
@@ -388,12 +394,33 @@ FULL = MsProject(
             start=at("2026-03-02T17:00:00"),
             finish=at("2026-03-02T17:00:00"),
         ),
+        MsTask(
+            uid=32,
+            name="By hand",
+            outline_level=2,
+            manual=True,
+            duration=timedelta(hours=8),
+            duration_unit="d",
+            start=at("2026-03-03T08:00:00"),
+            finish=at("2026-03-03T17:00:00"),
+        ),
+        MsTask(
+            uid=33,
+            name="Handed over",
+            outline_level=2,
+            manual=True,
+            duration=timedelta(0),
+            duration_unit="d",
+            milestone=True,
+            start=at("2026-03-03T17:00:00"),
+            finish=at("2026-03-03T17:00:00"),
+        ),
     ),
 )
 
 
 @pytest.mark.requirement("WF-QUA-0080-A")
-def test_a_planning_with_every_constraint_link_lag_format_and_a_milestone_is_valid(
+def test_a_planning_with_every_constraint_link_lag_format_milestones_and_manual_tasks_is_valid(
     schema: etree.XMLSchema,
 ) -> None:
     written = write_project(FULL)
@@ -414,6 +441,222 @@ def test_an_element_out_of_the_order_of_the_schema_makes_the_file_invalid(
     task.insert(0, manual)
 
     assert not schema.validate(root)
+
+
+def written_tasks(planning: MsProject) -> list[list[tuple[str, str | None]]]:
+    """Give the children of each task of the file written, by their name and text, in order.
+
+    What MS Project reads is read in the XML written, not as the reader of Waterfall reads it back:
+    the reader does not see what MS Project ignores, nor the reverse (#2923).
+    """
+    root = etree.fromstring(write_project(planning), hardened_parser())
+    return [
+        [(etree.QName(child).localname, child.text) for child in task]
+        for task in root.iterfind("{*}Tasks/{*}Task")
+    ]
+
+
+# An automatic task, a manual one and a manual milestone of nought duration, each in days.
+BY_HAND = MsProject(
+    start=at("2026-03-02T08:00:00"),
+    calendar_uid=1,
+    calendars=(STANDARD,),
+    tasks=(
+        MsTask(
+            uid=1,
+            name="Automatic",
+            outline_level=1,
+            duration=timedelta(hours=8),
+            duration_unit="d",
+            start=at("2026-03-02T08:00:00"),
+            finish=at("2026-03-02T17:00:00"),
+        ),
+        MsTask(
+            uid=2,
+            name="By hand",
+            outline_level=1,
+            manual=True,
+            duration=timedelta(hours=12),
+            duration_unit="h",
+            start=at("2026-03-03T08:00:00"),
+            finish=at("2026-03-04T13:00:00"),
+        ),
+        MsTask(
+            uid=3,
+            name="Handed over",
+            outline_level=1,
+            manual=True,
+            duration=timedelta(0),
+            duration_unit="d",
+            milestone=True,
+            start=at("2026-03-04T17:00:00"),
+            finish=at("2026-03-04T17:00:00"),
+        ),
+    ),
+)
+
+MANUAL_FIELDS = ("ManualStart", "ManualFinish", "ManualDuration")
+
+
+@pytest.mark.requirement("WF-INTF-0050-A")
+def test_a_manual_task_carries_its_dates_and_its_duration_again_where_ms_project_reads_them() -> (
+    None
+):
+    # « Un planning Waterfall exporté au format XML s'ouvre sans erreur dans les versions de MS
+    # Project visées » : for a manual task, MS Project reads its dates and its duration in the
+    # fields ``Manual…``, after ``Manual`` in the schema; a manual milestone of nought duration
+    # carries a nought duration there, or MS Project opens it as a task of one estimated day.
+    automatic, by_hand, handed_over = written_tasks(BY_HAND)
+
+    assert [name for name, _ in by_hand][-4:] == ["Manual", *MANUAL_FIELDS]
+    assert [dict(by_hand)[name] for name in MANUAL_FIELDS] == [
+        "2026-03-03T08:00:00",
+        "2026-03-04T13:00:00",
+        "PT12H0M0S",
+    ]
+    assert [dict(by_hand)[name] for name in ("Start", "Finish", "Duration")] == [
+        dict(by_hand)[name] for name in MANUAL_FIELDS
+    ]
+    assert [name for name, _ in handed_over][-4:] == ["Manual", *MANUAL_FIELDS]
+    assert [dict(handed_over)[name] for name in MANUAL_FIELDS] == [
+        "2026-03-04T17:00:00",
+        "2026-03-04T17:00:00",
+        "PT0H0M0S",
+    ]
+    assert not set(MANUAL_FIELDS) & dict(automatic).keys()
+
+
+@pytest.mark.requirement("WF-INTF-0050-A")
+def test_every_task_carries_a_duration_not_estimated_right_after_its_format() -> None:
+    # « En mode automatique, MS Project recalcule pour chaque tâche des dates de début et de fin
+    # identiques à celles affichées par Waterfall » : without ``Estimated`` at nought, MS Project
+    # shows each duration estimated, « 0 j? » for a milestone.
+    for task in written_tasks(BY_HAND):
+        names = [name for name, _ in task]
+        assert dict(task)["Estimated"] == "0"
+        assert names[names.index("Estimated") - 1] == "DurationFormat"
+
+
+@pytest.mark.requirement("WF-INTF-0050-A")
+def test_the_head_carries_the_working_day_of_the_calendar_of_the_project() -> None:
+    # « MS Project recalcule pour chaque tâche des dates […] identiques » : without them, MS Project
+    # takes 8:00 and 17:00 for a date entered without its hour, past the end of a day of seven
+    # hours. The day is the first the calendar of the project works, from Monday — here Tuesday,
+    # Sunday and Monday being off —, not a day of another calendar.
+    seven_hours = MsCalendar(
+        uid=1,
+        name="Seven hours",
+        is_base=True,
+        base_uid=None,
+        days=(
+            WorkingDay(day_type=1, working=False),
+            WorkingDay(day_type=2, working=False),
+            WorkingDay(day_type=3, working=True, times=((time(8), time(12)), (time(13), time(16)))),
+            WorkingDay(day_type=4, working=True, times=((time(9), time(13)),)),
+        ),
+    )
+    longer = MsCalendar(
+        uid=2,
+        name="Longer",
+        is_base=True,
+        base_uid=None,
+        days=(WorkingDay(day_type=2, working=True, times=((time(6), time(20)),)),),
+    )
+
+    def head(planning: MsProject) -> tuple[str | None, str | None]:
+        root = etree.fromstring(write_project(planning), hardened_parser())
+        names = [etree.QName(child).localname for child in root]
+        assert names[names.index("CalendarUID") + 1 : names.index("MinutesPerDay")] == (
+            ["DefaultStartTime", "DefaultFinishTime"] if "DefaultStartTime" in names else []
+        )
+        return root.findtext("{*}DefaultStartTime"), root.findtext("{*}DefaultFinishTime")
+
+    project = MsProject(
+        start=None, calendar_uid=1, minutes_per_day=420, calendars=(longer, seven_hours)
+    )
+    assert head(project) == ("08:00:00", "16:00:00")
+    # A calendar that works no day it lists, or that the file does not carry, writes neither.
+    assert head(replace(project, calendar_uid=3)) == (None, None)
+    off = MsCalendar(uid=1, name="Off", is_base=True, base_uid=None, days=(seven_hours.days[0],))
+    assert head(replace(project, calendars=(off,))) == (None, None)
+
+
+@pytest.mark.requirement("WF-QUA-0080-A")
+def test_a_planning_with_manual_tasks_written_is_valid_against_the_schema(
+    schema: etree.XMLSchema,
+) -> None:
+    # « Chaque planning […] exporté par Waterfall est valide contre le schéma » : the fields
+    # ``Manual…``, ``Estimated`` and the working day of the head are each at their place.
+    written = write_project(BY_HAND)
+
+    assert schema.validate(etree.fromstring(written, hardened_parser())), schema.error_log
+    assert read_project(written).project == BY_HAND
+
+
+def _manual_file(manual: str, besides: str) -> bytes:
+    """Write a file of a task in the mode given, dated by its ``Start`` and ``Finish`` and more."""
+    return _tasks_file(
+        "<Task><UID>1</UID><OutlineLevel>1</OutlineLevel>"
+        "<Start>2026-03-07T08:00:00</Start><Finish>2026-03-13T16:00:00</Finish>"
+        f"<Duration>PT47H0M0S</Duration><DurationFormat>7</DurationFormat>{manual}{besides}</Task>"
+    )
+
+
+THE_MANUAL_ONES = (
+    "<ManualStart>2026-03-09T08:00:00</ManualStart><ManualFinish>2026-03-13T17:00:00</ManualFinish>"
+    "<ManualDuration>PT40H0M0S</ManualDuration>"
+)
+
+
+@pytest.mark.requirement("WF-INTF-0040-A")
+def test_a_manual_task_is_read_at_the_dates_and_the_duration_ms_project_reads_it_at() -> None:
+    # « Une tâche en mode manuel du fichier est en mode manuel aux mêmes dates » : MS Project reads
+    # a manual task in its fields ``Manual…`` (decision of the author of 2026-11-12); an automatic
+    # task in ``Start``, ``Finish`` and ``Duration``, whatever its ``Manual…`` say.
+    manual = read_project(_manual_file("<Manual>1</Manual>", THE_MANUAL_ONES)).project.tasks[0]
+    automatic = read_project(_manual_file("<Manual>0</Manual>", THE_MANUAL_ONES)).project.tasks[0]
+
+    assert (manual.start, manual.finish, manual.duration) == (
+        at("2026-03-09T08:00:00"),
+        at("2026-03-13T17:00:00"),
+        timedelta(hours=40),
+    )
+    assert (automatic.start, automatic.finish, automatic.duration) == (
+        at("2026-03-07T08:00:00"),
+        at("2026-03-13T16:00:00"),
+        timedelta(hours=47),
+    )
+
+
+@pytest.mark.requirement("WF-INTF-0040-A")
+def test_a_manual_task_without_its_manual_fields_is_read_at_its_start_finish_and_duration() -> None:
+    # « … et ``Start``, ``Finish`` et ``Duration`` sinon » : a file of an older MS Project, or one
+    # that leaves a field empty, each field apart.
+    bare = read_project(_manual_file("<Manual>1</Manual>", "")).project.tasks[0]
+    partial = read_project(
+        _manual_file(
+            "<Manual>1</Manual>",
+            "<ManualStart></ManualStart><ManualDuration>PT40H0M0S</ManualDuration>",
+        )
+    ).project.tasks[0]
+
+    assert (bare.start, bare.finish, bare.duration) == (
+        at("2026-03-07T08:00:00"),
+        at("2026-03-13T16:00:00"),
+        timedelta(hours=47),
+    )
+    assert (partial.start, partial.finish, partial.duration) == (
+        at("2026-03-07T08:00:00"),
+        at("2026-03-13T16:00:00"),
+        timedelta(hours=40),
+    )
+
+
+def test_a_manual_field_that_is_no_date_refuses_the_file() -> None:
+    with pytest.raises(UnreadableProjectError) as refused:
+        read_project(_manual_file("<Manual>1</Manual>", "<ManualStart>lundi</ManualStart>"))
+
+    assert refused.value.element == "ManualStart"
 
 
 def test_a_planning_without_tasks_nor_calendars_is_read_back_the_same() -> None:

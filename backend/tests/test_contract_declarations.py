@@ -564,6 +564,14 @@ CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
     ("listActualCosts", "query", "subproject_id"): (
         "declared nothing, contract either=(enum={'unassigned'} | nothing)"
     ),
+    # The sort of the actual costs is ``Text``, which refuses the NUL character: the schema no
+    # longer shows its pattern (a column, or ``passthrough.`` and a name), which the route judges
+    # all the same (#2891).
+    ("listActualCosts", "query", "sort_by"): (
+        "declared nothing, contract either=(enum={'amount', 'document_date', 'document_item', "
+        "'document_number', 'excluded_reason', 'in_tracked_scope', 'subproject'} "
+        r"| pattern='^passthrough\\..+$')"
+    ),
     ("listContributors", "query", "sort_by"): (
         "declared pattern='^(display_name|kind|is_active)$', "
         "contract enum={'display_name', 'is_active', 'kind'}"

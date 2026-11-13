@@ -1,0 +1,12 @@
+2026-11-08T10:37:00.4609816Z ##[group]Run curl -sSfL -o pandoc.deb "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb"
+2026-11-08T10:37:00.4610518Z [36;1mcurl -sSfL -o pandoc.deb "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb"[0m
+2026-11-08T10:37:00.4610955Z [36;1mecho "${PANDOC_SHA256}  pandoc.deb" | sha256sum --check --strict[0m
+2026-11-08T10:37:00.4611207Z [36;1msudo dpkg -i pandoc.deb[0m
+2026-11-08T10:37:00.4611386Z [36;1mrm pandoc.deb[0m
+2026-11-08T10:37:00.4655274Z shell: /usr/bin/bash -e {0}
+2026-11-08T10:37:00.4655460Z env:
+2026-11-08T10:37:00.4655605Z   PANDOC_VERSION: 3.13
+2026-11-08T10:37:00.4655842Z   PANDOC_SHA256: 7e3736f255090296ca5d1a14291a76b9b3c43cd385011b1621a4d0c16091a70f
+2026-11-08T10:37:00.4656092Z ##[endgroup]
+2026-11-08T10:37:50.9425800Z curl: (22) The requested URL returned error: 503
+2026-11-08T10:37:50.9461948Z ##[error]Process completed with exit code 22.

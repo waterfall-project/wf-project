@@ -12,6 +12,11 @@ by the modules that serve them, at the import of their interface (``register_for
 ``register_exporter``). The witness writes its imports as they ended (``load_import``, EP-09).
 """
 
+# ``damages`` (US-1940): what a damaged workbook raises, one list for every reader of a workbook.
+from waterfall.core.exchanges.interface.damages import (
+    DAMAGES as DAMAGES,
+)
+
 # ``exports`` (US-1380/L1; US-1430/L2): the exporters, the task that runs one, and its result.
 from waterfall.core.exchanges.interface.exports import (
     ExportAsked as ExportAsked,
