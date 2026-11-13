@@ -13,7 +13,7 @@ a date constraint, at the dates of the file; a summary always automatic. A summa
 carries in manual mode keeps there the dates entered on it, which Waterfall does not: it is
 compared apart, its dates derived from its subordinates (``DERIVED``). The cases the body of
 WF-QUA-0080 cites, by the identifiers the README of the corpus gives them, are each declared by a
-file of the manifest, but for a negative lag in weeks, which no file carries (#2812).
+file of the manifest.
 """
 
 import json
@@ -127,7 +127,7 @@ CASES: dict[str, tuple[str, ...]] = {
 
 # The cases no planning of the corpus declares, each with the issue that says why: the corpus
 # lacks a file for it, the text of the specification is not in question.
-MISSING: dict[str, str] = {"lag_negative_w": "#2812"}
+MISSING: dict[str, str] = {}
 
 # The summaries the corpus carries in manual mode, by file: MS Project keeps the dates entered on
 # them, Waterfall always computes a summary from its subordinates, and the import makes it
@@ -305,8 +305,9 @@ def test_each_case_the_body_cites_is_declared_by_a_planning_of_the_corpus(
     theme: str, case: str
 ) -> None:
     # « Chaque cas cité par le corps figure dans au moins un planning du corpus. » A case no file
-    # declares is not run only when the test names the issue that says why (#2812, decision of
-    # the 2026-11-10); any other fails, and a case a file declares needs that file in the corpus.
+    # declares is not run only when the test names the issue that says why (``MISSING``, empty
+    # since the file 02 carries a negative lag in weeks, #2812); any other fails, and a case a
+    # file declares needs that file in the corpus.
     declaring = [entry["file"] for entry in FILES if case in entry["cases"]]
     if not declaring and case in MISSING:
         pytest.skip(f"{case} ({theme}): no planning of the corpus declares it ({MISSING[case]})")

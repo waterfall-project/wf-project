@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Project xmlns="http://schemas.microsoft.com/project">
 	<SaveVersion>14</SaveVersion>
+	<BuildNumber>16.0.17932.21140</BuildNumber>
 	<Name>02-lags-every-unit.xml</Name>
+	<GUID>855CA56F-91DF-F111-B585-E46017C122A2</GUID>
 	<Title>02-lags-every-unit</Title>
 	<Company>Microsoft</Company>
 	<CreationDate>2009-11-16T09:00:00</CreationDate>
-	<LastSaved>2026-11-10T19:27:00</LastSaved>
+	<LastSaved>2026-11-13T19:40:00</LastSaved>
 	<ScheduleFromStart>1</ScheduleFromStart>
 	<StartDate>2009-11-16T09:00:00</StartDate>
 	<FinishDate>2010-03-02T15:48:00</FinishDate>
@@ -45,7 +47,7 @@
 	<MoveCompletedEndsForward>0</MoveCompletedEndsForward>
 	<BaselineForEarnedValue>0</BaselineForEarnedValue>
 	<AutoAddNewResourcesAndTasks>1</AutoAddNewResourcesAndTasks>
-	<CurrentDate>2026-11-10T08:00:00</CurrentDate>
+	<CurrentDate>2026-11-13T08:00:00</CurrentDate>
 	<MicrosoftProjectServerURL>1</MicrosoftProjectServerURL>
 	<Autolink>0</Autolink>
 	<NewTaskStartDate>0</NewTaskStartDate>
@@ -58,12 +60,52 @@
 	<AdminProject>0</AdminProject>
 	<UpdateManuallyScheduledTasksWhenEditingLinks>1</UpdateManuallyScheduledTasksWhenEditingLinks>
 	<KeepTaskOnNearestWorkingTimeWhenMadeAutoScheduled>0</KeepTaskOnNearestWorkingTimeWhenMadeAutoScheduled>
+	<Views>
+		<View>
+			<Name>Gantt a&amp;vec chronologie</Name>
+		</View>
+		<View>
+			<Name>Diagramme de &amp;Gantt</Name>
+			<IsCustomized>true</IsCustomized>
+		</View>
+		<View>
+			<Name>Chrono&amp;logie</Name>
+			<IsCustomized>true</IsCustomized>
+		</View>
+	</Views>
+	<Filters>
+		<Filter>
+			<Name>&amp;Toutes les tâches</Name>
+		</Filter>
+		<Filter>
+			<Name>Toutes les &amp;ressources</Name>
+		</Filter>
+	</Filters>
+	<Groups>
+		<Group>
+			<Name>Aucun &amp;groupe</Name>
+		</Group>
+		<Group>
+			<Name>Aucun &amp;groupe</Name>
+		</Group>
+	</Groups>
+	<Tables>
+		<Table>
+			<Name>&amp;Entrée</Name>
+		</Table>
+	</Tables>
+	<Maps/>
+	<Reports/>
+	<Drawings/>
+	<DataLinks/>
+	<VBAProjects/>
 	<OutlineCodes/>
 	<WBSMasks/>
 	<ExtendedAttributes/>
 	<Calendars>
 		<Calendar>
 			<UID>1</UID>
+			<GUID>9A5CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<Name>Standard</Name>
 			<IsBaseCalendar>1</IsBaseCalendar>
 			<IsBaselineCalendar>0</IsBaselineCalendar>
@@ -153,6 +195,7 @@
 	<Tasks>
 		<Task>
 			<UID>0</UID>
+			<GUID>875CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<ID>0</ID>
 			<Name>02-lags-every-unit</Name>
 			<Active>1</Active>
@@ -171,6 +214,7 @@
 			<ManualFinish>2010-03-02T15:48:00</ManualFinish>
 			<ManualDuration>PT536H48M0S</ManualDuration>
 			<DurationFormat>21</DurationFormat>
+			<FreeformDurationFormat>7</FreeformDurationFormat>
 			<Work>PT0H0M0S</Work>
 			<ResumeValid>0</ResumeValid>
 			<EffortDriven>0</EffortDriven>
@@ -233,6 +277,7 @@
 		</Task>
 		<Task>
 			<UID>1</UID>
+			<GUID>8D5CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<ID>1</ID>
 			<Name>T1</Name>
 			<Active>1</Active>
@@ -251,6 +296,7 @@
 			<ManualFinish>2009-11-17T10:00:00</ManualFinish>
 			<ManualDuration>PT8H0M0S</ManualDuration>
 			<DurationFormat>7</DurationFormat>
+			<FreeformDurationFormat>7</FreeformDurationFormat>
 			<Work>PT0H0M0S</Work>
 			<ResumeValid>0</ResumeValid>
 			<EffortDriven>0</EffortDriven>
@@ -313,6 +359,7 @@
 		</Task>
 		<Task>
 			<UID>2</UID>
+			<GUID>8E5CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<ID>2</ID>
 			<Name>T2</Name>
 			<Active>1</Active>
@@ -331,6 +378,7 @@
 			<ManualFinish>2009-11-18T11:30:00</ManualFinish>
 			<ManualDuration>PT8H0M0S</ManualDuration>
 			<DurationFormat>7</DurationFormat>
+			<FreeformDurationFormat>7</FreeformDurationFormat>
 			<Work>PT0H0M0S</Work>
 			<ResumeValid>0</ResumeValid>
 			<EffortDriven>0</EffortDriven>
@@ -400,6 +448,7 @@
 		</Task>
 		<Task>
 			<UID>3</UID>
+			<GUID>8F5CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<ID>3</ID>
 			<Name>T3</Name>
 			<Active>1</Active>
@@ -418,6 +467,7 @@
 			<ManualFinish>2009-11-20T09:30:00</ManualFinish>
 			<ManualDuration>PT8H0M0S</ManualDuration>
 			<DurationFormat>7</DurationFormat>
+			<FreeformDurationFormat>7</FreeformDurationFormat>
 			<Work>PT0H0M0S</Work>
 			<ResumeValid>0</ResumeValid>
 			<EffortDriven>0</EffortDriven>
@@ -487,6 +537,7 @@
 		</Task>
 		<Task>
 			<UID>4</UID>
+			<GUID>905CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<ID>4</ID>
 			<Name>T4</Name>
 			<Active>1</Active>
@@ -505,6 +556,7 @@
 			<ManualFinish>2009-11-24T11:30:00</ManualFinish>
 			<ManualDuration>PT8H0M0S</ManualDuration>
 			<DurationFormat>7</DurationFormat>
+			<FreeformDurationFormat>7</FreeformDurationFormat>
 			<Work>PT0H0M0S</Work>
 			<ResumeValid>0</ResumeValid>
 			<EffortDriven>0</EffortDriven>
@@ -574,6 +626,7 @@
 		</Task>
 		<Task>
 			<UID>5</UID>
+			<GUID>915CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<ID>5</ID>
 			<Name>T5</Name>
 			<Active>1</Active>
@@ -592,6 +645,7 @@
 			<ManualFinish>2009-12-03T10:30:00</ManualFinish>
 			<ManualDuration>PT8H0M0S</ManualDuration>
 			<DurationFormat>7</DurationFormat>
+			<FreeformDurationFormat>7</FreeformDurationFormat>
 			<Work>PT0H0M0S</Work>
 			<ResumeValid>0</ResumeValid>
 			<EffortDriven>0</EffortDriven>
@@ -661,6 +715,7 @@
 		</Task>
 		<Task>
 			<UID>6</UID>
+			<GUID>925CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<ID>6</ID>
 			<Name>T6</Name>
 			<Active>1</Active>
@@ -679,6 +734,7 @@
 			<ManualFinish>2010-01-06T10:30:00</ManualFinish>
 			<ManualDuration>PT8H0M0S</ManualDuration>
 			<DurationFormat>7</DurationFormat>
+			<FreeformDurationFormat>7</FreeformDurationFormat>
 			<Work>PT0H0M0S</Work>
 			<ResumeValid>0</ResumeValid>
 			<EffortDriven>0</EffortDriven>
@@ -748,6 +804,7 @@
 		</Task>
 		<Task>
 			<UID>7</UID>
+			<GUID>935CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<ID>7</ID>
 			<Name>T7</Name>
 			<Active>1</Active>
@@ -766,6 +823,7 @@
 			<ManualFinish>2010-01-07T15:00:00</ManualFinish>
 			<ManualDuration>PT8H0M0S</ManualDuration>
 			<DurationFormat>7</DurationFormat>
+			<FreeformDurationFormat>7</FreeformDurationFormat>
 			<Work>PT0H0M0S</Work>
 			<ResumeValid>0</ResumeValid>
 			<EffortDriven>0</EffortDriven>
@@ -836,6 +894,7 @@
 		</Task>
 		<Task>
 			<UID>8</UID>
+			<GUID>945CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<ID>8</ID>
 			<Name>T8</Name>
 			<Active>1</Active>
@@ -854,6 +913,7 @@
 			<ManualFinish>2010-01-08T18:00:00</ManualFinish>
 			<ManualDuration>PT8H0M0S</ManualDuration>
 			<DurationFormat>7</DurationFormat>
+			<FreeformDurationFormat>7</FreeformDurationFormat>
 			<Work>PT0H0M0S</Work>
 			<ResumeValid>0</ResumeValid>
 			<EffortDriven>0</EffortDriven>
@@ -923,6 +983,7 @@
 		</Task>
 		<Task>
 			<UID>9</UID>
+			<GUID>955CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<ID>9</ID>
 			<Name>T9</Name>
 			<Active>1</Active>
@@ -941,6 +1002,7 @@
 			<ManualFinish>2010-01-12T10:00:00</ManualFinish>
 			<ManualDuration>PT8H0M0S</ManualDuration>
 			<DurationFormat>7</DurationFormat>
+			<FreeformDurationFormat>7</FreeformDurationFormat>
 			<Work>PT0H0M0S</Work>
 			<ResumeValid>0</ResumeValid>
 			<EffortDriven>0</EffortDriven>
@@ -1010,6 +1072,7 @@
 		</Task>
 		<Task>
 			<UID>10</UID>
+			<GUID>965CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<ID>10</ID>
 			<Name>T10</Name>
 			<Active>1</Active>
@@ -1028,6 +1091,7 @@
 			<ManualFinish>2010-01-27T11:00:00</ManualFinish>
 			<ManualDuration>PT8H0M0S</ManualDuration>
 			<DurationFormat>7</DurationFormat>
+			<FreeformDurationFormat>7</FreeformDurationFormat>
 			<Work>PT0H0M0S</Work>
 			<ResumeValid>0</ResumeValid>
 			<EffortDriven>0</EffortDriven>
@@ -1097,6 +1161,7 @@
 		</Task>
 		<Task>
 			<UID>11</UID>
+			<GUID>975CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<ID>11</ID>
 			<Name>T11</Name>
 			<Active>1</Active>
@@ -1115,6 +1180,7 @@
 			<ManualFinish>2010-03-01T12:00:00</ManualFinish>
 			<ManualDuration>PT8H0M0S</ManualDuration>
 			<DurationFormat>7</DurationFormat>
+			<FreeformDurationFormat>7</FreeformDurationFormat>
 			<Work>PT0H0M0S</Work>
 			<ResumeValid>0</ResumeValid>
 			<EffortDriven>0</EffortDriven>
@@ -1184,6 +1250,7 @@
 		</Task>
 		<Task>
 			<UID>12</UID>
+			<GUID>985CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<ID>12</ID>
 			<Name>T12</Name>
 			<Active>1</Active>
@@ -1202,6 +1269,7 @@
 			<ManualFinish>2010-03-02T15:48:00</ManualFinish>
 			<ManualDuration>PT8H0M0S</ManualDuration>
 			<DurationFormat>7</DurationFormat>
+			<FreeformDurationFormat>7</FreeformDurationFormat>
 			<Work>PT0H0M0S</Work>
 			<ResumeValid>0</ResumeValid>
 			<EffortDriven>0</EffortDriven>
@@ -1271,6 +1339,7 @@
 		</Task>
 		<Task>
 			<UID>13</UID>
+			<GUID>995CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<ID>13</ID>
 			<Name>T13</Name>
 			<Active>1</Active>
@@ -1289,6 +1358,7 @@
 			<ManualFinish>2010-02-26T11:48:00</ManualFinish>
 			<ManualDuration>PT8H0M0S</ManualDuration>
 			<DurationFormat>7</DurationFormat>
+			<FreeformDurationFormat>7</FreeformDurationFormat>
 			<Work>PT0H0M0S</Work>
 			<ResumeValid>0</ResumeValid>
 			<EffortDriven>0</EffortDriven>
@@ -1309,7 +1379,7 @@
 			<StartVariance>0</StartVariance>
 			<FinishVariance>0</FinishVariance>
 			<WorkVariance>0.00</WorkVariance>
-			<FreeSlack>9600</FreeSlack>
+			<FreeSlack>0</FreeSlack>
 			<TotalSlack>9600</TotalSlack>
 			<StartSlack>9600</StartSlack>
 			<FinishSlack>9600</FinishSlack>
@@ -1356,14 +1426,103 @@
 			<IsPublished>1</IsPublished>
 			<CommitmentType>0</CommitmentType>
 		</Task>
+		<Task>
+			<UID>14</UID>
+			<GUID>DBA6108E-91DF-F111-B585-E46017C122A2</GUID>
+			<ID>14</ID>
+			<Name>T14</Name>
+			<Active>1</Active>
+			<Manual>0</Manual>
+			<Type>0</Type>
+			<IsNull>0</IsNull>
+			<CreateDate>2026-11-13T19:39:00</CreateDate>
+			<WBS>14</WBS>
+			<OutlineNumber>14</OutlineNumber>
+			<OutlineLevel>1</OutlineLevel>
+			<Priority>500</Priority>
+			<Start>2010-02-18T15:48:00</Start>
+			<Finish>2010-02-19T16:48:00</Finish>
+			<Duration>PT8H0M0S</Duration>
+			<ManualStart>2010-02-18T15:48:00</ManualStart>
+			<ManualFinish>2010-02-19T16:48:00</ManualFinish>
+			<ManualDuration>PT8H0M0S</ManualDuration>
+			<DurationFormat>7</DurationFormat>
+			<FreeformDurationFormat>7</FreeformDurationFormat>
+			<Work>PT0H0M0S</Work>
+			<ResumeValid>0</ResumeValid>
+			<EffortDriven>0</EffortDriven>
+			<Recurring>0</Recurring>
+			<OverAllocated>0</OverAllocated>
+			<Estimated>0</Estimated>
+			<Milestone>0</Milestone>
+			<Summary>0</Summary>
+			<DisplayAsSummary>0</DisplayAsSummary>
+			<Critical>0</Critical>
+			<IsSubproject>0</IsSubproject>
+			<IsSubprojectReadOnly>0</IsSubprojectReadOnly>
+			<ExternalTask>0</ExternalTask>
+			<EarlyStart>2010-02-18T15:48:00</EarlyStart>
+			<EarlyFinish>2010-02-19T16:48:00</EarlyFinish>
+			<LateStart>2010-03-01T14:48:00</LateStart>
+			<LateFinish>2010-03-02T15:48:00</LateFinish>
+			<StartVariance>0</StartVariance>
+			<FinishVariance>0</FinishVariance>
+			<WorkVariance>0.00</WorkVariance>
+			<FreeSlack>28800</FreeSlack>
+			<TotalSlack>28800</TotalSlack>
+			<StartSlack>28800</StartSlack>
+			<FinishSlack>28800</FinishSlack>
+			<FixedCost>0</FixedCost>
+			<FixedCostAccrual>3</FixedCostAccrual>
+			<PercentComplete>0</PercentComplete>
+			<PercentWorkComplete>0</PercentWorkComplete>
+			<Cost>0</Cost>
+			<OvertimeCost>0</OvertimeCost>
+			<OvertimeWork>PT0H0M0S</OvertimeWork>
+			<ActualDuration>PT0H0M0S</ActualDuration>
+			<ActualCost>0</ActualCost>
+			<ActualOvertimeCost>0</ActualOvertimeCost>
+			<ActualWork>PT0H0M0S</ActualWork>
+			<ActualOvertimeWork>PT0H0M0S</ActualOvertimeWork>
+			<RegularWork>PT0H0M0S</RegularWork>
+			<RemainingDuration>PT8H0M0S</RemainingDuration>
+			<RemainingCost>0</RemainingCost>
+			<RemainingWork>PT0H0M0S</RemainingWork>
+			<RemainingOvertimeCost>0</RemainingOvertimeCost>
+			<RemainingOvertimeWork>PT0H0M0S</RemainingOvertimeWork>
+			<ACWP>0.00</ACWP>
+			<CV>0.00</CV>
+			<ConstraintType>0</ConstraintType>
+			<CalendarUID>-1</CalendarUID>
+			<LevelAssignments>1</LevelAssignments>
+			<LevelingCanSplit>1</LevelingCanSplit>
+			<LevelingDelay>0</LevelingDelay>
+			<LevelingDelayFormat>8</LevelingDelayFormat>
+			<IgnoreResourceCalendar>0</IgnoreResourceCalendar>
+			<HideBar>0</HideBar>
+			<Rollup>0</Rollup>
+			<BCWS>0.00</BCWS>
+			<BCWP>0.00</BCWP>
+			<PhysicalPercentComplete>0</PhysicalPercentComplete>
+			<EarnedValueMethod>0</EarnedValueMethod>
+			<PredecessorLink>
+				<PredecessorUID>13</PredecessorUID>
+				<Type>1</Type>
+				<CrossProject>0</CrossProject>
+				<LinkLag>-24000</LinkLag>
+				<LagFormat>9</LagFormat>
+			</PredecessorLink>
+			<IsPublished>1</IsPublished>
+			<CommitmentType>0</CommitmentType>
+		</Task>
 	</Tasks>
 	<Resources>
 		<Resource>
 			<UID>0</UID>
+			<GUID>A0CB8B7E-2A8C-436D-0000-0000000000FF</GUID>
 			<ID>0</ID>
 			<Type>1</Type>
 			<IsNull>0</IsNull>
-			<WorkGroup>0</WorkGroup>
 			<MaxUnits>1.00</MaxUnits>
 			<PeakUnits>0.00</PeakUnits>
 			<OverAllocated>0</OverAllocated>
@@ -1408,6 +1567,7 @@
 	<Assignments>
 		<Assignment>
 			<UID>1</UID>
+			<GUID>9B5CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<TaskUID>1</TaskUID>
 			<ResourceUID>-65535</ResourceUID>
 			<PercentWorkComplete>0</PercentWorkComplete>
@@ -1459,7 +1619,7 @@
 				<UID>1</UID>
 				<Start>2009-11-16T09:00:00</Start>
 				<Finish>2009-11-17T09:00:00</Finish>
-				<Unit>2</Unit>
+				<Unit>1</Unit>
 				<Value>PT7H0M0S</Value>
 			</TimephasedData>
 			<TimephasedData>
@@ -1473,6 +1633,7 @@
 		</Assignment>
 		<Assignment>
 			<UID>2</UID>
+			<GUID>9C5CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<TaskUID>2</TaskUID>
 			<ResourceUID>-65535</ResourceUID>
 			<PercentWorkComplete>0</PercentWorkComplete>
@@ -1524,7 +1685,7 @@
 				<UID>2</UID>
 				<Start>2009-11-17T10:30:00</Start>
 				<Finish>2009-11-18T10:30:00</Finish>
-				<Unit>2</Unit>
+				<Unit>1</Unit>
 				<Value>PT7H0M0S</Value>
 			</TimephasedData>
 			<TimephasedData>
@@ -1538,6 +1699,7 @@
 		</Assignment>
 		<Assignment>
 			<UID>3</UID>
+			<GUID>9D5CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<TaskUID>3</TaskUID>
 			<ResourceUID>-65535</ResourceUID>
 			<PercentWorkComplete>0</PercentWorkComplete>
@@ -1589,140 +1751,21 @@
 				<UID>3</UID>
 				<Start>2009-11-18T17:30:00</Start>
 				<Finish>2009-11-19T17:30:00</Finish>
-				<Unit>2</Unit>
+				<Unit>1</Unit>
 				<Value>PT7H0M0S</Value>
 			</TimephasedData>
 			<TimephasedData>
 				<Type>1</Type>
 				<UID>3</UID>
 				<Start>2009-11-19T17:30:00</Start>
-				<Finish>2009-11-19T18:30:00</Finish>
-				<Unit>1</Unit>
-				<Value>PT0H30M0S</Value>
-			</TimephasedData>
-			<TimephasedData>
-				<Type>1</Type>
-				<UID>3</UID>
-				<Start>2009-11-19T18:30:00</Start>
-				<Finish>2009-11-19T19:30:00</Finish>
-				<Unit>1</Unit>
-				<Value></Value>
-			</TimephasedData>
-			<TimephasedData>
-				<Type>1</Type>
-				<UID>3</UID>
-				<Start>2009-11-19T19:30:00</Start>
-				<Finish>2009-11-19T20:30:00</Finish>
-				<Unit>1</Unit>
-				<Value></Value>
-			</TimephasedData>
-			<TimephasedData>
-				<Type>1</Type>
-				<UID>3</UID>
-				<Start>2009-11-19T20:30:00</Start>
-				<Finish>2009-11-19T21:30:00</Finish>
-				<Unit>1</Unit>
-				<Value></Value>
-			</TimephasedData>
-			<TimephasedData>
-				<Type>1</Type>
-				<UID>3</UID>
-				<Start>2009-11-19T21:30:00</Start>
-				<Finish>2009-11-19T22:30:00</Finish>
-				<Unit>1</Unit>
-				<Value></Value>
-			</TimephasedData>
-			<TimephasedData>
-				<Type>1</Type>
-				<UID>3</UID>
-				<Start>2009-11-19T22:30:00</Start>
-				<Finish>2009-11-19T23:30:00</Finish>
-				<Unit>1</Unit>
-				<Value></Value>
-			</TimephasedData>
-			<TimephasedData>
-				<Type>1</Type>
-				<UID>3</UID>
-				<Start>2009-11-19T23:30:00</Start>
-				<Finish>2009-11-20T00:30:00</Finish>
-				<Unit>1</Unit>
-				<Value></Value>
-			</TimephasedData>
-			<TimephasedData>
-				<Type>1</Type>
-				<UID>3</UID>
-				<Start>2009-11-20T00:30:00</Start>
-				<Finish>2009-11-20T01:30:00</Finish>
-				<Unit>1</Unit>
-				<Value></Value>
-			</TimephasedData>
-			<TimephasedData>
-				<Type>1</Type>
-				<UID>3</UID>
-				<Start>2009-11-20T01:30:00</Start>
-				<Finish>2009-11-20T02:30:00</Finish>
-				<Unit>1</Unit>
-				<Value></Value>
-			</TimephasedData>
-			<TimephasedData>
-				<Type>1</Type>
-				<UID>3</UID>
-				<Start>2009-11-20T02:30:00</Start>
-				<Finish>2009-11-20T03:30:00</Finish>
-				<Unit>1</Unit>
-				<Value></Value>
-			</TimephasedData>
-			<TimephasedData>
-				<Type>1</Type>
-				<UID>3</UID>
-				<Start>2009-11-20T03:30:00</Start>
-				<Finish>2009-11-20T04:30:00</Finish>
-				<Unit>1</Unit>
-				<Value></Value>
-			</TimephasedData>
-			<TimephasedData>
-				<Type>1</Type>
-				<UID>3</UID>
-				<Start>2009-11-20T04:30:00</Start>
-				<Finish>2009-11-20T05:30:00</Finish>
-				<Unit>1</Unit>
-				<Value></Value>
-			</TimephasedData>
-			<TimephasedData>
-				<Type>1</Type>
-				<UID>3</UID>
-				<Start>2009-11-20T05:30:00</Start>
-				<Finish>2009-11-20T06:30:00</Finish>
-				<Unit>1</Unit>
-				<Value></Value>
-			</TimephasedData>
-			<TimephasedData>
-				<Type>1</Type>
-				<UID>3</UID>
-				<Start>2009-11-20T06:30:00</Start>
-				<Finish>2009-11-20T07:30:00</Finish>
-				<Unit>1</Unit>
-				<Value></Value>
-			</TimephasedData>
-			<TimephasedData>
-				<Type>1</Type>
-				<UID>3</UID>
-				<Start>2009-11-20T07:30:00</Start>
-				<Finish>2009-11-20T08:30:00</Finish>
-				<Unit>1</Unit>
-				<Value></Value>
-			</TimephasedData>
-			<TimephasedData>
-				<Type>1</Type>
-				<UID>3</UID>
-				<Start>2009-11-20T08:30:00</Start>
 				<Finish>2009-11-20T09:30:00</Finish>
 				<Unit>1</Unit>
-				<Value>PT0H30M0S</Value>
+				<Value>PT1H0M0S</Value>
 			</TimephasedData>
 		</Assignment>
 		<Assignment>
 			<UID>4</UID>
+			<GUID>9E5CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<TaskUID>4</TaskUID>
 			<ResourceUID>-65535</ResourceUID>
 			<PercentWorkComplete>0</PercentWorkComplete>
@@ -1774,7 +1817,7 @@
 				<UID>4</UID>
 				<Start>2009-11-23T10:30:00</Start>
 				<Finish>2009-11-24T10:30:00</Finish>
-				<Unit>2</Unit>
+				<Unit>1</Unit>
 				<Value>PT7H0M0S</Value>
 			</TimephasedData>
 			<TimephasedData>
@@ -1788,6 +1831,7 @@
 		</Assignment>
 		<Assignment>
 			<UID>5</UID>
+			<GUID>9F5CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<TaskUID>5</TaskUID>
 			<ResourceUID>-65535</ResourceUID>
 			<PercentWorkComplete>0</PercentWorkComplete>
@@ -1839,7 +1883,7 @@
 				<UID>5</UID>
 				<Start>2009-12-02T09:30:00</Start>
 				<Finish>2009-12-03T09:30:00</Finish>
-				<Unit>2</Unit>
+				<Unit>1</Unit>
 				<Value>PT7H0M0S</Value>
 			</TimephasedData>
 			<TimephasedData>
@@ -1853,6 +1897,7 @@
 		</Assignment>
 		<Assignment>
 			<UID>6</UID>
+			<GUID>A05CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<TaskUID>6</TaskUID>
 			<ResourceUID>-65535</ResourceUID>
 			<PercentWorkComplete>0</PercentWorkComplete>
@@ -1904,7 +1949,7 @@
 				<UID>6</UID>
 				<Start>2010-01-05T09:30:00</Start>
 				<Finish>2010-01-06T09:30:00</Finish>
-				<Unit>2</Unit>
+				<Unit>1</Unit>
 				<Value>PT7H0M0S</Value>
 			</TimephasedData>
 			<TimephasedData>
@@ -1918,6 +1963,7 @@
 		</Assignment>
 		<Assignment>
 			<UID>7</UID>
+			<GUID>A15CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<TaskUID>7</TaskUID>
 			<ResourceUID>-65535</ResourceUID>
 			<PercentWorkComplete>0</PercentWorkComplete>
@@ -1969,7 +2015,7 @@
 				<UID>7</UID>
 				<Start>2010-01-06T14:00:00</Start>
 				<Finish>2010-01-07T14:00:00</Finish>
-				<Unit>2</Unit>
+				<Unit>1</Unit>
 				<Value>PT7H0M0S</Value>
 			</TimephasedData>
 			<TimephasedData>
@@ -1983,6 +2029,7 @@
 		</Assignment>
 		<Assignment>
 			<UID>8</UID>
+			<GUID>A25CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<TaskUID>8</TaskUID>
 			<ResourceUID>-65535</ResourceUID>
 			<PercentWorkComplete>0</PercentWorkComplete>
@@ -2034,7 +2081,7 @@
 				<UID>8</UID>
 				<Start>2010-01-07T17:00:00</Start>
 				<Finish>2010-01-08T17:00:00</Finish>
-				<Unit>2</Unit>
+				<Unit>1</Unit>
 				<Value>PT7H0M0S</Value>
 			</TimephasedData>
 			<TimephasedData>
@@ -2048,6 +2095,7 @@
 		</Assignment>
 		<Assignment>
 			<UID>9</UID>
+			<GUID>A35CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<TaskUID>9</TaskUID>
 			<ResourceUID>-65535</ResourceUID>
 			<PercentWorkComplete>0</PercentWorkComplete>
@@ -2099,7 +2147,7 @@
 				<UID>9</UID>
 				<Start>2010-01-11T09:00:00</Start>
 				<Finish>2010-01-12T09:00:00</Finish>
-				<Unit>2</Unit>
+				<Unit>1</Unit>
 				<Value>PT7H0M0S</Value>
 			</TimephasedData>
 			<TimephasedData>
@@ -2113,6 +2161,7 @@
 		</Assignment>
 		<Assignment>
 			<UID>10</UID>
+			<GUID>A45CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<TaskUID>10</TaskUID>
 			<ResourceUID>-65535</ResourceUID>
 			<PercentWorkComplete>0</PercentWorkComplete>
@@ -2164,7 +2213,7 @@
 				<UID>10</UID>
 				<Start>2010-01-26T10:00:00</Start>
 				<Finish>2010-01-27T10:00:00</Finish>
-				<Unit>2</Unit>
+				<Unit>1</Unit>
 				<Value>PT7H0M0S</Value>
 			</TimephasedData>
 			<TimephasedData>
@@ -2178,6 +2227,7 @@
 		</Assignment>
 		<Assignment>
 			<UID>11</UID>
+			<GUID>A55CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<TaskUID>11</TaskUID>
 			<ResourceUID>-65535</ResourceUID>
 			<PercentWorkComplete>0</PercentWorkComplete>
@@ -2229,36 +2279,29 @@
 				<UID>11</UID>
 				<Start>2010-02-26T11:00:00</Start>
 				<Finish>2010-02-27T11:00:00</Finish>
-				<Unit>2</Unit>
+				<Unit>1</Unit>
 				<Value>PT5H0M0S</Value>
 			</TimephasedData>
 			<TimephasedData>
 				<Type>1</Type>
 				<UID>11</UID>
 				<Start>2010-02-27T11:00:00</Start>
-				<Finish>2010-02-28T11:00:00</Finish>
-				<Unit>2</Unit>
-				<Value></Value>
+				<Finish>2010-03-01T09:00:00</Finish>
+				<Unit>1</Unit>
+				<Value>PT0H0M0S</Value>
 			</TimephasedData>
 			<TimephasedData>
 				<Type>1</Type>
 				<UID>11</UID>
-				<Start>2010-02-28T11:00:00</Start>
-				<Finish>2010-03-01T11:00:00</Finish>
-				<Unit>2</Unit>
-				<Value>PT2H0M0S</Value>
-			</TimephasedData>
-			<TimephasedData>
-				<Type>1</Type>
-				<UID>11</UID>
-				<Start>2010-03-01T11:00:00</Start>
+				<Start>2010-03-01T09:00:00</Start>
 				<Finish>2010-03-01T12:00:00</Finish>
 				<Unit>1</Unit>
-				<Value>PT1H0M0S</Value>
+				<Value>PT3H0M0S</Value>
 			</TimephasedData>
 		</Assignment>
 		<Assignment>
 			<UID>12</UID>
+			<GUID>A65CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<TaskUID>12</TaskUID>
 			<ResourceUID>-65535</ResourceUID>
 			<PercentWorkComplete>0</PercentWorkComplete>
@@ -2310,7 +2353,7 @@
 				<UID>12</UID>
 				<Start>2010-03-01T14:48:00</Start>
 				<Finish>2010-03-02T14:48:00</Finish>
-				<Unit>2</Unit>
+				<Unit>1</Unit>
 				<Value>PT7H0M0S</Value>
 			</TimephasedData>
 			<TimephasedData>
@@ -2324,6 +2367,7 @@
 		</Assignment>
 		<Assignment>
 			<UID>13</UID>
+			<GUID>A75CA56F-91DF-F111-B585-E46017C122A2</GUID>
 			<TaskUID>13</TaskUID>
 			<ResourceUID>-65535</ResourceUID>
 			<PercentWorkComplete>0</PercentWorkComplete>
@@ -2375,7 +2419,7 @@
 				<UID>13</UID>
 				<Start>2010-02-25T10:48:00</Start>
 				<Finish>2010-02-26T10:48:00</Finish>
-				<Unit>2</Unit>
+				<Unit>1</Unit>
 				<Value>PT7H0M0S</Value>
 			</TimephasedData>
 			<TimephasedData>
@@ -2384,7 +2428,73 @@
 				<Start>2010-02-26T10:48:00</Start>
 				<Finish>2010-02-26T11:48:00</Finish>
 				<Unit>1</Unit>
-				<Value>PT1H0M0S</Value>
+				<Value>PT0H59M60S</Value>
+			</TimephasedData>
+		</Assignment>
+		<Assignment>
+			<UID>14</UID>
+			<GUID>DCA6108E-91DF-F111-B585-E46017C122A2</GUID>
+			<TaskUID>14</TaskUID>
+			<ResourceUID>-65535</ResourceUID>
+			<PercentWorkComplete>0</PercentWorkComplete>
+			<ActualCost>0</ActualCost>
+			<ActualOvertimeCost>0</ActualOvertimeCost>
+			<ActualOvertimeWork>PT0H0M0S</ActualOvertimeWork>
+			<ActualWork>PT0H0M0S</ActualWork>
+			<ACWP>0.00</ACWP>
+			<Confirmed>0</Confirmed>
+			<Cost>0</Cost>
+			<CostRateTable>0</CostRateTable>
+			<RateScale>0</RateScale>
+			<CostVariance>0</CostVariance>
+			<CV>0.00</CV>
+			<Delay>0</Delay>
+			<Finish>2010-02-19T16:48:00</Finish>
+			<FinishVariance>0</FinishVariance>
+			<WorkVariance>0.00</WorkVariance>
+			<HasFixedRateUnits>1</HasFixedRateUnits>
+			<FixedMaterial>0</FixedMaterial>
+			<LevelingDelay>0</LevelingDelay>
+			<LevelingDelayFormat>7</LevelingDelayFormat>
+			<LinkedFields>0</LinkedFields>
+			<Milestone>0</Milestone>
+			<Overallocated>0</Overallocated>
+			<OvertimeCost>0</OvertimeCost>
+			<OvertimeWork>PT0H0M0S</OvertimeWork>
+			<RegularWork>PT8H0M0S</RegularWork>
+			<RemainingCost>0</RemainingCost>
+			<RemainingOvertimeCost>0</RemainingOvertimeCost>
+			<RemainingOvertimeWork>PT0H0M0S</RemainingOvertimeWork>
+			<RemainingWork>PT8H0M0S</RemainingWork>
+			<ResponsePending>0</ResponsePending>
+			<Start>2010-02-18T15:48:00</Start>
+			<StartVariance>0</StartVariance>
+			<Units>1</Units>
+			<UpdateNeeded>0</UpdateNeeded>
+			<VAC>0.00</VAC>
+			<Work>PT8H0M0S</Work>
+			<WorkContour>0</WorkContour>
+			<BCWS>0.00</BCWS>
+			<BCWP>0.00</BCWP>
+			<BookingType>0</BookingType>
+			<CreationDate>2026-11-13T19:39:00</CreationDate>
+			<BudgetCost>0</BudgetCost>
+			<BudgetWork>PT0H0M0S</BudgetWork>
+			<TimephasedData>
+				<Type>1</Type>
+				<UID>14</UID>
+				<Start>2010-02-18T15:48:00</Start>
+				<Finish>2010-02-19T15:48:00</Finish>
+				<Unit>1</Unit>
+				<Value>PT7H0M0S</Value>
+			</TimephasedData>
+			<TimephasedData>
+				<Type>1</Type>
+				<UID>14</UID>
+				<Start>2010-02-19T15:48:00</Start>
+				<Finish>2010-02-19T16:48:00</Finish>
+				<Unit>1</Unit>
+				<Value>PT0H59M60S</Value>
 			</TimephasedData>
 		</Assignment>
 	</Assignments>
