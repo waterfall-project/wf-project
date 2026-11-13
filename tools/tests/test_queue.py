@@ -8,6 +8,7 @@ The logs are excerpts of real jobs of the chain, reduced, under ``tests/queue/``
 
 import json
 import subprocess
+import tomllib
 from dataclasses import replace
 from datetime import date
 from typing import TYPE_CHECKING
@@ -285,6 +286,12 @@ def test_the_versioned_list_holds_its_inventory_and_the_reference() -> None:
     catalogue = queue.read_catalogue()
     assert catalogue.entries
     assert all(entry.issue.startswith("#") for entry in catalogue.entries)
+    raw = tomllib.loads(queue.KNOWN.read_text(encoding="utf-8"))["known"]
+    family = "D. restauration"
+    (hypothesis,) = [
+        e for e in raw if e["family"].startswith(family) and e["cause"].startswith("hypothèse")
+    ]
+    assert hypothesis["issue"] == "#3005"
     assert catalogue.reference == (
         "reference, every branch, from 2026-11-05 to 2026-11-12: 370 runs, 88 failed "
         "(68 in service / paths); wall time of the 40 complete succeeded runs of 2026-11-10 and "
