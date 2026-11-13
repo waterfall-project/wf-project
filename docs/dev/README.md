@@ -4075,7 +4075,7 @@ processors of the workstation, 16 of 32, where 18 to 23 paths failed to navigate
 measured at 8, 10 and 12 workers on 8 processors, four slots taken, they still failed to navigate,
 at 6 no failure to navigate over two passes. `WORKERS=<n>` holds only for `make e2e`; `make
 e2e-service` takes `E2E_WORKERS=<n>`, in the environment or on the command line, which prevails
-(empty, it is ignored). With `WATERFALL_API_ADDRESS`, the harness plays against the API it names and
+(empty, it is ignored, on the command line as in the environment); a `WATERFALL_PROCESSORS` that is not a positive integer is refused before any command (#3011). With `WATERFALL_API_ADDRESS`, the harness plays against the API it names and
 starts no fake back.
 
 **The paths are played against the front built for production** (US-0590), the one users open: one
