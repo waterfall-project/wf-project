@@ -1,12 +1,14 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The decimals the service writes without a bound are refused by 422 (US-1980/L2).
+"""The decimals the service writes without a bound are refused by 422 (US-1980/L2, L3).
 
 #2875: a ``numeric`` column without precision refuses more than 16 383 decimals, one with a
 precision (``numeric(14, 2)``) a whole part that crosses it, and PostgreSQL's ``DataError`` would
 be a 500. As US-1840 does for the thresholds, each field refuses at its pointer a value of more
 than ten decimals, or whose whole part crosses its column: the constants of the units of duration,
-the durations and the lags of the planning, the unit disbursement and the quantity of a line. The
+the durations and the lags of the planning, the unit disbursement and the quantity of a line, the
+hours of a labour line (#2997), and the product of a disbursement and a quantity, at the quantity
+(#2996); the recalculation at a constant at its maximum is tried (#2998). The
 scenario of the finding is replayed on the test database.
 """
 
@@ -199,6 +201,66 @@ def test_figures_at_the_edge_of_their_column_are_kept(
     assert dear["nodes"][0]["estimate_line"]["unit_disbursement"] == "999999999999.99"
 
 
+@pytest.mark.requirement("WF-DEV-0020-A")
+@pytest.mark.parametrize("value", ["1" + "0" * 10, ELEVEN_DECIMALS, OVERFLOWING])
+def test_the_hours_of_a_labour_line_beyond_their_column_are_refused_at_their_field(
+    tree: Tree, lines: Lines, costs: Costing, value: str
+) -> None:
+    # #2997: eleven digits before the point overflow numeric(12, 2); ten decimals are the bound.
+    task = tree.made("Câblage")
+    refused = lines.create(task, quantity="1", resource_role_id=str(costs.role), hours=value)
+    assert faults(refused) == [("/estimate_line/hours", PRECISION, {})]
+    assert tree.items("?kinds=estimate_line") == []
+    line = lines.made(task, quantity="1", resource_role_id=str(costs.role), hours="1")["nodes"][0]
+    changed = lines.change(line, hours=value)
+    assert faults(changed) == [("/hours", PRECISION, {})]
+    assert len(tree.items("?kinds=estimate_line")) == 1
+
+
+@pytest.mark.requirement("WF-DEV-0020-A")
+def test_the_hours_at_the_edge_of_their_column_are_kept(
+    tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    task = tree.made("Câblage")
+    kept = lines.made(task, quantity="0", resource_role_id=str(costs.role), hours="9999999999.99")
+    assert kept["nodes"][0]["estimate_line"]["hours"] == "9999999999.99"
+
+
+@pytest.mark.requirement("WF-DEV-0020-A")
+def test_a_product_beyond_the_base_amount_is_refused_at_the_quantity_and_nothing_is_created(
+    tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # #2996: a quantity and a unit disbursement each within their column, 10^6 x (10^12 - 0.01),
+    # whose product crosses the twelve digits of base_amount (numeric(14, 2)).
+    task = tree.made("Câblage")
+    held = {"cost_category_id": str(costs.material), "unit_disbursement": "999999999999.99"}
+    refused = lines.create(task, quantity="1000000", **held)
+    assert faults(refused) == [("/estimate_line/quantity", PRECISION, {})]
+    assert tree.items("?kinds=estimate_line") == []
+    line = lines.made(task, quantity="1", **held)["nodes"][0]
+    changed = lines.change(line, quantity="1000000")
+    assert faults(changed) == [("/quantity", PRECISION, {})]
+    by_disbursement = lines.change(line, quantity="2", unit_disbursement="999999999999.99")
+    assert faults(by_disbursement) == [("/quantity", PRECISION, {})]
+    cheaper = lines.changed(line, quantity="2", unit_disbursement="1.00")
+    assert cheaper["nodes"][0]["estimate_line"]["quantity"] == "2"
+
+
+@pytest.mark.requirement("WF-DEV-0020-A")
+def test_a_product_that_rounds_to_the_edge_of_the_base_amount_is_kept_and_one_above_is_refused(
+    tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    task = tree.made("Câblage")
+    held = {"cost_category_id": str(costs.material)}
+    kept = lines.made(task, quantity="1", unit_disbursement="999999999999.99", **held)
+    assert kept["nodes"][0]["estimate_line"]["base_amount"] == "999999999999.99"
+    # 999999999999.995 rounds half up to 10^12: thirteen digits.
+    refused = lines.create(task, quantity="0.5", unit_disbursement="1999999999999.99", **held)
+    assert faults(refused) == [("/estimate_line/unit_disbursement", PRECISION, {})]
+    rounding = lines.create(task, quantity="1.0001", unit_disbursement="999900009999.99", **held)
+    assert faults(rounding) == [("/estimate_line/quantity", PRECISION, {})]
+
+
 @pytest.mark.requirement("WF-IHM-0050-A")
 @pytest.mark.parametrize("text", ["\u0663", "\u0663 d", "3,\u0665 d", "3.\u0665"])
 def test_a_pasted_duration_written_with_other_digits_than_0_to_9_is_no_duration(
@@ -232,3 +294,39 @@ def test_the_whole_digits_of_a_column_bound_a_decimal_beside_its_ten_decimals(
     text: str, whole_digits: int, exceeds: bool
 ) -> None:
     assert exceeds_precision(Decimal(text), whole_digits) is exceeds
+
+
+MOST = "9999999999.9999999999"
+DEPENDING = {"hours_per_day": "d", "hours_per_week": "w", "days_per_month": "mo"}
+
+
+@pytest.mark.requirement("WF-PLA-0160-A")
+@pytest.mark.parametrize("name", list(DEPENDING))
+def test_the_recalculation_with_a_constant_at_its_maximum_redates_a_plan_it_does_not_convert(
+    api: ContractClient, tree: Tree, stage: Scene, realm: TestRealm, name: str
+) -> None:
+    # #2998: ten digits before the point and ten decimals, the bound of L2. The recalculation did
+    # not fail: a duration in hours or minutes depends on no constant and is dated as before.
+    hours = tree.made("Heures", task={"duration": {"value": "3", "unit": "h"}})
+    minutes = tree.made("Minutes", task={"duration": {"value": "90", "unit": "min"}})
+    finishes = [tree.node(each["node_id"])["task"]["finish"] for each in (hours, minutes)]
+    changing = holding(stage.database, realm, "resource_settings.write")
+    written = put_units(api, changing, **{name: MOST})
+    assert written.status_code == 200, written.text
+    assert written.json()[name] == MOST
+    assert [tree.node(each["node_id"])["task"]["finish"] for each in (hours, minutes)] == finishes
+
+
+@pytest.mark.requirement("WF-PLA-0160-A")
+@pytest.mark.parametrize("name", list(DEPENDING))
+def test_a_constant_at_its_maximum_carrying_a_task_beyond_the_horizon_is_refused_by_422_not_500(
+    api: ContractClient, tree: Tree, stage: Scene, realm: TestRealm, name: str
+) -> None:
+    # The task that converts by the constant is carried beyond fifteen years
+    # (PROJECT_HORIZON_EXCEEDED, WF-PLA-0150): a refusal that names the project, nothing is written.
+    tree.made("Converti", task={"duration": {"value": "1", "unit": DEPENDING[name]}})
+    changing = holding(stage.database, realm, "resource_settings.write")
+    refused = put_units(api, changing, **{name: MOST})
+    assert refused.status_code == 422, refused.text
+    assert refused.json()["code"] == "PROJECT_HORIZON_EXCEEDED"
+    assert api.get(UNITS, headers=changing).json()[name] != MOST

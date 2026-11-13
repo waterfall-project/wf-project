@@ -45,6 +45,8 @@ LABEL_LENGTH = 300
 # The precision and the scale of the figures a line keeps: the write judges against them (#2875).
 QUANTITY_PRECISION, QUANTITY_SCALE = 14, 4
 DISBURSEMENT_PRECISION, DISBURSEMENT_SCALE = 14, 2
+HOURS_PRECISION, HOURS_SCALE = 12, 2
+AMOUNT_PRECISION, AMOUNT_SCALE = 14, 2
 YEARS = (2000, 2100)
 RATE_ORIGINS = ("reference", "projected")
 COST_TYPE_KINDS = ("labor", "non_labor", "provision")
@@ -128,7 +130,7 @@ class EstimateLine(Base):
         ForeignKey("resource_role.id", ondelete="RESTRICT")
     )
     quantity: Mapped[Decimal] = mapped_column(Numeric(QUANTITY_PRECISION, QUANTITY_SCALE))
-    hours: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    hours: Mapped[Decimal | None] = mapped_column(Numeric(HOURS_PRECISION, HOURS_SCALE))
     unit_disbursement: Mapped[Decimal | None] = mapped_column(
         Numeric(DISBURSEMENT_PRECISION, DISBURSEMENT_SCALE)
     )
