@@ -28,6 +28,7 @@ import { randomBytes } from "node:crypto";
 
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import { openFilters } from "../check-menu";
 import { compileAnswered } from "../compile";
 import { openMenu, WORKING } from "../hydration";
 import { isServerAction } from "../server-action";
@@ -200,6 +201,7 @@ test(
       await expect(natures.getByRole("row", { name: new RegExp(nature.code) })).toHaveCount(1, {
         timeout: WORKING,
       });
+      await openFilters(page, page.getByRole("region", { name: "Catégories de coût" }));
       const filter = page.getByRole("combobox", { name: "Nature", exact: true });
       await expect(async () => {
         await choose(filter, nature.code);

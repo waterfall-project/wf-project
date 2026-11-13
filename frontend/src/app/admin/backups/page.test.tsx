@@ -310,9 +310,10 @@ describe("the backups", () => {
     // backups — no start, no marking, no restoration, no deposit.
     expect(buttons(page)).toEqual([
       "Aide",
+      "Filtres",
+      "Colonnes",
       "Tous les déclenchements",
       "Toutes les vérifications",
-      "Colonnes",
       "Date",
       "Taille",
       "Vérification",
@@ -429,8 +430,10 @@ describe("the backups", () => {
     const narrowed = rendered(await BackupsPage(searched({ origins: "manual" })));
     expect(text(narrowed)).not.toContain("Aucune sauvegarde.");
     expect(text(narrowed)).toContain("Filtrer par déclenchement Manuelle");
+    // The grid stays, empty, under the bar and the chips that lift the filter (#2916).
+    expect(text(narrowed)).toContain("Déclenchement : Manuelle Effacer les filtres");
     expect(text(narrowed)).toMatch(
-      /Taille \(octets\) du au Aucune sauvegarde Restaurer une sauvegarde/,
+      /Aucune ligne ne répond à la demande\. Aucune sauvegarde Restaurer une sauvegarde/,
     );
   });
 

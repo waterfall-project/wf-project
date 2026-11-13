@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { pick } from "./check-menu";
+import { openFilters, pick } from "./check-menu";
 import { expect, test } from "@playwright/test";
 
 import { axeViolations } from "./axe";
 import { compile } from "./compile";
-import { openMenu, setExpanded, sortUntilAddress, WORKING } from "./hydration";
+import { setExpanded, sortUntilAddress, WORKING } from "./hydration";
 import { withinBox } from "./scroll";
 
 // The fake back serves the first example of each read: the session, whose role grants the whole
@@ -162,7 +162,9 @@ test("sorts the journal on its columns both ways and filters it by the server, u
     timeout: WORKING,
   });
 
-  // The platform alone, then the backups, in a menu of the actions.
+  // The platform alone, then the backups, in a menu of the actions; the filters are folded into a
+  // panel, closed until the bar opens it (#2916).
+  await openFilters(page);
   await pick(page, "Filtrer par nature d’auteur", "La plateforme");
   await expect(page).toHaveURL(
     `${JOURNAL}?sort_by=occurred_at&sort_order=desc&actor_kind=platform`,
@@ -170,14 +172,11 @@ test("sorts the journal on its columns both ways and filters it by the server, u
       timeout: WORKING,
     },
   );
-  const menu = page.getByRole("menu");
-  await openMenu(page.getByRole("button", { name: /^Filtrer par action/ }), menu);
-  await menu.getByRole("menuitemcheckbox", { name: "Sauvegarde" }).click();
+  await pick(page, "Action", "Sauvegarde");
   await expect(page).toHaveURL(
     `${JOURNAL}?sort_by=occurred_at&sort_order=desc&actor_kind=platform&actions=backup`,
     { timeout: WORKING },
   );
-  await page.keyboard.press("Escape");
   await page.getByRole("combobox", { name: "Projet" }).selectOption(PROJECT);
   await expect(page).toHaveURL(new RegExp(`actions=backup&project_id=${PROJECT}$`), {
     timeout: WORKING,
@@ -192,16 +191,18 @@ test("sorts the journal on its columns both ways and filters it by the server, u
     `${JOURNAL}?sort_by=occurred_at&sort_order=desc&object_kind=risk&object_id=01926f3a-7c00-7000-8000-000000000752`,
     { timeout: WORKING },
   );
-  await expect(page.getByText("Objet\u00a0: Retard de livraison des armoires")).toBeVisible();
-  await page
-    .getByRole("link", {
-      name: "Lever le filtre sur «\u00a0Retard de livraison des armoires\u00a0»",
-    })
+  const chips = page.getByRole("list", { name: "Filtres actifs" });
+  await expect(chips).toContainText("Objet : Retard de livraison des armoires");
+  await chips
+    .getByRole("button", { name: "Retirer le filtre Objet : Retard de livraison des armoires" })
     .click();
   await expect(page).toHaveURL(`${JOURNAL}?sort_by=occurred_at&sort_order=desc&object_kind=risk`, {
     timeout: WORKING,
   });
-  await expect(page.getByRole("combobox", { name: "Nature de l’objet" })).toBeFocused();
+  // The cross lifted took the focus with it: it goes to the cross of the chip before it.
+  await expect(
+    chips.getByRole("button", { name: /^Retirer le filtre Nature de l’objet/ }),
+  ).toBeFocused();
 
   // The inscriptions of one request: the merge of the amendment, every other filter lifted.
   const merge = "01926f3a-7c00-7000-8000-000800000018";
@@ -213,5 +214,6 @@ test("sorts the journal on its columns both ways and filters it by the server, u
     `${JOURNAL}?sort_by=occurred_at&sort_order=desc&correlation_id=${merge}`,
     { timeout: WORKING },
   );
+  await openFilters(page);
   await expect(page.getByRole("searchbox", { name: "Corrélation" })).toHaveValue(merge);
 });

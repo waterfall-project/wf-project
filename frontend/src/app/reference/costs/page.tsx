@@ -376,6 +376,14 @@ export default async function CostSettingsPage({
     readReferenceSettings(),
     readCosts(queries, { editable }),
   ]);
+  // The filters of the rates: in the bar of their grid, or above the sentence that stands for it.
+  const rateBar = (
+    <RateFilterBar
+      filters={queries.rateFilters}
+      editable={editable}
+      {...rateFiltered(rates, queries.rateFilters)}
+    />
+  );
   return (
     <Screen density={FUNCTION_DENSITY.cost_settings}>
       <PendingAddress>
@@ -405,11 +413,6 @@ export default async function CostSettingsPage({
           nature={queries.nature}
         />
         <RatesSection>
-          <RateFilterBar
-            filters={queries.rateFilters}
-            editable={editable}
-            {...rateFiltered(rates, queries.rateFilters)}
-          />
           {rates.kind === "read" ? (
             <RateGrid
               grid={rates.data}
@@ -417,9 +420,14 @@ export default async function CostSettingsPage({
               editable={editable}
               query={queries.rates}
               preferences={grids?.[RATE_GRID_KEY] ?? undefined}
+              filters={queries.rateFilters}
+              panel={rateBar}
             />
           ) : (
-            <BoundsRefused />
+            <>
+              {rateBar}
+              <BoundsRefused />
+            </>
           )}
         </RatesSection>
       </PendingAddress>

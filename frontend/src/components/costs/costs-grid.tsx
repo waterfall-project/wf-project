@@ -11,12 +11,15 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useMemo } from "react";
+import { type ReactNode, useMemo } from "react";
 
 import { DenseGrid } from "@/components/grid/dense-grid";
 import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 
+import type { CostFilters } from "./address";
+import { useCostChips } from "./cost-chips";
+import type { SubprojectChoice } from "./cost-filters";
 import { costGrid, type CostRows, type CostSortColumn } from "./cost-grid";
 
 /** What the grid of the actual costs shows. */
@@ -27,11 +30,27 @@ export interface CostsGridProps {
   readonly preferences: GridPreferences | undefined;
   /** Whether the user may exclude a line or reinstate it: its number then shows it. */
   readonly linked?: boolean | undefined;
+  /** The filters the address asks, told as chips under the bar, with the sub-projects to name. */
+  readonly filters?: CostFilters | undefined;
+  readonly subproject?: string | undefined;
+  readonly subprojects?: readonly SubprojectChoice[] | undefined;
+  /** The filters of the screen, which the bar folds into its panel (#2916); none, no panel. */
+  readonly panel?: ReactNode;
 }
 
 /** Render the grid of the actual costs, its totals row the general total of the lines retained. */
-export function CostsGrid({ costs, query, preferences, linked = false }: CostsGridProps) {
+export function CostsGrid({
+  costs,
+  query,
+  preferences,
+  linked = false,
+  filters,
+  subproject,
+  subprojects,
+  panel,
+}: CostsGridProps) {
   const t = useTranslations("actualCosts");
+  const chips = useCostChips(filters, subproject, subprojects);
   // A column for each column kept from the files of the lines retained, as the server names them:
   // the same configuration from one page to the next.
   const kept = costs.kept.join("\u0000");
@@ -47,6 +66,7 @@ export function CostsGrid({ costs, query, preferences, linked = false }: CostsGr
       totalsCaption={() => t("generalTotal")}
       query={query}
       preferences={preferences}
+      filtering={panel === undefined ? undefined : { panel, chips }}
       stacked
     />
   );

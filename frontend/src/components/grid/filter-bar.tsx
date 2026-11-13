@@ -27,7 +27,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 
-import { type FilterChip, liftedHref, liftedParams } from "./filter-chips";
+import { type FilterChip, liftedHref, liftedInstead, liftedParams } from "./filter-chips";
 import { usePendingAddress } from "./pending-address";
 import { CONTRACT_ADDRESS, type GridAddress } from "./query";
 
@@ -117,13 +117,14 @@ export function FiltersButton({
     >
       <ListFilter aria-hidden="true" />
       {t("panel")}
+      {/* What is seen, « Filtres (3) », is the name: axe's « label in name » (WCAG 2.5.3). */}
       {count === 0 ? null : (
-        <span
-          aria-hidden="true"
-          className="min-w-4 rounded-full bg-primary px-1 text-center text-[0.7rem] leading-4 text-primary-foreground"
-        >
-          {count}
-        </span>
+        <>
+          {" "}
+          <span aria-hidden="true" className="font-semibold text-primary tabular-nums">
+            {t("count", { count })}
+          </span>
+        </>
       )}
       <Chevron aria-hidden="true" />
     </Button>
@@ -206,7 +207,14 @@ export function FilterChips({
     lifted.current = { gone: gone.map((chip) => chip.key), next };
     const params = all ? [...every, ...liftedParams(gone)] : liftedParams(gone);
     startTransition(() => {
-      request((query) => liftedHref(pathname, query, params, page));
+      request((query) => {
+        const href = liftedHref(pathname, query, params, page, liftedInstead(gone));
+        // An address that does not change is no navigation: nothing will arrive to give the focus for.
+        if (new URLSearchParams(href.split("?")[1] ?? "").toString() === query.toString()) {
+          lifted.current = undefined;
+        }
+        return href;
+      });
     });
   };
   return (

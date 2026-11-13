@@ -37,6 +37,7 @@ import {
   type RefusedBounds,
   refusedSides,
 } from "@/components/grid/filters";
+import { FilterFields } from "@/components/grid/filter-fields";
 import { ListPages } from "@/components/grid/list-pages";
 import type { GridQuery } from "@/components/grid/query";
 import { RangeFilter } from "@/components/grid/range-filter";
@@ -147,6 +148,45 @@ export function OrgNodeList({
   const columns = useTranslations("grid.columns");
   const narrowed =
     some(query.search, filters.code, filters.level, filters.state) || bounded(filters.levels);
+  const panel = (
+    <FilterFields>
+      <TextFilter
+        name={ORG_CODE}
+        label={t("orgNodes.codeFilter")}
+        value={filters.code}
+        length={ORG_CODE_LENGTH}
+      />
+      <ChoiceFilter
+        name={ORG_LEVEL}
+        label={t("orgNodes.levelFilter")}
+        every={t("orgNodes.everyLevel")}
+        choices={levels.map((level) => ({
+          value: level.toString(),
+          text: level.toString(),
+        }))}
+        chosen={filters.level?.toString()}
+      />
+      {editable ? (
+        <StateFilter
+          name={ORG_STATE}
+          label={t("stateFilter.of", { list: t("orgNodes.title") })}
+          chosen={filters.state}
+        />
+      ) : null}
+      <RangeFilter
+        label={t("boundsOf", { list: t("orgNodes.title") })}
+        kind="level"
+        columns={[
+          {
+            column: ORG_LEVEL,
+            label: columns("level"),
+            bounds: filters.levels,
+            refused: refusedSides(refused, "level"),
+          },
+        ]}
+      />
+    </FilterFields>
+  );
   return (
     <CommandedList kind="org_node">
       <ReferenceSection
@@ -161,47 +201,8 @@ export function OrgNodeList({
           refused={refused !== undefined}
           reads={ORG_READS}
           dialog={<OrgNodeDialog nodes={nodes} rows={rows} />}
-          filters={
-            <>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                <TextFilter
-                  name={ORG_CODE}
-                  label={t("orgNodes.codeFilter")}
-                  value={filters.code}
-                  length={ORG_CODE_LENGTH}
-                />
-                <ChoiceFilter
-                  name={ORG_LEVEL}
-                  label={t("orgNodes.levelFilter")}
-                  every={t("orgNodes.everyLevel")}
-                  choices={levels.map((level) => ({
-                    value: level.toString(),
-                    text: level.toString(),
-                  }))}
-                  chosen={filters.level?.toString()}
-                />
-                {editable ? (
-                  <StateFilter
-                    name={ORG_STATE}
-                    label={t("stateFilter.of", { list: t("orgNodes.title") })}
-                    chosen={filters.state}
-                  />
-                ) : null}
-              </div>
-              <RangeFilter
-                label={t("boundsOf", { list: t("orgNodes.title") })}
-                kind="level"
-                columns={[
-                  {
-                    column: ORG_LEVEL,
-                    label: columns("level"),
-                    bounds: filters.levels,
-                    refused: refusedSides(refused, "level"),
-                  },
-                ]}
-              />
-            </>
-          }
+          folded
+          filters={panel}
           grid={
             <ResourceGrid
               kind="orgNodes"
@@ -209,6 +210,8 @@ export function OrgNodeList({
               query={query}
               preferences={preferences}
               editable={editable}
+              filters={filters}
+              panel={panel}
               narrowing={{
                 search: query.search,
                 code: filters.code,
@@ -300,6 +303,69 @@ export function ResourceRoleList({
     ) ||
     bounded(filters.monthlyHours) ||
     bounded(filters.headcount);
+  const panel = (
+    <FilterFields>
+      <TextFilter
+        name={ROLE_CODE}
+        label={t("resourceRoles.codeFilter")}
+        value={filters.code}
+        length={ORG_CODE_LENGTH}
+        page={offset}
+      />
+      <OrgNodeFilter name={ROLE_ORG_NODE} nodes={nodes} chosen={filters.orgNode} page={offset} />
+      {categories === undefined ? null : (
+        <ChoiceFilter
+          name={ROLE_COST_CATEGORY}
+          label={t("resourceRoles.costCategoryFilter")}
+          every={t("resourceRoles.everyCostCategory")}
+          choices={categories.map((category) => ({
+            value: category.id,
+            text: t("codedChoice", { code: category.code ?? "", label: category.label }),
+          }))}
+          chosen={filters.category}
+          page={offset}
+        />
+      )}
+      <ChoiceFilter
+        name={ROLE_CALENDAR}
+        label={t("resourceRoles.calendarFilter")}
+        every={t("resourceRoles.everyCalendar")}
+        choices={calendars.map((calendar) => ({
+          value: calendar.id,
+          text: calendar.label,
+        }))}
+        chosen={filters.calendar}
+        page={offset}
+      />
+      {editable ? (
+        <StateFilter
+          name={ROLE_STATE}
+          label={t("stateFilter.of", { list: title })}
+          chosen={filters.state}
+          page={offset}
+        />
+      ) : null}
+      <RangeFilter
+        label={t("boundsOf", { list: title })}
+        kind="decimal"
+        columns={[
+          {
+            column: ROLE_MONTHLY_HOURS,
+            label: columns("monthlyHours"),
+            bounds: filters.monthlyHours,
+            refused: refusedSides(refused, "monthly_hours"),
+          },
+          {
+            column: ROLE_HEADCOUNT,
+            label: columns("headcount"),
+            bounds: filters.headcount,
+            refused: refusedSides(refused, "headcount"),
+          },
+        ]}
+        page={offset}
+      />
+    </FilterFields>
+  );
   return (
     <CommandedList kind="resource_role">
       <ReferenceSection
@@ -327,76 +393,8 @@ export function ResourceRoleList({
               calendars={calendars}
             />
           }
-          filters={
-            <>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                <TextFilter
-                  name={ROLE_CODE}
-                  label={t("resourceRoles.codeFilter")}
-                  value={filters.code}
-                  length={ORG_CODE_LENGTH}
-                  page={offset}
-                />
-                <OrgNodeFilter
-                  name={ROLE_ORG_NODE}
-                  nodes={nodes}
-                  chosen={filters.orgNode}
-                  page={offset}
-                />
-                {categories === undefined ? null : (
-                  <ChoiceFilter
-                    name={ROLE_COST_CATEGORY}
-                    label={t("resourceRoles.costCategoryFilter")}
-                    every={t("resourceRoles.everyCostCategory")}
-                    choices={categories.map((category) => ({
-                      value: category.id,
-                      text: t("codedChoice", { code: category.code ?? "", label: category.label }),
-                    }))}
-                    chosen={filters.category}
-                    page={offset}
-                  />
-                )}
-                <ChoiceFilter
-                  name={ROLE_CALENDAR}
-                  label={t("resourceRoles.calendarFilter")}
-                  every={t("resourceRoles.everyCalendar")}
-                  choices={calendars.map((calendar) => ({
-                    value: calendar.id,
-                    text: calendar.label,
-                  }))}
-                  chosen={filters.calendar}
-                  page={offset}
-                />
-                {editable ? (
-                  <StateFilter
-                    name={ROLE_STATE}
-                    label={t("stateFilter.of", { list: title })}
-                    chosen={filters.state}
-                    page={offset}
-                  />
-                ) : null}
-              </div>
-              <RangeFilter
-                label={t("boundsOf", { list: title })}
-                kind="decimal"
-                columns={[
-                  {
-                    column: ROLE_MONTHLY_HOURS,
-                    label: columns("monthlyHours"),
-                    bounds: filters.monthlyHours,
-                    refused: refusedSides(refused, "monthly_hours"),
-                  },
-                  {
-                    column: ROLE_HEADCOUNT,
-                    label: columns("headcount"),
-                    bounds: filters.headcount,
-                    refused: refusedSides(refused, "headcount"),
-                  },
-                ]}
-                page={offset}
-              />
-            </>
-          }
+          folded
+          filters={panel}
           grid={
             <ResourceGrid
               kind="resourceRoles"
@@ -405,6 +403,11 @@ export function ResourceRoleList({
               query={query}
               preferences={preferences}
               editable={editable}
+              filters={filters}
+              nodes={nodes}
+              categories={categories}
+              calendars={calendars}
+              panel={panel}
             />
           }
           pages={
@@ -443,6 +446,19 @@ export function CalendarList({
   const t = useTranslations("reference");
   const title = t("calendars.title");
   const narrowed = some(query.search, state);
+  // The state is the one filter of the calendars, offered to a session that reads the deactivated ones,
+  // and to any whose address already carries one: its chip and « Effacer » lift it.
+  const panel =
+    editable || state !== undefined ? (
+      <FilterFields hint={false}>
+        <StateFilter
+          name={CALENDAR_STATE}
+          label={t("stateFilter.of", { list: title })}
+          chosen={state}
+          page={CALENDAR_ADDRESS.offset}
+        />
+      </FilterFields>
+    ) : undefined;
   return (
     <CommandedList kind="calendar">
       <ReferenceSection
@@ -458,16 +474,8 @@ export function CalendarList({
               names={Object.fromEntries(rows.map((row) => [row.calendar_id, row.label]))}
             />
           }
-          filters={
-            editable ? (
-              <StateFilter
-                name={CALENDAR_STATE}
-                label={t("stateFilter.of", { list: title })}
-                chosen={state}
-                page={CALENDAR_ADDRESS.offset}
-              />
-            ) : null
-          }
+          folded
+          filters={panel}
           grid={
             <ResourceGrid
               kind="calendars"
@@ -476,6 +484,8 @@ export function CalendarList({
               query={query}
               preferences={preferences}
               editable={editable}
+              state={state}
+              panel={panel}
             />
           }
           pages={

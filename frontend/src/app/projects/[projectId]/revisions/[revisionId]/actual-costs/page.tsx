@@ -42,7 +42,7 @@ import {
   readCostLine,
   readPage,
 } from "@/components/costs/address";
-import { CostFilterBar } from "@/components/costs/cost-filters";
+import { CostFilterPanel } from "@/components/costs/cost-filters";
 import {
   COST_GRID,
   COST_SORT_COLUMNS,
@@ -262,6 +262,16 @@ export default async function ActualCostsPage({
     exclusion === undefined || "refused" in costs
       ? undefined
       : costs.costs.items.find((item) => item.cost_line_id === lineId);
+  const subproject = at.context.parameters.get("subproject_id") ?? undefined;
+  // The filters stand in the bar of the grid, or above the sentence that stands for it.
+  const panel = (
+    <CostFilterPanel
+      filters={filters}
+      subproject={subproject}
+      subprojects={subprojects}
+      refused={"refused" in costs ? costs.period : undefined}
+    />
+  );
   return (
     <>
       <ContextBanner reading={reading} />
@@ -275,16 +285,13 @@ export default async function ActualCostsPage({
           {"refused" in costs ? null : (
             <CostSummary totals={costs.costs.totals} lastImport={costs.lastImport} />
           )}
-          <CostFilterBar
-            filters={filters}
-            subproject={at.context.parameters.get("subproject_id") ?? undefined}
-            subprojects={subprojects}
-            refused={"refused" in costs ? costs.period : undefined}
-          />
           <div className="flex flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row">
             <div className="flex min-w-0 flex-col gap-2 lg:min-h-0 lg:flex-1">
               {"refused" in costs ? (
-                <CostsRefused reason={costs.refused} />
+                <>
+                  {panel}
+                  <CostsRefused reason={costs.refused} />
+                </>
               ) : (
                 <>
                   <CostsGrid
@@ -292,6 +299,10 @@ export default async function ActualCostsPage({
                     query={query}
                     preferences={preferences}
                     linked={exclusion !== undefined}
+                    filters={filters}
+                    subproject={subproject}
+                    subprojects={subprojects}
+                    panel={panel}
                   />
                   <ListPages
                     list={COSTS_LIST}

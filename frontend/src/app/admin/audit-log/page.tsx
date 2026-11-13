@@ -24,6 +24,7 @@
  */
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 
 import {
@@ -52,11 +53,8 @@ import {
   type AuditSort,
   NEWEST_FIRST,
 } from "@/components/audit/audit-columns";
-import {
-  type AuthorChoice,
-  AuditFilterBar,
-  type ProjectChoice,
-} from "@/components/audit/audit-filters";
+import type { AuditNames, AuthorChoice, ProjectChoice } from "@/components/audit/audit-chips";
+import { AuditFilterPanel } from "@/components/audit/audit-filters";
 import { AuditGrid } from "@/components/audit/audit-grid";
 import { ListPages } from "@/components/grid/list-pages";
 import { PendingAddress } from "@/components/grid/pending-address";
@@ -206,12 +204,19 @@ function Inscriptions({
   query,
   preferences,
   reach,
+  filters,
+  names,
+  panel,
 }: {
   readonly journal: Journal;
   readonly narrowed: boolean;
   readonly query: GridQuery<AuditSort>;
   readonly preferences: GridPreferences | undefined;
   readonly reach: AuditReach;
+  readonly filters: AuditFilters;
+  readonly names: AuditNames;
+  /** The filters, in the bar of the grid. */
+  readonly panel: ReactNode;
 }) {
   const t = useTranslations("admin.auditLog");
   if (journal.meta.total === 0 && !narrowed) {
@@ -225,6 +230,9 @@ function Inscriptions({
         query={query}
         preferences={preferences}
         reach={reach}
+        filters={filters}
+        names={names}
+        panel={panel}
       />
       <ListPages
         list={AUDIT_LIST}
@@ -278,20 +286,24 @@ export default async function AuditLogPage({
   const journal = "journal" in read ? read.journal : undefined;
   const named = namedBy(journal?.items ?? [], filters);
   const account = await readChosenAuthor(filters, facets.authors, named);
+  const names = { users: facets.authors, projects: facets.projects, named: { ...named, account } };
+  const panel = (
+    <AuditFilterPanel
+      filters={filters}
+      {...names}
+      refused={"refused" in read ? refusedPeriod(read.refused.fields ?? []) : undefined}
+    />
+  );
   return (
     <Screen density={FUNCTION_DENSITY.audit_log} fill>
       {/* The filters, the grid and the pages compose the changes they make to the address. */}
       <PendingAddress>
         <AuditHeader count={journal?.meta.total} />
-        <AuditFilterBar
-          filters={filters}
-          users={facets.authors}
-          projects={facets.projects}
-          named={{ ...named, account }}
-          refused={"refused" in read ? refusedPeriod(read.refused.fields ?? []) : undefined}
-        />
         {"refused" in read ? (
-          <Refused problem={read.refused} />
+          <>
+            {panel}
+            <Refused problem={read.refused} />
+          </>
         ) : (
           <Inscriptions
             journal={read.journal}
@@ -299,6 +311,9 @@ export default async function AuditLogPage({
             query={query}
             preferences={preferences}
             reach={auditReach(permissions)}
+            filters={filters}
+            names={names}
+            panel={panel}
           />
         )}
       </PendingAddress>

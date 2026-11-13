@@ -15,7 +15,8 @@ import { example } from "@/test/fixtures";
 import { UserList } from "./account-lists";
 import type { AccessRole, User } from "./admin-grids";
 import { type AuditFilters, authorsOf, readAuditFilters } from "./audit-address";
-import { PENDING_DAY, type UserFilters, useUserChips } from "./user-chips";
+import { PENDING_DAY } from "@/components/grid/chip-kit";
+import { type UserFilters, useUserChips } from "./user-chips";
 import { USER_KEPT } from "./user-address";
 
 // The chips of every filter of the table of the accounts, told from the address (#2916): their text,
@@ -282,6 +283,43 @@ describe("the chips of the filters of the accounts", () => {
     const chips = screen.getByRole("list", { name: "Filtres actifs" });
     expect(chips.children).toHaveLength(8);
     expect(screen.getByRole("button", { name: "Filtres (8)" })).toBeVisible();
+  });
+
+  it("clear a parameter the reading set aside too: « Effacer les filtres » leaves nothing of the filters in the address [WF-IHM-0130-A] (#2916)", async () => {
+    page.search = "origins=nope&is_active=true&search=a";
+    render(table({ active: true }));
+    await userEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
+    // The search is no filter: it stays; the origin the contract would refuse goes with the others.
+    expect(lastAddress()).toBe("/admin/users?search=a");
+  });
+
+  it("tell the hiding of the deactivated accounts of an old address, `include_inactive` alone, as the active accounts, and lift it [WF-ADM-0060-A] (#2916)", async () => {
+    page.search = "include_inactive=false&sort_by=email";
+    render(table({ active: true }));
+    expect(screen.getByRole("list", { name: "Filtres actifs" })).toHaveTextContent(
+      "État du compte : Comptes actifs",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Retirer le filtre État du compte : Comptes actifs" }),
+    );
+    expect(lastAddress()).toBe("/admin/users?sort_by=email");
+  });
+
+  it("tell nothing of `include_inactive=true`, which every account satisfies [WF-ADM-0060-A] (#2916)", () => {
+    page.search = "include_inactive=true";
+    render(table());
+    expect(screen.queryByRole("list", { name: "Filtres actifs" })).toBeNull();
+  });
+
+  it("leave the focus where it is when a chip lifted changes nothing of the address, the chips going later [WF-IHM-0130-A] (#2916)", async () => {
+    // The chip told by the props and not by the address: lifting it asks no navigation that would arrive.
+    page.search = "";
+    const { rerender } = render(table({ active: true }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Retirer le filtre État du compte : Comptes actifs" }),
+    );
+    rerender(table());
+    expect(screen.getByRole("button", { name: /^Filtres/ })).not.toHaveFocus();
   });
 
   it("tell a period in the local days of the workstation, whatever its time zone [WF-IHM-0130-A]", () => {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect } from "@playwright/test";
 
-import { closeMenu, menuButton, openMenu, pick } from "./check-menu";
+import { closeMenu, menuButton, openFilters, openMenu, pick } from "./check-menu";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 import { bringInProgress, importActualCosts } from "./in-progress";
@@ -65,6 +65,8 @@ test("reads the actual costs of a project: the lines and their three totals, the
   // The sort by amount, and the filter on the excluded lines, asked of the server by the address.
   await grid.getByRole("columnheader", { name: "Montant" }).getByRole("button").click();
   await expect(page).toHaveURL(`${COSTS}?sort_by=amount&sort_order=asc`, { timeout: WORKING });
+  // The filters are folded into a panel, closed until the bar opens it (#2916).
+  await openFilters(page);
   // The arrows only move the focus in a menu of one choice: nothing is chosen, the menu stays open (#2916).
   const scopeList = await openMenu(page, "Périmètre");
   await scopeList.getByRole("radio", { name: "Toutes les lignes" }).focus();
