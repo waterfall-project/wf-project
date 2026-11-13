@@ -275,34 +275,90 @@ describe("the reading of the accounts", () => {
   });
 });
 
-describe("the menu « ⋯ » of the reading of the accounts", () => {
-  it("hides the report, the command and the periodicity until it is opened, then gives them, with the state when no reading has ended [US-1860, WF-ADM-0070-A]", async () => {
-    serve({});
-    render(
-      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-        <TaskTracker>
+/** The menu « ⋯ » of the reading, within the shell that follows the tasks. */
+function menu(startable = true) {
+  return render(
+    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+      <TaskTracker>
+        <TasksButton />
+        <TaskPanel />
+        <main>
           <IdentityMenu
             report={undefined}
             schedule={example("identity_sync_schedule") as IdentitySyncSchedule}
-            startable
+            startable={startable}
           />
-        </TaskTracker>
-      </NextIntlClientProvider>,
-    );
+        </main>
+      </TaskTracker>
+    </NextIntlClientProvider>,
+  );
+}
+
+/** The button « ⋯ » that opens the menu of the reading. */
+function trigger() {
+  return screen.getByRole("button", {
+    name: "Lecture des comptes du fournisseur d’identité : état et commandes",
+  });
+}
+
+/** The popover the menu opened. */
+function popover() {
+  return screen.getByRole("dialog", { name: "Lecture des comptes du fournisseur d’identité" });
+}
+
+describe("the menu « ⋯ » of the reading of the accounts", () => {
+  it("hides the report, the command and the periodicity until it is opened, then gives them, with the state when no reading has ended [WF-ADM-0070-A]", async () => {
+    serve({});
+    menu();
     expect(screen.queryByRole("button", { name: "Lire les comptes" })).toBeNull();
     expect(screen.queryByText("Aucune lecture des comptes n’a encore abouti.")).toBeNull();
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: "Lecture des comptes du fournisseur d’identité : état et commandes",
-      }),
-    );
-    const popover = screen.getByRole("dialog", {
-      name: "Lecture des comptes du fournisseur d’identité",
-    });
-    expect(within(popover).getByRole("button", { name: "Lire les comptes" })).toBeVisible();
+    await userEvent.click(trigger());
+    expect(within(popover()).getByRole("button", { name: "Lire les comptes" })).toBeVisible();
     expect(
-      within(popover).getByText("Aucune lecture des comptes n’a encore abouti."),
+      within(popover()).getByText("Aucune lecture des comptes n’a encore abouti."),
     ).toBeVisible();
-    expect(within(popover).getByText("Périodicité de la lecture")).toBeVisible();
+    expect(within(popover()).getByText("Périodicité de la lecture")).toBeVisible();
+    await expectAccessible(document.body);
+  });
+
+  it("tells a refusal of the reading beside the menu, and keeps it when the menu is closed unread [US-1860]", async () => {
+    serve({ [START]: { problem: { code: "PERMISSION_MISSING", status: 403 } } });
+    menu();
+    await userEvent.click(trigger());
+    await userEvent.click(within(popover()).getByRole("button", { name: "Lire les comptes" }));
+    const told = "Vous n’avez pas la permission nécessaire.";
+    expect((await screen.findByRole("alert")).textContent).toContain(told);
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("alert").textContent).toContain(told);
+  });
+
+  it("follows the task of a reading asked from the menu after the menu is closed [WF-ARC-0090-A]", async () => {
+    const client = serve({
+      [START]: { example: "identity_sync_queued", status: 202 },
+      [TASK]: "identity_sync_succeeded",
+    });
+    menu();
+    await userEvent.click(trigger());
+    await userEvent.click(within(popover()).getByRole("button", { name: "Lire les comptes" }));
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await tick();
+    expect(client.calls.filter((call) => call.route === TASK)).toHaveLength(1);
+    expect(within(tasksRegion()).getByText("Réussie")).toBeVisible();
+  });
+
+  it("keeps the dialog of the periodicity open, the focus in it, while the menu that opened it stays [WF-ADM-0070-A]", async () => {
+    serve({});
+    menu();
+    await userEvent.click(trigger());
+    await userEvent.click(
+      within(popover()).getByRole("button", { name: "Modifier la périodicité" }),
+    );
+    const form = screen.getByRole("dialog", { name: "Modifier la périodicité" });
+    expect(form).toBeVisible();
+    expect(form.contains(document.activeElement)).toBe(true);
+    // The menu stays: the dialog is not a click outside of it.
+    expect(screen.getByRole("dialog", { name: "Lecture des comptes du fournisseur d’identité", hidden: true })).toBeInTheDocument();
   });
 });

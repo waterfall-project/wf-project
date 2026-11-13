@@ -9,6 +9,10 @@
  * for a session that may modify the accounts (`users.write`), the command that asks a new one; and
  * the periodicity of the reading (`getIdentitySyncSchedule`), which the same session sets.
  *
+ * Behind the menu « ⋯ » of the screen (`IdentityMenu`, at the end of this file), a popover that
+ * stands in a layer over the table, the refusal of the command is told beside the menu: it outlives
+ * the popover.
+ *
  * The reading is the worker's (WF-ARC-0090): the command gives the hand back as soon as the task is
  * queued, and hands it over to the tracker of the shell, which follows it to its end and announces
  * it, then offers to read the screen anew, where its report shows — the tracker never reloads by
@@ -186,12 +190,20 @@ function Report({ report }: { readonly report: IdentitySyncReport }) {
   );
 }
 
+/**
+ * The refusal of the command that asks a reading, and what sets it: held by the part that shows it,
+ * so that it outlives the part that asked.
+ */
+interface Told {
+  readonly outcome: Outcome<unknown> | undefined;
+  readonly set: (outcome: Outcome<unknown> | undefined) => void;
+}
+
 /** Ask a reading of the accounts, and hand its task over to the tracker. */
-function StartIdentitySync() {
+function StartIdentitySync({ told }: { readonly told: Told }) {
   const t = useTranslations("admin.identitySync");
   const track = useTrackTask();
   const held = useHeldCommand();
-  const [outcome, setOutcome] = useState<Outcome<unknown>>();
   // Busy from the press to the answer, and lifted in the very update that tells it — not a transition,
   // whose end would wait for every other async action of the page (#1484).
   const [busy, setBusy] = useState(false);
@@ -205,22 +217,14 @@ function StartIdentitySync() {
       if (result.kind === "done") {
         track(result.data, { command: startIdentitySync });
       }
-      setOutcome(result.kind === "done" ? undefined : result);
+      told.set(result.kind === "done" ? undefined : result);
     });
   };
   return (
-    <div className="space-y-2">
-      <Button type="button" variant="outline" size="sm" aria-busy={busy} onClick={start}>
-        <UserRoundSearch aria-hidden="true" />
-        {t("start")}
-      </Button>
-      <OutcomeNotice
-        outcome={outcome}
-        onClear={() => {
-          setOutcome(undefined);
-        }}
-      />
-    </div>
+    <Button type="button" variant="outline" size="sm" aria-busy={busy} onClick={start}>
+      <UserRoundSearch aria-hidden="true" />
+      {t("start")}
+    </Button>
   );
 }
 
@@ -232,6 +236,7 @@ export function IdentitySync({
   report,
   schedule,
   startable,
+  told,
 }: {
   /** The report of the last reading that ended; none yet. */
   readonly report: IdentitySyncReport | undefined;
@@ -239,14 +244,29 @@ export function IdentitySync({
   readonly schedule: IdentitySyncSchedule | undefined;
   /** Whether the session may modify the accounts (`platformOffer`): the commands are offered. */
   readonly startable: boolean;
+  /**
+   * Where the refusal of the command is held and told, by a part that outlives this one
+   * (`IdentityMenu`); none, it is told under the command, here.
+   */
+  readonly told?: Told;
 }) {
   const t = useTranslations("admin.identitySync");
+  const [own, setOwn] = useState<Outcome<unknown>>();
+  const here: Told = { outcome: own, set: setOwn };
   return (
     <section aria-label={t("title")} className="shrink-0 space-y-2 text-sm">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <h2 className="text-base font-semibold">{t("title")}</h2>
-        {startable ? <StartIdentitySync /> : null}
+        {startable ? <StartIdentitySync told={told ?? here} /> : null}
       </div>
+      {told === undefined ? (
+        <OutcomeNotice
+          outcome={own}
+          onClear={() => {
+            setOwn(undefined);
+          }}
+        />
+      ) : null}
       {report === undefined ? (
         <p className="text-muted-foreground">{t("none")}</p>
       ) : (
@@ -263,7 +283,8 @@ export function IdentitySync({
  * The reading of the accounts of the identity provider behind a menu « ⋯ », at the head of the
  * screen of the accounts beside the creation of a local account (US-1860, #2917): the report, the
  * command that asks a new reading and the periodicity stand in the popover it opens, out of the way
- * of the table.
+ * of the table. The popover unmounts as it closes: the refusal of the command is held here and told
+ * beside the menu, so that closing it does not take it away unread.
  */
 export function IdentityMenu(props: {
   readonly report: IdentitySyncReport | undefined;
@@ -271,20 +292,29 @@ export function IdentityMenu(props: {
   readonly startable: boolean;
 }) {
   const t = useTranslations("admin.identitySync");
+  const [outcome, setOutcome] = useState<Outcome<unknown>>();
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button type="button" variant="outline" size="sm" aria-label={t("menu")}>
-          <Ellipsis aria-hidden="true" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        aria-label={t("title")}
-        className="max-h-[70vh] w-[min(36rem,90vw)] overflow-y-auto"
-      >
-        <IdentitySync {...props} />
-      </PopoverContent>
-    </Popover>
+    <div className="flex flex-col items-end gap-2">
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="outline" size="sm" aria-label={t("menu")}>
+            <Ellipsis aria-hidden="true" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="end"
+          aria-label={t("title")}
+          className="max-h-[70vh] w-[min(36rem,90vw)] overflow-y-auto"
+        >
+          <IdentitySync {...props} told={{ outcome, set: setOutcome }} />
+        </PopoverContent>
+      </Popover>
+      <OutcomeNotice
+        outcome={outcome}
+        onClear={() => {
+          setOutcome(undefined);
+        }}
+      />
+    </div>
   );
 }
