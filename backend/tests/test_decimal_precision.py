@@ -247,16 +247,17 @@ def test_a_product_beyond_the_base_amount_is_refused_at_the_quantity_and_nothing
 
 
 @pytest.mark.requirement("WF-DEV-0020-A")
-def test_a_product_that_rounds_to_the_edge_of_the_base_amount_is_kept_and_one_above_is_refused(
+def test_a_product_rounding_one_cent_above_the_base_amount_is_refused_at_the_quantity(
     tree: Tree, lines: Lines, costs: Costing
 ) -> None:
     task = tree.made("Câblage")
     held = {"cost_category_id": str(costs.material)}
     kept = lines.made(task, quantity="1", unit_disbursement="999999999999.99", **held)
     assert kept["nodes"][0]["estimate_line"]["base_amount"] == "999999999999.99"
-    # 999999999999.995 rounds half up to 10^12: thirteen digits.
-    refused = lines.create(task, quantity="0.5", unit_disbursement="1999999999999.99", **held)
-    assert faults(refused) == [("/estimate_line/unit_disbursement", PRECISION, {})]
+    # Each within its column; 1.01 x 990099009900.99 = 999999999999.9999 rounds up to 10^12:
+    # thirteen digits, refused at the quantity.
+    refused = lines.create(task, quantity="1.01", unit_disbursement="990099009900.99", **held)
+    assert faults(refused) == [("/estimate_line/quantity", PRECISION, {})]
     rounding = lines.create(task, quantity="1.0001", unit_disbursement="999900009999.99", **held)
     assert faults(rounding) == [("/estimate_line/quantity", PRECISION, {})]
 

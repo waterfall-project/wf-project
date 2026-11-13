@@ -140,7 +140,7 @@ class EstimateLine(Base):
     reference_quantity: Mapped[Decimal | None] = mapped_column(Numeric(14, 4))
     reference_hours: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     reference_unit_disbursement: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
-    base_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    base_amount: Mapped[Decimal] = mapped_column(Numeric(AMOUNT_PRECISION, AMOUNT_SCALE))
     # Fixed by the lineage in the reference revision: null without one (WF-REV-0070).
     budgeted_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     reestimated_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
