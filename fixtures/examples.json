@@ -192,6 +192,11 @@
       "sentence": "Un décalage de 2 j sur la même liaison le fait commencer le mercredi."
     },
     {
+      "key": "WF-PLA-0160-A#952783e2946d",
+      "requirement": "WF-PLA-0160-A",
+      "sentence": "Un fichier MS Project dont les constantes ou le calendrier diffèrent de ceux de l'installation est signalé au compte rendu ; importé en gardant les durées, une tâche de « 2 j » saisie à 7 h par jour vaut deux jours, soit seize heures avec les valeurs par défaut ; importé en gardant les dates, sa durée est le temps de travail entre ses dates du fichier sur son calendrier Waterfall."
+    },
+    {
       "key": "WF-PLA-0160-A#2762561c2ef2",
       "requirement": "WF-PLA-0160-A",
       "sentence": "« 1 m » est lu comme un mois et « 1 min » comme une minute, dans chacune des langues de l'interface."

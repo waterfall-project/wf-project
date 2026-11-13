@@ -34,7 +34,8 @@ Dans l'ordre de priorité que l'auteur a fixé le 2026-11-12 :
    #2929 à #2931) — US-1850 ; la gestion des utilisateurs, ses filtres, « Sans rôle » et ses actions
    groupées (#2917) — US-1860 ; l'écran ouvert sans session et l'accueil d'un compte qui ne peut
    ouvrir aucun projet, dont le code est dans `epic/EP-24` (#2914, #2915, PR #2927 et #2928) —
-   US-1870.
+   US-1870 ; la barre d'une grille arborescente, écrasée dès que la grille tient beaucoup de lignes
+   (#3089, relevé aux essais manuels du 2026-11-13) — US-2020.
 2. **La chaîne, stabilisée puis raccourcie** : une mesure suivie du taux d'échec de la file hors
    régression et de la durée du palier complet, et l'inventaire des instabilités — US-1880 ; les
    parcours contre le service qui font échouer la file sans régression (#2911, et ceux que
@@ -90,10 +91,9 @@ qui les ouvrent et les closent : `WF-SEC-0020-A`, `WF-ADM-0010-A` et `WF-ADM-018
 `WF-INTF-0120-A` et `WF-DEV-0030-A` (EP-08), `WF-OBS-0020-A` (EP-13). Les US de la chaîne et du
 poste portent « aucune — outil du dépôt », comme celles d'EP-19 et d'EP-21.
 
-Les phrases que la révision 1.0.5 ajoutera aux Vérif de `WF-SEC-0020-A`, `WF-IHM-0120-A`,
-`WF-IHM-0060-A` et `WF-PLA-0160-A` n'existent pas encore dans la spécification : les US les portent
-comme critères propres, dans les mots que les issues ont retenus, et US-2010 les relie mot pour mot
-une fois la 1.0.5 dans `main`.
+Les phrases que la révision 1.0.5 ajoute aux Vérif de `WF-SEC-0020-A`, `WF-IHM-0120-A`,
+`WF-IHM-0060-A`, `WF-PLA-0160-A` et `WF-INTF-0080-A` sont citées mot pour mot par les US qui les
+réalisent, et en écart par les US des EPIC livrés qui citent ces exigences (US-2010).
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
@@ -185,7 +185,9 @@ Le travail de la nuit du 11 au 12 novembre :
 - #2915 — spec : l'accueil d'un compte qui ne peut ouvrir aucun projet dit « Introuvable » (PR
   #2928) → US-1870, et US-2010 ;
 - #2921 — spec : l'ouverture du panneau des filtres, préférence d'une table plate → US-2010, et
-  US-1850 pour ses tests.
+  US-1850 pour ses tests ;
+- #3089 — front : la barre d'une grille arborescente est écrasée dès que la grille tient beaucoup de
+  lignes (essais manuels du 2026-11-13, gravité majeure) → US-2020.
 
 La chaîne :
 
@@ -541,7 +543,7 @@ pas découvrir à l'usage ce que la vérification interrompue à 04 h 07 n'a pas
 **Critères d'acceptation.**
 
 - `WF-IHM-0060-A` — « Les colonnes masquées et les largeurs choisies sont retrouvées à la réouverture, et un autre utilisateur ouvrant la même grille voit ses propres réglages. » : sa forme pour le panneau des filtres : son état, ouvert ou fermé, est gardé par grille (`display_preferences.grids.<grille>.filters_open`, absent = fermé), relu à la réouverture, propre à chaque utilisateur ;
-- critère propre, que la 1.0.5 portera au Vérif de `WF-IHM-0060-A` (#2921) : « Le panneau des
+- `WF-IHM-0060-A` (spécification 1.0.5, #2921) — « Le panneau des
   filtres d'une table plate, fermé par défaut, est retrouvé ouvert ou fermé comme l'utilisateur l'a
   laissé, sans changer celui des autres tables ; ses filtres actifs restent dits, panneau fermé,
   chacun ôtable. » ;
@@ -626,17 +628,19 @@ premier écran (#2914, #2915).
 **Critères d'acceptation.**
 
 - `WF-SEC-0020-A` — « Un jeton de rafraîchissement inactif au-delà de deux heures est refusé, et l'utilisateur est ramené à l'écran de connexion puis, reconnecté, à l'écran visé. » : sa forme pour un visiteur qui n'a jamais ouvert de session : un écran ouvert sans témoin de session mène seul à `/login?next=<écran>`, puis, la connexion faite, à l'écran visé ;
-- critère propre, que la 1.0.5 portera à `WF-SEC-0020-A` (#2914) : « Un écran ouvert sans session
-  mène à l'écran de connexion, puis, la connexion faite, à l'écran visé. Une connexion que le
-  fournisseur d'identité refuse ne relance pas la connexion d'elle-même : l'écran le dit et offre de
-  recommencer. » ; après une connexion refusée, un témoin court posé par `/auth/callback` laisse
+- `WF-SEC-0020-A` (spécification 1.0.5, #2914) — « Un visiteur sans session qui ouvre un écran
+  arrive à l'écran de connexion puis, connecté, à cet écran. » : un écran ouvert sans témoin de
+  session mène seul à `/login?next=<écran>`, puis, la connexion faite, à l'écran visé ;
+- `WF-SEC-0020-A` (spécification 1.0.5, #2914) — « Après une connexion que le fournisseur
+  d'identité refuse, l'écran le dit et offre de recommencer, sans relancer la connexion de
+  lui-même. » : après une connexion refusée, un témoin court posé par `/auth/callback` laisse
   l'écran « Session requise », sans boucle ;
 - écart : `WF-SEC-0020-A` — « La désactivation d'un compte connecté sur deux postes interrompt les deux à leur requête suivante. » : constaté par EP-03, inchangé ;
 - écart : `WF-SEC-0020-A` — « Un utilisateur qui se déconnecte ne peut plus agir avec ses jetons. » : idem ;
 - écart : `WF-SEC-0020-A` — « Une adresse de retour qui ne désigne pas un écran de Waterfall — l'adresse d'un autre site, un chemin qui commence par « // », ou qui contient une barre oblique inverse ou un caractère de contrôle — ramène à l'accueil après la connexion. » : idem ; l'adresse de retour d'un écran ouvert sans session suit la même règle ;
-- critère propre, que la 1.0.5 portera à `WF-IHM-0120-A` (#2915) : « L'administrateur d'une
+- `WF-IHM-0120-A` (spécification 1.0.5, #2915) — « L'administrateur d'une
   installation neuve arrive sur un accueil qui mène à l'administration ; une personne créée sans
-  rôle par un fournisseur externe lit qu'il lui faut un rôle. » ; l'accueil décide sur les
+  rôle par un fournisseur externe lit qu'il lui faut un rôle. » : l'accueil décide sur les
   permissions, jamais sur le nom d'un rôle, et n'offre aucune redirection ;
 - écart : `WF-IHM-0120-A` — « Un contributeur de deux projets les voit à sa connexion ; la levée du filtre montre aussi les projets qu'il peut ouvrir sans en être contributeur, et aucun autre. » : constaté par EP-04, inchangé ;
 - écart : `WF-IHM-0120-A` — « Sur une installation au référentiel incomplet, l'accueil nomme les prérequis manquants et mène au référentiel. » : idem ;
@@ -1071,11 +1075,14 @@ les dates de presque toutes ses tâches à l'import (#2922).
 - `WF-INTF-0080-A` — « Pour un fichier qui contient des lignes invalides, le compte rendu les liste avec leur motif avant la confirmation. » : sa forme pour un écart de calendrier : avant la confirmation, le compte rendu dit que les journées du calendrier du projet du fichier ou ses constantes diffèrent de ceux de l'installation — les heures par jour de part et d'autre, les plages horaires du fichier —, et nomme chaque tâche dont le calendrier propre, dans le fichier, diffère du calendrier Waterfall applicable (décision de l'auteur du 2026-11-12) ; le calendrier du fichier n'est toujours pas importé ;
 - `WF-INTF-0080-A` — « Si l'utilisateur abandonne à cette étape, le projet reste inchangé. » : de même après avoir changé d'option, le compte rendu étant rendu à nouveau ;
 - écart : `WF-INTF-0080-A` — « Si l'import est interrompu pendant son application, le projet revient à son état antérieur. » : constaté par EP-06, inchangé ;
-- critère propre, que la 1.0.5 portera au Vérif de `WF-PLA-0160-A` (#2922) : « Un fichier MS Project
+- `WF-PLA-0160-A` (spécification 1.0.5, #2922) — « Un fichier MS Project
   dont les constantes ou le calendrier diffèrent de ceux de l'installation est signalé au compte
-  rendu ; importé en gardant les durées, une tâche de "2 j" saisie à 7 h par jour vaut deux jours,
+  rendu ; importé en gardant les durées, une tâche de « 2 j » saisie à 7 h par jour vaut deux jours,
   soit seize heures avec les valeurs par défaut ; importé en gardant les dates, sa durée est le
   temps de travail entre ses dates du fichier sur son calendrier Waterfall. » ;
+- `WF-INTF-0080-A` (spécification 1.0.5, #2922) — « Pour un planning MS Project saisi sur un autre
+  calendrier, le compte rendu propose de garder les durées ou les dates ; changer d'option rend un
+  nouveau compte rendu, et le projet reste inchangé jusqu'à la confirmation. » ;
 - le choix n'est proposé qu'en présence de l'écart, avant application ; « Garder les durées » est
   proposée par défaut : une durée ou un décalage saisi en jours, semaines ou mois garde sa valeur
   dans son unité, ses heures du fichier divisées par les heures de l'unité aux constantes du
@@ -1086,7 +1093,6 @@ les dates de presque toutes ses tâches à l'import (#2922).
   constantes de l'installation ; les décalages gardent leur valeur dans leur unité, et les écarts de
   dates que le moteur laisse encore sont présentés (décision de l'auteur du 2026-11-12) ;
 - les tâches manuelles gardent dans tous les cas les dates du fichier ;
-- écart : `WF-PLA-0160-A` — « Un fichier MS Project dont les constantes diffèrent de celles de l'installation est importé avec les mêmes durées en heures, et le compte rendu signale la différence. » : la phrase que la 1.0.5 réécrit (#2922) ; elle reste vraie d'un import sans le choix, jusqu'à la 1.0.5 ;
 - `WF-PLA-0160-A` — « Un décalage saisi « 1 sem » est exporté puis réimporté sans changer d'unité. » : un fichier exporté par Waterfall porte ses calendriers et ses constantes : il ne présente aucun écart de calendrier, et aucun choix n'est proposé ;
 - écart : `WF-PLA-0160-A` — « Avec les valeurs par défaut, une durée saisie « 2 j » vaut seize heures, « 1 sem » quarante heures et « 1 m » cent soixante heures. » : constaté par EP-06, inchangé ;
 - écart : `WF-PLA-0160-A` — « Un décalage de 2 ej sur une liaison fin à début dont le prédécesseur finit à la dernière heure travaillée d'un vendredi s'achève le dimanche ; le successeur, sur un calendrier du lundi au vendredi, commence le lundi à la première heure travaillée, de même qu'avec un décalage de 2 eh. » : idem ;
@@ -1148,3 +1154,41 @@ de l'auteur, puis `epic/EP-24` reprend `main` ; elle n'est pas le travail d'un l
 dans le tableau de suivi pour que ses dépendants l'attendent.
 
 **Hors périmètre.** La capacité d'un rôle (`WF-REF-0100-A`), à EP-10.
+
+---
+
+## US-2020 — La barre d'une grille arborescente garde sa hauteur, quel que soit le nombre de lignes de la grille
+
+- **statut** : à faire
+- **exigences** : `WF-IHM-0060-A`
+- **opérations** : aucune
+- **issue** : #3091
+
+**En tant que** chef de projet, **je veux** que la barre d'une grille de planning ou de devis — sa
+recherche, ses filtres, « Arbre », « Colonnes » — reste entière quand la grille tient mille tâches,
+**afin de** pouvoir chercher et filtrer dans un planning de taille réelle (#3089).
+
+**Critères d'acceptation.**
+
+- `WF-IHM-0060-A` — « Après défilement de mille lignes, en-têtes et totaux sont toujours visibles, de même que la colonne de libellé après défilement horizontal. » : sa forme pour la barre de la grille : sur le planning et le devis du témoin de volume, mille tâches, la barre garde sa hauteur, sa recherche et ses filtres visibles et cliquables, à 1440 × 900 comme en grande fenêtre ; c'est la grille qui cède, jusqu'à son plancher ;
+- un test se joue sur le témoin de volume et mesure la hauteur de la barre du planning et du devis ;
+  il échoue sans le correctif — les grilles des tests actuels tiennent trop peu de lignes pour le
+  voir ;
+- les tables plates, dont la barre porte le panneau des filtres, et le reste à engager gardent leur
+  barre : le même test, ou un test voisin, l'affirme ;
+- écart : `WF-IHM-0060-A` — « Chaque colonne d'une table plate se trie dans les deux sens. » : constaté par EP-02 et EP-07, inchangé ;
+- écart : `WF-IHM-0060-A` — « Dans la grille de planning, aucun en-tête de colonne ne propose de tri ; dans la grille de devis, le tri par montant réordonne les lignes sous chaque tâche sans déplacer les tâches. » : idem ;
+- écart : `WF-IHM-0060-A` — « Les colonnes masquées et les largeurs choisies sont retrouvées à la réouverture, et un autre utilisateur ouvrant la même grille voit ses propres réglages. » : constaté par EP-03 et US-1850, inchangé ;
+- écart : `WF-IHM-0060-A` — « Le nombre de lignes par page choisi pour une table est retrouvé à sa réouverture, sans changer celui des autres tables ; une grille arborescente n'offre pas ce choix. » : constaté par EP-15 et EP-07, inchangé ;
+- écart : `WF-IHM-0060-A` — « Le panneau des filtres d'une table plate, fermé par défaut, est retrouvé ouvert ou fermé comme l'utilisateur l'a laissé, sans changer celui des autres tables ; ses filtres actifs restent dits, panneau fermé, chacun ôtable. » : constaté par US-1850, inchangé.
+
+**Notes de réalisation.** La barre d'une grille arborescente défile en largeur (`barClass`,
+`overflow-x-auto`, #2916/L6) : elle n'a plus de hauteur minimale et peut rétrécir. Dans la colonne
+qui la porte avec le cadre de la grille, l'espace manquant se répartit au prorata des hauteurs de
+contenu ; le cadre de mille lignes ne cède presque rien, et la barre cède tout — 5 points de haut
+sur le planning de PRJ-001, à 1440 × 900 comme à 3840 × 2000, 32 sur un planning presque vide
+(mesures du 2026-11-13, #3089). `shrink-0` sur la barre, essayé le même jour, lui rend ses 32 points
+sur le planning, le devis et le reste à engager.
+
+**Hors périmètre.** La refonte de la barre des tables plates et de leur présentation (EP-25,
+#3071).

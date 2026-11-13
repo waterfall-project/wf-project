@@ -736,9 +736,12 @@ la grille ni la souris.
   un décalage de 2 eh. » : EP-06.
 - écart : `WF-PLA-0160-A` — « Un décalage de 2 j sur la même liaison le fait commencer le
   mercredi. » : EP-06.
-- écart : `WF-PLA-0160-A` — « Un fichier MS Project dont les constantes diffèrent de celles de
-  l’installation est importé avec les mêmes durées en heures, et le compte rendu signale la
-  différence. » : EP-06.
+- écart : `WF-PLA-0160-A` — « Un fichier MS Project dont les constantes ou le calendrier diffèrent
+  de ceux de l'installation est signalé au compte rendu ; importé en gardant les durées, une tâche
+  de « 2 j » saisie à 7 h par jour vaut deux jours, soit seize heures avec les valeurs par défaut ;
+  importé en gardant les dates, sa durée est le temps de travail entre ses dates du fichier sur son
+  calendrier Waterfall. » : la phrase que la spécification 1.0.5 réécrit (#2922) ; EP-06, puis EP-24
+  (US-2000).
 - écart : `WF-PLA-0160-A` — « Après passage des heures par jour de 8 à 7, une durée saisie « 2 j »
   dans une révision en cours vaut quatorze heures, et ses dates sont recalculées ; dans une révision
   marquée, elle vaut toujours seize heures. » : le formulaire des unités (US-0570) le dit ; le
@@ -1457,6 +1460,11 @@ sans quitter l'écran qui la montre.
 - écart : `WF-IHM-0060-A` — « Les colonnes masquées et les largeurs choisies sont retrouvées à la
   réouverture, et un autre utilisateur ouvrant la même grille voit ses propres réglages. » :
   constaté par EP-03 (US-0400) ; EP-07 clôt.
+- écart : `WF-IHM-0060-A` — « Le panneau des filtres d'une table plate, fermé par défaut, est
+  retrouvé ouvert ou fermé comme l'utilisateur l'a laissé, sans changer celui des autres tables ;
+  ses filtres actifs restent dits, panneau fermé, chacun ôtable. » : le panneau repliable des
+  filtres vient après la livraison (#2916 ; spécification 1.0.5, #2921) ; EP-24 le vérifie
+  (US-1850).
 - `WF-IHM-0130-A` — « La table des calendriers ne propose aucun filtre sur les heures de ses
   jours ; elle se filtre sur ses autres colonnes. » : la barre de bornes des sept jours est retirée
   de la liste et les quatorze paramètres de `listCalendars` du contrat ; la recherche et le filtre

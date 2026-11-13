@@ -1320,6 +1320,12 @@ j'entre déjà dans les autres outils de l'entreprise.
   l'adresse d'un autre site, un chemin qui commence par « // », ou qui contient une barre oblique
   inverse ou un caractère de contrôle — ramène à l'accueil après la connexion. » : ajouté par la
   spécification 1.0.1 (#1589) ; la garde de l'adresse de retour est d'US-0690 (#1449).
+- écart : `WF-SEC-0020-A` — « Un visiteur sans session qui ouvre un écran arrive à l'écran de
+  connexion puis, connecté, à cet écran. » : ajouté par la spécification 1.0.5 (#2914) ; réalisé par
+  #2927, que vérifie EP-24 (US-1870).
+- écart : `WF-SEC-0020-A` — « Après une connexion que le fournisseur d'identité refuse, l'écran le
+  dit et offre de recommencer, sans relancer la connexion de lui-même. » : ajouté par la
+  spécification 1.0.5 (#2914) ; réalisé par #2927, que vérifie EP-24 (US-1870).
 - écart : `WF-SEC-0020-A` — la déconnexion « sur tous ses postes » : un poste dont la session
   est révoquée n'a plus de droits ; « Se déconnecter » y mène à la connexion, qui redemande
   les identifiants, mais ne ferme pas les postes du même compte reconnectés depuis la
@@ -1602,6 +1608,11 @@ mes réglages à chaque connexion.
 - `WF-IHM-0060-A` — « Les colonnes masquées et les largeurs choisies sont retrouvées à la réouverture, et un autre utilisateur ouvrant la même grille voit ses propres réglages. »
 - écart : `WF-IHM-0060-A` — « Le nombre de lignes par page choisi pour une table est retrouvé à sa réouverture, sans changer celui des autres tables ; une grille arborescente n’offre pas ce choix. » : le choix du nombre de
   lignes par page arrive avec #1045, en EP-15.
+- écart : `WF-IHM-0060-A` — « Le panneau des filtres d'une table plate, fermé par défaut, est
+  retrouvé ouvert ou fermé comme l'utilisateur l'a laissé, sans changer celui des autres tables ;
+  ses filtres actifs restent dits, panneau fermé, chacun ôtable. » : le panneau repliable des
+  filtres vient après la livraison (#2916 ; spécification 1.0.5, #2921) ; EP-24 le vérifie
+  (US-1850).
 
 **Notes de réalisation.** La langue choisie est aussi celle du compte chez le fournisseur
 d'identité, qui envoie dans cette langue les courriels de mot de passe (WF-ARC-0110,

@@ -1280,9 +1280,13 @@ comme dans MS Project, **afin de** lire un planning juste sans le dater à la ma
   qu’avec un décalage de 2 eh. »
 - `WF-PLA-0160-A` — « Un décalage de 2 j sur la même liaison le fait commencer le mercredi. » :
   les deux, des tests sans base du moteur ;
-- `WF-PLA-0160-A` — « Un fichier MS Project dont les constantes diffèrent de celles de
-  l’installation est importé avec les mêmes durées en heures, et le compte rendu signale la
-  différence. » : constaté par US-1430 ;
+- écart : `WF-PLA-0160-A` — « Un fichier MS Project dont les constantes ou le calendrier diffèrent
+  de ceux de l'installation est signalé au compte rendu ; importé en gardant les durées, une tâche
+  de « 2 j » saisie à 7 h par jour vaut deux jours, soit seize heures avec les valeurs par défaut ;
+  importé en gardant les dates, sa durée est le temps de travail entre ses dates du fichier sur son
+  calendrier Waterfall. » : la phrase que la spécification 1.0.5 réécrit (#2922) ; le signalement
+  des constantes est constaté par US-1430, le signalement du calendrier et le choix entre les durées
+  et les dates sont d'EP-24 (US-2000) ;
 - `WF-PLA-0160-A` — « « 1 m » est lu comme un mois et « 1 min » comme une minute, dans chacune des
   langues de l’interface. » : constaté par EP-15 (US-0470), le serveur recevant l'unité du
   contrat ;
@@ -1465,6 +1469,10 @@ s'importent de la même façon.
   par `import_not_applied` sur `applying` et `applied` ;
 - `WF-INTF-0080-A` — « Si l’import est interrompu pendant son application, le projet revient à
   son état antérieur. »
+- écart : `WF-INTF-0080-A` — « Pour un planning MS Project saisi sur un autre calendrier, le compte
+  rendu propose de garder les durées ou les dates ; changer d'option rend un nouveau compte rendu,
+  et le projet reste inchangé jusqu'à la confirmation. » : ajouté par la spécification 1.0.5
+  (#2922) ; EP-24 le réalise (US-2000) ;
 - `WF-INTF-0090-A` — « On importe un planning MS Project, puis un devis, dans un projet qui
   comporte une révision marquée. » : le planning, par US-1430 ; le devis est d'EP-07, qui clôt ;
 - `WF-INTF-0090-A` — « Seule la révision en cours est modifiée : les tâches, les dates et les
