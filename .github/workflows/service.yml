@@ -30,8 +30,9 @@ jobs:
     runs-on: ubuntu-26.04
     # The images of the platform, Keycloak's built with its extension, then the paths: about as
     # long as keycloak.yml with the browser and the front on top. 30: played in the work image of
-    # the paths, the job took 21 to 25 minutes on the branch of US-1900/L1, where it took 16 to 21
-    # on the runner, and went past 25 once.
+    # the paths, the job took 21 to 25 minutes in five runs on the branch of US-1900/L1, where it
+    # took 16 to 21 on the runner, and went past 25 once; neither Node 26 in the image, nor
+    # Docker's filter of system calls lifted with /tmp in memory, brought it back.
     timeout-minutes: 30
     # The work image of the paths is read from the registry, where it may be private.
     permissions:

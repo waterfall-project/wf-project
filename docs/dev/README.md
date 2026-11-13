@@ -3341,8 +3341,7 @@ The chain is made of GitHub Actions workflows (`.github/workflows/`):
   the platform. The platform starts on the runner itself, through the Makefile; the paths play in
   the work image of the paths (below), on the network of the runner (`E2E_IMAGE=<reference>`, which
   `make e2e-service` hands to `wftools.e2eimage`, which runs `docker run --network host`, the
-  repository mounted at its own path, with Docker's socket, without Docker's filter of system calls
-  and with `/tmp` in memory, which slowed the paths): a job container would not see the ports
+  repository mounted at its own path, with Docker's socket): a job container would not see the ports
   that Docker publishes on the runner, and the files the platform mounts are named by their path on
   the runner. No Ubuntu package is installed there (#2913); on a workstation, without `E2E_IMAGE`,
   the paths play on the workstation, with the browser of `make e2e-browsers`. `front-image.yml` builds and starts the

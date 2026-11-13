@@ -171,14 +171,6 @@ def run_command(
         # Chromium shares memory through /dev/shm, which Docker bounds to 64 MB (e2e.yml).
         "--ipc",
         "host",
-        # Neither the filter of system calls Docker sets on Node and Chromium, nor the profiles of
-        # Chromium written through the layers of the image: the paths against the service played
-        # in 16 to 19 minutes in the image with both, 15.4 without, 11 to 15 on the runner
-        # (US-1900/L1). The runner is the chain's, thrown away after the job; the command, ours.
-        "--security-opt",
-        "seccomp=unconfined",
-        "--mount",
-        "type=tmpfs,destination=/tmp",
         "--volume",
         f"{REPOSITORY}:{REPOSITORY}",
         "--volume",

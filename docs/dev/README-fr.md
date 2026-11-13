@@ -3359,8 +3359,7 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   de la plateforme. La plateforme démarre sur le runner même, par le Makefile ; les parcours se
   jouent dans l'image de travail des parcours (ci-dessous), sur le réseau du runner
   (`E2E_IMAGE=<référence>`, que `make e2e-service` passe à `wftools.e2eimage`, qui lance
-  `docker run --network host`, le dépôt monté à son propre chemin, avec la socket de Docker, sans
-  le filtre d'appels système de Docker et `/tmp` en mémoire, qui ralentissaient les parcours) : un
+  `docker run --network host`, le dépôt monté à son propre chemin, avec la socket de Docker) : un
   conteneur de travail ne verrait pas les ports que Docker publie sur le runner, et les fichiers
   que la plateforme monte sont nommés par leur chemin sur le runner. Aucun paquet d'Ubuntu ne s'y
   installe (#2913) ; sur un poste, sans `E2E_IMAGE`, les parcours se jouent sur le poste, avec le

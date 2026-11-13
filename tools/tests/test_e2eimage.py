@@ -259,8 +259,6 @@ def test_a_command_plays_in_the_image_on_the_network_of_the_host() -> None:
     assert command[command.index("--workdir") + 1] == str(directory)
     assert f"{REPOSITORY}:{REPOSITORY}" in command
     assert f"{e2eimage.SOCKET}:{e2eimage.SOCKET}" in command
-    assert command[command.index("--security-opt") + 1] == "seccomp=unconfined"
-    assert command[command.index("--mount") + 1] == "type=tmpfs,destination=/tmp"
     assert command[-4:] == ["image@sha256:x", "pnpm", "exec", "playwright"]
 
 
