@@ -430,7 +430,9 @@ def test_the_summary_in_manual_mode_of_the_corpus_is_signalled_by_the_analysis(
     # « Une récapitulative en mode manuel dans le fichier est importée en mode automatique, et le
     # compte rendu la signale avec l'écart de dates. » The file 06 of the corpus carries one,
     # « Manuelle 4 », entered on the 16th of November 2009 alone; the test of the corpus dates it
-    # from its subordinates.
+    # from its subordinates. Its duration is the one MS Project shows of a manual task, its
+    # ``ManualDuration`` of a day (US-1990), not the work of its subordinates the file writes in
+    # ``Duration``: it differs from Waterfall's too.
     seven_hours_a_day(stage)
     report = analysed(api, stage, worker, corpus("06-manual-tasks.xml"))["report"]
     assert [each for each in report["signals"] if each["code"] == "SUMMARY_TASK_DERIVED"] == [
@@ -442,9 +444,11 @@ def test_the_summary_in_manual_mode_of_the_corpus_is_signalled_by_the_analysis(
             "params": {"start": "2009-11-16", "finish": "2009-11-16"},
         }
     ]
-    assert {"lineage_id": None, "label": "Manuelle 4", "fields": ["start", "finish"]} in report[
-        "date_mismatches"
-    ]
+    assert {
+        "lineage_id": None,
+        "label": "Manuelle 4",
+        "fields": ["duration", "start", "finish"],
+    } in report["date_mismatches"]
 
 
 @pytest.mark.requirement("WF-INTF-0040-A")
