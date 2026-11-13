@@ -45,12 +45,17 @@ ENV PATH="/app/.venv/bin:${PATH}" \
 # PostgreSQL. The client follows the server, neither Debian's nor a newer one: a pg_restore newer
 # than the server sets what the server does not know — pg_restore 17 set transaction_timeout, which
 # a server 16 refused —, and no restoration would end (#982). The key of the repository is pinned
-# by its digest; its fingerprint is
-# B97B 0AFC AA1A 47F0 44F2 44A0 7FCC 7D46 ACCC 4CF8.
-RUN python -c "import urllib.request; urllib.request.urlretrieve('https://www.postgresql.org/media/keys/ACCC4CF8.asc', '/usr/share/keyrings/pgdg.asc')" \
-    && echo "0144068502a1eddd2a0280ede10ef607d1ec592ce819940991203941564e8e76  /usr/share/keyrings/pgdg.asc" > /tmp/pgdg.sha256 \
+# by its digest, and it is kept in this directory, never downloaded: a build that fetched it from
+# www.postgresql.org failed when that site did not answer (#2981). Its fingerprint is
+# B97B 0AFC AA1A 47F0 44F2 44A0 7FCC 7D46 ACCC 4CF8. The two sources of apt, deb.debian.org and
+# apt.postgresql.org, are tried again five times; one that still does not answer fails the build at
+# this step, naming it (apt says the address it could not reach), and the layer that results is read
+# from the cache of the chain (images.yml, make build-cache) wherever this file has not changed.
+COPY --chmod=0644 pgdg.asc /usr/share/keyrings/pgdg.asc
+RUN echo "0144068502a1eddd2a0280ede10ef607d1ec592ce819940991203941564e8e76  /usr/share/keyrings/pgdg.asc" > /tmp/pgdg.sha256 \
     && sha256sum --check --strict /tmp/pgdg.sha256 \
     && rm /tmp/pgdg.sha256 \
+    && echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80retries \
     && echo "deb [signed-by=/usr/share/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
     && apt-get update \
     && apt-get install --yes --no-install-recommends "postgresql-client-18=18.*" \

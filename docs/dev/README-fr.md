@@ -3506,6 +3506,33 @@ passage copie la nouvelle. Les travaux qui tirent du miroir demandent `packages:
 connectent (`docker/login-action`, ou `credentials:` d'un service) : un paquet que GitHub crée est
 privé, et rien hors de la chaîne ne le lit.
 
+Quatre autres sources réseau de la chaîne, que l'inventaire d'origine d'US-1900 ne nommait pas
+(#2981, #3015), sont traitées chacune à sa mesure :
+
+- **le binaire d'actionlint** (GitHub Releases) : `actionlint-py` n'a pas de roue sur PyPI, seulement
+  des sources, et sa construction télécharge l'archive du binaire (empreinte vérifiée, quelques essais
+  refaits). Il quitte le groupe `dev` des outils pour un groupe `workflows` (`tools/pyproject.toml`) que
+  seul `make lint-workflows` installe : `contract / check` et le serveur web de l'e2e ne le construisent
+  plus. Le travail `repo / check` le construit, une fois, puis lit la roue construite dans le cache d'uv
+  (`setup-uv`) tant que `tools/uv.lock` ne change pas ; sur un cache absent et GitHub Releases muet,
+  il échoue en nommant l'adresse (`download failed for https://github.com/rhysd/actionlint/…`) ;
+- **la clé du dépôt PGDG** (`www.postgresql.org`) : versionnée dans `backend/pgdg.asc`, copiée dans
+  l'image `waterfall` et vérifiée à la construction par son empreinte SHA-256, écrite dans le
+  `Dockerfile` avec l'empreinte de la clé. Plus aucun téléchargement de clé. Monter la clé, c'est
+  remplacer le fichier et l'empreinte ensemble ; `tools/tests/test_networksources.py` les tient
+  l'un à l'autre ;
+- **`azure.archive.ubuntu.com`** dans `back / tests` : le job ne lance plus apt. L'image des runners,
+  `ubuntu-26.04`, porte déjà `postgresql-client-18` (apt répondait « already the newest version ») ; le
+  job le vérifie et, si l'image le retirait un jour, s'arrête en le disant au lieu de l'installer.
+  Pas d'image de travail publiée pour cela : elle ne ferait que recopier ce que le runner a ;
+- **`deb.debian.org` et `apt.postgresql.org`**, tirés par les images `openldap` et `waterfall` quand le
+  cache de couches manque : les `Dockerfile` posent `Acquire::Retries "5"` à apt, et le cache de couches
+  que `images.yml` écrit après chaque fusion (`make build-cache`) reste ce qui évite le plus souvent la
+  source. Une source qui ne répond toujours pas fait échouer la construction à l'étape d'apt, qui nomme
+  l'adresse (`Failed to fetch http://deb.debian.org/…`). Une couche de base publiée sur ghcr.io
+  demanderait deux images de plus à étiqueter et à publier, et ferait dépendre la construction du poste
+  de ghcr.io : elle n'est pas faite.
+
 Le palier complet vise moins de huit minutes dans la file pour son travail le plus long
 (#492). Les parcours de bout en bout, la moitié la plus longue, s'y prennent ainsi :
 
@@ -3643,8 +3670,9 @@ Règles des workflows :
   ignorées : elles suivent l'image de Keycloak. La majeure de TypeScript n'a pas de règle
   d'ignorance : l'auteur ferme sa pull request tant que `typescript-eslint` ne la tient pas.
 - Dependabot ne suit pas, et l'auteur relève à la main, à la pull request mensuelle de
-  Dependabot : `packageManager` du front, l'uv et le client PostgreSQL de l'image `waterfall`,
-  les runners et le pandoc de la chaîne, et `maven.compiler.release` du `pom.xml` de l'extension,
+  Dependabot : `packageManager` du front, l'uv et le client PostgreSQL de l'image `waterfall`
+  (et sa clé, `backend/pgdg.asc`), les runners et le pandoc de la chaîne, et
+  `maven.compiler.release` du `pom.xml` de l'extension,
   qui reste à 21 exprès (le Java de l'image de Keycloak, pas le JDK de construction) : il se
   relève quand cette image change de Java.
 
@@ -4018,8 +4046,8 @@ avant son premier test (#2913). Les cibles qui lancent Redocly ou Prism sans `in
 `node_modules/.modules.yaml` : un relèvement de version s'installe au passage suivant. Un registre
 qui refuse la connexion fait échouer l'installation en 70 s environ, sur une erreur qui nomme
 l'adresse du paquet demandé ; elle n'a pas d'autre borne, et un registre muet attend celle du
-réseau. Il en est de même de `make e2e-measure` et de `make e2e-service`, dont
-Playwright démarre aussi le faux back. Playwright démarre le faux back (`make mock`) et le front,
+réseau. `make e2e-measure` et `make e2e-service` lancent `install-front`, puisque
+Playwright y démarre aussi le faux back. Playwright démarre le faux back (`make mock`) et le front,
 joue les parcours dans Chromium, puis arrête les deux — il signale leur groupe de processus entier,
 sans quoi les serveurs que `make` et `pnpm` lancent survivraient. Il démarre toujours ses propres
 serveurs, sur des ports à lui — ceux du créneau du worktree (« Commandes », « Les créneaux des

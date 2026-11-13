@@ -92,18 +92,22 @@ jobs:
           persist-credentials: false
       # The client of the server's major (the Dockerfile of the back, #982): pg_dump refuses to run
       # against a server newer than itself, and the tests of the back back up and restore on a 18.
-      # Ubuntu 26.04 carries the client 18 in its own archive, so no repository is added (the
-      # PGDG one of the 24.04 runners, noble-pgdg, is not the distribution of this runner).
+      # The image of the runner, ubuntu-26.04, carries the client 18 (postgresql-client-18, of the
+      # PGDG repository: `apt-get install` said "already the newest version" on 2026-11-13). The job
+      # installs nothing, so that no mirror of Ubuntu (azure.archive.ubuntu.com) can fail it
+      # (US-1900); should the image drop the client, the job stops here and says so.
       # /usr/bin/pg_dump and pg_restore, which the backups call, are the wrapper of Debian, which
       # keeps the major of the cluster the image holds: they are pointed at the 18, which the last
       # lines check.
       - run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends postgresql-client-18
-          sudo ln --symbolic --force /usr/lib/postgresql/18/bin/pg_dump /usr/bin/pg_dump
-          sudo ln --symbolic --force /usr/lib/postgresql/18/bin/pg_restore /usr/bin/pg_restore
-          /usr/bin/pg_dump --version | grep --fixed-strings "(PostgreSQL) 18."
-          /usr/bin/pg_restore --version | grep --fixed-strings "(PostgreSQL) 18."
+          for tool in pg_dump pg_restore; do
+            test -x "/usr/lib/postgresql/18/bin/$tool" || {
+              echo "::error::the runner image no longer carries /usr/lib/postgresql/18/bin/$tool (postgresql-client-18)"
+              exit 1
+            }
+            sudo ln --symbolic --force "/usr/lib/postgresql/18/bin/$tool" "/usr/bin/$tool"
+            "/usr/bin/$tool" --version | grep --fixed-strings "(PostgreSQL) 18."
+          done
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io

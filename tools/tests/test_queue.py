@@ -389,6 +389,38 @@ def test_the_failures_left_to_classify_outside_the_paths_are_classified_by_their
         assert (kind, entry.family if entry else None) == classified
 
 
+@pytest.mark.parametrize(
+    "line",
+    [
+        "E: Failed to fetch http://deb.debian.org/debian/dists/trixie/InRelease  Could not connect",
+        "E: Failed to fetch https://apt.postgresql.org/pub/repos/apt/InRelease  Temporary failure",
+    ],
+)
+def test_an_apt_that_cannot_fetch_from_its_source_is_infrastructure(line: str) -> None:
+    # US-1900/L4: the images that pull apt, built by the service, the paths and the images; the
+    # excerpt is built after the form apt writes, no run of the window having failed this way.
+    text = "\n".join(
+        [
+            "2026-11-13T09:00:00.0000000Z #9 12.3 Err:1 http://deb.debian.org/debian trixie",
+            f"2026-11-13T09:00:01.0000000Z #9 12.4 {line}",
+            "2026-11-13T09:00:02.0000000Z ##[error]Process completed with exit code 100.",
+        ]
+    )
+    catalogue = queue.read_catalogue()
+    for name in ("service / paths", "e2e / paths (2/5)", "images / trial"):
+        failed = queue.Job(9, name, "failure", None, None, "Build the images")
+        found = queue.failures_of(42, failed, text)
+        assert found
+        for failure in found:
+            kind, entry = catalogue.classify(failure)
+            assert (kind, entry.family if entry else None) == (
+                queue.INFRASTRUCTURE,
+                "apt, deb.debian.org et apt.postgresql.org",
+            )
+    other = queue.failures_of(42, queue.Job(9, "back / tests", "failure", None, None, "x"), text)
+    assert all(catalogue.classify(f)[0] == queue.TO_CLASSIFY for f in other)
+
+
 def test_a_regression_read_in_a_run_leaves_the_same_failure_elsewhere_to_classify() -> None:
     (review, _) = queue.failures_of(
         43297945985,

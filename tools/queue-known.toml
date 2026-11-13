@@ -365,7 +365,7 @@ family = "GitHub Releases, actionlint"
 issue = "#2981"
 message = 'download failed for https://github\.com/rhysd/actionlint/'
 frequency = "2 passages du 2026-11-05 au 2026-11-12 : `contract / check`, et le serveur web de `e2e / paths` et d'`e2e / measure`"
-cause = "établie : `actionlint-py` télécharge son binaire de GitHub Releases à l'installation des outils, et reçoit un 504 ; dépendance absente de l'inventaire d'US-1900"
+cause = "établie : `actionlint-py` télécharge son binaire de GitHub Releases à l'installation des outils, et reçoit un 504 ; dépendance absente de l'inventaire d'US-1900. Depuis US-1900/L4, seul `repo / check` la construit (groupe `workflows` des outils), sa roue lue du cache d'uv ; le même échec n'y reste possible que sur un cache absent"
 
 # Le même téléchargement, qui ne finit pas : le serveur du faux back attend l'environnement des
 # outils (`make mock-spec`), et `Building actionlint-py` n'a pas rendu en deux minutes, quand les
@@ -376,7 +376,7 @@ family = "GitHub Releases, actionlint"
 issue = "#2981"
 message = '(?s)Building actionlint-py\b(?:(?!Built actionlint-py).)*Timed out waiting \d+ms from config\.webServer'
 frequency = "1 passage du 2026-11-05 au 2026-11-12 : `e2e / paths` (42473098952, le 2026-11-08)"
-cause = "établie : `Building actionlint-py` commencé à 10:53:03, rien jusqu'à l'arrêt du serveur web à 10:55:00 ; le binaire de GitHub Releases ne vient pas, et le délai de 120 s de `webServer` expire"
+cause = "établie : `Building actionlint-py` commencé à 10:53:03, rien jusqu'à l'arrêt du serveur web à 10:55:00 ; le binaire de GitHub Releases ne vient pas, et le délai de 120 s de `webServer` expire ; l'installation des outils ne construit plus actionlint-py depuis US-1900/L4, seul `repo / check` le fait"
 
 [[known]]
 class = "infrastructure"
@@ -385,7 +385,18 @@ issue = "#2981"
 job = "^service / paths$"
 message = '''urlretrieve\('https://www\.postgresql\.org/'''
 frequency = "2 passages du 2026-11-05 au 2026-11-12, à `make service-up`"
-cause = "établie : la construction des images `api` et `worker` télécharge la clé du dépôt PGDG, et la connexion est fermée sans réponse ; dépendance absente de l'inventaire d'US-1900"
+cause = "établie : la construction des images `api` et `worker` télécharge la clé du dépôt PGDG, et la connexion est fermée sans réponse ; dépendance absente de l'inventaire d'US-1900. Depuis US-1900/L4, la clé est versionnée (`backend/pgdg.asc`) et vérifiée par son empreinte : cet échec ne peut plus se produire, l'entrée ne classe que les passages d'avant"
+
+# Les sources d'apt des images `openldap` et `waterfall`, quand le cache de couches manque (#3015) :
+# apt nomme l'adresse qu'il n'a pas pu joindre, après ses cinq essais (US-1900/L4).
+[[known]]
+class = "infrastructure"
+family = "apt, deb.debian.org et apt.postgresql.org"
+issue = "#3015"
+job = "^(?:service|e2e|images) / "
+message = '''Failed to fetch https?://(?:deb\.debian\.org|apt\.postgresql\.org)/'''
+frequency = "aucun passage relevé du 2026-11-05 au 2026-11-12 ; source nommée par #3015"
+cause = "hypothèse : la construction d'une image tire apt faute de cache de couches, et la source ne répond pas ; dépendance absente de l'inventaire d'US-1900"
 
 # Le délai d'un job, dépassé : la chaîne trop longue, que US-1910 raccourcit.
 
