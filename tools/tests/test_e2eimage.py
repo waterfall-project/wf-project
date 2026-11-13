@@ -23,6 +23,7 @@ import pytest
 import yaml
 
 from wftools import REPOSITORY, e2eimage
+from wftools import registry as shared
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -278,9 +279,9 @@ def test_a_package_the_registry_refuses_to_show_is_built_and_its_publication_say
 ) -> None:
     # ghcr.io answers 403 for a package it does not hold yet, which the first publication creates.
     registry = Registry((1, refused), failing="push")
-    with pytest.raises(e2eimage.ImageError, match=r"publication of .* to ghcr\.io failed"):
+    with pytest.raises(shared.ImageError, match=r"publication of .* to ghcr\.io failed"):
         registry.publish()
-    assert registry.called() == ["buildx", "build"] + ["push"] * e2eimage.ATTEMPTS
+    assert registry.called() == ["buildx", "build"] + ["push"] * shared.ATTEMPTS
     assert "ghcr.io refused to show" in capsys.readouterr().err
 
 
@@ -288,17 +289,17 @@ def test_a_registry_that_does_not_answer_is_asked_again() -> None:
     registry = Registry(UNREACHABLE, UNREACHABLE, INSPECTED)
     assert registry.publish() == f"{e2eimage.reference()}@{DIGEST}"
     assert registry.called() == ["buildx"] * 3
-    assert registry.waits == [e2eimage.PAUSE, e2eimage.PAUSE]
+    assert registry.waits == [shared.PAUSE, shared.PAUSE]
 
 
 def test_a_registry_that_never_answers_fails_naming_it() -> None:
-    registry = Registry(*[UNREACHABLE] * e2eimage.ATTEMPTS)
+    registry = Registry(*[UNREACHABLE] * shared.ATTEMPTS)
     said = r"^ghcr\.io did not say .* attempts: .*no such host"
-    with pytest.raises(e2eimage.ImageError, match=said):
+    with pytest.raises(shared.ImageError, match=said):
         registry.publish()
-    assert registry.called() == ["buildx"] * e2eimage.ATTEMPTS
+    assert registry.called() == ["buildx"] * shared.ATTEMPTS
     # No wait after the last attempt: the failure is said at once.
-    assert registry.waits == [e2eimage.PAUSE] * (e2eimage.ATTEMPTS - 1)
+    assert registry.waits == [shared.PAUSE] * (shared.ATTEMPTS - 1)
 
 
 @pytest.mark.parametrize("failing", ["build", "push"])
@@ -306,7 +307,7 @@ def test_a_build_or_a_publication_that_fails_once_is_tried_again(failing: str) -
     registry = Registry(NOT_FOUND, INSPECTED, failing=failing, failures=1)
     assert registry.publish() == f"{e2eimage.reference()}@{DIGEST}"
     assert registry.called().count(failing) == 2
-    assert registry.waits == [e2eimage.PAUSE]
+    assert registry.waits == [shared.PAUSE]
 
 
 @pytest.mark.parametrize(
@@ -314,20 +315,20 @@ def test_a_build_or_a_publication_that_fails_once_is_tried_again(failing: str) -
 )
 def test_a_build_or_a_publication_that_always_fails_is_said(failing: str, said: str) -> None:
     registry = Registry(NOT_FOUND, failing=failing)
-    with pytest.raises(e2eimage.ImageError, match=f"{said}.*in {e2eimage.ATTEMPTS} attempts"):
+    with pytest.raises(shared.ImageError, match=f"{said}.*in {shared.ATTEMPTS} attempts"):
         registry.publish()
-    assert registry.called().count(failing) == e2eimage.ATTEMPTS
+    assert registry.called().count(failing) == shared.ATTEMPTS
 
 
 def test_a_publication_the_registry_does_not_then_hold_is_said() -> None:
     registry = Registry(NOT_FOUND, NOT_FOUND)
-    with pytest.raises(e2eimage.ImageError, match=r"^ghcr\.io does not hold .*just published"):
+    with pytest.raises(shared.ImageError, match=r"^ghcr\.io does not hold .*just published"):
         registry.publish()
 
 
 def test_a_registry_that_holds_the_tag_without_a_digest_is_said() -> None:
     registry = Registry((0, "Name: x\n"))
-    with pytest.raises(e2eimage.ImageError, match="no digest"):
+    with pytest.raises(shared.ImageError, match="no digest"):
         registry.publish()
 
 
@@ -338,7 +339,7 @@ def test_the_output_is_the_line_of_a_step(capsys: pytest.CaptureFixture[str]) ->
 
 
 def test_a_failure_prints_nothing_on_the_output(capsys: pytest.CaptureFixture[str]) -> None:
-    registry = Registry(*[UNREACHABLE] * e2eimage.ATTEMPTS)
+    registry = Registry(*[UNREACHABLE] * shared.ATTEMPTS)
     arguments = ["publish", "--push"]
     assert e2eimage.main(arguments, registry.docker()) == 2
     printed = capsys.readouterr()
@@ -391,7 +392,7 @@ def test_the_variables_the_paths_read_are_passed_by_name_alone() -> None:
 
 
 def test_a_directory_outside_the_checkout_is_refused(tmp_path: Path) -> None:
-    with pytest.raises(e2eimage.ImageError, match="outside the checkout"):
+    with pytest.raises(shared.ImageError, match="outside the checkout"):
         e2eimage.run_command("image", ["true"], tmp_path, {})
 
 

@@ -10,7 +10,9 @@
 # lacks. The base image is pinned by digest: a tag can be moved, a digest cannot. It is Debian's
 # trixie; the client of PostgreSQL comes from the repository of the PostgreSQL project (PGDG), in
 # the major version of the server of the platform, 16 (#982).
-FROM python:3.14-slim-trixie@sha256:930e1abba7c4e8f96ed93e8012c35d174d7732752731bbd5e8e757d7ec6f3966 AS python
+# Docker Hub, unless the chain gives the registry of its mirror (docs/dev/README.md, « The chain »).
+ARG WATERFALL_MIRROR=
+FROM ${WATERFALL_MIRROR}python:3.14-slim-trixie@sha256:930e1abba7c4e8f96ed93e8012c35d174d7732752731bbd5e8e757d7ec6f3966 AS python
 
 ENV PYTHONUNBUFFERED=1
 WORKDIR /app

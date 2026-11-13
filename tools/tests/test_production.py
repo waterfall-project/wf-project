@@ -31,7 +31,7 @@ TEMPLATE = COMPOSE / "production.env.example"
 CADDYFILE = COMPOSE / "Caddyfile.prod"
 WORKFLOWS = REPOSITORY / ".github" / "workflows"
 PUBLISHED = re.compile(r"ghcr\.io/waterfall-project/(\w+):\$\{WATERFALL_IMAGE_TAG:\?[^}]*\}")
-PINNED = re.compile(r"[\w./-]+:[\w.-]+@sha256:[0-9a-f]{64}")
+PINNED = re.compile(r"(?:\$\{WATERFALL_MIRROR:-\})?[\w./-]+:[\w.-]+@sha256:[0-9a-f]{64}")
 VARIABLE = re.compile(r"\$\{(WATERFALL_[A-Z0-9_]+)")
 DEFAULTED = re.compile(r"\$\{(WATERFALL_[A-Z0-9_]+)(:?-)")
 SECRET = re.compile(r"PASSWORD|SECRET|_KEY$")
@@ -217,7 +217,8 @@ def test_every_secret_comes_from_the_file_of_settings_and_none_has_a_default() -
 def test_the_model_of_the_file_of_settings_names_every_variable_and_holds_no_secret() -> None:
     named = template()
     read = set(VARIABLE.findall(PRODUCTION.read_text(encoding="utf-8")))
-    assert set(named) == read
+    # The prefix of the mirror is the chain's, not a setting of the operator (US-1900).
+    assert set(named) == read - {"WATERFALL_MIRROR"}
     for name, value in named.items():
         if SECRET.search(name) and name != "WATERFALL_STORAGE_ACCESS_KEY":
             assert value == "", name

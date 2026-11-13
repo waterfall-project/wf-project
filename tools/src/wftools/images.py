@@ -90,6 +90,10 @@ IMAGES = (
 )
 
 
+MIRROR = ["--build-arg", "WATERFALL_MIRROR"]
+"""Gives the Dockerfiles the registry of the mirror the chain poses, if it does (US-1900)."""
+
+
 def cache_source(name: str) -> list[str]:
     """Return the options that read the cache of the builds of an image on GitHub Actions.
 
@@ -187,7 +191,7 @@ def builds(branch: str, commit: str, release: str, *, posed: bool = True) -> lis
     """Return the command that builds each image, under every tag it takes."""
     found: list[list[str]] = []
     for image in IMAGES:
-        build = ["docker", "build", "--target", STAGE, *cache_source(image.name)]
+        build = ["docker", "build", *MIRROR, "--target", STAGE, *cache_source(image.name)]
         for key, value in labels(image, branch, commit, release, posed=posed).items():
             build += ["--label", f"{key}={value}"]
         for tag in tags(branch, commit, release, posed=posed):
