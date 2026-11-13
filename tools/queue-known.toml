@@ -26,8 +26,8 @@
 #
 # Une entrée qui nomme un test donne aussi, quand l'inventaire le connaît, le `message` qui
 # l'accompagne, pour qu'une autre défaillance du même test reste « à classer » : les entrées de la
-# famille A attendent `own-project.ts` (n'importe quelle ligne), celles de la famille D le localisateur ou le délai de
-# l'attente, relu dans les journaux de ses 16 passages (extraits :
+# famille A attendent `own-project.ts` (n'importe quelle ligne), celles de la famille D le
+# localisateur ou le délai de l'attente, relu dans les journaux de ses 16 passages (extraits :
 # tests/queue/playwright-backups-*.log).
 # Les entrées des familles B et C et du back reconnaissent encore un test par sa seule ligne, faute
 # d'un message relevé.
@@ -145,7 +145,7 @@ runs = [
 job = "^service / paths$"
 test = 'e2e/timelines\.spec\.ts:(353|391)\b'
 message = 'e2e/own-project\.ts:\d+\b'
-frequency = "17 passages du 2026-11-08 au 2026-11-11, tous sans 0026 ; ici 1 passage, :391"
+frequency = "17 passages du 2026-11-08 au 2026-11-11, tous sans 0026 ; ici 2 passages : :391 (42528177632) et :353 (42704761295)"
 cause = "établie : 500 de `POST /projects`, blocage mutuel (`DeadlockDetected`) de `create_project_partitions` (migration 0025) entre deux créations ; corrigé par la migration 0026 (US-1560/L3, #2603/#2667, 69ee969b), dans main le 2026-11-09 à 22 h 27. La boîte « Créer » n'affiche alors que l'erreur, et l'adresse reste `/` : `own-project.ts` attend en vain"
 
 # Famille B — un état partagé entre parcours : les préférences relues portent le filtre d'un
@@ -280,7 +280,7 @@ job = "^service / paths$"
 test = 'e2e/service/backups\.spec\.ts:155\b'
 message = 'Timeout: 420000ms'
 frequency = "3 passages le 2026-11-09, de 10 h à 13 h UTC, sur #2638 et #2672 : la restauration ni terminée ni refusée en 420 s (`backups.spec.ts:262`)"
-cause = "hypothèse : `pg_restore --single-transaction` après `DROP SCHEMA public CASCADE` verrouille chaque table, partition par projet et index ; les parcours d'EP-07 créent assez de projets pour passer les 64 verrous par transaction du défaut, la restauration échoue (« out of shared memory ») et la plateforme reste en maintenance. Seule source : le message de 783db2ed, qui a mesuré la cause et l'a corrigée par `max_locks_per_transaction` à 1024 (fusionnée dans `epic/EP-07` le 2026-11-09 à 13 h 27 UTC par #2638, 97eeff48) ; 42622915790, de #2672, la précède dans la file. Le journal du service `restore` n'était pas versé dans celui du job : ceux des trois passages (42598617718, 42599195472, 42622915790) ne portent ni `shared memory` ni `max_locks`. Il l'est depuis fd948df1 (US-1570/L4, 2026-11-10), et `service.yml` verse aussi, au premier échec, les lignes du journal de PostgreSQL qui nomment `shared memory`, `max_locks_per_transaction`, `deadlock` ou `could not obtain lock` (US-1890/L1) : la cause se lira, ou se lèvera, à ces deux endroits du journal du job, sous #3005 (qui reste ouverte jusqu'à cinquante passages sans récidive)"
+cause = "hypothèse : `pg_restore --single-transaction` après `DROP SCHEMA public CASCADE` verrouille chaque table, partition par projet et index ; les parcours d'EP-07 créent assez de projets pour passer les 64 verrous par transaction du défaut, la restauration échoue (« out of shared memory ») et la plateforme reste en maintenance. Seule source : le message de 783db2ed, qui a mesuré la cause et l'a corrigée par `max_locks_per_transaction` à 1024 (fusionnée dans `epic/EP-07` le 2026-11-09 à 13 h 27 UTC par #2638, 97eeff48) ; 42622915790, de #2672, la précède dans la file. Le journal du service `restore` n'était pas versé dans celui du job : ceux des trois passages (42598617718, 42599195472, 42622915790) ne portent ni `shared memory` ni `max_locks`. Il l'est depuis fd948df1 (US-1570/L4, 2026-11-10), et `service.yml` verse aussi, au premier échec, les lignes du journal de PostgreSQL qui nomment `shared memory`, `max_locks_per_transaction`, `deadlock` ou `could not obtain lock` (US-1890/L1). « (none) » y écarte la mémoire des verrous (`out of shared memory`, `max_locks_per_transaction`) et les blocages mutuels ; il n'écarte pas une simple attente de verrou, que PostgreSQL ne journalise pas (`log_lock_waits` est à `off`) : `could not obtain lock` n'existe que sous `lock_timeout` ou `NOWAIT`. Le suivi reste sous #3005 (ouverte jusqu'à cinquante passages sans récidive)"
 
 [[known]]
 class = "regression"
