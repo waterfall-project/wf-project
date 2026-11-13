@@ -220,6 +220,11 @@ describe("the filter of a list on the values of a column", () => {
     expect(router.push).toHaveBeenLastCalledWith("/projects/p/revisions/r/risks", {
       scroll: false,
     });
+    // Every value chosen and the flag checked: the values are lifted, the flag stays.
+    await pick("État", "Sans état");
+    expect(router.push).toHaveBeenLastCalledWith("/projects/p/revisions/r/risks?none=true", {
+      scroll: false,
+    });
   });
 
   it("reads a flag checked from the address, and unchecks it from there (#3050)", async () => {

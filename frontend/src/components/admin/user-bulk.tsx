@@ -8,12 +8,14 @@
  * atomicity, from the version the screen holds; those answered stay written, and each refused is told
  * with its reason — a 412 for an account modified meanwhile, the last administrator that cannot be
  * deactivated — above the table (`UserWrites.bulk`). A role is added to those the account holds,
- * never put in their place; an account that is already as asked is not written.
+ * never put in their place. Nothing is written until the button of a choice is pressed, and every
+ * account selected is written, the server deciding what the screen may hold stale.
  * Every prop is data, never a function (défaut n° 12 de `typescript.md`).
  */
 "use client";
 
 import { useTranslations } from "next-intl";
+import { type ReactNode, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -42,58 +44,39 @@ export function UserBulkCommands({
     return null;
   }
   const waiting = writes.bulking;
-  const select = "h-6 rounded-sm border-background/40 bg-transparent text-xs text-background";
   return (
     <>
       {roles.length === 0 ? null : (
-        <div className="w-40 shrink-0">
-          <NativeSelect
-            aria-label={t("bulk.addRole")}
-            aria-busy={waiting}
-            className={select}
-            value=""
-            onChange={(event) => {
-              const role = event.currentTarget.value;
-              if (role !== "" && !waiting) {
-                writes.bulk(rows, { kind: "add_role", role }, event.currentTarget);
-              }
-            }}
-          >
-            <option value="">{t("bulk.addRole")}</option>
-            {roles.map((role) => (
-              <option key={role.id} value={role.id}>
-                {role.label}
-              </option>
-            ))}
-          </NativeSelect>
-        </div>
-      )}
-      <div className="w-40 shrink-0">
-        <NativeSelect
-          aria-label={t("bulk.attach")}
-          aria-busy={waiting}
-          className={select}
-          value=""
-          onChange={(event) => {
-            const node = event.currentTarget.value;
-            if (node !== "" && !waiting) {
-              writes.bulk(
-                rows,
-                { kind: "attach", node: node === NO_NODE ? null : node },
-                event.currentTarget,
-              );
-            }
+        <BulkChoice
+          label={t("bulk.addRole")}
+          apply={t("bulk.apply", { command: t("bulk.addRole") })}
+          waiting={waiting}
+          onApply={(role, back) => {
+            writes.bulk(rows, { kind: "add_role", role }, back);
           }}
         >
-          <option value="">{t("bulk.attach")}</option>
-          <option value={NO_NODE}>{t("noOrgNode")}</option>
-          {nodes.map((node) => (
-            <option key={node.id} value={node.id}>
-              {treeLabel(node.level, named("choice", { code: node.code, label: node.label }))}
+          {roles.map((role) => (
+            <option key={role.id} value={role.id}>
+              {role.label}
             </option>
           ))}
-        </NativeSelect>
-      </div>
+        </BulkChoice>
+      )}
+      <BulkChoice
+        label={t("bulk.attach")}
+        apply={t("bulk.apply", { command: t("bulk.attach") })}
+        waiting={waiting}
+        onApply={(node, back) => {
+          writes.bulk(rows, { kind: "attach", node: node === NO_NODE ? null : node }, back);
+        }}
+      >
+        <option value={NO_NODE}>{t("noOrgNode")}</option>
+        {nodes.map((node) => (
+          <option key={node.id} value={node.id}>
+            {treeLabel(node.level, named("choice", { code: node.code, label: node.label }))}
+          </option>
+        ))}
+      </BulkChoice>
       {[true, false].map((active) => (
         <Button
           key={String(active)}
@@ -118,3 +101,60 @@ export function UserBulkCommands({
 
 /** The value of the choice « Aucun » of the attachment: no identifier of a node is written so. */
 const NO_NODE = "none";
+
+/**
+ * A choice of the bar and its button: the choice is only made in the list, and nothing is written
+ * until the button is pressed — a native list fires `change` at each arrow key, so that walking it
+ * with the keyboard would write the first value to every account selected.
+ */
+function BulkChoice({
+  label,
+  apply,
+  waiting,
+  onApply,
+  children,
+}: {
+  readonly label: string;
+  readonly apply: string;
+  readonly waiting: boolean;
+  readonly onApply: (value: string, back: HTMLElement) => void;
+  readonly children: ReactNode;
+}) {
+  const t = useTranslations("admin.users");
+  const [value, setValue] = useState("");
+  return (
+    <div className="flex shrink-0 items-center gap-1">
+      <div className="w-40 shrink-0">
+        <NativeSelect
+          aria-label={label}
+          aria-busy={waiting}
+          className="h-6 rounded-sm border-background/40 bg-transparent text-xs text-background"
+          value={value}
+          onChange={(event) => {
+            setValue(event.currentTarget.value);
+          }}
+        >
+          <option value="">{label}</option>
+          {children}
+        </NativeSelect>
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        aria-label={apply}
+        aria-busy={waiting}
+        {...(waiting || value === "" ? { "aria-disabled": true } : {})}
+        className="h-6 text-xs text-background hover:bg-background/15 hover:text-background"
+        onClick={(event) => {
+          if (value !== "" && !waiting) {
+            onApply(value, event.currentTarget);
+            setValue("");
+          }
+        }}
+      >
+        {t("bulk.applyShort")}
+      </Button>
+    </div>
+  );
+}

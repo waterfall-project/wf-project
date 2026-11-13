@@ -2642,10 +2642,12 @@
         "addRole": "Ajouter un rôle",
         "attach": "Rattacher à",
         "activate": "Activer",
-        "deactivate": "Désactiver"
+        "deactivate": "Désactiver",
+        "apply": "Appliquer : {command}",
+        "applyShort": "Appliquer"
       },
-      "bulkDone": "{count, plural, =0 {Aucun compte à modifier.} one {# compte modifié.} other {# comptes modifiés.}}",
-      "bulkPartial": "{done, plural, =0 {Aucun compte modifié} one {# compte modifié} other {# comptes modifiés}}, {refused, plural, one {# compte refusé} other {# comptes refusés}} : la raison de chacun est dite ci-dessous.",
+      "bulkDone": "{count, plural, one {# compte modifié.} other {# comptes modifiés.}}",
+      "bulkPartial": "{done, plural, =0 {Aucun compte modifié} one {# compte modifié} other {# comptes modifiés}}, {refused, plural, one {# compte refusé} other {# comptes refusés}} : la raison de chacun est dite ci-dessus.",
       "told": "Commandes des comptes",
       "created": "Compte « {name} » créé.",
       "creationHint": "Le compte naît sans moyen de se connecter : son porteur en reçoit un par le lien de fixation, que le fournisseur d’identité lui envoie par courriel, ou, faute d’invitation, que la table remet. Ses rôles s’attribuent ensuite dans la table.",

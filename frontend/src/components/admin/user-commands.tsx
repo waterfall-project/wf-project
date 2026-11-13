@@ -33,6 +33,7 @@ import {
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -308,6 +309,12 @@ function Writes({ children }: { readonly children: ReactNode }) {
   const [bulking, setBulking] = useState(false);
   // Whether a group is under way, as the last press left it: two presses may come before a render.
   const bulkHeld = useRef(false);
+  // The reading the list is on now: a group left behind by a change of reading tells no refusal.
+  const reading = useRef(list?.generation ?? 0);
+  const generationNow = list?.generation ?? 0;
+  useEffect(() => {
+    reading.current = generationNow;
+  }, [generationNow]);
   const bulk = useCallback(
     (rows: readonly User[], action: BulkAction, back: HTMLElement | null) => {
       if (bulkHeld.current || rows.length === 0) {
@@ -340,9 +347,13 @@ function Writes({ children }: { readonly children: ReactNode }) {
             lead: name,
           });
         }
-        say(refused === 0 ? t("bulkDone", { count: done }) : t("bulkPartial", { done, refused }), {
-          noted: refused === 0,
-        });
+        // The refusals are told on the reading the group was pressed on: read otherwise, the
+        // summary that points at them stays silent, as they are.
+        if (refused === 0) {
+          say(t("bulkDone", { count: done }), { noted: true });
+        } else if (reading.current === generation) {
+          say(t("bulkPartial", { done, refused }), { noted: false });
+        }
         // The navigations held wait for the whole group; a refusal is the answer of the first.
         return first ?? ({ kind: "done", data: null } as const);
       };

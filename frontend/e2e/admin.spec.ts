@@ -670,6 +670,7 @@ test("welcomes the accounts that arrived without a role: filtered « Créé par 
   }).toPass({ timeout: WORKING });
   await expect(role).toBeVisible();
   await role.selectOption({ label: "Chiffreur" });
+  await bar.getByRole("button", { name: "Appliquer : Ajouter un rôle" }).click();
   const told = page.getByRole("status", { name: "Commandes des comptes" });
   await expect(told).toContainText(/comptes? modifiés?\./, { timeout: WORKING });
   // « Rattacher à », « Activer » and « Désactiver » stand beside it.
