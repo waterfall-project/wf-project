@@ -130,14 +130,18 @@ function Deletion({ children }: { readonly children: ReactNode }) {
     // The reading the role is deleted from: its refusal is told on it alone.
     const generation = list?.generation ?? 0;
     answers?.begin(id);
-    void held(deleteAccessRole(id, role.lock_version)).then((outcome) => {
-      answers?.end(id);
-      if (outcome.kind === "done") {
-        say?.(t("deleted", { name: role.label }));
-      } else {
-        list?.report({ outcome, generation, names: {}, target: `delete ${id}` });
-      }
-    });
+    void held(deleteAccessRole(id, role.lock_version))
+      .then((outcome) => {
+        if (outcome.kind === "done") {
+          say?.(t("deleted", { name: role.label }));
+        } else {
+          list?.report({ outcome, generation, names: {}, target: `delete ${id}` });
+        }
+      })
+      .finally(() => {
+        // Whatever the answer, a rejection included: the role is free again (#2898).
+        answers?.end(id);
+      });
   };
   const name = asked?.role.label ?? "";
   return (
