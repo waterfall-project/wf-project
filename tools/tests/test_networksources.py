@@ -11,6 +11,8 @@ when one of those sources is silent is seen in its runs (`make queue-report`).
 
 import hashlib
 import re
+import shutil
+import subprocess
 import tomllib
 from typing import Any
 
@@ -76,12 +78,26 @@ def test_the_key_of_the_pgdg_repository_is_the_file_the_dockerfile_checks() -> N
 
 
 def test_no_job_of_the_chain_installs_a_package_with_apt() -> None:
-    """The tests of the back ran apt-get against azure.archive.ubuntu.com; no job does any more."""
-    installing = [
-        where
-        for where, command in run_steps()
-        if re.search(r"\bapt(?:-get)?\s+(?:install|update)\b", command)
-    ]
+    """The tests of the back ran apt-get against azure.archive.ubuntu.com; nothing now does.
+
+    What a job runs is its ``run:`` steps, the shell scripts of the repository they may call and the
+    recipes of the Makefile. The Dockerfiles are left out on purpose: they run apt, with its retries
+    (the test below), and their layers are cached.
+    """
+    apt = re.compile(r"\bapt(?:-get)?\s+(?:install|update)\b")
+    git = shutil.which("git")
+    assert git is not None
+    scripts = subprocess.run(
+        [git, "ls-files", "*.sh"],
+        cwd=REPOSITORY,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.split()
+    files = [(path, text(path)) for path in [*scripts, "Makefile"]]
+    installing = [where for where, command in run_steps() if apt.search(command)]
+    installing += [path for path, content in files if apt.search(content)]
+    assert scripts
     assert installing == []
 
 

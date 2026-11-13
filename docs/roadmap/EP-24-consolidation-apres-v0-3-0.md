@@ -313,7 +313,7 @@ livrées — `epic/EP-09`, `epic/EP-23` — gardent leurs couches d'images (envi
 — `postgres`, `redis`, `caddy`, `axllent/mailpit`, `dxflrs/garage`, `curlimages/curl`, `node`,
 `python`, `debian`, `maven`, `adorsys/keycloak-config-cli` — et `keycloak/keycloak` ; le registre de
 npm pour Prism et Redocly (`npx --yes`, `make mock-tools`) ; `mcr.microsoft.com` pour l'image de
-Playwright ; GitHub Releases pour pandoc ; le miroir d'Astral pour Python. ;
+Playwright ; GitHub Releases pour pandoc ; le miroir d'Astral pour Python ;
 et quatre que l'inventaire d'origine omettait (#2981, #3015) : GitHub Releases pour le binaire d'actionlint,
 que construit `actionlint-py` ; `www.postgresql.org` pour la clé du dépôt PGDG, téléchargée par la
 construction de l'image `waterfall` ; `azure.archive.ubuntu.com` pour le client PostgreSQL qu'installait

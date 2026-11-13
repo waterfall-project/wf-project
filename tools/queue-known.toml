@@ -393,6 +393,7 @@ cause = "établie : la construction des images `api` et `worker` télécharge la
 class = "infrastructure"
 family = "apt, deb.debian.org et apt.postgresql.org"
 issue = "#3015"
+job = "^(?:service|e2e|images) / "
 message = '''Failed to fetch https?://(?:deb\.debian\.org|apt\.postgresql\.org)/'''
 frequency = "aucun passage relevé du 2026-11-05 au 2026-11-12 ; source nommée par #3015"
 cause = "hypothèse : la construction d'une image tire apt faute de cache de couches, et la source ne répond pas ; dépendance absente de l'inventaire d'US-1900"

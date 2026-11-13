@@ -3670,10 +3670,10 @@ Règles des workflows :
   d'ignorance : l'auteur ferme sa pull request tant que `typescript-eslint` ne la tient pas.
 - Dependabot ne suit pas, et l'auteur relève à la main, à la pull request mensuelle de
   Dependabot : `REDOCLY_VERSION` et `PRISM_VERSION` du `Makefile`, `packageManager` du front,
-  l'uv et le client PostgreSQL de l'image `waterfall` (et sa clé, `backend/pgdg.asc`), les runners et le pandoc de la chaîne,
-  et `maven.compiler.release` du `pom.xml` de l'extension, qui reste à 21 exprès (le Java de
-  l'image de Keycloak, pas le JDK de construction) : il se relève quand cette image change de
-  Java.
+  l'uv et le client PostgreSQL de l'image `waterfall` (et sa clé, `backend/pgdg.asc`), les
+  runners et le pandoc de la chaîne, et `maven.compiler.release` du `pom.xml` de l'extension,
+  qui reste à 21 exprès (le Java de l'image de Keycloak, pas le JDK de construction) : il se
+  relève quand cette image change de Java.
 
 _Contrôle_ : `make lint-workflows` (actionlint) ; l'épinglage et les permissions, la revue.
 

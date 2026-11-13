@@ -3641,10 +3641,10 @@ Rules of the workflows:
   pull request as long as `typescript-eslint` does not support it.
 - Dependabot does not follow, and the author bumps by hand, at Dependabot's monthly pull
   request: `REDOCLY_VERSION` and `PRISM_VERSION` of the `Makefile`, the front's
-  `packageManager`, the uv and the PostgreSQL client of the `waterfall` image (and its key, `backend/pgdg.asc`), the runners
-  and the pandoc of the chain, and `maven.compiler.release` of the extension's `pom.xml`,
-  which stays at 21 on purpose (the Java of the Keycloak image, not the build JDK): it is
-  bumped when that image changes Java.
+  `packageManager`, the uv and the PostgreSQL client of the `waterfall` image (and its key,
+  `backend/pgdg.asc`), the runners and the pandoc of the chain, and `maven.compiler.release`
+  of the extension's `pom.xml`, which stays at 21 on purpose (the Java of the Keycloak image,
+  not the build JDK): it is bumped when that image changes Java.
 
 _Check_: `make lint-workflows` (actionlint); the pinning and the permissions, the review.
 
