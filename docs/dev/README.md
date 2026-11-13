@@ -3695,18 +3695,17 @@ _Check_: `make reuse` fails on a file covered neither by a header nor by
 
 ## Repository tools
 
-The tools live in `tools/`, in Python, with their tests (`make test-tools`, which needs Docker:
-the test of the service Compose runs `docker compose config` and fails without it). It runs under a ceiling of
-memory, `TOOLS_MEMORY` (24G by default): under a user systemd the kernel kills the run that passes
-it, not the session; without a user systemd (a runner of the chain) there is no ceiling. The tests of
-the entrypoint of the directory, which start its image on throwaway volumes, are left out of them
-(marker `openldap`): `make test-openldap` runs them, and the `keycloak` family, which
-`deploy/openldap` wakes, tries them. Every tool
-that needs the requirements reads them through `wftools.projection`, which reads the projection
-`docs/spec/waterfall-spec.md`: one single reader, so that two tools cannot
-diverge on what a requirement says. It compares the texts after normalisation — apostrophes
-and typographic spaces made plain —, and splits a Vérif into sentences. The example of
-§1.3.1, `WF-EXA-0010-A`, is not a requirement of the product: the tools exclude it.
+The tools live in `tools/`, in Python, with their tests (`make test-tools`, which needs Docker: the
+test of the service Compose runs `docker compose config` and fails without it). It runs under a
+ceiling of memory, `TOOLS_MEMORY` (24G by default): under a user systemd the kernel kills the run
+that passes it, not the session; without a user systemd (a runner of the chain) there is no ceiling.
+The tests of the entrypoint of the directory, which start its image on throwaway volumes, are left
+out of them (marker `openldap`): `make test-openldap` runs them, and the `keycloak` family, which
+`deploy/openldap` wakes, tries them. Every tool that needs the requirements reads them through
+`wftools.projection`, which reads the projection `docs/spec/waterfall-spec.md`: one single reader,
+so that two tools cannot diverge on what a requirement says. It compares the texts after
+normalisation — apostrophes and typographic spaces made plain —, and splits a Vérif into sentences.
+The example of §1.3.1, `WF-EXA-0010-A`, is not a requirement of the product: the tools exclude it.
 
 _Check_: `make test-tools`.
 
@@ -4002,6 +4001,32 @@ opening included, exceeds the thirty seconds of a test, and takes `test.slow()`.
 checked is in the viewport: beyond the lines in view at opening, the path scrolls to it
 (`scrollToPosition`, `frontend/e2e/scroll.ts`) rather than counting on the margin the grid renders
 around the viewport.
+
+**A slow path** — one that exceeds its bound in the chain with no regression behind it — is dealt
+with in three degrees, in this order (US-1890). First, the cause is measured in the chain, under the
+load of the queue, never on a workstation alone: the path writes to its log and in an annotation the
+duration of each step of what it waits for, and the log of the service says the rest
+(`make service-logs`, poured into the job when a path fails). Then:
+
+1. **correct the read**, or the write, that the measurement points to, in the back or in the front:
+   #2924 brought `getRemainingIndicators` down from 2,845 queries to 58; the creation of a project by
+   two workers at once ended in a 500 on a PostgreSQL deadlock between the creations of partitions
+   (`create_project_partitions`), and the path waited fifteen seconds for an address that never came
+   (family A of EP-24, seventeen runs of the queue from November 8 to 11, all without migration
+   `0026` of US-1560/L3, which puts them one after the other; none since);
+2. **otherwise, isolate the path** — an account, a project, a setting of its own, what it does not
+   test prepared through the API under a token (`inscribe`, `employRole` of `own-project.ts`) —,
+   **or serialise it**: `@serial`, played by the project `shared-serial`, when it writes an object
+   unique to the installation;
+3. **widen a wait only as a last resort**, the measurement in the comment that widens it — the run of
+   the chain, the durations recorded —, and `test.slow()` likewise.
+
+`createOwnProject` (`frontend/e2e/own-project.ts`) is the example: each creation writes to the log
+"Own project created", the home, the dialog, then, from "Créer", the server action asked and
+answered, the screen of the project asked, answered and finished, and the address reached; missed,
+what the dialog shows. Over the 52 creations of the full run 43386149437, the whole creation takes
+2.2 s in the median and 5.8 s at most, the address 0.7 s after "Créer", and the API answers `POST
+/projects` in 0.24 s in the median, 1.9 s at most: nothing there justifies widening `WORKING`.
 
 `make e2e`: Redocly and Prism are development dependencies of the front, at an exact version
 (`frontend/package.json`, locked by `pnpm-lock.yaml`): `make install-front`, which the target plays

@@ -3725,18 +3725,17 @@ _Contrôle_ : `make reuse` échoue sur un fichier couvert ni par un en-tête ni 
 ## Outils du dépôt
 
 Les outils vivent dans `tools/`, en Python, avec leurs tests (`make test-tools`, qui exige Docker :
-le test du Compose de service lance `docker compose config` et échoue sans lui). Il tourne sous un plafond de
-mémoire, `TOOLS_MEMORY` (24G par défaut) : sous systemd utilisateur, le noyau tue le run qui le
-dépasse, non la session ; sans systemd utilisateur (un runner de la chaîne), il n'y a pas de
-plafond. Les tests de
-l'entrypoint de l'annuaire, qui démarrent son image sur des volumes jetables, en sont écartés
-(marqueur `openldap`) : `make test-openldap` les lance, et la famille `keycloak`, que
-`deploy/openldap` réveille, les éprouve. Tout outil
-qui a besoin des exigences les lit par `wftools.projection`, qui lit la projection
-`docs/spec/waterfall-spec.md` : un seul lecteur, pour que deux outils ne puissent pas
-diverger sur ce qu'une exigence dit. Il compare les textes après normalisation — apostrophes
-et espaces typographiques rendus simples —, et découpe un Vérif en phrases. L'exemple du
-§1.3.1, `WF-EXA-0010-A`, n'est pas une exigence du produit : les outils l'excluent.
+le test du Compose de service lance `docker compose config` et échoue sans lui). Il tourne sous un
+plafond de mémoire, `TOOLS_MEMORY` (24G par défaut) : sous systemd utilisateur, le noyau tue le run
+qui le dépasse, non la session ; sans systemd utilisateur (un runner de la chaîne), il n'y a pas de
+plafond. Les tests de l'entrypoint de l'annuaire, qui démarrent son image sur des volumes jetables,
+en sont écartés (marqueur `openldap`) : `make test-openldap` les lance, et la famille `keycloak`,
+que `deploy/openldap` réveille, les éprouve. Tout outil qui a besoin des exigences les lit par
+`wftools.projection`, qui lit la projection `docs/spec/waterfall-spec.md` : un seul lecteur, pour
+que deux outils ne puissent pas diverger sur ce qu'une exigence dit. Il compare les textes après
+normalisation — apostrophes et espaces typographiques rendus simples —, et découpe un Vérif en
+phrases. L'exemple du §1.3.1, `WF-EXA-0010-A`, n'est pas une exigence du produit : les outils
+l'excluent.
 
 _Contrôle_ : `make test-tools`.
 
@@ -4035,6 +4034,32 @@ comprise, dépasse les trente secondes d'un test, et prend `test.slow()`. Une li
 vérifiée est dans la fenêtre : au-delà des lignes en vue à l'ouverture, le parcours défile jusqu'à
 elle (`scrollToPosition`, `frontend/e2e/scroll.ts`) plutôt que de compter sur la marge que la grille
 rend autour de la fenêtre.
+
+**Un parcours lent** — qui dépasse sa borne dans la chaîne sans régression derrière — se traite en
+trois degrés, dans cet ordre (US-1890). D'abord, la cause se mesure dans la chaîne, sous la charge de
+la file, jamais sur un poste seul : le parcours écrit à son journal et en annotation la durée de
+chaque étape de ce qu'il attend, et le journal du service dit le reste (`make service-logs`, versé au
+job quand un parcours échoue). Puis :
+
+1. **corriger la lecture**, ou l'écriture, que la mesure désigne, au back ou au front : #2924 a
+   ramené `getRemainingIndicators` de 2 845 requêtes à 58 ; la création d'un projet par deux workers
+   à la fois finissait en 500 sur un verrou mortel de PostgreSQL entre les créations de partitions
+   (`create_project_partitions`), et le parcours attendait quinze secondes une adresse qui ne venait
+   jamais (famille A d'EP-24, dix-sept passages de la file du 8 au 11 novembre, tous sans la
+   migration `0026` d'US-1560/L3, qui les met l'une après l'autre ; aucun depuis) ;
+2. **sinon, isoler le parcours** — un compte, un projet, un réglage à lui, ce qu'il n'éprouve pas
+   préparé par l'API sous jeton (`inscribe`, `employRole` d'`own-project.ts`) —, **ou le
+   sérialiser** : `@serial`, joué par le projet `shared-serial`, quand il écrit un objet unique de
+   l'installation ;
+3. **n'élargir une attente qu'en dernier recours**, la mesure dans le commentaire qui l'élargit — le
+   passage de la chaîne, les durées relevées —, et `test.slow()` de même.
+
+`createOwnProject` (`frontend/e2e/own-project.ts`) en est l'exemple : chaque création écrit au
+journal « Own project created », l'accueil, la boîte, puis, depuis « Créer », l'action serveur
+demandée et répondue, l'écran du projet demandé, répondu et fini, et l'adresse atteinte ; manquée,
+ce que la boîte affiche. Sur les 52 créations du passage complet 43386149437, la création entière
+prend 2,2 s en médiane et 5,8 s au plus, l'adresse 0,7 s après « Créer », et l'API répond `POST
+/projects` en 0,24 s en médiane, 1,9 s au plus : rien n'y justifie d'élargir `WORKING`.
 
 `make e2e` : Redocly et Prism sont des dépendances de développement du front, à version exacte
 (`frontend/package.json`, verrouillées par `pnpm-lock.yaml`) : `make install-front`, que la cible

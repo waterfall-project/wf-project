@@ -114,4 +114,21 @@ jobs:
           E2E_IMAGE: ${{ inputs.image }}
       # What the platform said, when a path failed or the platform did not start.
       - if: failure()
-        run: make service-logs SERVICES="api worker restore keycloak keycloak-front-end contract-proxy"
+        run: >-
+          make service-logs
+          SERVICES="api worker restore keycloak keycloak-front-end contract-proxy"
+      # What the server said of its locks (#3005): the restoration is one transaction of pg_restore
+      # that locks every table, partition and index; the service `restore`, journaled above, says
+      # the errors of pg_restore, not a wait. Only the lines that name a lock or the memory of the
+      # locks are printed, not the whole journal, whose statements quote the rows it holds.
+      # "(none)" rules out the memory of the locks (`out of shared memory`,
+      # `max_locks_per_transaction`) and the deadlocks; not a plain wait for a lock, which
+      # PostgreSQL does not log here (`log_lock_waits` is off): `could not obtain lock` only
+      # exists under `lock_timeout` or NOWAIT. The journal is written to a file first, so that a
+      # journal not read fails the step instead of reading as "(none)".
+      - if: failure()
+        run: |
+          make service-logs SERVICES=postgres > "$RUNNER_TEMP/postgres.log"
+          echo "PostgreSQL, lines that name its locks:"
+          grep -E 'shared memory|max_locks_per_transaction|deadlock|could not obtain lock' \
+            "$RUNNER_TEMP/postgres.log" || echo "(none)"
