@@ -51,16 +51,24 @@ PNPM    := cd $(FRONT) && $(PNPM_ENV) pnpm
 PNPM_HEAVY = cd $(FRONT) && $(heavy) $(PNPM_ENV) WATERFALL_PROCESSORS=$(WATERFALL_PROCESSORS) pnpm
 # pnpm for the unit tests of the front, which have the Redis of the slot of the worktree (TESTING_FRONT).
 PNPM_TESTING = cd $(FRONT) && $(TESTING_FRONT) $(PNPM_ENV) WATERFALL_PROCESSORS=$(WATERFALL_PROCESSORS) pnpm
-# Pinned so that a check passes or fails on what this repository contains, never on
-# what a tool released overnight. Raise a version here and nowhere else.
-REDOCLY_VERSION := 2.73.0
-PRISM_VERSION   := 5.16.0
-REDOCLY := npx --yes @redocly/cli@$(REDOCLY_VERSION)
-PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
+# Pinned so that a check passes or fails on what this repository contains, never on what a tool
+# released overnight: Redocly and Prism are exact development dependencies of the front, locked
+# by frontend/pnpm-lock.yaml and read from the store of pnpm that `make install-front` fills, never
+# downloaded by `npx` from the registry of npm at each run (#2913). Raise a version in
+# frontend/package.json and nowhere else; the Makefile reads it from there (Compose names Prism's).
+PRISM_VERSION := $(shell sed -n 's/^ *"@stoplight\/prism-cli": *"\([^"]*\)".*/\1/p' $(FRONT)/package.json)
+REDOCLY := $(abspath $(FRONT))/node_modules/.bin/redocly
+PRISM   := $(abspath $(FRONT))/node_modules/.bin/prism
+# What the recipes that run them need first: the installation of the front, unless it is newer than
+# the lock file and package.json (the witness is the file pnpm keeps in node_modules, which
+# `make install-front` touches too). A raised version installs again; the fake back, started by
+# several processes of the harness, does not install at once when `make e2e` has installed before.
+FRONT_WITNESS := $(FRONT)/node_modules/.modules.yaml
+FRONT_TOOLS = $(FRONT_WITNESS)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
-	mock-tools mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-purge service-logs service-down migrate \
+	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-purge service-logs service-down migrate \
 	build-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	production-trial check-production \
 	test-tools test-openldap lint-tools typecheck-tools sources fixtures check-fixtures requirements \
@@ -160,7 +168,7 @@ build-doc: ## Regenerate the Markdown projection from Word and draw.io
 build-doc-strict: ## Same, but fail on any warning (for CI)
 	@$(SPEC)/build.sh --strict
 
-lint-openapi: ## Check the interface contract
+lint-openapi: $(FRONT_TOOLS) ## Check the interface contract
 	@cd $(API) && $(REDOCLY) lint openapi.yaml
 
 build-openapi: lint-openapi ## Check, then bundle the contract into a single file
@@ -172,13 +180,6 @@ inventory: ## Regenerate the endpoint inventory and the requirement coverage
 
 allocate-pbs: ## Write the PBS field of every requirement into the Word document
 	@python3 $(SPEC)/tools/allocate_pbs.py
-
-# The pinned tools of the fake back, fetched once before the harness starts it: left to `npx` at
-# the first `make mock`, their installation counted in the 120 s Playwright gives the fake back
-# (`webServer`), which a slow network used up in the chain (#1901).
-mock-tools: ## Fetch the pinned Redocly and Prism into the cache of npx, so that the fake back starts at once
-	@$(REDOCLY) --version >/dev/null
-	@$(PRISM) --version >/dev/null
 
 mock-spec: lint-openapi ## Derive from the contract the variant the fake back serves
 	@mkdir -p $(dir $(MOCK_SPEC))
@@ -204,7 +205,7 @@ dev-down: ## Stop the development platform
 # stealing, as a few tests of the witness take minutes each and would otherwise wait behind a
 # worker's queue: on four cores, eleven minutes become under five. A heavy run, which takes its
 # share of the processors, unless it selects a single file (TESTS).
-test-tools: ## Run the tests of the repository tools (TESTS=<file> runs one file)
+test-tools: install-front ## Run the tests of the repository tools (TESTS=<file> runs one file); one of them bundles the contract with the Redocly of the front
 	@cd $(TOOLS) && $(capped) $(heavy) uv run --frozen pytest -n $(WATERFALL_PROCESSORS) --dist worksteal $(TESTS)
 
 # The entrypoint of the directory, tried in Docker on throwaway volumes: a minute of starts that the
@@ -477,6 +478,11 @@ check-front-e2e: $(call full-only,e2e-browsers e2e prerendered-front) ## The end
 
 install-front: ## Install the dependencies of the front, as the lock file says
 	@$(PNPM) install --frozen-lockfile --silent
+	@test ! -d $(FRONT)/node_modules || touch $(FRONT_WITNESS)
+
+$(FRONT_WITNESS): $(FRONT)/pnpm-lock.yaml $(FRONT)/package.json
+	@$(PNPM) install --frozen-lockfile --silent
+	@touch $@
 
 generate-client: build-openapi install-front ## Regenerate the API client of the front from the contract
 	@$(PNPM) exec openapi-typescript ../$(BUNDLE) -o src/api/generated/schema.d.ts --silent
@@ -516,7 +522,7 @@ typecheck-front: install-front ## Strict type check of the front
 	@$(PNPM) typecheck
 
 # The contract is bundled here, never read from a bundle left on the disk by an older run.
-catalogs: ## The catalogues of the front are twins, with a key for each value the contract codes (WF-QUA-0070)
+catalogs: $(FRONT_TOOLS) ## The catalogues of the front are twins, with a key for each value the contract codes (WF-QUA-0070)
 	@cd $(API) && $(REDOCLY) bundle openapi.yaml --ext json -o $(notdir $(JSON_BUNDLE)) >/dev/null
 	@$(WFTOOLS).catalogs $(JSON_BUNDLE) $(FRONT)/messages/fr.json $(FRONT)/messages/en.json
 
@@ -612,7 +618,7 @@ e2e-build = $(if $(filter 1,$(E2E_BUILT) $(1)),,build-front)
 e2e: export E2E_PART = $(if $(SHARD),paths)
 e2e: export E2E_BUILT = 1
 e2e: export E2E_WORKERS = $(WORKERS)
-e2e: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths, against the fake back that Playwright starts (US-0080), on the front built for production; SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n (1 to 40, by default half the processors, at most 40) plays them on n workers; TESTS=<file> plays one file (not with SHARD); E2E_DEV_SERVER=1 plays them against next dev, on a workstation
+e2e: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths, against the fake back that Playwright starts (US-0080), on the front built for production; SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n (1 to 40, by default half the processors, at most 40) plays them on n workers; TESTS=<file> plays one file (not with SHARD); E2E_DEV_SERVER=1 plays them against next dev, on a workstation
 	@$(if $(and $(SHARD),$(TESTS)),$(error SHARD and TESTS do not combine: the file may be in another part))$(if $(SHARD),dir=$$(mktemp -d) && trap 'rm -rf "$$dir"' EXIT && ( $(PNPM) exec playwright test --list > "$$dir/listing" ) && $(WFTOOLS).e2eparts plan $(SHARD) < "$$dir/listing" > "$$dir/part" && )$(PNPM_HEAVY) exec playwright test $(if $(SHARD),--test-list="$$dir/part") $(TESTS)
 
 # Rewrite tools/e2e-durations.json, the seconds each unit of the paths took, from the log of a run
@@ -623,7 +629,7 @@ e2e-durations: ## Refresh the durations the parts of the end-to-end paths are sp
 
 e2e-measure: export E2E_PART = measure
 e2e-measure: export E2E_BUILT = 1
-e2e-measure: install-front mock-tools $(call e2e-build) ## The measure of the second of §4.6.2 alone, against the front built for production (US-0110)
+e2e-measure: install-front $(call e2e-build) ## The measure of the second of §4.6.2 alone, against the front built for production (US-0110)
 	@$(PNPM_HEAVY) exec playwright test
 
 # The paths of the Playwright project `service` (frontend/e2e/service/), against the real service:
@@ -662,7 +668,7 @@ e2e-service: export E2E_PART = service
 e2e-service: export WATERFALL_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-service: export E2E_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-service: export E2E_BUILT = 1
-e2e-service: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths of the project `service` against the real service, through Prism as a proxy, on the front built for production (needs the secrets of service-up and a browser, make e2e-browsers); TESTS=<arguments of playwright test>: a file alone also plays installation and, with a @realm-wide or @platform-wide path, the projects its own depends on; TESTS="--no-deps --project=shared --project=realm <files>" plays only the files, on an installation already played
+e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths of the project `service` against the real service, through Prism as a proxy, on the front built for production (needs the secrets of service-up and a browser, make e2e-browsers); TESTS=<arguments of playwright test>: a file alone also plays installation and, with a @realm-wide or @platform-wide path, the projects its own depends on; TESTS="--no-deps --project=shared --project=realm <files>" plays only the files, on an installation already played
 	@$(MAKE) --no-print-directory mock-spec MOCK_SPEC=$(PROXY_SPEC)
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) up --detach --wait contract-proxy

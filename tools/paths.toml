@@ -87,6 +87,9 @@ paths = [
     "backend/pyproject.toml",
     "backend/uv.lock",
     ".github/workflows/contract.yml",
+    # Redocly, which lints and bundles the contract, is a development dependency of the front.
+    "frontend/package.json",
+    "frontend/pnpm-lock.yaml",
     # The volumes and the readings of the witness (make mock-data), and the projection the
     # inventory reads.
     "tools/src/wftools/mock*.py",
