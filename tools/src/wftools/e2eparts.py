@@ -33,6 +33,8 @@ DURATIONS = REPOSITORY / "tools" / "e2e-durations.json"
 FRONT = REPOSITORY / "frontend"
 UNKNOWN = 5.0
 """The seconds a unit weighs when the durations know no unit of its kind at all."""
+MINIMUM_WEIGHT = 0.1
+"""The least seconds a unit weighs, so that a unit measured at 0 s still loads its part."""
 SEPARATOR = " \u203a "
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 HEAD = r"\[[^\]]+\] \u203a (?:e2e/)?(?P<file>[^:\s]+\.spec\.ts):\d+:\d+ \u203a (?P<title>.*?)"
@@ -95,7 +97,10 @@ def spread(units: list[str], durations: dict[str, float], count: int) -> list[li
             if name in durations and (SEPARATOR in name) is per_test
         ]
         means[per_test] = sum(known) / len(known) if known else UNKNOWN
-    weight = {name: durations.get(name, means[SEPARATOR in name]) for name in units}
+    # a floor keeps a unit measured at 0 s from leaving the part it joins the lightest
+    weight = {
+        name: max(durations.get(name, means[SEPARATOR in name]), MINIMUM_WEIGHT) for name in units
+    }
     parts: list[list[str]] = [[] for _ in range(count)]
     loads = [0.0] * count
     for name in sorted(units, key=lambda name: (-weight[name], name)):
@@ -135,7 +140,11 @@ def plan(
     if count > len(units):
         message = f"{count} parts for {len(units)} units: a part would be empty"
         raise ValueError(message)
-    return spread(units, durations, count)[index - 1]
+    parts = spread(units, durations, count)
+    if not all(parts):
+        message = f"a part of the {count} would be empty: the units are badly spread"
+        raise ValueError(message)
+    return parts[index - 1]
 
 
 def measure(log: str, parallel: Callable[[str], bool]) -> dict[str, float]:

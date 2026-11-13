@@ -180,3 +180,11 @@ def test_the_versioned_durations_are_those_of_the_paths_of_the_repository() -> N
     assert durations
     assert all(seconds >= 0 for seconds in durations.values())
     assert not [unit for unit in durations if unit.startswith(("e2e/", "service/"))]
+
+
+def test_units_measured_at_zero_still_fill_every_part() -> None:
+    names = ["a", "b", "c"]
+    for durations in ({"a": 0.0, "b": 0.0, "c": 0.0}, {"a": 5.0, "b": 0.0, "c": 0.0}):
+        assert all(e2eparts.spread(names, durations, 3))
+    zero: dict[str, float] = dict.fromkeys(["admin.spec.ts", "grid.spec.ts", "map.spec.ts"], 0.0)
+    assert all(e2eparts.plan(f"{i}/3", LISTING, zero, parallel) for i in (1, 2, 3))
