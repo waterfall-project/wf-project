@@ -3,7 +3,6 @@
 
 import {
   type APIRequestContext,
-  type Download,
   expect,
   type Locator,
   type Page,
@@ -15,6 +14,7 @@ import catalogue from "../messages/fr.json" with { type: "json" };
 import type { components } from "../src/api/generated/schema";
 import type { Answer } from "./answer";
 import { compile } from "./compile";
+import { downloaded } from "./download";
 import { seedEstimate } from "./estimate-seed";
 import { openHydrated, WORKING } from "./hydration";
 import { takeInProgress } from "./in-progress";
@@ -546,7 +546,9 @@ test("exports the remaining to commit as an Excel file, imports it back in two s
   await report.getByRole("button", { name: "Appliquer l’import" }).click();
   const confirmation = report.getByRole("form", { name: "Confirmation de l’application" });
   await confirmation.getByRole("button", { name: "Confirmer l’application" }).click();
-  await expect(confirmation).toHaveCount(0);
+  // The form goes at the return of the server action of the confirmation, which a loaded runner can
+  // hold past the default timeout (#3003).
+  await expect(confirmation).toHaveCount(0, { timeout: WORKING });
   await held;
   await page
     .getByRole("navigation", { name: "Fonctions" })
@@ -574,15 +576,3 @@ test("exports the remaining to commit as an Excel file, imports it back in two s
     expect(((await applied.json()) as Schemas["ImportDetail"]).status).toBe("applied");
   }).toPass({ timeout: WORKING });
 });
-
-/**
- * The bytes of a download, read through Playwright: the chain plays the browser in the work image
- * of the paths (US-1900), where the file it saved has no path the runner can read.
- */
-async function downloaded(download: Download): Promise<Buffer> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of await download.createReadStream()) {
-    chunks.push(chunk as Buffer);
-  }
-  return Buffer.concat(chunks);
-}
