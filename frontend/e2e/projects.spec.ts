@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { closeMenu, menuButton, openMenu, pick } from "./check-menu";
+import { closeMenu, menuButton, openFilters, openMenu, pick } from "./check-menu";
 import { expect, type Locator, type Page } from "@playwright/test";
 
 import { compile } from "./compile";
@@ -76,6 +76,7 @@ async function restoreHome(
     return;
   }
   await page.goto("/");
+  await openFilters(page);
   await expect(menuButton(page, "Filtre par état")).toBeVisible({ timeout: WORKING });
   await pick(page, "Filtre par état", "Tous les états");
   await pick(page, "Filtre par état", "Créé");
@@ -173,9 +174,10 @@ test("the home sorts its projects and filters them by state on the server, from 
     );
     // The filter by default is said, Créé, Chiffrage and En cours pressed (US-0660/L4, #1401;
     // US-1030, #1748).
-    await expect(
-      page.getByRole("region", { name: "Filtre par défaut de la liste par état" }),
-    ).toBeVisible();
+    await expect(page.getByRole("list", { name: "Filtres actifs" })).toContainText(
+      "Créé, Chiffrage, En cours (par défaut)",
+    );
+    await openFilters(page);
     const states = await openMenu(page, "Filtre par état");
     await expect(states.getByRole("checkbox", { name: "Créé", exact: true })).toBeChecked();
     await expect(states.getByRole("checkbox", { name: "Chiffrage", exact: true })).toBeChecked();
@@ -212,6 +214,7 @@ test("the home filters its projects by the period of their last modification on 
       list,
       "/?sort_by=code&sort_order=asc",
     );
+    await openFilters(page);
     const period = page.getByRole("form", { name: "Période de modification" });
     await period.getByLabel("Du").fill("2026-03-01");
     const apply = period.getByLabel("Au");
@@ -416,6 +419,7 @@ test("the settings of a project search the sub-projects, filter the contributors
   await expect(page).toHaveURL(`${PROJECT}/settings?breakdown_search=Armoires`, {
     timeout: WORKING,
   });
+  await openFilters(page, main.getByRole("region", { name: "Lotissement" }));
   await pick(page, "Filtrer par nature", "Lot");
   await expect(page).toHaveURL(
     `${PROJECT}/settings?breakdown_search=Armoires&breakdown_kinds=work_package`,
@@ -429,6 +433,7 @@ test("the settings of a project search the sub-projects, filter the contributors
   // Back to the whole screen, for the filters of the other grids.
   await openHydrated(page, `${PROJECT}/settings`);
 
+  await openFilters(page, main.getByRole("region", { name: "Contributeurs" }));
   await pick(page, "Filtrer par qualité", "Chef de projet");
   await expect(page).toHaveURL(`${PROJECT}/settings?contributor_kinds=project_manager`, {
     timeout: WORKING,
@@ -458,6 +463,7 @@ test("the settings of a project sort the sub-projects and the contributors, sear
     subprojects,
     `${PROJECT}/settings?subproject_sort_by=label&subproject_sort_order=asc`,
   );
+  await openFilters(page, main.getByRole("region", { name: "Sous-projets" }));
   const charged = main.getByRole("combobox", { name: "Coûts réels" });
   await charged.selectOption({ label: "Avec coûts réels imputés" });
   await expect(charged).toHaveValue("true");
@@ -471,6 +477,7 @@ test("the settings of a project sort the sub-projects and the contributors, sear
     contributors,
     `${PROJECT}/settings?subproject_sort_by=label&subproject_sort_order=asc&subproject_has_actual_costs=true&contributor_sort_by=kind&contributor_sort_order=asc`,
   );
+  await openFilters(page, main.getByRole("region", { name: "Contributeurs" }));
   const account = main.getByRole("combobox", { name: "État du compte" });
   await account.selectOption({ label: "Comptes actifs" });
   await expect(account).toHaveValue("true");

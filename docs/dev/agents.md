@@ -54,6 +54,10 @@ Ses règles sont dans le skill `pilote` (`.claude/skills/pilote/SKILL.md`). En b
   worktrees dans son dépôt, dépôt principal compris. Un livreur sans créneau rend la main sans
   rien faire, avec le relevé « aucun créneau libre », que le pilote traite comme une limite
   d'usage.
+- **Jamais sous `/tmp`.** Un worktree ne se tire jamais sous `/tmp`, scratchpad compris : son
+  tmpfs a manqué d'inodes le 2026-11-12 sous les `node_modules` de worktrees tirés dans des
+  scratchpads. Le pilote les tire sous le dépôt (`.claude/worktrees/`) ; aucun outil ne le
+  contrôle.
 - **« Pas avec ».** Le pilote ne lance jamais un lot dont un lot « pas avec » est commencé et
   non fusionné (`en cours`, `en revue`, `question`, `bloqué`), même quand leurs dépendances le
   permettent : le cadreur marque ainsi deux lots qu'aucune dépendance ne sépare et qui

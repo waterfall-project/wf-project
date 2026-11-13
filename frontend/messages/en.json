@@ -359,6 +359,7 @@
     "filtering": {
       "barHelp": "Filters the grid on: {label}. Choice: {value}.",
       "open": "{count, plural, =0 {Filters} other {Filters ({count})}}",
+      "count": "({count})",
       "panel": "Filters",
       "active": "Active filters",
       "chip": "{name}: {value}",
@@ -367,6 +368,15 @@
       "between": "from {from} to {to}",
       "since": "since {from}",
       "until": "until {to}",
+      "boundsBetween": "from {min} to {max}",
+      "atLeast": "at least {min}",
+      "atMost": "at most {max}",
+      "projectUnknown": "A project",
+      "objectUnknown": "An object",
+      "nodeUnknown": "A node",
+      "categoryUnknown": "A category",
+      "calendarUnknown": "A calendar",
+      "costTypeUnknown": "A cost type",
       "authorUnknown": "An account",
       "selected": "{count, plural, one {# selected} other {# selected}}",
       "search": "Search in “{label}”",
@@ -538,6 +548,7 @@
     "filters": {
       "toggle": "Column filters",
       "zone": "Filter by zone",
+      "zoneChip": "Matrix zone",
       "everyZone": "Every zone",
       "probabilityBounds": "Bounds of the probability, from 0 to 1",
       "amountBounds": "Bounds of the amounts",
@@ -725,6 +736,7 @@
     "projects": {
       "retained": "{count, plural, =0 {No project retained} one {# project retained} other {# projects retained}}",
       "reason": " — {reason}",
+      "zoneChip": "Index zone",
       "zones": "Filter by zone of the indices",
       "everyZone": "Every zone"
     },
@@ -2058,8 +2070,7 @@
       "apply": "Show only my projects",
       "states": "Filter by state",
       "everyState": "Every state",
-      "defaultLabel": "Default filter of the list by state",
-      "defaultStates": "By default:",
+      "defaultChip": "{states} (by default)",
       "period": "Modification period"
     },
     "periodRefused": "The list is not read: the server refuses the period asked."
@@ -2458,6 +2469,7 @@
       },
       "bounds": {
         "year": "Year of the rate",
+        "chip": "Hourly rate {year}",
         "rate": "Hourly rate"
       }
     },
@@ -2906,7 +2918,6 @@
         "then": "{first}; {second}"
       },
       "filters": {
-        "label": "Filters of the log",
         "period": "Period",
         "from": "From",
         "to": "Before",
@@ -2914,16 +2925,13 @@
         "everyActor": "Every author",
         "user": "Author",
         "everyUser": "Every account",
+        "actions": "Action",
+        "actorChip": "Author kind",
         "everyAction": "Every action",
-        "actionsChosen": "{count, plural, one {# action} other {# actions}}",
-        "actionsNamed": "Filter by action: {chosen}",
         "project": "Project",
         "everyProject": "Every project",
         "objectKind": "Kind of object",
         "everyObjectKind": "Every kind",
-        "object": "Object: {object}",
-        "lift": "Lift",
-        "liftObject": "Lift the filter on “{object}”",
         "correlation": "Correlation",
         "correlationForm": "Letters, digits, “.”, “_”, “-”; 64 at most."
       }

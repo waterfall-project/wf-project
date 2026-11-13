@@ -3182,6 +3182,11 @@ images : deux livreurs jouent ensemble les parcours de bout en bout, les tests d
 parcours contre le service sans se heurter. Le dépôt principal, comme chaque runner de la chaîne,
 est au créneau 0 : ses ports et ses noms sont ceux d'avant les créneaux.
 
+**Un worktree ne se tire jamais sous `/tmp`** (#2953). Le tmpfs de `/tmp` a manqué d'inodes le
+2026-11-12 sous les `node_modules` de worktrees tirés dans des scratchpads : un worktree se tire
+sous le dépôt (`.claude/worktrees/`) ou ailleurs sur le disque, jamais dans `/tmp` ni dans un
+scratchpad. Aucun outil ne le contrôle : `make slot` et `make slots` ne comptent pas les inodes.
+
 | Commande            | Ce qu'elle fait                                                                                                                                                                                                                                                                                                                           |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `make slot`         | prend pour le worktree où elle est lancée le premier créneau libre de 1 à N, ou dit le sien ; si N sont pris, elle échoue, porteurs nommés ; dans le dépôt principal (son `.git` est un répertoire), elle dit le créneau 0, sans en prendre                                                                                               |
@@ -4013,7 +4018,13 @@ chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les 
 (`E2E_WORKERS`, que lit `playwright.config.ts` ; un entier de 1 à 40, rien d'autre : un front par
 worker, et le bloc d'un créneau n'en porte que quarante), moins que Playwright n'en prend de
 lui-même — la moitié des processeurs, plafonnée à quarante — sur un poste chargé, où
-des parcours échouent par délai (#736). Avec `WATERFALL_API_ADDRESS`, le harnais joue
+des parcours échouent par délai (#736). `make e2e-service` a son défaut à lui (#2890) : les trois
+quarts de `WATERFALL_PROCESSORS`, la part de processeurs du créneau, au moins 1 et au plus 40 — 6 sur
+8 processeurs —, et non la moitié des processeurs du poste, 16 sur 32, où 18 à 23 parcours échouaient
+à naviguer (`toHaveURL`) ; mesuré à 8, 10 et 12 workers sur 8 processeurs, quatre créneaux pris,
+ils échouaient encore à naviguer, à 6 aucun échec de navigation sur deux passages. `WORKERS=<n>` ne vaut
+que pour `make e2e` ; `make e2e-service` prend `E2E_WORKERS=<n>`, dans l'environnement ou sur la
+ligne de commande, qui l'emporte (vide, il est ignoré). Avec `WATERFALL_API_ADDRESS`, le harnais joue
 contre l'API qu'elle nomme et ne démarre aucun faux back.
 
 **Les parcours se jouent contre le front construit pour la production** (US-0590), celui

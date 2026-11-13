@@ -24,6 +24,7 @@ import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import type { NodeChoice } from "@/components/reference/reference-filters";
 
+import { useAccessRoleChips } from "./role-chips";
 import { useRoleAnswers } from "./role-answers";
 import {
   type AccessRole,
@@ -37,6 +38,7 @@ import {
 } from "./admin-grids";
 import { newer, useUserWrites } from "./user-commands";
 import { type UserFilters, useUserChips } from "./user-chips";
+import type { RoleFilters } from "./account-lists";
 
 /**
  * Render the grid of a page of the accounts, its totals row the number the server retained — its
@@ -124,14 +126,21 @@ export function AccessRoleGrid({
   query,
   preferences,
   editable,
+  filters,
+  panel,
 }: {
   readonly roles: readonly AccessRole[];
   readonly query: GridQuery<AccessRoleSort>;
   readonly preferences: GridPreferences | undefined;
   /** Whether the session may modify the access roles (`platformOffer`). */
   readonly editable: boolean;
+  /** What the address filters the roles on, told as chips under the bar. */
+  readonly filters: RoleFilters;
+  /** The filters of the screen, which the bar folds into its panel. */
+  readonly panel: ReactNode;
 }) {
   const t = useTranslations("admin.accessRoles");
+  const chips = useAccessRoleChips(filters);
   // The roles the server answered, which the renaming writes from, shared with the matrix.
   const answers = useRoleAnswers();
   const latest = answers?.latest;
@@ -161,6 +170,7 @@ export function AccessRoleGrid({
       totalsCaption={() => t("count", { count: roles.length })}
       query={query}
       preferences={preferences}
+      filtering={{ panel, chips }}
     />
   );
 }

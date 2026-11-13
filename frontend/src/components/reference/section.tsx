@@ -79,11 +79,13 @@ export function BoundsRefused() {
  * The body of a list: its filters, its grid and its pages — or, empty with nothing narrowing it, what
  * says so; its bounds refused, what stands for its grid, its filters kept —, the grid within the
  * region that tells the refusals of its commands, where its form opens too (`dialog`), on an empty
- * list as well.
+ * list as well. A list whose filters are folded into the bar of its grid (`folded`) shows them
+ * above only when the bounds were refused.
  */
 export function ListBody({
   empty,
   refused = false,
+  folded = false,
   reads,
   filters,
   grid,
@@ -94,6 +96,11 @@ export function ListBody({
   readonly empty: string | undefined;
   /** Whether the API refused the bounds of the list (422), which is then unread. */
   readonly refused?: boolean;
+  /**
+   * Whether the filters are folded into the bar of the grid (#2916): they stand above the list only
+   * where there is no grid — a list unread because its bounds were refused.
+   */
+  readonly folded?: boolean;
   /** The parameters of the address the list reads (`listReads`). */
   readonly reads: readonly string[];
   readonly filters: ReactNode;
@@ -106,7 +113,7 @@ export function ListBody({
     empty === undefined ? grid : <p className="text-sm text-muted-foreground">{empty}</p>;
   return (
     <>
-      {empty === undefined ? filters : null}
+      {empty === undefined && (!folded || refused) ? filters : null}
       <Reactivations reads={reads}>
         {refused ? <BoundsRefused /> : body}
         {dialog}

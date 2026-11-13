@@ -17,7 +17,8 @@ import { useOptimistic, useTransition } from "react";
 
 import { CheckMenu } from "@/components/grid/check-menu";
 import { ChoiceFilter } from "@/components/grid/choice-filter";
-import { PendingAddress, usePendingAddress } from "@/components/grid/pending-address";
+import { FilterFields } from "@/components/grid/filter-fields";
+import { usePendingAddress } from "@/components/grid/pending-address";
 import type { PeriodRefusals } from "@/components/grid/period";
 import { PeriodFilter } from "@/components/grid/period-filter";
 import { UNASSIGNED } from "@/navigation/context";
@@ -125,28 +126,25 @@ function SubprojectFilter({
 }
 
 /**
- * Render the filters of the actual costs, as the address asks them; the period of the documents two
- * days of planning, both included (`PeriodFilter`, `date`), an end the API refuses for preceding
- * the start said at its field, the start named.
+ * Render the filters of the actual costs, as the address asks them, in the panel of the bar of
+ * their grid (#2916); the period of the documents two days of planning, both included
+ * (`PeriodFilter`, `date`), an end the API refuses for preceding the start said at its field, the
+ * start named.
  */
-export function CostFilterBar({ filters, subproject, subprojects, refused }: CostFiltersProps) {
+export function CostFilterPanel({ filters, subproject, subprojects, refused }: CostFiltersProps) {
   const t = useTranslations("actualCosts.filters");
-  // The filters share the address last asked with the screen, or among themselves: what is typed
-  // while a period sent is on its way survives its arrival, a scope chosen meanwhile too.
   return (
-    <PendingAddress>
-      <section aria-label={t("label")} className="flex flex-wrap items-center gap-x-6 gap-y-2">
-        <ScopeFilter scope={filters.scope} />
-        <SubprojectFilter subproject={subproject} subprojects={subprojects} />
-        <PeriodFilter
-          label={t("period")}
-          kind="date"
-          period={{ from: filters.from, to: filters.to }}
-          refused={refused}
-          texts={{ from: t("from"), to: t("to") }}
-          page={COSTS_PAGE}
-        />
-      </section>
-    </PendingAddress>
+    <FilterFields>
+      <ScopeFilter scope={filters.scope} />
+      <SubprojectFilter subproject={subproject} subprojects={subprojects} />
+      <PeriodFilter
+        label={t("period")}
+        kind="date"
+        period={{ from: filters.from, to: filters.to }}
+        refused={refused}
+        texts={{ from: t("from"), to: t("to") }}
+        page={COSTS_PAGE}
+      />
+    </FilterFields>
   );
 }

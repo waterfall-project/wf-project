@@ -18,7 +18,7 @@ import { menuSummary, openMenu, pick } from "@/test/check-menu";
 import { example, fakeClient } from "@/test/fixtures";
 
 import { COSTS_LIST, IMPORTS_LIST, readCostFilters } from "./address";
-import { CostFilterBar, type SubprojectChoice } from "./cost-filters";
+import { CostFilterPanel, type SubprojectChoice } from "./cost-filters";
 import { costRow, type CostRows, type CostSortColumn, type ListPage } from "./cost-grid";
 import { CostSummary } from "./cost-totals";
 import { CostsGrid } from "./costs-grid";
@@ -302,6 +302,42 @@ describe("the totals of the actual costs", () => {
   });
 });
 
+describe("the filters of the actual costs, in the bar of the grid", () => {
+  it("tell the scope, the sub-project and the period of the documents by chips, each lifted by its parameters [WF-IHM-0130-A] (#2916)", async () => {
+    page.search = `sort_by=amount&in_tracked_scope=false&subproject_id=${COMMAND}&from=2026-04-01&to=2026-04-30`;
+    const address = new URLSearchParams(page.search);
+    const filters = readCostFilters(address);
+    render(
+      inLanguage(
+        <CostsGrid
+          costs={costsOf("actual_costs")}
+          query={NO_QUERY}
+          preferences={undefined}
+          filters={filters}
+          subproject={COMMAND}
+          subprojects={SUBPROJECTS}
+          panel={
+            <CostFilterPanel filters={filters} subproject={COMMAND} subprojects={SUBPROJECTS} />
+          }
+        />,
+      ),
+    );
+    const chips = screen.getByRole("list", { name: "Filtres actifs" });
+    expect(chips).toHaveTextContent("Périmètre suivi : Exclues");
+    expect(chips).toHaveTextContent("Sous-projet : SP-CMD — Poste de commande");
+    expect(chips).toHaveTextContent("Date de pièce : du 1 avr. 2026 au 30 avr. 2026");
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Retirer le filtre Sous-projet : SP-CMD — Poste de commande",
+      }),
+    );
+    expect(router.push).toHaveBeenLastCalledWith(
+      `${PATHNAME}?sort_by=amount&in_tracked_scope=false&from=2026-04-01&to=2026-04-30`,
+      { scroll: false },
+    );
+  });
+});
+
 describe("the filters of the actual costs", () => {
   /** Render the filters as the address asks them. */
   function renderFilters(search = "") {
@@ -309,7 +345,7 @@ describe("the filters of the actual costs", () => {
     const address = new URLSearchParams(search);
     return render(
       inLanguage(
-        <CostFilterBar
+        <CostFilterPanel
           filters={readCostFilters(address)}
           subproject={address.get("subproject_id") ?? undefined}
           subprojects={SUBPROJECTS}
@@ -350,7 +386,9 @@ describe("the filters of the actual costs", () => {
       page.search = search;
       const filters = readCostFilters(new URLSearchParams(search));
       return inLanguage(
-        <CostFilterBar filters={filters} subproject={undefined} subprojects={SUBPROJECTS} />,
+        <PendingAddress>
+          <CostFilterPanel filters={filters} subproject={undefined} subprojects={SUBPROJECTS} />
+        </PendingAddress>,
       );
     };
     const { rerender } = render(bar(""));
@@ -417,7 +455,9 @@ describe("the filters of the actual costs", () => {
       page.search = search;
       const filters = readCostFilters(new URLSearchParams(search));
       return inLanguage(
-        <CostFilterBar filters={filters} subproject={undefined} subprojects={SUBPROJECTS} />,
+        <PendingAddress>
+          <CostFilterPanel filters={filters} subproject={undefined} subprojects={SUBPROJECTS} />
+        </PendingAddress>,
       );
     };
     const { rerender } = render(bar(""));
@@ -444,7 +484,9 @@ describe("the filters of the actual costs", () => {
       page.search = search;
       const filters = readCostFilters(new URLSearchParams(search));
       return inLanguage(
-        <CostFilterBar filters={filters} subproject={undefined} subprojects={SUBPROJECTS} />,
+        <PendingAddress>
+          <CostFilterPanel filters={filters} subproject={undefined} subprojects={SUBPROJECTS} />
+        </PendingAddress>,
       );
     };
     const { rerender } = render(bar(""));
@@ -463,7 +505,9 @@ describe("the filters of the actual costs", () => {
       page.search = search;
       const filters = readCostFilters(new URLSearchParams(search));
       return inLanguage(
-        <CostFilterBar filters={filters} subproject={undefined} subprojects={SUBPROJECTS} />,
+        <PendingAddress>
+          <CostFilterPanel filters={filters} subproject={undefined} subprojects={SUBPROJECTS} />
+        </PendingAddress>,
       );
     };
     const { rerender } = render(bar(""));
@@ -636,7 +680,7 @@ describe("the pages of a list the server pages", () => {
     render(
       inLanguage(
         <PendingAddress>
-          <CostFilterBar
+          <CostFilterPanel
             filters={readCostFilters(new URLSearchParams(page.search))}
             subproject={undefined}
             subprojects={SUBPROJECTS}

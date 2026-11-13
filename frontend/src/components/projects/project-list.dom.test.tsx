@@ -16,7 +16,6 @@ import { example, fakeClient } from "@/test/fixtures";
 
 import { listedProject } from "./project-list-grid";
 import { ProjectListGrid, ProjectStateFilter } from "./project-list-view";
-import { DefaultStatesFilter } from "./project-list";
 
 // The server of Next, as far as the screen needs it: the preferences it writes, the address it
 // reads.
@@ -243,13 +242,49 @@ describe("the states of the list, those of the table of the specification", () =
 });
 
 describe("the filter of the list by state", () => {
-  it("says the states by default, Créé, Chiffrage and En cours (WF-IHM-0130)", () => {
-    render(inFrench(<DefaultStatesFilter />));
-    const filter = screen.getByRole("region", { name: "Filtre par défaut de la liste par état" });
-    for (const state of ["Créé", "Chiffrage", "En cours"]) {
-      expect(within(filter).getByText(state)).toBeVisible();
-    }
-    expect(within(filter).queryByText("Perdu")).toBeNull();
+  it("says the states by default, Créé, Chiffrage and En cours, by a chip, lifted by naming every state (WF-IHM-0130-A, #2916)", async () => {
+    page.search = "sort_by=code";
+    render(
+      inFrench(
+        <ProjectListGrid
+          projects={LIST.items.map(listedProject)}
+          page={LIST.meta}
+          query={{ sort: undefined, search: undefined, size: undefined }}
+          preferences={undefined}
+          states={["created", "pricing", "in_progress"]}
+          period={{ from: undefined, to: undefined }}
+          panel={<ProjectStateFilter states={["created", "pricing", "in_progress"]} />}
+        />,
+      ),
+    );
+    const chips = screen.getByRole("list", { name: "Filtres actifs" });
+    expect(chips).toHaveTextContent("État : Créé, Chiffrage, En cours (par défaut)");
+    await userEvent.click(screen.getByRole("button", { name: /^Retirer le filtre État/ }));
+    expect(await lastAddress()).toBe("/?sort_by=code&states=all");
+  });
+
+  it("tells a state chosen and the period of the last modification, each lifted with the rest kept (WF-IHM-0130-A, #2916)", async () => {
+    page.search = "states=lost&from=2026-03-01T00%3A00%3A00.000Z&sort_by=code";
+    render(
+      inFrench(
+        <ProjectListGrid
+          projects={LIST.items.map(listedProject)}
+          page={LIST.meta}
+          query={{ sort: undefined, search: undefined, size: undefined }}
+          preferences={undefined}
+          states={["lost"]}
+          period={{ from: "2026-03-01T00:00:00.000Z", to: undefined }}
+          panel={<ProjectStateFilter states={["lost"]} />}
+        />,
+      ),
+    );
+    const chips = screen.getByRole("list", { name: "Filtres actifs" });
+    expect(chips).toHaveTextContent("État : Perdu");
+    expect(chips).toHaveTextContent("Modifié le : depuis le 1 mars 2026");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Retirer le filtre Modifié le : depuis le 1 mars 2026" }),
+    );
+    expect(await lastAddress()).toBe("/?states=lost&sort_by=code");
   });
 
   it("checks every state when the address names none, and retains a state chosen, back to the first page", async () => {

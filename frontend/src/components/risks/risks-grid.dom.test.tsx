@@ -15,10 +15,10 @@ import { expectAccessible } from "@/test/axe";
 import { closeMenu, openMenu, pick } from "@/test/check-menu";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
-import type { RiskState } from "./address";
+import { readRiskFilters, type RiskState } from "./address";
 import { RISK_GRID, riskRow, type RiskRows, type RiskSortColumn } from "./risk-grid";
 import { RisksGrid } from "./risks-grid";
-import { RiskStateFilter } from "./state-filter";
+import { RiskFilterPanel } from "./risk-filters";
 
 // The server of Next, as far as the grid needs it: the preferences it writes, the address it reads.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
@@ -386,6 +386,17 @@ function filterOf(states: readonly RiskState[]) {
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <RiskStateFilter states={states} />
     </NextIntlClientProvider>
+  );
+}
+
+/** The filter of the risks by state, the one filter of the panel of the register the tests need. */
+function RiskStateFilter({ states }: { readonly states: readonly RiskState[] }) {
+  return (
+    <RiskFilterPanel
+      states={states}
+      filters={readRiskFilters(new URLSearchParams(), [])}
+      fields={[]}
+    />
   );
 }
 
