@@ -664,7 +664,7 @@ lot de la chaîne par ses passages, avant et après, et non par une mesure sur l
 
 ## US-1890 — Les parcours contre le service ne font plus échouer la file sans régression
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune en propre — les lectures que les parcours instables attendent
 - **issue** : #2939
@@ -702,7 +702,7 @@ et `planning-service.spec.ts`.
 
 ## US-1900 — La chaîne ne dépend plus d'un réseau qu'elle ne tient pas
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2944
@@ -728,7 +728,7 @@ pas échouer la file avant le premier test, **afin qu'**un passage ne dépende q
 
 ## US-1910 — Le palier complet plus court : des morceaux équilibrés, des caches sous leur quota
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2948
@@ -978,7 +978,7 @@ La capacité d'un rôle (`monthly_hours`, `headcount`) est laissée à EP-10, qu
 
 ## US-1990 — L'export MS Project s'ouvre aux mêmes dates dans MS Project, et le corpus porte un décalage négatif en semaines
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-INTF-0050-A`, `WF-INTF-0040-A`, `WF-QUA-0080-A`
 - **opérations** : `requestExport`, `openImport`
 - **issue** : #2965

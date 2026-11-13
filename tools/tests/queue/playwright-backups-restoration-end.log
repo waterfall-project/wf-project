@@ -1,0 +1,44 @@
+2026-11-09T13:30:38.3531454Z   ✘  132 [restoration] › e2e/service/backups.spec.ts:155:1 › a backup taken, downloaded, deposited and restored: the screen says the restoration waiting, then its end, and the administrator signs in again [WF-ADM-0150-A] [WF-ADM-0160-A] @platform-wide (7.2m)
+2026-11-09T13:30:43.9323567Z   ✓  133 [contract] › e2e/service/contract.teardown.ts:11:1 › the proxy of the contract refused nothing the paths asked, up to the last answer it wrote [WF-ARC-0060-A] (5.0s)
+2026-11-09T13:30:44.0299277Z 
+2026-11-09T13:30:44.0305949Z 
+2026-11-09T13:30:44.0319653Z   1) [restoration] › e2e/service/backups.spec.ts:155:1 › a backup taken, downloaded, deposited and restored: the screen says the restoration waiting, then its end, and the administrator signs in again [WF-ADM-0150-A] [WF-ADM-0160-A] @platform-wide 
+2026-11-09T13:30:44.0321193Z 
+2026-11-09T13:30:44.0321546Z     Error: expect(locator).toBeVisible() failed
+2026-11-09T13:30:44.0321931Z 
+2026-11-09T13:30:44.0323559Z     Locator: getByRole('status', { name: 'Restauration de la plateforme en cours' }).getByText('Restauration terminée', { exact: true }).or(getByRole('status', { name: 'Session terminée' })).or(getByRole('main').getByRole('alert'))
+2026-11-09T13:30:44.0326519Z     Expected: visible
+2026-11-09T13:30:44.0326822Z     Timeout: 420000ms
+2026-11-09T13:30:44.0327145Z     Error: element(s) not found
+2026-11-09T13:30:44.0327343Z 
+2026-11-09T13:30:44.0327449Z     Call log:
+2026-11-09T13:30:44.0328732Z       - Expect "toBeVisible" getByRole('status', { name: 'Restauration de la plateforme en cours' }).getByText('Restauration terminée', { exact: true }).or(getByRole('status', { name: 'Session terminée' })).or(getByRole('main').getByRole('alert')) with timeout 420000ms
+2026-11-09T13:30:44.0330543Z       - waiting for getByRole('status', { name: 'Restauration de la plateforme en cours' }).getByText('Restauration terminée', { exact: true }).or(getByRole('status', { name: 'Session terminée' })).or(getByRole('main').getByRole('alert'))
+2026-11-09T13:30:44.0331306Z 
+2026-11-09T13:30:44.0331313Z 
+2026-11-09T13:30:44.0331553Z       260 |     // once, rather than waited for until the end of the path.
+2026-11-09T13:30:44.0332061Z       261 |     const refused = page.getByRole("main").getByRole("alert");
+2026-11-09T13:30:44.0332617Z     > 262 |     await expect(ended.or(refused)).toBeVisible({ timeout: 420_000 });
+2026-11-09T13:30:44.0333092Z           |                                     ^
+2026-11-09T13:30:44.0333483Z       263 |     await expect(refused).toHaveCount(0);
+2026-11-09T13:30:44.0333826Z       264 |
+2026-11-09T13:30:44.0334312Z       265 |     // Signed out by the restoration, the administrator signs in again, and finds the screen.
+2026-11-09T13:30:44.0335036Z         at /home/runner/work/wf-project/wf-project/frontend/e2e/service/backups.spec.ts:262:37
+2026-11-09T13:30:44.0335392Z 
+2026-11-09T13:30:44.0336533Z     Error Context: test-results/service-backups-a-backup-t-e6094-F-ADM-0150-A-WF-ADM-0160-A--restoration/error-context.md
+2026-11-09T13:30:44.0337031Z 
+2026-11-09T13:30:44.0337585Z     attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-11-09T13:30:44.0338743Z     test-results/service-backups-a-backup-t-e6094-F-ADM-0150-A-WF-ADM-0160-A--restoration/trace.zip
+2026-11-09T13:30:44.0339619Z     Usage:
+2026-11-09T13:30:44.0339796Z 
+2026-11-09T13:30:44.0340637Z         pnpm exec playwright show-trace test-results/service-backups-a-backup-t-e6094-F-ADM-0150-A-WF-ADM-0160-A--restoration/trace.zip
+2026-11-09T13:30:44.0341489Z 
+2026-11-09T13:30:44.0342093Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-09T13:30:44.0342593Z 
+2026-11-09T13:30:44.0343367Z   Slow test file: [restoration] › e2e/service/backups.spec.ts (7.2m)
+2026-11-09T13:30:44.0344367Z   Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+2026-11-09T13:30:44.0345035Z   1 failed
+2026-11-09T13:30:44.0346837Z     [restoration] › e2e/service/backups.spec.ts:155:1 › a backup taken, downloaded, deposited and restored: the screen says the restoration waiting, then its end, and the administrator signs in again [WF-ADM-0150-A] [WF-ADM-0160-A] @platform-wide 
+2026-11-09T13:30:44.0348181Z   17 skipped
+2026-11-09T13:30:44.0348533Z   115 passed (15.9m)
+2026-11-09T13:30:44.0574416Z make: *** [Makefile:619: e2e-service] Error 1

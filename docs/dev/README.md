@@ -3327,12 +3327,12 @@ The chain is made of GitHub Actions workflows (`.github/workflows/`):
   `front-cache.yml` writes that cache and the pnpm store after each merge, on the branch whose
   caches the pull requests and the merge queue read: without it, they would find nothing.
   `back.yml` spreads the back likewise: one runner holds the lint, the types and the boundaries of
-  the core (`make check-back-static`), two each play half of the tests, with their services
-  (`make check-back-tests`, `SHARD=1/2` and `SHARD=2/2`), and in the full tier a last one gathers
-  their coverage and holds it to its thresholds (`make coverage-back-merge`). A half is one test in
-  two in the order of their collection (`--shard`, `backend/tests/conftest.py`), rather than whole
-  files: the files that load the witness, the longest, are spread over both. The witness is loaded
-  by the command once per pytest process; the tests after it find its rows copied back
+  the core (`make check-back-static`), four each play a quarter of the tests, with their services
+  (`make check-back-tests`, `SHARD=1/4` to `SHARD=4/4`), and in the full tier a last one gathers
+  their coverage and holds it to its thresholds (`make coverage-back-merge`). A quarter is one test
+  in four in the order of their collection (`--shard`, `backend/tests/conftest.py`), rather than
+  whole files: the files that load the witness, the longest, are spread over all four. The witness
+  is loaded by the command once per pytest process; the tests after it find its rows copied back
   (`backend/tests/witness_rows.py`, #2157). On a runner, each test that asked for it paid its
   loading, over six minutes in all.
   `keycloak.yml` builds the image of Keycloak and puts it to the proof on the service platform, its
@@ -3343,10 +3343,19 @@ The chain is made of GitHub Actions workflows (`.github/workflows/`):
   `service.yml` plays the paths against the real service, at the full tier only
   (`make check-service`, that is `make e2e-service`, on the build of the front that the paths of
   `e2e.yml` share): the `service` family wakes on the front, the back, the contract and the files of
-  the platform. It runs on the runner itself, not in the Playwright image: the paths reach the
-  platform on the ports that Docker publishes on the runner, which a job container does not see; the
-  browser is installed there with its system packages
-  (`make e2e-browsers PLAYWRIGHT_INSTALL=--with-deps`). `front-image.yml` builds and starts the
+  the platform. The platform, the front and `playwright test` run on the runner itself, through the
+  Makefile; the browser alone runs in the work image of the paths (below), as Playwright's server
+  (`run-server`), on the network of the runner, and `playwright test` connects to it
+  (`PW_TEST_CONNECT_WS_ENDPOINT`). `E2E_IMAGE=<reference>` asks `make e2e-service` for it, which
+  starts that server through `wftools.e2eimage` (`docker run --network host`, the repository mounted
+  at its own path): a job container would not see the ports that Docker publishes on the runner.
+  No Ubuntu package is installed there (#2913). The paths played whole in the image took 17.3
+  minutes of `playwright test` in the median of four runs, against 14.2 in three with the browser
+  alone in the image, the median of the runner before (the comment of `service.yml` cites the runs). A download is read there through
+  `download.createReadStream()`, never `download.path()`, which Playwright refuses to a remote
+  browser. `wftools.e2eimage run` is made for the chain: root in the image, Docker's socket at its
+  path on a runner, `DOCKER_HOST` unread. On a workstation, without `E2E_IMAGE`, the paths play on
+  the workstation, with the browser of `make e2e-browsers`. `front-image.yml` builds and starts the
   production image of the front, which `images.yml` publishes only after the merge, at both tiers
   (`make check-front-image`): the `front-image` family wakes on what makes it —
   `frontend/Dockerfile` and its `.dockerignore`, `next.config.ts`, `package.json`, `pnpm-lock.yaml`,
@@ -3445,10 +3454,34 @@ branch of a lot, before merging it: `gh workflow run chain --ref <branche>`.
 The full tier aims at under eight minutes in the queue for its longest job
 (#492). The end-to-end paths, the longest half, go about it this way:
 
-- **in the Playwright image** (`mcr.microsoft.com/playwright`), at the version of `@playwright/test`
-  that `frontend/pnpm-lock.yaml` resolves, pinned by its digest (`container:` of `e2e.yml`):
+- **in the work image of the paths** (`deploy/e2e/Dockerfile`, US-1900), built from the Playwright
+  image (`mcr.microsoft.com/playwright`) at the version of `@playwright/test` that
+  `frontend/pnpm-lock.yaml` resolves, pinned by its digest, with `make`, the Python of
+  `tools/.python-version` as `python3`, pnpm at the version of `packageManager` and Docker's client:
   Chromium and its system packages are there, nothing comes from the Ubuntu mirror, whose throughput
-  is not ours (#472). The job calls `make e2e`, which finds the browser of the image
+  and answers are not ours (#472, #2913). It is built for amd64 alone, the architecture of the
+  runners and of the workstations. It is published on `ghcr.io/waterfall-project/e2e`, tagged by
+  the hash of its directory: the job `e2e-image` of `ci.yml`, which runs whenever `e2e` or
+  `service` could run, beside `front-build`, asks the registry for it (`make e2e-image`). Present,
+  it gives its reference by the digest the registry knows it by, which the shards (`container:` of
+  `e2e.yml`) and `service.yml` pull. Missing, it builds it; in the full tier (`PUSH=yes`), it
+  publishes it, once, at the first run that needs it — that of the queue, or of the full tier run by
+  hand on a branch —, hence its `packages: write`; in the fast tier, it builds it without
+  publishing it, so that a build that fails stops the pull request before the queue. `images.yml`
+  does not publish it: it runs after the merge, so after the first run of the queue that needs it.
+
+  Each request to the registry, the build and the publication are made again four times at most,
+  twenty seconds apart (#2530); a build made again starts from the layers already built. A registry
+  that still does not answer fails that job, naming it, and skips the paths, which the gate counts;
+  an image that cannot be pulled fails the initialisation of the shard, naming the registry, before
+  any step. Two runs of the queue that do not find the tag may each publish it: the build is not
+  reproducible to the byte, but each pulls the image it published, by its digest, and the content
+  the tag names is the same.
+
+  `tools/tests/test_e2eimage.py` holds the versions of the image, its pinned sources, and the
+  absence of any Ubuntu package in `ci.yml`, `e2e.yml` and `service.yml`.
+
+  The job calls `make e2e`, which finds the browser of the image
   (`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`), and not `make check-front-e2e`, which would install
   one. Raising `@playwright/test` raises the image with it, tag and digest: otherwise the paths stop
   at once on a browser not found, and `tools/tests/test_playwrightimage.py` fails before them, in
@@ -3456,8 +3489,9 @@ The full tier aims at under eight minutes in the queue for its longest job
   `Digest:` of `docker buildx imagetools inspect mcr.microsoft.com/playwright:v<X>-noble` gives, or
   the `docker-content-digest` header of
   `curl -sI -H 'Accept: application/vnd.oci.image.index.v1+json' https://mcr.microsoft.com/v2/playwright/manifests/v<X>-noble`.
-  The image has no `make`: its Ubuntu noble package is downloaded, pinned and verified by its
-  digest, like pandoc;
+  The `make` package of Ubuntu noble, the archive of Docker's client and those of pnpm and of its
+  binary are downloaded only when the image is built, pinned and verified by their hash, the Python
+  by its version, which uv verifies by the hash it carries for it;
 - **spread over five runners** (`make e2e SHARD=i/5`, that is `playwright test --shard=i/5`),
   the measure of §4.6.2 on a sixth, alone (`make e2e-measure`), through a matrix none of whose
   shards cancels the others; the result of `e2e` is a failure as soon as a shard fails or
@@ -3478,9 +3512,9 @@ The full tier aims at under eight minutes in the queue for its longest job
   workflows: `e2e.yml` and `service.yml` are two called workflows, and a `needs` does not join the
   jobs of one to those of the other; neither has any other trigger than that call, so that none
   builds the front. A failed build skips the two, and the gate, which waits for it too, fails. It
-  builds on the runner, like `front.yml`, in Node 26: the shards start it in the Playwright image,
-  in Node 24 (its `NODE_VERSION`, which the Node 26 lot does not change; `next start` runs the built
-  files there, and Next 16 accepts Node 24, while pnpm 12 does not stop on `engines` without
+  builds on the runner, like `front.yml`, in Node 26: the shards start it in the work image of the
+  paths, built on the Playwright image, in Node 24 (its `NODE_VERSION`, which the Node 26 lot does
+  not change; `next start` runs the built files there, and Next 16 accepts Node 24, while pnpm 12 does not stop on `engines` without
   `engine-strict`, which the front does not set), on the same Ubuntu noble in amd64, and at another
   path of the workspace (`/__w/…` instead of `/home/runner/work/…`); `service.yml`, on the runner.
   The build does not depend on that path: only `required-server-files.json`, which the standalone

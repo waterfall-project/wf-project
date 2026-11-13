@@ -17,14 +17,17 @@ file of the manifest, but for a negative lag in weeks, which no file carries (#2
 """
 
 import json
-from datetime import date
+import os
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 from uuid import NAMESPACE_OID, UUID, uuid5
 
 import pytest
+from lxml import etree
 
+from waterfall.core.exchanges.interface import hardened_parser
 from waterfall.core.planning.msproject import (
     DATE_CONSTRAINTS,
     MsProject,
@@ -34,6 +37,7 @@ from waterfall.core.planning.msproject import (
     duration_of,
     lag_of,
     read_project,
+    write_project,
 )
 from waterfall.core.planning.scheduling import (
     Link,
@@ -308,3 +312,64 @@ def test_each_case_the_body_cites_is_declared_by_a_planning_of_the_corpus(
         pytest.skip(f"{case} ({theme}): no planning of the corpus declares it ({MISSING[case]})")
     assert declaring, f"{case} ({theme}): no planning of the corpus declares it"
     assert [file for file in declaring if (CORPUS / file).is_file()] != [], declaring
+
+
+@pytest.mark.requirement("WF-INTF-0040-A")
+@pytest.mark.requirement("WF-QUA-0080-A")
+def test_the_manual_tasks_of_the_corpus_are_read_at_the_dates_of_their_start_and_finish() -> None:
+    # « Une tâche en mode manuel du fichier est en mode manuel aux mêmes dates » : the reader reads
+    # a manual task in its fields ``Manual…`` (US-1990), which MS Project wrote equal to ``Start``
+    # and ``Finish`` in each file of the corpus: replayed, the corpus changes no date.
+    read: list[str] = []
+    lasting: list[str] = []
+    for entry in FILES:
+        content = (CORPUS / entry["file"]).read_bytes()
+        tasks = {each.uid: each for each in read_project(content).project.tasks}
+        for element in etree.fromstring(content, hardened_parser()).iterfind("{*}Tasks/{*}Task"):
+            uid = int(element.findtext("{*}UID") or "0")
+            if element.findtext("{*}Manual") != "1" or element.findtext("{*}ManualStart") is None:
+                continue
+            start, finish = (element.findtext(f"{{*}}{name}") for name in ("Start", "Finish"))
+            assert (start, finish) == tuple(
+                element.findtext(f"{{*}}{name}") for name in ("ManualStart", "ManualFinish")
+            ), uid
+            assert (tasks[uid].start, tasks[uid].finish) == (
+                datetime.fromisoformat(start or ""),
+                datetime.fromisoformat(finish or ""),
+            ), uid
+            # The duration read is the ``ManualDuration`` when the file has it, not ``Duration``.
+            manual_duration = element.findtext("{*}ManualDuration")
+            if manual_duration is not None:
+                hours = int(manual_duration.removeprefix("PT").removesuffix("H0M0S"))
+                assert tasks[uid].duration == timedelta(hours=hours), uid
+                lasting.append(f"{entry['file']} {uid}")
+            read.append(f"{entry['file']} {uid}")
+    # The file 06, of the tasks in manual mode, carries them: the test does not pass on none.
+    assert [each for each in read if each.startswith("06-manual-tasks.xml")], read
+    assert [each for each in lasting if each.startswith("06-manual-tasks.xml")], lasting
+
+
+@pytest.fixture
+def schema() -> etree.XMLSchema:
+    """Give the schema of MSPDI the variable names, the test skipped without it (WF-QUA-0080)."""
+    named = os.environ.get("WATERFALL_MSPDI_SCHEMA_PATH")
+    if not named:
+        pytest.skip("WATERFALL_MSPDI_SCHEMA_PATH names no schema of MSPDI")
+    return etree.XMLSchema(etree.parse(Path(named)))
+
+
+@pytest.mark.requirement("WF-QUA-0080-A")
+@pytest.mark.parametrize("entry", FILES, ids=[entry["file"] for entry in FILES])
+def test_each_planning_of_the_corpus_read_then_written_is_valid_against_the_schema(
+    entry: dict[str, Any], schema: etree.XMLSchema
+) -> None:
+    # « Chaque planning du corpus réimporté puis exporté par Waterfall est valide contre le
+    # schéma » : without a database (« Leur exécution ne demande ni MS Project, ni base de
+    # données »), the planning the reader gives is written by the writer of the export, the
+    # working day of its head, ``Estimated`` and the fields ``Manual…`` of its manual tasks
+    # included; the order of the schema is the writer's (``test_msproject.py``).
+    project = read_project((CORPUS / entry["file"]).read_bytes()).project
+    written = write_project(project)
+
+    assert schema.validate(etree.fromstring(written, hardened_parser())), schema.error_log
+    assert read_project(written).project == project

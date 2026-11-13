@@ -8,6 +8,7 @@ The logs are excerpts of real jobs of the chain, reduced, under ``tests/queue/``
 
 import json
 import subprocess
+import tomllib
 from dataclasses import replace
 from datetime import date
 from typing import TYPE_CHECKING
@@ -285,6 +286,12 @@ def test_the_versioned_list_holds_its_inventory_and_the_reference() -> None:
     catalogue = queue.read_catalogue()
     assert catalogue.entries
     assert all(entry.issue.startswith("#") for entry in catalogue.entries)
+    raw = tomllib.loads(queue.KNOWN.read_text(encoding="utf-8"))["known"]
+    family = "D. restauration"
+    (hypothesis,) = [
+        e for e in raw if e["family"].startswith(family) and e["cause"].startswith("hypothèse")
+    ]
+    assert hypothesis["issue"] == "#3005"
     assert catalogue.reference == (
         "reference, every branch, from 2026-11-05 to 2026-11-12: 370 runs, 88 failed "
         "(68 in service / paths); wall time of the 40 complete succeeded runs of 2026-11-10 and "
@@ -293,19 +300,50 @@ def test_the_versioned_list_holds_its_inventory_and_the_reference() -> None:
 
 
 @pytest.mark.parametrize(
-    ("name", "test", "where"),
+    ("name", "run", "where", "classified"),
     [
-        ("restore", "e2e/service/backups.spec.ts:155", "e2e/service/backups.spec.ts:226"),
-        ("grid", "e2e/service/backups.spec.ts:240", "e2e/service/backups.spec.ts:272"),
+        (
+            "restore",
+            42786655299,
+            "e2e/service/backups.spec.ts:155 at :226",
+            (queue.FLAKY, "D. restauration : une part du dépôt réécrite par Prism"),
+        ),
+        (
+            "restoration-end",
+            42622915790,
+            "e2e/service/backups.spec.ts:155 at :262",
+            (queue.REGRESSION, "D. restauration : plus de verrous qu'une transaction n'en a"),
+        ),
+        (
+            "grid",
+            42782577852,
+            "e2e/service/backups.spec.ts:240 at :272",
+            (queue.REGRESSION, "D. restauration : la grille attendue sur une liste vide"),
+        ),
     ],
 )
-def test_the_restoration_family_recognizes_the_failures_read_in_the_logs_of_the_queue(
-    name: str, test: str, where: str
+def test_the_restoration_family_is_classified_by_its_three_causes_in_their_runs_alone(
+    name: str, run: int, where: str, classified: tuple[str, str]
 ) -> None:
-    (found,) = failures(f"playwright-backups-{name}")
-    assert (found.test, found.where) == (test, where)
-    kind, entry = queue.read_catalogue().classify(found)
-    assert (kind, entry.family if entry else None) == ("known flakiness", "D. restauration")
+    # US-1890/L4: the three causes of the family, each corrected before 2026-11-10 at 10:24 UTC;
+    # the same failure in another run — the path failing again — is left to classify.
+    (found,) = queue.failures_of(run, SERVICE, log(f"playwright-backups-{name}"))
+    test, line = where.split(" at :")
+    assert (found.test, found.where) == (test, f"e2e/service/backups.spec.ts:{line}")
+    catalogue = queue.read_catalogue()
+    kind, entry = catalogue.classify(found)
+    assert (kind, entry.family if entry else None) == classified
+    assert catalogue.classify(replace(found, run=43325185785)) == (queue.TO_CLASSIFY, None)
+
+
+def test_a_cause_of_the_restoration_line_155_under_the_run_of_another_is_left_to_classify() -> None:
+    # US-1890/L4: `:155` has two causes, each bounded to its own runs; the log of one under a run
+    # of the other is a failure no one has read.
+    catalogue = queue.read_catalogue()
+    (prism,) = queue.failures_of(42786655299, SERVICE, log("playwright-backups-restore"))
+    (locks,) = queue.failures_of(42622915790, SERVICE, log("playwright-backups-restoration-end"))
+    assert catalogue.classify(replace(prism, run=locks.run)) == (queue.TO_CLASSIFY, None)
+    assert catalogue.classify(replace(locks, run=prism.run)) == (queue.TO_CLASSIFY, None)
 
 
 @pytest.mark.parametrize(

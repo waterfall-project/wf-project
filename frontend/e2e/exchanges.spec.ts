@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { readFile } from "node:fs/promises";
 
 import {
   type APIRequestContext,
+  type Download,
   expect,
   type Locator,
   type Page,
@@ -245,7 +245,7 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
   // Downloaded: a file named after the project, which is the XML of MS Project.
   const [download] = await Promise.all([page.waitForEvent("download"), link.click()]);
   expect(download.suggestedFilename()).toMatch(/^ms-project(-.+)?\.xml$/);
-  const xml = await readFile(await download.path());
+  const xml = await downloaded(download);
   const text = xml.toString("utf8");
   expect(text).toContain("<Project");
   for (const label of ["Études de détail", "Revue de conception", "Mise en service"]) {
@@ -368,7 +368,7 @@ test("exports the estimate as an Excel file, downloads it, sees a file that is n
   const filename = download.suggestedFilename();
   expect(filename).toMatch(/-devis\.xlsx$/);
   // A workbook is a zip archive, whose bytes past 0x7f Prism would have rewritten.
-  const workbook = await readFile(await download.path());
+  const workbook = await downloaded(download);
   expect(workbook.subarray(0, 4)).toEqual(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
   await page.keyboard.press("Escape");
   await expect(panel).toHaveCount(0);
@@ -496,7 +496,7 @@ test("exports the remaining to commit as an Excel file, imports it back in two s
   const [download] = await Promise.all([page.waitForEvent("download"), link.click()]);
   const filename = download.suggestedFilename();
   expect(filename).toMatch(/-reste-a-engager\.xlsx$/);
-  const workbook = await readFile(await download.path());
+  const workbook = await downloaded(download);
   expect(workbook.subarray(0, 4)).toEqual(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
   await page.keyboard.press("Escape");
   await expect(panel).toHaveCount(0);
@@ -574,3 +574,15 @@ test("exports the remaining to commit as an Excel file, imports it back in two s
     expect(((await applied.json()) as Schemas["ImportDetail"]).status).toBe("applied");
   }).toPass({ timeout: WORKING });
 });
+
+/**
+ * The bytes of a download, read through Playwright: the chain plays the browser in the work image
+ * of the paths (US-1900), where the file it saved has no path the runner can read.
+ */
+async function downloaded(download: Download): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of await download.createReadStream()) {
+    chunks.push(chunk as Buffer);
+  }
+  return Buffer.concat(chunks);
+}
