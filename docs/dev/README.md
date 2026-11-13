@@ -3344,9 +3344,9 @@ The chain is made of GitHub Actions workflows (`.github/workflows/`):
   (`PW_TEST_CONNECT_WS_ENDPOINT`). `E2E_IMAGE=<reference>` asks `make e2e-service` for it, which
   starts that server through `wftools.e2eimage` (`docker run --network host`, the repository mounted
   at its own path): a job container would not see the ports that Docker publishes on the runner.
-  No Ubuntu package is installed there (#2913). The paths played whole in the image took about 17
-  minutes of `playwright test` in the median, against 13.5 and 14.2 with the browser alone in the
-  image (the comment of `service.yml` cites the runs). A download is read there through
+  No Ubuntu package is installed there (#2913). The paths played whole in the image took 17.3
+  minutes of `playwright test` in the median of four runs, against 14.2 in three with the browser
+  alone in the image, the median of the runner before (the comment of `service.yml` cites the runs). A download is read there through
   `download.createReadStream()`, never `download.path()`, which Playwright refuses to a remote
   browser. `wftools.e2eimage run` is made for the chain: root in the image, Docker's socket at its
   path on a runner, `DOCKER_HOST` unread. On a workstation, without `E2E_IMAGE`, the paths play on

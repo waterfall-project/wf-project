@@ -585,8 +585,8 @@ e2e-image: ## Find the work image of the end-to-end paths in the registry by the
 # (service.yml): Playwright's server (run-server) runs in the image, on the network of the host, and
 # `playwright test` connects to it from the runner (PW_TEST_CONNECT_WS_ENDPOINT), where Node, the front
 # and the harness stay. The browser and its system packages are the image's, where the runner would
-# install them from the mirrors of Ubuntu. The paths played whole in the image took 17 minutes of
-# `playwright test` in the median of four runs, against 13.5 and 14.2 so (US-1900). The server is
+# install them from the mirrors of Ubuntu. The paths played whole in the image took 17.3 minutes of
+# `playwright test` in the median of four runs, against 14.2 in three so (US-1900). The server is
 # stopped with the shell, after the paths. Empty, on a workstation, the paths play on it.
 E2E_IMAGE ?=
 E2E_BROWSER_PORT ?= 3990

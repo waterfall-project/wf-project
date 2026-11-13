@@ -34,8 +34,9 @@ jobs:
     # epic/EP-24 with the browser installed on the runner (43302248961 to 43341561992); 15.4 to 18.7,
     # 17.3 in the median, in four runs of the branch of US-1900/L1 with the paths played whole in the
     # work image (43317192704, 43326188786, 43330319564, 43333584161), where neither Node 26 nor
-    # Docker's filter of system calls lifted changed anything; 14.2 and 13.5 with the browser alone in
-    # the image (43338277921, 43341377423). The job as a whole takes 4 to 6 minutes more.
+    # Docker's filter of system calls lifted changed anything; 13.5 to 18.2, 14.2 in the median, with
+    # the browser alone in the image (43338277921, 43341377423, 43346839952) — back to the median of
+    # epic/EP-24, within the spread of its runners. The job as a whole takes 4 to 6 minutes more.
     timeout-minutes: 30
     # The work image of the paths is read from the registry, where it may be private.
     permissions:

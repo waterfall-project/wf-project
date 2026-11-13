@@ -151,8 +151,8 @@ def test_the_image_is_published_in_the_full_tier_alone() -> None:
 
 
 def test_the_browser_alone_plays_in_the_image_the_paths_on_the_runner() -> None:
-    # Played whole in the image, the paths took 17 minutes in the median, against 13.5 and 14.2
-    # with the browser alone in it (service.yml cites the runs).
+    # Played whole in the image, the paths took 17.3 minutes in the median, against 14.2 with the
+    # browser alone in it (service.yml cites the runs).
     makefile = (REPOSITORY / "Makefile").read_text(encoding="utf-8")
     browser = re.search(r"^e2e-browser = (.*)$", makefile, re.MULTILINE)
     assert browser is not None

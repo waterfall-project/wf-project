@@ -3363,8 +3363,9 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   lance ce serveur par `wftools.e2eimage` (`docker run --network host`, le dépôt monté à son propre
   chemin) : un conteneur de travail ne verrait pas les ports que Docker publie sur le runner.
   Aucun paquet d'Ubuntu ne s'y installe (#2913). Les parcours joués entiers dans l'image prenaient
-  environ 17 minutes de `playwright test` en médiane, contre 13,5 et 14,2 le navigateur seul dans
-  l'image (le commentaire de `service.yml` cite les passages). Un téléchargement s'y lit par
+  17,3 minutes de `playwright test` en médiane de quatre passages, contre 14,2 en trois le navigateur
+  seul dans l'image, la médiane d'avant sur le runner (le commentaire de `service.yml` cite les
+  passages). Un téléchargement s'y lit par
   `download.createReadStream()`, jamais par `download.path()`, que Playwright refuse à un navigateur
   distant. `wftools.e2eimage run` est fait pour la chaîne : root dans l'image, la socket de Docker
   à son chemin d'un runner, `DOCKER_HOST` non lu. Sur un poste, sans `E2E_IMAGE`, les parcours se
