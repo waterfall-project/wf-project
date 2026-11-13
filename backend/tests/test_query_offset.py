@@ -76,7 +76,8 @@ def served(api: ContractClient) -> dict[str, set[str]]:
             each["name"] for each in operation.get("parameters", []) if each["in"] == "query"
         }
         for item in described["paths"].values()
-        for operation in item.values()
+        for method, operation in item.items()
+        if method in METHODS
     }
 
 
