@@ -25,6 +25,7 @@ import { type Browser, expect } from "@playwright/test";
 
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
+import { ScreenSteps } from "./screen-steps";
 import { API, frontToken, type LocalPerson } from "./service/realm";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -127,8 +128,10 @@ test("the revisions of a project, their comparison as the API renders it, its st
   // times — the screen once, the API twice —, some eight seconds each: as the path of WF-REV-0080-A
   // below, more than the thirty seconds of a test (#2911).
   test.slow();
+  const steps = new ScreenSteps(page, "the comparison as the API renders it");
+  try {
   // Les montants, dates et indices affichés sont ceux que l'API renvoie, sans recalcul.
-  await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
+  await steps.timed("open", () => openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`));
   const main = page.getByRole("main");
   await expect(main.getByRole("heading", { level: 1 })).toHaveText("Gestion des révisions");
 
@@ -156,14 +159,16 @@ test("the revisions of a project, their comparison as the API renders it, its st
   // sub-projects —, each table with its header row. The nodes come in the dense grid of the
   // structures, each with the mark the server gives it, and the screen keeps the bound of a screen
   // of grid (`WORKING`).
+  await steps.timed("compare", async () => {
   await main.getByRole("button", { name: "Comparer" }).click();
   await expect(page).toHaveURL(/from_revision_id=.+&to_revision_id=.+/, { timeout: WORKING });
+  });
   const nodes = main.getByRole("grid", { name: "Nœuds comparés" });
   // The window of the fake back is 11 rows; the service compares the whole structure, of which the
   // grid draws the rows in view and counts all of them, its two header rows besides.
-  await expect(nodes.getByRole("row")).toHaveCount(inService ? ROWS_IN_VIEW : 11);
+  await steps.timed("grid", () => expect(nodes.getByRole("row")).toHaveCount(inService ? ROWS_IN_VIEW : 11));
   if (inService) {
-    const whole = await comparisonServed(browser, manager);
+    const whole = await steps.timed("api whole", () => comparisonServed(browser, manager));
     await expect(nodes).toHaveAttribute("aria-rowcount", (whole.items.length + 2).toString());
   }
   await expect(nodes.getByRole("row", { name: /Assistance aux essais de câblage/ })).toContainText(
@@ -189,7 +194,7 @@ test("the revisions of a project, their comparison as the API renders it, its st
   let budgeted = "3000.00";
   let reestimated = "2840.83";
   if (inService) {
-    const served = (await comparisonServed(browser, manager)).amount_deltas;
+    const served = (await steps.timed("api whole again", () => comparisonServed(browser, manager))).amount_deltas;
     const delta = served.find(
       ({ dimension, label }) => dimension === "cost_type" && label === "Main-d'œuvre",
     );
@@ -203,6 +208,9 @@ test("the revisions of a project, their comparison as the API renders it, its st
   await expect(
     labour.getByRole("cell", { name: amountWhole(asTheScreenWrites(reestimated)) }),
   ).toHaveCount(1);
+  } finally {
+    steps.report();
+  }
 });
 
 // The project of the volume exists in the fake back only, until the volumes of EP-13 give the
@@ -258,17 +266,21 @@ test("retains the differences alone in the comparison: pressed, in the address a
   // Against the service the comparison spans the whole structure of PRJ-001 (some 6,000 nodes) and
   // the path reads it in full several times: more than the thirty seconds of a test.
   test.slow();
+  const steps = new ScreenSteps(page, "the differences alone");
+  try {
   // The fake back serves the same comparison whatever the address names: what the server retains is
   // proven on `comparison_differences` by the test of the page (`revisions/page.test.tsx`).
-  await openHydrated(
+  await steps.timed("open", () => openHydrated(
     page,
     `/projects/${PROJECT}/revisions?revision_id=${REVISION}&from_revision_id=${FROM}&to_revision_id=${TO}`,
-  );
+  ));
   const main = page.getByRole("main");
   const only = main.getByRole("button", { name: "Écarts seulement" });
   await expect(only).toHaveAttribute("aria-pressed", "false");
+  await steps.timed("only", async () => {
   await only.click();
   await expect(page).toHaveURL(/difference=added%2Cremoved%2Cmodified/, { timeout: WORKING });
+  });
   await expect(only).toHaveAttribute("aria-pressed", "true");
   const filters = page.getByRole("list", { name: "Filtres actifs" });
   await expect(filters).toContainText("Écarts seulement");
@@ -280,10 +292,10 @@ test("retains the differences alone in the comparison: pressed, in the address a
   // same window whatever the address names.) The absence of « Inchangé » on the screen is read on
   // the rows drawn alone, the grid being virtualised: the count of its rows says the rest.
   if (inService) {
-    const retained = await comparisonServed(browser, manager, {
+    const retained = await steps.timed("api retained", () => comparisonServed(browser, manager, {
       difference: "added,removed,modified",
-    });
-    const whole = await comparisonServed(browser, manager);
+    }));
+    const whole = await steps.timed("api whole", () => comparisonServed(browser, manager));
     expect(whole.items.map(({ difference }) => difference)).toContain("unchanged");
     expect(retained.items.length).toBeGreaterThan(0);
     expect(retained.items.length).toBeLessThan(whole.items.length);
@@ -295,9 +307,16 @@ test("retains the differences alone in the comparison: pressed, in the address a
     await expect(nodes.getByRole("row").filter({ hasText: "Inchangé" })).toHaveCount(0);
   }
   // The choice of the pair carries the filter on.
+  await steps.timed("compare", async () => {
   await main.getByRole("button", { name: "Comparer" }).click();
   await expect(page).toHaveURL(/difference=added/, { timeout: WORKING });
+  });
+  await steps.timed("lift", async () => {
   await filters.getByRole("link", { name: /Lever le filtre/ }).click();
   await expect(page).not.toHaveURL(/difference=/, { timeout: WORKING });
-  await expect(only).toHaveAttribute("aria-pressed", "false");
+  });
+  await steps.timed("unpressed", () => expect(only).toHaveAttribute("aria-pressed", "false"));
+  } finally {
+    steps.report();
+  }
 });
