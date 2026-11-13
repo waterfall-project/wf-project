@@ -4,6 +4,7 @@ import { expect, type Locator, type Page } from "@playwright/test";
 
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
+import { pngSize } from "./download";
 import { openHydrated, WORKING } from "./hydration";
 import { scrollToPosition } from "./scroll";
 import { inService, test } from "./mode";
@@ -248,16 +249,9 @@ test("exports the frieze of a timeline as a PNG image, named after the project @
     figure.getByRole("button", { name: "Exporter en PNG" }).click(),
   ]);
   expect(download.suggestedFilename()).toBe("chronologie-PRJ-001.png");
-  const stream = await download.createReadStream();
-  const chunks: Buffer[] = [];
-  for await (const chunk of stream) {
-    chunks.push(chunk as Buffer);
-  }
-  // The signature of a PNG, then the width and the height of its header, twice as dense as the
-  // screen.
-  const image = Buffer.concat(chunks);
-  expect(image.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
-  expect([image.readUInt32BE(16), image.readUInt32BE(20)]).toEqual([2560, 1440]);
+  // The signature of a PNG checked, then the width and the height of its header, twice as dense as
+  // the screen.
+  expect(await pngSize(download)).toEqual([2560, 1440]);
 });
 
 test("leads from the planning to the timelines of the project, read only @shared", async ({

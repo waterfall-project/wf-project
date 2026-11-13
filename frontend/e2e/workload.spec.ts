@@ -3,6 +3,7 @@
 import { expect } from "@playwright/test";
 
 import { compile } from "./compile";
+import { pngSize } from "./download";
 import { openHydrated, WORKING } from "./hydration";
 import { test } from "./mode";
 
@@ -93,16 +94,9 @@ test("exports the workload, at the keyboard, as a PNG image drawn on a canvas, n
     page.keyboard.press("Enter"),
   ]);
   expect(download.suggestedFilename()).toBe("plan-de-charge-PRJ-001.png");
-  const stream = await download.createReadStream();
-  const chunks: Buffer[] = [];
-  for await (const chunk of stream) {
-    chunks.push(chunk as Buffer);
-  }
-  const image = Buffer.concat(chunks);
-  // The signature of a PNG, then the width and the height of its header: an image of its own
-  // size, twice as dense as the screen, whatever the size of the window.
-  expect(image.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
-  expect([image.readUInt32BE(16), image.readUInt32BE(20)]).toEqual([2560, 1440]);
+  // The signature of a PNG checked, then the width and the height of its header: an image of its
+  // own size, twice as dense as the screen, whatever the size of the window.
+  expect(await pngSize(download)).toEqual([2560, 1440]);
   // The instance out of the screen is gone with its canvas.
   await expect(page.locator("canvas")).toHaveCount(0);
 });

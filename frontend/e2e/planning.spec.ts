@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { type Download, expect, type Locator } from "@playwright/test";
+import { expect, type Locator } from "@playwright/test";
 
 import { closeMenu, menuButton, openMenu, pick } from "./check-menu";
 import { columnsOf } from "./columns";
+import { pngSize } from "./download";
 import { holdScripts, openHydrated, WORKING } from "./hydration";
 import { test } from "./mode";
 import { rowAt, scrollToPosition, withinBox } from "./scroll";
@@ -598,17 +599,6 @@ test("keeps the date at the centre of the column when it zooms in from the Gantt
   // centre eight pixels of the column, a share of the drawing wider than the frame, away.
   expect(Math.abs((after?.left ?? 0) - kept)).toBeLessThanOrEqual(4);
 });
-
-/** The width and the height of the PNG image a download saved, its signature checked. */
-async function pngSize(download: Download): Promise<[number, number]> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of await download.createReadStream()) {
-    chunks.push(chunk as Buffer);
-  }
-  const image = Buffer.concat(chunks);
-  expect(image.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
-  return [image.readUInt32BE(16), image.readUInt32BE(20)];
-}
 
 // aucune exigence : propre à l'US (US-0530, l'export PNG du Gantt sur toute son étendue au niveau
 // choisi).
