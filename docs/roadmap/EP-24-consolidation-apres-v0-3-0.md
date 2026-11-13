@@ -1118,7 +1118,7 @@ une issue `contract`. Dépend de la révision 1.0.5 (US-2010).
 
 ## US-2010 — La spécification 1.0.5 écrit quatre décisions, et la 1.0.4 est relue contre le code
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-DEV-0030-A`
 - **opérations** : aucune
 - **issue** : #2968
