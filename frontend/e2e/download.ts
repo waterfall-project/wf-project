@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * How a journey reads a download: through the stream Playwright gives, the only form the browser of
- * the paths allows. The chain plays the browser in the work image of the paths (US-1900), where
+ * How a journey reads a download: through the stream Playwright gives, which works with the remote
+ * browser of the paths. The chain plays the browser in the work image of the paths (US-1900), where
  * the file it saved has no path the runner can read, so `download.path()` is refused.
  */
 import { type Download, expect } from "@playwright/test";

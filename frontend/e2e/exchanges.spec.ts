@@ -546,7 +546,8 @@ test("exports the remaining to commit as an Excel file, imports it back in two s
   await report.getByRole("button", { name: "Appliquer l’import" }).click();
   const confirmation = report.getByRole("form", { name: "Confirmation de l’application" });
   await confirmation.getByRole("button", { name: "Confirmer l’application" }).click();
-  // The form goes at the return of the server action of the confirmation, behind the read held.
+  // The form goes at the return of the server action of the confirmation, which a loaded runner can
+  // hold past the default timeout (#3003).
   await expect(confirmation).toHaveCount(0, { timeout: WORKING });
   await held;
   await page
