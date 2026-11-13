@@ -95,7 +95,13 @@ jobs:
           E2E_IMAGE: ${{ inputs.image }}
         run: |
           for attempt in 1 2 3 4; do
-            docker pull --quiet "$E2E_IMAGE" && exit 0
+            docker pull --quiet "$E2E_IMAGE" 2> "$RUNNER_TEMP/pull.err" && exit 0
+            cat "$RUNNER_TEMP/pull.err" >&2
+            # The registry answered: an image it denies or does not hold is not there in a minute.
+            if grep -qiE 'denied|not found|manifest unknown' "$RUNNER_TEMP/pull.err"; then
+              echo "ghcr.io does not give $E2E_IMAGE: no other attempt" >&2
+              exit 1
+            fi
             echo "ghcr.io did not give $E2E_IMAGE at attempt $attempt" >&2
             [ "$attempt" = 4 ] || sleep 20
           done

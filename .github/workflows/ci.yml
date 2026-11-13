@@ -220,6 +220,9 @@ jobs:
     # A lookup in the registry; a build, and its publication, when the image changed: about three
     # minutes, most of it the pull of Playwright's image.
     timeout-minutes: 15
+    # Write only publishes the image, in the full tier; the fast one, which pushes nothing, holds it
+    # too: an expression is not admitted in `permissions`, and the job is not split in two (every
+    # job that needs the image would then name two).
     permissions:
       contents: read
       packages: write

@@ -604,7 +604,13 @@ mirror: ## Check that ghcr.io holds the images of Docker Hub the files name unde
 E2E_IMAGE ?=
 E2E_BROWSER_PORT ?= 3990
 e2e-in-image = uv run --frozen --project $(CURDIR)/$(TOOLS) python -m wftools.e2eimage run --image $(E2E_IMAGE) --
-e2e-browser = $(if $(E2E_IMAGE),$(e2e-in-image) node node_modules/@playwright/test/cli.js run-server --host 127.0.0.1 --port $(E2E_BROWSER_PORT) & browser=$$! && trap 'kill $$browser' EXIT && timeout 120 sh -c 'until curl --silent --output /dev/null http://127.0.0.1:$(E2E_BROWSER_PORT)/; do sleep 1; done' && export PW_TEST_CONNECT_WS_ENDPOINT=ws://127.0.0.1:$(E2E_BROWSER_PORT)/ &&)
+# Before it starts, the port must be free: a server already there would be waited for, and played
+# against, as ours. The server answers on a path drawn at each run, which only the paths know
+# (PW_TEST_CONNECT_WS_ENDPOINT): any process of the host reaching the port could otherwise start a
+# browser, in a container that mounts the socket of Docker. The shell stops the server on exit, and
+# on SIGINT and SIGTERM, which dash would not run the trap of EXIT for; the wait gives up when it dies.
+e2e-port-free = python3 -c 'import socket, sys; sys.exit(socket.socket().connect_ex(("127.0.0.1", $(E2E_BROWSER_PORT))) == 0)'
+e2e-browser = $(if $(E2E_IMAGE),$(e2e-port-free) || { echo 'port $(E2E_BROWSER_PORT) is taken (stop the server there or set E2E_BROWSER_PORT)' >&2; exit 1; }; secret=$$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n'); $(e2e-in-image) node node_modules/@playwright/test/cli.js run-server --host 127.0.0.1 --port $(E2E_BROWSER_PORT) --path /$$secret & browser=$$!; trap 'kill $$browser' EXIT; trap 'exit 130' INT TERM; BROWSER=$$browser timeout 120 sh -c 'until curl --silent --output /dev/null http://127.0.0.1:$(E2E_BROWSER_PORT)/; do kill -0 $$BROWSER || exit 1; sleep 1; done' && export PW_TEST_CONNECT_WS_ENDPOINT=ws://127.0.0.1:$(E2E_BROWSER_PORT)/$$secret &&)
 
 # The paths play against the front built for production (US-0590): built first by build-front, which
 # Next's cache (.next/cache) shortens after the first time, then started by the harness, told it is
