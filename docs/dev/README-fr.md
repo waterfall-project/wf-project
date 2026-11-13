@@ -3340,11 +3340,11 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   écrit ce cache et le magasin de pnpm après chaque fusion, sur la branche dont les pull requests et
   la file de fusion lisent les caches : sans lui, elles ne trouveraient rien.
   `back.yml` répartit de même le back : un runner tient le lint, les types et les frontières du
-  cœur (`make check-back-static`), deux jouent chacun la moitié des tests, avec leurs services
-  (`make check-back-tests`, `SHARD=1/2` et `SHARD=2/2`), et au palier complet un dernier rassemble
-  leur couverture et la tient à ses seuils (`make coverage-back-merge`). Une moitié est un test sur
-  deux dans l'ordre de leur collecte (`--shard`, `backend/tests/conftest.py`), plutôt que des
-  fichiers entiers : les fichiers qui chargent le témoin, les plus longs, sont répartis sur les deux.
+  cœur (`make check-back-static`), quatre jouent chacun le quart des tests, avec leurs services
+  (`make check-back-tests`, `SHARD=1/4` à `SHARD=4/4`), et au palier complet un dernier rassemble
+  leur couverture et la tient à ses seuils (`make coverage-back-merge`). Un quart est un test sur
+  quatre dans l'ordre de leur collecte (`--shard`, `backend/tests/conftest.py`), plutôt que des
+  fichiers entiers : les fichiers qui chargent le témoin, les plus longs, sont répartis sur les quatre.
   Le témoin n'est chargé par la commande qu'une fois par processus de pytest ; les tests suivants
   retrouvent ses lignes recopiées (`backend/tests/witness_rows.py`, #2157). Sur un runner, chaque
   test qui le demandait payait son chargement, plus de six minutes en tout. `keycloak.yml`

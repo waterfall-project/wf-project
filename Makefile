@@ -415,7 +415,8 @@ check-back: check-back-static check-back-tests ## The back: lint, types, boundar
 # The chain runs the back apart, as the front (back.yml): check-back-static on one runner,
 # check-back-tests SHARD=i/N on each of the others, and in the full tier the measures of their parts
 # gathered (coverage-back-merge). A part is the i-th of N of the tests, one in N in the order of their
-# collection: the files that load the witness, the longest, are spread over all the parts.
+# collection (four in the chain, SHARD=1/4 to 4/4): the files that load the witness, the longest,
+# are spread over all the parts.
 check-back-static: lint-back typecheck-back imports-back ## The back but its tests: lint, types, boundaries
 
 check-back-tests: $(call full-else,coverage-back,test-back) ## The tests of the back, SHARD=i/N one part of them; in the full tier, measured

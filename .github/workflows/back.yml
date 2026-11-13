@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # The back: lint and format, strict types, the boundaries of the core, then the tests, spread over
-# two runners and, in the full tier, measured and their measures gathered (make check-back-static,
+# four runners and, in the full tier, measured and their measures gathered (make check-back-static,
 # check-back-tests, coverage-back-merge). The tests of the data run against a real PostgreSQL, those
 # of the queue of tasks against a real Redis, services of the job, and those of the backups against
 # a real object storage, Garage, which a service of the job cannot start with the arguments it
@@ -40,8 +40,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: ["1/2", "2/2"]
-    # Each part took 10 to 16 minutes before the witness was loaded once by each process (#2157).
+        part: ["1/4", "2/4", "3/4", "4/4"]
+    # Each half took 10 to 16 minutes before the witness was loaded once by each process (#2157),
+    # then 10 to 18 on 2026-11-12 and 13, a minute or two from this delay: four parts of a quarter of
+    # the tests each (US-1910) play in about half of that, so the delay stays, a margin to the slowest
+    # runner rather than a wait.
     timeout-minutes: 20
     services:
       postgres:
