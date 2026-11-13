@@ -165,14 +165,14 @@ const CASES: readonly Case[] = [
     name: "the active accounts, which lifts the old hiding of the deactivated ones too",
     search: "is_active=true&include_inactive=false",
     asked: { active: true },
-    chip: "État du compte : Comptes actifs",
+    chip: "État du compte : Actif",
     lifts: ["is_active", "include_inactive"],
   },
   {
     name: "the deactivated accounts",
     search: "is_active=false",
     asked: { active: false },
-    chip: "État du compte : Comptes désactivés",
+    chip: "État du compte : Désactivé",
     lifts: ["is_active"],
   },
   ...(["created", "updated"] as const).flatMap((column): Case[] => {
@@ -298,10 +298,10 @@ describe("the chips of the filters of the accounts", () => {
     page.search = "include_inactive=false&sort_by=email";
     render(table({ active: true }));
     expect(screen.getByRole("list", { name: "Filtres actifs" })).toHaveTextContent(
-      "État du compte : Comptes actifs",
+      "État du compte : Actif",
     );
     await userEvent.click(
-      screen.getByRole("button", { name: "Retirer le filtre État du compte : Comptes actifs" }),
+      screen.getByRole("button", { name: "Retirer le filtre État du compte : Actif" }),
     );
     expect(lastAddress()).toBe("/admin/users?sort_by=email");
   });
@@ -317,7 +317,7 @@ describe("the chips of the filters of the accounts", () => {
     page.search = "";
     const { rerender } = render(table({ active: true }));
     await userEvent.click(
-      screen.getByRole("button", { name: "Retirer le filtre État du compte : Comptes actifs" }),
+      screen.getByRole("button", { name: "Retirer le filtre État du compte : Actif" }),
     );
     rerender(table());
     expect(screen.getByRole("button", { name: /^Filtres/ })).not.toHaveFocus();

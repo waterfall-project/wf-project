@@ -8,18 +8,21 @@ be a 500. As US-1840 does for the thresholds, each field refuses at its pointer 
 than ten decimals, or whose whole part crosses its column: the constants of the units of duration,
 the durations and the lags of the planning, the unit disbursement and the quantity of a line, the
 hours of a labour line (#2997), and the product of a disbursement and a quantity, at the quantity
-(#2996); the recalculation at a constant at its maximum is tried (#2998). The
+(#2996); the recalculation at a constant at its maximum is tried (#2998); the product of a labour
+line (#3035) and its re-estimated amount, projected by the inflation (#3039), refused at the
+quantity, or at the field that carries the rate a change would reproject written lines with. The
 scenario of the finding is replayed on the test database.
 """
 
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from estimate_support import Costing, Lines, costing
+from estimate_support import YEAR, Costing, Lines, costing
 from installed_reference import holding
 from nodes_support import Tree, faults, opened
-from projects_support import Scene
+from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 
 from waterfall.core.planning.interface.paste import DURATION
@@ -331,3 +334,157 @@ def test_a_constant_at_its_maximum_carrying_a_task_beyond_the_horizon_is_refused
     assert refused.status_code == 422, refused.text
     assert refused.json()["code"] == "PROJECT_HORIZON_EXCEEDED"
     assert api.get(UNITS, headers=changing).json()[name] != MOST
+
+
+HUGE = "1000000"
+RATES = "/api/v1/reference/cost-categories"
+
+
+def project_url(stage: Scene) -> str:
+    """Give the address of the project of the stage."""
+    return f"{PROJECTS}/{stage.project['project_id']}"
+
+
+def inflated(api: ContractClient, stage: Scene, rate: str) -> Any:
+    """Change the rate of inflation of the project at the counter read; give the answer."""
+    held = api.get(project_url(stage), headers=stage.manager.headers).json()["lock_version"]
+    sent = {"inflation_rate": rate, "lock_version": held}
+    return api.patch(project_url(stage), headers=stage.manager.headers, json=sent)
+
+
+def in_two_years(tree: Tree) -> dict[str, Any]:
+    """Make a task consumed two years after the year of reference."""
+    start = date(YEAR + 2, 3, 1)
+    start += timedelta(days=-start.weekday() % 7)
+    return tree.made(
+        "Exploitation",
+        task={
+            "scheduling_mode": "manual",
+            "start": {"date": start.isoformat()},
+            "finish": {"date": (start + timedelta(days=1)).isoformat()},
+        },
+    )
+
+
+@pytest.mark.requirement("WF-DEV-0020-A")
+def test_a_labour_product_beyond_the_base_amount_is_refused_at_the_quantity_and_nothing_is_written(
+    tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # #3035: 10^6 x 10^6 hours x 65.00 = 6.5 x 10^13, each figure within its column, the product
+    # beyond the twelve digits of base_amount (numeric(14, 2)).
+    task = tree.made("Câblage")
+    held = {"resource_role_id": str(costs.role)}
+    refused = lines.create(task, quantity=HUGE, hours=HUGE, **held)
+    assert faults(refused) == [("/estimate_line/quantity", PRECISION, {})]
+    assert tree.items("?kinds=estimate_line") == []
+    line = lines.made(task, quantity="1", hours="1", **held)["nodes"][0]
+    changed = lines.change(line, quantity=HUGE, hours=HUGE)
+    assert faults(changed) == [("/quantity", PRECISION, {})]
+    by_hours = lines.change(line, quantity="2000000", hours="5000000")
+    assert faults(by_hours) == [("/quantity", PRECISION, {})]
+    kept = tree.items("?kinds=estimate_line")[0]["estimate_line"]
+    assert (kept["quantity"], kept["hours"], kept["base_amount"]) == ("1", "1", "65.00")
+    cheaper = lines.changed(line, quantity="2", hours="1")
+    assert cheaper["nodes"][0]["estimate_line"]["base_amount"] == "130.00"
+
+
+@pytest.mark.requirement("WF-DEV-0020-A")
+def test_a_labour_product_is_judged_only_when_its_figures_are_not_refused_already(
+    tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    task = tree.made("Câblage")
+    refused = lines.create(
+        task, quantity=HUGE, hours=ELEVEN_DIGITS, resource_role_id=str(costs.role)
+    )
+    assert faults(refused) == [("/estimate_line/hours", PRECISION, {})]
+
+
+@pytest.mark.requirement("WF-DEV-0020-A")
+def test_a_labour_product_within_the_base_amount_is_kept(
+    tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # One engineer for 10^6 hours at 65.00: 65 000 000.00, not refused.
+    task = tree.made("Câblage")
+    kept = lines.made(task, quantity="1", hours=HUGE, resource_role_id=str(costs.role))["nodes"][0]
+    assert kept["estimate_line"]["base_amount"] == "65000000.00"
+
+
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_a_rate_that_reprices_a_written_line_beyond_the_base_amount_is_refused_at_its_amount(
+    realm: TestRealm, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # #3035: 1000 x 100 000 hours x 65.00 = 6.5 x 10^9; the rate raised to 100 000.00 gives 10^13.
+    task = tree.made("Câblage")
+    lines.made(task, quantity="1000", hours="100000", resource_role_id=str(costs.role))
+    api = tree.api
+    changing = holding(tree.stage.database, realm, "cost_settings.read", "cost_settings.write")
+    url = f"{RATES}/{costs.labour}/hourly-rates/{YEAR}"
+    version = 1
+    refused = api.put(url, headers=changing, json={"amount": "100000.00", "lock_version": version})
+    assert faults(refused) == [("/amount", PRECISION, {})]
+    kept = api.get(f"{RATES}/{costs.labour}/hourly-rates", headers=changing).json()
+    assert [each["amount"] for each in kept if each["year"] == YEAR] == ["65.00"]
+    line = tree.items("?kinds=estimate_line")[0]["estimate_line"]
+    assert line["base_amount"] == "6500000000.00"
+    allowed = api.put(url, headers=changing, json={"amount": "1000.00", "lock_version": version})
+    assert allowed.status_code == 200, allowed.text
+
+
+@pytest.mark.requirement("WF-DEV-0030-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_a_reestimated_amount_beyond_its_column_is_refused_at_the_quantity(
+    api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # #3039: a base amount at its limit, consumed two years after the reference at 3 %: the
+    # re-estimated amount, 1.0609 x 999 999 999 999.99, has thirteen digits.
+    assert inflated(api, stage, "0.03").status_code == 200
+    later = in_two_years(tree)
+    held = {"cost_category_id": str(costs.material), "unit_disbursement": "999999999999.99"}
+    refused = lines.create(later, quantity="1", **held)
+    assert faults(refused) == [("/estimate_line/quantity", PRECISION, {})]
+    assert tree.items("?kinds=estimate_line") == []
+    now = tree.made("Études")
+    line = lines.made(now, quantity="1", **held)["nodes"][0]
+    assert line["estimate_line"]["reestimated_amount"] == "999999999999.99"
+    changed = lines.change(line, quantity="1.5", unit_disbursement="500000000000.00")
+    assert changed.status_code == 200, changed.text
+
+
+@pytest.mark.requirement("WF-PRJ-0040-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_an_inflation_that_reprojects_a_written_line_beyond_its_column_is_refused_at_its_rate(
+    api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # #3039: the line, written without inflation, is at its limit two years after the reference;
+    # the rate of inflation of the project, 3 %, would carry its re-estimated amount past it.
+    later = in_two_years(tree)
+    held = {"cost_category_id": str(costs.material), "unit_disbursement": "999999999999.99"}
+    line = lines.made(later, quantity="1", **held)["nodes"][0]
+    refused = inflated(api, stage, "0.03")
+    assert faults(refused) == [("/inflation_rate", PRECISION, {})]
+    read = api.get(project_url(stage), headers=stage.manager.headers).json()
+    assert Decimal(read["inflation_rate"]) == 0
+    kept = tree.items("?kinds=estimate_line")[0]["estimate_line"]
+    assert kept["reestimated_amount"] == line["estimate_line"]["reestimated_amount"]
+
+
+@pytest.mark.requirement("WF-DEV-0030-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_a_rate_that_carries_only_the_reestimated_amount_beyond_its_column_is_refused_at_its_amount(
+    realm: TestRealm, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # #3039: the line is consumed two years after the reference, the inflation is 3 %; the rate
+    # raised to 950 000 000.00 gives 1000 h x 950 000 000.00 = 9.5 x 10^11, within base_amount, and
+    # 1.0609 times that, past reestimated_amount.
+    api = tree.api
+    assert inflated(api, tree.stage, "0.03").status_code == 200
+    later = in_two_years(tree)
+    lines.made(later, quantity="1", hours="1000", resource_role_id=str(costs.role))
+    changing = holding(tree.stage.database, realm, "cost_settings.read", "cost_settings.write")
+    url = f"{RATES}/{costs.labour}/hourly-rates/{YEAR}"
+    refused = api.put(url, headers=changing, json={"amount": "950000000.00", "lock_version": 1})
+    assert faults(refused) == [("/amount", PRECISION, {})]
+    kept = api.get(f"{RATES}/{costs.labour}/hourly-rates", headers=changing).json()
+    assert [each["amount"] for each in kept if each["year"] == YEAR] == ["65.00"]
+    line = tree.items("?kinds=estimate_line")[0]["estimate_line"]
+    assert line["base_amount"] == "65000.00"

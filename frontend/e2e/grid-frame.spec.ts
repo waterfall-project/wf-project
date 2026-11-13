@@ -316,9 +316,7 @@ test("the height of a grid is measured again when the panel of its filters or th
   expect(chipped.top).toBeGreaterThan(closed.top);
   expect(chipped.bottom).toBeLessThanOrEqual(height + 1);
   await expect(totals).toBeInViewport({ ratio: 1 });
-  await page
-    .getByRole("button", { name: "Retirer le filtre État du compte : Comptes actifs" })
-    .click();
+  await page.getByRole("button", { name: "Retirer le filtre État du compte : Actif" }).click();
   await expect(page.getByRole("list", { name: "Filtres actifs" })).toHaveCount(0, {
     timeout: WORKING,
   });

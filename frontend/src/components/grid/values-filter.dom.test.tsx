@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { startTransition } from "react";
@@ -38,6 +38,47 @@ function filter(chosen: readonly State[]) {
         values={STATES.map((state) => ({ value: state, text: state }))}
         chosen={chosen}
         exhaustive
+      />
+    </NextIntlClientProvider>
+  );
+}
+
+/** The same filter with a box « Sans état » that the address writes as the flag `none`. */
+function withFlag(chosen: readonly (State | "none")[]) {
+  return (
+    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+      <ValuesFilter<State | "none">
+        name="states"
+        label="État"
+        every="Tous les états"
+        values={[
+          { value: "none", text: "Sans état" },
+          ...STATES.map((state) => ({ value: state, text: state })),
+        ]}
+        chosen={chosen}
+        exhaustive
+        flag={{ value: "none", name: "none" }}
+      />
+    </NextIntlClientProvider>
+  );
+}
+
+/** The same filter, an old parameter of the address saying one of its values. */
+function withSaid(
+  chosen: readonly State[],
+  said: { readonly name: string; readonly value: string; readonly reads: State },
+) {
+  return (
+    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+      <ValuesFilter
+        name="states"
+        label="État"
+        every="Tous les états"
+        values={STATES.map((state) => ({ value: state, text: state }))}
+        chosen={chosen}
+        exhaustive
+        lifts={[said.name]}
+        said={said}
       />
     </NextIntlClientProvider>
   );
@@ -151,6 +192,76 @@ describe("the filter of a list on the values of a column", () => {
     await userEvent.clear(screen.getByRole("searchbox"));
     await userEvent.type(screen.getByRole("searchbox"), "zzz");
     expect(screen.getByText("Aucune valeur ne correspond.")).toBeInTheDocument();
+  });
+
+  it("writes a flag under its own name, true when checked, removed when unchecked, and keeps it out of the exhaustive values (#3050)", async () => {
+    router.push.mockImplementation(() => {
+      startTransition(() => new Promise<void>(() => undefined));
+    });
+    render(withFlag([]));
+    await pick("État", "Sans état");
+    expect(router.push).toHaveBeenLastCalledWith("/projects/p/revisions/r/risks?none=true", {
+      scroll: false,
+    });
+    await pick("État", "identified");
+    expect(router.push).toHaveBeenLastCalledWith(
+      "/projects/p/revisions/r/risks?none=true&states=identified",
+      { scroll: false },
+    );
+    await pick("État", "Sans état");
+    expect(router.push).toHaveBeenLastCalledWith(
+      "/projects/p/revisions/r/risks?states=identified",
+      { scroll: false },
+    );
+    // Every value of the contract lifts the filter; the flag is not one of them, nor does it
+    // prevent the others from being all of them.
+    await pick("État", "occurred");
+    await pick("État", "closed");
+    expect(router.push).toHaveBeenLastCalledWith("/projects/p/revisions/r/risks", {
+      scroll: false,
+    });
+    // Every value chosen and the flag checked: the values are lifted, the flag stays.
+    await pick("État", "Sans état");
+    expect(router.push).toHaveBeenLastCalledWith("/projects/p/revisions/r/risks?none=true", {
+      scroll: false,
+    });
+  });
+
+  it("reads a flag checked from the address, and unchecks it from there (#3050)", async () => {
+    router.push.mockImplementation(() => {
+      startTransition(() => new Promise<void>(() => undefined));
+    });
+    page.search = "states=closed&none=true";
+    render(withFlag(["closed", "none"]));
+    await pick("État", "Sans état");
+    expect(router.push).toHaveBeenLastCalledWith("/projects/p/revisions/r/risks?states=closed", {
+      scroll: false,
+    });
+  });
+
+  it("reads the old parameter as a value only while the parameter of the filter is absent (#3050)", async () => {
+    router.push.mockImplementation(() => {
+      startTransition(() => new Promise<void>(() => undefined));
+    });
+    const said = { name: "old", value: "no", reads: "identified" as const };
+    page.search = "old=no";
+    render(withSaid([], said));
+    await pick("État", "closed");
+    // The old parameter says « identified »: it is read as chosen, and lifted by the choice.
+    expect(router.push).toHaveBeenLastCalledWith(
+      "/projects/p/revisions/r/risks?states=identified%2Cclosed",
+      { scroll: false },
+    );
+    router.push.mockClear();
+    // The filter has its own parameter: the old one says nothing more.
+    page.search = "states=occurred&old=no";
+    cleanup();
+    render(withSaid(["occurred"], said));
+    await pick("État", "closed");
+    expect(router.push).toHaveBeenLastCalledWith(
+      "/projects/p/revisions/r/risks?states=occurred%2Cclosed",
+      { scroll: false },
+    );
   });
 
   it("offers no search to a short menu, and breaks no rule of accessibility (#2916)", async () => {

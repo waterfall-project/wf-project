@@ -465,7 +465,7 @@ describe("the accounts", () => {
     expect(queriesOf("GET /users")).toEqual([
       { include_inactive: "true", offset: "2", is_active: "true" },
     ]);
-    expect(text(page)).toContain("État du compte : Comptes actifs");
+    expect(text(page)).toContain("État du compte : Actif");
     expect(page).not.toContain("les désactivés</a>");
     server.clients = [];
     await UsersPage(searched({ include_inactive: "maybe" }));

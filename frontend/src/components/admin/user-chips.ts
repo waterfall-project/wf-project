@@ -83,7 +83,7 @@ export function useUserChips(
     add(
       IS_ACTIVE,
       t("admin.users.stateFilter"),
-      filters.active ? t("admin.users.activeAccounts") : t("admin.users.inactiveAccounts"),
+      filters.active ? t("admin.users.activeState") : t("admin.users.inactiveState"),
       [IS_ACTIVE, INCLUDE_INACTIVE],
     );
   }

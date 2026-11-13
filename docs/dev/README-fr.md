@@ -1783,7 +1783,7 @@ aucun à une session qui ne les lit pas ; tous choisis filtrent encore, un compt
 retenu par aucun, `exhaustive: false`, EP-02/L42f) et par état, un seul choix (`is_active`) — tous,
 les actifs seuls, les désactivés seuls —, qui dit ce que la grille montre : la page demande toujours
 les désactivés aussi (`include_inactive=true`, le contrat les masquant par défaut), une adresse
-d'avant qui les masquait (`include_inactive=false`) se lit « Comptes actifs » (`readAccountState`),
+d'avant qui les masquait (`include_inactive=false`) se lit « Actif » (`readAccountState`),
 un filtre de la grille, gardé avec ses réglages comme les autres (`USER_FILTERS`, #2916) — seul
 dans l'adresse, il n'est donc pas remplacé par les filtres gardés —, et tout choix lève ce paramètre ancien (`lifts` de `ChoiceFilter`) — et paginés par le serveur, sous
 les noms du contrat — un tri, une recherche ou un filtre ramenant à la première page —, la ligne des
@@ -4121,8 +4121,10 @@ quarts de `WATERFALL_PROCESSORS`, la part de processeurs du créneau, au moins 1
 à naviguer (`toHaveURL`) ; mesuré à 8, 10 et 12 workers sur 8 processeurs, quatre créneaux pris,
 ils échouaient encore à naviguer, à 6 aucun échec de navigation sur deux passages. `WORKERS=<n>` ne vaut
 que pour `make e2e` ; `make e2e-service` prend `E2E_WORKERS=<n>`, dans l'environnement ou sur la
-ligne de commande, qui l'emporte (vide, il est ignoré). Avec `WATERFALL_API_ADDRESS`, le harnais joue
-contre l'API qu'elle nomme et ne démarre aucun faux back.
+ligne de commande, qui l'emporte (vide, il est ignoré, sur la ligne de commande comme dans
+l'environnement) ; un `WATERFALL_PROCESSORS` qui n'est pas un entier positif est refusé avant toute
+commande. Avec `WATERFALL_API_ADDRESS`, le harnais joue contre l'API qu'elle nomme et ne démarre aucun
+faux back.
 
 **Les parcours se jouent contre le front construit pour la production** (US-0590), celui
 qu'ouvrent les utilisateurs : un serveur `next start` par worker des parcours, sur `E2E_FRONT_PORT`

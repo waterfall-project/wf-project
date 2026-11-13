@@ -1783,8 +1783,8 @@ to a session that does not read them; all of them chosen still filter, an accoun
 being kept by none, `exhaustive: false`, EP-02/L42f) and by state, a single choice (`is_active`) —
 all, the active ones only, the deactivated ones only —, which says what the grid shows: the page
 always asks for the deactivated ones too (`include_inactive=true`, the contract hiding them by
-default), an address from before that hid them (`include_inactive=false`) reads as « Active
-accounts » (`readAccountState`), a filter of the grid, kept with its settings like the others
+default), an address from before that hid them (`include_inactive=false`) reads as « Active »
+(`readAccountState`), a filter of the grid, kept with its settings like the others
 (`USER_FILTERS`, #2916) — alone in the address, it is therefore not replaced by the filters kept —,
 and any choice lifts that old parameter (`lifts` of
 `ChoiceFilter`) — and paginated by the server, under the names of the contract — a sort, a search
@@ -4088,8 +4088,9 @@ processors of the workstation, 16 of 32, where 18 to 23 paths failed to navigate
 measured at 8, 10 and 12 workers on 8 processors, four slots taken, they still failed to navigate,
 at 6 no failure to navigate over two passes. `WORKERS=<n>` holds only for `make e2e`; `make
 e2e-service` takes `E2E_WORKERS=<n>`, in the environment or on the command line, which prevails
-(empty, it is ignored). With `WATERFALL_API_ADDRESS`, the harness plays against the API it names and
-starts no fake back.
+(empty, it is ignored, on the command line as in the environment); a `WATERFALL_PROCESSORS` that
+is not a positive integer is refused before any command. With `WATERFALL_API_ADDRESS`, the harness
+plays against the API it names and starts no fake back.
 
 **The paths are played against the front built for production** (US-0590), the one users open: one
 `next start` server per worker of the paths, on `E2E_FRONT_PORT` and the ports that follow it, each
