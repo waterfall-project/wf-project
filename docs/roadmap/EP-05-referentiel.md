@@ -1048,9 +1048,12 @@ travaille.
   qu'avec un décalage de 2 eh. » : EP-06 ;
 - écart : `WF-PLA-0160-A` — « Un décalage de 2 j sur la même liaison le fait commencer le
   mercredi. » : EP-06 ;
-- écart : `WF-PLA-0160-A` — « Un fichier MS Project dont les constantes diffèrent de celles de
-  l'installation est importé avec les mêmes durées en heures, et le compte rendu signale la
-  différence. » : EP-06 ;
+- écart : `WF-PLA-0160-A` — « Un fichier MS Project dont les constantes ou le calendrier diffèrent
+  de ceux de l'installation est signalé au compte rendu ; importé en gardant les durées, une tâche
+  de « 2 j » saisie à 7 h par jour vaut deux jours, soit seize heures avec les valeurs par défaut ;
+  importé en gardant les dates, sa durée est le temps de travail entre ses dates du fichier sur son
+  calendrier Waterfall. » : la phrase que la spécification 1.0.5 réécrit (#2922) ; EP-06 constate le
+  signalement des constantes, EP-24 réalise le choix (US-2000) ;
 - écart : `WF-PLA-0160-A` — « « 1 m » est lu comme un mois et « 1 min » comme une minute, dans
   chacune des langues de l'interface. » : constaté par EP-15 (US-0470) ; EP-06 clôt ;
 - écart : `WF-PLA-0160-A` — « En anglais, « 1 j » et « 1 d » valent chacun un jour ; « 3 », saisi

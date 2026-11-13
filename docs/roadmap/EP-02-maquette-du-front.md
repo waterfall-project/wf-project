@@ -835,6 +835,11 @@ préférence d'affichage (WF-ADM-0040), donc personnels et sans effet sur les do
   réglages. » : la conservation passe par `updateMyPreferences`, que le mock accepte sans
   rien garder, et le second utilisateur demande un compte réel — EP-03. Ici, l'écran des
   colonnes et des largeurs existe et écrit la préférence ; rien ne la restitue encore.
+- écart : `WF-IHM-0060-A` — « Le panneau des filtres d'une table plate, fermé par défaut, est
+  retrouvé ouvert ou fermé comme l'utilisateur l'a laissé, sans changer celui des autres tables ;
+  ses filtres actifs restent dits, panneau fermé, chacun ôtable. » : le panneau repliable des
+  filtres vient après la livraison (#2916 ; spécification 1.0.5, #2921) ; EP-24 le vérifie
+  (US-1850).
 - écart : `WF-ADM-0040-A` — « Deux utilisateurs ouvrant le même projet voient les mêmes
   données présentées selon leurs réglages respectifs. » demande deux comptes réels et un projet
   — EP-04.

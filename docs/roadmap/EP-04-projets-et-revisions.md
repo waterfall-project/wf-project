@@ -820,6 +820,10 @@ attendre l'administrateur.
 - `WF-IHM-0120-A` — « Sur une installation au référentiel incomplet, l'accueil nomme les
   prérequis manquants et mène au référentiel. » : contre le service, l'accueil connecté se rend
   (#1004) et lit `getReferenceReadiness` ;
+- écart : `WF-IHM-0120-A` — « L'administrateur d'une installation neuve arrive sur un accueil qui
+  mène à l'administration ; une personne créée sans rôle par un fournisseur externe lit qu'il lui
+  faut un rôle. » : ajouté par la spécification 1.0.5 (#2915) ; réalisé par #2928, que vérifie EP-24
+  (US-1870) ;
 - `WF-CYC-0010-A` — « Les listes, filtres et en-têtes de projet ne proposent que ces six statuts,
   avec les codes et libellés du tableau des états d'un projet. »
 - `WF-CYC-0010-A` — « L'API ne renvoie que ces six codes. » : `state` est une contrainte de
