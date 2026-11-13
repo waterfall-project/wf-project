@@ -306,7 +306,8 @@ sous-issues suit le découpage :
 et il est tenu à jour à chaque changement d'état — lot commencé, en revue, fusionné, bloqué ;
 US passée `en cours` ou `fini` ; constat ouvert ou tranché. Les agents le changent par
 `make tracking` — `ISSUE=<n> LOT=<identifiant> [STATE=…] [PR=…] [MODEL=…]`, `LOT=<identifiant>
-DEPENDS=<liste>`, `ADD_LOT=<identifiant> AFTER=<lot> [DEPENDS=…] [MODEL=…] [LOT_ISSUE=<n>]`
+DEPENDS=<liste>`, `LOT=<identifiant> NOT_WITH=<liste>`,
+`ADD_LOT=<identifiant> AFTER=<lot> [DEPENDS=…] [NOT_WITH=…] [MODEL=…] [LOT_ISSUE=<n>]`
 (`LOT_ISSUE` : l'issue du lot inséré, le `#n` de sa ligne),
 `REPLACE_DEPENDENCY='<ancien>=<nouveau>'`, `US=<identifiant> STATUS=…` ou
 `FINDING=<n> ATTACHED=… DECISION=…` —, qui relit le corps sous un verrou du poste juste avant de
@@ -320,7 +321,9 @@ s'y réécriraient l'un l'autre. Il a deux parties :
   eu une ; et sa colonne **« Pas avec »** : les lots de l'EPIC avec lesquels il ne se livre
   pas en même temps (`—` s'il n'y en a pas). Elle est symétrique — si L2 est « pas avec » L1,
   L1 l'est aussi avec L2 —, et le cadreur la remplit, au plan de lots, pour deux lots qu'aucune
-  dépendance ne sépare et qui touchent un même fichier. Le pilote ne lance pas un lot dont un
+  dépendance ne sépare et qui touchent un même fichier. `NOT_WITH=<liste>` n'écrit que la cellule
+  du lot nommé, et ne complète pas l'autre côté : la symétrie se déclare par un appel pour chaque
+  lot de la paire. Le pilote ne lance pas un lot dont un
   lot « pas avec » est commencé et non fusionné (`en cours`, `en revue`, `question`, `bloqué`),
   même quand leurs dépendances le permettent. Le gabarit d'un lot a le même champ ;
 - **Constats ouverts** : chaque constat qui n'est pas fermé, l'issue où il est rattaché, et

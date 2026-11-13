@@ -1,29 +1,53 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# The caches of the front written after each merge, on the branch every pull request into it and
-# its merge queue read the caches of: the store of pnpm (setup-node), which a pull request would
-# otherwise download again at its first run, and the merge queue at each of its runs; and the
-# cache of ESLint (front.yml). Nothing is checked here: the chain did, before the merge.
+# The caches of the chain, written here and in images.yml alone: every other workflow reads them
+# and writes none, so that the cache of Actions stays under its quota of 10 GB (US-1910). The store
+# of pnpm, at the fixed path /tmp/pnpm-store that the action pnpm-store reads it at; the cache of
+# uv, for each set of lockfiles the workflows read it by (the same globs, so the same keys), which
+# a pull request would otherwise download again at its first run; the cache of ESLint (front.yml);
+# Next's cache (`.next/cache`, ci.yml), which the build of the front
+# reads to compile what changed alone; and the package of pandoc (spec.yml). Written after each
+# merge, on the branch every pull request into it reads the caches of; at the creation of an epic
+# branch, which would have none until its first merge; and on main every Monday, because the merge
+# queue sees only its own caches and those of main. The caches of a deleted branch are removed by
+# cache-clean.yml. Nothing is checked here: the chain did, before the merge.
 name: front-cache
 
 on:
   push:
     branches: [main, "epic/**"]
     paths: ["frontend/**"]
+  # A branch created: this event has no filter of branches, the job below chooses.
+  create:
+  # The caches of main, which a week without a read would let GitHub drop.
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
-# The last merge wins: the caches of the one before it are superseded.
+env:
+  # The package of pandoc that spec.yml reads: the same version and digest as its own.
+  PANDOC_VERSION: 3.13
+  PANDOC_SHA256: 7e3736f255090296ca5d1a14291a76b9b3c43cd385011b1621a4d0c16091a70f
+
+# The last merge wins: the caches of the one before it are superseded. The weekly run has a group
+# of its own: a push must not cancel it, nor it a push, whose commit it does not write.
 concurrency:
-  group: front-cache-${{ github.ref }}
+  group: front-cache-${{ github.event_name == 'schedule' && 'weekly-' || '' }}${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   write:
+    # The merge queue creates a branch for each pass, and a lot's branch is read by its pull request
+    # alone: a branch created is written only if it is an epic branch.
+    if: >-
+      github.event_name != 'create'
+      || (github.event.ref_type == 'branch' && startsWith(github.event.ref, 'epic/'))
     runs-on: ubuntu-26.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -35,11 +59,113 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
+      # The store of pnpm, at the path the action pnpm-store reads, under the key setup-node used.
+      - run: echo "npm_config_store_dir=/tmp/pnpm-store" >> "$GITHUB_ENV"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: /tmp/pnpm-store
+          key: node-cache-Linux-x64-pnpm-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          restore-keys: node-cache-Linux-x64-pnpm-
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: frontend/.eslintcache
           key: eslint-${{ github.sha }}
           restore-keys: eslint-
       - run: make lint-front
+      # Next's cache: the last one found, by the lockfile and then at all, and this commit's saved.
+      - id: next
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: frontend/.next/cache
+          key: next-${{ hashFiles('frontend/pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            next-${{ hashFiles('frontend/pnpm-lock.yaml') }}-
+            next-
+      - run: make build-front
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: frontend/.next/cache
+          key: ${{ steps.next.outputs.cache-primary-key }}
+      # The package of pandoc, downloaded as spec.yml does: retrying, and cut when it stalls.
+      - id: pandoc
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pandoc
+          key: pandoc-${{ env.PANDOC_VERSION }}-${{ env.PANDOC_SHA256 }}
+      - if: steps.pandoc.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.cache/pandoc
+          deb=~/.cache/pandoc/pandoc.deb
+          url="https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb"
+          timeout 240 curl -sSfL --connect-timeout 15 --speed-limit 1000 --speed-time 20 \
+            --retry 10 --retry-all-errors --retry-delay 15 -o "$deb" "$url"
+          echo "${PANDOC_SHA256}  $deb" | sha256sum --check --strict
+      - if: steps.pandoc.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pandoc
+          key: ${{ steps.pandoc.outputs.cache-primary-key }}
+
+  # The cache of uv, once for each set of lockfiles the workflows read it by (the key of setup-uv
+  # is the hash of the files, in this order): the same globs as the readers, hence the same keys.
+  uv:
+    if: >-
+      github.event_name != 'create'
+      || (github.event.ref_type == 'branch' && startsWith(github.event.ref, 'epic/'))
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - locks: tools/uv.lock
+            projects: tools
+          - locks: backend/uv.lock
+            projects: backend
+          - locks: |
+              backend/uv.lock
+              tools/uv.lock
+            projects: backend tools
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-local-path: /tmp/setup-uv-cache
+          cache-dependency-glob: ${{ matrix.locks }}
+      - env:
+          PROJECTS: ${{ matrix.projects }}
+        run: for project in $PROJECTS; do uv sync --frozen --all-groups --project "$project"; done
+
+  # The entries of Next and of ESLint are keyed by commit, to be found by prefix: left alone, each
+  # push would add one. Those of pnpm and of uv are keyed by the hash of their lockfiles: a lockfile
+  # that changed leaves the entry of the one before. This job, the only one here that may delete,
+  # keeps on the ref this run's entries and the ones its lockfiles hash to.
+  prune:
+    needs: [write, uv]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      SUFFIX: -${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - env:
+          PNPM_HASH: ${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          UV_RE: ${{ hashFiles('tools/uv.lock') }}|${{ hashFiles('backend/uv.lock') }}|${{ hashFiles('backend/uv.lock', 'tools/uv.lock') }}
+        run: |
+          gh cache list --ref "$GITHUB_REF" --limit 100 --json id,key --jq '
+            .[] | select(
+              ((.key | startswith("next-") or startswith("eslint-")) and (.key | endswith(env.SUFFIX) | not))
+              or ((.key | startswith("node-cache-Linux-x64-pnpm-")) and (.key | endswith(env.PNPM_HASH) | not))
+              or ((.key | startswith("setup-uv-")) and (.key | test(env.UV_RE) | not))
+            ) | .id' |
+            while read -r id; do gh cache delete "$id"; done

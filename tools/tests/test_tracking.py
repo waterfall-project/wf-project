@@ -728,6 +728,56 @@ def test_make_exposes_the_new_forms(tmp_path: Path) -> None:
     assert make_tracking(issue, ["ADD_LOT=US-0850b"], environment) != 0
 
 
+def test_not_with_with_lot_replaces_the_cell_of_this_lot_alone(tmp_path: Path) -> None:
+    """US-1910 (#3023): LOT with NOT_WITH writes « Pas avec » of that row, and no other row."""
+    issue = cut_issue(tmp_path)
+    assert issue.run("--lot", "US-1270/L2", "--not-with", "US-0850/L1 #2042 | x")[0] == 0
+    ((before, after),) = changed_lines(CUT_BODY, issue.body)
+    assert after == before.replace("| US-1270/L1 | — |", "| US-1270/L1 | US-0850/L1 #2042 \\| x |")
+    # One row changed: the other side of the pair is written by a call of its own.
+    assert issue.run("--lot", "US-1270/L2", "--not-with", "—", "--state", "en revue")[0] == 0
+
+
+def test_not_with_with_add_lot_fills_the_cell_of_the_new_row(tmp_path: Path) -> None:
+    """US-1910 (#3023): ADD_LOT with NOT_WITH writes the cell, and `—` without it."""
+    issue = cut_issue(tmp_path)
+    assert (
+        issue.run("--add-lot", "US-0830b", "--after", "US-0830", "--not-with", "US-0850/L1")[0] == 0
+    )
+    assert issue.run("--add-lot", "US-1270/L3", "--after", "US-1270/L2")[0] == 0
+    table = [line.split("|") for line in issue.body.splitlines() if line.startswith("|")]
+    rows = {cells[4].strip(): cells[6].strip() for cells in table if len(cells) > 6}
+    assert rows["US-0830b"] == "US-0850/L1"
+    assert rows["L3"] == "—"
+
+
+def test_not_with_goes_with_lot_or_add_lot_only_and_needs_its_column(tmp_path: Path) -> None:
+    """US-1910 (#3023): NOT_WITH goes with LOT or ADD_LOT, and a table with its column."""
+    issue = cut_issue(tmp_path)
+    before = issue.body
+    for arguments in (
+        ["--us", "US-0830", "--status", "x", "--not-with", "y"],
+        ["--replace-dependency", "US-0820=US-0820b", "--not-with", "y"],
+        ["--finding", "9", "--not-with", "y"],
+        ["--lot", "US-0830", "--not-with", "a\nb"],
+    ):
+        assert issue.run(*arguments)[0] == 1
+    assert issue.body == before
+    (tmp_path / "old").mkdir()
+    old = Issue(tmp_path / "old", CUT_BODY.replace(" Pas avec |", "").replace("| — | — |", "| — |"))
+    code, error = old.run("--lot", "US-0830", "--not-with", "US-0850")
+    assert code == 1
+    assert "no column" in error
+
+
+def test_make_exposes_not_with(tmp_path: Path) -> None:
+    """US-1910 (#3023): NOT_WITH reaches the tool from the command line of make, not the shell."""
+    issue = cut_issue(tmp_path)
+    assert make_tracking(issue, ["LOT=US-0830", "NOT_WITH=US-0850/L1"], {"NOT_WITH": "z"}) == 0
+    assert "| US-0820 | US-0850/L1 |" in issue.body
+    assert make_tracking(issue, ["LOT=US-0830"], {"NOT_WITH": "z"}) != 0
+
+
 def epic_template() -> str:
     """Return the table of the field ``tracking`` of the epic template, without any YAML library.
 

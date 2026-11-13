@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The caches of a deleted branch are removed with it (US-1910): an epic branch delivered, a lot's
+# branch deleted at its merge, a branch of the merge queue deleted after its pass. GitHub drops a
+# cache unread for seven days, but the quota of 10 GB is reached well before: the layers of an
+# image weigh 200 MB per branch. Like every `delete` workflow, this one runs from the default
+# branch, so it exists for GitHub once it is on main.
+name: cache-clean
+
+on:
+  delete:
+
+# The right to delete a cache is the one this workflow holds, and nothing else of the repository.
+permissions:
+  actions: write
+
+jobs:
+  branch:
+    if: github.event.ref_type == 'branch'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      DELETED: refs/heads/${{ github.event.ref }}
+    steps:
+      - run: gh cache delete --all --ref "$DELETED" --succeed-on-no-caches

@@ -62,6 +62,8 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
+          save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: tools/uv.lock
       - id: families
         env:
@@ -118,6 +120,8 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
+          save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: tools/uv.lock
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
@@ -168,15 +172,24 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # pnpm, at the version `packageManager` names, must exist before setup-node caches it.
+      # pnpm, at the version `packageManager` names, must exist before its store is read.
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           package_json_file: frontend/package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
+      # The store of pnpm is read, never written: front-cache.yml writes it.
+      - uses: ./.github/actions/pnpm-store
+      # Next's cache, which a build reads to compile only what changed: the last one front-cache.yml
+      # wrote, on this branch or on the one it merges into, read and never written here.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: frontend/.next/cache
+          key: next-${{ hashFiles('frontend/pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            next-${{ hashFiles('frontend/pnpm-lock.yaml') }}-
+            next-
       - run: make build-front
       # The build without Next's cache, which only a later build reads, for one day: each job that
       # plays it downloads it where the build wrote it.
@@ -209,6 +222,9 @@ jobs:
     # A lookup in the registry; a build, and its publication, when the image changed: about three
     # minutes, most of it the pull of Playwright's image.
     timeout-minutes: 15
+    # Write only publishes the image, in the full tier; the fast one, which pushes nothing, holds it
+    # too: an expression is not admitted in `permissions`, and the job is not split in two (every
+    # job that needs the image would then name two).
     permissions:
       contents: read
       packages: write
@@ -221,6 +237,8 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
+          save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: tools/uv.lock
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
@@ -321,6 +339,8 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
+          save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: tools/uv.lock
       - env:
           NEEDS: ${{ toJSON(needs) }}
