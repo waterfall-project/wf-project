@@ -86,7 +86,7 @@ def test_the_heavy_file_is_alone_in_its_part() -> None:
 def test_every_test_plays_once_whatever_the_durations_and_the_count() -> None:
     known = e2eparts.measure(LOG, parallel)
     for durations in ({}, known, {"gone.spec.ts": 99.0}):
-        for count in (1, 2, 3, 5, 9):
+        for count in (1, 2, 3, 5, 6):
             plans = [
                 e2eparts.plan(f"{i}/{count}", LISTING, durations, parallel)
                 for i in range(1, count + 1)
@@ -115,6 +115,46 @@ def test_a_part_is_i_over_n(shard: str) -> None:
         e2eparts.parse_shard(shard)
 
 
+def test_a_listing_without_a_test_is_refused() -> None:
+    for listing in ("", "Listing tests:\nTotal: 0 tests in 0 files\n", "Error: no format\n"):
+        with pytest.raises(ValueError, match="no test recognised"):
+            e2eparts.plan("1/2", listing, {}, parallel)
+
+
+def test_a_listing_with_a_line_lost_or_without_its_total_is_refused() -> None:
+    lost = LISTING.replace("admin.spec.ts:41:1", "admin.spec:41")
+    with pytest.raises(ValueError, match="6 tests recognised"):
+        e2eparts.plan("1/2", lost, {}, parallel)
+    with pytest.raises(ValueError, match="no Total line"):
+        e2eparts.plan("1/2", LISTING.replace("Total: 7", "Sum: 7"), {}, parallel)
+
+
+def test_a_part_that_would_be_empty_is_refused() -> None:
+    with pytest.raises(ValueError, match="empty"):
+        e2eparts.plan("1/9", LISTING, {}, parallel)
+
+
+def test_a_title_ending_like_a_duration_is_kept_whole_in_a_listing() -> None:
+    line = "[chromium] \u203a a.spec.ts:1:1 \u203a waits (12s)"
+    assert e2eparts.listed(line)[0][1] == "waits (12s)"
+    assert e2eparts.listed(f"T ✓ 1 {line} (3.0s)", timed=True)[0][1:] == ("waits (12s)", 3.0)
+
+
+def test_a_refresh_that_loses_known_units_is_refused_unless_dropped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "durations.json"
+    e2eparts.write({"gone.spec.ts": 4.0, "admin.spec.ts": 1.0}, target)
+    monkeypatch.setattr(e2eparts, "DURATIONS", target)
+    monkeypatch.setattr(e2eparts, "is_parallel", parallel)
+    log = tmp_path / "log"
+    log.write_text(LOG, encoding="utf-8")
+    assert e2eparts.main(["refresh", str(log)]) == 1
+    assert e2eparts.read(target) == {"gone.spec.ts": 4.0, "admin.spec.ts": 1.0}
+    assert e2eparts.main(["refresh", "--drop", str(log)]) == 0
+    assert "gone.spec.ts" not in e2eparts.read(target)
+
+
 def test_the_durations_are_written_one_unit_a_line_and_read_back(tmp_path: Path) -> None:
     target = tmp_path / "durations.json"
     e2eparts.write({"a.spec.ts": 1.5, f"b.spec.ts{SEPARATOR}t": 2.0}, target)
@@ -128,6 +168,11 @@ def test_the_files_played_test_by_test_are_the_ones_that_say_so(tmp_path: Path) 
     (tmp_path / "e2e" / "b.spec.ts").write_text('test.describe.configure({ mode: "serial" });')
     assert e2eparts.is_parallel("a.spec.ts", tmp_path)
     assert not e2eparts.is_parallel("b.spec.ts", tmp_path)
+    (tmp_path / "e2e" / "c.spec.ts").write_text(
+        '// test.describe.configure({ mode: "parallel" });\n'
+        'test.describe("x", () => {\n  test.describe.configure({ mode: "parallel" });\n});\n'
+    )
+    assert not e2eparts.is_parallel("c.spec.ts", tmp_path)
 
 
 def test_the_versioned_durations_are_those_of_the_paths_of_the_repository() -> None:

@@ -609,8 +609,8 @@ e2e-build = $(if $(filter 1,$(E2E_BUILT) $(1)),,build-front)
 e2e: export E2E_PART = $(if $(SHARD),paths)
 e2e: export E2E_BUILT = 1
 e2e: export E2E_WORKERS = $(WORKERS)
-e2e: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths, against the fake back that Playwright starts (US-0080), on the front built for production; SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n (1 to 40, by default half the processors, at most 40) plays them on n workers; TESTS=<file> plays one file; E2E_DEV_SERVER=1 plays them against next dev, on a workstation
-	@$(if $(SHARD),dir=$$(mktemp -d) && trap 'rm -rf "$$dir"' EXIT && ( $(PNPM) exec playwright test --list > "$$dir/listing" ) && $(WFTOOLS).e2eparts plan $(SHARD) < "$$dir/listing" > "$$dir/part" && )$(PNPM_HEAVY) exec playwright test $(if $(SHARD),--test-list="$$dir/part") $(TESTS)
+e2e: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths, against the fake back that Playwright starts (US-0080), on the front built for production; SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n (1 to 40, by default half the processors, at most 40) plays them on n workers; TESTS=<file> plays one file (not with SHARD); E2E_DEV_SERVER=1 plays them against next dev, on a workstation
+	@$(if $(and $(SHARD),$(TESTS)),$(error SHARD and TESTS do not combine: the file may be in another part))$(if $(SHARD),dir=$$(mktemp -d) && trap 'rm -rf "$$dir"' EXIT && ( $(PNPM) exec playwright test --list > "$$dir/listing" ) && $(WFTOOLS).e2eparts plan $(SHARD) < "$$dir/listing" > "$$dir/part" && )$(PNPM_HEAVY) exec playwright test $(if $(SHARD),--test-list="$$dir/part") $(TESTS)
 
 # Rewrite tools/e2e-durations.json, the seconds each unit of the paths took, from the log of a run
 # (LOG=<file>, the list reporter's output of a make e2e, or of the job of a part in the chain; the

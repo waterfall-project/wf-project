@@ -35,18 +35,22 @@ UNKNOWN = 5.0
 """The seconds a unit weighs when the durations know no unit of its kind at all."""
 SEPARATOR = " \u203a "
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
-TEST = re.compile(
-    r"\[[^\]]+\] \u203a (?:e2e/)?(?P<file>[^:\s]+\.spec\.ts):\d+:\d+ \u203a (?P<title>.*?)"
-    r"(?: \((?P<value>\d+(?:\.\d+)?)(?P<unit>ms|s|m|h)\))?\s*$"
-)
-"""A test of a listing, or of a log of the ``list`` reporter, which adds its duration."""
+HEAD = r"\[[^\]]+\] \u203a (?:e2e/)?(?P<file>[^:\s]+\.spec\.ts):\d+:\d+ \u203a (?P<title>.*?)"
+TEST = re.compile(HEAD + r"\s*$")
+"""A test of a listing, whose title is kept whole, whatever it ends with."""
+TIMED = re.compile(HEAD + r"(?: \((?P<value>\d+(?:\.\d+)?)(?P<unit>ms|s|m|h)\))?\s*$")
+"""A test of a log of the ``list`` reporter, which adds its duration."""
+TOTAL = re.compile(r"^\s*Total: (?P<tests>\d+) tests? in \d+ files?\s*$", re.MULTILINE)
+"""The line that closes a listing, with the number of tests Playwright counted."""
+PARALLEL = re.compile(r'^test\.describe\.configure\(\{[^}]*\bmode: "parallel"', re.MULTILINE)
+"""The configuration of a whole file; a comment, or a ``describe`` inside, does not match."""
 PASSED = re.compile(r"[\u2713\u2718]\s+\d+ ")
 SECONDS = {"ms": 0.001, "s": 1.0, "m": 60.0, "h": 3600.0}
 
 
 def is_parallel(file: str, front: Path = FRONT) -> bool:
     """Return whether the file plays its tests one by one (``mode: "parallel"``)."""
-    return 'mode: "parallel"' in (front / "e2e" / file).read_text(encoding="utf-8")
+    return PARALLEL.search((front / "e2e" / file).read_text(encoding="utf-8")) is not None
 
 
 def read(durations: Path = DURATIONS) -> dict[str, float]:
@@ -68,7 +72,7 @@ def listed(text: str, *, timed: bool = False) -> list[tuple[str, str, float]]:
         plain = ANSI.sub("", line)
         if timed and PASSED.search(plain) is None:
             continue
-        match = TEST.search(plain)
+        match = (TIMED if timed else TEST).search(plain)
         if match is None or (timed and match["value"] is None):
             continue
         seconds = float(match["value"]) * SECONDS[match["unit"]] if timed else 0.0
@@ -115,7 +119,22 @@ def plan(
 ) -> list[str]:
     """Return the lines of the test list of the part ``shard`` (``i/N``) of a listing."""
     index, count = parse_shard(shard)
-    units = sorted({unit(file, title, parallel) for file, title, _ in listed(listing)})
+    tests = listed(listing)
+    totals = TOTAL.findall(ANSI.sub("", listing))
+    if not tests:
+        message = "no test recognised in the listing: no part is played"
+        raise ValueError(message)
+    if len(totals) != 1 or int(totals[0]) != len(tests):
+        message = (
+            f"{len(tests)} tests recognised in the listing, "
+            f"{'+'.join(totals) or 'no Total line'} counted by Playwright: "
+            "a test would be lost, or the format of the listing changed"
+        )
+        raise ValueError(message)
+    units = sorted({unit(file, title, parallel) for file, title, _ in tests})
+    if count > len(units):
+        message = f"{count} parts for {len(units)} units: a part would be empty"
+        raise ValueError(message)
     return spread(units, durations, count)[index - 1]
 
 
@@ -142,19 +161,32 @@ def main(arguments: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="wftools.e2eparts", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("plan", help="print the test list of a part").add_argument("shard")
-    commands.add_parser("refresh", help="rewrite the durations from a log").add_argument(
-        "log", nargs="?", help="the log of make e2e; standard input if absent"
+    refresh = commands.add_parser("refresh", help="rewrite the durations from a log")
+    refresh.add_argument("log", nargs="?", help="the log of make e2e; standard input if absent")
+    refresh.add_argument(
+        "--drop", action="store_true", help="accept that the units the log lacks leave the file"
     )
     options = parser.parse_args(arguments)
     if options.command == "plan":
-        print("\n".join(plan(options.shard, sys.stdin.read(), read(), is_parallel)))
+        try:
+            lines = plan(options.shard, sys.stdin.read(), read(), is_parallel)
+        except ValueError as error:
+            print(f"e2eparts: {error}", file=sys.stderr)
+            return 1
+        print("\n".join(lines))
         return 0
     text = Path(options.log).read_text(encoding="utf-8") if options.log else sys.stdin.read()
     measured = measure(text, is_parallel)
     if not measured:
         print("no test result in the log: the durations are left as they were", file=sys.stderr)
         return 1
-    write(measured)
+    gone = sorted(set(read(DURATIONS)) - set(measured))
+    if gone and not options.drop:
+        print(f"the log lacks {len(gone)} known units, file left as it was:", file=sys.stderr)
+        print("\n".join(f"  {name}" for name in gone[:10]), file=sys.stderr)
+        print("give the log of every job, or --drop to let them go", file=sys.stderr)
+        return 1
+    write(measured, DURATIONS)
     print(f"{len(measured)} units, {sum(measured.values()):.0f} s of tests")
     return 0
 

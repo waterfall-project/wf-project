@@ -3503,7 +3503,9 @@ The full tier aims at under eight minutes in the queue for its longest job
   the log of a real run (`make e2e-durations LOG=<file>`: the log of the job of a shard, or the
   output of `make e2e`, with the `list` reporter; the standard input without `LOG`, for example
   `gh run view <run> --log --job <job> | make e2e-durations`, the logs of the five shards put end
-  to end);
+  to end); a log that would make known units disappear is refused, unless
+  `python -m wftools.e2eparts refresh --drop`. A listing that Playwright's `Total: N tests` line
+  does not confirm, or a part left empty, fails the shard instead of playing nothing;
 - **on one single build of the front per run** (US-0590): the `front-build` job of `ci.yml`, which
   runs as soon as `e2e` or `service` runs, launches `make build-front` and uploads `frontend/.next`
   without its cache (`.next/cache`, which only a following build would read). The five shards, the
@@ -3952,7 +3954,8 @@ set in the environment, prevail over those of the slot — the front of the path
 has workers, starting from it (below), forty at most in a block; a port that is not an integer from
 1 to 65535 is refused. `make e2e-browsers` installs the browser. `make e2e SHARD=i/N` plays only the
 i-th of N shards of the paths, spread by measured duration (`tools/e2e-durations.json`, which
-`make e2e-durations` refreshes), like each of the chain's runners (« The chain »), and
+`make e2e-durations` refreshes), like each of the chain's runners (« The chain »; `SHARD` does not
+combine with `TESTS=<file>`, which the recipe refuses: the file may lie in another shard), and
 `make e2e WORKERS=<n>` plays them on `n` workers (`E2E_WORKERS`, which `playwright.config.ts` reads;
 an integer from 1 to 40, nothing else: one front per worker, and a slot's block holds only forty),
 fewer than Playwright takes on its own — half the processors, capped at forty — on a loaded

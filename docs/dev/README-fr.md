@@ -3530,7 +3530,9 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   (`make e2e-durations LOG=<fichier>` : le journal du job d'un morceau, ou la sortie de
   `make e2e`, au rapporteur `list` ; l'entrée standard sans `LOG`, par exemple
   `gh run view <passage> --log --job <job> | make e2e-durations`, les journaux des cinq morceaux
-  mis bout à bout) ;
+  mis bout à bout) ; un journal qui ferait disparaître des unités connues est refusé, sauf
+  `python -m wftools.e2eparts refresh --drop`. Une liste que la ligne `Total: N tests` de Playwright
+  ne confirme pas, ou un morceau vide, fait échouer le morceau au lieu de ne rien jouer ;
 - **sur un seul build du front par exécution** (US-0590) : le travail `front-build` de `ci.yml`,
   qui tourne dès qu'`e2e` ou `service` tourne, lance `make build-front` et téléverse
   `frontend/.next` sans son cache (`.next/cache`, que seul un build suivant lirait). Les cinq
@@ -3987,7 +3989,8 @@ et `E2E_FRONT_PORT`, posés dans l'environnement, l'emportent sur ceux du créne
 parcours en prend autant qu'il a de workers, à partir de lui (ci-dessous), quarante au plus dans
 un bloc ; un port qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
 navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, répartis par durée
-mesurée (`tools/e2e-durations.json`, que rafraîchit `make e2e-durations`), comme
+mesurée (`tools/e2e-durations.json`, que rafraîchit `make e2e-durations`) — `SHARD` ne se combine pas
+avec `TESTS=<fichier>`, que la recette refuse : le fichier peut être dans un autre morceau —, comme
 chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les joue sur `n` workers
 (`E2E_WORKERS`, que lit `playwright.config.ts` ; un entier de 1 à 40, rien d'autre : un front par
 worker, et le bloc d'un créneau n'en porte que quarante), moins que Playwright n'en prend de
