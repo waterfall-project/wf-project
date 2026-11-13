@@ -307,7 +307,8 @@ sub-issues follows the cutting:
 and it is kept up to date at each change of state — lot started, in review, merged, blocked;
 story gone `en cours` or `fini`; finding opened or settled. The agents change it with
 `make tracking` — `ISSUE=<n> LOT=<identifier> [STATE=…] [PR=…] [MODEL=…]`, `LOT=<identifier>
-DEPENDS=<list>`, `ADD_LOT=<identifier> AFTER=<lot> [DEPENDS=…] [MODEL=…] [LOT_ISSUE=<n>]`
+DEPENDS=<list>`, `LOT=<identifier> NOT_WITH=<list>`,
+`ADD_LOT=<identifier> AFTER=<lot> [DEPENDS=…] [NOT_WITH=…] [MODEL=…] [LOT_ISSUE=<n>]`
 (`LOT_ISSUE`: the issue of the inserted lot, the `#n` of its line),
 `REPLACE_DEPENDENCY='<old>=<new>'`, `US=<identifier> STATUS=…` or
 `FINDING=<n> ATTACHED=… DECISION=…` —, which reads the body again under a lock of
@@ -321,7 +322,9 @@ body itself, several deliverers would overwrite one another there. It has two pa
   was one; and its **« Pas avec »** column: the lots of the epic with which it is not delivered
   at the same time (`—` if there are none). It is symmetric — if L2 is « pas avec » L1, L1 is
   also « pas avec » L2 —, and the framer fills it in, at the lot plan, for two lots that no
-  dependency separates and that touch the same file. The pilot does not launch a lot whose
+  dependency separates and that touch the same file. `NOT_WITH=<list>` writes the cell of the
+  named lot alone and does not complete the other side: the symmetry is declared by one call for
+  each lot of the pair. The pilot does not launch a lot whose
   « pas avec » lot is started and not merged (`en cours`, `en revue`, `question`, `bloqué`),
   even when their dependencies allow it. The template of a lot has the same field;
 - **Open findings**: each finding that is not closed, the issue it is attached to, and

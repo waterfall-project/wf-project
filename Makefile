@@ -723,14 +723,14 @@ lot-size: ## The real size of a lot, against its epic (BASE=origin/epic/EP-nn); 
 # exports the command-line variables to the recipe; an empty value is ignored.
 tracking_option = $(if $(filter command line,$(origin $(1))),$${$(1):+$(2) "$$$(1)"})
 
-tracking: ## Change a line of the tracking table of an epic's issue, under a lock: ISSUE=<n> with LOT=<id> [STATE PR MODEL DEPENDS], US=<id> STATUS=…, FINDING=<n> ATTACHED=… DECISION=…, ADD_LOT=<id> AFTER=<lot> [DEPENDS MODEL LOT_ISSUE], or REPLACE_DEPENDENCY='<old>=<new>'
+tracking: ## Change a line of the tracking table of an epic's issue, under a lock: ISSUE=<n> with LOT=<id> [STATE PR MODEL DEPENDS NOT_WITH], US=<id> STATUS=…, FINDING=<n> ATTACHED=… DECISION=…, ADD_LOT=<id> AFTER=<lot> [DEPENDS NOT_WITH MODEL LOT_ISSUE], or REPLACE_DEPENDENCY='<old>=<new>'
 	@$(WFTOOLS).tracking $(call tracking_option,ISSUE,--issue) $(call tracking_option,LOT,--lot) \
 		$(call tracking_option,US,--us) $(call tracking_option,FINDING,--finding) \
 		$(call tracking_option,STATE,--state) $(call tracking_option,PR,--pr) \
 		$(call tracking_option,MODEL,--model) $(call tracking_option,STATUS,--status) \
 		$(call tracking_option,ATTACHED,--attached) $(call tracking_option,DECISION,--decision) \
 		$(call tracking_option,ADD_LOT,--add-lot) $(call tracking_option,AFTER,--after) \
-		$(call tracking_option,DEPENDS,--depends) $(call tracking_option,LOT_ISSUE,--issue-number) \
+		$(call tracking_option,DEPENDS,--depends) $(call tracking_option,NOT_WITH,--not-with) $(call tracking_option,LOT_ISSUE,--issue-number) \
 		$(call tracking_option,REPLACE_DEPENDENCY,--replace-dependency)
 
 merge-queue: ## Create the merge queue ruleset of an epic's branch from .github/rulesets/merge-queue.json (EPIC=EP-nn); for a person, never a deliverer

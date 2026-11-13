@@ -26,6 +26,7 @@ import yaml
 from wftools import REPOSITORY
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 STAND_IN = """
@@ -101,10 +102,10 @@ def alive(pid: int) -> bool:
     return True
 
 
-def wait_until(condition: object, seconds: float = 20) -> bool:
+def wait_until(condition: Callable[[], bool], seconds: float = 20) -> bool:
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
-        if condition():  # type: ignore[operator]
+        if condition():
             return True
         time.sleep(0.1)
     return False

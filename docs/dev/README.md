@@ -3095,10 +3095,14 @@ changing; `US=<identifier> STATUS=…`; `FINDING=<n> ATTACHED=… DECISION=…`,
 (the title of its issue without the `[EP-nn]`, `à trancher` in bold), changes it where it is, or
 removes it when its issue is closed. The lot cut at the request of the reviewer is written by it
 too, never by hand: `LOT=<identifier> DEPENDS=<list>` replaces the cell « Dépend de »;
-`ADD_LOT=<identifier> AFTER=<lot> [DEPENDS=<list>] [MODEL=…] [LOT_ISSUE=<n>]` inserts, under the
+`LOT=<identifier> NOT_WITH=<list>` replaces the cell « Pas avec » of that lot, and of no other: the
+symmetry of the column (README of the roadmap, « Suivi sur GitHub ») is declared by one call for
+each lot of the pair;
+`ADD_LOT=<identifier> AFTER=<lot> [DEPENDS=<list>] [NOT_WITH=<list>] [MODEL=…] [LOT_ISSUE=<n>]`
+inserts, under the
 lot `AFTER` and in the same story, the row of the new lot (`US-0820b` for the part cut off a story
 of one lot, `US-1270/L3` for a story of several; cells `#`, `US`, « Statut » empty, « Dépend de »
-the list or `—`, « État du lot » `à faire`) and refuses a lot already there;
+and « Pas avec » the list or `—`, « État du lot » `à faire`) and refuses a lot already there;
 `REPLACE_DEPENDENCY='<old>=<new>'` replaces the mention of the old lot in « Dépend de » of every
 row that holds it, except the row of the new lot itself, removes with it the ` #n` that follows it
 (the issue of the old lot never stays on the new one), says how many rows changed and refuses when

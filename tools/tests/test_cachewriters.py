@@ -9,7 +9,7 @@ saved its own copy of the store of pnpm (188 MB, 6.7 GB in all on 2026-11-13) an
 of uv, of ESLint and of pandoc. The quota itself is read in the repository (`gh cache list`).
 """
 
-from typing import Any
+from typing import Any, cast
 
 import yaml
 
@@ -19,7 +19,7 @@ WORKFLOWS = REPOSITORY / ".github" / "workflows"
 WRITERS = {"front-cache.yml", "images.yml"}
 
 
-def documents() -> dict[str, dict[str, Any]]:
+def documents() -> dict[str, dict[Any, Any]]:
     return {
         (path.name if path.parent == WORKFLOWS else path.parent.name): yaml.safe_load(
             path.read_text(encoding="utf-8")
@@ -28,7 +28,11 @@ def documents() -> dict[str, dict[str, Any]]:
     }
 
 
-def steps(document: dict[str, Any]) -> list[dict[str, Any]]:
+def options(step: dict[str, Any]) -> dict[str, Any]:
+    return cast("dict[str, Any]", step.get("with") or {})
+
+
+def steps(document: dict[Any, Any]) -> list[dict[str, Any]]:
     if "jobs" not in document:
         return list(document["runs"].get("steps", []))
     return [step for job in document["jobs"].values() for step in job.get("steps", [])]
@@ -41,13 +45,13 @@ def test_no_workflow_but_the_two_writers_saves_a_cache() -> None:
             continue
         for step in steps(document):
             uses = step.get("uses", "")
-            options = step.get("with") or {}
+            given = options(step)
             if uses.startswith(("actions/cache@", "actions/cache/save@")):
                 saving.append(f"{name}: {uses}")
-            if uses.startswith("actions/setup-node@") and "cache" in options:
+            if uses.startswith("actions/setup-node@") and "cache" in given:
                 saving.append(f"{name}: setup-node cache")
             if uses.startswith("astral-sh/setup-uv@") and (
-                options.get("enable-cache") and options.get("save-cache") is not False
+                given.get("enable-cache") and given.get("save-cache") is not False
             ):
                 saving.append(f"{name}: setup-uv saves")
     assert saving == []
@@ -78,7 +82,7 @@ def test_next_cache_is_kept_by_front_cache_and_read_by_the_build_of_the_front() 
     reading = [
         step
         for step in steps(documents()["ci.yml"])
-        if (step.get("with") or {}).get("path") == "frontend/.next/cache"
+        if options(step).get("path") == "frontend/.next/cache"
     ]
     assert [step["uses"].split("@")[0] for step in reading] == ["actions/cache/restore"]
 

@@ -3104,12 +3104,15 @@ dépassement ne fait rien échouer (README de la roadmap, section « Lots »).
 `US-1120/L2` pour le lot d'une US qui en a plusieurs) avec `STATE`, `PR` ou `MODEL`, les seuls
 donnés changeant ; `US=<identifiant> STATUS=…` ; `FINDING=<n> ATTACHED=… DECISION=…`, qui ajoute
 le constat (le titre de son issue sans le `[EP-nn]`, `à trancher` en gras), le change s'il est
-déjà là, ou le retire quand son issue est fermée. Le lot coupé à la demande du relecteur s'écrit
-par elle aussi, jamais à la main : `LOT=<identifiant> DEPENDS=<liste>` remplace la cellule « Dépend
-de » ; `ADD_LOT=<identifiant> AFTER=<lot> [DEPENDS=<liste>] [MODEL=…] [LOT_ISSUE=<n>]` insère, sous
-le lot `AFTER` et dans la même US, la ligne du lot nouveau (`US-0820b` pour la part détachée d'une
-US à lot unique, `US-1270/L3` pour une US à plusieurs ; cellules `#`, `US`, « Statut » vides,
-« Dépend de » la liste ou `—`, « État du lot » `à faire`) et refuse un lot déjà là ;
+déjà là, ou le retire quand son issue est fermée. `LOT=<identifiant> NOT_WITH=<liste>` remplace la
+cellule « Pas avec » de ce lot, et d'aucun autre : la symétrie de la colonne (README de la roadmap,
+« Suivi sur GitHub ») se déclare par un appel pour chaque lot de la paire. Le lot coupé à la demande
+du relecteur s'écrit par elle aussi, jamais à la main : `LOT=<identifiant> DEPENDS=<liste>` remplace
+la cellule « Dépend de » ; `ADD_LOT=<identifiant> AFTER=<lot> [DEPENDS=<liste>] [NOT_WITH=<liste>]
+[MODEL=…] [LOT_ISSUE=<n>]` insère, sous le lot `AFTER` et dans la même US, la ligne du lot nouveau
+(`US-0820b` pour la part détachée d'une US à lot unique, `US-1270/L3` pour une US à plusieurs ;
+cellules `#`, `US`, « Statut » vides, « Dépend de » et « Pas avec » la liste ou `—`, « État du lot »
+`à faire`) et refuse un lot déjà là ;
 `REPLACE_DEPENDENCY='<ancien>=<nouveau>'` remplace la mention de l'ancien lot dans « Dépend de » de
 toutes les lignes où elle paraît, sauf celle du lot nouveau lui-même, retire avec elle le ` #n` qui
 la suit (l'issue de l'ancien lot ne reste jamais sur le nouveau), dit combien de lignes ont changé

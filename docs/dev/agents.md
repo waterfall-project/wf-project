@@ -146,9 +146,10 @@ l'accorde. Un test des outils (`tools/tests/test_permissions.py`) l'éprouve.
   — `epic-framer` le crée, `epic-deliverer` le tient — dans le corps de l'issue, jamais en
   commentaire. Un agent ne réécrit pas ce corps lui-même : plusieurs livreurs s'y réécriraient
   l'un l'autre. Il passe par `make tracking ISSUE=<n> LOT=<identifiant> [STATE=…] [PR=…]
-  [MODEL=…]`, `LOT=<identifiant> DEPENDS=<liste>`, `ADD_LOT=<identifiant> AFTER=<lot>
-  [DEPENDS=…] [MODEL=…] [LOT_ISSUE=<n>]` (`LOT_ISSUE` est l'issue du lot inséré, le `#n` de sa
-  ligne), `REPLACE_DEPENDENCY='<ancien>=<nouveau>'`, `US=<identifiant> STATUS=…` ou
+  [MODEL=…]`, `LOT=<identifiant> DEPENDS=<liste>`, `LOT=<identifiant> NOT_WITH=<liste>` (la
+  cellule « Pas avec » de ce lot seul), `ADD_LOT=<identifiant> AFTER=<lot>
+  [DEPENDS=…] [NOT_WITH=…] [MODEL=…] [LOT_ISSUE=<n>]` (`LOT_ISSUE` est l'issue du lot inséré, le
+  `#n` de sa ligne), `REPLACE_DEPENDENCY='<ancien>=<nouveau>'`, `US=<identifiant> STATUS=…` ou
   `FINDING=<n> ATTACHED=… DECISION=…`, qui relit le corps sous un verrou du poste juste avant
   de l'écrire et ne change que la ligne demandée (guide, « Commandes »). Le cadreur, qui écrit le
   tableau pour la première fois, l'écrit lui-même ; ensuite, `make tracking`.
