@@ -55,7 +55,15 @@ export async function createOwnProject(page: Page, prefix: string): Promise<OwnP
     await creation.getByRole("textbox", { name: "Libellé" }).fill(label);
     steps.press();
     await creation.getByRole("button", { name: "Créer", exact: true }).click();
-    await expect(page).toHaveURL(PROJECT_SCREEN, { timeout: WORKING });
+    try {
+      await expect(page).toHaveURL(PROJECT_SCREEN, { timeout: WORKING });
+    } catch (error) {
+      // A creation refused — a 500 of the service, as the deadlock of the partitions was (#2940) —
+      // keeps the address of the home: what the dialog says names the cause in the log.
+      steps.mark("address not reached");
+      steps.tell(await creation.innerText({ timeout: 1_000 }).catch(() => "the dialog closed"));
+      throw error;
+    }
     steps.mark("address");
     return { path: new URL(page.url()).pathname, label };
   } finally {
@@ -68,8 +76,10 @@ export async function createOwnProject(page: Page, prefix: string): Promise<OwnP
  * dialog open, then, from the press of « Créer », the server action that creates the project
  * (`createProject`, asked and answered), the screen of the project the form leads to (its payload
  * asked, its headers answered, its body finished) and the address reached. Written in the log of the
- * run and in an annotation of the test, whether the creation passed or not: the merge queue showed it
- * overrunning its fifteen seconds under six workers (family A of EP-24).
+ * run and in an annotation of the test, whether the creation passed or not — the slow path of the
+ * guide measures before it corrects. The address missed in seventeen runs of the merge queue (family
+ * A of EP-24) was a creation refused: a deadlock of PostgreSQL between two creations of partitions,
+ * which migration `0026` puts one after the other (US-1560/L3); none was slow.
  */
 class CreationSteps {
   private readonly started = Date.now();
@@ -77,6 +87,7 @@ class CreationSteps {
   private pressed: number | undefined;
   private readonly done: string[] = [];
   private readonly network = new Map<string, number>();
+  private said: string | undefined;
   private readonly onRequest = (request: Request): void => {
     this.note(request, "asked");
   };
@@ -110,6 +121,11 @@ class CreationSteps {
     this.last = this.pressed;
   }
 
+  /** What the dialog said when the address was not reached. */
+  tell(said: string): void {
+    this.said = said.replace(/\s+/g, " ").trim();
+  }
+
   /** Write the steps reached, and when each request of the creation went, from the press. */
   report(prefix: string): void {
     this.page.off("request", this.onRequest);
@@ -119,19 +135,27 @@ class CreationSteps {
     const network = [...this.network].map(([step, at]) => `${step} +${String(at)} ms`);
     const measured =
       `${this.done.join(", ")}; from the press: ${network.join(", ") || "no request"}; ` +
-      `total ${String(Date.now() - this.started)} ms`;
+      `total ${String(Date.now() - this.started)} ms` +
+      (this.said === undefined ? "" : `; the dialog said: ${this.said}`);
     console.log(`Own project created (${prefix}): ${measured}`);
     test.info().annotations.push({ type: "own project", description: measured });
   }
 
-  /** The first time a request of the creation reaches an event, from the press. */
+  /**
+   * The first time a request of the creation reaches an event, from the press. The screen is the one
+   * asked once the action has answered: the links of the home to the projects it lists ask theirs
+   * before, in advance.
+   */
   private note(request: Request, event: string): void {
     if (this.pressed === undefined) {
       return;
     }
     const headers = request.headers();
     const action = request.method() === "POST" && headers["next-action"] !== undefined;
-    const screen = headers.rsc === "1" && PROJECT_SCREEN.test(new URL(request.url()).pathname);
+    const screen =
+      this.network.has("action answered") &&
+      headers.rsc === "1" &&
+      PROJECT_SCREEN.test(new URL(request.url()).pathname);
     const step = `${action ? "action" : "screen"} ${event}`;
     if ((action || screen) && !this.network.has(step)) {
       this.network.set(step, Date.now() - this.pressed);
