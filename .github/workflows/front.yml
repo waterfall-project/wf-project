@@ -20,8 +20,10 @@ on:
         type: string
         default: fast
 
+# Reading packages is what pulling the mirror of the images of Docker Hub is (ci.yml, mirror).
 permissions:
   contents: read
+  packages: read
 
 jobs:
   check:
@@ -77,7 +79,10 @@ jobs:
     # against Redis"), the image of the service platform, which lives for the job.
     services:
       redis:
-        image: redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
+        image: ghcr.io/waterfall-project/mirror/redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
         ports:
           - 6379:6379
         options: >-

@@ -14,7 +14,7 @@
 
 import { ChevronDown, ChevronUp, ListFilter, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   type ReactNode,
   type Ref,
@@ -28,7 +28,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 import { type FilterChip, liftedHref, liftedInstead, liftedParams } from "./filter-chips";
-import { usePendingAddress } from "./pending-address";
+import { type Asked, usePendingAddress } from "./pending-address";
 import { CONTRACT_ADDRESS, type GridAddress } from "./query";
 
 /** What the bar of a flat table offers of its filters. */
@@ -159,11 +159,15 @@ export function FilterPanel({
  * What a lift leaves for the focus: the cross to take once the chips lifted are gone from the address —
  * the next one's, the previous one's for the last —, none for the button of the filters. The focus is
  * given in an effect on the chips the address holds, not at the click: the navigation shows them
- * later, and the cross lifted takes the focus with it (défaut n° 20).
+ * later, and the cross lifted takes the focus with it (défaut n° 20). The navigation asked, and the
+ * address it was asked from, tell one that never arrives: another address shown that still holds
+ * the chips — Next dropped it, the history went elsewhere — forgets the lift (#2916).
  */
 interface Lifted {
   readonly gone: readonly string[];
   readonly next: string | undefined;
+  readonly from: string;
+  readonly asked: Asked;
 }
 
 /**
@@ -184,37 +188,54 @@ export function FilterChips({
 }) {
   const t = useTranslations("grid.filtering");
   const pathname = usePathname();
-  const { request } = usePendingAddress();
+  const shown = useSearchParams().toString();
+  const { request, underWay } = usePendingAddress();
   const [, startTransition] = useTransition();
   const crosses = useRef(new Map<string, HTMLButtonElement>());
   const lifted = useRef<Lifted>(undefined);
   useEffect(() => {
     const waiting = lifted.current;
-    if (waiting === undefined || waiting.gone.some((key) => chips.some((c) => c.key === key))) {
+    if (waiting === undefined) {
+      return;
+    }
+    if (waiting.gone.some((key) => chips.some((c) => c.key === key))) {
+      // Another address than the one asked from, and none of the navigation asked: it will not
+      // arrive, and nothing is left to give the focus for.
+      // The address asked arrives and the chip stays in it (a key rewritten by `liftedInstead`):
+      // nothing is left to wait for either, and a later removal is none of this lift's.
+      // An address of the streak that is not its last (Next shows a step of a chain asked before the
+      // first arrived) keeps the chips, and the lift: the last is still to come.
+      const step = waiting.asked.streak.has(shown) && shown !== waiting.asked.query;
+      if (shown !== waiting.from && !step) {
+        lifted.current = undefined;
+      }
       return;
     }
     lifted.current = undefined;
+    // The chips gone from the address shown: the navigation arrived. Gone while the address stays
+    // the one asked from, they went by another way, and the focus is left where it is.
     // The focus is moved only if it was lost with the cross: it stays where the user took it.
-    if (document.activeElement === document.body || document.activeElement === null) {
+    if (
+      shown !== waiting.from &&
+      (document.activeElement === document.body || document.activeElement === null)
+    ) {
       const next = waiting.next === undefined ? undefined : crosses.current.get(waiting.next);
       (next ?? toggle.current)?.focus();
     }
-  }, [chips, toggle]);
+  }, [chips, shown, toggle]);
   if (chips.length === 0) {
     return null;
   }
   const lift = (gone: readonly FilterChip[], next: string | undefined, all: boolean) => {
-    lifted.current = { gone: gone.map((chip) => chip.key), next };
     const params = all ? [...every, ...liftedParams(gone)] : liftedParams(gone);
     startTransition(() => {
-      request((query) => {
-        const href = liftedHref(pathname, query, params, page, liftedInstead(gone));
-        // An address that does not change is no navigation: nothing will arrive to give the focus for.
-        if (new URLSearchParams(href.split("?")[1] ?? "").toString() === query.toString()) {
-          lifted.current = undefined;
-        }
-        return href;
-      });
+      request((query) => liftedHref(pathname, query, params, page, liftedInstead(gone)));
+      // An address that does not change is no navigation: nothing will arrive to give the focus for.
+      const asked = underWay();
+      lifted.current =
+        asked === undefined
+          ? undefined
+          : { gone: gone.map((chip) => chip.key), next, from: shown, asked };
     });
   };
   return (

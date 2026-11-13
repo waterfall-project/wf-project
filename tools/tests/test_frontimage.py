@@ -99,6 +99,8 @@ def test_an_image_that_starts_with_its_settings_alone_and_refuses_the_fake_back_
         [
             "docker",
             "build",
+            "--build-arg",
+            "WATERFALL_MIRROR",
             "--target",
             "production",
             "--cache-from",

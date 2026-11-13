@@ -679,7 +679,8 @@ def read_reference(data: object) -> str:
         return (
             f"reference, every branch, from {table['since']} to {table['until']}: "
             f"{table['runs']} runs, {table['failed']} failed ({detail}); wall time of the "
-            f"{table['wall_runs']} complete succeeded runs of {on} (as above): "
+            f"{table['wall_runs']} complete succeeded runs of {on} (complete = a succeeded "
+            f"`service` job and an `e2e` job): "
             f"median {table['wall_median']} min, 90th percentile {table['wall_p90']} min"
         )
     except (KeyError, AttributeError, TypeError) as error:

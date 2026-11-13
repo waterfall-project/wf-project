@@ -236,8 +236,47 @@ def test_an_entry_with_a_test_and_a_message_leaves_another_failure_of_that_test_
     assert not entry.recognizes(other)
     assert queue.Catalogue(entries=[entry]).classify(other) == (queue.TO_CLASSIFY, None)
     versioned = queue.read_catalogue()
-    assert versioned.classify(found)[0] == queue.FLAKY
+    deadlocked = replace(found, run=42628627640)
+    assert versioned.classify(deadlocked)[0] == queue.REGRESSION
+    assert versioned.classify(replace(other, run=deadlocked.run))[0] == queue.TO_CLASSIFY
     assert versioned.classify(other)[0] == queue.TO_CLASSIFY
+
+
+@pytest.mark.parametrize(
+    ("test", "line"),
+    [
+        ("e2e/structure.spec.ts", 417),
+        ("e2e/planning-service.spec.ts", 67),
+        ("e2e/undo.spec.ts", 139),
+        ("e2e/anything.spec.ts", 12),
+    ],
+)
+def test_the_creation_of_the_own_project_failing_in_the_runs_that_lacked_0026_is_a_regression_fixed(
+    test: str, line: int
+) -> None:
+    # US-1890/L1: the 17 runs of 2026-11-08 to 2026-11-11 where `POST /projects` answered 500, a
+    # deadlock between two `create_project_partitions` (0025), corrected by 0026; any line of
+    # `own-project.ts`, since the file moved. The same failure in a run that carries 0026 — here
+    # one of the queue of 2026-11-12 — is a failure no one has read.
+    (_, structure) = failures("playwright-service-paths")
+    failure = replace(
+        structure,
+        run=42599262855,
+        file=test,
+        line=line,
+        where="e2e/own-project.ts:41",
+    )
+    catalogue = queue.read_catalogue()
+    kind, entry = catalogue.classify(failure)
+    assert (kind, entry.family if entry else None) == (
+        queue.REGRESSION,
+        "A. création du projet de la course",
+    )
+    assert entry is not None
+    assert len(entry.runs) == 17
+    assert catalogue.classify(replace(failure, run=43389926528)) == (queue.TO_CLASSIFY, None)
+    elsewhere = replace(failure, where="e2e/structure.spec.ts:430", message="x", evidence="")
+    assert catalogue.classify(elsewhere)[0] == queue.TO_CLASSIFY
 
 
 @pytest.mark.parametrize(
@@ -265,7 +304,8 @@ def test_an_entry_that_would_recognize_badly_is_refused(
 def test_the_versioned_list_classifies_the_failures_of_its_inventory() -> None:
     catalogue = queue.read_catalogue()
     (projects, structure) = failures("playwright-service-paths")
-    assert catalogue.classify(structure)[0] == queue.FLAKY
+    assert catalogue.classify(replace(structure, run=42628627640))[0] == queue.REGRESSION
+    assert catalogue.classify(structure) == (queue.TO_CLASSIFY, None)
     assert catalogue.classify(projects)[0] == queue.FLAKY
     infrastructure = failures(
         "install-make", queue.Job(3, "e2e / paths (2/5)", "failure", None, None, "Install make")
@@ -295,7 +335,8 @@ def test_the_versioned_list_holds_its_inventory_and_the_reference() -> None:
     assert catalogue.reference == (
         "reference, every branch, from 2026-11-05 to 2026-11-12: 370 runs, 88 failed "
         "(68 in service / paths); wall time of the 40 complete succeeded runs of 2026-11-10 and "
-        "2026-11-11 (as above): median 17.8 min, 90th percentile 21.8 min"
+        "2026-11-11 (complete = a succeeded `service` job and an `e2e` job): "
+        "median 17.8 min, 90th percentile 21.8 min"
     )
 
 
@@ -387,6 +428,38 @@ def test_the_failures_left_to_classify_outside_the_paths_are_classified_by_their
     for failure in found:
         kind, entry = catalogue.classify(failure)
         assert (kind, entry.family if entry else None) == classified
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "E: Failed to fetch http://deb.debian.org/debian/dists/trixie/InRelease  Could not connect",
+        "E: Failed to fetch https://apt.postgresql.org/pub/repos/apt/InRelease  Temporary failure",
+    ],
+)
+def test_an_apt_that_cannot_fetch_from_its_source_is_infrastructure(line: str) -> None:
+    # US-1900/L4: the images that pull apt, built by the service, the paths and the images; the
+    # excerpt is built after the form apt writes, no run of the window having failed this way.
+    text = "\n".join(
+        [
+            "2026-11-13T09:00:00.0000000Z #9 12.3 Err:1 http://deb.debian.org/debian trixie",
+            f"2026-11-13T09:00:01.0000000Z #9 12.4 {line}",
+            "2026-11-13T09:00:02.0000000Z ##[error]Process completed with exit code 100.",
+        ]
+    )
+    catalogue = queue.read_catalogue()
+    for name in ("service / paths", "e2e / paths (2/5)", "images / trial"):
+        failed = queue.Job(9, name, "failure", None, None, "Build the images")
+        found = queue.failures_of(42, failed, text)
+        assert found
+        for failure in found:
+            kind, entry = catalogue.classify(failure)
+            assert (kind, entry.family if entry else None) == (
+                queue.INFRASTRUCTURE,
+                "apt, deb.debian.org et apt.postgresql.org",
+            )
+    other = queue.failures_of(42, queue.Job(9, "back / tests", "failure", None, None, "x"), text)
+    assert all(catalogue.classify(f)[0] == queue.TO_CLASSIFY for f in other)
 
 
 def test_a_regression_read_in_a_run_leaves_the_same_failure_elsewhere_to_classify() -> None:

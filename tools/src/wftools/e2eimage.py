@@ -42,14 +42,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from wftools import REPOSITORY
+from wftools import REPOSITORY, registry
+from wftools.registry import ATTEMPTS, REGISTRY, ImageError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
     from types import FrameType
 
-REGISTRY = "ghcr.io"
-"""The registry the image is published to and pulled from, which a failure names."""
+TOOL = "wftools.e2eimage"
+"""The name the tool gives its messages."""
 
 NAME = f"{REGISTRY}/waterfall-project/e2e"
 """Where the image is published, beside the images of Waterfall (wftools.images)."""
@@ -63,29 +64,11 @@ TAG_LENGTH = 16
 SOCKET = "/var/run/docker.sock"
 """Docker's socket on a runner, mounted at the same path in the image; DOCKER_HOST is not read."""
 
-ATTEMPTS = 4
-"""The attempts at a request to the registry, or at a build, before its failure is said (#2530)."""
-
-PAUSE = 20.0
-"""The seconds between two attempts, as curl waited between its own for the package of make."""
-
 # The variables of the environment the paths and the front they start read: the settings of the
 # platform and of the harness, those of Node and of Next, and two of the run itself. Never PATH,
 # HOME or the variables of Playwright, which are the image's, nor NODE_OPTIONS or NODE_PATH, which
 # would load in the image what the runner's Node was told to.
 PASSED = re.compile(r"(?!NODE_(?:OPTIONS|PATH)$)(?:WATERFALL|E2E|NODE|NEXT)_[A-Z0-9_]+|CI|TZ")
-# What the registry answers for a tag it does not hold.
-UNKNOWN_TAG = re.compile(r"not found|manifest unknown|name unknown", re.IGNORECASE)
-# What it answers for a package it does not hold yet, the first time, as for one it refuses to show:
-# a refusal — `403 Forbidden`, or `requested access to the resource is denied`. The image is then
-# built, and its publication says which it was.
-REFUSED = re.compile(r"403 Forbidden|denied", re.IGNORECASE)
-# The digest of the index or of the manifest, as `docker buildx imagetools inspect` says it.
-DIGEST = re.compile(r"^Digest:\s+(sha256:[0-9a-f]{64})\s*$", re.MULTILINE)
-
-
-class ImageError(Exception):
-    """The image could not be found, built or published: the message says where it stopped."""
 
 
 def tag(context: Path = CONTEXT) -> str:
@@ -109,53 +92,8 @@ def held_digest(
     read: Callable[[list[str]], tuple[int, str]],
     wait: Callable[[float], None] = time.sleep,
 ) -> str | None:
-    """Return the digest the registry holds for the tag, None if it does not hold it.
-
-    A refusal is taken for a package not yet published: ghcr.io answers so for a name it does not
-    hold, before the image is first published, and the publication that follows fails on a true
-    refusal. Any other answer — the registry unreachable, a 5xx, a delay — is asked again,
-    ATTEMPTS times in all, then is an error that names the registry and what it said last: the paths
-    would not find their image either.
-    """
-    said = "nothing"
-    for attempt in range(1, ATTEMPTS + 1):
-        code, answer = read(["docker", "buildx", "imagetools", "inspect", tagged])
-        said = (answer.strip().splitlines() or ["nothing"])[-1]
-        if code == 0:
-            if found := DIGEST.search(answer):
-                return found.group(1)
-            message = f"the registry held {tagged} but said no digest"
-            raise ImageError(message)
-        if UNKNOWN_TAG.search(answer):
-            return None
-        if REFUSED.search(answer):
-            print(f"wftools.e2eimage: {REGISTRY} refused to show {tagged}: {said}", file=sys.stderr)
-            return None
-        _again(attempt, f"{REGISTRY} did not answer for {tagged}: {said}", wait)
-    message = f"{REGISTRY} did not say whether it holds {tagged}, in {ATTEMPTS} attempts: {said}"
-    raise ImageError(message)
-
-
-def _again(attempt: int, what: str, wait: Callable[[float], None]) -> None:
-    """Say a failed attempt, and wait before the next one; the last waits for nothing."""
-    if attempt < ATTEMPTS:
-        print(f"wftools.e2eimage: {what}; attempt {attempt + 1} in {PAUSE:g} s", file=sys.stderr)
-        wait(PAUSE)
-
-
-def _attempted(
-    command: list[str], run: Callable[[list[str]], int], wait: Callable[[float], None]
-) -> bool:
-    """Run a command of Docker until it succeeds, ATTEMPTS times at most; say whether it did.
-
-    A build tried again starts from the layers its cache kept: only the download that failed is done
-    again — an archive, the package of make, the Python of uv, pnpm from npm.
-    """
-    for attempt in range(1, ATTEMPTS + 1):
-        if run(command) == 0:
-            return True
-        _again(attempt, f"{' '.join(command[:2])} failed", wait)
-    return False
+    """Return the digest ghcr.io holds for the tag, None if it does not hold it."""
+    return registry.held_digest(tagged, read, wait, tool=TOOL)
 
 
 def publish(
@@ -179,12 +117,14 @@ def publish(
         print(f"wftools.e2eimage: {tagged} is in the registry", file=sys.stderr)
         return f"{tagged}@{digest}"
     print(f"wftools.e2eimage: {tagged} is not in the registry: built here", file=sys.stderr)
-    if not _attempted(["docker", "build", "--tag", tagged, str(context)], run, wait):
+    if not registry.attempted(
+        ["docker", "build", "--tag", tagged, str(context)], run, wait, tool=TOOL
+    ):
         message = f"the build of {tagged} failed, in {ATTEMPTS} attempts"
         raise ImageError(message)
     if not push:
         return tagged
-    if not _attempted(["docker", "push", tagged], run, wait):
+    if not registry.attempted(["docker", "push", tagged], run, wait, tool=TOOL):
         message = f"the publication of {tagged} to {REGISTRY} failed, in {ATTEMPTS} attempts"
         raise ImageError(message)
     if (digest := held_digest(tagged, read, wait)) is None:

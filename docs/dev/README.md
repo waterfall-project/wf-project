@@ -1784,7 +1784,9 @@ being kept by none, `exhaustive: false`, EP-02/L42f) and by state, a single choi
 all, the active ones only, the deactivated ones only —, which says what the grid shows: the page
 always asks for the deactivated ones too (`include_inactive=true`, the contract hiding them by
 default), an address from before that hid them (`include_inactive=false`) reads as « Active
-accounts » (`readAccountState`), and any choice lifts that old parameter (`lifts` of
+accounts » (`readAccountState`), a filter of the grid, kept with its settings like the others
+(`USER_FILTERS`, #2916) — alone in the address, it is therefore not replaced by the filters kept —,
+and any choice lifts that old parameter (`lifts` of
 `ChoiceFilter`) — and paginated by the server, under the names of the contract — a sort, a search
 or a filter bringing back to the first page —, the totals row saying how many the server keeps
 (`meta.total`), the screen filling the window; the search covers the surname, the first name, the
@@ -3451,6 +3453,65 @@ the « Merge when ready » button, or through the `enqueuePullRequest` mutation 
 repository. A branch without a merge queue runs the full tier by hand on the
 branch of a lot, before merging it: `gh workflow run chain --ref <branche>`.
 
+The third-party images of Docker Hub — PostgreSQL, Redis, Caddy, Mailpit, Garage, curl, Node,
+Python, Debian, Maven, Keycloak and its `keycloak-config-cli` — stay named, in the Compose files and
+the `Dockerfile`s, as on Docker Hub, by their digest: the workstation, production and the demonstration
+are unchanged. Only the chain pulls them from a mirror, `ghcr.io/waterfall-project/mirror/`:
+a pull of Docker Hub ("failed to fetch oauth token", `toomanyrequests`) failed four runs of the
+queue before their first test (US-1900). The files read the prefix of the mirror in
+`WATERFALL_MIRROR` (`${WATERFALL_MIRROR:-}postgres:18-trixie@sha256:…` in Compose, `ARG
+WATERFALL_MIRROR=` before the `FROM` of a `Dockerfile`, which `--build-arg WATERFALL_MIRROR` or
+`args: [WATERFALL_MIRROR]` fills from the environment); empty, it is Docker Hub. Dependabot may no longer read these parameterised references
+(`${WATERFALL_MIRROR:-}…`, `FROM ${WATERFALL_MIRROR}…`): raising the version of an image needs the
+mirror to hold the new digest (`make mirror PUSH=yes`, by a person if the token of the pull request
+cannot write). The workflows that
+build or run Compose (`back.yml`, `keycloak.yml`, `front-image.yml`, `service.yml`, `production.yml`,
+`images.yml`)
+set `WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/` and log in to it; the services of
+`back.yml` and `front.yml` name the mirror in full. The mirror is kept by `make mirror PUSH=yes`
+(`wftools.mirror`): it reads those references, asks ghcr.io whether the digest is there — held,
+nothing else is read, Docker Hub neither —, and copies those that are missing from Docker Hub, by
+digest (`docker buildx imagetools create` writes the manifest as it is, the digest is checked
+after), under a tag that carries the start of the digest: one tag of Docker Hub has two digests in
+our files (Caddy). The job `mirror` of `ci.yml`, which every job that pulls an image waits for,
+does it at each run, in the fast tier as in the full one: `images.yml` runs after a merge, so after
+the first run that needs an image added or a digest raised (`images.yml` does it again before
+building, a lookup). Each request is tried again four times at most (`wftools.registry`, #2530); an
+image neither the mirror nor Docker Hub gives fails that job, naming Docker Hub, and skips the jobs
+that depend on it, which the gate counts. To change a third-party image: change its reference and
+its digest in the files, behind `${WATERFALL_MIRROR:-}`; the first run copies the new one. The jobs
+that pull from the mirror ask for `packages: read` and log in to it (`docker/login-action`, or the
+`credentials:` of a service): a package GitHub creates is private, and nothing outside the chain
+reads it.
+
+Four other network sources of the chain, which the original inventory of US-1900 did not name
+(#2981, #3015), are each dealt with in its own way:
+
+- **the binary of actionlint** (GitHub Releases): `actionlint-py` has no wheel on PyPI, only
+  sources, and building it downloads the archive of the binary (digest checked, a few attempts
+  made again). It leaves the `dev` group of the tools for a `workflows` group
+  (`tools/pyproject.toml`) that `make lint-workflows` alone installs: `contract / check` and the
+  web server of the e2e no longer build it. The `repo / check` job builds it, once, then reads the
+  built wheel from the cache of uv (`setup-uv`) as long as `tools/uv.lock` does not change; with
+  an empty cache and GitHub Releases silent, it fails naming the address (`download failed for
+  https://github.com/rhysd/actionlint/…`);
+- **the key of the PGDG repository** (`www.postgresql.org`): versioned in `backend/pgdg.asc`,
+  copied into the `waterfall` image and checked at build by its SHA-256 digest, written in the
+  `Dockerfile` with the fingerprint of the key. No key is downloaded any more. To bump the key,
+  replace the file and the digest together; `tools/tests/test_networksources.py` holds them to
+  each other;
+- **`azure.archive.ubuntu.com`** in `back / tests`: the job no longer runs apt. The runners'
+  image, `ubuntu-26.04`, already carries `postgresql-client-18` (apt answered "already the newest
+  version"); the job checks it and, should the image drop it one day, stops saying so instead of
+  installing it. No published work image for that: it would only copy what the runner has;
+- **`deb.debian.org` and `apt.postgresql.org`**, pulled by the `openldap` and `waterfall` images
+  when the layer cache is missing: the `Dockerfile`s give apt `Acquire::Retries "5"`, and the layer
+  cache that `images.yml` writes after each merge (`make build-cache`) remains what spares the
+  source most of the time. A source that still does not answer fails the build at apt's step, which
+  names the address (`Failed to fetch http://deb.debian.org/…`). A base layer published on ghcr.io
+  would need two more images to tag and publish, and would make the workstation's build depend on
+  ghcr.io: it is not done.
+
 The full tier aims at under eight minutes in the queue for its longest job
 (#492). The end-to-end paths, the longest half, go about it this way:
 
@@ -3581,11 +3642,10 @@ Rules of the workflows:
   follow the Keycloak image. The TypeScript major has no ignore rule: the author closes its
   pull request as long as `typescript-eslint` does not support it.
 - Dependabot does not follow, and the author bumps by hand, at Dependabot's monthly pull
-  request: `REDOCLY_VERSION` and `PRISM_VERSION` of the `Makefile`, the front's
-  `packageManager`, the uv and the PostgreSQL client of the `waterfall` image, the runners
-  and the pandoc of the chain, and `maven.compiler.release` of the extension's `pom.xml`,
-  which stays at 21 on purpose (the Java of the Keycloak image, not the build JDK): it is
-  bumped when that image changes Java.
+  request: the front's `packageManager`, the uv and the PostgreSQL client of the `waterfall`
+  image (and its key, `backend/pgdg.asc`), the runners and the pandoc of the chain, and
+  `maven.compiler.release` of the extension's `pom.xml`, which stays at 21 on purpose (the
+  Java of the Keycloak image, not the build JDK): it is bumped when that image changes Java.
 
 _Check_: `make lint-workflows` (actionlint); the pinning and the permissions, the review.
 
@@ -3635,18 +3695,17 @@ _Check_: `make reuse` fails on a file covered neither by a header nor by
 
 ## Repository tools
 
-The tools live in `tools/`, in Python, with their tests (`make test-tools`, which needs Docker:
-the test of the service Compose runs `docker compose config` and fails without it). It runs under a ceiling of
-memory, `TOOLS_MEMORY` (24G by default): under a user systemd the kernel kills the run that passes
-it, not the session; without a user systemd (a runner of the chain) there is no ceiling. The tests of
-the entrypoint of the directory, which start its image on throwaway volumes, are left out of them
-(marker `openldap`): `make test-openldap` runs them, and the `keycloak` family, which
-`deploy/openldap` wakes, tries them. Every tool
-that needs the requirements reads them through `wftools.projection`, which reads the projection
-`docs/spec/waterfall-spec.md`: one single reader, so that two tools cannot
-diverge on what a requirement says. It compares the texts after normalisation — apostrophes
-and typographic spaces made plain —, and splits a Vérif into sentences. The example of
-§1.3.1, `WF-EXA-0010-A`, is not a requirement of the product: the tools exclude it.
+The tools live in `tools/`, in Python, with their tests (`make test-tools`, which needs Docker: the
+test of the service Compose runs `docker compose config` and fails without it). It runs under a
+ceiling of memory, `TOOLS_MEMORY` (24G by default): under a user systemd the kernel kills the run
+that passes it, not the session; without a user systemd (a runner of the chain) there is no ceiling.
+The tests of the entrypoint of the directory, which start its image on throwaway volumes, are left
+out of them (marker `openldap`): `make test-openldap` runs them, and the `keycloak` family, which
+`deploy/openldap` wakes, tries them. Every tool that needs the requirements reads them through
+`wftools.projection`, which reads the projection `docs/spec/waterfall-spec.md`: one single reader,
+so that two tools cannot diverge on what a requirement says. It compares the texts after
+normalisation — apostrophes and typographic spaces made plain —, and splits a Vérif into sentences.
+The example of §1.3.1, `WF-EXA-0010-A`, is not a requirement of the product: the tools exclude it.
 
 _Check_: `make test-tools`.
 
@@ -3943,35 +4002,77 @@ checked is in the viewport: beyond the lines in view at opening, the path scroll
 (`scrollToPosition`, `frontend/e2e/scroll.ts`) rather than counting on the margin the grid renders
 around the viewport.
 
-`make e2e`: `make mock-tools` first caches the pinned Redocly and Prism (their installation by `npx`
-counted in the 120 s Playwright gives the fake back, #1901) — so do `make e2e-measure` and
-`make e2e-service`, for which Playwright also starts the fake back; Playwright starts the fake back
-(`make mock`) and the front, plays the paths in Chromium, then stops both — it signals their whole
-process group, without which the servers that `make` and `pnpm` start would survive. It always
-starts its own servers, on ports of its own — those of the slot of the worktree (« Commands », « The
-slots of the worktrees »): 4110 for the fake back and 3100 for the front in the main repository, at
-slot 0, `20000 + 100·i + 20` and `+ 40` at slot i of a worktree of a lot, which runs `make slot`
-first —, never those of `make dev`, and its fake back serves a variant of the contract written under
-`frontend/.e2e/`, which `make dev` does not read: a port already taken makes the launch fail saying
-so. Two worktrees at two slots thus play their paths at the same time, with `WATERFALL_SLOTS` of at
-least 2, without which the second waits for the first to end. `E2E_API_PORT` and `E2E_FRONT_PORT`,
-set in the environment, prevail over those of the slot — the front of the paths takes as many as it
-has workers, starting from it (below), forty at most in a block; a port that is not an integer from
-1 to 65535 is refused. `make e2e-browsers` installs the browser. `make e2e SHARD=i/N` plays only the
-i-th of N shards of the paths, spread by measured duration (`tools/e2e-durations.json`, which
-`make e2e-durations` refreshes), like each of the chain's runners (« The chain »; `SHARD` does not
-combine with `TESTS=<file>`, which the recipe refuses: the file may lie in another shard), and
-`make e2e WORKERS=<n>` plays them on `n` workers (`E2E_WORKERS`, which `playwright.config.ts` reads;
-an integer from 1 to 40, nothing else: one front per worker, and a slot's block holds only forty),
-fewer than Playwright takes on its own — half the processors, capped at forty — on a loaded
-workstation, where paths fail by timeout (#736). `make e2e-service` has a default of its own
-(#2890): three quarters of `WATERFALL_PROCESSORS`, the share of processors of the slot, at least 1 and
-at most 40 — 6 on 8 processors —, and not half the processors of the workstation, 16 of 32, where
-18 to 23 paths failed to navigate (`toHaveURL`); measured at 8, 10 and 12 workers on 8 processors,
-four slots taken, they still failed to navigate, at 6 no failure to navigate over two passes.
-`WORKERS=<n>` holds only for `make e2e`; `make e2e-service` takes `E2E_WORKERS=<n>`, in the
-environment or on the command line, which prevails (empty, it is ignored). With `WATERFALL_API_ADDRESS`, the harness plays
-against the API it names and starts no fake back.
+**A slow path** — one that exceeds its bound in the chain with no regression behind it — is dealt
+with in three degrees, in this order (US-1890). First, the cause is measured in the chain, under the
+load of the queue, never on a workstation alone: the path writes to its log and in an annotation the
+duration of each step of what it waits for, and the log of the service says the rest
+(`make service-logs`, poured into the job when a path fails). Then:
+
+1. **correct the read**, or the write, that the measurement points to, in the back or in the front:
+   #2924 brought `getRemainingIndicators` down from 2,845 queries to 58; the creation of a project by
+   two workers at once ended in a 500 on a PostgreSQL deadlock between the creations of partitions
+   (`create_project_partitions`), and the path waited fifteen seconds for an address that never came
+   (family A of EP-24, seventeen runs of the queue from November 8 to 11, all without migration
+   `0026` of US-1560/L3, which puts them one after the other; none since);
+2. **otherwise, isolate the path** — an account, a project, a setting of its own, what it does not
+   test prepared through the API under a token (`inscribe`, `employRole` of `own-project.ts`) —,
+   **or serialise it**: `@serial`, played by the project `shared-serial`, when it writes an object
+   unique to the installation;
+3. **widen a wait only as a last resort**, the measurement in the comment that widens it — the run of
+   the chain, the durations recorded —, and `test.slow()` likewise.
+
+`createOwnProject` (`frontend/e2e/own-project.ts`) is the example: each creation writes to the log
+"Own project created", the home, the dialog, then, from "Créer", the server action asked and
+answered, the screen of the project asked, answered and finished, and the address reached; missed,
+what the dialog shows. Over the 52 creations of the full run 43386149437, the whole creation takes
+2.2 s in the median and 5.8 s at most, the address 0.7 s after "Créer", and the API answers `POST
+/projects` in 0.24 s in the median, 1.9 s at most: nothing there justifies widening `WORKING`.
+
+`ScreenSteps` (`frontend/e2e/screen-steps.ts`) does the same for a screen the server reads anew:
+each step, and the RSC requests under way during it. On the path of WF-REV-0080-A, it showed a wait
+already true before its gesture: after "Comparer", the address kept `difference=` as the one before
+did, and the filter lifted at once made the API, which is a single process (2.2 s for one alone),
+read two comparisons of PRJ-001 together; it arrived in 15 s instead of 8 under six workers
+(#2942). A wait that follows a gesture waits for what that gesture changes.
+
+`make e2e`: Redocly and Prism are development dependencies of the front, at an exact version
+(`frontend/package.json`, locked by `pnpm-lock.yaml`): `make install-front`, which the target plays
+first, puts them in the store of pnpm (the cache of the chain), where the `Makefile` reads them,
+with no `npx --yes` and no registry of npm at each run — their installation by `npx` counted in the
+120 s Playwright gives the fake back (#1901), and a silent registry failed the run before its first
+test (#2913). The targets that run Redocly or Prism without `install-front` (`lint-openapi`,
+`mock-spec`) install when `package.json` or the lock file is newer than
+`node_modules/.modules.yaml`: a raised version is installed on the next run. A registry that
+refuses the connection fails the installation in about 70 s, on an error that names the address of
+the package asked for; it has no other bound, and a silent registry waits for the network's.
+`make e2e-measure` and `make e2e-service` run `install-front`, since Playwright also starts the fake
+back there. Playwright starts the fake back (`make mock`) and the front, plays the paths in
+Chromium, then stops both — it signals their whole process group, without which the servers that
+`make` and `pnpm` start would survive. It always starts its own servers, on ports of its own — those
+of the slot of the worktree (« Commands », « The slots of the worktrees »): 4110 for the fake back
+and 3100 for the front in the main repository, at slot 0, `20000 + 100·i + 20` and `+ 40` at slot i
+of a worktree of a lot, which runs `make slot` first —, never those of `make dev`, and its fake back
+serves a variant of the contract written under `frontend/.e2e/`, which `make dev` does not read: a
+port already taken makes the launch fail saying so. Two worktrees at two slots thus play their paths
+at the same time, with `WATERFALL_SLOTS` of at least 2, without which the second waits for the first
+to end. `E2E_API_PORT` and `E2E_FRONT_PORT`, set in the environment, prevail over those of the slot
+— the front of the paths takes as many as it has workers, starting from it (below), forty at most in
+a block; a port that is not an integer from 1 to 65535 is refused. `make e2e-browsers` installs the
+browser. `make e2e SHARD=i/N` plays only the i-th of N shards of the paths, spread by measured
+duration (`tools/e2e-durations.json`, which `make e2e-durations` refreshes), like each of the
+chain's runners (« The chain »; `SHARD` does not combine with `TESTS=<file>`, which the recipe
+refuses: the file may lie in another shard), and `make e2e WORKERS=<n>` plays them on `n` workers
+(`E2E_WORKERS`, which `playwright.config.ts` reads; an integer from 1 to 40, nothing else: one front
+per worker, and a slot's block holds only forty), fewer than Playwright takes on its own — half the
+processors, capped at forty — on a loaded workstation, where paths fail by timeout (#736). `make
+e2e-service` has a default of its own (#2890): three quarters of `WATERFALL_PROCESSORS`, the share
+of processors of the slot, at least 1 and at most 40 — 6 on 8 processors —, and not half the
+processors of the workstation, 16 of 32, where 18 to 23 paths failed to navigate (`toHaveURL`);
+measured at 8, 10 and 12 workers on 8 processors, four slots taken, they still failed to navigate,
+at 6 no failure to navigate over two passes. `WORKERS=<n>` holds only for `make e2e`; `make
+e2e-service` takes `E2E_WORKERS=<n>`, in the environment or on the command line, which prevails
+(empty, it is ignored). With `WATERFALL_API_ADDRESS`, the harness plays against the API it names and
+starts no fake back.
 
 **The paths are played against the front built for production** (US-0590), the one users open: one
 `next start` server per worker of the paths, on `E2E_FRONT_PORT` and the ports that follow it, each

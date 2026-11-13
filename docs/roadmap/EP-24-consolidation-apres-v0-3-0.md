@@ -313,7 +313,12 @@ livrées — `epic/EP-09`, `epic/EP-23` — gardent leurs couches d'images (envi
 — `postgres`, `redis`, `caddy`, `axllent/mailpit`, `dxflrs/garage`, `curlimages/curl`, `node`,
 `python`, `debian`, `maven`, `adorsys/keycloak-config-cli` — et `keycloak/keycloak` ; le registre de
 npm pour Prism et Redocly (`npx --yes`, `make mock-tools`) ; `mcr.microsoft.com` pour l'image de
-Playwright ; GitHub Releases pour pandoc ; le miroir d'Astral pour Python.
+Playwright ; GitHub Releases pour pandoc ; le miroir d'Astral pour Python ;
+et quatre que l'inventaire d'origine omettait (#2981, #3015) : GitHub Releases pour le binaire d'actionlint,
+que construit `actionlint-py` ; `www.postgresql.org` pour la clé du dépôt PGDG, téléchargée par la
+construction de l'image `waterfall` ; `azure.archive.ubuntu.com` pour le client PostgreSQL qu'installait
+`back / tests` ; `deb.debian.org` et `apt.postgresql.org` pour les images `openldap` et `waterfall`, quand
+le cache de couches manque.
 
 ### La chaîne : ce que les lots font
 
@@ -349,6 +354,15 @@ Playwright ; GitHub Releases pour pandoc ; le miroir d'Astral pour Python.
   tirées d'un miroir sous `ghcr.io/waterfall-project/mirror/`, tenu par `images.yml` aux mêmes
   empreintes ; Prism et Redocly deviennent des dépendances de développement épinglées du front, lues
   du magasin de pnpm, sans `npx --yes` ; pandoc est gardé en cache.
+- **Le réseau (US-1900/L4)**, les quatre sources omises : le binaire d'actionlint est mis à part, dans un
+  groupe `workflows` des outils que seul `make lint-workflows` installe, et la roue qu'`actionlint-py`
+  construit (PyPI n'en publie pas) est lue du cache d'uv à `repo / check` ; la clé PGDG est versionnée
+  (`backend/pgdg.asc`) et vérifiée par son empreinte, jamais téléchargée ; `back / tests` ne lance plus apt,
+  l'image des runners portant déjà `postgresql-client-18` (le job le vérifie et s'arrête en le disant) ;
+  pour `openldap` et `waterfall`, apt refait ses requêtes cinq fois, le cache de couches de `images.yml`
+  évite la source le plus souvent, et une source muette fait échouer la construction à l'étape d'apt, qui
+  nomme l'adresse — une couche de base publiée n'est pas faite : deux images de plus à publier, et le poste
+  dépendrait de ghcr.io.
 - **Les tests (US-1920)** : les propositions de #859 et de #1026 ; `installation.setup` attend
   l'état qu'il affirme ; le chargement du témoin prend ses verrous dans un ordre constant, ou attend
   celui qu'il n'obtient pas.
@@ -514,7 +528,7 @@ et les modèles régénérés.
 
 ## US-1850 — Les filtres des tables : la vérification de L5 et de L6 terminée, les mineurs reportés soldés
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0060-A`
 - **opérations** : `getMe`, `updateMyPreferences`
 - **issue** : #2933
@@ -709,7 +723,7 @@ et `planning-service.spec.ts`.
 
 ## US-1900 — La chaîne ne dépend plus d'un réseau qu'elle ne tient pas
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2944

@@ -1784,7 +1784,8 @@ retenu par aucun, `exhaustive: false`, EP-02/L42f) et par état, un seul choix (
 les actifs seuls, les désactivés seuls —, qui dit ce que la grille montre : la page demande toujours
 les désactivés aussi (`include_inactive=true`, le contrat les masquant par défaut), une adresse
 d'avant qui les masquait (`include_inactive=false`) se lit « Comptes actifs » (`readAccountState`),
-et tout choix lève ce paramètre ancien (`lifts` de `ChoiceFilter`) — et paginés par le serveur, sous
+un filtre de la grille, gardé avec ses réglages comme les autres (`USER_FILTERS`, #2916) — seul
+dans l'adresse, il n'est donc pas remplacé par les filtres gardés —, et tout choix lève ce paramètre ancien (`lifts` de `ChoiceFilter`) — et paginés par le serveur, sous
 les noms du contrat — un tri, une recherche ou un filtre ramenant à la première page —, la ligne des
 totaux disant combien le serveur en retient (`meta.total`), l'écran remplissant la fenêtre ; la
 recherche porte sur le nom, le prénom, l'adresse et le nom affiché, sans égard à la casse ni aux
@@ -3474,6 +3475,64 @@ le bouton « Merge when ready », ou par la mutation `enqueuePullRequest` de l'A
 dépôt. Une branche sans file de fusion fait tourner le palier complet à la main sur la
 branche d'un lot, avant de le fusionner : `gh workflow run chain --ref <branche>`.
 
+Les images tierces de Docker Hub — PostgreSQL, Redis, Caddy, Mailpit, Garage, curl, Node, Python,
+Debian, Maven, Keycloak et son `keycloak-config-cli` — restent nommées, dans les fichiers Compose et
+les `Dockerfile`, comme sur Docker Hub, par leur empreinte : le poste, la production et la démonstration
+n'en changent pas. Seule la chaîne les tire d'un miroir, `ghcr.io/waterfall-project/mirror/` :
+un pull de Docker Hub (« failed to fetch oauth token », `toomanyrequests`) a fait échouer quatre
+passages de la file avant leur premier test (US-1900). Les fichiers lisent le préfixe du miroir dans
+`WATERFALL_MIRROR` (`${WATERFALL_MIRROR:-}postgres:18-trixie@sha256:…` en Compose, `ARG
+WATERFALL_MIRROR=` avant le `FROM` dans un `Dockerfile`, que `--build-arg WATERFALL_MIRROR` ou
+`args: [WATERFALL_MIRROR]` remplit depuis l'environnement) ; vide, c'est Docker Hub. Dependabot ne lit peut-être plus ces
+références paramétrées (`${WATERFALL_MIRROR:-}…`, `FROM ${WATERFALL_MIRROR}…`) : une montée de version
+d'image demande que le miroir tienne la nouvelle empreinte (`make mirror PUSH=yes`, par une personne
+si le jeton de la pull request ne peut pas écrire). Les workflows
+qui construisent ou lancent Compose (`back.yml`, `keycloak.yml`, `front-image.yml`, `service.yml`,
+`production.yml`, `images.yml`) posent `WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/` et s'y connectent ; les
+services de `back.yml` et de `front.yml` nomment le miroir en toutes lettres. Le miroir est tenu par
+`make mirror PUSH=yes` (`wftools.mirror`) : il lit ces références, demande à ghcr.io si l'empreinte
+y est — présente, rien d'autre n'est lu, Docker Hub non plus —, et copie celles qui manquent de
+Docker Hub, par empreinte (`docker buildx imagetools create` écrit le manifeste tel quel,
+l'empreinte est vérifiée après), sous une étiquette qui porte le début de l'empreinte : une même
+étiquette de Docker Hub a deux empreintes dans nos fichiers (Caddy). Le travail `mirror` de
+`ci.yml`, que tout travail qui tire une image attend, le fait à chaque passage, au palier rapide
+comme au complet : `images.yml` passe après la fusion, donc après le premier passage qui a besoin
+d'une image ajoutée ou d'une empreinte relevée (`images.yml` le refait avant de construire, une
+consultation). Chaque demande est refaite quatre fois au plus (`wftools.registry`, #2530) ; une
+image que ni le miroir ni Docker Hub ne donnent fait échouer ce travail en nommant Docker Hub, et
+saute les travaux qui en dépendent, ce que la porte compte. Pour changer une image tierce : changer
+sa référence et son empreinte dans les fichiers, derrière `${WATERFALL_MIRROR:-}` ; le premier
+passage copie la nouvelle. Les travaux qui tirent du miroir demandent `packages: read` et s'y
+connectent (`docker/login-action`, ou `credentials:` d'un service) : un paquet que GitHub crée est
+privé, et rien hors de la chaîne ne le lit.
+
+Quatre autres sources réseau de la chaîne, que l'inventaire d'origine d'US-1900 ne nommait pas
+(#2981, #3015), sont traitées chacune à sa mesure :
+
+- **le binaire d'actionlint** (GitHub Releases) : `actionlint-py` n'a pas de roue sur PyPI, seulement
+  des sources, et sa construction télécharge l'archive du binaire (empreinte vérifiée, quelques essais
+  refaits). Il quitte le groupe `dev` des outils pour un groupe `workflows` (`tools/pyproject.toml`) que
+  seul `make lint-workflows` installe : `contract / check` et le serveur web de l'e2e ne le construisent
+  plus. Le travail `repo / check` le construit, une fois, puis lit la roue construite dans le cache d'uv
+  (`setup-uv`) tant que `tools/uv.lock` ne change pas ; sur un cache absent et GitHub Releases muet,
+  il échoue en nommant l'adresse (`download failed for https://github.com/rhysd/actionlint/…`) ;
+- **la clé du dépôt PGDG** (`www.postgresql.org`) : versionnée dans `backend/pgdg.asc`, copiée dans
+  l'image `waterfall` et vérifiée à la construction par son empreinte SHA-256, écrite dans le
+  `Dockerfile` avec l'empreinte de la clé. Plus aucun téléchargement de clé. Monter la clé, c'est
+  remplacer le fichier et l'empreinte ensemble ; `tools/tests/test_networksources.py` les tient
+  l'un à l'autre ;
+- **`azure.archive.ubuntu.com`** dans `back / tests` : le job ne lance plus apt. L'image des runners,
+  `ubuntu-26.04`, porte déjà `postgresql-client-18` (apt répondait « already the newest version ») ; le
+  job le vérifie et, si l'image le retirait un jour, s'arrête en le disant au lieu de l'installer.
+  Pas d'image de travail publiée pour cela : elle ne ferait que recopier ce que le runner a ;
+- **`deb.debian.org` et `apt.postgresql.org`**, tirés par les images `openldap` et `waterfall` quand le
+  cache de couches manque : les `Dockerfile` posent `Acquire::Retries "5"` à apt, et le cache de couches
+  que `images.yml` écrit après chaque fusion (`make build-cache`) reste ce qui évite le plus souvent la
+  source. Une source qui ne répond toujours pas fait échouer la construction à l'étape d'apt, qui nomme
+  l'adresse (`Failed to fetch http://deb.debian.org/…`). Une couche de base publiée sur ghcr.io
+  demanderait deux images de plus à étiqueter et à publier, et ferait dépendre la construction du poste
+  de ghcr.io : elle n'est pas faite.
+
 Le palier complet vise moins de huit minutes dans la file pour son travail le plus long
 (#492). Les parcours de bout en bout, la moitié la plus longue, s'y prennent ainsi :
 
@@ -3611,11 +3670,11 @@ Règles des workflows :
   ignorées : elles suivent l'image de Keycloak. La majeure de TypeScript n'a pas de règle
   d'ignorance : l'auteur ferme sa pull request tant que `typescript-eslint` ne la tient pas.
 - Dependabot ne suit pas, et l'auteur relève à la main, à la pull request mensuelle de
-  Dependabot : `REDOCLY_VERSION` et `PRISM_VERSION` du `Makefile`, `packageManager` du front,
-  l'uv et le client PostgreSQL de l'image `waterfall`, les runners et le pandoc de la chaîne,
-  et `maven.compiler.release` du `pom.xml` de l'extension, qui reste à 21 exprès (le Java de
-  l'image de Keycloak, pas le JDK de construction) : il se relève quand cette image change de
-  Java.
+  Dependabot : `packageManager` du front, l'uv et le client PostgreSQL de l'image `waterfall`
+  (et sa clé, `backend/pgdg.asc`), les runners et le pandoc de la chaîne, et
+  `maven.compiler.release` du `pom.xml` de l'extension,
+  qui reste à 21 exprès (le Java de l'image de Keycloak, pas le JDK de construction) : il se
+  relève quand cette image change de Java.
 
 _Contrôle_ : `make lint-workflows` (actionlint) ; l'épinglage et les permissions, la revue.
 
@@ -3666,18 +3725,17 @@ _Contrôle_ : `make reuse` échoue sur un fichier couvert ni par un en-tête ni 
 ## Outils du dépôt
 
 Les outils vivent dans `tools/`, en Python, avec leurs tests (`make test-tools`, qui exige Docker :
-le test du Compose de service lance `docker compose config` et échoue sans lui). Il tourne sous un plafond de
-mémoire, `TOOLS_MEMORY` (24G par défaut) : sous systemd utilisateur, le noyau tue le run qui le
-dépasse, non la session ; sans systemd utilisateur (un runner de la chaîne), il n'y a pas de
-plafond. Les tests de
-l'entrypoint de l'annuaire, qui démarrent son image sur des volumes jetables, en sont écartés
-(marqueur `openldap`) : `make test-openldap` les lance, et la famille `keycloak`, que
-`deploy/openldap` réveille, les éprouve. Tout outil
-qui a besoin des exigences les lit par `wftools.projection`, qui lit la projection
-`docs/spec/waterfall-spec.md` : un seul lecteur, pour que deux outils ne puissent pas
-diverger sur ce qu'une exigence dit. Il compare les textes après normalisation — apostrophes
-et espaces typographiques rendus simples —, et découpe un Vérif en phrases. L'exemple du
-§1.3.1, `WF-EXA-0010-A`, n'est pas une exigence du produit : les outils l'excluent.
+le test du Compose de service lance `docker compose config` et échoue sans lui). Il tourne sous un
+plafond de mémoire, `TOOLS_MEMORY` (24G par défaut) : sous systemd utilisateur, le noyau tue le run
+qui le dépasse, non la session ; sans systemd utilisateur (un runner de la chaîne), il n'y a pas de
+plafond. Les tests de l'entrypoint de l'annuaire, qui démarrent son image sur des volumes jetables,
+en sont écartés (marqueur `openldap`) : `make test-openldap` les lance, et la famille `keycloak`,
+que `deploy/openldap` réveille, les éprouve. Tout outil qui a besoin des exigences les lit par
+`wftools.projection`, qui lit la projection `docs/spec/waterfall-spec.md` : un seul lecteur, pour
+que deux outils ne puissent pas diverger sur ce qu'une exigence dit. Il compare les textes après
+normalisation — apostrophes et espaces typographiques rendus simples —, et découpe un Vérif en
+phrases. L'exemple du §1.3.1, `WF-EXA-0010-A`, n'est pas une exigence du produit : les outils
+l'excluent.
 
 _Contrôle_ : `make test-tools`.
 
@@ -3977,12 +4035,53 @@ vérifiée est dans la fenêtre : au-delà des lignes en vue à l'ouverture, le 
 elle (`scrollToPosition`, `frontend/e2e/scroll.ts`) plutôt que de compter sur la marge que la grille
 rend autour de la fenêtre.
 
-`make e2e` : `make mock-tools` met d'abord en cache les Redocly et Prism épinglés (leur
-installation par `npx` comptait dans les 120 s que Playwright donne au faux back, #1901) — il en
-est de même de `make e2e-measure` et de `make e2e-service`, dont Playwright démarre aussi le faux
-back ; Playwright démarre le faux back (`make mock`) et le front, joue les parcours
-dans Chromium, puis arrête les deux — il signale leur groupe de processus entier, sans quoi
-les serveurs que `make` et `pnpm` lancent survivraient. Il démarre toujours ses propres
+**Un parcours lent** — qui dépasse sa borne dans la chaîne sans régression derrière — se traite en
+trois degrés, dans cet ordre (US-1890). D'abord, la cause se mesure dans la chaîne, sous la charge de
+la file, jamais sur un poste seul : le parcours écrit à son journal et en annotation la durée de
+chaque étape de ce qu'il attend, et le journal du service dit le reste (`make service-logs`, versé au
+job quand un parcours échoue). Puis :
+
+1. **corriger la lecture**, ou l'écriture, que la mesure désigne, au back ou au front : #2924 a
+   ramené `getRemainingIndicators` de 2 845 requêtes à 58 ; la création d'un projet par deux workers
+   à la fois finissait en 500 sur un verrou mortel de PostgreSQL entre les créations de partitions
+   (`create_project_partitions`), et le parcours attendait quinze secondes une adresse qui ne venait
+   jamais (famille A d'EP-24, dix-sept passages de la file du 8 au 11 novembre, tous sans la
+   migration `0026` d'US-1560/L3, qui les met l'une après l'autre ; aucun depuis) ;
+2. **sinon, isoler le parcours** — un compte, un projet, un réglage à lui, ce qu'il n'éprouve pas
+   préparé par l'API sous jeton (`inscribe`, `employRole` d'`own-project.ts`) —, **ou le
+   sérialiser** : `@serial`, joué par le projet `shared-serial`, quand il écrit un objet unique de
+   l'installation ;
+3. **n'élargir une attente qu'en dernier recours**, la mesure dans le commentaire qui l'élargit — le
+   passage de la chaîne, les durées relevées —, et `test.slow()` de même.
+
+`createOwnProject` (`frontend/e2e/own-project.ts`) en est l'exemple : chaque création écrit au
+journal « Own project created », l'accueil, la boîte, puis, depuis « Créer », l'action serveur
+demandée et répondue, l'écran du projet demandé, répondu et fini, et l'adresse atteinte ; manquée,
+ce que la boîte affiche. Sur les 52 créations du passage complet 43386149437, la création entière
+prend 2,2 s en médiane et 5,8 s au plus, l'adresse 0,7 s après « Créer », et l'API répond `POST
+/projects` en 0,24 s en médiane, 1,9 s au plus : rien n'y justifie d'élargir `WORKING`.
+
+`ScreenSteps` (`frontend/e2e/screen-steps.ts`) fait de même pour un écran que le serveur relit :
+chaque étape, et les requêtes RSC en vol pendant elle. Sur le parcours de WF-REV-0080-A, elle a
+montré une attente déjà vraie avant son geste : après « Comparer », l'adresse gardait `difference=`
+comme celle d'avant, et le filtre levé aussitôt faisait lire deux comparaisons de PRJ-001 ensemble
+à l'API, qui n'est qu'un processus (2,2 s pour une seule) ; il arrivait en 15 s au lieu de 8 sous
+six workers (#2942). Une attente qui suit un geste attend ce que ce geste change.
+
+`make e2e` : Redocly et Prism sont des dépendances de développement du front, à version exacte
+(`frontend/package.json`, verrouillées par `pnpm-lock.yaml`) : `make install-front`, que la cible
+joue d'abord, les met dans le magasin de pnpm (le cache de la chaîne), d'où le `Makefile` les lit,
+sans `npx --yes` ni registre de npm à chaque passage — leur installation par `npx` comptait dans
+les 120 s que Playwright donne au faux back (#1901), et un registre muet faisait échouer le passage
+avant son premier test (#2913). Les cibles qui lancent Redocly ou Prism sans `install-front`
+(`lint-openapi`, `mock-spec`) installent quand `package.json` ou le verrou sont plus récents que
+`node_modules/.modules.yaml` : un relèvement de version s'installe au passage suivant. Un registre
+qui refuse la connexion fait échouer l'installation en 70 s environ, sur une erreur qui nomme
+l'adresse du paquet demandé ; elle n'a pas d'autre borne, et un registre muet attend celle du
+réseau. `make e2e-measure` et `make e2e-service` lancent `install-front`, puisque
+Playwright y démarre aussi le faux back. Playwright démarre le faux back (`make mock`) et le front,
+joue les parcours dans Chromium, puis arrête les deux — il signale leur groupe de processus entier,
+sans quoi les serveurs que `make` et `pnpm` lancent survivraient. Il démarre toujours ses propres
 serveurs, sur des ports à lui — ceux du créneau du worktree (« Commandes », « Les créneaux des
 worktrees ») : 4110 pour le faux back et 3100 pour le front dans le dépôt principal, au créneau 0,
 `20000 + 100·i + 20` et `+ 40` au créneau i d'un worktree de lot, qui fait d'abord `make slot` —,

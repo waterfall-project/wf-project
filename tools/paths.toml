@@ -87,6 +87,9 @@ paths = [
     "backend/pyproject.toml",
     "backend/uv.lock",
     ".github/workflows/contract.yml",
+    # Redocly, which lints and bundles the contract, is a development dependency of the front.
+    "frontend/package.json",
+    "frontend/pnpm-lock.yaml",
     # The volumes and the readings of the witness (make mock-data), and the projection the
     # inventory reads.
     "tools/src/wftools/mock*.py",
@@ -190,6 +193,7 @@ paths = [
     # The work image the paths play in (US-1900), and what finds it and plays them in it.
     "deploy/e2e/**",
     "tools/src/wftools/e2eimage.py",
+    "tools/src/wftools/registry.py",
 ]
 target = "check-service"
 
@@ -242,6 +246,7 @@ paths = [
     # The work image the parts of the paths run in (US-1900), and what finds it.
     "deploy/e2e/**",
     "tools/src/wftools/e2eimage.py",
+    "tools/src/wftools/registry.py",
     # What spreads the parts of the paths by their measured durations (US-1910).
     "tools/src/wftools/e2eparts.py",
     "tools/e2e-durations.json",

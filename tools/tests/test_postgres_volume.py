@@ -164,18 +164,19 @@ def test_postgresql_18_pinned_by_its_digest_serves_every_platform_and_the_chain(
 def test_the_chain_installs_the_client_18_before_the_tests_of_the_back() -> None:
     """US-1130: the job of the back has the pg_dump and pg_restore 18 its tests run.
 
-    The runner brings a client 16, which refuses a server 18: the client 18 is installed, and
-    /usr/bin/pg_dump and pg_restore are pointed at it and checked to be of that major, before
-    ``make check-back-tests``, in each part of the tests.
+    The runner brings a client 16 beside its client 18, and 16 refuses a server 18: /usr/bin/pg_dump
+    and pg_restore are pointed at the 18 the runner image carries and checked to be of that major,
+    before ``make check-back-tests``, in each part of the tests. Nothing is installed (US-1900/L4).
     """
     steps = yaml.safe_load(CHAIN.read_text(encoding="utf-8"))["jobs"]["tests"]["steps"]
     runs = [step.get("run", "") for step in steps]
-    install = next(i for i, run in enumerate(runs) if "postgresql-client-18" in run)
+    install = next(i for i, run in enumerate(runs) if "/usr/lib/postgresql/18/bin" in run)
     tests = next(i for i, run in enumerate(runs) if run.startswith("make check-back-tests"))
     assert install < tests
-    for tool in ("pg_dump", "pg_restore"):
-        assert f"/usr/lib/postgresql/18/bin/{tool} /usr/bin/{tool}" in runs[install]
-        assert f"/usr/bin/{tool} --version" in runs[install]
+    assert "for tool in pg_dump pg_restore; do" in runs[install]
+    assert "apt" not in runs[install].replace("(PostgreSQL)", "")
+    assert '"/usr/lib/postgresql/18/bin/$tool" "/usr/bin/$tool"' in runs[install]
+    assert '"/usr/bin/$tool" --version' in runs[install]
     assert "(PostgreSQL) 18." in runs[install]
 
 

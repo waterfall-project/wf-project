@@ -85,9 +85,10 @@ def test_the_job_that_publishes_alone_writes_packages_and_runs_the_makefile() ->
     assert document["permissions"] == {"contents": "read"}
     jobs = document["jobs"]
     # The trial of the production platform on the images published reads them alone (US-0430/L2);
-    # the cache of the builds is written beside them, with no right on the packages.
+    # the cache of the builds is written beside them, with no right to write packages: its builds
+    # read the mirror of the images of Docker Hub (US-1900).
     assert list(jobs) == ["publish", "trial", "cache"]
-    assert "permissions" not in jobs["cache"]
+    assert jobs["cache"]["permissions"] == {"contents": "read", "packages": "read"}
     assert jobs["cache"]["steps"][-1] == {"run": "make build-cache"}
     assert jobs["trial"]["permissions"] == {"contents": "read", "packages": "read"}
     job = jobs["publish"]
@@ -166,8 +167,12 @@ def test_nothing_is_published_from_a_branch_other_than_main_or_an_epic(branch: s
 
 
 def secret_options(command: list[str]) -> list[str]:
-    """Return the words of a command that would hand a build a value."""
-    return [word for word in command if word.startswith(SECRET_OPTIONS)]
+    """Return the words of a command that would hand a build a value.
+
+    The registry of the mirror (``--build-arg WATERFALL_MIRROR``, US-1900) is a name, not a value.
+    """
+    rest = " ".join(command).replace("--build-arg WATERFALL_MIRROR", "").split()
+    return [word for word in rest if word.startswith(SECRET_OPTIONS)]
 
 
 def environment_names(instruction: str) -> list[str]:
@@ -185,7 +190,8 @@ def test_no_image_receives_a_secret_at_its_build() -> None:
         for stage in stages(dockerfile):
             for instruction in stage:
                 keyword = instruction.split()[0].upper()
-                assert keyword != "ARG", f"{dockerfile}: {instruction}"
+                if keyword == "ARG":
+                    assert instruction == "ARG WATERFALL_MIRROR=", f"{dockerfile}: {instruction}"
                 if keyword == "ENV":
                     names = environment_names(instruction)
                     assert not [name for name in names if SECRET_NAME.search(name)], instruction
