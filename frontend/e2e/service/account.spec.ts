@@ -321,12 +321,23 @@ test("the panel of the filters of the table of the accounts, closed by default, 
     await expect(mine.getByRole("group", { name: "Filtres" })).toBeVisible();
     await mine.goto(ROLES);
     await expect(filtersButton(mine)).toHaveAttribute("aria-expanded", "false");
-    expect(keptOpen(first.email, "access_roles")).toBeUndefined();
+    // Absence is proved after the writes of the page have settled (a deferred one would pass it empty):
+    // the users' write was seen above, the network is quiet, and the grid still has none.
+    await mine.waitForLoadState("networkidle");
+    await expect
+      .poll(() => keptOpen(first.email, "access_roles"), {
+        intervals: [250, 250, 500],
+        timeout: 2_000,
+      })
+      .toBeUndefined();
 
     // The second opens the same table: her own panel, closed.
     await hers.goto(USERS);
     await expect(filtersButton(hers)).toHaveAttribute("aria-expanded", "false");
-    expect(keptOpen(second.email, "users")).toBeUndefined();
+    await hers.waitForLoadState("networkidle");
+    await expect
+      .poll(() => keptOpen(second.email, "users"), { intervals: [250, 250, 500], timeout: 2_000 })
+      .toBeUndefined();
 
     // A filter on, the panel closed: kept closed, and the filter still told by its chip, counted.
     await mine.goto(`${USERS}?is_active=true`);

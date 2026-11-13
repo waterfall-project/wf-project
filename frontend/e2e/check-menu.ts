@@ -20,7 +20,14 @@ export function menuButton(page: Page, label: string): Locator {
 /** Open the menu of a label, if it is not open; its list. */
 export async function openMenu(page: Page, label: string): Promise<Locator> {
   const button = menuButton(page, label);
-  if ((await button.getAttribute("aria-expanded")) !== "true") {
+  // Web-first: the state is read with a wait, not once, as the page may still be settling.
+  const open = await expect(button)
+    .toHaveAttribute("aria-expanded", "true", { timeout: 500 })
+    .then(
+      () => true,
+      () => false,
+    );
+  if (!open) {
     await button.click();
   }
   const list = page.getByRole("dialog");

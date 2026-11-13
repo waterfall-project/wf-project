@@ -78,13 +78,18 @@ async function restoreHome(
   await page.goto("/");
   await openFilters(page);
   await expect(menuButton(page, "Filtre par état")).toBeVisible({ timeout: WORKING });
-  await pick(page, "Filtre par état", "Tous les états");
-  await pick(page, "Filtre par état", "Créé");
-  await pick(page, "Filtre par état", "Chiffrage");
-  await pick(page, "Filtre par état", "En cours");
-  await expect(menuButton(page, "Filtre par état")).toContainText("3 sélectionnés", {
-    timeout: WORKING,
-  });
+  // Each choice is waited for on the summary of the button before the next: a navigation that comes
+  // late changes the chips, the frame is measured again and the open menu moves under the click.
+  const summary = menuButton(page, "Filtre par état");
+  for (const [value, says] of [
+    ["Tous les états", "Tous les états"],
+    ["Créé", "Créé"],
+    ["Chiffrage", "2 sélectionnés"],
+    ["En cours", "3 sélectionnés"],
+  ] as const) {
+    await pick(page, "Filtre par état", value);
+    await expect(summary).toContainText(says, { timeout: WORKING });
+  }
   await liftSort(list);
   // What the account keeps of the home: no sort, and no state chosen, the default being unwritten.
   await expect
