@@ -38,6 +38,7 @@ jobs:
         with:
           enable-cache: true
           save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: backend/uv.lock
       - run: make check-back-static
 
@@ -128,6 +129,7 @@ jobs:
         with:
           enable-cache: true
           save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: backend/uv.lock
       - run: make check-back-tests
         env:
@@ -162,6 +164,7 @@ jobs:
         with:
           enable-cache: true
           save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: |
             backend/uv.lock
             tools/uv.lock

@@ -53,6 +53,7 @@ jobs:
         with:
           enable-cache: true
           save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: backend/uv.lock
       - run: make check-keycloak
       # What the platform said, when it failed to start or to apply the realm.

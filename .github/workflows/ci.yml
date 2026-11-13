@@ -63,6 +63,7 @@ jobs:
         with:
           enable-cache: true
           save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: tools/uv.lock
       - id: families
         env:
@@ -120,6 +121,7 @@ jobs:
         with:
           enable-cache: true
           save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: tools/uv.lock
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
@@ -236,6 +238,7 @@ jobs:
         with:
           enable-cache: true
           save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: tools/uv.lock
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
@@ -337,6 +340,7 @@ jobs:
         with:
           enable-cache: true
           save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: tools/uv.lock
       - env:
           NEEDS: ${{ toJSON(needs) }}

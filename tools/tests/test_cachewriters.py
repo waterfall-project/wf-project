@@ -9,6 +9,7 @@ saved its own copy of the store of pnpm (188 MB, 6.7 GB in all on 2026-11-13) an
 of uv, of ESLint and of pandoc. The quota itself is read in the repository (`gh cache list`).
 """
 
+from pathlib import PurePosixPath
 from typing import Any, cast
 
 import yaml
@@ -17,6 +18,9 @@ from wftools import REPOSITORY
 
 WORKFLOWS = REPOSITORY / ".github" / "workflows"
 WRITERS = {"front-cache.yml", "images.yml"}
+# Paths of the runner, which these tests only read in the workflows.
+UV_PATH = PurePosixPath("/", "tmp", "setup-uv-cache").as_posix()
+PNPM_PATH = PurePosixPath("/", "tmp", "pnpm-store").as_posix()
 
 
 def documents() -> dict[str, dict[Any, Any]]:
@@ -99,4 +103,73 @@ def test_the_caches_of_a_deleted_branch_are_removed_with_the_right_to_delete_alo
 def test_only_the_job_that_prunes_may_delete_in_the_writer() -> None:
     jobs = documents()["front-cache.yml"]["jobs"]
     assert "permissions" not in jobs["write"]
-    assert jobs["prune"]["permissions"] == {"actions": "write"}
+    assert jobs["prune"]["permissions"] == {"actions": "write", "contents": "read"}
+
+
+def uv_caches() -> dict[str, set[str]]:
+    """Collect the caches of uv the workflows read or write, by the lockfiles they hash."""
+    found: dict[str, set[str]] = {}
+    for name, document in documents().items():
+        for job in document.get("jobs", {}).values() or [document["runs"]]:
+            matrix = job.get("strategy", {}).get("matrix", {}).get("include", [{"locks": ""}])
+            for step in job.get("steps", []):
+                given = options(step)
+                if not (
+                    step.get("uses", "").startswith("astral-sh/setup-uv@")
+                    and given.get("enable-cache")
+                ):
+                    continue
+                writes = given.get("save-cache") is not False
+                for row in matrix:
+                    glob = str(given["cache-dependency-glob"]).replace(
+                        "${{ matrix.locks }}", row["locks"]
+                    )
+                    found.setdefault("\n".join(glob.split()), set()).add(
+                        f"{name}:{'write' if writes else 'read'}"
+                    )
+    return found
+
+
+def test_a_writer_saves_every_cache_of_uv_that_another_workflow_reads() -> None:
+    caches = uv_caches()
+    assert caches
+    for glob, users in caches.items():
+        assert "front-cache.yml:write" in users, glob
+    writers = {user.split(":")[0] for users in caches.values() for user in users if "write" in user}
+    assert writers == {"front-cache.yml"}
+
+
+def test_every_cache_of_uv_is_at_the_same_path() -> None:
+    paths = {
+        options(step)["cache-local-path"]
+        for document in documents().values()
+        for step in steps(document)
+        if step.get("uses", "").startswith("astral-sh/setup-uv@")
+        and options(step).get("enable-cache")
+    }
+    assert paths == {UV_PATH}
+
+
+def test_the_store_of_pnpm_has_one_path_and_one_key_for_the_writer_and_the_readers() -> None:
+    documents_ = documents()
+    reading = next(
+        step for step in steps(documents_["pnpm-store"]) if "cache/restore@" in step.get("uses", "")
+    )
+    writing = next(
+        step
+        for step in steps(documents_["front-cache.yml"])
+        if step.get("uses", "").startswith("actions/cache@")
+        and "pnpm" in str(options(step).get("key"))
+    )
+    assert options(reading)["path"] == options(writing)["path"] == PNPM_PATH
+    assert options(reading)["key"] == options(writing)["key"]
+    assert options(reading)["restore-keys"] == options(writing)["restore-keys"]
+    for document in (documents_["pnpm-store"], documents_["front-cache.yml"]):
+        assert f"npm_config_store_dir={PNPM_PATH}" in str(steps(document))
+    assert "cache" not in str(
+        [
+            options(s)
+            for s in steps(documents_["front-cache.yml"])
+            if "setup-node" in s.get("uses", "")
+        ]
+    )

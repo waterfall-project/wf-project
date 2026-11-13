@@ -23,5 +23,6 @@ jobs:
         with:
           enable-cache: true
           save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: tools/uv.lock
       - run: make check-repo

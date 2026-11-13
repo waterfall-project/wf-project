@@ -30,12 +30,13 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 STAND_IN = """
-import http.server, os, signal, sys
+import http.server, os, signal, sys, time
 args = sys.argv
 signal.signal(signal.SIGINT, signal.SIG_IGN)
 signal.signal(signal.SIGTERM, lambda *_: os._exit(0))
 port = int(args[args.index("--port") + 1])
 open(os.environ["STAND_IN_RECORD"], "w").write(f"{os.getpid()} {args[args.index('--path') + 1]}")
+time.sleep(float(os.environ.get("STAND_IN_DELAY", "0")))
 http.server.HTTPServer(("127.0.0.1", port), http.server.SimpleHTTPRequestHandler).serve_forever()
 """
 LINES = re.compile(r"^(E2E_BROWSER_PORT|e2e-port-free|e2e-browser) \??=.*$", re.MULTILINE)
@@ -68,8 +69,14 @@ class Probe:
     def text() -> str:
         return (REPOSITORY / "Makefile").read_text(encoding="utf-8")
 
-    def start(self, command: str, *, server: str | None = None) -> subprocess.Popen[str]:
-        environment = {**os.environ, "STAND_IN_RECORD": str(self.record)}
+    def start(
+        self, command: str, *, server: str | None = None, delay: int = 0
+    ) -> subprocess.Popen[str]:
+        environment = {
+            **os.environ,
+            "STAND_IN_RECORD": str(self.record),
+            "STAND_IN_DELAY": str(delay),
+        }
         return subprocess.Popen(
             [
                 "make",
@@ -164,6 +171,20 @@ def test_an_interrupted_shell_stops_the_server(probe: Probe) -> None:
     run.communicate(timeout=60)
     assert run.returncode != 0
     assert wait_until(lambda: not alive(pid))
+
+
+def test_a_shell_interrupted_during_the_wait_stops_the_server_at_once(probe: Probe) -> None:
+    """The server starts late: Ctrl-C in the wait must not wait for the wait to end."""
+    run = probe.start("true", delay=60)
+    assert wait_until(probe.record.exists)
+    pid, _ = probe.served()
+    time.sleep(1)  # the shell is in its wait, the server not yet listening
+    interrupted = time.monotonic()
+    os.killpg(run.pid, signal.SIGINT)
+    run.communicate(timeout=60)
+    assert run.returncode != 0
+    assert wait_until(lambda: not alive(pid), seconds=10)
+    assert time.monotonic() - interrupted < 10
 
 
 PULL_ERRORS = [

@@ -26,12 +26,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # The package is kept between runs (read here, written by front-cache.yml): a release download answers 502 or 504 now and then, for
-      # an hour at a time (#2530), and the check of the specification must not wait on it. A cache
-      # missed downloads it, curl trying again: an attempt that moves under 1 kB/s for 20 s is cut
-      # (a slow transfer that progresses goes on), and `timeout` cuts the whole at four minutes,
-      # retries included (the job has ten): a release that stays silent fails the step here,
-      # naming GitHub Releases, not at the end of the job's limit. Its digest is checked either way.
+      # The package is kept between runs (read here, written by front-cache.yml): a release
+      # download answers 502 or 504 now and then, for an hour at a time (#2530), and the check of
+      # the specification must not wait on it. A cache missed downloads it, curl trying again: an
+      # attempt that moves under 1 kB/s for 20 s is cut (a slow transfer that progresses goes on),
+      # and `timeout` cuts the whole at four minutes, retries included (the job has ten): a release
+      # that stays silent fails the step here, naming GitHub Releases, not at the end of the job's
+      # limit. Its digest is checked either way.
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/pandoc
