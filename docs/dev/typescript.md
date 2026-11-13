@@ -276,14 +276,10 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     (`page.route`), jamais en figeant l'horloge d'une page qui navigue — et une action serveur
     retenue doit être partie avant le clic qui navigue (`page.waitForRequest`, attendue avant
     le clic) : lancée après, elle retient la navigation elle-même (n° 15), et le parcours
-    attend un écran que sa propre retenue empêche de paraître (`tasks.spec.ts`). La retenue ne
-    vise que l'action qu'elle veut, par son identifiant, et l'attente avant le clic attend
-    celle-là : `exchanges.spec.ts` retenait la lecture de toute tâche, et attendait la première
-    partie — celle de l'analyse de l'import, encore suivie. Next n'envoie les actions serveur
-    d'une page qu'une à une : retenue avant la confirmation, la lecture de l'analyse gardait
-    la confirmation de partir (#3003) ; après, la lecture de l'application, partie deux secondes
-    après la confirmation, rejoignait la navigation quand elle n'avait pas encore paru (#3066).
-    Aucun outil ne le tient : la revue le cherche.
+    attend un écran que sa propre retenue empêche de paraître (`tasks.spec.ts`). Une retenue
+    trop large — toute lecture de tâche — attrape une action déjà suivie, et la file unique des
+    actions serveur lui fait retenir la confirmation ou la navigation (#3003, #3066). Aucun
+    outil ne le tient : la revue le cherche.
 17. **Route atteinte par un clic, compilée pendant l'attente.** `next dev` compile une route à
     sa première visite ; atteinte par un clic, elle est attendue cinq secondes par une
     assertion, que la compilation mange au premier lancement (#142). Un parcours compile
