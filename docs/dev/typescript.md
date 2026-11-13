@@ -496,9 +496,9 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     action longue, et la courte dit sa réponse et n'est plus occupée sans l'attendre. Aucun outil ne le tient : la revue le cherche.
 26. **Navigation d'un parcours lancée pendant celle que l'écran mène seul.** Un écran ouvert sans
     session mène de lui-même à la page de connexion (#2914) : l'écran de panne charge
-    `/login?next=…` dans un effet, après que l'adresse s'est montrée. Un parcours qui, l'adresse vue, lance aussitôt son propre `page.goto` voit l'une
-    interrompre l'autre : `net::ERR_ABORTED` sur son `goto`, ou, selon l'ordre des deux
-    navigations, son `goto` remplacé et la connexion revenue sur l'écran quitté (#3074,
-    `password.spec.ts`). Ce qu'un écran mène seul s'attend avant
+    `/login?next=…` dans un effet, après que l'adresse s'est montrée. Un parcours qui, l'adresse
+    vue, lance aussitôt son propre `page.goto` voit l'une interrompre l'autre : `net::ERR_ABORTED`
+    sur son `goto`, ou, selon l'ordre des deux navigations, son `goto` remplacé et la connexion
+    revenue sur l'écran quitté (#3074, `password.spec.ts`). Ce qu'un écran mène seul s'attend avant
     de naviguer ailleurs — la page de connexion du royaume (`expectSignInPage`) —, jamais l'adresse
     seule. Aucun outil ne le tient : la revue le cherche.
