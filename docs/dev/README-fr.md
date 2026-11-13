@@ -4061,6 +4061,13 @@ ce que la boîte affiche. Sur les 52 créations du passage complet 43386149437, 
 prend 2,2 s en médiane et 5,8 s au plus, l'adresse 0,7 s après « Créer », et l'API répond `POST
 /projects` en 0,24 s en médiane, 1,9 s au plus : rien n'y justifie d'élargir `WORKING`.
 
+`ScreenSteps` (`frontend/e2e/screen-steps.ts`) fait de même pour un écran que le serveur relit :
+chaque étape, et les requêtes RSC en vol pendant elle. Sur le parcours de WF-REV-0080-A, elle a
+montré une attente déjà vraie avant son geste : après « Comparer », l'adresse gardait `difference=`
+comme celle d'avant, et le filtre levé aussitôt faisait lire deux comparaisons de PRJ-001 ensemble
+à l'API, qui n'est qu'un processus (2,2 s pour une seule) ; il arrivait en 15 s au lieu de 8 sous
+six workers (#2942). Une attente qui suit un geste attend ce que ce geste change.
+
 `make e2e` : Redocly et Prism sont des dépendances de développement du front, à version exacte
 (`frontend/package.json`, verrouillées par `pnpm-lock.yaml`) : `make install-front`, que la cible
 joue d'abord, les met dans le magasin de pnpm (le cache de la chaîne), d'où le `Makefile` les lit,
