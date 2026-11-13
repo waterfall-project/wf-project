@@ -270,9 +270,6 @@ test("leads from the planning to the timelines of the project, read only @shared
   await page.getByRole("main").getByRole("link", { name: "Chronologies" }).click();
   await expect(page).toHaveURL(`${IN_REVISION}/timelines`, { timeout: WORKING });
   await expect(page).toHaveTitle("Chronologies · Modernisation du poste de commande — Waterfall");
-  await expect(page.getByRole("region", { name: "Contexte de lecture" })).toContainText(
-    "Modernisation du poste de commande",
-  );
   // The timelines of the project; the screen asks the tasks of the one shown (`timeline_id`) and
   // draws what it is given. The fake back answers the same volume whatever the timeline: this path
   // proves the navigation, not the selection (the selections path proves it).
@@ -281,6 +278,12 @@ test("leads from the planning to the timelines of the project, read only @shared
     "aria-current",
     "true",
     { timeout: WORKING },
+  );
+  // The banner comes with the screen, once the tasks are read: the address and the title come
+  // before, with the boundary of the loading. Read before the screen, it was not there after the
+  // five seconds of a workstation in 7 runs of 12 under six workers against the service (#2942).
+  await expect(page.getByRole("region", { name: "Contexte de lecture" })).toContainText(
+    "Modernisation du poste de commande",
   );
   // Another timeline, by the address: the structure read anew, in the bound of a grid.
   await page.getByRole("link", { name: "Revue client" }).click();

@@ -65,7 +65,6 @@ interface ServedComparison {
 async function comparisonServed(
   browser: Browser,
   manager: LocalPerson | undefined,
-  filter: Record<string, string> = {},
 ): Promise<ServedComparison> {
   if (manager === undefined) {
     throw new Error("a path in the service has its manager");
@@ -75,7 +74,7 @@ async function comparisonServed(
     const headers = { Authorization: `Bearer ${await frontToken(browser, manager)}` };
     const response = await context.request.get(`${API}/projects/${PROJECT}/revisions/comparison`, {
       headers,
-      params: { from_revision_id: FROM, to_revision_id: TO, fields: "kind", ...filter },
+      params: { from_revision_id: FROM, to_revision_id: TO, fields: "kind" },
     });
     expect(response.status(), "GET comparison").toBe(200);
     return (await response.json()) as ServedComparison;
@@ -124,14 +123,15 @@ test("the revisions of a project, their comparison as the API renders it, its st
   browser,
   manager,
 }) => {
-  // Against the service the path reads the comparison of the whole structure of PRJ-001 three
-  // times — the screen once, the API twice —, some eight seconds each: as the path of WF-REV-0080-A
-  // below, more than the thirty seconds of a test (#2911).
+  // Against the service the path reads the comparison of the whole structure of PRJ-001 twice — the
+  // screen, then the API, whose answer gives both the count of the nodes and the deviations —, two
+  // bounds of a screen of grid besides the opening, more than the thirty seconds of a test: the
+  // comparison takes 2.2 s at the API alone, 5 to 16 s in the queue, whose paths read PRJ-001 on the
+  // one process of the API together (run 43403635976, 16.1 s for the one of this path; #2942).
   test.slow();
   const steps = new ScreenSteps(page, "the comparison as the API renders it");
-  try {
   // Les montants, dates et indices affichés sont ceux que l'API renvoie, sans recalcul.
-  await steps.timed("open", () => openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`));
+  await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const main = page.getByRole("main");
   await expect(main.getByRole("heading", { level: 1 })).toHaveText("Gestion des révisions");
 
@@ -160,16 +160,18 @@ test("the revisions of a project, their comparison as the API renders it, its st
   // structures, each with the mark the server gives it, and the screen keeps the bound of a screen
   // of grid (`WORKING`).
   await steps.timed("compare", async () => {
-  await main.getByRole("button", { name: "Comparer" }).click();
-  await expect(page).toHaveURL(/from_revision_id=.+&to_revision_id=.+/, { timeout: WORKING });
+    await main.getByRole("button", { name: "Comparer" }).click();
+    await expect(page).toHaveURL(/from_revision_id=.+&to_revision_id=.+/, { timeout: WORKING });
   });
   const nodes = main.getByRole("grid", { name: "Nœuds comparés" });
   // The window of the fake back is 11 rows; the service compares the whole structure, of which the
   // grid draws the rows in view and counts all of them, its two header rows besides.
-  await steps.timed("grid", () => expect(nodes.getByRole("row")).toHaveCount(inService ? ROWS_IN_VIEW : 11));
-  if (inService) {
-    const whole = await steps.timed("api whole", () => comparisonServed(browser, manager));
-    await expect(nodes).toHaveAttribute("aria-rowcount", (whole.items.length + 2).toString());
+  await expect(nodes.getByRole("row")).toHaveCount(inService ? ROWS_IN_VIEW : 11);
+  const served = inService
+    ? await steps.timed("the API", () => comparisonServed(browser, manager))
+    : undefined;
+  if (served !== undefined) {
+    await expect(nodes).toHaveAttribute("aria-rowcount", (served.items.length + 2).toString());
   }
   await expect(nodes.getByRole("row", { name: /Assistance aux essais de câblage/ })).toContainText(
     "Ajouté",
@@ -193,9 +195,8 @@ test("the revisions of a project, their comparison as the API renders it, its st
     .filter({ has: page.getByRole("cell", { name: "Main-d'œuvre", exact: true }) });
   let budgeted = "3000.00";
   let reestimated = "2840.83";
-  if (inService) {
-    const served = (await steps.timed("api whole again", () => comparisonServed(browser, manager))).amount_deltas;
-    const delta = served.find(
+  if (served !== undefined) {
+    const delta = served.amount_deltas.find(
       ({ dimension, label }) => dimension === "cost_type" && label === "Main-d'œuvre",
     );
     expect(delta, "the nature of cost « Main-d'œuvre » in the comparison").toBeDefined();
@@ -208,9 +209,6 @@ test("the revisions of a project, their comparison as the API renders it, its st
   await expect(
     labour.getByRole("cell", { name: amountWhole(asTheScreenWrites(reestimated)) }),
   ).toHaveCount(1);
-  } finally {
-    steps.report();
-  }
 });
 
 // The project of the volume exists in the fake back only, until the volumes of EP-13 give the
@@ -263,60 +261,65 @@ test("retains the differences alone in the comparison: pressed, in the address a
   browser,
   manager,
 }) => {
-  // Against the service the comparison spans the whole structure of PRJ-001 (some 6,000 nodes) and
-  // the path reads it in full several times: more than the thirty seconds of a test.
+  // Against the service the comparison spans the whole structure of PRJ-001 (some 6,000 nodes),
+  // which the path reads five times, one after the other — the screen four times, the API once —:
+  // 15 s at the least on a workstation at rest, 2.2 s for each at the API, and 45 s under six
+  // workers (#2942), more than the thirty seconds of a test.
   test.slow();
   const steps = new ScreenSteps(page, "the differences alone");
-  try {
   // The fake back serves the same comparison whatever the address names: what the server retains is
   // proven on `comparison_differences` by the test of the page (`revisions/page.test.tsx`).
-  await steps.timed("open", () => openHydrated(
+  await openHydrated(
     page,
     `/projects/${PROJECT}/revisions?revision_id=${REVISION}&from_revision_id=${FROM}&to_revision_id=${TO}`,
-  ));
+  );
   const main = page.getByRole("main");
   const only = main.getByRole("button", { name: "Écarts seulement" });
   await expect(only).toHaveAttribute("aria-pressed", "false");
-  await steps.timed("only", async () => {
-  await only.click();
-  await expect(page).toHaveURL(/difference=added%2Cremoved%2Cmodified/, { timeout: WORKING });
+  await steps.timed("differences alone", async () => {
+    await only.click();
+    await expect(page).toHaveURL(/difference=added%2Cremoved%2Cmodified/, { timeout: WORKING });
   });
   await expect(only).toHaveAttribute("aria-pressed", "true");
   const filters = page.getByRole("list", { name: "Filtres actifs" });
   await expect(filters).toContainText("Écarts seulement");
   const nodes = main.getByRole("grid", { name: "Nœuds comparés" });
   await expect(nodes).toBeVisible();
-  // Against the service the filter is the server's: the grid counts the nodes it retains — its
-  // two header rows besides, as in the volume path —, none of them unchanged, and the API's own
-  // count, fewer than the whole structure's, which has unchanged nodes. (The fake back serves the
-  // same window whatever the address names.) The absence of « Inchangé » on the screen is read on
-  // the rows drawn alone, the grid being virtualised: the count of its rows says the rest.
+  // Against the service the filter is the server's, the screen asking it of the API: the grid
+  // counts the nodes the server retains — its two header rows besides, as in the volume path —,
+  // exactly those of the whole comparison that are not unchanged, which has some. The whole is read
+  // of the API once: what it retains is that count, the screen filtering nothing. (The fake back
+  // serves the same window whatever the address names.) The absence of « Inchangé » on the screen is
+  // read on the rows drawn alone, the grid being virtualised: the count of its rows says the rest.
   if (inService) {
-    const retained = await steps.timed("api retained", () => comparisonServed(browser, manager, {
-      difference: "added,removed,modified",
-    }));
-    const whole = await steps.timed("api whole", () => comparisonServed(browser, manager));
-    expect(whole.items.map(({ difference }) => difference)).toContain("unchanged");
-    expect(retained.items.length).toBeGreaterThan(0);
-    expect(retained.items.length).toBeLessThan(whole.items.length);
-    expect(retained.items.map(({ difference }) => difference)).not.toContain("unchanged");
-    expect(retained.items.length).toBe(
-      whole.items.filter(({ difference }) => difference !== "unchanged").length,
-    );
-    await expect(nodes).toHaveAttribute("aria-rowcount", (retained.items.length + 2).toString());
+    const whole = await steps.timed("the API", () => comparisonServed(browser, manager));
+    const differences = whole.items.filter(({ difference }) => difference !== "unchanged");
+    expect(differences.length).toBeGreaterThan(0);
+    expect(differences.length).toBeLessThan(whole.items.length);
+    await expect(nodes).toHaveAttribute("aria-rowcount", (differences.length + 2).toString());
     await expect(nodes.getByRole("row").filter({ hasText: "Inchangé" })).toHaveCount(0);
   }
-  // The choice of the pair carries the filter on.
-  await steps.timed("compare", async () => {
-  await main.getByRole("button", { name: "Comparer" }).click();
-  await expect(page).toHaveURL(/difference=added/, { timeout: WORKING });
+  // The choice of the pair carries the filter on: the address the form leads to — another than the
+  // one shown, which writes its parameters in another order — keeps it. It is waited for before the
+  // filter is lifted: lifted before, the comparison it asks would be read beside the one of the form,
+  // still under way, which Next gives up without the server stopping it — the lift took 15 s so,
+  // twice the time of one comparison under load (#2911, #2942).
+  const chosen = page.url();
+  await steps.timed("the pair", async () => {
+    await main.getByRole("button", { name: "Comparer" }).click();
+    await expect(page).toHaveURL(
+      (url) =>
+        url.href !== chosen &&
+        url.searchParams.get("difference") === "added,removed,modified" &&
+        url.searchParams.get("from_revision_id") === FROM &&
+        url.searchParams.get("to_revision_id") === TO,
+      { timeout: WORKING },
+    );
   });
-  await steps.timed("lift", async () => {
-  await filters.getByRole("link", { name: /Lever le filtre/ }).click();
-  await expect(page).not.toHaveURL(/difference=/, { timeout: WORKING });
+  await expect(only).toHaveAttribute("aria-pressed", "true");
+  await steps.timed("the filter lifted", async () => {
+    await filters.getByRole("link", { name: /Lever le filtre/ }).click();
+    await expect(page).not.toHaveURL(/difference=/, { timeout: WORKING });
   });
-  await steps.timed("unpressed", () => expect(only).toHaveAttribute("aria-pressed", "false"));
-  } finally {
-    steps.report();
-  }
+  await expect(only).toHaveAttribute("aria-pressed", "false");
 });
