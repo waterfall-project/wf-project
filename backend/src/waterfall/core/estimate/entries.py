@@ -24,10 +24,15 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from waterfall.core.cost_settings.interface import category_labels
+from waterfall.core.estimate.pricing import disbursement_base_amount
 from waterfall.core.estimate.recalling import recalled
 from waterfall.core.estimate.tables import (
+    AMOUNT_PRECISION,
+    AMOUNT_SCALE,
     DISBURSEMENT_PRECISION,
     DISBURSEMENT_SCALE,
+    HOURS_PRECISION,
+    HOURS_SCALE,
     LABEL_LENGTH,
     QUANTITY_PRECISION,
     QUANTITY_SCALE,
@@ -66,6 +71,8 @@ NOUGHT = Decimal(0)
 # The digits before the point the columns keep, from their precision and scale.
 DISBURSEMENT_DIGITS = DISBURSEMENT_PRECISION - DISBURSEMENT_SCALE
 QUANTITY_DIGITS = QUANTITY_PRECISION - QUANTITY_SCALE
+HOURS_DIGITS = HOURS_PRECISION - HOURS_SCALE
+AMOUNT_DIGITS = AMOUNT_PRECISION - AMOUNT_SCALE
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,6 +129,11 @@ class _Faults:
 
     def add(self, name: str, code: str, params: dict[str, object] | None = None) -> None:
         self.found.append(FieldError(f"{self.prefix}/{name}", code, params or {}))
+
+    def has(self, *names: str) -> bool:
+        """Tell whether a fault is already named on one of the fields."""
+        pointers = {f"{self.prefix}/{name}" for name in names}
+        return any(found.pointer in pointers for found in self.found)
 
     def raise_any(self) -> None:
         if self.found:
@@ -238,7 +250,22 @@ def _figure(
     _not_negative(faults, name, value)
     if name == "unit_disbursement":
         _kept(faults, name, value, DISBURSEMENT_DIGITS)
+    elif name == "hours":
+        _kept(faults, name, value, HOURS_DIGITS)
     return value
+
+
+def _product_kept(faults: _Faults, quantity: Decimal | None, disbursement: Decimal | None) -> None:
+    """Refuse, at the quantity, a disbursement line whose product overflows its base amount (#2996).
+
+    Each figure fits its column, yet their product, rounded to the cent, may cross the digits of
+    ``base_amount``: the write would be a ``numeric field overflow``, a 500. A figure already
+    refused is judged alone.
+    """
+    if quantity is None or disbursement is None or faults.has("quantity", "unit_disbursement"):
+        return
+    if exceeds_precision(disbursement_base_amount(quantity, disbursement), AMOUNT_DIGITS):
+        faults.add("quantity", VALIDATION_FAILED)
 
 
 def _kind(
@@ -313,6 +340,7 @@ def judged_line(
     before_disbursement = None if current is None else current.unit_disbursement
     disbursement = _figure(faults, entry, "unit_disbursement", (before_disbursement, not labour))
     quantity, delay = _scalars(faults, entry, current)
+    _product_kept(faults, quantity, disbursement)
     before_subproject = None if current is None else current.subproject_id
     subproject = _subproject(
         session, faults, (project_id, bearer, before_subproject), entry, locking=locking
