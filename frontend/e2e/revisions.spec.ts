@@ -307,14 +307,20 @@ test("retains the differences alone in the comparison: pressed, in the address a
   const chosen = page.url();
   await steps.timed("the pair", async () => {
     await main.getByRole("button", { name: "Comparer" }).click();
-    await expect(page).toHaveURL(
-      (url) =>
-        url.href !== chosen &&
-        url.searchParams.get("difference") === "added,removed,modified" &&
-        url.searchParams.get("from_revision_id") === FROM &&
-        url.searchParams.get("to_revision_id") === TO,
-      { timeout: WORKING },
-    );
+    // The form writes revision_id, difference, from, to — the button of the filter, revision_id,
+    // from, to, difference: only the form's order tells its address from the one shown.
+    const expected = new URLSearchParams(new URL(chosen).search);
+    const revision = expected.get("revision_id");
+    const query = new URLSearchParams();
+    if (revision !== null) query.set("revision_id", revision);
+    query.set("difference", "added,removed,modified");
+    query.set("from_revision_id", FROM);
+    query.set("to_revision_id", TO);
+    const search = `?${query.toString()}`;
+    await expect(
+      page,
+      `the address of the form of the pair, ${search} (its parameters in the form's order), is awaited`,
+    ).toHaveURL((url) => url.href !== chosen && url.search === search, { timeout: WORKING });
   });
   await expect(only).toHaveAttribute("aria-pressed", "true");
   await steps.timed("the filter lifted", async () => {
