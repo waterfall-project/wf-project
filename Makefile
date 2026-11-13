@@ -581,9 +581,13 @@ e2e-browsers: install-front ## Install the browser the end-to-end tests run in
 e2e-image: ## Find the work image of the end-to-end paths in the registry by the hash of deploy/e2e, or build it — PUSH=yes publishes it —; prints image=<reference>
 	@$(WFTOOLS).e2eimage publish $(if $(filter yes,$(PUSH)),--push)
 
-# E2E_IMAGE, the reference of that image, plays the paths against the service in it, on the network
-# of the host (service.yml): the browser and its system packages are the image's, where the runner
-# would install them from the mirrors of Ubuntu. Empty, on a workstation, they play on it.
+# E2E_IMAGE, the reference of that image, plays the browser of the paths against the service in it
+# (service.yml): Playwright's server (run-server) runs in the image, on the network of the host, and
+# `playwright test` connects to it from the runner (PW_TEST_CONNECT_WS_ENDPOINT), where Node, the front
+# and the harness stay. The browser and its system packages are the image's, where the runner would
+# install them from the mirrors of Ubuntu. The paths played whole in the image took 17 minutes of
+# `playwright test` in the median of four runs, against 13.5 and 14.2 so (US-1900). The server is
+# stopped with the shell, after the paths. Empty, on a workstation, the paths play on it.
 E2E_IMAGE ?=
 E2E_BROWSER_PORT ?= 3990
 e2e-in-image = uv run --frozen --project $(CURDIR)/$(TOOLS) python -m wftools.e2eimage run --image $(E2E_IMAGE) --

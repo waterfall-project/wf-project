@@ -3338,13 +3338,19 @@ The chain is made of GitHub Actions workflows (`.github/workflows/`):
   `service.yml` plays the paths against the real service, at the full tier only
   (`make check-service`, that is `make e2e-service`, on the build of the front that the paths of
   `e2e.yml` share): the `service` family wakes on the front, the back, the contract and the files of
-  the platform. The platform starts on the runner itself, through the Makefile; the paths play in
-  the work image of the paths (below), on the network of the runner (`E2E_IMAGE=<reference>`, which
-  `make e2e-service` hands to `wftools.e2eimage`, which runs `docker run --network host`, the
-  repository mounted at its own path, with Docker's socket): a job container would not see the ports
-  that Docker publishes on the runner, and the files the platform mounts are named by their path on
-  the runner. No Ubuntu package is installed there (#2913); on a workstation, without `E2E_IMAGE`,
-  the paths play on the workstation, with the browser of `make e2e-browsers`. `front-image.yml` builds and starts the
+  the platform. The platform, the front and `playwright test` run on the runner itself, through the
+  Makefile; the browser alone runs in the work image of the paths (below), as Playwright's server
+  (`run-server`), on the network of the runner, and `playwright test` connects to it
+  (`PW_TEST_CONNECT_WS_ENDPOINT`). `E2E_IMAGE=<reference>` asks `make e2e-service` for it, which
+  starts that server through `wftools.e2eimage` (`docker run --network host`, the repository mounted
+  at its own path): a job container would not see the ports that Docker publishes on the runner.
+  No Ubuntu package is installed there (#2913). The paths played whole in the image took about 17
+  minutes of `playwright test` in the median, against 13.5 and 14.2 with the browser alone in the
+  image (the comment of `service.yml` cites the runs). A download is read there through
+  `download.createReadStream()`, never `download.path()`, which Playwright refuses to a remote
+  browser. `wftools.e2eimage run` is made for the chain: root in the image, Docker's socket at its
+  path on a runner, `DOCKER_HOST` unread. On a workstation, without `E2E_IMAGE`, the paths play on
+  the workstation, with the browser of `make e2e-browsers`. `front-image.yml` builds and starts the
   production image of the front, which `images.yml` publishes only after the merge, at both tiers
   (`make check-front-image`): the `front-image` family wakes on what makes it —
   `frontend/Dockerfile` and its `.dockerignore`, `next.config.ts`, `package.json`, `pnpm-lock.yaml`,
@@ -3501,12 +3507,11 @@ The full tier aims at under eight minutes in the queue for its longest job
   workflows: `e2e.yml` and `service.yml` are two called workflows, and a `needs` does not join the
   jobs of one to those of the other; neither has any other trigger than that call, so that none
   builds the front. A failed build skips the two, and the gate, which waits for it too, fails. It
-  builds on the runner, like `front.yml`, in Node 26: the shards and the paths of `service.yml` start
-  it in the work image of the paths, built on the Playwright image, in Node 24 (its `NODE_VERSION`, which the Node 26 lot does not change; `next start` runs the built
-  files there, and Next 16 accepts Node 24, while pnpm 12 does not stop on `engines` without
+  builds on the runner, like `front.yml`, in Node 26: the shards start it in the work image of the
+  paths, built on the Playwright image, in Node 24 (its `NODE_VERSION`, which the Node 26 lot does
+  not change; `next start` runs the built files there, and Next 16 accepts Node 24, while pnpm 12 does not stop on `engines` without
   `engine-strict`, which the front does not set), on the same Ubuntu noble in amd64, and at another
-  path of the workspace (`/__w/…` instead of `/home/runner/work/…`); `service.yml`, at the path of
-  the runner.
+  path of the workspace (`/__w/…` instead of `/home/runner/work/…`); `service.yml`, on the runner.
   The build does not depend on that path: only `required-server-files.json`, which the standalone
   output of the image reads and not `next start`, names it, and a build moved elsewhere, its
   original folder removed, serves its pages (checked on 2026-10-25 on the workstation, by moving the

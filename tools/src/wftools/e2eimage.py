@@ -13,17 +13,17 @@ missing, it builds the image, and with ``--push`` publishes it, then prints that
 of the image is thus built once, by the first run of the chain that needs it — that of a pull
 request in the merge queue, or of a branch run by hand —, and pulled by every other: the publication
 after a merge (images.yml) would come after the first run that needs it; the fast tier builds it
-without ``--push``. A registry that does not answer, a build or a publication that fails, is tried again,
-then fails the run here, naming it, before any job of the paths starts. The line it prints,
+without ``--push``. A registry that does not answer, a build or a publication that fails, is tried
+again, then fails the run here, naming it, before any job of the paths starts. The line it prints,
 ``image=<reference>``, is the output of a step of GitHub Actions.
 
-``run`` plays a command in the image, on the network of the host, as service.yml plays the paths
-against the service: they reach the platform on the ports Docker publishes on the runner, which a
-job container does not see, and Keycloak reaches the front on the host. The checkout is mounted at
-its own path, so that every path the command is given — the authority of Keycloak, the build of the
-front — reads the same inside, and so is Docker's socket, which the paths read the log of the proxy
-and write into PostgreSQL through. The command is given the variables of the environment the paths
-read, by name: their values never appear on a command line.
+``run`` plays a command in the image, on the network of the host, until it ends or the tool is
+stopped. service.yml serves the browser of the paths against the service so — Playwright's
+server, which ``playwright test`` connects to from the runner (Makefile, e2e-service): the browser
+reaches the front and Keycloak on the ports of the runner, which a job container does not see. The
+checkout is mounted at its own path, so that every path the command is given reads the same inside,
+and so is Docker's socket. The command is given the variables of the environment the paths read, by
+name: their values never appear on a command line.
 
 ``run`` is made for a runner of the chain, not for a workstation: the command runs as root in the
 image, and the files it writes in the checkout are root's; Docker's socket is the one at its usual
@@ -34,6 +34,7 @@ import argparse
 import hashlib
 import os
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -45,6 +46,7 @@ from wftools import REPOSITORY
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
+    from types import FrameType
 
 REGISTRY = "ghcr.io"
 """The registry the image is published to and pulled from, which a failure names."""
@@ -244,7 +246,18 @@ def _read(command: list[str]) -> tuple[int, str]:
 
 
 def _play(command: list[str]) -> int:
-    return subprocess.run(command, check=False).returncode
+    # Stopped, the tool stops the command: Docker's client hands the signal on to the container,
+    # which --rm then removes — the server of the browser the Makefile stops after the paths.
+    with subprocess.Popen(command) as process:
+
+        def stop(_signal: int, _frame: FrameType | None) -> None:
+            process.terminate()
+
+        stopped = signal.signal(signal.SIGTERM, stop)
+        try:
+            return process.wait()
+        finally:
+            signal.signal(signal.SIGTERM, stopped)
 
 
 @dataclass(frozen=True)

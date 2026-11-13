@@ -7,11 +7,11 @@
 # and the Playwright project `service` (make e2e-service), against the front built for production
 # once in the run of the chain, by its job front-build, which every part of e2e.yml plays too
 # (ci.yml, US-0590): called by ci.yml alone, which uploads the build before, this workflow builds
-# nothing. The platform starts on the runner itself, by the Makefile; the paths play in the work
-# image of the paths (deploy/e2e, US-1900), which carries the browser and its system packages, on
-# the network of the runner (make e2e-service E2E_IMAGE=…, wftools.e2eimage): a job container would
-# not see the ports Docker publishes on the runner, and the files the platform mounts are named by
-# their path on the runner. No package of Ubuntu is installed (#2913).
+# nothing. The platform, the front and `playwright test` run on the runner itself, by the Makefile;
+# the browser runs in the work image of the paths (deploy/e2e, US-1900), which carries it and its
+# system packages, as Playwright's server, on the network of the runner, which `playwright test`
+# connects to (make e2e-service E2E_IMAGE=…, wftools.e2eimage): a job container would not see the
+# ports Docker publishes on the runner. No package of Ubuntu is installed (#2913).
 name: service
 
 on:
@@ -29,10 +29,13 @@ jobs:
   paths:
     runs-on: ubuntu-26.04
     # The images of the platform, Keycloak's built with its extension, then the paths: about as
-    # long as keycloak.yml with the browser and the front on top. 30: played in the work image of
-    # the paths, the job took 21 to 25 minutes in five runs on the branch of US-1900/L1, where it
-    # took 16 to 21 on the runner, and went past 25 once; neither Node 26 in the image, nor
-    # Docker's filter of system calls lifted with /tmp in memory, brought it back.
+    # long as keycloak.yml with the browser and the front on top. Measured by `playwright test`, which
+    # varies from one runner to another: 11.2 to 18.6 minutes, 14.6 in the median, in eight runs of
+    # epic/EP-24 with the browser installed on the runner (43302248961 to 43341561992); 15.4 to 18.7,
+    # 17.3 in the median, in four runs of the branch of US-1900/L1 with the paths played whole in the
+    # work image (43317192704, 43326188786, 43330319564, 43333584161), where neither Node 26 nor
+    # Docker's filter of system calls lifted changed anything; 14.2 and 13.5 with the browser alone in
+    # the image (43338277921, 43341377423). The job as a whole takes 4 to 6 minutes more.
     timeout-minutes: 30
     # The work image of the paths is read from the registry, where it may be private.
     permissions:

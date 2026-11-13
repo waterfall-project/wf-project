@@ -3356,14 +3356,19 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   `service.yml` joue les parcours contre le vrai service, au palier complet seulement
   (`make check-service`, soit `make e2e-service`, sur le build du front que partagent les parcours
   d'`e2e.yml`) : la famille `service` se réveille sur le front, le back, le contrat et les fichiers
-  de la plateforme. La plateforme démarre sur le runner même, par le Makefile ; les parcours se
-  jouent dans l'image de travail des parcours (ci-dessous), sur le réseau du runner
-  (`E2E_IMAGE=<référence>`, que `make e2e-service` passe à `wftools.e2eimage`, qui lance
-  `docker run --network host`, le dépôt monté à son propre chemin, avec la socket de Docker) : un
-  conteneur de travail ne verrait pas les ports que Docker publie sur le runner, et les fichiers
-  que la plateforme monte sont nommés par leur chemin sur le runner. Aucun paquet d'Ubuntu ne s'y
-  installe (#2913) ; sur un poste, sans `E2E_IMAGE`, les parcours se jouent sur le poste, avec le
-  navigateur de `make e2e-browsers`. `front-image.yml` construit et démarre
+  de la plateforme. La plateforme, le front et `playwright test` tournent sur le runner même, par
+  le Makefile ; seul le navigateur tourne dans l'image de travail des parcours (ci-dessous), en
+  serveur de Playwright (`run-server`), sur le réseau du runner, et `playwright test` s'y connecte
+  (`PW_TEST_CONNECT_WS_ENDPOINT`). `E2E_IMAGE=<référence>` le demande à `make e2e-service`, qui
+  lance ce serveur par `wftools.e2eimage` (`docker run --network host`, le dépôt monté à son propre
+  chemin) : un conteneur de travail ne verrait pas les ports que Docker publie sur le runner.
+  Aucun paquet d'Ubuntu ne s'y installe (#2913). Les parcours joués entiers dans l'image prenaient
+  environ 17 minutes de `playwright test` en médiane, contre 13,5 et 14,2 le navigateur seul dans
+  l'image (le commentaire de `service.yml` cite les passages). Un téléchargement s'y lit par
+  `download.createReadStream()`, jamais par `download.path()`, que Playwright refuse à un navigateur
+  distant. `wftools.e2eimage run` est fait pour la chaîne : root dans l'image, la socket de Docker
+  à son chemin d'un runner, `DOCKER_HOST` non lu. Sur un poste, sans `E2E_IMAGE`, les parcours se
+  jouent sur le poste, avec le navigateur de `make e2e-browsers`. `front-image.yml` construit et démarre
   l'image de production du front, que `images.yml` ne publie qu'après la fusion, aux deux paliers
   (`make check-front-image`) : la famille `front-image` se réveille sur ce qui la fait —
   `frontend/Dockerfile` et son `.dockerignore`, `next.config.ts`, `package.json`, `pnpm-lock.yaml`,
@@ -3527,13 +3532,13 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   ne joint pas les travaux de l'un à ceux de l'autre ; ni l'un ni l'autre n'a d'autre
   déclencheur que cet appel, si bien qu'aucun ne construit le front. Un build en échec saute les
   deux, et la porte, qui l'attend aussi, échoue. Il construit sur le runner, comme `front.yml`, en
-  Node 26 : les morceaux et les parcours de `service.yml` le démarrent dans l'image de travail des
-  parcours, bâtie de celle de Playwright, en Node 24 (son
+  Node 26 : les morceaux le démarrent dans l'image de travail des parcours, bâtie de celle de
+  Playwright, en Node 24 (son
   `NODE_VERSION`, que le lot de Node 26 ne change pas ; `next start` y exécute les fichiers
   construits, et Next 16 accepte Node 24, tandis que pnpm 12 ne s'arrête pas sur `engines` sans
   `engine-strict`, que le front ne pose pas), sur la même Ubuntu noble en amd64, et à un autre
-  chemin de l'espace de travail (`/__w/…` au lieu de `/home/runner/work/…`) ; `service.yml`, au
-  chemin du runner. Le build ne dépend pas de ce chemin : seul `required-server-files.json`, que lit la
+  chemin de l'espace de travail (`/__w/…` au lieu de `/home/runner/work/…`) ; `service.yml`, sur le
+  runner. Le build ne dépend pas de ce chemin : seul `required-server-files.json`, que lit la
   sortie autonome de l'image et non `next start`, le nomme, et un build déplacé ailleurs, son
   dossier d'origine retiré, sert ses pages (vérifié le 2026-10-25 sur le poste, en déplaçant le
   build ; la preuve dans la chaîne viendra d'une exécution de `chain` sur la branche du lot).

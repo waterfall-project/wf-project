@@ -11,7 +11,11 @@ paths in it is seen in its runs.
 """
 
 import json
+import os
 import re
+import signal
+import threading
+import time
 import tomllib
 from typing import TYPE_CHECKING, Any
 
@@ -144,6 +148,20 @@ def test_the_image_is_published_in_the_full_tier_alone() -> None:
     step = next(step for step in job["steps"] if step.get("id") == "image")
     assert step["run"] == 'make e2e-image PUSH="$PUSH" >> "$GITHUB_OUTPUT"'
     assert step["env"]["PUSH"] == "${{ needs.changes.outputs.tier == 'full' && 'yes' || 'no' }}"
+
+
+def test_the_browser_alone_plays_in_the_image_the_paths_on_the_runner() -> None:
+    # Played whole in the image, the paths took 17 minutes in the median, against 13.5 and 14.2
+    # with the browser alone in it (service.yml cites the runs).
+    makefile = (REPOSITORY / "Makefile").read_text(encoding="utf-8")
+    browser = re.search(r"^e2e-browser = (.*)$", makefile, re.MULTILINE)
+    assert browser is not None
+    assert "wftools.e2eimage run --image $(E2E_IMAGE)" in makefile
+    assert "@playwright/test/cli.js run-server --host 127.0.0.1" in browser.group(1)
+    assert (
+        "export PW_TEST_CONNECT_WS_ENDPOINT=ws://127.0.0.1:$(E2E_BROWSER_PORT)/" in browser.group(1)
+    )
+    assert "{ $(e2e-browser) $(PNPM_ENV) pnpm exec playwright test $(TESTS); }" in makefile
 
 
 def test_the_paths_against_the_service_play_in_the_image_pulled_first() -> None:
@@ -424,3 +442,13 @@ def test_the_commands_say_their_code_and_what_they_printed(
     assert docker.run(["sh", "-c", script]) == 3
     assert capfd.readouterr() == ("", "said\ncomplained\n")
     assert docker.play(["sh", "-c", "exit 5"]) == 5
+
+
+def test_a_command_played_is_stopped_with_the_tool() -> None:
+    # The Makefile stops the server of the browser by stopping the tool, after the paths.
+    timer = threading.Timer(0.3, os.kill, (os.getpid(), signal.SIGTERM))
+    timer.start()
+    started = time.monotonic()
+    assert e2eimage.Docker().play(["sleep", "30"]) == -signal.SIGTERM
+    assert time.monotonic() - started < 10
+    timer.join()
