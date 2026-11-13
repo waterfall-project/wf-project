@@ -70,7 +70,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	check-contract check-back check-back-static check-back-tests coverage-back-merge lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
-	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers e2e-image lot-size tracking merge-queue merge-queue-check queue-report \
+	coverage-back coverage-front roadmap check-roadmap e2e e2e-durations e2e-measure e2e-browsers e2e-image lot-size tracking merge-queue merge-queue-check queue-report \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -86,7 +86,8 @@ PLAYWRIGHT_INSTALL ?=
 # as the chain does.
 TESTS ?=
 # The part of the end-to-end paths `make e2e` plays, as i/N: the chain spreads them over N
-# runners, and plays the measure of §4.6.2 on one more (e2e.yml). Empty, it plays them all.
+# runners by the seconds the paths took (tools/e2e-durations.json), and plays the measure of
+# §4.6.2 on one more (e2e.yml). Empty, it plays them all.
 SHARD ?=
 # How many workers `make e2e` plays the paths on (E2E_WORKERS, frontend/playwright.config.ts), each
 # against a front of its own: fewer than Playwright takes by itself on a loaded workstation, where
@@ -609,7 +610,13 @@ e2e: export E2E_PART = $(if $(SHARD),paths)
 e2e: export E2E_BUILT = 1
 e2e: export E2E_WORKERS = $(WORKERS)
 e2e: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths, against the fake back that Playwright starts (US-0080), on the front built for production; SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n (1 to 40, by default half the processors, at most 40) plays them on n workers; TESTS=<file> plays one file; E2E_DEV_SERVER=1 plays them against next dev, on a workstation
-	@$(PNPM_HEAVY) exec playwright test $(if $(SHARD),--shard=$(SHARD)) $(TESTS)
+	@$(if $(SHARD),dir=$$(mktemp -d) && trap 'rm -rf "$$dir"' EXIT && ( $(PNPM) exec playwright test --list > "$$dir/listing" ) && $(WFTOOLS).e2eparts plan $(SHARD) < "$$dir/listing" > "$$dir/part" && )$(PNPM_HEAVY) exec playwright test $(if $(SHARD),--test-list="$$dir/part") $(TESTS)
+
+# Rewrite tools/e2e-durations.json, the seconds each unit of the paths took, from the log of a run
+# (LOG=<file>, the list reporter's output of a make e2e, or of the job of a part in the chain; the
+# standard input without it), for the parts of make e2e SHARD=i/N (wftools.e2eparts, US-1910).
+e2e-durations: ## Refresh the durations the parts of the end-to-end paths are spread by, from the log of a run of make e2e (LOG=<file>, standard input without it)
+	@$(WFTOOLS).e2eparts refresh $(if $(filter command line,$(origin LOG)),$(LOG))
 
 e2e-measure: export E2E_PART = measure
 e2e-measure: export E2E_BUILT = 1
