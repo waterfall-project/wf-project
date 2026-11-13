@@ -3359,7 +3359,8 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   de la plateforme. La plateforme démarre sur le runner même, par le Makefile ; les parcours se
   jouent dans l'image de travail des parcours (ci-dessous), sur le réseau du runner
   (`E2E_IMAGE=<référence>`, que `make e2e-service` passe à `wftools.e2eimage`, qui lance
-  `docker run --network host`, le dépôt monté à son propre chemin, avec la socket de Docker) : un
+  `docker run --network host`, le dépôt monté à son propre chemin, avec la socket de Docker, sans
+  le filtre d'appels système de Docker et `/tmp` en mémoire, qui ralentissaient les parcours) : un
   conteneur de travail ne verrait pas les ports que Docker publie sur le runner, et les fichiers
   que la plateforme monte sont nommés par leur chemin sur le runner. Aucun paquet d'Ubuntu ne s'y
   installe (#2913) ; sur un poste, sans `E2E_IMAGE`, les parcours se jouent sur le poste, avec le
@@ -3513,12 +3514,13 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   ne joint pas les travaux de l'un à ceux de l'autre ; ni l'un ni l'autre n'a d'autre
   déclencheur que cet appel, si bien qu'aucun ne construit le front. Un build en échec saute les
   deux, et la porte, qui l'attend aussi, échoue. Il construit sur le runner, comme `front.yml`, en
-  Node 26 : les morceaux le démarrent dans l'image de Playwright, en Node 24 (son
+  Node 26 : les morceaux et les parcours de `service.yml` le démarrent dans l'image de travail des
+  parcours, bâtie de celle de Playwright, en Node 24 (son
   `NODE_VERSION`, que le lot de Node 26 ne change pas ; `next start` y exécute les fichiers
   construits, et Next 16 accepte Node 24, tandis que pnpm 12 ne s'arrête pas sur `engines` sans
   `engine-strict`, que le front ne pose pas), sur la même Ubuntu noble en amd64, et à un autre
-  chemin de l'espace de travail (`/__w/…` au lieu de `/home/runner/work/…`) ; `service.yml`, sur le
-  runner. Le build ne dépend pas de ce chemin : seul `required-server-files.json`, que lit la
+  chemin de l'espace de travail (`/__w/…` au lieu de `/home/runner/work/…`) ; `service.yml`, au
+  chemin du runner. Le build ne dépend pas de ce chemin : seul `required-server-files.json`, que lit la
   sortie autonome de l'image et non `next start`, le nomme, et un build déplacé ailleurs, son
   dossier d'origine retiré, sert ses pages (vérifié le 2026-10-25 sur le poste, en déplaçant le
   build ; la preuve dans la chaîne viendra d'une exécution de `chain` sur la branche du lot).

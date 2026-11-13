@@ -3341,7 +3341,8 @@ The chain is made of GitHub Actions workflows (`.github/workflows/`):
   the platform. The platform starts on the runner itself, through the Makefile; the paths play in
   the work image of the paths (below), on the network of the runner (`E2E_IMAGE=<reference>`, which
   `make e2e-service` hands to `wftools.e2eimage`, which runs `docker run --network host`, the
-  repository mounted at its own path, with Docker's socket): a job container would not see the ports
+  repository mounted at its own path, with Docker's socket, without Docker's filter of system calls
+  and with `/tmp` in memory, which slowed the paths): a job container would not see the ports
   that Docker publishes on the runner, and the files the platform mounts are named by their path on
   the runner. No Ubuntu package is installed there (#2913); on a workstation, without `E2E_IMAGE`,
   the paths play on the workstation, with the browser of `make e2e-browsers`. `front-image.yml` builds and starts the
@@ -3488,11 +3489,12 @@ The full tier aims at under eight minutes in the queue for its longest job
   workflows: `e2e.yml` and `service.yml` are two called workflows, and a `needs` does not join the
   jobs of one to those of the other; neither has any other trigger than that call, so that none
   builds the front. A failed build skips the two, and the gate, which waits for it too, fails. It
-  builds on the runner, like `front.yml`, in Node 26: the shards start it in the Playwright image,
-  in Node 24 (its `NODE_VERSION`, which the Node 26 lot does not change; `next start` runs the built
+  builds on the runner, like `front.yml`, in Node 26: the shards and the paths of `service.yml` start
+  it in the work image of the paths, built on the Playwright image, in Node 24 (its `NODE_VERSION`, which the Node 26 lot does not change; `next start` runs the built
   files there, and Next 16 accepts Node 24, while pnpm 12 does not stop on `engines` without
   `engine-strict`, which the front does not set), on the same Ubuntu noble in amd64, and at another
-  path of the workspace (`/__w/…` instead of `/home/runner/work/…`); `service.yml`, on the runner.
+  path of the workspace (`/__w/…` instead of `/home/runner/work/…`); `service.yml`, at the path of
+  the runner.
   The build does not depend on that path: only `required-server-files.json`, which the standalone
   output of the image reads and not `next start`, names it, and a build moved elsewhere, its
   original folder removed, serves its pages (checked on 2026-10-25 on the workstation, by moving the
