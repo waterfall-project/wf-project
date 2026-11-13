@@ -15,7 +15,7 @@ import { atCommit } from "@/test/committed";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { tasksRegion } from "@/test/task-panel";
 
-import { IdentitySync, type IdentitySyncReport } from "./identity-sync";
+import { IdentityMenu, IdentitySync, type IdentitySyncReport } from "./identity-sync";
 
 type IdentitySyncSchedule = components["schemas"]["IdentitySyncSchedule"];
 
@@ -272,5 +272,37 @@ describe("the reading of the accounts", () => {
     expect(
       within(section()).getByText("Aucune lecture des comptes n’a encore abouti."),
     ).toBeVisible();
+  });
+});
+
+describe("the menu « ⋯ » of the reading of the accounts", () => {
+  it("hides the report, the command and the periodicity until it is opened, then gives them, with the state when no reading has ended [US-1860, WF-ADM-0070-A]", async () => {
+    serve({});
+    render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <TaskTracker>
+          <IdentityMenu
+            report={undefined}
+            schedule={example("identity_sync_schedule") as IdentitySyncSchedule}
+            startable
+          />
+        </TaskTracker>
+      </NextIntlClientProvider>,
+    );
+    expect(screen.queryByRole("button", { name: "Lire les comptes" })).toBeNull();
+    expect(screen.queryByText("Aucune lecture des comptes n’a encore abouti.")).toBeNull();
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Lecture des comptes du fournisseur d’identité : état et commandes",
+      }),
+    );
+    const popover = screen.getByRole("dialog", {
+      name: "Lecture des comptes du fournisseur d’identité",
+    });
+    expect(within(popover).getByRole("button", { name: "Lire les comptes" })).toBeVisible();
+    expect(
+      within(popover).getByText("Aucune lecture des comptes n’a encore abouti."),
+    ).toBeVisible();
+    expect(within(popover).getByText("Périodicité de la lecture")).toBeVisible();
   });
 });

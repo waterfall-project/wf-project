@@ -50,10 +50,10 @@ import type { AccessRoleSort, RoleChoice, User, UserPage, UserSort } from "./adm
 import { type AuditFilters, auditNarrowed, type AuthorChoice } from "./audit-address";
 import { AuditFilterBar } from "./audit-filters";
 import { PermissionCell, RoleLabel } from "./permission-matrix";
+import { RolesFilter } from "./roles-filter";
 import { HOLDER_COUNT, PREDEFINED, rolesNarrowed } from "./role-address";
 import { CreateRole, RoleCommands } from "./role-commands";
 import {
-  ACCESS_ROLES,
   INCLUDE_INACTIVE,
   IS_ACTIVE,
   ORG_NODE,
@@ -66,6 +66,76 @@ import { CreateUser, UserCommands } from "./user-commands";
 
 type AccessRole = components["schemas"]["AccessRole"];
 type Permission = components["schemas"]["Permission"];
+
+/**
+ * The filters of the accounts, in the panel of the bar of their grid (#2916): the origin, the roles
+ * with « Sans rôle », the state, each a menu of boxes to check, the node of organisation, and the
+ * audit columns in their folded section.
+ */
+function UserFilterPanel({
+  origins,
+  nodes,
+  orgNode,
+  roles,
+  accessRoles,
+  withoutRole,
+  active,
+  audit,
+  authors,
+}: {
+  readonly origins: readonly UserOrigin[];
+  readonly nodes: readonly NodeChoice[];
+  readonly orgNode: string | undefined;
+  readonly roles: readonly RoleChoice[];
+  readonly accessRoles: readonly string[];
+  readonly withoutRole: boolean;
+  readonly active: boolean | undefined;
+  readonly audit: AuditFilters;
+  readonly authors: readonly AuthorChoice[];
+}) {
+  const t = useTranslations("admin.users");
+  const named = useTranslations("enums.UserOrigin");
+  const choices: FilterValue<UserOrigin>[] = USER_ORIGINS.map((origin) => ({
+    value: origin,
+    text: named(origin),
+  }));
+  return (
+    <FilterFields>
+      <ValuesFilter
+        name={ORIGINS}
+        label={t("originFilter")}
+        every={t("everyOrigin")}
+        values={choices}
+        chosen={origins}
+        page={OFFSET}
+      />
+      {/* « Sans rôle » is offered whatever roles the session reads. */}
+      <RolesFilter
+        label={t("roleFilter")}
+        every={t("everyRole")}
+        without={t("withoutRole")}
+        roles={roles}
+        chosen={accessRoles}
+        withoutRole={withoutRole}
+        page={OFFSET}
+      />
+      <ValuesFilter
+        name={IS_ACTIVE}
+        label={t("stateFilter")}
+        every={t("everyState")}
+        values={[
+          { value: "true", text: t("activeState") },
+          { value: "false", text: t("inactiveState") },
+        ]}
+        chosen={active === undefined ? [] : [active ? "true" : "false"]}
+        page={OFFSET}
+        lifts={[INCLUDE_INACTIVE]}
+      />
+      <OrgNodeFilter name={ORG_NODE} nodes={nodes} chosen={orgNode} page={OFFSET} />
+      <AuditFilterBar filters={audit} authors={authors} searchable page={OFFSET} />
+    </FilterFields>
+  );
+}
 
 /**
  * The accounts of a page of the list, filtered by origin, by node, by access role — one at least of
@@ -89,9 +159,11 @@ export function UserList({
   orgNode,
   roles,
   accessRoles,
+  withoutRole = false,
   active,
   audit,
   authors,
+  identity,
   editable,
 }: {
   readonly users: readonly User[];
@@ -108,6 +180,8 @@ export function UserList({
   readonly roles: readonly RoleChoice[];
   /** The access roles the address restricts the accounts to; none, every account. */
   readonly accessRoles: readonly string[];
+  /** Whether the address retains the accounts without any role (« Sans rôle »). */
+  readonly withoutRole?: boolean;
   /**
    * The state the address restricts the accounts to: the active ones alone, the deactivated ones
    * alone; none, every account — what the grid shows, the choice says.
@@ -117,62 +191,38 @@ export function UserList({
   readonly audit: AuditFilters;
   /** The accounts offered as authors: those of the page shown. */
   readonly authors: readonly AuthorChoice[];
+  /**
+   * The menu « ⋯ » of the reading of the accounts of the identity provider, beside the creation of
+   * a local account at the head of the section; none, none shown.
+   */
+  readonly identity?: ReactNode;
   /** Whether the session may modify the accounts (`platformOffer`). */
   readonly editable: boolean;
 }) {
   const t = useTranslations("admin.users");
-  const named = useTranslations("enums.UserOrigin");
   const narrowed =
     query.search !== undefined ||
     origins.length > 0 ||
     orgNode !== undefined ||
     accessRoles.length > 0 ||
+    withoutRole ||
     active !== undefined ||
     auditNarrowed(audit);
-  const choices: FilterValue<UserOrigin>[] = USER_ORIGINS.map((origin) => ({
-    value: origin,
-    text: named(origin),
-  }));
   const filters = (
-    <FilterFields>
-      <ValuesFilter
-        name={ORIGINS}
-        label={t("originFilter")}
-        every={t("everyOrigin")}
-        values={choices}
-        chosen={origins}
-        page={OFFSET}
-      />
-      <OrgNodeFilter name={ORG_NODE} nodes={nodes} chosen={orgNode} page={OFFSET} />
-      {/* No role the session reads, none offered. */}
-      {roles.length === 0 ? null : (
-        <ValuesFilter
-          name={ACCESS_ROLES}
-          label={t("roleFilter")}
-          every={t("everyRole")}
-          values={roles.map((role) => ({ value: role.id, text: role.label }))}
-          chosen={accessRoles}
-          page={OFFSET}
-          exhaustive={false}
-        />
-      )}
-      <ChoiceFilter
-        name={IS_ACTIVE}
-        label={t("stateFilter")}
-        every={t("everyState")}
-        choices={[
-          { value: "true", text: t("activeAccounts") },
-          { value: "false", text: t("inactiveAccounts") },
-        ]}
-        chosen={active === undefined ? undefined : String(active)}
-        page={OFFSET}
-        lifts={[INCLUDE_INACTIVE]}
-      />
-      <AuditFilterBar filters={audit} authors={authors} searchable page={OFFSET} />
-    </FilterFields>
+    <UserFilterPanel
+      origins={origins}
+      nodes={nodes}
+      orgNode={orgNode}
+      roles={roles}
+      accessRoles={accessRoles}
+      withoutRole={withoutRole}
+      active={active}
+      audit={audit}
+      authors={authors}
+    />
   );
   const empty = page.total === 0 && !narrowed;
-  const asked = { origins, orgNode, accessRoles, active, audit, authors };
+  const asked = { origins, orgNode, accessRoles, withoutRole, active, audit, authors };
   let list: ReactNode;
   if (audit.refused !== undefined) {
     list = (
@@ -201,18 +251,22 @@ export function UserList({
       </>
     );
   }
-  return (
-    <ReferenceSection title={t("title")} icon={Users} fill>
-      {editable ? (
-        <UserCommands>
-          <CreateUser />
-          {list}
-        </UserCommands>
-      ) : (
-        list
-      )}
+  const section = (
+    <ReferenceSection
+      title={t("title")}
+      icon={Users}
+      fill
+      commands={
+        <div className="flex items-center gap-2">
+          {editable ? <CreateUser /> : null}
+          {identity}
+        </div>
+      }
+    >
+      {list}
     </ReferenceSection>
   );
+  return editable ? <UserCommands>{section}</UserCommands> : section;
 }
 
 /** The filters of the access roles, as the address asks them, and what the API refused of them. */

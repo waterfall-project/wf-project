@@ -136,38 +136,34 @@ describe("the accounts", () => {
     expect((await usersMetadata()).title).toBe("Gestion des utilisateurs — Waterfall");
   });
 
-  it("present above the table the report of the last reading of the accounts, and to a session that may modify the accounts the command that asks a new one", async () => {
+  it("put the reading of the accounts of the identity provider behind a menu « ⋯ » beside « Créer un compte local », its report read for it (the popover is closed) [US-1860]", async () => {
     const page = rendered(await UsersPage(searched()));
-    const said = text(page);
-    expect(said).toContain(
-      "Lecture des comptes du fournisseur d’identité Lire les comptes Dernière lecture achevée le .",
+    const menu = page.indexOf(
+      'aria-label="Lecture des comptes du fournisseur d’identité : état et commandes"',
     );
-    expect(said).toContain(
-      "Aucun compte créé Aucun compte mis à jour Aucun compte désactivé Aucune identité rétablie dans le fournisseur Aucun compte local retiré du fournisseur Rien de signalé",
-    );
-    expect(page).toContain('<time dateTime="2026-06-03T02:00:00Z">');
-    expect(said.indexOf("Lire les comptes")).toBeLessThan(said.indexOf("Comptes utilisateurs"));
+    expect(menu).toBeGreaterThan(-1);
+    expect(buttons(page)).toContain("Créer un compte local");
+    expect(page.indexOf("Créer un compte local")).toBeLessThan(menu);
+    // Out of the way of the table until the menu is opened.
+    expect(text(page)).not.toContain("Lire les comptes");
     expect(queriesOf("GET /identity-syncs/latest")).toEqual([{}]);
   });
 
-  it("present the periodicity of the reading of the accounts, and the command that modifies it to a session that may modify the accounts [WF-ADM-0070-A]", async () => {
-    const page = rendered(await UsersPage(searched()));
-    const said = text(page);
-    expect(said).toContain("Périodicité de la lecture Modifier la périodicité");
-    expect(said).toContain("État Active Fréquence Quotidienne Heure 01:30 UTC");
+  it("read the periodicity of the reading of the accounts for the menu [WF-ADM-0070-A]", async () => {
+    rendered(await UsersPage(searched()));
     expect(queriesOf("GET /identity-sync-schedule")).toEqual([{}]);
   });
 
-  it("offer no reading of the accounts to a session that may not modify them, and say so when no reading has ended yet", async () => {
+  it("offer no command to create an account to a session that may not modify them, the menu of the reading still there", async () => {
     server.answers = {
       ...server.answers,
       "GET /me": "me_estimator",
       "GET /identity-syncs/latest": NOT_FOUND,
     };
     const page = rendered(await UsersPage(searched()));
-    expect(buttons(page)).not.toContain("Lire les comptes");
-    expect(text(page)).toContain(
-      "Lecture des comptes du fournisseur d’identité Aucune lecture des comptes n’a encore abouti.",
+    expect(buttons(page)).not.toContain("Créer un compte local");
+    expect(page).toContain(
+      'aria-label="Lecture des comptes du fournisseur d’identité : état et commandes"',
     );
   });
 
@@ -412,7 +408,7 @@ describe("the accounts", () => {
     );
   });
 
-  it("offer no filter by access role to a session that may not read the roles, and ask none", async () => {
+  it("offer to a session that may not read the roles only « Sans rôle » to filter by access role, and ask no role of the service [WF-ADM-0180-A]", async () => {
     server.answers = { ...server.answers, "GET /access-roles": NOT_FOUND };
     const page = text(
       rendered(
@@ -420,7 +416,7 @@ describe("the accounts", () => {
       ),
     );
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true" }]);
-    expect(page).not.toContain("Tous les rôles");
+    expect(page).toContain("Filtrer par rôle Tous les rôles");
     expect(page).toContain("Nœud d’organisation Tous les nœuds");
   });
 
@@ -469,7 +465,7 @@ describe("the accounts", () => {
     expect(queriesOf("GET /users")).toEqual([
       { include_inactive: "true", offset: "2", is_active: "true" },
     ]);
-    expect(page).toMatch(/<option value="true" selected="">Comptes actifs<\/option>/);
+    expect(text(page)).toContain("État du compte : Comptes actifs");
     expect(page).not.toContain("les désactivés</a>");
     server.clients = [];
     await UsersPage(searched({ include_inactive: "maybe" }));
@@ -511,9 +507,14 @@ describe("the accounts", () => {
   it("list the accounts without the periodicity of the reading where the service does not serve it yet (404, EP-04) [WF-ADM-0070-A]", async () => {
     server.answers = { ...server.answers, "GET /identity-sync-schedule": NOT_FOUND };
     const said = text(rendered(await UsersPage(searched())));
-    expect(said).not.toContain("Périodicité de la lecture");
-    expect(said).toContain("Lecture des comptes du fournisseur d’identité Lire les comptes");
     expect(said).toContain("Comptes utilisateurs");
+  });
+
+  it("ask the accounts without a role of the service when the address says « Sans rôle », in union with the roles [WF-ADM-0180-A]", async () => {
+    rendered(await UsersPage(searched({ without_access_role: "true" })));
+    expect(queriesOf("GET /users")).toEqual([
+      expect.objectContaining({ without_access_role: "true" }),
+    ]);
   });
 });
 

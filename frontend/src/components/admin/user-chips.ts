@@ -24,6 +24,7 @@ import {
   ORG_NODE,
   ORIGINS,
   type UserOrigin,
+  WITHOUT_ACCESS_ROLE,
 } from "./user-address";
 
 /** What the address filters the accounts on, as the page read it. */
@@ -31,6 +32,8 @@ export interface UserFilters {
   readonly origins: readonly UserOrigin[];
   readonly orgNode: string | undefined;
   readonly accessRoles: readonly string[];
+  /** Whether the accounts without any role are retained too. */
+  readonly withoutRole?: boolean | undefined;
   readonly active: boolean | undefined;
   readonly audit: AuditFilters;
   /** The accounts offered as authors: those of the page shown. */
@@ -65,12 +68,15 @@ export function useUserChips(
       [ORG_NODE],
     );
   }
-  if (filters.accessRoles.length > 0) {
+  if (filters.accessRoles.length > 0 || filters.withoutRole === true) {
     add(
       ACCESS_ROLES,
       t("grid.columns.accessRoles"),
-      filters.accessRoles.map((id) => roles.find((role) => role.id === id)?.label ?? id).join(", "),
-      [ACCESS_ROLES],
+      [
+        ...(filters.withoutRole === true ? [t("admin.users.withoutRole")] : []),
+        ...filters.accessRoles.map((id) => roles.find((role) => role.id === id)?.label ?? id),
+      ].join(", "),
+      [ACCESS_ROLES, WITHOUT_ACCESS_ROLE],
     );
   }
   if (filters.active !== undefined) {

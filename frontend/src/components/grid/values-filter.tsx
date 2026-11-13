@@ -40,6 +40,7 @@ export function ValuesFilter<Value extends string>({
   exhaustive,
   lifted,
   unnamed,
+  lifts = [],
 }: Pick<ValuesAddress<Value>, "name" | "page" | "exhaustive" | "lifted" | "unnamed"> & {
   /** The name of the menu: what the filter filters on. */
   readonly label: string;
@@ -49,6 +50,11 @@ export function ValuesFilter<Value extends string>({
   readonly values: readonly FilterValue<Value>[];
   /** The values the address filters on. */
   readonly chosen: readonly Value[];
+  /**
+   * Parameters of the address a choice lifts: those of before the filter, which it replaces
+   * (`include_inactive=false`, which the state of the accounts now says).
+   */
+  readonly lifts?: readonly string[] | undefined;
 }) {
   const pathname = usePathname();
   const { request } = usePendingAddress();
@@ -69,7 +75,11 @@ export function ValuesFilter<Value extends string>({
   const change = (make: (asked: readonly Value[]) => readonly Value[]) => {
     startTransition(() => {
       request((query) => {
-        const href = valuesHref(pathname, query, filter, make(readFilter(query, filter)));
+        const base = new URLSearchParams(query);
+        for (const lift of lifts) {
+          base.delete(lift);
+        }
+        const href = valuesHref(pathname, base, filter, make(readFilter(query, filter)));
         // As the address asked names them: every value of an exhaustive filter lifts it.
         show(readValues(new URLSearchParams(href.split("?")[1] ?? ""), name, filter.values));
         return href;

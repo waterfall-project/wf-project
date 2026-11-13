@@ -22,7 +22,7 @@
  */
 "use client";
 
-import { ChevronDown, ChevronRight, UserRoundSearch } from "lucide-react";
+import { ChevronDown, ChevronRight, Ellipsis, UserRoundSearch } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useId, useState } from "react";
 
@@ -37,6 +37,7 @@ import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { LocalTime } from "@/components/local-time";
 import { useTrackTask } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 /** The report of a reading of the accounts, as the contract gives it. */
 export type IdentitySyncReport = components["schemas"]["IdentitySyncReport"];
@@ -255,5 +256,35 @@ export function IdentitySync({
         <IdentitySyncScheduleSection schedule={schedule} editable={startable} />
       )}
     </section>
+  );
+}
+
+/**
+ * The reading of the accounts of the identity provider behind a menu « ⋯ », at the head of the
+ * screen of the accounts beside the creation of a local account (US-1860, #2917): the report, the
+ * command that asks a new reading and the periodicity stand in the popover it opens, out of the way
+ * of the table.
+ */
+export function IdentityMenu(props: {
+  readonly report: IdentitySyncReport | undefined;
+  readonly schedule: IdentitySyncSchedule | undefined;
+  readonly startable: boolean;
+}) {
+  const t = useTranslations("admin.identitySync");
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" size="sm" aria-label={t("menu")}>
+          <Ellipsis aria-hidden="true" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        aria-label={t("title")}
+        className="max-h-[70vh] w-[min(36rem,90vw)] overflow-y-auto"
+      >
+        <IdentitySync {...props} />
+      </PopoverContent>
+    </Popover>
   );
 }
