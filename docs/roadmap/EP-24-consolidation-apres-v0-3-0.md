@@ -34,7 +34,8 @@ Dans l'ordre de priorité que l'auteur a fixé le 2026-11-12 :
    #2929 à #2931) — US-1850 ; la gestion des utilisateurs, ses filtres, « Sans rôle » et ses actions
    groupées (#2917) — US-1860 ; l'écran ouvert sans session et l'accueil d'un compte qui ne peut
    ouvrir aucun projet, dont le code est dans `epic/EP-24` (#2914, #2915, PR #2927 et #2928) —
-   US-1870.
+   US-1870 ; la barre d'une grille arborescente, écrasée dès que la grille tient beaucoup de lignes
+   (#3089, relevé aux essais manuels du 2026-11-13) — US-2020.
 2. **La chaîne, stabilisée puis raccourcie** : une mesure suivie du taux d'échec de la file hors
    régression et de la durée du palier complet, et l'inventaire des instabilités — US-1880 ; les
    parcours contre le service qui font échouer la file sans régression (#2911, et ceux que
@@ -184,7 +185,9 @@ Le travail de la nuit du 11 au 12 novembre :
 - #2915 — spec : l'accueil d'un compte qui ne peut ouvrir aucun projet dit « Introuvable » (PR
   #2928) → US-1870, et US-2010 ;
 - #2921 — spec : l'ouverture du panneau des filtres, préférence d'une table plate → US-2010, et
-  US-1850 pour ses tests.
+  US-1850 pour ses tests ;
+- #3089 — front : la barre d'une grille arborescente est écrasée dès que la grille tient beaucoup de
+  lignes (essais manuels du 2026-11-13, gravité majeure) → US-2020.
 
 La chaîne :
 
@@ -1115,3 +1118,41 @@ de l'auteur, puis `epic/EP-24` reprend `main` ; elle n'est pas le travail d'un l
 dans le tableau de suivi pour que ses dépendants l'attendent.
 
 **Hors périmètre.** La capacité d'un rôle (`WF-REF-0100-A`), à EP-10.
+
+---
+
+## US-2020 — La barre d'une grille arborescente garde sa hauteur, quel que soit le nombre de lignes de la grille
+
+- **statut** : à faire
+- **exigences** : `WF-IHM-0060-A`
+- **opérations** : aucune
+- **issue** : #3091
+
+**En tant que** chef de projet, **je veux** que la barre d'une grille de planning ou de devis — sa
+recherche, ses filtres, « Arbre », « Colonnes » — reste entière quand la grille tient mille tâches,
+**afin de** pouvoir chercher et filtrer dans un planning de taille réelle (#3089).
+
+**Critères d'acceptation.**
+
+- `WF-IHM-0060-A` — « Après défilement de mille lignes, en-têtes et totaux sont toujours visibles, de même que la colonne de libellé après défilement horizontal. » : sa forme pour la barre de la grille : sur le planning et le devis du témoin de volume, mille tâches, la barre garde sa hauteur, sa recherche et ses filtres visibles et cliquables, à 1440 × 900 comme en grande fenêtre ; c'est la grille qui cède, jusqu'à son plancher ;
+- un test se joue sur le témoin de volume et mesure la hauteur de la barre du planning et du devis ;
+  il échoue sans le correctif — les grilles des tests actuels tiennent trop peu de lignes pour le
+  voir ;
+- les tables plates, dont la barre porte le panneau des filtres, et le reste à engager gardent leur
+  barre : le même test, ou un test voisin, l'affirme ;
+- écart : `WF-IHM-0060-A` — « Chaque colonne d'une table plate se trie dans les deux sens. » : constaté par EP-02 et EP-07, inchangé ;
+- écart : `WF-IHM-0060-A` — « Dans la grille de planning, aucun en-tête de colonne ne propose de tri ; dans la grille de devis, le tri par montant réordonne les lignes sous chaque tâche sans déplacer les tâches. » : idem ;
+- écart : `WF-IHM-0060-A` — « Les colonnes masquées et les largeurs choisies sont retrouvées à la réouverture, et un autre utilisateur ouvrant la même grille voit ses propres réglages. » : constaté par EP-03 et US-1850, inchangé ;
+- écart : `WF-IHM-0060-A` — « Le nombre de lignes par page choisi pour une table est retrouvé à sa réouverture, sans changer celui des autres tables ; une grille arborescente n'offre pas ce choix. » : constaté par EP-15 et EP-07, inchangé ;
+- écart : `WF-IHM-0060-A` — « Le panneau des filtres d'une table plate, fermé par défaut, est retrouvé ouvert ou fermé comme l'utilisateur l'a laissé, sans changer celui des autres tables ; ses filtres actifs restent dits, panneau fermé, chacun ôtable. » : constaté par US-1850, inchangé.
+
+**Notes de réalisation.** La barre d'une grille arborescente défile en largeur (`barClass`,
+`overflow-x-auto`, #2916/L6) : elle n'a plus de hauteur minimale et peut rétrécir. Dans la colonne
+qui la porte avec le cadre de la grille, l'espace manquant se répartit au prorata des hauteurs de
+contenu ; le cadre de mille lignes ne cède presque rien, et la barre cède tout — 5 points de haut
+sur le planning de PRJ-001, à 1440 × 900 comme à 3840 × 2000, 32 sur un planning presque vide
+(mesures du 2026-11-13, #3089). `shrink-0` sur la barre, essayé le même jour, lui rend ses 32 points
+sur le planning, le devis et le reste à engager.
+
+**Hors périmètre.** La refonte de la barre des tables plates et de leur présentation (EP-25,
+#3071).
