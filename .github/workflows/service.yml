@@ -115,3 +115,11 @@ jobs:
       # What the platform said, when a path failed or the platform did not start.
       - if: failure()
         run: make service-logs SERVICES="api worker restore keycloak keycloak-front-end contract-proxy"
+      # What the server said of its locks (#3005): the restoration is one transaction of pg_restore that
+      # locks every table, partition and index, and the service `restore`, journaled above, says the
+      # errors of pg_restore, not a wait. Only the lines that name a lock or the memory of the locks are printed, not the whole
+      # journal of the server, whose statements and details quote the rows it holds.
+      - if: failure()
+        run: |
+          echo "PostgreSQL, lines that name its locks:"
+          make service-logs SERVICES=postgres | grep -E 'shared memory|max_locks_per_transaction|deadlock|could not obtain lock' || echo "(none)"

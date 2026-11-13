@@ -3667,18 +3667,17 @@ _Check_: `make reuse` fails on a file covered neither by a header nor by
 
 ## Repository tools
 
-The tools live in `tools/`, in Python, with their tests (`make test-tools`, which needs Docker:
-the test of the service Compose runs `docker compose config` and fails without it). It runs under a ceiling of
-memory, `TOOLS_MEMORY` (24G by default): under a user systemd the kernel kills the run that passes
-it, not the session; without a user systemd (a runner of the chain) there is no ceiling. The tests of
-the entrypoint of the directory, which start its image on throwaway volumes, are left out of them
-(marker `openldap`): `make test-openldap` runs them, and the `keycloak` family, which
-`deploy/openldap` wakes, tries them. Every tool
-that needs the requirements reads them through `wftools.projection`, which reads the projection
-`docs/spec/waterfall-spec.md`: one single reader, so that two tools cannot
-diverge on what a requirement says. It compares the texts after normalisation — apostrophes
-and typographic spaces made plain —, and splits a Vérif into sentences. The example of
-§1.3.1, `WF-EXA-0010-A`, is not a requirement of the product: the tools exclude it.
+The tools live in `tools/`, in Python, with their tests (`make test-tools`, which needs Docker: the
+test of the service Compose runs `docker compose config` and fails without it). It runs under a
+ceiling of memory, `TOOLS_MEMORY` (24G by default): under a user systemd the kernel kills the run
+that passes it, not the session; without a user systemd (a runner of the chain) there is no ceiling.
+The tests of the entrypoint of the directory, which start its image on throwaway volumes, are left
+out of them (marker `openldap`): `make test-openldap` runs them, and the `keycloak` family, which
+`deploy/openldap` wakes, tries them. Every tool that needs the requirements reads them through
+`wftools.projection`, which reads the projection `docs/spec/waterfall-spec.md`: one single reader,
+so that two tools cannot diverge on what a requirement says. It compares the texts after
+normalisation — apostrophes and typographic spaces made plain —, and splits a Vérif into sentences.
+The example of §1.3.1, `WF-EXA-0010-A`, is not a requirement of the product: the tools exclude it.
 
 _Check_: `make test-tools`.
 

@@ -3697,18 +3697,17 @@ _Contrôle_ : `make reuse` échoue sur un fichier couvert ni par un en-tête ni 
 ## Outils du dépôt
 
 Les outils vivent dans `tools/`, en Python, avec leurs tests (`make test-tools`, qui exige Docker :
-le test du Compose de service lance `docker compose config` et échoue sans lui). Il tourne sous un plafond de
-mémoire, `TOOLS_MEMORY` (24G par défaut) : sous systemd utilisateur, le noyau tue le run qui le
-dépasse, non la session ; sans systemd utilisateur (un runner de la chaîne), il n'y a pas de
-plafond. Les tests de
-l'entrypoint de l'annuaire, qui démarrent son image sur des volumes jetables, en sont écartés
-(marqueur `openldap`) : `make test-openldap` les lance, et la famille `keycloak`, que
-`deploy/openldap` réveille, les éprouve. Tout outil
-qui a besoin des exigences les lit par `wftools.projection`, qui lit la projection
-`docs/spec/waterfall-spec.md` : un seul lecteur, pour que deux outils ne puissent pas
-diverger sur ce qu'une exigence dit. Il compare les textes après normalisation — apostrophes
-et espaces typographiques rendus simples —, et découpe un Vérif en phrases. L'exemple du
-§1.3.1, `WF-EXA-0010-A`, n'est pas une exigence du produit : les outils l'excluent.
+le test du Compose de service lance `docker compose config` et échoue sans lui). Il tourne sous un
+plafond de mémoire, `TOOLS_MEMORY` (24G par défaut) : sous systemd utilisateur, le noyau tue le run
+qui le dépasse, non la session ; sans systemd utilisateur (un runner de la chaîne), il n'y a pas de
+plafond. Les tests de l'entrypoint de l'annuaire, qui démarrent son image sur des volumes jetables,
+en sont écartés (marqueur `openldap`) : `make test-openldap` les lance, et la famille `keycloak`,
+que `deploy/openldap` réveille, les éprouve. Tout outil qui a besoin des exigences les lit par
+`wftools.projection`, qui lit la projection `docs/spec/waterfall-spec.md` : un seul lecteur, pour
+que deux outils ne puissent pas diverger sur ce qu'une exigence dit. Il compare les textes après
+normalisation — apostrophes et espaces typographiques rendus simples —, et découpe un Vérif en
+phrases. L'exemple du §1.3.1, `WF-EXA-0010-A`, n'est pas une exigence du produit : les outils
+l'excluent.
 
 _Contrôle_ : `make test-tools`.
 

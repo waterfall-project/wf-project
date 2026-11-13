@@ -26,7 +26,7 @@
 #
 # Une entrée qui nomme un test donne aussi, quand l'inventaire le connaît, le `message` qui
 # l'accompagne, pour qu'une autre défaillance du même test reste « à classer » : les entrées de la
-# famille A attendent `own-project.ts:39`, celles de la famille D le localisateur ou le délai de
+# famille A attendent `own-project.ts` (n'importe quelle ligne), celles de la famille D le localisateur ou le délai de
 # l'attente, relu dans les journaux de ses 16 passages (extraits :
 # tests/queue/playwright-backups-*.log).
 # Les entrées des familles B et C et du back reconnaissent encore un test par sa seule ligne, faute
@@ -38,8 +38,8 @@
 # mur des passages réussis dont le palier est complet (`Run.complete` : un job réussi de `service`
 # et un d'`e2e`), du début du passage à la fin de son dernier job ; 40 passages, médiane 17,8 min,
 # 90e centile 21,8. La conception en donne 16 min : sa médiane (15,7 le 10, 15,9 le 11) compte tous
-# les passages réussis, dont ceux qui sautent `service` et l'e2e, ce qui l'abaisse. Les critères
-# d'US-1910 se jugent à la mesure de l'outil.
+# les passages réussis, dont ceux qui sautent `service` et l'e2e, ce qui l'abaisse. Laquelle de ces
+# deux mesures juge les critères d'US-1910 est la décision de #2989.
 [reference]
 since = 2026-11-05
 until = 2026-11-12
@@ -51,81 +51,102 @@ wall_median = 17.8
 wall_p90 = 21.8
 wall_days = [2026-11-10, 2026-11-11]
 
-# Famille A — le projet de la course n'est pas créé en 15 s (`own-project.ts:39` : l'adresse
-# reste `/` au-delà de `WORKING` après « Créer »). US-1890/L1.
+# Famille A — le projet de la course n'est pas créé en 15 s (`own-project.ts`, `createOwnProject` :
+# l'adresse reste `/` au-delà de `WORKING` après « Créer »). US-1890/L1. Ce n'était pas une lenteur :
+# dans les 17 passages de la file où le parcours a échoué (2026-11-08 au 11, files d'EP-06, d'EP-07 et
+# d'EP-23), `POST /projects` a répondu 500, sur un blocage mutuel entre deux
+# `create_project_partitions` (0025). La migration 0026 le corrige ; aucun des 17 passages ne la
+# portait. Depuis, `epic/EP-24` (31 passages) et `main` (100) n'ont aucun échec à cet endroit, et deux
+# passages de la chaîne sur la branche du lot ont fait 2 × 52 créations sans un blocage. Les entrées
+# nomment ces 17 passages : une récidive, dans un autre passage, reste « à classer ».
 
 [[known]]
-class = "known flakiness"
+class = "regression"
 family = "A. création du projet de la course"
 issue = "#2940"
+runs = [
+  42528177632, 42531225148, 42552392872, 42552505001,
+  42554994891, 42597453085, 42599262855, 42612079319,
+  42613809783, 42615533943, 42628627640, 42677807004,
+  42699774025, 42702231095, 42704761295, 42986507306,
+  42988844254,
+]
 job = "^service / paths$"
 test = 'e2e/structure\.spec\.ts:'
 lines = [414, 452]
-message = 'e2e/own-project\.ts:39\b'
-frequency = "6 passages du 2026-11-05 au 2026-11-12"
-cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
+message = 'e2e/own-project\.ts:\d+\b'
+frequency = "17 passages du 2026-11-08 au 2026-11-11, tous sans 0026 ; ici 6 passages, :414, :417 et :452"
+cause = "établie : 500 de `POST /projects`, blocage mutuel (`DeadlockDetected`) de `create_project_partitions` (migration 0025) entre deux créations ; corrigé par la migration 0026 (US-1560/L3, #2603/#2667, 69ee969b), dans main le 2026-11-09 à 22 h 27. La boîte « Créer » n'affiche alors que l'erreur, et l'adresse reste `/` : `own-project.ts` attend en vain"
 
 [[known]]
-class = "known flakiness"
+class = "regression"
 family = "A. création du projet de la course"
 issue = "#2940"
+runs = [
+  42528177632, 42531225148, 42552392872, 42552505001,
+  42554994891, 42597453085, 42599262855, 42612079319,
+  42613809783, 42615533943, 42628627640, 42677807004,
+  42699774025, 42702231095, 42704761295, 42986507306,
+  42988844254,
+]
 job = "^service / paths$"
 test = 'e2e/planning-service\.spec\.ts:'
 lines = [16, 154]
-message = 'e2e/own-project\.ts:39\b'
-frequency = "6 passages du 2026-11-05 au 2026-11-12"
-cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
+message = 'e2e/own-project\.ts:\d+\b'
+frequency = "17 passages du 2026-11-08 au 2026-11-11, tous sans 0026 ; ici 5 passages, :16, :67 et :154"
+cause = "établie : 500 de `POST /projects`, blocage mutuel (`DeadlockDetected`) de `create_project_partitions` (migration 0025) entre deux créations ; corrigé par la migration 0026 (US-1560/L3, #2603/#2667, 69ee969b), dans main le 2026-11-09 à 22 h 27. La boîte « Créer » n'affiche alors que l'erreur, et l'adresse reste `/` : `own-project.ts` attend en vain"
 
 [[known]]
-class = "known flakiness"
+class = "regression"
 family = "A. création du projet de la course"
 issue = "#2940"
+runs = [
+  42528177632, 42531225148, 42552392872, 42552505001,
+  42554994891, 42597453085, 42599262855, 42612079319,
+  42613809783, 42615533943, 42628627640, 42677807004,
+  42699774025, 42702231095, 42704761295, 42986507306,
+  42988844254,
+]
 job = "^service / paths$"
 test = 'e2e/project-start\.spec\.ts:'
 lines = [179, 181]
-message = 'e2e/own-project\.ts:39\b'
-frequency = "3 passages du 2026-11-05 au 2026-11-12"
-cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
+message = 'e2e/own-project\.ts:\d+\b'
+frequency = "17 passages du 2026-11-08 au 2026-11-11, tous sans 0026 ; ici 3 passages, :179 et :181"
+cause = "établie : 500 de `POST /projects`, blocage mutuel (`DeadlockDetected`) de `create_project_partitions` (migration 0025) entre deux créations ; corrigé par la migration 0026 (US-1560/L3, #2603/#2667, 69ee969b), dans main le 2026-11-09 à 22 h 27. La boîte « Créer » n'affiche alors que l'erreur, et l'adresse reste `/` : `own-project.ts` attend en vain"
 
 [[known]]
-class = "known flakiness"
+class = "regression"
 family = "A. création du projet de la course"
 issue = "#2940"
-job = "^service / paths$"
-test = 'e2e/task-tree\.spec\.ts:13\b'
-message = 'e2e/own-project\.ts:39\b'
-frequency = "1 passage du 2026-11-05 au 2026-11-12"
-cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
-
-[[known]]
-class = "known flakiness"
-family = "A. création du projet de la course"
-issue = "#2940"
-job = "^service / paths$"
-test = 'e2e/timelines\.spec\.ts:(353|391)\b'
-message = 'e2e/own-project\.ts:39\b'
-frequency = "1 passage chacun, :353 et :391, du 2026-11-05 au 2026-11-12"
-cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
-
-[[known]]
-class = "known flakiness"
-family = "A. création du projet de la course"
-issue = "#2940"
+runs = [
+  42528177632, 42531225148, 42552392872, 42552505001,
+  42554994891, 42597453085, 42599262855, 42612079319,
+  42613809783, 42615533943, 42628627640, 42677807004,
+  42699774025, 42702231095, 42704761295, 42986507306,
+  42988844254,
+]
 job = "^service / paths$"
 test = 'e2e/undo\.spec\.ts:139\b'
-message = 'e2e/own-project\.ts:39\b'
-frequency = "2 passages du 2026-11-05 au 2026-11-12"
-cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
+message = 'e2e/own-project\.ts:\d+\b'
+frequency = "17 passages du 2026-11-08 au 2026-11-11, tous sans 0026 ; ici 2 passages"
+cause = "établie : 500 de `POST /projects`, blocage mutuel (`DeadlockDetected`) de `create_project_partitions` (migration 0025) entre deux créations ; corrigé par la migration 0026 (US-1560/L3, #2603/#2667, 69ee969b), dans main le 2026-11-09 à 22 h 27. La boîte « Créer » n'affiche alors que l'erreur, et l'adresse reste `/` : `own-project.ts` attend en vain"
 
 [[known]]
-class = "known flakiness"
+class = "regression"
 family = "A. création du projet de la course"
 issue = "#2940"
+runs = [
+  42528177632, 42531225148, 42552392872, 42552505001,
+  42554994891, 42597453085, 42599262855, 42612079319,
+  42613809783, 42615533943, 42628627640, 42677807004,
+  42699774025, 42702231095, 42704761295, 42986507306,
+  42988844254,
+]
 job = "^service / paths$"
-test = 'e2e/revision-cycle\.spec\.ts:'
-message = 'e2e/own-project\.ts:39\b'
-frequency = "2 passages du 2026-11-05 au 2026-11-12"
-cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
+test = 'e2e/timelines\.spec\.ts:(353|391)\b'
+message = 'e2e/own-project\.ts:\d+\b'
+frequency = "17 passages du 2026-11-08 au 2026-11-11, tous sans 0026 ; ici 1 passage, :391"
+cause = "établie : 500 de `POST /projects`, blocage mutuel (`DeadlockDetected`) de `create_project_partitions` (migration 0025) entre deux créations ; corrigé par la migration 0026 (US-1560/L3, #2603/#2667, 69ee969b), dans main le 2026-11-09 à 22 h 27. La boîte « Créer » n'affiche alors que l'erreur, et l'adresse reste `/` : `own-project.ts` attend en vain"
 
 # Famille B — un état partagé entre parcours : les préférences relues portent le filtre d'un
 # autre parcours, ou le calendrier par défaut n'est plus celui que le parcours a désigné.
@@ -222,13 +243,13 @@ cause = "hypothèse : la lecture de la charge de PRJ-001, lente sous plusieurs w
 #     --created '2026-11-10T10:24:00Z..2026-11-12T23:18:00Z' --json databaseId,headBranch,headSha
 # puis, pour chaque passage, `gh run view <id> --json jobs` (conclusion de `service / paths`).
 # Le seuil de cinquante passages de la conception n'est atteint nulle part : ni sur `epic/EP-24`
-# (13 passages sans échec de `backups.spec.ts`), ni sur les files qui portent les correctifs (44
-# jusqu'au 2026-11-12 à 23 h 18 UTC ; 46 avec 43327741296 et 43331074606, deux passages réussis
-# d'`epic/EP-24` du 12 au soir). Les causes 1 et 3 tiennent donc par leur cause établie au journal
-# et leur commit de correction, non par l'absence de récidive ; la cause 2 reste ouverte sous
-# #3005. Une ligne de parcours bouge avec son
-# fichier : `:155` et `:240` sont celles des versions de ces passages, et un échec du parcours
-# d'aujourd'hui reste « à classer ».
+# (13 passages jusqu'à 23 h 18 UTC, 15 avec 43327741296 et 43331074606, sans échec de
+# `backups.spec.ts`), ni sur les files qui portent les correctifs (44 jusqu'au 2026-11-12 à
+# 23 h 18 UTC ; 46 avec ces deux passages réussis d'`epic/EP-24` du 12 au soir). Les causes 1 et 3
+# tiennent donc par leur cause établie au journal et leur commit de correction, non par l'absence
+# de récidive ; la cause 2 reste ouverte sous #3005. Une ligne de parcours bouge avec son fichier :
+# `:155` et `:240` sont celles des versions de ces passages, et un échec du parcours d'aujourd'hui
+# reste « à classer ».
 
 [[known]]
 class = "known flakiness"
@@ -259,7 +280,7 @@ job = "^service / paths$"
 test = 'e2e/service/backups\.spec\.ts:155\b'
 message = 'Timeout: 420000ms'
 frequency = "3 passages le 2026-11-09, de 10 h à 13 h UTC, sur #2638 et #2672 : la restauration ni terminée ni refusée en 420 s (`backups.spec.ts:262`)"
-cause = "hypothèse : `pg_restore --single-transaction` après `DROP SCHEMA public CASCADE` verrouille chaque table, partition par projet et index ; les parcours d'EP-07 créent assez de projets pour passer les 64 verrous par transaction du défaut, la restauration échoue (« out of shared memory ») et la plateforme reste en maintenance. Seule source : le message de 783db2ed, qui a mesuré la cause et l'a corrigée par `max_locks_per_transaction` à 1024 (fusionnée dans `epic/EP-07` le 2026-11-09 à 13 h 27 UTC par #2638, 97eeff48) ; 42622915790, de #2672, la précède dans la file. Le journal du worker n'est pas versé dans celui du job : ceux des trois passages (42598617718, 42599195472, 42622915790) ne portent ni `shared memory` ni `max_locks`. Décision à trancher sous #3005"
+cause = "hypothèse : `pg_restore --single-transaction` après `DROP SCHEMA public CASCADE` verrouille chaque table, partition par projet et index ; les parcours d'EP-07 créent assez de projets pour passer les 64 verrous par transaction du défaut, la restauration échoue (« out of shared memory ») et la plateforme reste en maintenance. Seule source : le message de 783db2ed, qui a mesuré la cause et l'a corrigée par `max_locks_per_transaction` à 1024 (fusionnée dans `epic/EP-07` le 2026-11-09 à 13 h 27 UTC par #2638, 97eeff48) ; 42622915790, de #2672, la précède dans la file. Le journal du service `restore` n'était pas versé dans celui du job : ceux des trois passages (42598617718, 42599195472, 42622915790) ne portent ni `shared memory` ni `max_locks`. Il l'est depuis fd948df1 (US-1570/L4, 2026-11-10), et `service.yml` verse aussi, au premier échec, les lignes du journal de PostgreSQL qui nomment `shared memory`, `max_locks_per_transaction`, `deadlock` ou `could not obtain lock` (US-1890/L1) : la cause se lira, ou se lèvera, à ces deux endroits du journal du job, sous #3005 (qui reste ouverte jusqu'à cinquante passages sans récidive)"
 
 [[known]]
 class = "regression"
@@ -398,19 +419,24 @@ message = 'The operation was canceled\.'
 frequency = "2 passages du 2026-11-05 au 2026-11-12 (42739027879, 43046175348)"
 cause = "établie : les tests passent, mais le job dépasse son délai de 20 minutes ; US-1910/L2 coupe `back / tests` en quatre morceaux"
 
-# Famille A, à défaut des entrées ci-dessus : tout autre parcours qui crée son projet et échoue
-# au même endroit. En dernier, pour que l'inventaire nomme d'abord ce qu'il a relevé.
-# À retirer quand US-1890/L1 corrige la famille A. Elle classe instabilité connue tout échec à cet
-# endroit : elle masque donc une régression de la création de projet qui échouerait là.
+# Famille A, à défaut des entrées ci-dessus : tout autre parcours de ces 17 passages qui crée son
+# projet et échoue au même endroit. En dernier, pour que l'inventaire nomme d'abord ce qu'il a relevé.
 
 [[known]]
-class = "known flakiness"
+class = "regression"
 family = "A. création du projet de la course"
 issue = "#2940"
+runs = [
+  42528177632, 42531225148, 42552392872, 42552505001,
+  42554994891, 42597453085, 42599262855, 42612079319,
+  42613809783, 42615533943, 42628627640, 42677807004,
+  42699774025, 42702231095, 42704761295, 42986507306,
+  42988844254,
+]
 job = "^service / paths$"
-message = 'e2e/own-project\.ts:39\b'
-frequency = "chaque parcours qui écrit passe par là ; les entrées de la famille A en sont les relevés"
-cause = "hypothèse : l'accueil et la création d'un projet, lents quand plusieurs workers créent à la fois"
+message = 'e2e/own-project\.ts:\d+\b'
+frequency = "17 passages du 2026-11-08 au 2026-11-11, tous sans 0026"
+cause = "établie : 500 de `POST /projects`, blocage mutuel (`DeadlockDetected`) de `create_project_partitions` (migration 0025) entre deux créations ; corrigé par la migration 0026 (US-1560/L3, #2603/#2667, 69ee969b), dans main le 2026-11-09 à 22 h 27. La boîte « Créer » n'affiche alors que l'erreur, et l'adresse reste `/` : `own-project.ts` attend en vain"
 
 # Les régressions, chacune après la relecture des passages qu'elle nomme : le code ou le workflow
 # d'une pull request, pas la file.
