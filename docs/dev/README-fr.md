@@ -4108,8 +4108,10 @@ quarts de `WATERFALL_PROCESSORS`, la part de processeurs du créneau, au moins 1
 à naviguer (`toHaveURL`) ; mesuré à 8, 10 et 12 workers sur 8 processeurs, quatre créneaux pris,
 ils échouaient encore à naviguer, à 6 aucun échec de navigation sur deux passages. `WORKERS=<n>` ne vaut
 que pour `make e2e` ; `make e2e-service` prend `E2E_WORKERS=<n>`, dans l'environnement ou sur la
-ligne de commande, qui l'emporte (vide, il est ignoré). Avec `WATERFALL_API_ADDRESS`, le harnais joue
-contre l'API qu'elle nomme et ne démarre aucun faux back.
+ligne de commande, qui l'emporte (vide, il est ignoré, sur la ligne de commande comme dans
+l'environnement) ; un `WATERFALL_PROCESSORS` qui n'est pas un entier positif est refusé avant toute
+commande. Avec `WATERFALL_API_ADDRESS`, le harnais joue contre l'API qu'elle nomme et ne démarre aucun
+faux back.
 
 **Les parcours se jouent contre le front construit pour la production** (US-0590), celui
 qu'ouvrent les utilisateurs : un serveur `next start` par worker des parcours, sur `E2E_FRONT_PORT`
