@@ -728,7 +728,7 @@ pas échouer la file avant le premier test, **afin qu'**un passage ne dépende q
 
 ## US-1910 — Le palier complet plus court : des morceaux équilibrés, des caches sous leur quota
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2948

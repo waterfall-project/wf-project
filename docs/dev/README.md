@@ -3322,12 +3322,12 @@ The chain is made of GitHub Actions workflows (`.github/workflows/`):
   `front-cache.yml` writes that cache and the pnpm store after each merge, on the branch whose
   caches the pull requests and the merge queue read: without it, they would find nothing.
   `back.yml` spreads the back likewise: one runner holds the lint, the types and the boundaries of
-  the core (`make check-back-static`), two each play half of the tests, with their services
-  (`make check-back-tests`, `SHARD=1/2` and `SHARD=2/2`), and in the full tier a last one gathers
-  their coverage and holds it to its thresholds (`make coverage-back-merge`). A half is one test in
-  two in the order of their collection (`--shard`, `backend/tests/conftest.py`), rather than whole
-  files: the files that load the witness, the longest, are spread over both. The witness is loaded
-  by the command once per pytest process; the tests after it find its rows copied back
+  the core (`make check-back-static`), four each play a quarter of the tests, with their services
+  (`make check-back-tests`, `SHARD=1/4` to `SHARD=4/4`), and in the full tier a last one gathers
+  their coverage and holds it to its thresholds (`make coverage-back-merge`). A quarter is one test
+  in four in the order of their collection (`--shard`, `backend/tests/conftest.py`), rather than
+  whole files: the files that load the witness, the longest, are spread over all four. The witness
+  is loaded by the command once per pytest process; the tests after it find its rows copied back
   (`backend/tests/witness_rows.py`, #2157). On a runner, each test that asked for it paid its
   loading, over six minutes in all.
   `keycloak.yml` builds the image of Keycloak and puts it to the proof on the service platform, its
