@@ -219,11 +219,12 @@ test(
       const row = rates
         .getByRole("row")
         .filter({ has: page.getByRole("gridcell", { name: "MO-003" }) });
-      // The code, the label, the state, then 2012 to 2015.
-      const rate = row.getByRole("gridcell").nth(6);
+      // The code, the label, the state, then 2012 to 2015; the cell of 2013
+      // is this path's own (the others write 2014 and 2015, which no project orders with this one).
+      const rate = row.getByRole("gridcell").nth(4);
       await expect(async () => {
         await row.getByRole("gridcell", { name: "MO-003" }).click();
-        for (let step = 0; step < 6; step += 1) {
+        for (let step = 0; step < 4; step += 1) {
           await page.keyboard.press("ArrowRight");
         }
         await expect(rate).toBeFocused({ timeout: 1_000 });
@@ -239,7 +240,7 @@ test(
           .getByRole("row")
           .filter({ has: page.getByRole("gridcell", { name: "MO-003" }) })
           .getByRole("gridcell")
-          .nth(6),
+          .nth(4),
       ).toHaveText("85,00 €", { timeout: WORKING });
 
       // The correspondence of the extraction: a label entered for an optional column, saved whole.

@@ -17,8 +17,8 @@
  * `@shared`; the one that plays the screens of the resources, the risks and the indicators too is
  * not, those being served later (US-0850). In service the first path writes the rate of 2014 of
  * MO-003, a cell of its own: the first rate of a year refused with a conflict when another writer
- * enters it at the same time, the 2015 cell is also written by the path of the category and by
- * `service/reference-manager.spec.ts`, which no project orders (US-1890).
+ * enters it at the same time, the 2015 cell is written by the path of the category alone and the
+ * 2013 cell by `service/reference-manager.spec.ts`, which no project orders (US-1890).
  *
  * The known failure of the Escape closing the modification of the nature « Main-d'œuvre »
  * (`tools/queue-known.toml`) is not tied to that rate. By reading alone, what its description of
