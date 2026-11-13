@@ -190,7 +190,13 @@ frequency = "1 passage du 2026-11-05 au 2026-11-12"
 cause = "hypothèse : deux parcours écrivent le même réglage du référentiel en même temps"
 
 # Famille C — une lecture lourde de PRJ-001 (5 966 nœuds) : l'adresse garde `difference=`
-# au-delà de 15 s, 30 s dépassées sur trois lectures de la comparaison. US-1890/L3.
+# au-delà de 15 s, 30 s dépassées sur trois lectures de la comparaison. US-1890/L3, mesurée par le
+# journal de l'API (`request.completed`, `duration_ms`) et par les étapes que les parcours de la
+# comparaison écrivent (`e2e/screen-steps.ts`). L'API est un seul processus : une comparaison de
+# PRJ-001 y prend 2,2 s seule, et chaque lecture de PRJ-001 qu'un autre worker fait en même temps
+# l'allonge ; dans la file, `/me` y prend 2 s, une comparaison 5 à 16 s (43403635976). Les lignes
+# sont celles des parcours d'avant US-1890/L3 : un échec des parcours corrigés, à d'autres lignes,
+# reste « à classer ».
 
 [[known]]
 class = "known flakiness"
@@ -199,8 +205,8 @@ issue = "#2942"
 job = "^service / paths$"
 test = 'e2e/revisions\.spec\.ts:'
 lines = [238, 253]
-frequency = "8 passages du 2026-11-05 au 2026-11-12 (le parcours de WF-REV-0080-A)"
-cause = "hypothèse : la comparaison des révisions de PRJ-001, lente ; #2924 a ramené `compareRevisions` de 1 903 à 57 requêtes, le reste est à mesurer"
+frequency = "8 passages du 2026-11-05 au 2026-11-12 (le parcours de WF-REV-0080-A) ; 9 des 50 passages d'`epic/EP-24` du 2026-11-12 au 13 (l'outil lit la ligne de déclaration du test, non celle de l'échec : l'attente du filtre levé, à `:301` dans ces passages, est dans le test déclaré à `:253`)"
+cause = "établie : le parcours levait le filtre avant que l'adresse de « Comparer » soit arrivée (son attente, `difference=added`, était vraie de l'adresse d'avant) ; les deux comparaisons complètes de PRJ-001 se lisaient ensemble, et le filtre levé arrivait en 15 s, deux fois le temps d'une seule (12,3 et 14,6 s à l'API dans 43403635976 ; 14,8 à 15,1 s sous six workers sur un poste). Corrigé par US-1890/L3 : le parcours attend l'adresse du formulaire, et lit l'API une fois au lieu de deux"
 
 [[known]]
 class = "known flakiness"
@@ -208,17 +214,17 @@ family = "C. lecture lourde de PRJ-001"
 issue = "#2942"
 job = "^service / paths$"
 test = 'e2e/revisions\.spec\.ts:(35|121|164)\b'
-frequency = "2 passages pour :121, 1 pour :164, 2 pour :35, du 2026-11-05 au 2026-11-12"
-cause = "hypothèse : trois lectures de la comparaison complète de PRJ-001 dépassent 30 s"
+frequency = "2 passages pour :121, 1 pour :164, 2 pour :35, du 2026-11-05 au 2026-11-12 ; 6 des 50 passages d'`epic/EP-24` du 2026-11-12 au 13, pour :121 (l'échec, à `:160` dans le test, est rattaché à sa déclaration)"
+cause = "établie : la comparaison de PRJ-001 lue par l'écran dépasse 15 s quand d'autres workers lisent PRJ-001 sur l'unique processus de l'API (16,1 s à l'API dans 43403635976, 2,2 s seule) ; le parcours la lisait trois fois, deux à l'API pour la même réponse. US-1890/L3 la lit deux fois ; la lenteur de l'API sous charge reste (#2942)"
 
 [[known]]
 class = "known flakiness"
 family = "C. lecture lourde de PRJ-001"
 issue = "#2942"
 job = "^service / paths$"
-test = 'e2e/structure\.spec\.ts:(333|361)\b'
-frequency = "3 passages pour :333, 1 pour :361, du 2026-11-05 au 2026-11-12"
-cause = "établie : pour :333, une requête par tâche pour son calendrier, corrigée par #2924 (`getRemainingIndicators` de 2 845 à 58 requêtes) ; pour :361, une hypothèse, la même lecture"
+test = 'e2e/structure\.spec\.ts:(333|334|361)\b'
+frequency = "3 passages pour :333, 1 pour :361, du 2026-11-05 au 2026-11-12 ; 1 pour :334 (43407154031) des 50 passages d'`epic/EP-24` du 2026-11-12 au 13"
+cause = "établie : pour :333, une requête par tâche pour son calendrier, corrigée par #2924 (`getRemainingIndicators` de 2 845 à 58 requêtes) ; pour :334, hypothèse : l'adresse du poste choisi n'arrive qu'avec le reste à engager de PRJ-001, dont `getRemainingIndicators` a pris 24,3 s à l'API dans 43407154031, pendant les deux comparaisons que le parcours de WF-REV-0080-A lisait ensemble (26,4 et 28,1 s), cause que US-1890/L3 corrige, à confirmer par un passage d'après le lot (une seule mesure, 43407154031) ; pour :361, une hypothèse, la même lecture"
 
 [[known]]
 class = "known flakiness"

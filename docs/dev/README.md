@@ -4032,6 +4032,13 @@ what the dialog shows. Over the 52 creations of the full run 43386149437, the wh
 2.2 s in the median and 5.8 s at most, the address 0.7 s after "Créer", and the API answers `POST
 /projects` in 0.24 s in the median, 1.9 s at most: nothing there justifies widening `WORKING`.
 
+`ScreenSteps` (`frontend/e2e/screen-steps.ts`) does the same for a screen the server reads anew:
+each step, and the RSC requests under way during it. On the path of WF-REV-0080-A, it showed a wait
+already true before its gesture: after "Comparer", the address kept `difference=` as the one before
+did, and the filter lifted at once made the API, which is a single process (2.2 s for one alone),
+read two comparisons of PRJ-001 together; it arrived in 15 s instead of 8 under six workers
+(#2942). A wait that follows a gesture waits for what that gesture changes.
+
 `make e2e`: Redocly and Prism are development dependencies of the front, at an exact version
 (`frontend/package.json`, locked by `pnpm-lock.yaml`): `make install-front`, which the target plays
 first, puts them in the store of pnpm (the cache of the chain), where the `Makefile` reads them,
