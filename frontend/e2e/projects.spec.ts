@@ -1,7 +1,14 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 import { closeMenu, menuButton, openFilters, openMenu, pick } from "./check-menu";
-import { type Browser, expect, type Page, type PlaywrightWorkerArgs } from "@playwright/test";
+import {
+  type APIRequestContext,
+  type Browser,
+  type BrowserContext,
+  expect,
+  type Page,
+  type PlaywrightWorkerArgs,
+} from "@playwright/test";
 
 import { compile } from "./compile";
 import { openHydrated, sortUntilAddress, WORKING } from "./hydration";
@@ -39,10 +46,10 @@ const CURRENT = "01926f3a-7c00-7000-8000-000000000102";
 
 /**
  * The page a path that writes a preference of the home plays on, against the service: an account of
- * its own, made for it and signed in a context of its own, so that the sort and the states it
- * chooses (WF-IHM-0060) are kept for it alone — the account of the worker, which every other path of
- * the worker reads its home with, is never written, and nothing is restored afterwards. Against the
- * fake back, which keeps nothing, the page of the path itself.
+ * its own, made for it, contributor of a project of its own and signed in a context of its own, so
+ * that the sort and the states it chooses (WF-IHM-0060) are kept for it alone — the account of the
+ * worker, which every other path of the worker reads its home with, is never written, and nothing
+ * is restored afterwards. Against the fake back, which keeps nothing, the page of the path itself.
  */
 async function homeOfItsOwn(
   browser: Browser,
@@ -52,24 +59,29 @@ async function homeOfItsOwn(
   if (!inService) {
     return { page, close: () => Promise.resolve() };
   }
-  const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
-  const context = await browser.newContext({ ignoreHTTPSErrors: true });
+  let calls: APIRequestContext | undefined;
+  let context: BrowserContext | undefined;
+  // Closed whatever came before, and never raising: the error that matters is the one of the path.
+  const release = async (): Promise<void> => {
+    await Promise.allSettled([context?.close(), calls?.dispose()]);
+  };
   try {
+    calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
+    context = await browser.newContext({ ignoreHTTPSErrors: true });
     const administrator = await accountAdministrator(browser, calls);
     const own = await localAccount(browser, administrator);
-    await administrator.giveAlso(own.id, [["Manager", []]]);
+    await administrator.giveAlso(own.id, [
+      ["Manager", []],
+      ["Chef de projet", []],
+    ]);
     const owned = await context.newPage();
     await signIn(owned, own, "/account");
-    return {
-      page: owned,
-      close: async () => {
-        await context.close();
-        await calls.dispose();
-      },
-    };
+    // A project of its own, the account its creator and so a contributor: its home lists it, and
+    // the grids the paths assert on (the totals row in the window) are not empty.
+    await createOwnProject(owned, "Accueil");
+    return { page: owned, close: release };
   } catch (failure) {
-    await context.close();
-    await calls.dispose();
+    await release();
     throw failure;
   }
 }
@@ -134,7 +146,6 @@ test("the home sorts its projects and filters them by state on the server, from 
   page: shared,
   playwright,
 }) => {
-  test.slow();
   const home = await homeOfItsOwn(browser, playwright, shared);
   const page = home.page;
   await page.goto("/");
@@ -180,7 +191,6 @@ test("the home filters its projects by the period of their last modification on 
   page: shared,
   playwright,
 }) => {
-  test.slow();
   const home = await homeOfItsOwn(browser, playwright, shared);
   const page = home.page;
   await page.goto("/");
