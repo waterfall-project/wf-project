@@ -3518,18 +3518,26 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   Le paquet `make` d'Ubuntu noble, l'archive du client de Docker et celles de pnpm et de son
   binaire ne se téléchargent qu'à la construction de l'image, épinglés et vérifiés par leur
   empreinte, le Python par sa version, que uv vérifie par l'empreinte qu'il en porte ;
-- **répartis sur cinq runners** (`make e2e SHARD=i/5`, soit `playwright test --shard=i/5`),
-  la mesure du §4.6.2 sur un sixième, seule (`make e2e-measure`), par une matrice dont aucun
-  morceau n'annule les autres ; le résultat d'`e2e` est un échec dès qu'un morceau échoue ou
-  est annulé, et la porte avec lui. Playwright répartit des fichiers entiers
-  de parcours, à nombre de tests égal, et les plus longs pèsent — sauf un fichier joué test
-  par test (`mode: "parallel"`), comme `accessibility.spec.ts`, dont les tests se répartissent un
-  à un : avant ce fichier, en octobre 2026, le plus long de trois morceaux jouait environ 140 s
-  de parcours sur deux workers, celui de quatre 130 s, et trois suffisaient. En novembre 2026, ce
-  fichier grossi à 500 s de parcours, le plus long de trois morceaux en jouait 290 s, quand chaque
-  morceau paie environ 75 s d'image, d'installation et de serveurs : cinq morceaux en jouent
-  environ 170 s chacun (#2015). Le choix se revoit quand les parcours s'allongent : les durées
-  par fichier se lisent dans le journal de chaque morceau ;
+- **répartis sur cinq runners** (`make e2e SHARD=i/5`), la mesure du §4.6.2 sur un sixième,
+  seule (`make e2e-measure`), par une matrice dont aucun morceau n'annule les autres ; le résultat
+  d'`e2e` est un échec dès qu'un morceau échoue ou est annulé, et la porte avec lui. `--shard`
+  de Playwright répartit des fichiers entiers, à nombre de tests égal, et les plus longs pèsent :
+  le quatrième de cinq jouait environ 260 s de parcours, les autres environ 150 s. Les morceaux
+  sont donc pesés par durée mesurée (`wftools.e2eparts`, US-1910) : `make e2e SHARD=i/N` liste les
+  tests (`playwright test --list`), les répartit — le plus long d'abord, dans le morceau le moins
+  chargé — et ne joue que ceux du sien (`--test-list`). L'unité est le fichier, ou le test pour un
+  fichier joué test par test (`mode: "parallel"`), comme `accessibility.spec.ts` et
+  `grid-frame.spec.ts` ; les secondes de chaque unité sont gardées dans `tools/e2e-durations.json`.
+  Comme la liste vient de Playwright et non du fichier des durées, aucun test n'est perdu ni joué
+  deux fois, et une unité que le fichier ignore pèse la moyenne des unités connues de son genre.
+  Chaque morceau paie environ 75 s d'image, d'installation et de serveurs (#2015). Le fichier des
+  durées se rafraîchit, quand les parcours changent, depuis le journal d'un passage réel
+  (`make e2e-durations LOG=<fichier>` : le journal du job d'un morceau, ou la sortie de
+  `make e2e`, au rapporteur `list` ; l'entrée standard sans `LOG`, par exemple
+  `gh run view <passage> --log --job <job> | make e2e-durations`, les journaux des cinq morceaux
+  mis bout à bout) ; un journal qui ferait disparaître des unités connues est refusé, sauf
+  `python -m wftools.e2eparts refresh --drop`. Une liste que la ligne `Total: N tests` de Playwright
+  ne confirme pas, ou un morceau vide, fait échouer le morceau au lieu de ne rien jouer ;
 - **sur un seul build du front par exécution** (US-0590) : le travail `front-build` de `ci.yml`,
   qui tourne dès qu'`e2e` ou `service` tourne, lance `make build-front` et téléverse
   `frontend/.next` sans son cache (`.next/cache`, que seul un build suivant lirait). Les cinq
@@ -3992,7 +4000,9 @@ disant. Deux worktrees à deux créneaux jouent donc leurs parcours en même tem
 et `E2E_FRONT_PORT`, posés dans l'environnement, l'emportent sur ceux du créneau — le front des
 parcours en prend autant qu'il a de workers, à partir de lui (ci-dessous), quarante au plus dans
 un bloc ; un port qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
-navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, comme
+navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, répartis par durée
+mesurée (`tools/e2e-durations.json`, que rafraîchit `make e2e-durations`) — `SHARD` ne se combine pas
+avec `TESTS=<fichier>`, que la recette refuse : le fichier peut être dans un autre morceau —, comme
 chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les joue sur `n` workers
 (`E2E_WORKERS`, que lit `playwright.config.ts` ; un entier de 1 à 40, rien d'autre : un front par
 worker, et le bloc d'un créneau n'en porte que quarante), moins que Playwright n'en prend de

@@ -3492,18 +3492,25 @@ The full tier aims at under eight minutes in the queue for its longest job
   The `make` package of Ubuntu noble, the archive of Docker's client and those of pnpm and of its
   binary are downloaded only when the image is built, pinned and verified by their hash, the Python
   by its version, which uv verifies by the hash it carries for it;
-- **spread over five runners** (`make e2e SHARD=i/5`, that is `playwright test --shard=i/5`),
-  the measure of §4.6.2 on a sixth, alone (`make e2e-measure`), through a matrix none of whose
-  shards cancels the others; the result of `e2e` is a failure as soon as a shard fails or
-  is cancelled, and the gate with it. Playwright spreads whole files
-  of paths, at an equal number of tests, and the longest weigh — except a file played test
-  by test (`mode: "parallel"`), like `accessibility.spec.ts`, whose tests are spread one
-  by one: before that file, in October 2026, the longest of three shards played about 140 s
-  of paths on two workers, that of four 130 s, and three were enough. By November 2026, that
-  file grown to 500 s of paths, the longest of three shards played 290 s, when each shard pays
-  about 75 s of image, installation and servers: five shards play about 170 s each (#2015). The
-  choice is reconsidered when the paths lengthen: the durations
-  per file can be read in the log of each shard;
+- **spread over five runners** (`make e2e SHARD=i/5`), the measure of §4.6.2 on a sixth, alone
+  (`make e2e-measure`), through a matrix none of whose shards cancels the others; the result of
+  `e2e` is a failure as soon as a shard fails or is cancelled, and the gate with it. Playwright's
+  `--shard` spreads whole files, at an equal number of tests, and the longest weigh: the fourth of
+  five played about 260 s of paths, the others about 150 s. The shards are therefore weighed by
+  measured duration (`wftools.e2eparts`, US-1910): `make e2e SHARD=i/N` lists the tests
+  (`playwright test --list`), spreads them — the longest first, into the lightest shard — and plays
+  only those of its own (`--test-list`). The unit is the file, or the test for a file played test
+  by test (`mode: "parallel"`), like `accessibility.spec.ts` and `grid-frame.spec.ts`; the seconds
+  of each unit are kept in `tools/e2e-durations.json`. As the list comes from Playwright and not
+  from the durations file, no test is lost nor played twice, and a unit the file does not know
+  weighs the mean of the known units of its kind. Each shard pays about 75 s of image,
+  installation and servers (#2015). The durations file is refreshed, when the paths change, from
+  the log of a real run (`make e2e-durations LOG=<file>`: the log of the job of a shard, or the
+  output of `make e2e`, with the `list` reporter; the standard input without `LOG`, for example
+  `gh run view <run> --log --job <job> | make e2e-durations`, the logs of the five shards put end
+  to end); a log that would make known units disappear is refused, unless
+  `python -m wftools.e2eparts refresh --drop`. A listing that Playwright's `Total: N tests` line
+  does not confirm, or a part left empty, fails the shard instead of playing nothing;
 - **on one single build of the front per run** (US-0590): the `front-build` job of `ci.yml`, which
   runs as soon as `e2e` or `service` runs, launches `make build-front` and uploads `frontend/.next`
   without its cache (`.next/cache`, which only a following build would read). The five shards, the
@@ -3958,7 +3965,9 @@ least 2, without which the second waits for the first to end. `E2E_API_PORT` and
 set in the environment, prevail over those of the slot — the front of the paths takes as many as it
 has workers, starting from it (below), forty at most in a block; a port that is not an integer from
 1 to 65535 is refused. `make e2e-browsers` installs the browser. `make e2e SHARD=i/N` plays only the
-i-th of N shards of the paths, like each of the chain's runners (« The chain »), and
+i-th of N shards of the paths, spread by measured duration (`tools/e2e-durations.json`, which
+`make e2e-durations` refreshes), like each of the chain's runners (« The chain »; `SHARD` does not
+combine with `TESTS=<file>`, which the recipe refuses: the file may lie in another shard), and
 `make e2e WORKERS=<n>` plays them on `n` workers (`E2E_WORKERS`, which `playwright.config.ts` reads;
 an integer from 1 to 40, nothing else: one front per worker, and a slot's block holds only forty),
 fewer than Playwright takes on its own — half the processors, capped at forty — on a loaded

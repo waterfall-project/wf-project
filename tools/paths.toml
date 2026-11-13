@@ -245,6 +245,9 @@ paths = [
     # The work image the parts of the paths run in (US-1900), and what finds it.
     "deploy/e2e/**",
     "tools/src/wftools/e2eimage.py",
+    # What spreads the parts of the paths by their measured durations (US-1910).
+    "tools/src/wftools/e2eparts.py",
+    "tools/e2e-durations.json",
 ]
 target = "check-front"
 

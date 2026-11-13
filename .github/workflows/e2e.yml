@@ -47,13 +47,12 @@ jobs:
       # Chromium shares memory through /dev/shm, which Docker bounds to 64 MB; Playwright's
       # documentation runs its image with the host's.
       options: --ipc=host
-    # Five parts: Playwright spreads whole files, at equal numbers of tests, and the longest files
-    # weigh, except those played test by test (`mode: "parallel"`), spread one test at a time. By
-    # October 2026 the longest of three parts played about 140 s of tests on two workers; by
-    # November, accessibility.spec.ts grown, 290 s, where each part pays about 75 s of image,
-    # installation and servers (#2015): five parts play about 170 s each. Every part runs to its
-    # end: one failing does not cancel the others, whose results say whether the code fails or
-    # one path.
+    # Five parts, spread by the seconds each path took on a real run (make e2e SHARD=i/5,
+    # tools/e2e-durations.json, US-1910): Playwright's --shard spreads whole files at equal numbers
+    # of tests, and the longest weigh. By November 2026, accessibility.spec.ts grown, the paths play
+    # about 1400 s in all, and each part pays about 75 s of image, installation and servers (#2015).
+    # Every part runs to its end: one failing does not cancel the others, whose results say whether
+    # the code fails or one path.
     strategy:
       fail-fast: false
       matrix:
