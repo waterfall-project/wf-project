@@ -70,7 +70,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	check-contract check-back check-back-static check-back-tests coverage-back-merge lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
-	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size tracking merge-queue merge-queue-check queue-report \
+	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers e2e-image lot-size tracking merge-queue merge-queue-check queue-report \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -573,6 +573,27 @@ roadmap: ## Confront the stories of docs/roadmap with the requirements of the do
 e2e-browsers: install-front ## Install the browser the end-to-end tests run in
 	@$(PNPM) exec playwright install $(PLAYWRIGHT_INSTALL) chromium
 
+# The work image of the end-to-end paths (deploy/e2e, US-1900): Playwright's, with make, the Python
+# of the tools, pnpm and Docker's client, so that no job of the paths downloads a package of Ubuntu
+# (#2913). Tagged by the hash of its directory, it is found in the registry, or built here, and
+# published with PUSH=yes, which the full tier of the chain runs before the paths, the fast one
+# building without it (ci.yml); the line it prints, image=<reference>, is the output of that step
+# (wftools.e2eimage).
+e2e-image: ## Find the work image of the end-to-end paths in the registry by the hash of deploy/e2e, or build it — PUSH=yes publishes it —; prints image=<reference>
+	@$(WFTOOLS).e2eimage publish $(if $(filter yes,$(PUSH)),--push)
+
+# E2E_IMAGE, the reference of that image, plays the browser of the paths against the service in it
+# (service.yml): Playwright's server (run-server) runs in the image, on the network of the host, and
+# `playwright test` connects to it from the runner (PW_TEST_CONNECT_WS_ENDPOINT), where Node, the front
+# and the harness stay. The browser and its system packages are the image's, where the runner would
+# install them from the mirrors of Ubuntu. The paths played whole in the image took 17.3 minutes of
+# `playwright test` in the median of four runs, against 14.2 in three so (US-1900). The server is
+# stopped with the shell, after the paths. Empty, on a workstation, the paths play on it.
+E2E_IMAGE ?=
+E2E_BROWSER_PORT ?= 3990
+e2e-in-image = uv run --frozen --project $(CURDIR)/$(TOOLS) python -m wftools.e2eimage run --image $(E2E_IMAGE) --
+e2e-browser = $(if $(E2E_IMAGE),$(e2e-in-image) node node_modules/@playwright/test/cli.js run-server --host 127.0.0.1 --port $(E2E_BROWSER_PORT) & browser=$$! && trap 'kill $$browser' EXIT && timeout 120 sh -c 'until curl --silent --output /dev/null http://127.0.0.1:$(E2E_BROWSER_PORT)/; do sleep 1; done' && export PW_TEST_CONNECT_WS_ENDPOINT=ws://127.0.0.1:$(E2E_BROWSER_PORT)/ &&)
+
 # The paths play against the front built for production (US-0590): built first by build-front, which
 # Next's cache (.next/cache) shortens after the first time, then started by the harness, told it is
 # built (E2E_BUILT). E2E_BUILT=1 set already says the front is built — the chain builds it once for
@@ -634,7 +655,7 @@ e2e-service: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End
 		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 && \
 		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
 		export E2E_INSTALLATION_LINK E2E_CONTRACT_PROXY E2E_SERVICE_DATABASE WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
-		$(PNPM) exec playwright test $(TESTS)
+		cd $(FRONT) && { $(e2e-browser) $(PNPM_ENV) pnpm exec playwright test $(TESTS); }
 
 # The slot of the worktree, among the N of WATERFALL_SLOTS, in the register of the workstation
 # ($XDG_RUNTIME_DIR/waterfall-slots, /tmp/waterfall-slots without it), whatever the repository.
