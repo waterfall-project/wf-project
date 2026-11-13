@@ -13,6 +13,7 @@ import os
 import re
 import subprocess
 import tomllib
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -247,13 +248,18 @@ def test_redocly_and_prism_are_pinned_exactly_and_the_makefile_reads_the_pin() -
     assert make_variable("PRISM_VERSION") == pinned["@stoplight/prism-cli"]
 
 
-def test_a_lock_file_newer_than_the_installation_installs_the_front_again() -> None:
-    """Install before running the tools of the contract when the lock file was raised (#2913)."""
-    witness = REPOSITORY / "frontend/node_modules/.modules.yaml"
-    if not witness.exists():
-        pytest.skip("the front is not installed: the witness is missing, and the install is due")
+def test_a_lock_file_newer_than_the_installation_installs_the_front_again(
+    tmp_path: Path,
+) -> None:
+    """Install before running the tools of the contract when the lock file was raised (#2913).
+
+    The witness is a temporary file (`FRONT_WITNESS`), so the test needs no installed front, and
+    `make -n` only prints: pnpm never runs.
+    """
+    witness = tmp_path / ".modules.yaml"
+    witness.touch()
     newer = subprocess.run(
-        ["make", "-n", "-W", "frontend/pnpm-lock.yaml", "lint-openapi"],
+        ["make", "-n", f"FRONT_WITNESS={witness}", "-W", "frontend/pnpm-lock.yaml", "lint-openapi"],
         check=True,
         capture_output=True,
         text=True,
@@ -264,6 +270,7 @@ def test_a_lock_file_newer_than_the_installation_installs_the_front_again() -> N
         [
             "make",
             "-n",
+            f"FRONT_WITNESS={witness}",
             "-o",
             "frontend/pnpm-lock.yaml",
             "-o",

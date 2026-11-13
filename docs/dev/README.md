@@ -4012,34 +4012,35 @@ test (#2913). The targets that run Redocly or Prism without `install-front` (`li
 `mock-spec`) install when `package.json` or the lock file is newer than
 `node_modules/.modules.yaml`: a raised version is installed on the next run. A registry that
 refuses the connection fails the installation in about 70 s, on an error that names the address of
-the package asked for; it has no other bound, and a silent registry waits for the network's. The
-same goes for `make e2e-measure` and `make e2e-service`, for which Playwright also starts the fake
-back. Playwright starts the fake back (`make mock`) and the front, plays the paths in Chromium, then
-stops both — it signals their whole process group, without which the servers that `make` and `pnpm` start would survive. It always
-starts its own servers, on ports of its own — those of the slot of the worktree (« Commands », « The
-slots of the worktrees »): 4110 for the fake back and 3100 for the front in the main repository, at
-slot 0, `20000 + 100·i + 20` and `+ 40` at slot i of a worktree of a lot, which runs `make slot`
-first —, never those of `make dev`, and its fake back serves a variant of the contract written under
-`frontend/.e2e/`, which `make dev` does not read: a port already taken makes the launch fail saying
-so. Two worktrees at two slots thus play their paths at the same time, with `WATERFALL_SLOTS` of at
-least 2, without which the second waits for the first to end. `E2E_API_PORT` and `E2E_FRONT_PORT`,
-set in the environment, prevail over those of the slot — the front of the paths takes as many as it
-has workers, starting from it (below), forty at most in a block; a port that is not an integer from
-1 to 65535 is refused. `make e2e-browsers` installs the browser. `make e2e SHARD=i/N` plays only the
-i-th of N shards of the paths, spread by measured duration (`tools/e2e-durations.json`, which
-`make e2e-durations` refreshes), like each of the chain's runners (« The chain »; `SHARD` does not
-combine with `TESTS=<file>`, which the recipe refuses: the file may lie in another shard), and
-`make e2e WORKERS=<n>` plays them on `n` workers (`E2E_WORKERS`, which `playwright.config.ts` reads;
-an integer from 1 to 40, nothing else: one front per worker, and a slot's block holds only forty),
-fewer than Playwright takes on its own — half the processors, capped at forty — on a loaded
-workstation, where paths fail by timeout (#736). `make e2e-service` has a default of its own
-(#2890): three quarters of `WATERFALL_PROCESSORS`, the share of processors of the slot, at least 1 and
-at most 40 — 6 on 8 processors —, and not half the processors of the workstation, 16 of 32, where
-18 to 23 paths failed to navigate (`toHaveURL`); measured at 8, 10 and 12 workers on 8 processors,
-four slots taken, they still failed to navigate, at 6 no failure to navigate over two passes.
-`WORKERS=<n>` holds only for `make e2e`; `make e2e-service` takes `E2E_WORKERS=<n>`, in the
-environment or on the command line, which prevails (empty, it is ignored). With `WATERFALL_API_ADDRESS`, the harness plays
-against the API it names and starts no fake back.
+the package asked for; it has no other bound, and a silent registry waits for the network's.
+`make e2e-measure` and `make e2e-service` run `install-front`, since Playwright also starts the fake
+back there. Playwright starts the fake back (`make mock`) and the front, plays the paths in
+Chromium, then stops both — it signals their whole process group, without which the servers that
+`make` and `pnpm` start would survive. It always starts its own servers, on ports of its own — those
+of the slot of the worktree (« Commands », « The slots of the worktrees »): 4110 for the fake back
+and 3100 for the front in the main repository, at slot 0, `20000 + 100·i + 20` and `+ 40` at slot i
+of a worktree of a lot, which runs `make slot` first —, never those of `make dev`, and its fake back
+serves a variant of the contract written under `frontend/.e2e/`, which `make dev` does not read: a
+port already taken makes the launch fail saying so. Two worktrees at two slots thus play their paths
+at the same time, with `WATERFALL_SLOTS` of at least 2, without which the second waits for the first
+to end. `E2E_API_PORT` and `E2E_FRONT_PORT`, set in the environment, prevail over those of the slot
+— the front of the paths takes as many as it has workers, starting from it (below), forty at most in
+a block; a port that is not an integer from 1 to 65535 is refused. `make e2e-browsers` installs the
+browser. `make e2e SHARD=i/N` plays only the i-th of N shards of the paths, spread by measured
+duration (`tools/e2e-durations.json`, which `make e2e-durations` refreshes), like each of the
+chain's runners (« The chain »; `SHARD` does not combine with `TESTS=<file>`, which the recipe
+refuses: the file may lie in another shard), and `make e2e WORKERS=<n>` plays them on `n` workers
+(`E2E_WORKERS`, which `playwright.config.ts` reads; an integer from 1 to 40, nothing else: one front
+per worker, and a slot's block holds only forty), fewer than Playwright takes on its own — half the
+processors, capped at forty — on a loaded workstation, where paths fail by timeout (#736). `make
+e2e-service` has a default of its own (#2890): three quarters of `WATERFALL_PROCESSORS`, the share
+of processors of the slot, at least 1 and at most 40 — 6 on 8 processors —, and not half the
+processors of the workstation, 16 of 32, where 18 to 23 paths failed to navigate (`toHaveURL`);
+measured at 8, 10 and 12 workers on 8 processors, four slots taken, they still failed to navigate,
+at 6 no failure to navigate over two passes. `WORKERS=<n>` holds only for `make e2e`; `make
+e2e-service` takes `E2E_WORKERS=<n>`, in the environment or on the command line, which prevails
+(empty, it is ignored). With `WATERFALL_API_ADDRESS`, the harness plays against the API it names and
+starts no fake back.
 
 **The paths are played against the front built for production** (US-0590), the one users open: one
 `next start` server per worker of the paths, on `E2E_FRONT_PORT` and the ports that follow it, each

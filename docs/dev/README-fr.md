@@ -4046,8 +4046,8 @@ avant son premier test (#2913). Les cibles qui lancent Redocly ou Prism sans `in
 `node_modules/.modules.yaml` : un relèvement de version s'installe au passage suivant. Un registre
 qui refuse la connexion fait échouer l'installation en 70 s environ, sur une erreur qui nomme
 l'adresse du paquet demandé ; elle n'a pas d'autre borne, et un registre muet attend celle du
-réseau. Il en est de même de `make e2e-measure` et de `make e2e-service`, dont
-Playwright démarre aussi le faux back. Playwright démarre le faux back (`make mock`) et le front,
+réseau. `make e2e-measure` et `make e2e-service` lancent `install-front`, puisque
+Playwright y démarre aussi le faux back. Playwright démarre le faux back (`make mock`) et le front,
 joue les parcours dans Chromium, puis arrête les deux — il signale leur groupe de processus entier,
 sans quoi les serveurs que `make` et `pnpm` lancent survivraient. Il démarre toujours ses propres
 serveurs, sur des ports à lui — ceux du créneau du worktree (« Commandes », « Les créneaux des
