@@ -14,7 +14,7 @@ import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 import { bringInProgress } from "./in-progress";
 import { createOwnProject, openRevision } from "./own-project";
-import { seedPlanning } from "./planning-seed";
+import { seedPlanning, type Seeded } from "./planning-seed";
 import type { LocalPerson } from "./service/realm";
 import { scrollToPosition, withinBox } from "./scroll";
 import { isServerAction } from "./server-action";
@@ -537,11 +537,48 @@ test("starts a task from the Kanban and completes a milestone, on a project the 
   }
 });
 
+/** The category of expense the insertion chooses: active and `non_labor` in the reference. */
+const EXPENSE = "Sous-traitance";
+
+/**
+ * What the screens say of the reference of a project in progress: its row of the history of the
+ * revisions, and the reference budget and the planned value of its indicators, read on the
+ * revision in progress.
+ */
+async function referenceOf(page: Page, seeded: Seeded, revision: string) {
+  await openHydrated(page, `${seeded.own.path}/revisions`);
+  const history = page.getByRole("table", { name: "Historique des révisions" });
+  // Case-sensitive: the header « Année de référence » is not the row of the reference.
+  const row = history.getByRole("row").filter({ hasText: /Référence/ });
+  await expect(row).toHaveCount(1, { timeout: WORKING });
+  const designated = await row.innerText();
+  const href = (await row.getByRole("link").first().getAttribute("href")) ?? "";
+  const reference = new URL(href, "http://localhost").searchParams.get("revision_id") ?? "";
+  await openHydrated(page, `${revision}/indicators`);
+  const figure = async (term: string) => {
+    const definition = page
+      .getByRole("term")
+      .filter({ hasText: new RegExp(`^${term}$`) })
+      .first()
+      .locator("..")
+      .getByRole("definition")
+      .first();
+    await expect(definition).toHaveText(/\d/, { timeout: WORKING });
+    return definition.innerText();
+  };
+  return {
+    reference,
+    designated,
+    budget: await figure("Budget de référence"),
+    planned: await figure("Valeur planifiée"),
+  };
+}
+
 /**
  * Take a project the run creates, seeded with a planning, to In progress, and open the grid of its
  * remaining to commit with the tasks not started shown (none is started: the grid is empty
  * without them). Returns the address of the revision in progress, the grid, and the cell of the
- * label of the task « Mise en service », focused.
+ * label of the task « Mise en service », focused, with what the planning was seeded as.
  */
 async function openOwnRemaining(
   page: Page,
@@ -566,7 +603,7 @@ async function openOwnRemaining(
   await expect(cell).toBeVisible({ timeout: WORKING });
   await cell.click();
   await expect(cell).toBeFocused();
-  return { revision, grid, cell };
+  return { seeded, revision, grid, cell };
 }
 
 test("adds a task from the remaining to commit of a project in progress the run creates: it appears in the planning of the revision in progress @shared [WF-RAE-0040-A]", async ({
@@ -581,13 +618,15 @@ test("adds a task from the remaining to commit of a project in progress the run 
   test.slow();
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   try {
-    const { revision, grid, cell } = await openOwnRemaining(
+    const { seeded, revision, grid, cell } = await openOwnRemaining(
       page,
       browser,
       calls,
       manager,
       "Reste ajouté",
     );
+    // The reference and its figures before the addition: it moves neither (WF-RAE-0040-A, WF-RAE-0050-A).
+    const before = await referenceOf(page, seeded, revision);
     await page.keyboard.press("Insert");
     const dialog = page.getByRole("dialog", { name: "Insérer au-dessous" });
     await dialog.getByRole("textbox", { name: "Libellé" }).fill("Reprise des borniers");
@@ -597,7 +636,6 @@ test("adds a task from the remaining to commit of a project in progress the run 
     });
     await expect(dialog).toHaveCount(0);
     await expect(cell).toBeFocused();
-    await expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
     // The task, not started, is among the tasks of the grid read anew...
     await expect(grid.getByRole("row", { name: /Reprise des borniers/ })).toBeVisible({
       timeout: WORKING,
@@ -609,6 +647,15 @@ test("adds a task from the remaining to commit of a project in progress the run 
         .getByRole("treegrid", { name: "Grille de planning" })
         .getByRole("row", { name: /Reprise des borniers/ }),
     ).toBeVisible({ timeout: WORKING });
+    // ... while the reference revision is the same, without the task, and its budget and its
+    // planned value are those read before.
+    expect(await referenceOf(page, seeded, revision)).toEqual(before);
+    await openHydrated(page, `${seeded.own.path}/revisions/${before.reference}/planning`);
+    const referenced = page.getByRole("treegrid", { name: "Grille de planning" });
+    await expect(referenced.getByRole("row", { name: /Mise en service/ })).toBeVisible({
+      timeout: WORKING,
+    });
+    await expect(referenced.getByRole("row", { name: /Reprise des borniers/ })).toHaveCount(0);
   } finally {
     await calls.dispose();
   }
@@ -633,9 +680,10 @@ test("inserts a line in the remaining to commit of a project in progress the run
       .getByRole("menuitem", { name: "Insérer une ligne" })
       .click();
     const dialog = page.getByRole("dialog", { name: "Insérer une ligne" });
+    // A category of expense of the reference (`non_labor`), by its label: the roles come first in
+    // the list, and the witness holds the active role of the service (`wiringService`).
     const entry = dialog.getByRole("combobox", { name: "Rôle ou catégorie" });
-    await expect(entry.getByRole("option")).not.toHaveCount(0);
-    await entry.selectOption({ index: 0 });
+    await entry.selectOption({ label: EXPENSE });
     await dialog.getByRole("textbox", { name: "Libellé" }).fill("Consommables d’essais");
     await dialog.getByRole("textbox", { name: "Quantité" }).fill("2,5");
     await dialog.getByRole("button", { name: "Créer" }).click();
@@ -644,10 +692,12 @@ test("inserts a line in the remaining to commit of a project in progress the run
     });
     await expect(dialog).toHaveCount(0);
     await expect(cell).toBeFocused();
-    await expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
-    await expect(grid.getByRole("row", { name: /Consommables d’essais/ })).toBeVisible({
-      timeout: WORKING,
-    });
+    const created = grid.getByRole("row", { name: /Consommables d’essais/ });
+    await expect(created).toBeVisible({ timeout: WORKING });
+    await expect(created).toContainText(/2,5/);
+    // The grid does not name the category: it marks the line as a line of expense (a role would
+    // make a line of labour), and the quantity is the one entered.
+    await expect(created.getByRole("img", { name: "Ligne de débours" })).toBeVisible();
   } finally {
     await calls.dispose();
   }
