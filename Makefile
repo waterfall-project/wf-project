@@ -59,10 +59,12 @@ PNPM_TESTING = cd $(FRONT) && $(TESTING_FRONT) $(PNPM_ENV) WATERFALL_PROCESSORS=
 PRISM_VERSION := $(shell sed -n 's/^ *"@stoplight\/prism-cli": *"\([^"]*\)".*/\1/p' $(FRONT)/package.json)
 REDOCLY := $(abspath $(FRONT))/node_modules/.bin/redocly
 PRISM   := $(abspath $(FRONT))/node_modules/.bin/prism
-# What the recipes that run them need first: the installation of the front, unless both are there
-# already (the fake back is started by several processes of the harness, which must not install
-# at once: `make e2e` has installed before).
-FRONT_TOOLS = $(if $(and $(wildcard $(REDOCLY)),$(wildcard $(PRISM))),,install-front)
+# What the recipes that run them need first: the installation of the front, unless it is newer than
+# the lock file and package.json (the witness is the file pnpm keeps in node_modules, which
+# `make install-front` touches too). A raised version installs again; the fake back, started by
+# several processes of the harness, does not install at once when `make e2e` has installed before.
+FRONT_WITNESS := $(FRONT)/node_modules/.modules.yaml
+FRONT_TOOLS = $(FRONT_WITNESS)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
@@ -475,6 +477,11 @@ check-front-e2e: $(call full-only,e2e-browsers e2e prerendered-front) ## The end
 
 install-front: ## Install the dependencies of the front, as the lock file says
 	@$(PNPM) install --frozen-lockfile --silent
+	@test ! -d $(FRONT)/node_modules || touch $(FRONT_WITNESS)
+
+$(FRONT_WITNESS): $(FRONT)/pnpm-lock.yaml $(FRONT)/package.json
+	@$(PNPM) install --frozen-lockfile --silent
+	@touch $@
 
 generate-client: build-openapi install-front ## Regenerate the API client of the front from the contract
 	@$(PNPM) exec openapi-typescript ../$(BUNDLE) -o src/api/generated/schema.d.ts --silent
