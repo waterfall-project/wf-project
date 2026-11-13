@@ -279,11 +279,14 @@ describe("the end-to-end harness", () => {
     await expect(harness()).rejects.toThrow("must be 1");
   });
 
-  it.each(["paths", "measure"])("refuses E2E_SERVICE_SERIAL=1 under E2E_PART=%s (US-1910)", async (part) => {
-    vi.stubEnv("E2E_PART", part);
-    vi.stubEnv("E2E_SERVICE_SERIAL", "1");
-    await expect(harness()).rejects.toThrow("E2E_SERVICE_SERIAL=1 plays the last part");
-  });
+  it.each(["paths", "measure"])(
+    "refuses E2E_SERVICE_SERIAL=1 under E2E_PART=%s (US-1910)",
+    async (part) => {
+      vi.stubEnv("E2E_PART", part);
+      vi.stubEnv("E2E_SERVICE_SERIAL", "1");
+      await expect(harness()).rejects.toThrow("E2E_SERVICE_SERIAL=1 plays the last part");
+    },
+  );
 
   it("plays the paths alone, which can be spread over runners", async () => {
     vi.stubEnv("E2E_PART", "paths");

@@ -356,7 +356,9 @@ function serviceProjects(): Project[] {
       use,
     },
   ];
-  return projects.filter(({ name }) => !SERIAL_ALONE || !playedByTheOtherParts.includes(name ?? ""));
+  return projects.filter(
+    ({ name }) => !SERIAL_ALONE || !playedByTheOtherParts.includes(name ?? ""),
+  );
 }
 
 /** The measure, against the front built for production — unless the paths are played alone. */
