@@ -179,6 +179,153 @@ function ButtonLabel({ label }: { readonly label: string | undefined }) {
   return label === undefined ? null : <span className="text-muted-foreground">{label} </span>;
 }
 
+/** The change a menu applies: the values now chosen and, for a box, which one was toggled. */
+type Change = (
+  values: readonly string[],
+  toggled?: { readonly value: string; readonly checked: boolean },
+) => void;
+
+/** A value of a menu of one choice: a radio the arrows only reach. */
+function RadioRow({
+  value,
+  text,
+  chosen,
+  tabbable,
+  onChange,
+  onPick,
+}: {
+  readonly value: string;
+  readonly text: ReactNode;
+  readonly chosen: readonly string[];
+  readonly tabbable: string;
+  readonly onChange: Change;
+  readonly onPick: () => void;
+}) {
+  const checked = (chosen[0] ?? "") === value;
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={checked}
+      tabIndex={value === tabbable ? 0 : -1}
+      className={cn(
+        ROW,
+        "w-full text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+      )}
+      onClick={() => {
+        if (!checked) {
+          onChange(value === "" ? [] : [value]);
+        }
+        onPick();
+      }}
+    >
+      <span
+        aria-hidden="true"
+        className="flex size-4 shrink-0 items-center justify-center rounded-full border border-input bg-background"
+      >
+        {checked ? <span className="size-2 rounded-full bg-primary" /> : null}
+      </span>
+      {text}
+    </button>
+  );
+}
+
+/** A value of a menu of several: a box that applies at once. */
+function BoxRow({
+  option,
+  chosen,
+  onChange,
+}: {
+  readonly option: CheckOption;
+  readonly chosen: readonly string[];
+  readonly onChange: Change;
+}) {
+  return (
+    <label className={ROW}>
+      <Checkbox
+        checked={chosen.includes(option.value)}
+        disabled={option.disabled}
+        onCheckedChange={(checked) => {
+          const on = checked === true;
+          onChange(
+            on ? [...chosen, option.value] : chosen.filter((each) => each !== option.value),
+            { value: option.value, checked: on },
+          );
+        }}
+      />
+      {option.text}
+    </label>
+  );
+}
+
+/** The list of values of a menu: the choice that lifts the filter, then each value shown. */
+function OptionList({
+  label,
+  every,
+  shown,
+  chosen,
+  multiple,
+  everyChosen,
+  onChange,
+  onPick,
+}: {
+  readonly label: string;
+  readonly every: string;
+  readonly shown: readonly CheckOption[];
+  readonly chosen: readonly string[];
+  readonly multiple: boolean;
+  readonly everyChosen: boolean;
+  readonly onChange: Change;
+  readonly onPick: () => void;
+}) {
+  if (multiple) {
+    return (
+      <div role="group" aria-label={label} className="flex flex-col overflow-y-auto">
+        <label className={ROW}>
+          <Checkbox
+            checked={everyChosen}
+            onCheckedChange={() => {
+              // Every value is already the choice: nothing to ask of the server.
+              if (!everyChosen) {
+                onChange([]);
+              }
+            }}
+          />
+          {every}
+        </label>
+        {shown.map((option) => (
+          <BoxRow key={option.value} option={option} chosen={chosen} onChange={onChange} />
+        ))}
+      </div>
+    );
+  }
+  // The one radio Tab reaches: the one chosen if it is shown, else the first shown.
+  const current = chosen[0] ?? "";
+  const tabbable =
+    current === "" || shown.some((option) => option.value === current) ? current : "";
+  const rows = [{ value: "", text: every as ReactNode }, ...shown];
+  return (
+    <div
+      role="radiogroup"
+      aria-label={label}
+      onKeyDown={moveFocus}
+      className="flex max-h-60 flex-col overflow-y-auto"
+    >
+      {rows.map((row) => (
+        <RadioRow
+          key={row.value}
+          value={row.value}
+          text={row.text}
+          chosen={chosen}
+          tabbable={tabbable}
+          onChange={onChange}
+          onPick={onPick}
+        />
+      ))}
+    </div>
+  );
+}
+
 /** Render the menu of a list of values, those chosen checked. */
 export function CheckMenu({
   label,
@@ -214,10 +361,7 @@ export function CheckMenu({
    * What a choice applies: the values now chosen and, for a box checked or unchecked, which — a
    * filter goes on from the address last asked, not from the values shown.
    */
-  readonly onChange: (
-    values: readonly string[],
-    toggled?: { readonly value: string; readonly checked: boolean },
-  ) => void;
+  readonly onChange: Change;
   /** What a text typed in the search asks of the server, once the typing pauses; none, a search of the list alone. */
   readonly onQuery?: ((text: string) => void) | undefined;
   /** What stands under the list: the outcome of a search of the server. */
@@ -258,57 +402,6 @@ export function CheckMenu({
     setText("");
     onQuery?.("");
   };
-  // The one radio Tab reaches: the one chosen if it is shown, else the first shown.
-  const current = chosen[0] ?? "";
-  const tabbable =
-    current === "" || shown.some((option) => option.value === current) ? current : "";
-  /** A value of a menu of one choice: a radio the arrows only reach. */
-  const radio = (value: string, text: ReactNode) => {
-    const checked = (chosen[0] ?? "") === value;
-    return (
-      <button
-        key={value}
-        type="button"
-        role="radio"
-        aria-checked={checked}
-        tabIndex={value === tabbable ? 0 : -1}
-        className={cn(
-          ROW,
-          "w-full text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-        )}
-        onClick={() => {
-          if (!checked) {
-            onChange(value === "" ? [] : [value]);
-          }
-          close();
-        }}
-      >
-        <span
-          aria-hidden="true"
-          className="flex size-4 shrink-0 items-center justify-center rounded-full border border-input bg-background"
-        >
-          {checked ? <span className="size-2 rounded-full bg-primary" /> : null}
-        </span>
-        {text}
-      </button>
-    );
-  };
-  const lift = multiple ? (
-    <label className={ROW}>
-      <Checkbox
-        checked={everyChosen}
-        onCheckedChange={() => {
-          // Every value is already the choice: nothing to ask of the server.
-          if (!everyChosen) {
-            onChange([]);
-          }
-        }}
-      />
-      {every}
-    </label>
-  ) : (
-    radio("", every)
-  );
   return (
     <div className={cn("flex flex-col gap-1 text-sm", look.menu)}>
       {look.above ? <Label id={`${id}-label`}>{label}</Label> : null}
@@ -356,39 +449,16 @@ export function CheckMenu({
               className="h-8"
             />
           ) : null}
-          {multiple ? (
-            <div role="group" aria-label={label} className="flex flex-col overflow-y-auto">
-              {lift}
-              {shown.map((option) => (
-                <label key={option.value} className={ROW}>
-                  <Checkbox
-                    checked={chosen.includes(option.value)}
-                    disabled={option.disabled}
-                    onCheckedChange={(checked) => {
-                      const on = checked === true;
-                      onChange(
-                        on
-                          ? [...chosen, option.value]
-                          : chosen.filter((each) => each !== option.value),
-                        { value: option.value, checked: on },
-                      );
-                    }}
-                  />
-                  {option.text}
-                </label>
-              ))}
-            </div>
-          ) : (
-            <div
-              role="radiogroup"
-              aria-label={label}
-              onKeyDown={moveFocus}
-              className="flex max-h-60 flex-col overflow-y-auto"
-            >
-              {lift}
-              {shown.map((option) => radio(option.value, option.text))}
-            </div>
-          )}
+          <OptionList
+            label={label}
+            every={every}
+            shown={shown}
+            chosen={chosen}
+            multiple={multiple}
+            everyChosen={everyChosen}
+            onChange={onChange}
+            onPick={close}
+          />
           {shown.length === 0 ? (
             <p className="px-1 text-xs text-muted-foreground">{t("noMatch")}</p>
           ) : null}
