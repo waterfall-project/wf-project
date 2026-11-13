@@ -136,7 +136,11 @@ def test_every_service_that_builds_is_built_by_the_recipes_that_start_it() -> No
     The runner of the family `repo` has it; the guide does not say so yet (#2304).
     """
     makefile = (REPOSITORY / "Makefile").read_text("utf-8")
-    prism = re.search(r"^PRISM_VERSION\s*:?=\s*(\S+)", makefile, re.MULTILINE)
+    prism = re.search(
+        r'^\s*"@stoplight/prism-cli":\s*"([^"]+)"',
+        (REPOSITORY / "frontend/package.json").read_text("utf-8"),
+        re.MULTILINE,
+    )
     assert prism is not None
     shown = subprocess.run(
         [
@@ -157,7 +161,7 @@ def test_every_service_that_builds_is_built_by_the_recipes_that_start_it() -> No
         check=False,
         capture_output=True,
         text=True,
-        env={**os.environ, **stand_ins(makefile), "PRISM_VERSION": prism.group(1)},
+        env={**os.environ, **stand_ins(makefile), "PRISM_VERSION": prism[1]},
     )
     assert shown.returncode == 0, shown.stderr
     config = json.loads(shown.stdout)
@@ -222,3 +226,60 @@ def test_only_the_command_that_starts_names_the_services_it_builds() -> None:
         "\t@true\n"
     )
     assert built_when_started(DRAFT_COMPOSE, draft) == {"api"}
+
+
+def make_variable(name: str) -> str:
+    """Return the value `make` gives a variable of the Makefile."""
+    shown = subprocess.run(
+        ["make", "-pn", "help"], check=True, capture_output=True, text=True, cwd=REPOSITORY
+    ).stdout
+    found = re.search(rf"^{name} :?= (.*)$", shown, re.MULTILINE)
+    assert found is not None, name
+    return found[1]
+
+
+def test_redocly_and_prism_are_pinned_exactly_and_the_makefile_reads_the_pin() -> None:
+    """Pin the two tools of the contract to a version, the one that Compose names too (#2913)."""
+    package = json.loads((REPOSITORY / "frontend/package.json").read_text("utf-8"))
+    pinned = {**package.get("dependencies", {}), **package.get("devDependencies", {})}
+    for name in ("@redocly/cli", "@stoplight/prism-cli"):
+        assert re.fullmatch(r"\d+\.\d+\.\d+", pinned[name]), f"{name} is not an exact version"
+    assert make_variable("PRISM_VERSION") == pinned["@stoplight/prism-cli"]
+
+
+def test_a_lock_file_newer_than_the_installation_installs_the_front_again() -> None:
+    """Install before running the tools of the contract when the lock file was raised (#2913)."""
+    witness = REPOSITORY / "frontend/node_modules/.modules.yaml"
+    if not witness.exists():
+        pytest.skip("the front is not installed: the witness is missing, and the install is due")
+    newer = subprocess.run(
+        ["make", "-n", "-W", "frontend/pnpm-lock.yaml", "lint-openapi"],
+        check=True,
+        capture_output=True,
+        text=True,
+        cwd=REPOSITORY,
+    ).stdout
+    assert "pnpm install --frozen-lockfile" in newer
+    older = subprocess.run(
+        [
+            "make",
+            "-n",
+            "-o",
+            "frontend/pnpm-lock.yaml",
+            "-o",
+            "frontend/package.json",
+            "lint-openapi",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        cwd=REPOSITORY,
+    ).stdout
+    assert "pnpm install" not in older
+
+
+def test_the_download_of_pandoc_is_cut_by_a_stalled_transfer_and_by_a_total_time() -> None:
+    """Bound the download of pandoc by the stall of a transfer and by four minutes in all."""
+    workflow = (REPOSITORY / ".github/workflows/spec.yml").read_text("utf-8")
+    assert re.search(r"timeout 240 curl\b[^|]*--speed-limit \d+ --speed-time \d+", workflow)
+    assert "--max-time" not in workflow

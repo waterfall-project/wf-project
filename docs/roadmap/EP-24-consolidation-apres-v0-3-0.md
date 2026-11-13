@@ -528,7 +528,7 @@ et les modèles régénérés.
 
 ## US-1850 — Les filtres des tables : la vérification de L5 et de L6 terminée, les mineurs reportés soldés
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0060-A`
 - **opérations** : `getMe`, `updateMyPreferences`
 - **issue** : #2933

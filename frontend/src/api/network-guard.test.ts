@@ -178,6 +178,8 @@ const DEPENDENCIES = [
 const DEV_DEPENDENCIES = [
   "@eslint/js",
   "@playwright/test",
+  "@redocly/cli",
+  "@stoplight/prism-cli",
   "@tailwindcss/postcss",
   "@testing-library/dom",
   "@testing-library/jest-dom",

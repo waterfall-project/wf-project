@@ -1784,7 +1784,8 @@ retenu par aucun, `exhaustive: false`, EP-02/L42f) et par état, un seul choix (
 les actifs seuls, les désactivés seuls —, qui dit ce que la grille montre : la page demande toujours
 les désactivés aussi (`include_inactive=true`, le contrat les masquant par défaut), une adresse
 d'avant qui les masquait (`include_inactive=false`) se lit « Comptes actifs » (`readAccountState`),
-et tout choix lève ce paramètre ancien (`lifts` de `ChoiceFilter`) — et paginés par le serveur, sous
+un filtre de la grille, gardé avec ses réglages comme les autres (`USER_FILTERS`, #2916) — seul
+dans l'adresse, il n'est donc pas remplacé par les filtres gardés —, et tout choix lève ce paramètre ancien (`lifts` de `ChoiceFilter`) — et paginés par le serveur, sous
 les noms du contrat — un tri, une recherche ou un filtre ramenant à la première page —, la ligne des
 totaux disant combien le serveur en retient (`meta.total`), l'écran remplissant la fenêtre ; la
 recherche porte sur le nom, le prénom, l'adresse et le nom affiché, sans égard à la casse ni aux
@@ -3669,9 +3670,9 @@ Règles des workflows :
   ignorées : elles suivent l'image de Keycloak. La majeure de TypeScript n'a pas de règle
   d'ignorance : l'auteur ferme sa pull request tant que `typescript-eslint` ne la tient pas.
 - Dependabot ne suit pas, et l'auteur relève à la main, à la pull request mensuelle de
-  Dependabot : `REDOCLY_VERSION` et `PRISM_VERSION` du `Makefile`, `packageManager` du front,
-  l'uv et le client PostgreSQL de l'image `waterfall` (et sa clé, `backend/pgdg.asc`), les
-  runners et le pandoc de la chaîne, et `maven.compiler.release` du `pom.xml` de l'extension,
+  Dependabot : `packageManager` du front, l'uv et le client PostgreSQL de l'image `waterfall`
+  (et sa clé, `backend/pgdg.asc`), les runners et le pandoc de la chaîne, et
+  `maven.compiler.release` du `pom.xml` de l'extension,
   qui reste à 21 exprès (le Java de l'image de Keycloak, pas le JDK de construction) : il se
   relève quand cette image change de Java.
 
@@ -4035,12 +4036,20 @@ vérifiée est dans la fenêtre : au-delà des lignes en vue à l'ouverture, le 
 elle (`scrollToPosition`, `frontend/e2e/scroll.ts`) plutôt que de compter sur la marge que la grille
 rend autour de la fenêtre.
 
-`make e2e` : `make mock-tools` met d'abord en cache les Redocly et Prism épinglés (leur
-installation par `npx` comptait dans les 120 s que Playwright donne au faux back, #1901) — il en
-est de même de `make e2e-measure` et de `make e2e-service`, dont Playwright démarre aussi le faux
-back ; Playwright démarre le faux back (`make mock`) et le front, joue les parcours
-dans Chromium, puis arrête les deux — il signale leur groupe de processus entier, sans quoi
-les serveurs que `make` et `pnpm` lancent survivraient. Il démarre toujours ses propres
+`make e2e` : Redocly et Prism sont des dépendances de développement du front, à version exacte
+(`frontend/package.json`, verrouillées par `pnpm-lock.yaml`) : `make install-front`, que la cible
+joue d'abord, les met dans le magasin de pnpm (le cache de la chaîne), d'où le `Makefile` les lit,
+sans `npx --yes` ni registre de npm à chaque passage — leur installation par `npx` comptait dans
+les 120 s que Playwright donne au faux back (#1901), et un registre muet faisait échouer le passage
+avant son premier test (#2913). Les cibles qui lancent Redocly ou Prism sans `install-front`
+(`lint-openapi`, `mock-spec`) installent quand `package.json` ou le verrou sont plus récents que
+`node_modules/.modules.yaml` : un relèvement de version s'installe au passage suivant. Un registre
+qui refuse la connexion fait échouer l'installation en 70 s environ, sur une erreur qui nomme
+l'adresse du paquet demandé ; elle n'a pas d'autre borne, et un registre muet attend celle du
+réseau. Il en est de même de `make e2e-measure` et de `make e2e-service`, dont
+Playwright démarre aussi le faux back. Playwright démarre le faux back (`make mock`) et le front,
+joue les parcours dans Chromium, puis arrête les deux — il signale leur groupe de processus entier,
+sans quoi les serveurs que `make` et `pnpm` lancent survivraient. Il démarre toujours ses propres
 serveurs, sur des ports à lui — ceux du créneau du worktree (« Commandes », « Les créneaux des
 worktrees ») : 4110 pour le faux back et 3100 pour le front dans le dépôt principal, au créneau 0,
 `20000 + 100·i + 20` et `+ 40` au créneau i d'un worktree de lot, qui fait d'abord `make slot` —,

@@ -1784,7 +1784,9 @@ being kept by none, `exhaustive: false`, EP-02/L42f) and by state, a single choi
 all, the active ones only, the deactivated ones only —, which says what the grid shows: the page
 always asks for the deactivated ones too (`include_inactive=true`, the contract hiding them by
 default), an address from before that hid them (`include_inactive=false`) reads as « Active
-accounts » (`readAccountState`), and any choice lifts that old parameter (`lifts` of
+accounts » (`readAccountState`), a filter of the grid, kept with its settings like the others
+(`USER_FILTERS`, #2916) — alone in the address, it is therefore not replaced by the filters kept —,
+and any choice lifts that old parameter (`lifts` of
 `ChoiceFilter`) — and paginated by the server, under the names of the contract — a sort, a search
 or a filter bringing back to the first page —, the totals row saying how many the server keeps
 (`meta.total`), the screen filling the window; the search covers the surname, the first name, the
@@ -3640,11 +3642,10 @@ Rules of the workflows:
   follow the Keycloak image. The TypeScript major has no ignore rule: the author closes its
   pull request as long as `typescript-eslint` does not support it.
 - Dependabot does not follow, and the author bumps by hand, at Dependabot's monthly pull
-  request: `REDOCLY_VERSION` and `PRISM_VERSION` of the `Makefile`, the front's
-  `packageManager`, the uv and the PostgreSQL client of the `waterfall` image (and its key,
-  `backend/pgdg.asc`), the runners and the pandoc of the chain, and `maven.compiler.release`
-  of the extension's `pom.xml`, which stays at 21 on purpose (the Java of the Keycloak image,
-  not the build JDK): it is bumped when that image changes Java.
+  request: the front's `packageManager`, the uv and the PostgreSQL client of the `waterfall`
+  image (and its key, `backend/pgdg.asc`), the runners and the pandoc of the chain, and
+  `maven.compiler.release` of the extension's `pom.xml`, which stays at 21 on purpose (the
+  Java of the Keycloak image, not the build JDK): it is bumped when that image changes Java.
 
 _Check_: `make lint-workflows` (actionlint); the pinning and the permissions, the review.
 
@@ -4002,11 +4003,19 @@ checked is in the viewport: beyond the lines in view at opening, the path scroll
 (`scrollToPosition`, `frontend/e2e/scroll.ts`) rather than counting on the margin the grid renders
 around the viewport.
 
-`make e2e`: `make mock-tools` first caches the pinned Redocly and Prism (their installation by `npx`
-counted in the 120 s Playwright gives the fake back, #1901) — so do `make e2e-measure` and
-`make e2e-service`, for which Playwright also starts the fake back; Playwright starts the fake back
-(`make mock`) and the front, plays the paths in Chromium, then stops both — it signals their whole
-process group, without which the servers that `make` and `pnpm` start would survive. It always
+`make e2e`: Redocly and Prism are development dependencies of the front, at an exact version
+(`frontend/package.json`, locked by `pnpm-lock.yaml`): `make install-front`, which the target plays
+first, puts them in the store of pnpm (the cache of the chain), where the `Makefile` reads them,
+with no `npx --yes` and no registry of npm at each run — their installation by `npx` counted in the
+120 s Playwright gives the fake back (#1901), and a silent registry failed the run before its first
+test (#2913). The targets that run Redocly or Prism without `install-front` (`lint-openapi`,
+`mock-spec`) install when `package.json` or the lock file is newer than
+`node_modules/.modules.yaml`: a raised version is installed on the next run. A registry that
+refuses the connection fails the installation in about 70 s, on an error that names the address of
+the package asked for; it has no other bound, and a silent registry waits for the network's. The
+same goes for `make e2e-measure` and `make e2e-service`, for which Playwright also starts the fake
+back. Playwright starts the fake back (`make mock`) and the front, plays the paths in Chromium, then
+stops both — it signals their whole process group, without which the servers that `make` and `pnpm` start would survive. It always
 starts its own servers, on ports of its own — those of the slot of the worktree (« Commands », « The
 slots of the worktrees »): 4110 for the fake back and 3100 for the front in the main repository, at
 slot 0, `20000 + 100·i + 20` and `+ 40` at slot i of a worktree of a lot, which runs `make slot`
