@@ -527,6 +527,52 @@ def test_between_two_reference_years_only_the_re_estimated_amounts_differ_by_the
     }
 
 
+@pytest.mark.requirement(REQUIREMENT)
+def test_between_two_reference_years_a_disbursement_line_differs_by_its_projected_amount(
+    api: ContractClient, stage: Scene, costs: Costing, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # « Entre deux révisions d'années de référence différentes, les montants réestimés diffèrent en
+    # outre [...] sur chaque ligne de débours, dont le montant est projeté de même (WF-DEV-0030) ;
+    # les tâches et les montants budgétés restent ceux du différentiel. » : the same set-up as the
+    # labour line, with a line of material consumed two years after the first reference, whose
+    # re-estimated amount alone differs. A labour line is kept beside it: the lines of a revision
+    # are priced again when its rates are projected, and a revision with no labour line is not
+    # (a defect, outside the lot).
+    offer = opened(api, stage)
+    tree = Tree(api, stage, offer)
+    wiring = tree.made(
+        "Câblage",
+        task={
+            "scheduling_mode": "manual",
+            "start": {"date": f"{YEAR + 2}-03-02"},
+            "finish": {"date": f"{YEAR + 2}-03-03"},
+        },
+    )
+    Lines(tree).made(wiring, **material(costs, "Câbles", "200.00"))
+    Lines(tree).made(tree.made("Montage"), **labour(costs, "Montage — Ingénieur"))
+    mark(stage, offer, "v1.0")
+    designate(api, stage, offer)
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(Project)
+            .where(Project.id == UUID(stage.project["project_id"]))
+            .values(inflation_rate=Decimal("0.03"))
+        )
+    monkeypatch.setattr("waterfall.api.revisions.utc_now", lambda: LATER)
+    amendment = opened(api, stage)
+    assert amendment["reference_year"] == YEAR + 1
+    following = Tree(api, stage, amendment)
+    mark(stage, amendment, "v2.0")
+    found = compared(api, stage, (offer, amendment))
+    before = by_label(tree.items())["Câbles"]["estimate_line"]
+    after = by_label(following.items())["Câbles"]["estimate_line"]
+    line = by_label(found["items"])["Câbles"]
+    assert before["budgeted_amount"] == after["budgeted_amount"]
+    assert before["reestimated_amount"] != after["reestimated_amount"]
+    assert (line["difference"], line["changes"]) == ("modified", ["reestimated_amount"])
+    assert Decimal(after["reestimated_amount"]) == Decimal("206.00")
+
+
 # --- The reading, as listNodes reads a structure -------------------------------------------------
 
 
