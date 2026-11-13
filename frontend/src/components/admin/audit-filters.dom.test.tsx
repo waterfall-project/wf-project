@@ -65,6 +65,7 @@ function accounts(filters: AuditFilters = audit(), kept?: GridPreferences): Reac
           orgNode={undefined}
           roles={[]}
           accessRoles={[]}
+          withoutRole={false}
           active={undefined}
           audit={filters}
           authors={authorsOf(users.items)}

@@ -63,8 +63,7 @@ export function ValuesFilter<Value extends string>({
    * of the filter names none.
    */
   readonly said?:
-    | { readonly name: string; readonly value: string; readonly reads: Value }
-    | undefined;
+    { readonly name: string; readonly value: string; readonly reads: Value } | undefined;
   /**
    * One of the `values` that the address writes under a parameter of its own, `true` when checked
    * (« Sans rôle », `without_access_role`), beside the others, in union with them; it does not count

@@ -54,6 +54,7 @@ function accounts(limit: number, kept?: GridPreferences, total = 120): ReactNode
           orgNode={undefined}
           roles={[]}
           accessRoles={[]}
+          withoutRole={false}
           active={undefined}
           audit={readAuditFilters(new URLSearchParams())}
           authors={authorsOf(users.items)}

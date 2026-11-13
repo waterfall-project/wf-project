@@ -148,14 +148,15 @@ function UserFilterPanel({
 
 /**
  * The accounts of a page of the list, filtered by origin, by node, by access role — the accounts
- * that hold one of those chosen, or none at all when « Sans rôle » is checked —, by state — the active or the deactivated ones alone; none, every account — and by the period and the
- * author of their creation and of their last modification (`AuditFilterBar`), a period the API
- * refused said at its field, the list unread; or that the installation has none — only when the
- * list holds none at all and nothing narrows it: a page asked beyond its end is no empty list; its
- * pages say where it stands (`ListPages`). At the head of the section, « Créer un compte local »
- * for a session that may modify the accounts (`UserCommands`) — offered on an empty list too — and
- * the menu « ⋯ » of the reading of the identity provider (`identity`); for that session too, the
- * region that says what a write did, the refusals told above it, and the grid its own entry.
+ * that hold one of those chosen, or none at all when « Sans rôle » is checked —, by state — the
+ * active or the deactivated ones alone; none, every account — and by the period and the author of
+ * their creation and of their last modification (`AuditFilterBar`), a period the API refused said
+ * at its field, the list unread; or that the installation has none — only when the list holds none
+ * at all and nothing narrows it: a page asked beyond its end is no empty list; its pages say where
+ * it stands (`ListPages`). At the head of the section, « Créer un compte local » for a session
+ * that may modify the accounts (`UserCommands`) — offered on an empty list too — and the menu
+ * « ⋯ » of the reading of the identity provider (`identity`); for that session too, the region
+ * that says what a write did, the refusals told above it, and the grid its own entry.
  */
 export function UserList({
   users,

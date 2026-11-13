@@ -136,7 +136,7 @@ describe("the accounts", () => {
     expect((await usersMetadata()).title).toBe("Gestion des utilisateurs — Waterfall");
   });
 
-  it("put the reading of the accounts of the identity provider behind a menu « ⋯ » beside « Créer un compte local », its report read for it (the popover is closed) [US-1860]", async () => {
+  it("put the reading of the accounts of the identity provider behind a menu « ⋯ » beside « Créer un compte local », its report read for it (the popover is closed)", async () => {
     const page = rendered(await UsersPage(searched()));
     const menu = page.indexOf(
       'aria-label="Lecture des comptes du fournisseur d’identité : état et commandes"',

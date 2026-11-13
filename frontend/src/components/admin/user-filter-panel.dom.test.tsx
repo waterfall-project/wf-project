@@ -61,6 +61,7 @@ function list(
           orgNode={undefined}
           roles={[]}
           accessRoles={[]}
+          withoutRole={false}
           active={readAccountState(new URLSearchParams(page.search))}
           audit={NO_AUDIT}
           authors={authorsOf(users.items)}

@@ -364,7 +364,7 @@ test("sorts, searches and filters the accounts by the server, under the names of
   await expect(toggle).toBeFocused();
 });
 
-test("keeps the reading of the accounts of the identity provider behind a menu « ⋯ » beside « Créer un compte local », out of the way of the table [US-1860]", async ({
+test("keeps the reading of the accounts of the identity provider behind a menu « ⋯ » beside « Créer un compte local », out of the way of the table", async ({
   page,
 }) => {
   await page.goto("/admin/users");

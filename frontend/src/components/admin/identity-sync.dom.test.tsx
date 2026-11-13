@@ -321,7 +321,7 @@ describe("the menu « ⋯ » of the reading of the accounts", () => {
     await expectAccessible(document.body);
   });
 
-  it("tells a refusal of the reading beside the menu, and keeps it when the menu is closed unread [US-1860]", async () => {
+  it("tells a refusal of the reading beside the menu, and keeps it when the menu is closed unread", async () => {
     serve({ [START]: { problem: { code: "PERMISSION_MISSING", status: 403 } } });
     menu();
     await userEvent.click(trigger());
@@ -359,6 +359,11 @@ describe("the menu « ⋯ » of the reading of the accounts", () => {
     expect(form).toBeVisible();
     expect(form.contains(document.activeElement)).toBe(true);
     // The menu stays: the dialog is not a click outside of it.
-    expect(screen.getByRole("dialog", { name: "Lecture des comptes du fournisseur d’identité", hidden: true })).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", {
+        name: "Lecture des comptes du fournisseur d’identité",
+        hidden: true,
+      }),
+    ).toBeInTheDocument();
   });
 });
