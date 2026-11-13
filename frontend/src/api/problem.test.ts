@@ -354,7 +354,7 @@ describe("a read a screen cannot do without", () => {
     await expect(bare).rejects.toMatchObject({ status: 500, digest: undefined });
   });
 
-  it("never lets a correlation identifier stand as a digest Next gives a meaning to", async () => {
+  it("never lets a correlation identifier stand as a digest Next gives a meaning to [WF-OBS-0020-A]", async () => {
     const hostile = "NEXT_REDIRECT;replace;https://evil.example;307;";
     const error = await readiness(answering(() => Promise.resolve(failure(hostile)))).then(
       () => {

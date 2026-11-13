@@ -35,6 +35,21 @@ const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: un
 const refresh = vi.hoisted(() => vi.fn());
 const page = vi.hoisted(() => ({ search: "" }));
 
+// The commands of a list, which a test may have answer by a rejection instead of an outcome: the
+// hold of the page catches the rejections of a server action, a command that is lost is not one.
+const lost = vi.hoisted(() => ({ on: false }));
+
+vi.mock("@/components/commands/held", async (original) => {
+  const actual = await original<typeof import("@/components/commands/held")>();
+  return {
+    ...actual,
+    useHeldCommand: (...args: Parameters<typeof actual.useHeldCommand>) => {
+      const real = actual.useHeldCommand(...args);
+      return ((...asked: Parameters<typeof real>) =>
+        lost.on ? Promise.reject(new Error("lost")) : real(...asked)) as typeof real;
+    },
+  };
+});
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/cache", () => ({ refresh }));
 vi.mock("next/navigation", async (original) => ({
@@ -111,6 +126,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   refresh.mockReset();
+  lost.on = false;
 });
 
 describe("the creation of a role in line", () => {
@@ -574,6 +590,43 @@ describe("the writes of a same role, one at a time (#2261)", () => {
     await waitFor(() => {
       expect(remove).toHaveAttribute("aria-busy", "false");
     });
+    expect(remove).not.toHaveAttribute("aria-disabled", "true");
+    expect(label("Administrateur")).toHaveAttribute("aria-busy", "false");
+    expect(label("Administrateur")).not.toHaveAttribute("aria-disabled");
+    expect(cell("Administrateur")).toHaveAttribute("aria-busy", "false");
+    expect(cell("Administrateur")).not.toHaveAttribute("aria-disabled");
+  });
+
+  it("frees a role whose confirmed deletion rejects, its row, label, cells and « Supprimer » active again [WF-ADM-0010-A]", async () => {
+    // Nothing catches this rejection: it must not leave the role writing for good (#2898).
+    serve({ [DELETED]: { status: 204 }, [WRITTEN]: "access_role_updated" });
+    const shown = permissions.filter(({ code }) => code === "planning.write");
+    render(inFrench(tableAndMatrix(shown)));
+    const grid = screen.getByRole("grid", { name: "Rôles d’habilitation" });
+    const name = "Supprimer «\u00a0Administrateur\u00a0»";
+    await userEvent.click(within(grid).getByRole("button", { name }));
+    const confirmation = await screen.findByRole("alertdialog");
+    const unhandled: unknown[] = [];
+    const listeners = process.listeners("unhandledRejection");
+    process.removeAllListeners("unhandledRejection");
+    process.on("unhandledRejection", (reason) => unhandled.push(reason));
+    lost.on = true;
+    let remove: HTMLElement;
+    try {
+      await userEvent.click(within(confirmation).getByRole("button", { name: "Supprimer" }));
+      remove = within(grid).getByRole("button", { name });
+      await waitFor(() => {
+        expect(unhandled).toHaveLength(1);
+      });
+      await waitFor(() => {
+        expect(remove).toHaveAttribute("aria-busy", "false");
+      });
+    } finally {
+      process.removeAllListeners("unhandledRejection");
+      for (const listener of listeners) {
+        process.on("unhandledRejection", listener);
+      }
+    }
     expect(remove).not.toHaveAttribute("aria-disabled", "true");
     expect(label("Administrateur")).toHaveAttribute("aria-busy", "false");
     expect(label("Administrateur")).not.toHaveAttribute("aria-disabled");
