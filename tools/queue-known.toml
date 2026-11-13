@@ -211,10 +211,21 @@ cause = "hypothèse : la lecture de la charge de PRJ-001, lente sous plusieurs w
 # Famille D — la restauration (US-1890/L4) : trois causes, lues au journal des 16 passages où
 # `backups.spec.ts` a échoué, du 2026-11-09 au 2026-11-10, toutes corrigées dans `epic/EP-07` avant
 # le 2026-11-10 à 10 h 24 UTC. Depuis, sur les passages de la file créés jusqu'au 2026-11-12 à
-# 23 h 18 UTC, `service / paths` a réussi 66 fois — le parcours joué et passé, à `:218` — et aucun
-# de ses échecs ne nomme `backups.spec.ts` (le projet `restoration` y est sauté, 17 ou 18 parcours
-# « skipped »). Une ligne de parcours bouge avec son fichier : `:155` et `:240` sont celles des
-# versions de ces passages, et un échec du parcours d'aujourd'hui reste « à classer ».
+# 23 h 18 UTC, `service / paths` a réussi 66 fois toutes branches confondues — le parcours joué et
+# passé, à `:218` — et aucun de ses échecs ne nomme `backups.spec.ts` (le projet `restoration` y
+# est sauté, 17 ou 18 parcours « skipped »). Seules les files dont le commit porte 38d0cfb2
+# éprouvent le correctif de la cause 1 (une installation qui a joué les parcours d'EP-07, archive
+# de plus de 5 Mio) : 44 des 66 (`git merge-base --is-ancestor 38d0cfb2 <headSha>` ; EP-07 8,
+# EP-09 13, EP-24 13, main 6, cadrage 3, EP-23 1) ; les 22 autres (EP-23, EP-06, EP-09 et main
+# avant EP-07) ne l'éprouvent pas. Ces comptes se refont par
+#   gh run list --workflow chain --event merge_group --limit 400 \
+#     --created '2026-11-10T10:24:00Z..2026-11-12T23:18:00Z' --json databaseId,headBranch,headSha
+# puis, pour chaque passage, `gh run view <id> --json jobs` (conclusion de `service / paths`).
+# Non reproduite sur `epic/EP-24`, comme l'US le voulait : les trois correctifs y sont, et 13
+# passages de sa file sans échec de `backups.spec.ts` ne dépassent pas la cinquantaine demandée ;
+# sur toutes les branches qui les portent, 44 passages. Une ligne de parcours bouge avec son
+# fichier : `:155` et `:240` sont celles des versions de ces passages, et un échec du parcours
+# d'aujourd'hui reste « à classer ».
 
 [[known]]
 class = "known flakiness"
@@ -245,7 +256,7 @@ job = "^service / paths$"
 test = 'e2e/service/backups\.spec\.ts:155\b'
 message = 'Timeout: 420000ms'
 frequency = "3 passages le 2026-11-09, de 10 h à 13 h UTC, sur #2638 et #2672 : la restauration ni terminée ni refusée en 420 s (`backups.spec.ts:262`)"
-cause = "établie : `pg_restore --single-transaction` après `DROP SCHEMA public CASCADE` verrouille chaque table, partition par projet et index ; les parcours d'EP-07 créent assez de projets pour passer les 64 verrous par transaction du défaut, la restauration échoue (« out of shared memory ») et la plateforme reste en maintenance. Corrigée par `max_locks_per_transaction` à 1024 (783db2ed, fusionnée dans `epic/EP-07` le 2026-11-09 à 13 h 27 UTC par #2638, 97eeff48) ; 42622915790, de #2672, la précède dans la file. Le journal du job ne verse pas celui du worker : la cause est celle que 783db2ed a mesurée"
+cause = "hypothèse : `pg_restore --single-transaction` après `DROP SCHEMA public CASCADE` verrouille chaque table, partition par projet et index ; les parcours d'EP-07 créent assez de projets pour passer les 64 verrous par transaction du défaut, la restauration échoue (« out of shared memory ») et la plateforme reste en maintenance. Seule source : le message de 783db2ed, qui a mesuré la cause et l'a corrigée par `max_locks_per_transaction` à 1024 (fusionnée dans `epic/EP-07` le 2026-11-09 à 13 h 27 UTC par #2638, 97eeff48) ; 42622915790, de #2672, la précède dans la file. Le journal du worker n'est pas versé dans celui du job : ceux des trois passages (42598617718, 42599195472, 42622915790) ne portent ni `shared memory` ni `max_locks`"
 
 [[known]]
 class = "regression"

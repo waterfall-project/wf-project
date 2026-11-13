@@ -329,6 +329,16 @@ def test_the_restoration_family_is_classified_by_its_three_causes_in_their_runs_
     assert catalogue.classify(replace(found, run=43325185785)) == (queue.TO_CLASSIFY, None)
 
 
+def test_a_cause_of_the_restoration_line_155_under_the_run_of_another_is_left_to_classify() -> None:
+    # US-1890/L4: `:155` has two causes, each bounded to its own runs; the log of one under a run
+    # of the other is a failure no one has read.
+    catalogue = queue.read_catalogue()
+    (prism,) = queue.failures_of(42786655299, SERVICE, log("playwright-backups-restore"))
+    (locks,) = queue.failures_of(42622915790, SERVICE, log("playwright-backups-restoration-end"))
+    assert catalogue.classify(replace(prism, run=locks.run)) == (queue.TO_CLASSIFY, None)
+    assert catalogue.classify(replace(locks, run=prism.run)) == (queue.TO_CLASSIFY, None)
+
+
 @pytest.mark.parametrize(
     ("name", "run", "job", "classified"),
     [
