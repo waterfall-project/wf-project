@@ -289,7 +289,7 @@ function serviceProjects(): Project[] {
   // server of Next trusts by NODE_EXTRA_CA_CERTS, and the browser by this.
   const use = { ...devices["Desktop Chrome"], locale: "fr-FR", ignoreHTTPSErrors: true };
   // Alone on its platform, the last part neither plays nor waits for the projects the others play.
-  const spread = ["service", "shared"];
+  const playedByTheOtherParts = ["service", "shared"];
   const beside = (...names: string[]) => (SERIAL_ALONE ? [] : names);
   const projects: Project[] = [
     {
@@ -326,6 +326,7 @@ function serviceProjects(): Project[] {
       name: "shared-serial",
       testIgnore: [MEASURES, SERVICE_PATHS],
       grep: SERIAL,
+      // Waits for `shared` alone, not for `service`: the graph the full part has always drawn.
       dependencies: ["installation", ...beside("shared")],
       workers: 1,
       use,
@@ -336,7 +337,7 @@ function serviceProjects(): Project[] {
       name: "realm",
       testMatch: SERVICE_PATHS,
       grep: REALM_WIDE,
-      dependencies: ["installation", ...beside(...spread), "shared-serial"],
+      dependencies: ["installation", ...beside(...playedByTheOtherParts), "shared-serial"],
       workers: 1,
       use,
     },
@@ -345,7 +346,7 @@ function serviceProjects(): Project[] {
       name: "restoration",
       testMatch: SERVICE_PATHS,
       grep: PLATFORM_WIDE,
-      dependencies: ["installation", ...beside(...spread), "shared-serial", "realm"],
+      dependencies: ["installation", ...beside(...playedByTheOtherParts), "shared-serial", "realm"],
       workers: 1,
       use,
     },
@@ -355,7 +356,7 @@ function serviceProjects(): Project[] {
       use,
     },
   ];
-  return projects.filter(({ name }) => !SERIAL_ALONE || !spread.includes(name ?? ""));
+  return projects.filter(({ name }) => !SERIAL_ALONE || !playedByTheOtherParts.includes(name ?? ""));
 }
 
 /** The measure, against the front built for production — unless the paths are played alone. */

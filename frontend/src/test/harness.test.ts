@@ -229,7 +229,7 @@ describe("the end-to-end harness", () => {
     expect(projectsOf(config).map(([name]) => name)).not.toContain("measure");
   });
 
-  it("plays the paths against the service in projects, those that change the whole after the others", async () => {
+  it("plays the paths against the service in projects, those that change the whole after the others (US-1910)", async () => {
     againstTheService();
     expect(projectsOf(await harness())).toEqual([
       ["installation", []],
@@ -254,7 +254,33 @@ describe("the end-to-end harness", () => {
     ]);
   });
 
-  it("refuses the last part of the paths against the service elsewhere", async () => {
+  it("refuses the last part of the paths against the service elsewhere (US-1910)", async () => {
+    vi.stubEnv("E2E_SERVICE_SERIAL", "1");
+    await expect(harness()).rejects.toThrow("E2E_SERVICE_SERIAL=1 plays the last part");
+  });
+
+  it("plays every project against the service when E2E_SERVICE_SERIAL is empty (US-1910)", async () => {
+    againstTheService();
+    vi.stubEnv("E2E_SERVICE_SERIAL", "");
+    expect(projectsOf(await harness()).map(([name]) => name)).toEqual([
+      "installation",
+      "service",
+      "shared",
+      "shared-serial",
+      "realm",
+      "restoration",
+      "contract",
+    ]);
+  });
+
+  it.each(["0", "2"])("refuses E2E_SERVICE_SERIAL=%j, which must be 1 (US-1910)", async (value) => {
+    againstTheService();
+    vi.stubEnv("E2E_SERVICE_SERIAL", value);
+    await expect(harness()).rejects.toThrow("must be 1");
+  });
+
+  it.each(["paths", "measure"])("refuses E2E_SERVICE_SERIAL=1 under E2E_PART=%s (US-1910)", async (part) => {
+    vi.stubEnv("E2E_PART", part);
     vi.stubEnv("E2E_SERVICE_SERIAL", "1");
     await expect(harness()).rejects.toThrow("E2E_SERVICE_SERIAL=1 plays the last part");
   });
