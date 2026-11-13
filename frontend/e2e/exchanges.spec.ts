@@ -493,6 +493,12 @@ test("exports the remaining to commit as an Excel file, imports it back in two s
   const tasks = panel.getByRole("region", { name: "Tâches de fond" });
   const link = tasks.getByRole("link", { name: /^Télécharger le résultat/ });
   await expect(link).toBeVisible({ timeout: WORKING });
+  // The task of the export, which the shell has followed: its reads are not the application's.
+  const href = (await link.getAttribute("href")) ?? "";
+  const exported = /^\/tasks\/([0-9a-f-]{36})\/result/.exec(href)?.[1];
+  if (exported === undefined) {
+    throw new Error(`the link of the result names no task: ${href}`);
+  }
   const [download] = await Promise.all([page.waitForEvent("download"), link.click()]);
   const filename = download.suggestedFilename();
   expect(filename).toMatch(/-reste-a-engager\.xlsx$/);
@@ -524,31 +530,47 @@ test("exports the remaining to commit as an Excel file, imports it back in two s
   }).toPass({ timeout: WORKING, intervals: [500, 1_000, 2_000] });
   await expect(report.getByText("Aucun écart avec les données existantes")).toBeVisible();
   await expect(report.getByRole("table", { name: "Lignes rejetées" })).toHaveCount(0);
+  const address = `${API}/projects/${seeded.ids.project}/imports/${opened}`;
+  // The task of the analysis, the last of the import until it is applied: the shell may still be
+  // reading it.
+  const analysed = await request.get(address, { headers: seeded.headers });
+  expect(analysed.status(), "GET import").toBe(200);
+  const analysis = ((await analysed.json()) as Schemas["ImportDetail"]).task.task_id;
 
   // Confirmed, the application is a task; the user leaves the screen of the exchanges at once. The
-  // read of a task by the shell (a server action carrying the sole identifier of the task) waits
-  // for the test to let it, in the browser: the application is then still followed when the screen
-  // is left, however small the file, and the service itself is left to its own pace.
+  // read of the application's task by the shell (a server action carrying the sole identifier of
+  // the task) waits for the test to let it, in the browser: the application is then still followed
+  // when the screen is left, however small the file, and the service itself is left to its own pace.
+  // The read held is the application's alone, the one task the confirmation starts, and the screen
+  // is left once it has been sent (#3066). Next runs the server actions of a page one at a time: a
+  // read of the analysis held before the confirmation kept the confirmation from being sent at all
+  // (#3003); and a read of the application sent after the click — the first comes two seconds after
+  // the confirmation — joined the navigation, which was then never shown (n° 15 and 16 of the
+  // defects already met, `docs/dev/typescript.md`).
   let release!: () => void;
   const released = new Promise<void>((resolve) => {
     release = resolve;
   });
-  const reading = (request: Request) =>
-    /^\["[0-9a-f-]{36}"\]$/.test(request.postData() ?? "") &&
-    request.headers()["next-action"] !== undefined;
+  let sent!: () => void;
+  const held = new Promise<void>((resolve) => {
+    sent = resolve;
+  });
+  const readTask = (request: Request) =>
+    request.headers()["next-action"] === undefined
+      ? undefined
+      : /^\["([0-9a-f-]{36})"\]$/.exec(request.postData() ?? "")?.[1];
   await page.route("**/*", async (route: Route) => {
-    if (reading(route.request())) {
+    const task = readTask(route.request());
+    if (task !== undefined && task !== analysis && task !== exported) {
+      sent();
       await released;
     }
     await route.fallback();
   });
-  const held = page.waitForRequest(reading);
   await report.getByRole("button", { name: "Appliquer l’import" }).click();
   const confirmation = report.getByRole("form", { name: "Confirmation de l’application" });
   await confirmation.getByRole("button", { name: "Confirmer l’application" }).click();
-  // The form goes at the return of the server action of the confirmation, which a loaded runner can
-  // hold past the default timeout (#3003).
-  await expect(confirmation).toHaveCount(0, { timeout: WORKING });
+  await expect(confirmation).toHaveCount(0);
   await held;
   await page
     .getByRole("navigation", { name: "Fonctions" })
@@ -569,7 +591,6 @@ test("exports the remaining to commit as an Excel file, imports it back in two s
   release();
   await expect(application.getByText("Réussie")).toBeVisible({ timeout: WORKING });
   await page.keyboard.press("Escape");
-  const address = `${API}/projects/${seeded.ids.project}/imports/${opened}`;
   await expect(async () => {
     const applied = await request.get(address, { headers: seeded.headers });
     expect(applied.status(), "GET import").toBe(200);
