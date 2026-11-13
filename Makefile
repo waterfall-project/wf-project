@@ -95,8 +95,15 @@ PLAYWRIGHT_INSTALL ?=
 TESTS ?=
 # The part of the end-to-end paths `make e2e` plays, as i/N: the chain spreads them over N
 # runners by the seconds the paths took (tools/e2e-durations.json), and plays the measure of
-# §4.6.2 on one more (e2e.yml). Empty, it plays them all.
+# §4.6.2 on one more (e2e.yml). Empty, it plays them all. `make e2e-service SHARD=i/N` plays a
+# part of the paths against the service, each on a platform of its own (service.yml).
 SHARD ?=
+# A part of the paths does not combine with a file of them: the file may be in another part.
+# Refused as the Makefile is read, before the installation and the build of the front, which the
+# recipe would otherwise wait for to say so (#3026).
+ifneq ($(and $(SHARD),$(TESTS),$(filter e2e e2e-service check-service,$(MAKECMDGOALS))),)
+$(error SHARD and TESTS do not combine for the end-to-end paths: the file may be in another part)
+endif
 # How many workers `make e2e` plays the paths on (E2E_WORKERS, frontend/playwright.config.ts), each
 # against a front of its own: fewer than Playwright takes by itself on a loaded workstation, where
 # paths fail by a timeout (#736). From 1 to 40: a front per worker, forty ports per slot. Empty, its
@@ -633,12 +640,14 @@ e2e: export E2E_PART = $(if $(SHARD),paths)
 e2e: export E2E_BUILT = 1
 e2e: export E2E_WORKERS = $(WORKERS)
 e2e: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths, against the fake back that Playwright starts (US-0080), on the front built for production; SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n (1 to 40, by default half the processors, at most 40) plays them on n workers; TESTS=<file> plays one file (not with SHARD); E2E_DEV_SERVER=1 plays them against next dev, on a workstation
-	@$(if $(and $(SHARD),$(TESTS)),$(error SHARD and TESTS do not combine: the file may be in another part))$(if $(SHARD),dir=$$(mktemp -d) && trap 'rm -rf "$$dir"' EXIT && ( $(PNPM) exec playwright test --list > "$$dir/listing" ) && $(WFTOOLS).e2eparts plan $(SHARD) < "$$dir/listing" > "$$dir/part" && )$(PNPM_HEAVY) exec playwright test $(if $(SHARD),--test-list="$$dir/part") $(TESTS)
+	@$(if $(SHARD),dir=$$(mktemp -d) && trap 'rm -rf "$$dir"' EXIT && ( $(PNPM) exec playwright test --list > "$$dir/listing" ) && $(WFTOOLS).e2eparts plan $(SHARD) < "$$dir/listing" > "$$dir/part" && )$(PNPM_HEAVY) exec playwright test $(if $(SHARD),--test-list="$$dir/part") $(TESTS)
 
 # Rewrite tools/e2e-durations.json, the seconds each unit of the paths took, from the log of a run
 # (LOG=<file>, the list reporter's output of a make e2e, or of the job of a part in the chain; the
-# standard input without it), for the parts of make e2e SHARD=i/N (wftools.e2eparts, US-1910).
-e2e-durations: ## Refresh the durations the parts of the end-to-end paths are spread by, from the log of a run of make e2e (LOG=<file>, standard input without it)
+# standard input without it), for the parts of make e2e SHARD=i/N (wftools.e2eparts, US-1910); and
+# tools/e2e-service-durations.json, those of the projects `service` and `shared`, from the log of
+# a make e2e-service, for its parts.
+e2e-durations: ## Refresh the durations the parts of the end-to-end paths are spread by, from the log of a run of make e2e or make e2e-service (LOG=<file>, standard input without it)
 	@$(WFTOOLS).e2eparts refresh $(if $(filter command line,$(origin LOG)),$(LOG))
 
 e2e-measure: export E2E_PART = measure
@@ -673,16 +682,27 @@ E2E_ADMIN_EMAIL ?= administrateur@waterfall.test
 # line, wins (an empty one does not count); a WATERFALL_PROCESSORS that is not a positive integer is
 # refused, where the default is read only.
 E2E_WORKERS_GIVEN := $(E2E_WORKERS)
+# With SHARD=i/N, the i-th of N parts of the paths, each on a platform of its own, as the chain plays
+# them on N runners (service.yml, US-1910): the parts 1 to N-1 share the projects `service` and
+# `shared`, spread by the seconds their units took (tools/e2e-service-durations.json,
+# wftools.e2eparts), each playing the test list of its share, written under frontend/.e2e/, which
+# git ignores; the last part plays `shared-serial`, `realm` and `restoration`, which play one at a
+# time after the others, alone on its platform (E2E_SERVICE_SERIAL, frontend/playwright.config.ts).
+# The part is checked before the platform starts; the paths are listed once it has, the
+# configuration of Playwright reading the log of its proxy.
+e2e-service-part = $(if $(SHARD),if [ "$$($(WFTOOLS).e2eparts service-part $(SHARD))" = serial ]; then export E2E_SERVICE_SERIAL=1; else mkdir -p $(FRONT)/.e2e && ( cd $(FRONT) && $(PNPM_ENV) pnpm exec playwright test --list ) > $(FRONT)/.e2e/service-listing && $(WFTOOLS).e2eparts plan --service $(SHARD) < $(FRONT)/.e2e/service-listing > $(FRONT)/.e2e/service-part && part=--test-list=.e2e/service-part; fi &&)
 E2E_SERVICE_PROCESSORS = $(if $(shell printf '%s' '$(WATERFALL_PROCESSORS)' | grep -Eq '^[1-9][0-9]*$$' && echo ok),$(WATERFALL_PROCESSORS),$(error WATERFALL_PROCESSORS must be a positive integer, got '$(WATERFALL_PROCESSORS)'))
 E2E_SERVICE_WORKERS = $(shell workers=$$(($(E2E_SERVICE_PROCESSORS) * 3 / 4)); echo $$((workers < 1 ? 1 : (workers > 40 ? 40 : workers))))
 e2e-service: export E2E_WORKERS = $(or $(E2E_WORKERS_GIVEN),$(E2E_SERVICE_WORKERS))
 e2e-service: export WATERFALL_FRONT_ADDRESS = http://127.0.0.1:$(E2E_FRONT_PORT)
 e2e-service: export WATERFALL_FRONT_BACKCHANNEL = http://host.docker.internal:$(E2E_FRONT_PORT)
 e2e-service: export E2E_PART = service
+e2e-service: export E2E_SERVICE_SERIAL =
 e2e-service: export WATERFALL_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-service: export E2E_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-service: export E2E_BUILT = 1
-e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths of the project `service` against the real service, through Prism as a proxy, on the front built for production (needs the secrets of service-up and a browser, make e2e-browsers); TESTS=<arguments of playwright test>: a file alone also plays installation and, with a @realm-wide or @platform-wide path, the projects its own depends on; TESTS="--no-deps --project=shared --project=realm <files>" plays only the files, on an installation already played
+e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths of the project `service` against the real service, through Prism as a proxy, on the front built for production (needs the secrets of service-up and a browser, make e2e-browsers); TESTS=<arguments of playwright test>: a file alone also plays installation and, with a @realm-wide or @platform-wide path, the projects its own depends on; TESTS="--no-deps --project=shared --project=realm <files>" plays only the files, on an installation already played; SHARD=i/N (N >= 2, not with TESTS) plays the i-th of N parts on a platform of its own, the last one the paths that play one at a time
+	@$(if $(SHARD),$(WFTOOLS).e2eparts service-part $(SHARD) > /dev/null)
 	@$(MAKE) --no-print-directory mock-spec MOCK_SPEC=$(PROXY_SPEC)
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) up --detach --wait contract-proxy
@@ -696,7 +716,8 @@ e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end pat
 		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 && \
 		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
 		export E2E_INSTALLATION_LINK E2E_CONTRACT_PROXY E2E_SERVICE_DATABASE WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
-		cd $(FRONT) && { $(e2e-browser) $(PNPM_ENV) pnpm exec playwright test $(TESTS); }
+		part= && $(e2e-service-part) \
+		cd $(FRONT) && { $(e2e-browser) $(PNPM_ENV) pnpm exec playwright test $$part $(TESTS); }
 
 # The slot of the worktree, among the N of WATERFALL_SLOTS, in the register of the workstation
 # ($XDG_RUNTIME_DIR/waterfall-slots, /tmp/waterfall-slots without it), whatever the repository.

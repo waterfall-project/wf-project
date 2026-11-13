@@ -12,6 +12,17 @@
 # system packages, as Playwright's server, on the network of the runner, which `playwright test`
 # connects to (make e2e-service E2E_IMAGE=…, wftools.e2eimage): a job container would not see the
 # ports Docker publishes on the runner. No package of Ubuntu is installed (#2913).
+#
+# Four parts, each on a runner and a platform of its own (make check-service SHARD=i/4, US-1910): the
+# first three share the projects `service` and `shared`, spread by the seconds their units took
+# (tools/e2e-service-durations.json); the fourth plays `shared-serial`, `realm` and `restoration`,
+# which play one at a time after the others, alone on its platform. Whole on one runner, the job was
+# the critical path of the full tier: 22 minutes in 43500472946, 5.5 of them before the first path
+# (images, platform, installation, witness) and 16.5 of paths, 1839 s of tests of `service` and
+# `shared` on 3 workers, then 2.7 minutes of the projects in series. Each part pays the 5.5 minutes
+# of its platform again: about 10 minutes for a part of the three, about 8.5 for the fourth, 40
+# runner minutes in all against 22, for 10 to 11 of wall time against 22 (the decision of
+# EP-24, « `service / paths` coupé en quatre plateformes »).
 name: service
 
 on:
@@ -31,7 +42,15 @@ env:
 
 jobs:
   paths:
+    # Shown as service / paths (i/4), which tools/queue-known.toml recognizes as service / paths.
+    name: paths (${{ matrix.part }})
     runs-on: ubuntu-26.04
+    # Every part runs to its end: one failing does not cancel the others, whose results say whether
+    # the code fails or one path.
+    strategy:
+      fail-fast: false
+      matrix:
+        part: ["1/4", "2/4", "3/4", "4/4"]
     # The images of the platform, Keycloak's built with its extension, then the paths: about as
     # long as keycloak.yml with the browser and the front on top. Measured by `playwright test`, which
     # varies from one runner to another: 11.2 to 18.6 minutes, 14.6 in the median, in eight runs of
@@ -41,7 +60,9 @@ jobs:
     # Docker's filter of system calls lifted changed anything; 13.5 to 18.2, 14.2 in the median, with
     # the browser alone in the image (43338277921, 43341377423, 43346839952) — back to the median of
     # epic/EP-24, within the spread of its runners. The job as a whole takes 4 to 6 minutes more.
-    timeout-minutes: 30
+    # In four parts, a part should take about 10 minutes; 20 leaves room for a slow runner, whose
+    # paths took 1.3 times the median above, not for a path stuck.
+    timeout-minutes: 20
     # The work image of the paths is read from the registry, where it may be private.
     permissions:
       contents: read
@@ -120,6 +141,7 @@ jobs:
           TIER: full
           E2E_BUILT: "1"
           E2E_IMAGE: ${{ inputs.image }}
+          SHARD: ${{ matrix.part }}
       # What the platform said, when a path failed or the platform did not start.
       - if: failure()
         run: >-

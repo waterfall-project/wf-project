@@ -31,6 +31,7 @@ import math
 import re
 import statistics
 import sys
+import time
 import tomllib
 from collections import Counter
 from dataclasses import dataclass, field, replace
@@ -54,6 +55,11 @@ PAGE = 100
 # A run lists a few hundred jobs at most, the chain a few thousand runs: a source that still answers
 # a full page past this many is not paging, and the loop must stop rather than grow without end.
 MAX_PAGES = 100
+# The answers of GitHub that say it did not serve this time, not that the request is wrong: a window
+# of a few hundred runs stopped twice at the first of them on 2026-11-12 (#2990). The call is tried
+# again after each wait, the wait growing; a request refused otherwise is said at once.
+UNSERVED = re.compile(r"\bHTTP 50[234]\b")
+WAITS = (2.0, 8.0)
 
 FLAKY = "known flakiness"
 INFRASTRUCTURE = "infrastructure"
@@ -237,10 +243,29 @@ class Source(Protocol):
 
 
 class GitHub:
-    """The reading by ``gh``: one call a page of runs, a run's jobs, a job's log."""
+    """The reading by ``gh``: one call a page of runs, a run's jobs, a job's log.
 
-    def __init__(self, call: Callable[[list[str]], str] = gh) -> None:
-        self.call = call
+    A call GitHub answers by 502, 503 or 504 is tried again, ``len(WAITS)`` times at most.
+    """
+
+    def __init__(
+        self,
+        call: Callable[[list[str]], str] = gh,
+        wait: Callable[[float], None] = time.sleep,
+    ) -> None:
+        self.ask = call
+        self.wait = wait
+
+    def call(self, arguments: list[str]) -> str:
+        """Return the answer of ``gh``, tried again while GitHub says it did not serve it."""
+        for seconds in WAITS:
+            try:
+                return self.ask(arguments)
+            except TrackingError as error:
+                if UNSERVED.search(str(error)) is None:
+                    raise
+            self.wait(seconds)
+        return self.ask(arguments)
 
     def runs(self, page: int, since: date | None) -> list[dict[str, object]]:
         """Return a page of the ``merge_group`` runs of the chain, the most recent first."""

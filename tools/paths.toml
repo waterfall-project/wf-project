@@ -195,6 +195,9 @@ paths = [
     "deploy/e2e/**",
     "tools/src/wftools/e2eimage.py",
     "tools/src/wftools/registry.py",
+    # The parts of the paths, spread by the seconds they took (US-1910).
+    "tools/src/wftools/e2eparts.py",
+    "tools/e2e-service-durations.json",
 ]
 target = "check-service"
 

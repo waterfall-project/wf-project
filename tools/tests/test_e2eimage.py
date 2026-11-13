@@ -162,7 +162,7 @@ def test_the_browser_alone_plays_in_the_image_the_paths_on_the_runner() -> None:
     assert (
         "export PW_TEST_CONNECT_WS_ENDPOINT=ws://127.0.0.1:$(E2E_BROWSER_PORT)/" in browser.group(1)
     )
-    assert "{ $(e2e-browser) $(PNPM_ENV) pnpm exec playwright test $(TESTS); }" in makefile
+    assert "{ $(e2e-browser) $(PNPM_ENV) pnpm exec playwright test $$part $(TESTS); }" in makefile
 
 
 def test_the_paths_against_the_service_play_in_the_image_pulled_first() -> None:

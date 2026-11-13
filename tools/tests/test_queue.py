@@ -15,8 +15,10 @@ from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
+import yaml
 
 from wftools import REPOSITORY, queue
+from wftools.tracking import TrackingError
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -438,8 +440,9 @@ def test_the_failures_left_to_classify_outside_the_paths_are_classified_by_their
     ],
 )
 def test_an_apt_that_cannot_fetch_from_its_source_is_infrastructure(line: str) -> None:
-    # US-1900/L4: the images that pull apt, built by the service, the paths and the images; the
-    # excerpt is built after the form apt writes, no run of the window having failed this way.
+    # US-1900/L4: the images that pull apt, built by the service and the paths (the queue reads
+    # ci.yml alone, where no job is named images / …, #3042); the excerpt is built after the form
+    # apt writes, no run of the window having failed this way.
     text = "\n".join(
         [
             "2026-11-13T09:00:00.0000000Z #9 12.3 Err:1 http://deb.debian.org/debian trixie",
@@ -448,7 +451,7 @@ def test_an_apt_that_cannot_fetch_from_its_source_is_infrastructure(line: str) -
         ]
     )
     catalogue = queue.read_catalogue()
-    for name in ("service / paths", "e2e / paths (2/5)", "images / trial"):
+    for name in ("service / paths", "service / paths (1/4)", "e2e / paths (2/5)"):
         failed = queue.Job(9, name, "failure", None, None, "Build the images")
         found = queue.failures_of(42, failed, text)
         assert found
@@ -846,3 +849,68 @@ def test_make_runs_the_report_with_its_window() -> None:
     assert 'python -m wftools.queue --branch "epic/EP-09" --last "20" --since "2026-11-10"' in (
         process.stdout
     )
+
+
+# US-1910/L3: the reading tried again, the parts of the paths against the service
+
+
+def test_a_call_that_github_did_not_serve_is_tried_again_and_another_refusal_is_not() -> None:
+    # #2990: a window of a few hundred runs stopped at the first 502 of GitHub
+    answers: list[str | None] = [
+        "gh api repos/{owner}/{repo}/actions/runs failed: gh: HTTP 502",
+        "gh api … failed: gh: Service Unavailable (HTTP 503)",
+        None,
+    ]
+    waited: list[float] = []
+
+    def call(arguments: list[str]) -> str:
+        said = answers.pop(0)
+        if said is not None:
+            raise TrackingError(said)
+        return json.dumps({"workflow_runs": [{"id": len(arguments)}]})
+
+    assert queue.GitHub(call, waited.append).runs(1, None) == [{"id": 2}]
+    assert waited == list(queue.WAITS)
+
+    def refused(_: list[str]) -> str:
+        message = "gh api … failed: gh: Not Found (HTTP 404)"
+        raise TrackingError(message)
+
+    waited.clear()
+    with pytest.raises(TrackingError, match="HTTP 404"):
+        queue.GitHub(refused, waited.append).log(5)
+    assert waited == []
+
+
+def test_a_github_that_never_serves_is_said_after_the_attempts_it_is_given() -> None:
+    attempts: list[list[str]] = []
+    waited: list[float] = []
+
+    def unserved(arguments: list[str]) -> str:
+        attempts.append(arguments)
+        message = "gh api … failed: gh: HTTP 504"
+        raise TrackingError(message)
+
+    with pytest.raises(TrackingError, match="HTTP 504"):
+        queue.GitHub(unserved, waited.append).jobs(9)
+    assert len(attempts) == len(queue.WAITS) + 1
+    assert waited == sorted(waited)
+    assert waited[0] < waited[-1]
+
+
+def test_every_part_of_the_paths_against_the_service_is_classified_as_the_whole_job_was() -> None:
+    # The job is played in parts (service.yml): « service / paths (i/N) » after « service / paths ».
+    workflow = yaml.safe_load(
+        (REPOSITORY / ".github" / "workflows" / "service.yml").read_text(encoding="utf-8")
+    )
+    (job,) = workflow["jobs"].values()
+    names = [f"service / paths ({part})" for part in job["strategy"]["matrix"]["part"]]
+    catalogue = queue.read_catalogue()
+    whole = [entry for entry in catalogue.entries if entry.job and entry.job.search(SERVICE.name)]
+    assert whole
+    for entry in whole:
+        assert entry.job is not None
+        assert all(entry.job.search(name) for name in names), entry.family
+    (projects, _) = failures("playwright-service-paths")
+    for name in names:
+        assert catalogue.classify(replace(projects, job=name))[0] == queue.FLAKY
