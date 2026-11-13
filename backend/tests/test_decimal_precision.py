@@ -409,7 +409,7 @@ def test_a_labour_product_within_the_base_amount_is_kept(
     assert kept["estimate_line"]["base_amount"] == "65000000.00"
 
 
-@pytest.mark.requirement("WF-REF-0050-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
 def test_a_rate_that_reprices_a_written_line_beyond_the_base_amount_is_refused_at_its_amount(
     realm: TestRealm, tree: Tree, lines: Lines, costs: Costing
 ) -> None:
@@ -431,6 +431,7 @@ def test_a_rate_that_reprices_a_written_line_beyond_the_base_amount_is_refused_a
 
 
 @pytest.mark.requirement("WF-DEV-0030-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
 def test_a_reestimated_amount_beyond_its_column_is_refused_at_the_quantity(
     api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
 ) -> None:
@@ -450,6 +451,7 @@ def test_a_reestimated_amount_beyond_its_column_is_refused_at_the_quantity(
 
 
 @pytest.mark.requirement("WF-PRJ-0040-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
 def test_an_inflation_that_reprojects_a_written_line_beyond_its_column_is_refused_at_its_rate(
     api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
 ) -> None:
@@ -464,3 +466,25 @@ def test_an_inflation_that_reprojects_a_written_line_beyond_its_column_is_refuse
     assert Decimal(read["inflation_rate"]) == 0
     kept = tree.items("?kinds=estimate_line")[0]["estimate_line"]
     assert kept["reestimated_amount"] == line["estimate_line"]["reestimated_amount"]
+
+
+@pytest.mark.requirement("WF-DEV-0030-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_a_rate_that_carries_only_the_reestimated_amount_beyond_its_column_is_refused_at_its_amount(
+    realm: TestRealm, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # #3039: the line is consumed two years after the reference, the inflation is 3 %; the rate
+    # raised to 950 000 000.00 gives 1000 h x 950 000 000.00 = 9.5 x 10^11, within base_amount, and
+    # 1.0609 times that, past reestimated_amount.
+    api = tree.api
+    assert inflated(api, tree.stage, "0.03").status_code == 200
+    later = in_two_years(tree)
+    lines.made(later, quantity="1", hours="1000", resource_role_id=str(costs.role))
+    changing = holding(tree.stage.database, realm, "cost_settings.read", "cost_settings.write")
+    url = f"{RATES}/{costs.labour}/hourly-rates/{YEAR}"
+    refused = api.put(url, headers=changing, json={"amount": "950000000.00", "lock_version": 1})
+    assert faults(refused) == [("/amount", PRECISION, {})]
+    kept = api.get(f"{RATES}/{costs.labour}/hourly-rates", headers=changing).json()
+    assert [each["amount"] for each in kept if each["year"] == YEAR] == ["65.00"]
+    line = tree.items("?kinds=estimate_line")[0]["estimate_line"]
+    assert line["base_amount"] == "65000.00"

@@ -707,6 +707,7 @@ def test_the_write_of_the_lines_refuses_an_unknown_task_and_an_unknown_line_writ
 
 
 @pytest.mark.requirement("WF-DEV-0020-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
 def test_a_labour_product_beyond_the_base_amount_fails_the_application_writing_nothing(
     api: ContractClient, stage: Scene, worker: Worker, tree: Tree, held: dict[str, Any]
 ) -> None:

@@ -638,6 +638,7 @@ def test_the_plan_of_a_block_that_creates_lines_is_the_example_of_the_contract(
 
 
 @pytest.mark.requirement("WF-IHM-0050-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
 def test_a_block_whose_labour_product_crosses_the_base_amount_is_refused_at_the_quantity(
     tree: Tree, lines: Lines, costs: Costing, who: Person
 ) -> None:

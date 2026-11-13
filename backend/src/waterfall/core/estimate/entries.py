@@ -81,9 +81,11 @@ CREATED_LINE = "/estimate_line"
 class AmountOverflowError(UnprocessableError):
     """The amounts of a line, priced, cross the digits of their columns (#3035, #3039).
 
-    Raised without a field by a price again that no line of the request names; the writes of a line
-    name its quantity (``refuse_overflow``), and a change that reprices written lines (the rate of a
-    category, the inflation) the field that carries it.
+    ``reprice`` (``writing.py``) raises it without a field, as no line of the request is named.
+    The write of a line gives it the quantity (``refuse_overflow``); ``repricing._refused_at``
+    gives it, for the rate of a category and for the inflation, the field that carries the change
+    (``/amount``, ``/inflation_rate``). Elsewhere (the redating of a task, the copy of a revision,
+    ``copy_rates``) it still leaves without a field: a remainder to settle by its own issue.
     """
 
 
