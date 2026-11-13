@@ -3482,6 +3482,34 @@ that pull from the mirror ask for `packages: read` and log in to it (`docker/log
 `credentials:` of a service): a package GitHub creates is private, and nothing outside the chain
 reads it.
 
+Four other network sources of the chain, which the original inventory of US-1900 did not name
+(#2981, #3015), are each dealt with in its own way:
+
+- **the binary of actionlint** (GitHub Releases): `actionlint-py` has no wheel on PyPI, only
+  sources, and building it downloads the archive of the binary (digest checked, a few attempts
+  made again). It leaves the `dev` group of the tools for a `workflows` group
+  (`tools/pyproject.toml`) that `make lint-workflows` alone installs: `contract / check` and the
+  web server of the e2e no longer build it. The `repo / check` job builds it, once, then reads the
+  built wheel from the cache of uv (`setup-uv`) as long as `tools/uv.lock` does not change; with
+  an empty cache and GitHub Releases silent, it fails naming the address (`download failed for
+  https://github.com/rhysd/actionlint/…`);
+- **the key of the PGDG repository** (`www.postgresql.org`): versioned in `backend/pgdg.asc`,
+  copied into the `waterfall` image and checked at build by its SHA-256 digest, written in the
+  `Dockerfile` with the fingerprint of the key. No key is downloaded any more. To bump the key,
+  replace the file and the digest together; `tools/tests/test_networksources.py` holds them to
+  each other;
+- **`azure.archive.ubuntu.com`** in `back / tests`: the job no longer runs apt. The runners'
+  image, `ubuntu-26.04`, already carries `postgresql-client-18` (apt answered "already the newest
+  version"); the job checks it and, should the image drop it one day, stops saying so instead of
+  installing it. No published work image for that: it would only copy what the runner has;
+- **`deb.debian.org` and `apt.postgresql.org`**, pulled by the `openldap` and `waterfall` images
+  when the layer cache is missing: the `Dockerfile`s give apt `Acquire::Retries "5"`, and the layer
+  cache that `images.yml` writes after each merge (`make build-cache`) remains what spares the
+  source most of the time. A source that still does not answer fails the build at apt's step, which
+  names the address (`Failed to fetch http://deb.debian.org/…`). A base layer published on ghcr.io
+  would need two more images to tag and publish, and would make the workstation's build depend on
+  ghcr.io: it is not done.
+
 The full tier aims at under eight minutes in the queue for its longest job
 (#492). The end-to-end paths, the longest half, go about it this way:
 
@@ -3613,7 +3641,7 @@ Rules of the workflows:
   pull request as long as `typescript-eslint` does not support it.
 - Dependabot does not follow, and the author bumps by hand, at Dependabot's monthly pull
   request: `REDOCLY_VERSION` and `PRISM_VERSION` of the `Makefile`, the front's
-  `packageManager`, the uv and the PostgreSQL client of the `waterfall` image, the runners
+  `packageManager`, the uv and the PostgreSQL client of the `waterfall` image (and its key, `backend/pgdg.asc`), the runners
   and the pandoc of the chain, and `maven.compiler.release` of the extension's `pom.xml`,
   which stays at 21 on purpose (the Java of the Keycloak image, not the build JDK): it is
   bumped when that image changes Java.

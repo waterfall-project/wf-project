@@ -243,8 +243,10 @@ readmes: ## Each README-fr.md of docs/ has its English README.md, their headings
 reuse: ## Check that every file declares its copyright and licence
 	@uv run --frozen --project $(TOOLS) reuse lint
 
+# actionlint is the one tool of the group `workflows`, not of the default one: its package downloads
+# a binary from GitHub Releases when it is built, which no other install of the tools should wait for.
 lint-workflows: ## Lint the GitHub Actions workflows
-	@uv run --frozen --project $(TOOLS) actionlint
+	@uv run --frozen --project $(TOOLS) --group workflows actionlint
 
 lint-shell: ## Lint the shell scripts
 	@git ls-files '*.sh' | xargs -r uv run --frozen --project $(TOOLS) shellcheck
