@@ -63,6 +63,8 @@ interface Reported {
   readonly back?: HTMLElement | null | undefined;
   /** What the command was about, by its name, which the history of the messages notes. */
   readonly subject?: string | undefined;
+  /** What the refusal is said to, told before its sentence: the account refused of a group. */
+  readonly lead?: string | undefined;
 }
 
 /** A command that changes the state of an object of the reference data. */
@@ -281,6 +283,7 @@ export function Reactivations({
             outcome={each.outcome}
             names={each.names}
             subject={each.subject}
+            lead={each.lead}
             onClear={() => {
               setRead((before) => ({
                 ...before,

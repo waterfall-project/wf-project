@@ -134,7 +134,7 @@ describe("the panel of the filters of the table of the accounts", () => {
     const chips = screen.getByRole("list", { name: "Filtres actifs" });
     expect(within(chips).getAllByRole("listitem")).toHaveLength(2);
     expect(within(chips).getByText("Origine : Créé dans Waterfall")).toBeVisible();
-    expect(within(chips).getByText("État du compte : Comptes actifs")).toBeVisible();
+    expect(within(chips).getByText("État du compte : Actif")).toBeVisible();
   });
 
   it("lifts a filter by the cross of its chip, in the address, back to the first page [WF-IHM-0130-A]", async () => {
@@ -167,9 +167,9 @@ describe("the panel of the filters of the table of the accounts", () => {
     page.search = "include_inactive=false";
     render(list({ filters: { include_inactive: "false" } }));
     const chips = screen.getByRole("list", { name: "Filtres actifs" });
-    expect(within(chips).getByText("État du compte : Comptes actifs")).toBeVisible();
+    expect(within(chips).getByText("État du compte : Actif")).toBeVisible();
     await userEvent.click(
-      screen.getByRole("button", { name: "Retirer le filtre État du compte : Comptes actifs" }),
+      screen.getByRole("button", { name: "Retirer le filtre État du compte : Actif" }),
     );
     expect(lastAddress()).toBe("/admin/users?search=");
     await userEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
@@ -232,13 +232,13 @@ describe("the focus beside the chips lifted", () => {
     // The address has not arrived: nothing moves the focus yet.
     page.search = "is_active=true";
     rerender(list());
-    expect(cross("État du compte : Comptes actifs")).toHaveFocus();
+    expect(cross("État du compte : Actif")).toHaveFocus();
   });
 
   it("goes to the cross of the previous chip when the last is lifted [défaut n° 20]", async () => {
     page.search = "origins=local&is_active=true";
     const { rerender } = render(list());
-    await userEvent.click(cross("État du compte : Comptes actifs"));
+    await userEvent.click(cross("État du compte : Actif"));
     page.search = "origins=local";
     rerender(list());
     expect(cross("Origine : Créé dans Waterfall")).toHaveFocus();

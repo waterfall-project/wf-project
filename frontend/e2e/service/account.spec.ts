@@ -351,13 +351,11 @@ test("the panel of the filters of the table of the accounts, closed by default, 
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
     await expect(toggle).toHaveAccessibleName("Filtres (1)");
     const chips = mine.getByRole("list", { name: "Filtres actifs" });
-    await expect(chips.getByRole("listitem")).toHaveText(["État du compte : Comptes actifs"]);
+    await expect(chips.getByRole("listitem")).toHaveText(["État du compte : Actif"]);
     // Lifted by its cross, the panel still closed; the page hydrated first, which the button says.
     await setExpanded(toggle, true);
     await setExpanded(toggle, false);
-    await chips
-      .getByRole("button", { name: "Retirer le filtre État du compte : Comptes actifs" })
-      .click();
+    await chips.getByRole("button", { name: "Retirer le filtre État du compte : Actif" }).click();
     await expect(mine).not.toHaveURL(/is_active/);
     await expect(mine.getByRole("list", { name: "Filtres actifs" })).toHaveCount(0);
     await expect(toggle).toHaveAccessibleName("Filtres");

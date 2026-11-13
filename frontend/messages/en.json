@@ -2638,8 +2638,16 @@
       "inactiveState": "Deactivated",
       "stateFilter": "Account state",
       "everyState": "Every state",
-      "activeAccounts": "Active accounts",
-      "inactiveAccounts": "Deactivated accounts",
+      "bulk": {
+        "addRole": "Add a role",
+        "attach": "Attach to",
+        "activate": "Activate",
+        "deactivate": "Deactivate",
+        "apply": "Apply: {command}",
+        "applyShort": "Apply"
+      },
+      "bulkDone": "{count, plural, one {# account modified.} other {# accounts modified.}}",
+      "bulkPartial": "{done, plural, =0 {No account modified} one {# account modified} other {# accounts modified}}, {refused, plural, one {# account refused} other {# accounts refused}}: the reason of each is told above.",
       "told": "Commands of the accounts",
       "created": "Account “{name}” created.",
       "creationHint": "The account is born with no way to sign in: its holder gets one through the link the identity provider mails them, or, when no invitation went, the link the table hands over. Its roles are then attributed in the table.",

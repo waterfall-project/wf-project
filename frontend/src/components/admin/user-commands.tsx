@@ -33,6 +33,7 @@ import {
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -49,6 +50,7 @@ import { Reactivations, useListReport } from "@/components/reference/reactivatio
 import { Button } from "@/components/ui/button";
 
 import type { User } from "./admin-grids";
+import { type BulkAction, bulkSend } from "./user-bulk-write";
 import { AnonymizationDialog, SetupLinkDialog, UserCreation } from "./user-dialogs";
 import { USER_READS } from "./user-address";
 
@@ -80,7 +82,8 @@ export interface UserWrite {
 export interface QueuedWrite {
   /** Send the write from the account as the writes before it left it. */
   readonly send: (user: User) => Promise<Outcome<User>>;
-  readonly said: (answered: User) => string;
+  /** What is said once it is answered; nothing for a write of a group, said whole once done. */
+  readonly said?: ((answered: User) => string) | undefined;
 }
 
 /** The accounts of the table as they show, and the commands that change them. */
@@ -103,6 +106,14 @@ export interface UserWrites {
    * answer kept and said; its outcome given back, for the cell to tell a refusal.
    */
   readonly queue: (shown: User, write: QueuedWrite) => Promise<Outcome<User>>;
+  /**
+   * Write each account of a selection by one call, one after the other, with no atomicity: those
+   * answered stay written, and each refused is told with its reason (#2917). Nothing while a group
+   * is under way.
+   */
+  readonly bulk: (rows: readonly User[], action: BulkAction, back: HTMLElement | null) => void;
+  /** Whether a group of accounts is being written. */
+  readonly bulking: boolean;
   /** Open the creation of a local account, from the command pressed. */
   readonly create: (trigger: HTMLElement) => void;
   /**
@@ -235,7 +246,9 @@ function Writes({ children }: { readonly children: ReactNode }) {
         const outcome = await write.send(latest(shown));
         if (outcome.kind === "done") {
           record(outcome.data);
-          say(write.said(outcome.data), { object: naming.person(outcome.data) });
+          if (write.said !== undefined) {
+            say(write.said(outcome.data), { object: naming.person(outcome.data) });
+          }
         }
         return outcome;
       });
@@ -289,6 +302,64 @@ function Writes({ children }: { readonly children: ReactNode }) {
             back: write.back,
           });
         }
+      });
+    },
+    [list, held, reserve, say, t, naming],
+  );
+  const [bulking, setBulking] = useState(false);
+  // Whether a group is under way, as the last press left it: two presses may come before a render.
+  const bulkHeld = useRef(false);
+  // The reading the list is on now: a group left behind by a change of reading tells no refusal.
+  const reading = useRef(list?.generation ?? 0);
+  const generationNow = list?.generation ?? 0;
+  useEffect(() => {
+    reading.current = generationNow;
+  }, [generationNow]);
+  const bulk = useCallback(
+    (rows: readonly User[], action: BulkAction, back: HTMLElement | null) => {
+      if (bulkHeld.current || rows.length === 0) {
+        return;
+      }
+      bulkHeld.current = true;
+      setBulking(true);
+      const generation = list?.generation ?? 0;
+      const send = bulkSend(action);
+      const run = async () => {
+        let done = 0;
+        let refused = 0;
+        let first: Outcome<unknown> | undefined;
+        for (const row of rows) {
+          const outcome = await reserve(row, { send: (user) => send(user).catch(rejected) });
+          if (outcome.kind === "done") {
+            done += 1;
+            continue;
+          }
+          refused += 1;
+          first ??= outcome;
+          const name = naming.person(row);
+          list?.report({
+            outcome,
+            generation,
+            names: {},
+            target: `bulk ${action.kind} ${row.user_id}`,
+            back,
+            subject: name,
+            lead: name,
+          });
+        }
+        // The refusals are told on the reading the group was pressed on: read otherwise, the
+        // summary that points at them stays silent, as they are.
+        if (refused === 0) {
+          say(t("bulkDone", { count: done }), { noted: true });
+        } else if (reading.current === generation) {
+          say(t("bulkPartial", { done, refused }), { noted: false });
+        }
+        // The navigations held wait for the whole group; a refusal is the answer of the first.
+        return first ?? ({ kind: "done", data: null } as const);
+      };
+      void held(run()).finally(() => {
+        bulkHeld.current = false;
+        setBulking(false);
       });
     },
     [list, held, reserve, say, t, naming],
@@ -364,6 +435,8 @@ function Writes({ children }: { readonly children: ReactNode }) {
       latest,
       run,
       queue: reserve,
+      bulk,
+      bulking,
       create,
       giveLink,
       linking,
@@ -379,6 +452,8 @@ function Writes({ children }: { readonly children: ReactNode }) {
       latest,
       run,
       reserve,
+      bulk,
+      bulking,
       create,
       giveLink,
       linking,

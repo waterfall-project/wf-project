@@ -36,6 +36,7 @@ import {
   type UserSort,
   userGrid,
 } from "./admin-grids";
+import { UserBulkCommands } from "./user-bulk";
 import { newer, useUserWrites } from "./user-commands";
 import { type UserFilters, useUserChips } from "./user-chips";
 import type { RoleFilters } from "./account-lists";
@@ -114,8 +115,13 @@ export function UserGrid({
       query={query}
       preferences={preferences}
       filtering={{ panel, chips }}
-      // The accounts are picked one by one; their actions on a selection come with #2917.
-      selecting={{ label: (count) => t("selected", { count }) }}
+      // The accounts are picked one by one; the actions on a selection write each by its own call.
+      selecting={{
+        label: (count) => t("selected", { count }),
+        commands: editable
+          ? (rows) => <UserBulkCommands rows={rows} roles={roles} nodes={nodes} />
+          : undefined,
+      }}
     />
   );
 }
