@@ -26,7 +26,7 @@ from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from sqlalchemy import select, update
 from support import ContractClient
-from test_msproject_import import Timing, link, links, planning, task
+from test_msproject_import import Timing, link, links, planning, seven_hours_a_day, task
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
@@ -411,6 +411,58 @@ def test_the_file_exported_is_valid_against_the_schema_when_it_is_named(
     content, _ = exported_planning(api, stage, worker)
     schema = etree.XMLSchema(etree.parse(Path(named)))
     schema.assertValid(etree.fromstring(content))
+
+
+@pytest.mark.requirement("WF-INTF-0050-A")
+def test_the_file_exported_says_to_ms_project_its_working_day_and_the_dates_of_a_manual_task(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # « Un planning Waterfall exporté […] s'ouvre sans erreur » et « MS Project recalcule pour
+    # chaque tâche des dates de début et de fin identiques » (#2923), read in the XML exported and
+    # not as the reader of Waterfall reads it back: on days of seven hours, the head says 8:00 to
+    # 15:00, no duration is estimated, and a manual task and a manual milestone carry their dates
+    # and their duration again in the fields ``Manual…``, the milestone a nought duration.
+    seven_hours_a_day(stage)
+    revision = opened(api, stage)
+    import_file(
+        api,
+        stage,
+        worker,
+        planning(
+            task(1, "Relevés"),
+            task(2, "Pose", besides="<Manual>1</Manual>", timing=tuesday("PT16H0M0S")),
+            task(
+                3,
+                "Livrée",
+                besides="<Manual>1</Manual>",
+                timing=Timing(f"{WEDNESDAY}T17:00:00", f"{WEDNESDAY}T17:00:00", "PT0H0M0S"),
+            ),
+        ),
+        apply=True,
+    )
+    root = etree.fromstring(exported(api, stage, worker, revision["revision_id"]))
+    assert (root.findtext("{*}DefaultStartTime"), root.findtext("{*}DefaultFinishTime")) == (
+        "08:00:00",
+        "15:00:00",
+    )
+    written = {
+        task.findtext("{*}Name"): {etree.QName(child).localname: child.text for child in task}
+        for task in root.iterfind("{*}Tasks/{*}Task")
+    }
+    assert [fields["Estimated"] for fields in written.values()] == ["0", "0", "0"]
+    assert not {"ManualStart", "ManualFinish", "ManualDuration"} & written["Relevés"].keys()
+    for name in ("Pose", "Livrée"):
+        fields = written[name]
+        assert fields["Manual"] == "1"
+        assert (fields["ManualStart"], fields["ManualFinish"], fields["ManualDuration"]) == (
+            fields["Start"],
+            fields["Finish"],
+            fields["Duration"],
+        ), name
+    assert (written["Livrée"]["Milestone"], written["Livrée"]["ManualDuration"]) == (
+        "1",
+        "PT0H0M0S",
+    )
 
 
 @pytest.mark.requirement("WF-INTF-0050-A")
