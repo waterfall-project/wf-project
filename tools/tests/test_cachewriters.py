@@ -9,6 +9,10 @@ saved its own copy of the store of pnpm (188 MB, 6.7 GB in all on 2026-11-13) an
 of uv, of ESLint and of pandoc. The quota itself is read in the repository (`gh cache list`).
 """
 
+import json
+import os
+import shutil
+import subprocess
 from pathlib import PurePosixPath
 from typing import Any, cast
 
@@ -173,3 +177,50 @@ def test_the_store_of_pnpm_has_one_path_and_one_key_for_the_writer_and_the_reade
             if "setup-node" in s.get("uses", "")
         ]
     )
+
+
+def test_the_prune_keeps_the_current_caches_and_deletes_the_others() -> None:
+    jq = shutil.which("jq")
+    assert jq is not None, "jq is needed to run the filter of the prune: install it"
+    step = next(
+        step
+        for step in steps(documents()["front-cache.yml"])
+        if "gh cache list" in step.get("run", "")
+    )
+    filter_ = step["run"].split("--jq '", 1)[1].split("'", 1)[0]
+    pnpm, tools, backend, both, sha = "p" * 64, "t" * 64, "b" * 64, "c" * 64, "a" * 40
+    prefix = "node-cache-Linux-x64-pnpm-"
+    kept = [
+        f"{prefix}{pnpm}",
+        f"setup-uv-Linux-x64-3.14-{tools}",
+        f"setup-uv-Linux-x64-3.14-{backend}",
+        f"setup-uv-Linux-x64-3.14-{both}",
+        f"next-{sha}",
+        f"eslint-{sha}",
+    ]
+    deleted = [
+        f"{prefix}{'o' * 64}",
+        f"setup-uv-Linux-x64-3.14-{'d' * 64}",
+        f"next-{'f' * 40}",
+        f"eslint-{'f' * 40}",
+    ]
+    entries = [{"id": i, "key": key} for i, key in enumerate([*kept, *deleted])]
+    # The values the step receives from the expressions of the workflow.
+    environment = {
+        **os.environ,
+        "SUFFIX": f"-{sha}",
+        "PNPM_HASH": pnpm,
+        "UV_RE": f"{tools}|{backend}|{both}",
+    }
+    for name, expression in step["env"].items():
+        assert name in environment, f"{name} is not given to the filter by the test"
+        assert "hashFiles" in expression or name == "SUFFIX"
+    done = subprocess.run(
+        [jq, "-r", f".[] | {filter_.strip().removeprefix('.[] |').strip()}"],
+        input=json.dumps(entries),
+        capture_output=True,
+        text=True,
+        check=True,
+        env=environment,
+    )
+    assert sorted(map(int, done.stdout.split())) == list(range(len(kept), len(entries)))

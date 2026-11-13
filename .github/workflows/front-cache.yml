@@ -3,9 +3,10 @@
 
 # The caches of the chain, written here and in images.yml alone: every other workflow reads them
 # and writes none, so that the cache of Actions stays under its quota of 10 GB (US-1910). The store
-# of pnpm, at the fixed path /tmp/pnpm-store that the action pnpm-store reads it at; the cache of uv,
-# for each set of lockfiles the workflows read it by (the same globs, so the same keys); which a pull request would otherwise download again at its first run; the
-# cache of ESLint (front.yml); Next's cache (`.next/cache`, ci.yml), which the build of the front
+# of pnpm, at the fixed path /tmp/pnpm-store that the action pnpm-store reads it at; the cache of
+# uv, for each set of lockfiles the workflows read it by (the same globs, so the same keys), which
+# a pull request would otherwise download again at its first run; the cache of ESLint (front.yml);
+# Next's cache (`.next/cache`, ci.yml), which the build of the front
 # reads to compile what changed alone; and the package of pandoc (spec.yml). Written after each
 # merge, on the branch every pull request into it reads the caches of; at the creation of an epic
 # branch, which would have none until its first merge; and on main every Monday, because the merge
@@ -159,16 +160,12 @@ jobs:
           persist-credentials: false
       - env:
           PNPM_HASH: ${{ hashFiles('frontend/pnpm-lock.yaml') }}
-          UV_HASHES: >-
-            ${{ hashFiles('tools/uv.lock') }} ${{ hashFiles('backend/uv.lock') }}
-            ${{ hashFiles('backend/uv.lock', 'tools/uv.lock') }}
+          UV_RE: ${{ hashFiles('tools/uv.lock') }}|${{ hashFiles('backend/uv.lock') }}|${{ hashFiles('backend/uv.lock', 'tools/uv.lock') }}
         run: |
-          # shellcheck disable=SC2016 # the variables of the filter are jq's
           gh cache list --ref "$GITHUB_REF" --limit 100 --json id,key --jq '
             .[] | select(
               ((.key | startswith("next-") or startswith("eslint-")) and (.key | endswith(env.SUFFIX) | not))
               or ((.key | startswith("node-cache-Linux-x64-pnpm-")) and (.key | endswith(env.PNPM_HASH) | not))
-              or ((.key | startswith("setup-uv-")) and (. as $e | [env.UV_HASHES | split(" ")[] | select(length > 0)
-                    | . as $h | $e.key | contains($h)] | any | not))
+              or ((.key | startswith("setup-uv-")) and (.key | test(env.UV_RE) | not))
             ) | .id' |
             while read -r id; do gh cache delete "$id"; done
