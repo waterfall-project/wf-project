@@ -65,7 +65,8 @@ def test_the_service_paths_default_their_workers_without_any_variable(tmp_path: 
         text=True,
         check=True,
     ).stdout
-    assert workers(done) == str(max(1, min(40, int(share) * 3 // 4)))
+    assert 1 <= int(workers(done)) <= 40
+    assert workers(done) == workers(play(tmp_path, f"WATERFALL_PROCESSORS={share.strip()}"))
 
 
 def test_a_share_that_is_no_integer_is_refused_before_any_command(tmp_path: Path) -> None:
@@ -80,3 +81,27 @@ def test_an_empty_workers_on_the_command_line_does_not_count(tmp_path: Path) -> 
     """#3011: E2E_WORKERS= falls back to the default, and a number given wins."""
     assert workers(play(tmp_path, "WATERFALL_PROCESSORS=8", "E2E_WORKERS=")) == "6"
     assert workers(play(tmp_path, "WATERFALL_PROCESSORS=8", "E2E_WORKERS=5")) == "5"
+
+
+def test_an_empty_share_on_the_command_line_is_refused(tmp_path: Path) -> None:
+    """#3011: WATERFALL_PROCESSORS= is given, empty, so `?=` keeps it and the refusal names it."""
+    done = play(tmp_path, "WATERFALL_PROCESSORS=")
+    assert done.returncode != 0
+    assert "WATERFALL_PROCESSORS must be a positive integer, got ''" in done.stderr
+    assert done.stdout == ""
+
+
+def test_a_workers_given_by_the_environment_wins(tmp_path: Path) -> None:
+    """#3011: E2E_WORKERS=5 of the environment prevails over the share."""
+    done = subprocess.run(
+        [
+            *("make", "-n", "--no-print-directory", "e2e-service", "TESTS=x"),
+            *("WATERFALL_PROCESSORS=8", "--eval", PRINTING, "--eval", "e2e-service: probe"),
+        ],
+        cwd=REPOSITORY,
+        env=bare(tmp_path) | {"E2E_WORKERS": "5"},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert workers(done) == "5"

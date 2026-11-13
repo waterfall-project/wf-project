@@ -132,7 +132,9 @@ TESTING_FRONT = $(testing) redis -- env
 # to the shell by hand: GNU make 4.3 does not export a variable of the command line to $(shell).
 # GNU make 4.4 exports the exported variables to each $(shell), so it expands E2E_WORKERS (which
 # reads this share) to prepare the very $(shell) that computes it, and reads the share empty
-# (#3029): WATERFALL_PROCESSORS_READING tells E2E_SERVICE_PROCESSORS not to read it meanwhile.
+# (#3029): WATERFALL_PROCESSORS_READING tells E2E_SERVICE_PROCESSORS not to read it meanwhile. The
+# rule from now on: an exported variable that reads the share goes through E2E_SERVICE_PROCESSORS
+# (or tests the flag), and tools/tests/test_e2eworkers.py keeps it under 4.4.
 WATERFALL_PROCESSORS ?= $(eval WATERFALL_PROCESSORS_READING = 1)$(eval WATERFALL_PROCESSORS_SHARE := $(shell $(if $(filter-out undefined,$(origin WATERFALL_SLOTS)),WATERFALL_SLOTS='$(subst ','\'',$(WATERFALL_SLOTS))') $(SLOTS) processors 2>/dev/null))$(eval WATERFALL_PROCESSORS_READING =)$(or $(WATERFALL_PROCESSORS_SHARE),$(error WATERFALL_SLOTS must be an integer from 1 to 9, not '$(WATERFALL_SLOTS)'))
 
 # The slot of the worktree (US-1100): its ports, its projects of Compose and the tags of its images,
@@ -674,14 +676,18 @@ E2E_ADMIN_EMAIL ?= administrateur@waterfall.test
 # failed to navigate. Measured on 8 processors (US-1930): 8 workers and more failed to navigate in
 # two passes, no failure to navigate at 6. An E2E_WORKERS given, in the environment or on the command
 # line, wins (an empty one does not count); a WATERFALL_PROCESSORS that is not a positive integer is
-# refused, where the default is read only.
+# refused as the Makefile is read, below, whichever goal reads the share.
 E2E_WORKERS_GIVEN := $(E2E_WORKERS)
 E2E_SERVICE_PROCESSORS = $(if $(WATERFALL_PROCESSORS_READING),1,$(if $(shell printf '%s' '$(WATERFALL_PROCESSORS)' | grep -Eq '^[1-9][0-9]*$$' && echo ok),$(WATERFALL_PROCESSORS),$(error WATERFALL_PROCESSORS must be a positive integer, got '$(WATERFALL_PROCESSORS)')))
 E2E_SERVICE_WORKERS = $(shell workers=$$(($(E2E_SERVICE_PROCESSORS) * 3 / 4)); echo $$((workers < 1 ? 1 : (workers > 40 ? 40 : workers))))
 # Refused where the Makefile is read, before any prerequisite builds anything (#3011): expanding the
-# share stops on one that is no integer. The target-specific override below keeps an empty
+# share stops on one that is no integer. The goals covered are those that surely play e2e-service,
+# as a prerequisite of this very make: e2e-service itself, and check-service and check-all, which
+# do so in the full tier only (TIER=full, full-only above). check, which plays each family in a
+# make of its own and only if the change touches it, is not covered: it would pay a $(shell) in
+# the fast tier, which does not play the paths. The target-specific override below keeps an empty
 # E2E_WORKERS= of the command line, which would win with its empty value, from reaching Playwright.
-$(if $(filter e2e-service,$(MAKECMDGOALS)),$(if $(E2E_SERVICE_PROCESSORS),))
+$(if $(or $(filter e2e-service,$(MAKECMDGOALS)),$(and $(filter full,$(TIER)),$(filter check-service check-all,$(MAKECMDGOALS)))),$(if $(E2E_SERVICE_PROCESSORS),))
 e2e-service: override export E2E_WORKERS = $(or $(E2E_WORKERS_GIVEN),$(E2E_SERVICE_WORKERS))
 e2e-service: export WATERFALL_FRONT_ADDRESS = http://127.0.0.1:$(E2E_FRONT_PORT)
 e2e-service: export WATERFALL_FRONT_BACKCHANNEL = http://host.docker.internal:$(E2E_FRONT_PORT)
