@@ -59,7 +59,7 @@
     "email": "Adresse électronique",
     "origin": "Origine du compte",
     "preferences": "Préférences d’affichage",
-    "preferencesHelp": "La langue et le mode sont aussi dans le menu du compte ; toutes s’appliquent sans reconnexion.",
+    "preferencesHelp": "La langue et le mode sont aussi dans le menu du compte. Tout s’applique sans reconnexion.",
     "chartPatterns": {
       "legend": "Graphiques",
       "label": "Motifs des séries",

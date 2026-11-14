@@ -89,7 +89,7 @@ export function readGanttColours(probes: HTMLElement): GanttColours {
     return found === null ? undefined : getComputedStyle(found);
   };
   return {
-    ...readPalette(probes),
+    ...readPalette(probes, false),
     critical: probe(GANTT_PROBES.critical)?.color ?? "",
     primary: probe(GANTT_PROBES.primary)?.color ?? "",
     dayOff: probe(GANTT_PROBES.dayOff)?.fill ?? "",

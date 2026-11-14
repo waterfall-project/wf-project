@@ -18,7 +18,7 @@
  * The presentation is common to every chart (EP-25, US-2160, after the mock-up the author validated
  * on the workload, #3097): plain colours; slim bars, each part rounded and parted from the next by
  * a thread of the colour of the page (`bars`); an axis of values without its line nor its ticks,
- * read by a grid of light dashes (`valueAxis`), and no vertical line (`timeAxis`); the legend at
+ * read by a grid of light dashes (`valueAxis`), and no vertical line on a chart (`timeAxis`); the legend at
  * the top left, an entry a dot of its colour; the tooltip a card; the series under the pointer
  * stands out while the others fade (`presented`). The scale is never broken nor zoomed: the
  * tooltip and the table give the values a tall month crushes.
@@ -281,7 +281,7 @@ export function planningInstant(date: string): string {
  * patterns of the account (`useChartPatterns`) — none for a drawing that has marks of its own, a
  * Gantt or a frieze.
  */
-export function readPalette(probes: HTMLElement, patterns = false): ChartPalette {
+export function readPalette(probes: HTMLElement, patterns: boolean): ChartPalette {
   const colour = (name: string) => {
     const probe = probes.querySelector(`[data-probe="${name}"]`);
     return probe === null ? "" : getComputedStyle(probe).color;
@@ -316,13 +316,16 @@ const YEAR: Intl.DateTimeFormatOptions = { year: "numeric" };
  * the step is a year or more —, in UTC for an axis of dates of planning, which have no time zone
  * (`utc`), in the local time of the workstation otherwise; the axis runs from the first tick to
  * the last, and a tick that would overlap another is left out. A chart with an axis in UTC says
- * `useUTC` too, so that ECharts reads its points in the same zone.
+ * `useUTC` too, so that ECharts reads its points in the same zone. A chart reads across its plot,
+ * by the grid of its axis of values, and has no vertical line; the frieze of a timeline keeps its
+ * own, one a month or a year (`vertical`).
  */
 export function timeAxis(
   palette: ChartPalette,
   locale: string,
   instants: readonly string[],
   utc = false,
+  vertical = false,
 ) {
   const ticks = monthTicks(instants, utc);
   const yearly = ticks.length > 1 && (ticks[1] ?? 0) - (ticks[0] ?? 0) > 360 * 24 * 60 * 60 * 1000;
@@ -342,8 +345,7 @@ export function timeAxis(
       customValues: ticks,
       formatter: (value: number) => format.format(value),
     },
-    // No vertical line: a plot is read across, by the grid of its axis of values.
-    splitLine: { show: false },
+    splitLine: vertical ? { lineStyle: { color: palette.grid } } : { show: false },
   };
 }
 
@@ -424,24 +426,23 @@ function cardTooltip(
   tooltip: ChartOption["tooltip"],
   palette: ChartPalette,
 ): Pick<ChartOption, "tooltip"> {
-  if (tooltip === undefined || Array.isArray(tooltip)) {
-    return tooltip === undefined ? {} : { tooltip };
+  if (tooltip === undefined) {
+    return {};
   }
-  return {
-    tooltip: {
-      backgroundColor: palette.card,
-      borderColor: palette.grid,
-      borderWidth: 1,
-      borderRadius: 8,
-      padding: [8, 12],
-      shadowColor: palette.grid,
-      shadowBlur: 12,
-      shadowOffsetX: 0,
-      shadowOffsetY: 4,
-      textStyle: { color: palette.mark, fontFamily: palette.font, fontSize: 12 },
-      ...tooltip,
-    },
-  };
+  const card = (each: TooltipComponentOption) => ({
+    backgroundColor: palette.card,
+    borderColor: palette.grid,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: [8, 12],
+    shadowColor: palette.grid,
+    shadowBlur: 12,
+    shadowOffsetX: 0,
+    shadowOffsetY: 4,
+    textStyle: { color: palette.mark, fontFamily: palette.font, fontSize: 12 },
+    ...each,
+  });
+  return { tooltip: Array.isArray(tooltip) ? tooltip.map(card) : card(tooltip) };
 }
 
 /**
@@ -625,6 +626,12 @@ function exportHead(image: ChartExport, palette: ChartPalette) {
   };
 }
 
+/** Whether an option draws bars or curves, which the presentation common to the charts is for. */
+function drawsCharts(option: ChartOption): boolean {
+  const series = [option.series ?? []].flat();
+  return series.some((each) => each.type === "bar" || each.type === "line");
+}
+
 /**
  * Export a chart as a PNG image, whose file the browser saves: drawn by an instance out of the
  * screen, on a canvas, at the size of an image rather than of the screen, its title and its
@@ -642,7 +649,9 @@ export function exportPng(option: ChartOption, palette: ChartPalette, image: Cha
   document.body.append(host);
   const chart = init(host, null, { renderer: "canvas", ...EXPORT_SIZE });
   const head = exportHead(image, palette);
-  const shown = presented(option, palette);
+  // A drawing of its own marks — the frieze of a timeline — is exported as it is: the look of the
+  // charts is that of bars and curves.
+  const shown = drawsCharts(option) ? presented(option, palette) : option;
   try {
     chart.setOption({
       ...shown,

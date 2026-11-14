@@ -4,10 +4,9 @@
  * What the two workload charts share (WF-DEV-0070, WF-PTF-0060): the load of each role in a stack
  * of bars, one bar per month divided by role, in the look of the charts (`bars`) — told apart
  * without its colour when the account asks for the patterns —, the tooltip of a month that names
- * the roles and their hours, and the total of a month that
- * labels the top of its bar. The hours are the strings of the API, which ECharts reads a position
- * from, and the total of a month is the server's (`monthly_totals`): nothing is summed here
- * (WF-ARC-0020).
+ * the roles and their hours, and the total of a month that labels the top of its bar. The hours
+ * are the strings of the API, which ECharts reads a position from, and the total of a month is
+ * the server's (`monthly_totals`): nothing is summed here (WF-ARC-0020).
  */
 "use client";
 

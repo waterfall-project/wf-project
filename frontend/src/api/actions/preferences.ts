@@ -46,7 +46,9 @@ export async function updateLanguage(
  * as the screen of the account submits them: the mode and the language are the fields the menu of
  * the account writes one at a time. The language is sent only when chosen anew, for the API
  * reports it to the identity provider (US-0400/L1): a change of the mode alone never waits on
- * Keycloak, nor is refused when it is out of reach a moment (#877).
+ * Keycloak, nor is refused when it is out of reach a moment (#877). The patterns go with every
+ * save, like the mode: they are the account's own, with no identity provider to answer for them,
+ * and what the form shows is then what is recorded.
  */
 export async function updateDisplay(
   preferences: Required<Pick<DisplayPreferences, "theme" | "chart_series_patterns">> &

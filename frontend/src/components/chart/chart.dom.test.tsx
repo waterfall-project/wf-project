@@ -337,6 +337,22 @@ describe("the presentation common to the charts (#3097)", () => {
     });
   });
 
+  // aucune exigence : propre à l'US (US-2160, les marques propres aux chronologies ne changent pas).
+  it("keeps the vertical lines of a timeline, which asks for them", () => {
+    expect(timeAxis(palette, "fr", ["2026-06-01T00:00:00Z"], true, true).splitLine).toEqual({
+      lineStyle: { color: "grid" },
+    });
+  });
+
+  // aucune exigence : propre à l'US (US-2160, le style de carte vaut pour chaque infobulle).
+  it("puts each tooltip of a list in a card", () => {
+    const option = presented({ tooltip: [{ trigger: "axis" }, { trigger: "item" }] }, palette);
+    expect(option.tooltip).toMatchObject([
+      { trigger: "axis", backgroundColor: "card", borderRadius: 8 },
+      { trigger: "item", backgroundColor: "card", borderRadius: 8 },
+    ]);
+  });
+
   it("puts its legend at the top left, an entry a dot of its colour, and its tooltip in a card, on the screen and in the image", () => {
     const option = presented(
       {
@@ -373,6 +389,36 @@ describe("the presentation common to the charts (#3097)", () => {
     // No dot of its own: ECharts draws the bar with its pattern, the curve with its symbol.
     expect(option.legend).not.toHaveProperty("icon");
     expect(option.legend).toMatchObject({ left: 0, itemWidth: 22, itemHeight: 14 });
+  });
+
+  it("draws in its legend the bar with its pattern, as the account asked for them [WF-IHM-0070-A]", async () => {
+    const barred = (palette: ChartPalette): ChartOption => ({
+      legend: { data: ["Rôle"] },
+      xAxis: { type: "category", data: ["a"] },
+      yAxis: { type: "value" },
+      series: [{ name: "Rôle", ...bars(palette, 1), data: [1] }],
+    });
+    render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <ChartPatternsProvider patterns>
+          <Chart title="Charge" description="Une barre." option={barred}>
+            <p>1</p>
+          </Chart>
+        </ChartPatternsProvider>
+      </NextIntlClientProvider>,
+    );
+    const image = screen.getByRole("img", { name: "Une barre." });
+    await waitFor(() => {
+      expect(image.querySelector("svg")).not.toBeNull();
+    });
+    // The legend is the bar itself, 22 by 14, not a dot, and the decal of the series is among the
+    // patterns of the drawing: the bar and its entry are told apart without their colour.
+    const [legend] = (getInstanceByDom(image)?.getOption().legend ?? []) as {
+      itemWidth: number;
+      itemHeight: number;
+    }[];
+    expect(legend).toMatchObject({ itemWidth: 22, itemHeight: 14 });
+    expect(image.querySelectorAll("pattern").length).toBeGreaterThanOrEqual(1);
   });
 
   it("follows the preference of the account, one point for every chart, and draws again when it changes [WF-ADM-0040-A]", async () => {

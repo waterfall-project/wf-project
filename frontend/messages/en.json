@@ -59,7 +59,7 @@
     "email": "Email address",
     "origin": "Origin of the account",
     "preferences": "Display preferences",
-    "preferencesHelp": "The language and the mode are also in the menu of the account; all apply without signing in again.",
+    "preferencesHelp": "The language and the mode are also in the account menu. All apply without signing in again.",
     "chartPatterns": {
       "legend": "Charts",
       "label": "Series patterns",
