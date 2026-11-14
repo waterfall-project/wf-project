@@ -25,13 +25,15 @@ written (WF-INTF-0080) —, then writes the end of the import in its place, ``fa
 database unchanged, the import where it stood; the task runs again from the start (WF-ARC-0090).
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import partial
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from waterfall.core.exchanges.judgments import (
     IMPORT_KEY,
+    KEEP_DATES,
+    KEEP_DURATIONS,
     REPORT_LIFETIME,
     REVISION_KEY,
     FormJudgment,
@@ -47,6 +49,7 @@ from waterfall.core.exchanges.records import (
     locked_import,
     remove_once_committed,
 )
+from waterfall.core.exchanges.states import rule_of
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.projects.interface import (
     lock_project,
@@ -77,6 +80,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.exchanges.interface.imports import Format
+    from waterfall.core.exchanges.judgments import DurationRule
     from waterfall.core.projects.interface import Viewer
     from waterfall.platform.storage import Bucket
     from waterfall.platform.tasks import Task
@@ -128,7 +132,7 @@ def analyse(
         return None
     revision = task.payload.get(REVISION_KEY)
     aimed = None if revision is None else UUID(revision)
-    target = ImportTarget(row.project_id, aimed, row.structure_id)
+    target = ImportTarget(row.project_id, aimed, row.structure_id, duration_rule=_rule(row))
     try:
         form = _format(formats, row.kind)
         content = _content(files, row.object_key)
@@ -141,11 +145,18 @@ def analyse(
         return None
     now = utc_now()
     row.report = report
+    # The rule the report was computed under, kept only for a report in calendar gap (US-2000).
+    row.duration_rule = rule_of(report)
     row.status = "analysed"
     row.analysed_at = now
     row.expires_at = now + REPORT_LIFETIME
     session.flush()
     return None
+
+
+def _rule(row: ImportReport) -> DurationRule:
+    """Give the rule of the durations an import is analysed and applied under (US-2000)."""
+    return KEEP_DATES if row.duration_rule == KEEP_DATES else KEEP_DURATIONS
 
 
 def _undone(error: Exception, import_id: UUID, status: str, files: Bucket) -> UndoneError:
@@ -188,7 +199,8 @@ def apply(
     if row is None or row.status != "applying" or row.task_id != task.task_id:
         return None
     try:
-        target = _judged(session, row, form, requester, task)
+        # The report applies as analysed: under the rule it was computed under (US-2000).
+        target = replace(_judged(session, row, form, requester, task), duration_rule=_rule(row))
     except ServiceError as refusal:
         raise _refusal(refusal, import_id, files) from refusal
     except Exception as error:

@@ -3,7 +3,9 @@
 """The table of the exchanges, private to the module (§4.4.1, regime "project"; EP-06).
 
 An import of a project and its report: its opening, the file deposited for it, where it stands,
-its report in codes and parameters (``ImportReport``), the last background task that ran for it.
+its report in codes and parameters (``ImportReport``), the last background task that ran for it,
+and, for a planning of MS Project in calendar gap, the rule its durations are converted by
+(``duration_rule``, US-2000; null otherwise).
 A deposit serves one import; the report outlives the file, which the purge or the abandonment
 deletes (WF-DAT-0120). It is deleted at its expiry or its abandonment.
 """
@@ -32,6 +34,9 @@ IMPORT_STATUSES = (
     "refused",
 )
 EXPIRING = ("analysed", "applying", "applied", "abandoned", "expired")
+# The rules of conversion of the durations of an MS Project schedule in calendar gap
+# (``ImportDurationRule``, US-2000), in the order of the contract.
+DURATION_RULES = ("keep_durations", "keep_dates")
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -52,6 +57,12 @@ class ImportReport(Base):
             name="expires_at_when_analysed",
         ),
         CheckConstraint("report IS NULL OR jsonb_typeof(report) = 'object'", name="report_object"),
+        CheckConstraint(_in("duration_rule", DURATION_RULES), name="duration_rule_known"),
+        # Only a planning of MS Project has a rule of its durations (WF-INTF-0040).
+        CheckConstraint(
+            "duration_rule IS NULL OR kind = 'ms_project_schedule'",
+            name="duration_rule_of_a_planning",
+        ),
         # A deposit serves one import.
         UniqueConstraint("upload_id"),
         Index(None, "project_id"),
@@ -77,3 +88,4 @@ class ImportReport(Base):
     analysed_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
     expires_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
     applied_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    duration_rule: Mapped[str | None] = mapped_column(Text)
