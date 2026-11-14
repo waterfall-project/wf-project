@@ -91,6 +91,7 @@ DATA = {
     # file, the labels of its objects, the sheet of a line, the version of its format, the number
     # of an item of a document, the columns a difference changes, as their grid names them.
     "Import.filename": "a name of a file",
+    "ImportCalendarGapTask.label": "a label",
     "ImportCompletedTask.label": "a label",
     "ImportDateMismatch.label": "a label",
     "ImportDifference.label": "a label",
@@ -98,10 +99,14 @@ DATA = {
     "ImportDifference.work_breakdown_label": "a label",
     "ImportDifference.document_item": "a number of an item",
     "ImportDifference.fields": "names of columns",
+    # The calendar gap of an MS Project schedule (#2977): the name a calendar of the file bears, and
+    # the label of the default calendar of the installation, as the analysis read it.
+    "ImportFileCalendar.name": "a name of the file",
     "ImportIgnored.labels": "labels of the file",
     "ImportRejection.sheet": "a name of a sheet",
     "ImportReport.format_version": "a version of a format",
     "ImportSignal.label": "a label",
+    "ImportWaterfallCalendar.label": "a label",
     # What the parameters of a refusal name, by the label and the code a person gave it: a role, a
     # project, a task, a line and its structure, a subproject, a risk, and the labels of a column of
     # the extraction of actual costs, as the mapping declares them (``ProblemParams``, #768; the
