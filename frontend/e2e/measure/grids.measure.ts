@@ -38,7 +38,6 @@ import { settle } from "../usable";
 import { administratorReady, contributorsOf, measureUsers } from "./accounts";
 import { apiAnswered, clockOffset } from "./api-log";
 import {
-  type GetMeSamples,
   getMeDurations,
   getMeReport,
   type LevelReport,
@@ -153,7 +152,7 @@ test("measures the journey of the grids against the service, at one, four and ei
   browser,
   playwright,
 }, testInfo) => {
-  // A bound of its working alone: some ten minutes a level, at most.
+  // A bound of its working alone: five minutes a pass, a quarter of an hour to prepare.
   test.setTimeout(LEVELS.length * (PASSES + 1) * 5 * 60_000 + 15 * 60_000);
   const report = process.env.E2E_MEASURE_REPORT;
   const api = process.env.WATERFALL_API_ADDRESS;
@@ -226,11 +225,10 @@ test("measures the journey of the grids against the service, at one, four and ei
           `${String(count)} user(s), pass ${String(pass + 1)} read: ${String(to - from)} ms`,
         );
       }
-      const samplesOfGetMe: GetMeSamples = getMe;
       const level: LevelReport = {
         users: count,
         steps: stepReports(STEPS, samples, PASSES),
-        get_me: getMeReport(samplesOfGetMe),
+        get_me: getMeReport(getMe),
       };
       logged(level);
       levels.push(level);
