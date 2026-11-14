@@ -155,7 +155,9 @@ cause = "établie : 500 de `POST /projects`, blocage mutuel (`DeadlockDetected`)
 # autre parcours, ou le calendrier par défaut n'est plus celui que le parcours a désigné.
 # US-1890/L2 (#3046) a traité ces parcours, et déplacé leurs lignes : les entrées visent donc le
 # titre du parcours, non sa ligne. La famille n'a pas été remesurée dans la file depuis, d'où les
-# causes encore en hypothèse.
+# causes encore en hypothèse. Le parcours des désactivés de `reference-costs.spec.ts` n'en était
+# pas : son aide `press` recliquait une commande dont l'action était en vol ; corrigé par #3135,
+# son entrée est retirée.
 
 [[known]]
 class = "known flakiness"
@@ -182,15 +184,6 @@ issue = "#2941"
 job = '^service / paths(?: \(\d+/\d+\))?$'
 test = 'e2e/reference-settings\.spec\.ts\b.*(?:modifies the risk matrix and the thresholds of the indices)'
 frequency = "1 passage du 2026-11-05 au 2026-11-12, à la ligne 18 d'avant US-1890/L2"
-cause = "hypothèse : deux parcours écrivent le même réglage du référentiel en même temps"
-
-[[known]]
-class = "known flakiness"
-family = "B. état partagé entre parcours"
-issue = "#2941"
-job = '^service / paths(?: \(\d+/\d+\))?$'
-test = 'e2e/reference-costs\.spec\.ts\b.*(?:shows the deactivated natures and categories asked for and reactivates them)'
-frequency = "1 passage du 2026-11-05 au 2026-11-12, à la ligne 448 d'avant US-1890/L2"
 cause = "hypothèse : deux parcours écrivent le même réglage du référentiel en même temps"
 
 # Famille C — une lecture lourde de PRJ-001 (5 966 nœuds) : l'adresse garde `difference=`
