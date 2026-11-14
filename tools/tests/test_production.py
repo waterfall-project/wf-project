@@ -11,6 +11,7 @@ hold what the trial concludes from what Compose and the platform answer.
 
 import json
 import re
+import subprocess
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -117,6 +118,52 @@ def test_the_platform_is_complete_on_one_machine_its_data_in_named_volumes() -> 
     }.items():
         mounts = [str(volume) for volume in found[name]["volumes"]]
         assert any(re.fullmatch(rf"[\w-]+:{kept}", mount) for mount in mounts), name
+
+
+@pytest.mark.parametrize("path", [PRODUCTION, SERVICE])
+@pytest.mark.parametrize("processes", [1, 2, 4])
+def test_postgresql_carries_fifteen_connections_for_each_process_of_the_api(
+    path: Path, processes: int
+) -> None:
+    # Proper to US-2230: « les connexions à PostgreSQL de tous les processus tiennent sous
+    # max_connections », computed from the very setting the API serves on.
+    found = compose(path)["services"]
+    setting = "${WATERFALL_API_PROCESSES:-1}"
+    assert found["api"]["environment"]["WATERFALL_API_PROCESSES"] == setting
+    server = found["postgres"]
+    assert server["environment"]["WATERFALL_API_PROCESSES"] == setting
+    shell, option, script = server["entrypoint"]
+    assert (shell, option) == ("/bin/sh", "-c")
+    assert "; exec docker-entrypoint.sh postgres " in script
+    # What the shell of the container hands to the entry point of the image, Compose's $$ unescaped.
+    shown = subprocess.run(
+        [shell, option, script.replace("$$", "$").replace("exec docker-entrypoint.sh", "echo")],
+        env={"WATERFALL_API_PROCESSES": str(processes)},
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.split()
+    assert shown[:3] == ["postgres", "-c", "max_locks_per_transaction=1024"]
+    assert shown[3:] == ["-c", f"max_connections={15 * processes + 200}"]
+
+
+@pytest.mark.parametrize("path", [PRODUCTION, SERVICE])
+@pytest.mark.parametrize("processes", ["two", "0", "-1", "", "00", "0x2", "02"])
+def test_postgresql_refuses_a_number_of_processes_that_is_not_a_whole_number_above_zero(
+    path: Path, processes: str
+) -> None:
+    # Proper to US-2230: the setting is checked where PostgreSQL starts, not only at the API.
+    shell, option, script = compose(path)["services"]["postgres"]["entrypoint"]
+    refused = subprocess.run(
+        [shell, option, script.replace("$$", "$").replace("exec docker-entrypoint.sh", "echo")],
+        env={"WATERFALL_API_PROCESSES": processes},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert refused.returncode != 0
+    assert "WATERFALL_API_PROCESSES" in refused.stderr
+    assert refused.stdout == ""
 
 
 @pytest.mark.requirement("WF-ARC-0050-A")

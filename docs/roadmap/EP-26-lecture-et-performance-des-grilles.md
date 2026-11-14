@@ -461,7 +461,7 @@ révision marquée (US-2270).
 
 ## US-2230 — L'API tourne sur plusieurs processus
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ARC-0080-A`
 - **opérations** : toutes celles que le service sert ; `getMe` pour la mesure
 - **issue** : #3309
