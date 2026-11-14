@@ -1,0 +1,96 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+"""``make measure-core``: the passage of the measure, its report on the terminal and in JSON."""
+
+import argparse
+import sys
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+from measure.reading import (
+    measure_processes,
+    measure_profile,
+    measure_threads,
+    measure_whole,
+)
+from measure.report import Measure, Report, render_json, render_text
+from measure.target import (
+    PROJECT_CODE,
+    MeasureError,
+    address_from_environment,
+    database_of,
+    locate,
+)
+from measure.writing import measure_opening, measure_writes
+from waterfall.platform.correlation import correlation_id_from
+from waterfall.platform.logs import PLATFORM, logging_context
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
+    from measure.target import Target
+
+DEFAULT_RUNS = 5
+"""Identical runs of an operation: the spread of five is what a gain must exceed."""
+
+_PARTS = ("read", "profile", "parallel", "write", "revision")
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="python -m measure",
+        description="Measure the core in process, on the witness of the service platform.",
+    )
+    parser.add_argument(
+        "--runs", type=int, default=DEFAULT_RUNS, help="identical runs of each operation"
+    )
+    parser.add_argument(
+        "--only",
+        action="append",
+        choices=_PARTS,
+        help="a part to play, repeatable: all of them by default",
+    )
+    parser.add_argument("--json", type=Path, help="also write the report, as JSON, to this file")
+    return parser
+
+
+def _passage(address: str, target: Target, runs: int, parts: Sequence[str]) -> tuple[Measure, ...]:
+    database = database_of(address)
+    place = target.place
+    plan: dict[str, Callable[[], tuple[Measure, ...]]] = {
+        "read": lambda: (
+            measure_whole(database, place, runs, None),
+            measure_whole(database, place, runs, ("task",)),
+        ),
+        "profile": lambda: (measure_profile(database, place),),
+        "parallel": lambda: (
+            measure_threads(database, place),
+            measure_processes(address, place),
+        ),
+        "write": lambda: measure_writes(database, place, runs),
+        "revision": lambda: (measure_opening(database, target, runs),),
+    }
+    return tuple(measure for part in _PARTS if part in parts for measure in plan[part]())
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Run the passage, print the report, write its JSON if asked; never fails on a duration."""
+    arguments = _parser().parse_args(argv)
+    parts = arguments.only or _PARTS
+    try:
+        address = address_from_environment()
+        target = locate(database_of(address))
+        with logging_context(correlation_id=correlation_id_from(None), actor=PLATFORM):
+            measures = _passage(address, target, arguments.runs, parts)
+    except MeasureError as error:
+        sys.stderr.write(f"measure: {error}\n")
+        return 1
+    report = Report({"project": PROJECT_CODE, "runs": arguments.runs}, measures)
+    sys.stdout.write(render_text(report))
+    if arguments.json is not None:
+        arguments.json.write_text(render_json(report), encoding="utf-8")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
