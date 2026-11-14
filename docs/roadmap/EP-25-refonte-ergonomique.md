@@ -1,10 +1,10 @@
 ---
 id: EP-25
 titre: Lire et saisir dans des écrans aérés, sobres et cohérents
-statut: prêt
+statut: en cours
 depend_de: EP-24
 famille: front, back
-issue:
+issue: 3195
 ---
 
 # EP-25 — Refonte ergonomique
@@ -397,7 +397,7 @@ répertoire, et les écrans par domaine, une fois l'écran de référence valid�
 - **exigences** : aucune — outil du dépôt
 - **opérations** : `listCostTypes`, `listCostCategories`, `setCostTypeActivation`,
   `setCostCategoryActivation`, par les parcours qui les jouent
-- **issue** :
+- **issue** : #3198
 
 **En tant que** développeur, **je veux** savoir pourquoi les deux parcours des paramètres de coûts
 échouent par moments dans la file, **afin de** les rejouer contre le service avant que la refonte ne
@@ -429,7 +429,7 @@ réécrit sur le filtre d'état ; ici, il n'est qu'isolé.
 - **statut** : à faire
 - **exigences** : `WF-IHM-0070-A`, `WF-IHM-0100-A`
 - **opérations** : aucune en propre
-- **issue** :
+- **issue** : #3206
 
 **En tant que** chef de projet, **je veux** des écrans aérés, sobres et de couleurs accordées,
 **afin de** lire et de saisir sans chercher ce qui est une commande, une section ou un état.
@@ -487,7 +487,7 @@ essayées avant la maquette — gris froids, tons chauds — sont écartées (#3
 - **exigences** : `WF-IHM-0060-A`, `WF-IHM-0130-A`
 - **opérations** : toute liste paginée (`offset`, `limit`, `meta.total`) ; `getMe`,
   `updateMyPreferences`
-- **issue** :
+- **issue** : #3210
 
 **En tant que** manager, **je veux** que toutes les tables se présentent de la même façon — où
 créer, où filtrer, où l'on est dans les pages —, **afin de** ne pas réapprendre chaque écran.
@@ -556,7 +556,7 @@ fenêtrage des lignes en dépend (#3079).
 - **exigences** : `WF-REF-0150-A`
 - **opérations** : `listCostTypes`, `listCostCategories`, `getHourlyRateGrid`, `listOrgNodes`,
   `listResourceRoles`, `listCalendars`, `listUsers`, `getMe`, `updateMyPreferences`
-- **issue** :
+- **issue** : #3220
 
 **En tant que** manager, **je veux** régler ce que chaque table montre des objets désactivés par son
 propre filtre, **afin de** ne plus dépendre d'un bouton de l'écran qui vaut pour toutes ses listes.
@@ -594,7 +594,7 @@ de WF-REF-0150 dit qu'un désactivé n'apparaît pas par défaut.
 - **statut** : à faire
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
-- **issue** :
+- **issue** : #3226
 
 **En tant qu'** administrateur, **je veux** que les écrans d'administration suivent la présentation
 de l'écran de référence, **afin de** y retrouver les commandes à la même place.
@@ -625,7 +625,7 @@ de l'écran de référence, **afin de** y retrouver les commandes à la même pl
 - **statut** : à faire
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
-- **issue** :
+- **issue** : #3229
 
 **En tant que** manager, **je veux** que les écrans de paramètres suivent la présentation de l'écran
 de référence, **afin de** régler le référentiel sans chercher une commande d'un écran à l'autre.
@@ -657,7 +657,7 @@ de référence, **afin de** régler le référentiel sans chercher une commande 
 - **exigences** : `WF-EXP-0020-A`, `WF-ADM-0100-A`
 - **opérations** : `getInstallation`, `getReferenceSettings`, `updateReferenceSettings`,
   `listPermissions`, `getMe`
-- **issue** :
+- **issue** : #3239
 
 **En tant qu'** administrateur, **je veux** un écran « Installation » dans la section
 « Administration », **afin de** corriger le nom de l'entreprise là où se règle l'installation, et non
@@ -723,7 +723,7 @@ l'amorçage (WF-REF-0140, WF-EXP-0020).
 - **statut** : à faire
 - **exigences** : `WF-IHM-0100-A`, `WF-IHM-0120-A`, `WF-IHM-0090-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
-- **issue** :
+- **issue** : #3221
 
 **En tant que** chef de projet, **je veux** que l'accueil et les écrans où je règle et consulte un
 projet suivent la présentation de l'écran de référence, **afin de** ne pas changer de repères en
@@ -776,7 +776,7 @@ l'écran « Révisions » — EP-27 (#3177, #3180).
 - **statut** : à faire
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
-- **issue** :
+- **issue** : #3232
 
 **En tant que** chef de projet, **je veux** que les grilles où je saisis gardent toute la fenêtre et
 leur densité en prenant la présentation nouvelle, **afin de** ne rien perdre de ce que je vois d'un
@@ -805,7 +805,7 @@ comparaison (EP-27) ; la performance (EP-26).
 - **statut** : à faire
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent déjà, sur les exemples du contrat
-- **issue** :
+- **issue** : #3235
 
 **En tant que** manager, **je veux** que le portefeuille, les risques et les indicateurs d'un projet
 et l'état du système aient déjà la présentation nouvelle, **afin que** les EPICs qui les brancheront
@@ -837,7 +837,7 @@ sur le service n'aient pas à la refaire.
 - **statut** : à faire
 - **exigences** : `WF-IHM-0070-A`, `WF-ADM-0040-A`, `WF-IHM-0130-A`
 - **opérations** : `getMe`, `updateMyPreferences` ; les lectures des graphiques, inchangées
-- **issue** :
+- **issue** : #3214
 
 **En tant que** manager, **je veux** des graphiques aux couleurs pleines, lisibles d'un regard, et
 pouvoir demander les motifs qui distinguent les séries sans la couleur, **afin de** les lire à
@@ -898,7 +898,7 @@ US-2050), qui naissent dans cette présentation.
 - **exigences** : `WF-IHM-0080-A`
 - **opérations** : `getBackgroundTask`, `listBackgroundTasks`, `getBackgroundTaskResult`,
   `requestExport`, `markRevision`, `createRevision`, `applyImport`
-- **issue** :
+- **issue** : #3217
 
 **En tant que** chef de projet, **je veux** voir qu'une commande que je viens de presser est partie,
 et son résultat là où je regarde, **afin de** ne pas la relancer et me retrouver avec cinq exports
@@ -940,7 +940,7 @@ cinq que le front dit « injoignable » — EP-26 (#3102).
   `setResourceRoleActivation`, `setCalendarActivation`, `setDefaultCalendar`, `updateCostType`,
   `updateCostCategory`, `setCostTypeActivation`, `setCostCategoryActivation`,
   `setActualCostMapping`, `updateReferenceSettings`, `updateUser`
-- **issue** :
+- **issue** : #3202
 
 **En tant que** manager, **je veux** que les formulaires du référentiel ne perdent ni une saisie ni
 un refus, **afin de** ne pas refaire une modification que l'écran a laissée partir deux fois.
@@ -980,7 +980,7 @@ qui le lit.
 - **statut** : à faire
 - **exigences** : aucune en propre
 - **opérations** : aucune
-- **issue** :
+- **issue** : #3238
 
 **En tant qu'** administrateur, **je veux** que la page de connexion porte les couleurs et les
 formes de l'application, **afin que** l'on n'ait pas l'impression de passer d'un produit à un autre
@@ -1003,7 +1003,7 @@ les valeurs sont celles que l'application a arrêtées.
 - **exigences** : `WF-PLA-0130-A`
 - **opérations** : `getInstallation` ; `setTaskProgress`, `requestExport` et les autres opérations
   qui datent au jour courant, inchangées
-- **issue** :
+- **issue** : #3199
 
 **En tant que** chef de projet, **je veux** que « aujourd'hui » soit le jour de mon installation et
 non celui du temps universel, **afin qu'** une tâche que je termine peu après minuit ne soit pas
