@@ -162,7 +162,7 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-23](EP-23-dette-constats-ep02-ep03.md) | Dette des constats d'EP-02 et d'EP-03 | livré | EP-02, EP-03, EP-06 |
 | [EP-24](EP-24-consolidation-apres-v0-3-0.md) | Consolidation après la v0.3.0 | livré | EP-09, EP-23 |
 | [EP-25](EP-25-refonte-ergonomique.md) | Refonte ergonomique | en cours | EP-24 |
-| [EP-26](EP-26-lecture-et-performance-des-grilles.md) | Lecture et performance des grilles | à planifier | EP-25 |
+| [EP-26](EP-26-lecture-et-performance-des-grilles.md) | Lecture et performance des grilles | en cours | EP-25 |
 | [EP-27](EP-27-comparaison-dans-les-grilles.md) | Comparaison dans les grilles | à planifier | EP-26 |
 | [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | en cours | EP-09 |
 | [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | à planifier | EP-10, EP-27 |
@@ -389,7 +389,9 @@ l'ouverture des issues d'EP-06, EP-04 n'ayant plus qu'US-0990/L2 à fusionner, e
 toute la série EP-06 → EP-07 → EP-09 → EP-10 → EP-08, chaque branche tirée de la précédente dès
 le lot pivot que le cadrage de celle-ci désigne (décision du 2026-11-07) : US-1380/L1 (#2328)
 pour `epic/EP-07`, US-1490/L1 (#2370) pour `epic/EP-09`, US-1580/L1 (#2398) pour `epic/EP-10`, US-1660/L1 (#2437) pour
-`epic/EP-08`.
+`epic/EP-08`. Troisième : `epic/EP-26` tirée d'`epic/EP-25` dès l'ouverture des issues d'EP-26,
+ses lots de back et ses outils de mesure ne touchant aucun fichier de la refonte (décision du
+2026-11-14).
 
 La chaîne s'exécute sur toute pull request, vers une branche d'EPIC comme vers `main`, et
 aucune n'est fusionnée si elle échoue.
