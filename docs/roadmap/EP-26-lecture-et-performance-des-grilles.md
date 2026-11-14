@@ -93,12 +93,12 @@ pas une forme : la règle générale des refus de débordement d'un montant dér
 Par exception (décision de l'auteur du 2026-11-14, au cadrage ; README, « Branches »),
 `epic/EP-26` se tire d'`epic/EP-25` dès l'ouverture de ses issues, et la reprend à chaque lot
 qu'EP-25 fusionne : ses lots de back et ses outils de mesure ne touchent aucun fichier de la
-refonte, et avancent sur les créneaux libres. Les durées de référence du parcours, elles, se
-prennent sur les écrans de travail refondus (US-2140 d'EP-25) : les lots qui les mesurent
-l'attendent. `epic/EP-26` se fusionne dans `main` après `epic/EP-25`, jamais avant.
+refonte, et avancent sur les créneaux libres. `epic/EP-26` se fusionne dans `main` après
+`epic/EP-25`, jamais avant.
 
 La mesure de référence précède tout lot de correction : sans elle, aucun lot ne sait ce qu'il
-gagne.
+gagne. Elle se prend sur les écrans tels qu'`epic/EP-26` les porte à ce moment ; le rapport de la
+version (US-2300), lui, attend les écrans de travail refondus (US-2140 d'EP-25).
 
 ## Définition de fini
 
@@ -159,7 +159,213 @@ les vues nouvelles (§4.6.2, WF-QUA-0060) — close, portée par la spécificati
 
 ## Conception
 
-À écrire, après la validation des US.
+### La mesure
+
+Quatre commandes du Makefile, que les lots ajoutent ; les trois premières prennent le poste pour
+elles seules.
+
+| Commande | Ce qu'elle fait | Où vit son code |
+|---|---|---|
+| `make measure-core` | mesure dans le processus, sans HTTP ni Keycloak : lecture entière, `kinds=task`, profil par étape, fils et processus, rapport d'une saisie à une lecture, ouverture d'une révision | `backend/measure/`, un paquet à part de `src/waterfall`, typé et analysé comme lui, absent de l'image |
+| `make measure` | joue le parcours des grilles contre le service, à un, quatre et huit utilisateurs, en trois parts par étape | `frontend/e2e/measure/`, un projet Playwright `measure-service` |
+| `make measure-version` | prend le rapport d'une version : le parcours par un navigateur sous la charge de cinquante utilisateurs, puis un marquage, un import et un export | la charge dans `frontend/bench/load.ts`, jouée par k6 |
+| `make check-measures` | confronte les rapports versionnés ; la seule que la chaîne joue | `tools/src/wftools/measures.py` |
+
+- **Le poste pour elle seule.** L'outil des créneaux (`tools/src/wftools/slots.py`) reçoit un mode
+  exclusif, à côté de `--heavy` : il prend tous les tours des exécutions lourdes, dans un ordre
+  fixe, attend ceux qui sont pris et les garde le temps de la commande. Les travaux légers des
+  autres livreurs continuent : la dispersion des cinq passages dit ce qu'ils coûtent.
+- **Le témoin fraîchement chargé.** Une mesure part d'une plateforme de service dont les données
+  viennent d'être remises à zéro et le témoin rechargé : le marquage et la saisie d'une mesure ne
+  changent pas la suivante.
+- **L'API sans le proxy du contrat.** Le front de la mesure parle à l'API directement : Prism
+  valide chaque réponse, et sur un corps de plusieurs mégaoctets ce coût est celui du harnais.
+- **La part de l'API.** Elle se lit dans le journal de l'API (`duration_ms`, l'acteur), rapprochée
+  d'une étape par le compte de l'utilisateur et la fenêtre de l'étape : le front ne transmet pas
+  d'identifiant de corrélation, et chaque utilisateur de la mesure a son compte.
+- **Les comptes.** Ils sont créés par la préparation de la mesure, par les opérations du contrat,
+  jamais par un `INSERT` ; leurs jetons sont pris au fournisseur d'identité hors de la mesure.
+- **La charge.** k6, que l'annexe C nomme, tourne en service Compose de la plateforme de service,
+  son image épinglée. Son scénario est un fichier TypeScript de `frontend/bench/`, typé et analysé
+  avec le front : cinquante utilisateurs virtuels, un geste toutes les dix secondes en moyenne
+  (entre cinq et quinze, tirage reproductible), neuf lectures pour une saisie, tous sur PRJ-001.
+- **Les rapports.** Des fichiers JSON sous `docs/measures/` : `reference.json`, pris avant toute
+  correction, puis `<version>.json` à chaque version. Chaque opération y porte son objectif, sa
+  médiane, sa pire durée, sa dispersion, et, si elle dépasse ou se dégrade, le texte qui le
+  documente. Une opération non servie y est nommée, sans durée, avec son EPIC.
+- **La confrontation.** `wftools.measures` lit les deux derniers rapports de version : il signale
+  par un avertissement de la chaîne un objectif dépassé ou une durée de plus d'un quart au-dessus
+  de la précédente, et échoue si ce signalement n'est pas documenté dans le rapport. Son test lui
+  donne un rapport dont une durée est multipliée par 1,3. `make check-measures` entre dans
+  `make check-all`.
+- **Le gain d'un lot.** Un lot de correction du back mesure avant et après lui par
+  `make measure-core`, dans le même passage exclusif, et l'écrit dans sa pull request. Le parcours
+  entier ne se rejoue qu'à quatre moments : la référence, le réglage des processus (US-2230), les
+  bornes des parcours (US-2290), le rapport de la version (US-2300).
+
+### La lecture d'une structure
+
+Trois US touchent le même chemin, et se suivent : US-2220 l'allège, US-2280 lui fait lire moins,
+US-2270 le garde pour une révision marquée.
+
+- **Deux chemins, un oracle** (US-2220). La lecture seule lit les colonnes en lignes ; les
+  écritures gardent les objets, qu'elles modifient. Un test tient sur le témoin que les deux
+  rendent le même arbre, et il reste dans la suite.
+- **La forme du contrat reste dans `api/`.** Le dernier palier écrit le corps sans vue par nœud :
+  le noyau rend alors des enregistrements à plat, et c'est `api/nodes.py` qui en fait le corps. Le
+  noyau ne connaît pas la forme d'une réponse.
+- **Les cibles.** L'API reçoit, pour l'ouverture d'une grille, la seconde du tableau 15 moins les
+  parts de Next et du navigateur que donne `reference.json`, pour un utilisateur seul. US-2220
+  s'arrête au palier qui l'atteint pour la grille de devis ; US-2280 rend son verdict sur la grille
+  de planning.
+- **L'agrégat d'abord** (US-2280). Un crochet de plus dans `FacetHooks` rend, par tâche porteuse,
+  les sommes, le nombre et la tenue ouverte de ses nœuds d'un genre, lus par une requête groupée.
+  Le planning lit ses tâches, ce crochet, et rien des lignes. Si le verdict manque la cible, le
+  livreur ouvre le second lot : des colonnes sur la tâche, pour les seules valeurs que l'agrégat
+  lit trop lentement, nulles pour une révision marquée avant lui. Le numéro de ligne et le niveau
+  ne se stockent pas : une insertion renuméroterait toutes les lignes qui suivent.
+- **Ce qui est gardé** (US-2270). Le corps entier de `listNodes` d'une structure, sans filtre ni
+  projection, avec ses totaux et ce que la lecture dit de la structure, compressé. La projection
+  `fields` s'y applique à la lecture.
+- **Ce qui change encore après le marquage.** Le test de l'US en donne la liste. Ce qu'un geste
+  courant change — une inscription de suivi — n'entre pas dans le document, et se joint à chaque
+  lecture ; ce qu'un réglage change — le libellé d'un lot, un calendrier — périme les lectures
+  gardées du projet, refaites à la demande.
+- **Quand.** Au marquage, dans la transaction de sa tâche, par `register_marking`, pour la
+  structure principale : comme les indicateurs d'une révision marquée, calculés une fois et
+  conservés avec elle (§4.4.2). Les autres structures, et les révisions marquées avant le lot, à
+  leur première lecture entière, écrite dans la transaction de la lecture ; deux processus qui la
+  calculent ensemble écrivent la même, la seconde écriture ignorée.
+- **Le format.** Une lecture gardée porte le format du code qui l'a écrite ; d'un autre format,
+  elle est ignorée et refaite. Un champ ajouté au nœud change le format.
+- **La comparaison.** `compareRevisions` de deux révisions marquées part des deux lectures gardées.
+  Comment l'union les lit est au lot ; son critère est le corps identique à l'octet.
+
+### Les écritures
+
+- **Les colonnes inertes** (US-2250). Chaque facette déclare les siennes : la tâche dans
+  `planning`, la ligne de devis par un attribut de plus de `FacetHooks`. Une écriture dont toutes
+  les colonnes envoyées sont inertes prend le chemin court.
+- **Le chemin court avance le compteur, non l'instant des dates.** Il verrouille la structure,
+  écrit, inscrit l'historique et avance le compteur de la structure, auquel le front s'adosse.
+  `scheduled_at` ne bouge plus pour ces saisies : le contrat le dit déjà « l'instant de la dernière
+  écriture qui l'a redatée ». C'est le seul écart visible à la réponse d'aujourd'hui.
+- **La copie d'une révision** (US-2240). Le profil d'abord : le lot dit où vont les dix secondes
+  avant de réécrire. La copie reste dans une transaction, sous le verrou du projet, et le nombre de
+  lignes par table reste celui de WF-DAT-0010.
+- **La connexion perdue** (US-2240). `frontend/src/api/client.ts` distingue une requête qui n'est
+  pas partie d'une connexion perdue après son envoi. Pour une écriture, la seconde a son message
+  propre, dans les deux langues, et fait relire l'écran. La règle vaut pour toute écriture, non
+  pour la seule ouverture d'une révision.
+
+### Plusieurs processus
+
+- **`workers` d'uvicorn.** `WATERFALL_API_PROCESSES`, un par défaut : les tests et le poste de
+  développement ne changent pas. L'application se construit par une fabrique, une fois par
+  processus, qui ouvre et ferme ses propres services — la base, Keycloak, Redis.
+- **Le nombre.** La mesure à un, deux et quatre processus fixe celui de la plateforme de service
+  et celui que `production.env.example` conseille : autant que de cœurs, tant que la mémoire et
+  les connexions tiennent.
+- **Les connexions.** Chaque processus garde sa réserve de quinze ; `max_connections` de
+  PostgreSQL est réglé pour les porter toutes, et le guide du déploiement dit le calcul.
+- **L'état.** Le fuseau de l'installation, lu une fois par processus, est fixé à l'amorçage et ne
+  change plus (US-2200 d'EP-25) : il est le même partout. Le lot inventorie le reste.
+
+### Tables et migrations
+
+| Table | US | Ce qu'elle porte |
+|---|---|---|
+| `structure_reading` | US-2270 | par structure : le projet, la révision, la structure, le format, le document compressé, l'instant où il a été gardé. Partitionnée par projet comme les tables du contenu d'une révision ; supprimée avec sa structure ; aucune règle d'immuabilité, puisqu'elle se refait |
+| colonnes de `task` | US-2280, second lot, s'il a lieu | les sommes et l'état dérivé que l'agrégat lit trop lentement, nulles tant qu'aucune écriture ne les a posées |
+
+Les migrations se chaînent après la dernière d'`epic/EP-25`. EP-25 entre le premier dans `main` :
+si l'un de ses lots ajoute une migration après celle d'EP-26, c'est celle d'EP-26 qui se rechaîne,
+à la reprise d'`epic/EP-25`.
+
+### Modules touchés
+
+| Module | US | Ce qui change, et ce qu'il expose |
+|---|---|---|
+| `core/planning` | US-2220, US-2250, US-2270, US-2280 | le chemin de lecture seule derrière `list_nodes` et `read_structure`, dont la signature ne change pas ; `FacetHooks` gagne la lecture en colonnes d'une facette, ses colonnes inertes et l'agrégat par tâche ; la table des lectures gardées |
+| `core/estimate` | US-2220, US-2240, US-2260, US-2270, US-2280 | ses crochets nouveaux ; `compare` sur les lectures gardées ; la copie des lignes et des taux |
+| `core/revisions` | US-2240, US-2250 | `copy_revision` ; une avance du compteur d'une structure sans son instant |
+| `api` | US-2220, US-2230 | le corps écrit depuis des enregistrements à plat ; la fabrique de l'application |
+| `platform/settings.py` | US-2230 | `WATERFALL_API_PROCESSES` |
+| `frontend/src/api`, les catalogues | US-2240 | la connexion perdue d'une écriture |
+| `frontend/e2e`, `frontend/bench` | US-2210, US-2290, US-2300 | le parcours de mesure, les bornes des parcours lourds, la charge |
+| `tools/src/wftools` | US-2210, US-2300 | le mode exclusif des créneaux ; la confrontation des rapports |
+| `deploy/compose` | US-2230, US-2300 | les processus de l'API, `max_connections`, le service de charge |
+
+### Modifications du contrat
+
+Aucune forme ne change. `docs/api/DECISIONS.md` reçoit une entrée : un montant dérivé qui déborde
+sa colonne est refusé au champ qui le provoque (#3093), que les pointeurs de #3094 suivent.
+
+### Ordre de construction
+
+En six temps, pour que quatre livreurs avancent ensemble.
+
+1. **Les outils, et ce qui ne mesure rien**, en parallèle : la mesure dans le processus, le mode
+   exclusif, le parcours de mesure (US-2210) ; le format des rapports et leur confrontation
+   (US-2300) ; la fabrique et le réglage des processus, à un processus par défaut (US-2230) ; les
+   constats reçus (US-2260) ; la connexion perdue du front (US-2240).
+2. **La mesure de référence** : `reference.json`, pris par le dernier lot d'US-2210.
+3. **Les corrections qui ne partagent aucun fichier**, en parallèle : le chemin de lecture
+   (US-2220) ; la copie d'une révision (US-2240) ; le nombre de processus (US-2230). La saisie
+   (US-2250) touche `core/planning/interface/nodes.py` comme les deux premières : elle ne se livre
+   pas en même temps qu'elles.
+4. **Ce qui s'appuie sur la lecture nouvelle** : l'agrégat (US-2280) et la lecture gardée
+   (US-2270), après US-2220, l'un après l'autre.
+5. **Les parcours lourds** (US-2290), corrections livrées et processus réglés.
+6. **Le rapport de la version** (US-2300), en dernier, sur les écrans de travail refondus.
+
+Le Makefile et le guide reçoivent une cible et son paragraphe de plusieurs lots : chacun n'y
+écrit que les siens, et ils ne mettent pas deux lots « pas avec », comme les catalogues dans EP-25.
+
+### Décisions
+
+Prises par l'auteur le 2026-11-14, au cadrage, sauf mention.
+
+- **L'EPIC finit sur ses corrections, non sur les objectifs.** Écarté : tenir chaque objectif
+  d'écran avant de livrer, pour un utilisateur ou pour cinquante — un EPIC sans fin connue, quand
+  WF-QUA-0060 demande de signaler et de documenter.
+- **Les durées se prennent sur un poste, la chaîne confronte les rapports.** Écartés : mesurer sur
+  un runner, dont les durées varient du simple au double, au-delà du quart à détecter ; les deux,
+  un travail de chaîne de plus.
+- **Le poste pour la mesure seule, par l'outil des créneaux.** Écartés : une mesure lancée par
+  l'auteur, poste au calme, qui ferait attendre la livraison deux fois ; une mesure prise telle
+  quelle sous quatre livreurs, dont les durées absolues ne vaudraient rien.
+- **La référence se prend sur les écrans du moment.** Les préalables la voulaient sur les écrans
+  refondus ; elle aurait attendu US-2140 d'EP-25, que la validation de l'écran de référence
+  (#3196) retient, et quatre livreurs avec elle. Seul le rapport de la version les attend.
+- **Cinquante utilisateurs actifs, non cinquante requêtes en vol.** Écartés : cinquante lectures
+  simultanées sans pause, au-delà du §4.6.2 ; une répartition sur les petits projets du témoin, que
+  le jeu aux trois cents projets (EP-13) changera.
+- **L'ouverture d'une révision reste synchrone, bornée à deux secondes.** Écartée : la tâche de
+  fond, qui modifiait `createRevision` dans un contrat figé et reprenait le front et les parcours
+  qu'US-2170 d'EP-25 touche.
+- **Aucune correction propre à un filtre** (#3171). Écartés : filtrer dans le navigateur, contre
+  la règle d'US-0110 ; garder la lecture d'une révision en cours par version de structure, que
+  chaque écriture périme.
+- **L'agrégat avant le stockage, la mesure tranche.** Écartés : l'agrégat seul, sans recours ; le
+  stockage d'emblée, que #3170 proposait — une migration, un invariant sur dix chemins d'écriture
+  et un cas à part pour les révisions marquées, avant de savoir s'il le faut.
+- **Le document gardé est le corps, non ses lignes d'origine** (cadrage). Écarté : garder les
+  enregistrements lus de la base, qui n'épargnent que le chargement, un tiers d'une lecture, quand
+  le corps gardé en épargne les neuf dixièmes pour la lecture entière.
+- **Une lecture filtrée d'une révision marquée ne lit le document que si la mesure le justifie**
+  (cadrage, règle de #3168). Écarté : y filtrer d'office, qui demande un second filtrage à tenir
+  d'accord avec le premier.
+- **La lecture gardée vit dans PostgreSQL.** Écartés : Redis, que WF-ARC-0040 réserve au
+  reconstructible qu'il nomme, et qui la perdrait à chaque vidage ; le stockage objet, qui ne porte
+  que les fichiers en transit, les exports et les sauvegardes.
+- **`workers` d'uvicorn pour Compose** (cadrage). Écartés : plusieurs instances derrière un
+  répartiteur, qui sont l'affaire de l'empaquetage Kubernetes d'EP-13 ; gunicorn, une dépendance
+  de plus.
+- **k6 en service Compose, son scénario en TypeScript dans le front** (cadrage). Écartés : un
+  générateur de charge en Python, contre l'annexe C ; un script JavaScript hors de toute analyse.
+- **Les exigences d'un autre EPIC citées sans changer leur portée** (cadrage, comme EP-25) :
+  WF-ARC-0080 reste entière à EP-13, WF-REV-0010 close par EP-07.
 
 ---
 
@@ -186,15 +392,18 @@ navigateur — elle doit s'attaquer.
   planning, celle de devis, celle de reste à engager ; passer de l'une à l'autre ; filtrer, trier,
   chercher ; saisir un libellé, puis une durée qui redate ;
 - propre à l'US : chaque étape se mesure du clic à la grille dessinée et hydratée — la définition
-  d'`opening.spec.ts` —, en trois parts : l'API, lue dans ses journaux par l'identifiant de
-  corrélation ; Next, par différence ; le navigateur ; et le poids de la réponse ;
+  d'`opening.spec.ts` —, en trois parts : l'API, lue dans ses journaux et rapprochée de l'étape
+  par le compte de l'utilisateur et son instant ; Next, par différence ; le navigateur ; et le
+  poids de la réponse ;
 - propre à l'US : le parcours est joué par un, quatre et huit utilisateurs à la fois, un compte
   chacun, la connexion hors de la mesure ; la durée de `getMe` pendant ce temps est relevée ;
 - propre à l'US : cinq passages identiques donnent la dispersion ; le rapport écrit, par étape, la
   médiane, la pire et la dispersion, et un écart sous la dispersion n'y est pas dit un gain ;
+- propre à l'US : une mesure prend le poste pour elle seule : elle attend la fin des exécutions
+  lourdes en cours et retient les suivantes tant qu'elle dure, quel que soit le nombre de
+  livreurs ;
 - propre à l'US : la mesure n'échoue jamais sur une durée, et ne tourne pas dans la chaîne ;
-- propre à l'US : le rapport de référence, pris sur les écrans de travail refondus (US-2140
-  d'EP-25), est versionné avant tout lot de correction ;
+- propre à l'US : le rapport de référence est versionné avant tout lot de correction ;
 - propre à l'US : `opening.spec.ts`, contre le faux back, reste ce qu'elle est, et dit à part la
   durée que le faux back met à servir l'exemple des lignes du témoin.
 
@@ -411,8 +620,10 @@ comparaison sans attendre.
   révision, garder le corps de `listNodes`, changer une inscription de suivi, le libellé d'un lot,
   un reste à engager tenu ouvert, un calendrier, relire et comparer octet pour octet — ; chaque
   champ qui diffère est joint à la lecture, ou cause d'invalidation ;
-- propre à l'US : un filtre et la projection `fields` appliqués à la lecture gardée rendent le même
-  corps que la lecture depuis les lignes (SHA-256), pour chaque filtre de `listNodes` ;
+- propre à l'US : la lecture gardée sert la lecture entière, projetée par `fields` ou non ; elle
+  ne sert une lecture filtrée que si filtrer le document coûte moins du tiers d'une lecture depuis
+  les lignes (#3168), et une lecture filtrée garde sinon le chemin des lignes ; là où elle sert, le
+  corps rendu est le même que depuis les lignes (SHA-256) ;
 - propre à l'US : le volume gardé est mesuré, et rapproché des 150 à 200 Go du §4.6.2 ;
 - propre à l'US : le gain est dit par la mesure — la grille d'une révision marquée,
   `compareRevisions` de deux révisions marquées —, avant et après, au-delà de la dispersion.
@@ -425,7 +636,7 @@ lignes ; il pèse 7,8 Mo, 0,46 Mo compressé.
 **Hors périmètre.** « Écarts seulement », que la spécification 1.0.6 change en repli des branches
 sans écart — EP-27 ; les options 2 et 3 de #3168.
 
-## US-2280 — Sommes, états, numéros de ligne et niveaux sont stockés à l'écriture, et le planning ne lit plus les lignes de devis
+## US-2280 — Le planning ne lit plus les lignes de devis : leurs sommes par tâche viennent d'un agrégat, ou sont stockées à l'écriture si la mesure le demande
 
 - **statut** : à faire
 - **exigences** : aucune en propre — le gain se lit dans le rapport de WF-QUA-0060 (US-2300)
@@ -437,25 +648,30 @@ de** l'ouvrir sans payer les cinq mille lignes de devis qu'il n'affiche pas.
 
 **Critères d'acceptation.**
 
-- propre à l'US : sont stockés à l'écriture, par tâche, ses montants sommés et son état dérivé, et
-  par nœud, son numéro de ligne et son niveau — et seulement ce qu'une lecture partielle demande :
-  chaque valeur que la lecture dérive aujourd'hui est inventoriée, avec qui la lit ;
-- propre à l'US : un test d'invariant tient, après chaque chemin d'écriture sur le témoin — une
-  saisie, un geste de structure, un collage, l'annulation et le rétablissement, la copie d'une
-  révision, un import, la mise à jour des taux, le chargement du témoin —, que les valeurs stockées
-  égalent celles que la lecture dérive ; la dérivation reste dans les tests, comme oracle ;
-- propre à l'US : `listNodes` avec `kinds=task` ne lit plus les nœuds des lignes ; les réponses ne
-  changent pas (SHA-256, comme US-2220) ;
-- propre à l'US : aucune ligne d'une révision marquée n'est écrite (WF-REV-0020) : une révision
-  marquée avant le lot garde la dérivation à la lecture, qu'US-2270 ne fait qu'une fois ;
-- propre à l'US : le coût ajouté à une écriture est mesuré — les lignes mises à jour par une
-  saisie, la durée — ;
+- propre à l'US : chaque valeur que la lecture dérive aujourd'hui pour tous les nœuds — les états
+  des récapitulatives, l'attente des lignes propres, les sommes, le numéro de ligne, le niveau —
+  est inventoriée, avec qui la lit et ce qu'une lecture partielle en demande ;
+- propre à l'US : `listNodes` avec `kinds=task` ne charge plus les nœuds des lignes : les sommes,
+  le nombre et la tenue ouverte des lignes de chaque tâche viennent d'un agrégat, le niveau et le
+  numéro de ligne se déduisent des tâches et de ces nombres ; les réponses ne changent pas
+  (SHA-256, comme US-2220) ;
+- propre à l'US : le lot mesure l'ouverture du planning ainsi lue. Si elle tient la seconde du
+  tableau 15 du clic à l'affichage, pour un utilisateur seul, l'US est finie ; sinon, un second lot
+  stocke à l'écriture ce que l'agrégat lit trop lentement (décision de l'auteur du 2026-11-14, au
+  cadrage : le lot essaie les deux voies et tranche par la mesure) ;
+- propre à l'US, si le second lot a lieu : un test d'invariant tient, après chaque chemin
+  d'écriture sur le témoin — une saisie, un geste de structure, un collage, l'annulation et le
+  rétablissement, la copie d'une révision, un import, la mise à jour des taux, le chargement du
+  témoin —, que les valeurs stockées égalent celles que la lecture dérive, gardée comme oracle ;
+  aucune ligne d'une révision marquée n'est écrite (WF-REV-0020), une révision marquée avant le lot
+  gardant la dérivation à la lecture ; le coût ajouté à une écriture est mesuré ;
 - propre à l'US : le gain est dit par la mesure — l'ouverture du planning —, avant et après,
   au-delà de la dispersion.
 
 **Notes de réalisation.** Dériver les états et les sommes pèse moins d'un dixième d'une lecture
-entière (#3170) : le gain n'est pas là, mais dans ce qu'une lecture peut alors laisser de côté. Les
-sommes stockées par tâche serviront aussi le total de la base d'une comparaison (EP-27).
+entière (#3170) : le gain n'est pas là, mais dans ce qu'une lecture peut alors laisser de côté.
+#3170 proposait le seul stockage ; l'agrégat, relevé au cadrage, lit les mêmes valeurs sans
+migration ni invariant à tenir.
 
 **Hors périmètre.** Une lecture par fenêtre de lignes : aucune opération nouvelle n'est prévue.
 
@@ -515,7 +731,11 @@ glisse.
   comparée et la saisie dans une grille comparée (EP-27) ;
 - écart : les trois cents projets et les quinze ans de révisions du jeu de référence (WF-QUA-0040)
   sont à EP-13, qui rejoue la mesure dessus ;
-- propre à l'US : les durées sont prises avec cinquante utilisateurs simultanés ;
+- propre à l'US : les durées sont prises avec cinquante utilisateurs simultanés : cinquante
+  utilisateurs virtuels jouent chacun le parcours des grilles sur PRJ-001, un geste toutes les dix
+  secondes en moyenne, neuf lectures pour une saisie, pendant qu'un navigateur mesure chaque
+  opération d'écran du clic à l'affichage (décision de l'auteur du 2026-11-14, au cadrage : le
+  §4.6.2 dit cinquante utilisateurs actifs, non cinquante requêtes simultanées) ;
 - propre à l'US : elles sont mesurées sur un poste, par une commande du dépôt, plateforme de
   service lancée et témoin chargé ; la chaîne ne mesure pas, elle confronte les rapports versionnés
   (décision de l'auteur du 2026-11-14, au cadrage : les durées d'un runner varient du simple au

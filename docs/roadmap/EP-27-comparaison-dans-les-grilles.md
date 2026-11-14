@@ -33,7 +33,11 @@ et de la mise à jour des taux qu'il porte (#3180) ; la désignation de la réf�
 l'historique, que #3090 laissait à trancher, s'y décide — EP-25 n'a mis que ses sections en cartes
 (US-2130 ; décision de l'auteur du 2026-11-14, au cadrage d'EP-25) ;
 - le parcours de la comparaison de PRJ-001, en quarantaine contre le service, réécrit sur les
-grilles et rejoué (#3192).
+grilles et rejoué (#3192) ;
+- la mesure, à leur livraison et par l'outil d'EP-26 (WF-QUA-0060), des deux opérations du tableau
+15 que cet EPIC sert — ouvrir une grille comparée à une révision marquée, saisir dans une grille
+comparée —, ajoutées au rapport de mesures (décision de l'auteur du 2026-11-14, au cadrage
+d'EP-26).
 
 ## Ce qui n'en fait pas partie
 
