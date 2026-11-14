@@ -162,8 +162,8 @@ class = "known flakiness"
 family = "B. état partagé entre parcours"
 issue = "#2941"
 job = '^service / paths(?: \(\d+/\d+\))?$'
-test = 'e2e/projects\.spec\.ts:\d+ .*(?:the home lists the projects the user contributes to|the home sorts its projects and filters them by state)'
-frequency = "9 passages du 2026-11-05 au 2026-11-12"
+test = 'e2e/projects\.spec\.ts\b.*(?:the home lists the projects the user contributes to|the home sorts its projects and filters them by state|the home filters its projects by the period of their last modification|a project, its settings and its lifecycle show what the fake back serves|creates a project from the home, then modifies the identity of a project)'
+frequency = "9 passages du 2026-11-05 au 2026-11-12, aux lignes 113 à 194 d'avant US-1890/L2"
 cause = "hypothèse : deux parcours @shared écrivent la même préférence d'un compte en même temps (`states: created,pricing`)"
 
 [[known]]
@@ -171,8 +171,8 @@ class = "known flakiness"
 family = "B. état partagé entre parcours"
 issue = "#2941"
 job = '^service / paths(?: \(\d+/\d+\))?$'
-test = 'e2e/reference-resources\.spec\.ts:\d+ .*(?:sorts and searches each list of the settings of the resources|creates a role in its form, moves a node under an active one)'
-frequency = "8 passages du 2026-11-05 au 2026-11-12, :27, :110 et :112"
+test = 'e2e/reference-resources\.spec\.ts\b.*(?:sorts and searches each list of the settings of the resources|creates a role in its form, moves a node under an active one)'
+frequency = "8 passages du 2026-11-05 au 2026-11-12, aux lignes :27, :110 et :112 d'avant US-1890/L2"
 cause = "hypothèse : deux parcours écrivent le même réglage du référentiel, le calendrier par défaut (« the restorations that failed »)"
 
 [[known]]
@@ -180,8 +180,8 @@ class = "known flakiness"
 family = "B. état partagé entre parcours"
 issue = "#2941"
 job = '^service / paths(?: \(\d+/\d+\))?$'
-test = 'e2e/reference-settings\.spec\.ts:\d+ .*modifies the risk matrix and the thresholds of the indices'
-frequency = "1 passage du 2026-11-05 au 2026-11-12"
+test = 'e2e/reference-settings\.spec\.ts\b.*(?:modifies the risk matrix and the thresholds of the indices)'
+frequency = "1 passage du 2026-11-05 au 2026-11-12, à la ligne 18 d'avant US-1890/L2"
 cause = "hypothèse : deux parcours écrivent le même réglage du référentiel en même temps"
 
 [[known]]
@@ -189,8 +189,8 @@ class = "known flakiness"
 family = "B. état partagé entre parcours"
 issue = "#2941"
 job = '^service / paths(?: \(\d+/\d+\))?$'
-test = 'e2e/reference-costs\.spec\.ts:\d+ .*presents fixed the type of a nature whose category is employed'
-frequency = "1 passage du 2026-11-05 au 2026-11-12"
+test = 'e2e/reference-costs\.spec\.ts\b.*(?:shows the deactivated natures and categories asked for and reactivates them)'
+frequency = "1 passage du 2026-11-05 au 2026-11-12, à la ligne 448 d'avant US-1890/L2"
 cause = "hypothèse : deux parcours écrivent le même réglage du référentiel en même temps"
 
 # Famille C — une lecture lourde de PRJ-001 (5 966 nœuds) : l'adresse garde `difference=`
