@@ -512,7 +512,7 @@ def test_a_creation_waits_out_the_truncation_of_a_vacuum_another_session_holds_u
             values = {"locked": locked_tables(connection), "key": PARTITIONS_LOCK}
         with owner.connect() as connection, ThreadPoolExecutor(2) as pool:
             vacuuming = connection.execution_options(isolation_level="AUTOCOMMIT")
-            values["vacuum"] = vacuuming.scalar(select(func.pg_backend_pid()))
+            values["vacuum"] = vacuuming.execute(select(func.pg_backend_pid())).scalar_one()
             with database.engine.connect() as reading, reading.begin():
                 reading.execute(text("SELECT count(*) FROM user_account")).one()
                 vacuum = pool.submit(vacuumed_accounts, vacuuming)
@@ -542,7 +542,9 @@ def test_a_creation_waits_out_the_truncation_of_a_vacuum_another_session_holds_u
                     )
 
                 until(
-                    owner, asleep_behind_the_vacuum, "the creation asleep while the vacuum truncates"
+                    owner,
+                    asleep_behind_the_vacuum,
+                    "the creation asleep while the vacuum truncates",
                 )
                 project_id = creation.result(timeout=15)
             # The vacuum kept its lock the five seconds of its attempts (PostgreSQL's hard-coded
