@@ -515,6 +515,28 @@ describe("the form of the thresholds and the delay", () => {
     expect(client.calls).toEqual([]);
   });
 
+  it("judges no order between thresholds out of ]0, 1[: the request goes, and the refusal of range is said at the field the server designates [WF-REF-0170-A]", async () => {
+    const client = serve({
+      [UPDATE]: {
+        problem: example("reference_settings_out_of_range") as Problem & { status: 422 },
+      },
+    });
+    const form = await openIndicators();
+    await retype(field(form, COST, "Seuil de vigilance"), "1,2");
+    await retype(field(form, COST, "Seuil d’alerte"), "1,5");
+    await save(form);
+    await vi.waitFor(() => {
+      expect(field(form, COST, "Seuil de vigilance")).toHaveFocus();
+    });
+    expect(client.calls).toHaveLength(1);
+    expect(field(form, COST, "Seuil de vigilance")).toHaveAttribute("aria-invalid", "true");
+    // The alert threshold carries no refusal of order the server would not give.
+    expect(field(form, COST, "Seuil d’alerte")).not.toHaveAttribute("aria-invalid");
+    expect(field(form, COST, "Seuil d’alerte")).not.toHaveAccessibleDescription(
+      "Le seuil d’alerte doit être inférieur au seuil de vigilance.",
+    );
+  });
+
   it("refuses at its field, before asking anything, a delay that is no whole number of weeks [WF-REF-0180-A]", async () => {
     // Le délai est saisissable en semaines : entières, comme le contrat les compte.
     const client = serve({ [UPDATE]: "reference_settings_thresholds_updated" });

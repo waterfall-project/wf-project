@@ -14,7 +14,8 @@
  * offered.
  *
  * The form checks before asking that the bounds of each axis rise strictly and that the alert
- * threshold of each index stays below its watch threshold, each broken rule said at the field the
+ * threshold of each index stays below its watch threshold (judged only between two thresholds within
+ * ]0, 1[, the range itself being the server's), each broken rule said at the field the
  * server would point at — the bound of the rank that breaks the order, the alert —; the server
  * judges the rest, a refusal by field said at its field, any other under the form, the version
  * stale (412) with the offer to read the page anew. The answer takes the place of the settings read
@@ -122,14 +123,24 @@ function unorderedBounds(values: Draft): ReadonlyMap<string, FieldProblem> {
   );
 }
 
+/** Whether a threshold lies strictly between 0 and 1, the range the server takes (WF-REF-0170). */
+function withinRange(value: string | undefined): boolean {
+  return value !== undefined && compareDecimals(value, "0") > 0 && compareDecimals(value, "1") < 0;
+}
+
 /**
  * The thresholds as the server would refuse them: each alert threshold not strictly below the watch
- * threshold of its index (WF-REF-0170) — either refused, left unjudged.
+ * threshold of its index (WF-REF-0170) — judged only between two thresholds within ]0, 1[, as the
+ * server does: a threshold out of that range is refused for its range, said by the server at its
+ * field, and its order is left unjudged, as is a threshold refused.
  */
 function brokenThresholds(values: Draft): ReadonlyMap<string, FieldProblem> {
   const field = (name: string) => `index_thresholds/${name}`;
   const alerts = INDICES.filter(
-    ([, watch, alert]) => above(values[field(watch)], values[field(alert)]) === false,
+    ([, watch, alert]) =>
+      withinRange(values[field(watch)]) &&
+      withinRange(values[field(alert)]) &&
+      above(values[field(watch)], values[field(alert)]) === false,
   ).map(([, , alert]) => refusal(field(alert), "THRESHOLD_NOT_BELOW_WATCH"));
   return new Map(alerts);
 }

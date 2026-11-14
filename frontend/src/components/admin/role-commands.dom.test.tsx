@@ -8,9 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
-import { SystemFailure } from "@/components/system/system-failure";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
+import { SystemFailure } from "@/components/system/system-failure";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { holdRoute, NO_AUDIT } from "@/test/accounts";
 import { atCommit, atFocus } from "@/test/committed";

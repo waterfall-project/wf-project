@@ -11,13 +11,15 @@
  * A session that holds `cost_settings.write` adds, modifies and removes a label, and declares and
  * removes a kept column, in one form that replaces the correspondence whole with the version read
  * (`setActualCostMapping`); another reads the lists, with no command. The server alone judges the
- * labels: the kept columns stop at the ceiling of the contract (`KEPT_COLUMNS_LIMIT`), the
- * refusal of the list itself (`/kept_columns`, `VALUE_TOO_LONG`) being said under it; a refusal by
+ * labels: each list stops at the ceiling of the contract (`KEPT_COLUMNS_LIMIT` for the kept columns,
+ * `LABELS_LIMIT` for a column read), the refusal of the list itself (`/kept_columns` or
+ * `/columns/<rank>/labels`, `VALUE_TOO_LONG`) being said under it; a refusal by
  * field (422) is said at the label its pointer designates (`/columns/<rank>/labels/<rank>`,
  * `/kept_columns/<rank>`), the first one refused taking the focus, a duplicate
  * (`DUPLICATE_COLUMN_LABEL`) naming the label it doubles (`params.duplicate_of`); any other
  * refusal is told under the form — the version stale (412) with the offer to read the page anew,
- * which mounts the form again on what is read. The fields are held while the write is under way
+ * whose reading takes the place of the draft when it has not changed since it was sent, the form
+ * never mounted again by a `key`: it keeps the focus and what is typed while the reading arrives. The fields are held while the write is under way
  * and lose the focus: with any answer that refuses no label, it goes back to the control that
  * held it. The answer takes the place of the reading while it is newer (`lock_version`).
  */
@@ -52,8 +54,12 @@ const LABEL_LENGTH = 200;
  */
 export const KEPT_COLUMNS_LIMIT = 50;
 
-/** The pointer the contract refuses the list of the kept columns itself at (`VALUE_TOO_LONG`). */
-const KEPT_LIST = "/kept_columns";
+/**
+ * The most labels the contract takes for a column read: the `maxItems` of `labels` in
+ * `ActualCostMappingColumnWrite`, which the generated client does not carry;
+ * `actual-cost-mapping.dom.test.tsx` proves it equal to the schema.
+ */
+export const LABELS_LIMIT = 20;
 
 /**
  * A label being typed, with a key of its own that keeps it through the removal of the ones
@@ -66,6 +72,11 @@ interface Row {
 
 /** A list of labels: the rank of a column read, or the kept columns. */
 type Scope = number | "kept";
+
+/** The most a list of labels takes: the kept columns, or the labels of a column read. */
+function limitOf(scope: Scope): number {
+  return scope === "kept" ? KEPT_COLUMNS_LIMIT : LABELS_LIMIT;
+}
 
 /**
  * What the form holds: the labels of each column read, in the order of the contract, and the kept
@@ -235,7 +246,7 @@ interface ListProps {
   readonly register: (id: string, element: HTMLElement | null) => void;
   readonly update: (change: (draft: Draft) => Draft, focus: string, removed?: number) => void;
   readonly retype: (scope: Scope, key: number, text: string) => void;
-  /** The refusal of the kept columns as a list, said under it: the list too long. */
+  /** The refusal of this list as a whole, said under it: the list too long. */
   readonly listProblem?: FieldProblem | undefined;
 }
 
@@ -286,9 +297,13 @@ function LabelList({
   const commands = useTranslations("commands");
   const id = useId();
   const kept = scope === "kept";
-  // The ceiling of the contract: the command that declares one more is unavailable at it, its
+  // The ceiling of the contract: the command that adds one more is unavailable at it, its
   // condition said beside it.
-  const full = kept && rows.length >= KEPT_COLUMNS_LIMIT;
+  const limit = limitOf(scope);
+  const full = rows.length >= limit;
+  const fullText = kept
+    ? t("keptFull", { max: limit })
+    : t("labelsFull", { max: limit, column: name });
   const fullId = `${id}-full`;
   return (
     <div className="grid gap-2">
@@ -352,19 +367,21 @@ function LabelList({
       </ul>
       {listProblem === undefined ? null : (
         <p id={`${id}-list-problem`} className="text-sm text-destructive">
-          {t("keptTooMany", { max: maxOf(listProblem) })}
+          {kept
+            ? t("keptTooMany", { max: maxOf(listProblem, limit) })
+            : t("labelsTooMany", { max: maxOf(listProblem, limit), column: name })}
         </p>
       )}
       {full ? (
         <p id={fullId} className="text-sm text-muted-foreground">
-          {t("keptFull", { max: KEPT_COLUMNS_LIMIT })}
+          {fullText}
         </p>
       ) : null}
       <div>
         <CommandTooltip
           label={kept ? t("addKept") : t("add", { column: name })}
           help={commands("addMappingLabel.help")}
-          unavailable={full ? t("keptFull", { max: KEPT_COLUMNS_LIMIT }) : undefined}
+          unavailable={full ? fullText : undefined}
           describedBy={full ? fullId : undefined}
         >
           <Button
@@ -397,18 +414,33 @@ function LabelList({
 }
 
 /** The ceiling the server names in a refusal of the list, the contract's when it names none. */
-function maxOf(problem: FieldProblem): number {
+function maxOf(problem: FieldProblem, contract: number): number {
   const max = problem.params?.max_length;
-  return typeof max === "number" ? max : KEPT_COLUMNS_LIMIT;
+  return typeof max === "number" ? max : contract;
 }
 
-/** The refusal of the list of the kept columns itself, the pointer designating no label. */
-function listRefusal(outcome: Outcome<unknown>): FieldProblem | undefined {
-  return "problem" in outcome
-    ? outcome.problem.fields?.find(
-        (field) => field.pointer === KEPT_LIST && field.code === "VALUE_TOO_LONG",
-      )
-    : undefined;
+/** The pointer of a list as a whole, which the contract refuses when it is too long. */
+function listPointer(scope: Scope): string {
+  return scope === "kept" ? "/kept_columns" : `/columns/${String(scope)}/labels`;
+}
+
+/**
+ * The refusals of a list itself — the kept columns, or the labels of one of the columns read — by
+ * list, the pointer designating no label. The draft is the one sent.
+ */
+function listRefusals(outcome: Outcome<unknown>, sent: Draft): ReadonlyMap<Scope, FieldProblem> {
+  const refused = new Map<Scope, FieldProblem>();
+  if (!("problem" in outcome)) {
+    return refused;
+  }
+  const lists: readonly Scope[] = [...sent.columns.keys(), "kept"];
+  for (const field of outcome.problem.fields ?? []) {
+    const scope = lists.find((each) => listPointer(each) === field.pointer);
+    if (scope !== undefined && field.code === "VALUE_TOO_LONG" && !refused.has(scope)) {
+      refused.set(scope, field);
+    }
+  }
+  return refused;
 }
 
 /** The pointer of every label of a draft, with the key of its row. */
@@ -475,12 +507,30 @@ function MappingForm({
   const held = useHeldCommand();
   const noteRefusal = useNoteRefusal();
   const [draft, setDraft] = useState(() => draftOf(mapping));
+  // What the draft rests on: the version it is written from, and the draft as of the last send (or
+  // as opened), by which a reading newer than that version is told to find it unchanged.
+  const [basis, setBasis] = useState({ version: mapping.lock_version, draft });
   const [problems, setProblems] = useState<ReadonlyMap<number, FieldProblem>>(() => new Map());
   const [sent, setSent] = useState<components["schemas"]["ActualCostMappingWrite"]>();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
-  const [listProblem, setListProblem] = useState<FieldProblem>();
+  const [listProblems, setListProblems] = useState<ReadonlyMap<Scope, FieldProblem>>(
+    () => new Map(),
+  );
   // A command in the page, no transition (#1484): busy from the press to the answer, in one update.
   const [busy, setBusy] = useState(false);
+  // A reading newer than the version the draft rests on takes the place of the draft while the draft
+  // has not changed since it was sent — a version stale, read anew —, without mounting the form again
+  // by a `key`, which would lose the focus and what is typed meanwhile (#2266): adjusted in the
+  // render, once, as React admits for a state drawn from a prop that changes.
+  if (!busy && mapping.lock_version > basis.version && draft === basis.draft) {
+    const read = draftOf(mapping);
+    setDraft(read);
+    setBasis({ version: mapping.lock_version, draft: read });
+    setProblems(new Map());
+    setSent(undefined);
+    setOutcome(undefined);
+    setListProblems(new Map());
+  }
   const controls = useRef(new Map<string, HTMLElement>());
   // What takes the focus after a change: the field of a label, a command, a new one each time.
   const [focused, setFocused] = useState<{ readonly id: string }>();
@@ -510,7 +560,7 @@ function MappingForm({
   };
   const update = (change: (before: Draft) => Draft, focus: string, removed?: number) => {
     setDraft(change);
-    setListProblem(undefined);
+    setListProblems(new Map());
     if (removed !== undefined) {
       forget(removed);
     }
@@ -518,9 +568,14 @@ function MappingForm({
   };
   const retype = (scope: Scope, key: number, text: string) => {
     forget(key);
-    if (scope === "kept") {
-      setListProblem(undefined);
-    }
+    setListProblems((before) => {
+      if (!before.has(scope)) {
+        return before;
+      }
+      const rest = new Map(before);
+      rest.delete(scope);
+      return rest;
+    });
     setDraft((before) =>
       changed(before, scope, (rows) =>
         rows.map((row) => (row.key === key ? { ...row, text } : row)),
@@ -538,9 +593,12 @@ function MappingForm({
     const active = activeControl(controls.current);
     setBusy(true);
     setOutcome(undefined);
-    setListProblem(undefined);
+    setListProblems(new Map());
     const sentDraft = draft;
-    const body = written(sentDraft, mapping.lock_version);
+    // From the version the draft rests on: a newer reading that did not replace a draft changed since
+    // is not lent its version.
+    const body = written(sentDraft, basis.version);
+    setBasis((before) => ({ ...before, draft: sentDraft }));
     void held(setActualCostMapping(body), () => true).then((answer) => {
       // The answer and the fields active again, in one update.
       setBusy(false);
@@ -548,6 +606,9 @@ function MappingForm({
         setProblems(new Map());
         setSent(undefined);
         setFocused({ id: active });
+        // The draft stays, as it was sent, on the version the answer brings: the page read anew at
+        // that version changes nothing of it.
+        setBasis({ version: answer.data.lock_version, draft: sentDraft });
         onDone(answer.data);
         return;
       }
@@ -562,7 +623,7 @@ function MappingForm({
         setFocused({ id: active });
       }
       setSent(body);
-      setListProblem(listRefusal(answer));
+      setListProblems(listRefusals(answer, sentDraft));
       setProblems(told.refused);
       setOutcome(told.told);
     });
@@ -585,7 +646,13 @@ function MappingForm({
               {required ? t("required") : t("optional")}
             </span>
           </legend>
-          <LabelList {...common} scope={scope} rows={rows} name={column(each)} />
+          <LabelList
+            {...common}
+            scope={scope}
+            rows={rows}
+            name={column(each)}
+            listProblem={listProblems.get(scope)}
+          />
         </fieldset>
       ))}
       <fieldset disabled={busy} className="grid gap-2">
@@ -596,7 +663,7 @@ function MappingForm({
           scope="kept"
           rows={draft.kept}
           name={t("kept")}
-          listProblem={listProblem}
+          listProblem={listProblems.get("kept")}
         />
       </fieldset>
       <OutcomeNotice
@@ -648,8 +715,8 @@ export function ActualCostMapping({
       </p>
       {writes ? (
         <MappingForm
-          // A reading newer than the one the form opened on mounts it again on what is read.
-          key={mapping.lock_version}
+          // Not mounted again by a `key` on the version: a reading newer than the one the draft rests
+          // on is taken by the form itself, when the draft has not changed since it was sent.
           mapping={shown}
           onDone={(answer) => {
             setAnswered((before) =>
