@@ -22,21 +22,17 @@ import { Reactivations } from "./reactivation";
 /**
  * A list or a set of values of the reference data in its card (US-2080, #3071): its title, the
  * command that creates in it at the right of the title — filled, the one filled command of the
- * card (`SectionCard`) —, offered on an empty list too, and its body, or what says the list is
- * empty. The screen gives the creation as a function of the variant the card draws it at, never
+ * card (`SectionCard`) —, offered on an empty list too, and its body (`ListBody` says an empty list). The screen gives the creation as a function of the variant the card draws it at, never
  * the variant itself.
  */
 export function ReferenceCard({
   title,
   icon,
-  empty,
   creation,
   children,
 }: {
   readonly title: string;
   readonly icon: LucideIcon;
-  /** What the card says when its list is empty; `undefined` when it is not. */
-  readonly empty?: string | undefined;
   /** The command that creates an object of the list; none for a session that does not write. */
   readonly creation?: Principal["command"] | undefined;
   readonly children: ReactNode;
@@ -47,9 +43,7 @@ export function ReferenceCard({
       icon={icon}
       principal={creation === undefined ? undefined : { does: "create", command: creation }}
     >
-      <div className="flex min-w-0 flex-col gap-2">
-        {empty === undefined ? children : <p className="text-sm text-muted-foreground">{empty}</p>}
-      </div>
+      <div className="flex min-w-0 flex-col gap-2">{children}</div>
     </SectionCard>
   );
 }
