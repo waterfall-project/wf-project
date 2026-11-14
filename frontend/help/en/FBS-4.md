@@ -4,19 +4,19 @@
 
 The home page of Waterfall: the list of the projects, from which each one opens. A project bears all that is done in it, from its creation to its closing — its revisions, its settings, its planning, its estimate, its remaining to commit, its risks, its actual costs, its indicators. What is modified in it depends on its state: a marked revision no longer moves, a terminal project neither.
 
-The list opens on the projects you are a contributor to, in the state **Created**, **Pricing** or **In progress**: two filters that the screen states, above the list, as long as they apply. The server filters, sorts, searches and pages; the footer of the list says how many projects it keeps. Above, when the common reference data does not yet have the minimum a project asks for, the box **Incomplete reference data** names what is missing: no project is created before.
+The list, in its card **List of projects**, opens on the projects you are a contributor to, in the state **Created**, **Pricing** or **In progress**: two filters by default, which their chips under the bar of the list state, marked “(by default)”, as long as they apply. The server filters, sorts, searches and pages; the footer of the list says how many projects it keeps. Above, when the common reference data does not yet have the minimum a project asks for, the box **Incomplete reference data** names what is missing: no project is created before.
 
 **The page of a project**, which its label opens, leads to its revision: it takes you to the revision in progress, else to the reference revision, else to the last marked one, in the same reading context — the sub-project and the date of the address are kept; the banner of the context names the project and its state, and its [settings](FBS-4.2.md) carry its sheet. If your session may not read that revision, you arrive at [revision management](FBS-4.1.md). The report of an import the address names follows the same way and opens on the [imports and exports](FBS-4.3.4.md) of the revision. Only a project without a revision keeps its page: it says what the project is — its code, its state, the date of receipt of its order, its description —, offers its imports, since an import of planning, of estimate or of remaining to commit creates the revision it applies to — an import of actual costs, for its part, writes in no revision —, and, as long as the main structure of the current revision has no task, the box **Start the project** offers to launch the planning.
 
 ## Its commands
 
-At the top of the list:
+At the right of the title of the card:
 
 - **Create a project**, offered to whoever has the permission, opens the form: the **Label**, required, the **Project code**, which may wait for the order, the **Client** and the **Description**, optional. The project is born in the state Created, and you are its project manager. Unavailable as long as the reference data is incomplete. A code another project already bears is refused at its field.
-- **Show all projects** lifts the filter “contributor”, for whoever may consult all the projects; **Show only my projects** puts it back. For the others, the filter stays, without a link: it does not restrict what they may read, it says what the list shows.
 
-Above the list:
+In the bar of the list, **Filters** opens its filters; under it, each active filter has its chip, which its cross removes:
 
+- **Projects**: the chip “My projects (by default)”, for whoever may consult all the projects; removing it shows also the projects you may open without being a contributor, and the field **Projects** of the filters puts it back. The filter comes back at each sign-in. For the others, the card says “Projects you contribute to”, without a chip: the filter does not restrict what they may read, it says what the list shows.
 - **Filter by state**: a button per state, pressed when it is retained, and **Every state** to lift them. A choice of states other than the default one is kept in your preferences.
 - **Modification period**, **From** and **To**, then **Filter**: an end that precedes the start is refused at its field, the list not read.
 - The search field keeps the projects whose label or code contains the text entered.

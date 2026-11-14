@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+import { SCREEN } from "@/components/shell/page-header";
 import { UNREACHABLE_DIGEST } from "@/components/system/failure";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
@@ -51,6 +52,19 @@ describe("the screen not found", () => {
     );
     expect(html).toMatch(/<a class="[^"]*" href="\/"><svg[^>]*aria-hidden="true"/);
   });
+
+  it.each([
+    ["for an open session", "me"],
+    ["for a session refused", { problem: { code: "SESSION_REVOKED", status: 401 } }],
+  ] as const)(
+    "is set in the airy column, its title at the size of the airy ones, %s (US-2130)",
+    async (_, me) => {
+      const html = await notFound(me);
+      expect(html.startsWith(`<main class="${SCREEN.airy}">`)).toBe(true);
+      expect(html).toMatch(/<div class="font-semibold text-2xl"><h1/);
+      expect(html).not.toContain("bg-primary");
+    },
+  );
 
   it("says the same when the session cannot be read, the API out of reach: nothing to sign in to", async () => {
     const html = await notFound({ problem: { code: "COMPONENT_UNAVAILABLE", status: 503 } });

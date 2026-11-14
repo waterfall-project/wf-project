@@ -2087,12 +2087,14 @@
     }
   },
   "projectList": {
+    "title": "Liste des projets",
     "count": "{count, plural, one {# projet} other {# projets}}",
     "filter": {
-      "label": "Filtre de la liste",
       "mine": "Projets dont vous êtes contributeur",
-      "lift": "Voir tous les projets",
-      "apply": "N’afficher que mes projets",
+      "projects": "Projets",
+      "mineChoice": "Mes projets",
+      "mineChip": "Mes projets (par défaut)",
+      "openable": "Tous ceux que vous pouvez ouvrir",
       "states": "Filtre par état",
       "everyState": "Tous les états",
       "defaultChip": "{states} (par défaut)",

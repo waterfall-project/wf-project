@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { SCREEN } from "@/components/shell/page-header";
 import { CATALOGUES } from "@/i18n/catalogues";
 
 import SignInUnavailablePage from "./page";
@@ -27,6 +28,13 @@ describe("the sign-in that could not be made (#687)", () => {
       "Le service ne répond pas : la connexion n’a pas pu se faire. Réessayez dans un instant.",
     );
     expect(html).toMatch(/<a [^>]*href="\/login\?next=%2Faccount%3Ftab%3D1"[^>]*>.*Se connecter/);
+  });
+
+  it("is set in the airy column, its title at the size of the airy ones, the sign-in outlined (US-2130)", async () => {
+    const html = await rendered({});
+    expect(html.startsWith(`<main class="${SCREEN.airy}">`)).toBe(true);
+    expect(html).toMatch(/<div class="font-semibold text-2xl"><h1/);
+    expect(html).not.toContain("bg-primary");
   });
 
   it("offers again a sign-in that asks for the identifiers when the one that failed did, the session of the realm bringing otherwise a token of the same sign-in (#855)", async () => {

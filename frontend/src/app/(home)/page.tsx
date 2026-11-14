@@ -1,26 +1,30 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The home, which is the list of projects (US-0090, US-0210, #522): filtered by default on the
- * projects the user contributes to, by the filter of the contract (`is_contributor`), which the
- * screen shows and a link lifts for a session that may read every project — a filter, never a
- * restriction of reading (WF-PRJ-0060) —, and which stays applied, without a link, for any other;
- * filtered by state and by the period of the last modification — local days, sent as instants —,
- * sorted and searched — on the label and the code — as the address asks, under the names of the
- * contract (`states`, `from`, `to`, `sort_by`, `sort_order`, `search`), the server filtering,
- * sorting and searching; the page after the first asked by its `offset`, and a page beyond the end
- * of the list leading back into it. An address that names no state asks the states by default,
- * Créé, Chiffrage and En cours, said as the filter of the contributor is, or those the account kept; it
- * asks every state by `states=all`, and the filter by state shows pressed the states retained.
- * A period the server refuses (422) — an end before the start — is said at its field, the list
- * unread, the filters kept to be changed. The projects show in the dense grid, its columns,
- * widths and sort kept in the settings of the account (WF-ADM-0040). Above the list, in every
- * case, the prerequisites the minimum reference data lacks, which forbid creating a project
- * (WF-CYC-0120), each named and leading to the reference data where the session may read it
+ * The home, which is the list of projects (US-0090, US-0210, #522), a screen of consultation in the
+ * airy column, its list in a card (US-2130): filtered by default on the projects the user
+ * contributes to, by the filter of the contract (`is_contributor`) — a filter by default of the
+ * table, like its states: told by its chip « Mes projets (par défaut) », lifted by removing the chip
+ * or by its field in the panel of the filters, for a session that may read every project — a filter,
+ * never a restriction of reading (WF-PRJ-0060) —, and applied, said by the card without a chip, for
+ * any other; filtered by state and by the period of the last modification — local days, sent as
+ * instants —, sorted and searched — on the label and the code — as the address asks, under the
+ * names of the contract (`states`, `from`, `to`, `sort_by`, `sort_order`, `search`), the server
+ * filtering, sorting and searching; the page after the first asked by its `offset`, and a page
+ * beyond the end of the list leading back into it. An address that names no state asks the states
+ * by default, Créé, Chiffrage and En cours, said as the filter of the contributor is, or those the
+ * account kept; it asks every state by `states=all`, and the filter by state shows pressed the
+ * states retained. The filter of the contributor is never kept: at sign-in, the user sees their
+ * projects (WF-IHM-0120). A period the server refuses (422) — an end before the start — is said at
+ * its field, the list unread, the filters kept to be changed. The projects show in the dense grid,
+ * its columns, widths and sort kept in the settings of the account (WF-ADM-0040). Above the card,
+ * in every case, the prerequisites the minimum reference data lacks, which forbid creating a
+ * project (WF-CYC-0120), each named and leading to the reference data where the session may read it
  * (WF-IHM-0120); and, when the list holds no project and nothing narrows it, that it is — the
  * states by default count as a filter, so a home whose default states retain no project shows an
  * empty grid, not that notice. A session that holds the permission to create a project is offered
- * its creation in the header (`CreateProject`, WF-ADM-0100); no other session is.
+ * its creation, the principal command of the card, filled at the right of its title
+ * (`CreateProject`, WF-ADM-0100); no other session is.
  *
  * An account without `project_settings.read` cannot read the list: the home does not ask for it,
  * and says that the account opens no project, leading to the functions it holds, or to the role it
@@ -30,6 +34,7 @@
  * reference data (`getReferenceReadiness`) as they are (US-0920, #1004): it shows no note of the
  * mock-up, the list being filtered, sorted and paged by the server.
  */
+import { List } from "lucide-react";
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
@@ -46,21 +51,22 @@ import { platformOffer } from "@/components/commands/offer";
 import { NoOpenableProject } from "@/components/projects/no-openable-project";
 import { homeQuery } from "@/components/projects/home-list";
 import { CreateProject } from "@/components/projects/project-form";
-import {
-  ContributorFilter,
-  ProjectList,
-  ProjectsRefused,
-} from "@/components/projects/project-list";
+import { ProjectList, ProjectsRefused } from "@/components/projects/project-list";
 import {
   listedProject,
   PROJECT_LIST_GRID,
   PROJECT_LIST_SORT_COLUMNS,
 } from "@/components/projects/project-list-grid";
-import { ProjectPeriodFilter, ProjectStateFilter } from "@/components/projects/project-list-view";
+import {
+  ProjectContributorFilter,
+  ProjectPeriodFilter,
+  ProjectStateFilter,
+} from "@/components/projects/project-list-view";
 import { GROUP_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
+import { SectionCard } from "@/components/shell/section-card";
 import { ReferenceIncomplete } from "@/components/system/empty-states";
-import { type PageSearchParams, pageSearch, searchQuery } from "@/navigation/context";
+import { type PageSearchParams, pageSearch } from "@/navigation/context";
 import {
   isContributorFiltered,
   mayLiftContributorFilter,
@@ -80,32 +86,52 @@ export async function generateMetadata(): Promise<Metadata> {
 /** The refusal of a period the server cannot apply — its end before its start (422). */
 const PERIOD_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
 
-/**
- * The title of the list, with the icon of its block, and at the right the creation of a project,
- * when the session may create one, and its filter.
- */
-function ProjectsHeader({
-  creates,
-  ready,
-  filter,
-}: {
-  readonly creates: boolean;
-  /** Whether the minimum reference data is complete, which the creation requires (WF-CYC-0120). */
-  readonly ready: boolean;
-  readonly filter: ReactNode;
-}) {
+/** The title of the screen, with the icon of its block: no command beside it. */
+function ProjectsHeader() {
   const t = useTranslations();
   return (
     <PageHeader
       title={t("functionGroups.projects")}
       icon={GROUP_ICONS["functionGroups.projects"]}
-      actions={
-        <>
-          {creates ? <CreateProject ready={ready} /> : null}
-          {filter}
-        </>
-      }
+      density="airy"
     />
+  );
+}
+
+/**
+ * The card of the list: its title, the creation of a project filled at its right when the session
+ * may create one — the one filled command of the card —, and, for a session that may not lift the
+ * filter on the contributor, that the list holds the projects it contributes to.
+ */
+function ProjectsCard({
+  creates,
+  ready,
+  mayLift,
+  children,
+}: {
+  readonly creates: boolean;
+  /** Whether the minimum reference data is complete, which the creation requires (WF-CYC-0120). */
+  readonly ready: boolean;
+  readonly mayLift: boolean;
+  readonly children: ReactNode;
+}) {
+  const t = useTranslations("projectList");
+  return (
+    <SectionCard
+      title={t("title")}
+      icon={List}
+      description={mayLift ? undefined : t("filter.mine")}
+      principal={
+        creates
+          ? {
+              does: "create",
+              command: (variant) => <CreateProject ready={ready} variant={variant} />,
+            }
+          : undefined
+      }
+    >
+      <div className="flex min-w-0 flex-col gap-2">{children}</div>
+    </SectionCard>
   );
 }
 
@@ -120,17 +146,19 @@ function readProjects(client: ApiClient, query: Parameters<typeof homeQuery>[0])
 type ProjectsRead = Awaited<ReturnType<typeof readProjects>>;
 
 /**
- * The filters of the list and its projects: the states the address names pressed — none named,
- * every state —, the period, a side refused said at its field; and the grid, or, the list unread,
- * why.
+ * The filters of the list and its projects: the filter on the contributor, for a session that may
+ * lift it; the states the address names pressed — none named, every state —, the period, a side
+ * refused said at its field; and the grid, or, the list unread, why.
  */
 function ProjectsShown({
   projects,
   asked,
+  mayLift,
   preferences,
 }: {
   readonly projects: ProjectsRead;
   readonly asked: Parameters<typeof homeQuery>[0];
+  readonly mayLift: boolean;
   readonly preferences: GridPreferences | undefined;
 }) {
   const { states, period, query } = asked;
@@ -143,6 +171,7 @@ function ProjectsShown({
     query.search !== undefined;
   const panel = (
     <FilterFields hint={false}>
+      {mayLift ? <ProjectContributorFilter mine={asked.filtered} /> : null}
       <ProjectStateFilter states={states} />
       <ProjectPeriodFilter
         period={period}
@@ -166,6 +195,7 @@ function ProjectsShown({
       projects={projects.data.items.map(listedProject)}
       page={projects.data.meta}
       filtered={asked.filtered}
+      mine={mayLift ? asked.filtered : undefined}
       narrowed={narrowed}
       query={query}
       preferences={preferences}
@@ -182,8 +212,7 @@ export default async function HomePage({
 }: {
   readonly searchParams: Promise<PageSearchParams>;
 }) {
-  const raw = await searchParams;
-  const search = pageSearch(raw);
+  const search = pageSearch(await searchParams);
   const client = serverClient();
   const session = await requestSession();
   const permissions = session?.permissions ?? [];
@@ -203,7 +232,7 @@ export default async function HomePage({
     );
   }
   // Without the permission to read every project, the list lifted is the list filtered: it is
-  // filtered whatever the address says, and no link promises otherwise (WF-IHM-0090, #522).
+  // filtered whatever the address says, and nothing offers to lift it (WF-IHM-0090, #522).
   const mayLift = mayLiftContributorFilter(permissions);
   const filtered = isContributorFiltered(search) || !mayLift;
   const creates = platformOffer(permissions, "project_create") !== undefined;
@@ -228,16 +257,12 @@ export default async function HomePage({
   return (
     // The filters, the grid and its pages compose the changes they make to the address.
     <PendingAddress>
-      <Screen density="dense" fill>
-        <ProjectsHeader
-          creates={creates}
-          ready={readiness.is_complete}
-          filter={
-            <ContributorFilter filtered={filtered} mayLift={mayLift} query={searchQuery(raw)} />
-          }
-        />
+      <Screen density="airy">
+        <ProjectsHeader />
         <ReferenceIncomplete readiness={readiness} permissions={permissions} />
-        <ProjectsShown projects={projects} asked={asked} preferences={kept} />
+        <ProjectsCard creates={creates} ready={readiness.is_complete} mayLift={mayLift}>
+          <ProjectsShown projects={projects} asked={asked} mayLift={mayLift} preferences={kept} />
+        </ProjectsCard>
       </Screen>
     </PendingAddress>
   );

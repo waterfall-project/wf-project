@@ -93,7 +93,7 @@ function dialog(name: string): HTMLElement {
 
 /** Open the creation of a project, and give its form back. */
 async function openCreation(): Promise<HTMLElement> {
-  render(inFrench(<CreateProject ready />));
+  render(inFrench(<CreateProject ready variant="default" />));
   await userEvent.click(screen.getByRole("button", { name: "Créer un projet" }));
   return dialog("Créer un projet");
 }
@@ -242,7 +242,7 @@ describe("the creation of a project", () => {
   it("leads nowhere once the home is gone: a creation answered after the user left does not take the place of their navigation", async () => {
     const answer = held();
     const client = serve({}, answer.timing);
-    const { unmount } = render(inFrench(<CreateProject ready />));
+    const { unmount } = render(inFrench(<CreateProject ready variant="default" />));
     await userEvent.click(screen.getByRole("button", { name: "Créer un projet" }));
     const form = dialog("Créer un projet");
     await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Rénovation");
@@ -278,7 +278,7 @@ describe("the creation of a project", () => {
 
   it("presents the creation unavailable while the reference data is incomplete: pressed, it opens nothing", async () => {
     const client = serve();
-    render(inFrench(<CreateProject ready={false} />));
+    render(inFrench(<CreateProject ready={false} variant="default" />));
     const create = screen.getByRole("button", { name: "Créer un projet" });
     expect(create).toHaveAttribute("aria-disabled", "true");
     expect(create).toHaveAccessibleDescription("Le référentiel minimal est incomplet.");
