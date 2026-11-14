@@ -198,6 +198,8 @@ paths = [
     # The parts of the paths, spread by the seconds they took (US-1910).
     "tools/src/wftools/e2eparts.py",
     "tools/e2e-service-durations.json",
+    # The wait for the build of the front, which the parts start beside (US-1910/L5).
+    "tools/src/wftools/awaitjob.py",
 ]
 target = "check-service"
 

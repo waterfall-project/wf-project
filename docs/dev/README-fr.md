@@ -3622,11 +3622,16 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   qui tourne dès qu'`e2e` ou `service` tourne, lance `make build-front` et téléverse
   `frontend/.next` sans son cache (`.next/cache`, que seul un build suivant lirait). Les cinq
   morceaux, la mesure et les parcours du service l'attendent, le téléchargent là où le build l'a
-  écrit et jouent avec `E2E_BUILT=1`, sans rien reconstruire. Il vit dans `ci.yml` et non dans
+  écrit et jouent avec `E2E_BUILT=1`, sans rien reconstruire. `e2e` l'attend par son `needs` ;
+  `service` part à côté de lui, et chacun de ses morceaux l'attend à l'étape qui précède son
+  téléchargement (`make await-job JOB=front-build`, `wftools.awaitjob`, qui lit les travaux de
+  l'exécution, d'où ses `actions: read`), après l'image de travail et celle de Keycloak
+  (US-1910/L5) : un workflow appelé ne part qu'une fois finis tous les travaux qu'il attend. Il vit dans `ci.yml` et non dans
   l'un des deux workflows : `e2e.yml` et `service.yml` sont deux workflows appelés, et un `needs`
   ne joint pas les travaux de l'un à ceux de l'autre ; ni l'un ni l'autre n'a d'autre
-  déclencheur que cet appel, si bien qu'aucun ne construit le front. Un build en échec saute les
-  deux, et la porte, qui l'attend aussi, échoue. Il construit sur le runner, comme `front.yml`, en
+  déclencheur que cet appel, si bien qu'aucun ne construit le front. Un build en échec saute
+  `e2e` et fait échouer `service` à son attente, en le nommant ; la porte, qui l'attend aussi,
+  échoue. Il construit sur le runner, comme `front.yml`, en
   Node 26 : les morceaux le démarrent dans l'image de travail des parcours, bâtie de celle de
   Playwright, en Node 24 (son
   `NODE_VERSION`, que le lot de Node 26 ne change pas ; `next start` y exécute les fichiers

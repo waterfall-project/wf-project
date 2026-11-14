@@ -78,7 +78,7 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 	check-contract check-back check-back-static check-back-tests coverage-back-merge lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
-	coverage-back coverage-front roadmap check-roadmap e2e e2e-durations e2e-measure e2e-browsers e2e-image mirror lot-size tracking merge-queue merge-queue-check queue-report \
+	coverage-back coverage-front roadmap check-roadmap e2e e2e-durations e2e-measure e2e-browsers e2e-image await-job mirror lot-size tracking merge-queue merge-queue-check queue-report \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -610,6 +610,12 @@ e2e-browsers: install-front ## Install the browser the end-to-end tests run in
 # (wftools.e2eimage).
 e2e-image: ## Find the work image of the end-to-end paths in the registry by the hash of deploy/e2e, or build it — PUSH=yes publishes it —; prints image=<reference>
 	@$(WFTOOLS).e2eimage publish $(if $(filter yes,$(PUSH)),--push)
+
+# Wait, in a job of the chain, for the job JOB of the same run to succeed (wftools.awaitjob,
+# US-1910): the parts of service.yml start beside the build of the front and wait for it only where
+# they download it. GH_TOKEN, with actions: read, reads the jobs of the run.
+await-job: ## In a job of the chain, wait for the job JOB of the same run to succeed (GH_TOKEN)
+	@$(WFTOOLS).awaitjob "$(JOB)"
 
 mirror: ## Check that ghcr.io holds the images of Docker Hub the files name under mirror/, by their digest — PUSH=yes copies those it does not hold (wftools.mirror, US-1900)
 	@$(WFTOOLS).mirror $(if $(filter yes,$(PUSH)),--push)

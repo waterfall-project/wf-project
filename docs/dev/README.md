@@ -3598,10 +3598,15 @@ The full tier aims at under eight minutes in the queue for its longest job
   runs as soon as `e2e` or `service` runs, launches `make build-front` and uploads `frontend/.next`
   without its cache (`.next/cache`, which only a following build would read). The five shards, the
   measure and the paths of the service wait for it, download it where the build wrote it and play
-  with `E2E_BUILT=1`, without rebuilding anything. It lives in `ci.yml` and not in one of the two
+  with `E2E_BUILT=1`, without rebuilding anything. `e2e` waits for it through its `needs`;
+  `service` starts beside it, and each of its shards waits for it at the step before its download
+  (`make await-job JOB=front-build`, `wftools.awaitjob`, which reads the jobs of the run, hence its
+  `actions: read`), after the work image and Keycloak's image (US-1910/L5): a called workflow only
+  starts once every job it waits for has ended. It lives in `ci.yml` and not in one of the two
   workflows: `e2e.yml` and `service.yml` are two called workflows, and a `needs` does not join the
   jobs of one to those of the other; neither has any other trigger than that call, so that none
-  builds the front. A failed build skips the two, and the gate, which waits for it too, fails. It
+  builds the front. A failed build skips `e2e` and fails `service` at its wait, naming it; the gate, which waits
+  for it too, fails. It
   builds on the runner, like `front.yml`, in Node 26: the shards start it in the work image of the
   paths, built on the Playwright image, in Node 24 (its `NODE_VERSION`, which the Node 26 lot does
   not change; `next start` runs the built files there, and Next 16 accepts Node 24, while pnpm 12 does not stop on `engines` without

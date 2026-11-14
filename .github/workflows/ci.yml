@@ -14,7 +14,8 @@
 # in the full tier only too, spread over four runners, each on a platform of its own (service.yml,
 # US-0340, US-1910), as does the production platform started on the
 # images built here (production.yml, US-0430). Both kinds of paths play the front built for
-# production once in the run, by the job front-build (US-0590).
+# production once in the run, by the job front-build (US-0590): e2e waits for it, service starts
+# beside it and waits for it at its download (US-1910).
 name: chain
 
 on:
@@ -153,11 +154,12 @@ jobs:
 
   # The front built for production once for the whole run (US-0590): each part of the end-to-end
   # paths, the measure and the paths against the service download this build and play it, and
-  # build nothing again (E2E_BUILT). Here, whenever either of them runs: e2e.yml and service.yml
-  # are two called workflows, whose jobs no `needs` joins. On the runner, as front.yml builds: the
-  # parts of e2e.yml start it in the work image of the paths, built on Playwright's, on its Node 24
-  # (built here on Node 26: pnpm 12 does not stop on `engines` without engine-strict, and
-  # `next start` runs the built files on the image's Node, which Next supports) and its Ubuntu
+  # build nothing again (E2E_BUILT). e2e needs it; service does not, and waits for it in the step
+  # before its download (make await-job, US-1910). Here, whenever either of them runs: e2e.yml and
+  # service.yml are two called workflows, whose jobs no `needs` joins. On the runner, as front.yml
+  # builds: the parts of e2e.yml start it in the work image of the paths, built on Playwright's, on
+  # its Node 24 (built here on Node 26: pnpm 12 does not stop on `engines` without engine-strict,
+  # and `next start` runs the built files on the image's Node, which Next supports) and its Ubuntu
   # noble, amd64, at another path of the workspace, which the build should not depend on (checked
   # by moving the build on a workstation; the proof in the chain is a run of `chain` on the
   # branch); service.yml starts it on the runner, where only its browser is in that image.
@@ -287,11 +289,19 @@ jobs:
     if: needs.changes.outputs.keycloak == 'true'
     uses: ./.github/workflows/keycloak.yml
 
-  # Skipped in the fast tier as when nothing it traverses is touched.
+  # Skipped in the fast tier as when nothing it traverses is touched. Not after front-build, but
+  # beside it (US-1910/L5): a called workflow starts only once every job it needs has ended, and the
+  # parts spend their first minute — runner, work image, Keycloak's image — on what the build does
+  # not give. Each waits for front-build in the step before its download (make await-job), which
+  # reads the jobs of the run, hence actions: read; whenever service runs, front-build runs too
+  # (its condition is wider), and one that fails fails that step, naming it. In 10 runs of the queue
+  # of 2026-11-14, front-build ended 1.4 minutes into the run, and the parts reached their download
+  # 1.2 minutes after they started: started at about 0.6, they find the build there.
   service:
-    needs: [changes, mirror, front-build, e2e-image]
+    needs: [changes, mirror, e2e-image]
     if: needs.changes.outputs.service == 'true' && needs.changes.outputs.tier == 'full'
     permissions:
+      actions: read
       contents: read
       packages: read
     uses: ./.github/workflows/service.yml
@@ -310,9 +320,9 @@ jobs:
 
   gate:
     # Every job of the chain, each part of the end-to-end paths included: the result of e2e is
-    # a failure as soon as one of its parts failed or was cancelled. A build of the front, or a
-    # work image of the paths, that failed skips e2e and service, which front-build or e2e-image
-    # here says.
+    # a failure as soon as one of its parts failed or was cancelled. A build of the front that
+    # failed skips e2e and fails service at its wait, a work image of the paths that failed skips
+    # both, which front-build or e2e-image here says.
     needs:
       - changes
       - repo

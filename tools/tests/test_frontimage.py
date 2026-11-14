@@ -372,7 +372,8 @@ def test_the_chain_builds_the_front_once_and_every_part_plays_that_build() -> No
     # US-0590: one job of ci.yml builds the front whenever the paths or the paths against the
     # service run, and uploads it without Next's cache; each part of the paths, the measure and the
     # paths against the service wait for it, download it where the build wrote it, and say it is
-    # built: neither e2e.yml nor service.yml builds it again.
+    # built: neither e2e.yml nor service.yml builds it again. US-1910/L5: service waits for it in
+    # the step before its download (test_awaitjob.py), e2e and the gate by their needs.
     workflows = REPOSITORY / ".github" / "workflows"
     chain = yaml.safe_load((workflows / "ci.yml").read_text())["jobs"]
     build = chain["front-build"]
@@ -393,8 +394,9 @@ def test_the_chain_builds_the_front_once_and_every_part_plays_that_build() -> No
     assert uploaded["if-no-files-found"] == "error"
     assert uploaded["retention-days"] == 1
     played = {"name": uploaded["name"], "path": "frontend/.next/"}
-    for job in ("e2e", "service", "gate"):
+    for job in ("e2e", "gate"):
         assert "front-build" in chain[job]["needs"]
+    assert "front-build" not in chain["service"]["needs"]
 
     jobs = yaml.safe_load((workflows / "e2e.yml").read_text())["jobs"]
     assert set(jobs) == {"paths"}
