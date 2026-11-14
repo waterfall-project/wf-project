@@ -10,12 +10,12 @@
  * The charter of EP-25 (US-2070, after the mock-up the author brought on 2026-11-13, #3079): a
  * side bar in midnight blue in both modes, a pale grey page under white cards, a midnight blue
  * for the primary. The blues of the logos of docs/assets (#027dc6, #1195e1) reach a component
- * through the ring of the focus alone. Each colour token holds its light and its dark value side by side, by
- * `light-dark()`: the document follows the workstation (`color-scheme: light dark`), and the
- * shell forces a mode with `data-theme` when the account asks for one. No component asks
- * which mode shows: the `dark:` variant of Tailwind, which would follow the workstation
- * alone, is refused by the linter. Every pair of text and background reaches the contrast
- * of WCAG AA in both modes, which contrast.test.ts checks.
+ * through the ring of the focus alone. Each colour token holds its light and its dark value
+ * side by side, by `light-dark()`: the document follows the workstation
+ * (`color-scheme: light dark`), and the shell forces a mode with `data-theme` when the account
+ * asks for one. No component asks which mode shows: the `dark:` variant of Tailwind, which
+ * would follow the workstation alone, is refused by the linter. Every pair of text and
+ * background reaches the contrast of WCAG AA in both modes, which contrast.test.ts checks.
  */
 @import "tailwindcss";
 
@@ -32,9 +32,9 @@
   /* The page, a pale grey a step under its white cards; in dark mode a near black tinted with the
      midnight blue, its cards a step lighter, as what rises over a dark page is. */
   --background: light-dark(#f3f5f8, #0b111b);
-  --foreground: light-dark(#0a0a0a, #f1f4f8);
+  --foreground: light-dark(#0f172a, #f1f4f8);
   --card: light-dark(#ffffff, #141c28);
-  --card-foreground: light-dark(#0a0a0a, #f1f4f8);
+  --card-foreground: light-dark(#0f172a, #f1f4f8);
   /* The midnight blue of the mock-up, carrying white text; in dark mode its mirror, a pale
      blue grey carrying the midnight blue, so that a filled control stands out of a dark page as
      it does of a light one. */
@@ -44,19 +44,19 @@
   --primary-hover: light-dark(#253a5c, #eaf0f7);
   /* The very pale blue grey of controls and of the header row of a table, apart from the page and
      from a card. */
-  --secondary: light-dark(#eef1f6, #1d2736);
+  --secondary: light-dark(#f1f5f9, #1d2736);
   --secondary-foreground: light-dark(#14233b, #f1f4f8);
-  --muted: light-dark(#eef1f6, #1d2736);
-  --muted-foreground: light-dark(#5f6670, #9aa5b5);
+  --muted: light-dark(#f1f5f9, #1d2736);
+  --muted-foreground: light-dark(#5b6b82, #9aa5b5);
   /* A row selected, an entry of a menu under the pointer: a tint of the midnight blue. */
-  --accent: light-dark(#e8edf5, #1b2840);
-  --accent-foreground: light-dark(#0a0a0a, #f1f4f8);
+  --accent: light-dark(#ecf1f7, #1b2840);
+  --accent-foreground: light-dark(#0f172a, #f1f4f8);
   --destructive: light-dark(#b91c1c, #f87171);
   --destructive-foreground: light-dark(#ffffff, #0a0a0a);
   /* A border that only separates, light around a card and between rows; the border of a field
      shows where to type, at 3:1 on the page and on a card. */
-  --border: light-dark(#e1e6ed, #273244);
-  --input: light-dark(#7d8796, #6e7b8f);
+  --border: light-dark(#e2e8f0, #273244);
+  --input: light-dark(#7d8ba0, #6e7b8f);
   /* The blues of the logos as they are drawn, deep in light mode, bright in dark mode. */
   --ring: light-dark(#027dc6, #1195e1);
   /* The zones of a signal, one token each, drawn as the text and the icon of `Signal`. The
@@ -147,7 +147,9 @@
 /* Inside the side bar, dark in both modes, the tokens its entries name take the values of the
    bar: a label in `text-muted-foreground`, the tile of the project switcher in `bg-primary`, the
    outline of the focus, written for the page, stay legible on it without the components choosing
-   between two names. What it opens — a menu, a tooltip — is rendered outside it, on the page. */
+   between two names. What it opens — a menu, a tooltip — is rendered outside it, on the page.
+   The list is that of what the bar renders: `contrast.test.ts` reads the colour classes of its
+   components and fails on a token they name that this block does not redefine. */
 [data-sidebar="sidebar"] {
   --foreground: var(--sidebar-foreground);
   --muted-foreground: var(--sidebar-muted-foreground);

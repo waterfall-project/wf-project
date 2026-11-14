@@ -173,8 +173,10 @@ const CONTROLS: readonly [string, string][] = [
   ["sidebar-ring", "sidebar-accent"],
   // The tile of the project switcher, which shows where the switcher is on the dark bar.
   ["sidebar-primary", "sidebar"],
-  // The border of a field on a muted control or a header row.
+  // The border of a field on a muted control, a header row, a selected row or a secondary one.
   ["input", "muted"],
+  ["input", "accent"],
+  ["input", "secondary"],
   // The dot of the state « Actif » of a line, wherever a table sets it: a page, a card, a muted
   // row, a selected row (#3079).
   ...(["background", "card", "muted", "accent"] as const).map((background): [string, string] => [
@@ -222,6 +224,8 @@ function rebound(selector: string): Map<string, string> {
   );
 }
 
+const SHELL = join(import.meta.dirname, "..", "components", "shell");
+
 // The tokens a component inside the side bar names, and the token of the bar each takes there.
 const SIDEBAR: Readonly<Record<string, string>> = {
   foreground: "sidebar-foreground",
@@ -235,7 +239,7 @@ const SIDEBAR: Readonly<Record<string, string>> = {
 };
 
 describe("the side bar", () => {
-  it("gives the tokens its entries name the values of the dark bar, measured above", () => {
+  it("gives the tokens its entries name the values of the dark bar, measured above [WF-IHM-0100-A]", () => {
     // A label in `text-muted-foreground` or the tile in `bg-primary` would otherwise take the
     // value written for the page, dark on the dark bar; each token it takes is measured in TEXTS
     // and CONTROLS.
@@ -246,6 +250,32 @@ describe("the side bar", () => {
     for (const bar of Object.values(SIDEBAR)) {
       expect(TOKENS.has(bar), bar).toBe(true);
     }
+  });
+
+  it("leaves no token it renders to the value written for the page [WF-IHM-0100-A]", () => {
+    // The classes of colour the components of the bar render: a token named there that the bar
+    // does not redefine (`bg-secondary`, `border-input`, `text-destructive`...) would keep its
+    // light value on the dark bar, unmeasured.
+    const redefined = rebound('[data-sidebar="sidebar"]');
+    const named = new Set<string>();
+    for (const file of ["navigation.tsx", "project-switcher.tsx"]) {
+      const source = readFileSync(join(SHELL, file), "utf-8");
+      for (const word of source.split(/[\s"'`{}()]+/)) {
+        const bare = word.slice(word.lastIndexOf(":") + 1).replace(/\/\d+$/, "");
+        const token =
+          /^(?:bg|text|border|ring|outline|fill|stroke|divide|shadow|decoration)-(.+)$/.exec(
+            bare,
+          )?.[1];
+        if (token !== undefined && TOKENS.has(token)) {
+          named.add(token);
+        }
+      }
+    }
+    expect(named.size).toBeGreaterThan(0);
+    const unredefined = [...named].filter(
+      (token) => !token.startsWith("sidebar") && !redefined.has(token),
+    );
+    expect(unredefined).toEqual([]);
   });
 
   it.each(MODES)("is midnight blue, its text light, in %s mode", (mode) => {

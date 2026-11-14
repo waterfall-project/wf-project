@@ -114,5 +114,18 @@ for (const mode of ["light", "dark"] as const) {
       // Un contrôle automatisé de contraste ne relève aucun écart au niveau AA: on the dark bar.
       expect(await axeViolations(page, '[data-sidebar="sidebar"]')).toEqual([]);
     });
+
+    test("is midnight blue as the sheet of a narrow window, legible on it [WF-IHM-0100-A]", async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 500, height: 800 });
+      await page.goto("/");
+      await page.getByRole("button", { name: /barre latérale/ }).click();
+      const sheet = page.locator('[data-sidebar="sidebar"][data-mobile="true"]');
+      await expect(sheet).toBeVisible();
+      await expect(sheet).toHaveCSS("background-color", "rgb(15, 27, 45)");
+      // Un contrôle automatisé de contraste ne relève aucun écart au niveau AA: on the sheet.
+      expect(await axeViolations(page, '[data-sidebar="sidebar"][data-mobile="true"]')).toEqual([]);
+    });
   });
 }

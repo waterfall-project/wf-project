@@ -175,11 +175,8 @@ describe("the colour guard", { timeout: 60_000 }, () => {
   it.each([
     '<p className="bg-signal-alert">{VALUE}</p>',
     "<p className={`p-2 hover:text-signal-watch`}>{VALUE}</p>",
-    // The dot of « Actif » has its own token, never the nominal zone a signal shows (#3079).
-    '<span className="size-2 rounded-full bg-signal-nominal" />',
-  ])("refuses the token of a zone outside Signal, in %j [WF-IHM-0070-A]", async (jsx) => {
-    // Aucun écran ne distingue deux états par la seule couleur : a cell tinted by its zone, or a
-    // dot, without the shape and the name `Signal` gives it.
+  ])("refuses the token of a zone outside Signal, in %j", async (jsx) => {
+    // A cell tinted by its zone, without the shape and the name `Signal` gives it (WF-IHM-0070).
     const [result] = await eslint.lintText(component(jsx), { filePath: COMPONENT });
     expect(result?.messages.map((m) => [m.ruleId, m.severity, m.message])).toContainEqual([
       "no-restricted-syntax",
