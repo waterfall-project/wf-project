@@ -21,8 +21,10 @@
  * page reads when the address asks for them (WF-REF-0150); the list of the categories reactivates
  * them.
  *
- * A session that may enter the rates adds the column of a year the grid has none for (WF-REF-0060):
- * the contract has no operation for it — a year comes into the grid with the first rate entered in
+ * A session that may enter the rates adds the column of a year the grid has none for (WF-REF-0060),
+ * from the end of the bar of the grid — its messages, « Retirer la colonne », « Année », then
+ * « Ajouter la colonne », filled, the one filled command of its card (#3071). The contract has no
+ * operation for it — a year comes into the grid with the first rate entered in
  * it (`getHourlyRateGrid`) —, so the column is the grid's own, empty, in the order of the years,
  * until its first cell entered writes that rate as any first rate, without a version. A year the
  * grid already has, or that the contract does not take (`Year`, 2000 to 2100), is refused at once;
@@ -34,7 +36,7 @@
  */
 "use client";
 
-import { X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, type SubmitEvent, useCallback, useId, useMemo, useState } from "react";
 
@@ -277,8 +279,40 @@ function AddYear({
       setNotice({ kind: "added", year });
     }
   };
+  // At the end of the bar of the grid (#3071): its messages, then « Retirer la colonne », then
+  // « Année » and « Ajouter la colonne », filled, at the right edge of the bar.
   return (
-    <form aria-label={t("label")} onSubmit={submit} className="flex flex-wrap items-center gap-2">
+    <form
+      aria-label={t("label")}
+      onSubmit={submit}
+      className="flex flex-wrap items-center justify-end gap-2"
+    >
+      <p role="status" className="text-xs text-muted-foreground empty:sr-only">
+        {notice?.kind === "added" ? t("added", { year: notice.year.toString() }) : null}
+      </p>
+      {notice === undefined || notice.kind === "added" ? null : (
+        <p id={problem} role="alert" className="text-xs text-destructive">
+          {notice.kind === "present"
+            ? t("present", { year: notice.year.toString() })
+            : t("outOfRange", { min: FIRST_YEAR.toString(), max: LAST_YEAR.toString() })}
+        </p>
+      )}
+      {removable.map((year) => (
+        <Button
+          key={year}
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs"
+          onClick={() => {
+            onRemove(year);
+            setNotice(undefined);
+          }}
+        >
+          <X aria-hidden="true" />
+          {t("remove", { year: year.toString() })}
+        </Button>
+      ))}
       <Label htmlFor={field} className="text-xs">
         {t("year")}
       </Label>
@@ -294,35 +328,15 @@ function AddYear({
         }}
         className="h-7 w-20 text-xs"
       />
-      <Button type="submit" variant="outline" size="sm" className="h-7 text-xs">
-        {t("submit")}
-      </Button>
-      {removable.map((year) => (
-        <Button
-          key={year}
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 text-xs"
-          onClick={() => {
-            onRemove(year);
-            setNotice(undefined);
-          }}
-        >
-          <X aria-hidden="true" />
-          {t("remove", { year: year.toString() })}
+      {/* The one filled command of the card of the rates, which has none at the right of its title:
+          marked as its principal command, which creates, for the rule of the commands
+          (`SectionCard`, `expectCommandRule`). */}
+      <span data-slot="section-card-principal" data-does="create" className="flex">
+        <Button type="submit" size="sm" className="h-7 text-xs">
+          <Plus aria-hidden="true" />
+          {t("submit")}
         </Button>
-      ))}
-      <p role="status" className="text-xs text-muted-foreground">
-        {notice?.kind === "added" ? t("added", { year: notice.year.toString() }) : null}
-      </p>
-      {notice === undefined || notice.kind === "added" ? null : (
-        <p id={problem} role="alert" className="text-xs text-destructive">
-          {notice.kind === "present"
-            ? t("present", { year: notice.year.toString() })
-            : t("outOfRange", { min: FIRST_YEAR.toString(), max: LAST_YEAR.toString() })}
-        </p>
-      )}
+      </span>
     </form>
   );
 }
@@ -373,23 +387,23 @@ export function RateGrid({
     () => rateGrid(years, editable, answered, track),
     [years, editable, answered, track],
   );
+  const adding = editable ? (
+    <AddYear
+      years={years.map(({ year }) => year)}
+      onAdd={(year) => {
+        setAdded((before) => [...before, { year, slot: slots }]);
+        setSlots(slots + 1);
+      }}
+      removable={added
+        .map(({ year }) => year)
+        .filter((year) => !grid.years.includes(year) && !rated.has(year) && !writing.has(year))}
+      onRemove={(year) => {
+        setAdded((before) => before.filter((each) => each.year !== year));
+      }}
+    />
+  ) : undefined;
   return (
     <div className="flex min-h-0 flex-col gap-2">
-      {editable ? (
-        <AddYear
-          years={years.map(({ year }) => year)}
-          onAdd={(year) => {
-            setAdded((before) => [...before, { year, slot: slots }]);
-            setSlots(slots + 1);
-          }}
-          removable={added
-            .map(({ year }) => year)
-            .filter((year) => !grid.years.includes(year) && !rated.has(year) && !writing.has(year))}
-          onRemove={(year) => {
-            setAdded((before) => before.filter((each) => each.year !== year));
-          }}
-        />
-      ) : null}
       <DenseGrid
         config={config}
         rows={rows}
@@ -398,6 +412,7 @@ export function RateGrid({
         query={query}
         preferences={preferences}
         filtering={panel === undefined ? undefined : { panel, chips }}
+        ending={adding}
       />
       <ListPages
         list={{ page: OFFSET, size: LIMIT, reads: RATE_READS }}

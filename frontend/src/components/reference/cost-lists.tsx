@@ -55,7 +55,7 @@ import {
 import type { NatureChoice } from "./cost-kinds";
 import { RATE_COLUMN, RATE_STATE, RATE_YEAR } from "./rate-columns";
 import { StateFilter } from "./reference-filters";
-import { ListBody, ReferenceSection } from "./section";
+import { ListBody, ReferenceCard } from "./section";
 
 /** What a list of the natures or the categories shows. */
 interface ListProps<Row, Sort extends string> {
@@ -134,10 +134,14 @@ export function CostTypeList({
   );
   return (
     <CommandedList kind="cost_type">
-      <ReferenceSection
+      <ReferenceCard
         title={title}
         icon={Layers}
-        commands={editable ? <CreateCommand label={t("costTypes.create")} /> : undefined}
+        creation={
+          editable
+            ? (variant) => <CreateCommand label={t("costTypes.create")} variant={variant} />
+            : undefined
+        }
       >
         <ListBody
           empty={page.total === 0 && !narrowed ? t("costTypes.none") : undefined}
@@ -167,7 +171,7 @@ export function CostTypeList({
             />
           }
         />
-      </ReferenceSection>
+      </ReferenceCard>
     </CommandedList>
   );
 }
@@ -231,10 +235,14 @@ export function CostCategoryList({
   );
   return (
     <CommandedList kind="cost_category">
-      <ReferenceSection
+      <ReferenceCard
         title={title}
         icon={Tags}
-        commands={editable ? <CreateCommand label={t("costCategories.create")} /> : undefined}
+        creation={
+          editable
+            ? (variant) => <CreateCommand label={t("costCategories.create")} variant={variant} />
+            : undefined
+        }
       >
         <ListBody
           empty={page.total === 0 && !narrowed ? t("costCategories.none") : undefined}
@@ -271,7 +279,7 @@ export function CostCategoryList({
             />
           }
         />
-      </ReferenceSection>
+      </ReferenceCard>
     </CommandedList>
   );
 }

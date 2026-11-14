@@ -552,6 +552,7 @@
     "summary": "{risks, plural, =0 {aucun risque retenu} one {# risque retenu} other {# risques retenus}}",
     "generalTotal": "Total général",
     "pages": {
+      "title": "Risques",
       "label": "Pages des risques",
       "beyond": "La page demandée est au-delà de la fin de la liste."
     },
@@ -673,14 +674,17 @@
     },
     "pages": {
       "costs": {
+        "title": "Coûts réels",
         "label": "Pages des coûts réels",
         "beyond": "La page demandée est au-delà de la fin de la liste."
       },
       "imports": {
+        "title": "Journal des imports",
         "label": "Pages du journal des imports",
         "beyond": "La page demandée est au-delà de la fin du journal."
       },
       "exchanges": {
+        "title": "Imports du projet",
         "label": "Pages des imports du projet",
         "beyond": "La page demandée est au-delà de la fin de la liste."
       }
@@ -747,6 +751,7 @@
       "everyZone": "Toutes les zones"
     },
     "pages": {
+      "title": "Projets",
       "label": "Pages des projets",
       "beyond": "La page demandée est au-delà de la fin de la liste."
     },

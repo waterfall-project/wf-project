@@ -15,6 +15,11 @@
  * account chose for it (WF-IHM-0060). Every figure as the API gives it: the front computes, sorts,
  * filters and pages nothing.
  *
+ * The screen of reference of EP-25 (US-2080, #3071): each section in its card (`ReferenceCard`),
+ * the creation of a nature or a category filled at the right of the title of its card, offered on
+ * an empty list too; the card of the rates without a command beside its title, the column of a year
+ * added from the end of the bar of its grid.
+ *
  * The lists and the grid hold the active objects alone, and the deactivated ones too when the
  * address asks for them and the session bears the permission of modifying the cost settings,
  * without which the contract refuses `include_inactive` (WF-REF-0150, 403); each nature and each
@@ -91,7 +96,7 @@ import {
 import { type HourlyRateGrid, RateGrid } from "@/components/reference/rate-grid";
 import { InactiveSwitch } from "@/components/reference/reference-filters";
 import { CompanyName, CompanySettings } from "@/components/reference/settings-forms";
-import { BoundsRefused, ReferenceSection } from "@/components/reference/section";
+import { BoundsRefused, ReferenceCard } from "@/components/reference/section";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
@@ -348,13 +353,16 @@ function typesOf(
   return editable ? (typed ?? natures).map(natureChoice) : undefined;
 }
 
-/** The section of the grid of the hourly rates, under its title, with its filters. */
+/**
+ * The card of the grid of the hourly rates, with its filters. It has no command at the right of its
+ * title: the column of a year is added from the end of the bar of its grid (#3071, `RateGrid`).
+ */
 function RatesSection({ children }: { readonly children: ReactNode }) {
   const t = useTranslations("reference.rates");
   return (
-    <ReferenceSection title={t("title")} icon={Coins}>
+    <ReferenceCard title={t("title")} icon={Coins}>
       {children}
-    </ReferenceSection>
+    </ReferenceCard>
   );
 }
 
