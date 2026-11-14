@@ -228,6 +228,7 @@ def test_the_installation_holds_one_row_in_one_language_under_the_bound_of_the_a
     good = {
         "id": 1,
         "default_language": "fr",
+        "time_zone": "Europe/Paris",
         "avatar_max_bytes": 2_097_152,
         "external_backup_max_bytes": 1_000_000,
         "installed_at": datetime(2026, 10, 9, 12, 0, tzinfo=UTC),
@@ -251,6 +252,8 @@ def test_the_installation_holds_one_row_in_one_language_under_the_bound_of_the_a
     assert refusal(database, row(external_backup_max_bytes=2**53)) == (
         "ck_installation_external_backup_max_bytes_bound"
     )
+    # The name of the time zone is the bootstrap's to check; an empty one is refused all the same.
+    assert refusal(database, row(time_zone="")) == "ck_installation_time_zone_not_empty"
     with database.engine.begin() as connection:
         connection.execute(row(default_language="en", avatar_max_bytes=8 * 1024 * 1024))
         stored = connection.execute(text("SELECT installed_at FROM installation")).scalar_one()

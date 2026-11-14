@@ -62,7 +62,7 @@ from waterfall.core.cost_settings.tables import (
 from waterfall.core.resource_settings.tables import Calendar, DurationUnit
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
-from waterfall.platform.installation import Installation
+from waterfall.platform.installation import Installation, read_settings
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.settings import InstallationSettings
 
@@ -395,14 +395,17 @@ def test_the_installation_applies_the_migrations_and_labels_its_roles_in_its_lan
 ) -> None:
     # Proper to the story: the bootstrap applies the migrations — the catalogue with them —,
     # creates the three predefined roles, the local administrator in the provider and in
-    # Waterfall, and the default language of the installation; the labels of the roles are in
-    # that language (WF-EXP-0020). Its inscriptions carry the platform and its correlation (#701).
+    # Waterfall, and the default language and the time zone of the installation; the labels of the
+    # roles are in that language (WF-EXP-0020). Its inscriptions carry the platform and its
+    # correlation (#701).
     with scratch_database(database_url, "waterfall_bootstrap") as empty:
         owner = empty.url.render_as_string(hide_password=False)
         link = link_of(settings_of(owner, address, language="en"))
         with empty.connect() as connection:
             revision = connection.scalar(text("SELECT version_num FROM alembic_version"))
-            language = connection.scalar(select(Installation.default_language))
+            language, zone = connection.execute(
+                select(Installation.default_language, Installation.time_zone)
+            ).one()
             catalogue = connection.scalar(select(func.count()).select_from(Permission))
             labels = set(connection.scalars(select(AccessRole.label)))
             held = connection.execute(
@@ -411,7 +414,8 @@ def test_the_installation_applies_the_migrations_and_labels_its_roles_in_its_lan
             entries = connection.execute(
                 select(AuditEntry.action, AuditEntry.actor_user_id, AuditEntry.correlation_id)
             ).all()
-    assert (revision, language) == (HEAD, "en")
+    # The time zone none was given is the one delivered, universal time (US-2200).
+    assert (revision, language, zone) == (HEAD, "en", "UTC")
     assert catalogue
     assert labels == {"Administrator", "Project manager", "Manager"}
     assert held == [(address, "local", None)]
@@ -470,6 +474,25 @@ def test_a_second_installation_for_another_currency_and_name_says_it_ignores_the
     with database.transaction() as session:
         kept = read_reference_settings(session)
     assert (kept.currency_code, kept.company_name) == ("EUR", "Delmas Automatismes")
+
+
+@pytest.mark.requirement("WF-EXP-0020-A")
+def test_the_installation_keeps_the_time_zone_it_is_given_and_a_second_run_does_not_change_it(
+    database: Database, database_url: str, address: str, logs: Logs
+) -> None:
+    # Proper to US-2200: the bootstrap keeps the time zone of the installation, given to
+    # `waterfall-api install`; run again with another, it keeps it and says the other ignored —
+    # without it (WF-EXP-0020, #2527).
+    settings = settings_of(database_url, address).model_copy(update={"time_zone": "Europe/Paris"})
+    link_of(settings)
+    link_of(settings)
+    assert not logs.named("installation.time_zone_ignored")
+    link_of(settings.model_copy(update={"time_zone": "Asia/Tokyo"}))
+    (ignored,) = logs.named("installation.time_zone_ignored")
+    assert ignored["level"] == "warning"
+    assert "Asia/Tokyo" not in logs.text
+    with database.transaction() as session:
+        assert read_settings(session).time_zone == "Europe/Paris"
 
 
 @pytest.mark.requirement("WF-EXP-0020-A")
@@ -589,6 +612,7 @@ def test_an_installation_without_its_administrator_is_refused(
             insert(Installation).values(
                 id=1,
                 default_language="fr",
+                time_zone="UTC",
                 avatar_max_bytes=1,
                 external_backup_max_bytes=1,
                 installed_at=func.now(),

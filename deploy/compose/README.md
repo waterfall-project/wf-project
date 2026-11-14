@@ -53,8 +53,10 @@ Puis :
    prévient (`WATERFALL_ACME_EMAIL`), l'étiquette (`WATERFALL_IMAGE_TAG`), l'adresse du premier
    administrateur (`WATERFALL_ADMIN_EMAIL`), la langue de l'installation, sa devise
    (`WATERFALL_CURRENCY`, trois lettres majuscules, qui ne change plus ensuite) et le nom de
-   l'entreprise (`WATERFALL_COMPANY_NAME`, que portent les fichiers exportés), et chaque secret, tiré
-   au hasard comme le modèle l'indique. Git ignore `.env` ; en garder une copie à part.
+   l'entreprise (`WATERFALL_COMPANY_NAME`, que portent les fichiers exportés), son fuseau horaire
+   (`WATERFALL_TIME_ZONE`, un nom de la base IANA comme `Europe/Paris`, `UTC` par défaut, dans
+   lequel s'entend le jour courant, et qui ne change plus ensuite), et chaque secret, tiré au hasard
+   comme le modèle l'indique. Git ignore `.env` ; en garder une copie à part.
 4. Démarrer :
 
    ```sh

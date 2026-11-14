@@ -8,10 +8,12 @@ shows no value.
 """
 
 from contextlib import suppress
-from typing import Any, Literal
+from functools import cache
+from typing import Annotated, Any, Literal
 from urllib.parse import unquote, unquote_plus, urlsplit
+from zoneinfo import available_timezones
 
-from pydantic import Field, SecretStr, ValidationError
+from pydantic import AfterValidator, Field, SecretStr, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ENV_PREFIX = "WATERFALL_"
@@ -138,6 +140,19 @@ class WorkerSettings(ServiceSettings):
     keycloak_database_url: SecretStr = Field(min_length=1)
 
 
+@cache
+def _time_zones() -> frozenset[str]:
+    return frozenset(available_timezones())
+
+
+def _known_time_zone(name: str) -> str:
+    """Keep the name of a time zone of the IANA database (``Europe/Paris``); refuse another."""
+    if name not in _time_zones():
+        message = "is not a time zone of the IANA database"
+        raise ValueError(message)
+    return name
+
+
 class InstallationSettings(KeycloakSettings):
     """What the bootstrap of an installation reads, ``waterfall-api install`` (US-0420).
 
@@ -147,8 +162,11 @@ class InstallationSettings(KeycloakSettings):
     ``admin_email`` the address of the first administrator, and ``default_language`` the language
     of the installation (WF-EXP-0020, WF-INTF-0160); ``currency`` its single currency, three
     capital letters (WF-REF-0140), and ``company_name`` the name of the company that uses it, from
-    1 to 200 characters and never blank (WF-EXP-0020), both written once, at the first run. It
-    deposits no task and serves nothing: it reads neither Redis nor where the API listens.
+    1 to 200 characters and never blank (WF-EXP-0020), both written once, at the first run;
+    ``time_zone`` the name of its time zone in the IANA database, ``UTC`` by default, in which the
+    current day is taken (WF-EXP-0020, WF-PLA-0130, US-2200), written once too — the bootstrap
+    refuses a name it does not know. It deposits no task and serves nothing: it reads neither Redis
+    nor where the API listens.
     """
 
     installation_client_secret: SecretStr = Field(min_length=1)
@@ -156,6 +174,7 @@ class InstallationSettings(KeycloakSettings):
     default_language: Literal["fr", "en"]
     currency: str = Field(pattern="^[A-Z]{3}$")
     company_name: str = Field(min_length=1, max_length=200, pattern=r"\S")
+    time_zone: Annotated[str, AfterValidator(_known_time_zone)] = "UTC"
 
 
 class RestoreSettings(ServiceSettings):

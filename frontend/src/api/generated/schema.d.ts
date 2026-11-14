@@ -93,7 +93,7 @@ export interface paths {
         };
         /**
          * What the front must know about the installation before any session
-         * @description The installation's default language, which the front falls back on when the account follows the browser and the browser requests none of the offered languages (WF-INTF-0160) — including before any sign-in. Before the installation's bootstrap (WF-EXP-0020), which creates its row, the operation answers 503 `COMPONENT_UNAVAILABLE`, `component` set to `database`.
+         * @description The installation's default language, which the front falls back on when the account follows the browser and the browser requests none of the offered languages (WF-INTF-0160) — including before any sign-in —, and its time zone, in which the front proposes the current day (WF-PLA-0130, WF-EXP-0020). Before the installation's bootstrap (WF-EXP-0020), which creates its row, the operation answers 503 `COMPONENT_UNAVAILABLE`, `component` set to `database`.
          */
         get: operations["getInstallation"];
         put?: never;
@@ -199,7 +199,7 @@ export interface paths {
         head?: never;
         /**
          * Edit my display preferences
-         * @description Personal preferences, confined to presentation; no one edits those of someone else (WF-ADM-0040). The language is one of them and applies without signing in again (WF-INTF-0160), as do the number of rows per page of each flat table (`GridPreferences.page_size`, WF-IHM-0060), the layout of each timeline as a frieze (`timelines`, WF-PLA-0140) and the collapsed or expanded state of each chart (`charts`, EP-15/US-0550). The front writes with a grid the columns it offered (`GridPreferences.known_columns`), so that a column received since takes what the grid gives it by default (EP-16/US-0650). It also writes there whether the filter panel of the grid is open (`GridPreferences.filters_open`, WF-IHM-0060, #2916). The choice of states of the project list of the home page, different from the screen's default — Created, Pricing and In progress —, is kept in the grid of that list, `projects`, like any filter of a grid: `filters.states`, the chosen states as the address writes them (`GridPreferences.filters`; #1401, #1747).
+         * @description Personal preferences, confined to presentation; no one edits those of someone else (WF-ADM-0040). The language is one of them and applies without signing in again (WF-INTF-0160), as do the number of rows per page of each flat table (`GridPreferences.page_size`, WF-IHM-0060), the layout of each timeline as a frieze (`timelines`, WF-PLA-0140), the collapsed or expanded state of each chart (`charts`, EP-15/US-0550) and the patterns of the series of every chart (`chart_series_patterns`, WF-IHM-0070). The front writes with a grid the columns it offered (`GridPreferences.known_columns`), so that a column received since takes what the grid gives it by default (EP-16/US-0650). It also writes there whether the filter panel of the grid is open (`GridPreferences.filters_open`, WF-IHM-0060, #2916). The choice of states of the project list of the home page, different from the screen's default — Created, Pricing and In progress —, is kept in the grid of that list, `projects`, like any filter of a grid: `filters.states`, the chosen states as the address writes them (`GridPreferences.filters`; #1401, #1747).
          */
         patch: operations["updateMyPreferences"];
         trace?: never;
@@ -3034,6 +3034,8 @@ export interface components {
         /** @description Installation settings readable without a session: what the front must know before opening a session, or to set what it lets through. */
         Installation: {
             default_language: components["schemas"]["Language"];
+            /** @description The time zone of the installation, its name in the IANA database (`Europe/Paris`, `UTC`), chosen at the bootstrap and unchanged afterwards (WF-EXP-0020); `UTC` for an installation bootstrapped before it was kept. The current day is the day of this time zone (WF-PLA-0130, WF-DAT-0100): the one the service writes by default — the state of a task started or completed, the review date of an export — and the one the front proposes, never the day of the device nor of universal time. */
+            time_zone: string;
             /** @description The largest size an avatar can have, in bytes (§4.4.1, WF-ADM-0080): an installation setting, which `putMyAvatar` applies (413, `FILE_TOO_LARGE`), and which the front reads to state the limit before sending. The setting does not exceed 8 MiB (8,388,608 bytes): the front sets in advance the body size it lets through above this maximum, the form envelope included, so that the refusal of an overweight image comes from the API and is stated by its code. */
             avatar_max_bytes: number;
             /** @description The largest size of a backup copied off the platform and uploaded for a restore (`openChunkedUpload`, WF-ADM-0160), in bytes: an installation setting, the specification not fixing the size of a backup; beyond it, 413, `FILE_TOO_LARGE`. The setting does not exceed 2^53 − 1 (9,007,199,254,740,991 bytes, about 8 PiB), the largest integer a JSON number keeps exact when the front reads it. */
@@ -3176,6 +3178,8 @@ export interface components {
             theme?: "default" | "light" | "dark";
             /** @description The preference that visually distinguishes the tasks added after the reference revision and, in the remaining to commit, the lines whose budgeted amount is zero: a single preference for both (WF-ADM-0040, WF-RAE-0040). When absent, false. */
             highlight_tasks_added_after_reference?: boolean;
+            /** @description The preference that draws the series of every chart with a pattern or a symbol beside their colour — the bars, the points of the curves and the legend —, the image a chart exports included (WF-ADM-0040, WF-IHM-0070, WF-IHM-0130): one setting of the account, for all its charts. When absent, false. The Gantt and the timelines keep their marks. */
+            chart_series_patterns?: boolean;
             grids?: {
                 [key: string]: components["schemas"]["GridPreferences"] | null;
             };

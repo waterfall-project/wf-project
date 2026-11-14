@@ -25,6 +25,7 @@ from waterfall.platform.audit import Act
 from waterfall.platform.correlation import correlation_id_from
 from waterfall.platform.database import Database, create_database_engine, utc_now
 from waterfall.platform.errors import ServiceError
+from waterfall.platform.installation import TIME_ZONE, stored_in
 from waterfall.platform.logs import PLATFORM, configure_logging, get_logger, logging_context
 from waterfall.platform.settings import SettingsError, WitnessSettings, load_witness_settings
 from waterfall.witness.description import Witness
@@ -64,6 +65,7 @@ def load_witness(settings: WitnessSettings) -> int:
     """
     schema.declared()
     database = Database(create_database_engine(settings.database_url.get_secret_value()))
+    TIME_ZONE.read_from(stored_in(database))
     try:
         with logging_context(correlation_id=correlation_id_from(None), actor=PLATFORM):
             return _load(database, Path(settings.witness_path))

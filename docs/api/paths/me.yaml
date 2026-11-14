@@ -33,6 +33,7 @@
               without_roles: { $ref: ../../../fixtures/api/me_without_roles.json }
               manager: { $ref: ../../../fixtures/api/me_manager.json }
               auditor: { $ref: ../../../fixtures/api/me_auditor.json }
+              chart_series_patterns: { $ref: ../../../fixtures/api/me_chart_series_patterns.json }
       '401':
         description: >-
           Token missing, invalid or expired, as the shared response `Unauthorized` says; or an
@@ -83,8 +84,9 @@
       (WF-ADM-0040). The language is one of them and applies without signing in again
       (WF-INTF-0160), as do the number of rows per page of each flat table
       (`GridPreferences.page_size`, WF-IHM-0060), the layout of each timeline as a frieze
-      (`timelines`, WF-PLA-0140) and the collapsed or expanded state of each chart
-      (`charts`, EP-15/US-0550). The front writes with a grid the columns it offered
+      (`timelines`, WF-PLA-0140), the collapsed or expanded state of each chart
+      (`charts`, EP-15/US-0550) and the patterns of the series of every chart
+      (`chart_series_patterns`, WF-IHM-0070). The front writes with a grid the columns it offered
       (`GridPreferences.known_columns`), so that a column received since takes what the
       grid gives it by default (EP-16/US-0650). It also writes there whether the filter panel of the grid is open
       (`GridPreferences.filters_open`, WF-IHM-0060, #2916). The choice of states of the project list of
@@ -109,6 +111,7 @@
               project_states: { $ref: ../../../fixtures/api/preferences_project_states.json }
               timeline_lanes: { $ref: ../../../fixtures/api/preferences_timeline_lanes.json }
               risk_matrix_unfolded: { $ref: ../../../fixtures/api/preferences_risk_matrix_unfolded.json }
+              chart_series_patterns: { $ref: ../../../fixtures/api/preferences_chart_series_patterns.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '422':

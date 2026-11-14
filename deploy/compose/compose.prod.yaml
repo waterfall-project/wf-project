@@ -346,6 +346,7 @@ services:
       WATERFALL_DEFAULT_LANGUAGE: ${WATERFALL_DEFAULT_LANGUAGE:-fr}
       WATERFALL_CURRENCY: ${WATERFALL_CURRENCY:?set WATERFALL_CURRENCY in .env}
       WATERFALL_COMPANY_NAME: "${WATERFALL_COMPANY_NAME:?set WATERFALL_COMPANY_NAME in .env}"
+      WATERFALL_TIME_ZONE: ${WATERFALL_TIME_ZONE:-UTC}
     command: ["waterfall-api", "install"]
     restart: "no"
     depends_on:

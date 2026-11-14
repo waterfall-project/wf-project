@@ -38,6 +38,7 @@ def install(owner: Engine, choice: Chosen = CHOSEN) -> None:
             insert(Installation).values(
                 id=THE_ROW,
                 default_language=choice.language,
+                time_zone="UTC",
                 avatar_max_bytes=2 * 1024**2,
                 external_backup_max_bytes=20 * 1024**3,
                 installed_at=utc_now(),

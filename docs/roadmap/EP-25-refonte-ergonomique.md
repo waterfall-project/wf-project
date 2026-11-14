@@ -999,7 +999,7 @@ les valeurs sont celles que l'application a arrêtées.
 
 ## US-2200 — Le jour courant s'entend dans le fuseau horaire de l'installation
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-PLA-0130-A`
 - **opérations** : `getInstallation` ; `setTaskProgress`, `requestExport` et les autres opérations
   qui datent au jour courant, inchangées

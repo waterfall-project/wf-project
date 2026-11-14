@@ -43,7 +43,8 @@
     description: >-
       The installation's default language, which the front falls back on when the account
       follows the browser and the browser requests none of the offered languages
-      (WF-INTF-0160) — including before any sign-in. Before the installation's bootstrap
+      (WF-INTF-0160) — including before any sign-in —, and its time zone, in which the front
+      proposes the current day (WF-PLA-0130, WF-EXP-0020). Before the installation's bootstrap
       (WF-EXP-0020), which creates its row, the operation answers 503 `COMPONENT_UNAVAILABLE`,
       `component` set to `database`.
     responses:

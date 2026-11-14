@@ -633,6 +633,7 @@ def test_settings_the_bootstrap_has_not_written_are_unavailable(
             insert(Installation).values(
                 id=THE_ROW,
                 default_language="fr",
+                time_zone="UTC",
                 avatar_max_bytes=1024,
                 external_backup_max_bytes=1024,
                 installed_at=utc_now(),

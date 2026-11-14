@@ -2,26 +2,27 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The bootstrap of a new installation: ``waterfall-api install`` (WF-EXP-0020, US-0420).
 
-It applies the migrations — the catalogue of permissions with them — as the owner of the tables,
-who creates the role of the service too (#701). Then, under an advisory lock that keeps two
-bootstraps apart, on an installation that has none yet: the local account of the administrator in
-the identity provider first, then, in one transaction, the row of the installation with its default
-language and its bounds, the three predefined roles labelled in that language, the account in
+It applies the migrations — the catalogue of permissions with them — as the owner of the tables, who
+creates the role of the service too (#701). Then, under an advisory lock that keeps two bootstraps
+apart, on an installation that has none yet: the local account of the administrator in the identity
+provider first, then, in one transaction, the row of the installation with its default language, its
+time zone and its bounds, the three predefined roles labelled in that language, the account in
 Waterfall, holding the administrator — the platform their author, each inscribed in the journal
 under the correlation of the command —, and the reference a project needs first (WF-EXP-0020,
 EP-05): the settings the installation shares, with its currency and the name of its company, the
 units of duration, the empty mapping of the actual costs, the default calendar, and the nature and
-the category of provision for risks, labelled in that language, each by the interface of its
-module. The realm is then given the language of the installation, at
-each run: an account that chose none reads its pages and its mails in it (#873). Last, the link
-that sets the password of that account, valid until it is used, written alone on the standard
-output, its making inscribed without its token.
+the category of provision for risks, labelled in that language, each by the interface of its module.
+The realm is then given the language of the installation, at each run: an account that chose none
+reads its pages and its mails in it (#873). Last, the link that sets the password of that account,
+valid until it is used, written alone on the standard output, its making inscribed without its
+token.
 
 Run again, it creates nothing: it makes a new link, which replaces the one before, while the
-administrator has no password, and none afterwards; another currency or another name of the company
-are said ignored. An installation made before the reference existed is given it then, in a
-transaction of its own: no migration writes data. Keycloak is never asked inside a transaction
-(#669); a run broken once the provider created the account finds it by its address at the next.
+administrator has no password, and none afterwards; another currency, another name of the company or
+another time zone are said ignored — the current day of the installation does not move (US-2200). An
+installation made before the reference existed is given it then, in a transaction of its own: no
+migration writes data. Keycloak is never asked inside a transaction (#669); a run broken once the
+provider created the account finds it by its address at the next.
 
 The command ``waterfall-api`` starts here: ``install`` bootstraps, anything else is the API's. The
 bootstrap applies the migrations, which the API does not import (``[tool.importlinter]``): it sits
@@ -266,6 +267,7 @@ def _bootstrap(
     with database.transaction() as session:
         installation = session.get(Installation, THE_ROW)
         language = None if installation is None else installation.default_language
+        time_zone = None if installation is None else installation.time_zone
         administrator = (
             None
             if installation is None
@@ -282,6 +284,8 @@ def _bootstrap(
             or administrator.email.lower() != settings.admin_email.lower()
         ):
             logger.warning("installation.admin_email_ignored", user_id=str(administrator.user_id))
+        if time_zone != settings.time_zone:
+            logger.warning("installation.time_zone_ignored")
         with database.transaction() as session:
             _reference_again(session, settings, language)
         return administrator, language
@@ -299,6 +303,7 @@ def _bootstrap(
             Installation(
                 id=THE_ROW,
                 default_language=settings.default_language,
+                time_zone=settings.time_zone,
                 avatar_max_bytes=AVATAR_MAX_BYTES,
                 external_backup_max_bytes=EXTERNAL_BACKUP_MAX_BYTES,
                 installed_at=act.at,

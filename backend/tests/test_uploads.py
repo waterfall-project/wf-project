@@ -70,6 +70,7 @@ def settled(installation: Installation, language: str = "fr", bound: int = 20 * 
             insert(InstallationRow).values(
                 id=THE_ROW,
                 default_language=language,
+                time_zone="UTC",
                 avatar_max_bytes=2 * 1024**2,
                 external_backup_max_bytes=bound,
                 installed_at=utc_now(),
