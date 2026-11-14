@@ -19,6 +19,18 @@ returns the code of the command.
 It sets ``WATERFALL_PROCESSORS``, the processors divided by N and at least 1, for the workers of
 the command; ``processors`` prints the same number, for a Makefile that runs no heavy run.
 
+``run --exclusive`` (US-2210), for a measure, takes the workstation for the command alone: the gate
+``waterfall-heavy.exclusive.lock`` of the same directory, then every lock file of the heavy runs,
+``waterfall-heavy.lock`` to ``waterfall-heavy.9.lock`` — the nine, whatever the N of this process,
+so that a deliverer whose N is larger is held back too —, always in that order: two exclusive runs
+take the gate one after the other and never each a half of the slots. It waits for the heavy runs
+in progress, saying so once, and keeps everything until the command ends; an interruption frees
+everything as well, the descriptors closing with the process. A heavy run takes a shared lock of
+the gate, without waiting, around its attempt at a slot: while an exclusive run holds or waits for
+the slots, the heavy runs started meanwhile wait, saying so once. A tool that predates the gate
+does not see it, and is waited for like any heavy run in progress. ``WATERFALL_PROCESSORS`` is then
+the share of one run alone, the whole workstation.
+
 ``run --services db,redis,storage`` (US-1110) also gives the command the services of the tests it
 needs: once the heavy slot is taken, if any — never before, a service removed while the run waited
 is started again —, for each service whose variable (``WATERFALL_TEST_DATABASE_URL``,
@@ -62,6 +74,8 @@ from pathlib import Path
 from typing import NamedTuple
 
 LOCK_NAME = "waterfall-heavy"
+GATE_NAME = f"{LOCK_NAME}.exclusive.lock"
+"""The lock an exclusive run holds the whole time, and a heavy run shares while it takes a slot."""
 MAX_SLOTS = 9
 RETRY_SECONDS = 1.0
 REMOVE_SECONDS = 300
@@ -177,19 +191,84 @@ def take_slot(paths: Sequence[Path]) -> int | None:
     return None
 
 
-def wait_for_slot(paths: Sequence[Path]) -> int:
-    """Take a slot, saying once that all are taken, then trying again every second."""
-    said = False
-    while (descriptor := take_slot(paths)) is None:
-        if not said:
-            print(
-                f"All {len(paths)} heavy slot(s) are taken; waiting for one to free.",
-                file=sys.stderr,
-                flush=True,
-            )
-            said = True
+def gate_path(environment: Mapping[str, str]) -> Path:
+    """Return the gate of the exclusive runs, beside the lock files of the slots."""
+    return runtime_directory(environment) / GATE_NAME
+
+
+def open_lock(path: Path) -> int:
+    """Open a lock file, created if it is not; the descriptor is not inherited by the command."""
+    return os.open(path, os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o600)
+
+
+def take_slot_past_gate(paths: Sequence[Path], gate: Path) -> int | str:
+    """Return the descriptor of a free slot, locked, or why there is none to take now.
+
+    The shared lock of the gate is held only around the attempt: an exclusive run that asks for the
+    gate gets it as soon as the attempt ends, and the heavy runs started after it wait.
+    """
+    shared = open_lock(gate)
+    try:
+        try:
+            fcntl.flock(shared, fcntl.LOCK_SH | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return "An exclusive run holds the workstation; waiting for it to end."
+        descriptor = take_slot(paths)
+        if descriptor is None:
+            return f"All {len(paths)} heavy slot(s) are taken; waiting for one to free."
+        return descriptor
+    finally:
+        os.close(shared)
+
+
+def wait_for_slot(paths: Sequence[Path], gate: Path) -> int:
+    """Take a slot, saying once each reason to wait, then trying again every second."""
+    said: set[str] = set()
+    while isinstance(taken := take_slot_past_gate(paths, gate), str):
+        if taken not in said:
+            print(taken, file=sys.stderr, flush=True)
+            said.add(taken)
         time.sleep(RETRY_SECONDS)
-    return descriptor
+    return taken
+
+
+def lock_waiting(path: Path, reason: str, *, said: bool) -> tuple[int, bool]:
+    """Take the lock, waiting, the reason said once; return it and whether the reason is said."""
+    descriptor = open_lock(path)
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            if not said:
+                print(reason, file=sys.stderr, flush=True)
+                said = True
+            fcntl.flock(descriptor, fcntl.LOCK_EX)
+    except BaseException:
+        os.close(descriptor)
+        raise
+    return descriptor, said
+
+
+def take_workstation(environment: Mapping[str, str]) -> list[int]:
+    """Take the gate, then every slot of the heavy runs in their order; return the descriptors.
+
+    The fixed order keeps two exclusive runs from each holding a part: the gate makes them one
+    after the other. Whatever is taken is freed if the wait is interrupted.
+    """
+    descriptors: list[int] = []
+    other = "Another exclusive run, or a heavy run taking its slot, holds the gate; waiting."
+    heavy = "Heavy runs are in progress; waiting for them to end, the next ones held back."
+    try:
+        descriptors.append(lock_waiting(gate_path(environment), other, said=False)[0])
+        said = False
+        for path in lock_paths(environment, MAX_SLOTS):
+            descriptor, said = lock_waiting(path, heavy, said=said)
+            descriptors.append(descriptor)
+    except BaseException:
+        for descriptor in descriptors:
+            os.close(descriptor)
+        raise
+    return descriptors
 
 
 def run_command(command: Sequence[str], environment: Mapping[str, str]) -> int:
@@ -233,22 +312,29 @@ def run_prepared(
     *,
     heavy: bool,
     services: Sequence[str],
+    exclusive: bool = False,
 ) -> int:
     """Run the command: in a free slot if heavy, then with its services, in that order (US-1110).
 
     The services start once the slot is taken, not before: a run that waited for its turn finds
-    them there, whatever was removed in the meantime.
+    them there, whatever was removed in the meantime. An exclusive run takes every slot instead,
+    and runs on the whole workstation (US-2210).
     """
     slots = slot_count(environment)
-    descriptor = wait_for_slot(lock_paths(environment, slots)) if heavy else None
+    descriptors: list[int] = []
+    if exclusive:
+        descriptors = take_workstation(environment)
+    elif heavy:
+        descriptors = [wait_for_slot(lock_paths(environment, slots), gate_path(environment))]
     try:
         child_environment = dict(environment)
-        if heavy:
-            child_environment["WATERFALL_PROCESSORS"] = str(processor_share(slots))
+        if descriptors:
+            share = processor_share(1 if exclusive else slots)
+            child_environment["WATERFALL_PROCESSORS"] = str(share)
         child_environment |= start_test_services(services, child_environment)
         return run_command(command, child_environment)
     finally:
-        if descriptor is not None:
+        for descriptor in descriptors:
             os.close(descriptor)
 
 
@@ -825,7 +911,13 @@ def parser() -> argparse.ArgumentParser:
     main = argparse.ArgumentParser(prog="slots.py", description=(__doc__ or "").splitlines()[0])
     commands = main.add_subparsers(dest="action", required=True)
     run = commands.add_parser("run", help="run a command once a slot is free, its services started")
-    run.add_argument("--heavy", action="store_true", help="a heavy run: wait for a free slot")
+    turn = run.add_mutually_exclusive_group()
+    turn.add_argument("--heavy", action="store_true", help="a heavy run: wait for a free slot")
+    turn.add_argument(
+        "--exclusive",
+        action="store_true",
+        help="a measure: wait for the heavy runs in progress, then hold back the next ones",
+    )
     run.add_argument(
         "--services",
         type=services_list,
@@ -861,13 +953,19 @@ def run_action(options: argparse.Namespace, environment: Mapping[str, str]) -> i
         print(processor_share(slot_count(environment)))
         return 0
     command = options.command[1:] if options.command[:1] == ["--"] else options.command
-    if not (options.heavy or options.services):
-        print("slots: run needs --heavy, --services, or both", file=sys.stderr)
+    if not (options.heavy or options.exclusive or options.services):
+        print("slots: run needs --heavy, --services, or both; or --exclusive", file=sys.stderr)
         return 2
     if not command:
         print("slots: run needs a command after --", file=sys.stderr)
         return 2
-    return run_prepared(command, environment, heavy=options.heavy, services=options.services)
+    return run_prepared(
+        command,
+        environment,
+        heavy=options.heavy,
+        services=options.services,
+        exclusive=options.exclusive,
+    )
 
 
 def main(
@@ -887,6 +985,9 @@ def main(
     except OSError as error:
         print(f"slots: the register or a command cannot be used: {error}", file=sys.stderr)
         return 1
+    except KeyboardInterrupt:
+        # Interrupted while it waited: what was taken is freed already; no trace for a Ctrl-C.
+        return 128 + signal.SIGINT
 
 
 if __name__ == "__main__":

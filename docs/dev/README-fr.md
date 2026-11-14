@@ -3239,6 +3239,19 @@ processeurs divisés par N, au moins 1 : les workers de pytest (`-n`, huit au pl
 Vitest et de Playwright s'y règlent, sauf `WORKERS`. À N = 1, la part est le poste entier : rien ne
 change.
 
+**Le poste pour une mesure seule** (US-2210). `slots.py run --exclusive -- <commande>`, que la
+variable `exclusive` du Makefile pose devant une commande, prend tous les tours des exécutions
+lourdes : d'abord la barrière `waterfall-heavy.exclusive.lock`, puis les neuf fichiers de verrou,
+`waterfall-heavy.lock` à `waterfall-heavy.9.lock` — les neuf, quel que soit son N, pour retenir
+aussi un livreur dont le N est plus grand —, toujours dans cet ordre : deux commandes exclusives
+passent l'une après l'autre, jamais chacune avec une moitié des tours. Elle dit une fois qu'elle
+attend la fin des exécutions lourdes en cours, garde tout jusqu'à la fin de la commande, et rend
+tout aussi quand on l'interrompt (`SIGINT`, `SIGTERM`, une exception). Une exécution lourde lancée
+pendant ce temps attend, en le disant une fois : elle prend un verrou partagé de la barrière, sans
+attendre, le temps de chercher un tour. Un outil plus ancien, qui ignore la barrière, est attendu
+comme toute exécution en cours. La commande reçoit `WATERFALL_PROCESSORS` du poste entier ; les
+travaux légers des autres livreurs — un fichier de tests (`TESTS`), le lint, le typage — continuent.
+
 **Les créneaux des worktrees** (US-1100). Chaque worktree d'un lot prend un créneau de 1 à N — le
 même `WATERFALL_SLOTS` —, qui lui donne ses ports, ses projets Compose et les étiquettes de ses
 images : deux livreurs jouent ensemble les parcours de bout en bout, les tests de Keycloak ou les

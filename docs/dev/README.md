@@ -3224,6 +3224,19 @@ processors divided by N, at least 1: the workers of pytest (`-n`, eight at most 
 Vitest and of Playwright follow it, except `WORKERS`. At N = 1 the share is the whole workstation:
 nothing changes.
 
+**The workstation for a measure alone** (US-2210). `slots.py run --exclusive -- <command>`, which
+the variable `exclusive` of the Makefile puts before a command, takes every turn of the heavy runs:
+first the gate `waterfall-heavy.exclusive.lock`, then the nine lock files, `waterfall-heavy.lock` to
+`waterfall-heavy.9.lock` — the nine, whatever its N, to hold back a deliverer whose N is larger
+too —, always in that order: two exclusive commands pass one after the other, never each with a half
+of the turns. It says once that it waits for the heavy runs in progress to end, keeps everything
+until the command ends, and gives everything back when it is interrupted as well (`SIGINT`,
+`SIGTERM`, an exception). A heavy run started meanwhile waits, saying so once: it takes a shared
+lock of the gate, without waiting, while it looks for a turn. An older tool, which does not know the
+gate, is waited for like any run in progress. The command is given the `WATERFALL_PROCESSORS` of the
+whole workstation; the light work of the other deliverers — a file of tests (`TESTS`), the lint, the
+typing — goes on.
+
 **The slots of the worktrees** (US-1100). Each worktree of a lot takes a slot from 1 to N — the
 same `WATERFALL_SLOTS` —, which gives it its ports, its Compose projects and the tags of its
 images: two deliverers play the end-to-end paths, the tests of Keycloak or the paths against the
