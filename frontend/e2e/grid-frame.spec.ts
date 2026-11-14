@@ -393,11 +393,17 @@ for (const { address, widths, height, folded } of CARD_SCREENS) {
   });
 }
 
-/** A header of a grid as laid out: its column, its width, and the width chosen for it, if it widens. */
+/**
+ * A header of a grid as laid out: its column, its width, the width its handle announces and the
+ * narrowest it takes it to, if it widens, and whether its column takes the rest of the card — its
+ * `<col>` given no width.
+ */
 interface Header {
   readonly column: string;
   readonly width: number;
-  readonly chosen: number | undefined;
+  readonly announced: number | undefined;
+  readonly least: number | undefined;
+  readonly stretched: boolean;
 }
 
 /** What the layout says of the width of a grid, its columns, its lines and its totals (US-2080). */
@@ -423,15 +429,21 @@ interface Width {
 /** Measure the width of each grid of the screen. */
 function measureWidths(page: Page): Promise<Width[]> {
   return page.evaluate(() => {
-    const headersOf = (grid: Element) =>
-      Array.from(grid.querySelectorAll<HTMLElement>("thead th")).map((th) => {
+    const headersOf = (grid: Element) => {
+      const cols = Array.from(grid.querySelectorAll<HTMLElement>("colgroup col"));
+      return Array.from(grid.querySelectorAll<HTMLElement>("thead th")).map((th, at) => {
         const handle = th.querySelector("[role='separator']");
+        const value = (name: string) =>
+          handle === null ? undefined : Number(handle.getAttribute(name));
         return {
           column: th.dataset.column ?? "",
           width: th.getBoundingClientRect().width,
-          chosen: handle === null ? undefined : Number(handle.getAttribute("aria-valuenow")),
+          announced: value("aria-valuenow"),
+          least: value("aria-valuemin"),
+          stretched: cols[at]?.style.width === "",
         };
       });
+    };
     const linedOf = (grid: Element) => {
       const row = grid.querySelector("tbody tr[aria-rowindex]");
       return Array.from(row?.querySelectorAll<HTMLElement>("td") ?? []).flatMap((cell) => {
@@ -495,14 +507,6 @@ function measureWidths(page: Page): Promise<Width[]> {
   });
 }
 
-/** The column that takes the rest of the card: the label, else the last one that widens. */
-function stretchedOf(headers: readonly Header[]): Header | undefined {
-  return (
-    headers.find((header) => header.column === "label") ??
-    headers.filter((header) => header.chosen !== undefined).at(-1)
-  );
-}
-
 /** Check the widths of a grid: its frame, its bar, its table, its columns. */
 function expectWidths(grid: Width, where: string) {
   expect(
@@ -510,34 +514,47 @@ function expectWidths(grid: Width, where: string) {
     `the frame of ${where} in its card`,
   ).toBeLessThanOrEqual(1);
   expect(Math.abs(grid.bar - grid.frame), `the bar of ${where}`).toBeLessThanOrEqual(1);
-  const chosen = grid.headers.reduce((sum, header) => sum + (header.chosen ?? header.width), 0);
-  // The table: the wider of the room of its frame and of its columns as chosen.
+  const stretched = grid.headers.filter((header) => header.stretched);
+  expect(stretched.length, `the column of ${where} that takes the rest`).toBe(1);
+  const others = grid.headers
+    .filter((header) => !header.stretched)
+    .reduce((sum, header) => sum + (header.announced ?? header.width), 0);
+  // The table: the wider of the room of its frame and of its columns.
   expect(
-    Math.abs(grid.table - Math.max(grid.room, chosen)),
+    Math.abs(grid.table - Math.max(grid.room, others + (stretched[0]?.width ?? 0))),
     `the table of ${where}`,
   ).toBeLessThanOrEqual(2);
-  const stretched = stretchedOf(grid.headers);
-  for (const header of grid.headers.filter((each) => each.chosen !== undefined)) {
-    const least = header.chosen ?? 0;
-    if (header === stretched) {
-      // The width chosen is its least, and it takes what the other columns leave.
-      expect(header.width, `${header.column} of ${where} at its least`).toBeGreaterThanOrEqual(
-        least - 1,
-      );
+  for (const header of grid.headers.filter((each) => each.announced !== undefined)) {
+    // Each handle announces the width its column shows.
+    expect(
+      Math.abs(header.width - (header.announced ?? 0)),
+      `${header.column} of ${where} as announced`,
+    ).toBeLessThanOrEqual(1);
+    if (header.stretched) {
+      // Never narrower than what the other columns leave it, which is its least; that width
+      // when the table is no wider than its card.
+      const rest = Math.max(40, grid.room - others);
       expect(
-        Math.abs(header.width - least - Math.max(0, grid.room - chosen)),
-        `${header.column} of ${where} takes the rest`,
-      ).toBeLessThanOrEqual(2);
-    } else {
-      expect(Math.abs(header.width - least), `${header.column} of ${where}`).toBeLessThanOrEqual(1);
+        Math.abs((header.least ?? 0) - rest),
+        `the least of ${header.column} of ${where}`,
+      ).toBeLessThanOrEqual(1);
+      expect(header.width, `${header.column} of ${where} takes the rest`).toBeGreaterThanOrEqual(
+        rest - 1,
+      );
+      if (grid.table <= grid.room + 1) {
+        expect(
+          Math.abs(header.width - rest),
+          `${header.column} of ${where} takes the rest`,
+        ).toBeLessThanOrEqual(2);
+      }
     }
   }
 }
 
 /**
  * The screens of flat tables and of a tree measured for their width: the reference of the costs —
- * the natures, the categories, the grid of the rates, wider than its card —, the resources and the
- * tree of the organisation, the accounts and their pages.
+ * the natures, the categories, the grid of the rates, wider than its card —, that of the resources
+ * — the tree of the organisation, the roles, the calendars —, the accounts and their pages.
  */
 const WIDTH_SCREENS = ["/reference/costs", "/reference/resources", "/admin/users"] as const;
 
@@ -630,4 +647,140 @@ test("a table wider than its card scrolls in its frame, its label at its width c
     expect(after.cells).toEqual(before.cells);
     expect(after.words, "the caption of the totals where it was").toBe(before.words);
   }
+});
+
+/** The first flat table of the reference of the costs no wider than its card, by its name. */
+async function narrowTable(page: Page): Promise<string> {
+  const grids = await measureWidths(page);
+  const found = grids.find(
+    (grid) => grid.table <= grid.room + 1 && grid.headers.some((header) => header.stretched),
+  );
+  if (found === undefined) {
+    throw new Error("no table narrower than its card");
+  }
+  return found.name;
+}
+
+test("the column that takes the rest of its card widens from its visible edge, which follows the pointer, and narrows no further than the rest of its card, its handle announcing the width it shows [WF-IHM-0060-A]", async ({
+  page,
+}) => {
+  // « Les colonnes masquées et les largeurs choisies sont retrouvées à la réouverture » : the width
+  // the handle writes is the one seen (#3075).
+  const address = "/reference/costs";
+  await compile(page.request, address);
+  await open(page, address, { width: 1366, height: 900 });
+  const grid = page.locator(`main [role='grid'][aria-label="${await narrowTable(page)}"]`);
+  const stretched = grid
+    .locator("thead th")
+    .nth(
+      await grid.evaluate((table) =>
+        Array.from(table.querySelectorAll<HTMLElement>("colgroup col")).findIndex(
+          (col) => col.style.width === "",
+        ),
+      ),
+    );
+  const handle = stretched.getByRole("separator");
+  const box = async () => {
+    const bounds = await stretched.boundingBox();
+    return { width: bounds?.width ?? 0, right: (bounds?.x ?? 0) + (bounds?.width ?? 0) };
+  };
+  const shown = await box();
+  // The handle announces the width the column shows, which is the narrowest it goes.
+  await expect(handle).toHaveAttribute("aria-valuenow", String(Math.round(shown.width)));
+  await expect(handle).toHaveAttribute("aria-valuemin", String(Math.round(shown.width)));
+  const grip = await handle.boundingBox();
+  const x = (grip?.x ?? 0) + (grip?.width ?? 0) / 2;
+  const y = (grip?.y ?? 0) + (grip?.height ?? 0) / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  // Sixty points right: the edge follows the pointer, and the table passes its card.
+  await page.mouse.move(x + 60, y, { steps: 4 });
+  await expect.poll(async () => (await box()).right - shown.right).toBeCloseTo(60, 0);
+  await expect(handle).toHaveAttribute("aria-valuenow", String(Math.round(shown.width) + 60));
+  const scroll = await grid.evaluate(
+    (table) => (table.parentElement?.scrollWidth ?? 0) - (table.parentElement?.clientWidth ?? 0),
+  );
+  expect(scroll, "the table passes its card").toBeGreaterThan(50);
+  // A hundred points left of where it was pressed: the column at the rest of its card, no narrower.
+  await page.mouse.move(x - 100, y, { steps: 4 });
+  await expect.poll(async () => (await box()).right - shown.right).toBeCloseTo(0, 0);
+  await page.mouse.up();
+  await expect(handle).toHaveAttribute("aria-valuenow", String(Math.round(shown.width)));
+});
+
+test("the row under the pointer is tinted, apart from the others [WF-IHM-0060-A]", async ({
+  page,
+}) => {
+  const address = "/reference/costs";
+  await compile(page.request, address);
+  await open(page, address, { width: 1366, height: 900 });
+  const grid = page.locator(`main [role='grid'][aria-label="${await narrowTable(page)}"]`);
+  const rows = grid.locator("tbody tr[aria-rowindex]");
+  expect(await rows.count(), "the table has two rows").toBeGreaterThan(1);
+  // The background of the cell of the label, which no shade of a computed column covers.
+  const tint = (row: number) =>
+    rows
+      .nth(row)
+      .locator("td[data-column='label']")
+      .evaluate((cell) => getComputedStyle(cell).backgroundColor);
+  await page.mouse.move(0, 0);
+  const plain = await tint(1);
+  expect(await tint(0)).toBe(plain);
+  await rows.nth(0).locator("td[data-column='label']").hover();
+  await expect.poll(() => tint(0)).not.toBe(plain);
+  expect(await tint(1)).toBe(plain);
+});
+
+test("scrolled to its end, the caption of the totals of a narrowed label stays over the pinned columns, its words cut where they end [WF-IHM-0060-A]", async ({
+  page,
+}) => {
+  // Decision 3 of #3072: the caption, wider than the pinned columns once the label is narrowed,
+  // never covers a figure scrolled under it — its words are cut at the edge of the pinned columns.
+  const address = path(`${REVISION}/estimate`);
+  await compile(page.request, address);
+  await open(page, address, { width: 911, height: 900 });
+  const grid = page.locator("main [role='treegrid']").first();
+  const label = grid.locator("thead th[data-column='label']");
+  const handle = label.getByRole("separator");
+  const grip = await handle.boundingBox();
+  const y = (grip?.y ?? 0) + (grip?.height ?? 0) / 2;
+  await page.mouse.move((grip?.x ?? 0) + 2, y);
+  await page.mouse.down();
+  await page.mouse.move(0, y, { steps: 5 });
+  await page.mouse.up();
+  await expect(handle).toHaveAttribute("aria-valuenow", "40");
+  await grid.locator("xpath=..").evaluate((frame) => {
+    frame.scrollLeft = frame.scrollWidth;
+  });
+  const placed = () =>
+    grid.evaluate((table) => {
+      const caption = Array.from(table.querySelectorAll<HTMLElement>("tfoot td")).find(
+        (cell) => cell.textContent !== "",
+      );
+      const words = caption?.querySelector("span");
+      const header = table.querySelector("thead th[data-column='label']");
+      const edges = (element: Element | null | undefined) => {
+        const rect = element?.getBoundingClientRect();
+        return { left: rect?.left ?? 0, right: rect?.right ?? 0 };
+      };
+      return {
+        cell: caption?.getBoundingClientRect().right ?? 0,
+        words: edges(words),
+        label: edges(header),
+        scrolled: table.parentElement?.scrollLeft ?? 0,
+      };
+    });
+  await expect.poll(async () => (await placed()).scrolled).toBeGreaterThan(400);
+  const after = await placed();
+  // The caption ends where the label does; its words start where the label does, and run past
+  // its end, cut there.
+  expect(
+    Math.abs(after.cell - after.label.right),
+    "the caption ends with the label",
+  ).toBeLessThanOrEqual(1);
+  expect(
+    Math.abs(after.words.left - after.label.left),
+    "the words of the caption start with the label",
+  ).toBeLessThanOrEqual(1);
+  expect(after.words.right - after.cell, "the words of the caption are cut").toBeGreaterThan(8);
 });

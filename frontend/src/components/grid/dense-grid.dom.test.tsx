@@ -685,10 +685,11 @@ describe("the columns and their widths, a display preference of the account", ()
   it("widens a column dragged by its handle", async () => {
     const client = serve();
     renderGrid(witness);
+    // The label takes the rest of its card: its handle drags it by the pointer, from its edge.
     const handle = screen.getByRole("separator", { name: "Largeur de la colonne Libellé" });
-    fireEvent.mouseDown(handle, { clientX: 500 });
-    fireEvent.mouseMove(document, { clientX: 560 });
-    fireEvent.mouseUp(document, { clientX: 560 });
+    fireEvent.pointerDown(handle, { button: 0, clientX: 500, pointerId: 1 });
+    fireEvent.pointerMove(handle, { clientX: 560, pointerId: 1 });
+    fireEvent.pointerUp(handle, { clientX: 560, pointerId: 1 });
     expect(handle).toHaveAttribute("aria-valuenow", "380");
     await waitFor(() => {
       expect(recorded(client)).toEqual([

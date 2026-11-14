@@ -124,7 +124,7 @@ import { alignClass, TotalsRow } from "./totals-row";
 import { PendingAddress, usePendingAddress } from "./pending-address";
 import { endPinnedWidth, pinnedWidth, pinningOf, useFrameRoom } from "./pinning";
 import { useRootFontSize, useRowWindow } from "./row-window";
-import { stretchedColumn, tableWidth } from "./table-width";
+import { restOf, stretchedColumn, tableWidth } from "./table-width";
 import { type GridQuery, type GridSort, searchHref, sortHref } from "./query";
 import {
   HandleCell,
@@ -635,7 +635,9 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   const model = table.getRowModel().rows;
   const edge = EDGE_REM * useRootFontSize();
   const columns = table.getVisibleLeafColumns();
-  const stretched = stretchedColumn(table);
+  const stretched = stretchedColumn(table, config);
+  // What the other columns leave the one that takes the rest, which its handle goes no narrower than.
+  const rest = restOf(table, stretched, room);
   const cursor = useCursor(config, model.length, columns);
   // The row of the active cell stays rendered however far the grid scrolls: it holds the focus.
   const { items, gaps, after, scrollToIndex } = useRowWindow({
@@ -904,6 +906,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
                   position={position}
                   active={samePosition(cursor.active, position)}
                   selectAll={selection.boxOf(header.column.id)}
+                  rest={header.column.id === stretched ? rest : undefined}
                 />
               );
             })}

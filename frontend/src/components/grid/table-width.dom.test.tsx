@@ -7,7 +7,7 @@
  * a pinned one; the row under the pointer tinted by a token; the caption of the totals spanning the
  * columns with no figure. The browser lays the table out: `grid-frame.spec.ts` measures it.
  */
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -67,14 +67,14 @@ function column(key: string): Config["columns"][number] {
 }
 
 /** A grid of the witness, every column shown unless the preferences say otherwise. */
-function grid(config: Config, preferences?: GridPreferences) {
+function grid(config: Config, preferences?: GridPreferences, caption = "3 lignes") {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <DenseGrid
         config={config}
         rows={witness.items.slice(0, 3)}
         totals={witness.totals}
-        totalsCaption={() => "3 lignes"}
+        totalsCaption={() => caption}
         query={{ sort: undefined, search: undefined, size: undefined }}
         preferences={preferences ?? allShown(config.columns)}
       />
@@ -83,9 +83,9 @@ function grid(config: Config, preferences?: GridPreferences) {
 }
 
 /** Render a grid in a frame the test sizes, so that its rows are rendered, and what it reads of it. */
-function renderGrid(config: Config, preferences?: GridPreferences) {
+function renderGrid(config: Config, preferences?: GridPreferences, caption?: string) {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(400);
-  const { container } = render(grid(config, preferences));
+  const { container } = render(grid(config, preferences, caption));
   const table = container.querySelector("table");
   const frame = table?.parentElement;
   if (table === null || frame === null || frame === undefined) {
@@ -96,6 +96,15 @@ function renderGrid(config: Config, preferences?: GridPreferences) {
     cols: Array.from(container.querySelectorAll("col")),
     totals: Array.from(container.querySelectorAll<HTMLElement>("tfoot td")),
     body: Array.from(container.querySelectorAll<HTMLElement>("tbody tr[aria-rowindex]")),
+    handle: (key: string) => {
+      const found = container.querySelector<HTMLElement>(
+        `th[data-column='${key}'] [role='separator']`,
+      );
+      if (found === null) {
+        throw new Error(`no handle for ${key}`);
+      }
+      return found;
+    },
   };
 }
 
@@ -120,9 +129,89 @@ describe("the width of a flat table (#3075)", () => {
   });
 
   it("lets the last column take the rest in a table without a label, every other keeping its width [WF-IHM-0060-A]", () => {
+    const columns = [column("cost_category"), column("resource_role")];
+    const { cols } = renderGrid(flat(columns));
+    expect(cols.map((col) => col.style.width)).toEqual(["48px", "160px", ""]);
+  });
+
+  it("lets no column of figures take the rest, which would open before its figures, while another can [WF-IHM-0060-A]", () => {
+    // The hours, last, are aligned at the end: the role before them takes the rest.
     const columns = [column("cost_category"), column("resource_role"), column("hours")];
     const { cols } = renderGrid(flat(columns));
-    expect(cols.map((col) => col.style.width)).toEqual(["48px", "160px", "160px", ""]);
+    expect(cols.map((col) => col.style.width)).toEqual(["48px", "160px", "", "96px"]);
+  });
+});
+
+describe("the handle of the column that takes the rest (#3075)", () => {
+  // The label, chosen 200 wide, in a frame of 900 whose other columns take 48 + 160 + 96: it
+  // shows the 596 points they leave it, under the 800 a column gets at its widest.
+  const columns = [LABEL_COLUMN, column("cost_category"), column("hours")];
+  const chosen = { ...allShown(columns), column_widths: { label: 200 } };
+  const ROOM = 900;
+  const REST = ROOM - (48 + 160 + 96);
+
+  it("announces the width the label shows, and steps from it: no narrower than the rest of its card, wider by a step [WF-IHM-0060-A]", () => {
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(ROOM);
+    const { handle } = renderGrid(flat(columns), chosen);
+    const label = handle("label");
+    expect(label).toHaveAttribute("aria-valuenow", String(REST));
+    expect(label).toHaveAttribute("aria-valuemin", String(REST));
+    // Narrower than what the others leave it, it would show the same: nothing changes.
+    fireEvent.keyDown(label, { key: "ArrowLeft" });
+    expect(label).toHaveAttribute("aria-valuenow", String(REST));
+    // Wider, it widens from the edge seen, and the table passes its card.
+    fireEvent.keyDown(label, { key: "ArrowRight" });
+    expect(label).toHaveAttribute("aria-valuenow", String(REST + 16));
+    expect(label).toHaveAttribute("aria-valuemin", String(REST));
+    // Back by a step, it goes back to the rest of the card, and no further.
+    fireEvent.keyDown(label, { key: "ArrowLeft" });
+    fireEvent.keyDown(label, { key: "ArrowLeft" });
+    expect(label).toHaveAttribute("aria-valuenow", String(REST));
+  });
+
+  it("drags the label from its visible edge, which follows the pointer down to the rest of its card [WF-IHM-0060-A]", () => {
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(ROOM);
+    const { handle } = renderGrid(flat(columns), chosen);
+    const label = handle("label");
+    fireEvent.pointerDown(label, { button: 0, clientX: 1400, pointerId: 1 });
+    fireEvent.pointerMove(label, { clientX: 1450, pointerId: 1 });
+    expect(label).toHaveAttribute("aria-valuenow", String(REST + 50));
+    // Fifty points left of where it was pressed: the label at the rest of its card, not at the
+    // 150 points its width chosen less fifty would say.
+    fireEvent.pointerMove(label, { clientX: 1350, pointerId: 1 });
+    expect(label).toHaveAttribute("aria-valuenow", String(REST));
+    fireEvent.pointerUp(label, { pointerId: 1 });
+    fireEvent.pointerMove(label, { clientX: 1500, pointerId: 1 });
+    expect(label).toHaveAttribute("aria-valuenow", String(REST));
+  });
+
+  it("announces the width chosen, and steps from it, before the room of its frame is known [WF-IHM-0060-A]", () => {
+    const { handle } = renderGrid(flat(columns), chosen);
+    const label = handle("label");
+    expect(label).toHaveAttribute("aria-valuenow", "200");
+    expect(label).toHaveAttribute("aria-valuemin", "40");
+    fireEvent.keyDown(label, { key: "ArrowLeft" });
+    expect(label).toHaveAttribute("aria-valuenow", "184");
+  });
+
+  it("lets the label no wider than the widest a column gets, nor writes a width it would not show [WF-IHM-0060-A]", () => {
+    // In a frame of 1600, the label shows 1296 points, more than the 800 of its widest: its
+    // handle cannot widen it, and narrowing it would show the same.
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
+    const { handle } = renderGrid(flat(columns), chosen);
+    const label = handle("label");
+    expect(label).toHaveAttribute("aria-valuenow", "1296");
+    expect(label).toHaveAttribute("aria-valuemax", "1296");
+    fireEvent.keyDown(label, { key: "ArrowRight" });
+    fireEvent.keyDown(label, { key: "ArrowLeft" });
+    expect(label).toHaveAttribute("aria-valuenow", "1296");
+  });
+
+  it("keeps the handle of every other column at the width chosen for it [WF-IHM-0060-A]", () => {
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(ROOM);
+    const { handle } = renderGrid(flat(columns), chosen);
+    expect(handle("cost_category")).toHaveAttribute("aria-valuenow", "160");
+    expect(handle("cost_category")).toHaveAttribute("aria-valuemin", "40");
   });
 });
 
@@ -156,6 +245,24 @@ describe("the caption of the totals (#3072)", () => {
     expect(caption?.querySelector("span")?.style.left).toBe("48px");
     // The hours, the first figure, are a cell of their own.
     expect(totals.find((cell) => cell.textContent === "0")).toHaveClass("text-right");
+  });
+
+  it("keeps a caption wider than the pinned columns stuck as they scroll, its words at the start of its column, cut by its own edge where the pinned columns end [WF-IHM-0060-A]", () => {
+    // Decision 3 of #3072: scrolled, the caption ends where the label does, and its words, wider
+    // than the label, are clipped there — never over the figures scrolled under it, never
+    // ellipsed at the end of a cell that would scroll away.
+    const long = "Trois lignes de l'estimation, sans compter les lots ni les postes repliés";
+    const preferences = { ...allShown(ESTIMATE_GRID.columns), column_widths: { label: 40 } };
+    const { totals } = renderGrid(ESTIMATE_GRID, preferences, long);
+    const caption = totals.find((cell) => cell.textContent === long);
+    expect(caption).toHaveAttribute("colspan", "4");
+    expect(caption?.style.left).toBe(`${String(48 - 392)}px`);
+    expect(caption).toHaveClass("sticky", "overflow-clip", "px-0");
+    expect(caption).not.toHaveClass("overflow-hidden", "text-ellipsis", "truncate");
+    const words = caption?.querySelector("span");
+    expect(words?.style.left).toBe("48px");
+    expect(words).toHaveClass("sticky", "w-fit");
+    expect(words).not.toHaveClass("truncate", "text-ellipsis", "overflow-hidden");
   });
 
   it("spans pinned columns alone as one pinned cell, with the line beside the last [WF-IHM-0060-A]", () => {

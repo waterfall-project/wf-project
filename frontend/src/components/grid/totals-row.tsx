@@ -113,7 +113,10 @@ function CaptionCell<Row extends RowData>({
       {words === undefined ? (
         caption
       ) : (
-        <span className="sticky block w-fit px-2" style={{ left: words }}>
+        // A sticky box stays within its cell, which would push words wider than what is left of the
+        // cell back to the left, out of the frame; a margin that takes the whole width of the window
+        // off its end leaves it where it sticks, the cell cutting the words at its own edge.
+        <span className="sticky -mr-[100vw] block w-fit px-2" style={{ left: words }}>
           {caption}
         </span>
       )}
