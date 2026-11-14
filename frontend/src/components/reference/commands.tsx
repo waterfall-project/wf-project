@@ -21,6 +21,13 @@
  * focus back where it was opened from: the cell of the row, the grid being one stop, or the command
  * of the creation.
  *
+ * A list holds the rows being written too — a modification sent, the dialog open or closed, or a
+ * command of a row pressed —, until the server answers, whatever the answer (#2260). The commands of
+ * such a row — modify, deactivate or reactivate, designate — wait meanwhile: inactive, busy, and
+ * described by the write under way (défaut n° 24 de `typescript.md`, second cas); a press opens and
+ * sends nothing. Otherwise a form opened anew would write from the version the answer is about to
+ * replace, and the server refuse it (412). The other rows keep their commands.
+ *
  * Every prop a server component hands is data — the kind of the list, the label of a command —, never
  * a function (défaut n° 12 de `typescript.md`). In a dense grid, a command is out of the order of
  * tabulation, the grid being one stop: Enter on its cell presses it (`CELL_COMMAND`).
@@ -41,7 +48,7 @@ import {
 import { setActivation } from "@/api/actions/reference";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
-import { findOffer, type ListedCommand } from "@/components/commands/offer";
+import { findOffer, type ListedCommand, UNAVAILABLE } from "@/components/commands/offer";
 import type { ObjectNames } from "@/components/commands/outcome-notice";
 import { useHeldCommand } from "@/components/commands/held";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
@@ -102,6 +109,10 @@ interface Commands {
   readonly opened: Opened | undefined;
   readonly said: Said | undefined;
   readonly answers: ReadonlyMap<string, ReferenceObject>;
+  /** Whether a write of a row, by its identifier, is under way: its commands wait for the answer. */
+  readonly writing: (id: string) => boolean;
+  /** Tell that a write of a row, by its identifier, leaves (`true`), then that it is answered. */
+  readonly write: (id: string, leaves: boolean) => void;
   /** Take the answers of the server to writes of rows: the newest answer of a row prevails. */
   readonly answer: (rows: readonly ReferenceObject[]) => void;
   readonly say: Say;
@@ -162,6 +173,9 @@ export function CommandedList({
   readonly children: ReactNode;
 }) {
   const [answers, setAnswers] = useState<ReadonlyMap<string, ReferenceObject>>(() => new Map());
+  // The writes under way, counted by the identifier of their row: one answered frees the row only
+  // once no other of it is under way.
+  const [writes, setWrites] = useState<ReadonlyMap<string, number>>(() => new Map());
   const [opened, setOpened] = useState<Opened>();
   const [said, say] = useSaid();
   const commands = useMemo<Commands>(
@@ -170,6 +184,19 @@ export function CommandedList({
       opened,
       said,
       answers,
+      writing: (id) => writes.has(id),
+      write: (id, leaves) => {
+        setWrites((before) => {
+          const after = new Map(before);
+          const count = (before.get(id) ?? 0) + (leaves ? 1 : -1);
+          if (count > 0) {
+            after.set(id, count);
+          } else {
+            after.delete(id);
+          }
+          return after;
+        });
+      },
       answer: (rows) => {
         setAnswers((before) => {
           const newer = rows.filter((row) => {
@@ -192,7 +219,7 @@ export function CommandedList({
         setOpened((current) => (current === closing ? undefined : current));
       },
     }),
-    [kind, opened, said, say, answers],
+    [kind, opened, said, say, answers, writes],
   );
   return <ListCommands value={commands}>{children}</ListCommands>;
 }
@@ -213,6 +240,11 @@ export interface ListForm {
   readonly answering: (answer: Outcome<ReferenceObject>) => Outcome<ReferenceObject>;
   /** Take the answer of the server, the dialog open or closed. */
   readonly onDone: (answer: ReferenceObject) => void;
+  /**
+   * Told that the modification of the row leaves, then that it is answered, the dialog open or
+   * closed: the commands of the row wait meanwhile. None for a creation, which has no row yet.
+   */
+  readonly onWriting: ((writing: boolean) => void) | undefined;
   readonly onClose: () => void;
   /** Give the focus back where the dialog was opened from, once it has closed. */
   readonly onClosed: () => void;
@@ -250,6 +282,12 @@ export function useListForm(): ListForm | undefined {
       });
       commands.close(opened);
     },
+    onWriting:
+      row === undefined
+        ? undefined
+        : (writing) => {
+            commands.write(idOf(kind, row), writing);
+          },
     onClose: () => {
       commands.close(opened);
     },
@@ -263,9 +301,12 @@ export function useListForm(): ListForm | undefined {
  * Run a command of a row from the reading it is pressed on: its answer takes the place of the rows it
  * names and is said in the region of the list, noted in the history of the messages about the object
  * of the row (`subject`, by its name); its refusal is told above the list, in place of the one the
- * same command on the same object had there (`target`).
+ * same command on the same object had there (`target`). The command waits — busy, and a press runs
+ * nothing — while any write of its row (`row`, its identifier) is under way, its own or another's: it
+ * marks its row written until its answer, whatever it is.
  */
 export function useRowCommand(
+  row: string,
   target: string,
   names: ObjectNames,
   subject: string,
@@ -280,11 +321,12 @@ export function useRowCommand(
   const commands = useContext(ListCommands);
   // Busy from the press to the answer, and lifted in the very update that tells it — not a transition,
   // whose end would wait for every other write of the list under way (#1484).
-  const [busy, setBusy] = useState(false);
+  const [own, setBusy] = useState(false);
+  const busy = own || commands?.writing(row) === true;
   // The list, which tells the refusal, holds the navigations while the command answers: the row
   // may be gone meanwhile (#688). Always called, used or not: a hook is not called on a condition.
-  const own = useHeldCommand();
-  const held = list?.held ?? own;
+  const ownHeld = useHeldCommand();
+  const held = list?.held ?? ownHeld;
   const run = (
     action: () => Promise<Outcome<readonly ReferenceObject[]>>,
     said: (rows: readonly ReferenceObject[]) => string,
@@ -295,8 +337,10 @@ export function useRowCommand(
     // The reading the command is pressed on: its refusal is told on it alone.
     const generation = list?.generation ?? 0;
     setBusy(true);
+    commands?.write(row, true);
     void held(action()).then((outcome) => {
       setBusy(false);
+      commands?.write(row, false);
       if (outcome.kind === "done") {
         commands?.answer(outcome.data);
         commands?.say(said(outcome.data), { object: subject });
@@ -348,18 +392,39 @@ export function CreateCommand({ label }: { readonly label: string }) {
   );
 }
 
+/**
+ * What a command of a row presents while a write of its row is under way (`writing`): inactive,
+ * busy, and described by the write under way (`reference.form.writing`), which its tooltip says — a
+ * cell of a dense grid has no room for it beside the command (`WritingNote`).
+ */
+export function waitingFor(
+  writing: boolean,
+  said: string,
+): {
+  readonly unavailable: string | undefined;
+  readonly "aria-busy": boolean;
+  readonly className: string;
+} {
+  return { unavailable: writing ? said : undefined, "aria-busy": writing, className: UNAVAILABLE };
+}
+
 /** The command that opens the modification of a row, named after it. */
 export function ModifyCommand({ row }: { readonly row: ReferenceObject }) {
   const t = useTranslations("reference");
   const said = useTranslations("commands");
   const commands = useContext(ListCommands);
+  const writing = commands?.writing(idOf(commands.kind, row)) === true;
   return (
     <CellCommand
       label={t("modifyNamed", { name: row.label })}
       aria-haspopup="dialog"
       help={said("modify.help")}
+      {...waitingFor(writing, t("form.writing"))}
       onClick={(event: MouseEvent<HTMLElement>) => {
-        commands?.open({ row, trigger: event.currentTarget });
+        // A write of the row under way: the form would open on the version its answer replaces.
+        if (!writing) {
+          commands?.open({ row, trigger: event.currentTarget });
+        }
       }}
     >
       <PencilLine aria-hidden="true" />
@@ -384,6 +449,7 @@ function ActivationButton({
   const said = useTranslations("reference.form");
   const helped = useTranslations("commands");
   const [pending, run] = useRowCommand(
+    target.id,
     `${command} ${target.kind} ${target.id}`,
     conflict === undefined ? {} : { [conflict.id]: conflict.name },
     name,
@@ -392,7 +458,7 @@ function ActivationButton({
     <CellCommand
       label={t(command, { name })}
       help={helped(`${command}.help`)}
-      aria-busy={pending}
+      {...waitingFor(pending, said("writing"))}
       onClick={() => {
         run(
           () => setActivation(target, command === "reactivate"),

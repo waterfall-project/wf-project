@@ -430,7 +430,10 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     `aria-busy` et décrite par « Enregistrement en cours… », tant que l'écriture est en route —
     `onWriting` de `ReferenceForm`, appelé au départ et dans un `finally` à la réponse, quelle
     qu'elle soit (`settings-forms.tsx`, `project-form.tsx`, `backup-schedule.tsx` ; la modification
-    d'un sous-projet tant que celle de ce sous-projet est en route, `subproject-commands.tsx`), ou
+    d'un sous-projet tant que celle de ce sous-projet est en route, `subproject-commands.tsx` ; les
+    commandes d'une ligne d'une liste du référentiel — modifier, désactiver ou réactiver, désigner —
+    tant qu'une écriture de cette ligne est en route, que `CommandedList` tient par son identifiant,
+    `row-writing.dom.test.tsx`, #2260), ou
     son pareil pour un dialogue qui n'est pas un formulaire du référentiel (la liste des
     contributeurs, `contributor-commands.tsx`, EP-14/L54, #734). Les confirmations en ligne
     (`ConfirmedCommand`) tiennent de même leur commande inactive par `writing` de `Command`, tant
