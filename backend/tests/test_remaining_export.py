@@ -226,8 +226,7 @@ def test_the_remaining_of_a_current_revision_is_exported_in_a_workbook_named_aft
     # version of its revision — none for a revision in progress —, the review of the day of the
     # request, and the lines of the tasks not completed by their lineage.
     # The clock of the request is fixed a second before midnight (universal time, the service's
-    # day):
-    # the day of the request is read from it, not from the day the test runs on.
+    # day): the day of the request is read from it, not from the day the test runs on.
     requested_at = datetime(2026, 11, 13, 23, 59, 59, tzinfo=UTC)
     monkeypatch.setattr("waterfall.core.exchanges.interface.exports.utc_now", lambda: requested_at)
     revision = scene.tree.revision
@@ -245,7 +244,7 @@ def test_the_remaining_of_a_current_revision_is_exported_in_a_workbook_named_aft
         "Version",
         1,
     ]
-    assert summary["B9"].value == "2026-11-13"
+    assert summary["B9"].value == requested_at.date().isoformat()
     lines = lines_of(answer.content, OUTSIDE)
     assert [(each["Tâche"], each[LINEAGE]) for each in lines] == [
         (row[0], row[5]) for row in scene.exported()
