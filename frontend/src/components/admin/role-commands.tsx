@@ -35,6 +35,7 @@ import { useHeldCommand } from "@/components/commands/held";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { useNoteRefusal } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
+import { useRaise } from "@/components/system/raise";
 import { parsedEntry } from "@/components/grid/cell-values";
 import { useSaid } from "@/components/notices/said";
 import { CellCommand } from "@/components/reference/cell-command";
@@ -116,6 +117,7 @@ function Deletion({ children }: { readonly children: ReactNode }) {
   // The role whose deletion is asked — kept while the confirmation closes —, and whether it is open.
   const [asked, setAsked] = useState<{ readonly role: AccessRole; readonly open: boolean }>();
   const answers = useRoleAnswers();
+  const raise = useRaise();
   const ask = useCallback((role: AccessRole) => {
     setAsked({ role, open: true });
   }, []);
@@ -132,7 +134,8 @@ function Deletion({ children }: { readonly children: ReactNode }) {
     const generation = list?.generation ?? 0;
     answers?.begin(id);
     // A command that rejects, though the hold catches the rejections of the action: told as the
-    // screen of failure tells it, never left unhandled (#3111).
+    // commands tell a rejected action; and what the telling itself throws is raised to the screen
+    // of failure, never left unhandled (#3111).
     void held(deleteAccessRole(id, role.lock_version))
       .catch(rejected)
       .then((outcome) => {
@@ -142,6 +145,7 @@ function Deletion({ children }: { readonly children: ReactNode }) {
           list?.report({ outcome, generation, names: {}, target: `delete ${id}` });
         }
       })
+      .catch(raise)
       .finally(() => {
         // Whatever the answer, a rejection included: the role is free again (#2898).
         answers?.end(id);
