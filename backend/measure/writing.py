@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from measure.figures import ratio, summarise
 from measure.report import Measure
+from measure.target import MeasureError
 from waterfall.core.planning.interface import (
     Duration,
     NodeFilters,
@@ -47,24 +48,49 @@ class Written:
     ancestors: int
 
 
+def _followers(nodes: tuple[NodeView, ...]) -> dict[UUID, set[UUID]]:
+    """Give, for each node, the nodes that name it as a predecessor."""
+    followers: dict[UUID, set[UUID]] = {}
+    for each in nodes:
+        for link in each.predecessors:
+            followers.setdefault(link.predecessor_id, set()).add(each.node_id)
+    return followers
+
+
+def _downstream(start: UUID, followers: dict[UUID, set[UUID]]) -> int:
+    """Count the nodes a change of ``start`` can reach by the links, directly or not."""
+    reached: set[UUID] = set()
+    pending = [start]
+    while pending:
+        for follower in followers.get(pending.pop(), ()):
+            if follower not in reached:
+                reached.add(follower)
+                pending.append(follower)
+    return len(reached)
+
+
 def _leaf(nodes: tuple[NodeView, ...]) -> NodeView:
     """Pick a task a cell can be entered in, which a duration redates: a leaf, scheduled, in days.
 
-    The first in the order of the structure; the leaf of a witness loaded again is the same.
+    The one with the most successors by the links, the first in the order of the structure among
+    equals: a duration that redates needs successors, and the leaf of a witness loaded again is
+    the same.
     """
-    for each in nodes:
-        task = each.task
-        if (
-            task is not None
-            and not task.is_summary
-            and not task.is_milestone
-            and task.scheduling_mode != "manual"
-            and task.duration_unit == _UNIT
-            and "task.duration" in each.editable_fields
-        ):
-            return each
-    message = "the structure has no task in days that a duration can be entered in"
-    raise ValueError(message)
+    followers = _followers(nodes)
+    candidates = [
+        each
+        for each in nodes
+        if each.task is not None
+        and not each.task.is_summary
+        and not each.task.is_milestone
+        and each.task.scheduling_mode != "manual"
+        and each.task.duration_unit == _UNIT
+        and "task.duration" in each.editable_fields
+    ]
+    if not candidates:
+        message = "the structure has no task in days that a duration can be entered in"
+        raise MeasureError(message)
+    return max(candidates, key=lambda each: _downstream(each.node_id, followers))
 
 
 def _entry(leaf: NodeView, kind: str) -> TaskEntry:
@@ -123,6 +149,11 @@ def measure_writes(database: Database, place: Place, runs: int) -> tuple[Measure
     for kind, name in (("label", "write a label"), ("duration", "write a duration, redating")):
         runs_of = [write_once(database, place, leaf, kind) for _ in range(runs)]
         summary = summarise([each.seconds for each in runs_of])
+        notes = (
+            ("the duration redated no task: its leaf has no successor, the figure is a label's",)
+            if kind == "duration" and runs_of[0].rescheduled == 0
+            else ()
+        )
         measures.append(
             Measure(
                 name=name,
@@ -132,6 +163,7 @@ def measure_writes(database: Database, place: Place, runs: int) -> tuple[Measure
                     "rescheduled": runs_of[0].rescheduled,
                     "ancestors": runs_of[0].ancestors,
                 },
+                notes=notes,
             )
         )
     return tuple(measures)
@@ -165,15 +197,18 @@ def measure_opening(database: Database, target: Target, runs: int) -> Measure:
     """Measure the opening of a revision: a copy of the last marked one, structures and lines.
 
     The project has a current revision, which the opening refuses: it is abandoned first, inside
-    the transaction, and everything is rolled back, the abandonment too.
+    the transaction, and everything is rolled back, the abandonment too. One opening warms the
+    statements and the connections first, and is not counted.
     """
     manager: UUID = target.manager_id
     viewer = Viewer(manager, ())
-    durations = [
-        _rolled_back(
+
+    def once() -> float:
+        return _rolled_back(
             database,
             lambda session: _open_revision(session, target, viewer, Act(None, utc_now())),
         )
-        for _ in range(runs)
-    ]
+
+    once()
+    durations = [once() for _ in range(runs)]
     return Measure(name="open a revision", summary=summarise(durations))

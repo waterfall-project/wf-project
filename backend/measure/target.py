@@ -6,12 +6,25 @@ import importlib
 import os
 from dataclasses import dataclass
 from functools import cache
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, get_args
+from uuid import uuid4
 
-from sqlalchemy import text
 from sqlalchemy.engine import URL
 
 from waterfall.core.planning.interface import Place
+from waterfall.core.projects.interface import (
+    ALL_PROJECTS_READ,
+    ContributorFilters,
+    ContributorSort,
+    ProjectFilters,
+    ProjectPage,
+    ProjectSort,
+    ProjectState,
+    Viewer,
+    list_contributors,
+    list_projects,
+)
+from waterfall.core.revisions.interface import MAIN, list_cost_structures, read_revision
 from waterfall.platform.database import Database, create_database_engine
 
 if TYPE_CHECKING:
@@ -28,18 +41,8 @@ _ROLE = "waterfall_service"
 _HOST = "127.0.0.1"
 _DEFAULT_PORT = 5432
 
-_STRUCTURE = text(
-    "SELECT project.id, project.current_revision_id, structure.id, revision.lock_version "
-    "FROM project "
-    "JOIN revision ON revision.id = project.current_revision_id "
-    "JOIN cost_structure AS structure ON structure.project_id = project.id "
-    "AND structure.revision_id = revision.id AND structure.kind = 'main' "
-    "WHERE project.code = :code"
-)
-_MANAGER = text(
-    "SELECT user_account_id FROM contributor "
-    "WHERE project_id = :project AND kind = 'project_manager' ORDER BY user_account_id LIMIT 1"
-)
+_ALL_STATES = frozenset(get_args(ProjectState.__value__))
+_PAGE = ProjectPage(limit=50, offset=0)
 
 
 class MeasureError(Exception):
@@ -69,7 +72,12 @@ def address_from_environment() -> str:
     if not password:
         message = "WATERFALL_SERVICE_DATABASE_PASSWORD is not set: the guide, 'Commandes'"
         raise MeasureError(message)
-    port = int(os.environ.get("WATERFALL_POSTGRES_PORT", _DEFAULT_PORT))
+    raw_port = os.environ.get("WATERFALL_POSTGRES_PORT", str(_DEFAULT_PORT))
+    try:
+        port = int(raw_port)
+    except ValueError:
+        message = f"WATERFALL_POSTGRES_PORT is not a port number: {raw_port!r}"
+        raise MeasureError(message) from None
     url = URL.create(
         "postgresql", username=_ROLE, password=password, host=_HOST, port=port, database="waterfall"
     )
@@ -85,16 +93,48 @@ def database_of(address: str) -> Database:
 def locate(database: Database) -> Target:
     """Read from the database the structure of the current revision of the project measured."""
     with database.transaction() as session:
-        found = session.execute(_STRUCTURE, {"code": PROJECT_CODE}).one_or_none()
-        if found is None:
+        # The one place a viewer is made out of nothing: before the manager is known, the project
+        # is listed by one that sees them all (the interface of the projects takes no other way).
+        everything = Viewer(uuid4(), (ALL_PROJECTS_READ,))
+        found = list_projects(
+            session,
+            everything,
+            ProjectFilters(search=PROJECT_CODE, states=_ALL_STATES),
+            ProjectSort(),
+            _PAGE,
+        )
+        project = next((each for each in found.projects if each.code == PROJECT_CODE), None)
+        if project is None or project.current_revision_id is None:
             message = (
-                f"{PROJECT_CODE} has no current revision with a structure: start the platform "
-                "and load the witness (make service-up, make service-install, make service-witness)"
+                f"{PROJECT_CODE} has no current revision: start the platform and load the "
+                "witness (make service-up, make service-install, make service-witness)"
             )
             raise MeasureError(message)
-        project_id, revision_id, structure_id, lock_version = found
-        manager = session.execute(_MANAGER, {"project": project_id}).scalar_one_or_none()
-    if manager is None:
-        message = f"{PROJECT_CODE} has no project manager"
-        raise MeasureError(message)
-    return Target(Place(project_id, revision_id, structure_id), lock_version, manager)
+        project_id, revision_id = project.project_id, project.current_revision_id
+        managers = list_contributors(
+            session,
+            project_id,
+            ContributorFilters(kinds=frozenset({"project_manager"})),
+            ContributorSort(),
+        ).items
+        if not managers:
+            message = f"{PROJECT_CODE} has no project manager"
+            raise MeasureError(message)
+        manager = managers[0].user_id
+        structure = next(
+            (
+                each
+                for each in list_cost_structures(
+                    session, project_id, revision_id, Viewer(manager, ())
+                )
+                if each.kind == MAIN
+            ),
+            None,
+        )
+        if structure is None:
+            message = f"{PROJECT_CODE} has no main structure in its current revision"
+            raise MeasureError(message)
+        lock_version = read_revision(
+            session, project_id, revision_id, Viewer(manager, ())
+        ).lock_version
+    return Target(Place(project_id, revision_id, structure.structure_id), lock_version, manager)

@@ -313,7 +313,8 @@ service-purge: ## Purge what expired on the service platform, started: imports, 
 # The measure of the core in process (US-2210, EP-26, "La mesure"): backend/measure/, which calls the
 # core as the API does, on the database of the service platform of the slot, started and the witness
 # loaded, without HTTP or Keycloak; every write it makes is rolled back. It never fails on a duration
-# and the chain does not run it. RUNS identical runs of each operation (5), ONLY=<part> one of read,
+# and the chain does not run it. RUNS identical runs of the whole read, the cell entered and the
+# revision opened (5; the profile and the waves of reads make one pass), ONLY=<part> one of read,
 # profile, parallel, write, revision (several by repeating: ONLY="read write"), JSON=<file> the report
 # also written as JSON.
 measure-core: ## Measure the core in process on the witness of the service platform, started: whole reads of PRJ-001, profile, threads and processes, a cell entered, a revision opened; RUNS, ONLY="read profile parallel write revision", JSON=<file>

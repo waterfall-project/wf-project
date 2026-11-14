@@ -3,25 +3,27 @@
 """The reading of a whole structure, as ``listNodes`` serves it: alone, profiled, in parallel."""
 
 import cProfile
-import json
+import multiprocessing
+import threading
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from statistics import median
 from time import perf_counter
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from sqlalchemy import event
 
 from measure.figures import ratio, summarise
 from measure.report import Measure, Scalar
 from measure.target import database_of
-from waterfall.api.nodes import node_body, totals_body
+from waterfall.api.contract.models import NodeListMeta
+from waterfall.api.nodes import node_body, read_body, totals_body
 from waterfall.core.planning.interface import NodeFilters, Place, list_nodes
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Mapping, Sequence
+    from collections.abc import Callable, Generator, Mapping, Sequence
     from types import CodeType
 
     from sqlalchemy.engine import Connection
@@ -35,14 +37,19 @@ _TOP = 25
 _MEGABYTE = 1e6
 _MILLISECOND = 1000
 _STARTED = "measure_statement_started"
+_EXECUTE_NOTE = (
+    "postgresql_execute_ms is the time of the statements' execution alone: fetching their rows "
+    "and building the objects are counted in the read, not in it"
+)
 
 
 @dataclass(frozen=True, slots=True)
 class Reading:
-    """One whole reading, in its three stages and what it gave, as the route serves it.
+    """One whole reading, in its three stages and what it gave, by the route's own functions.
 
     The core reads the rows and computes (``read``), the route writes each node as the contract
-    does (``bodies``), and the body is serialised (``dump``); the transfer and Next are not here.
+    does and its meta (``bodies``), and the response is rendered (``dump``); the guards, the query,
+    the transfer and Next are not here.
     """
 
     read: float
@@ -63,12 +70,19 @@ def read_once(database: Database, place: Place, kinds: tuple[str, ...] | None = 
     with database.transaction() as session:
         found = list_nodes(session, place, NodeFilters(kinds=kinds))
     read = perf_counter()
+    # What ``get_nodes`` does after the read, with the same functions: the meta, the bodies of
+    # the nodes, and the response rendered by ``read_body``. Left out: the guards of the route,
+    # the parsing of the query and the transfer.
+    meta = NodeListMeta.model_validate(
+        {"summary_depth": found.summary_depth, "scheduled_at": found.scheduled_at}
+    )
     body = {
         "items": [node_body(each) for each in found.items],
         "totals": totals_body(found.task_count, found.totals),
+        "meta": meta.model_dump(mode="json"),
     }
     bodies = perf_counter()
-    raw = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode()
+    raw = read_body(body).body
     dumped = perf_counter()
     return Reading(read - started, bodies - read, dumped - bodies, len(raw), len(found.items))
 
@@ -101,7 +115,10 @@ def measure_whole(
 
 @dataclass(slots=True)
 class Statements:
-    """What the statements sent to PostgreSQL cost: their number, and the time spent executing."""
+    """What the statements sent to PostgreSQL cost: their number, and the time of their execution.
+
+    The time runs from the statement sent to the cursor returned; the rows are fetched after it.
+    """
 
     count: int = 0
     seconds: float = 0.0
@@ -109,7 +126,7 @@ class Statements:
 
 @contextmanager
 def counting_statements(database: Database) -> Generator[Statements]:
-    """Count the statements the engine sends inside the block, and the time they wait for."""
+    """Count the statements the engine sends inside the block, and the time of their execution."""
     statements = Statements()
 
     def before(connection: Connection, *_: object) -> None:
@@ -154,8 +171,9 @@ def measure_profile(database: Database, place: Place) -> Measure:
             "bodies_ms": round(reading.bodies * _MILLISECOND),
             "dump_ms": round(reading.dump * _MILLISECOND),
             "statements": statements.count,
-            "postgresql_wait_ms": round(statements.seconds * _MILLISECOND),
+            "postgresql_execute_ms": round(statements.seconds * _MILLISECOND),
         },
+        notes=(_EXECUTE_NOTE,),
         rows=tuple(
             {
                 "function": _where(each.code),
@@ -168,7 +186,40 @@ def measure_profile(database: Database, place: Place) -> Measure:
     )
 
 
-def _wave(wall: float, durations: Sequence[float], workers: int, kind: str) -> Mapping[str, Scalar]:
+class _Barrier(Protocol):
+    def wait(self, timeout: float | None = None) -> int: ...
+
+
+_BARRIER_TIMEOUT = 300.0
+_WAVE_NOTE = (
+    "each wave is one pass: a read per worker after one that warmed it, no repeat to take a "
+    "median of; the spread between waves is not known"
+)
+
+
+@dataclass(frozen=True, slots=True)
+class Span:
+    """When a read began and ended, on the clock of the system, which every process shares."""
+
+    started: float
+    ended: float
+
+
+def _warmed_then_timed(read: Callable[[], float], barrier: _Barrier) -> Span:
+    """Read once to warm this worker, wait for all the others, then read again, timed.
+
+    The barrier also makes sure each worker of the wave has taken one read, and one alone.
+    """
+    read()
+    barrier.wait(_BARRIER_TIMEOUT)
+    started = perf_counter()
+    read()
+    return Span(started, perf_counter())
+
+
+def _wave(spans: Sequence[Span], workers: int, kind: str) -> Mapping[str, Scalar]:
+    durations = [each.ended - each.started for each in spans]
+    wall = max(each.ended for each in spans) - min(each.started for each in spans)
     return {
         kind: workers,
         "each_median_ms": round(median(durations) * _MILLISECOND),
@@ -181,38 +232,49 @@ def _wave(wall: float, durations: Sequence[float], workers: int, kind: str) -> M
 def measure_threads(database: Database, place: Place) -> Measure:
     """Play waves of reads by threads of one process: the interpreter's lock is in the way."""
 
-    def read(_: int) -> float:
+    def read() -> float:
         return read_once(database, place).total
 
     rows: list[Mapping[str, Scalar]] = []
     for workers in WORKERS:
+        barrier = threading.Barrier(workers)
         with ThreadPoolExecutor(workers) as pool:
-            started = perf_counter()
-            durations = list(pool.map(read, range(workers)))
-            wall = perf_counter() - started
-        rows.append(_wave(wall, durations, workers, "threads"))
-    return Measure(name="read all, by threads of one process", rows=tuple(rows))
+            futures = [pool.submit(_warmed_then_timed, read, barrier) for _ in range(workers)]
+            spans = [each.result() for each in futures]
+        rows.append(_wave(spans, workers, "threads"))
+    return Measure(
+        name="read all, by threads of one process", rows=tuple(rows), notes=(_WAVE_NOTE,)
+    )
 
 
-def _connect(address: str) -> None:
-    """Open the database of a worker process, which opens its own."""
+_shared: dict[str, _Barrier] = {}
+
+
+def _connect(address: str, barrier: _Barrier) -> None:
+    """Open the database of a worker process, which opens its own, and keep the wave's barrier."""
     database_of(address)
+    _shared["barrier"] = barrier
 
 
-def _read_in_process(job: tuple[str, Place]) -> float:
+def _read_in_process(job: tuple[str, Place]) -> Span:
     address, place = job
-    return read_once(database_of(address), place).total
+
+    def read() -> float:
+        return read_once(database_of(address), place).total
+
+    return _warmed_then_timed(read, _shared["barrier"])
 
 
 def measure_processes(address: str, place: Place) -> Measure:
     """Play waves of reads by processes, each with its own interpreter and its own connections."""
+    context = multiprocessing.get_context()
     rows: list[Mapping[str, Scalar]] = []
     for workers in WORKERS:
         jobs = [(address, place)] * workers
-        with ProcessPoolExecutor(workers, initializer=_connect, initargs=(address,)) as pool:
-            list(pool.map(_read_in_process, jobs))
-            started = perf_counter()
-            durations = list(pool.map(_read_in_process, jobs))
-            wall = perf_counter() - started
-        rows.append(_wave(wall, durations, workers, "processes"))
-    return Measure(name="read all, by processes", rows=tuple(rows))
+        barrier = context.Barrier(workers)
+        with ProcessPoolExecutor(
+            workers, mp_context=context, initializer=_connect, initargs=(address, barrier)
+        ) as pool:
+            spans = list(pool.map(_read_in_process, jobs))
+        rows.append(_wave(spans, workers, "processes"))
+    return Measure(name="read all, by processes", rows=tuple(rows), notes=(_WAVE_NOTE,))

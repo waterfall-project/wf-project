@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from sqlalchemy.exc import OperationalError
+
 from measure.reading import (
     measure_processes,
     measure_profile,
@@ -31,9 +33,21 @@ if TYPE_CHECKING:
     from measure.target import Target
 
 DEFAULT_RUNS = 5
-"""Identical runs of an operation: the spread of five is what a gain must exceed."""
+"""Identical runs of the whole reading, a cell entered and a revision opened: the spread of five is
+what a gain must exceed. The profile and the waves of reads make one pass."""
 
 _PARTS = ("read", "profile", "parallel", "write", "revision")
+
+
+def _at_least_one(text: str) -> int:
+    try:
+        runs = int(text)
+    except ValueError:
+        runs = 0
+    if runs < 1:
+        message = f"{text!r} is not a number of runs: at least 1"
+        raise argparse.ArgumentTypeError(message)
+    return runs
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -42,7 +56,10 @@ def _parser() -> argparse.ArgumentParser:
         description="Measure the core in process, on the witness of the service platform.",
     )
     parser.add_argument(
-        "--runs", type=int, default=DEFAULT_RUNS, help="identical runs of each operation"
+        "--runs",
+        type=_at_least_one,
+        default=DEFAULT_RUNS,
+        help="identical runs of the whole reading, the cell entered and the revision opened",
     )
     parser.add_argument(
         "--only",
@@ -84,6 +101,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             measures = _passage(address, target, arguments.runs, parts)
     except MeasureError as error:
         sys.stderr.write(f"measure: {error}\n")
+        return 1
+    except OperationalError as error:
+        sys.stderr.write(
+            f"measure: the database does not answer ({error.__class__.__name__}): start the "
+            "platform of the slot and load the witness (make service-up, make service-install, "
+            "make service-witness)\n"
+        )
         return 1
     report = Report({"project": PROJECT_CODE, "runs": arguments.runs}, measures)
     sys.stdout.write(render_text(report))

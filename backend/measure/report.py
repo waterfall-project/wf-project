@@ -21,13 +21,14 @@ class Measure:
     """One measured operation: its summary if it repeats, what it counted, and its table.
 
     The durations of a summary are in seconds; ``facts`` and ``rows`` carry their units in their
-    names.
+    names. ``notes`` say what a figure leaves out or what to doubt in it.
     """
 
     name: str
     summary: Summary | None = None
     facts: Mapping[str, Scalar] = field(default_factory=dict[str, Scalar])
     rows: tuple[Mapping[str, Scalar], ...] = ()
+    notes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +66,7 @@ def as_dict(report: Report) -> dict[str, object]:
                 **({} if each.summary is None else {"summary": _summary_of(each.summary)}),
                 "facts": dict(each.facts),
                 "rows": [dict(row) for row in each.rows],
+                "notes": list(each.notes),
             }
             for each in report.measures
         ],
@@ -95,5 +97,6 @@ def render_text(report: Report) -> str:
         lines.append(head)
         lines.extend(f"    {key}: {_figure(value)}" for key, value in each.facts.items())
         lines.extend(_row(row) for row in each.rows)
+        lines.extend(f"    note: {note}" for note in each.notes)
         lines.append("")
     return "\n".join(lines)

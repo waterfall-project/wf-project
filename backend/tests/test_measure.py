@@ -3,19 +3,18 @@
 """The logic of the measure of the core that needs no database: its figures and its report.
 
 The measure itself runs on the service platform (``make measure-core``) and is no test: it never
-fails on a duration. What it computes and writes is tested here (WF-QUA-0060: the tool that takes
-the durations a version is compared by).
+fails on a duration. What it computes and writes is tested here: a tool of the repository, whose
+tests cite no requirement.
 """
 
 import json
 
 import pytest
 
+from measure.__main__ import main
 from measure.figures import ratio, summarise
 from measure.report import Measure, Report, render_json, render_text
 from measure.target import MeasureError, address_from_environment
-
-pytestmark = pytest.mark.requirement("WF-QUA-0060-A")
 
 
 def test_a_summary_gives_the_median_the_worst_and_the_spread_of_its_runs() -> None:
@@ -105,3 +104,28 @@ def test_the_address_without_the_password_of_the_service_says_what_is_missing(
 
     with pytest.raises(MeasureError, match="WATERFALL_SERVICE_DATABASE_PASSWORD"):
         address_from_environment()
+
+
+def test_a_port_that_is_no_number_is_refused_by_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("WATERFALL_SERVICE_DATABASE_PASSWORD", "secret")
+    monkeypatch.setenv("WATERFALL_POSTGRES_PORT", "twenty")
+
+    with pytest.raises(MeasureError, match="WATERFALL_POSTGRES_PORT"):
+        address_from_environment()
+
+
+@pytest.mark.parametrize("runs", ["0", "-2", "many"])
+def test_a_number_of_runs_under_one_is_refused_by_the_parser(
+    runs: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit):
+        main(["--runs", runs])
+
+    assert "at least 1" in capsys.readouterr().err
+
+
+def test_the_notes_of_a_measure_are_written_in_the_text_and_in_the_json() -> None:
+    report = Report({"runs": 1}, (Measure("read all", notes=("one pass",)),))
+
+    assert "    note: one pass" in render_text(report)
+    assert json.loads(render_json(report))["measures"][0]["notes"] == ["one pass"]
