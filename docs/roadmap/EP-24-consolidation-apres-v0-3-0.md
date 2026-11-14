@@ -756,8 +756,8 @@ pas échouer la file avant le premier test, **afin qu'**un passage ne dépende q
 - l'effet est prouvé sur des passages réels de la file (US-1880).
 
 **Clôture (décision de l'auteur du 2026-11-14).** L'US est close sur la preuve actuelle, sans mesure
-sur 100 passages : aucun échec d'`archive.ubuntu.com` (ni d'aucune source de l'inventaire) dans les
-passages de la nuit du 13 au 14 novembre, où 27 pull requests ont été fusionnées par la file.
+sur 100 passages : aucun échec d'`archive.ubuntu.com` dans les passages de la nuit du 13 au 14
+novembre, où 27 pull requests ont été fusionnées par la file.
 
 **Hors périmètre.** Les runners eux-mêmes ; une infrastructure auto-hébergée.
 
@@ -794,10 +794,10 @@ file fait 12,3 à 13,5 minutes, et l'écart vient de l'attente de runners, le pl
 simultanés du compte étant atteint quand des passages de la file se chevauchent. US-1910/L5 (#3155,
 le départ anticipé des morceaux de `service / paths`) n'a pas raccourci le mur (13,3 à 13,7 min
 avant comme après) : arrêté sans pull request, sa branche `lot/US-1910/L5` (ee6c4428) gardée pour
-mémoire ; mesures dans le commentaire de #3155 (https://github.com/waterfall-project/wf-
-project/issues/3155#issuecomment-6873577478). Les leviers restants — rééquilibrer les morceaux,
-lever le plafond de runners ou éviter le chevauchement des passages — et la performance prennent le
-relais en EP-25.
+mémoire ; mesures dans le commentaire de #3155
+(https://github.com/waterfall-project/wf-project/issues/3155#issuecomment-6873577478). Les leviers
+restants — rééquilibrer les morceaux, lever le plafond de runners ou éviter le chevauchement des
+passages — et la performance prennent le relais en EP-25.
 
 **Hors périmètre.** Retirer un test ou un parcours pour gagner du temps.
 
