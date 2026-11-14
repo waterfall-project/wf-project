@@ -592,7 +592,7 @@ describe("the settings of the resources", () => {
     expect(text(page)).toContain("État : Désactivés");
   });
 
-  it("ignore `include_inactive` in the address, the switch of the screen withdrawn: each list reads the state of its own filter (#3076)", async () => {
+  it("ignore `include_inactive` in the address, the switch of the screen withdrawn: each list reads the state of its own filte[WF-REF-0150-A] (#3076)", async () => {
     await resourcesAt({ include_inactive: "true" });
     expect(LISTS.flatMap(queriesOf).filter((query) => "include_inactive" in query)).toEqual([]);
     expect(queriesOf("GET /reference/resource-roles")).toEqual([{ is_active: "true" }]);

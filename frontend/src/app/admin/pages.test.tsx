@@ -460,7 +460,7 @@ describe("the accounts", () => {
     expect(page).not.toMatch(/aria-label="(Rôles de|Lien de fixation)/);
   });
 
-  it("ask the deactivated accounts too, and ignore `include_inactive` in the address, which hid them before: the state is the filter's alone (#3076)", async () => {
+  it("ask the deactivated accounts too, and ignore `include_inactive` in the address, which hid them before: the state is the filter's alone [WF-ADM-0060-A] (#3076)", async () => {
     const page = rendered(await UsersPage(searched({ include_inactive: "false", offset: "2" })));
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true", offset: "2" }]);
     expect(text(page)).not.toContain("État du compte : Actif");

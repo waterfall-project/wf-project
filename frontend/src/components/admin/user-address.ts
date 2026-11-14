@@ -55,7 +55,7 @@ export function readWithoutRole(search: SearchParameters): boolean {
 
 /**
  * The parameter of the address the state filtered on goes by, as the contract names it: `true`, the
- * active accounts alone; `false`, the deactivated ones alone. It prevails over `include_inactive`.
+ * active accounts alone; `false`, the deactivated ones alone.
  */
 export const IS_ACTIVE = "is_active";
 

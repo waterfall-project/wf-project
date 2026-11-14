@@ -605,7 +605,10 @@ propre filtre, **afin de** ne plus dépendre d'un bouton de l'écran qui vaut po
 pour « Désactivés », `include_inactive=true` sans `is_active` quand la pastille est ôtée. Le défaut
 suit le précédent du filtre d'états de la liste des projets (`docs/api/DECISIONS.md`, #1747). Écarté
 au cadrage (2026-11-14) : une table qui montre tout sans filtre, essayée par le prototype — le Vérif
-de WF-REF-0150 dit qu'un désactivé n'apparaît pas par défaut.
+de WF-REF-0150 dit qu'un désactivé n'apparaît pas par défaut. La table des comptes garde son défaut,
+tous les comptes, selon la décision « `listUsers` porte son propre `include_inactive` »
+(`docs/api/DECISIONS.md`) et WF-ADM-0060 : WF-REF-0150 ne vise que le référentiel ; seuls le bouton et
+la lecture de `include_inactive` y disparaissent.
 
 ## US-2100 — Les écrans d'administration en cartes : utilisateurs, rôles, sauvegardes, journal d'audit
 

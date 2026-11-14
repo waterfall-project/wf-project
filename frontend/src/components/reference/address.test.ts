@@ -89,7 +89,7 @@ describe("the state a list of the reference data shows", () => {
     expect(stateQuery(undefined, true)).toEqual({ include_inactive: true });
   });
 
-  it("is kept with the settings of its grid once it differs from the active ones, the search not kept", () => {
+  it("is kept with the settings of its grid once it differs from the active ones, the search not kept [WF-IHM-0060-A]", () => {
     expect(keptState("type_is_active")).toEqual({
       filters: ["type_is_active"],
       defaulted: { type_is_active: "true" },
