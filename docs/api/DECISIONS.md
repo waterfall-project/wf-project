@@ -865,23 +865,35 @@ gel ») ; `info.version` reste `1.0.0`.
   rouvre le fichier (`openImport`). La règle déjà en place rend l'import tel quel, 200, sans
   nouvelle analyse : un client qui renvoie la règle d'un import `analysed` n'analyse pas deux fois.
   Un rejeu pendant l'analyse, après un 202 perdu, est refusé par le 409 `import_awaiting_decision`
-  (l'import est alors `analysing`) : le client relit l'import (`getImport`). Refus, dans cet ordre : 404 ; 403, la permission du genre de l'import et la qualité de
-  contributeur, comme `applyImport` ; 409 `STATE_FORBIDS_OPERATION`, `import_awaiting_decision`, un
-  import qui n'est plus `analysed` — en analyse, appliqué, abandonné, expiré, échoué ou refusé —,
-  la condition d'`applyImport` ; puis 409 `import_calendar_gap`, une valeur nouvelle de
-  `CommandCondition`, pour un compte rendu sans écart, un import d'un autre genre compris. Le refus
-  « sans écart » est un 409 et non un 422 : ce n'est pas la valeur envoyée qui est refusée, c'est
-  l'état du compte rendu qui ne laisse pas de choix, comme `import_file_accepted` refuse
-  l'application d'un fichier rejeté. Aucune commande ne l'annonce : `calendar_gap` le dit, comme
-  `UndoResult.remaining_depth` annonce `undo_history_not_empty`. Pas de compteur : aucune opération
-  d'import n'en porte, et la règle se pose sous le verrou de l'import. Les conditions de l'état du
-  projet ne sont pas jugées : l'analyse n'écrit rien, et `applyImport` les rejuge. `applyImport`
-  ne change pas : il applique le compte rendu tel qu'analysé.
+  (l'import est alors `analysing`) : le client relit l'import (`getImport`). Refus, dans cet ordre :
+  404 ; 403, la permission du genre de l'import et la qualité de contributeur, comme `applyImport` ;
+  409 `STATE_FORBIDS_OPERATION`, `import_awaiting_decision`, un import qui n'est plus `analysed` —
+  en analyse, appliqué, abandonné, expiré, échoué ou refusé —, la condition d'`applyImport` ; puis
+  409 `import_calendar_gap`, une valeur nouvelle de `CommandCondition`, pour un compte rendu sans
+  écart, un import d'un autre genre compris. Le refus « sans écart » est un 409 et non un 422 : ce
+  n'est pas la valeur envoyée qui est refusée, c'est l'état du compte rendu qui ne laisse pas de
+  choix, comme `import_file_accepted` refuse l'application d'un fichier rejeté. Aucune commande ne
+  l'annonce : `calendar_gap` le dit, comme `UndoResult.remaining_depth` annonce
+  `undo_history_not_empty`. Pas de compteur : aucune opération d'import n'en porte, et la règle se
+  pose sous le verrou de l'import. Les conditions de l'état du projet ne sont pas jugées : l'analyse
+  n'écrit rien, et `applyImport` les rejuge. `applyImport` ne change pas : il applique le compte
+  rendu tel qu'analysé.
 - **Le catalogue du front** reçoit `enums.ImportDurationRule.*` et
   `enums.CommandCondition.import_calendar_gap` ; l'écran est d'US-2000.
-- **Le service** rend `calendar_gap` nul tant qu'US-2000/L2 ne le calcule pas, comme un compte
-  rendu écrit avant le champ (`waterfall.api.imports`) ; il sert l'opération par le même lot, avec
-  la colonne `duration_rule` (migration 0028).
+- **Le service** écrit `calendar_gap` à l'analyse et sert l'opération depuis US-2000/L2, la règle
+  gardée dans la colonne `duration_rule` d'`import_report` (migration 0028), nulle hors d'un import
+  MS Project en écart ; un compte rendu écrit avant le champ, ou d'un autre genre, le lit nul
+  (`waterfall.api.imports`). Trois lectures de la règle, que le contrat laisse au service
+  (`waterfall.core.planning.calendar_gap`) : des constantes du fichier égales à celles de
+  l'installation telles qu'un fichier les porte — minutes par jour et par semaine, jours par mois
+  entiers, comme l'export les écrit — ne sont pas un écart, et le fichier se lit alors aux
+  constantes de l'installation ; « garder les dates » place un instant du fichier à la même part du
+  travail de son jour sur le calendrier Waterfall, qui n'a pas d'heures d'horloge — la fin d'une
+  journée de 7 heures à la fin d'une journée de 8 —, si bien qu'une tâche de deux journées entières
+  dure deux journées ; en écart, `date_mismatches` compare les dates par leur jour et la durée d'une
+  récapitulative par sa valeur dans son unité, aux constantes de chaque côté, les heures d'un jour
+  ne se lisant pas de même des deux côtés. Une durée en temps écoulé et un jalon gardent leur durée
+  sous les deux règles.
 
 Exemples : `import_planning_calendar_gap`, une variante contrefactuelle — la structure principale
 supposée sans tâche — où un planning synthétique saisi à 7 heures par jour, son calendrier
