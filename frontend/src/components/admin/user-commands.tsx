@@ -39,7 +39,7 @@ import {
   type ReactNode,
   useCallback,
   useContext,
-  useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -122,7 +122,11 @@ export interface UserWrites {
    * answered stay written, and each refused is told with its reason (#2917). Nothing while a group
    * is under way.
    */
-  readonly bulk: (rows: readonly User[], action: BulkAction, back: HTMLElement | null) => void;
+  readonly bulk: (
+    rows: readonly User[],
+    action: BulkAction,
+    back: HTMLElement | null,
+  ) => Promise<boolean>;
   /** Whether a group of accounts is being written. */
   readonly bulking: boolean;
   /** Open the creation of a local account, from the command pressed. */
@@ -352,26 +356,39 @@ function Writes({ children }: { readonly children: ReactNode }) {
   // The reading the list is on now: a group left behind by a change of reading tells no refusal.
   const reading = useRef(list?.generation ?? 0);
   const generationNow = list?.generation ?? 0;
-  useEffect(() => {
+  // Synchronous at the commit, before an answer of a group can arrive and compare with it.
+  useLayoutEffect(() => {
     reading.current = generationNow;
   }, [generationNow]);
   const bulk = useCallback(
-    (rows: readonly User[], action: BulkAction, back: HTMLElement | null) => {
+    async (rows: readonly User[], action: BulkAction, back: HTMLElement | null) => {
       if (bulkHeld.current || rows.length === 0) {
-        return;
+        return false;
       }
       bulkHeld.current = true;
       setBulking(true);
       const generation = list?.generation ?? 0;
       const send = bulkSend(action);
       const run = async () => {
-        let done = 0;
+        let changed = 0;
+        let same = 0;
         let refused = 0;
         let first: Outcome<unknown> | undefined;
         for (const row of rows) {
-          const outcome = await reserve(row, { send: (user) => send(user).catch(rejected) });
+          // The version the write goes from: the server rendering the same one wrote nothing.
+          let sentFrom: number | undefined;
+          const outcome = await reserve(row, {
+            send: (user) => {
+              sentFrom = user.lock_version;
+              return send(user).catch(rejected);
+            },
+          });
           if (outcome.kind === "done") {
-            done += 1;
+            if (outcome.data.lock_version === sentFrom) {
+              same += 1;
+            } else {
+              changed += 1;
+            }
             continue;
           }
           refused += 1;
@@ -390,17 +407,18 @@ function Writes({ children }: { readonly children: ReactNode }) {
         // The refusals are told on the reading the group was pressed on: read otherwise, the
         // summary that points at them stays silent, as they are.
         if (refused === 0) {
-          say(t("bulkDone", { count: done }), { noted: true });
+          say(t("bulkDone", { count: changed, same }), { noted: true });
         } else if (reading.current === generation) {
-          say(t("bulkPartial", { done, refused }), { noted: false });
+          say(t("bulkPartial", { done: changed, same, refused }), { noted: false });
         }
         // The navigations held wait for the whole group; a refusal is the answer of the first.
         return first ?? ({ kind: "done", data: null } as const);
       };
-      void held(run()).finally(() => {
+      await held(run()).finally(() => {
         bulkHeld.current = false;
         setBulking(false);
       });
+      return true;
     },
     [list, held, reserve, say, t, naming],
   );

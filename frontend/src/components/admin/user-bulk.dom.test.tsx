@@ -6,7 +6,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import { forgetMessages } from "@/components/notices/message-history";
-import { account, accounts, grid, heldActivation, told, users, writes } from "@/test/accounts";
+import {
+  account,
+  accounts,
+  grid,
+  heldActivation,
+  holdRoute,
+  told,
+  users,
+  writes,
+} from "@/test/accounts";
 import { expectAccessible } from "@/test/axe";
 import { type FakeAnswers, type FakeTiming, fakeClient } from "@/test/fixtures";
 
@@ -183,7 +192,10 @@ describe("the actions of the bar on the accounts selected", () => {
   });
 
   it("goes on after a refusal, keeps the accounts done, and tells each refused with its reason: a 412, the last administrator [WF-ADM-0120-A] #2917", async () => {
-    const active = users.items.filter((user) => user.is_active);
+    // Held at version 1, each is answered at another version (2, then 5): each is modified.
+    const active = users.items
+      .filter((user) => user.is_active)
+      .map((user) => ({ ...user, lock_version: 1 }));
     expect(active).toHaveLength(6);
     // One answer for each account, in the order of the table.
     const client = serve({
@@ -193,7 +205,8 @@ describe("the actions of the bar on the accounts selected", () => {
         { problem: { code: "LAST_ADMINISTRATOR", status: 409 } },
         { problem: { code: "STALE_LOCK_VERSION", status: 412 } },
         { problem: { code: "LAST_ADMINISTRATOR", status: 409 } },
-        "user_deactivated",
+        // At version 5: the answers record the account they carry, and one may be written again.
+        "user_reactivated",
       ],
     });
     render(accounts(true, active));
@@ -337,6 +350,70 @@ describe("the actions of the bar on the accounts selected", () => {
     });
     expect(screen.queryByRole("alert")).toBeNull();
     expect(told().textContent).toBe("");
+  });
+
+  it("counts as modified only the accounts the server answers at another version; one answered at the same is already in the state asked [WF-ADM-0120-A] #3082", async () => {
+    // « user_deactivated » answers at lock_version 2: Petit, held at 2, is written nothing.
+    const petit = { ...account("Petit"), lock_version: 2 };
+    serve({ "PUT /users/{user_id}/activation": "user_deactivated" });
+    render(accounts(true, [account("Bernard"), petit]));
+    const bar = await selectAll();
+    await userEvent.click(within(bar).getByRole("button", { name: "Désactiver" }));
+    await waitFor(() => {
+      expect(told().textContent).toBe("1 compte modifié, 1 compte déjà dans l’état demandé.");
+    });
+  });
+
+  it("tells the accounts already in the state asked in the summary with refusals, and none modified when none was [WF-ADM-0120-A] #3082", async () => {
+    const same = [
+      { ...account("Bernard"), lock_version: 2 },
+      { ...account("Petit"), lock_version: 2 },
+    ];
+    serve({
+      "PUT /users/{user_id}/activation": [
+        "user_deactivated",
+        { problem: { code: "LAST_ADMINISTRATOR", status: 409 } },
+      ],
+    });
+    render(accounts(true, same));
+    const bar = await selectAll();
+    await userEvent.click(within(bar).getByRole("button", { name: "Désactiver" }));
+    await waitFor(() => {
+      expect(told().textContent).toBe(
+        "Aucun compte modifié, 1 compte déjà dans l’état demandé, 1 compte refusé : la raison de chacun est dite ci-dessus.",
+      );
+    });
+  });
+
+  it("keeps the choice shown while its group is under way, and clears it at the end [WF-ADM-0180-A] #3083", async () => {
+    const held = holdRoute("PUT /users/{user_id}/access-roles");
+    serve({ "PUT /users/{user_id}/access-roles": "user_access_roles_set" }, held.timing);
+    render(accounts(true, [account("Bernard"), account("Petit")]));
+    const bar = await selectAll();
+    const list = within(bar).getByRole("combobox", { name: "Ajouter un rôle" });
+    await apply(bar, "Ajouter un rôle", "Chiffreur");
+    await waitFor(() => {
+      expect(list).toHaveAttribute("aria-busy", "true");
+    });
+    expect(list).toHaveValue(CHIFFREUR);
+    // The choice stays shown while the group is under way (the request is held); it is cleared
+    // only when the group has ended, which the release below brings about.
+    held.release();
+    await waitFor(() => {
+      expect(list).toHaveValue("");
+    });
+  });
+
+  it("says an unavailable button by its attribute and its look, not by the attribute alone [WF-IHM-0110-A] #3081", async () => {
+    render(accounts());
+    const bar = await selectAll();
+    const unavailable = within(bar).getByRole("button", { name: "Appliquer : Ajouter un rôle" });
+    expect(unavailable).toHaveAttribute("aria-disabled", "true");
+    expect(unavailable).toHaveClass("aria-disabled:cursor-not-allowed", "aria-disabled:opacity-50");
+    expect(within(bar).getByRole("button", { name: "Désactiver" })).toHaveClass(
+      "aria-disabled:cursor-not-allowed",
+      "aria-disabled:opacity-50",
+    );
   });
 
   it("offers no action on a selection to a session that may not modify the accounts #2917", async () => {
