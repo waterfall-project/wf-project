@@ -53,6 +53,7 @@ import type { ObjectNames } from "@/components/commands/outcome-notice";
 import { useHeldCommand } from "@/components/commands/held";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { type Said, type Say, useSaid } from "@/components/notices/said";
+import type { PrincipalVariant } from "@/components/shell/section-card";
 import { Button } from "@/components/ui/button";
 
 import { CommandTooltip } from "@/components/commands/command-tooltip";
@@ -366,9 +367,18 @@ export function WrittenRegion({ said }: { readonly said: Said | undefined }) {
 
 /**
  * The command that opens the creation of an object, in the head of the list that holds it — offered
- * on an empty list too —, after the region that says what the last write of the list did.
+ * on an empty list too —, after the region that says what the last write of the list did: filled
+ * as the principal command of its card (`ReferenceCard`, #3071), outlined on a screen not yet
+ * recomposed in cards.
  */
-export function CreateCommand({ label }: { readonly label: string }) {
+export function CreateCommand({
+  label,
+  variant = "outline",
+}: {
+  readonly label: string;
+  /** The variant its card draws it at (`principalVariant`); outlined outside a card. */
+  readonly variant?: PrincipalVariant;
+}) {
   const said = useTranslations("commands");
   const commands = useContext(ListCommands);
   return (
@@ -378,7 +388,7 @@ export function CreateCommand({ label }: { readonly label: string }) {
         <Button
           aria-haspopup="dialog"
           type="button"
-          variant="outline"
+          variant={variant}
           size="sm"
           onClick={(event: MouseEvent<HTMLElement>) => {
             commands?.open({ row: undefined, trigger: event.currentTarget });

@@ -255,4 +255,23 @@ describe("the layout of the settings of the costs", () => {
     // The filters of the rates are inside the third section.
     expect(page.indexOf("Bornes de «\u00a0Grille des taux horaires\u00a0»")).toBeGreaterThan(rates);
   });
+
+  it("sets each section in its card, the creation of a list in the header of its card before its table, the column of a year in the bar of the rates [WF-IHM-0060-A]", async () => {
+    const page = await costsAt();
+    for (const title of ["Natures de coût", "Catégories de coût", "Taux horaires"]) {
+      expect(page).toContain(`<section aria-label="${title}" data-slot="section-card"`);
+    }
+    const header = (title: string) => {
+      const start = page.indexOf(`<section aria-label="${title}"`);
+      return page.slice(start, page.indexOf('data-slot="card-content"', start));
+    };
+    expect(header("Natures de coût")).toContain("Nouvelle nature");
+    expect(header("Catégories de coût")).toContain("Nouvelle catégorie");
+    // The card of the rates has no command at the right of its title: its column is added from
+    // the bar of its grid.
+    expect(header("Taux horaires")).not.toContain("<button");
+    const rates = page.indexOf('<section aria-label="Taux horaires"');
+    const bar = page.indexOf("data-grid-toolbar", rates);
+    expect(page.indexOf("Ajouter la colonne", rates)).toBeGreaterThan(bar);
+  });
 });

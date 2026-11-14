@@ -552,6 +552,7 @@
     "summary": "{risks, plural, =0 {no risk retained} one {# risk retained} other {# risks retained}}",
     "generalTotal": "General total",
     "pages": {
+      "title": "Risks",
       "label": "Pages of the risks",
       "beyond": "The page asked is beyond the end of the list."
     },
@@ -673,14 +674,17 @@
     },
     "pages": {
       "costs": {
+        "title": "Actual costs",
         "label": "Pages of the actual costs",
         "beyond": "The page asked is beyond the end of the list."
       },
       "imports": {
+        "title": "Journal of the imports",
         "label": "Pages of the journal of the imports",
         "beyond": "The page asked is beyond the end of the journal."
       },
       "exchanges": {
+        "title": "Imports of the project",
         "label": "Pages of the imports of the project",
         "beyond": "The page asked is beyond the end of the list."
       }
@@ -747,6 +751,7 @@
       "everyZone": "Every zone"
     },
     "pages": {
+      "title": "Projects",
       "label": "Pages of the projects",
       "beyond": "The page asked is beyond the end of the list."
     },

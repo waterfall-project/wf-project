@@ -206,6 +206,130 @@ for (const { width, height } of WINDOWS) {
   });
 }
 
+/** The box of an element in the page, measured. */
+async function box(element: Locator) {
+  const measured = await element.boundingBox();
+  if (measured === null) {
+    throw new Error("the element is not laid out");
+  }
+  return {
+    ...measured,
+    right: measured.x + measured.width,
+    middle: measured.y + measured.height / 2,
+  };
+}
+
+for (const { width, height } of WINDOWS) {
+  test(`sets each section in its card, the creation of a list filled at the right of the title of its card, and the column of a year filled at the right end of the bar of the rates, at ${String(width)} points (#3071) @shared [WF-IHM-0060-A]`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto("/reference/costs");
+    await expect(page.getByRole("grid", { name: "Grille des taux horaires" })).toHaveAttribute(
+      "aria-rowcount",
+      ROW_COUNT,
+    );
+    const main = await box(page.getByRole("main"));
+    for (const [title, creation] of [
+      ["Natures de coût", "Nouvelle nature"],
+      ["Catégories de coût", "Nouvelle catégorie"],
+    ] as const) {
+      const card = page.getByRole("region", { name: title, exact: true });
+      const frame = await box(card);
+      const heading = await box(card.getByRole("heading", { level: 2 }));
+      const button = await box(card.getByRole("button", { name: creation }));
+      const bar = await box(card.getByRole("searchbox"));
+      // The card within the column of the screen; the creation at its right edge, inside its
+      // padding, on the line of its title, above the bar of its table.
+      expect(frame.x).toBeGreaterThanOrEqual(main.x - 1);
+      expect(frame.right).toBeLessThanOrEqual(main.right + 1);
+      expect(frame.right - button.right, `the creation of ${title}`).toBeLessThanOrEqual(32);
+      expect(frame.right - button.right, `the creation of ${title}`).toBeGreaterThan(0);
+      expect(button.x).toBeGreaterThan(heading.right);
+      expect(Math.abs(button.middle - heading.middle), `the line of ${title}`).toBeLessThanOrEqual(
+        8,
+      );
+      expect(button.y + button.height).toBeLessThanOrEqual(bar.y);
+    }
+    // The rates: no command at the right of the title; the column of a year at the end of the bar,
+    // its button at the right edge of the bar, after « Colonnes », the year just before it — on
+    // the line of « Colonnes », or wrapped whole under it when the line is too short, the search
+    // never crushed —; then « Retirer la colonne » and the message of a year added before them.
+    const rates = page.getByRole("region", { name: "Taux horaires", exact: true });
+    const toolbar = rates.locator("[data-grid-toolbar]");
+    const form = rates.getByRole("form", { name: "Ajouter une année à la grille" });
+    const add = form.getByRole("button", { name: "Ajouter la colonne" });
+    const year = form.getByRole("textbox", { name: "Année" });
+    await expect(rates.getByRole("heading", { level: 2 })).toBeVisible();
+    const card = await box(rates);
+    const expectEnding = async () => {
+      const bar = await box(toolbar);
+      const button = await box(add);
+      const field = await box(year);
+      const columns = await box(toolbar.getByRole("button", { name: /^Colonnes/ }));
+      const search = await box(toolbar.getByRole("searchbox"));
+      expect(
+        Math.abs(bar.right - button.right),
+        "the button at the end of the bar",
+      ).toBeLessThanOrEqual(1);
+      expect(bar.right, "the bar within its card").toBeLessThanOrEqual(card.right);
+      expect(field.right).toBeLessThanOrEqual(button.x);
+      expect(
+        Math.abs(field.middle - button.middle),
+        "the year on the line of its button",
+      ).toBeLessThanOrEqual(2);
+      // The end of the bar, beside « Colonnes » or wrapped whole under it: never over it.
+      const end = await box(toolbar.locator('[data-slot="bar-ending"]'));
+      expect(
+        end.x > columns.right || end.y >= columns.y + columns.height,
+        "the end of the bar after « Colonnes »",
+      ).toBe(true);
+      expect(field.x).toBeGreaterThanOrEqual(end.x);
+      expect(search.width, "the search kept its width").toBeGreaterThanOrEqual(150);
+      return { field, button, columns };
+    };
+    const before = await expectEnding();
+    // The page scrolls: the card of the rates brought to the top of the window, its bar — « Ajouter
+    // la colonne » among it, on two lines at 911 points — is whole in the window; brought to its
+    // bottom, its pages are, inside the card.
+    await rates.evaluate((element) => {
+      element.scrollIntoView({ block: "start" });
+    });
+    await expect(toolbar).toBeInViewport({ ratio: 1 });
+    await expect(add).toBeInViewport({ ratio: 1 });
+    const pages = rates.getByRole("navigation");
+    await rates.evaluate((element) => {
+      element.scrollIntoView({ block: "end" });
+    });
+    await expect(pages).toBeInViewport({ ratio: 1 });
+    const bottom = await box(pages);
+    const frame = await box(rates);
+    expect(bottom.y + bottom.height, "the pages within their card").toBeLessThanOrEqual(
+      frame.y + frame.height,
+    );
+    if (width === 1366) {
+      expect(
+        Math.abs(before.button.middle - before.columns.middle),
+        "on the line of « Colonnes »",
+      ).toBeLessThanOrEqual(2);
+    }
+    // A year added: its message and « Retirer la colonne » come before the year, in the bar.
+    await expect(async () => {
+      await year.fill("2027");
+      await add.click();
+      await expect(form.getByRole("button", { name: "Retirer la colonne 2027" })).toHaveCount(1, {
+        timeout: 1_000,
+      });
+    }).toPass({ timeout: WORKING });
+    const after = await expectEnding();
+    const remove = await box(form.getByRole("button", { name: "Retirer la colonne 2027" }));
+    const said = await box(form.getByRole("status"));
+    expect(remove.right <= after.field.x || remove.y + remove.height <= after.field.y).toBe(true);
+    expect(said.y).toBeLessThanOrEqual(remove.y);
+    expect(said.right).toBeLessThanOrEqual(card.right);
+  });
+}
+
 test("adds the column of a year to the grid of the hourly rates, empty, and refuses a year the grid has, the grid alone judging it, against the service as against the fake back (#299) @shared [WF-REF-0060-A]", async ({
   page,
 }) => {
