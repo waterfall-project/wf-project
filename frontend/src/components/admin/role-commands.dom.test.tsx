@@ -3,11 +3,12 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import type { ReactNode } from "react";
+import { Component, type ReactNode, useCallback, useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
+import { SystemFailure } from "@/components/system/system-failure";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -38,6 +39,31 @@ const page = vi.hoisted(() => ({ search: "" }));
 // The commands of a list, which a test may have answer by a rejection instead of an outcome: the
 // hold of the page catches the rejections of a server action, a command that is lost is not one.
 const lost = vi.hoisted(() => ({ on: false }));
+// The telling of a refusal by the list, which a test may have throw: what the end of the chain of a
+// command raises, nobody else catches.
+const broken = vi.hoisted(() => ({ report: false }));
+
+vi.mock("@/components/reference/reactivation", async (original) => {
+  const actual = await original<typeof import("@/components/reference/reactivation")>();
+  return {
+    ...actual,
+    useListReport: () => {
+      const real = actual.useListReport();
+      if (real === undefined) {
+        return real;
+      }
+      return {
+        ...real,
+        report: (...asked: Parameters<typeof real.report>) => {
+          if (broken.report) {
+            throw new Error("report broke");
+          }
+          real.report(...asked);
+        },
+      };
+    },
+  };
+});
 
 vi.mock("@/components/commands/held", async (original) => {
   const actual = await original<typeof import("@/components/commands/held")>();
@@ -45,11 +71,22 @@ vi.mock("@/components/commands/held", async (original) => {
     ...actual,
     useHeldCommand: (...args: Parameters<typeof actual.useHeldCommand>) => {
       const real = actual.useHeldCommand(...args);
-      return ((...asked: Parameters<typeof real>) =>
-        lost.on ? Promise.reject(new Error("lost")) : real(...asked)) as typeof real;
+      // Stable as the real hook's: a function renewed at each render is no command of the screen.
+      const latest = useRef(real);
+      latest.current = real;
+      return useCallback(
+        (...asked: Parameters<typeof real>) =>
+          lost.on ? Promise.reject(new Error("lost")) : latest.current(...asked),
+        [],
+      ) as typeof real;
     },
   };
 });
+// The probe the screen of failure asks: the platform serves.
+vi.mock("@/api/actions/backups", async (original) => ({
+  ...(await original<typeof import("@/api/actions/backups")>()),
+  readLiveness: () => Promise.resolve("ok"),
+}));
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/cache", () => ({ refresh }));
 vi.mock("next/navigation", async (original) => ({
@@ -82,6 +119,22 @@ function table(shown: readonly Schemas["AccessRole"][] = roles): ReactNode {
       editable
     />
   );
+}
+
+/** The boundary of the page (`app/error.tsx`): the screen of failure in place of what threw. */
+class FailureBoundary extends Component<{ readonly children: ReactNode }, { error?: Error }> {
+  override state: { error?: Error } = {};
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  override render() {
+    const { error } = this.state;
+    return error === undefined ? (
+      this.props.children
+    ) : (
+      <SystemFailure error={error} retry={() => undefined} />
+    );
+  }
 }
 
 /** A part of the screen of the roles, in French, sharing the address as the page does. */
@@ -127,6 +180,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   refresh.mockReset();
   lost.on = false;
+  broken.report = false;
 });
 
 describe("the creation of a role in line", () => {
@@ -597,8 +651,9 @@ describe("the writes of a same role, one at a time (#2261)", () => {
     expect(cell("Administrateur")).not.toHaveAttribute("aria-disabled");
   });
 
-  it("frees a role whose confirmed deletion rejects, its row, label, cells and « Supprimer » active again [WF-ADM-0010-A]", async () => {
-    // Nothing catches this rejection: it must not leave the role writing for good (#2898).
+  it("tells a confirmed deletion that rejects as a failure of the screen, leaves no rejection unhandled, and frees the role, its row, label, cells and « Supprimer » active again [WF-ADM-0010-A]", async () => {
+    // A rejection must not leave the role writing for good (#2898), nor go unhandled (#3111): the
+    // screen tells it as a failure of its own.
     serve({ [DELETED]: { status: 204 }, [WRITTEN]: "access_role_updated" });
     const shown = permissions.filter(({ code }) => code === "planning.write");
     render(inFrench(tableAndMatrix(shown)));
@@ -616,11 +671,12 @@ describe("the writes of a same role, one at a time (#2261)", () => {
       await userEvent.click(within(confirmation).getByRole("button", { name: "Supprimer" }));
       remove = within(grid).getByRole("button", { name });
       await waitFor(() => {
-        expect(unhandled).toHaveLength(1);
-      });
-      await waitFor(() => {
         expect(remove).toHaveAttribute("aria-busy", "false");
       });
+      expect(await screen.findByText("Erreur inattendue du service.")).toBeInTheDocument();
+      // Let a rejection nobody listens to reach the process before it is counted.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(unhandled).toEqual([]);
     } finally {
       process.removeAllListeners("unhandledRejection");
       for (const listener of listeners) {
@@ -632,6 +688,37 @@ describe("the writes of a same role, one at a time (#2261)", () => {
     expect(label("Administrateur")).not.toHaveAttribute("aria-disabled");
     expect(cell("Administrateur")).toHaveAttribute("aria-busy", "false");
     expect(cell("Administrateur")).not.toHaveAttribute("aria-disabled");
+  });
+
+  it("raises what the telling of a refused deletion throws to the screen of failure, leaves no rejection unhandled [WF-ADM-0010-A]", async () => {
+    // The telling itself breaks, after the command answered: nothing catches it but the end of the
+    // chain, which raises it as a failure of the screen (#3111).
+    serve({ [DELETED]: { problem: { code: "INTERNAL_ERROR", status: 500 } } });
+    const shown = permissions.filter(({ code }) => code === "planning.write");
+    render(inFrench(<FailureBoundary>{tableAndMatrix(shown)}</FailureBoundary>));
+    const grid = screen.getByRole("grid", { name: "Rôles d’habilitation" });
+    await userEvent.click(
+      within(grid).getByRole("button", { name: "Supprimer «\u00a0Administrateur\u00a0»" }),
+    );
+    const confirmation = await screen.findByRole("alertdialog");
+    const unhandled: unknown[] = [];
+    const listeners = process.listeners("unhandledRejection");
+    process.removeAllListeners("unhandledRejection");
+    process.on("unhandledRejection", (reason) => unhandled.push(reason));
+    broken.report = true;
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      await userEvent.click(within(confirmation).getByRole("button", { name: "Supprimer" }));
+      expect(await screen.findByText("Erreur inattendue")).toBeInTheDocument();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(unhandled).toEqual([]);
+    } finally {
+      errors.mockRestore();
+      process.removeAllListeners("unhandledRejection");
+      for (const listener of listeners) {
+        process.on("unhandledRejection", listener);
+      }
+    }
   });
 
   it("keeps a confirmation opened before a write of the role open and its command busy, deleting once the role is free [WF-ADM-0010-A]", async () => {
