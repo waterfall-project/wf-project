@@ -52,7 +52,7 @@ export function UserBulkCommands({
           apply={t("bulk.apply", { command: t("bulk.addRole") })}
           waiting={waiting}
           onApply={(role, back) => {
-            writes.bulk(rows, { kind: "add_role", role }, back);
+            return writes.bulk(rows, { kind: "add_role", role }, back);
           }}
         >
           {roles.map((role) => (
@@ -67,7 +67,7 @@ export function UserBulkCommands({
         apply={t("bulk.apply", { command: t("bulk.attach") })}
         waiting={waiting}
         onApply={(node, back) => {
-          writes.bulk(rows, { kind: "attach", node: node === NO_NODE ? null : node }, back);
+          return writes.bulk(rows, { kind: "attach", node: node === NO_NODE ? null : node }, back);
         }}
       >
         <option value={NO_NODE}>{t("noOrgNode")}</option>
@@ -88,7 +88,7 @@ export function UserBulkCommands({
           className={`${BAR_BUTTON} ${UNAVAILABLE}`}
           onClick={(event) => {
             if (!waiting) {
-              writes.bulk(rows, { kind: "activation", active }, event.currentTarget);
+              void writes.bulk(rows, { kind: "activation", active }, event.currentTarget);
             }
           }}
         >
@@ -123,18 +123,11 @@ function BulkChoice({
   readonly label: string;
   readonly apply: string;
   readonly waiting: boolean;
-  readonly onApply: (value: string, back: HTMLElement) => void;
+  readonly onApply: (value: string, back: HTMLElement) => Promise<boolean>;
   readonly children: ReactNode;
 }) {
   const t = useTranslations("admin.users");
   const [value, setValue] = useState("");
-  // The choice stays shown while its group is under way, and is cleared when the group ends.
-  const [applied, setApplied] = useState(false);
-  if (applied && !waiting) {
-    // Adjusted while rendering, as React allows for a state that follows a prop.
-    setApplied(false);
-    setValue("");
-  }
   return (
     <div className="flex shrink-0 items-center gap-1">
       <div className="w-40 shrink-0">
@@ -161,8 +154,13 @@ function BulkChoice({
         className={`${BAR_BUTTON} ${UNAVAILABLE}`}
         onClick={(event) => {
           if (value !== "" && !waiting) {
-            onApply(value, event.currentTarget);
-            setApplied(true);
+            // The choice stays shown while its group is under way, and is cleared when it ends;
+            // a group that does not start (nothing selected) leaves it as it is.
+            void onApply(value, event.currentTarget).then((ended) => {
+              if (ended) {
+                setValue("");
+              }
+            });
           }
         }}
       >

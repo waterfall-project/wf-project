@@ -3,10 +3,11 @@
 /**
  * What a group of accounts selected is written with (`UserWrites.bulk`, US-1860/L3): one call for
  * each account, from the account as the writes before it left it. A role is added to those the
- * account holds, never put in their place. Every account is written, even one the screen shows as asked: the screen
- * may be stale, and the server decides (a 412 tells the account modified meanwhile). A write that
- * changes nothing is answered with the account at the same `lock_version` and writes nothing (no
- * audit either): the summary counts such an account as already in the state asked, not as modified.
+ * account holds, never put in their place. Every account is written, even one the screen shows as
+ * asked: the screen may be stale, and the server decides (a 412 tells the account modified
+ * meanwhile). A write that changes nothing is answered with the account at the same `lock_version`
+ * and writes nothing (no audit either): the summary counts such an account as already in the state
+ * asked, not as modified.
  */
 import { setUserAccessRoles, setUserActivation, updateUser } from "@/api/actions/users";
 import type { Outcome } from "@/api/problem";

@@ -122,7 +122,11 @@ export interface UserWrites {
    * answered stay written, and each refused is told with its reason (#2917). Nothing while a group
    * is under way.
    */
-  readonly bulk: (rows: readonly User[], action: BulkAction, back: HTMLElement | null) => void;
+  readonly bulk: (
+    rows: readonly User[],
+    action: BulkAction,
+    back: HTMLElement | null,
+  ) => Promise<boolean>;
   /** Whether a group of accounts is being written. */
   readonly bulking: boolean;
   /** Open the creation of a local account, from the command pressed. */
@@ -357,9 +361,9 @@ function Writes({ children }: { readonly children: ReactNode }) {
     reading.current = generationNow;
   }, [generationNow]);
   const bulk = useCallback(
-    (rows: readonly User[], action: BulkAction, back: HTMLElement | null) => {
+    async (rows: readonly User[], action: BulkAction, back: HTMLElement | null) => {
       if (bulkHeld.current || rows.length === 0) {
-        return;
+        return false;
       }
       bulkHeld.current = true;
       setBulking(true);
@@ -410,10 +414,11 @@ function Writes({ children }: { readonly children: ReactNode }) {
         // The navigations held wait for the whole group; a refusal is the answer of the first.
         return first ?? ({ kind: "done", data: null } as const);
       };
-      void held(run()).finally(() => {
+      await held(run()).finally(() => {
         bulkHeld.current = false;
         setBulking(false);
       });
+      return true;
     },
     [list, held, reserve, say, t, naming],
   );
