@@ -178,7 +178,7 @@ describe("the attachment of an account, in its cell", () => {
         status: 422,
         fields: [{ pointer: "/org_node_id", code: "INACTIVE_REFERENCE_OBJECT" }],
       } satisfies Problem & { status: 422 },
-      "Les données saisies ne sont pas valides.",
+      "Cet élément du référentiel est désactivé.",
     ],
     [
       "the account changed since it was read",
@@ -194,6 +194,7 @@ describe("the attachment of an account, in its cell", () => {
       await userEvent.selectOptions(list, ACHATS);
       const alert = await screen.findByRole("alert");
       expect(alert.textContent).toContain(said);
+      expect(alert.textContent).not.toContain("Les données saisies ne sont pas valides.");
       expect(writes(client)).toHaveLength(1);
       expect(list).toHaveValue("");
       expect(list).not.toHaveAttribute("aria-busy", "true");

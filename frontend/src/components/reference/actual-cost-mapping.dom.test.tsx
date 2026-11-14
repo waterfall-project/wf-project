@@ -22,7 +22,7 @@ import {
   type Problem,
 } from "@/test/fixtures";
 
-import { ActualCostMapping, KEPT_COLUMNS_LIMIT } from "./actual-cost-mapping";
+import { ActualCostMapping, KEPT_COLUMNS_LIMIT, LABELS_LIMIT } from "./actual-cost-mapping";
 
 type Mapping = components["schemas"]["ActualCostMapping"];
 
@@ -53,13 +53,18 @@ function serve(answers: FakeAnswers, timing?: FakeTiming) {
   return client;
 }
 
-/** The correspondence in French, editable or read only. */
-function shown(mapping: Mapping, writes: boolean, locale: "fr" | "en" = "fr") {
-  return render(
+/** The tree of the correspondence in a language, editable or read only. */
+function tree(mapping: Mapping, writes: boolean, locale: "fr" | "en" = "fr") {
+  return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
       <ActualCostMapping mapping={mapping} writes={writes} />
-    </NextIntlClientProvider>,
+    </NextIntlClientProvider>
   );
+}
+
+/** The correspondence in French, editable or read only. */
+function shown(mapping: Mapping, writes: boolean, locale: "fr" | "en" = "fr") {
+  return render(tree(mapping, writes, locale));
 }
 
 afterEach(() => {
@@ -311,22 +316,78 @@ describe("the correspondence of the extraction of the actual costs, written", ()
     ).not.toHaveAttribute("aria-disabled");
   });
 
-  it("reads the ceiling of the kept columns from the contract: the maxItems of kept_columns in ActualCostMappingWrite", () => {
-    const lines = readFileSync(SCHEMAS, "utf-8").split("\n");
-    const indentOf = (line: string) => line.length - line.trimStart().length;
-    // The lines nested under a key, whatever the line it stands on and the indentation of the file.
-    const under = (within: readonly string[], key: string): readonly string[] => {
-      const at = within.findIndex((line) => line.trim() === `${key}:`);
-      const rest = at === -1 ? [] : within.slice(at + 1);
-      const end = rest.findIndex(
-        (line) => line.trim() !== "" && indentOf(line) <= indentOf(within[at] ?? ""),
+  it.each([
+    ["kept_columns", ["ActualCostMappingWrite", "properties", "kept_columns"], KEPT_COLUMNS_LIMIT],
+    ["labels", ["ActualCostMappingColumnWrite", "properties", "labels"], LABELS_LIMIT],
+  ] as const)(
+    "reads the ceiling of %s from the contract: its maxItems [WF-REF-0190-A]",
+    (_, path, limit) => {
+      const lines = readFileSync(SCHEMAS, "utf-8").split("\n");
+      const indentOf = (line: string) => line.length - line.trimStart().length;
+      // The lines nested under a key, whatever the line it stands on and the indentation of the file.
+      const under = (within: readonly string[], key: string): readonly string[] => {
+        const at = within.findIndex((line) => line.trim() === `${key}:`);
+        const rest = at === -1 ? [] : within.slice(at + 1);
+        const end = rest.findIndex(
+          (line) => line.trim() !== "" && indentOf(line) <= indentOf(within[at] ?? ""),
+        );
+        return end === -1 ? rest : rest.slice(0, end);
+      };
+      const list = path.reduce<readonly string[]>((within, key) => under(within, key), lines);
+      const max = list.map((line) => /^\s*maxItems: (\d+)$/.exec(line)?.[1]).find(Boolean);
+      expect(list.length).toBeGreaterThan(0);
+      expect(Number(max)).toBe(limit);
+    },
+  );
+
+  it.each([
+    ["a column read", "Montant", "Ajouter un intitulé à « Montant »", "labels", LABELS_LIMIT],
+    ["the kept columns", "Colonnes conservées", "Déclarer une colonne conservée", "kept", 50],
+  ] as const)(
+    "stops %s at its ceiling, said beside the command that adds one, the condition said in full [WF-REF-0190-A]",
+    (_, group, command, kind, limit) => {
+      const texts = (count: number, of: string) =>
+        Array.from({ length: count }, (_, rank) => `${of} ${String(rank + 1)}`);
+      shown(
+        {
+          ...witness,
+          columns: witness.columns.map((each) =>
+            kind === "labels" && each.column === "amount"
+              ? { ...each, labels: texts(limit, "Montant") }
+              : each,
+          ),
+          kept_columns: kind === "kept" ? texts(limit, "Colonne") : witness.kept_columns,
+        },
+        true,
       );
-      return end === -1 ? rest : rest.slice(0, end);
-    };
-    const kept = under(under(under(lines, "ActualCostMappingWrite"), "properties"), "kept_columns");
-    const max = kept.map((line) => /^\s*maxItems: (\d+)$/.exec(line)?.[1]).find(Boolean);
-    expect(kept.length).toBeGreaterThan(0);
-    expect(Number(max)).toBe(KEPT_COLUMNS_LIMIT);
+      const list = screen.getByRole("group", { name: new RegExp(`^${group}`) });
+      const add = within(list).getByRole("button", { name: command });
+      expect(add).toHaveAttribute("aria-disabled", "true");
+      expect(add).toHaveAccessibleDescription(
+        kind === "labels"
+          ? `Condition non remplie\u00a0: moins de ${String(limit)} intitulés pour « Montant ». Le maximum est atteint.`
+          : `Condition non remplie\u00a0: moins de ${String(limit)} colonnes conservées. Le maximum est atteint.`,
+      );
+    },
+  );
+
+  it("says under the list of the kept columns alone the refusal the server designates, as the contract gives it (#2267) [WF-REF-0190-A]", async () => {
+    serve({
+      [SET]: {
+        problem: example("actual_cost_mapping_kept_columns_too_many") as Problem & { status: 422 },
+      },
+    });
+    shown(witness, true);
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer la correspondance" }));
+    await screen.findByRole("alert");
+    const list = screen.getByRole("group", { name: /^Colonnes conservées/ });
+    expect(list).toHaveTextContent(/est trop longue/);
+    for (const other of screen.getAllByRole("group")) {
+      if (other !== list) {
+        expect(other).not.toHaveTextContent("est trop longue");
+      }
+    }
+    expect(document.querySelector("[aria-invalid]")).toBeNull();
   });
 
   it("tells the version stale under the form, and offers to read the page anew [WF-IHM-0110, WF-REF-0190-A]", async () => {
@@ -473,6 +534,54 @@ describe("the correspondence of the extraction of the actual costs, written", ()
     await userEvent.click(save);
     await screen.findByRole("button", { name: "Recharger" });
     expect(save).toHaveFocus();
+  });
+
+  it("keeps the focus and what is typed when the page read anew brings the version the answer brought, the form not mounted again (#2266) [WF-REF-0190-A]", async () => {
+    const answered = example("actual_cost_mapping_updated") as Mapping;
+    serve({ [SET]: "actual_cost_mapping_updated" });
+    const { rerender } = shown(witness, true);
+    const field = screen.getByRole("textbox", { name: "Intitulé de la colonne conservée 1" });
+    await userEvent.click(field);
+    await userEvent.keyboard("{Enter}");
+    await vi.waitFor(() => {
+      expect(screen.getByText("Correspondance enregistrée.")).toBeInTheDocument();
+    });
+    await vi.waitFor(() => {
+      expect(field).toHaveFocus();
+    });
+    // Typed between the answer and the page read anew.
+    await userEvent.type(field, " bis");
+    rerender(tree(answered, true));
+    const kept = screen.getByRole("textbox", { name: "Intitulé de la colonne conservée 1" });
+    expect(kept).toBe(field);
+    expect(kept).toHaveFocus();
+    expect(kept).toHaveValue("Fournisseur bis");
+  });
+
+  it("takes a reading newer than its draft, once the version stale is told and the draft not changed since, and keeps a draft typed since (#2266) [WF-REF-0190-A]", async () => {
+    const newer: Mapping = {
+      ...witness,
+      lock_version: witness.lock_version + 3,
+      kept_columns: ["Fournisseur lu à nouveau"],
+    };
+    serve({
+      [SET]: { problem: example("actual_cost_mapping_stale") as Problem & { status: 412 } },
+    });
+    const { rerender } = shown(witness, true);
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer la correspondance" }));
+    await screen.findByRole("button", { name: "Recharger" });
+    rerender(tree(newer, true));
+    expect(screen.getByRole("textbox", { name: "Intitulé de la colonne conservée 1" })).toHaveValue(
+      "Fournisseur lu à nouveau",
+    );
+    expect(screen.queryByRole("button", { name: "Recharger" })).toBeNull();
+    // Typed since: a reading still newer leaves the draft where it is.
+    const field = screen.getByRole("textbox", { name: "Intitulé de la colonne conservée 1" });
+    await userEvent.type(field, "!");
+    rerender(tree({ ...newer, lock_version: newer.lock_version + 1 }, true));
+    expect(screen.getByRole("textbox", { name: "Intitulé de la colonne conservée 1" })).toHaveValue(
+      "Fournisseur lu à nouveau!",
+    );
   });
 
   it("gives the focus to the command that saves when the control that held it is not one the form finds again (#1515) [WF-REF-0190-A]", async () => {

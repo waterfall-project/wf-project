@@ -2584,6 +2584,8 @@
       "addKept": "Déclarer une colonne conservée",
       "keptFull": "Condition non remplie : moins de {max} colonnes conservées. Le maximum est atteint.",
       "keptTooMany": "La liste des colonnes conservées est trop longue : {max} colonnes au plus.",
+      "labelsFull": "Condition non remplie : moins de {max} intitulés pour « {column} ». Le maximum est atteint.",
+      "labelsTooMany": "La liste des intitulés de « {column} » est trop longue : {max} intitulés au plus.",
       "doubles": "Il double l’intitulé « {label} » de la colonne « {column} ».",
       "doublesKept": "Il double l’intitulé « {label} » d’une colonne conservée.",
       "save": "Enregistrer la correspondance",

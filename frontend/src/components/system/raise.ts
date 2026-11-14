@@ -4,7 +4,8 @@
  * Raise an error from a callback no boundary sees — the end of a promise chain, a timer — to the
  * boundary of the page, which shows the screen of failure (`app/error.tsx`): the error is thrown
  * while React renders, where an error boundary catches it, instead of leaving an unhandled
- * rejection (#3111).
+ * rejection (#3111). A component unmounted before the chain ends has no screen left to show: React
+ * ignores the update, and the error is dropped without a word.
  */
 "use client";
 
