@@ -4,13 +4,16 @@
 
 The lines of the Makefile that start it (`e2e-browser`) run here, under the shell make uses, with a
 stand-in for the server in place of the image: it records its path and its pid, answers any request,
-ignores SIGINT as a server in a container does, and stops on SIGTERM. What is held: the paths know
-a path drawn at each run, the port must be free, a server that dies ends the wait at once, and a
-shell interrupted stops the server. That Playwright's `run-server` takes `--path` is not seen here.
+ignores SIGINT as a server in a container does, and stops on SIGTERM; it writes its record aside
+and renames it, so that a record that exists is whole. What is held: the paths know a path drawn at
+each run, the port must be free, a server that dies ends the wait at once, and a shell interrupted
+stops the server. Whatever a test started is stopped at its end, even when it failed.
+That Playwright's `run-server` takes `--path` is not seen here.
 The pull of the image by service.yml, which tries again on a registry that does not answer and not
 on one that refuses, is played the same way, with a stand-in for Docker.
 """
 
+import contextlib
 import os
 import re
 import signal
@@ -26,7 +29,7 @@ import yaml
 from wftools import REPOSITORY
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
     from pathlib import Path
 
 STAND_IN = """
@@ -35,7 +38,9 @@ args = sys.argv
 signal.signal(signal.SIGINT, signal.SIG_IGN)
 signal.signal(signal.SIGTERM, lambda *_: os._exit(0))
 port = int(args[args.index("--port") + 1])
-open(os.environ["STAND_IN_RECORD"], "w").write(f"{os.getpid()} {args[args.index('--path') + 1]}")
+record = os.environ["STAND_IN_RECORD"]
+open(record + ".tmp", "w").write(f"{os.getpid()} {args[args.index('--path') + 1]}")
+os.replace(record + ".tmp", record)
 time.sleep(float(os.environ.get("STAND_IN_DELAY", "0")))
 http.server.HTTPServer(("127.0.0.1", port), http.server.SimpleHTTPRequestHandler).serve_forever()
 """
@@ -64,6 +69,7 @@ class Probe:
         self.directory = directory
         self.stand_in = f"{sys.executable} {stand_in}"
         self.port = free_port()
+        self.runs: list[subprocess.Popen[str]] = []
 
     @staticmethod
     def text() -> str:
@@ -77,7 +83,7 @@ class Probe:
             "STAND_IN_RECORD": str(self.record),
             "STAND_IN_DELAY": str(delay),
         }
-        return subprocess.Popen(
+        run = subprocess.Popen(
             [
                 "make",
                 "--no-print-directory",
@@ -95,6 +101,15 @@ class Probe:
             text=True,
             start_new_session=True,
         )
+        self.runs.append(run)
+        return run
+
+    def stop(self) -> None:
+        """Stop what `start` launched and has not ended, and close its pipes."""
+        for run in self.runs:
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(run.pid, signal.SIGKILL)
+            run.communicate()
 
     def served(self) -> tuple[int, str]:
         pid, path = self.record.read_text(encoding="utf-8").split()
@@ -119,8 +134,11 @@ def wait_until(condition: Callable[[], bool], seconds: float = 20) -> bool:
 
 
 @pytest.fixture
-def probe(tmp_path: Path) -> Probe:
-    return Probe(tmp_path)
+def probe(tmp_path: Path) -> Iterator[Probe]:
+    """Give the probe, then stop and await its processes, even when the test failed."""
+    probe = Probe(tmp_path)
+    yield probe
+    probe.stop()
 
 
 def test_the_paths_connect_to_the_path_the_server_was_given_and_the_server_stops(
