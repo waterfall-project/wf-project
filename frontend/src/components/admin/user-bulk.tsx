@@ -85,7 +85,7 @@ export function UserBulkCommands({
           size="sm"
           aria-busy={waiting}
           {...(waiting ? { "aria-disabled": true } : {})}
-          className="h-6 text-xs text-background hover:bg-background/15 hover:text-background"
+          className={`${BAR_BUTTON} ${UNAVAILABLE}`}
           onClick={(event) => {
             if (!waiting) {
               writes.bulk(rows, { kind: "activation", active }, event.currentTarget);
@@ -98,6 +98,12 @@ export function UserBulkCommands({
     </>
   );
 }
+
+/** The look of a button of the bar. */
+const BAR_BUTTON = "h-6 text-xs text-background hover:bg-background/15 hover:text-background";
+
+/** A button that cannot be pressed now, as `aria-disabled` says (the same as the exit command). */
+const UNAVAILABLE = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
 
 /** The value of the choice « Aucun » of the attachment: no identifier of a node is written so. */
 const NO_NODE = "none";
@@ -122,6 +128,13 @@ function BulkChoice({
 }) {
   const t = useTranslations("admin.users");
   const [value, setValue] = useState("");
+  // The choice stays shown while its group is under way, and is cleared when the group ends.
+  const [applied, setApplied] = useState(false);
+  if (applied && !waiting) {
+    // Adjusted while rendering, as React allows for a state that follows a prop.
+    setApplied(false);
+    setValue("");
+  }
   return (
     <div className="flex shrink-0 items-center gap-1">
       <div className="w-40 shrink-0">
@@ -145,11 +158,11 @@ function BulkChoice({
         aria-label={apply}
         aria-busy={waiting}
         {...(waiting || value === "" ? { "aria-disabled": true } : {})}
-        className="h-6 text-xs text-background hover:bg-background/15 hover:text-background"
+        className={`${BAR_BUTTON} ${UNAVAILABLE}`}
         onClick={(event) => {
           if (value !== "" && !waiting) {
             onApply(value, event.currentTarget);
-            setValue("");
+            setApplied(true);
           }
         }}
       >
