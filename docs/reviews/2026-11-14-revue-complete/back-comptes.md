@@ -28,6 +28,7 @@ signature, deux `VALUE_TOO_LONG` sans `max_length`, `emailVerified` posé par un
 
 ### BAC-01 — Un porteur de `users.write` seul prend le compte d'un administrateur (lien de fixation, changement d'adresse)
 
+- **Issue** : #3342.
 - **Où** : `backend/src/waterfall/api/users.py:133` (`WRITE = users.read + users.write`),
   `:672-698` (`createPasswordSetupLink`), `:467-501` et `:513-516` (`updateUser` porte la nouvelle
   adresse à Keycloak) ; `backend/src/waterfall/core/users/password_link.py:37-52` (seules

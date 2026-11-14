@@ -33,6 +33,7 @@ Aucun.
 
 ### CTA-01 — `users.write` seule suffit à prendre le compte d'un administrateur local
 
+- **Issue** : #3342.
 - **Où** : `docs/api/paths/access.yaml:514-530` (`createPasswordSetupLink`, « Under the permission to
   modify accounts (`users.write`) », l. 527-528), `:564-582` (`resendInvitation`, l. 576),
   `:268-275` (`updateUser`, l'adresse d'un compte local se modifie) ;
