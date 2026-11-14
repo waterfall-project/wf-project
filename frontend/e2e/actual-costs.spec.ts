@@ -249,9 +249,14 @@ test("imports the actual costs of a project the run creates, then excludes a lin
     const line = page.getByRole("region", { name: "Ligne FA-0003" });
     await expect(line).toContainText("Suivie");
     await line.getByLabel("Motif de l’exclusion").fill("Câbles d'un autre projet, à réimputer");
-    const command = line.getByRole("button", { name: "Exclure du périmètre suivi" });
-    await command.click();
-    await expect(command).toHaveAttribute("aria-busy", "false", { timeout: WORKING });
+    await line.getByRole("button", { name: "Exclure du périmètre suivi" }).click();
+    // Written, the line flips its command: Next settles the action, which lifts `aria-busy`, then
+    // shows the page its `refresh()` read anew, where the line offers its reinstatement, a few
+    // milliseconds later (n° 22). Only the reinstatement no longer busy says both have come; the
+    // exclusion no longer busy is a moment the polls of an expectation miss when the answer is slow.
+    await expect(
+      line.getByRole("button", { name: "Réintégrer dans le périmètre suivi" }),
+    ).toHaveAttribute("aria-busy", "false", { timeout: WORKING });
     await expect(line.getByRole("alert")).toHaveCount(0);
     await expect(totals).toHaveText(
       /^Totaux des lignes retenues\s*Périmètre suivi\s*1\s260,50\s€\s*Exclu du périmètre suivi\s*100,00\s€\s*Total général\s*1\s360,50\s€\s*Dernier import/,
