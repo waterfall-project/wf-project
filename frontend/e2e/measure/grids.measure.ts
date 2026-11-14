@@ -61,23 +61,33 @@ import {
   type Timed,
 } from "./steps";
 
-/** A whole number of 1 or more the environment names, or its default. */
+/** Whole numbers of 1 or more the environment names, apart by spaces, or its default. */
 function counted(variable: string, own: string): number[] {
   const named = process.env[variable];
   const values = (named === undefined || named === "" ? own : named).trim().split(/\s+/);
   return values.map((value) => {
-    const chosen = Number(value);
-    if (!Number.isInteger(chosen) || chosen < 1) {
+    if (!/^[1-9]\d*$/.test(value)) {
       throw new Error(`${variable} must be whole numbers of 1 or more: ${String(named)}`);
     }
-    return chosen;
+    return Number(value);
   });
+}
+
+/** One whole number of 1 or more the environment names, or its default: never the first of some. */
+function one(variable: string, own: string): number {
+  const [chosen, ...more] = counted(variable, own);
+  if (chosen === undefined || more.length > 0) {
+    throw new Error(
+      `${variable} must be one whole number of 1 or more: ${String(process.env[variable])}`,
+    );
+  }
+  return chosen;
 }
 
 /** The numbers of users who play the journey at once, one level after the other. */
 const LEVELS = counted("E2E_MEASURE_USERS", "1 4 8");
 /** How many measured passes each level plays. */
-const [PASSES = 5] = counted("E2E_MEASURE_PASSES", "5");
+const PASSES = one("E2E_MEASURE_PASSES", "5");
 /** The most users of a level: the accounts the preparation makes. */
 const USERS = Math.max(...LEVELS);
 
