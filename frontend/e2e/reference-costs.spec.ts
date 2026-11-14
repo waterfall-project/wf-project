@@ -521,6 +521,12 @@ test("shows the deactivated natures and categories asked for and reactivates the
    * A command of a row, pressed again until React takes the click — the request of its server action
    * sent —, and never once it is: its answer then takes the command away, the row showing the other
    * one, and a click pressed again meanwhile would wait for a command gone, or press the other (#3135).
+   * The request awaited is any server action POST, not this row's: the server actions go through one
+   * queue (n° 16 of docs/dev/typescript.md), and on this path only the row pressed acts at that
+   * instant — no other action is sent meanwhile, so the request seen is its own.
+   * The signs of answer differ on purpose: a reactivation expects the opposite button of the row,
+   * as the list then shows the deactivated and the row stays; a deactivation also accepts the
+   * region's announcement, the row possibly leaving a list that hides the deactivated.
    */
   const press = async (command: Locator, answered: Locator) => {
     await expect(async () => {
