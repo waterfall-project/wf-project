@@ -563,8 +563,12 @@
       one, then `analysed` again with the report of the rule, for twenty-four hours from it
       (`expires_at`, WF-ARC-0100); the project stays unchanged until the confirmation
       (`applyImport`), which applies the report as analysed. The rule the report was computed
-      under is the state the request sets: sent again, it changes nothing, and the import is
-      returned as it is (200), so that a client that retries does not analyse twice. Refused, in
+      under is the state the request sets: sent again for an `analysed` import, it changes
+      nothing, and the import is returned as it is (200), so that a client that retries does not
+      analyse twice. A replay while the analysis runs, after a lost 202, is refused by the 409
+      `import_awaiting_decision`: the client then reads the import again (`getImport`). If the
+      analysis queued fails, the previous report stays set aside, the import is `failed`, and the
+      user opens the file again (`openImport`). Refused, in
       this order: an unknown import, or one of another project (404); the permission of the kind
       of the import and the quality of contributor, as for applying it (403); an import no longer
       `analysed` — being analysed, applied or being applied, abandoned, expired, failed or
@@ -610,7 +614,9 @@
           `analysed` — being analysed, applied or being applied, abandoned, expired, failed or
           refused: there is no report to give again (WF-ARC-0100); then `import_calendar_gap`,
           a report without a calendar gap (`ImportReport.calendar_gap` null), which offers no
-          choice (WF-INTF-0040, WF-INTF-0080). The import does not change.
+          choice (WF-INTF-0040, WF-INTF-0080). A replay of the rule while the
+          import is `analysing` (after a lost 202) is refused here: the client reads the import
+          again (`getImport`). The import does not change.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

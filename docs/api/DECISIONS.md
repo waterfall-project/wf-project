@@ -860,9 +860,12 @@ gel ») ; `info.version` reste `1.0.0`.
   (« Forme des chemins » : un état est une ressource), corps `ImportDurationRuleWrite`. Une règle
   autre que celle du compte rendu écarte le compte rendu et relance l'analyse : 202, l'import
   `analysing`, sans compte rendu ni échéance, sa tâche la nouvelle (`ImportDetail`, comme
-  `openImport`), puis `analysed` sous la nouvelle règle, pour vingt-quatre heures. La règle déjà en
-  place rend l'import tel quel, 200, sans nouvelle analyse : un client qui réessaie n'analyse pas
-  deux fois. Refus, dans cet ordre : 404 ; 403, la permission du genre de l'import et la qualité de
+  `openImport`), puis `analysed` sous la nouvelle règle, pour vingt-quatre heures. Si l'analyse
+  relancée échoue, le compte rendu précédent reste écarté : l'import est `failed`, et l'utilisateur
+  rouvre le fichier (`openImport`). La règle déjà en place rend l'import tel quel, 200, sans
+  nouvelle analyse : un client qui renvoie la règle d'un import `analysed` n'analyse pas deux fois.
+  Un rejeu pendant l'analyse, après un 202 perdu, est refusé par le 409 `import_awaiting_decision`
+  (l'import est alors `analysing`) : le client relit l'import (`getImport`). Refus, dans cet ordre : 404 ; 403, la permission du genre de l'import et la qualité de
   contributeur, comme `applyImport` ; 409 `STATE_FORBIDS_OPERATION`, `import_awaiting_decision`, un
   import qui n'est plus `analysed` — en analyse, appliqué, abandonné, expiré, échoué ou refusé —,
   la condition d'`applyImport` ; puis 409 `import_calendar_gap`, une valeur nouvelle de

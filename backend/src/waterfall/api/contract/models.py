@@ -6347,7 +6347,7 @@ class ImportCalendarGap(ContractModel):
     tasks: Annotated[
         list[ImportCalendarGapTask],
         Field(
-            description="The tasks of the file whose own calendar, in the file, does not have the working days of their applicable Waterfall calendar, each named, in the order of the file; empty when only the project calendar or the constants differ."
+            description="The tasks of the file whose own calendar, in the file, has hours per day that differ, day by day, from those of their applicable Waterfall calendar, each named, in the order of the file; empty when only the project calendar or the constants differ."
         ),
     ]
     duration_rule: Annotated[
@@ -6441,7 +6441,7 @@ class ImportReport(ContractModel):
     calendar_gap: Annotated[
         ImportCalendarGap | None,
         Field(
-            description='For an MS Project schedule whose constants differ from those of the installation (`unit_constants`), or whose project calendar, or the own calendar of one of its tasks, does not have the working days of the applicable Waterfall calendar (WF-PLA-0010), what differs and the rule of conversion of the durations the report was computed under: "the report says so — the hours per day on either side, and the working times of the file — and offers, before application (WF-INTF-0080), to keep the durations or to keep the dates" (WF-INTF-0040, WF-PLA-0160). The calendars of the file are still not imported, and are still said ignored (`ignored`, `calendars`). The other arrays of the report — `differences`, `date_mismatches` included — are those of that rule; changing it analyses the import again and gives a new report, the project unchanged until the confirmation (`setImportDurationRule`, WF-INTF-0080). A file exported by Waterfall carries its calendars and its constants: it presents no gap, and no choice is offered (WF-INTF-0060). Always returned: null without a gap, and for the other kinds of import.'
+            description='For an MS Project schedule whose constants differ from those of the installation (`unit_constants`), or whose project calendar, or the own calendar of one of its tasks, has hours per day that differ, day by day, from those of the applicable Waterfall calendar (WF-PLA-0010), what differs and the rule of conversion of the durations the report was computed under: "the report says so — the hours per day on either side, and the working times of the file — and offers, before application (WF-INTF-0080), to keep the durations or to keep the dates" (WF-INTF-0040, WF-PLA-0160). The calendars of the file are still not imported, and are still said ignored (`ignored`, `calendars`). The other arrays of the report — `differences`, `date_mismatches` included — are those of that rule; changing it analyses the import again and gives a new report, the project unchanged until the confirmation (`setImportDurationRule`, WF-INTF-0080). A file exported by Waterfall carries its calendars and its constants: it presents no gap, and no choice is offered (WF-INTF-0060). Always returned: null without a gap, and for the other kinds of import.'
         ),
     ]
 

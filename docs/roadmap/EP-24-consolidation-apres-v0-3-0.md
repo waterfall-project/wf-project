@@ -107,7 +107,8 @@ classeurs qu'ils écrivent et lisent (US-1940) ; toute liste paginée
 (US-1960) ; `updateAccessRole`, `deleteAccessRole` (US-1970) ; toute lecture qui porte un paramètre
 de requête libre, `setDurationUnits`, les écritures d'un nœud du planning et d'une ligne de devis
 (US-1980) ; `requestExport`, `openImport`, `getImport`, `applyImport` et `abandonImport`, pour
-le format MS Project (US-1990, US-2000).
+le format MS Project (US-1990, US-2000) ; `setImportDurationRule`, que la modification du contrat
+crée, pour US-2000.
 
 Quatre modifications du contrat, chacune par une issue `contract` tranchée par l'auteur et une
 entrée de `docs/api/DECISIONS.md` (« La règle d'après le gel »), faite avant le code qui la
@@ -1063,7 +1064,7 @@ suffisantes sur le planning éprouvé. Aucun test ne lit, ne cite ni ne nomme un
 
 - **statut** : en cours
 - **exigences** : `WF-INTF-0040-A`, `WF-PLA-0160-A`, `WF-INTF-0080-A`
-- **opérations** : `openImport`, `getImport`, `applyImport`, `abandonImport`
+- **opérations** : `openImport`, `getImport`, `applyImport`, `abandonImport`, `setImportDurationRule`
 - **issue** : #2972
 
 **En tant que** chef de projet, **je veux** qu'un planning saisi dans MS Project sur des journées de

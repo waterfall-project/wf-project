@@ -98,7 +98,11 @@ def test_the_report_offers_the_two_rules_and_a_change_gives_a_new_report() -> No
 
 
 def test_a_rule_is_refused_without_a_gap_and_once_the_import_awaits_no_decision() -> None:
-    # #2977: the conditions of the 409, in their order, each with its example.
+    """#2977: the conditions of the 409, in their order, each with its example.
+
+    This holds the shape of the contract (the order said in the prose, the examples, the enum),
+    not the behaviour of the refusals, which US-2000/L2 tries against the route.
+    """
     operation = _paths()[PATH]["put"]
     said = " ".join(operation["responses"]["409"]["description"].split())
     assert said.index("`import_awaiting_decision`") < said.index("`import_calendar_gap`")
