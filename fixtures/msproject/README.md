@@ -1,9 +1,9 @@
 # Le corpus de plannings MS Project (WF-QUA-0080)
 
 Ce répertoire reçoit le corpus que WF-QUA-0080 exige : des plannings saisis dans MS Project
-(2013 ou plus), enregistrés au format XML avec les dates que MS Project a calculées, et versionnés
-avec le code. Il est fourni par l'auteur, avant le lot US-1430/L3 d'EP-06 (#2342) : pour chaque
-fichier, un test donne au moteur de Waterfall les tâches, les liaisons, les calendriers de tâche et
+(2013 ou plus), enregistrés au format XML avec les dates que MS Project a calculées — sauf le
+fichier 14, synthétique, dont le moteur a calculé les dates lui-même —, et versionnés avec le
+code. Il est fourni par l'auteur, avant le lot US-1430/L3 d'EP-06 (#2342) : pour chaque fichier, un test donne au moteur de Waterfall les tâches, les liaisons, les calendriers de tâche et
 les constantes du fichier, et vérifie qu'il calcule les mêmes dates de début et de fin ; un autre
 test lit le manifeste et nomme tout cas du corps de WF-QUA-0080 qu'aucun fichier ne déclare
 (conception d'EP-06, `docs/roadmap/EP-06-planification.md`, « Le format MS Project »).
@@ -83,7 +83,7 @@ l'écart de calendrier (US-2000).
 | 11 | `11-horizon-sixteen-years.xml` | `horizon_exceeded` | un planning de seize ans, rejeté au compte rendu (WF-PLA-0150) ; hors du test de datation — le manifeste le marque `"dating": false` |
 | 12 | `12-mixed-large.xml` (facultatif) | — | ≈ 150 tâches, quatre niveaux, un mélange de tout ; pour la recette, aucun test ne l'exige |
 | 13 | `13-resource-calendars-not-ignored.xml` | `resources_ignored`, `assignments_ignored`, `resource_calendar_ignored` | une première version du 04, dont les calendriers passent par des ressources affectées **sans** « ignorer les calendriers des ressources » : MS Project date par les ressources, et l'écart est attendu ; gardé pour les avertissements de l'import, hors du test de datation — `"dating": false` |
-| 14 | `14-calendar-gap-seven-hours.xml` | `calendar_gap_seven_hours`, `calendar_gap_task_calendar` | **synthétique** : écrit pour le test d'US-2000, ses dates calculées par le moteur sur ses propres calendriers et constantes, non enregistré par MS Project, et sans rien d'un planning réel. Saisi en jours à 7 h par jour (7, 35, 20), son « Standard » de 8:00 à 12:00 et de 13:00 à 16:00 ; « Peinture » et « Fabrication » sur un calendrier de tâche « Atelier » de 9 h, lundi–jeudi 8:00–12:00 et 13:00–18:00 ; une durée en heures, un décalage en jours, une durée écoulée, une tâche manuelle. Il éprouve les deux options de l'écart de calendrier : « Garder les durées » (« 2 j » vaut deux jours) et « Garder les dates » |
+| 14 | `14-calendar-gap-seven-hours.xml` | `calendar_gap_seven_hours`, `calendar_gap_task_calendar` | **synthétique** : écrit pour le test d'US-2000, ses dates calculées par le moteur sur ses propres calendriers et constantes, non enregistré par MS Project, et sans rien d'un planning réel. Saisi en jours à 7 h par jour (7, 35, 20), son « Standard » de 8:00 à 12:00 et de 13:00 à 16:00 ; « Peinture » et « Fabrication » sur un calendrier de tâche « Atelier » de 9 h, lundi–jeudi 8:00–12:00 et 13:00–18:00 ; une durée en heures, un décalage en jours, une durée écoulée, une tâche manuelle. Il éprouve les deux options de l'écart de calendrier : « Garder les durées » (« 2 j » vaut deux jours) et « Garder les dates » ; hors du test de datation, qui comparerait le moteur à lui-même — `"dating": false` ; les tests d'US-2000 portent seuls son attendu |
 
 ## Les cas critiques — ceux qui départagent deux moteurs
 

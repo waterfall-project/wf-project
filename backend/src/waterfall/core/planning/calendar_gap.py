@@ -137,7 +137,10 @@ def calendar_gap(
 
 
 def placed_on(instant: WorkInstant, file_day: Calendar, calendar: Calendar) -> Moment:
-    """Give an instant of the file at the same share of the work of its day on a Waterfall one."""
+    """Give an instant of the file at the same share of the work of its day on a Waterfall one.
+
+    A reading of US-2000/L2 awaiting the author (#3153); the other, kept out: the clock hour.
+    """
     worked = Fraction(file_day.hours_on(instant.day))
     share = Fraction(0) if worked == 0 else Fraction(instant.hours) / worked
     return Moment(instant.day.toordinal(), share * Fraction(calendar.hours_on(instant.day)))

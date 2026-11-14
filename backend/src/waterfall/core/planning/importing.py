@@ -211,7 +211,8 @@ class Plan:
     ``by_node`` the rows the import writes, by their node; ``children`` and ``order`` the tree it
     leaves, the order of the plan depth first; ``links`` the links of the file by their two tasks;
     ``gap`` the calendar gap of the file, and ``rule`` the rule of its durations, keeping them
-    without a gap.
+    without a gap; ``constants_differ`` whether the constants of the file differ from the
+    installation's, computed once by ``plan_import``.
     """
 
     aimed: Aimed
@@ -231,6 +232,7 @@ class Plan:
     constants: UnitConstants | None = None
     file_constants: UnitConstants | None = None
     gap: Json | None = None
+    constants_differ: bool = False
     rule: DurationRule = KEEP_DURATIONS
 
     def parent_of(self, node_id: UUID) -> UUID | None:
@@ -628,6 +630,7 @@ def plan_import(
     differ = found != carried(constants)
     file_constants = found if differ else constants
     plan.constants, plan.file_constants = constants, file_constants
+    plan.constants_differ = differ
     default = named_default_calendar(session)
     held: Mapping[UUID, Applicable] = (
         calendars_of(session, aimed.project_id, list(tree.tasks)) if tree.tasks else {}
@@ -787,7 +790,8 @@ def _differing(
     """Name what of a task differs between the file and the engine: duration, start, finish.
 
     In a calendar gap, a date compares by its day and a duration by its value in its unit, at the
-    constants of each side: their hours do not read the same (US-2000).
+    constants of each side: their hours do not read the same (US-2000). The date by its day is a
+    reading of US-2000/L2 awaiting the author (#3153); the other, kept out: the instants.
     """
     fields: list[str] = []
     span = row.task.duration
@@ -831,15 +835,14 @@ def _constants(constants: UnitConstants) -> Json:
     }
 
 
-def _unit_constants(plan: Plan, project: MsProject) -> Json | None:
+def _unit_constants(plan: Plan) -> Json | None:
     """Give the constants of the file and of the installation when they differ (WF-PLA-0160).
 
     A constant the file does not carry is the default of MS Project; ``None`` when they are equal,
     or those of the installation as a file carries them (``carried``), as the export writes them.
     """
-    installation = plan.constants
-    found = file_constants_of(project)
-    if installation is None or found == carried(installation):
+    installation, found = plan.constants, plan.file_constants
+    if installation is None or found is None or not plan.constants_differ:
         return None
     return {"file": _constants(found), "installation": _constants(installation)}
 
@@ -871,6 +874,6 @@ def report_of(plan: Plan, read: ReadProject, items: Mapping[UUID, WorkBreakdownI
         "date_mismatches": _mismatches(plan),
         "signals": plan.signals,
         "requires_confirmation_reasons": [],
-        "unit_constants": _unit_constants(plan, read.project),
+        "unit_constants": _unit_constants(plan),
         "calendar_gap": plan.gap,
     }

@@ -177,8 +177,8 @@ from waterfall.core.exchanges.interface.xml import (
     hardened_parser as hardened_parser,
 )
 
-# ``imports`` (US-2000/L2): the rule of the durations of an MS Project schedule in calendar gap,
-# its two values those of the target of an import (``judgments``).
+# ``judgments`` (US-2000/L2): the rule of the durations of an MS Project schedule in calendar gap,
+# its two values those of the target of an import.
 from waterfall.core.exchanges.judgments import (
     KEEP_DATES as KEEP_DATES,
 )

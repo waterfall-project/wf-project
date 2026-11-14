@@ -887,13 +887,16 @@ gel ») ; `info.version` reste `1.0.0`.
   (`waterfall.core.planning.calendar_gap`) : des constantes du fichier égales à celles de
   l'installation telles qu'un fichier les porte — minutes par jour et par semaine, jours par mois
   entiers, comme l'export les écrit — ne sont pas un écart, et le fichier se lit alors aux
-  constantes de l'installation ; « garder les dates » place un instant du fichier à la même part du
-  travail de son jour sur le calendrier Waterfall, qui n'a pas d'heures d'horloge — la fin d'une
-  journée de 7 heures à la fin d'une journée de 8 —, si bien qu'une tâche de deux journées entières
-  dure deux journées ; en écart, `date_mismatches` compare les dates par leur jour et la durée d'une
-  récapitulative par sa valeur dans son unité, aux constantes de chaque côté, les heures d'un jour
-  ne se lisant pas de même des deux côtés. Une durée en temps écoulé et un jalon gardent leur durée
-  sous les deux règles.
+  constantes de l'installation. Les deux autres sont des lectures retenues par US-2000/L2, en
+  attente de l'auteur (#3153, `à trancher`), non des décisions : « garder les dates » place un
+  instant du fichier à la même part du travail de son jour sur le calendrier Waterfall, qui n'a
+  pas d'heures d'horloge — la fin d'une journée de 7 heures à la fin d'une journée de 8 —, si bien
+  qu'une tâche de deux journées entières dure deux journées (l'autre lecture, écartée : garder
+  l'heure d'horloge, et une journée de 7 heures dure 7 heures sur 8) ; en écart, `date_mismatches`
+  compare les dates par leur jour et la durée d'une récapitulative par sa valeur dans son unité,
+  aux constantes de chaque côté, les heures d'un jour ne se lisant pas de même des deux côtés
+  (l'autre lecture, écartée : comparer les instants, qui signalerait tout fichier en écart). Une
+  durée en temps écoulé et un jalon gardent leur durée sous les deux règles.
 
 Exemples : `import_planning_calendar_gap`, une variante contrefactuelle — la structure principale
 supposée sans tâche — où un planning synthétique saisi à 7 heures par jour, son calendrier

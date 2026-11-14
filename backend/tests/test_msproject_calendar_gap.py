@@ -12,7 +12,7 @@ value in its unit; keeping the dates, an automatic task lasts the work between i
 file on its Waterfall calendar; ``setImportDurationRule`` changes the rule and analyses again.
 """
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any
@@ -26,6 +26,7 @@ from projects_support import scene as make_scene
 from sqlalchemy import select, update
 from support import ContractClient
 from test_msproject_import import (
+    CORPUS,
     Timing,
     by_label,
     corpus,
@@ -46,6 +47,7 @@ from waterfall.core.planning.calendars import Applicable
 from waterfall.core.planning.msproject import MsProject, clock_text
 from waterfall.core.planning.scheduling import WorkInstant, weekly_calendar
 from waterfall.core.resource_settings.tables import Calendar as CalendarRow
+from waterfall.platform.database import utc_now
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 
 if TYPE_CHECKING:
@@ -214,7 +216,6 @@ def mismatched(report: dict[str, Any]) -> list[tuple[str, list[str]]]:
 
 
 @pytest.mark.requirement("WF-INTF-0080-A")
-@pytest.mark.requirement("WF-INTF-0040-A")
 @pytest.mark.requirement("WF-PLA-0160-A")
 def test_a_planning_entered_on_other_days_says_its_calendar_gap_before_the_confirmation(
     api: ContractClient, stage: Scene, worker: Worker, database: Database
@@ -270,7 +271,6 @@ def test_a_planning_entered_on_other_days_says_its_calendar_gap_before_the_confi
 
 
 @pytest.mark.requirement("WF-PLA-0160-A")
-@pytest.mark.requirement("WF-INTF-0040-A")
 def test_keeping_the_durations_a_task_of_two_days_entered_at_seven_hours_lasts_two_days(
     api: ContractClient, stage: Scene, worker: Worker
 ) -> None:
@@ -389,6 +389,7 @@ def test_the_rule_the_report_was_computed_under_gives_the_import_back_as_it_stan
     assert not worker.step()
 
 
+@pytest.mark.requirement("WF-INTF-0080-A")
 def test_the_rule_of_an_import_is_refused_to_who_may_not_apply_it_and_on_an_unknown_import(
     api: ContractClient, stage: Scene, worker: Worker
 ) -> None:
@@ -408,6 +409,75 @@ def test_the_rule_of_an_import_is_refused_to_who_may_not_apply_it_and_on_an_unkn
     assert read(api, stage, import_id)["report"]["calendar_gap"]["duration_rule"] == (
         "keep_durations"
     )
+
+
+@pytest.mark.requirement("WF-INTF-0080-A")
+@pytest.mark.parametrize("body", [{"duration_rule": "foo"}, {}], ids=["unknown rule", "no rule"])
+def test_a_rule_that_is_not_one_of_the_two_is_refused_as_a_field_invalid(
+    api: ContractClient, stage: Scene, worker: Worker, body: dict[str, Any]
+) -> None:
+    # The body is judged by the contract before the import: a value out of the two, or none, is a
+    # field refused, 422 ``VALIDATION_FAILED`` (the 400 is for a body that is no JSON), and the
+    # report stays as it was.
+    found = analysed(api, stage, worker, corpus(SYNTHETIC))
+    response = api.put(
+        f"{path(stage, found['import_id'])}/duration-rule",
+        headers=stage.manager.headers,
+        json=body,
+    )
+    assert response.status_code == 422, response.text
+    assert response.json()["code"] == "VALIDATION_FAILED"
+    assert [each["pointer"] for each in response.json()["fields"]] == ["/duration_rule"]
+    assert read(api, stage, found["import_id"]) == found
+    assert not worker.step()
+
+
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_the_rule_of_an_import_applied_or_expired_is_refused_as_no_longer_awaiting_a_decision(
+    api: ContractClient, stage: Scene, worker: Worker, database: Database
+) -> None:
+    # As for applying it: an import no longer analysed — applied, expired — is refused by the 409
+    # ``import_awaiting_decision``, and nothing is analysed again.
+    awaiting = {"missing_condition": "import_awaiting_decision"}
+    done = analysed(api, stage, worker, corpus(SYNTHETIC))["import_id"]
+    applied(api, stage, worker, done)
+    assert refusal(ruled(api, stage, done, "keep_dates")) == (
+        409,
+        "STATE_FORBIDS_OPERATION",
+        awaiting,
+    )
+    lapsed = analysed(api, stage, worker, corpus(SYNTHETIC))["import_id"]
+    with database.transaction() as session:
+        session.execute(
+            update(ImportReport)
+            .where(ImportReport.id == UUID(lapsed))
+            .values(expires_at=utc_now() - timedelta(seconds=1))
+        )
+    assert read(api, stage, lapsed)["status"] == "expired"
+    assert refusal(ruled(api, stage, lapsed, "keep_dates")) == (
+        409,
+        "STATE_FORBIDS_OPERATION",
+        awaiting,
+    )
+    assert not worker.step()
+
+
+@pytest.mark.requirement("WF-PLA-0160-A")
+def test_a_file_of_the_corpus_that_says_constants_differ_says_a_calendar_gap_too(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # The constants that differ are said in a gap, which offers the choice of the rule: on every
+    # file of the corpus, ``unit_constants`` set implies ``calendar_gap`` set.
+    for file in sorted(CORPUS.glob("*.xml")):
+        upload_id = deposited(api, stage.manager, file.read_bytes())
+        response = api.post(
+            path(stage), headers=stage.manager.headers, json={"kind": KIND, "upload_id": upload_id}
+        )
+        assert response.status_code == 202, response.text
+        run(worker)
+        report = read(api, stage, response.json()["import_id"])["report"]
+        if report is not None and report["unit_constants"] is not None:
+            assert report["calendar_gap"] is not None, file.name
 
 
 @pytest.mark.requirement("WF-PLA-0160-A")
@@ -431,6 +501,7 @@ def test_keeping_the_dates_a_task_of_two_days_at_seven_hours_on_days_of_eight_la
     assert links(stage) == {("Câblage", "Essais", "finish_to_start", Decimal(1), "w")}
 
 
+@pytest.mark.requirement("WF-PLA-0160-A")
 def test_an_hour_of_the_clock_carries_its_seconds_only_when_it_has_some() -> None:
     # ``ImportWorkingTime``: ``HH:MM``, ``HH:MM:SS`` on a second, the end of the day ``24:00``.
     assert [clock_text(each) for each in (Fraction(8), Fraction(49, 6), Fraction(24))] == [
@@ -441,6 +512,7 @@ def test_an_hour_of_the_clock_carries_its_seconds_only_when_it_has_some() -> Non
     assert clock_text(Fraction(8) + Fraction(1, 3600)) == "08:00:01"
 
 
+@pytest.mark.requirement("WF-PLA-0160-A")
 def test_a_file_that_names_no_calendar_of_its_project_is_on_the_one_ms_project_assumes() -> None:
     # MS Project dates such a file from 8:00 to 12:00 and from 13:00 to 17:00, Monday to Friday:
     # no gap with a default calendar of eight hours from Monday to Friday, a gap with one of seven.
@@ -458,6 +530,7 @@ def test_a_file_that_names_no_calendar_of_its_project_is_on_the_one_ms_project_a
     assert gap["duration_rule"] == "keep_dates"
 
 
+@pytest.mark.requirement("WF-PLA-0160-A")
 def test_an_instant_on_a_day_without_hours_in_the_file_starts_its_day_on_a_waterfall_one() -> None:
     # Kept dates place an instant of the file at the same share of the work of its day: a day the
     # file does not work has no share, and the instant is the start of the day.
