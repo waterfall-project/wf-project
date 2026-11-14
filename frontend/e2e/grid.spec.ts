@@ -63,7 +63,18 @@ async function totalUnder(page: Page, column: string) {
   const names = await headers.allTextContents();
   const index = names.findIndex((name) => name.includes(column));
   expect(index).toBeGreaterThan(0);
-  return grid(page).getByRole("row").last().getByRole("gridcell").nth(index);
+  // The caption spans the columns after the first with no figure: a cell of the totals is not
+  // one column, so the cell under the header is found by the columns the cells before it span.
+  const cells = grid(page).getByRole("row").last().getByRole("gridcell");
+  const spans = await cells.evaluateAll((nodes) =>
+    nodes.map((node) => (node as HTMLTableCellElement).colSpan),
+  );
+  let covered = 0;
+  const position = spans.findIndex((span) => {
+    covered += span;
+    return covered > index;
+  });
+  return cells.nth(position);
 }
 
 /** The header of the labels, the caption of the totals, the first and the last rows. */
@@ -253,7 +264,9 @@ test.describe("on a narrow window", () => {
     const { totals } = edges(page);
     const box = scroller(grid(page));
     await expect(label).toBeInViewport({ ratio: 1 });
-    await expect(totals).toBeInViewport({ ratio: 1 });
+    // The caption spans the columns that have no figure, wider than the window: it is in view by
+    // its start, its words cut where the pinned columns end (US-2080, #3072).
+    await expect(totals).toBeInViewport();
 
     // The grid is wider than the window: it scrolls sideways, to its last column.
     await box.evaluate((element) => {
@@ -268,12 +281,14 @@ test.describe("on a narrow window", () => {
     const start = await box.boundingBox();
     for (const pinned of [
       label,
-      totals,
       grid(page).getByRole("columnheader", { name: "Libellé" }),
     ]) {
       await expect(pinned).toBeInViewport({ ratio: 1 });
       expect((await pinned.boundingBox())?.x).toBeCloseTo((start?.x ?? 0) + 1 + 48, 0);
     }
+    const words = totals.locator("span");
+    await expect(words).toBeInViewport();
+    expect((await words.boundingBox())?.x).toBeCloseTo((start?.x ?? 0) + 1 + 48, 0);
   });
 
   test("shows the revision a copy is made of whole, beside the chip of an active filter, without overlap @shared [WF-IHM-0020-A]", async ({
