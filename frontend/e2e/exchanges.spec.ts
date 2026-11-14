@@ -53,23 +53,30 @@ type Schemas = components["schemas"];
 
 /**
  * Ask for the export chosen, and take its file, which downloads by itself once made while the
- * screen that asked for it still shows (#3103): the download, and the address of the result it left
- * from. The card of its end stays in the corner of the window, and offers it again.
+ * screen that asked for it still shows (#3103) — by a hidden frame, the screen never left —: the
+ * download, and the address of the result the frame asked for. The
+ * card of its end stays in the corner of the window, its sentence and its cross, and offers the file
+ * no more: served once (WF-DAT-0120).
  */
 async function exportDownloaded(
   page: Page,
   exports: Locator,
 ): Promise<{ readonly download: Download; readonly result: string }> {
   const made = page.waitForEvent("download", { timeout: WORKING });
+  const fetched = page.waitForResponse(
+    (response) => /^\/tasks\/[0-9a-f-]{36}\/result$/.test(new URL(response.url()).pathname),
+    { timeout: WORKING },
+  );
+  const shown = page.url();
   await exports.getByRole("button", { name: "Demander l’export" }).click();
+  const { pathname, search } = new URL((await fetched).url());
   const download = await made;
-  const { pathname, search } = new URL(download.url());
-  await expect(
-    page
-      .getByRole("region", { name: "Aboutissements des tâches" })
-      .getByRole("group", { name: /Export/ })
-      .getByRole("link", { name: /^Télécharger le résultat/ }),
-  ).toBeVisible();
+  const card = page
+    .getByRole("region", { name: "Aboutissements des tâches" })
+    .getByRole("group", { name: /Export/ });
+  await expect(card.getByRole("button", { name: /^Fermer la carte/ })).toBeVisible();
+  await expect(card.getByRole("link", { name: /^Télécharger le résultat/ })).toHaveCount(0);
+  expect(page.url()).toBe(shown);
   return { download, result: `${pathname}${search}` };
 }
 

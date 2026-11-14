@@ -77,6 +77,7 @@ import { isOwner, keepOwner, wipeStores } from "./session-end";
 import { restoreTasks, saveTasks } from "./storage";
 import { EndLog, TaskEntry, taskName, TaskPolling, useTaskNaming } from "./task-entry";
 import {
+  type EndCardLine,
   type EndLine,
   isPolled,
   type Launch,
@@ -407,7 +408,7 @@ export function useTrackerDispatch(): Dispatch<TrackingEvent> {
  * goes to once the last card is closed (`EndCards`).
  */
 export function useEndCards(): {
-  readonly cards: readonly EndLine[];
+  readonly cards: readonly EndCardLine[];
   readonly button: RefObject<HTMLButtonElement | null>;
 } {
   const { store, button } = inTracker(useContext(StateContext));

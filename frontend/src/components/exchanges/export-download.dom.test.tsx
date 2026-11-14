@@ -11,6 +11,7 @@ import { EndCards } from "@/components/tasks/end-cards";
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { heldFrames, sendBack } from "@/test/download-frames";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { ExportForm } from "./export-form";
@@ -85,8 +86,15 @@ function record(event: Event) {
   }
 }
 
+/** The address of the result of the export, leaving from the screen of the exchanges. */
+const RESULT = `/tasks/${EXPORTED}/result?from=${encodeURIComponent(EXCHANGES)}`;
+
+/** The hidden frames the result downloads by itself through. */
+let frames: readonly HTMLIFrameElement[] = [];
+
 beforeEach(() => {
   followed = [];
+  frames = heldFrames();
   vi.useFakeTimers({ shouldAdvanceTime: true });
   window.sessionStorage.clear();
   window.history.replaceState(null, "", EXCHANGES);
@@ -105,25 +113,87 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+/** The card of the end of the export. */
+function exportCard() {
+  return within(screen.getByRole("region", { name: "Aboutissements des tâches" })).getByRole(
+    "group",
+  );
+}
+
 describe("the result of an export", () => {
-  it("is downloaded by itself once the task has succeeded, the screen that asked for it still open, read anew first, once (#3103)", async () => {
+  it("is downloaded by itself once the task has succeeded, the screen that asked for it still open, read anew first, once, its card offering it no more (#3103)", async () => {
     const client = serve({
       [EXPORT]: { example: "task_export_queued", status: 202 },
       [TASK]: "task_export_succeeded",
     });
     render(shell(true));
     await ask();
-    expect(followed).toEqual([]);
+    expect(frames).toEqual([]);
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
     await waitFor(() => {
-      expect(followed).toEqual([`/tasks/${EXPORTED}/result?from=${encodeURIComponent(EXCHANGES)}`]);
+      expect(frames.map((frame) => frame.getAttribute("src"))).toEqual([RESULT]);
     });
+    // A hidden frame, which runs no script and may download: no link leaves the screen.
+    const [frame] = frames;
+    expect(frame).toHaveAttribute("sandbox", "allow-downloads allow-same-origin");
+    expect(frame).not.toBeVisible();
+    expect(followed).toEqual([]);
+    expect(window.location.pathname).toBe(EXCHANGES);
     // The read of the follow-up, then the read that checks the result is still there.
     const reads = () => client.calls.filter((call) => call.route === TASK);
     expect(reads()).toHaveLength(2);
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL * 3));
-    expect(followed).toHaveLength(1);
+    expect(frames).toHaveLength(1);
     expect(reads()).toHaveLength(2);
+    // Served once (WF-DAT-0120): the card keeps its sentence and its cross, and offers it no more.
+    const card = exportCard();
+    expect(card).toHaveTextContent(/^Tâche terminée\s: Export/);
+    expect(within(card).queryByRole("link", { name: /^Télécharger/ })).toBeNull();
+    expect(within(card).getByRole("button", { name: /^Fermer la carte/ })).toBeVisible();
+  });
+
+  it("leaves the screen as it is when the route refuses the file after the read, its card telling why (#3103)", async () => {
+    serve({
+      [EXPORT]: { example: "task_export_queued", status: 202 },
+      [TASK]: "task_export_succeeded",
+    });
+    render(shell(true));
+    await ask();
+    // What the user chose meanwhile stays: the screen is neither left nor loaded again.
+    const form = screen.getByRole("form", { name: "Demander un export" });
+    const kinds = within(form).getByRole<HTMLSelectElement>("combobox", {
+      name: "Fichier à exporter",
+    });
+    const chosen = within(kinds).getAllByRole<HTMLOptionElement>("option").at(-1)?.value ?? "";
+    await userEvent.selectOptions(kinds, chosen);
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    await waitFor(() => {
+      expect(frames).toHaveLength(1);
+    });
+    // The result expired between the read and the download (409): the route sends the frame back to
+    // the screen, the refusal in its address.
+    const [frame] = frames;
+    if (frame === undefined) {
+      throw new Error("no frame was appended");
+    }
+    act(() => {
+      sendBack(
+        frame,
+        `${EXCHANGES}?refused_task=${EXPORTED}&refusal=409:STATE_FORBIDS_OPERATION:task_succeeded`,
+      );
+    });
+    const card = exportCard();
+    expect(await within(card).findByRole("alert")).toHaveTextContent(
+      /^L’état actuel ne permet pas cette opération/,
+    );
+    // Not served, the file is offered again: the click reads the task anew first.
+    expect(within(card).getByRole("link", { name: /^Télécharger le résultat/ })).toBeVisible();
+    expect(followed).toEqual([]);
+    expect(window.location.pathname).toBe(EXCHANGES);
+    expect(window.location.search).toBe("");
+    expect(screen.getByRole("form", { name: "Demander un export" })).toBe(form);
+    expect(kinds).toBeInTheDocument();
+    expect(kinds.value).toBe(chosen);
   });
 
   it("is not downloaded by itself once the screen that asked for it is left: its card offers it (#3103)", async () => {
@@ -135,6 +205,7 @@ describe("the result of an export", () => {
     await ask();
     view.rerender(shell(false));
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL * 2));
+    expect(frames).toEqual([]);
     expect(followed).toEqual([]);
     const cards = screen.getByRole("region", { name: "Aboutissements des tâches" });
     expect(within(cards).getByRole("link", { name: /^Télécharger le résultat/ })).toBeVisible();
@@ -150,6 +221,7 @@ describe("the result of an export", () => {
     await ask();
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL * 2));
     expect(client.calls.filter((call) => call.route === TASK)).toHaveLength(2);
+    expect(frames).toEqual([]);
     expect(followed).toEqual([]);
   });
 });

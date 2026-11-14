@@ -285,10 +285,56 @@ describe("the cards of the ends (US-2170)", () => {
     expect(tracking(closed, { type: "card_closed", id: first?.id ?? 0 })).toBe(closed);
   });
 
-  it("leaves the cards as they are on a read that changes nothing, and forgets them on signing out", () => {
+  it("leaves the cards as they are on a read that changes nothing, and forgets them on signing out [WF-IHM-0080-A]", () => {
     const ended = following(task("task_failed"));
     expect(tracking(ended, { type: "found", tasks: [] })).toBe(ended);
     expect(tracking(ended, { type: "forget" }).cards).toEqual([]);
+  });
+
+  it("makes the card of an end before the log keeps its last ten lines, the log full [WF-IHM-0080-A]", () => {
+    let state = NOTHING_TRACKED;
+    for (let turn = 0; turn < 10; turn += 1) {
+      state = tracking(state, { type: "track", task: task("task_failed"), launch: {} });
+    }
+    expect(state.log).toHaveLength(10);
+    const full = tracking(state, {
+      type: "track",
+      task: task("task_export_succeeded"),
+      launch: {},
+    });
+    expect(full.log).toHaveLength(10);
+    expect(full.log.at(-1)?.id).toBe(11);
+    expect(full.cards.map((card) => card.id)).toEqual([11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]);
+  });
+
+  it("offers the file of a card no more once downloaded by itself, and again with the refusal the card tells, or by the entry the card closed [WF-IHM-0080-A]", () => {
+    const exported = task("task_export_succeeded");
+    const ended = following(exported);
+    const [card] = ended.cards;
+    const id = card?.id ?? 0;
+    const delivered = tracking(ended, { type: "card_delivered", id });
+    expect(delivered.cards).toEqual([{ ...card, delivered: true }]);
+    expect(delivered.log).toBe(ended.log);
+    const refusal = {
+      kind: "conflict",
+      problem: { code: "STATE_FORBIDS_OPERATION", status: 409 },
+      conflictingObjectId: null,
+    } as const;
+    const event = {
+      type: "card_refused",
+      id,
+      key: exported.task_id,
+      taskId: exported.task_id,
+      refusal,
+    } as const;
+    expect(tracking(delivered, event).cards).toEqual([{ ...card, delivered: false, refusal }]);
+    expect(tracking(ended, event).tasks).toBe(ended.tasks);
+    // The card closed: the entry of the task tells it, as the refusal of a click would.
+    const closed = tracking(ended, { type: "card_closed", id });
+    const told = tracking(closed, event);
+    expect(told.cards).toEqual([]);
+    expect(told.tasks[0]?.outcome).toBe(refusal);
+    expect(tracking(closed, { type: "card_delivered", id })).toBe(closed);
   });
 });
 

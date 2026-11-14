@@ -13,6 +13,7 @@ import type { Revision } from "@/components/context/read-only";
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { heldFrames } from "@/test/download-frames";
 import { expectAccessible } from "@/test/axe";
 import { atCommit } from "@/test/committed";
 import {
@@ -169,9 +170,13 @@ beforeEach(() => {
   router.refresh.mockClear();
   vi.useFakeTimers({ shouldAdvanceTime: true });
   window.sessionStorage.clear();
+  // The result of an export the screen asked for downloads by itself once made, by a hidden frame
+  // (#3103): held out of the document, happy-dom loading no page in a frame.
+  heldFrames();
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 

@@ -184,6 +184,19 @@ describe("the card of the end of a task", () => {
     expect(screen.queryByRole("region", { name: "Aboutissements des tâches" })).toBeNull();
   });
 
+  it("stays when « Ouvrir » opens another tab or window, a modified click [WF-IHM-0080-A]", async () => {
+    serve({ [TASK]: "task_succeeded" });
+    shell("task_mark_queued");
+    await start("task_mark_queued");
+    await tick();
+    const open = within(stack()).getByRole("link", { name: /^Ouvrir\s: / });
+    fireEvent.click(open, { ctrlKey: true });
+    fireEvent.click(open, { metaKey: true });
+    fireEvent.click(open, { shiftKey: true });
+    fireEvent.click(open, { button: 1 });
+    expect(cards()).toEqual(["Tâche terminée\u00A0: Marquage d’une révision."]);
+  });
+
   it("says the motive of a failure, and opens the screen where the treatment runs again [WF-IHM-0080-A]", async () => {
     // L'échec d'un traitement de fond est signalé avec son motif, et le même traitement peut être
     // relancé : from the screen it was started from.
@@ -216,12 +229,51 @@ describe("the card of the end of a task", () => {
     expect(screen.queryByRole("region", { name: "Aboutissements des tâches" })).toBeNull();
   });
 
-  it("stays and says why when the result is refused, downloading nothing", async () => {
+  it("stays and says why when the result is refused, downloading nothing [WF-IHM-0080-A]", async () => {
     serve({ [TASK]: { problem: { code: "NOT_FOUND", status: 404 } } });
     shell("task_export_succeeded");
     await start("task_export_succeeded");
     await userEvent.click(within(stack()).getByRole("link", { name: /^Télécharger/ }));
     expect(await within(stack()).findByRole("alert")).toHaveTextContent(/^Introuvable/);
+    expect(followed).toEqual([]);
+  });
+
+  it("gives the focus on to the next card once the download has left from the keyboard, the card gone [WF-IHM-0080-A]", async () => {
+    // The read of the marking, then the read before the download.
+    serve({ [TASK]: ["task_succeeded", "task_export_succeeded"] });
+    shell("task_mark_queued", "task_export_succeeded");
+    await start("task_mark_queued");
+    await tick();
+    await start("task_export_succeeded");
+    within(stack())
+      .getByRole("link", { name: /^Télécharger le résultat/ })
+      .focus();
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() => {
+      expect(followed).toHaveLength(1);
+    });
+    expect(cards()).toEqual(["Tâche terminée\u00A0: Marquage d’une révision."]);
+    expect(
+      within(stack()).getByRole("button", { name: /^Fermer la carte\s: Marquage d’une révision$/ }),
+    ).toHaveFocus();
+  });
+
+  it("offers the file no more once read anew and found gone, saying so, the focus on its cross [WF-IHM-0080-A]", async () => {
+    // Read without its file: served once, downloaded already (WF-DAT-0120) — the contract has no
+    // export without its file, the fake back answers a task succeeded without one, a marking.
+    serve({ [TASK]: "task_succeeded" });
+    shell("task_export_succeeded");
+    await start("task_export_succeeded");
+    const card = within(stack()).getByRole("group", { name: /^Tâche terminée\s: Export\.$/ });
+    within(card)
+      .getByRole("link", { name: /^Télécharger le résultat/ })
+      .focus();
+    await userEvent.keyboard("{Enter}");
+    expect(await within(card).findByRole("alert")).toHaveTextContent(
+      "Le résultat de cette tâche n’est plus disponible.",
+    );
+    expect(within(card).queryByRole("link", { name: /^Télécharger/ })).toBeNull();
+    expect(within(card).getByRole("button", { name: /^Fermer la carte\s: Export$/ })).toHaveFocus();
     expect(followed).toEqual([]);
   });
 
@@ -251,7 +303,7 @@ describe("the card of the end of a task", () => {
     expect(tasksButton()).toHaveAccessibleName(/^Tâches et messages\s: 2 tâches suivies/);
   });
 
-  it("has none for a follow-up interrupted, which says nothing of the task", async () => {
+  it("has none for a follow-up interrupted, which says nothing of the task [WF-IHM-0080-A]", async () => {
     serve({ [TASK]: { problem: { code: "NOT_FOUND", status: 404 } } });
     shell("task_mark_queued");
     await start("task_mark_queued");

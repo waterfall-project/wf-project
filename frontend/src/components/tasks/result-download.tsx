@@ -14,6 +14,14 @@
  * leaves by itself once the task has succeeded, when the screen that asked for the export still
  * shows (#3103, `useDownloadWhenTaskSucceeds` of the tracker): a task that ends while the user is
  * elsewhere downloads nothing by itself — its card offers it.
+ *
+ * Downloaded by itself, no gesture of the user asked for it: it never leaves nor loads the screen
+ * again, where the user may be typing. It goes by a hidden frame, which the route answers as the
+ * screen would be: the file, which the browser downloads from the frame, as it comes — never held
+ * in memory —; or, refused, the screen it was sent back to, loaded in the frame without its scripts
+ * (`sandbox`), whose address says the refusal (`readRefusal`), told by the card of the end. Not by
+ * `fetch`, which the network guard keeps to the client of the API (WF-ARC-0020), and which would hold
+ * the whole file in memory before saving it.
  */
 "use client";
 
@@ -35,7 +43,7 @@ import { rejected } from "@/components/commands/rejection";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/components/ui/utils";
 
-import { resultHref, withoutRefusal } from "./result-refusal";
+import { readRefusal, type ResultRefusal, resultHref, withoutRefusal } from "./result-refusal";
 import { type EndLine, givesFile, type TrackingEvent } from "./tracking";
 
 /**
@@ -145,7 +153,8 @@ export function DownloadResult({
 /**
  * Download the result of a task that has succeeded, the screen shown being the one it leaves from —
  * read anew first, as an offer to download is —, and only if `still` says so once the read has
- * answered: the screen that asked for it still shows. Nothing for a task without a file.
+ * answered: the screen that asked for it still shows. Nothing for a task without a file. The
+ * download gone, its card no longer offers the file, served once; refused, its card tells why.
  */
 export function downloadWhenThere(
   line: EndLine,
@@ -156,17 +165,60 @@ export function downloadWhenThere(
     return;
   }
   void checkResult(line.key, line.task, dispatch).then(({ there }) => {
-    if (there && still()) {
-      follow(resultHref(line.task.task_id, withoutRefusal(window.location)));
+    if (!there || !still()) {
+      return;
     }
+    const href = resultHref(line.task.task_id, withoutRefusal(window.location));
+    dispatch({ type: "card_delivered", id: line.id });
+    inFrame(href, (refusal) => {
+      dispatch({
+        type: "card_refused",
+        id: line.id,
+        key: line.key,
+        taskId: line.task.task_id,
+        refusal,
+      });
+    });
   });
 }
 
-/** Follow a link the screen does not show, as a click of the user would: the browser downloads. */
-function follow(href: string): void {
-  const link = document.createElement("a");
-  link.href = href;
-  document.body.append(link);
-  link.click();
-  link.remove();
+/**
+ * Download the file at an address by a hidden frame, the screen staying as it is: what the route
+ * refuses, it sends the frame back to the screen with the refusal in its address, told to `refused`.
+ * The frame runs no script — the application it would load —, keeps the origin of the screen — the
+ * session goes with the request, and its address can be read —, and may download.
+ */
+function inFrame(href: string, refused: (refusal: ResultRefusal) => void): void {
+  const frame = document.createElement("iframe");
+  frame.hidden = true;
+  frame.setAttribute("sandbox", "allow-downloads allow-same-origin");
+  frame.tabIndex = -1;
+  frame.setAttribute("aria-hidden", "true");
+  // A frame that downloads fires nothing: it goes once the download has long begun.
+  const timer = setTimeout(() => {
+    frame.remove();
+  }, FRAME_KEPT);
+  frame.addEventListener("load", () => {
+    const refusal = readRefusal(new URLSearchParams(frameSearch(frame)));
+    if (refusal === undefined) {
+      return;
+    }
+    clearTimeout(timer);
+    frame.remove();
+    refused(refusal.refusal);
+  });
+  frame.src = href;
+  document.body.append(frame);
 }
+
+/** The query of the address a frame shows, none when it cannot be read. */
+function frameSearch(frame: HTMLIFrameElement): string {
+  try {
+    return frame.contentWindow?.location.search ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/** How long a frame that downloads is kept: the download it began goes on without it. */
+const FRAME_KEPT = 5 * 60_000;

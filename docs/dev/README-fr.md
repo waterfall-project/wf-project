@@ -2716,15 +2716,22 @@ chaque échec se dit aussi par une carte flottante au coin bas droit de la fenê
 `end-cards.tsx`, US-2170), montée par la coquille au-dessus de la page, qu'elle ne déplace pas : la
 phrase de la fin, le motif d'un échec, l'action qui suit — « Télécharger » le fichier d'un export, la
 tâche relue d'abord comme depuis le panneau, sinon « Ouvrir » l'écran d'où elle est partie — et sa
-croix. Elle reste jusqu'à ce qu'on l'ouvre ou la ferme (`Tracking.cards`, que le journal tronqué ne
-touche pas) ; plusieurs s'empilent, la dernière en tête, dans une colonne bornée à la fenêtre, qui
-défile. Ce n'est pas une région vivante : le journal des fins l'annonce, sans prendre le focus, et
-l'inscrit à l'historique des messages, que le panneau garde. Un suivi interrompu n'a pas de carte ;
-une tâche retrouvée, son écran inconnu, n'a que sa croix. Fermée au clavier, le focus passe à la
-croix de la suivante, sinon de la précédente, sinon au bouton de la barre. Le fichier d'un export
-part de lui-même quand sa tâche aboutit et que l'écran qui l'a demandé est encore ouvert
-(`useDownloadWhenTaskSucceeds`, `ExportForm`, `TaskTreeExport`, #3103), la tâche relue d'abord ;
-l'écran quitté, la carte l'offre. Fermé, le panneau suit
+croix. Elle reste jusqu'à ce qu'on l'ouvre — « Ouvrir » d'un clic simple, pas d'un clic qui ouvre
+un autre onglet — ou la ferme (`Tracking.cards`, faites avant que le journal soit tronqué) ;
+plusieurs s'empilent, la dernière en tête, dans une colonne bornée à la fenêtre, qui défile. Ce
+n'est pas une région vivante : le journal des fins l'annonce, sans prendre le focus, et l'inscrit à
+l'historique des messages, que le panneau garde. Un suivi interrompu n'a pas de carte ; une tâche
+retrouvée, son écran inconnu, n'a que sa croix. Fermée — par sa croix ou par son action — alors que
+le focus était dans la pile, le focus passe à la croix de la suivante, sinon de la précédente, sinon
+au bouton de la barre. Le fichier d'un export part de lui-même quand sa tâche aboutit et que l'écran
+qui l'a demandé est encore ouvert (`useDownloadWhenTaskSucceeds`, `ExportForm`, `TaskTreeExport`,
+#3103), la tâche relue d'abord ; l'écran quitté, la carte l'offre. Parti de lui-même, sans geste de
+l'utilisateur, il ne quitte ni ne recharge jamais l'écran : il passe par un cadre caché, sans
+scripts (`sandbox`), un refus de la route lu à l'adresse où elle renvoie le cadre et dit par la carte
+(`downloadWhenThere`, `result-download.tsx`) — pas par `fetch`, que la garde du réseau réserve au
+client de l'API et qui tiendrait le fichier en mémoire. Servi une fois (WF-DAT-0120), le fichier n'est
+plus offert par la carte, qui garde sa phrase et sa croix — ni quand la relecture avant un clic le
+dit parti. Fermé, le panneau suit
 encore ses tâches — la coquille les relit (`TaskPolling`), hors des entrées — et son journal parle
 toujours, hors du panneau, ou dedans tant qu'il est ouvert, où le focus est gardé. Une relance
 refusée comme périmée (412) perd sa commande, qui le serait encore, et une relecture refusée
