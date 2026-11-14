@@ -160,8 +160,30 @@ export async function contributorsOf(
     };
     await first.put<Schemas["ContributorList"]>(path, write);
   } finally {
-    for (const manager of managers) {
-      await setActive(administrator, manager, true);
-    }
+    await reactivated(administrator, managers);
+  }
+}
+
+/**
+ * Reactivate the project managers of the witness, every one though one fails: the first failure is
+ * raised once all were tried, and a project manager left deactivated says which.
+ */
+async function reactivated(
+  administrator: ReturnType<typeof calling>,
+  managers: readonly string[],
+): Promise<void> {
+  const settled = await Promise.allSettled(
+    managers.map((manager) => setActive(administrator, manager, true)),
+  );
+  const failed = managers.flatMap((manager, index) => {
+    const outcome = settled[index];
+    return outcome?.status === "rejected" ? [{ manager, reason: outcome.reason as unknown }] : [];
+  });
+  const [first] = failed;
+  if (first !== undefined) {
+    const left = failed.map(({ manager }) => manager).join(", ");
+    throw new Error(`project managers of the witness left deactivated: ${left}`, {
+      cause: first.reason,
+    });
   }
 }
