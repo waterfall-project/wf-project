@@ -47,7 +47,7 @@ describe("the series of the roles of a stack of bars", () => {
     expect(wirer?.[rank("2027-12")]?.[1]).not.toBe("-");
   });
 
-  it("keeps the hours of the API as they are: nothing is summed, nothing is rounded [WF-DEV-0070-A]", () => {
+  it("keeps the hours of the API as they are: nothing is summed, nothing is rounded [WF-ARC-0020-A]", () => {
     const [electrician] = points(ROLES);
     const given = new Map(
       ROLES[0]?.months.map((each) => [`${each.month}-01T00:00:00Z`, each.hours]),

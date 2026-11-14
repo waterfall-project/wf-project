@@ -1232,7 +1232,7 @@ sur le planning, le devis et le reste à engager.
 
 ## US-2030 — Le plan de charge empile chaque rôle sur ses mois, même chargé sur moins de mois que les autres
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-DEV-0070-A`
 - **opérations** : `getProjectWorkload`
 - **issue** : #3105

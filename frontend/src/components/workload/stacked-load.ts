@@ -89,7 +89,8 @@ function pointOf(value: unknown): readonly unknown[] {
 
 /**
  * The tooltip of a month: the month, then each role and its hours, in the language of the
- * interface, the roles loaded that month alone — and the total of the month under them when the chart draws it.
+ * interface. It lists the roles loaded that month only.
+ * The total of the month comes under them when the chart draws it.
  */
 export function monthTooltip(
   locale: Locale,
