@@ -57,7 +57,6 @@ function navigation(
         <Navigation
           permissions={typeof session === "string" ? permissions(session) : session}
           remembered={remembered}
-          theme="default"
         />
       </SidebarProvider>
     </NextIntlClientProvider>
@@ -123,7 +122,7 @@ describe("the navigation", () => {
     const { container } = render(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
         <SidebarProvider>
-          <Navigation permissions="unreadable" remembered={undefined} theme={undefined} />
+          <Navigation permissions="unreadable" remembered={undefined} />
         </SidebarProvider>
       </NextIntlClientProvider>,
     );
@@ -199,6 +198,16 @@ describe("the navigation", () => {
       expect(link.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
       expect(link.textContent).not.toBe("");
     }
+  });
+
+  it("shows the logo in its variant for a dark ground, the bar being midnight blue in both modes", () => {
+    // US-2070: la barre latérale porte toujours le logo pour fond sombre — no source for the
+    // browser to pick by the mode of the workstation, and no mode handed to the bar.
+    render(navigation());
+    const logo = screen.getByRole("img", { name: "Waterfall" });
+    expect(logo).toHaveAttribute("src", "/waterfall_logo-dark.svg");
+    expect(logo.closest("picture")?.querySelector("source")).toBeNull();
+    expect(screen.getByRole("link", { name: "Waterfall" })).toHaveAttribute("href", "/");
   });
 
   it("offers no function whose read permission the session lacks", async () => {

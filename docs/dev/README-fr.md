@@ -4833,6 +4833,10 @@ d'US-0200 dans le fichier d'EP-14 le dit aussi) :
   jouent que sur la liste des révisions d'un projet, en clair et en sombre, aux deux largeurs
   (US-1220) ; un défaut propre à la coquille d'un autre écran — un en-tête que la page change — ne
   se verrait qu'à son audit d'axe et à son parcours au Tab, qui, eux, se jouent sur chaque écran ;
+- le panneau d'aide de chaque écran : il n'est ouvert et audité par axe que sur l'écran de
+  référence de la coquille, la liste des révisions, ses pages partageant leur rendu — un seul
+  composant, `ScreenHelp` de `help-panel.tsx`, une seule charte — ; le contenu de chaque page
+  d'aide se relit ailleurs (`help.test.ts`) (#1985, option 1, décision de l'auteur du 2026-11-14) ;
 - la liste ou le popover qu'un éditeur de cellule rendrait dans un portail hors de la cellule :
   l'audit d'un éditeur porte sur la cellule, et aucun éditeur d'aujourd'hui n'en rend un ;
 - le contenu d'un `details` fermé — le tableau des valeurs d'une courbe — et un état qu'un geste
@@ -5164,9 +5168,12 @@ deux catalogues, et nomme chaque clé qui manque et le catalogue qui la porte.
 La charte vit dans `frontend/src/theme/globals.css`, et nulle part ailleurs (hors les pages de connexion, ci-dessous) : les couleurs,
 la typographie, les espacements et les rayons y sont des jetons — des variables CSS que
 Tailwind et les composants de shadcn/ui lisent par le thème (`bg-primary`,
-`text-muted-foreground`, `rounded-md`). Les bleus viennent des logos de `docs/assets`
-(`#027dc6`, `#1195e1`), qui n'atteignent un composant que par des jetons mesurés, les
-neutres de shadcn/ui ; la police est Geist, celle du logo.
+`text-muted-foreground`, `rounded-md`). La charte est celle d'EP-25 (US-2070, d'après la maquette
+de l'auteur, #3079) : une barre latérale bleu nuit (`#0f1b2d`, l'entrée courante `#22324b`, son
+texte clair) dans les deux modes, une page gris pâle (`#f3f5f8`) sous des cartes blanches, la
+couleur primaire bleu nuit (`#14233b`) ; le mode sombre a les mêmes formes et ses propres valeurs.
+Les bleus des logos de `docs/assets` (`#027dc6`, `#1195e1`) ne servent plus qu'au logo et à
+l'anneau du focus ; la police est Geist, celle du logo.
 
 - **Clair et sombre par les mêmes jetons.** Chaque jeton de couleur porte ses deux valeurs,
   `light-dark(claire, sombre)`. Le document suit le poste (`color-scheme: light dark`) ; quand
@@ -5228,16 +5235,39 @@ neutres de shadcn/ui ; la police est Geist, celle du logo.
   du paquet `radix-ui`, un seul, examiné pour la garde réseau. Un composant qui en passe un
   autre à un composant client depuis un composant serveur lui passe un élément, jamais une
   fonction — une icône se remet dessinée (`commandIcon`).
-- **La mise en page** suit la maquette validée par l'utilisateur (EP-02, « Charte graphique ») : la
-  barre latérale est le Sidebar de shadcn/ui, repliable en rail d'icônes dont chaque entrée garde
-  son nom et le montre en infobulle ; la barre du haut porte le fil d'Ariane, la recherche, le
-  bouton du panneau des tâches et des messages et, à droite, le bouton de l'avatar qui déroule le
-  menu du compte (DropdownMenu). Un écran se construit sur le gabarit de
-  `frontend/src/components/shell/page-header.tsx` : `Screen`, son `<main>`, et `PageHeader`, le
-  titre et l'icône de sa fonction, une ligne dessous, ses commandes à droite.
-- **La densité** : les grilles et les listes sont denses — le plus d'informations sous les
-  yeux —, les écrans d'indicateurs aérés ; chaque fonction a la sienne, dans une table typée
-  (`FUNCTION_DENSITY`, `function-display.ts`), que `Screen` et `PageHeader` reçoivent.
+- **La mise en page** suit la maquette validée par l'auteur (EP-02, puis EP-25) : la barre
+  latérale est le Sidebar de shadcn/ui, sombre dans les deux modes, repliable en rail d'icônes dont
+  chaque entrée garde son nom et le montre en infobulle ; à l'intérieur, les jetons que nomment ses
+  entrées (`muted-foreground`, `primary`, `ring`…) prennent les valeurs de la barre
+  (`[data-sidebar="sidebar"]` de `globals.css`), et la tuile du choix du projet, pâle, y porte son
+  icône bleu nuit. La barre du haut, sans fond propre, est posée sur le gris de la page ; elle
+  porte le fil d'Ariane, la recherche, le bouton du panneau des tâches et des messages et, à
+  droite, le bouton de l'avatar qui déroule le menu du compte (DropdownMenu). Un écran se construit
+  sur le gabarit de `frontend/src/components/shell/page-header.tsx` : `Screen`, son `<main>`, et
+  `PageHeader`, le titre et l'icône de sa fonction, une ligne dessous, ses commandes à droite.
+- **Deux familles d'écrans, dites par `Screen`** (EP-25, #3075, #3090). Un écran de travail —
+  planning, devis, reste à engager, arbre des tâches, coûts réels, Kanban, chronologies, registre
+  des risques, journal d'audit — est serré (`dense`) et prend toute la largeur de la fenêtre, et sa
+  hauteur quand il porte une grille (`fill`) ; un écran de réglage ou de consultation — tous les
+  autres — est une colonne centrée, bornée à 96rem (`--container-column`), en densité aérée
+  (`airy`). Chaque fonction a sa famille, dans une table typée (`FUNCTION_DENSITY`, et
+  `LEAF_DENSITY` pour une feuille qui a son écran, `function-display.ts`), que `Screen` et
+  `PageHeader` reçoivent ; `function-display.test.ts` tient la liste des écrans de travail.
+  Écartées : une largeur en pourcentage, et un plafond de 72rem.
+- **Une section d'écran est une carte**, `SectionCard`
+  (`frontend/src/components/shell/section-card.tsx`, sur la `Card` de shadcn/ui) : une région
+  nommée par son titre, un titre de
+  niveau 2, ses commandes à droite du titre, puis son corps. Ses commandes passent à la ligne sous
+  le titre plutôt que de déborder : à 150 % d'agrandissement, aucune ne devient inatteignable. Un
+  écran ne compose pas sa carte lui-même.
+- **La règle des commandes** (#3088, règles 2 à 4) : une carte a au plus une commande principale,
+  la dernière à droite de son titre (`principal`), pleine quand elle crée ou déclenche, à contour
+  quand elle modifie — la carte dit ce qu'elle fait (`does`), et le bouton tire sa variante du même
+  mot (`principalVariant`) ; ses autres commandes sont à contour, comme les commandes d'un écran à
+  droite de son titre. Le plein est réservé à la commande principale : un choix courant se dit
+  autrement. `expectCommandRule` (`frontend/src/test/command-rule.ts`) la lit dans ce qu'un test a
+  rendu — un bouton est plein quand il porte les classes de la variante pleine de `buttonVariants`
+  que la variante à contour n'a pas — ; un écran recomposé en cartes l'appelle dans ses tests.
 - **Une icône Lucide sur chaque entrée de navigation, chaque bouton et chaque nature de ligne.**
   Pour les fonctions, les blocs, les commandes, les pages du compte, les natures de ligne, les modes
   de planification et les états d'avancement, elle est tirée d'une table typée sur ce qu'elle
@@ -5253,8 +5283,10 @@ neutres de shadcn/ui ; la police est Geist, celle du logo.
   page (un menu), pour l'en détacher. `src/components/ui/sobriety.test.ts` le vérifie pour les
   composants copiés. Un état se dit en mots — un badge, une pastille —, jamais par la seule couleur.
 - **Le logo et le favicon** sont les fichiers de `docs/assets`, copiés à l'octet près dans
-  `frontend/public/` et `frontend/src/app/icon.svg` ; le logo prend sa variante sombre là où
-  le mode sombre s'applique.
+  `frontend/public/` et `frontend/src/app/icon.svg`. Sur la barre latérale, sombre dans les deux
+  modes, le logo est toujours dans sa variante pour fond sombre (`BarLogo`) ; posé sur la page —
+  la barre du haut, sans barre latérale —, il prend sa variante sombre là où le mode sombre
+  s'applique (`Logo`).
 
 _Contrôles_ : `make lint-front` — `no-restricted-syntax` (`COLOUR_SYNTAX` de
 `frontend/eslint.config.mjs`) refuse, dans toute chaîne du code, une classe de couleur de la
@@ -5276,8 +5308,9 @@ happy-dom, qui ne calcule pas les couleurs). Reste à la revue : une couleur bâ
 expressions ou par une fonction, et un `style` ou un attribut de SVG qui reçoit une variable plutôt
 qu'un objet ou un littéral écrit sur place ; et, pour la mise en page, qu'un bouton ou une entrée
 porte son icône hors des tables typées — un bouton écrit à la main —, qu'aucune ombre, aucun dégradé
-ni aucune animation n'orne un composant copié, qu'un écran prenne le gabarit et la densité de sa
-fonction, et qu'un composant copié n'entre qu'avec l'écran qui l'emploie.
+ni aucune animation n'orne un composant copié, qu'un écran prenne le gabarit et la famille de sa
+fonction, que ses sections soient des cartes et que ses tests appellent `expectCommandRule`, et
+qu'un composant copié n'entre qu'avec l'écran qui l'emploie.
 
 **Les pages de connexion.** Keycloak sert les siennes, et aucun fichier du front : le thème
 `waterfall` (`deploy/keycloak/themes/waterfall/login/`) les habille de la charte par sa propre

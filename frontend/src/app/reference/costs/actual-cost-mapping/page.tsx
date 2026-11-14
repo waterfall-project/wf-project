@@ -17,7 +17,7 @@ import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { platformOffer } from "@/components/commands/offer";
 import { ActualCostMapping } from "@/components/reference/actual-cost-mapping";
-import { FUNCTION_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
+import { LEAF_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { requestSession } from "@/session/request";
 
@@ -35,7 +35,7 @@ function MappingHeader() {
     <PageHeader
       title={t("actualCostMapping")}
       icon={LEAF_ICONS["FBS-3.1.3"]}
-      density={FUNCTION_DENSITY.cost_settings}
+      density={LEAF_DENSITY["FBS-3.1.3"]}
     />
   );
 }
@@ -48,7 +48,7 @@ export default async function ActualCostMappingPage() {
   ]);
   const writes = platformOffer(session?.permissions, "cost_settings") !== undefined;
   return (
-    <Screen density={FUNCTION_DENSITY.cost_settings}>
+    <Screen density={LEAF_DENSITY["FBS-3.1.3"]}>
       <MappingHeader />
       <ActualCostMapping mapping={mapping} writes={writes} />
     </Screen>

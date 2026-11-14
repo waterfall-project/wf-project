@@ -17,7 +17,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { ContextBanner } from "@/components/context/context-banner";
-import { FUNCTION_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
+import { LEAF_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
 import { exportOffers } from "@/components/exchanges/offers";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import {
@@ -100,11 +100,11 @@ function TaskTreeScreen({
 }) {
   const t = useTranslations();
   return (
-    <Screen density={FUNCTION_DENSITY.planning}>
+    <Screen density={LEAF_DENSITY["FBS-4.3.5"]}>
       <PageHeader
         title={t("functions.taskTree")}
         icon={LEAF_ICONS["FBS-4.3.5"]}
-        density={FUNCTION_DENSITY.planning}
+        density={LEAF_DENSITY["FBS-4.3.5"]}
         subtitle={t("taskTree.summary")}
         actions={
           <div className="flex flex-wrap items-start gap-2">
