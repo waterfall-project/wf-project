@@ -144,6 +144,8 @@ const TEXTS: readonly [string, string][] = [
   ),
   // The word of the state of a project, on the fill of its badge (#523, WF-IHM-0100).
   ...Object.values(STATES).map((state): [string, string] => [`${state}-foreground`, state]),
+  // The text of a cell of a table, on the card its cells are set on (#3277).
+  ["foreground", "card"],
   // The text of a row under the pointer: the label, the muted number, a signal (US-2080).
   ["foreground", "row-hover"],
   ["muted-foreground", "row-hover"],
@@ -194,6 +196,11 @@ const CONTROLS: readonly [string, string][] = [
   ["active-mark", "row-hover"],
   ["ring", "row-hover"],
   ["input", "row-hover"],
+  // The border of a command of a row (the variant `row` of `Button`), on the card the cells of a
+  // table are set on, on a row under the pointer and on a row selected (#3332, WCAG 1.4.11).
+  ["row-command-border", "card"],
+  ["row-command-border", "row-hover"],
+  ["row-command-border", "accent"],
   // The line under the current tab of a row of tabs (`Tabs`), on the page and on a card (US-2070).
   ["primary", "background"],
   ["primary", "card"],
