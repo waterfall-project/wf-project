@@ -3,7 +3,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import type { ReactNode } from "react";
+import { type ReactNode, useCallback, useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
@@ -45,8 +45,14 @@ vi.mock("@/components/commands/held", async (original) => {
     ...actual,
     useHeldCommand: (...args: Parameters<typeof actual.useHeldCommand>) => {
       const real = actual.useHeldCommand(...args);
-      return ((...asked: Parameters<typeof real>) =>
-        lost.on ? Promise.reject(new Error("lost")) : real(...asked)) as typeof real;
+      // Stable as the real hook's: a function renewed at each render is no command of the screen.
+      const latest = useRef(real);
+      latest.current = real;
+      return useCallback(
+        (...asked: Parameters<typeof real>) =>
+          lost.on ? Promise.reject(new Error("lost")) : latest.current(...asked),
+        [],
+      ) as typeof real;
     },
   };
 });
@@ -597,8 +603,9 @@ describe("the writes of a same role, one at a time (#2261)", () => {
     expect(cell("Administrateur")).not.toHaveAttribute("aria-disabled");
   });
 
-  it("frees a role whose confirmed deletion rejects, its row, label, cells and « Supprimer » active again [WF-ADM-0010-A]", async () => {
-    // Nothing catches this rejection: it must not leave the role writing for good (#2898).
+  it("tells a confirmed deletion that rejects as a failure of the screen, unhandled by none, and frees the role, its row, label, cells and « Supprimer » active again [WF-ADM-0010-A]", async () => {
+    // A rejection must not leave the role writing for good (#2898), nor go unhandled (#3111): the
+    // screen tells it as a failure of its own.
     serve({ [DELETED]: { status: 204 }, [WRITTEN]: "access_role_updated" });
     const shown = permissions.filter(({ code }) => code === "planning.write");
     render(inFrench(tableAndMatrix(shown)));
@@ -616,11 +623,12 @@ describe("the writes of a same role, one at a time (#2261)", () => {
       await userEvent.click(within(confirmation).getByRole("button", { name: "Supprimer" }));
       remove = within(grid).getByRole("button", { name });
       await waitFor(() => {
-        expect(unhandled).toHaveLength(1);
-      });
-      await waitFor(() => {
         expect(remove).toHaveAttribute("aria-busy", "false");
       });
+      // Let a rejection nobody listens to reach the process before it is counted.
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(unhandled).toEqual([]);
+      expect(await screen.findByText("Erreur inattendue du service.")).toBeInTheDocument();
     } finally {
       process.removeAllListeners("unhandledRejection");
       for (const listener of listeners) {

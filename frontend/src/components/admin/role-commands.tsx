@@ -34,6 +34,7 @@ import type { components } from "@/api/generated/schema";
 import { useHeldCommand } from "@/components/commands/held";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { useNoteRefusal } from "@/components/commands/outcome-notice";
+import { rejected } from "@/components/commands/rejection";
 import { parsedEntry } from "@/components/grid/cell-values";
 import { useSaid } from "@/components/notices/said";
 import { CellCommand } from "@/components/reference/cell-command";
@@ -130,7 +131,10 @@ function Deletion({ children }: { readonly children: ReactNode }) {
     // The reading the role is deleted from: its refusal is told on it alone.
     const generation = list?.generation ?? 0;
     answers?.begin(id);
+    // A command that rejects, though the hold catches the rejections of the action: told as the
+    // screen of failure tells it, never left unhandled (#3111).
     void held(deleteAccessRole(id, role.lock_version))
+      .catch(rejected)
       .then((outcome) => {
         if (outcome.kind === "done") {
           say?.(t("deleted", { name: role.label }));
