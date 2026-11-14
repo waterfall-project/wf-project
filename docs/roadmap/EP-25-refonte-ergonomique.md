@@ -312,6 +312,24 @@ répertoire, et les écrans par domaine, une fois l'écran de référence valid�
    des migrations et le fuseau qu'elle montre, après US-2100 et US-2110 qui lui laissent le nom de
    l'entreprise.
 
+**Les constats des revues des lots livrés** (US-2080/L4 #3347, décision de l'auteur du
+2026-11-14). Les revues locales des lots fusionnés des vagues 1 et 2 ont laissé seize constats
+« à trancher » sur des composants communs, que les lots d'écran ne corrigent pas (« Un lot d'écran
+ne touche que ses fichiers ») : le fond des cellules sur la carte (#3277) et le bord des commandes
+de ligne (#3332), la colonne étirée et les parcours de la grille (#3280, #3281, #3282, #3286,
+#3287), l'annulation (#3265, #3272), le squelette de chargement (#3269), la fin d'un traitement
+dite deux fois (#3292) et le cadre caché du téléchargement (#3298), les champs écrits à la main
+hors des pilules (#3259), un parcours intermittent des coûts (#3266) et deux retouches de tests
+ou de commentaires (#3273, #3293). Un lot de correction les solde, rangé sous US-2080 sans
+critère nouveau, prêt dès son ouverture et lancé avant que l'auteur juge l'écran de référence
+(#3196), dont il change les cellules et le bord des commandes. Il est « pas avec » les lots qui
+touchent ses fichiers : US-2090, US-2110/L2, US-2130/L3, US-2130/L4, US-2140/L1, US-2150/L2.
+Tranchés par l'auteur : le bord des commandes de ligne atteint 3:1 dans les deux modes, mesuré
+par `contrast.test.ts` ; la ligne sous la barre ne dit plus une fin que la carte d'aboutissement
+porte ; les champs écrits à la main passent aux composants communs dans ce lot plutôt que dans
+les couloirs. Écarté : #3291, la forme de citation d'un critère propre à une US, règle commune
+de la chaîne, reporté → EP-28.
+
 ### Décisions
 
 - **Le catalogue ne met pas deux lots « pas avec ».** Les catalogues n'ont qu'un fichier par
