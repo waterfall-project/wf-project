@@ -15,6 +15,19 @@ import {
   samePosition,
 } from "./grid-keyboard";
 
+/**
+ * The row of the body a cell is in, which the pointer tints (`ROW_HOVER`): a group, named so that
+ * nothing else of the grid answers to it.
+ */
+export const BODY_ROW = "group/row";
+
+/**
+ * The background of a cell of the body on the page, tinted slightly while the pointer is over its row
+ * (US-2080, #3075). A cell computed keeps its shade, a row selected or marked by a difference its
+ * tint: their selectors weigh more than this class.
+ */
+export const ROW_HOVER = "bg-background group-hover/row:bg-row-hover";
+
 /** What a cell of the body is doing: active, entered, written, its refusal shown. */
 export interface CellState {
   readonly active: boolean;

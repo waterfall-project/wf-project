@@ -57,7 +57,7 @@ import {
 import { TableCell } from "@/components/ui/table";
 import { cn } from "@/components/ui/utils";
 
-import { cellAttributes, type CellState, cellKeys } from "./cell-attributes";
+import { cellAttributes, type CellState, cellKeys, ROW_HOVER } from "./cell-attributes";
 import { ROW_NUMBER_KEY } from "./columns";
 import { type CellPosition, type Cursor, HEADER_ROW, positionOf } from "./grid-keyboard";
 import type { RowDragging, RowMoved } from "./undo-commands";
@@ -766,7 +766,7 @@ export function selectedRow(selected: boolean | undefined, drop: DropPlace | und
 
 /** The classes of the handle of a row, narrower in its padding for its mark and its number. */
 const HANDLE_CELL =
-  "overflow-hidden bg-background px-1 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
+  "overflow-hidden px-1 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
 
 /** A cell that tells no key of the folding. */
 const NO_FOLD = { folds: false, keys: undefined };
@@ -811,7 +811,7 @@ export function HandleCell({
       aria-label={name(number ?? 0)}
       aria-describedby={hint}
       style={{ left: pinning.left }}
-      className={cn(HANDLE_CELL, pinning.className)}
+      className={cn(HANDLE_CELL, ROW_HOVER, pinning.className)}
     >
       <span
         className={cn(

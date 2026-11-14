@@ -1017,9 +1017,21 @@ pas la fenêtre là où il l'a dessous (`fillWide`, `lg:min-h-0`), de même que 
 référentiel des ressources et des coûts, qui empilent leurs grilles, ne la remplissent pas : la
 grille déborderait sur lui (#1033). `frontend/e2e/grid-frame.spec.ts` le mesure sur les neuf écrans
 qui remplissent la fenêtre, dans une fenêtre basse, aux deux largeurs du harnais : le cadre ne
-chevauche rien. La barre et le bouton « Colonnes » ont la largeur du cadre de la table, telle que le
-navigateur la pose (barres de défilement comprises, `frame-width.ts`), sans la dépasser, et jamais
-moins que ce que la barre tient sur une ligne (`min-w-min`, la recherche rétrécissant avant que rien
+chevauche rien. La largeur d'une table est du CSS, sans mesure en script (`table-width.ts`, US-2080,
+#3075) : le cadre a la largeur de sa carte, la table la plus grande de la carte et de la somme de ses
+colonnes, et la colonne du libellé (`label`) — à défaut, la dernière avant une colonne figée à la
+fin — prend ce que les autres laissent, la largeur choisie pour elle devenant son minimum : sa
+poignée et ses flèches règlent ce minimum, sans que la colonne rétrécisse sous ce que la carte lui
+donne. Elle n'est plus large que sa largeur que quand la table ne défile pas de côté : les décalages
+des colonnes figées, tirés des largeurs choisies, restent justes. Aucun trait entre les colonnes,
+sauf à côté d'une colonne figée ; la ligne sous le pointeur est teinte d'un jeton (`--row-hover`,
+`ROW_HOVER`), qu'une cellule calculée, une ligne choisie ou marquée d'un différentiel gardent sous
+leur propre teinte. Dans la ligne de total, le libellé du nombre s'étend sur les colonnes sans
+chiffre qui le suivent (`colSpan`) au lieu de se tronquer ; figé, il ne reste collé que sur les
+colonnes figées, ses mots au début de sa colonne (#3072). Les tables simples (`ui/table.tsx`) ont
+le texte, l'en-tête et l'absence de traits des grilles. La barre et le bouton « Colonnes » ont la
+largeur du cadre, celle de ce qui les tient, sans la dépasser, et jamais moins que ce que la barre
+tient sur une ligne (`min-w-min`, la recherche rétrécissant avant que rien
 ne s'enroule, hors la liste de commandes d'un écran, qui s'enroule d'elle-même) ; les avis — refus,
 collage appliqué, colonnes non montrées, problème de saisie — gardent toute la largeur (#1042).
 Colonnes masquées, largeurs et tri sont une préférence d'affichage (`settings.ts`, WF-IHM-0060) :
