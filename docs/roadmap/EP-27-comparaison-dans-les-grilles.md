@@ -29,7 +29,9 @@ l'adresse entre les trois grilles (#3178, WF-IHM-0020, WF-IHM-0010) ;
 - les marques des lignes et des cellules, les colonnes d'écart, les totaux de la révision lue et de
 la base, le repli des branches sans écart (#3179, WF-IHM-0150 à WF-IHM-0170) ;
 - l'écran « Révisions » réduit à l'historique et à ses commandes (#3177), et le sort des structures
-et de la mise à jour des taux qu'il porte (#3180) ;
+et de la mise à jour des taux qu'il porte (#3180) ; la désignation de la référence en colonne de
+l'historique, que #3090 laissait à trancher, s'y décide — EP-25 n'a mis que ses sections en cartes
+(US-2130 ; décision de l'auteur du 2026-11-14, au cadrage d'EP-25) ;
 - le parcours de la comparaison de PRJ-001, en quarantaine contre le service, réécrit sur les
 grilles et rejoué (#3192).
 
