@@ -41,7 +41,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatPlanningDate } from "@/i18n/format";
 
-import { today } from "./address";
+import { useToday } from "@/installation/time-zone";
+
 import { type CardGesture, type KanbanCard, remainingHref } from "./kanban-cards";
 
 type KanbanCommand = components["schemas"]["KanbanCommand"];
@@ -281,7 +282,7 @@ function EventDate({
   const t = useTranslations("kanban");
   const command = useTranslations("enums.KanbanCommand")(gesture.command);
   const id = useId();
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState(useToday());
   const [missing, setMissing] = useState(false);
   return (
     <form
