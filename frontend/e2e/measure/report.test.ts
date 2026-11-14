@@ -23,6 +23,15 @@ function record(fields: Record<string, unknown>): string {
   return JSON.stringify({ event: "request.completed", level: "info", ...fields });
 }
 
+/** The account of a user of the measure, and that of the client of `getMe`. */
+const USER = "01926f3a-7c00-7000-8000-000000000901";
+const PROBE = "01926f3a-7c00-7000-8000-000000000999";
+
+/** A request the API answered for an account, from its start to its end. */
+function answered(start: number, end: number, actor = USER, path = "/api/v1/projects") {
+  return { start, end, actor, method: "GET", path, status: 200 };
+}
+
 describe("covered", () => {
   it("counts each instant once, overlapping spans merged, within the window alone", () => {
     const window = { start: 100, end: 200 };
@@ -49,11 +58,8 @@ describe("partsOf", () => {
       // Outside the step: neither its time nor its bytes count.
       { start: 2_100, end: 2_200, bytes: 9_999, prefetch: false },
     ];
-    const api = [
-      { start: 1_050, end: 1_250 },
-      { start: 1_100, end: 1_300 },
-    ];
-    expect(partsOf(step, front, api)).toEqual({
+    const api = [answered(1_050, 1_250), answered(1_100, 1_300)];
+    expect(partsOf(step, front, api, USER)).toEqual({
       usable: 1_000,
       api: 250,
       next: 390 + 100 - 250,
@@ -70,7 +76,7 @@ describe("partsOf", () => {
       // The links of the grid hydrated, prefetching the screens they lead to: for a step to come.
       { start: 1_900, end: 2_050, bytes: 50_000, prefetch: true },
     ];
-    expect(partsOf({ start: 1_000, end: 2_000 }, front, [])).toMatchObject({
+    expect(partsOf({ start: 1_000, end: 2_000 }, front, [], USER)).toMatchObject({
       next: 300 + 100,
       browser: 600,
       bytes: 8_000,
@@ -78,8 +84,16 @@ describe("partsOf", () => {
   });
 
   it("counts a request of the API that Next made outside any answer to the browser in the server's part", () => {
-    const parts = partsOf({ start: 0, end: 100 }, [], [{ start: 10, end: 40 }]);
+    const parts = partsOf({ start: 0, end: 100 }, [], [answered(10, 40)], USER);
     expect(parts).toMatchObject({ api: 30, next: 0, browser: 70 });
+  });
+
+  it("leaves out the requests of another account, the client of getMe's among them", () => {
+    const api = [answered(10, 40), answered(20, 90, PROBE, "/api/v1/me")];
+    const parts = partsOf({ start: 0, end: 100 }, [], api, USER);
+    expect(parts).toMatchObject({ api: 30, next: 0, browser: 70, apiRequests: 1 });
+    const reports = stepReports(["open"], [{ step: "open", pass: 0, parts }], 1);
+    expect(reports.open).toMatchObject({ api_ms: { median: 30 }, api_requests: { median: 1 } });
   });
 });
 
@@ -97,7 +111,7 @@ describe("failedRequest", () => {
     const failed = failedRequest(0, 1_190, 1_500, true);
     expect(failed).toEqual({ start: 1_190, end: 1_500, bytes: 0, prefetch: true });
     // Within a step after it, a prefetch given up before its headers costs that step nothing.
-    expect(partsOf({ start: 1_000, end: 1_100 }, [failed], []).next).toBe(0);
+    expect(partsOf({ start: 1_000, end: 1_100 }, [failed], [], USER).next).toBe(0);
   });
 
   it("covers nothing for a request failed before any answer whose asking was not kept", () => {
@@ -223,9 +237,10 @@ describe("getMe", () => {
     expect(getMeDurations(requests, { start: 0, end: 100 })).toEqual([20, 20]);
   });
 
-  it("reports getMe at the API and as a client asked it", () => {
-    expect(getMeReport({ api: [[10, 30], [20]], roundTrip: [[15], [25]] })).toEqual({
+  it("reports getMe at the API and as its client asked it, and the askings it lost", () => {
+    expect(getMeReport({ api: [[10, 30], [20]], roundTrip: [[15], [25]], lost: 1 })).toEqual({
       samples: 3,
+      lost: 1,
       api_ms: { median: 20, worst: 30, spread: 0 },
       round_trip_ms: { median: 20, worst: 25, spread: 10 },
     });

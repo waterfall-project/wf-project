@@ -108,17 +108,18 @@ export function covered(spans: readonly Interval[], window: Interval): number {
 
 /**
  * Where the time of a step went: the requests the browser made of Next within it, and those the
- * API answered for the account of its user.
+ * API answered for the account of its user, `actor` — no other's, the client of `getMe` included.
  */
 export function partsOf(
   step: Interval,
   front: readonly FrontRequest[],
-  api: readonly Interval[],
+  api: readonly ApiRequest[],
+  actor: string,
 ): StepParts {
   const usable = step.end - step.start;
   const ownFront = front.filter((request) => meets(request, step));
   const answered = ownFront.filter((request) => !request.prefetch || request.start < step.start);
-  const ownApi = api.filter((request) => meets(request, step));
+  const ownApi = api.filter((request) => request.actor === actor && meets(request, step));
   const served = covered([...ownFront, ...ownApi], step);
   const apiPart = covered(ownApi, step);
   return {
@@ -293,23 +294,30 @@ export function stepReports(
   );
 }
 
-/** The durations of `getMe` a level saw, by pass: at the API, and as a client asked it. */
+/**
+ * The durations of `getMe` a level saw, by pass: at the API, and as its client asked it; and how
+ * many times its client got no answer of success.
+ */
 export interface GetMeSamples {
   readonly api: readonly (readonly number[])[];
   readonly roundTrip: readonly (readonly number[])[];
+  readonly lost: number;
 }
 
 /** What the report says of `getMe` at a number of users. */
 export interface GetMeReport {
   readonly samples: number;
+  /** How many times the client of `getMe` got no answer of success: none in a sound run. */
+  readonly lost: number;
   readonly api_ms: Statistic;
   readonly round_trip_ms: Statistic;
 }
 
 /** The report of `getMe` at a level. */
-export function getMeReport({ api, roundTrip }: GetMeSamples): GetMeReport {
+export function getMeReport({ api, roundTrip, lost }: GetMeSamples): GetMeReport {
   return {
     samples: api.flat().length,
+    lost,
     api_ms: statisticOf(api),
     round_trip_ms: statisticOf(roundTrip),
   };

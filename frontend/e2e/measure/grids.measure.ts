@@ -14,8 +14,9 @@
  * grids of each account find their default settings again (`resetGridPreferences`): a filter or a
  * sort is kept in the preferences of the account, and the next pass would start from it. The users
  * of a level start each pass together. Meanwhile, `getMe` is asked of the API once a second by a
- * client of its own, as the token of the first user, and every `getMe` the API answers within the
- * pass is read from its log.
+ * client of its own, with an account of its own that plays no journey — its requests enter no
+ * step —, its token asked again before the realm lets it expire, and every `getMe` the API answers
+ * within the pass is read from its log; an asking that gets no answer of success is counted lost.
  *
  * The report, a JSON whose form `report.ts` declares (`MeasureReport`), is written where `make
  * measure` says (`E2E_MEASURE_REPORT`): for each level, each step, the median, the worst and the
@@ -55,6 +56,7 @@ import {
   STEPS,
   type Target,
   targets,
+  type Timed,
 } from "./steps";
 
 /** A whole number of 1 or more the environment names, or its default. */
@@ -80,26 +82,60 @@ const USERS = Math.max(...LEVELS);
 /** How often the client of `getMe` asks it, in milliseconds. */
 const GET_ME_EVERY = 1_000;
 
-/** Ask `getMe` as a user once a second until stopped; the round trips, in milliseconds. */
-function probeGetMe(request: APIRequestContext, token: string) {
+/**
+ * How old the token of the client of `getMe` may grow before it is asked again: the realm gives it
+ * five minutes, and a pass at eight users may last longer.
+ */
+const TOKEN_RENEWED_AFTER = 4 * 60_000;
+
+/** The token of an account, asked again once it grows old. */
+function freshToken(browser: Browser, person: LocalPerson): () => Promise<string> {
+  let kept: { token: string; obtained: number } | undefined;
+  return async () => {
+    if (kept === undefined || Date.now() - kept.obtained > TOKEN_RENEWED_AFTER) {
+      kept = { token: await frontToken(browser, person), obtained: Date.now() };
+    }
+    return kept.token;
+  };
+}
+
+/** What the client of `getMe` saw in a pass: its round trips, in milliseconds, and its losses. */
+interface Probed {
+  readonly roundTrips: number[];
+  /** The askings that got no answer of success: an error, or no answer at all. */
+  readonly lost: number;
+}
+
+/** Ask `getMe` as the account of the client once a second until stopped. */
+function probeGetMe(
+  request: APIRequestContext,
+  token: () => Promise<string>,
+): () => Promise<Probed> {
   const roundTrips: number[] = [];
-  const state = { stopped: false };
+  const state = { stopped: false, lost: 0 };
   const asking = (async () => {
     while (!state.stopped) {
-      const asked = performance.now();
-      const answer = await request.get(`${API}/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (answer.ok()) {
-        roundTrips.push(performance.now() - asked);
+      try {
+        const bearer = await token();
+        const asked = performance.now();
+        const answer = await request.get(`${API}/me`, {
+          headers: { Authorization: `Bearer ${bearer}` },
+        });
+        if (answer.ok()) {
+          roundTrips.push(performance.now() - asked);
+        } else {
+          state.lost += 1;
+        }
+      } catch {
+        state.lost += 1;
       }
       await new Promise((resolve) => setTimeout(resolve, GET_ME_EVERY));
     }
   })();
-  return async (): Promise<number[]> => {
+  return async () => {
     state.stopped = true;
     await asking;
-    return roundTrips;
+    return { roundTrips, lost: state.lost };
   };
 }
 
@@ -144,7 +180,8 @@ function logged(level: LevelReport): void {
   }
   console.log(
     `${String(level.users)} user(s), getMe: ${String(level.get_me.api_ms.median)} ms at the API` +
-      ` (worst ${String(level.get_me.api_ms.worst)}), ${String(level.get_me.samples)} answered`,
+      ` (worst ${String(level.get_me.api_ms.worst)}), ${String(level.get_me.samples)} answered,` +
+      ` ${String(level.get_me.lost)} lost by its client`,
   );
 }
 
@@ -165,8 +202,9 @@ test("measures the journey of the grids against the service, at one, four and ei
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   try {
     await administratorReady(browser);
-    const users = await measureUsers(browser, calls, USERS);
+    const { users, probe } = await measureUsers(browser, calls, USERS);
     await contributorsOf(browser, calls, PROJECT, users);
+    const probeToken = freshToken(browser, probe);
     const offset = await clockOffset(calls, api);
     const players = await signedIn(browser, users, origin);
     const [first] = players;
@@ -181,28 +219,30 @@ test("measures the journey of the grids against the service, at one, four and ei
       const target = written[index];
       return person === undefined || target === undefined ? [] : [{ person, player: one, target }];
     });
-    const [lead] = team;
-    if (lead === undefined) {
-      throw new Error("no user to play the journey");
-    }
     const levels: LevelReport[] = [];
     for (const count of LEVELS) {
       const playing = team.slice(0, count);
       const samples: Sample[] = [];
-      const getMe: { api: number[][]; roundTrip: number[][] } = { api: [], roundTrip: [] };
+      const getMe = { api: [] as number[][], roundTrip: [] as number[][], lost: 0 };
       for (let pass = -1; pass < PASSES; pass += 1) {
         console.log(`${String(count)} user(s), pass ${pass < 0 ? "unmeasured" : String(pass + 1)}`);
         for (const { person } of playing) {
           await resetGridPreferences(browser, calls, person);
         }
-        const stop = probeGetMe(calls, await frontToken(browser, lead.person));
+        await probeToken();
+        const stop = probeGetMe(calls, probeToken);
         const from = Date.now();
-        const timed = await Promise.all(
-          playing.map(({ player: one, target }) =>
-            journey(one, target, `${String(count)}u${String(pass)}`),
-          ),
-        );
-        const roundTrips = await stop();
+        let timed: Timed[][];
+        let probed: Probed;
+        try {
+          timed = await Promise.all(
+            playing.map(({ player: one, target }) =>
+              journey(one, target, `${String(count)}u${String(pass)}`),
+            ),
+          );
+        } finally {
+          probed = await stop();
+        }
         const to = Date.now();
         if (pass < 0) {
           continue;
@@ -210,17 +250,17 @@ test("measures the journey of the grids against the service, at one, four and ei
         await Promise.all(playing.map(({ player: one }) => one.drained()));
         const answered = apiAnswered(from, to, offset);
         playing.forEach(({ person, player: one }, index) => {
-          const own = answered.filter((request) => request.actor === person.id);
           for (const { step, span } of timed[index] ?? []) {
             samples.push({
               step,
               pass,
-              parts: span === undefined ? undefined : partsOf(span, one.front, own),
+              parts: span === undefined ? undefined : partsOf(span, one.front, answered, person.id),
             });
           }
         });
         getMe.api.push(getMeDurations(answered, { start: from, end: to }));
-        getMe.roundTrip.push(roundTrips);
+        getMe.roundTrip.push(probed.roundTrips);
+        getMe.lost += probed.lost;
         console.log(
           `${String(count)} user(s), pass ${String(pass + 1)} read: ${String(to - from)} ms`,
         );

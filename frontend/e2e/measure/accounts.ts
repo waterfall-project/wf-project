@@ -80,12 +80,23 @@ function calling(request: APIRequestContext, token: string) {
   };
 }
 
-/** Make the users of the measure, each with its roles; the first holds the settings of projects. */
+/** The accounts of the measure: the users who play the journey, and the one that asks `getMe`. */
+export interface MeasureAccounts {
+  /** Each with its roles; the first holds the settings of projects. */
+  readonly users: readonly LocalPerson[];
+  /**
+   * The account of the client of `getMe`: without any role, never a contributor, it plays no
+   * journey, and its requests, which the log of the API writes under its own actor, enter no step.
+   */
+  readonly probe: LocalPerson;
+}
+
+/** Make the users of the measure, each with its roles, and the account of the client of `getMe`. */
 export async function measureUsers(
   browser: Browser,
   request: APIRequestContext,
   count: number,
-): Promise<LocalPerson[]> {
+): Promise<MeasureAccounts> {
   const administrator = await accountAdministrator(browser, request);
   const users: LocalPerson[] = [];
   for (let made = 0; made < count; made += 1) {
@@ -96,7 +107,7 @@ export async function measureUsers(
     );
     users.push(user);
   }
-  return users;
+  return { users, probe: await localAccount(browser, administrator) };
 }
 
 /** Deactivate or reactivate an account, as the administrator, at the version read. */
