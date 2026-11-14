@@ -118,6 +118,30 @@ test("a local account, an account of the directory and one of the external provi
   }
 });
 
+test("a person new to an external provider, who holds no role, signs in to the home and reads that she needs a role, with no link to a function; she stays on the home [WF-IHM-0120-A]", async ({
+  browser,
+  request,
+}) => {
+  const external = await newToTheProvider(request);
+  try {
+    const page = await workstation(browser);
+    await signIn(page, external, "/");
+    expect(waterfallAccount(external.email)?.roles).toBe(0);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Aucun projet à ouvrir" }),
+    ).toBeVisible();
+    await expect(page.getByRole("main")).toContainText("Votre compte n’a pas encore de rôle");
+    await expect(page.getByRole("navigation", { name: "Fonctions de votre compte" })).toHaveCount(
+      0,
+    );
+    await expect(page.getByRole("main").getByRole("link")).toHaveCount(0);
+    await expect(page).toHaveURL("/");
+    await page.context().close();
+  } finally {
+    await removeFromTheProvider(request, external);
+  }
+});
+
 // The guard of the paths: an account given the role of the administration, held already with both
 // its permissions whatever the paths ask, would lift the refusals of `roles.spec.ts`.
 test("the administrator of the paths gives no account a role that holds both permissions of the administration, the role held already included: refused before the role is written (#879)", async () => {

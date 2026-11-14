@@ -145,7 +145,7 @@ describe("the screen of failure", () => {
     }
   });
 
-  it("offers a read the API refused for want of a session the sign-in page, and goes nowhere by itself", async () => {
+  it("offers a read the API refused for want of a session the sign-in page, and goes nowhere by itself [WF-SEC-0020-A]", async () => {
     const { container } = inLanguage(
       <SystemFailure error={forwarded(SESSION_REQUIRED_DIGEST)} retry={vi.fn()} />,
     );

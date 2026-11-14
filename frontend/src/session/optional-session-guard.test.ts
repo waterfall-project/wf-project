@@ -3,7 +3,7 @@
 /*
  * The reads that go without a session cookie (`serverClient({ session: "optional" })`) are those of
  * the shell and no other: a screen that asked for it would not lead to the sign-in page when it has
- * no session (WF-SEC-0020, #2914). The option appears in these two modules alone.
+ * no session (WF-SEC-0020-A, #2914). The option appears in these two modules alone.
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -20,7 +20,7 @@ function sources(): string[] {
     .filter((file) => file !== "api/server.ts" && !file.startsWith("api/generated/"));
 }
 
-describe("the reads without a session (WF-SEC-0020, #2914)", () => {
+describe("the reads without a session (WF-SEC-0020-A, #2914)", () => {
   it("are asked for by the account of the layout and the language alone", () => {
     const asking = sources().filter((file) =>
       /session:\s*["']optional["']/.test(readFileSync(join(SRC, file), "utf8")),

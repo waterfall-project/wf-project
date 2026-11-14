@@ -61,6 +61,34 @@ describe("the home of an account that opens no project [WF-IHM-0120-A] #2915", (
     await expectAccessible(container);
   });
 
+  it("leads an account that holds users.read to the management of the users", () => {
+    inLanguage(
+      <NoOpenableProject permissions={["users.read"]} hasRole readiness={COMPLETE} />,
+      "fr",
+    );
+    expect(
+      within(screen.getByRole("navigation", { name: "Fonctions de votre compte" })).getByRole(
+        "link",
+        { name: "Gestion des utilisateurs" },
+      ),
+    ).toHaveAttribute("href", "/admin/users");
+  });
+
+  it("says that a role is missing to an account without role, whatever permissions it is handed", () => {
+    inLanguage(
+      <NoOpenableProject permissions={["audit_log.read"]} hasRole={false} readiness={COMPLETE} />,
+      "en",
+    );
+    expect(screen.getByText(/has no role yet/)).toBeVisible();
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("says that a role is missing to an account with a role that gives no permission", () => {
+    inLanguage(<NoOpenableProject permissions={[]} hasRole readiness={COMPLETE} />, "en");
+    expect(screen.getByText(/has no role yet/)).toBeVisible();
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
   it("does not say a role is missing to an account that holds functions of a project only", async () => {
     const { container } = inLanguage(
       <NoOpenableProject permissions={["planning.read"]} hasRole readiness={COMPLETE} />,

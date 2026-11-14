@@ -55,12 +55,21 @@ vi.mock("@/components/projects/project-list-view", async (original) => {
     },
   };
 });
-vi.mock("next/navigation", async (original) => ({
-  ...(await original<typeof import("next/navigation")>()),
-  useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
-  usePathname: () => "/",
-  useSearchParams: () => new URLSearchParams(),
-}));
+// `redirect` as Next has it, which the tests of the home that leads nowhere watch.
+const redirected = vi.hoisted(() => ({ calls: 0 }));
+vi.mock("next/navigation", async (original) => {
+  const actual = await original<typeof import("next/navigation")>();
+  return {
+    ...actual,
+    redirect: ((...args: Parameters<typeof actual.redirect>) => {
+      redirected.calls += 1;
+      return actual.redirect(...args);
+    }) as typeof actual.redirect,
+    useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
+    usePathname: () => "/",
+    useSearchParams: () => new URLSearchParams(),
+  };
+});
 // The session of the contract, the sizes of pages its account keeps set for a test.
 const kept = vi.hoisted(
   (): {
@@ -145,6 +154,7 @@ function listQuery(): Record<string, string> {
 }
 
 beforeEach(() => {
+  redirected.calls = 0;
   kept.grids = {};
   kept.permissions = undefined;
   kept.roles = undefined;
@@ -178,6 +188,7 @@ describe("the home of an account that cannot read any project [WF-IHM-0120] #291
     expect(askedList()).toBe(false);
     expect(html).toMatch(/<h1[^>]*>.*No project to open<\/h1>/);
     expect(text(html)).toContain("Your account cannot open any project");
+    expect(redirected.calls).toBe(0);
     expect(links(html)).toContain("/admin/audit-log");
     expect(links(html)).not.toContain("/admin/users");
     expect(text(html)).not.toContain("no role yet");
@@ -224,6 +235,7 @@ describe("the home of an account that cannot read any project [WF-IHM-0120] #291
   it("says that the account has no role yet when it holds no function at all [WF-IHM-0120-A]", async () => {
     server.answers = { ...server.answers, "GET /me": "me_without_roles" };
     const html = await home();
+    expect(redirected.calls).toBe(0);
     expect(askedList()).toBe(false);
     expect(text(html)).toContain(
       "Your account has no role yet. An administrator must give you one",
