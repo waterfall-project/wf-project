@@ -4666,7 +4666,7 @@ for the screens to come, which it does not wait for — their time is the browse
 meanwhile. A limit: the requests of the API such a prefetch makes stay in the part of the API, the
 log tying a request to an account and a moment, not to the request of Next that made it. The
 journey is played by one,
-four and eight users at once (`MEASURE_USERS`), an account each, each in its own browser context,
+four and eight users at once (`MEASURE_USERS`, which always names `1`: only a user alone fails the measure), an account each, each in its own browser context,
 and the duration of `getMe` is recorded meanwhile, in the log of the API and by a client that asks
 for it every second, with an account of its own, without any role, which plays no journey and whose
 requests enter no step; its askings without an answer of success are counted (`lost`). The accounts are created by the preparation of the measure, through the

@@ -4765,7 +4765,7 @@ préchargements que l'étape lance elle-même pour les écrans suivants, qu'elle
 temps est celui du navigateur, qui travaille pendant ce temps. Limite : les requêtes d'API d'un tel
 préchargement restent dans la part de l'API, le journal rattachant une requête à un compte et à un
 instant, non à la requête de Next qui l'a faite. Le parcours se
-joue à un, quatre et huit utilisateurs à la fois (`MEASURE_USERS`), un compte chacun, chacun dans
+joue à un, quatre et huit utilisateurs à la fois (`MEASURE_USERS`, qui nomme toujours `1` : seul un utilisateur seul fait échouer la mesure), un compte chacun, chacun dans
 son contexte de navigateur, et la durée de `getMe` est relevée pendant ce temps, dans le journal de
 l'API et par un client qui la demande chaque seconde, avec un compte à lui, sans rôle, qui ne joue
 pas le parcours et dont les requêtes n'entrent dans aucune étape ; ses demandes sans réponse de

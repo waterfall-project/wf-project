@@ -90,6 +90,11 @@ const LEVELS = counted("E2E_MEASURE_USERS", "1 4 8");
 const PASSES = one("E2E_MEASURE_PASSES", "5");
 /** The most users of a level: the accounts the preparation makes. */
 const USERS = Math.max(...LEVELS);
+if (!LEVELS.includes(1)) {
+  throw new Error(
+    `E2E_MEASURE_USERS must name 1: only a user alone can fail the measure, ${LEVELS.join(" ")} never would`,
+  );
+}
 
 /** How often the client of `getMe` asks it, in milliseconds. */
 const GET_ME_EVERY = 1_000;
@@ -100,11 +105,14 @@ const GET_ME_EVERY = 1_000;
  */
 const TOKEN_RENEWED_AFTER = 4 * 60_000;
 
-/** The token of an account, asked again once it grows old. */
-function freshToken(browser: Browser, person: LocalPerson): () => Promise<string> {
+/**
+ * The token of an account, asked again once it grows old, but only when `renewing`: a renewal opens
+ * a browser connection, which a pass must not do, so the probe keeps the token the pass began with.
+ */
+function freshToken(browser: Browser, person: LocalPerson): (renewing: boolean) => Promise<string> {
   let kept: { token: string; obtained: number } | undefined;
-  return async () => {
-    if (kept === undefined || Date.now() - kept.obtained > TOKEN_RENEWED_AFTER) {
+  return async (renewing) => {
+    if (kept === undefined || (renewing && Date.now() - kept.obtained > TOKEN_RENEWED_AFTER)) {
       kept = { token: await frontToken(browser, person), obtained: Date.now() };
     }
     return kept.token;
@@ -116,19 +124,21 @@ interface Probed {
   readonly roundTrips: number[];
   /** The askings that got no answer of success: an error, or no answer at all. */
   readonly lost: number;
+  /** The askings among the lost that threw, with the first cause: no answer, not an error answer. */
+  readonly thrown: { readonly count: number; readonly first: string | undefined };
 }
 
 /** Ask `getMe` as the account of the client once a second until stopped. */
 function probeGetMe(
   request: APIRequestContext,
-  token: () => Promise<string>,
+  token: (renewing: boolean) => Promise<string>,
 ): () => Promise<Probed> {
   const roundTrips: number[] = [];
-  const state = { stopped: false, lost: 0 };
+  const state = { stopped: false, lost: 0, thrown: 0, first: undefined as string | undefined };
   const asking = (async () => {
     while (!state.stopped) {
       try {
-        const bearer = await token();
+        const bearer = await token(false);
         const asked = performance.now();
         const answer = await request.get(`${API}/me`, {
           headers: { Authorization: `Bearer ${bearer}` },
@@ -138,8 +148,10 @@ function probeGetMe(
         } else {
           state.lost += 1;
         }
-      } catch {
+      } catch (error) {
         state.lost += 1;
+        state.thrown += 1;
+        state.first ??= error instanceof Error ? error.message : String(error);
       }
       await new Promise((resolve) => setTimeout(resolve, GET_ME_EVERY));
     }
@@ -147,7 +159,11 @@ function probeGetMe(
   return async () => {
     state.stopped = true;
     await asking;
-    return { roundTrips, lost: state.lost };
+    return {
+      roundTrips,
+      lost: state.lost,
+      thrown: { count: state.thrown, first: state.first },
+    };
   };
 }
 
@@ -241,7 +257,7 @@ test("measures the journey of the grids against the service, at one, four and ei
         for (const { person } of playing) {
           await resetGridPreferences(browser, calls, person);
         }
-        await probeToken();
+        await probeToken(true);
         const stop = probeGetMe(calls, probeToken);
         const from = Date.now();
         let timed: Timed[][];
@@ -254,6 +270,11 @@ test("measures the journey of the grids against the service, at one, four and ei
           );
         } finally {
           probed = await stop();
+        }
+        if (probed.thrown.count > 0) {
+          console.log(
+            `getMe: ${String(probed.thrown.count)} asking(s) threw, the first: ${String(probed.thrown.first)}`,
+          );
         }
         const to = Date.now();
         if (pass < 0) {
