@@ -269,7 +269,7 @@ describe("a row of the reference data being written", () => {
     });
   });
 
-  it("keeps in a row the first of two answers at one version, whatever the order they are answered in (#2260)", async () => {
+  it("keeps in a row the first of two answers at one version (#2260)", async () => {
     const [node] = tree as [OrgNode];
     const modified = { ...node, label: "Renommé", lock_version: 2 };
     const deactivated = { ...node, is_active: false, lock_version: 2 };
