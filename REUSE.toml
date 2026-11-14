@@ -34,6 +34,7 @@ path = [
     "tools/src/wftools/py.typed",
     "tools/tests/queue/*.log",
     "tools/e2e-durations.json",
+    "tools/e2e-service-durations.json",
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 waterfall-project"

@@ -11,7 +11,8 @@
 # The front family runs in two workflows side by side: front.yml for all but the end-to-end
 # paths, e2e.yml for the paths, in the full tier only and spread over several runners (#492).
 # The paths against the real service, which traverse the front, the back and the platform, run
-# in the full tier only too (service.yml, US-0340), as does the production platform started on the
+# in the full tier only too, spread over four runners, each on a platform of its own (service.yml,
+# US-0340, US-1910), as does the production platform started on the
 # images built here (production.yml, US-0430). Both kinds of paths play the front built for
 # production once in the run, by the job front-build (US-0590).
 name: chain

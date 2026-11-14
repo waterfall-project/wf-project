@@ -11,9 +11,10 @@ of uv, of ESLint and of pandoc. The quota itself is read in the repository (`gh 
 
 import json
 import os
+import re
 import shutil
 import subprocess
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Any, cast
 
 import yaml
@@ -179,14 +180,18 @@ def test_the_store_of_pnpm_has_one_path_and_one_key_for_the_writer_and_the_reade
     )
 
 
-def test_the_prune_keeps_the_current_caches_and_deletes_the_others() -> None:
-    jq = shutil.which("jq")
-    assert jq is not None, "jq is needed to run the filter of the prune: install it"
-    step = next(
+def prune_step() -> dict[str, Any]:
+    return next(
         step
         for step in steps(documents()["front-cache.yml"])
         if "gh cache list" in step.get("run", "")
     )
+
+
+def test_the_prune_keeps_the_current_caches_and_deletes_the_others() -> None:
+    jq = shutil.which("jq")
+    assert jq is not None, "jq is needed to run the filter of the prune: install it"
+    step = prune_step()
     filter_ = step["run"].split("--jq '", 1)[1].split("'", 1)[0]
     pnpm, tools, backend, both, sha = "p" * 64, "t" * 64, "b" * 64, "c" * 64, "a" * 40
     prefix = "node-cache-Linux-x64-pnpm-"
@@ -201,6 +206,8 @@ def test_the_prune_keeps_the_current_caches_and_deletes_the_others() -> None:
     deleted = [
         f"{prefix}{'o' * 64}",
         f"setup-uv-Linux-x64-3.14-{'d' * 64}",
+        # a current hash that does not end the key is not that cache (#3063)
+        f"setup-uv-Linux-x64-3.14-{tools}-{'d' * 64}",
         f"next-{'f' * 40}",
         f"eslint-{'f' * 40}",
     ]
@@ -224,3 +231,77 @@ def test_the_prune_keeps_the_current_caches_and_deletes_the_others() -> None:
         env=environment,
     )
     assert sorted(map(int, done.stdout.split())) == list(range(len(kept), len(entries)))
+
+
+def hashed_globs(expression: str) -> set[str]:
+    """Name the lockfiles of each ``hashFiles`` of an expression, as setup-uv lists its globs."""
+    return {
+        "\n".join(re.findall(r"'([^']+)'", arguments))
+        for arguments in re.findall(r"hashFiles\(([^)]*)\)", expression)
+    }
+
+
+def test_the_prune_hashes_the_lockfiles_its_readers_key_their_caches_by() -> None:
+    # A glob changed on one side alone would leave the test above green and the prune deleting the
+    # caches read (#3063).
+    environment = prune_step()["env"]
+    assert hashed_globs(environment["UV_RE"]) == set(uv_caches())
+    reading = next(
+        step
+        for step in steps(documents()["pnpm-store"])
+        if "cache/restore@" in step.get("uses", "")
+    )
+    assert hashed_globs(environment["PNPM_HASH"]) == hashed_globs(options(reading)["key"])
+
+
+def test_a_hash_left_empty_fails_the_prune_before_it_deletes_anything(tmp_path: Path) -> None:
+    # An empty hash matched every key, and the prune deleted nothing again, in silence (#3063).
+    calls = tmp_path / "calls"
+    fake = tmp_path / "gh"
+    fake.write_text(f'#!/bin/sh\necho "$*" >> {calls}\n', encoding="utf-8")
+    fake.chmod(0o755)
+    run = prune_step()["run"]
+
+    def prune(**given: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["sh", "-c", run],
+            capture_output=True,
+            text=True,
+            check=False,
+            env={
+                **os.environ,
+                "UV_RE": "t|b|c",
+                "PNPM_HASH": "p",
+                **given,
+                "SUFFIX": "-a",
+                "GITHUB_REF": "refs/heads/main",
+                "PATH": f"{tmp_path}:{os.environ['PATH']}",
+            },
+        )
+
+    for given, said in (
+        ({"UV_RE": "|b|c"}, "uv is empty"),
+        ({"UV_RE": "t||c"}, "uv is empty"),
+        ({"UV_RE": "t|b|"}, "uv is empty"),
+        ({"PNPM_HASH": ""}, "pnpm is empty"),
+    ):
+        done = prune(**given)
+        assert (done.returncode, said in done.stderr) == (1, True), given
+        assert not calls.exists()
+    assert prune().returncode == 0
+    assert calls.read_text(encoding="utf-8").startswith("cache list --ref refs/heads/main")
+
+
+def test_no_job_in_a_container_reads_the_cache_of_uv() -> None:
+    # setup-uv keys its cache by the system and the Python it finds: in the work image of the paths,
+    # ubuntu-24.04 and its Python, never the key front-cache.yml writes on the runner (#3062).
+    reading = [
+        f"{name}:{job_name}"
+        for name, document in documents().items()
+        for job_name, job in document.get("jobs", {}).items()
+        if "container" in job
+        for step in job.get("steps", [])
+        if step.get("uses", "").startswith("astral-sh/setup-uv@")
+        and options(step).get("enable-cache")
+    ]
+    assert reading == []
