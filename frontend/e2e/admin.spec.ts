@@ -672,7 +672,10 @@ test("welcomes the accounts that arrived without a role: filtered « Créé par 
   await role.selectOption({ label: "Chiffreur" });
   await bar.getByRole("button", { name: "Appliquer : Ajouter un rôle" }).click();
   const told = page.getByRole("status", { name: "Commandes des comptes" });
-  await expect(told).toContainText(/comptes? modifiés?\./, { timeout: WORKING });
+  await expect(told).toContainText(
+    /comptes? modifiés?(, \d+ comptes? déjà dans l’état demandé)?\./,
+    { timeout: WORKING },
+  );
   // « Rattacher à », « Activer » and « Désactiver » stand beside it.
   await expect(bar.getByRole("combobox", { name: "Rattacher à" })).toBeVisible();
   await expect(bar.getByRole("button", { name: "Activer", exact: true })).toBeVisible();
