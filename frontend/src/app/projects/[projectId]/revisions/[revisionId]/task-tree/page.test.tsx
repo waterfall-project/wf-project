@@ -37,6 +37,7 @@ vi.mock("next/navigation", async (original) => ({
 vi.mock("@/components/tasks/task-tracker", () => ({
   useTrackTask: () => () => undefined,
   useTaskRunning: () => false,
+  useDownloadWhenTaskSucceeds: () => undefined,
 }));
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
