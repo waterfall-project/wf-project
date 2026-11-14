@@ -25,7 +25,7 @@ import { readOrFail, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
-import { LEAF_ICONS } from "@/components/shell/function-display";
+import { LEAF_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import {
   BASIS_REFUSED,
@@ -145,8 +145,12 @@ function WorkloadScreen({
   const t = useTranslations();
   const { project } = reading;
   return (
-    <Screen density="airy">
-      <PageHeader title={t("functions.workload")} icon={LEAF_ICONS["FBS-4.4.4"]} density="airy" />
+    <Screen density={LEAF_DENSITY["FBS-4.4.4"]}>
+      <PageHeader
+        title={t("functions.workload")}
+        icon={LEAF_ICONS["FBS-4.4.4"]}
+        density={LEAF_DENSITY["FBS-4.4.4"]}
+      />
       <WorkloadSection
         workload={read.workload}
         asked={asked}

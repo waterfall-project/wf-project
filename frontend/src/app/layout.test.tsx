@@ -148,16 +148,17 @@ describe("RootLayout", () => {
     request("fr");
     const html = await page();
     expect(html).not.toContain("data-theme");
-    expect(html).toContain(
-      '<source srcSet="/waterfall_logo-dark.svg" media="(prefers-color-scheme: dark)"/>',
-    );
+    // The logo of the side bar, dark in both modes, is the one for a dark ground, whatever the mode
+    // (US-2070): no source for the browser to pick.
+    expect(html).toContain('<img src="/waterfall_logo-dark.svg"');
+    expect(html).not.toContain("<source");
   });
 
   it("forces the mode the account chose on the whole document", async () => {
     request("fr", { "GET /me": "me_dark" });
     const html = await page();
     expect(html).toMatch(/^<html lang="fr" data-theme="dark"/);
-    expect(html).toContain('<source srcSet="/waterfall_logo-dark.svg" media="all"/>');
+    expect(html).toContain('<img src="/waterfall_logo-dark.svg"');
   });
 
   it("offers the functions of the session, and leads back to the project the cookie kept", async () => {

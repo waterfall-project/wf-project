@@ -148,7 +148,7 @@ export default async function ProjectPage(props: ProjectPageProps) {
   return (
     <>
       <ContextBanner reading={read} />
-      <Screen>
+      <Screen density="dense">
         <PageHeader title={read.project.label} icon={FolderOpen} />
         <ProjectFacts project={read.project} />
         {startable === undefined || breakdown === undefined ? null : (

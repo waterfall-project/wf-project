@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The card of shadcn/ui, copied into the repository as far as the screens of the way in and of
- * the account need it: a surface of the card token with a border, its header — a title and what
- * the card is for —, its content and its foot. It lies in the page: no shadow.
+ * the account, and the card of a section of a screen (`SectionCard`), need it: a surface of the
+ * card token, a step apart from the page — white on its pale grey in light mode —, with a light
+ * border, its header — a title and what the card is for —, its content and its foot. It lies in
+ * the page: no shadow.
  */
 import type { ComponentProps } from "react";
 

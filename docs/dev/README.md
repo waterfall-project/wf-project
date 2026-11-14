@@ -4742,6 +4742,10 @@ US-0200 in the file of EP-14 says it too):
   the list of the revisions of a project, in light and dark mode, at both widths (US-1220); a fault
   specific to the shell of another screen — a header the page changes — would show only in its axe
   audit and its walk by Tab, which are played on each screen;
+- the help panel of each screen: it is opened and audited by axe only on the reference screen of
+  the shell, the list of the revisions, its pages sharing their rendering — a single component,
+  `ScreenHelp` of `help-panel.tsx`, a single charter —; the content of each help page is read
+  elsewhere (`help.test.ts`) (#1985, option 1, the author's decision of 2026-11-14);
 - the list or the popover a cell editor would render in a portal outside the cell: the audit of an
   editor covers the cell, and no editor today renders one;
 - the content of a closed `details` — the table of the values of a curve — and a state a gesture
@@ -5067,9 +5071,12 @@ two catalogues, and names each key that is missing and the catalogue that carrie
 The visual identity lives in `frontend/src/theme/globals.css`, and nowhere else (but the login pages, below): the colours,
 the typography, the spacings and the radii are tokens there — CSS variables that
 Tailwind and the shadcn/ui components read through the theme (`bg-primary`,
-`text-muted-foreground`, `rounded-md`). The blues come from the logos of `docs/assets`
-(`#027dc6`, `#1195e1`), which reach a component only through measured tokens, the
-neutrals from shadcn/ui; the typeface is Geist, that of the logo.
+`text-muted-foreground`, `rounded-md`). The charter is that of EP-25 (US-2070, after the author's
+mockup, #3079): a midnight blue sidebar (`#0f1b2d`, the current entry `#22324b`, its text light) in
+both modes, a pale grey page (`#f3f5f8`) under white cards, a midnight blue primary colour
+(`#14233b`); the dark mode has the same shapes and its own values. The blues of the logos of
+`docs/assets` (`#027dc6`, `#1195e1`) serve only the logo and the focus ring; the typeface is Geist,
+that of the logo.
 
 - **Light and dark through the same tokens.** Each colour token carries its two values,
   `light-dark(claire, sombre)`. The document follows the workstation (`color-scheme: light dark`);
@@ -5129,16 +5136,48 @@ neutrals from shadcn/ui; the typeface is Geist, that of the logo.
   single one, examined for the network guard. A component that passes another to a client component
   from a server component passes it an element, never a function — an icon is handed over drawn
   (`commandIcon`).
-- **The layout** follows the mockup validated by the user (EP-02, « Charte graphique »): the sidebar
-  is the Sidebar of shadcn/ui, collapsible into a rail of icons where each entry keeps its name and
-  shows it in a tooltip; the top bar carries the breadcrumb, the search, the button of the tasks and
-  messages panel and, on the right, the avatar button that drops down the account menu
-  (DropdownMenu). A screen is built on the template of
+- **The layout** follows the mockup validated by the author (EP-02, then EP-25): the sidebar is the
+  Sidebar of shadcn/ui, dark in both modes, collapsible into a rail of icons where each entry keeps
+  its name and shows it in a tooltip; inside it, the tokens its entries name (`muted-foreground`,
+  `primary`, `ring`…) take the values of the bar (`[data-sidebar="sidebar"]` of `globals.css`), and
+  the pale tile of the project switcher carries its midnight blue icon there. The top bar, without a
+  background of its own, lies on the grey of the page; it carries the breadcrumb, the search, the
+  button of the tasks and messages panel and, on the right, the avatar button that drops down the
+  account menu (DropdownMenu). A screen is built on the template of
   `frontend/src/components/shell/page-header.tsx`: `Screen`, its `<main>`, and `PageHeader`, the
   title and the icon of its function, a line below, its commands on the right.
-- **Density**: the grids and the lists are dense — the most information before the
-  eyes —, the indicator screens airy; each function has its own, in a typed table
-  (`FUNCTION_DENSITY`, `function-display.ts`), which `Screen` and `PageHeader` receive.
+- **Two families of screens, told by `Screen`** (EP-25, #3075, #3090). A screen of work — planning,
+  estimate, remaining to commit, task tree, actual costs, Kanban, timelines, risk register, audit
+  log — is tight (`dense`) and takes the whole width of the window, and its height when it carries a
+  grid (`fill`); a screen of settings or of consultation — all the others — is a centred column,
+  bounded to 96rem (`--container-column`), at the airy density (`airy`). Each function has its
+  family, in a typed table (`FUNCTION_DENSITY`, and `LEAF_DENSITY` for a leaf that has its own
+  screen, `function-display.ts`), which `Screen` and `PageHeader` receive;
+  `function-display.test.ts` holds the list of the screens of work. `Screen` has no default
+  density, and the screen of a function never writes it as a literal
+  (`src/app/screen-density.test.ts`, which names the screens outside the table: the home, the
+  screen of a project, the account, a page not found…; the account and the screen of a project
+  stay tight until they are recomposed, US-2130). That check and the width of `main` measured on a
+  screen of each family in a wide window (`e2e/theme.spec.ts`) hold the two families. Set aside: a
+  width in percent, and a ceiling of 72rem.
+- **A section of a screen is a card**, `SectionCard`
+  (`frontend/src/components/shell/section-card.tsx`, on the `Card` of shadcn/ui): a region named by
+  its title, a level 2 heading,
+  its commands to the right of the title, then its body. Its commands wrap under the title rather
+  than overflow: at a zoom of 150 %, none becomes unreachable. A screen does not compose its card
+  itself.
+- **The rule of the commands** (#3088, rules 2 to 4): a card has at most one principal command, the
+  last to the right of its title (`principal`), filled when it creates or triggers, outlined when
+  it modifies — the screen tells the card what it does (`does`) and gives it the command as a
+  function of its variant (`command: (variant) => …`), which the card calls with the variant of
+  that word (`principalVariant`): no screen chooses it. A function does not pass from a server
+  component to a client one (defect 12 of `docs/dev/typescript.md`): a server screen renders the
+  card itself. Its other commands are outlined, as are the commands of a screen to the right of its
+  title. Filled is reserved for the principal command: a current choice says itself otherwise.
+  `expectCommandRule` (`frontend/src/test/command-rule.ts`) reads it in what a test rendered — a
+  button is filled when it carries the classes of the filled variant of `buttonVariants` that the
+  outlined variant lacks, and the module refuses to load if they have none that sets them apart —;
+  a screen recomposed in cards calls it in its tests.
 - **A Lucide icon on every navigation entry, every button and every line nature.** For the
   functions, the blocks, the commands, the account pages, the line natures, the scheduling modes and
   the progress states, it is drawn from a table typed on what it represents — `FUNCTION_ICONS`,
@@ -5154,8 +5193,9 @@ neutrals from shadcn/ui; the typeface is Geist, that of the logo.
   checks it for the copied components. A state is said in words — a badge, a dot —, never by colour
   alone.
 - **The logo and the favicon** are the files of `docs/assets`, copied byte for byte into
-  `frontend/public/` and `frontend/src/app/icon.svg`; the logo takes its dark variant where
-  the dark mode applies.
+  `frontend/public/` and `frontend/src/app/icon.svg`. On the sidebar, dark in both modes, the logo
+  is always in its variant for a dark ground (`BarLogo`); laid on the page — the top bar, without a
+  sidebar —, it takes its dark variant where the dark mode applies (`Logo`).
 
 _Checks_: `make lint-front` — `no-restricted-syntax` (`COLOUR_SYNTAX` of
 `frontend/eslint.config.mjs`) refuses, in any string of the code, a colour class of the palette, an
@@ -5177,7 +5217,8 @@ template with expressions or by a function, and a `style` or an SVG attribute th
 variable rather than an object or a literal written in place; and, for the layout, that a button or
 an entry carries its icon outside the typed tables — a hand-written button —, that no shadow, no
 gradient and no animation adorns a copied component, that a screen takes the template and the
-density of its function, and that a copied component enters only with the screen that uses it.
+family of its function, that its sections are cards and that its tests call `expectCommandRule`,
+and that a copied component enters only with the screen that uses it.
 
 **The login pages.** Keycloak serves its own, and no file of the front: the theme `waterfall`
 (`deploy/keycloak/themes/waterfall/login/`) dresses them in the charter with a sheet of its own,

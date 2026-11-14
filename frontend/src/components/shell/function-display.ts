@@ -4,8 +4,8 @@
  * How each function of the navigation shows (charter, guide « Charte graphique »): its icon, a
  * form of Lucide, which the side bar shows before the name of the function, and alone once
  * folded into a rail, where the tooltip and the name the entry keeps say what it is, and which
- * the header of its screen repeats; and the density of its screen — dense for the grids and the
- * lists, the most under the eyes, airy for the indicators. Tables typed on the permissions of
+ * the header of its screen repeats; and the family of its screen — dense for a screen of work,
+ * airy for a screen of settings or of consultation (`Screen`). Tables typed on the permissions of
  * the functions: a function added to `functions.json` has neither until it is given them here,
  * and the typing says so. The blocks of the FBS have their icons too, which the side bar shows
  * before their names, and so have the pages of the account, in the menu of the account and in
@@ -109,34 +109,54 @@ export const GROUP_ICONS: Readonly<Record<FunctionGroup["label"], LucideIcon>> =
   "functionGroups.projects": FolderKanban,
 };
 
-/** The density of the screen of each function, by the name of its permissions. */
+/**
+ * The family of the screen of each function, by the name of its permissions (EP-25, « Deux
+ * familles d'écrans, dites par Screen »): `dense` for a screen of work — the planning, the
+ * estimate, the remaining to commit, the actual costs, the register of the risks, the audit log —,
+ * `airy` for a screen of settings or of consultation, every other.
+ */
 export const FUNCTION_DENSITY: Readonly<Record<FunctionPermission, Density>> = {
-  users: "dense",
-  access_roles: "dense",
+  users: "airy",
+  access_roles: "airy",
   system_status: "airy",
-  backups: "dense",
+  backups: "airy",
   audit_log: "dense",
-  portfolio_projects: "dense",
-  portfolio_workload: "dense",
+  portfolio_projects: "airy",
+  portfolio_workload: "airy",
   portfolio_performance: "airy",
   portfolio_cost_structure: "airy",
-  portfolio_risks: "dense",
+  portfolio_risks: "airy",
   portfolio_cost_curve: "airy",
   portfolio_pilot_health: "airy",
-  cost_settings: "dense",
-  resource_settings: "dense",
-  risk_settings: "dense",
-  indicator_settings: "dense",
-  revisions: "dense",
-  project_settings: "dense",
+  cost_settings: "airy",
+  resource_settings: "airy",
+  risk_settings: "airy",
+  indicator_settings: "airy",
+  revisions: "airy",
+  project_settings: "airy",
   planning: "dense",
   estimate: "dense",
   remaining: "dense",
   risks: "dense",
   actual_costs: "dense",
   project_indicators: "airy",
-  lifecycle: "dense",
+  lifecycle: "airy",
 };
+
+/**
+ * The family of the screen of each leaf with a screen of its own, by its code, as for the
+ * functions: the timelines, the task tree and the Kanban are screens of work; the correspondence of
+ * the actual costs, the imports and exports and the workload of the project, of settings or of
+ * consultation.
+ */
+export const LEAF_DENSITY = {
+  "FBS-3.1.3": "airy",
+  "FBS-4.3.1": "dense",
+  "FBS-4.3.4": "airy",
+  "FBS-4.3.5": "dense",
+  "FBS-4.4.4": "airy",
+  "FBS-4.5.3": "dense",
+} as const satisfies Readonly<Record<keyof typeof LEAF_ICONS, Density>>;
 
 /** The icon of each page of the account. */
 export const ACCOUNT_ICONS: Readonly<Record<AccountPage, LucideIcon>> = {

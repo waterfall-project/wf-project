@@ -225,6 +225,10 @@
   --font-mono: ui-monospace, "SFMono-Regular", "Menlo", monospace;
 
   --spacing: 0.25rem;
+  /* The column of a screen of settings or of consultation (`Screen`, EP-25): centred, never wider
+     than this, so that a line of a form or of a card is read without the eyes crossing the window;
+     a screen of work takes the window whole. */
+  --container-column: 96rem;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

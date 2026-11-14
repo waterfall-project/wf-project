@@ -39,7 +39,7 @@ import { requestSessionState, type SessionState } from "@/session/request";
 function NothingHere() {
   const t = useTranslations("notFound");
   return (
-    <Screen>
+    <Screen density="dense">
       <PageHeader title={t("title")} icon={SearchX} subtitle={t("explanation")} helped={false} />
       <Link
         href={HOME}
@@ -59,7 +59,7 @@ type SessionRefusal = Exclude<SessionState["kind"], "open" | "unreadable">;
 function SessionRefused({ kind }: { readonly kind: SessionRefusal }) {
   const t = useTranslations("failure");
   return (
-    <Screen>
+    <Screen density="dense">
       <PageHeader
         title={t(`${FAILURE_TEXTS[kind]}.title`)}
         icon={LockKeyhole}
