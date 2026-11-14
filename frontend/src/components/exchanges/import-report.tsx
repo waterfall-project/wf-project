@@ -491,6 +491,7 @@ export function ImportReport({ projectId, entry, start, then }: ImportReportProp
         filename={entry.filename}
         rule={entry.report?.calendar_gap?.duration_rule}
         awaiting={entry.status === "analysed"}
+        task={entry.status === "analysing" ? entry.task.task_id : undefined}
       />
       {/* Its own commands, as the import lists them: an outcome or an open
           confirmation stays with its import. */}

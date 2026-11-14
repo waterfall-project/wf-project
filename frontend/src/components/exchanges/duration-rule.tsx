@@ -5,11 +5,17 @@
  * default, or keep the dates, offered before the application and only when the report bears a
  * calendar gap — `duration_rule` of the report says the option now in force. Changing it asks the
  * API to analyse the import again (`setImportDurationRule`): the import comes back `analysing`
- * (202), its task goes to the tracker of the shell, and the screen is read anew at once and again
- * when the task has ended — whichever way, a failed analysis showing as any failed analysis does —;
- * the rule already in force changes nothing, but the screen is read anew (200), as it may be stale.
+ * (202), its task goes to the tracker of the shell, and the screen is read anew at once; the rule
+ * already in force changes nothing, but the screen is read anew (200), as it may be stale.
  * A refusal is told under the choice, kept by this component, which stays mounted when the screen
- * read anew drops the choice; a 409, the import having moved on, reads the screen anew. The project stays unchanged until the confirmation.
+ * read anew drops the choice; a 409, the import having moved on, reads the screen anew. The project
+ * stays unchanged until the confirmation.
+ *
+ * The end of the analysis of an import — the one a new rule queues as the one its opening queued —
+ * reads the screen anew, whichever way it ends, a failed analysis showing as any failed analysis
+ * does. It is followed from the task of the import the screen reads while it is `analysing`
+ * (`task`), so that it is still followed once the screen was left and come back to, or the page
+ * reloaded; the task a 202 has just handed over is followed until the screen read anew says it.
  */
 "use client";
 
@@ -38,9 +44,11 @@ export interface DurationRuleProps {
   readonly rule: ImportDurationRule | undefined;
   /** Whether the import still awaits its decision, which the choice precedes. */
   readonly awaiting: boolean;
+  /** The task that analyses the import, while the screen reads it `analysing`. */
+  readonly task?: string | undefined;
 }
 
-/** Read the screen anew once the analysis a change of rule started has ended, whichever way. */
+/** Read the screen anew once the analysis of the import has ended, whichever way. */
 function FollowAnalysis({ taskId }: { readonly taskId: string }) {
   const router = useRouter();
   const reread = () => {
@@ -52,11 +60,20 @@ function FollowAnalysis({ taskId }: { readonly taskId: string }) {
 }
 
 /**
- * Offer the choice of the rule, and follow the analysis that a change of it starts. The tracker of
- * the shell is needed only once there is a choice to offer or a task to follow.
+ * Offer the choice of the rule, and follow the analysis of the import, the one a change of rule
+ * starts included. The tracker of the shell is needed only once there is a choice to offer or a
+ * task to follow.
  */
 export function DurationRule(props: DurationRuleProps) {
+  // The task a 202 handed over, until the screen read anew carries it as `task`.
   const [analysis, setAnalysis] = useState<string>();
+  if (props.task !== undefined && analysis !== undefined) {
+    // The screen has taken over: its task is the one followed, whichever it is, and the one a 202
+    // handed over is forgotten, lest it be followed again, its end already read, once the import
+    // is read analysed.
+    setAnalysis(undefined);
+  }
+  const followed = props.task ?? analysis;
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   return (
     <>
@@ -69,7 +86,7 @@ export function DurationRule(props: DurationRuleProps) {
           setOutcome(undefined);
         }}
       />
-      {analysis === undefined ? null : <FollowAnalysis taskId={analysis} />}
+      {followed === undefined ? null : <FollowAnalysis taskId={followed} />}
     </>
   );
 }
