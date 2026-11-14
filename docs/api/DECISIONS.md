@@ -11862,7 +11862,7 @@ ne lit que les exemples du contrat (#2270). Décision de l'auteur du 2026-11-14 
 modification 3) : **un troisième exemple de `setOrgNodeActivation`,
 `org_node_deactivated_with_descendants`**, engendré sur l'univers témoin (`wftools.mockreference`) :
 la direction technique désactivée aujourd'hui, et avec elle ses descendants actifs sur deux niveaux
-— le bureau d'études électricité et le service des achats, puis l'atelier de câblage — et les rôles
+— ceux qui en dépendent directement, et ceux qui dépendent de ces derniers — et les rôles
 actifs rattachés à l'un d'eux — l'ingénieur électricien, le monteur câbleur, le technicien de mise
 en service —, chacun à sa version avancée d'une, dans l'ordre que le service rend (les nœuds dans
 celui de l'arbre, les rôles par libellé) ; le bureau d'études automatismes et la cellule robotique,

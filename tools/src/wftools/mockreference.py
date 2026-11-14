@@ -446,9 +446,9 @@ def named() -> dict[str, JsonObject]:
         ),
         "org_node_deactivated_with_descendants.json": _example(
             "La direction technique désactivée aujourd'hui, à partir de la version lue : la "
-            "désactivation cascade à ses descendants actifs, sur deux niveaux — le bureau "
-            "d'études électricité et le service des achats, puis, sous le premier, l'atelier de "
-            "câblage —, et aux rôles actifs rattachés à l'un d'eux — l'ingénieur électricien, "
+            "désactivation cascade à ses descendants actifs, sur deux niveaux — ceux "
+            "qui dépendent d'elle directement, et ceux qui dépendent de ces derniers —, "
+            "et aux rôles actifs rattachés à l'un d'eux — l'ingénieur électricien, "
             "le monteur câbleur et le technicien de mise en service —, chacun sa version avancée "
             "d'une ; le bureau d'études automatismes et la cellule robotique, déjà désactivés, "
             "ne changent pas et ne sont pas rendus. La direction, sans parent, se réactive ; les "
