@@ -186,23 +186,23 @@ test("draws the aggregated workload in stacked bars with the dashed capacity of 
   // itself in its label.
   const drawing = figure.getByRole("img", { name: /^Barres empilées de la charge/ });
   await expect(drawing.locator("text", { hasText: /^Capacité : .* h par mois$/ })).toBeVisible();
-  // The plot is the span of its tallest vertical lines (its axis and its grid); the capacity is the
-  // one dashed horizontal line across it, wider than half the drawing, and it lies within the plot.
+  // The plot is the span of the light dashed horizontal lines of its grid, one per value of the axis;
+  // the capacity is the one dashed horizontal line across it, wider than half the drawing, drawn in
+  // the colour of its label, and it lies within the plot.
   const { capacity, plot } = await drawing.evaluate((element) => {
     const width = element.getBoundingClientRect().width;
-    const boxes = [...element.querySelectorAll("path")].map((path) => ({
-      dashed: path.hasAttribute("stroke-dasharray"),
-      box: path.getBoundingClientRect(),
-    }));
-    const tallest = Math.max(
-      ...boxes.filter(({ box }) => box.width <= 1).map(({ box }) => box.height),
+    const label = [...element.querySelectorAll("text")].find((text) =>
+      /^Capacité : .* h par mois$/.test(text.textContent ?? ""),
     );
-    const grid = boxes.filter(({ box }) => box.width <= 1 && box.height === tallest);
+    const mark = label?.getAttribute("fill");
+    const lines = [...element.querySelectorAll("path")]
+      .filter((path) => path.hasAttribute("stroke-dasharray"))
+      .map((path) => ({ stroke: path.getAttribute("stroke"), box: path.getBoundingClientRect() }))
+      .filter(({ box }) => box.height <= 1 && box.width > width / 2);
+    const tops = lines.map(({ box }) => box.top);
     return {
-      plot: { top: grid[0]?.box.top ?? Number.NaN, height: tallest },
-      capacity: boxes
-        .filter(({ dashed, box }) => dashed && box.height <= 1 && box.width > width / 2)
-        .map(({ box }) => box.top),
+      plot: { top: Math.min(...tops), height: Math.max(...tops) - Math.min(...tops) },
+      capacity: lines.filter(({ stroke }) => stroke === mark).map(({ box }) => box.top),
     };
   });
   expect(capacity).toHaveLength(1);
