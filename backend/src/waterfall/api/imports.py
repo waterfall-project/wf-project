@@ -213,15 +213,16 @@ def _listed(view: ImportView) -> dict[str, Any]:
 
 
 def _report(view: ImportView) -> dict[str, Any] | None:
-    """Give the report of an import, its unit constants nil when it was written without them.
+    """Give the report of an import, its unit constants and its calendar gap nil without them.
 
-    A report analysed before ``unit_constants`` (#2580), or by the code that precedes it during an
-    update (WF-DAT-0140), lacks the key the contract requires: it is read as the constants of the
-    file not differing, as every format but MS Project writes them.
+    A report analysed before ``unit_constants`` (#2580) or ``calendar_gap`` (#2977), or by the code
+    that precedes them during an update (WF-DAT-0140), lacks a key the contract requires: it is
+    read as the constants and the calendars of the file not differing, as every format but MS
+    Project writes them.
     """
     if view.report is None:
         return None
-    return {"unit_constants": None, **view.report}
+    return {"unit_constants": None, "calendar_gap": None, **view.report}
 
 
 def detailed(session: Session, view: ImportView) -> ImportDetail:

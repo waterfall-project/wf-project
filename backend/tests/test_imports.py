@@ -410,21 +410,22 @@ def test_an_import_of_the_project_keeps_its_period_and_aims_at_no_structure(
 
 @pytest.mark.requirement("WF-DAT-0140-A")
 @pytest.mark.usefixtures("trial")
-def test_a_report_written_without_its_unit_constants_is_read_with_them_nil(
+def test_a_report_written_without_its_unit_constants_and_calendar_gap_is_read_with_them_nil(
     api: ContractClient, stage: Scene, worker: Worker, database: Database
 ) -> None:
-    # A report analysed before ``unit_constants`` (#2580), or by the code that precedes them
-    # during an update, lacks the key: it is read as the constants of the file not differing,
-    # not refused by the contract.
+    # A report analysed before ``unit_constants`` (#2580) or ``calendar_gap`` (#2977), or by the
+    # code that precedes them during an update, lacks the keys: it is read as the constants and the
+    # calendars of the file not differing, not refused by the contract.
     import_id = analysed(api, stage, worker)["import_id"]
     report = dict(stored(database, import_id).report or {})
     del report["unit_constants"]
+    report.pop("calendar_gap", None)
     with database.transaction() as session:
         session.execute(
             update(ImportReport).where(ImportReport.id == UUID(import_id)).values(report=report)
         )
     found = read(api, stage, import_id)
-    assert found["report"] == {**report, "unit_constants": None}
+    assert found["report"] == {**report, "unit_constants": None, "calendar_gap": None}
 
 
 @pytest.mark.requirement("WF-ARC-0100-A")

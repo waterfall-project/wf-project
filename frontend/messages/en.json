@@ -3528,6 +3528,7 @@
       "import_awaiting_decision": "import awaiting a decision",
       "import_file_accepted": "file accepted by the report",
       "import_not_applied": "import not applied",
+      "import_calendar_gap": "calendar gap in the report",
       "is_local_account": "account created in Waterfall",
       "is_active_account": "active account",
       "is_deactivated_account": "deactivated account",
@@ -4000,6 +4001,10 @@
     "ImportCommand": {
       "apply": "Apply the import",
       "abandon": "Abandon the import"
+    },
+    "ImportDurationRule": {
+      "keep_durations": "Keep the durations",
+      "keep_dates": "Keep the dates"
     },
     "ExportKind": {
       "ms_project_schedule": "MS Project planning",

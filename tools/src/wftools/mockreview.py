@@ -43,7 +43,9 @@ The author decided each major point by point (`docs/api/DECISIONS.md`, the secti
 - the life of an import: refused on a terminal project, during a background task, or when it
   would create the current revision for a reader (``import_open_*``; I-03, I-04, #1789, #1792);
   applied expired and abandoned applied, refused by their condition (``import_apply_expired``,
-  ``import_abandon_applied``), and an estimate analysed on the main structure in pricing, applied
+  ``import_abandon_applied``), the duration rule of an import set without a calendar gap or once
+  applied (``import_duration_rule_without_gap``, ``import_duration_rule_applied``; #2977), and an
+  estimate analysed on the main structure in pricing, applied
   once the project is In progress (``import_apply_main_in_progress``, I-07); read ``refused``
   once its application is refused (``import_apply_refused_permission``; I-01, I-02); and a
   remaining to commit whose new line under the detailed studies, completed, is rejected
@@ -649,6 +651,8 @@ IMPORT_CORRELATIONS = {
     "import_apply_expired": universe(1681),
     "import_abandon_applied": universe(1682),
     "import_apply_main_in_progress": universe(1930),
+    "import_duration_rule_without_gap": universe(1706),
+    "import_duration_rule_applied": universe(1707),
 }
 """The correlations of the refusals of the life of an import, by example."""
 
@@ -735,6 +739,7 @@ def import_remaining_completed_task() -> JsonObject:
         "signals": [],
         "requires_confirmation_reasons": [],
         "unit_constants": None,
+        "calendar_gap": None,
     }
     status = "analysed"
     return {
@@ -810,6 +815,21 @@ def _import_examples() -> dict[str, JsonObject]:
             f"(imports) : ce qu'un import a écrit ne se défait pas par l'abandon, et le refus "
             f"nomme la condition qui manque ; rien n'est changé (WF-INTF-0080, #1789).",
             _refused("import_abandon_applied", "import_not_applied"),
+        ),
+        "import_duration_rule_without_gap.json": mocktext.example(
+            f"La règle des durées de « {analysed['filename']} » (import_analysed), un devis "
+            f"analysé ce matin, demandée à « garder les dates » : son compte rendu ne présente "
+            f"aucun écart de calendrier, qu'un planning MS Project seul peut porter, et il n'y a "
+            f"pas de choix à faire ; le refus nomme la condition qui manque, et l'import ne change "
+            f"pas (WF-INTF-0040, WF-INTF-0080, #2977).",
+            _refused("import_duration_rule_without_gap", "import_calendar_gap"),
+        ),
+        "import_duration_rule_applied.json": mocktext.example(
+            f"La règle des durées de « {applied['filename']} », appliquée ce matin (imports), "
+            f"demandée à « garder les dates » : il n'y a plus de compte rendu à rendre de nouveau, "
+            f"et le refus nomme la condition qui manque, un import qui attend la décision, avant "
+            f"l'écart de calendrier ; rien n'est changé (WF-INTF-0080, WF-ARC-0100, #2977).",
+            _refused("import_duration_rule_applied", "import_awaiting_decision"),
         ),
         "import_apply_refused_permission.json": mocktext.example(
             f"Variante contrefactuelle : l'import de « {analysed['filename']} » (import_analysed), "
