@@ -4,7 +4,7 @@
  * The date a re-estimation that completes a task asks for (WF-RAE-0040, WF-PLA-0130): the entry of a
  * remaining to commit at zero on the last open lines of a task completes it, and the service
  * refuses it without the day (`COMPLETION_DATE_REQUIRED`, `/completed_on`). The grid asks it in a
- * dialog, the day of the workstation proposed, and replays the entry with it; leaving the dialog
+ * dialog, the day of the installation's time zone proposed, and replays the entry with it; leaving the dialog
  * gives it up, and the refusal is told at the cell.
  */
 "use client";
@@ -24,13 +24,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { today } from "@/components/remaining/address";
+import { useToday } from "@/installation/time-zone";
 
 /** The dialog that asks the date; `onAnswer` gets it, or `null` when the entry is given up. */
 export function CompletionDate({ onAnswer }: { readonly onAnswer: (date: string | null) => void }) {
   const t = useTranslations("remainingGrid");
   const id = useId();
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState(useToday());
   const [missing, setMissing] = useState(false);
   return (
     <Dialog
