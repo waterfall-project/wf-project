@@ -43,7 +43,10 @@ survenu, une fusion ou un avenant se closent en EP-08, qui dispose alors des ind
 - les indicateurs devant un risque survenu, une fusion ou un avenant — EP-08, qui clôt
   WF-IND-0030 et WF-IND-0100 sur ces cas ;
 - l'agrégation sur plusieurs projets — EP-11 ;
-- la mesure des temps de réponse aux volumes du §4.6.2 — EP-13.
+- l'outil de mesure des temps de réponse aux volumes du §4.6.2 — EP-26 (WF-QUA-0060), qui l'écrit
+  et clôt l'exigence ; les indicateurs de la révision en cours, le plan de charge et la projection
+  de dépenses se mesurent par lui à leur livraison, ce que la relecture de cet EPIC contre la base
+  livrée reprendra en critère (décision de l'auteur du 2026-11-14, au cadrage d'EP-26).
 
 ## Exigences réalisées
 
