@@ -26,14 +26,29 @@ export interface LoadRole {
 /** The name of the stack all the roles share. */
 const STACK = "load";
 
-/** The series of the roles, stacked: a bar a month, divided by role, in the order of the API. */
+/** What ECharts reads as no value at a point: a month a role carries no load on. */
+const EMPTY = "-";
+
+/**
+ * The series of the roles, stacked: a bar a month, divided by role, in the order of the API.
+ * ECharts stacks the bars of a time axis by the rank of their points, not by their instant
+ * (WF-DEV-0070-A): the service gives a role only the months it is loaded on, so each role is given
+ * the months at least one role carries, in order, and a month without load is left empty. Nothing
+ * is summed (WF-ARC-0020): the points are only aligned.
+ */
 export function stackedRoles(palette: ChartPalette, roles: readonly LoadRole[]) {
-  return roles.map((role, rank) => ({
-    ...bars(palette, rank),
-    name: role.label,
-    stack: STACK,
-    data: role.months.map((month) => [planningInstant(month.month), month.hours]),
-  }));
+  const months = [
+    ...new Set(roles.flatMap((role) => role.months.map((each) => each.month))),
+  ].sort();
+  return roles.map((role, rank) => {
+    const hours = new Map(role.months.map((each) => [each.month, each.hours]));
+    return {
+      ...bars(palette, rank),
+      name: role.label,
+      stack: STACK,
+      data: months.map((month) => [planningInstant(month), hours.get(month) ?? EMPTY]),
+    };
+  });
 }
 
 /**
@@ -74,7 +89,7 @@ function pointOf(value: unknown): readonly unknown[] {
 
 /**
  * The tooltip of a month: the month, then each role and its hours, in the language of the
- * interface — and the total of the month under them when the chart draws it.
+ * interface, the roles loaded that month alone — and the total of the month under them when the chart draws it.
  */
 export function monthTooltip(
   locale: Locale,
@@ -88,7 +103,9 @@ export function monthTooltip(
       // The month is the instant the first point holds, `2026-06-01T00:00:00Z`.
       const [instant] = pointOf(rows[0]?.value);
       const month = typeof instant === "string" ? formatMonth(instant.slice(0, 7), locale) : "";
-      const lines = rows.map((row) => {
+      // A role without load that month holds an empty point: it is not listed.
+      const loaded = rows.filter((row) => pointOf(row.value)[1] !== EMPTY);
+      const lines = loaded.map((row) => {
         const [, hours] = pointOf(row.value);
         const marker = typeof row.marker === "string" ? row.marker : "";
         const shown = typeof hours === "string" ? formatDecimal(hours, locale) : "";

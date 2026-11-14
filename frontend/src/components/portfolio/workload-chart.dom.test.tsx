@@ -126,6 +126,35 @@ describe("the aggregated workload in a stack of bars", () => {
     expect(max({ max: 2_000_000 })).toBe(2_000_000);
   });
 
+  it("ranks the points of a role loaded on fewer months at the ranks of the others, and lists none of its empty months in the tooltip [WF-DEV-0070-A]", () => {
+    // A variant of the example, not an answer of the fake back: the last role keeps its last two
+    // months, as the service gives a role only the months it is loaded on.
+    const [first, second, last] = WORKLOAD.roles;
+    if (first === undefined || second === undefined || last === undefined) {
+      throw new Error("The example lacks its three roles");
+    }
+    aggregated({ ...WORKLOAD, roles: [first, second, { ...last, months: last.months.slice(-2) }] });
+    const { series, option } = drawn();
+    const [a, , c] = series as BarSeriesOption[];
+    const instants = (data: BarSeriesOption["data"]) =>
+      data?.map((point) => (point as string[])[0]);
+    expect(instants(c?.data)).toEqual(instants(a?.data));
+    expect(c?.data?.slice(0, 4).map((point) => (point as string[])[1])).toEqual([
+      "-",
+      "-",
+      "-",
+      "-",
+    ]);
+    const tooltip = option?.tooltip as { formatter: (params: unknown) => string };
+    const month = c?.data?.[0] as string[];
+    expect(
+      tooltip.formatter([
+        { seriesName: "Monteur câbleur", marker: "", value: month },
+        { seriesName: "Total", marker: "", value: [month[0], "10.00"] },
+      ]),
+    ).toBe(["<b>June 2026</b>", "Total <b>10.00 h</b>"].join("<br/>"));
+  });
+
   it("lists the roles and their hours in the tooltip of a month, the label of a role escaped", () => {
     aggregated();
     const { option } = drawn();
