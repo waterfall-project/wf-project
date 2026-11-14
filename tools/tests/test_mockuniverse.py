@@ -150,7 +150,7 @@ def test_each_account_read_by_getme_is_one_the_accounts_list_with_the_roles_it_h
     contributors = {each["user_id"] for each in fixture("contributors")["items"]}
     names = examples_of_getme()
     # Each example of the contract is tried: none passes for want of being found.
-    assert len(names) == 12
+    assert len(names) == 13
     for name in names:
         user = cast("Node", fixture(name))
         listed = users[user["user_id"]]

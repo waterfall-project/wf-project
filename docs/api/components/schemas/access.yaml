@@ -372,6 +372,13 @@ DisplayPreferences:
         The preference that visually distinguishes the tasks added after the reference
         revision and, in the remaining to commit, the lines whose budgeted amount is zero: a
         single preference for both (WF-ADM-0040, WF-RAE-0040). When absent, false.
+    chart_series_patterns:
+      type: boolean
+      description: >-
+        The preference that draws the series of every chart with a pattern or a symbol beside
+        their colour — the bars, the points of the curves and the legend —, the image a chart
+        exports included (WF-ADM-0040, WF-IHM-0070, WF-IHM-0130): one setting of the account,
+        for all its charts. When absent, false. The Gantt and the timelines keep their marks.
     grids:
       type: object
       maxProperties: 100

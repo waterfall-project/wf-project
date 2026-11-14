@@ -1,0 +1,10 @@
+{
+  "summary": "Les préférences enregistrées après la demande des motifs des séries des graphiques, désactivés par défaut (WF-ADM-0040, WF-IHM-0070).",
+  "value": {
+    "language": "default",
+    "theme": "default",
+    "highlight_tasks_added_after_reference": false,
+    "chart_series_patterns": true,
+    "grids": {}
+  }
+}

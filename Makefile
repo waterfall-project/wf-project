@@ -293,7 +293,7 @@ service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, th
 # administrator on the standard output, alone — its image built quietly first, and no terminal,
 # which would mix the logs in —, and nothing on an installation whose administrator has set a
 # password.
-service-install: ## Bootstrap the installation of the service platform, started, and print the link of its first administrator (WATERFALL_ADMIN_EMAIL, WATERFALL_DEFAULT_LANGUAGE, WATERFALL_CURRENCY, WATERFALL_COMPANY_NAME)
+service-install: ## Bootstrap the installation of the service platform, started, and print the link of its first administrator (WATERFALL_ADMIN_EMAIL, WATERFALL_DEFAULT_LANGUAGE, WATERFALL_CURRENCY, WATERFALL_COMPANY_NAME, WATERFALL_TIME_ZONE)
 	@$(COMPOSE_SERVICE) build --quiet install
 	@$(COMPOSE_SERVICE) run --rm --no-TTY install
 

@@ -458,7 +458,9 @@ test("presents fixed the type of a nature whose category is employed, with its c
   const form = page.getByRole("dialog", { name: "Modifier « Main-d'œuvre »" });
   await expect(async () => {
     if (!(await form.isVisible())) {
-      await natures.getByRole("button", { name: "Modifier « Main-d'œuvre »" }).click();
+      await natures
+        .getByRole("button", { name: "Modifier « Main-d'œuvre »" })
+        .click({ timeout: 1_000 });
     }
     await expect(form).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: WORKING });

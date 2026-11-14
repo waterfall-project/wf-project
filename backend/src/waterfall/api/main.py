@@ -11,6 +11,7 @@ from waterfall import __version__
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.platform.database import Database, create_database_engine
+from waterfall.platform.installation import TIME_ZONE, stored_in
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import configure_logging, get_logger
@@ -52,6 +53,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "service.starting", version=__version__, host=settings.host, port=settings.port
     )
     database = Database(create_database_engine(settings.database_url.get_secret_value()))
+    TIME_ZONE.read_from(stored_in(database))
     keycloak = Keycloak(settings)
     queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=DEPOSIT_TIMEOUT)
     administration = KeycloakAdmin(keycloak, settings)

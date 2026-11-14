@@ -3,24 +3,36 @@
 """The table of the installation: its settings, one row (§4.4.1).
 
 It is not a function of the business, so it lives in the platform. The row is written by the
-bootstrap of a new installation (US-0420), never by a migration: the language and the date are
-the installer's. Until the bootstrap writes it, the installation is not ready: what reads its
-settings is refused as if its database did not answer, never served with values nobody chose.
+bootstrap of a new installation (US-0420), never by a migration: the language, the time zone and
+the date are the installer's. Until the bootstrap writes it, the installation is not ready: what
+reads its settings is refused as if its database did not answer, never served with values nobody
+chose.
+
+The time zone is fixed by the bootstrap and never changes afterwards (US-2200): a process reads it
+once, the first time it needs the current day, from the database its entry point names
+(``TIME_ZONE``).
 """
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import TYPE_CHECKING
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import BigInteger, CheckConstraint, Integer, SmallInteger, Text
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
-from waterfall.platform.database import Base, UtcDateTime
+from waterfall.platform.database import Base, Database, UtcDateTime
 from waterfall.platform.errors import UnavailableError
 from waterfall.platform.logs import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 LANGUAGES = ("fr", "en")
 # The language that follows the browser, then the installation: the realm's own by default.
 FOLLOWED = "default"
+# The time zone an installation is delivered with, and that of one bootstrapped before it was kept.
+DELIVERED_TIME_ZONE = "UTC"
 AVATAR_MAX_BYTES = 8 * 1024 * 1024
 EXTERNAL_BACKUP_MAX_BYTES = 2**53 - 1
 THE_ROW = 1
@@ -46,10 +58,13 @@ class Installation(Base):
             f"external_backup_max_bytes BETWEEN 1 AND {EXTERNAL_BACKUP_MAX_BYTES}",
             name="external_backup_max_bytes_bound",
         ),
+        # A name of the IANA database, checked by the bootstrap: the database does not know them.
+        CheckConstraint("time_zone <> ''", name="time_zone_not_empty"),
     )
 
     id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, autoincrement=False)
     default_language: Mapped[str] = mapped_column(Text)
+    time_zone: Mapped[str] = mapped_column(Text)
     avatar_max_bytes: Mapped[int] = mapped_column(Integer)
     external_backup_max_bytes: Mapped[int] = mapped_column(BigInteger)
     installed_at: Mapped[datetime] = mapped_column(UtcDateTime)
@@ -60,6 +75,7 @@ class Settings:
     """The settings of the installation that the API serves or applies."""
 
     default_language: str
+    time_zone: str
     avatar_max_bytes: int
     external_backup_max_bytes: int
 
@@ -73,4 +89,57 @@ def read_settings(session: Session) -> Settings:
     if row is None:
         logger.warning("installation.not_bootstrapped")
         raise UnavailableError(COMPONENT_UNAVAILABLE, {"component": "database"})
-    return Settings(row.default_language, row.avatar_max_bytes, row.external_backup_max_bytes)
+    return Settings(
+        row.default_language, row.time_zone, row.avatar_max_bytes, row.external_backup_max_bytes
+    )
+
+
+def stored_in(database: Database) -> Callable[[], str]:
+    """Give the reading of the time zone the installation of ``database`` keeps, in a transaction.
+
+    Refused while the installation is not bootstrapped (503), as its other settings are.
+    """
+
+    def stored() -> str:
+        with database.transaction() as session:
+            return read_settings(session).time_zone
+
+    return stored
+
+
+class ProcessTimeZone:
+    """The time zone of the installation, as a process reads it: once, then kept (US-2200).
+
+    The bootstrap fixes it and nothing changes it afterwards, so a process does not read it again.
+    It reads it where its entry point says (``read_from``), the first time it is asked, and not
+    before: the API starts before an installation is bootstrapped. A reading refused is not kept,
+    and the next asks again. A process whose entry point names no source cannot tell the day.
+    """
+
+    def __init__(self) -> None:
+        """Know no source yet."""
+        self._source: Callable[[], str] | None = None
+        self._zone: ZoneInfo | None = None
+
+    def read_from(self, source: Callable[[], str]) -> None:
+        """Read the time zone from ``source`` from now on, forgetting the one read before."""
+        self._source = source
+        self._zone = None
+
+    def zone(self) -> ZoneInfo:
+        """Give the time zone of the installation, read the first time it is asked."""
+        if self._zone is None:
+            if self._source is None:
+                message = "the process names no source of the time zone of the installation"
+                raise RuntimeError(message)
+            name = self._source()
+            try:
+                self._zone = ZoneInfo(name)
+            except ZoneInfoNotFoundError:
+                logger.warning("installation.time_zone_unknown")
+                raise UnavailableError(COMPONENT_UNAVAILABLE, {"component": "database"}) from None
+        return self._zone
+
+
+# The time zone of the installation of this process, which ``current_day`` reads.
+TIME_ZONE = ProcessTimeZone()

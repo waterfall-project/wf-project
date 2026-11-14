@@ -231,13 +231,17 @@ test("creates a role in its form, moves a node under an active one, and designat
           notRestored.push(error);
         }
       };
+      // A command pressed waits, `aria-disabled`, until its write answers (#2260), and Playwright
+      // waits for an enabled target: pressed again meanwhile, a click without a bound would wait
+      // until the command is gone, past the time of the retries. Each click is bounded, and the
+      // retry goes on.
       const deactivate = page
         .getByRole("grid", { name: "Rôles de ressources" })
         .getByRole("button", { name: `Désactiver «\u00a0${label}\u00a0»` });
       await restore(async () => {
         await expect(async () => {
           if (await deactivate.isVisible()) {
-            await deactivate.click();
+            await deactivate.click({ timeout: 1_000 });
           }
           await expect(deactivate).toBeHidden({ timeout: 1_000 });
         }).toPass({ timeout: WORKING });
@@ -249,7 +253,7 @@ test("creates a role in its form, moves a node under an active one, and designat
               await page
                 .getByRole("treegrid", { name: "Arbre d’organisation" })
                 .getByRole("button", { name: "Modifier «\u00a0Atelier de câblage\u00a0»" })
-                .click();
+                .click({ timeout: 1_000 });
             }
             await expect(nodeForm).toBeVisible({ timeout: 1_000 });
           }).toPass({ timeout: WORKING });
@@ -268,7 +272,7 @@ test("creates a role in its form, moves a node under an active one, and designat
       await restore(async () => {
         await expect(async () => {
           if (await standard.isVisible()) {
-            await standard.click();
+            await standard.click({ timeout: 1_000 });
           }
           await expect(calendarRow("Semaine standard")).toContainText("Calendrier par défaut", {
             timeout: 1_000,
@@ -367,11 +371,14 @@ test("shows the deactivated roles, calendars and nodes asked for, still named by
       await expect(form).toBeVisible({ timeout: 1_000 });
     }).toPass({ timeout: WORKING });
   };
-  /** A command of a row, pressed again until React answers it: the row then offers the opposite. */
+  /**
+   * A command of a row, pressed again until React answers it: the row then offers the opposite. The
+   * click is bounded: the command waits, `aria-disabled`, while its write answers (#2260).
+   */
   const press = async (pressed: Locator, answered: Locator) => {
     await expect(async () => {
       if (!(await answered.isVisible())) {
-        await pressed.click();
+        await pressed.click({ timeout: 1_000 });
       }
       await expect(answered).toBeVisible({ timeout: 1_000 });
     }).toPass({ timeout: WORKING });

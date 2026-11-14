@@ -73,6 +73,7 @@ def installed(owner: Engine, *, avatar_max_bytes: int = BOUND) -> None:
             insert(Installation).values(
                 id=THE_ROW,
                 default_language="en",
+                time_zone="Europe/Paris",
                 avatar_max_bytes=avatar_max_bytes,
                 external_backup_max_bytes=2**40,
                 installed_at=utc_now(),
@@ -306,11 +307,31 @@ def test_the_state_of_a_chart_is_kept_by_chart_and_forgotten_when_sent_null(
     assert preferences_of(database, user_id) == forgotten.json()
 
 
+@pytest.mark.requirement("WF-ADM-0040-A")
+def test_the_patterns_of_the_series_of_the_charts_are_a_preference_kept_absent_until_asked(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # One setting of the account for all its charts, off by default: absent until the person
+    # asks for it, then kept as written and read again with the account (WF-IHM-0070, #3242).
+    user_id, headers = person(database, realm, display_preferences={"theme": "dark"})
+    read = api.get(ME, headers=headers).json()["display_preferences"]
+    assert "chart_series_patterns" not in read
+    for asked in (True, False):
+        response = api.patch(PREFERENCES, headers=headers, json={"chart_series_patterns": asked})
+        assert response.status_code == 200, response.text
+        assert response.json() == {"theme": "dark", "chart_series_patterns": asked}
+        read = api.get(ME, headers=headers).json()["display_preferences"]
+        assert read["chart_series_patterns"] is asked
+    assert preferences_of(database, user_id) == {"theme": "dark", "chart_series_patterns": False}
+
+
 @pytest.mark.parametrize(
     ("sent", "pointer"),
     [
         ({"language": None}, "/language"),
         ({"theme": None}, "/theme"),
+        ({"chart_series_patterns": None}, "/chart_series_patterns"),
+        ({"chart_series_patterns": "striped"}, "/chart_series_patterns"),
         ({"grids": None}, "/grids"),
         ({"grids": {"users": {"hidden_columns": None}}}, "/grids/users/hidden_columns"),
         ({"grids": {"users": {"known_columns": None}}}, "/grids/users/known_columns"),
@@ -858,11 +879,13 @@ def test_an_account_without_avatar_or_unknown_has_none_to_serve(
 
 @pytest.mark.usefixtures("database")
 def test_the_installation_is_read_without_a_session(api: ContractClient, owner: Engine) -> None:
+    # Its time zone with its language, in which the front proposes the current day (US-2200).
     installed(owner, avatar_max_bytes=512 * 1024)
     response = api.get(INSTALLATION)
     assert response.status_code == 200, response.text
     assert response.json() == {
         "default_language": "en",
+        "time_zone": "Europe/Paris",
         "avatar_max_bytes": 524288,
         "external_backup_max_bytes": 2**40,
     }

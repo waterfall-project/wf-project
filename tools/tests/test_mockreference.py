@@ -425,6 +425,37 @@ def test_the_reactivation_of_a_node_makes_it_alone_active_from_the_version_read(
     assert stale["params"] == {"expected_lock_version": node["lock_version"]}
 
 
+def test_the_deactivation_of_the_root_reaches_two_levels_of_descendants_and_their_roles(
+    named: dict[str, Any],
+) -> None:
+    # #3244: a node bearing two levels of descendants and roles, on the universe of the witness.
+    answer = named["org_node_deactivated_with_descendants.json"]
+    nodes = {node["org_node_id"]: node for node in fixture("org_nodes_with_inactive")}
+    roles = {role["resource_role_id"]: role for role in fixture("resource_roles")["items"]}
+    # The office of automation and the robotics cell under it, already deactivated, are left out.
+    written = [(node["code"], node["level"]) for node in answer["org_nodes"]]
+    assert written == [("DT", 1), ("BE-ELEC", 2), ("AT-CABL", 3), ("ACHATS", 2)]
+    assert [role["code"] for role in answer["resource_roles"]] == [
+        "ING-ELEC",
+        "MONT-CAB",
+        "TECH-MES",
+    ]
+    assert [_command(node) for node in answer["org_nodes"]] == [
+        ("reactivate", True, []),
+        *[("reactivate", False, ["org_node_parent_active"])] * 3,
+    ]
+    for entry, read in [
+        *((node, nodes[node["org_node_id"]]) for node in answer["org_nodes"]),
+        *((role, roles[role["resource_role_id"]]) for role in answer["resource_roles"]),
+    ]:
+        assert (read["is_active"], entry["is_active"]) == (True, False)
+        assert entry["lock_version"] == read["lock_version"] + 1
+        assert entry["audit"]["updated_at"] == "2026-06-03T14:05:00Z"
+    assert [_command(role) for role in answer["resource_roles"]] == [
+        ("reactivate", False, ["org_node_active"])
+    ] * 3
+
+
 def test_the_stale_reactivations_name_the_version_another_session_wrote() -> None:
     stale = fixture("resource_role_activation_stale")
     reactivated = fixture("resource_role_reactivated")

@@ -934,7 +934,7 @@ cinq que le front dit « injoignable » — EP-26 (#3102).
 
 ## US-2180 — Les saisies du référentiel et de l'administration : les constats de la revue du front soldés
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-REF-0080-A`, `WF-REF-0170-A`
 - **opérations** : `updateOrgNode`, `updateResourceRole`, `updateCalendar`, `setOrgNodeActivation`,
   `setResourceRoleActivation`, `setCalendarActivation`, `setDefaultCalendar`, `updateCostType`,
@@ -999,7 +999,7 @@ les valeurs sont celles que l'application a arrêtées.
 
 ## US-2200 — Le jour courant s'entend dans le fuseau horaire de l'installation
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-PLA-0130-A`
 - **opérations** : `getInstallation` ; `setTaskProgress`, `requestExport` et les autres opérations
   qui datent au jour courant, inchangées

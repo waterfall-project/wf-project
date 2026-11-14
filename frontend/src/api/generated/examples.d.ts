@@ -48,7 +48,7 @@ export interface Examples {
     200: "installation" | "installation_english";
   };
   "GET /me": {
-    200: "me" | "me_auditor" | "me_dark" | "me_directory" | "me_english" | "me_estimator" | "me_grid_settings" | "me_manager" | "me_with_avatar" | "me_without_administration" | "me_without_preferences" | "me_without_roles";
+    200: "me" | "me_auditor" | "me_chart_series_patterns" | "me_dark" | "me_directory" | "me_english" | "me_estimator" | "me_grid_settings" | "me_manager" | "me_with_avatar" | "me_without_administration" | "me_without_preferences" | "me_without_roles";
   };
   "GET /permissions": {
     200: "permissions";
@@ -246,7 +246,7 @@ export interface Examples {
     200: "backup_released" | "backup_retained";
   };
   "PATCH /me/preferences": {
-    200: "preferences" | "preferences_dark" | "preferences_page_size" | "preferences_project_states" | "preferences_risk_matrix_unfolded" | "preferences_timeline_lanes";
+    200: "preferences" | "preferences_chart_series_patterns" | "preferences_dark" | "preferences_page_size" | "preferences_project_states" | "preferences_risk_matrix_unfolded" | "preferences_timeline_lanes";
   };
   "PATCH /projects/{project_id}": {
     200: "project_updated";
@@ -464,7 +464,7 @@ export interface Examples {
     200: "duration_units_updated";
   };
   "PUT /reference/org-nodes/{org_node_id}/activation": {
-    200: "org_node_deactivated" | "org_node_reactivated";
+    200: "org_node_deactivated" | "org_node_deactivated_with_descendants" | "org_node_reactivated";
   };
   "PUT /reference/resource-roles/{resource_role_id}/activation": {
     200: "resource_role_deactivated" | "resource_role_reactivated";

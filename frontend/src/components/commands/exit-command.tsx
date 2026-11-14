@@ -105,7 +105,6 @@ function asTask(exit: () => Promise<Outcome<ExitResult>>): TaskCommand {
       : { kind: "unreachable" };
   };
 }
-const UNAVAILABLE = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
 
 type FieldProblem = components["schemas"]["FieldProblem"];
 /** The fields of the confirmation a refusal is said at, by the pointer the contract gives each. */
@@ -366,7 +365,6 @@ function ExitForm({
           variant="outline"
           size="sm"
           aria-disabled={busy ? true : undefined}
-          className={UNAVAILABLE}
           onClick={() => {
             if (!busy) {
               onClose();

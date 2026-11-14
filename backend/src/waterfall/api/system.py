@@ -26,13 +26,15 @@ def get_liveness(services: ServicesOf) -> dict[str, str]:
 def get_installation(session: Transaction) -> Installation:
     """Give what the front must know of the installation before any session, to anybody.
 
-    Its language by default, which the front falls back on (WF-INTF-0160), and the bounds of what
-    it lets pass; refused while the installation is not bootstrapped (503).
+    Its language by default, which the front falls back on (WF-INTF-0160), its time zone, in which
+    the front proposes the current day (WF-PLA-0130, US-2200), and the bounds of what it lets pass;
+    refused while the installation is not bootstrapped (503).
     """
     settings = read_settings(session)
     return Installation.model_validate(
         {
             "default_language": settings.default_language,
+            "time_zone": settings.time_zone,
             "avatar_max_bytes": settings.avatar_max_bytes,
             "external_backup_max_bytes": settings.external_backup_max_bytes,
         }

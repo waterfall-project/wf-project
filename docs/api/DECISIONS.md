@@ -11819,6 +11819,57 @@ une forme.
   code au recodage, qui capterait des lignes sans réimport. Le service tient la règle depuis
   US-1610/L3 (#2405) ; la phrase s'écrit par le lot de la préparation des imports d'EP-09.
 
+### La préférence des motifs des séries d'un graphique (US-2200/L1, #3242)
+
+La spécification 1.0.6 (#3098) fait des motifs et des symboles des séries d'un graphique une
+préférence d'affichage du compte, désactivée par défaut, qui vaut aussi pour l'image exportée
+(WF-ADM-0040, WF-IHM-0070, WF-IHM-0130) ; `DisplayPreferences` n'avait aucun champ où la garder.
+Décision de l'auteur du 2026-11-14 (conception d'EP-25, modification 1) : **`DisplayPreferences`
+porte `chart_series_patterns`**, un booléen, champ simple à côté de `theme` et de
+`highlight_tasks_added_after_reference` : vrai, les barres, les points des courbes et la légende de
+chaque graphique se dessinent avec un motif ou un symbole en plus de leur couleur ; absent, faux.
+Une modification qui l'envoie nul est refusée comme pour les autres réglages simples (422
+`VALIDATION_FAILED` sur `/chart_series_patterns`). Exemples : `me_chart_series_patterns` (`getMe`) et
+`preferences_chart_series_patterns` (`updateMyPreferences`), d'un compte qui l'a demandée. Le front
+la lit par US-2160. `info.version` reste `1.0.0` : un champ facultatif de plus. Écartées : une entrée
+par graphique dans `charts` — l'auteur veut un réglage du compte (#3097) — et un bouton par
+graphique.
+
+### Le fuseau horaire de l'installation, rendu par `getInstallation` (US-2200/L1, #3243)
+
+La spécification donne à l'installation un fuseau horaire, créé à l'amorçage, dans lequel s'entend
+le jour courant (WF-EXP-0020, WF-PLA-0130, WF-DAT-0100) ; aucune opération ne le rendait, et le back
+prenait le jour en temps universel (« Une terminaison ne se date pas avant le démarrage ; le jour
+courant », plus haut, #2527). Décision de l'auteur du 2026-11-14 (conception d'EP-25,
+modification 2) : **`Installation.time_zone`, exigé**, le nom du fuseau dans la base IANA
+(`Europe/Paris`, `UTC`), rendu sans session par `getInstallation` comme `default_language`, pour
+que l'écran propose le jour dans ce fuseau avant toute lecture d'un projet. Il est choisi à
+l'amorçage (`WATERFALL_TIME_ZONE`, `UTC` par défaut ; un nom inconnu est refusé) et ne change plus :
+une installation amorcée avant lui reçoit `UTC`, le jour qu'elle employait de fait. Le jour courant
+que le service écrit par défaut — l'état d'une tâche démarrée ou terminée, la date de la revue d'un
+export, le début du planning d'une structure créée — est celui de ce fuseau. Les exemples
+`installation` (Paris) et `installation_english` (Londres) le portent. `info.version` reste
+`1.0.0` : une propriété rendue de plus, qu'aucun client ne refusait. Écartées : une opération qui
+rendrait le jour courant, un appel de plus par formulaire ; le jour du poste, que la spécification
+écarte ; un fuseau modifiable après l'amorçage, hors du périmètre d'EP-25.
+
+### La désactivation d'un nœud qui porte deux niveaux de descendants (US-2200/L1, #3244)
+
+L'exemple `org_node_deactivated` ne porte qu'un nœud, l'atelier de câblage, sans descendant, et un
+rôle : le chemin de la cascade à plusieurs nœuds, que le Vérif de WF-REF-0080 demande (« un nœud
+portant deux niveaux de descendants et des rôles »), n'était traversé par aucun test du front, qui
+ne lit que les exemples du contrat (#2270). Décision de l'auteur du 2026-11-14 (conception d'EP-25,
+modification 3) : **un troisième exemple de `setOrgNodeActivation`,
+`org_node_deactivated_with_descendants`**, engendré sur l'univers témoin (`wftools.mockreference`) :
+la direction technique désactivée aujourd'hui, et avec elle ses descendants actifs sur deux niveaux
+— ceux qui en dépendent directement, et ceux qui dépendent de ces derniers — et les rôles
+actifs rattachés à l'un d'eux — l'ingénieur électricien, le monteur câbleur, le technicien de mise
+en service —, chacun à sa version avancée d'une, dans l'ordre que le service rend (les nœuds dans
+celui de l'arbre, les rôles par libellé) ; le bureau d'études automatismes et la cellule robotique,
+déjà désactivés, ne sont pas rendus. La direction se réactive ; ses descendants manquent
+`org_node_parent_active`, les rôles `org_node_active`. Le test du front qui le lit est d'US-2180.
+Aucune forme ne change.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
