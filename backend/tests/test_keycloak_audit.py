@@ -238,22 +238,25 @@ def test_the_journal_filtered_on_an_author_and_the_attribution_presents_it_dated
     # « Après le marquage d'une révision par un utilisateur, le journal filtré sur cet utilisateur
     # et sur l'action de marquage présente une inscription datée du jour » : the marking arrives in
     # EP-04; here the attribution of a role, which names the account and the role given.
+    # The events are stamped by the service as they are written: each lies between the instant
+    # before the actions and the instant after the read, so the day is the one the test ran on
+    # without comparing two readings of the day that midnight could separate.
     author, headers = administrator
+    before = datetime.now(UTC)
     named = act(api, headers)
     query = urlencode({"user_id": author, "actions": "user_access_roles_set"})
     events = done(api.get(f"{EVENTS}?{query}", headers=headers))["items"]
-    today = datetime.now(UTC).date()
+    after = datetime.now(UTC)
+    assert all(before <= datetime.fromisoformat(event["occurred_at"]) <= after for event in events)
     assert [
         (
-            datetime.fromisoformat(event["occurred_at"]).date(),
             event["object"]["object_id"],
             event["params"]["access_roles_granted"],
         )
         for event in events
     ] == [
-        (today, named["jeanne"], []),
+        (named["jeanne"], []),
         (
-            today,
             named["jeanne"],
             [{"access_role_id": named["pilot"], "label": "Pilotage de projet"}],
         ),
