@@ -174,7 +174,7 @@ function logged(level: LevelReport): void {
     const kib = Math.round(report.bytes.median / 1024).toString();
     console.log(
       `${String(level.users)} user(s), ${step}: usable ${String(report.usable_ms.median)} ms` +
-        ` (worst ${String(report.usable_ms.worst)}, spread ${String(report.usable_ms.spread)});` +
+        ` (worst ${String(report.usable_ms.worst)}, spread ${String(report.usable_ms.spread ?? "none")});` +
         ` API ${String(report.api_ms.median)}, Next ${String(report.next_ms.median)},` +
         ` browser ${String(report.browser_ms.median)}; ${kib} KiB;` +
         ` ${String(report.incomplete)} incomplete`,

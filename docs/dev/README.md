@@ -4679,7 +4679,8 @@ and the search for the tasks they write, one each, in automatic mode, not starte
 another, are outside the measure. Each level plays one unmeasured pass, then five
 (`MEASURE_PASSES`); the report, a JSON (`frontend/.e2e/measure.json` by default, `MEASURE_REPORT`),
 gives for each level and each step the number of samples and of unfinished steps, then the median,
-the worst and the spread — the gap between the highest and the lowest median of a pass — of the
+the worst and the spread — the gap between the highest and the lowest median of a pass, absent
+(`null`) when fewer than two passes have a sample, where it would say 0 as a stable run does — of the
 duration, of its three parts, of the bytes of Next and of the requests of the API; and the same for
 `getMe`. Its form is declared by `MeasureReport` (`frontend/e2e/measure/report.ts`), whose
 computations have their unit tests; it never calls a difference a gain. The measure fails on no

@@ -4779,7 +4779,8 @@ automatique, non démarrées et éloignées l'une de l'autre, sont hors de la me
 joue un passage non mesuré, puis cinq (`MEASURE_PASSES`) ; le rapport, un JSON
 (`frontend/.e2e/measure.json` par défaut, `MEASURE_REPORT`), dit pour chaque niveau et chaque
 étape le nombre de mesures et d'étapes inachevées, puis la médiane, la pire et la dispersion —
-l'écart entre la plus haute et la plus basse des médianes d'un passage — de la durée, de ses trois parts,
+l'écart entre la plus haute et la plus basse des médianes d'un passage, absente (`null`) quand
+moins de deux passages ont une mesure, où elle dirait 0 comme un passage stable — de la durée, de ses trois parts,
 des octets de Next et des requêtes de l'API ; et de même pour `getMe`. Sa forme est déclarée par
 `MeasureReport` (`frontend/e2e/measure/report.ts`), dont les calculs ont leurs tests unitaires ; il
 ne dit jamais un écart un gain. La mesure n'échoue sur aucune durée : seul un parcours qui ne

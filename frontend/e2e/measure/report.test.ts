@@ -180,7 +180,11 @@ describe("statisticOf", () => {
 
   it("leaves a pass without any sample out of the spread", () => {
     expect(statisticOf([[100], [], [120]])).toEqual({ median: 110, worst: 120, spread: 20 });
-    expect(statisticOf([[], []])).toEqual({ median: 0, worst: 0, spread: 0 });
+  });
+
+  it("gives no spread when fewer than two passes have a sample, rather than a 0 that says stable", () => {
+    expect(statisticOf([[100, 140], []])).toEqual({ median: 120, worst: 140, spread: null });
+    expect(statisticOf([[], []])).toEqual({ median: 0, worst: 0, spread: null });
   });
 });
 
@@ -215,7 +219,7 @@ describe("stepReports", () => {
     expect(reports.write).toMatchObject({
       samples: 1,
       incomplete: 1,
-      usable_ms: { median: 200, worst: 200, spread: 0 },
+      usable_ms: { median: 200, worst: 200, spread: null },
     });
   });
 });

@@ -205,8 +205,11 @@ export function apiRequests(log: string, offset = 0): ApiRequest[] {
 export interface Statistic {
   readonly median: number;
   readonly worst: number;
-  /** The highest median of a pass less the lowest: the dispersion of the passes. */
-  readonly spread: number;
+  /**
+   * The highest median of a pass less the lowest: the dispersion of the passes. None — `null` —
+   * when fewer than two passes have a sample: a single pass would say 0, as a stable one would.
+   */
+  readonly spread: number | null;
 }
 
 /**
@@ -228,7 +231,8 @@ function tenth(value: number): number {
 
 /**
  * The statistic of a quantity, its samples given by pass — one for each user who completed the
- * step in that pass —; a pass without any sample has no median, and counts for nothing.
+ * step in that pass —; a pass without any sample has no median, and counts for nothing, so that the
+ * spread may rest on fewer passes than were played, and on none.
  */
 export function statisticOf(byPass: readonly (readonly number[])[]): Statistic {
   const all = byPass.flat();
@@ -236,7 +240,7 @@ export function statisticOf(byPass: readonly (readonly number[])[]): Statistic {
   return {
     median: tenth(median(all)),
     worst: tenth(all.length === 0 ? 0 : Math.max(...all)),
-    spread: tenth(medians.length === 0 ? 0 : Math.max(...medians) - Math.min(...medians)),
+    spread: medians.length < 2 ? null : tenth(Math.max(...medians) - Math.min(...medians)),
   };
 }
 
