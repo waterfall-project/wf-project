@@ -14,8 +14,20 @@
  * from the document as it shows them — each token is the colour of a hidden probe, which the
  * browser resolves in the mode the page is in. A change of mode — the workstation's, or the
  * one the account forces (`data-theme`) — draws the chart again in the colours of the new one.
- * The curves are told apart without their colour too: each is named at its end (`curve`); the
- * bars, by the pattern of their rank, which the legend shows (`bars`).
+ *
+ * The presentation is common to every chart (EP-25, US-2160, after the mock-up the author validated
+ * on the workload, #3097): plain colours; slim bars, each part rounded and parted from the next by
+ * a thread of the colour of the page (`bars`); an axis of values without its line nor its ticks,
+ * read by a grid of light dashes (`valueAxis`), and no vertical line (`timeAxis`); the legend at
+ * the top left, an entry a dot of its colour; the tooltip a card; the series under the pointer
+ * stands out while the others fade (`presented`). The scale is never broken nor zoomed: the
+ * tooltip and the table give the values a tall month crushes.
+ *
+ * The series are told apart without their colour when the account asks for it (`useChartPatterns`,
+ * WF-IHM-0070): the bars then bear the pattern of the symbol of their rank, the points of a curve
+ * the symbol of its rank, and the legend shows them; the exported image follows the preference of
+ * who exports, as it draws the same option. Without it, the tooltip and the table of the values
+ * name each series, and a curve is named at its end whatever the preference (`curve`).
  *
  * A chart may be exported as a PNG image (WF-IHM-0130): drawn anew by an instance out of the
  * screen, on a canvas — an SVG is no PNG —, at a size of its own, with its title and the
@@ -62,6 +74,7 @@ import { scrollingList } from "@/components/ui/table";
 import { cn } from "@/components/ui/utils";
 import { formatTimestamp } from "@/i18n/format";
 
+import { useChartPatterns } from "./patterns";
 import { monthTicks } from "./ticks";
 
 export { monthTicks } from "./ticks";
@@ -113,12 +126,22 @@ export interface ChartPalette {
   readonly axis: string;
   /** The lines that only separate: `--border`. */
   readonly grid: string;
-  /** The background of the page, which an exported image is drawn on: `--background`. */
+  /**
+   * The background of the page, which an exported image is drawn on, and the thread that parts
+   * the bars of a stack: `--background`.
+   */
   readonly background: string;
+  /** The surface of a card, which the tooltip floats on: `--card`. */
+  readonly card: string;
   /** The colour of each zone of a signal (`--signal-*`), for the area a zone fills. */
   readonly zones: Readonly<Record<AlertZone, string>>;
   /** The font of the page. */
   readonly font: string;
+  /**
+   * Whether the series are told apart without their colour — the patterns of the bars, the
+   * symbols of the points —, as the account asks (`useChartPatterns`).
+   */
+  readonly patterns: boolean;
 }
 
 /** The token of each colour of the palette, as the class that paints a probe with it. */
@@ -129,13 +152,26 @@ const PROBES = {
   axis: "text-input",
   grid: "text-border",
   background: "text-background",
+  card: "text-card",
 } as const;
 
-/** The symbols of the series, in their order: a series is told apart without its colour. */
+/**
+ * The symbols of the series, in their order, when the account asks for them: a series is told apart
+ * without its colour.
+ */
 const SERIES_SYMBOLS = ["circle", "triangle", "rect", "diamond"] as const;
 
-/** The strokes of the series, once their symbols have all been taken, for the same reason. */
+/**
+ * The strokes of the series, once their symbols — or, without them, their colours — have all been
+ * taken: the fifth curve is not the first, whatever the preference.
+ */
 const SERIES_STROKES = ["solid", "dashed", "dotted"] as const;
+
+/** How much a series fades while another is under the pointer: it stays readable. */
+const FADED = 0.3;
+
+/** The radius of the corners of each part of a bar, in pixels. */
+const BAR_RADIUS = 3;
 
 /** The width the name at the end of a curve takes at most, beyond which it is cut short. */
 export const END_LABEL_WIDTH = 128;
@@ -150,22 +186,28 @@ export type CurvePoints = readonly (readonly [string, string])[];
  * A curve of a rank, its points and how it is drawn: named at the end of its curve — its last drawn
  * point —, by its own name, which tells any number of series apart where a legend of one entry per
  * series or a palette of four colours could not, the names of curves that end close moved apart;
- * then its colour, its symbol and its stroke, in turn, which help the eye from one point to the
- * next. A curve without a drawn point bears no name — ECharts would place it nowhere, and stop
- * moving the others apart —: its table of values still lists it.
+ * then its colour and its stroke, in turn, which help the eye from one point to the next — and the
+ * symbol of its rank when the account asks for the patterns, a small dot otherwise. A curve without
+ * a drawn point bears no name — ECharts would place it nowhere, and stop moving the others apart
+ * —: its table of values still lists it. Under the pointer, it stands out and the others fade.
  */
 export function curve(palette: ChartPalette, rank: number, points: CurvePoints) {
-  const symbols = SERIES_SYMBOLS.length;
+  const turn = palette.patterns ? SERIES_SYMBOLS.length : Math.max(palette.series.length, 1);
   const drawn = points.some(([, value]) => value !== GAP);
   return {
     type: "line" as const,
     data: points.map((point) => [...point]),
     color: palette.series[rank % palette.series.length] ?? palette.mark,
-    symbol: SERIES_SYMBOLS[rank % symbols] ?? "circle",
-    symbolSize: 8,
+    symbol: palette.patterns
+      ? (SERIES_SYMBOLS[rank % SERIES_SYMBOLS.length] ?? "circle")
+      : "circle",
+    symbolSize: palette.patterns ? 8 : 5,
     lineStyle: {
-      type: SERIES_STROKES[Math.floor(rank / symbols) % SERIES_STROKES.length] ?? "solid",
+      width: 2,
+      type: SERIES_STROKES[Math.floor(rank / turn) % SERIES_STROKES.length] ?? "solid",
     },
+    emphasis: { focus: "series" as const },
+    blur: { lineStyle: { opacity: FADED }, itemStyle: { opacity: FADED } },
     endLabel: {
       show: drawn,
       formatter: "{a}",
@@ -180,20 +222,49 @@ export function curve(palette: ChartPalette, rank: number, points: CurvePoints) 
 }
 
 /**
- * The bars of a series of a rank, told apart without their colour too: its colour, and a pattern
- * of the symbol of its rank drawn on them in the background of the page — the legend shows both.
+ * The bars of a series of a rank: slim — half the room of their month, never wider than
+ * `barMaxWidth` —, in the plain colour of its rank, each part rounded and parted from its
+ * neighbours by a thread of the colour of the page; under the pointer, the series stands out and
+ * the others fade. When the account asks for the patterns, the bars bear the pattern of the symbol
+ * of their rank, drawn in the colour of the page, which the legend shows too.
  */
 export function bars(palette: ChartPalette, rank: number) {
+  const pattern = palette.patterns
+    ? {
+        decal: {
+          symbol: SERIES_SYMBOLS[rank % SERIES_SYMBOLS.length] ?? "circle",
+          symbolSize: 0.6,
+          color: palette.background,
+        },
+      }
+    : {};
   return {
     type: "bar" as const,
     color: palette.series[rank % palette.series.length] ?? palette.mark,
+    barWidth: "50%",
+    barMaxWidth: 28,
     itemStyle: {
-      decal: {
-        symbol: SERIES_SYMBOLS[rank % SERIES_SYMBOLS.length] ?? "circle",
-        symbolSize: 0.6,
-        color: palette.background,
-      },
+      borderRadius: BAR_RADIUS,
+      borderColor: palette.background,
+      borderWidth: 1,
+      ...pattern,
     },
+    emphasis: { focus: "series" as const },
+    blur: { itemStyle: { opacity: FADED } },
+  };
+}
+
+/**
+ * An axis of values: no line nor tick of its own, its values written in the colour of the text by
+ * the format given, and read across the plot by a grid of light dashes.
+ */
+export function valueAxis(palette: ChartPalette, format: (value: number) => string) {
+  return {
+    type: "value" as const,
+    axisLine: { show: false },
+    axisTick: { show: false },
+    axisLabel: { color: palette.text, formatter: format },
+    splitLine: { lineStyle: { color: palette.grid, type: "dashed" as const } },
   };
 }
 
@@ -205,8 +276,12 @@ export function planningInstant(date: string): string {
   return date.length === 7 ? `${date}-01T00:00:00Z` : `${date}T00:00:00Z`;
 }
 
-/** Read the palette from the probes, as the document shows them now. */
-export function readPalette(probes: HTMLElement): ChartPalette {
+/**
+ * Read the palette from the probes, as the document shows them now, with the preference of the
+ * patterns of the account (`useChartPatterns`) — none for a drawing that has marks of its own, a
+ * Gantt or a frieze.
+ */
+export function readPalette(probes: HTMLElement, patterns = false): ChartPalette {
   const colour = (name: string) => {
     const probe = probes.querySelector(`[data-probe="${name}"]`);
     return probe === null ? "" : getComputedStyle(probe).color;
@@ -218,12 +293,14 @@ export function readPalette(probes: HTMLElement): ChartPalette {
     axis: colour("axis"),
     grid: colour("grid"),
     background: colour("background"),
+    card: colour("card"),
     zones: {
       nominal: colour("zone-nominal"),
       watch: colour("zone-watch"),
       alert: colour("zone-alert"),
     },
     font: getComputedStyle(probes).fontFamily,
+    patterns,
   };
 }
 
@@ -265,7 +342,8 @@ export function timeAxis(
       customValues: ticks,
       formatter: (value: number) => format.format(value),
     },
-    splitLine: { lineStyle: { color: palette.grid } },
+    // No vertical line: a plot is read across, by the grid of its axis of values.
+    splitLine: { show: false },
   };
 }
 
@@ -291,7 +369,7 @@ export function dataId(data: unknown): string | undefined {
  * `readPalette` reads.
  */
 export function Probes() {
-  const singles = (["text", "mark", "axis", "grid", "background"] as const).map((name) => (
+  const singles = (["text", "mark", "axis", "grid", "background", "card"] as const).map((name) => (
     <span key={name} data-probe={name} className={PROBES[name]} />
   ));
   return (
@@ -306,16 +384,76 @@ export function Probes() {
 }
 
 /**
- * The legend of an option, its entries made inert: a click on one would hide its series with the
- * pointer alone, out of reach of the keyboard (WF-IHM-0100), and a reader would no longer see
- * what the API gave.
+ * How a legend looks: at the top left, its names in the colour of the text; an entry a dot of the
+ * colour of its series — or, with the patterns, the mark the series is drawn with, a bar with its
+ * pattern, a curve with its symbol, large enough to be told apart.
  */
-function inertLegend(legend: ChartOption["legend"]): Pick<ChartOption, "legend"> {
+function legendLook(palette: ChartPalette): LegendComponentOption {
+  const entry = palette.patterns
+    ? { itemWidth: 22, itemHeight: 14 }
+    : { icon: "circle", itemWidth: 10, itemHeight: 10 };
+  return { left: 0, itemGap: 16, textStyle: { color: palette.text }, ...entry };
+}
+
+/**
+ * The legend of an option in the look of the charts, its entries made inert: a click on one would
+ * hide its series with the pointer alone, out of reach of the keyboard (WF-IHM-0100), and a reader
+ * would no longer see what the API gave. What the option says of its legend overrides the look.
+ */
+function inertLegend(
+  legend: ChartOption["legend"],
+  palette: ChartPalette,
+): Pick<ChartOption, "legend"> {
   if (legend === undefined) {
     return {};
   }
-  const inert = (each: LegendComponentOption) => ({ ...each, selectedMode: false });
+  const inert = (each: LegendComponentOption) => ({
+    ...legendLook(palette),
+    ...each,
+    selectedMode: false,
+  });
   return { legend: Array.isArray(legend) ? legend.map(inert) : inert(legend) };
+}
+
+/**
+ * The tooltip of an option as a card: the surface of a card, its border, rounded corners and a
+ * light shadow in the tone of the border, the text in the font and the colour of the page. What
+ * the option says of its tooltip overrides the look.
+ */
+function cardTooltip(
+  tooltip: ChartOption["tooltip"],
+  palette: ChartPalette,
+): Pick<ChartOption, "tooltip"> {
+  if (tooltip === undefined || Array.isArray(tooltip)) {
+    return tooltip === undefined ? {} : { tooltip };
+  }
+  return {
+    tooltip: {
+      backgroundColor: palette.card,
+      borderColor: palette.grid,
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: [8, 12],
+      shadowColor: palette.grid,
+      shadowBlur: 12,
+      shadowOffsetX: 0,
+      shadowOffsetY: 4,
+      textStyle: { color: palette.mark, fontFamily: palette.font, fontSize: 12 },
+      ...tooltip,
+    },
+  };
+}
+
+/**
+ * An option in the presentation common to the charts — its legend and its tooltip —, the one
+ * point both the screen and the exported image draw it through.
+ */
+export function presented(option: ChartOption, palette: ChartPalette): ChartOption {
+  return {
+    ...option,
+    ...inertLegend(option.legend, palette),
+    ...cardTooltip(option.tooltip, palette),
+  };
 }
 
 /** What an exported image says of itself, and the name of its file. */
@@ -490,8 +628,9 @@ function exportHead(image: ChartExport, palette: ChartPalette) {
 /**
  * Export a chart as a PNG image, whose file the browser saves: drawn by an instance out of the
  * screen, on a canvas, at the size of an image rather than of the screen, its title and its
- * provenance at its head, its legend and its series as on the screen, on the background of the
- * charter; the instance is released once the image is taken.
+ * provenance at its head, its legend and its series as on the screen — their patterns when the
+ * palette says the account of who exports asks for them —, on the background of the charter; the
+ * instance is released once the image is taken.
  */
 export function exportPng(option: ChartOption, palette: ChartPalette, image: ChartExport) {
   const host = document.createElement("div");
@@ -503,10 +642,11 @@ export function exportPng(option: ChartOption, palette: ChartPalette, image: Cha
   document.body.append(host);
   const chart = init(host, null, { renderer: "canvas", ...EXPORT_SIZE });
   const head = exportHead(image, palette);
+  const shown = presented(option, palette);
   try {
     chart.setOption({
-      ...option,
-      ...inertLegend(option.legend === undefined ? undefined : below(option.legend, head.height)),
+      ...shown,
+      ...(shown.legend === undefined ? {} : { legend: below(shown.legend, head.height) }),
       grid: below(option.grid, head.height),
       title: head.title,
       backgroundColor: palette.background,
@@ -581,6 +721,8 @@ export function Chart({
   const caption = useId();
   const drawingId = useId();
   const [shown, setShown] = useState(folded !== true);
+  // The preference of the account: the one point every chart reads it at.
+  const patterns = useChartPatterns();
   // The latest handler of a click, which the event reads: the chart is not drawn anew for it.
   const clicked = useRef(onPoint);
   useLayoutEffect(() => {
@@ -595,11 +737,10 @@ export function Chart({
     }
     const chart = init(element, null, { renderer: "svg" });
     const draw = () => {
-      const chosen = option(readPalette(tokens));
+      const palette = readPalette(tokens, patterns);
       chart.setOption(
         {
-          ...chosen,
-          ...inertLegend(chosen.legend),
+          ...presented(option(palette), palette),
           // The charter has no animation: a chart is drawn at once, in its final state.
           animation: false,
           aria: { enabled: true, label: { description } },
@@ -628,12 +769,12 @@ export function Chart({
       scheme.removeEventListener("change", draw);
       chart.dispose();
     };
-  }, [option, description, shown]);
+  }, [option, description, shown, patterns]);
 
   const exportImage = () => {
     const tokens = probes.current;
     if (exported !== undefined && tokens !== null) {
-      const palette = readPalette(tokens);
+      const palette = readPalette(tokens, patterns);
       exportPng(option(palette), palette, exported());
     }
   };

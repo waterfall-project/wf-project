@@ -59,7 +59,12 @@
     "email": "Email address",
     "origin": "Origin of the account",
     "preferences": "Display preferences",
-    "preferencesHelp": "The same as in the menu of the account: they apply without signing in again.",
+    "preferencesHelp": "The language and the mode are also in the menu of the account; all apply without signing in again.",
+    "chartPatterns": {
+      "legend": "Charts",
+      "label": "Series patterns",
+      "help": "Tells the series of a chart apart by a pattern or a symbol besides their colour, on the screen and in the exported image."
+    },
     "save": "Save",
     "saved": "Your preferences are saved.",
     "signIn": "Sign-in",

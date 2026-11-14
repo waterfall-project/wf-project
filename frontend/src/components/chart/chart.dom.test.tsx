@@ -10,14 +10,19 @@ import { expectAccessible } from "@/test/axe";
 import { roomForCharts } from "@/test/chart-room";
 
 import {
+  bars,
   Chart,
   type ChartOption,
   type ChartPalette,
   curve,
   GAP,
   monthTicks,
+  presented,
+  timeAxis,
+  valueAxis,
   wrapLines,
 } from "./chart";
+import { ChartPatternsProvider } from "./patterns";
 
 /** A chart of one series of two points, its option recorded with each palette it is drawn in. */
 function drawn(option: (palette: ChartPalette) => ChartOption, note?: string) {
@@ -160,9 +165,13 @@ describe("the envelope of the charts", () => {
       "axis",
       "grid",
       "background",
+      "card",
       "zones",
       "font",
+      "patterns",
     ]);
+    // Without the preference of the account, no patterns (WF-IHM-0070).
+    expect(palette?.patterns).toBe(false);
     expect(Object.keys(palette?.zones ?? {})).toEqual(["nominal", "watch", "alert"]);
     // Each colour is a probe painted by the class of its token, which the browser resolves.
     const probes = document.querySelectorAll("[data-probe]");
@@ -176,6 +185,7 @@ describe("the envelope of the charts", () => {
       "text-input",
       "text-border",
       "text-background",
+      "text-card",
       "text-signal-nominal",
       "text-signal-watch",
       "text-signal-alert",
@@ -207,15 +217,17 @@ describe("the look of a curve", () => {
     axis: "axis",
     grid: "grid",
     background: "background",
+    card: "card",
     zones: { nominal: "nominal", watch: "watch", alert: "alert" },
     font: "font",
+    patterns: false,
   };
   const points = [
     ["a", "0.9"],
     ["b", GAP],
   ] as const;
 
-  it("names each of twenty curves at its end, its colour, symbol and stroke in turn", () => {
+  it("names each of twenty curves at its end, its colour and stroke in turn, a plain dot on its points without the patterns [WF-IHM-0070-A]", () => {
     const looks = Array.from({ length: 20 }, (_, rank) => curve(palette, rank, points));
     // The name of its own series (`{a}`) is what never repeats; names that would overlap move
     // apart.
@@ -228,8 +240,13 @@ describe("the look of a curve", () => {
         lineHeight: 16,
       });
       expect(look.labelLayout).toEqual({ moveOverlap: "shiftY" });
+      // The symbols wait for the preference: a small dot on each point of every curve.
+      expect([look.symbol, look.symbolSize]).toEqual(["circle", 5]);
+      // Under the pointer, the curve stands out and the others fade.
+      expect(look.emphasis).toEqual({ focus: "series" });
     }
-    const firstTwelve = looks.slice(0, 12).map((look) => `${look.symbol}/${look.lineStyle.type}`);
+    // The colour and the stroke in turn: the fifth curve is not the first.
+    const firstTwelve = looks.slice(0, 12).map((look) => `${look.color}/${look.lineStyle.type}`);
     expect(new Set(firstTwelve).size).toBe(12);
     expect(looks[4]?.color).toBe("one");
     expect(looks[0]?.data).toEqual([
@@ -238,12 +255,147 @@ describe("the look of a curve", () => {
     ]);
   });
 
+  it("marks the points of a curve with the symbol of its rank when the account asks for the patterns, its stroke changing once the symbols are taken [WF-IHM-0070-A]", () => {
+    const looks = Array.from({ length: 12 }, (_, rank) =>
+      curve({ ...palette, patterns: true }, rank, points),
+    );
+    expect(looks.slice(0, 4).map((look) => look.symbol)).toEqual([
+      "circle",
+      "triangle",
+      "rect",
+      "diamond",
+    ]);
+    expect(looks[0]?.symbolSize).toBe(8);
+    const told = looks.map((look) => `${look.symbol}/${look.lineStyle.type}`);
+    expect(new Set(told).size).toBe(12);
+  });
+
   it("names no curve that has no drawn point: ECharts would stop moving the other names apart", () => {
     const look = curve(palette, 0, [
       ["a", GAP],
       ["b", GAP],
     ]);
     expect(look.endLabel.show).toBe(false);
+  });
+});
+
+describe("the presentation common to the charts (#3097)", () => {
+  const palette: ChartPalette = {
+    series: ["one", "two", "three", "four"],
+    text: "text",
+    mark: "mark",
+    axis: "axis",
+    grid: "grid",
+    background: "background",
+    card: "card",
+    zones: { nominal: "nominal", watch: "watch", alert: "alert" },
+    font: "font",
+    patterns: false,
+  };
+
+  it("draws slim bars in plain colours, each part rounded and parted from the next by a thread of the colour of the page", () => {
+    const look = bars(palette, 1);
+    expect(look).toMatchObject({
+      type: "bar",
+      color: "two",
+      barWidth: "50%",
+      barMaxWidth: 28,
+      itemStyle: { borderRadius: 3, borderColor: "background", borderWidth: 1 },
+      emphasis: { focus: "series" },
+    });
+    // Plain: no pattern unless the account asks for it.
+    expect(look.itemStyle).not.toHaveProperty("decal");
+  });
+
+  it("bears on the bars the pattern of the symbol of their rank, in the colour of the page, when the account asks for it [WF-IHM-0070-A]", () => {
+    const patterned = { ...palette, patterns: true };
+    const decals = [0, 1, 2, 3].map((rank) => {
+      const { itemStyle } = bars(patterned, rank);
+      return "decal" in itemStyle ? itemStyle.decal : undefined;
+    });
+    expect(decals).toEqual(
+      ["circle", "triangle", "rect", "diamond"].map((symbol) => ({
+        symbol,
+        symbolSize: 0.6,
+        color: "background",
+      })),
+    );
+  });
+
+  it("reads its values across the plot, by a grid of light dashes, on an axis without line nor tick, and draws no vertical line", () => {
+    const values = valueAxis(palette, (value) => `${value.toString()} h`);
+    expect(values).toMatchObject({
+      type: "value",
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: "text" },
+      splitLine: { lineStyle: { color: "grid", type: "dashed" } },
+    });
+    expect(values.axisLabel.formatter(12)).toBe("12 h");
+    expect(timeAxis(palette, "fr", ["2026-06-01T00:00:00Z"], true).splitLine).toEqual({
+      show: false,
+    });
+  });
+
+  it("puts its legend at the top left, an entry a dot of its colour, and its tooltip in a card, on the screen and in the image", () => {
+    const option = presented(
+      {
+        legend: { top: 0, data: ["Rôle"] },
+        tooltip: { trigger: "axis" },
+        series: [{ name: "Rôle", ...bars(palette, 0), data: [] }],
+      },
+      palette,
+    );
+    expect(option.legend).toEqual({
+      left: 0,
+      itemGap: 16,
+      textStyle: { color: "text" },
+      icon: "circle",
+      itemWidth: 10,
+      itemHeight: 10,
+      top: 0,
+      data: ["Rôle"],
+      selectedMode: false,
+    });
+    expect(option.tooltip).toMatchObject({
+      trigger: "axis",
+      backgroundColor: "card",
+      borderColor: "grid",
+      borderWidth: 1,
+      borderRadius: 8,
+      shadowColor: "grid",
+      textStyle: { color: "mark", fontFamily: "font" },
+    });
+  });
+
+  it("shows in its legend the mark each series is drawn with when the account asks for the patterns [WF-IHM-0070-A]", () => {
+    const option = presented({ legend: { data: ["Rôle"] } }, { ...palette, patterns: true });
+    // No dot of its own: ECharts draws the bar with its pattern, the curve with its symbol.
+    expect(option.legend).not.toHaveProperty("icon");
+    expect(option.legend).toMatchObject({ left: 0, itemWidth: 22, itemHeight: 14 });
+  });
+
+  it("follows the preference of the account, one point for every chart, and draws again when it changes [WF-ADM-0040-A]", async () => {
+    const option = vi.fn(line);
+    const figure = (patterns: boolean) => (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <ChartPatternsProvider patterns={patterns}>
+          <Chart title="Indice" description="Une courbe de deux points." option={option}>
+            <p>0,8</p>
+          </Chart>
+        </ChartPatternsProvider>
+      </NextIntlClientProvider>
+    );
+    const { rerender } = render(figure(true));
+    await waitFor(() => {
+      expect(option).toHaveBeenCalledOnce();
+    });
+    expect(option.mock.calls[0]?.[0].patterns).toBe(true);
+    rerender(figure(false));
+    await waitFor(() => {
+      expect(option).toHaveBeenCalledTimes(2);
+    });
+    expect(option.mock.calls[1]?.[0].patterns).toBe(false);
   });
 });
 

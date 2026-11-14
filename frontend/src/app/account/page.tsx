@@ -106,6 +106,7 @@ function AccountScreen({
             <PreferencesForm
               language={account.display_preferences?.language ?? "default"}
               theme={account.display_preferences?.theme ?? "default"}
+              patterns={account.display_preferences?.chart_series_patterns ?? false}
             />
           </CardContent>
         </Card>

@@ -1,12 +1,14 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 import { render, screen, within } from "@testing-library/react";
+import { userEvent } from "@testing-library/user-event";
 import type { BarSeriesOption, LineSeriesOption } from "echarts/charts";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
-import type { ChartPalette, ChartProps } from "@/components/chart/chart";
+import type { ChartOption, ChartPalette, ChartProps } from "@/components/chart/chart";
+import { ChartPatternsProvider } from "@/components/chart/patterns";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { roomForCharts } from "@/test/chart-room";
@@ -30,6 +32,29 @@ vi.mock("@/components/chart/chart", async (original) => {
   };
 });
 
+/** What the instance out of the screen that draws the exported image was handed. */
+const canvas = vi.hoisted(() => ({ options: [] as unknown[] }));
+
+// The screen draws in SVG, as it does; the image is drawn on a canvas, which the simulated
+// document does not paint: an instance in its place records what it is asked to draw.
+vi.mock("echarts/core", async (actual) => {
+  const echarts = await actual<typeof import("echarts/core")>();
+  return {
+    ...echarts,
+    init: (...args: Parameters<typeof echarts.init>) => {
+      const [, , options] = args;
+      if (options?.renderer !== "canvas") {
+        return echarts.init(...args);
+      }
+      return {
+        setOption: (option: unknown) => canvas.options.push(option),
+        getDataURL: () => "data:image/png;base64,iVBORw0KGgo=",
+        dispose: () => undefined,
+      };
+    },
+  };
+});
+
 /** The colours and the font a chart is drawn in, as the probes would read them. */
 const PALETTE: ChartPalette = {
   series: ["rgb(1, 1, 1)", "rgb(2, 2, 2)"],
@@ -38,19 +63,26 @@ const PALETTE: ChartPalette = {
   axis: "rgb(5, 5, 5)",
   grid: "rgb(6, 6, 6)",
   background: "rgb(7, 7, 7)",
+  card: "rgb(8, 8, 8)",
   zones: { nominal: "nominal", watch: "watch", alert: "alert" },
   font: "sans-serif",
+  patterns: false,
 };
 
 const WORKLOAD = example("portfolio_workload") as Workload;
 const NODE_WORKLOAD = example("portfolio_workload_org_node") as Workload;
 
-/** The aggregated workload in English, as the page hands it over. */
-function aggregated(workload: Workload = WORKLOAD) {
+/**
+ * The aggregated workload in English, as the page hands it over, for an account that asks for the
+ * patterns of the series of its charts or not — by default, it never asked.
+ */
+function aggregated(workload: Workload = WORKLOAD, patterns = false) {
   charts.props = [];
   return render(
     <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">
-      <WorkloadView workload={workload} />
+      <ChartPatternsProvider patterns={patterns}>
+        <WorkloadView workload={workload} />
+      </ChartPatternsProvider>
     </NextIntlClientProvider>,
   );
 }
@@ -77,12 +109,15 @@ describe("the aggregated workload in a stack of bars", () => {
       ["bar", "Technicien de mise en service", "load"],
       ["bar", "Monteur câbleur", "load"],
     ]);
-    // Each role told apart without its colour too: the pattern of the symbol of its rank.
-    expect(roles.map((each) => each.itemStyle?.decal)).toMatchObject([
-      { symbol: "circle" },
-      { symbol: "triangle" },
-      { symbol: "rect" },
-    ]);
+    // In plain colours: the palette says the account never asked for the patterns.
+    expect(roles.map((each) => each.itemStyle?.decal)).toEqual([undefined, undefined, undefined]);
+    // With them, each role bears the pattern of the symbol of its rank.
+    const patterned = charts.props.at(-1)?.option({ ...PALETTE, patterns: true });
+    expect(
+      ([patterned?.series].flat() as BarSeriesOption[])
+        .slice(0, 3)
+        .map((each) => each.itemStyle?.decal),
+    ).toMatchObject([{ symbol: "circle" }, { symbol: "triangle" }, { symbol: "rect" }]);
     expect(roles[0]?.data?.slice(0, 2)).toEqual([
       ["2026-06-01T00:00:00Z", "636241.09"],
       ["2026-07-01T00:00:00Z", "733321.89"],
@@ -235,4 +270,22 @@ describe("the export of the aggregated workload", () => {
     });
     expect(screen.getByRole("button", { name: "Export as PNG" })).toBeVisible();
   });
+
+  it.each([
+    [true, ["circle", "triangle", "rect"]],
+    [false, [undefined, undefined, undefined]],
+  ])(
+    "draws in its image the patterns of the roles as the preference of who exports says: %s [WF-IHM-0130-A]",
+    async (patterns, expected) => {
+      canvas.options = [];
+      vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+      aggregated(NODE_WORKLOAD, patterns);
+      await userEvent.click(screen.getByRole("button", { name: "Export as PNG" }));
+      const option = canvas.options[0] as ChartOption;
+      const roles = (option.series as BarSeriesOption[]).filter((each) => each.type === "bar");
+      expect(
+        roles.map((each) => (each.itemStyle?.decal as { symbol?: string } | undefined)?.symbol),
+      ).toEqual(expected);
+    },
+  );
 });

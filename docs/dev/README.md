@@ -782,14 +782,14 @@ textual alternative (WF-IHM-0100). The client component of the curve's own (`ind
 `milestone-chart.tsx`, `curve-series-chart.tsx`, `workload-chart.tsx`) hands it its option, built
 in a palette: ECharts writes its colours in the attributes of its SVG, where a CSS variable does
 not reach, and the tokens `--chart-1` to `--chart-4`, `--muted-foreground`, `--foreground`,
-`--input`, `--border` and `--background` get there through hidden probes the browser paints in the
+`--input`, `--border`, `--background` and `--card` get there through hidden probes the browser paints in the
 displayed mode; a change of mode, from the workstation or forced by the account (`data-theme`),
 redraws the curve. It is drawn in one go, without animation, and a legend is inert there: a
 click, with the mouse alone, hides no series. `curve` names each curve at its last plotted point,
 whatever their number — no legend, which one entry per subproject would make overflow onto the
-plot —, the names that would overlap set aside, and distinguishes it also by its colour, its symbol
-and its stroke; a workload plan is a stacked histogram (`stackedRoles` of
-`workload/stacked-load.ts`: one bar per month, divided by role, the patterns kept), whose tooltip
+plot —, the names that would overlap set aside, and distinguishes it also by its colour and its
+stroke, and by its symbol when the account asks for the patterns; a workload plan is a stacked histogram (`stackedRoles` of
+`workload/stacked-load.ts`: one bar per month, divided by role), whose tooltip
 for a month lists the roles and their hours (`monthTooltip`, labels escaped); that of the project
 has no capacity line (#375) but carries at the top of each bar the total of the month the server
 renders (`monthly_totals`, `monthTotals`), like that of the portfolio, which also carries, dotted,
@@ -800,8 +800,8 @@ their signals being under the chart; the links to the workload plan open a basis
 otherwise; the link from the remaining to commit to this plan is an icon alone (`aria-label`,
 `title`), the title of the screen and the totals of its grid fitting in the 1280-point window only
 at that price (`remaining.spec.ts`); a curve without a plotted point has no name on the drawing,
-its table names it; a series of bars (`bars`) is also distinguished by the pattern of the symbol of
-its rank, which the legend shows; `timeAxis` graduates a time axis at the first of each month that
+its table names it; a series of bars (`bars`) bears the pattern of the symbol of its rank, which the
+legend shows, when the account asks for it; `timeAxis` graduates a time axis at the first of each month that
 `monthTicks` draws from the instants it shows — every two, three, six months or every year over a
 long range, the year alone then, or every two, five, ten years, on the years that are multiples of
 the step (#415) —, written in the language of the workstation, in its time zone or in UTC for an
@@ -839,6 +839,22 @@ image (`wrapLines`), the figure moved down by the height of their lines, on the 
 visual identity, then releases the instance. A choice that changes what a curve reads — the
 payment terms, the basis and the organisation node of the workload plan — is a parameter of the
 address, which the server sends to the API: the front neither filters nor shifts anything.
+
+**The common presentation** (US-2160, #3097): plain colours; slim bars (`bars`: half the room of
+the month, 28 points at most), each part rounded and parted from its neighbours by a thread of the
+colour of the page; an axis of values without line nor tick, read by a horizontal grid of light
+dashes (`valueAxis`), no vertical line (`timeAxis`); the legend at the top left, a dot of the colour
+of each series; the tooltip a card (the `--card` token, the border and the shadow in the tone of
+`--border`); the series under the pointer stands out, the others fade. `Chart` sets the legend and
+the tooltip (`presented`), on the screen as in the exported image; the axes and the series come
+from the common functions each chart calls. The scale is neither broken nor zoomed: the tooltip and
+the table give the values a very loaded month crushes. **The patterns** — those of the bars, the
+symbols of the points, and the legend that shows them — are drawn only if the account asks for them
+(`chart_series_patterns` of `DisplayPreferences`, set on "My account", off by default): the root
+layout reads the preference with the account and passes it through `ChartPatternsProvider`
+(`chart/patterns.tsx`); `Chart` alone reads it and puts it in the palette (`ChartPalette.patterns`)
+the option receives, which makes the export follow the preference of whoever exports. The Gantt
+and the timelines keep their marks (`readPalette` without the preference).
 
 The workload plan of the project (`…/workload`, FBS-4.4.4) is wired to the service (EP-07,
 US-1520): the page no longer carries the notice of the mock-up (`MockupNotice`), `getProjectWorkload`

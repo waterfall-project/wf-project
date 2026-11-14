@@ -774,14 +774,14 @@ l'alternative textuelle (WF-IHM-0100). Le composant client propre à la courbe (
 `milestone-chart.tsx`, `curve-series-chart.tsx`, `workload-chart.tsx`) lui remet son option,
 construite dans une palette : ECharts écrit ses couleurs dans les attributs de son SVG, où une
 variable CSS n'atteint pas, et les jetons `--chart-1` à `--chart-4`, `--muted-foreground`,
-`--foreground`, `--input`, `--border` et `--background` y arrivent par des sondes cachées que le
+`--foreground`, `--input`, `--border`, `--background` et `--card` y arrivent par des sondes cachées que le
 navigateur peint dans le mode affiché ; un changement de mode, du poste ou forcé par le compte
 (`data-theme`), redessine la courbe. Elle se dessine d'un coup, sans animation, et une légende y est
 inerte : un clic, à la souris seule, ne cache aucune série. `curve` nomme chaque courbe à son
 dernier point tracé, quel que soit leur nombre — pas de légende, qu'une entrée par sous-projet
 ferait déborder sur le tracé —, les noms qui se chevaucheraient écartés, et la distingue aussi par
-sa couleur, son symbole et son trait ; un plan de charge est un histogramme empilé (`stackedRoles`
-de `workload/stacked-load.ts` : une barre par mois, divisée par rôle, les motifs gardés), dont
+sa couleur et son trait, et par son symbole quand le compte demande les motifs ; un plan de charge est un histogramme empilé (`stackedRoles`
+de `workload/stacked-load.ts` : une barre par mois, divisée par rôle), dont
 l'infobulle d'un mois liste les rôles et leurs heures (`monthTooltip`, libellés échappés) ; celui du
 projet n'a pas de droite de capacité (#375) mais porte au sommet de chaque barre le total du mois
 que le serveur rend (`monthly_totals`, `monthTotals`), comme celui du portefeuille qui porte aussi,
@@ -792,8 +792,8 @@ et de leurs signaux étant sous le graphique ; les liens vers le plan de charge 
 le lien du reste à engager vers ce plan est une icône seule (`aria-label`, `title`), le titre de
 l'écran et les totaux de sa grille ne tenant dans la fenêtre de 1280 points qu'à ce prix
 (`remaining.spec.ts`) ; une courbe sans point tracé n'a pas de nom sur le dessin, son tableau la
-nomme ; une série de barres (`bars`) se distingue aussi par le motif du symbole de son rang, que la
-légende montre ; `timeAxis` gradue un axe de temps au premier de chaque mois que `monthTicks` tire
+nomme ; une série de barres (`bars`) porte le motif du symbole de son rang, que la légende montre, quand
+le compte le demande ; `timeAxis` gradue un axe de temps au premier de chaque mois que `monthTicks` tire
 des instants qu'il montre — tous les deux, trois, six mois ou chaque année sur une longue plage,
 l'année seule alors, ou tous les deux, cinq, dix ans, sur les années multiples du pas (#415) —,
 écrits dans la langue du poste, dans son fuseau ou en UTC pour un axe de dates de planning, que
@@ -830,6 +830,22 @@ figure descendue de la hauteur de leurs lignes, sur le fond de la charte, puis l
 choix qui change ce qu'une courbe lit — les délais de paiement, la base et le nœud d'organisation du
 plan de charge — est un paramètre de l'adresse, que le serveur envoie à l'API : le front ne filtre
 ni ne décale rien.
+
+**La présentation commune** (US-2160, #3097) : couleurs pleines ; barres minces (`bars` : la moitié
+de la place du mois, 28 points au plus), chaque part arrondie et séparée des voisines par un filet
+de la couleur de la page ; axe des valeurs sans trait ni graduation, lu par une grille horizontale
+en tirets clairs (`valueAxis`), aucune ligne verticale (`timeAxis`) ; légende en haut à gauche, une
+pastille de la couleur de chaque série ; infobulle en carte (le jeton `--card`, la bordure et
+l'ombre au ton de `--border`) ; la série sous le pointeur ressort, les autres s'estompent. `Chart`
+pose la légende et l'infobulle (`presented`), à l'écran comme dans l'image exportée ; les axes et
+les séries viennent des fonctions communes que chaque graphique appelle. L'échelle ne se rompt ni
+ne se zoome : l'infobulle et la table donnent les valeurs qu'un mois très chargé tasse. **Les
+motifs** — ceux des barres, les symboles des points, et la légende qui les montre — ne se dessinent
+que si le compte les demande (`chart_series_patterns` de `DisplayPreferences`, réglé sur « Mon
+compte », désactivé par défaut) : la mise en page racine lit la préférence avec le compte et la
+passe par `ChartPatternsProvider` (`chart/patterns.tsx`) ; `Chart` la lit seul et la met dans la
+palette (`ChartPalette.patterns`) que reçoit l'option, ce qui fait suivre l'export à la préférence
+de qui exporte. Le Gantt et les chronologies gardent leurs marques (`readPalette` sans préférence).
 
 Le plan de charge du projet (`…/workload`, FBS-4.4.4) est branché sur le service (EP-07, US-1520) :
 la page ne porte plus la note de la maquette (`MockupNotice`), `getProjectWorkload` rend la charge,

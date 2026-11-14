@@ -6,7 +6,7 @@ La charge des projets du périmètre, par rôle de ressource et par mois, face �
 
 De haut en bas :
 
-- **Charge empilée par rôle et par mois** : une barre par mois, divisée par rôle, en heures, le total du mois à son sommet, et la capacité du périmètre — la somme des capacités des rôles retenus — en pointillés.
+- **Charge empilée par rôle et par mois** : une barre par mois, divisée par rôle, en heures, le total du mois à son sommet, et la capacité du périmètre — la somme des capacités des rôles retenus — en pointillés. Les rôles se distinguent par leur couleur, et par un motif quand la préférence **Motifs des séries** de « Mon compte » le demande, à l’écran comme dans l’image exportée.
 - **Charge par rôle et par mois** : pour chaque rôle, sa capacité mensuelle, puis, mois par mois, sa charge en heures et son taux de charge, rapport de la charge à la capacité, avec le signal de sa zone.
 
 Sans charge sur le périmètre et l’horizon choisis, l’écran le dit.

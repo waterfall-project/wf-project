@@ -53,8 +53,10 @@ const PALETTE: ChartPalette = {
   axis: "axis",
   grid: "grid",
   background: "background",
+  card: "card",
   zones: { nominal: "nominal", watch: "watch", alert: "alert" },
   font: "font",
+  patterns: false,
 };
 
 const HISTORY = example("index_history") as IndexHistory;
