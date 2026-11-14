@@ -49,6 +49,7 @@ import { boundNames } from "@/components/grid/filters";
 import { ListPages } from "@/components/grid/list-pages";
 import { CONTRACT_ADDRESS, type GridQuery, LIMIT, OFFSET } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
+import { PrincipalSlot } from "@/components/shell/section-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -331,12 +332,12 @@ function AddYear({
       {/* The one filled command of the card of the rates, which has none at the right of its title:
           marked as its principal command, which creates, for the rule of the commands
           (`SectionCard`, `expectCommandRule`). */}
-      <span data-slot="section-card-principal" data-does="create" className="flex">
+      <PrincipalSlot does="create">
         <Button type="submit" size="sm" className="h-7 text-xs">
           <Plus aria-hidden="true" />
           {t("submit")}
         </Button>
-      </span>
+      </PrincipalSlot>
     </form>
   );
 }

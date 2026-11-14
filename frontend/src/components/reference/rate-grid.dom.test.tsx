@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { Coins } from "lucide-react";
 import { render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
@@ -11,6 +12,7 @@ import type { GridQuery } from "@/components/grid/query";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
+import { expectCommandRule } from "@/test/command-rule";
 import {
   example,
   type FakeAnswers,
@@ -20,6 +22,7 @@ import {
   type Problem,
 } from "@/test/fixtures";
 
+import { ReferenceCard } from "./section";
 import { RATE_SORTS, type RateSort } from "./rate-columns";
 import { type HourlyRateGrid, RateGrid } from "./rate-grid";
 
@@ -672,6 +675,27 @@ describe("the grid of the hourly rates", () => {
       "href",
       "/reference/costs?sort_by=rate.2026&sort_order=desc&offset=50",
     );
+  });
+
+  it("keeps the rule of the commands in its card: the column of a year is its one filled command, marked as its principal one [WF-IHM-0060-A]", () => {
+    serve();
+    const { container } = render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <ReferenceCard title="Taux horaires" icon={Coins}>
+          <RateGrid
+            grid={fewRows}
+            currency="EUR"
+            editable
+            query={{ sort: undefined, search: undefined, size: undefined }}
+            preferences={undefined}
+          />
+        </ReferenceCard>
+      </NextIntlClientProvider>,
+    );
+    const principal = container.querySelector('[data-slot="section-card-principal"]');
+    expect(principal).toContainElement(screen.getByRole("button", { name: "Ajouter la colonne" }));
+    expect(principal).toHaveAttribute("data-does", "create");
+    expectCommandRule(container);
   });
 
   it("is named and headed in English too", () => {
