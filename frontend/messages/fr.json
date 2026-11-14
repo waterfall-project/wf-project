@@ -59,7 +59,12 @@
     "email": "Adresse électronique",
     "origin": "Origine du compte",
     "preferences": "Préférences d’affichage",
-    "preferencesHelp": "Les mêmes que dans le menu du compte : elles s’appliquent sans reconnexion.",
+    "preferencesHelp": "La langue et le mode sont aussi dans le menu du compte. Tout s’applique sans reconnexion.",
+    "chartPatterns": {
+      "legend": "Graphiques",
+      "label": "Motifs des séries",
+      "help": "Distingue les séries d’un graphique par un motif ou un symbole en plus de leur couleur, à l’écran et dans l’image exportée."
+    },
     "save": "Enregistrer",
     "saved": "Vos préférences sont enregistrées.",
     "signIn": "Connexion",

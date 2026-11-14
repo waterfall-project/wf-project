@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The display preferences on the screen of the account (WF-ADM-0040): the language of the
- * interface (WF-INTF-0160) and the mode, each a choice among its values, recorded together when
- * the user saves them — the same fields of the account the menu of the account writes one at a
- * time (`updateMyPreferences`). Moving through the values sends nothing; saving renders the page
- * again with what the account now holds, without signing in again.
+ * interface (WF-INTF-0160) and the mode, each a choice among its values — the same fields of the
+ * account the menu of the account writes one at a time —, and the patterns of the series of the
+ * charts, a switch off until the account asks for them (WF-IHM-0070), which every chart and the
+ * image it exports follow; all recorded together when the user saves them
+ * (`updateMyPreferences`). Moving through the values sends nothing; saving renders the page again
+ * with what the account now holds, without signing in again.
  *
  * The page rendered again gives the preferences the account holds: a choice made in the menu
  * meanwhile shows here too. While a choice is recorded, the values are held: none chosen then
@@ -13,7 +15,7 @@
  */
 "use client";
 
-import { Languages, type LucideIcon, Save, SunMoon } from "lucide-react";
+import { ChartColumnStacked, Languages, type LucideIcon, Save, SunMoon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type SubmitEvent, useId, useState } from "react";
 
@@ -24,16 +26,19 @@ import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
 import { type LanguagePreference, PREFERENCES } from "@/i18n/locale";
 import { THEME_PREFERENCES, type ThemePreference } from "@/theme/theme";
 
 import { DoneNotice } from "@/components/notices/done-notice";
 import { WAITING } from "./form";
 
-/** The preferences the account holds: `default` when it never chose. */
+/** The preferences the account holds: `default` when it never chose, no patterns unless asked. */
 export interface PreferencesFormProps {
   readonly language: LanguagePreference;
   readonly theme: ThemePreference;
+  /** Whether the series of the charts are drawn with their patterns (`chart_series_patterns`). */
+  readonly patterns: boolean;
 }
 
 /** A choice among the values of a preference, named by its legend. */
@@ -83,11 +88,45 @@ function Choice<V extends string>({
   );
 }
 
+/** Render the switch of the patterns of the series of the charts, its effect said under it. */
+function PatternsSwitch({
+  checked,
+  onChange,
+}: {
+  readonly checked: boolean;
+  readonly onChange: (checked: boolean) => void;
+}) {
+  const t = useTranslations("account.chartPatterns");
+  const id = useId();
+  return (
+    <fieldset className="grid gap-2 sm:col-span-2">
+      <legend className="mb-2 flex items-center gap-2 text-sm font-medium">
+        <ChartColumnStacked aria-hidden="true" className="size-4 text-muted-foreground" />
+        {t("legend")}
+      </legend>
+      <div className="flex items-center gap-2">
+        <Switch
+          id={id}
+          checked={checked}
+          aria-describedby={`${id}-help`}
+          onCheckedChange={onChange}
+        />
+        <Label htmlFor={id} className="font-normal">
+          {t("label")}
+        </Label>
+      </div>
+      <p id={`${id}-help`} className="text-sm text-muted-foreground">
+        {t("help")}
+      </p>
+    </fieldset>
+  );
+}
+
 /** Render the preferences of the account, and record them when saved. */
-export function PreferencesForm({ language, theme }: PreferencesFormProps) {
+export function PreferencesForm({ language, theme, patterns }: PreferencesFormProps) {
   const t = useTranslations();
-  const [read, setRead] = useState({ language, theme });
-  const [chosen, setChosen] = useState({ language, theme });
+  const [read, setRead] = useState({ language, theme, patterns });
+  const [chosen, setChosen] = useState({ language, theme, patterns });
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   // Busy from the press to the answer, and lifted in the very update that tells it — not a
   // transition, whose end would wait for every other async action of the page, the tasks of the
@@ -97,9 +136,9 @@ export function PreferencesForm({ language, theme }: PreferencesFormProps) {
   const held = useHeldCommand();
   // The page rendered again holds other preferences — saved here, or chosen in the menu —: the
   // choice starts again from them.
-  if (read.language !== language || read.theme !== theme) {
-    setRead({ language, theme });
-    setChosen({ language, theme });
+  if (read.language !== language || read.theme !== theme || read.patterns !== patterns) {
+    setRead({ language, theme, patterns });
+    setChosen({ language, theme, patterns });
   }
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -109,7 +148,8 @@ export function PreferencesForm({ language, theme }: PreferencesFormProps) {
     // The language only when it changed: the API reports it to the identity provider (#877).
     const changed = chosen.language === read.language ? {} : { language: chosen.language };
     setBusy(true);
-    void held(updateDisplay({ theme: chosen.theme, ...changed })).then((outcome) => {
+    const display = { theme: chosen.theme, chart_series_patterns: chosen.patterns, ...changed };
+    void held(updateDisplay(display)).then((outcome) => {
       setBusy(false);
       setOutcome(outcome);
     });
@@ -140,6 +180,12 @@ export function PreferencesForm({ language, theme }: PreferencesFormProps) {
           }))}
           onChange={(value) => {
             setChosen({ ...chosen, theme: value });
+          }}
+        />
+        <PatternsSwitch
+          checked={chosen.patterns}
+          onChange={(checked) => {
+            setChosen({ ...chosen, patterns: checked });
           }}
         />
       </fieldset>

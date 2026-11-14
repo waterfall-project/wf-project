@@ -3,14 +3,14 @@
 /**
  * The workload of a project (FBS-4.4.4, WF-DEV-0070), as the API computes it on the basis it
  * names: a stack of bars, one a month divided by role of resource, in the order of the API, the
- * roles told apart without their colour too (`stackedRoles`), the legend naming them, the tooltip
- * of a month listing them with their hours, the total of each month at the top of its bar. The
- * total of a month is the server's (`monthly_totals`): nothing is summed here (WF-ARC-0020). And,
- * in the table of the values, the monthly capacity of each role in regard of its load, a role
- * without load included. The plan of a project presents no ratio of its load to the capacity,
- * which is that of the whole installation: the capacity is not drawn either, a line that would
- * crush the bars (decision of the author on #375, option b) — the ratio stays the aggregated
- * workload's (WF-PTF-0060).
+ * roles told apart without their colour too when the account asks for the patterns
+ * (`stackedRoles`), the legend naming them, the tooltip of a month listing them with their
+ * hours, the total of each month at the top of its bar. The total of a month is the server's
+ * (`monthly_totals`): nothing is summed here (WF-ARC-0020). And, in the table of the values, the
+ * monthly capacity of each role in regard of its load, a role without load included. The plan of
+ * a project presents no ratio of its load to the capacity, which is that of the whole
+ * installation: the capacity is not drawn either, a line that would crush the bars (decision of
+ * the author on #375, option b) — the ratio stays the aggregated workload's (WF-PTF-0060).
  *
  * A month is placed at its first day at midnight in UTC on an axis written in UTC
  * (`planningInstant`); the hours are the strings of the API, which ECharts reads a position from;
@@ -36,6 +36,7 @@ import {
   planningInstant,
   timeAxis,
   useProvenance,
+  valueAxis,
 } from "@/components/chart/chart";
 import { CalculationDate } from "@/components/context/indicator";
 import { Signal } from "@/components/signal/signal";
@@ -123,24 +124,18 @@ export function WorkloadChart({ workload, provenance }: WorkloadChartProps) {
         // Its axis of time is in UTC: its ticks too (`timeAxis`).
         useUTC: true,
         textStyle: { fontFamily: palette.font, color: palette.text },
-        // The legend names the roles.
-        legend: {
-          top: 0,
-          textStyle: { color: palette.text },
-          data: roles.map((role) => role.label),
-        },
+        // The legend names the roles, at the top left (`Chart`).
+        legend: { top: 0, data: roles.map((role) => role.label) },
         // No name at the end of a series: the bars need no room on their right.
         grid: { left: 56, right: 24, top: 48, bottom: 32 },
         xAxis: timeAxis(palette, formatLocale(locale), months, true),
         yAxis: {
-          type: "value",
-          // A load is never negative: its axis starts at zero.
+          ...valueAxis(palette, (value) => tick.format(value)),
+          // A load is never negative: its axis starts at zero. The scale is not broken: a month far
+          // above the others crushes them, which the tooltip and the table give.
           min: 0,
-          axisLine: { show: true, lineStyle: { color: palette.axis } },
-          axisLabel: { color: palette.text, formatter: (value: number) => tick.format(value) },
-          splitLine: { lineStyle: { color: palette.grid } },
         },
-        tooltip: monthTooltip(locale, (hours) => t("workload.hoursUnit", { hours })),
+        tooltip: monthTooltip(palette, locale, (hours) => t("workload.hoursUnit", { hours })),
         series: [
           ...stackedRoles(palette, roles),
           monthTotals(palette, totalSeries, totals, locale),

@@ -14,8 +14,10 @@ const PALETTE: ChartPalette = {
   axis: "rgb(5, 5, 5)",
   grid: "rgb(6, 6, 6)",
   background: "rgb(7, 7, 7)",
+  card: "rgb(8, 8, 8)",
   zones: { nominal: "nominal", watch: "watch", alert: "alert" },
   font: "sans-serif",
+  patterns: false,
 };
 
 /** The roles of the witness project, as the service gives them: the third is loaded on 8 months. */
@@ -61,7 +63,7 @@ describe("the series of the roles of a stack of bars", () => {
 });
 
 describe("the tooltip of a month", () => {
-  const tooltip = monthTooltip("en", (hours) => `${hours} h`) as {
+  const tooltip = monthTooltip(PALETTE, "en", (hours) => `${hours} h`) as {
     formatter: (params: unknown) => string;
   };
   const row = (name: string, hours: string) => ({

@@ -504,6 +504,17 @@ describe("the export of the frieze", () => {
     expect(milestones?.data).toHaveLength(1);
   });
 
+  // aucune exigence : propre à l'US (US-2160, les marques propres aux chronologies ne changent pas).
+  it("exports the frieze unchanged by the look of the charts: its vertical lines of months and years kept, no card nor legend added", async () => {
+    renderFrieze();
+    await userEvent.click(screen.getByRole("button", { name: "Exporter en PNG" }));
+    const option = canvas.options[0] as ChartOption;
+    expect(option.xAxis).toHaveProperty("splitLine.lineStyle");
+    expect(option.xAxis).not.toMatchObject({ splitLine: { show: false } });
+    expect(option.legend).toBeUndefined();
+    expect(option.tooltip).toBeUndefined();
+  });
+
   // aucune exigence : propre à l'US (US-0530, ce que l'image dessine d'un rectangle et d'un jalon).
   it("draws each rectangle at least two pixels wide and inset in its lane, and each milestone with its name and its date", async () => {
     renderFrieze();

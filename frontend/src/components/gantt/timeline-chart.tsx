@@ -248,6 +248,7 @@ function friezeOption(
       formatLocale(locale),
       bounds.map((time) => new Date(time).toISOString()),
       true,
+      true,
     ),
     yAxis: { type: "value", min: 0, max: count, inverse: true, show: false },
     series: [
@@ -275,7 +276,7 @@ function exportFrieze(
   image: ChartExport,
 ) {
   if (probes !== null) {
-    const palette = readPalette(probes);
+    const palette = readPalette(probes, false);
     exportPng(option(palette), palette, image);
   }
 }

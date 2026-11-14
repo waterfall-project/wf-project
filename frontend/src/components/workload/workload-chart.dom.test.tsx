@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
 import type { ChartOption } from "@/components/chart/chart";
+import { ChartPatternsProvider } from "@/components/chart/patterns";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { formatTimestamp } from "@/i18n/format";
 import { expectAccessible } from "@/test/axe";
@@ -83,18 +84,42 @@ const PROVENANCE = {
     "Basis: Remaining of the current revision · Organisation node and its descendants: Bureau d’études électricité",
 };
 
-/** Render the workload in English, as the screen hands it over. */
-function english(node: ReactNode) {
+/**
+ * Render the workload in English, as the screen hands it over, for an account that asks for the
+ * patterns of the series of its charts or not — by default, it never asked.
+ */
+function english(node: ReactNode, patterns = false) {
   return render(
     <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">
-      {node}
+      <ChartPatternsProvider patterns={patterns}>{node}</ChartPatternsProvider>
     </NextIntlClientProvider>,
   );
 }
 
 /** The workload of the witness project, on the revision under way, or a variant of it. */
-function workload(variant: (plan: WorkloadPlan) => WorkloadPlan = (plan) => plan) {
-  return english(<WorkloadChart workload={variant(WORKLOAD)} provenance={PROVENANCE} />);
+function workload(
+  variant: (plan: WorkloadPlan) => WorkloadPlan = (plan) => plan,
+  patterns = false,
+) {
+  return english(<WorkloadChart workload={variant(WORKLOAD)} provenance={PROVENANCE} />, patterns);
+}
+
+/** The option the drawing of the workload shows, once ECharts has it. */
+async function shownOption(): Promise<ChartOption> {
+  const image = screen.getByRole("img", {
+    name: /^Stacked bars of the load of each resource role/,
+  });
+  await waitFor(() => {
+    expect(getInstanceByDom(image)).toBeDefined();
+  });
+  return getInstanceByDom(image)?.getOption() as ChartOption;
+}
+
+/** The pattern of each series of roles of an option: none for a series drawn plain. */
+function decals(option: ChartOption) {
+  return (option.series as BarSeriesOption[])
+    .filter((each) => each.type === "bar")
+    .map((each) => (each.itemStyle?.decal as { symbol?: string } | undefined)?.symbol);
 }
 
 /** The links the export clicked: the file the browser is asked to save. */
@@ -143,10 +168,12 @@ describe("the workload of a project", () => {
       ["bar", "Ingénieur électricien"],
       ["bar", "Technicien de mise en service"],
     ]);
-    // Each role told apart without its colour too: the pattern of the symbol of its rank.
-    expect(
-      series.slice(0, 2).map((each) => (each as BarSeriesOption).itemStyle?.decal),
-    ).toMatchObject([{ symbol: "circle" }, { symbol: "triangle" }]);
+    // In plain colours, slim and rounded: the account never asked for the patterns.
+    expect(decals(option)).toEqual([undefined, undefined, undefined]);
+    expect(series[0]).toMatchObject({ barWidth: "50%", itemStyle: { borderRadius: 3 } });
+    // The legend at the top left, an entry a dot; the axis of the hours without its line.
+    expect(option.legend).toMatchObject([{ left: 0, icon: "circle", selectedMode: false }]);
+    expect(option.yAxis).toMatchObject([{ min: 0, axisLine: { show: false } }]);
     // The wirer, loaded on fewer months, is aligned to the same instants as the other roles: the
     // chart uses the shared function, which stacks by rank.
     const instantsOf = (each: BarSeriesOption | LineSeriesOption | undefined) =>
@@ -311,6 +338,75 @@ describe("the workload of a project", () => {
     expect(canvas.disposed).toBe(1);
     expect(canvas.hosts[0]?.isConnected).toBe(false);
   });
+});
+
+describe("the patterns of the roles, on the preference of the account", () => {
+  it("tells each role apart in grey by the pattern of its rank, which the legend shows, when the account asks for it; without it, its tooltip and its table name each role [WF-IHM-0070-A]", async () => {
+    const roles = WORKLOAD.roles.map((role) => role.label);
+    const patterned = workload(undefined, true);
+    const option = await shownOption();
+    // A pattern each, all apart: a copy in grey still tells the roles apart.
+    expect(decals(option)).toEqual(["circle", "triangle", "rect"]);
+    expect(option.legend).toMatchObject([{ data: roles, itemWidth: 22 }]);
+    expect(option.legend).not.toMatchObject([{ icon: "circle" }]);
+    patterned.unmount();
+
+    workload();
+    const plain = await shownOption();
+    expect(decals(plain)).toEqual([undefined, undefined, undefined]);
+    // The tooltip of a month names each role loaded that month.
+    const [tooltip] = plain.tooltip as { formatter: (params: unknown) => string }[];
+    const said = tooltip?.formatter(
+      roles.map((label) => ({
+        seriesName: label,
+        marker: "",
+        value: ["2026-06-01T00:00:00Z", "10.00"],
+      })),
+    );
+    for (const label of roles) {
+      expect(said).toContain(label);
+    }
+    // And the table of the values names each role.
+    const named = screen.getAllByRole("rowheader").map((header) => header.textContent);
+    expect(new Set(named)).toEqual(new Set(roles));
+  });
+
+  it("draws the same workload for two accounts, with the patterns for the one who asked for them and without for the other [WF-ADM-0040-A]", async () => {
+    const one = workload(undefined, true);
+    const withPatterns = await shownOption();
+    one.unmount();
+    workload();
+    const without = await shownOption();
+    // The same data, presented according to the settings of each.
+    const data = (option: ChartOption) =>
+      (option.series as BarSeriesOption[]).map((each) => [each.name, each.data]);
+    expect(data(without)).toEqual(data(withPatterns));
+    expect(decals(withPatterns)).toEqual(["circle", "triangle", "rect"]);
+    expect(decals(without)).toEqual([undefined, undefined, undefined]);
+  });
+
+  it.each([
+    [true, ["circle", "triangle", "rect"]],
+    [false, [undefined, undefined, undefined]],
+  ])(
+    "exports a PNG image whose bars bear their patterns as the preference of who exports says: %s [WF-IHM-0130-A]",
+    async (patterns, expected) => {
+      const user = userEvent.setup();
+      workload(undefined, patterns);
+      await user.click(screen.getByRole("button", { name: "Export as PNG" }));
+      const option = canvas.options[0] as ChartOption;
+      const series = option.series as BarSeriesOption[];
+      expect(
+        series
+          .filter((each) => each.type === "bar")
+          .map((each) => (each.itemStyle?.decal as { symbol?: string } | undefined)?.symbol),
+      ).toEqual(expected);
+      // Its legend follows the drawing: a dot without the patterns, the bar with its pattern with
+      // them.
+      expect((option.legend as { icon?: string }).icon).toBe(patterns ? undefined : "circle");
+      expect(saved).toHaveLength(1);
+    },
+  );
 });
 
 describe("the export of the workload from its section", () => {

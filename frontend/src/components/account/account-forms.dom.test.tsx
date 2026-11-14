@@ -88,7 +88,9 @@ beforeEach(() => {
 describe("the preferences on the screen of the account", () => {
   it("records the language and the mode chosen, the same fields the menu of the account writes", async () => {
     const client = serve({ [PREFERENCES]: "preferences_dark" });
-    const { container } = render(inFrench(<PreferencesForm language="default" theme="default" />));
+    const { container } = render(
+      inFrench(<PreferencesForm language="default" theme="default" patterns={false} />),
+    );
     await expectAccessible(container);
     const language = screen.getByRole("radiogroup", { name: "Langue" });
     const mode = screen.getByRole("radiogroup", { name: "Mode d’affichage" });
@@ -112,7 +114,9 @@ describe("the preferences on the screen of the account", () => {
     });
     expect(busyWhenTold.stop()).toEqual(["false"]);
 
-    expect(sent(client, PREFERENCES)).toEqual([{ language: "en", theme: "dark" }]);
+    expect(sent(client, PREFERENCES)).toEqual([
+      { language: "en", theme: "dark", chart_series_patterns: false },
+    ]);
     expect(refresh).toHaveBeenCalledOnce();
     // Kept in the history of the messages (#1043), by an effect of the commit that tells it.
     await waitFor(() => {
@@ -127,16 +131,48 @@ describe("the preferences on the screen of the account", () => {
 
   it("sends the mode alone when the language is left as it was: the language goes to the identity provider (#877)", async () => {
     const client = serve({ [PREFERENCES]: "preferences_dark" });
-    render(inFrench(<PreferencesForm language="fr" theme="default" />));
+    render(inFrench(<PreferencesForm language="fr" theme="default" patterns={false} />));
     await userEvent.click(screen.getByRole("radio", { name: "Sombre" }));
     await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
 
-    expect(sent(client, PREFERENCES)).toEqual([{ theme: "dark" }]);
+    expect(sent(client, PREFERENCES)).toEqual([{ theme: "dark", chart_series_patterns: false }]);
+  });
+
+  it("offers the patterns of the series of the charts beside the language and the mode, off until the account asks for them, and records them in its own preferences [WF-ADM-0040-A]", async () => {
+    const client = serve({ [PREFERENCES]: "preferences_chart_series_patterns" });
+    const { container } = render(
+      inFrench(<PreferencesForm language="default" theme="default" patterns={false} />),
+    );
+    const form = container.querySelector("form") ?? container;
+    // In the same form as the language and the mode, after them.
+    const groups = [...form.querySelectorAll("fieldset fieldset legend")].map(
+      (legend) => legend.textContent,
+    );
+    expect(groups).toEqual(["Langue", "Mode d’affichage", "Graphiques"]);
+    const patterns = screen.getByRole("switch", { name: "Motifs des séries" });
+    expect(patterns).not.toBeChecked();
+    expect(patterns).toHaveAccessibleDescription(
+      "Distingue les séries d’un graphique par un motif ou un symbole en plus de leur couleur, à l’écran et dans l’image exportée.",
+    );
+
+    await userEvent.click(patterns);
+    expect(patterns).toBeChecked();
+    // Turning it sends nothing: the preferences go when the user saves them.
+    expect(sent(client, PREFERENCES)).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent("Vos préférences sont enregistrées.");
+    });
+    // The preferences of the account of the session, the only ones the operation writes: no
+    // account is named, no other can be.
+    expect(client.calls.map((call) => call.route)).toEqual([PREFERENCES]);
+    expect(sent(client, PREFERENCES)).toEqual([{ theme: "default", chart_series_patterns: true }]);
+    expect(refresh).toHaveBeenCalledOnce();
   });
 
   it("sends nothing while the keyboard moves through the values", async () => {
     const client = serve({ [PREFERENCES]: "preferences" });
-    render(inFrench(<PreferencesForm language="default" theme="default" />));
+    render(inFrench(<PreferencesForm language="default" theme="default" patterns={false} />));
     await userEvent.tab();
     expect(screen.getByRole("radio", { name: "Langue du navigateur" })).toHaveFocus();
     await userEvent.keyboard("{ArrowDown}{ArrowDown}");
@@ -148,13 +184,14 @@ describe("the preferences on the screen of the account", () => {
 
   it("holds the values while the choice is recorded, so that none chosen meanwhile is lost", async () => {
     const answer = holding({ [PREFERENCES]: "preferences" });
-    render(inFrench(<PreferencesForm language="default" theme="default" />));
+    render(inFrench(<PreferencesForm language="default" theme="default" patterns={false} />));
     await userEvent.click(screen.getByRole("radio", { name: "English" }));
     const save = screen.getByRole("button", { name: "Enregistrer" });
     await userEvent.click(save);
 
     expect(screen.getByRole("radio", { name: "Français" })).toBeDisabled();
     expect(screen.getByRole("radio", { name: "Sombre" })).toBeDisabled();
+    expect(screen.getByRole("switch", { name: "Motifs des séries" })).toBeDisabled();
     // The button stays where the focus is, and does nothing more meanwhile.
     expect(save).toHaveFocus();
     expect(save).toHaveAttribute("aria-disabled", "true");
@@ -167,15 +204,18 @@ describe("the preferences on the screen of the account", () => {
   });
 
   it("starts again from the preferences a new render gives: those saved, or those chosen in the menu", () => {
-    const view = render(inFrench(<PreferencesForm language="default" theme="default" />));
-    view.rerender(inFrench(<PreferencesForm language="fr" theme="light" />));
+    const view = render(
+      inFrench(<PreferencesForm language="default" theme="default" patterns={false} />),
+    );
+    view.rerender(inFrench(<PreferencesForm language="fr" theme="light" patterns />));
     expect(screen.getByRole("radio", { name: "Français" })).toBeChecked();
     expect(screen.getByRole("radio", { name: "Clair" })).toBeChecked();
+    expect(screen.getByRole("switch", { name: "Motifs des séries" })).toBeChecked();
   });
 
   it("says a deactivated account instead of leading to the sign-in page, which would loop", async () => {
     serve({ [PREFERENCES]: { problem: { code: "ACCOUNT_DEACTIVATED", status: 401 } } });
-    render(inFrench(<PreferencesForm language="default" theme="default" />));
+    render(inFrench(<PreferencesForm language="default" theme="default" patterns={false} />));
     await userEvent.click(screen.getByRole("radio", { name: "Français" }));
     await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
     const alert = await screen.findByRole("alert");
@@ -186,7 +226,7 @@ describe("the preferences on the screen of the account", () => {
 
   it("leads to the sign-in page when the session is gone, and keeps the choice", async () => {
     serve({ [PREFERENCES]: { problem: { code: "SESSION_EXPIRED", status: 401 } } });
-    render(inFrench(<PreferencesForm language="default" theme="default" />));
+    render(inFrench(<PreferencesForm language="default" theme="default" patterns={false} />));
     await userEvent.click(screen.getByRole("radio", { name: "Français" }));
     await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
     const alert = await screen.findByRole("alert");
@@ -201,7 +241,7 @@ describe("the preferences on the screen of the account", () => {
     const release = holding({
       [PREFERENCES]: { problem: { code: "SESSION_EXPIRED", status: 401 } },
     });
-    render(inFrench(<PreferencesForm language="default" theme="default" />));
+    render(inFrench(<PreferencesForm language="default" theme="default" patterns={false} />));
     const link = heldLink();
     try {
       await userEvent.click(screen.getByRole("radio", { name: "Français" }));
@@ -223,7 +263,7 @@ describe("the preferences on the screen of the account", () => {
     // The browser cannot reach the server of Next: its fetch of the action rejects.
     serve({});
     vi.mocked(updateDisplay).mockRejectedValueOnce(new TypeError("Failed to fetch"));
-    render(inFrench(<PreferencesForm language="default" theme="default" />));
+    render(inFrench(<PreferencesForm language="default" theme="default" patterns={false} />));
     await userEvent.click(screen.getByRole("radio", { name: "Français" }));
     await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
     expect((await screen.findByRole("alert")).textContent).toBe(CATALOGUES.fr.outcome.unreachable);

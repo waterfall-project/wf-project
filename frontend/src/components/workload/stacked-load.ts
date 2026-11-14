@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * What the two workload charts share (WF-DEV-0070, WF-PTF-0060): the load of each role in a stack
- * of bars, one bar per month divided by role, each role told apart without its colour too (`bars`),
- * the tooltip of a month that lists the roles and their hours, and the total of a month that
- * labels the top of its bar. The hours are the strings of the API, which ECharts reads a position
- * from, and the total of a month is the server's (`monthly_totals`): nothing is summed here
- * (WF-ARC-0020).
+ * of bars, one bar per month divided by role, in the look of the charts (`bars`) — told apart
+ * without its colour when the account asks for the patterns —, the tooltip of a month that names
+ * the roles and their hours, and the total of a month that labels the top of its bar. The hours
+ * are the strings of the API, which ECharts reads a position from, and the total of a month is
+ * the server's (`monthly_totals`): nothing is summed here (WF-ARC-0020).
  */
 "use client";
 
@@ -69,6 +69,8 @@ export function monthTotals(
     symbol: "none",
     lineStyle: { opacity: 0 },
     silent: true,
+    // It stays as it is while a role under the pointer fades the others.
+    blur: { label: { opacity: 1 } },
     data: totals.map((total) => [planningInstant(total.month), total.hours]),
     label: {
       show: true,
@@ -89,16 +91,19 @@ function pointOf(value: unknown): readonly unknown[] {
 
 /**
  * The tooltip of a month: the month, then each role and its hours, in the language of the
- * interface. It lists the roles loaded that month only.
- * The total of the month comes under them when the chart draws it.
+ * interface. It lists the roles loaded that month only — each named, the dot of its colour beside
+ * it: the tooltip tells the roles apart without the patterns.
+ * The total of the month comes under them when the chart draws it. The month under the pointer
+ * is shaded in the tone of the grid.
  */
 export function monthTooltip(
+  palette: ChartPalette,
   locale: Locale,
   unit: (hours: string) => string,
 ): TooltipComponentOption {
   return {
     trigger: "axis",
-    axisPointer: { type: "shadow" },
+    axisPointer: { type: "shadow", shadowStyle: { color: palette.grid, opacity: 0.5 } },
     formatter: (params) => {
       const rows = Array.isArray(params) ? params : [params];
       // The month is the instant the first point holds, `2026-06-01T00:00:00Z`.

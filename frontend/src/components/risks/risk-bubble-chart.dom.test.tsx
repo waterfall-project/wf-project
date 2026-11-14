@@ -84,8 +84,10 @@ const PALETTE: ChartPalette = {
   axis: "rgb(5, 5, 5)",
   grid: "rgb(6, 6, 6)",
   background: "rgb(7, 7, 7)",
+  card: "rgb(8, 8, 8)",
   zones: { nominal: "zone-nominal", watch: "zone-watch", alert: "zone-alert" },
   font: "sans-serif",
+  patterns: false,
 };
 
 /** The ratio of a point, which the examples of the matrix give computable. */

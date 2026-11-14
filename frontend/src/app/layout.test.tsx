@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createApiClient } from "@/api/client";
 import type { BackgroundTask } from "@/api/problem";
+import { useChartPatterns } from "@/components/chart/patterns";
 import type { ShellProps } from "@/components/shell/shell";
 import { SIDEBAR_COOKIE } from "@/components/ui/sidebar-state";
 import { useCurrency } from "@/currency/context";
@@ -109,6 +110,17 @@ function request(acceptLanguage: string, answers: FakeAnswers = {}, timing: Fake
 /** What a page below the layout reads as the currency of the amounts. */
 function Currency() {
   return <p>{`currency:${useCurrency() ?? "none"}`}</p>;
+}
+
+/** What a page below the layout reads as the preference of the patterns of its charts. */
+function Patterns() {
+  return <p>{`patterns:${String(useChartPatterns())}`}</p>;
+}
+
+/** Whether the charts of a page below the layout draw the patterns of their series. */
+async function patternsOfPage(): Promise<string | undefined> {
+  const html = renderToStaticMarkup(await RootLayout({ children: <Patterns /> }));
+  return /patterns:([^<]*)/.exec(html)?.[1];
 }
 
 /** What a page below the layout reads as the time zone of the current day. */
@@ -306,6 +318,17 @@ describe("RootLayout", () => {
     server.cached.clear();
     request("fr", { "GET /reference/settings": UNAVAILABLE });
     expect(await currencyOfPage()).toBe("none");
+  });
+
+  it("hands every chart the preference of the patterns of the account, off when the account never asked for it [WF-ADM-0040-A]", async () => {
+    request("fr", { "GET /me": "me_chart_series_patterns" });
+    expect(await patternsOfPage()).toBe("true");
+    server.cached.clear();
+    request("fr");
+    expect(await patternsOfPage()).toBe("false");
+    server.cached.clear();
+    request("fr", { "GET /me": UNAUTHORIZED });
+    expect(await patternsOfPage()).toBe("false");
   });
 
   it("asks the installation once for a request whose browser leaves it the language", async () => {
