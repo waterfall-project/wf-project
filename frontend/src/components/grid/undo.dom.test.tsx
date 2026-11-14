@@ -164,7 +164,6 @@ describe("undo and redo, placed in the grids", () => {
     ] as const) {
       const button = screen.getByRole("button", { name });
       expect(button).toHaveAttribute("aria-disabled", "true");
-      expect(button).toHaveClass("aria-disabled:cursor-not-allowed", "aria-disabled:opacity-50");
       expect(button).toHaveAccessibleDescription(REASON);
       expect(button).toHaveAttribute("aria-keyshortcuts", keys);
       await userEvent.click(button);
@@ -353,9 +352,6 @@ describe("undo and redo, placed in the grids", () => {
       ),
     );
     expect(screen.getByRole("button", { name: "Annuler" })).not.toHaveAttribute("aria-disabled");
-    expect(screen.getByRole("button", { name: "Annuler" })).not.toHaveClass(
-      "aria-disabled:opacity-50",
-    );
     expect(screen.queryByText(REASON)).toBeNull();
     expect(press(focusLabel())).toBe(false);
     expect(told()).toBeNull();
