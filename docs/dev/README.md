@@ -4664,7 +4664,64 @@ screen reached, less Playwright's; it breaks down into script, styles, layout an
 Five departures are measured after one that is not, and their median must hold under one second:
 it fails the path, with a margin of five to one on a workstation, where the opening measures what
 it measures in the chain. The files of the project play one after the other (`workers: 1`): each
-would weigh on what the other measures.
+would weigh on what the other measures. `opening.spec.ts` also says, apart, how long the fake back
+takes to serve the example of the lines the grids read (`listNodes`, a thousand tasks and their
+lines), asked directly, outside any opening: Prism's share of an opening, which the service will
+not pay. Measured, never set against anything (US-2210).
+
+**The measure of the journey of the grids against the service** (US-2210, `make measure`,
+`frontend/e2e/measure/`) plays the journey of the grids on PRJ-001: open the planning by its
+address, go to the estimate by the navigation, filter it by a lot, sort it, search it, go to the
+remaining to commit then to the planning, enter a label, then a duration that redates its task.
+Each step lasts from the gesture — the start of the navigation, the click, the key Enter that sends
+— to the grid usable, drawn and hydrated, by the definition of the measure of the second, whose
+functions live in `frontend/e2e/usable.ts`; a grid changed in place is usable once it no longer
+reads, shows what the gesture asked — the address of the reading, the cell written — and, for a
+write, once its server action has answered. The time of the step splits in three: the API, read in
+its log (`duration_ms`, the actor) and tied to the step by the account of the user and the window
+of the step — the front sends no correlation identifier —, the clock of the API set once on a
+request of health with a correlation identifier of its own; Next, by difference, the time during
+which the server of Next was answering the browser — document, component tree, server action, a
+prefetch asked before the step and that it waits for — or the API was answering Next, less the
+API's; the browser, the rest. The weight of the answer is what Next sent the browser for the step.
+The time of Next and the weight keep the same requests: not the prefetches the step starts itself
+for the screens to come, which it does not wait for — their time is the browser's, at work
+meanwhile. A limit: the requests of the API such a prefetch makes stay in the part of the API, the
+log tying a request to an account and a moment, not to the request of Next that made it. The
+journey is played by one,
+four and eight users at once (`MEASURE_USERS`, which always names `1`: only a user alone fails the measure), an account each, each in its own browser context,
+and the duration of `getMe` is recorded meanwhile, in the log of the API and by a client that asks
+for it every second, with an account of its own, without any role, which plays no journey and whose
+requests enter no step; its askings without an answer of success are counted (`lost`). The accounts are created by the preparation of the measure, through the
+operations of the contract, never by an `INSERT`: the administrator of the installation creates
+each account, gives its link and its roles « Manager » and « Chef de projet »; since the project
+managers of the witness have no password, it deactivates them while the first user, who holds the
+project settings and « voir tous les projets », registers the users of the measure as project
+managers of PRJ-001 — the one registration the contract opens to a non-contributor —, then
+reactivates them. Their sign-ins, the reset of the grids of each account to their default settings
+and the search for the tasks they write, one each, in automatic mode, not started and far from one
+another, are outside the measure. Each level plays one unmeasured pass, then five
+(`MEASURE_PASSES`); the report, a JSON (`frontend/.e2e/measure.json` by default, `MEASURE_REPORT`),
+gives for each level and each step the number of samples and of unfinished steps, then the median,
+the worst and the spread — the gap between the highest and the lowest median of a pass, absent
+(`null`) when fewer than two passes have a sample, where it would say 0 as a stable run does — of the
+duration, of its three parts, of the bytes of Next and of the requests of the API; and the same for
+`getMe`. Each median is taken over its own quantity: the median of a part is not the part of the
+median step, and the medians of the three parts do not sum to that of the duration. Its form is declared by `MeasureReport` (`frontend/e2e/measure/report.ts`), whose
+computations have their unit tests; it never calls a difference a gain. The measure fails on no
+duration: only a journey that no longer works fails it — an account it cannot create, a user it
+cannot sign in, or a step that a user alone does not bring to its end: a link renamed, a grid that
+no longer shows; the measure then fails at the end, once the report is written, and names those
+steps. At four and eight users, a step that does not reach its end is the load's doing: it is
+counted unfinished, and fails nothing. The front is built for
+production and talks to the API directly, without the proxy of the contract, keeping its
+connections as the users' front does; the platform is started, bootstrapped and the witness loaded
+as for `make e2e-service`. For a witness freshly loaded, `make service-down WATERFALL_RESET_DATA=yes`
+first: the measure does not reload it itself, and a witness left unreloaded accumulates, from one
+measure to the next, the accounts registered on PRJ-001 and the durations entered, which redate the
+planning measured next — until US-2210/L4 reloads it, this is done by hand. The Playwright project `measure-service` exists only under `E2E_PART=measure-service`, which
+`make measure` alone sets: no goal of the chain plays it, and the other projects leave
+`frontend/e2e/measure/` aside.
 
 The witness path — list of projects, project, grid — goes through three minimal pages,
 with no text of their own, which EP-02 replaces while keeping the path. They read the API on the

@@ -4764,7 +4764,67 @@ moins celui de Playwright ; il se ventile en script, styles, mise en page et tra
 départs sont mesurés après un qui ne l'est pas, et leur médiane doit tenir sous une seconde :
 celle-ci fait échouer le parcours, avec une marge de cinq contre un sur un poste, où l'ouverture
 mesure ce qu'elle mesure dans la chaîne. Les fichiers du projet se jouent l'un après l'autre
-(`workers: 1`) : chacun pèserait sur ce que l'autre mesure.
+(`workers: 1`) : chacun pèserait sur ce que l'autre mesure. `opening.spec.ts` dit en outre, à
+part, ce que le faux back met à servir l'exemple des lignes que lisent les grilles (`listNodes`,
+mille tâches et leurs lignes), demandé directement, hors de toute ouverture : la part de Prism dans
+une ouverture, que le service ne paiera pas. Mesurée, jamais confrontée à rien (US-2210).
+
+**La mesure du parcours des grilles contre le service** (US-2210, `make measure`,
+`frontend/e2e/measure/`) joue sur PRJ-001 le parcours des grilles : ouvrir le planning par son
+adresse, passer au devis par la navigation, le filtrer par un lot, le trier, le chercher, passer au
+reste à engager puis au planning, saisir un libellé, puis une durée qui redate sa tâche. Chaque
+étape va du geste — le début de la navigation, le clic, la touche Entrée qui envoie — à la grille
+utilisable, dessinée et hydratée, selon la définition de la mesure de la seconde, dont les fonctions
+vivent dans `frontend/e2e/usable.ts` ; une grille changée sur place l'est quand elle ne lit plus,
+montre ce que le geste demandait — l'adresse de la lecture, la cellule écrite — et, pour une
+écriture, quand son action serveur a répondu. Le temps de l'étape se partage en trois : l'API, lue
+dans son journal (`duration_ms`, l'acteur) et rapprochée de l'étape par le compte de l'utilisateur
+et la fenêtre de l'étape — le front ne transmet aucun identifiant de corrélation —, l'horloge de
+l'API recalée une fois sur une requête de santé à l'identifiant de corrélation propre ; Next, par
+différence, le temps où le serveur de Next répondait au navigateur — document, arbre de composants,
+action serveur, préchargement demandé avant l'étape et qu'elle attend — ou l'API à Next, moins
+celui de l'API ; le navigateur, le reste. Le poids de la réponse est ce que Next a envoyé au
+navigateur pour l'étape. Temps de Next et poids retiennent les mêmes requêtes : pas les
+préchargements que l'étape lance elle-même pour les écrans suivants, qu'elle n'attend pas — leur
+temps est celui du navigateur, qui travaille pendant ce temps. Limite : les requêtes d'API d'un tel
+préchargement restent dans la part de l'API, le journal rattachant une requête à un compte et à un
+instant, non à la requête de Next qui l'a faite. Le parcours se
+joue à un, quatre et huit utilisateurs à la fois (`MEASURE_USERS`, qui nomme toujours `1` : seul un utilisateur seul fait échouer la mesure), un compte chacun, chacun dans
+son contexte de navigateur, et la durée de `getMe` est relevée pendant ce temps, dans le journal de
+l'API et par un client qui la demande chaque seconde, avec un compte à lui, sans rôle, qui ne joue
+pas le parcours et dont les requêtes n'entrent dans aucune étape ; ses demandes sans réponse de
+succès sont comptées (`lost`). Les comptes sont créés par la préparation de
+la mesure, par les opérations du contrat, jamais par un `INSERT` : l'administrateur de
+l'installation crée chaque compte, donne son lien et ses rôles « Manager » et « Chef de projet » ;
+puisque les chefs de projet du témoin n'ont pas de mot de passe, il les désactive le temps que le
+premier utilisateur, détenteur des paramètres de projets et de « voir tous les projets », inscrive
+les utilisateurs de la mesure en chefs de projet de PRJ-001 — la seule inscription que le contrat
+ouvre à un non-contributeur —, puis les réactive. Leurs connexions, la remise à leurs réglages par
+défaut des grilles de chaque compte et la recherche des tâches qu'ils écrivent, une chacun, en mode
+automatique, non démarrées et éloignées l'une de l'autre, sont hors de la mesure. Chaque niveau
+joue un passage non mesuré, puis cinq (`MEASURE_PASSES`) ; le rapport, un JSON
+(`frontend/.e2e/measure.json` par défaut, `MEASURE_REPORT`), dit pour chaque niveau et chaque
+étape le nombre de mesures et d'étapes inachevées, puis la médiane, la pire et la dispersion —
+l'écart entre la plus haute et la plus basse des médianes d'un passage, absente (`null`) quand
+moins de deux passages ont une mesure, où elle dirait 0 comme un passage stable — de la durée, de ses trois parts,
+des octets de Next et des requêtes de l'API ; et de même pour `getMe`. Chaque médiane se prend
+sur sa grandeur : la médiane d'une part n'est pas la part de l'étape médiane, et les médianes des
+trois parts ne somment pas à celle de la durée. Sa forme est déclarée par
+`MeasureReport` (`frontend/e2e/measure/report.ts`), dont les calculs ont leurs tests unitaires ; il
+ne dit jamais un écart un gain. La mesure n'échoue sur aucune durée : seul un parcours qui ne
+fonctionne plus la fait échouer — un compte qu'elle ne peut créer, un utilisateur qu'elle ne peut
+connecter, ou une étape qu'un utilisateur seul ne mène pas à sa fin : un lien renommé, une grille
+qui ne s'affiche plus ; la mesure échoue alors à la fin, une fois le rapport écrit, en nommant ces
+étapes. À quatre et huit utilisateurs, une étape qui n'atteint pas sa fin est le fait de la
+charge : elle est comptée inachevée, et ne fait rien échouer. Le front est construit
+pour la production et parle à l'API directement, sans le proxy du contrat, en gardant ses connexions
+comme le front des utilisateurs ; la plateforme est démarrée, amorcée et le témoin chargé comme pour
+`make e2e-service`. Pour un témoin fraîchement chargé, `make service-down WATERFALL_RESET_DATA=yes`
+d'abord : la mesure ne le recharge pas elle-même, et un témoin qu'on ne recharge pas cumule d'une
+mesure à l'autre les comptes inscrits sur PRJ-001 et les durées saisies, qui redatent le planning
+mesuré ensuite — jusqu'à ce qu'US-2210/L4 le recharge, c'est à faire à la main. Le projet Playwright `measure-service` n'existe que sous `E2E_PART=measure-service`, que
+pose `make measure` seule : aucune cible de la chaîne ne le joue, et les autres projets laissent
+`frontend/e2e/measure/` de côté.
 
 Le parcours témoin — liste des projets, projet, grille — traverse trois pages minimales,
 sans texte propre, qu'EP-02 remplace en gardant le parcours. Elles lisent l'API côté
