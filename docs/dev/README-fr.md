@@ -2134,9 +2134,16 @@ estimate`) et s'exporte (`kind: estimate`, fichier `…-devis.xlsx`) par le mêm
 `@shared`, sur un projet que la course crée, l'importe en deux temps (US-1550, #2687) : il exporte et
 télécharge le devis, voit refuser à l'analyse un fichier qui n'en est pas un (format et version
 attendus nommés), puis réimporte le classeur téléchargé, lit le compte rendu sans écart, confirme
-l'application, qu'il suit dans la coquille jusqu'à sa réussite, et retrouve les mêmes lignes. Les
-lignes rejetées d'un compte rendu et l'abandon restent sur le faux back, comme le reste à engager et
-les coûts réels (EP-09) et le parcours du marquage.
+l'application, qu'il suit dans la coquille jusqu'à sa réussite, et retrouve les mêmes lignes.
+L'écart de calendrier d'un import (US-2000) a lui aussi son parcours `@shared`, sur un projet que la
+course crée : le planning synthétique à sept heures par jour
+(`fixtures/msproject/14-calendar-gap-seven-hours.xml`) montre son écart sur le compte rendu avant
+toute confirmation, garde les durées par défaut, analyse de nouveau quand les dates sont gardées et
+se suit jusqu'au nouveau compte rendu, et son abandon laisse le projet inchangé ; la règle déjà en
+vigueur, que le serveur de Next envoie et que le navigateur ne voit pas, se lit par le même appel
+fait à l'API (200). Les lignes rejetées d'un compte rendu et l'abandon d'un import sans écart
+restent sur le faux back, comme le reste à engager et les coûts réels (EP-09) et le parcours du
+marquage.
 
 La page d'un projet propose de démarrer son planning par l'encart « Démarrer le projet »
 (`ProjectStart`, `components/projects/project-start.tsx`, US-0490) tant que la structure principale

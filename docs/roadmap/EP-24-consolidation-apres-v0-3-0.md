@@ -1062,7 +1062,7 @@ suffisantes sur le planning éprouvé. Aucun test ne lit, ne cite ni ne nomme un
 
 ## US-2000 — L'import MS Project d'un planning bâti sur un autre calendrier le signale, et garde ses durées ou ses dates
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-INTF-0040-A`, `WF-PLA-0160-A`, `WF-INTF-0080-A`
 - **opérations** : `openImport`, `getImport`, `applyImport`, `abandonImport`, `setImportDurationRule`
 - **issue** : #2972
