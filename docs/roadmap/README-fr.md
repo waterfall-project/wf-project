@@ -159,13 +159,26 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-06](EP-06-planification.md) | Planification | livré | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Chiffrage et devis | livré | EP-06 |
 | [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Coûts réels, reste à engager et import des coûts | livré | EP-07 |
-| [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | en cours | EP-09 |
 | [EP-23](EP-23-dette-constats-ep02-ep03.md) | Dette des constats d'EP-02 et d'EP-03 | livré | EP-02, EP-03, EP-06 |
 | [EP-24](EP-24-consolidation-apres-v0-3-0.md) | Consolidation après la v0.3.0 | livré | EP-09, EP-23 |
-| [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | à planifier | EP-10 |
+| [EP-25](EP-25-refonte-ergonomique.md) | Refonte ergonomique | à planifier | EP-24 |
+| [EP-26](EP-26-lecture-et-performance-des-grilles.md) | Lecture et performance des grilles | à planifier | EP-25 |
+| [EP-27](EP-27-comparaison-dans-les-grilles.md) | Comparaison dans les grilles | à planifier | EP-26 |
+| [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | en cours | EP-09 |
+| [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | à planifier | EP-10, EP-27 |
 | [EP-11](EP-11-portefeuille.md) | Portefeuille | à planifier | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | abandonné : chaque aller-retour se valide dans son bloc fonctionnel | — |
 | [EP-13](EP-13-exploitation.md) | Exploitation et mise en production | à planifier | EP-04 |
+| [EP-28](EP-28-chaine-et-outillage.md) | Chaîne et outillage de développement | à planifier | rien |
+
+La ventilation du 2026-11-14, à la livraison d'EP-24, a réparti le reste à faire par thème — celui du
+code touché — et non plus par date de report : EP-25 ne garde que la refonte ergonomique et passe en
+premier, pour que les écrans qui suivent naissent dans la présentation nouvelle ; EP-26 mesure et
+corrige la lecture des grilles, et clôt WF-QUA-0060 à la place d'EP-13 ; EP-27 porte la comparaison
+dans les grilles, que la spécification 1.0.6 décrit, avant EP-08 qui s'y appuie ; EP-10, conçu avant
+EP-24, se relit contre la base livrée et reçoit le détail du plan de charge et la projection de
+dépenses ; EP-28 rassemble ce qui ne touche que la chaîne et les outils, et ne dépend de rien. Un
+constat de revue va désormais à l'EPIC qui touche son code.
 
 L'ordre de la liste n'est pas celui des numéros, et c'est voulu : un identifiant ne se
 renumérote pas. La répartition des exigences a fait passer le référentiel avant les projets —

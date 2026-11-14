@@ -1557,15 +1557,15 @@ changé d'une offre à la suivante.
   issue : une tâche dont la fin y est repoussée de cinq jours est présentée modifiée, avec la date
   de fin de la base ; la date ramenée à celle de la base, la tâche n'est plus présentée modifiée. »
   : ajouté par la spécification 1.0.6 (#3176), la révision en cours comparée à une base marquée ;
-  EP-25 le réalise ;
+  EP-27 le réalise ;
 - écart : `WF-REV-0080-A` — « La comparaison d'une révision marquée à une révision marquée
   postérieure présente retirées les tâches que la seconde ajoute. » : ajouté par la spécification
-  1.0.6 (#3176), la révision en cours comparée à une base marquée ; EP-25 le réalise ;
+  1.0.6 (#3176), la révision en cours comparée à une base marquée ; EP-27 le réalise ;
 - écart : `WF-REV-0080-A` — « Une révision en cours prise pour base est refusée. » : ajouté par la
-  spécification 1.0.6 (#3176), la révision en cours comparée à une base marquée ; EP-25 le réalise ;
+  spécification 1.0.6 (#3176), la révision en cours comparée à une base marquée ; EP-27 le réalise ;
 - écart : `WF-REV-0080-A` — « Un utilisateur qui consulte le planning sans consulter les révisions y
   active une comparaison. » : ajouté par la spécification 1.0.6 (#3176), la révision en cours
-  comparée à une base marquée ; EP-25 le réalise ;
+  comparée à une base marquée ; EP-27 le réalise ;
 - propre à l'US : `compareRevisions` rend l'arbre de la révision comparée dans l'ordre du plan, les
   nœuds retirés à leur place en lecture seule, chaque nœud avec `difference` et `changes` — une
   tâche par ses dates, sa durée, son état ou son parent, une ligne par ses montants, son délai de

@@ -903,7 +903,7 @@ je travaille, **afin de** ne pas m'arrêter à une fiche qui ne me sert pas (#14
   l'écran mène à `/projects/P/revisions` (décision de l'auteur du 2026-10-28) ;
 - écart : `WF-IHM-0010-A` — « Une comparaison active sur le planning l'est encore sur le devis puis
   sur le reste à engager, avec la même base. » : ajouté par la spécification 1.0.6 (#3178), la base
-  d'une comparaison conservée entre les grilles ; EP-25 le réalise ;
+  d'une comparaison conservée entre les grilles ; EP-27 le réalise ;
 - propre à l'US : un projet sans révision garde l'écran du projet — l'encart de démarrage du
   planning et les imports qui créent la révision —, sans liste de révisions ;
 - propre à l'US : le compte rendu d'un import nommé par l'adresse (`?import=`) s'ouvre sur l'écran

@@ -37,7 +37,8 @@ sur un dépôt qui les porte tous (WF-ARC-0010).
 ## Ce qui n'en fait pas partie
 
 - tout export du portefeuille : aucun flux du tableau ne le prévoit (WF-INTF-0150) ;
-- la mesure des temps de réponse sur trois cents projets — EP-13.
+- la mesure des temps de réponse sur trois cents projets — l'outil d'EP-26 (WF-QUA-0060), rejoué à la
+  livraison des vues.
 
 ## Exigences réalisées
 
@@ -69,7 +70,7 @@ par mois et les totaux par nature et par nœud d'organisation, par un second enr
 | `WF-PRJ-0090-A` | Probabilité de gain | fin — amorcée en EP-04 | — |
 | `WF-ARC-0010-A` | Un noyau, un service, un worker | fin — amorcée en EP-01 | — |
 | `WF-QUA-0020-A` | Les exemples chiffrés du document sont des cas de test | fin — amorcée en EP-01 | — |
-| `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | fin — amorcée en EP-02, EP-03, EP-15 | — |
+| `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | fin — amorcée en EP-02, EP-03, EP-15, EP-25 | — |
 | `WF-IHM-0140-A` | Aide en ligne | fin — amorcée en EP-15, poursuivie en EP-16 | — |
 | `WF-INTF-0150-A` | Liste fermée des échanges externes | entière | — |
 | `WF-REF-0070-A` | Arbre d'organisation | fin — amorcée en EP-05 | — |

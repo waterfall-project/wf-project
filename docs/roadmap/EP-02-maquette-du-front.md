@@ -730,7 +730,7 @@ consignée dans `docs/api/DECISIONS.md`, « Les constats d'EP-02 tranchés (EP-0
   le même contexte. »
 - écart : `WF-IHM-0010-A` — « Une comparaison active sur le planning l'est encore sur le devis puis
   sur le reste à engager, avec la même base. » : ajouté par la spécification 1.0.6 (#3178), la base
-  d'une comparaison conservée entre les grilles ; EP-25 le réalise ;
+  d'une comparaison conservée entre les grilles ; EP-27 le réalise ;
 - propre à l'US : à la connexion, l'accueil présente la liste des projets dont l'utilisateur
   est contributeur (décision du cadrage) — un filtre par défaut, visible et levable, jamais
   une restriction de lecture (WF-PRJ-0060) ; ce filtre est la neuvième modification du
@@ -792,10 +792,10 @@ suis, si elle est marquée, si elle est la référence, et ce qu'un filtre actif
 - écart : `WF-IHM-0020-A` — « Depuis la grille de devis de la révision en cours, l'utilisateur
   choisit une révision marquée pour base sans quitter l'écran ; l'écran la nomme, et la comparaison
   se lève sans ouvrir aucun panneau. » : ajouté par la spécification 1.0.6 (#3178), la révision lue
-  et la base choisies dans le bandeau de contexte ; EP-25 le réalise ;
+  et la base choisies dans le bandeau de contexte ; EP-27 le réalise ;
 - écart : `WF-IHM-0020-A` — « Depuis la même grille, il ouvre une autre révision du projet sans
   passer par l'historique. » : ajouté par la spécification 1.0.6 (#3178), la révision lue et la base
-  choisies dans le bandeau de contexte ; EP-25 le réalise ;
+  choisies dans le bandeau de contexte ; EP-27 le réalise ;
 
 ## US-0110 — Grille dense : lecture, tri, colonnes et préférences
 

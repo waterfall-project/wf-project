@@ -160,13 +160,26 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-06](EP-06-planification.md) | Planning | livré | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Costing and estimate | livré | EP-06 |
 | [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Actual costs, remaining to commit and cost import | livré | EP-07 |
-| [EP-10](EP-10-indicateurs.md) | Project indicators | en cours | EP-09 |
 | [EP-23](EP-23-dette-constats-ep02-ep03.md) | Debt of the findings of EP-02 and EP-03 | livré | EP-02, EP-03, EP-06 |
 | [EP-24](EP-24-consolidation-apres-v0-3-0.md) | Consolidation after v0.3.0 | livré | EP-09, EP-23 |
-| [EP-08](EP-08-avenants-et-risques.md) | Amendments, risks and provisions | à planifier | EP-10 |
+| [EP-25](EP-25-refonte-ergonomique.md) | Ergonomic redesign | à planifier | EP-24 |
+| [EP-26](EP-26-lecture-et-performance-des-grilles.md) | Reading and performance of the grids | à planifier | EP-25 |
+| [EP-27](EP-27-comparaison-dans-les-grilles.md) | Comparison in the grids | à planifier | EP-26 |
+| [EP-10](EP-10-indicateurs.md) | Project indicators | en cours | EP-09 |
+| [EP-08](EP-08-avenants-et-risques.md) | Amendments, risks and provisions | à planifier | EP-10, EP-27 |
 | [EP-11](EP-11-portefeuille.md) | Portfolio | à planifier | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | File exchanges (FLX-01 to FLX-06) | abandonné : each round trip is validated in its functional block | — |
 | [EP-13](EP-13-exploitation.md) | Operations and going to production | à planifier | EP-04 |
+| [EP-28](EP-28-chaine-et-outillage.md) | Chain and development tooling | à planifier | nothing |
+
+The distribution of 2026-11-14, at the delivery of EP-24, spread what remains by theme — that of
+the code touched — and no longer by date of deferral: EP-25 keeps only the ergonomic redesign and
+comes first, so that the screens that follow are born in the new presentation; EP-26 measures and
+corrects the reading of the grids, and closes WF-QUA-0060 in place of EP-13; EP-27 carries the
+comparison in the grids, which the specification 1.0.6 describes, before EP-08, which relies on it;
+EP-10, designed before EP-24, is read again against the delivered base and receives the detail of
+the workload and the spending projection; EP-28 gathers what touches only the chain and the tools,
+and depends on nothing. A review finding now goes to the epic that touches its code.
 
 The order of the list is not that of the numbers, and that is deliberate: an identifier is not
 renumbered. The distribution of the requirements put the reference data before the projects —
