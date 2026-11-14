@@ -219,11 +219,11 @@ async function box(element: Locator) {
   };
 }
 
-for (const { width } of WINDOWS) {
+for (const { width, height } of WINDOWS) {
   test(`sets each section in its card, the creation of a list filled at the right of the title of its card, and the column of a year filled at the right end of the bar of the rates, at ${String(width)} points (#3071) @shared [WF-IHM-0060-A]`, async ({
     page,
   }) => {
-    await page.setViewportSize({ width, height: 900 });
+    await page.setViewportSize({ width, height });
     await page.goto("/reference/costs");
     await expect(page.getByRole("grid", { name: "Grille des taux horaires" })).toHaveAttribute(
       "aria-rowcount",
@@ -289,6 +289,24 @@ for (const { width } of WINDOWS) {
       return { field, button, columns };
     };
     const before = await expectEnding();
+    // The page scrolls: the card of the rates brought to the top of the window, its bar — « Ajouter
+    // la colonne » among it, on two lines at 911 points — is whole in the window; brought to its
+    // bottom, its pages are, inside the card.
+    await rates.evaluate((element) => {
+      element.scrollIntoView({ block: "start" });
+    });
+    await expect(toolbar).toBeInViewport({ ratio: 1 });
+    await expect(add).toBeInViewport({ ratio: 1 });
+    const pages = rates.getByRole("navigation");
+    await rates.evaluate((element) => {
+      element.scrollIntoView({ block: "end" });
+    });
+    await expect(pages).toBeInViewport({ ratio: 1 });
+    const bottom = await box(pages);
+    const frame = await box(rates);
+    expect(bottom.y + bottom.height, "the pages within their card").toBeLessThanOrEqual(
+      frame.y + frame.height,
+    );
     if (width === 1366) {
       expect(
         Math.abs(before.button.middle - before.columns.middle),
