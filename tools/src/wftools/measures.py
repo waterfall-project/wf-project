@@ -1,0 +1,223 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+"""Confront the measure reports of the versions (WF-QUA-0060-A, US-2300).
+
+Usage: ``python -m wftools.measures [DIRECTORY]``, DIRECTORY being ``docs/measures`` by default.
+
+A version's measures are a JSON file, ``docs/measures/<version>.json``, taken on a workstation and
+versioned with the code: the chain does not measure, the durations of a runner vary from simple to
+double. ``reference.json``, taken before any correction, is not a version and is not confronted.
+The report names every operation of the table of response times (table 15 of §4.6.2) once::
+
+    {"version": "0.4.0", "operations": [
+      {"id": "open-grid", "objective_s": 1, "median_s": 0.8, "worst_s": 1.4, "dispersion_s": 0.2,
+       "note": "text that documents an overrun or a degradation"},
+      {"id": "portfolio-view", "objective_s": 2, "unserved": "EP-11"}]}
+
+An operation the service does not yet serve carries ``unserved``, the epic that will measure it,
+and no duration. The two last reports are confronted: an objective exceeded by the median, or a
+median more than a quarter above the previous version's, is a warning of the chain, and a failure
+when the report gives no ``note`` for it. Without a previous report only the objectives are held;
+without any report the check passes.
+"""
+
+import json
+import re
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import cast
+
+from wftools import REPOSITORY
+
+MEASURES = REPOSITORY / "docs" / "measures"
+DEGRADATION = 1.25
+"""The ratio above which a duration, against the previous version's, is a degradation."""
+VERSION = re.compile(r"\d+(?:\.\d+)*")
+EPIC = re.compile(r"EP-\d+")
+DURATIONS = ("median_s", "worst_s", "dispersion_s")
+
+
+@dataclass(frozen=True, slots=True)
+class Operation:
+    """A line of table 15: its identifier, its wording and its objective, in seconds."""
+
+    id: str
+    label: str
+    objective_s: float
+
+
+TABLE = (
+    Operation("open-grid", "Open a grid of a thousand tasks", 1),
+    Operation("recompute-after-entry", "Recompute after an entry in a grid", 1),
+    Operation("indicators", "Show the indicators of the current revision", 1),
+    Operation("portfolio-view", "Show a portfolio view of three hundred projects", 2),
+    Operation("open-compared-grid", "Open a grid compared with a marked revision", 2),
+    Operation("filter-sort-search", "Filter, sort or search in such a grid", 2),
+    Operation("recompute-compared", "Recompute after an entry in a compared grid", 2),
+    Operation("workload-or-projection", "Show the workload or the expense projection", 2),
+    Operation("mark-revision", "Mark a revision of ten thousand objects", 60),
+    Operation("import-costs", "Analyse then apply an import of eighteen thousand lines", 300),
+    Operation("export-planning", "Generate the export of a planning of a thousand tasks", 30),
+)
+
+
+@dataclass(frozen=True, slots=True)
+class Measured:
+    """An operation of a report: served, with its durations, or named for the epic to serve it."""
+
+    median_s: float | None
+    worst_s: float | None
+    dispersion_s: float | None
+    note: str
+    unserved: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class Report:
+    """The measures of a version."""
+
+    version: str
+    operations: dict[str, Measured]
+
+
+@dataclass(frozen=True, slots=True)
+class Finding:
+    """An objective exceeded or a degradation, with whether the report documents it."""
+
+    operation: str
+    message: str
+    documented: bool
+
+
+def version_key(version: str) -> tuple[int, ...]:
+    """Return the sort key of a version, ``0.10.0`` after ``0.9.0``."""
+    return tuple(int(part) for part in version.split("."))
+
+
+def _number(entry: dict[str, object], key: str, where: str) -> float:
+    value = entry.get(key)
+    if isinstance(value, bool) or not isinstance(value, int | float) or value < 0:
+        message = f"{where}: {key} must be a number of seconds, not {value!r}"
+        raise ValueError(message)
+    return float(value)
+
+
+def _operation(entry: dict[str, object], where: str, objective: float) -> Measured:
+    if _number(entry, "objective_s", where) != objective:
+        message = f"{where}: the objective of table 15 is {objective:g} s"
+        raise ValueError(message)
+    note = entry.get("note", "")
+    if not isinstance(note, str):
+        message = f"{where}: note must be a text"
+        raise TypeError(message)
+    unserved = entry.get("unserved")
+    if unserved is None:
+        median, worst, dispersion = (_number(entry, key, where) for key in DURATIONS)
+        if worst < median:
+            message = f"{where}: the worst duration is below the median"
+            raise ValueError(message)
+        return Measured(median, worst, dispersion, note.strip(), None)
+    if not isinstance(unserved, str) or not EPIC.fullmatch(unserved):
+        message = f"{where}: unserved must name an epic, as EP-10, not {unserved!r}"
+        raise ValueError(message)
+    if any(key in entry for key in DURATIONS):
+        message = f"{where}: an operation the service does not serve has no duration"
+        raise ValueError(message)
+    return Measured(None, None, None, note.strip(), unserved)
+
+
+def parse(text: str, name: str) -> Report:
+    """Read a report, which names every operation of the table once, with its objective."""
+    data: object = json.loads(text)
+    if not isinstance(data, dict):
+        message = f"{name}: a report is an object"
+        raise TypeError(message)
+    body = cast("dict[str, object]", data)
+    if body.get("version") != name:
+        message = f"{name}: version must be the name of the file, not {body.get('version')!r}"
+        raise ValueError(message)
+    listed = body.get("operations")
+    if not isinstance(listed, list):
+        message = f"{name}: operations must be a list"
+        raise TypeError(message)
+    entries = cast("list[dict[str, object]]", listed)
+    given = {str(entry.get("id")): entry for entry in entries}
+    wanted = {line.id: line for line in TABLE}
+    if len(given) != len(entries) or set(given) != set(wanted):
+        missing = sorted(set(wanted) - set(given))
+        extra = sorted(set(given) - set(wanted))
+        message = (
+            f"{name}: the operations are those of table 15, once each "
+            f"(missing {missing}, unknown {extra})"
+        )
+        raise ValueError(message)
+    operations = {
+        identifier: _operation(entry, f"{name}, {identifier}", wanted[identifier].objective_s)
+        for identifier, entry in given.items()
+    }
+    return Report(name, operations)
+
+
+def read(directory: Path) -> list[Report]:
+    """Return the reports of the versions under ``directory``, oldest first."""
+    if not directory.is_dir():
+        return []
+    files = [file for file in directory.glob("*.json") if file.stem != "reference"]
+    for file in files:
+        if not VERSION.fullmatch(file.stem):
+            message = f"{file.name}: a report is named for its version, as 0.4.0.json"
+            raise ValueError(message)
+    files.sort(key=lambda file: version_key(file.stem))
+    return [parse(file.read_text("utf-8"), file.stem) for file in files]
+
+
+def confront(latest: Report, previous: Report | None) -> list[Finding]:
+    """Return what the latest report exceeds or degrades, and whether its notes document it."""
+    findings: list[Finding] = []
+    for line in TABLE:
+        measured = latest.operations[line.id]
+        median = measured.median_s
+        if median is None:
+            continue
+        documented = bool(measured.note)
+        if median > line.objective_s:
+            text = f"{line.label}: {median:g} s, above its objective of {line.objective_s:g} s"
+            findings.append(Finding(line.id, text, documented))
+        if previous is None:
+            continue
+        before = previous.operations[line.id].median_s
+        if before and median > before * DEGRADATION:
+            text = (
+                f"{line.label}: {median:g} s, {median / before - 1:.0%} above the "
+                f"{before:g} s of {previous.version}"
+            )
+            findings.append(Finding(line.id, text, documented))
+    return findings
+
+
+def main(arguments: list[str]) -> int:
+    """Warn of each objective exceeded or degradation; fail on one the report does not document."""
+    directory = Path(arguments[0]) if arguments else MEASURES
+    try:
+        reports = read(directory)
+    except (ValueError, TypeError) as error:
+        print(f"::error::{error}")
+        return 1
+    if not reports:
+        print("no report of a version: nothing to confront")
+        return 0
+    latest = reports[-1]
+    previous = reports[-2] if len(reports) > 1 else None
+    print(f"report {latest.version}, against {previous.version if previous else 'the objectives'}")
+    failed = False
+    for finding in confront(latest, previous):
+        print(f"::warning::{finding.message}")
+        if not finding.documented:
+            print(f"::error::{finding.operation}: not documented in the report {latest.version}")
+            failed = True
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
