@@ -25,6 +25,9 @@ import { employRole, wiringService } from "./own-project";
 import { seedPlanning } from "./planning-seed";
 import { API } from "./service/realm";
 
+const gap = catalogue.exchanges.report.calendarGap;
+const rules = catalogue.enums.ImportDurationRule;
+
 // The last two paths below are the service's, tagged `@shared`, on a project the run creates: the
 // export of the planning in MS Project XML, downloaded once, and imported back (US-1430); and the
 // import of an estimate in two steps (US-1550) — exported in Excel, downloaded, imported back, its
@@ -174,7 +177,7 @@ test("offers no choice of the duration rule on the report of an import without a
   const report = page.getByRole("region", { name: /^Compte rendu de l’import/ });
   await expect(report.getByText("5 lignes lues.")).toBeVisible();
   await expect(report.getByRole("radio")).toHaveCount(0);
-  await expect(report.getByText("Écart de calendrier avec l’installation")).toHaveCount(0);
+  await expect(report.getByText(gap.title)).toHaveCount(0);
   await expect(report.getByRole("button", { name: "Appliquer l’import" })).toBeVisible();
 });
 
@@ -225,7 +228,7 @@ test("the estimate and the remaining to commit lead to the one screen of the imp
   ).toHaveAttribute("href", `/projects/${PROJECT}/revisions/${REVISION}/exchanges`);
 });
 
-test("exports the planning as MS Project XML, downloads it once, and imports it back with no difference, as the project manager of the run @shared [WF-DAT-0120-A] [WF-INTF-0010-A]", async ({
+test("exports the planning as MS Project XML, downloads it once, and imports it back with no difference, as the project manager of the run @shared [WF-DAT-0120-A] [WF-INTF-0010-A] [WF-PLA-0160-A]", async ({
   page,
   browser,
   request,
@@ -325,7 +328,7 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
   // No calendar gap, so no choice of the duration rule (WF-PLA-0160-A): the service's report, which
   // the fake back's example cannot prove for this path, carries none.
   await expect(report.getByRole("radio")).toHaveCount(0);
-  await expect(report.getByText("Écart de calendrier avec l’installation")).toHaveCount(0);
+  await expect(report.getByText(gap.title)).toHaveCount(0);
 
   // Confirmed, the application is a task followed in the shell, to its success (WF-INTF-0010-A: the
   // account leads the flow to its end, #2683), and the service holds the import applied.
@@ -512,8 +515,8 @@ test("imports a planning typed at seven hours a day: the calendar gap is on the 
   const address = `${base}/imports/${opened}`;
   const report = page.getByRole("region", { name: `Compte rendu de l’import « ${filename} »` });
   const keep = {
-    durations: report.getByRole("radio", { name: /^Garder les durées/ }),
-    dates: report.getByRole("radio", { name: /^Garder les dates/ }),
+    durations: report.getByRole("radio", { name: new RegExp(`^${rules.keep_durations}`) }),
+    dates: report.getByRole("radio", { name: new RegExp(`^${rules.keep_dates}`) }),
   };
   const reportRead = async () => {
     // The analysis is a task of the background: the report comes when the screen is read anew.
@@ -529,16 +532,16 @@ test("imports a planning typed at seven hours a day: the calendar gap is on the 
 
   // The gap is on the report, before any confirmation: the hours a day of the file (7) and of the
   // installation (8), the calendar of the file said ignored, the tasks on another calendar named.
-  await expect(report.getByText("Écart de calendrier avec l’installation")).toBeVisible();
+  await expect(report.getByText(gap.title)).toBeVisible();
   const days = report.getByRole("table", {
-    name: "Heures par jour du fichier et de l’installation",
+    name: gap.daysTable,
   });
   const monday = days.getByRole("row", { name: /^Lundi/ });
   await expect(monday.getByRole("cell", { name: "7", exact: true })).toBeVisible();
   await expect(monday.getByRole("cell", { name: "8", exact: true })).toBeVisible();
-  await expect(report.getByText(/^Le calendrier du fichier est ignoré/)).toBeVisible();
+  await expect(report.getByText(gap.ignored)).toBeVisible();
   const own = report.getByRole("table", {
-    name: "Tâches dont le calendrier propre diffère de leur calendrier Waterfall",
+    name: gap.tasksTable,
   });
   for (const label of ["Peinture", "Fabrication"]) {
     await expect(own.getByRole("cell", { name: label, exact: true })).toBeVisible();
@@ -563,9 +566,11 @@ test("imports a planning typed at seven hours a day: the calendar gap is on the 
     expect((await detail()).report?.calendar_gap?.duration_rule).toBe("keep_dates");
   }).toPass({ timeout: WORKING });
   await reportRead();
+  // The import went through a new analysis: it is analysed again, with the new report.
+  expect((await detail()).status).toBe("analysed");
   await expect(keep.dates).toBeChecked();
   await expect(keep.durations).not.toBeChecked();
-  await expect(report.getByText("Écart de calendrier avec l’installation")).toBeVisible();
+  await expect(report.getByText(gap.title)).toBeVisible();
 
   // The rule already in force answers 200 and changes nothing. The call of the screen leaves the
   // server of Next, which the browser does not see, and a radio already checked sends nothing: the
