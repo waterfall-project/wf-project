@@ -31,7 +31,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 import { openFilters } from "../check-menu";
 import { compileAnswered } from "../compile";
 import { openMenu, WORKING } from "../hydration";
-import { answerOf, pressOnce } from "../server-action";
+import { answerOf, isDeactivation, pressOnce } from "../server-action";
 import type { components } from "../../src/api/generated/schema";
 import { heldToTheContract } from "./contract";
 import {
@@ -101,7 +101,8 @@ async function choose(list: Locator, text: string): Promise<void> {
 
 /**
  * Deactivate an object from its row, on a page read at an address, pressed again only while the
- * click itself failed and never once its request has left; the answer of that request awaited.
+ * click failed — refused by Playwright, or followed by no deactivation request — and never once
+ * that request has left; the answer of that request awaited.
  * A cleanup: told if it fails, never thrown — it would hide the error of the path that brought us
  * here (#963).
  */
@@ -112,12 +113,12 @@ async function deactivate(page: Page, address: string, label: string): Promise<v
     // The row first: a page read has not always drawn its commands, and a command not seen yet is
     // not a command done — the deactivation would be skipped, and the object left active.
     await expect(command).toBeVisible({ timeout: WORKING });
-    // Pressed again only while no action has left — Playwright refused the click, or React, not
-    // hydrated yet, did not take it —, never once one has, however slow the service: a deactivation
-    // is not asked twice (#2424). The answer accepted is that of the request the press sent, within
-    // `WORKING`, never the answer of another action of the page or of a try abandoned. The page,
-    // just read, sends no other action meanwhile.
-    const answer = await answerOf(await pressOnce(page, command));
+    // Pressed again only while no deactivation has left — Playwright refused the click, or React,
+    // not hydrated yet, did not take it —, never once one has, however slow the service: a
+    // deactivation is not asked twice (#2424). The request is told by its body, so that an action
+    // the page sends of itself on hydration (the preferences of a grid) is not taken for the press;
+    // the answer accepted is that of that request, within `WORKING`, never that of another action.
+    const answer = await answerOf(await pressOnce(page, command, isDeactivation));
     expect(answer.status()).toBe(200);
     // The answer of the action awaited: the row hides at once, and the next page read would abandon
     // the request. A 200 of a server action says the request ended, not that the service kept it.

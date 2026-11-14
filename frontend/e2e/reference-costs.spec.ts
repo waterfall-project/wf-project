@@ -36,7 +36,7 @@ import { openFilters } from "./check-menu";
 import { sortUntilAddress, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 import { rowAt, scroller, withinBox } from "./scroll";
-import { pressOnce } from "./server-action";
+import { isDeactivation, pressOnce } from "./server-action";
 
 /** The rate typed in a cell, and what the cell then shows: the service answers what was typed. */
 const TYPED = "85";
@@ -419,7 +419,11 @@ test("deactivates a nature from its row, the row showing what the service or the
   // sent —, and never after: a press past it would wait for a command the answer has taken away, or
   // press the reactivation put in its place (#3135).
   const reactivation = natures.getByRole("button", { name: `Réactiver «\u00a0${label}\u00a0»` });
-  await pressOnce(page, natures.getByRole("button", { name: `Désactiver «\u00a0${label}\u00a0»` }));
+  await pressOnce(
+    page,
+    natures.getByRole("button", { name: `Désactiver «\u00a0${label}\u00a0»` }),
+    isDeactivation,
+  );
   await expect(reactivation).toBeVisible({ timeout: WORKING });
   if (inService) {
     await expect(natures.getByRole("row", { name: new RegExp(label) })).toContainText("Désactivé");
