@@ -1342,8 +1342,8 @@ frise, **afin de** présenter à chaque public les jalons qui le concernent.
   d'EP-15 (US-0530/L3b) exporte son PNG contre le service, le parcours étiqueté `@shared` ;
 - `WF-PLA-0140-A` — « La disposition en couloirs qu’un utilisateur a donnée à une
   chronologie se retrouve d’une session à l’autre. » : une préférence d'affichage
-  (`DisplayPreferences.timelines`), réalisée par EP-15 (US-0530, US-0570/L1) et éprouvée par le
-  parcours des couloirs de `timelines.spec.ts`, qui cite `WF-PLA-0140-A` en plus de
+  (`DisplayPreferences.timelines`), réalisée par EP-15 (US-0530, US-0570/L1) et enregistrée puis relue après
+  rechargement par le parcours des couloirs de `timelines.spec.ts`, qui cite `WF-PLA-0140-A` en plus de
   `WF-IHM-0100-A` (US-2010) ; spécification 1.0.4, #2871 ;
 - `WF-PLA-0060-A` — « Une tâche inscrite apparaît dans la chronologie et disparaît lorsqu’elle
   est retirée. » : `setNodeTracking` remplace les inscriptions de la tâche, et `listNodes` avec
