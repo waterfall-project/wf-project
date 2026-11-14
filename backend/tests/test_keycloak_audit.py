@@ -247,7 +247,8 @@ def test_the_journal_filtered_on_an_author_and_the_attribution_presents_it_dated
     query = urlencode({"user_id": author, "actions": "user_access_roles_set"})
     events = done(api.get(f"{EVENTS}?{query}", headers=headers))["items"]
     after = datetime.now(UTC)
-    assert all(before <= datetime.fromisoformat(event["occurred_at"]) <= after for event in events)
+    for event in events:
+        assert before <= datetime.fromisoformat(event["occurred_at"]) <= after, event
     assert [
         (
             event["object"]["object_id"],
