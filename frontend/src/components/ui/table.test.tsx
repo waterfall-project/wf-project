@@ -3,7 +3,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { Table, TableBody, TableCell, TableRow } from "./table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
 
 /** The opening tag of the container a table is drawn in. */
 function containerOf(markup: string): string {
@@ -39,5 +39,41 @@ describe("Table", () => {
     expect(container).not.toContain("role=");
     expect(container).not.toContain("aria-label=");
     expect(container).not.toContain("tabindex=");
+  });
+
+  it("draws a simple table in the style of the grids: their text, their header, a line under each row and none between the columns [WF-IHM-0060-A]", () => {
+    // US-2080, #3088, #3090: the permissions of the roles, the bounds of the risks, the thresholds
+    // of the indicators, the history of the revisions, the journal of the imports.
+    const markup = renderToStaticMarkup(
+      <Table aria-label="Permissions">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Fonction</TableHead>
+            <TableHead>Lecture</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow>
+            <TableHead scope="row">Utilisateurs</TableHead>
+            <TableCell>oui</TableCell>
+            <TableCell>non</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>,
+    );
+    const tableTag = /<table[^>]*>/.exec(markup)?.[0] ?? "";
+    expect(tableTag).toContain("text-xs");
+    expect(tableTag).not.toContain("text-sm");
+    const cells = [...markup.matchAll(/<t[hd][^>]*class="([^"]*)"/g)].map(
+      (match) => match[1] ?? "",
+    );
+    expect(cells).toHaveLength(5);
+    for (const classes of cells) {
+      expect(classes).toContain("border-b");
+      expect(classes).not.toMatch(/border-r|border-l/);
+    }
+    // The header of a column at the height of that of a grid, on the muted background.
+    expect(cells[0]).toContain("in-[thead]:h-8");
+    expect(cells[0]).toContain("in-[thead]:bg-muted");
   });
 });

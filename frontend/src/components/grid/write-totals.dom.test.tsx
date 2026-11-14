@@ -134,9 +134,6 @@ describe("what a write answers besides the row written", () => {
     render(grid(coreLots));
     expect(totals().slice(1)).toEqual([
       "Total — 1\u202f000 tâches, 5\u202f000 lignes",
-      "",
-      "",
-      "",
       "116\u202f270",
       "",
       "",
@@ -155,9 +152,6 @@ describe("what a write answers besides the row written", () => {
     expect(cell(CORE_TASK, "base_amount")).toHaveTextContent(/502\s354,56$/);
     expect(totals().slice(1)).toEqual([
       "Total — 1\u202f000 tâches, 5\u202f000 lignes",
-      "",
-      "",
-      "",
       "116\u202f271,5",
       "",
       "",
@@ -180,8 +174,8 @@ describe("what a write answers besides the row written", () => {
       expect(totals()[1]).toBe("Total — 6 tâches, 1 ligne");
     });
     expect(cell(TASK_ROW, "base_amount")).toHaveTextContent(/502\s354,56$/);
-    expect(totals()[5]).toBe("0");
-    expect(totals()[10]).toBe("100\u202f000,00");
+    expect(totals()[2]).toBe("0");
+    expect(totals()[7]).toBe("100\u202f000,00");
     // The same search, after the write, each node asked by its identifier alone.
     const reads = client.calls.filter((call) => call.route === NODES_ROUTE);
     expect(reads.map((call) => Object.fromEntries(call.query))).toEqual([
@@ -229,7 +223,7 @@ describe("what a write answers besides the row written", () => {
     await userEvent.keyboard("14{Enter}");
     expect(await screen.findByRole("alert")).toHaveTextContent("Vous devez vous connecter.");
     expect(cell(TASK_ROW, "base_amount")).toHaveTextContent(/502\s354,56$/);
-    expect(totals()[5]).toBe("12,5");
+    expect(totals()[2]).toBe("12,5");
   });
 
   it("notes in the history of the messages a reading anew of the totals refused while a refusal is told, which it keeps quiet on the screen (#1181)", async () => {
@@ -272,7 +266,7 @@ describe("what a write answers besides the row written", () => {
     cell(CORE_LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
     await vi.waitFor(() => {
-      expect(totals()[5]).toBe("116\u202f271,5");
+      expect(totals()[2]).toBe("116\u202f271,5");
     });
     expect(client.calls.map((call) => call.route)).toEqual([LINE]);
   });

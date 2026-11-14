@@ -403,9 +403,11 @@ async function measuresTheSecond(page: Page, screen: GridScreen, from: GridScree
 
   const grid = page.getByRole("treegrid", { name: screen.grid });
   await expect(grid).toHaveAttribute("aria-rowcount", screen.rows);
+  // The caption of the totals spans the columns that have no figure, which can be wider than the
+  // window: it is in view by its start (US-2080, #3072).
+  await expect(grid.getByRole("gridcell", { name: screen.totals })).toBeInViewport();
   for (const shown of [
     grid.getByRole("columnheader", { name: "Libellé" }),
-    grid.getByRole("gridcell", { name: screen.totals }),
     // The label of the first row: the row itself, with the category and the role (US-0120), is
     // wider than the grid at this width, which clips it sideways.
     grid

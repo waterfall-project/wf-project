@@ -144,6 +144,10 @@ const TEXTS: readonly [string, string][] = [
   ),
   // The word of the state of a project, on the fill of its badge (#523, WF-IHM-0100).
   ...Object.values(STATES).map((state): [string, string] => [`${state}-foreground`, state]),
+  // The text of a row under the pointer: the label, the muted number, a signal (US-2080).
+  ["foreground", "row-hover"],
+  ["muted-foreground", "row-hover"],
+  ...Object.values(SIGNALS).map((signal): [string, string] => [signal, "row-hover"]),
   // The mark of a difference, and the text of the row it tints: the label, the muted number.
   ...DIFFERENCES.flatMap((tint): [string, string][] => [
     [`${tint}-mark`, tint],
@@ -185,6 +189,11 @@ const CONTROLS: readonly [string, string][] = [
     "active-mark",
     background,
   ]),
+  // The dot « Actif », the focus of the active cell and the border of a field, on a row under the
+  // pointer (US-2080).
+  ["active-mark", "row-hover"],
+  ["ring", "row-hover"],
+  ["input", "row-hover"],
   // The line under the current tab of a row of tabs (`Tabs`), on the page and on a card (US-2070).
   ["primary", "background"],
   ["primary", "card"],
