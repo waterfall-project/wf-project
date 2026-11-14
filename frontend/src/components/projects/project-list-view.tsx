@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The parts of the list of projects, the home (#522), on the side of the browser: the filter by
+ * The parts of the list of projects, the home (#522), on the side of the browser: the filter on the
+ * projects the user contributes to, offered to a session that may lift it (US-2130); the filter by
  * state, a button for each state of the contract, pressed as the address names them, and one for
  * every state, pressed when it names none; the filter by the period of the last modification, the
  * one column of dates of the list, local days drawn as instants (`from`, `to`), a side the server
@@ -25,8 +26,11 @@ import type { Period, PeriodRefusals } from "@/components/grid/period";
 import { PeriodFilter } from "@/components/grid/period-filter";
 import type { GridPreferences } from "@/components/grid/settings";
 import { ValuesFilter } from "@/components/grid/values-filter";
+import { ChoiceFilter } from "@/components/grid/choice-filter";
 import {
+  CONTRIBUTOR_PARAMETER,
   EVERY_STATE_VALUE,
+  LIFTED_CONTRIBUTOR_VALUE,
   PROJECT_STATES,
   type ProjectState,
   STATES_PARAMETER,
@@ -66,6 +70,25 @@ export function ProjectStateFilter({ states }: { readonly states: readonly Proje
 }
 
 /**
+ * Render the filter of the list on the projects the user contributes to, offered to a session that
+ * may lift it (WF-IHM-0120): « Mes projets », the default, which an address that says nothing
+ * means, or every project the session may open (`is_contributor=false`), back to its first page.
+ */
+export function ProjectContributorFilter({ mine }: { readonly mine: boolean }) {
+  const t = useTranslations("projectList.filter");
+  return (
+    <ChoiceFilter
+      name={CONTRIBUTOR_PARAMETER}
+      label={t("projects")}
+      every={t("mineChoice")}
+      choices={[{ value: LIFTED_CONTRIBUTOR_VALUE, text: t("openable") }]}
+      chosen={mine ? undefined : LIFTED_CONTRIBUTOR_VALUE}
+      page={OFFSET}
+    />
+  );
+}
+
+/**
  * Render the filter of the list by the period of the last modification of its projects, two local
  * days, both included — sent as the start of the first and the start of the day after the last —,
  * back to its first page; a side the server refused said at its field.
@@ -90,6 +113,11 @@ export interface ProjectListGridProps {
   readonly page: ListedProjectPage;
   readonly query: GridQuery<ListedProjectSort>;
   readonly preferences: GridPreferences | undefined;
+  /**
+   * Whether the list is filtered on the projects the user contributes to, told as a chip under the
+   * bar; `undefined` for a session that may not lift the filter (`useProjectChips`).
+   */
+  readonly mine?: boolean | undefined;
   /** The states and the period the address filters the list on, told as chips under the bar. */
   readonly states?: readonly ProjectState[] | undefined;
   readonly period?: Period | undefined;
@@ -103,12 +131,13 @@ export function ProjectListGrid({
   page,
   query,
   preferences,
+  mine,
   states,
   period,
   panel,
 }: ProjectListGridProps) {
   const t = useTranslations("projectList");
-  const chips = useProjectChips(states, period);
+  const chips = useProjectChips(mine, states, period);
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       <DenseGrid

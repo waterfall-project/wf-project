@@ -563,26 +563,35 @@ référentiel incomplet — se montre sur un exemple nommé du contrat (`empty`,
 
 L'accueil, `/`, est la liste des projets (`frontend/src/app/(home)/`, un groupe de routes pour qu'il
 ait son squelette sans en donner un à toutes les pages) : filtrée par défaut sur les projets dont
-l'utilisateur est contributeur, par le filtre du contrat (`is_contributor`), que l'écran montre et
-qu'un lien lève — `?is_contributor=false`, sous le nom du contrat
-(`frontend/src/navigation/home.ts`) — : un filtre, jamais une restriction de lecture (WF-PRJ-0060).
-Le lien qui le lève n'est offert qu'à une session qui porte `all_projects_read` (WF-ADM-0110) : levé
-pour un autre, le filtre rendrait la même liste, et le lien promettrait ce qu'il ne fait pas
-(WF-IHM-0090, #522) ; sans cette permission, l'accueil reste filtré quoi que dise l'adresse —
-`?is_contributor=false` compris, la page demandant `is_contributor=true` —, le badge « Mes projets »
-affiché sans aucun lien, et le choix du projet mène à l'accueil plutôt qu'à la liste levée. La barre
+l'utilisateur est contributeur, par le filtre du contrat (`is_contributor`) : un filtre, jamais une
+restriction de lecture (WF-PRJ-0060). L'écran est aéré (`PageHeader` en densité `airy`) et sa table
+tient dans une carte, `SectionCard` « Liste des projets », dont « Créer un projet » est la commande
+principale, pleine, à la droite du titre — pour la session qui porte la permission de créer un
+projet, aucune autre n'en a l'offre. Le filtre est une pastille « Mes projets (par défaut) » sous la
+barre de la table, que l'on ôte, et un champ « Projets » du panneau des filtres ; l'ôter écrit
+`?is_contributor=false`, sous le nom du contrat (`frontend/src/navigation/home.ts`), et une adresse
+qui ne dit rien vaut le filtre. Il n'est jamais gardé, ni dans l'adresse ni dans les préférences de
+la grille : à la connexion, l'utilisateur voit ses projets (WF-IHM-0120). La pastille et le champ ne
+sont offerts qu'à une session qui porte `all_projects_read` (WF-ADM-0110) : levé pour un autre, le
+filtre rendrait la même liste, et la pastille promettrait ce qu'elle ne fait pas (WF-IHM-0090,
+#522) ; sans cette permission, l'accueil reste filtré quoi que dise l'adresse —
+`?is_contributor=false` compris, la page demandant `is_contributor=true` —, sans pastille ni champ,
+et la description de la carte dit seule que la liste tient les projets dont la session est
+contributeur ; le choix du projet mène alors à l'accueil plutôt qu'à la liste levée. La barre
 latérale et le fil d'Ariane mènent à la liste filtrée, le choix du projet à la liste levée, « Tous
 les projets » ; `/projects`, l'ancienne adresse, renvoie à l'accueil. Les projets sont une
 configuration de plus de la grille dense (`project-list-grid.tsx`, préférences sous la clé
 `projects`) : le libellé, lien qui ouvre le projet, le code, l'état par sa pastille et la date de
 modification, chaque colonne triée par le serveur (`sort_by`), cherchée par lui sur le libellé et le
-code (`search`), filtrée par état — des boutons pressés qui n'écrivent que l'adresse (`states`) — et
+code (`search`), filtrée par état — un champ du panneau qui n'écrit que l'adresse (`states`) — et
 par période sur la dernière modification (`from`, `to`, EP-02/L42e) : deux jours saisis dans l'heure
 locale du lecteur, envoyés comme les instants du début du premier et du début du lendemain du
-dernier, la fin exclue. Une adresse qui ne nomme aucun état demande les six, l'accueil montrant tout
-ce que l'utilisateur peut ouvrir, là où le contrat, sans `states`, ne rendrait que les projets en
-cours (WF-PTF-0010) ; les boutons pressés sont les états que l'adresse nomme, « Tous les états »
-quand elle n'en nomme aucun : l'adresse fait foi. Une période que le serveur refuse — une fin qui
+dernier, la fin exclue. Les états se disent comme le filtre des projets, par des pastilles : une
+adresse qui ne nomme aucun état demande ceux que le compte a gardés, à défaut les états par défaut,
+Créé, Chiffrage et En cours, dits « (par défaut) » ; `states=all` les lève et demande les six,
+là où le contrat, sans `states`, ne rendrait que les projets en cours (WF-PTF-0010) : l'adresse fait
+foi.
+Une période que le serveur refuse — une fin qui
 précède le début, 422 `VALUE_OUT_OF_RANGE` sur `/query/to`, `params.minimum` le début donné — est
 dite à son champ, le début nommé par son jour local, qui prend le focus chaque fois que la liste
 revient refusée, comme une borne d'une colonne de nombres (`range-filter.tsx`) ; la liste n'est pas

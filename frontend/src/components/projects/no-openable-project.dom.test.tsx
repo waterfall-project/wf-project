@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 
 import type { components } from "@/api/generated/schema";
+import { SCREEN } from "@/components/shell/page-header";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { FUNCTION_GROUPS } from "@/navigation/functions";
@@ -27,6 +28,16 @@ function inLanguage(children: ReactNode, locale: Locale) {
     </NextIntlClientProvider>,
   );
 }
+
+describe("the home of an account that opens no project, in its family (#3268)", () => {
+  it("titles the airy screen at the size of the airy ones, its header in the family of its screen (US-2130)", () => {
+    inLanguage(<NoOpenableProject permissions={[]} hasRole readiness={COMPLETE} />, "fr");
+    expect(screen.getByRole("main")).toHaveClass(...SCREEN.airy.split(" "));
+    const title = screen.getByRole("heading", { level: 1, name: "Aucun projet à ouvrir" });
+    expect(title.parentElement).toHaveClass("text-2xl");
+    expect(title.parentElement).not.toHaveClass("text-lg");
+  });
+});
 
 describe("the home of an account that opens no project [WF-IHM-0120-A] #2915", () => {
   it("leads to the functions outside any project the account holds, in French, accessibly", async () => {

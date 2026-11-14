@@ -63,6 +63,7 @@ import {
   ReferenceForm,
   required,
 } from "@/components/reference/reference-form";
+import type { PrincipalVariant } from "@/components/shell/section-card";
 import { Button } from "@/components/ui/button";
 import { editablePercent, percentRatio } from "@/i18n/format";
 
@@ -94,9 +95,16 @@ function useIdentityFields(): FormField[] {
 
 /**
  * The command that creates a project, and its form, on the home; unavailable, and saying why, while
- * the minimum reference data is incomplete.
+ * the minimum reference data is incomplete. The principal command of the card of the list, drawn at
+ * the variant the card gives it (`SectionCard`, US-2130).
  */
-export function CreateProject({ ready }: { readonly ready: boolean }) {
+export function CreateProject({
+  ready,
+  variant,
+}: {
+  readonly ready: boolean;
+  readonly variant: PrincipalVariant;
+}) {
   const t = useTranslations("projectForm");
   const form = useTranslations("reference.form");
   const errors = useTranslations("errors");
@@ -119,7 +127,7 @@ export function CreateProject({ ready }: { readonly ready: boolean }) {
         ref={trigger}
         aria-haspopup="dialog"
         type="button"
-        variant="outline"
+        variant={variant}
         size="sm"
         aria-disabled={ready ? undefined : true}
         aria-describedby={ready ? undefined : why}

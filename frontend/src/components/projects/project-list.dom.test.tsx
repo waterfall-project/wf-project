@@ -12,10 +12,10 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { closeMenu, menuSummary, openMenu, pick } from "@/test/check-menu";
-import { example, fakeClient } from "@/test/fixtures";
+import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { listedProject } from "./project-list-grid";
-import { ProjectListGrid, ProjectStateFilter } from "./project-list-view";
+import { ProjectContributorFilter, ProjectListGrid, ProjectStateFilter } from "./project-list-view";
 
 // The server of Next, as far as the screen needs it: the preferences it writes, the address it
 // reads.
@@ -239,6 +239,80 @@ describe("the states of the list, those of the table of the specification", () =
       expect(await lastAddress()).toBe(`/?states=${code}`);
     },
   );
+});
+
+describe("the filter of the list on the projects the user contributes to (US-2130)", () => {
+  /** The grid of the list, its filter on the contributor as `mine` says, its panel holding it. */
+  function filteredGrid(mine: boolean | undefined) {
+    return inFrench(
+      <ProjectListGrid
+        projects={LIST.items.map(listedProject)}
+        page={LIST.meta}
+        query={{ sort: undefined, search: undefined, size: undefined }}
+        preferences={undefined}
+        mine={mine}
+        states={["created", "pricing", "in_progress"]}
+        period={{ from: undefined, to: undefined }}
+        panel={mine === undefined ? null : <ProjectContributorFilter mine={mine} />}
+      />,
+    );
+  }
+
+  it("says « Mes projets » by a chip marked by default, the first, and lifts it by naming the filter lifted, the rest of the address kept [WF-IHM-0120-A]", async () => {
+    // Un contributeur de deux projets les voit à sa connexion ; la levée du filtre montre aussi les
+    // projets qu'il peut ouvrir sans en être contributeur, et aucun autre.
+    page.search = "sort_by=code&offset=50";
+    render(filteredGrid(true));
+    const chips = within(screen.getByRole("list", { name: "Filtres actifs" })).getAllByRole(
+      "listitem",
+    );
+    expect(chips[0]).toHaveTextContent("Projets : Mes projets (par défaut)");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Retirer le filtre Projets : Mes projets (par défaut)" }),
+    );
+    expect(await lastAddress()).toBe("/?sort_by=code&is_contributor=false");
+  });
+
+  it("lifts « Mes projets » with every other filter by « Effacer les filtres », each by default named lifted [WF-IHM-0120-A]", async () => {
+    page.search = "sort_by=code";
+    render(filteredGrid(true));
+    await userEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
+    expect(await lastAddress()).toBe("/?sort_by=code&is_contributor=false&states=all");
+  });
+
+  it("has no chip once lifted, and applies the filter again from its field, the address saying nothing of it, back to the first page [WF-IHM-0120-A]", async () => {
+    page.search = "is_contributor=false&offset=50";
+    render(filteredGrid(false));
+    expect(screen.queryByRole("button", { name: /^Retirer le filtre Projets/ })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /^Filtres/ }));
+    const field = screen.getByRole("combobox", { name: "Projets" });
+    expect(field).toHaveDisplayValue("Tous ceux que vous pouvez ouvrir");
+    await userEvent.selectOptions(field, "Mes projets");
+    expect(await lastAddress()).toBe("/");
+  });
+
+  it("never writes « Mes projets » in the preferences of the account, whatever the address says of it: at sign-in, the user sees their projects [WF-IHM-0120-A]", async () => {
+    // The states the address chose are kept, which proves the preferences are written at all.
+    page.search = "is_contributor=false&states=lost";
+    render(filteredGrid(false));
+    const client = server.client as FakeClient;
+    await waitFor(() => {
+      expect(client.calls.filter((call) => call.route === "PATCH /me/preferences")).not.toEqual([]);
+    });
+    const written = client.calls
+      .filter((call) => call.route === "PATCH /me/preferences")
+      .map((call) => JSON.stringify(call.body));
+    expect(written.join("")).toContain("lost");
+    expect(written.join("")).not.toContain("is_contributor");
+  });
+
+  it("offers no chip of the filter to a session that may not lift it: its cross would change nothing (#522)", () => {
+    page.search = "";
+    render(filteredGrid(undefined));
+    expect(screen.getByRole("list", { name: "Filtres actifs" })).not.toHaveTextContent(
+      "Mes projets",
+    );
+  });
 });
 
 describe("the filter of the list by state", () => {

@@ -48,7 +48,12 @@ export function NoOpenableProject({ permissions, hasRole, readiness }: NoOpenabl
   const noRole = !hasRole || permissions.length === 0;
   return (
     <Screen density="airy">
-      <PageHeader title={t("homeWithoutProject.title")} icon={FolderSearch} helped={false} />
+      <PageHeader
+        title={t("homeWithoutProject.title")}
+        icon={FolderSearch}
+        density="airy"
+        helped={false}
+      />
       <ReferenceIncomplete readiness={readiness} permissions={permissions} />
       {noRole || groups.length === 0 ? (
         <div className={SAYING}>
