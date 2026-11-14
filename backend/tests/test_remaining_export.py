@@ -9,7 +9,7 @@ and whose current revision is open (``remaining_support``); the workbook read ba
 imported again through the service, its worker and its contract (``test_remaining_import``).
 """
 
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from io import BytesIO
 from typing import TYPE_CHECKING, Any
@@ -32,7 +32,6 @@ from support import ContractClient
 from test_remaining_import import (
     NEXT,
     OUTSIDE,
-    REVIEW,
     YEAR,
     Rows,
     analysed,
@@ -215,13 +214,21 @@ def clean(content: bytes, stage: Scene, worker: Worker, api: ContractClient) -> 
 
 @pytest.mark.requirement("WF-INTF-0130-A")
 def test_the_remaining_of_a_current_revision_is_exported_in_a_workbook_named_after_its_project(
-    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    scene: Rows,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # « un reste à engager exporté […] : un export de la révision en cours […], de la structure
     # principale par défaut » : requestExport (kind remaining), then getBackgroundTaskResult; the
     # file is a workbook of the spreadsheet type, named after the code of the project and the
     # version of its revision — none for a revision in progress —, the review of the day of the
     # request, and the lines of the tasks not completed by their lineage.
+    # The clock of the request is fixed a second before midnight (universal time, the service's
+    # day): the day of the request is read from it, not from the day the test runs on.
+    requested_at = datetime(2026, 11, 13, 23, 59, 59, tzinfo=UTC)
+    monkeypatch.setattr("waterfall.core.exchanges.interface.exports.utc_now", lambda: requested_at)
     revision = scene.tree.revision
     answer = download(api, stage, worker, revision["revision_id"])
     assert answer.headers["content-type"].startswith(SPREADSHEET)
@@ -237,7 +244,7 @@ def test_the_remaining_of_a_current_revision_is_exported_in_a_workbook_named_aft
         "Version",
         1,
     ]
-    assert summary["B9"].value == REVIEW.isoformat()
+    assert summary["B9"].value == requested_at.date().isoformat()
     lines = lines_of(answer.content, OUTSIDE)
     assert [(each["Tâche"], each[LINEAGE]) for each in lines] == [
         (row[0], row[5]) for row in scene.exported()
