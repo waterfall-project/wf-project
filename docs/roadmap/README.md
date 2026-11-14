@@ -162,7 +162,7 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Actual costs, remaining to commit and cost import | livré | EP-07 |
 | [EP-23](EP-23-dette-constats-ep02-ep03.md) | Debt of the findings of EP-02 and EP-03 | livré | EP-02, EP-03, EP-06 |
 | [EP-24](EP-24-consolidation-apres-v0-3-0.md) | Consolidation after v0.3.0 | livré | EP-09, EP-23 |
-| [EP-25](EP-25-refonte-ergonomique.md) | Ergonomic redesign | à planifier | EP-24 |
+| [EP-25](EP-25-refonte-ergonomique.md) | Ergonomic redesign | prêt | EP-24 |
 | [EP-26](EP-26-lecture-et-performance-des-grilles.md) | Reading and performance of the grids | à planifier | EP-25 |
 | [EP-27](EP-27-comparaison-dans-les-grilles.md) | Comparison in the grids | à planifier | EP-26 |
 | [EP-10](EP-10-indicateurs.md) | Project indicators | en cours | EP-09 |

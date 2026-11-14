@@ -1,7 +1,7 @@
 ---
 id: EP-25
 titre: Lire et saisir dans des écrans aérés, sobres et cohérents
-statut: à planifier
+statut: prêt
 depend_de: EP-24
 famille: front, back
 issue:
@@ -38,6 +38,9 @@ le faux back (décision de l'auteur du 2026-11-14, au cadrage) ;
 - l'écran « Installation » de la section « Administration », qui reçoit le nom de l'entreprise, sous
 une fonction nouvelle du catalogue des permissions, une fois la spécification révisée (#3088 ;
 décision de l'auteur du 2026-11-14, au cadrage) ;
+- le fuseau horaire de l'installation, gardé à l'amorçage, dans lequel s'entend le jour courant, et
+que l'écran « Installation » montre (#2527, repris d'EP-13 ; décision de l'auteur du 2026-11-14, au
+cadrage : avant que les grilles se finalisent) ;
 - la page de connexion, dont le thème suit la charte nouvelle (décision de l'auteur du 2026-11-14,
 au cadrage) ;
 - la présentation des graphiques, et les motifs des séries passés en préférence du compte,
@@ -74,8 +77,8 @@ qu'elle change ; les phrases qu'elle ne touche pas sont des écarts qui disent q
 portée reste celle des EPIC qui les ouvrent et les closent : `WF-IHM-0070-A` (EP-02),
 `WF-IHM-0100-A` (EP-14), `WF-IHM-0060-A` (close par EP-07), `WF-REF-0150-A` et `WF-REF-0080-A`
 (EP-05), `WF-ADM-0040-A` et `WF-IHM-0120-A` (EP-04), `WF-IHM-0080-A` (close par EP-09),
-`WF-IHM-0090-A` (EP-02), `WF-REF-0170-A` (close par EP-10), `WF-EXP-0020-A` (close par EP-07),
-`WF-ADM-0100-A` (close par EP-08).
+`WF-IHM-0090-A` (EP-02), `WF-REF-0170-A` et `WF-PLA-0130-A` (closes par EP-10), `WF-EXP-0020-A`
+(close par EP-07), `WF-ADM-0100-A` (close par EP-08).
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
@@ -88,17 +91,19 @@ Déjà servies, et reprises pour ce que la refonte y change à l'écran : toute 
 filtre d'état — `listCostTypes`, `listCostCategories`, `getHourlyRateGrid`, `listOrgNodes`,
 `listResourceRoles`, `listCalendars`, `listUsers` (US-2090) ; `getBackgroundTask`,
 `listBackgroundTasks`, `getBackgroundTaskResult`, `requestExport`, `markRevision`, `createRevision`,
-`applyImport` (US-2170) ; `getMe`, `updateMyPreferences` (US-2080, US-2090, US-2160).
+`applyImport` (US-2170) ; `getMe`, `updateMyPreferences` (US-2080, US-2090, US-2160) ;
+`setTaskProgress`, `requestExport` et les autres opérations qui datent au jour courant (US-2200).
 
-Trois modifications du contrat, chacune par une issue `contract` tranchée par l'auteur et une entrée
+Quatre modifications du contrat, chacune par une issue `contract` tranchée par l'auteur et une entrée
 de `docs/api/DECISIONS.md` (« La règle d'après le gel »), faite avant le code qui la consomme :
 
 - la préférence des motifs des séries dans `DisplayPreferences` (#3098, décisions de l'auteur du
 2026-11-13) — US-2160 ;
-- la fonction « installation » : ses deux permissions dans `PermissionCode`, le nom de l'entreprise
-écrit sous elle et non plus sous `cost_settings.write` (`updateReferenceSettings`), et le fuseau
-horaire de l'installation, qu'aucune opération ne rend aujourd'hui — US-2120, après la révision de
-la spécification ;
+- la fonction « installation » : ses deux permissions dans `PermissionCode`, et le nom de
+l'entreprise écrit sous elle et non plus sous `cost_settings.write` (`updateReferenceSettings`) —
+US-2120, après la révision de la spécification ;
+- le fuseau horaire de l'installation, qu'aucune opération ne rend aujourd'hui, rendu par
+`getInstallation` — US-2200 ;
 - un exemple de `setOrgNodeActivation` qui désactive un nœud et deux niveaux de descendants (#2270)
 — US-2180.
 
@@ -123,12 +128,14 @@ premier lot la reprend de `main` à jour plutôt que de la tirer.
 chaque écran suit la direction qu'il arrête, dans les deux modes, sans régression des audits
 d'accessibilité — les écrans que le service ne sert pas, contre le faux back ;
 - la page de connexion suit la même charte ;
+- sur une installation au fuseau de Paris, une tâche terminée à 0 h 30 est datée du jour, non de la
+veille, et l'écran propose ce même jour ;
 - les deux parcours `reference-costs.spec.ts` en quarantaine sont rejoués contre le service (#3190,
 #3191) — ou, si US-2060 établit que leur cause est la charge de la file sur l'API à un seul
 processus, ils restent sautés contre le service, et leur réactivation passe à la définition de fini
 d'EP-26 avec #3172 (décision de l'auteur du 2026-11-14, au cadrage) ;
 - `make build-openapi`, `make inventory`, `make client-up-to-date` et
-`make server-models-up-to-date` passent, et `docs/api/DECISIONS.md` a ses trois entrées ;
+`make server-models-up-to-date` passent, et `docs/api/DECISIONS.md` a ses quatre entrées ;
 - `make roadmap` et `make requirements` passent ;
 - chaque issue de « Constats reçus » est fermée par la fusion de son lot, ou reportée par sa
 décision ; #1512 reste ouverte, en dette technique ;
@@ -163,6 +170,8 @@ serveur ne fait pas : US-2180 ;
 par aucun test : US-2180 ;
 - #2424 — front : deactivate de reference-manager.spec.ts peut recliquer sur une réponse lente :
 US-2060 ;
+- #2527 — back : le jour courant pris en UTC, faute de fuseau de l'installation (WF-EXP-0020,
+WF-PLA-0130) — repris d'EP-13 au cadrage (décision de l'auteur du 2026-11-14) : US-2200 ;
 - #3071 — front : le bouton de création d'une liste est repoussé au bout de la page, loin de sa
 table (WF-IHM-0060) : US-2080 ;
 - #3072 — front : le nombre de lignes d'une table plate est dit deux fois, dans sa barre et dans sa
@@ -201,7 +210,184 @@ en quarantaine contre le service : US-2060 ;
 
 ## Conception
 
-À écrire après la validation des US (« Démarrer un EPIC », étape 2).
+Validée par l'auteur le 2026-11-14, au cadrage. L'EPIC est presque tout au front ; le back n'y
+entre que par trois US — la préférence des motifs (US-2160), le fuseau (US-2200), la fonction
+« installation » (US-2120).
+
+### Tables et migrations
+
+Deux migrations, dans cet ordre, la seconde attendant la première dans la chaîne d'Alembic :
+
+- **`0029`, le fuseau de l'installation** (US-2200) : une colonne `time_zone` de `installation`,
+  un texte non vide, le nom d'un fuseau de la base IANA. La ligne d'une installation déjà amorcée
+  reçoit `UTC`, ce qu'elle employait de fait ; la colonne est ensuite exigée. Le nom se vérifie à
+  l'amorçage, non par une contrainte : la base ne connaît pas la liste des fuseaux.
+- **`0030`, les deux permissions de la fonction « installation »** (US-2120) : une migration de
+  données, comme `0005` et `0006`. `installation.read` et `installation.write` entrent au catalogue
+  à la place que le contrat leur donne, après `audit_log.read`, les suivantes gardant leur ordre ;
+  leur `fbs_code` est celui que la spécification révisée donne à la fonction. Elle les donne à tout
+  rôle non supprimé qui porte les deux permissions d'administration de WF-ADM-0120 (`users.write`
+  et `access_roles.write`), et à aucun autre.
+
+La préférence des motifs n'a ni table ni migration : `display_preferences` est un document, et
+`waterfall.core.users.personal` y fusionne un champ simple sans rien d'autre (comme `theme`).
+
+### Modules du noyau touchés
+
+| Module | Ce qui change | Ce qu'il expose aux autres |
+|---|---|---|
+| `waterfall.platform.installation` | `time_zone` dans la table et dans `Settings` | le fuseau, lu avec les réglages de l'installation |
+| `waterfall.bootstrap` | le fuseau parmi les réglages de l'installateur, refusé s'il est inconnu, `UTC` livré par défaut ; une relance ne le change pas | — |
+| `waterfall.core.projects.interface.days` | `current_day` rend le jour d'un instant dans le fuseau de l'installation, lu une fois par processus : il ne change pas après l'amorçage | la même fonction, la même signature : ses appelants ne changent pas |
+| `waterfall.core.access_roles.predefined` | le rôle « administrateur » porte les deux permissions nouvelles | les rôles d'une installation neuve |
+| `waterfall.core.cost_settings.interface` | le nom de l'entreprise s'écrit sous `installation.write`, non plus sous `cost_settings.write` | la table des permissions par champ de `updateReferenceSettings` |
+| `waterfall.core.users.personal`, `waterfall.api.me` | la préférence des motifs, un champ simple ; son nul refusé comme celui des autres réglages | — |
+
+Au front, par répertoire de `frontend/src` :
+
+| Répertoire | Ce qui change |
+|---|---|
+| `theme/` | les jetons de `globals.css` — eux seuls portent une couleur — ; `contrast.test.ts` et `colour-guard.test.ts` suivent |
+| `components/ui/` | boutons et champs en pilule, `aria-disabled` stylisé, la table simple au style des grilles, la barre latérale ; des onglets, que la bibliothèque n'avait pas encore |
+| `components/shell/` | `Screen` et ses deux familles d'écrans, la carte de section, l'en-tête d'écran, le logo, la table des densités (`FUNCTION_DENSITY`) |
+| `components/grid/` | la largeur d'une table plate (`dense-grid`), la barre (`grid-toolbar`), la pagination (`list-pages`), les pastilles (`filter-bar`), le filtre par défaut (`kept-filters`), les commandes d'annulation |
+| `components/reference/`, `admin/`, `projects/`, `portfolio/`… | chaque écran recomposé en cartes, sans changer ce qu'il lit ni ce qu'il écrit |
+| `components/chart/`, `gantt/` | la présentation commune des graphiques, les motifs sur préférence, l'export qui les suit |
+| `components/tasks/`, `notices/`, `commands/` | l'attente d'un bouton, la carte d'aboutissement, la relecture de l'écran |
+| `navigation/`, `help/`, `i18n/` | la fonction « installation », sa page d'aide, les libellés nouveaux dans les deux langues |
+
+Hors du front et du back : `deploy/keycloak/themes/waterfall/login` (US-2190), et le guide
+(`docs/dev/README-fr.md` et sa traduction).
+
+### Modifications du contrat
+
+Quatre, chacune par une issue `contract` que l'auteur tranche et une entrée de
+`docs/api/DECISIONS.md`, avec ses exemples ; `make build-openapi`, `make generate-client`, les
+modèles du service, la variante du faux back et `make inventory` suivent dans le même lot.
+
+1. **`DisplayPreferences.chart_series_patterns`**, un booléen ; absent, faux (US-2160). Exemple : un
+   compte qui l'a demandée.
+2. **`Installation.time_zone`**, exigé, le nom IANA du fuseau, rendu par `getInstallation` sans
+   session, comme la langue par défaut (US-2200). Les exemples `installation*` le portent.
+3. **Un exemple de `setOrgNodeActivation`** qui désactive un nœud portant deux niveaux de
+   descendants et des rôles (US-2180, #2270).
+4. **La fonction « installation »** (US-2120, après la révision de la spécification) :
+   `installation.read` et `installation.write` dans `PermissionCode` ; la description de
+   `updateReferenceSettings`, où `company_name` passe sous `installation.write` ; les exemples des
+   permissions, des rôles prédéfinis et du compte administrateur ; l'exemple du 403.
+
+Les trois premières ne dépendent de rien et se font ensemble, en tête ; la quatrième attend la
+révision de la spécification. Aucune opération nouvelle.
+
+### Ordre de construction
+
+En cinq vagues, pour que quatre livreurs avancent ensemble (décision de l'auteur du 2026-11-14, au
+cadrage) : ce qui ne tient à aucun écran part d'abord, les composants communs se livrent par
+répertoire, et les écrans par domaine, une fois l'écran de référence validé.
+
+1. **Ce qui ne tient à aucun écran refondu**, en parallèle : US-2060, sur l'écran tel qu'il
+   est ; les modifications 1 à 3 du contrat ; le back d'US-2200 et celui d'US-2160 ; US-2180, dont
+   les corrections précèdent ainsi les mises en page des mêmes formulaires — son test de la cascade
+   attend l'exemple du contrat.
+2. **La charte et les composants communs.** Un lot court pose d'abord les jetons (US-2070) : toute
+   l'application prend les couleurs nouvelles sur `epic/EP-25` pendant que ses mises en page
+   suivent, et `main` ne voit jamais cet état. Puis, ensemble, un lot par répertoire : la coquille,
+   les cartes et les composants de base — `shell`, `ui` — (US-2070) ; les tables — `grid` —
+   (US-2080) ; les graphiques — `chart` — (US-2160) ; les traitements — `tasks`, `notices`,
+   `commands` — (US-2170). Tout composant commun qu'un écran attend est livré ici : la carte de
+   section, les onglets, la table simple, la pagination, et la table des densités remplie en entier.
+3. **L'écran de référence.** Un lot assemble l'écran des paramètres de coûts (US-2080), puis
+   **l'auteur le valide**, en mode clair et en mode sombre : une issue
+   `[EP-25] front : validation de l'écran de référence` bloque les lots de la vague 4 jusqu'à sa
+   fermeture. L'attente est remplie par ce qui n'en dépend pas : US-2090, le filtre d'état, après
+   l'assemblage dont elle touche l'écran ; la part d'écran d'US-2200 ; la fin d'US-2160, d'US-2170
+   et d'US-2180.
+4. **Les écrans, en quatre couloirs par domaine**, chacun avec ses écrans, ses composants et ses
+   parcours : l'administration (US-2100) ; les paramètres applicatifs (US-2110) ; un projet et
+   l'accueil (US-2130, US-2140, et les risques et les indicateurs d'US-2150) ; le portefeuille et
+   l'état du système (US-2150). Les lots d'un couloir se suivent, les couloirs avancent ensemble.
+   Les écrans que touche US-2090 — ressources, utilisateurs — l'attendent. US-2190, la page de
+   connexion, qui ne touche pas le front, prend un créneau dès qu'il s'en libère un.
+5. **US-2120**, en dernier : après la révision de la spécification, après US-2200 pour la chaîne
+   des migrations et le fuseau qu'elle montre, après US-2100 et US-2110 qui lui laissent le nom de
+   l'entreprise.
+
+### Décisions
+
+- **Le catalogue ne met pas deux lots « pas avec ».** Les catalogues n'ont qu'un fichier par
+  langue (`messages/fr.json`, `messages/en.json`), que tout lot du front touche dès qu'il ajoute un
+  libellé : la règle du README de la roadmap mettrait presque tous les lots en série. Dans cet EPIC,
+  deux lots de domaines différents ne sont pas « pas avec » du seul fait des catalogues, chacun n'y
+  écrivant que dans les sections de son domaine (`admin`, `reference`, `portfolio`, `grid`,
+  `chart`…), loin l'une de l'autre ; tout autre fichier partagé garde la règle. Un conflit reste
+  possible, et la file le rattrape. Écartés : découper les catalogues en un fichier par domaine,
+  par un lot technique qui toucherait une dizaine de lecteurs et bloquerait tout le front tant qu'il
+  n'est pas fusionné ; garder la règle, qui laisse un à deux livreurs occupés sur quatre (décision
+  de l'auteur du 2026-11-14, au cadrage).
+- **Un lot d'écran ne touche que ses fichiers.** Ce qui est commun — composants, table des
+  densités, jetons — se livre en vague 2 ; un lot d'écran qui découvre un manque dans un composant
+  commun ouvre un constat, il ne le corrige pas dans son couloir.
+- **La couleur ne vit que dans les jetons.** La charte change `globals.css`, et les composants
+  continuent de nommer un jeton. La barre latérale est sombre dans les deux modes, et porte toujours
+  le logo pour fond sombre. Écarté : deux chartes côte à côte, choisies par un réglage — chaque
+  écran aurait deux présentations à tenir pendant tout l'EPIC.
+- **Deux familles d'écrans, dites par `Screen`.** Réglage et consultation : colonne centrée, bornée
+  à 96rem, aérée. Travail — planning, devis, reste à engager, arbre des tâches, coûts réels, Kanban,
+  chronologies, registre des risques, journal d'audit — : serré, la fenêtre remplie. La table des
+  densités range chaque fonction dans l'une. Écarté : une largeur en pourcentage ou un plafond de
+  72rem, essayés le 2026-11-13 et rejetés (#3075).
+- **Une carte de section commune**, à côté de l'en-tête d'écran : titre, commandes à droite, corps.
+  Elle porte la règle des commandes — une seule pleine par carte. Écarté : chaque écran composant
+  sa carte, qui redéciderait la règle écran par écran.
+- **La largeur d'une table est du CSS** : le cadre à la largeur de la carte, la table au plus large
+  de la carte et de la somme de ses colonnes, la colonne du libellé prenant le reste, sa largeur
+  choisie pour minimum. Écarté : mesurer en script, qui ferait sauter la table au chargement.
+- **La pagination se calcule** de `offset`, `limit` et `meta.total`. Écartés pour l'instant : le
+  saut à une page, la première et la dernière.
+- **Le filtre d'état est un filtre par défaut de la grille**, par le mécanisme qui donne déjà ses
+  états à la liste des projets : absent de l'adresse et des préférences, il vaut « Actifs » ; la
+  pastille ôtée se garde par une valeur qui dit « tous », que le front traduit en
+  `include_inactive`. Écarté : garder `include_inactive` à côté de `is_active` dans les réglages
+  d'une grille — deux réglages pour une seule chose, le double emploi que #3076 retire.
+- **Une barre, un ordre** pour toutes les grilles : les commandes de l'écran, la recherche,
+  « Filtres », « Colonnes », « Arbre », puis l'annulation. Écarté : laisser leur ordre aux grilles
+  arborescentes (décision de l'auteur du 2026-11-14).
+- **Les motifs d'un graphique se décident en un point** : la préférence, lue avec le compte, arrive
+  aux graphiques par leur composant commun ; les barres, les points des courbes et la légende la
+  suivent, et l'export, qui redessine la même option, aussi. Le Gantt et les chronologies gardent
+  leurs marques. Écartés : un bouton par graphique, et une entrée par graphique dans
+  `DisplayPreferences.charts` — l'auteur veut un réglage du compte (#3097).
+- **L'aboutissement d'un traitement est une carte flottante qui reste**, montée par la coquille,
+  nourrie par le suivi des tâches, annoncée sans prendre le focus et notée à l'historique des
+  messages comme les autres. Écartés : une carte qui s'efface, dont l'action se manquerait ; un
+  bandeau, qui déplacerait la grille ; une bibliothèque de notifications, qui ne connaîtrait ni
+  l'historique ni les régions d'annonce déjà en place.
+- **L'attente d'un bouton est commune** : un bouton qui lance une requête ou une tâche se dit « en
+  cours » de la même façon partout, par le composant des commandes. L'écran se relit à
+  l'aboutissement d'une tâche de son projet.
+- **Le nom de l'entreprise reste un champ de `ReferenceSettings`**, écrit par
+  `updateReferenceSettings` ; seule sa permission change. La carte « Installation » lit
+  `getReferenceSettings` (nom, devise) et `getInstallation` (langue, fuseau). Écartés : une
+  opération `updateInstallation` et la colonne déplacée dans `installation` — une migration de
+  données sans gain, les exports lisant le nom où il est.
+- **La migration donne la fonction « installation » à qui administre.** La table des rôles ne dit
+  pas lequel est le rôle prédéfini « administrateur » — son libellé se modifie — ; elle le reconnaît
+  comme le service reconnaît un administrateur (WF-ADM-0120) : par `users.write` et
+  `access_roles.write`. Écartés : la donner aussi aux rôles qui portent `cost_settings.write`, et ne
+  la donner à personne (décision de l'auteur du 2026-11-14).
+- **Le fuseau est fixé à l'amorçage et lu sans session.** `UTC` est la valeur livrée et celle d'une
+  installation déjà amorcée : rien ne change pour qui ne choisit pas. Une plateforme existante ne
+  change de fuseau qu'en se réinstallant ; l'application n'est pas déployée. Le front calcule le
+  jour qu'il propose dans ce fuseau, par une seule fonction. Écartés : une opération qui rendrait le
+  jour, un appel de plus par formulaire ; le jour du poste, que la spécification écarte.
+- **La page de connexion recopie les valeurs des jetons** : le thème du fournisseur d'identité ne
+  lit pas la feuille du front. Son CSS dit d'où vient chaque valeur.
+- **La géométrie s'éprouve par des mesures, non par des images** : les parcours affirment des
+  positions et des largeurs, comme `grid-frame.spec.ts` ; les audits d'accessibilité et de contraste
+  se rejouent dans les deux modes. Écartée : la comparaison de captures, instable d'un poste à
+  l'autre dans une file qu'EP-24 vient de stabiliser.
+- **Chaque libellé nouveau est dans les deux catalogues**, et la page d'aide d'un écran dont une
+  commande change de place la suit (WF-IHM-0140).
 
 ---
 
@@ -512,7 +698,8 @@ sur l'écran des coûts, auquel il n'a pas trait.
   arrivent par une migration, comme le reste du catalogue ;
 - propre à l'US : l'écran porte une carte « Installation » : le nom de l'entreprise, modifiable par
   qui détient la permission de modifier la fonction, et, en lecture seule, la devise, la langue par
-  défaut et le fuseau horaire fixés à l'amorçage (#3088, décision de l'auteur du 2026-11-13) ;
+  défaut et le fuseau horaire fixés à l'amorçage (#3088, décision de l'auteur du 2026-11-13) ; le
+  fuseau est celui qu'US-2200 garde et rend lisible ;
 - propre à l'US : le nom de l'entreprise et sa commande quittent l'écran des paramètres de coûts ;
 - propre à l'US : une session sans la permission de consulter la fonction ne voit pas l'entrée
   « Installation » ; avec elle et sans celle de modifier, elle lit la carte sans commande.
@@ -523,8 +710,9 @@ niveau de l'arborescence fonctionnelle, qui s'arrête à FBS-1.5 ; une fonction 
 complète, par une révision de la spécification que l'auteur écrit sur une issue `specification`
 ouverte par le cadrage. L'US attend cette révision ; ses critères se relisent alors contre le Vérif
 révisé, que `make roadmap` confronte. Le contrat suit par une issue `contract` : les deux
-permissions, le nom de l'entreprise écrit sous la fonction nouvelle, le fuseau horaire rendu lisible.
-Écartés : l'écran sous la permission des coûts — un administrateur sans les réglages de coûts ne le
+permissions, le nom de l'entreprise écrit sous la fonction nouvelle. Le rôle prédéfini
+« administrateur » reçoit les deux permissions, sur une installation neuve comme par la migration là
+où il existe encore, et lui seul (décision de l'auteur du 2026-11-14, au cadrage). Écartés : l'écran sous la permission des coûts — un administrateur sans les réglages de coûts ne le
 verrait pas ; le report à EP-13.
 
 **Hors périmètre.** Modifier la devise, la langue par défaut ou le fuseau horaire : ils sont fixés à
@@ -722,8 +910,10 @@ pour un fichier.
   présente son avancement. » : le bouton pressé est inerte et marqué « en cours » tant que la
   requête ou la tâche qu'il a lancée n'a pas répondu ; une seconde pression ne relance rien ;
 - `WF-IHM-0080-A` — « Un utilisateur qui change d'écran pendant un import est informé de son
-  aboutissement. » : par une notification franche, qui offre l'action qui suit — « Télécharger »
-  pour un export, « Ouvrir » pour une révision —, et que le panneau « Tâches et messages » garde ;
+  aboutissement. » : par une carte flottante au coin de l'écran, qui offre l'action qui suit —
+  « Télécharger » pour un export, « Ouvrir » pour une révision — et reste jusqu'à ce qu'on l'ouvre
+  ou la ferme ; plusieurs s'empilent, et le panneau « Tâches et messages » les garde (décision de
+  l'auteur du 2026-11-14, au cadrage) ;
 - `WF-IHM-0080-A` — « L'échec d'un traitement de fond est signalé avec son motif, et le même
   traitement peut être relancé. » : l'échec rend son bouton à l'écran qui l'a lancé ;
 - propre à l'US : le téléchargement du résultat d'un export part de lui-même quand la tâche aboutit
@@ -806,3 +996,52 @@ en se connectant.
 
 **Notes de réalisation.** Après la validation de l'écran de référence par l'auteur (« Préalables ») :
 les valeurs sont celles que l'application a arrêtées.
+
+## US-2200 — Le jour courant s'entend dans le fuseau horaire de l'installation
+
+- **statut** : à faire
+- **exigences** : `WF-PLA-0130-A`
+- **opérations** : `getInstallation` ; `setTaskProgress`, `requestExport` et les autres opérations
+  qui datent au jour courant, inchangées
+- **issue** :
+
+**En tant que** chef de projet, **je veux** que « aujourd'hui » soit le jour de mon installation et
+non celui du temps universel, **afin qu'** une tâche que je termine peu après minuit ne soit pas
+datée de la veille.
+
+**Critères d'acceptation.**
+
+- `WF-PLA-0130-A` — « Le passage à l'état démarré ou terminé demande une date, proposée au jour
+  courant et modifiable. » : le jour proposé par l'écran et le jour écrit par défaut par le service
+  sont celui du fuseau de l'installation ; à 23 h 30 en temps universel, une installation au fuseau
+  de Paris date du lendemain ;
+- écart : `WF-PLA-0130-A` — « Chacun de ces attributs est affiché dans la grille de planning, et
+  ceux que MS Project connaît sont transportés par l'export. » : non touché ; constaté par EP-06
+  (US-1410, US-1430, US-1470) ;
+- écart : `WF-PLA-0130-A` — « Une terminaison datée avant le démarrage de la tâche est refusée. » :
+  non touché ; constaté par EP-06 (US-1410) ;
+- écart : `WF-PLA-0130-A` — « Un import de reste à engager qui met une tâche à zéro la date de la
+  revue que porte le fichier ; une récapitulative porte la date de terminaison de sa dernière
+  subordonnée. » : non touché ; la récapitulative par EP-06, l'import par EP-09, EP-10 clôt ;
+- écart : `WF-PLA-0130-A` — « La durée d'un jalon est nulle et n'est pas modifiable ; les dates
+  d'une récapitulative ne sont pas saisissables. » : non touché ; constaté par EP-06 (US-1380) ;
+- écart : `WF-PLA-0130-A` — « La marge totale, la criticité et l'avancement physique s'affichent et
+  ne sont pas saisissables. » : non touché ; la marge et la criticité par EP-06, l'avancement
+  physique par EP-10, qui clôt ;
+- propre à l'US : l'amorçage garde le fuseau horaire de l'installation, donné à
+  `waterfall-api install` ; relancé, il ne le change pas ; un fuseau inconnu est refusé (WF-EXP-0020,
+  #2527) ;
+- propre à l'US : le service prend le jour courant par sa seule fonction du noyau (US-1380/L4),
+  branchée sur ce fuseau, ses appelants inchangés ;
+- propre à l'US : `getInstallation` rend le fuseau, et l'écran propose le jour dans ce fuseau, non
+  dans celui du poste.
+
+**Notes de réalisation.** #2527, reporté d'EP-06 à EP-07 puis à EP-13 sans être fait, est repris ici
+(décision de l'auteur du 2026-11-14, au cadrage) : EP-25 est le seul EPIC qui touche les réglages de
+l'installation, et il passe avant ceux qui finalisent les grilles (EP-26, EP-27) et avant EP-10, dont
+la date de calcul est ce jour courant. L'US n'attend pas la révision de la spécification : la 1.0.3
+porte déjà le fuseau (WF-EXP-0020, WF-PLA-0130). Écartés : EP-26, qui mesure la lecture des grilles
+et ne touche pas ces fichiers ; EP-10, qui vient après EP-27.
+
+**Hors périmètre.** Modifier le fuseau après l'amorçage ; l'heure d'une sauvegarde planifiée, que
+le contrat dit sans fuseau (`docs/api/DECISIONS.md`).

@@ -121,6 +121,11 @@ antérieur à toute révision marquée à l'état En cours, que le contrat ne d�
 
 ## Constats reçus
 
+Relevé au cadrage d'EP-25 (2026-11-14, décision de l'auteur) : EP-25 donne à l'installation son
+fuseau horaire et y entend le jour courant (US-2200, #2527). La date de calcul du jour, que la
+conception ci-dessous dit « en temps universel », se relit alors comme le jour courant du fuseau de
+l'installation, par la même fonction du noyau.
+
 Relevés par la revue du contrat du 2026-10-31 (`docs/api/2026-10-31-contrat-spec-et-fixtures.md`)
 et tranchés par l'auteur le 2026-11-01 : EP-16 en écrit le contrat (US-0704 #1735), que le service
 suit une fois figé.
