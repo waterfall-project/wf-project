@@ -67,6 +67,12 @@ function FollowAnalysis({ taskId }: { readonly taskId: string }) {
 export function DurationRule(props: DurationRuleProps) {
   // The task a 202 handed over, until the screen read anew carries it as `task`.
   const [analysis, setAnalysis] = useState<string>();
+  if (props.task !== undefined && analysis !== undefined) {
+    // The screen has taken over: its task is the one followed, whichever it is, and the one a 202
+    // handed over is forgotten, lest it be followed again, its end already read, once the import
+    // is read analysed.
+    setAnalysis(undefined);
+  }
   const followed = props.task ?? analysis;
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   return (
