@@ -143,4 +143,20 @@ describe("the server actions of the exchanges", () => {
       [`/projects/${PROJECT}/imports/${IMPORT}/duration-rule`, { duration_rule: "keep_dates" }],
     ]);
   });
+
+  it("set the duration rule already in force: the import comes back unchanged (200) [WF-INTF-0080-A]", async () => {
+    const client = serve({
+      "PUT /projects/{project_id}/imports/{import_id}/duration-rule": {
+        example: "import_planning_other_constants",
+        status: 200,
+      },
+    });
+    expect(await setFileImportDurationRule(PROJECT, IMPORT, "keep_dates")).toEqual({
+      kind: "done",
+      data: example("import_planning_other_constants"),
+    });
+    expect(client.calls.map(({ path, body }) => [path, body])).toEqual([
+      [`/projects/${PROJECT}/imports/${IMPORT}/duration-rule`, { duration_rule: "keep_dates" }],
+    ]);
+  });
 });

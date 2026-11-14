@@ -473,7 +473,13 @@ export function ImportReport({ projectId, entry, start, then }: ImportReportProp
       ) : null}
       {entry.report == null ? (
         <p className={MUTED}>
-          {t(entry.status === "analysing" ? "exchanges.report.analysing" : "exchanges.report.none")}
+          {t(
+            entry.status === "analysing"
+              ? "exchanges.report.analysing"
+              : entry.status === "failed"
+                ? "exchanges.report.failed"
+                : "exchanges.report.none",
+          )}
         </p>
       ) : (
         <Findings report={entry.report} />

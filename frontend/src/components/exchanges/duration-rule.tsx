@@ -7,8 +7,9 @@
  * API to analyse the import again (`setImportDurationRule`): the import comes back `analysing`
  * (202), its task goes to the tracker of the shell, and the screen is read anew at once and again
  * when the task has ended — whichever way, a failed analysis showing as any failed analysis does —;
- * the rule already in force changes nothing (200). A refusal is told under the choice; a 409, the
- * import having moved on, reads the screen anew. The project stays unchanged until the confirmation.
+ * the rule already in force changes nothing, but the screen is read anew (200), as it may be stale.
+ * A refusal is told under the choice, kept by this component, which stays mounted when the screen
+ * read anew drops the choice; a 409, the import having moved on, reads the screen anew. The project stays unchanged until the confirmation.
  */
 "use client";
 
@@ -56,11 +57,18 @@ function FollowAnalysis({ taskId }: { readonly taskId: string }) {
  */
 export function DurationRule(props: DurationRuleProps) {
   const [analysis, setAnalysis] = useState<string>();
+  const [outcome, setOutcome] = useState<Outcome<unknown>>();
   return (
     <>
       {props.rule === undefined || !props.awaiting ? null : (
-        <Choice {...props} rule={props.rule} onAnalysing={setAnalysis} />
+        <Choice {...props} rule={props.rule} onAnalysing={setAnalysis} onOutcome={setOutcome} />
       )}
+      <OutcomeNotice
+        outcome={outcome}
+        onClear={() => {
+          setOutcome(undefined);
+        }}
+      />
       {analysis === undefined ? null : <FollowAnalysis taskId={analysis} />}
     </>
   );
@@ -73,16 +81,17 @@ function Choice({
   filename,
   rule,
   onAnalysing,
+  onOutcome,
 }: DurationRuleProps & {
   readonly rule: ImportDurationRule;
   readonly onAnalysing: (taskId: string) => void;
+  readonly onOutcome: (outcome: Outcome<unknown> | undefined) => void;
 }) {
   const t = useTranslations("exchanges.report.durationRule");
   const enums = useTranslations("enums.ImportDurationRule");
   const router = useRouter();
   const track = useTrackTask();
   const name = useId();
-  const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [busy, setBusy] = useState(false);
   const reread = () => {
     router.refresh();
@@ -93,21 +102,22 @@ function Choice({
       return;
     }
     setBusy(true);
-    setOutcome(undefined);
+    onOutcome(undefined);
     void setFileImportDurationRule(projectId, importId, asked)
       .catch(rejected)
       .then((result) => {
         setBusy(false);
         if (result.kind === "done") {
-          // 202: the import is analysing again, followed to its end; 200: nothing changes.
+          // 202: the import is analysing again, followed to its end; 200: the rule is already
+          // in force, nothing changes, and the screen is read anew in case it was stale.
           if (result.data.status === "analysing") {
             track(result.data.task, { subject: filename });
             onAnalysing(result.data.task.task_id);
-            reread();
           }
+          reread();
           return;
         }
-        setOutcome(result);
+        onOutcome(result);
         if (result.kind === "conflict") {
           reread();
         }
@@ -132,12 +142,6 @@ function Choice({
           <span>{t("option", { rule: enums(each), hint: t(`hint.${each}`) })}</span>
         </label>
       ))}
-      <OutcomeNotice
-        outcome={outcome}
-        onClear={() => {
-          setOutcome(undefined);
-        }}
-      />
     </fieldset>
   );
 }

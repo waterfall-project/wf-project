@@ -4086,6 +4086,7 @@
       "formatVersion": "Format version",
       "analysing": "The file is being analysed. The background task follow-up will offer to reload the screen once it has finished.",
       "none": "This import has no report.",
+      "failed": "This import failed: reopen the file (drop zone) to analyse it again.",
       "read": "{count, plural, =0 {No line read} one {# line read} other {# lines read}}.",
       "reasons": "Explicit confirmation required",
       "rejected": "{count, plural, =0 {No line rejected} one {# line rejected} other {# lines rejected}}",

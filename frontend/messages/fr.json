@@ -4086,6 +4086,7 @@
       "formatVersion": "Version du format",
       "analysing": "L’analyse du fichier est en cours. Le suivi des tâches de fond vous proposera de recharger l’écran quand elle aura abouti.",
       "none": "Cet import n’a pas de compte rendu.",
+      "failed": "Cet import a échoué : rouvrez le fichier (zone de dépôt) pour l’analyser de nouveau.",
       "read": "{count, plural, =0 {Aucune ligne lue} one {# ligne lue} other {# lignes lues}}.",
       "reasons": "Confirmation explicite demandée",
       "rejected": "{count, plural, =0 {Aucune ligne rejetée} one {# ligne rejetée} other {# lignes rejetées}}",
