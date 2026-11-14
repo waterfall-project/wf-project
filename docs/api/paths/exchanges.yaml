@@ -249,7 +249,9 @@
       (WF-INTF-0090), on the structure the request names, the main one by default, which the
       import returns (`Import.structure_id`). Depending on the flow: MS Project schedule
       (WF-INTF-0040), whose project start date becomes the planning start date of the structure
-      (`CostStructure.planning_start_on`, WF-PLA-0020), the report presenting its change;
+      (`CostStructure.planning_start_on`, WF-PLA-0020), the report presenting its change, and
+      analysed keeping its durations when it is in calendar gap (`ImportReport.calendar_gap`,
+      `setImportDurationRule`);
       estimate (WF-INTF-0100), remaining to commit (WF-INTF-0120), actual costs (WF-INTF-0140),
       whose extracted period is logged (WF-CRE-0050). An actual cost extraction is read
       according to the mapping of the installation (`getActualCostMapping`, WF-REF-0190): the
@@ -378,7 +380,11 @@
       manual tasks kept on a day without working hours, and the manual summary tasks imported in
       automatic mode, signalled (`ImportReport.signals`, WF-PLA-0020, WF-INTF-0040; #1271), and
       unit constants other than those of the installation, the file's and the installation's
-      (`ImportReport.unit_constants`, `import_planning_other_constants`, WF-PLA-0160; #2580); for
+      (`ImportReport.unit_constants`, `import_planning_other_constants`, WF-PLA-0160; #2580), and
+      the calendar gap of a file whose constants or calendars differ from those of the
+      installation, with the duration rule its report was computed under, which
+      `setImportDurationRule` changes (`ImportReport.calendar_gap`,
+      `import_planning_calendar_gap`, WF-INTF-0040, WF-INTF-0080; #2977); for
       an actual cost extraction, the columns of the file neither read nor declared kept, ignored
       and named by their label (`ImportIgnoredKind`, `columns`, WF-REF-0190), each cost line
       designated by its document and its item, the lines of the file with the same document and
@@ -414,6 +420,7 @@
               remaining_completed_tasks: { $ref: ../../../fixtures/api/import_remaining_completed_tasks.json }
               planning_non_working_day: { $ref: ../../../fixtures/api/import_planning_non_working_day.json }
               planning_other_constants: { $ref: ../../../fixtures/api/import_planning_other_constants.json }
+              planning_calendar_gap: { $ref: ../../../fixtures/api/import_planning_calendar_gap.json }
               planning_provision_moved: { $ref: ../../../fixtures/api/import_planning_provision_moved.json }
               estimate_task_without_hours: { $ref: ../../../fixtures/api/import_estimate_task_without_hours.json }
               actual_costs_wbs_invalid: { $ref: ../../../fixtures/api/import_actual_costs_wbs_invalid.json }
@@ -537,6 +544,85 @@
                 $ref: ../../../fixtures/api/import_apply_background_running.json
               may_create_revision:
                 $ref: ../../../fixtures/api/import_apply_may_create_revision.json
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/projects/{project_id}/imports/{import_id}/duration-rule:
+  put:
+    operationId: setImportDurationRule
+    tags: [exchanges]
+    summary: Set the duration rule of an import in calendar gap, and analyse it again
+    description: >-
+      For an MS Project schedule whose constants or calendars differ from those of the
+      installation (`ImportReport.calendar_gap`), the rule of conversion of its durations: keep
+      the durations, offered by default, or keep the dates (`ImportDurationRule`, WF-INTF-0040,
+      WF-PLA-0160). "Changing the option gives the report again, without applying anything"
+      (WF-INTF-0080): a rule other than the one the report was computed under sets the report
+      aside and queues a new analysis, the import `analysing` until it ends, its task the new
+      one, then `analysed` again with the report of the rule, for twenty-four hours from it
+      (`expires_at`, WF-ARC-0100); the project stays unchanged until the confirmation
+      (`applyImport`), which applies the report as analysed. The rule the report was computed
+      under is the state the request sets: sent again for an `analysed` import, it changes
+      nothing, and the import is returned as it is (200), so that a client that retries does not
+      analyse twice. A replay while the analysis runs, after a lost 202, is refused by the 409
+      `import_awaiting_decision`: the client then reads the import again (`getImport`). If the
+      analysis queued fails, the previous report stays set aside, the import is `failed`, and the
+      user opens the file again (`openImport`). Refused, in
+      this order: an unknown import, or one of another project (404); the permission of the kind
+      of the import and the quality of contributor, as for applying it (403); an import no longer
+      `analysed` — being analysed, applied or being applied, abandoned, expired, failed or
+      refused —, `import_awaiting_decision`, as for applying it; then an import whose report
+      presents no calendar gap, `import_calendar_gap` — an import of another kind included —:
+      there is no choice to make (409). The conditions of the state of the project are not
+      judged: the analysis writes nothing, and `applyImport` judges them again (#2977).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/ImportId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/exchanges.yaml#/ImportDurationRuleWrite }
+    responses:
+      '200':
+        description: >-
+          The rule sent is the one the report was computed under: nothing is analysed again, and
+          the import is returned as it is.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/exchanges.yaml#/ImportDetail }
+            examples:
+              unchanged: { $ref: ../../../fixtures/api/import_planning_other_constants.json }
+      '202':
+        description: >-
+          Analysis queued under the rule sent: the import `analysing`, without a report until
+          the analysis ends, its task the new one.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/exchanges.yaml#/ImportDetail }
+            examples:
+              analysing: { $ref: ../../../fixtures/api/import_duration_rule_set.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` naming the first missing
+          condition, in this order: `import_awaiting_decision`, the import being no longer
+          `analysed` — being analysed, applied or being applied, abandoned, expired, failed or
+          refused: there is no report to give again (WF-ARC-0100); then `import_calendar_gap`,
+          a report without a calendar gap (`ImportReport.calendar_gap` null), which offers no
+          choice (WF-INTF-0040, WF-INTF-0080). A replay of the rule while the
+          import is `analysing` (after a lost 202) is refused here: the client reads the import
+          again (`getImport`). The import does not change.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              without_gap: { $ref: ../../../fixtures/api/import_duration_rule_without_gap.json }
+              applied: { $ref: ../../../fixtures/api/import_duration_rule_applied.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

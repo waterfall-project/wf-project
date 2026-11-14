@@ -221,11 +221,6 @@ def test_an_entry_recognizes_a_failure_only_when_all_its_patterns_match() -> Non
             "modifies the risk matrix and the thresholds of the indices in their forms",
             "offers no deletion on the settings of the risks and of the indicators",
         ),
-        (
-            "e2e/reference-costs.spec.ts",
-            "shows the deactivated natures and categories asked for and reactivates them",
-            "deactivates a nature from its row, the row showing what the service answers",
-        ),
     ],
 )
 def test_the_family_b_entries_recognize_their_journey_by_its_title_at_any_line(
@@ -241,6 +236,20 @@ def test_the_family_b_entries_recognize_their_journey_by_its_title_at_any_line(
     assert entry.family.startswith("B.")
     other = replace(failure, name=neighbour)
     assert queue.read_catalogue().classify(other) == (queue.TO_CLASSIFY, None)
+
+
+def test_the_journey_of_the_deactivated_costs_is_no_longer_a_known_flakiness() -> None:
+    # #3135: its failures were its helper `press` clicking again a command whose action was under
+    # way, not a state shared between journeys; corrected, a failure of it is to classify.
+    (_, structure) = failures("playwright-service-paths")
+    failure = replace(
+        structure,
+        file="e2e/reference-costs.spec.ts",
+        line=469,
+        name="shows the deactivated natures and categories asked for and reactivates them",
+        where="e2e/x.ts:1",
+    )
+    assert queue.read_catalogue().classify(failure) == (queue.TO_CLASSIFY, None)
 
 
 def test_an_entry_that_names_runs_recognizes_nothing_outside_them() -> None:

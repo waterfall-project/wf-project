@@ -216,7 +216,8 @@ Import:
       enum: [analysing, analysed, applying, applied, abandoned, expired, failed, refused]
       description: >-
         Where the import stands (WF-ARC-0100): `analysing`, its analysis is running, without a
-        report; `analysed`, its report awaits the user's decision until `expires_at`;
+        report — that of its opening, or the one that a change of its duration rule runs again
+        (`setImportDurationRule`), the previous report set aside; `analysed`, its report awaits the user's decision until `expires_at`;
         `applying`, the confirmed application is running; `applied`, it has written;
         `abandoned`, the user abandoned it; `expired`, twenty-four hours passed without
         application; `failed`, the task of its analysis or of its application failed
@@ -231,7 +232,8 @@ Import:
     expires_at:
       anyOf: [{ $ref: ../common.yaml#/Timestamp }, { type: 'null' }]
       description: >-
-        Twenty-four hours after the analysis; beyond that the report no longer applies
+        Twenty-four hours after the analysis — the last one, when a change of its duration rule
+        analysed it again (`setImportDurationRule`); beyond that the report no longer applies
         (WF-ARC-0100). Null as long as the analysis is running, if it failed, or if the
         application was refused (`refused`).
     report:
@@ -312,6 +314,7 @@ ImportReport:
     - signals
     - requires_confirmation_reasons
     - unit_constants
+    - calendar_gap
   description: >-
     Report presented before application, and read again after it: lines read, lines
     rejected with their reason, differences with the existing data (WF-INTF-0080), what
@@ -452,14 +455,171 @@ ImportReport:
       anyOf: [{ $ref: '#/ImportUnitConstants' }, { type: 'null' }]
       description: >-
         For an MS Project schedule whose unit constants differ from those of the installation,
-        the constants of the file and those of the installation: "an MS Project file whose
-        constants differ from those of the installation is imported with the same durations in
-        hours, and the report signals the difference" (WF-PLA-0160, WF-INTF-0040). The durations
-        and the lags are imported with their hours, their values converted at the constants of
-        the installation: "2 d" at seven hours a day is fourteen hours, 1.75 d at eight. A
+        the constants of the file and those of the installation (WF-PLA-0160, WF-INTF-0040). A
         constant the file does not carry is the default of MS Project, eight hours a day, forty a
-        week and twenty days a month. A piece of information, not a reason for confirmation.
-        Always returned: null when the constants are equal, and for the other kinds of import.
+        week and twenty days a month. Such a file is in calendar gap: `calendar_gap` is then
+        never null, and the rule it names says how the durations and the lags of the file were
+        converted — keeping the durations, the default, a duration or a lag entered in days,
+        weeks or months keeps its value in its unit, its hours in the file divided by the hours
+        of that unit at the constants of the file, "2 d" entered at seven hours a day staying two
+        days, sixteen hours at the constants of the installation; one entered in minutes or hours
+        keeps its hours; keeping the dates, an automatic task takes the working time between its
+        dates in the file. A piece of information, not a reason for confirmation. Always
+        returned: null when the constants are equal, and for the other kinds of import.
+    calendar_gap:
+      anyOf: [{ $ref: '#/ImportCalendarGap' }, { type: 'null' }]
+      description: >-
+        For an MS Project schedule whose constants differ from those of the installation
+        (`unit_constants`), or whose project calendar, or the own calendar of one of its tasks,
+        has hours per day that differ, day by day, from those of the applicable Waterfall
+        calendar (WF-PLA-0010), what differs and the rule of conversion of the durations the report was computed under:
+        "the report says so — the hours per day on either side, and the working times of the
+        file — and offers, before application (WF-INTF-0080), to keep the durations or to keep
+        the dates" (WF-INTF-0040, WF-PLA-0160). The calendars of the file are still not
+        imported, and are still said ignored (`ignored`, `calendars`). The other arrays of the
+        report — `differences`, `date_mismatches` included — are those of that rule; changing
+        it analyses the import again and gives a new report, the project unchanged until the
+        confirmation (`setImportDurationRule`, WF-INTF-0080). A file exported by Waterfall
+        carries its calendars and its constants: it presents no gap, and no choice is offered
+        (WF-INTF-0060). Always returned: null without a gap, and for the other kinds of import.
+
+ImportCalendarGap:
+  type: object
+  required: [project_calendar, installation_calendar, tasks, duration_rule]
+  description: >-
+    The calendar gap of an MS Project schedule (`ImportReport.calendar_gap`, WF-INTF-0040,
+    WF-PLA-0160): the project calendar of the file and the default calendar of the
+    installation, the tasks whose own calendar in the file differs from their applicable
+    Waterfall calendar, and the rule of conversion of the durations under which the report was
+    computed. The unit constants, when they differ, are in `ImportReport.unit_constants`.
+  properties:
+    project_calendar:
+      allOf: [{ $ref: '#/ImportFileCalendar' }]
+      description: >-
+        The project calendar of the file, its hours per day and its working times, as the file
+        carries them.
+    installation_calendar:
+      allOf: [{ $ref: '#/ImportWaterfallCalendar' }]
+      description: >-
+        The default calendar of the installation at the analysis (WF-REF-0120), the one a task
+        without a calendar of its own applies (WF-PLA-0010), and its hours per day.
+    tasks:
+      type: array
+      description: >-
+        The tasks of the file whose own calendar, in the file, has hours per day that differ, day
+        by day, from those of their applicable Waterfall calendar, each named, in the order of the file; empty when
+        only the project calendar or the constants differ.
+      items: { $ref: '#/ImportCalendarGapTask' }
+    duration_rule:
+      allOf: [{ $ref: '#/ImportDurationRule' }]
+      description: >-
+        The rule the report was computed under: `keep_durations` at the analysis that follows
+        the opening, then the one `setImportDurationRule` set.
+
+ImportDurationRule:
+  type: string
+  enum: [keep_durations, keep_dates]
+  description: >-
+    How an MS Project schedule in calendar gap converts its durations (WF-INTF-0040,
+    WF-PLA-0160). `keep_durations`, offered by default: a duration or a lag entered in days,
+    weeks or months keeps its value in its unit, its hours in the file divided by the hours of
+    that unit at the constants of the file, and Waterfall computes the dates on its calendars;
+    one entered in minutes or hours keeps its hours; the elapsed time is not concerned.
+    `keep_dates`: each automatic task takes for duration the working time between its start
+    and its finish in the file, on its applicable Waterfall calendar, expressed in the unit of
+    its duration at the constants of the installation; the lags keep their value in their unit,
+    as under the other rule. Under both, a manual task keeps the dates of the file, and the
+    differences in dates or durations that remain are presented (`date_mismatches`).
+
+ImportDurationRuleWrite:
+  type: object
+  required: [duration_rule]
+  description: >-
+    The rule under which an import in calendar gap is analysed again (`setImportDurationRule`,
+    WF-INTF-0080).
+  properties:
+    duration_rule: { $ref: '#/ImportDurationRule' }
+
+ImportFileCalendar:
+  type: object
+  required: [name, weekly_hours, working_times]
+  description: >-
+    A calendar of an MS Project file, as the file carries it, read and never imported
+    (WF-INTF-0040): its name, its hours per day of the week and its working times.
+  properties:
+    name:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: The name of the calendar in the file; null when the file gives none.
+    weekly_hours:
+      allOf: [{ $ref: reference.yaml#/WeeklyHours }]
+      description: >-
+        The hours worked on each day of the week, the sum of the working times of the day, so
+        that they read beside those of a Waterfall calendar (WF-REF-0110).
+    working_times: { $ref: '#/ImportWorkingWeek' }
+
+ImportWorkingWeek:
+  type: object
+  required: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+  description: >-
+    The working times of a calendar of the file for each day of the week, from Monday to Sunday,
+    in the order of the day; an empty array for a day without work.
+  properties:
+    monday: { type: array, items: { $ref: '#/ImportWorkingTime' } }
+    tuesday: { type: array, items: { $ref: '#/ImportWorkingTime' } }
+    wednesday: { type: array, items: { $ref: '#/ImportWorkingTime' } }
+    thursday: { type: array, items: { $ref: '#/ImportWorkingTime' } }
+    friday: { type: array, items: { $ref: '#/ImportWorkingTime' } }
+    saturday: { type: array, items: { $ref: '#/ImportWorkingTime' } }
+    sunday: { type: array, items: { $ref: '#/ImportWorkingTime' } }
+
+ImportWorkingTime:
+  type: object
+  required: [from, to]
+  description: >-
+    A working time of a day of a calendar of the file, from one hour of the clock to another, as
+    the file carries it (`FromTime`, `ToTime`), without time zone: `HH:MM`, or `HH:MM:SS` when
+    the file carries seconds; the end of the day, which MS Project writes `00:00:00`, is
+    `24:00`.
+  properties:
+    from:
+      type: string
+      pattern: '^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$'
+    to:
+      type: string
+      pattern: '^(([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?|24:00)$'
+
+ImportWaterfallCalendar:
+  type: object
+  required: [calendar_id, label, weekly_hours]
+  description: >-
+    A Waterfall calendar as the analysis read it (WF-REF-0110): the report keeps its label and
+    its hours, which a later change of the calendar does not rewrite.
+  properties:
+    calendar_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string, minLength: 1, maxLength: 200 }
+    weekly_hours: { $ref: reference.yaml#/WeeklyHours }
+
+ImportCalendarGapTask:
+  type: object
+  required: [lineage_id, label, file_calendar, weekly_hours]
+  description: >-
+    A task of the file whose own calendar has hours per day that differ, day by day, from those of
+    its applicable Waterfall calendar (`ImportCalendarGap.tasks`, WF-INTF-0040, WF-PLA-0010).
+  properties:
+    lineage_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: The lineage of the task; null for a task that the import creates.
+    label: { type: string }
+    file_calendar:
+      allOf: [{ $ref: '#/ImportFileCalendar' }]
+      description: The own calendar of the task in the file.
+    weekly_hours:
+      allOf: [{ $ref: reference.yaml#/WeeklyHours }]
+      description: >-
+        The hours per day of the applicable Waterfall calendar of the task, on which Waterfall
+        computes its dates: for each day of the week, the smallest number of hours that the
+        calendars of the roles of its labour lines grant, the default calendar for a task
+        without such a line — a task the import creates (WF-PLA-0010).
 
 ImportUnitConstants:
   type: object

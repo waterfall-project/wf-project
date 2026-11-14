@@ -276,6 +276,7 @@ def import_report() -> JsonObject:
         "signals": signals(lineage, label, (first, last)),
         "requires_confirmation_reasons": [],
         "unit_constants": None,
+        "calendar_gap": None,
     }
 
 

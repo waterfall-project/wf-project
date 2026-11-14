@@ -238,6 +238,7 @@ def import_report(nodes: dict[int, Node]) -> JsonObject:
         "signals": [],
         "requires_confirmation_reasons": [],
         "unit_constants": None,
+        "calendar_gap": None,
     }
 
 
@@ -418,6 +419,7 @@ def completing_report(nodes: dict[int, Node]) -> JsonObject:
         "signals": [],
         "requires_confirmation_reasons": [],
         "unit_constants": None,
+        "calendar_gap": None,
     }
 
 
@@ -615,6 +617,7 @@ def cost_report(entry: CostImport) -> JsonObject:
         "signals": [],
         "requires_confirmation_reasons": reasons,
         "unit_constants": None,
+        "calendar_gap": None,
     }
 
 

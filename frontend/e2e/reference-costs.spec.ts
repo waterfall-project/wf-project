@@ -20,8 +20,11 @@
  * enters it at the same time, the 2015 cell is written by the path of the category alone and the
  * 2013 cell by `service/reference-manager.spec.ts`, which no project orders (US-1890).
  *
- * The known failure of the Escape closing the modification of the nature « Main-d'œuvre » is
- * recorded in `tools/queue-known.toml`, with the cause it retains (a hypothesis, not proven).
+ * The path of the deactivated failed the merge queue now and then (#3135), and not at an Escape:
+ * its commands of a row were pressed again each second until the row answered, and the server
+ * action answering past that second, a click pressed again then waited for the command its answer
+ * had just taken away — or pressed the other one —, the state shared with no other path. Its
+ * commands are now pressed until the request of their action is sent, and never after.
  */
 import { expect, type Locator } from "@playwright/test";
 
@@ -489,6 +492,17 @@ test("shows the deactivated natures and categories asked for and reactivates the
   const deactivation = natures.getByRole("button", {
     name: `Désactiver «\u00a0${natureLabel}\u00a0»`,
   });
+  // The nature deactivated on a list without the deactivated: its row offers the reactivation until
+  // the page read anew leaves it out, at once or nearly (`readAnew`), and the region of the list says
+  // the deactivation — what stays once the row is gone.
+  const deactivated = reactivation
+    .or(
+      page
+        .getByRole("region", { name: "Natures de coût" })
+        .getByRole("status")
+        .filter({ hasText: `«\u00a0${natureLabel}\u00a0» désactivée.` }),
+    )
+    .first();
   const natureChoice = form
     .getByRole("combobox", { name: "Nature" })
     .getByRole("option", { name: choice });
@@ -504,14 +518,32 @@ test("shows the deactivated natures and categories asked for and reactivates the
       await expect(dialog).toBeVisible({ timeout: 1_000 });
     }).toPass({ timeout: WORKING });
   };
-  /** A command of a row of the natures, pressed again until React answers it. */
+  /**
+   * A command of a row, pressed again until React takes the click — the request of its server action
+   * sent —, and never once it is: its answer then takes the command away, the row showing the other
+   * one, and a click pressed again meanwhile would wait for a command gone, or press the other (#3135).
+   * The request awaited is any server action POST, not this row's: the server actions go through one
+   * queue (n° 16 of docs/dev/typescript.md), and on this path only the row pressed acts at that
+   * instant — no other action is sent meanwhile, so the request seen is its own.
+   * The signs of answer differ on purpose: a reactivation expects the opposite button of the row,
+   * as the list then shows the deactivated and the row stays; a deactivation also accepts the
+   * region's announcement, the row possibly leaving a list that hides the deactivated.
+   */
   const press = async (command: Locator, answered: Locator) => {
     await expect(async () => {
-      if (!(await answered.isVisible())) {
-        await command.click();
+      if (await answered.isVisible()) {
+        return;
       }
-      await expect(answered).toBeVisible({ timeout: 1_000 });
+      await Promise.all([
+        page.waitForRequest(
+          (request) =>
+            request.method() === "POST" && request.headers()["next-action"] !== undefined,
+          { timeout: 1_000 },
+        ),
+        command.click({ timeout: 1_000 }),
+      ]);
     }).toPass({ timeout: WORKING });
+    await expect(answered).toBeVisible({ timeout: WORKING });
   };
 
   await page.goto(`/reference/costs?category_search=${categoryCode}`);
@@ -539,7 +571,7 @@ test("shows the deactivated natures and categories asked for and reactivates the
 
   try {
     // The nature deactivated from its row: its categories go with it (WF-REF-0010-A).
-    await press(deactivation, reactivation);
+    await press(deactivation, deactivated);
     if (inService) {
       // A page read anew, without the deactivated, leaves both out.
       await page.goto(`/reference/costs?category_search=${categoryCode}`);
@@ -619,7 +651,7 @@ test("shows the deactivated natures and categories asked for and reactivates the
       await expect(natures).toBeVisible({ timeout: WORKING });
       await expect(categories).toBeVisible();
       if (await deactivation.isVisible()) {
-        await press(deactivation, reactivation);
+        await press(deactivation, deactivated);
       }
     }
   }

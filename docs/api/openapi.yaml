@@ -325,6 +325,8 @@ paths:
     $ref: ./paths/exchanges.yaml#/~1projects~1{project_id}~1imports~1{import_id}
   /projects/{project_id}/imports/{import_id}/apply:
     $ref: ./paths/exchanges.yaml#/~1projects~1{project_id}~1imports~1{import_id}~1apply
+  /projects/{project_id}/imports/{import_id}/duration-rule:
+    $ref: ./paths/exchanges.yaml#/~1projects~1{project_id}~1imports~1{import_id}~1duration-rule
   /projects/{project_id}/exports:
     $ref: ./paths/exchanges.yaml#/~1projects~1{project_id}~1exports
   /portfolio/projects:
