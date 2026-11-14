@@ -740,6 +740,40 @@ e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end pat
 		part= && $(e2e-service-part) \
 		cd $(FRONT) && { $(e2e-browser) $(PNPM_ENV) pnpm exec playwright test $$part $(TESTS); }
 
+# The measure of the journey of the grids against the service (US-2210, frontend/e2e/measure/): the
+# platform started as e2e-service starts it — its realm told the address of the front of the
+# harness —, bootstrapped and its witness loaded, but no proxy of the contract: the front, built for
+# production, reaches the API directly (WATERFALL_API_ADDRESS), and the measure reads the log of the
+# API (E2E_SERVICE_API) for its part of each step. One, four and eight users (MEASURE_USERS), five
+# passes (MEASURE_PASSES); the report, a JSON, where MEASURE_REPORT says. A heavy run, which waits
+# for its turn. It fails on no duration, and no goal of the chain plays it (E2E_PART).
+MEASURE_USERS ?= 1 4 8
+MEASURE_PASSES ?= 5
+MEASURE_REPORT ?= $(FRONT)/.e2e/measure.json
+.PHONY: measure
+$(call slot-export,measure,$(SLOT_SERVICE) $(SLOT_PATHS))
+measure: export WATERFALL_FRONT_ADDRESS = http://127.0.0.1:$(E2E_FRONT_PORT)
+measure: export WATERFALL_FRONT_BACKCHANNEL = http://host.docker.internal:$(E2E_FRONT_PORT)
+measure: export E2E_PART = measure-service
+measure: export E2E_BUILT = 1
+measure: export WATERFALL_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
+measure: export E2E_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
+measure: export E2E_MEASURE_USERS = $(MEASURE_USERS)
+measure: export E2E_MEASURE_PASSES = $(MEASURE_PASSES)
+measure: export E2E_MEASURE_REPORT = $(abspath $(MEASURE_REPORT))
+measure: install-front $(call e2e-build) ## Measure the journey of the grids against the service, the front built for production and no proxy of the contract, at one, four and eight users, five passes, in three parts: the API, Next, the browser (US-2210); MEASURE_USERS="1 4 8", MEASURE_PASSES=5, MEASURE_REPORT=<file of the JSON> (frontend/.e2e/measure.json); needs the secrets of service-up and a browser; a witness freshly loaded: make service-down WATERFALL_RESET_DATA=yes first
+	@$(MAKE) --no-print-directory service-up
+	@$(COMPOSE_SERVICE) build --quiet install witness
+	@E2E_INSTALLATION_LINK=$$($(COMPOSE_SERVICE) run --rm --no-TTY install) && \
+		$(COMPOSE_SERVICE) run --rm --no-TTY witness && \
+		E2E_SERVICE_API=$$($(COMPOSE_SERVICE) ps --quiet api) && \
+		WATERFALL_API_ADDRESS=http://127.0.0.1:$${WATERFALL_API_PORT:-8000} && \
+		WATERFALL_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) && \
+		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 && \
+		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
+		export E2E_INSTALLATION_LINK E2E_SERVICE_API WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
+		$(PNPM_HEAVY) exec playwright test
+
 # The slot of the worktree, among the N of WATERFALL_SLOTS, in the register of the workstation
 # ($XDG_RUNTIME_DIR/waterfall-slots, /tmp/waterfall-slots without it), whatever the repository.
 slot: ## Take a slot of 1 to N for this worktree of a lot — its ports and its names —, or say the one it holds; fails, naming the holders, when all are taken
