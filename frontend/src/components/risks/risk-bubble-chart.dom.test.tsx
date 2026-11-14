@@ -184,6 +184,20 @@ describe("the risk matrix as a bubble chart", () => {
     expect(option?.legend).toBeUndefined();
   });
 
+  it("reads the matrix by light dashes across the plot, its ordinate without line nor tick, and makes the zone under the pointer stand out [WF-IHM-0070-A]", () => {
+    project(IDENTIFIED);
+    const { option, bubbles } = drawn();
+    expect(option?.yAxis).toMatchObject({
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: PALETTE.grid, type: "dashed" } },
+    });
+    for (const zone of bubbles) {
+      expect(zone.emphasis).toMatchObject({ focus: "series" });
+      expect(zone.blur).toBeDefined();
+    }
+  });
+
   it("gives the bubbles of each zone the colour of the zone the server rendered and a shape of its own, so that a zone is told without its colour [WF-RIS-0040-A, WF-IHM-0070-A]", () => {
     project(IDENTIFIED);
     const { bubbles } = drawn();

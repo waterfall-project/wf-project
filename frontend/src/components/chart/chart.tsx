@@ -349,6 +349,19 @@ export function timeAxis(
   };
 }
 
+/**
+ * An axis of time read on the ordinate (the forecasts of the milestones): like an axis of values,
+ * no line nor tick of its own and a grid of light dashes across the plot (`valueAxis`).
+ */
+export function timeOrdinate(axis: ReturnType<typeof timeAxis>, palette: ChartPalette) {
+  return {
+    ...axis,
+    axisLine: { show: false },
+    axisTick: { show: false },
+    splitLine: { lineStyle: { color: palette.grid, type: "dashed" as const } },
+  };
+}
+
 /** A text as HTML: a label is typed by a person, and a tooltip is written as HTML. */
 export function escapeHtml(text: string): string {
   return text

@@ -793,6 +793,17 @@ describe("the charts of the portfolio", () => {
     },
   );
 
+  it("reads the curves of the portfolio across the plot by light dashes, their ordinate without line nor tick [WF-IHM-0070-A]", () => {
+    const curves = example("portfolio_cost_curve") as Schemas["PortfolioCostCurve"];
+    charts.props = [];
+    render(inLanguage(<PortfolioCurveChart curves={curves} scope={curves.scope} />));
+    expect(charts.props.at(-1)?.option(PALETTE).yAxis).toMatchObject({
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: PALETTE.grid, type: "dashed" } },
+    });
+  });
+
   it("ends the step of the last month at the first of the next", () => {
     expect(monthAfter("2026-09")).toBe("2026-10");
     expect(monthAfter("2026-12")).toBe("2027-01");

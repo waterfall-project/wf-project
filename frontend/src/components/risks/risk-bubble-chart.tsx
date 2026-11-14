@@ -280,15 +280,17 @@ export function RiskBubbleChart({
           nameLocation: "middle",
           nameGap: 54,
           nameTextStyle: { color: palette.text },
-          axisLine: { show: true, lineStyle: { color: palette.axis } },
-          axisTick: { customValues: ticks(matrix.severity_levels) },
+          // The ordinate has no line nor tick, and is read across the plot by a grid of light
+          // dashes, as every chart (#3097); its values stay on the levels of the matrix.
+          axisLine: { show: false },
+          axisTick: { show: false },
           axisLabel: {
             color: palette.text,
             hideOverlap: true,
             customValues: ticks(matrix.severity_levels),
             formatter: (value: number) => percent.format(value),
           },
-          splitLine: { show: false },
+          splitLine: { lineStyle: { color: palette.grid, type: "dashed" as const } },
         },
         tooltip: {
           trigger: "item",
@@ -339,6 +341,9 @@ export function RiskBubbleChart({
             symbol: ZONE_SYMBOL[zone],
             itemStyle: { borderColor: palette.mark, borderWidth: 1, opacity: 0.85 },
             z: 3,
+            // Under the pointer, the zone stands out and the others fade.
+            emphasis: { focus: "series" as const },
+            blur: { itemStyle: { opacity: 0.3 } },
             data: points
               .filter((point) => point.zone === zone)
               .flatMap((point) => {

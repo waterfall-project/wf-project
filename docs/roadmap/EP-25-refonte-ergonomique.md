@@ -834,7 +834,7 @@ sur le service n'aient pas à la refaire.
 
 ## US-2160 — Les graphiques : une présentation sobre, et les motifs des séries sur préférence du compte
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0070-A`, `WF-ADM-0040-A`, `WF-IHM-0130-A`
 - **opérations** : `getMe`, `updateMyPreferences` ; les lectures des graphiques, inchangées
 - **issue** : #3214

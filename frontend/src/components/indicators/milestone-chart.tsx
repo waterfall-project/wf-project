@@ -30,6 +30,7 @@ import {
   END_LABEL_WIDTH,
   planningInstant,
   timeAxis,
+  timeOrdinate,
   useProvenance,
 } from "@/components/chart/chart";
 import { CalculationDate } from "@/components/context/indicator";
@@ -97,11 +98,14 @@ export function MilestoneChart({ tracking, provenance }: MilestoneChartProps) {
         grid: { left: 96, right: END_LABEL_WIDTH + 16, top: 24, bottom: 32 },
         xAxis: timeAxis(palette, formatLocale(locale), [...markings, context.computed_at], true),
         // The forecasts, and the diagonal of equal dates, which runs over the markings.
-        yAxis: timeAxis(
+        yAxis: timeOrdinate(
+          timeAxis(
+            palette,
+            formatLocale(locale),
+            [...forecasts, ...markings, context.computed_at],
+            true,
+          ),
           palette,
-          formatLocale(locale),
-          [...forecasts, ...markings, context.computed_at],
-          true,
         ),
         series: [
           ...milestones.map((milestone, index) => ({

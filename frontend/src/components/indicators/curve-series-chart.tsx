@@ -32,6 +32,7 @@ import {
   planningInstant,
   timeAxis,
   useProvenance,
+  valueAxis,
 } from "@/components/chart/chart";
 import { CalculationDate } from "@/components/context/indicator";
 import { useCurrency } from "@/currency/context";
@@ -211,7 +212,7 @@ export function CurveSeriesChart({
           true,
         ),
         yAxis: {
-          type: "value",
+          ...valueAxis(palette, (value) => tick.format(value)),
           // The currency of the amounts is the title of the axis (WF-REF-0140), ticks bare.
           ...(currency === undefined
             ? {}
@@ -220,9 +221,6 @@ export function CurveSeriesChart({
                 nameLocation: "end" as const,
                 nameTextStyle: { color: palette.text },
               }),
-          axisLine: { show: true, lineStyle: { color: palette.axis } },
-          axisLabel: { color: palette.text, formatter: (value: number) => tick.format(value) },
-          splitLine: { lineStyle: { color: palette.grid } },
         },
         series: [
           ...lines,
