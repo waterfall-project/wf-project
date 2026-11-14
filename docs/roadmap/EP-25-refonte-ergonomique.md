@@ -393,7 +393,7 @@ répertoire, et les écrans par domaine, une fois l'écran de référence valid�
 
 ## US-2060 — Les deux parcours des paramètres de coûts en quarantaine : leur cause établie, puis rejoués contre le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : `listCostTypes`, `listCostCategories`, `setCostTypeActivation`,
   `setCostCategoryActivation`, par les parcours qui les jouent
