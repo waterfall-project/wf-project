@@ -22,7 +22,8 @@ import { Reactivations } from "./reactivation";
 /**
  * A list or a set of values of the reference data in its card (US-2080, #3071): its title, the
  * command that creates in it at the right of the title — filled, the one filled command of the
- * card (`SectionCard`) —, offered on an empty list too, and its body (`ListBody` says an empty list). The screen gives the creation as a function of the variant the card draws it at, never
+ * card (`SectionCard`) —, offered on an empty list too, and its body (`ListBody` says an empty
+ * list). The screen gives the creation as a function of the variant the card draws it at, never
  * the variant itself.
  */
 export function ReferenceCard({
