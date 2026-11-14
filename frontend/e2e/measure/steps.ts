@@ -236,6 +236,15 @@ export async function player(page: Page, origin: string): Promise<Player> {
       }),
     );
   });
+  // A request the router gave up — a navigation that took the place of another — was waited for
+  // until then: its time counts, up to the moment it failed, and none of its bytes.
+  page.on("requestfailed", (request) => {
+    if (rendered(request, origin)) {
+      const { startTime: start } = request.timing();
+      const prefetch = request.headers()["next-router-prefetch"] !== undefined;
+      front.push({ start, end: Date.now(), bytes: 0, prefetch });
+    }
+  });
   return {
     page,
     requests: followRequests(page),
@@ -363,23 +372,33 @@ async function inPlace(
   return { start: await gestureStart(page, started), end: (await read()) ?? Number.NaN };
 }
 
-/** When the answer of a request ended, on the clock of the operating system. */
+/**
+ * When the answer of a request ended, on the clock of the operating system: its timing says so once
+ * its body has come — waited for within the bound of a wait, an answer whose end the browser never
+ * reports (`Response.finished()` then never settles) failing the step instead.
+ */
 async function answeredAt(request: Request): Promise<number> {
-  const answer = await request.response();
-  await answer?.finished();
+  await expect
+    .poll(() => request.timing().responseEnd >= 0, {
+      message: "the answer of the server action ends",
+      timeout: WORKING,
+    })
+    .toBe(true);
   const { startTime, responseEnd } = request.timing();
   return startTime + responseEnd;
 }
 
 /**
  * Write a cell of the task of a user, entered by F2: the gesture is the key Enter that sends it;
- * the step ends once the cell shows what was expected and the server action has answered.
+ * the step ends once the cell shows what was expected — for a label, which the grid may show as it
+ * was typed, once the server action has answered too; a date the server computed is its answer.
  */
 async function write(
   page: Page,
   cell: Locator,
   value: string,
   expected: Expected,
+  answered: "shown" | "awaited",
 ): Promise<Interval> {
   const grid = page.getByRole("treegrid", { name: PLANNING.grid });
   await cell.click();
@@ -389,6 +408,9 @@ async function write(
     inPlace(page, expected, KEYED, () => page.keyboard.press("Enter")),
     page.waitForRequest(isServerAction, { timeout: WORKING }),
   ]);
+  if (answered === "shown") {
+    return span;
+  }
   return { start: span.start, end: Math.max(span.end, await answeredAt(sent)) };
 }
 
@@ -487,10 +509,11 @@ export async function journey(player: Player, target: Target, tag: string): Prom
         const at = await planningColumns(page);
         const row = await scrollToPosition(planning, target.position);
         const label = `${target.label} · ${tag}`;
-        return write(page, row.getByRole("gridcell").nth(at.label), label, {
+        const expected: Expected = {
           grid: PLANNING.grid,
           cell: { row: target.position + 1, column: at.label, shows: label },
-        });
+        };
+        return write(page, row.getByRole("gridcell").nth(at.label), label, expected, "awaited");
       },
     ],
     [
@@ -501,10 +524,11 @@ export async function journey(player: Player, target: Target, tag: string): Prom
         const cells = row.getByRole("gridcell");
         const finish = (await cells.nth(at.finish).textContent()) ?? "";
         const duration = otherDuration((await cells.nth(at.duration).textContent()) ?? "");
-        return write(page, cells.nth(at.duration), duration, {
+        const expected: Expected = {
           grid: PLANNING.grid,
           cell: { row: target.position + 1, column: at.finish, differsFrom: finish },
-        });
+        };
+        return write(page, cells.nth(at.duration), duration, expected, "shown");
       },
     ],
   ];

@@ -4658,9 +4658,10 @@ write, once its server action has answered. The time of the step splits in three
 its log (`duration_ms`, the actor) and tied to the step by the account of the user and the window
 of the step — the front sends no correlation identifier —, the clock of the API set once on a
 request of health with a correlation identifier of its own; Next, by difference, the time during
-which the server of Next was answering the browser — document, component tree, server action,
-prefetches left out — or the API was answering Next, less the API's; the browser, the rest. The
-weight of the answer is what Next sent the browser during the step. The journey is played by one,
+which the server of Next was answering the browser — document, component tree, server action, a
+prefetch the step waits for — or the API was answering Next, less the API's; the browser, the
+rest. The weight of the answer is what Next sent the browser for the step, without the prefetches
+it starts itself for the screens to come. The journey is played by one,
 four and eight users at once (`MEASURE_USERS`), an account each, each in its own browser context,
 and the duration of `getMe` is recorded meanwhile, in the log of the API and by a client that asks
 for it every second. The accounts are created by the preparation of the measure, through the

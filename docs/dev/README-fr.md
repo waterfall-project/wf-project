@@ -4758,8 +4758,9 @@ dans son journal (`duration_ms`, l'acteur) et rapprochée de l'étape par le com
 et la fenêtre de l'étape — le front ne transmet aucun identifiant de corrélation —, l'horloge de
 l'API recalée une fois sur une requête de santé à l'identifiant de corrélation propre ; Next, par
 différence, le temps où le serveur de Next répondait au navigateur — document, arbre de composants,
-action serveur, préchargements exclus — ou l'API à Next, moins celui de l'API ; le navigateur, le
-reste. Le poids de la réponse est ce que Next a envoyé au navigateur pendant l'étape. Le parcours se
+action serveur, préchargement que l'étape attend — ou l'API à Next, moins celui de l'API ; le
+navigateur, le reste. Le poids de la réponse est ce que Next a envoyé au navigateur pour l'étape,
+sans les préchargements qu'elle lance elle-même pour les écrans suivants. Le parcours se
 joue à un, quatre et huit utilisateurs à la fois (`MEASURE_USERS`), un compte chacun, chacun dans
 son contexte de navigateur, et la durée de `getMe` est relevée pendant ce temps, dans le journal de
 l'API et par un client qui la demande chaque seconde. Les comptes sont créés par la préparation de
