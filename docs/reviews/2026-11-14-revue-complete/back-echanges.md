@@ -33,6 +33,7 @@ qui finissent en `INTERNAL_ERROR`.
 
 ### BEX-01 — Réimport MS Project : une tâche nouvelle peut s'approprier le nœud d'une tâche existante
 
+- **Issue** : #3337.
 - **Où** : `backend/src/waterfall/core/planning/importing.py:260-280` (`_matched`, boucle unique
   lignes 270-279) ; l'espace des `UID` de l'export : `core/planning/exporting.py:194`
   (`UID` = rang 1..n) ; l'`external_id` gardé : `core/planning/applying.py:166` (`UID` du fichier

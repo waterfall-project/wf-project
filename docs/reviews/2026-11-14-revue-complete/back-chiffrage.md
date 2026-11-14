@@ -33,6 +33,7 @@ points ci-dessus n'ont aucun test.
 
 ### BCH-01 — Grandeurs saisies à plus de décimales que leur colonne : montant calculé sur la saisie, grandeur arrondie en base
 
+- **Issue** : #3338.
 - **Où** : `core/estimate/entries.py:167-176` (`_kept`), `:252-274` (`_figure`), `:323-331`
   (`_scalars`) ; `platform/decimals.py:29,33-43` (borne à dix décimales) ;
   `core/estimate/tables.py:46-49,132-136` (`quantity numeric(14,4)`, `hours numeric(12,2)`,

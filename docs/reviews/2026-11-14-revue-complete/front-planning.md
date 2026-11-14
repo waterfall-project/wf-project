@@ -29,6 +29,8 @@ l'axe dans chaque ligne une fois zoomé, et ne défile pas dans le temps au clav
 
 ### FPL-01 — Le suivi d'une tâche de fond s'arrête à la première lecture « inchangée »
 
+- **Issue** : #3103, fermée le 2026-11-14 — corrigé sur `epic/EP-25` par US-2170/L2 (#3331) ; reste dans
+  `main` jusqu'à la fusion d'EP-25.
 - **Où** : `frontend/src/components/tasks/tracking.ts:290-292` (`answer` rend `state` tel quel quand
   `unchanged`), `frontend/src/components/tasks/task-tracker.tsx:136-139` (`hold` n'avertit personne
   si rien ne change), `frontend/src/components/tasks/task-entry.tsx:291-314` (`usePolling` : un

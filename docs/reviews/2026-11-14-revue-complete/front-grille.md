@@ -29,6 +29,7 @@ lignes.
 
 ### FGR-01 — Un bloc collé dans le planning écrit les lignes de devis que la grille ne montre pas
 
+- **Issue** : #3339.
 - **Où** : `paste.ts:324-354` (`unshownRows`, retour `read.narrowed ? "unretained" : undefined` à la
   ligne 353), `planning.tsx:90` (`PLANNING_KINDS = ["task"]`), `planning-grid.tsx:585`
   (`narrowing={nodeNarrowing(filters)}`, qui écarte `kinds` — `nodes.tsx:82-88`),

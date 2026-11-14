@@ -51,6 +51,7 @@ feuilles, et liaisons FD vers/depuis une récapitulative. Écarts : DD/DF depuis
 
 ### BPL-01 — Une liaison DD ou DF qui part d'une récapitulative fausse les marges et le chemin critique
 
+- **Issue** : #3335.
 - **Où** : `backend/src/waterfall/core/planning/scheduling/engine.py:275-288` (`backward`) et
   `:301-331` (`bound`, dernière ligne).
 - **Quoi** : en passe avant, une liaison qui part du *début* d'une récapitulative compte depuis son
@@ -80,6 +81,7 @@ feuilles, et liaisons FD vers/depuis une récapitulative. Écarts : DD/DF depuis
 
 ### BPL-02 — Une feuille démarrée ou terminée qui reçoit une sous-tâche perd son état, et devient supprimable
 
+- **Issue** : #3336.
 - **Où** : `core/planning/interface/nodes.py:368-380` (`_judge_parent` : aucun jugement de l'état
   du parent), `core/planning/views.py:162-179` et `:195-204` (`_derived`, `state_of` : l'état d'une
   récapitulative ne lit que ses subordonnées), `core/planning/shaping.py:60-74` (`emptied` écrit

@@ -74,6 +74,7 @@ pose d'une version.
 
 ### B1 — Une liaison DD ou DF qui part d'une récapitulative fausse les marges et le chemin critique (BPL-01)
 
+- **Issue** : #3335, `[EP-06]`, sous le lot d'origine US-1390/L1 (#2329) — décision : à trancher.
 - **Où** : `backend/src/waterfall/core/planning/scheduling/engine.py:275-288` et `:301-331`.
 - **Quoi** : en passe avant, la liaison compte depuis le début agrégé de la récapitulative ; en
   passe arrière, elle borne le début de **chaque** feuille. Juste pour une liaison qui part de la
@@ -90,6 +91,7 @@ pose d'une version.
 
 ### B2 — Une feuille démarrée qui reçoit une sous-tâche perd son état et devient supprimable (BPL-02)
 
+- **Issue** : #3336, `[EP-06]`, sous le lot d'origine US-1380/L2 (#2335) — décision : à trancher.
 - **Où** : `core/planning/interface/nodes.py:368-380` (`_judge_parent`), `core/planning/views.py:162-204`
   (`_derived`, `state_of`), `shaping.py:60-74`, garde de `deleteNode` à `nodes.py:827`.
 - **Quoi** : `createNode` et `moveNodes` acceptent comme parent une feuille démarrée ou terminée.
@@ -106,6 +108,7 @@ pose d'une version.
 
 ### B3 — À la réimportation MS Project, une tâche ajoutée peut prendre l'identité d'une tâche existante (BEX-01)
 
+- **Issue** : #3337, `[EP-06]`, sous le lot d'origine US-1430/L3 (#2342) — décision : à trancher.
 - **Où** : `core/planning/importing.py:260-280` (`_matched`).
 - **Quoi** : une seule passe dans l'ordre du fichier, « par la lignée, sinon par l'`UID` ». Une
   tâche ajoutée dans MS Project (sans lignée) dont l'`UID` égale l'`external_id` gardé d'une tâche
@@ -121,6 +124,7 @@ pose d'une version.
 
 ### B4 — Une grandeur saisie avec plus de décimales que sa colonne donne un montant qui change sans saisie (BCH-01)
 
+- **Issue** : #3338, `[EP-07]`, sous le lot d'origine US-1490/L3 (#2372) — décision : à trancher.
 - **Où** : `core/estimate/entries.py:167-176, 252-274` ; `platform/decimals.py:29-43` ;
   `core/estimate/tables.py:46-49`.
 - **Quoi** : la garde ne refuse qu'au-delà de **dix** décimales ; les colonnes en gardent 2
@@ -137,6 +141,7 @@ pose d'une version.
 
 ### B5 — Un bloc collé dans le planning écrit sur les lignes de devis que la grille ne montre pas (FGR-01)
 
+- **Issue** : #3339, `[EP-06]`, sous le lot d'origine US-1450/L6 (#2577) — décision : à trancher.
 - **Où** : `frontend/src/components/grid/paste.ts:324-354` ; `planning.tsx:90` ;
   `backend/src/waterfall/core/planning/interface/paste.py:735-742`.
 - **Quoi** : le serveur remplit « le nœud à la même distance, dans l'ordre du plan », tâches **et
@@ -152,6 +157,9 @@ pose d'une version.
 
 ### B6 — Le suivi d'une tâche de fond cesse d'interroger à la première lecture inchangée (FPL-01)
 
+- **Issue** : #3103 (EP-25, US-2170), **fermée le 2026-11-14** : corrigé sur `epic/EP-25` par US-2170/L2
+  (#3331), qui réarme la lecture à chaque réponse et nomme cette même cause. Le défaut reste dans
+  `main` jusqu'à la fusion d'EP-25 ; aucune issue nouvelle.
 - **Où** : `frontend/src/components/tasks/tracking.ts:290` ; `task-entry.tsx:291-314`.
 - **Quoi** : le minuteur n'est réarmé que par l'effet qui dépend de `entry` ; une lecture qui
   trouve la tâche inchangée rend l'état tel quel, donc l'effet ne repart pas. Le worker n'écrivant
@@ -560,7 +568,7 @@ Chaque rapport détaillé liste, à sa section « Couverture », ce qui a été 
 
 1. **B1, B3, B5** — résultats faux ou écritures au mauvais endroit, sans signal à l'utilisateur.
 2. **B2** — après décision de la règle (une « Specification finding »).
-3. **B6** — une ligne de code ; lève un symptôme déjà planifié.
+3. **B6** — déjà corrigé sur `epic/EP-25` (US-2170/L2, #3331) : il arrive dans `main` avec EP-25.
 4. **B4** — juger les décimales contre l'échelle de la colonne.
 5. **BAC-01 et BAC-02** — reprendre la décision : exiger `access_roles.write` pour un lien sur un
    compte qui porte l'administration, et compter les quatre permissions dans la garde.
