@@ -15,17 +15,27 @@ import { expect } from "vitest";
 
 import { buttonVariants } from "@/components/ui/button";
 
-/** The classes that only the filled variant of a button carries. */
+/**
+ * The classes that only the filled variant of a button carries. With none, every button would
+ * read as filled, or none would, and the rule would say nothing: the module refuses to load.
+ */
 const FILLED = (() => {
   const outlined = new Set(buttonVariants({ variant: "outline" }).split(/\s+/));
-  return buttonVariants({ variant: "default" })
+  const only = buttonVariants({ variant: "default" })
     .split(/\s+/)
     .filter((name) => name !== "" && !outlined.has(name));
+  if (only.length === 0) {
+    throw new Error(
+      "the filled and the outlined variants of buttonVariants share all their classes: " +
+        "the rule of the commands cannot tell a filled button",
+    );
+  }
+  return only;
 })();
 
 /** Whether an element is drawn as a filled button. */
 function filled(element: Element): boolean {
-  return FILLED.length > 0 && FILLED.every((name) => element.classList.contains(name));
+  return FILLED.every((name) => element.classList.contains(name));
 }
 
 /** What a command is called in a breach: its accessible text, as a reader would find it. */

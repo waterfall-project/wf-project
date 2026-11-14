@@ -11,12 +11,18 @@ import { userEvent } from "@testing-library/user-event";
 import { Plus } from "lucide-react";
 import { describe, expect, it } from "vitest";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/components/ui/utils";
 import { expectAccessible } from "@/test/axe";
 import { commandRuleBreaches, expectCommandRule } from "@/test/command-rule";
 
 import { PageHeader } from "./page-header";
-import { type PrincipalDoes, principalVariant, SectionCard } from "./section-card";
+import {
+  type PrincipalDoes,
+  type PrincipalVariant,
+  principalVariant,
+  SectionCard,
+} from "./section-card";
 
 /** A card of the natures of cost: a command of its own, its principal one, a field in its body. */
 function natures(does: PrincipalDoes) {
@@ -28,7 +34,7 @@ function natures(does: PrincipalDoes) {
       commands={<Button variant="outline">Exporter</Button>}
       principal={{
         does,
-        command: <Button variant={principalVariant(does)}>Nouvelle nature</Button>,
+        command: (variant) => <Button variant={variant}>Nouvelle nature</Button>,
       }}
     >
       <label>
@@ -101,12 +107,44 @@ describe("the rule of the commands", () => {
     },
   );
 
+  it.each([
+    ["create", "default"],
+    ["trigger", "default"],
+    ["modify", "outline"],
+  ] as const)(
+    "draws the principal command of a card that does %s at the variant %s, which the screen never chooses",
+    (does, variant) => {
+      const given: PrincipalVariant[] = [];
+      render(
+        <SectionCard
+          title="Natures de coût"
+          principal={{
+            does,
+            command: (drawn) => {
+              given.push(drawn);
+              return <Button variant={drawn}>Nouvelle nature</Button>;
+            },
+          }}
+        >
+          <p>Aucune nature.</p>
+        </SectionCard>,
+      );
+      expect(given).toEqual([variant]);
+      const card = screen.getByRole("region", { name: "Natures de coût" });
+      const button = within(card).getByRole("button", { name: "Nouvelle nature" });
+      expect(button.className).toBe(cn(buttonVariants({ variant })));
+      expect(
+        button.closest('[data-slot="section-card-principal"]')?.getAttribute("data-does"),
+      ).toBe(does);
+    },
+  );
+
   it("names a second filled command in a card", () => {
     const { container } = render(
       <SectionCard
         title="Natures de coût"
         commands={<Button>Importer</Button>}
-        principal={{ does: "create", command: <Button>Nouvelle nature</Button> }}
+        principal={{ does: "create", command: () => <Button>Nouvelle nature</Button> }}
       >
         <Button>Enregistrer</Button>
       </SectionCard>,
@@ -122,13 +160,16 @@ describe("the rule of the commands", () => {
       <>
         <SectionCard
           title="Paramètres"
-          principal={{ does: "modify", command: <Button>Modifier</Button> }}
+          principal={{ does: "modify", command: () => <Button>Modifier</Button> }}
         >
           <p>Devise : EUR</p>
         </SectionCard>
         <SectionCard
           title="Catégories"
-          principal={{ does: "create", command: <Button variant="outline">Créer</Button> }}
+          principal={{
+            does: "create",
+            command: () => <Button variant="outline">Créer</Button>,
+          }}
         >
           <p>Aucune catégorie.</p>
         </SectionCard>

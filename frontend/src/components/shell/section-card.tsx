@@ -6,17 +6,20 @@
  * a card, named after its title, which a screen never composes itself — it would decide the rule of
  * the commands anew, screen by screen.
  *
- * The rule of the commands (#3088, rules 2 to 4; #3090): a card has one principal command at most,
- * the last at the right of its title, filled when it creates or triggers, outlined when it modifies;
- * its other commands are outlined, as are those of the screen at the right of its title. The filled
- * button is for the principal command alone: a current choice says itself otherwise. The card says
- * what its principal command does (`principal.does`), the command takes its variant from the same
- * word (`principalVariant`), and `expectCommandRule` (`src/test/command-rule.ts`) holds the two
- * together in the tests of a screen. The commands wrap under the title rather than overflow the
- * card: at a zoom of 150 %, none goes out of reach (WF-IHM-0100).
+ * The rule of the commands (#3088, rules 2 to 4; #3090): a card has one principal command at
+ * most, the last at the right of its title, filled when it creates or triggers, outlined when it
+ * modifies; its other commands are outlined, as are those of the screen at the right of its title.
+ * The filled button is for the principal command alone: a current choice says itself otherwise.
+ * The card is told what its principal command does (`principal.does`) and draws it at the variant
+ * of that word (`principalVariant`): the screen gives the command as a function of its variant,
+ * never the variant itself, so that no screen decides the rule anew; `expectCommandRule`
+ * (`src/test/command-rule.ts`) checks what a screen rendered. The commands wrap under the title
+ * rather than overflow the card: at a zoom of 150 %, none goes out of reach (WF-IHM-0100).
  *
  * A server component, which a client one may render too: it holds no state and names its section
- * by `aria-label`, never by `useId` (#251).
+ * by `aria-label`, never by `useId` (#251). Its principal command being a function, a server
+ * screen renders the card itself: it never hands `principal` to a client component, which the
+ * function could not reach (typescript.md, defect 12).
  */
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -26,16 +29,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 /** What the principal command of a card does: creates or triggers something, or modifies it. */
 export type PrincipalDoes = "create" | "trigger" | "modify";
 
+/** The variant of a button a card gives its principal command: filled or outlined. */
+export type PrincipalVariant = "default" | "outline";
+
 /** The variant of the button of the principal command of a card: filled, unless it modifies. */
-export function principalVariant(does: PrincipalDoes): "default" | "outline" {
+export function principalVariant(does: PrincipalDoes): PrincipalVariant {
   return does === "modify" ? "outline" : "default";
 }
 
 /** The principal command of a card, and what it does. */
 export interface Principal {
   readonly does: PrincipalDoes;
-  /** The command, whose button takes `principalVariant(does)`. */
-  readonly command: ReactNode;
+  /**
+   * The command, drawn at the variant the card gives it — `principalVariant(does)` —, which its
+   * button or link takes as it is.
+   */
+  readonly command: (variant: PrincipalVariant) => ReactNode;
 }
 
 /** What a card shows: its title, its commands, its body. */
@@ -82,7 +91,7 @@ export function SectionCard({
               {commands}
               {principal === undefined ? null : (
                 <div data-slot="section-card-principal" data-does={principal.does} className="flex">
-                  {principal.command}
+                  {principal.command(principalVariant(principal.does))}
                 </div>
               )}
             </div>
