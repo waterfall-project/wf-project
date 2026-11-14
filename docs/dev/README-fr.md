@@ -4779,8 +4779,11 @@ l'écart entre la plus haute et la plus basse des médianes d'un passage — de 
 des octets de Next et des requêtes de l'API ; et de même pour `getMe`. Sa forme est déclarée par
 `MeasureReport` (`frontend/e2e/measure/report.ts`), dont les calculs ont leurs tests unitaires ; il
 ne dit jamais un écart un gain. La mesure n'échoue sur aucune durée : seul un parcours qui ne
-fonctionne plus — un compte qu'elle ne peut créer, un utilisateur qu'elle ne peut connecter — la
-fait échouer, et une étape qui n'atteint pas sa fin est comptée inachevée. Le front est construit
+fonctionne plus la fait échouer — un compte qu'elle ne peut créer, un utilisateur qu'elle ne peut
+connecter, ou une étape qu'un utilisateur seul ne mène pas à sa fin : un lien renommé, une grille
+qui ne s'affiche plus ; la mesure échoue alors à la fin, une fois le rapport écrit, en nommant ces
+étapes. À quatre et huit utilisateurs, une étape qui n'atteint pas sa fin est le fait de la
+charge : elle est comptée inachevée, et ne fait rien échouer. Le front est construit
 pour la production et parle à l'API directement, sans le proxy du contrat, en gardant ses connexions
 comme le front des utilisateurs ; la plateforme est démarrée, amorcée et le témoin chargé comme pour
 `make e2e-service`. Pour un témoin fraîchement chargé, `make service-down WATERFALL_RESET_DATA=yes`

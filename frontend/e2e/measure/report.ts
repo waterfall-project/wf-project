@@ -330,6 +330,22 @@ export interface LevelReport {
   readonly get_me: GetMeReport;
 }
 
+/**
+ * The steps a user alone did not complete, in the order of the journey: a journey that no longer
+ * works — a link renamed, a grid that never shows —, which fails the measure once its report is
+ * written. Under the load of four or eight users, a step not completed is the measure of that load,
+ * counted and never failed.
+ */
+export function brokenSteps(levels: readonly LevelReport[]): string[] {
+  return levels
+    .filter((level) => level.users === 1)
+    .flatMap((level) =>
+      Object.entries(level.steps).flatMap(([step, report]) =>
+        report.incomplete > 0 ? [step] : [],
+      ),
+    );
+}
+
 /** The report of a measure, written as JSON: its form, which `version` names, is this lot's. */
 export interface MeasureReport {
   readonly measure: "grids-against-the-service";

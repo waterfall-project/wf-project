@@ -4679,8 +4679,11 @@ the worst and the spread — the gap between the highest and the lowest median o
 duration, of its three parts, of the bytes of Next and of the requests of the API; and the same for
 `getMe`. Its form is declared by `MeasureReport` (`frontend/e2e/measure/report.ts`), whose
 computations have their unit tests; it never calls a difference a gain. The measure fails on no
-duration: only a journey that no longer works — an account it cannot create, a user it cannot sign
-in — fails it, and a step that does not reach its end is counted unfinished. The front is built for
+duration: only a journey that no longer works fails it — an account it cannot create, a user it
+cannot sign in, or a step that a user alone does not bring to its end: a link renamed, a grid that
+no longer shows; the measure then fails at the end, once the report is written, and names those
+steps. At four and eight users, a step that does not reach its end is the load's doing: it is
+counted unfinished, and fails nothing. The front is built for
 production and talks to the API directly, without the proxy of the contract, keeping its
 connections as the users' front does; the platform is started, bootstrapped and the witness loaded
 as for `make e2e-service`. For a witness freshly loaded, `make service-down WATERFALL_RESET_DATA=yes`

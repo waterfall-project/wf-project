@@ -22,9 +22,10 @@
  * measure` says (`E2E_MEASURE_REPORT`): for each level, each step, the median, the worst and the
  * spread over the passes of its duration and of its three parts — the API, Next, the browser —,
  * of the bytes Next sent and of the requests the API answered; and `getMe`. The log of the run
- * writes the medians. The measure fails on no duration: only a journey that no longer works — an
- * account it cannot make, a user it cannot sign in — fails it, and a step that does not reach its
- * end is counted in the report, not failed.
+ * writes the medians. The measure fails on no duration: only a journey that no longer works fails
+ * it — an account it cannot make, a user it cannot sign in, or a step a user alone does not reach
+ * the end of, which fails it once the report is written (`brokenSteps`). Under four or eight users,
+ * a step that does not reach its end is counted in the report, not failed: the load's doing.
  *
  * Not a path: it plays alone, in its project `measure-service` (`playwright.config.ts`), which no
  * goal of the chain plays.
@@ -39,6 +40,7 @@ import { settle } from "../usable";
 import { administratorReady, contributorsOf, measureUsers } from "./accounts";
 import { apiAnswered, clockOffset } from "./api-log";
 import {
+  brokenSteps,
   getMeDurations,
   getMeReport,
   type LevelReport,
@@ -286,6 +288,12 @@ test("measures the journey of the grids against the service, at one, four and ei
     mkdirSync(dirname(report), { recursive: true });
     writeFileSync(report, `${JSON.stringify(measured, null, 2)}\n`);
     console.log(`The report of the measure: ${report}`);
+    const broken = brokenSteps(levels);
+    if (broken.length > 0) {
+      throw new Error(
+        `The journey no longer works: a user alone did not reach the end of ${broken.join(", ")}`,
+      );
+    }
   } finally {
     await calls.dispose();
   }

@@ -480,7 +480,8 @@ export interface Timed {
 /**
  * Play the journey once for a user, writing a task of its own, its label marked by `tag`. A step
  * that does not reach its end ends the journey of the pass: it and the steps after it have no span,
- * and the report counts them incomplete — the measure fails on no duration.
+ * and the report counts them incomplete; for a user alone, they fail the measure once its report
+ * is written (`brokenSteps`).
  */
 export async function journey(player: Player, target: Target, tag: string): Promise<Timed[]> {
   const { page, requests } = player;

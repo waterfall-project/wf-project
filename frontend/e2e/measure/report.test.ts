@@ -8,10 +8,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   apiRequests,
+  brokenSteps,
   covered,
   failedRequest,
   getMeDurations,
   getMeReport,
+  type LevelReport,
   momentOf,
   partsOf,
   statisticOf,
@@ -215,6 +217,32 @@ describe("stepReports", () => {
       incomplete: 1,
       usable_ms: { median: 200, worst: 200, spread: 0 },
     });
+  });
+});
+
+describe("brokenSteps", () => {
+  /** A level whose users completed each step in the one pass but where `missed` says. */
+  const level = (users: number, missed: readonly string[]): LevelReport => {
+    const parts = { usable: 100, api: 0, next: 0, browser: 100, bytes: 0, apiRequests: 0 };
+    const steps = ["open", "filter", "sort"];
+    const samples = steps.map((step) => ({
+      step,
+      pass: 0,
+      parts: missed.includes(step) ? undefined : parts,
+    }));
+    return {
+      users,
+      steps: stepReports(steps, samples, 1),
+      get_me: getMeReport({ api: [], roundTrip: [], lost: 0 }),
+    };
+  };
+
+  it("names the steps a user alone did not complete: a journey that no longer works", () => {
+    expect(brokenSteps([level(1, ["filter", "sort"])])).toEqual(["filter", "sort"]);
+  });
+
+  it("names none that only four or eight users did not complete: the load's doing", () => {
+    expect(brokenSteps([level(1, []), level(4, ["open"]), level(8, ["sort"])])).toEqual([]);
   });
 });
 
