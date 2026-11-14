@@ -2,7 +2,7 @@
 genere_par: tools/build.py
 source_texte: stb-waterfall.docx
 source_diagrammes: waterfall.visuels.drawio
-nombre_exigences: 213
+nombre_exigences: 218
 ---
 
 <!-- FICHIER GÉNÉRÉ — NE PAS ÉDITER.
@@ -17,7 +17,7 @@ nombre_exigences: 213
   </picture>
 </p>
 
-Révision 1.0.5
+Révision 1.0.6
 
 © 2026 Projet Waterfall. Ce document est publié sous licence Creative Commons Attribution – Partage dans les mêmes conditions 4.0 International (CC BY-SA 4.0) : <https://creativecommons.org/licenses/by-sa/4.0/deed.fr>
 
@@ -35,6 +35,7 @@ Historique des modifications
 | 1.0.3 | 08/11/2026 | Corrections relevées pendant EP-06, EP-17 et EP-20 : WF-ARC-0100, WF-CMP-0020, WF-DAT-0100, WF-DAT-0120, WF-DAT-0150 (nouvelle), WF-EXP-0020, WF-IND-0040, WF-PLA-0040, WF-PLA-0120, WF-PLA-0130 ; tableau 10 | bengeek |
 | 1.0.4 | 11/11/2026 | Corrections relevées pendant EP-06, EP-07 et EP-09, et capacité d’un rôle déduite de son effectif : WF-CRE-0010, WF-CRE-0020, WF-DAT-0080, WF-DEV-0030, WF-INTF-0100, WF-INTF-0120, WF-PLA-0040, WF-PLA-0140, WF-REF-0100, WF-REV-0080 ; glossaire | bengeek |
 | 1.0.5 | 13/11/2026 | Corrections relevées pendant EP-09 et EP-24, et import MS Project d’un planning saisi sur un autre calendrier : WF-IHM-0060, WF-IHM-0120, WF-INTF-0040, WF-INTF-0080, WF-PLA-0160, WF-SEC-0020 | bengeek |
+| 1.0.6 | 14/11/2026 | Comparaison d’une révision, en cours ou marquée, à une révision marquée, lue dans les grilles ; détail du plan de charge et projection de dépenses ; motifs des graphiques sur préférence ; objectifs de temps de réponse (§4.6.2) ; corrections relevées pendant EP-24 : WF-ADM-0040, WF-DAT-0100, WF-DEV-0090, WF-DEV-0100, WF-IHM-0010, WF-IHM-0020, WF-IHM-0040, WF-IHM-0070, WF-IHM-0130, WF-IHM-0150, WF-IHM-0160, WF-IHM-0170, WF-REV-0080 | bengeek |
 
 # 1. Généralités
 
@@ -1274,7 +1275,7 @@ titre: "Préférences d’affichage"
 flexibilite: "F0"
 fbs: "FBS-1.1"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Un utilisateur règle ses propres préférences d’affichage. Elles lui sont personnelles, il les modifie lui-même, et elles ne portent que sur la présentation : aucune n’affecte les données d’un projet, les calculs ni les permissions. Une préférence d’affichage permet de distinguer visuellement les tâches ajoutées après la révision de référence et les lignes dont le montant budgété est nul (WF-RAE-0040). La langue de l'interface (WF-INTF-0160) est l'une de ces préférences."
+corps: "Un utilisateur règle ses propres préférences d’affichage. Elles lui sont personnelles, il les modifie lui-même, et elles ne portent que sur la présentation : aucune n’affecte les données d’un projet, les calculs ni les permissions. Une préférence d’affichage permet de distinguer visuellement les tâches ajoutées après la révision de référence et les lignes dont le montant budgété est nul (WF-RAE-0040). La langue de l'interface (WF-INTF-0160) est l'une de ces préférences. Une autre fait dessiner les séries des graphiques avec un motif ou un symbole en plus de leur couleur (WF-IHM-0070) ; elle est désactivée par défaut."
 motif: "Les habitudes de lecture diffèrent d’un utilisateur à l’autre, et imposer le même affichage à tous conduit chacun à refaire les mêmes réglages à chaque ouverture. Les cantonner à la présentation garantit qu’un réglage personnel ne change jamais ce que les autres voient des données, ni ce que son auteur a le droit de faire."
 verification: "Un utilisateur modifie ses préférences et ne peut pas modifier celles d’un autre. Deux utilisateurs ouvrant le même projet voient les mêmes données présentées selon leurs réglages respectifs."
 ```
@@ -2001,12 +2002,12 @@ verification: "La liste des révisions marquées est accessible depuis le projet
 section: "3.4.5.1"
 id: "WF-REV-0080-A"
 titre: "Comparaison de deux révisions"
-flexibilite: "F1"
+flexibilite: "F0"
 fbs: "FBS-4.1"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Deux révisions marquées d’un même projet peuvent être comparées. La comparaison présente les tâches et les lignes ajoutées, retirées et modifiées — pour une tâche, ses dates, sa durée, son état et son parent ; pour une ligne, ses grandeurs et ses montants — ainsi que les écarts de montants budgétés et de montants réestimés, par nature de coût et par sous-projet."
-motif: "Deux usages le demandent : instruire un avenant, en montrant ce qu’il change par rapport à la référence, et justifier auprès du client l’écart entre deux offres successives. Sans elle, l’écart se reconstitue à la main, en ouvrant deux révisions côte à côte."
-verification: "La comparaison d’une révision obtenue par fusion d’un différentiel avec la révision marquée qui la précède, de même année de référence, lorsqu’aucune autre modification n’a été faite entre les deux, restitue exactement les tâches et les montants budgétés de ce différentiel. Les montants réestimés n’y diffèrent que par les lignes que le différentiel ajoute ou retire, par celles des tâches démarrées qu’il termine et par celles dont il change l’année de consommation ; une ligne existante dont le différentiel ne modifie que le montant budgété ne présente aucun écart de montant réestimé. Entre deux révisions d’années de référence différentes, les montants réestimés diffèrent en outre sur chaque ligne dont le taux a été mis à jour ou projeté jusqu’à la nouvelle année de référence (WF-REV-0060), et sur chaque ligne de débours, dont le montant est projeté de même (WF-DEV-0030) ; les tâches et les montants budgétés restent ceux du différentiel. Une tâche déplacée sous une autre récapitulative est présentée modifiée."
+corps: "Une révision d’un projet, en cours ou marquée, peut être comparée à une révision marquée du même projet, sa base, que celle-ci la précède ou la suive. La comparaison porte sur les structures principales des deux révisions. Elle présente les tâches et les lignes ajoutées, retirées et modifiées — pour une tâche, ses dates, sa durée, son état et son parent ; pour une ligne, ses grandeurs et ses montants —, avec la valeur que la base portait pour chaque valeur modifiée, ainsi que les écarts de montants budgétés et de montants réestimés, par nature de coût et par sous-projet. La révision en cours reste modifiable pendant qu’elle est comparée, et la comparaison suit chacune de ses modifications. La permission de consulter une grille suffit à y lire une comparaison."
+motif: "Deux usages le demandent : instruire un avenant, en montrant ce qu’il change par rapport à la référence, et justifier auprès du client l’écart entre deux offres successives. Sans elle, l’écart se reconstitue à la main, en ouvrant deux révisions côte à côte. Un troisième usage s’y ajoute pendant l’élaboration : suivre ce que la révision en cours change à la révision marquée qui la précède, sans attendre de la marquer."
+verification: "La comparaison d’une révision obtenue par fusion d’un différentiel avec la révision marquée qui la précède, de même année de référence, lorsqu’aucune autre modification n’a été faite entre les deux, restitue exactement les tâches et les montants budgétés de ce différentiel. Les montants réestimés n’y diffèrent que par les lignes que le différentiel ajoute ou retire, par celles des tâches démarrées qu’il termine et par celles dont il change l’année de consommation ; une ligne existante dont le différentiel ne modifie que le montant budgété ne présente aucun écart de montant réestimé. Entre deux révisions d’années de référence différentes, les montants réestimés diffèrent en outre sur chaque ligne dont le taux a été mis à jour ou projeté jusqu’à la nouvelle année de référence (WF-REV-0060), et sur chaque ligne de débours, dont le montant est projeté de même (WF-DEV-0030) ; les tâches et les montants budgétés restent ceux du différentiel. Une tâche déplacée sous une autre récapitulative est présentée modifiée. La révision en cours se compare à la révision marquée dont elle est issue : une tâche dont la fin y est repoussée de cinq jours est présentée modifiée, avec la date de fin de la base ; la date ramenée à celle de la base, la tâche n’est plus présentée modifiée. La comparaison d’une révision marquée à une révision marquée postérieure présente retirées les tâches que la seconde ajoute. Une révision en cours prise pour base est refusée. Un utilisateur qui consulte le planning sans consulter les révisions y active une comparaison."
 ```
 
 ```yaml exigence
@@ -2584,7 +2585,7 @@ verification: "Sur un projet dont le budget de référence est de 1 000, la vale
 
 ##### 3.4.5.4.4. FBS-4.4.4 : Plan de charge du projet
 
-Le plan de charge traduit le devis en besoin de ressources : combien d’heures, de quel rôle, et quel mois. C’est la vue que le manager consolide ensuite sur plusieurs projets (FBS-2.2).
+Le plan de charge traduit le devis en besoin de ressources : combien d’heures, de quel rôle, et quel mois. C’est la vue que le manager consolide ensuite sur plusieurs projets (FBS-2.2). La projection de dépenses en est le pendant en montants : ce qu’il faudra dépenser, de quelle nature de coût, et quel mois.
 
 ```yaml exigence
 section: "3.4.5.4.4"
@@ -2596,6 +2597,30 @@ pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
 corps: "Le plan de charge du projet présente, par rôle de ressource et par mois, la charge des lignes de main-d’œuvre, prise, au choix, dans la révision de référence, dans une révision marquée pour sa charge réestimée, ou dans la révision en cours. La charge d’une ligne est répartie sur la durée de la tâche qui la porte au prorata des heures travaillées du calendrier de son rôle. Sur la base d’une révision marquée pour sa charge réestimée ou de la révision en cours — la base du reste à engager —, la charge restante de chaque ligne d’une tâche non terminée est répartie sur la seule part de la durée de la tâche postérieure à la date de calcul (WF-IND-0010), et portée au mois de la date de calcul lorsque la fin de la tâche est dépassée. La capacité de chaque rôle y est présentée en regard de sa charge. Le plan de charge peut être filtré par nœud d’organisation."
 motif: "Le plan de charge sert à anticiper les besoins en ressources : embauche, sous-traitance, arbitrage entre projets. La capacité affichée en regard est ce qui rend la lecture immédiate, et le filtre par nœud permet à un service de ne voir que ce qui le concerne. Pendant l’exécution, c’est la charge restante qui intéresse, d’où le calcul sur le reste à engager ; les plans de charge agrégés du portefeuille s’appuient sur cette même base."
 verification: "La charge d’une ligne portée par une tâche qui couvre exactement deux mois civils apparaît sur ces deux mois, au prorata des heures travaillées de la tâche dans chacun. La capacité de chaque rôle est affichée. Le filtre par nœud d’organisation ne laisse voir que les rôles qui en relèvent. Le plan de charge calculé sur le reste à engager ignore les lignes des tâches terminées. Les trois bases sont proposées ; sur un projet sans révision de référence, la base de la référence est absente, et sur un projet sans aucune révision marquée, seule la révision en cours est proposée. Une tâche démarrée qui couvre exactement quatre mois civils, à mi-parcours à la date de calcul — le premier jour du troisième mois —, dont une ligne porte un reste de 80 heures, présente ces 80 heures sur les deux mois restants au prorata de leurs heures travaillées — 40 et 40 s’ils en comptent autant — et rien sur les mois écoulés ; sur une révision marquée, la date de calcul est sa date de marquage. Une tâche non démarrée dont la date de début est antérieure à la date de calcul ne présente aucune charge sur les mois écoulés ; sa charge est la même avant et après son démarrage."
+```
+
+```yaml exigence
+section: "3.4.5.4.4"
+id: "WF-DEV-0090-A"
+titre: "Détail du plan de charge par tâche"
+flexibilite: "F0"
+fbs: "FBS-4.4.4"
+pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
+corps: "Sous sa présentation par mois, le plan de charge du projet (WF-DEV-0070) détaille la charge de chaque rôle par tâche : pour chaque tâche qui porte une ligne de main-d’œuvre du rôle, son début, sa fin, la somme des charges de ses lignes de ce rôle et la part de cette charge dans chaque mois, calculées sur la même base, par la même répartition et sous les mêmes filtres. Les tâches d’un rôle y sont rangées par date de début, et chacune mène à sa ligne dans la grille de planning. Ce détail est une grille arborescente (WF-IHM-0060), du rôle à la tâche, qui ne se modifie pas. Pour une révision marquée, il est calculé à la lecture."
+motif: "Le total d’un rôle et d’un mois ne dit pas de quelles tâches il est fait. Le détail dit à qui répond d’un rôle ce que ses équipes auront à faire, et quand, sans rapprocher à la main le devis et le planning."
+verification: "Pour chaque rôle et chaque mois, la somme des charges des tâches du détail égale la charge que le plan présente. Deux lignes d’un même rôle sous une même tâche y comptent pour une seule ligne du détail, de la somme de leurs charges. Sur la base du reste à engager, une tâche terminée n’y figure pas. Sous un rôle, une tâche qui débute en mars précède une tâche qui débute en avril, quelle que soit leur place dans l’arbre du planning ; depuis une tâche du détail, l’utilisateur atteint cette tâche dans la grille de planning, la révision conservée."
+```
+
+```yaml exigence
+section: "3.4.5.4.4"
+id: "WF-DEV-0100-A"
+titre: "Projection de dépenses du projet"
+flexibilite: "F0"
+fbs: "FBS-4.4.4"
+pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
+corps: "La projection de dépenses du projet présente, par nature de coût et par mois, en histogramme et en grille, le montant des lignes de main-d’œuvre et des lignes hors main-d’œuvre, hors lignes de provision, pris, comme la charge du plan de charge (WF-DEV-0070), dans la révision de référence, dans une révision marquée ou dans la révision en cours. Le montant d’une ligne est réparti sur la durée de la tâche qui la porte au prorata des heures travaillées (WF-DEV-0040). Sur la base du reste à engager, le reste à engager de chaque ligne est réparti sur la seule part de la durée de sa tâche postérieure à la date de calcul, et porté au mois de la date de calcul lorsque la fin de la tâche est dépassée (WF-IND-0100) ; aucun mois antérieur à la date de calcul n’est alors présenté. Sur demande, chaque montant est décalé du délai de paiement de sa ligne : la projection présente alors les décaissements. La grille détaille chaque nature de coût par catégorie de coût, et porte le total de chaque mois, de chaque nature et de chaque catégorie ; elle est arborescente (WF-IHM-0060), de la nature à la catégorie, et ne se modifie pas. La projection se filtre par sous-projet. Pour une révision marquée, elle est calculée à la lecture."
+motif: "Le plan de charge dit les heures ; il reste à prévoir l’argent, mois par mois, pour les mois qui viennent. La courbe de coûts cumulés (WF-IND-0100) sert l’analyse d’ensemble du projet : elle ne donne ni la dépense d’un mois ni sa composition. Les provisions n’y entrent pas : elles se gèrent avec les risques."
+verification: "Une ligne de 1 200 portée par une tâche qui couvre exactement deux mois civils apparaît sur ces deux mois, au prorata des heures travaillées de la tâche dans chacun. Avec un délai de paiement de trente jours, en mode décaissement, sa dépense est décalée d’autant. Sur la base du reste à engager, le total de la projection égale le reste à engager du projet hors provisions (WF-RAE-0010), et aucune colonne ne précède le mois de la date de calcul. Sur la base de la révision de référence d’un projet en cours, la projection présente aussi les mois antérieurs à la date de calcul. Une ligne de provision n’y figure sous aucune nature. Le total de chaque mois égale la somme des natures de ce mois, et celui de chaque nature la somme de ses catégories."
 ```
 
 #### 3.4.5.5. FBS-4.5 : Estimation du reste à engager
@@ -3192,9 +3217,9 @@ titre: "Navigation et contexte du projet"
 flexibilite: "F0"
 fbs: "FBS-1"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Les fonctions qui ne relèvent d'aucun projet — portefeuille, référentiel, administration, état du système — sont accessibles sans qu'aucun projet ne soit ouvert. Un projet ouvert le reste d'un écran à l'autre : depuis n'importe laquelle de ses fonctions, l'utilisateur atteint les autres sans repasser par une liste, et sans perdre la révision affichée, le sous-projet filtré ni la date de calcul en cours."
+corps: "Les fonctions qui ne relèvent d'aucun projet — portefeuille, référentiel, administration, état du système — sont accessibles sans qu'aucun projet ne soit ouvert. Un projet ouvert le reste d'un écran à l'autre : depuis n'importe laquelle de ses fonctions, l'utilisateur atteint les autres sans repasser par une liste, et sans perdre la révision affichée, le sous-projet filtré ni la date de calcul en cours. La révision de base d'une comparaison (WF-REV-0080) est conservée de même entre les grilles de planning, de devis et de reste à engager. Elle n'est pas une préférence d'affichage (WF-ADM-0040) : une grille ouverte sans elle ne compare rien."
 motif: "Une revue périodique enchaîne le reste à engager, les risques, les indicateurs et le planning du même projet : repasser par la liste des projets à chaque fois, ou retrouver son filtre à chaque écran, transforme une heure de travail en deux. Rendre les fonctions hors projet indépendantes d'un projet ouvert est ce qui permet de consulter l'état du système quand plus aucun projet ne s'ouvre (WF-ADM-0130)."
-verification: "Un utilisateur qui n'a ouvert aucun projet atteint le portefeuille, le référentiel, l'administration et l'écran d'état. Dans un projet, le passage du reste à engager aux risques puis aux indicateurs conserve la révision affichée et le sous-projet filtré. Le retour au projet précédent depuis une fonction hors projet retrouve le même contexte."
+verification: "Un utilisateur qui n'a ouvert aucun projet atteint le portefeuille, le référentiel, l'administration et l'écran d'état. Dans un projet, le passage du reste à engager aux risques puis aux indicateurs conserve la révision affichée et le sous-projet filtré. Le retour au projet précédent depuis une fonction hors projet retrouve le même contexte. Une comparaison active sur le planning l'est encore sur le devis puis sur le reste à engager, avec la même base."
 ```
 
 ```yaml exigence
@@ -3204,9 +3229,9 @@ titre: "Contexte de lecture affiché"
 flexibilite: "F0"
 fbs: "FBS-1"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Tout écran qui présente des données de projet affiche le projet, la révision dans laquelle il lit — pour une révision marquée, son nom de version ; pour la révision en cours, cette mention et le nom de version de la révision marquée dont elle est issue —, son caractère de référence le cas échéant, la structure de coûts qu’il lit — principale, différentiel d’avenant ou devis propre d’un risque (WF-REV-0100) —, et, lorsqu'un filtre est actif, ce qu'il restreint. Un écran qui présente une révision marquée le montre et n'offre aucune commande de modification. Un indicateur affiche la date à laquelle il est calculé."
+corps: "Tout écran qui présente des données de projet affiche le projet, la révision dans laquelle il lit — pour une révision marquée, son nom de version ; pour la révision en cours, cette mention et le nom de version de la révision marquée dont elle est issue —, son caractère de référence le cas échéant, la structure de coûts qu’il lit — principale, différentiel d’avenant ou devis propre d’un risque (WF-REV-0100) —, la révision marquée à laquelle il la compare lorsqu’une comparaison est active (WF-REV-0080), et, lorsqu'un filtre est actif, ce qu'il restreint. Depuis cet affichage, l’utilisateur choisit la révision lue parmi les révisions du projet et, sur les grilles de planning, de devis et de reste à engager, la révision marquée à laquelle la comparer ; il y lève la comparaison. Un écran qui présente une révision marquée le montre et n'offre aucune commande de modification. Un indicateur affiche la date à laquelle il est calculé."
 motif: "Un budget, un reste à engager et un montant réestimé se ressemblent à l'écran et ne veulent pas dire la même chose : seule la révision dit lequel on lit. Une capture d'écran de comité sans ces mentions est inexploitable, et un écart constaté sans date de calcul ne se rejoue pas. Montrer qu'une révision est marquée plutôt que refuser silencieusement la saisie évite de chercher pourquoi rien ne répond."
-verification: "Chaque écran de données de projet nomme le projet et la révision affichée ; une grille ouverte sur une structure différentielle nomme cette structure. L'ouverture d'une révision marquée présente cet état et ne propose aucune commande de modification. Un indicateur affiché porte sa date de calcul. Un filtre actif est visible sans avoir à ouvrir le panneau de filtres."
+verification: "Chaque écran de données de projet nomme le projet et la révision affichée ; une grille ouverte sur une structure différentielle nomme cette structure. L'ouverture d'une révision marquée présente cet état et ne propose aucune commande de modification. Un indicateur affiché porte sa date de calcul. Un filtre actif est visible sans avoir à ouvrir le panneau de filtres. Depuis la grille de devis de la révision en cours, l'utilisateur choisit une révision marquée pour base sans quitter l'écran ; l'écran la nomme, et la comparaison se lève sans ouvrir aucun panneau. Depuis la même grille, il ouvre une autre révision du projet sans passer par l'historique."
 ```
 
 ```yaml exigence
@@ -3228,7 +3253,7 @@ titre: "Saisie au clavier dans les grilles"
 flexibilite: "F0"
 fbs: "FBS-4.3.2, FBS-4.4.2, FBS-4.5.2, FBS-4.6.1"
 pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Toute saisie dans une grille se fait au clavier seul : déplacement de cellule en cellule et de ligne en ligne, entrée en saisie, validation, abandon de la saisie en cours, et passage à la cellule suivante à la validation. Aucune opération de saisie n'exige la souris. Une cellule non saisissable est traversée sans être proposée à la saisie. La validation d'une cellule n'attend pas la validation de la ligne entière."
+corps: "Toute saisie dans une grille se fait au clavier seul : déplacement de cellule en cellule et de ligne en ligne, entrée en saisie, validation, abandon de la saisie en cours, et passage à la cellule suivante à la validation. Aucune opération de saisie n'exige la souris. Une cellule non saisissable est traversée sans être proposée à la saisie. La validation d'une cellule n'attend pas la validation de la ligne entière. À l'entrée en saisie sur une valeur existante, la valeur est sélectionnée en entier : une frappe la remplace, un geste de curseur (flèche, clic dans le champ) lève la sélection pour la corriger. Entrée en saisie par un caractère tapé, la cellule contient ce caractère, le curseur placé après lui."
 motif: "Chiffrer, c'est remplir des centaines de cellules d'affilée : une saisie qui demande la souris à chaque ligne multiplie le temps par trois et décourage l'usage de l'outil au profit d'un tableur. C'est la raison pour laquelle le chiffrage se fait souvent hors des outils de gestion de projet, et le point sur lequel Waterfall doit être au niveau d'un tableur. Valider cellule par cellule plutôt que ligne par ligne est ce qui permet de ne jamais perdre une saisie."
 verification: "Une ligne de devis complète — libellé, catégorie, rôle, quantité, charge — se saisit sans toucher la souris, et la validation de la dernière cellule place le curseur sur la ligne suivante. L'abandon d'une saisie en cours laisse la cellule à sa valeur antérieure. Les cellules calculées sont traversées sans entrer en saisie."
 ```
@@ -3259,14 +3284,50 @@ verification: "Chaque colonne d’une table plate se trie dans les deux sens. Da
 
 ```yaml exigence
 section: "3.6"
+id: "WF-IHM-0150-A"
+titre: "Marques d’une comparaison dans les grilles"
+flexibilite: "F0"
+fbs: "FBS-4.3.2, FBS-4.4.2, FBS-4.5.2"
+pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
+corps: "Lorsqu’une comparaison est active (WF-REV-0080), les grilles de planning, de devis et de reste à engager gardent leurs colonnes et marquent chaque tâche et chaque ligne ajoutée, retirée ou modifiée — une ligne retirée à la place qu’elle avait dans la base, non modifiable — et chaque cellule dont la valeur diffère de celle de la base, dont elles donnent la valeur à la demande, au pointeur comme au clavier. Elles offrent, parmi les colonnes que l’utilisateur choisit (WF-IHM-0060), l’écart à la base de chaque date, en jours calendaires, de chaque durée, en temps de travail, et de chaque montant. Ces marques ne tiennent pas à la seule couleur (WF-IHM-0070). Dans la grille de reste à engager, toute ligne en écart est exposée, que sa tâche soit démarrée ou non, et les valeurs au reste à engager précédent restent celles de la revue précédente, quelle que soit la base (WF-RAE-0040). Une grille ouverte sur une autre structure que la principale ne compare rien."
+motif: "Un écart ne se juge que devant ses valeurs : le lire dans la grille où l’on travaille évite d’aller et venir entre deux révisions."
+verification: "Une comparaison activée ne change pas les colonnes affichées. La grille de planning marque une tâche dont la fin diffère de la base, marque sa cellule de fin, et donne la date de la base au clavier seul ; la colonne d’écart de la fin, une fois choisie, donne le nombre de jours. La grille de devis marque une ligne retirée à sa place et n’en propose aucune saisie. Dans la grille de reste à engager, une ligne en écart d’une tâche non démarrée apparaît sans être demandée, et les valeurs au reste à engager précédent ne changent pas avec la base. Une grille ouverte sur une structure différentielle n’offre pas la comparaison."
+```
+
+```yaml exigence
+section: "3.6"
+id: "WF-IHM-0160-A"
+titre: "Totaux d’une comparaison"
+flexibilite: "F0"
+fbs: "FBS-4.3.2, FBS-4.4.2, FBS-4.5.2"
+pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
+corps: "Lorsqu’une comparaison est active (WF-REV-0080), la ligne de totaux d’une grille présente, pour chaque total, celui de la révision lue, celui de la base et leur écart, et se marque modifiée lorsqu’ils diffèrent. Une ligne retirée compte dans le total de la base et dans les écarts, non dans celui de la révision lue. Les écarts de montants par nature de coût et par sous-projet se lisent depuis les grilles de devis et de reste à engager."
+motif: "Le total est ce qu’un avenant ou une offre discute d’abord : celui de la révision lue en regard de celui de la base dit d’un regard ce que la comparaison pèse, et sa répartition par nature de coût et par sous-projet dit où."
+verification: "Entre une base à 1 000 et une révision lue à 1 200, la ligne de totaux du devis porte 1 200, 1 000 et l’écart de 200, et se marque modifiée. Une ligne de 100 retirée depuis la base compte dans le total de la base et dans l’écart, non dans le total de la révision lue. Les écarts par nature de coût et par sous-projet s’ouvrent depuis la grille de devis et depuis celle de reste à engager."
+```
+
+```yaml exigence
+section: "3.6"
+id: "WF-IHM-0170-A"
+titre: "Repli des branches sans écart"
+flexibilite: "F0"
+fbs: "FBS-4.3.2, FBS-4.4.2, FBS-4.5.2"
+pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
+corps: "Lorsqu’une comparaison est active (WF-REV-0080), une grille replie, à la demande, les branches sans écart : seules restent affichées les tâches et les lignes en écart et les récapitulatives qui les portent, une marque signalant, à sa place, chaque suite de lignes repliées, qu’elle déplie. Le repli n’est pas un filtre (WF-IHM-0130) : les totaux n’en sont pas changés."
+motif: "Sur mille tâches, quelques dizaines changent d’une revue à l’autre. Le repli concentre la lecture sur elles sans rien retirer de ce que la grille compte, et sa marque dit qu’il reste des lignes entre deux écarts."
+verification: "Les branches sans écart repliées, la grille n’affiche que les lignes marquées et leurs récapitulatives, signale chaque suite de lignes repliées, la déplie à la demande, au clavier comme au pointeur, et porte les mêmes totaux qu’avant le repli."
+```
+
+```yaml exigence
+section: "3.6"
 id: "WF-IHM-0070-A"
 titre: "Une échelle de signalement commune, lisible sans couleur"
 flexibilite: "F0"
 fbs: "FBS-1"
 pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Les signalements de Waterfall — notamment les zones d'un indice (WF-REF-0170), dépassement du budget d'un sous-projet (WF-RAE-0020), cases de la matrice de risques (WF-RIS-0040), dépassement ou sous-charge d'un rôle (WF-PTF-0060), signaux de santé du pilotage (WF-PTF-0110), lignes propres hors provision d'une récapitulative dont toutes les subordonnées sont terminées (WF-PLA-0040), le conflit entre une tâche manuelle et ses prédécesseurs (WF-PLA-0020), l'objet désactivé employé par une ligne (WF-REF-0010), la tâche démarrée dont la fin est dépassée (WF-RAE-0040), le jalon prêt à être terminé (WF-RAE-0030) et l'état d'une tâche dans la grille de planning (WF-PLA-0080) — emploient une même échelle dans toute l'application. Chaque signalement est porté par au moins un indice non coloré : forme, symbole ou libellé. La couleur ne porte jamais seule une information."
-motif: "Deux échelles différentes dans deux écrans du même produit rendent les deux illisibles : le rouge doit signifier la même chose partout. Et un signalement porté par la seule couleur disparaît pour un utilisateur daltonien, à l'impression en noir et blanc, et sur le vidéoprojecteur d'une salle de comité — c'est-à-dire précisément là où ces indicateurs servent."
-verification: "Une copie d'écran en niveaux de gris laisse identifier chaque signalement. La même zone d'indice porte la même couleur dans la liste des projets, dans les indicateurs du projet et dans la performance du portefeuille. Aucun écran ne distingue deux états par la seule couleur."
+corps: "Les signalements de Waterfall — notamment les zones d'un indice (WF-REF-0170), dépassement du budget d'un sous-projet (WF-RAE-0020), cases de la matrice de risques (WF-RIS-0040), dépassement ou sous-charge d'un rôle (WF-PTF-0060), signaux de santé du pilotage (WF-PTF-0110), lignes propres hors provision d'une récapitulative dont toutes les subordonnées sont terminées (WF-PLA-0040), le conflit entre une tâche manuelle et ses prédécesseurs (WF-PLA-0020), l'objet désactivé employé par une ligne (WF-REF-0010), la tâche démarrée dont la fin est dépassée (WF-RAE-0040), le jalon prêt à être terminé (WF-RAE-0030) et l'état d'une tâche dans la grille de planning (WF-PLA-0080) — emploient une même échelle dans toute l'application. Chaque signalement est porté par au moins un indice non coloré : forme, symbole ou libellé. La couleur ne porte jamais seule une information. Le tracé des séries d'un graphique fait exception : elles s'y distinguent par leur couleur, et en outre par un motif ou un symbole lorsque l'utilisateur le demande par une préférence d'affichage (WF-ADM-0040) ; la légende, l'infobulle et la table des valeurs du graphique nomment chaque série dans tous les cas."
+motif: "Deux échelles différentes dans deux écrans du même produit rendent les deux illisibles : le rouge doit signifier la même chose partout. Et un signalement porté par la seule couleur disparaît pour un utilisateur daltonien, à l'impression en noir et blanc, et sur le vidéoprojecteur d'une salle de comité — c'est-à-dire précisément là où ces indicateurs servent. Le tracé des séries d'un graphique s'en remet à une préférence de l'utilisateur : la légende, l'infobulle et la table des valeurs suffisent à les nommer."
+verification: "Une copie d'écran en niveaux de gris laisse identifier chaque signalement. La même zone d'indice porte la même couleur dans la liste des projets, dans les indicateurs du projet et dans la performance du portefeuille. Aucun écran ne distingue deux états par la seule couleur. Avec la préférence des motifs, une copie d'écran en niveaux de gris d'un plan de charge laisse identifier chaque rôle ; sans elle, son infobulle et sa table des valeurs nomment chaque rôle."
 ```
 
 ```yaml exigence
@@ -3336,7 +3397,7 @@ titre: "Filtrage des tables et export des graphiques"
 flexibilite: "F0"
 fbs: "FBS-1, FBS-2, FBS-3, FBS-4"
 pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Toute table se filtre sur chacune de ses colonnes, et le filtre s’applique aux totaux qu’elle présente. Les heures de chaque jour d’un calendrier font exception : la table des calendriers ne se filtre pas sur elles. Toute courbe et tout diagramme — Gantt, plan de charge, courbes d’indicateurs, matrice des risques — s’exportent en image PNG, avec leur titre, leur légende et la date de calcul, et, pour une vue de projet, le nom du projet et la révision, pour une vue de portefeuille, le périmètre affiché (WF-PTF-0010)."
+corps: "Toute table se filtre sur chacune de ses colonnes, et le filtre s’applique aux totaux qu’elle présente. Les heures de chaque jour d’un calendrier font exception : la table des calendriers ne se filtre pas sur elles. Les colonnes de mois du détail du plan de charge et de la projection de dépenses font la même exception (WF-DEV-0090, WF-DEV-0100). Toute courbe et tout diagramme — Gantt, plan de charge, projection de dépenses, courbes d’indicateurs, matrice des risques — s’exportent en image PNG, avec leur titre, leur légende et la date de calcul, les motifs de leurs séries lorsque la préférence de l’utilisateur les demande (WF-ADM-0040), et, pour une vue de projet, le nom du projet et la révision, pour une vue de portefeuille, le périmètre affiché (WF-PTF-0010)."
 motif: "Un filtre commun évite qu’une table l’ait et l’autre non ; une image exportée entre dans un compte rendu de revue sans copie d’écran, et dit d’elle-même d’où elle vient."
 verification: "La liste des projets filtrée sur un état ne compte que les projets de cet état dans ses totaux. Le plan de charge d’un projet exporté est une image PNG qui porte le nom du projet, la révision et la date de calcul ; le plan de charge agrégé exporté porte le périmètre et la date de calcul. La table des calendriers ne propose aucun filtre sur les heures de ses jours ; elle se filtre sur ses autres colonnes."
 ```
@@ -3981,7 +4042,7 @@ fbs: "FBS-4"
 pbs: "PBS-3"
 corps: "Les montants sont des décimaux exacts à deux chiffres après la virgule, dans la devise unique de l’installation, jamais des flottants. Les heures et les quantités sont des décimaux exacts. Les dates des pièces sont des dates sans heure. Le début et la fin d’une tâche sont une date sans heure et un nombre d’heures de travail écoulées ce jour-là, sans fuseau. Les horodatages d’audit et de marquage sont en temps universel. Les pourcentages sont conservés comme des décimaux exacts, non arrondis avant les calculs. Un horodatage s’affiche dans l’heure locale du poste ; une date de planning s’affiche telle quelle. Le jour courant, que proposent les saisies datées, s’entend dans le fuseau horaire de l’installation (WF-EXP-0020)."
 motif: "Un budget de référence est une somme de milliers de lignes : en flottant, deux sommes des mêmes lignes dans deux ordres différents ne donnent pas le même total, et l’indice de coût diffère entre deux écrans. Les dates sans heure évitent qu’un fuseau ne décale un jalon d’un jour."
-verification: "La somme des montants budgétés d’une révision est identique quel que soit l’ordre de sommation. Une tâche planifiée au 30 juin s’affiche au 30 juin sur tout poste client, quel que soit son fuseau. Un montant de 0,10 additionné dix fois donne exactement 1,00. Deux tâches de quatre heures liées fin à début, sur un calendrier de huit heures, commencent et finissent le même jour."
+verification: "La somme des montants budgétés d’une révision est identique quel que soit l’ordre de sommation. Une tâche planifiée au 30 juin s’affiche au 30 juin sur tout poste client, quel que soit son fuseau. Un montant de 0,10 additionné dix fois donne exactement 1,00. Deux tâches de quatre heures liées fin à début, sur un calendrier de huit heures, commencent et finissent le même jour. Un nombre ou un montant calculé qui dépasse ce que sa colonne tient est refusé, au champ qui le provoque, sans rien écrire."
 ```
 
 ```yaml exigence
@@ -4337,13 +4398,17 @@ Mesurés sur le jeu de données de référence (WF-QUA-0040), aux volumes ci-des
 | Recalculer dates, chemin critique et totaux après une saisie dans une grille | 1 s |
 | Afficher les indicateurs de la révision en cours d'un projet | 1 s |
 | Afficher une vue de portefeuille sur trois cents projets | 2 s |
+| Ouvrir une grille de planning, de devis ou de reste à engager de mille tâches, comparée à une révision marquée | 2 s |
+| Filtrer, trier ou chercher dans une telle grille | 2 s |
+| Recalculer dates, chemin critique, totaux et écarts à la base après une saisie dans une grille comparée | 2 s |
+| Afficher le plan de charge ou la projection de dépenses d'un projet de mille tâches | 2 s |
 | Marquer une révision de dix mille objets | 1 min |
 | Analyser puis appliquer un import de dix-huit mille lignes de coût | 5 min |
 | Engendrer l'export d'un planning de mille tâches | 30 s |
 
 Tableau 15 Objectifs de temps de réponse
 
-Les quatre premières sont les seules qui se paient en attente devant un écran : ce sont elles qui font qu'un outil de chiffrage est utilisable ou non. Les trois dernières sont des tâches de fond (WF-ARC-0090) : leur durée se suit, elle ne bloque personne.
+Les huit premières sont les seules qui se paient en attente devant un écran : ce sont elles qui font qu'un outil de chiffrage est utilisable ou non. Les trois dernières sont des tâches de fond (WF-ARC-0090) : leur durée se suit, elle ne bloque personne.
 
 ### 4.6.3. Observabilité
 
@@ -4631,6 +4696,8 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | WF-DEV-0060-A | 3.4.5.4.1 | Indicateurs de devis | F0 |
 | WF-DEV-0070-A | 3.4.5.4.4 | Plan de charge du projet | F0 |
 | WF-DEV-0080-A | 3.4.5.4.3 | Valeur planifiée | F0 |
+| WF-DEV-0090-A | 3.4.5.4.4 | Détail du plan de charge par tâche | F0 |
+| WF-DEV-0100-A | 3.4.5.4.4 | Projection de dépenses du projet | F0 |
 | WF-EXP-0010-A | 4.5.1 | Origine des données des environnements | F0 |
 | WF-EXP-0020-A | 4.5.2 | Amorçage d'une installation neuve | F0 |
 | WF-EXP-0030-A | 4.5.3 | Mise à jour sans interruption | F1 |
@@ -4651,6 +4718,9 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | WF-IHM-0120-A | 3.6 | Écran d’accueil | F0 |
 | WF-IHM-0130-A | 3.6 | Filtrage des tables et export des graphiques | F0 |
 | WF-IHM-0140-A | 3.6 | Aide en ligne | F1 |
+| WF-IHM-0150-A | 3.6 | Marques d’une comparaison dans les grilles | F0 |
+| WF-IHM-0160-A | 3.6 | Totaux d’une comparaison | F0 |
+| WF-IHM-0170-A | 3.6 | Repli des branches sans écart | F0 |
 | WF-IND-0010-A | 3.4.5.8 | Date et périmètre de calcul | F0 |
 | WF-IND-0020-A | 3.4.5.8 | Granularité des indicateurs | F0 |
 | WF-IND-0030-A | 3.4.5.8 | Valeur acquise | F0 |
@@ -4760,7 +4830,7 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | WF-REV-0050-A | 3.4.5.1 | Fusion d’un différentiel | F0 |
 | WF-REV-0060-A | 3.4.5.1 | Année de référence et mise à jour des taux à la création d’une révision | F0 |
 | WF-REV-0070-A | 3.4.5.1 | Historique des révisions | F0 |
-| WF-REV-0080-A | 3.4.5.1 | Comparaison de deux révisions | F1 |
+| WF-REV-0080-A | 3.4.5.1 | Comparaison de deux révisions | F0 |
 | WF-REV-0090-A | 3.4.5.1 | Attributs d’une révision | F0 |
 | WF-REV-0100-A | 3.4.5.1 | Structures de coûts d'une révision | F0 |
 | WF-RIS-0010-A | 3.4.5.6 | Attributs d’un risque | F0 |
@@ -4785,6 +4855,7 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | Avancement financier | Désigne la part de la dépense finale déjà engagée : le coût réel rapporté au projection du chef de projet (WF-IND-0040). |
 | Avancement physique | Désigne la part du travail promis qui est faite : la valeur acquise rapportée au budget de référence (WF-IND-0060). |
 | Avenant | Désigne une modification contractuelle du projet en cours d'exécution. Il est préparé comme une structure différentielle, puis fusionné à sa contractualisation, ce qui produit une nouvelle révision de référence. |
+| Base d'une comparaison | Désigne la révision marquée à laquelle une révision, en cours ou marquée, est comparée (WF-REV-0080) : les écarts se disent de la révision lue par rapport à elle. À ne pas confondre avec la base du plan de charge, qui est la révision où il prend sa charge (WF-DEV-0070). |
 | Budget de référence | Désigne la somme des montants budgétés des lignes de la révision de référence, hors lignes de provision, inflation comprise, à l'année de consommation des lignes. Seul un avenant le déplace (WF-RIS-0050). |
 | Calendrier | Désigne le nombre d'heures travaillées par un rôle de ressource pour chaque jour de la semaine, du lundi au dimanche. Il permet de convertir une durée en dates. Les jours fériés ne sont pas gérés. |
 | Calendrier par défaut | Désigne le calendrier appliqué aux tâches auxquelles aucun rôle de ressource n'est affecté. |
@@ -4853,6 +4924,7 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | Prédécesseur | Désigne la tâche dont l'exécution conditionne le début ou la fin d'une autre tâche, appelée successeur, au travers d'une liaison. |
 | Probabilité de gain | Désigne l'estimation, en pourcentage, des chances qu'une offre en chiffrage soit remportée. Elle pondère le devis et la charge du projet dans les vues du portefeuille, et n'intervient dans aucun calcul propre au projet. |
 | Projection à terminaison | Désigne l'estimation du coût total du projet à son terme. Waterfall en présente trois, selon l'hypothèse faite sur le travail restant (WF-IND-0050). |
+| Projection de dépenses | Désigne la répartition mensuelle, par nature de coût, des montants des lignes de main-d'œuvre et hors main-d'œuvre d'un projet, hors provisions, à leur date de consommation ou, sur demande, de paiement (WF-DEV-0100). |
 | Projet | Désigne l'affaire suivie dans Waterfall, de la construction de l'offre jusqu'à son terme. Un projet porte ses paramètres, son lotissement, ses sous-projets et ses révisions, et suit le cycle de vie défini par les exigences WF-CYC. |
 | Provision | Désigne le montant réservé pour couvrir les conséquences d’un risque identifié, égal à sa gravité pondérée par sa probabilité. Elle compte au devis et au reste à engager, jamais au budget de référence ; un risque survenu ou écarté n’en porte plus. Elle relève d'une nature de type provision pour risques ; une provision saisie, pour aléas par exemple, est une ligne hors main-d'œuvre ordinaire. |
 | Rattachement (au lotissement) | Désigne le lien facultatif d'une tâche de la structure principale vers un lot ou un poste du lotissement, posé par le squelette ou à la main, qui permet de filtrer le planning et le devis par lot ou par poste et de totaliser le devis par lot (WF-PLA-0170). Un lot ou un poste n'est porté que par une tâche à la fois. À distinguer du rattachement d'un rôle de ressource à un nœud d'organisation. |

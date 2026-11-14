@@ -56,8 +56,11 @@ REASONS: dict[str, str] = {
     "DAT": "Partitionnement et migrations : propriétés du schéma, invisibles du contrat.",
     "EXP": "Exploitation : environnements, amorçage, mise à jour, perte maximale. Aucune "
     "n'est une opération d'API.",
+    "DEV": "Le détail du plan de charge et la projection de dépenses, ajoutés par la "
+    "spécification 1.0.6 : leur contrat reste à écrire, avec EP-10 (#3181, #3182).",
     "IHM": "Invariants d'interface : navigation, accessibilité, aide en ligne. Ils vivent "
-    "dans le front.",
+    "dans le front. La lecture d'une comparaison dans les grilles (WF-IHM-0150 à 0170), "
+    "ajoutée par la spécification 1.0.6, attend son contrat, avec EP-27 (#3176, #3179).",
     "INTF": "Les trois usages d'acteurs décrivent le contenu des rôles prédéfinis, servi par "
     "le catalogue des permissions ; la règle de traduction vit dans le front.",
     "QUA": "Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle "

@@ -1004,7 +1004,10 @@ valeur hors de ces règles soit refusée à son champ, plutôt qu'enregistrée a
   chiffres non ASCII répond 422 `NUMBER_INVALID` à son paramètre ; la somme exacte est constatée par
   EP-03 et EP-06, inchangée.
 - écart : `WF-DAT-0100-A` — « Deux tâches de quatre heures liées fin à début, sur un calendrier de
-  huit heures, commencent et finissent le même jour. » : constaté par EP-06, inchangé ; EP-07 clôt.
+  huit heures, commencent et finissent le même jour. » : constaté par EP-06, inchangé ; EP-07 clôt ;
+- écart : `WF-DAT-0100-A` — « Un nombre ou un montant calculé qui dépasse ce que sa colonne tient
+  est refusé, au champ qui le provoque, sans rien écrire. » : ajouté par la spécification 1.0.6
+  (#3100) ; EP-24 l'éprouve (US-1980).
 - `WF-REF-0160-A` — « Les six bornes sont saisissables et ordonnées. » : sa forme pour leur
   précision : une borne de plus de dix décimales, ou de plus de dix chiffres avant le point — `"0."`
   suivi de vingt mille `9` —, est refusée par 422 `VALIDATION_FAILED` à `/risk_matrix/<axe>/<rang>`,

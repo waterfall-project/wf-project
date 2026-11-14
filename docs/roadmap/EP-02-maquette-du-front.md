@@ -728,6 +728,9 @@ consignée dans `docs/api/DECISIONS.md`, « Les constats d'EP-02 tranchés (EP-0
   indicateurs conserve la révision affichée et le sous-projet filtré. »
 - `WF-IHM-0010-A` — « Le retour au projet précédent depuis une fonction hors projet retrouve
   le même contexte. »
+- écart : `WF-IHM-0010-A` — « Une comparaison active sur le planning l'est encore sur le devis puis
+  sur le reste à engager, avec la même base. » : ajouté par la spécification 1.0.6 (#3178), la base
+  d'une comparaison conservée entre les grilles ; EP-27 le réalise ;
 - propre à l'US : à la connexion, l'accueil présente la liste des projets dont l'utilisateur
   est contributeur (décision du cadrage) — un filtre par défaut, visible et levable, jamais
   une restriction de lecture (WF-PRJ-0060) ; ce filtre est la neuvième modification du
@@ -786,6 +789,13 @@ suis, si elle est marquée, si elle est la référence, et ce qu'un filtre actif
 - `WF-IHM-0020-A` — « Un indicateur affiché porte sa date de calcul. »
 - `WF-IHM-0020-A` — « Un filtre actif est visible sans avoir à ouvrir le panneau de
   filtres. »
+- écart : `WF-IHM-0020-A` — « Depuis la grille de devis de la révision en cours, l'utilisateur
+  choisit une révision marquée pour base sans quitter l'écran ; l'écran la nomme, et la comparaison
+  se lève sans ouvrir aucun panneau. » : ajouté par la spécification 1.0.6 (#3178), la révision lue
+  et la base choisies dans le bandeau de contexte ; EP-27 le réalise ;
+- écart : `WF-IHM-0020-A` — « Depuis la même grille, il ouvre une autre révision du projet sans
+  passer par l'historique. » : ajouté par la spécification 1.0.6 (#3178), la révision lue et la base
+  choisies dans le bandeau de contexte ; EP-27 le réalise ;
 
 ## US-0110 — Grille dense : lecture, tri, colonnes et préférences
 
@@ -996,6 +1006,10 @@ et blanc, ou vu par quelqu'un qui distingue mal le rouge du vert.
 - `WF-IHM-0070-A` — « La même zone d'indice porte la même couleur dans la liste des projets,
   dans les indicateurs du projet et dans la performance du portefeuille. »
 - `WF-IHM-0070-A` — « Aucun écran ne distingue deux états par la seule couleur. »
+- écart : `WF-IHM-0070-A` — « Avec la préférence des motifs, une copie d'écran en niveaux de gris
+  d'un plan de charge laisse identifier chaque rôle ; sans elle, son infobulle et sa table des
+  valeurs nomment chaque rôle. » : ajouté par la spécification 1.0.6 (#3098), les motifs des séries
+  d'un graphique sur préférence ; EP-25 le réalise (#3097) ;
 
 **Notes de réalisation.** Un seul composant de signalement, alimenté par les zones que le
 référentiel fixe (WF-REF-0170) : la matrice de risques, les dépassements de budget, la charge
@@ -1145,7 +1159,10 @@ seul champ de langue.
 - écart : `WF-DAT-0100-A` — « La somme des montants budgétés d'une révision est identique
   quel que soit l'ordre de sommation. » et « Un montant de 0,10 additionné dix fois donne
   exactement 1,00. » sont des phrases du noyau de calcul — amorcées en EP-03, closes en
-  EP-07.
+  EP-07 ;
+- écart : `WF-DAT-0100-A` — « Un nombre ou un montant calculé qui dépasse ce que sa colonne tient
+  est refusé, au champ qui le provoque, sans rien écrire. » : ajouté par la spécification 1.0.6
+  (#3100) ; EP-24 l'éprouve (US-1980).
 - écart : `WF-INTF-0180-A` — « Un devis exporté par un utilisateur en français et réimporté
   par un utilisateur en anglais donne un devis identique, sans avertissement de format. » et
   « Le fichier Excel exporté porte les mêmes en-têtes quelle que soit la langue de celui qui

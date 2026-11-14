@@ -2,7 +2,7 @@
 id: EP-08
 titre: Gérer les risques, leurs provisions et la réserve, et déplacer la référence par avenant
 statut: à planifier
-depend_de: EP-10
+depend_de: EP-10, EP-27
 famille: front, back
 issue:
 ---
@@ -65,7 +65,7 @@ d'EP-09, décision de l'auteur du 2026-11-07).
 | `WF-REV-0050-A` | Fusion d’un différentiel | fin — amorcée en EP-15 | — |
 | `WF-PLA-0170-A` | Rattachement au lotissement | fin — amorcée en EP-06 | — |
 | `WF-REV-0100-A` | Structures de coûts d'une révision | fin — amorcée en EP-04, EP-15 | — |
-| `WF-IHM-0020-A` | Contexte de lecture affiché | fin — amorcée en EP-02, EP-15 | — |
+| `WF-IHM-0020-A` | Contexte de lecture affiché | fin — amorcée en EP-02, EP-15, EP-27 | — |
 | `WF-IHM-0110-A` | Annulation et rétablissement des saisies | fin — amorcée en EP-02, EP-06, EP-07 | — |
 | `WF-DEV-0080-A` | Valeur planifiée | fin — amorcée en EP-07 | — |
 | `WF-RIS-0010-A` | Attributs d’un risque | fin — amorcée en EP-15 | — |
@@ -89,7 +89,7 @@ d'EP-09, décision de l'auteur du 2026-11-07).
 | `WF-DEV-0030-A` | Calcul du montant d’une ligne | fin — amorcée en EP-07 | — |
 | `WF-PRJ-0040-A` | Taux d’inflation du projet | fin — amorcée en EP-07 | — |
 | `WF-DEV-0050-A` | Grille de devis | fin — amorcée en EP-15, EP-07 | — |
-| `WF-REV-0080-A` | Comparaison de deux révisions | fin — amorcée en EP-15, EP-07 | — |
+| `WF-REV-0080-A` | Comparaison de deux révisions | fin — amorcée en EP-15, EP-07, EP-27 | — |
 | `WF-INTF-0100-A` | Import du devis (FLX-03) | fin — amorcée en EP-07 | — |
 | `WF-INTF-0090-A` | Imports et révisions marquées | fin — amorcée en EP-06, EP-07 | — |
 | `WF-REF-0030-A` | Natures de coût | fin — amorcée en EP-05, EP-07 | — |
@@ -193,3 +193,26 @@ qu'avec les différentiels :
 - #2499 — back : deux écritures d'inscriptions d'une même lignée sous deux structures ne sont
   sérialisées que par le verrou de chaque structure ; la violation d'unicité de `tracking_entry`
   remonterait en 500.
+
+Ventilation du reste à faire du 2026-11-14 (décision de l'auteur, à la livraison d'EP-24) : les
+constats ouverts sont rattachés à l'EPIC qui touche leur code, et non plus au prochain EPIC ouvert.
+Reçus à ce titre :
+
+- #1767 — back : les saisies du devis refusées sur la structure principale en réalisation et sous
+une tâche terminée, permises dans un différentiel (F-01) ;
+- #2473 — conception : les routes des imports sont gardées par planning.read, que l'import d'un
+devis ou de coûts réels ne demande pas ;
+- #2538 — back : l'annulation suppose une entrée de planning, risk_ids rendu vide en dur ;
+- #2883 — back : le refus d'un cycle de parenté du chargeur des tâches nomme la tâche de départ, et
+son test n'éprouve ni le type ni l'auto-parenté ;
+- #2884 — back : un parent_lineage_id absent de la description donne un KeyError brut au chargeur
+des tâches ;
+- #2905 — back : annuler un collage de l'avancement d'une tâche demande planning.write, le collage
+remaining.write ;
+- #3095 — back : une ligne d'import dont le montant déborde fait échouer l'application sans dire
+laquelle ;
+- #3154 — corpus : 10-other-constants.xml, un « Standard » de 6 heures sous des constantes de 7, en
+écart de calendrier ;
+- #3156 — tests : le test « constantes différentes ⇒ écart » sur tout le corpus peut passer à vide,
+et l'en-tête du README du corpus mal recoupé ;
+- #3165 — tests : trois mineurs du parcours e2e de l'écart de calendrier.

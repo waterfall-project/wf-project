@@ -90,6 +90,8 @@ sont des écarts, qui nomment l'EPIC qui les clôt.
 | `WF-ARC-0070-A` | Autorité du serveur | fin — amorcée en EP-04 | US-1730 |
 | `WF-QUA-0040-A` | Jeu de données de référence | début — close en EP-13, amorcée aussi en EP-05, EP-04, EP-06, EP-07, EP-09 | US-1740 |
 | `WF-INTF-0010-A` | Usages du chef de projet | début — close en EP-08, amorcée aussi en EP-06, EP-07, EP-09 | US-1740 |
+| `WF-DEV-0090-A` | Détail du plan de charge par tâche | entière | US-2040 |
+| `WF-DEV-0100-A` | Projection de dépenses du projet | entière | US-2050 |
 
 ## Opérations du contrat
 
@@ -145,6 +147,24 @@ Relevé par la revue locale d'US-1400/L2 (EP-06, #2340) et reporté ici par l'au
 - #2498 — back : une inscription `milestone_tracking` reste sur une tâche qui cesse d'être un
   jalon (durée non nulle, sous-tâches), `setNodeTracking` ne refusant `MILESTONE_REQUIRED` qu'à
   l'entrée ; le diagramme temps/temps ne retient que les inscriptions des jalons.
+
+Ventilation du reste à faire du 2026-11-14 (décision de l'auteur, à la livraison d'EP-24) : les
+constats ouverts sont rattachés à l'EPIC qui touche leur code, et non plus au prochain EPIC ouvert.
+Reçus à ce titre :
+
+- #2893 — back : des exemples chiffrés du §3.4.5.4 et de WF-REV-0060 n'ont pas de test du harnais
+d'exemples, dont le 4,04 % de WF-DEV-0050-A ;
+- #2907 — back : la docstring d'inflation_factor dit « pas une exigence » ce que WF-DEV-0030-A exige
+depuis la spécification 1.0.4 ;
+- #3056 — front : le jumeau de l'ajout d'une tâche au reste à engager ne lit ni le budget de
+référence ni la valeur planifiée, que le service ne sert pas ;
+- #3096 — front : le plan de charge empile mal un rôle chargé sur moins de mois que les autres — des
+trous dans l'histogramme (WF-DEV-0070, WF-PTF-0060) ;
+- #3181 — spec : le plan de charge détaillé par rôle et par tâche, en grille sous l'histogramme
+(exigence nouvelle, WF-DEV-0090) ;
+- #3182 — spec : la projection de dépenses du projet, par nature de coût et par mois, en histogramme
+et en grille (exigence nouvelle, WF-DEV) ;
+- #3186 — roadmap : US-2030 ne liste pas WF-ARC-0020-A, que cite un de ses tests.
 
 ## Préalables
 
@@ -1428,3 +1448,65 @@ du guide.
 
 **Hors périmètre.** La référence 101, les risques et les provisions (EP-08) ; les révisions
 marquées de plus et les trois cents projets (EP-13) ; le portefeuille (EP-11).
+
+## US-2040 — Le détail du plan de charge par rôle et par tâche
+
+- **statut** : à faire
+- **exigences** : `WF-DEV-0090-A`
+- **opérations** : à écrire au contrat (#3181)
+- **issue** :
+
+**En tant que** chef de projet, **je veux** lire, sous l'histogramme du plan de charge, les tâches
+qui reviennent à chaque rôle, leurs heures et leur étalement par mois, **afin de** savoir ce que
+chaque équipe aura à faire, et quand, sans rapprocher à la main le devis et le planning.
+
+**Critères d'acceptation.**
+
+- `WF-DEV-0090-A` — « Pour chaque rôle et chaque mois, la somme des charges des tâches du détail
+égale la charge que le plan présente. »
+- `WF-DEV-0090-A` — « Deux lignes d'un même rôle sous une même tâche y comptent pour une seule ligne
+du détail, de la somme de leurs charges. »
+- `WF-DEV-0090-A` — « Sur la base du reste à engager, une tâche terminée n'y figure pas. »
+- `WF-DEV-0090-A` — « Sous un rôle, une tâche qui débute en mars précède une tâche qui débute en
+avril, quelle que soit leur place dans l'arbre du planning ; depuis une tâche du détail,
+l'utilisateur atteint cette tâche dans la grille de planning, la révision conservée. ».
+
+**Notes de réalisation.**
+
+Exigence nouvelle de la spécification 1.0.6 (#3181), rattachée à EP-10 par la ventilation du
+2026-11-14 : l'US est à détailler, et son contrat à écrire, à la relecture d'EP-10 contre la base
+livrée par EP-24. Pour une révision marquée, la vue est recalculée à la lecture, non conservée au
+marquage (décision de l'auteur du 2026-11-14).
+
+## US-2050 — La projection de dépenses du projet
+
+- **statut** : à faire
+- **exigences** : `WF-DEV-0100-A`
+- **opérations** : à écrire au contrat (#3182)
+- **issue** :
+
+**En tant que** chef de projet, **je veux** lire, mois par mois et par nature de coût, ce que le
+projet dépensera, en histogramme et en grille, à la date de consommation ou de paiement, **afin de**
+prévoir la dépense des mois qui viennent, main-d'œuvre et débours totalisés.
+
+**Critères d'acceptation.**
+
+- `WF-DEV-0100-A` — « Une ligne de 1 200 portée par une tâche qui couvre exactement deux mois civils
+apparaît sur ces deux mois, au prorata des heures travaillées de la tâche dans chacun. »
+- `WF-DEV-0100-A` — « Avec un délai de paiement de trente jours, en mode décaissement, sa dépense
+est décalée d'autant. »
+- `WF-DEV-0100-A` — « Sur la base du reste à engager, le total de la projection égale le reste à
+engager du projet hors provisions (WF-RAE-0010), et aucune colonne ne précède le mois de la date de
+calcul. »
+- `WF-DEV-0100-A` — « Sur la base de la révision de référence d'un projet en cours, la projection
+présente aussi les mois antérieurs à la date de calcul. »
+- `WF-DEV-0100-A` — « Une ligne de provision n'y figure sous aucune nature. »
+- `WF-DEV-0100-A` — « Le total de chaque mois égale la somme des natures de ce mois, et celui de
+chaque nature la somme de ses catégories. ».
+
+**Notes de réalisation.**
+
+Exigence nouvelle de la spécification 1.0.6 (#3182), rattachée à EP-10 par la ventilation du
+2026-11-14 : l'US est à détailler, et son contrat à écrire, à la relecture d'EP-10 contre la base
+livrée par EP-24. Pour une révision marquée, la vue est recalculée à la lecture, non conservée au
+marquage (décision de l'auteur du 2026-11-14).
