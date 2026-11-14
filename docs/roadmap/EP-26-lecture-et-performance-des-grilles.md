@@ -1,10 +1,10 @@
 ---
 id: EP-26
 titre: Ouvrir, filtrer et saisir dans une grille de mille tâches sans attendre
-statut: prêt
+statut: en cours
 depend_de: EP-25
 famille: back, front
-issue:
+issue: 3299
 ---
 
 # EP-26 — Lecture et performance des grilles
@@ -381,7 +381,7 @@ Prises par l'auteur le 2026-11-14, au cadrage, sauf mention.
 - **statut** : à faire
 - **exigences** : aucune en propre — l'outil de WF-QUA-0060, que clôt US-2300
 - **opérations** : `listNodes`, `updateTaskFacet`, `updateEstimateLine`, `createRevision`, `getMe`
-- **issue** :
+- **issue** : #3304
 
 **En tant que** développeur, **je veux** une mesure commune du parcours des grilles, rejouable sur
 un poste, **afin de** savoir ce que chaque correction gagne et à quelle part — l'API, Next ou le
@@ -429,7 +429,7 @@ comparaison (EP-27).
 - **statut** : à faire
 - **exigences** : aucune en propre — le gain se lit dans le rapport de WF-QUA-0060 (US-2300)
 - **opérations** : `listNodes`, `compareRevisions`
-- **issue** :
+- **issue** : #3315
 
 **En tant que** chef de projet, **je veux** que la grille d'une révision en cours s'ouvre sans que
 le service traite ses six mille nœuds un à un à chaque étape, **afin de** ne pas attendre une
@@ -464,7 +464,7 @@ révision marquée (US-2270).
 - **statut** : à faire
 - **exigences** : `WF-ARC-0080-A`
 - **opérations** : toutes celles que le service sert ; `getMe` pour la mesure
-- **issue** :
+- **issue** : #3309
 
 **En tant qu'** exploitant, **je veux** que l'API serve ses requêtes sur plusieurs processus,
 **afin que** plusieurs utilisateurs qui lisent le même projet ne se partagent plus un seul cœur.
@@ -503,7 +503,7 @@ lectures simultanées durent chacune six fois une lecture seule.
 - **statut** : à faire
 - **exigences** : `WF-REV-0010-A`
 - **opérations** : `createRevision`, `listRevisions`
-- **issue** :
+- **issue** : #3312
 
 **En tant que** chef de projet, **je veux** que la révision en cours d'un projet chargé s'ouvre
 sans attente, et que l'écran ne me dise pas de réessayer une ouverture qui a abouti, **afin de** ne
@@ -548,7 +548,7 @@ dépassement est documenté (US-2300) et devient une issue à trancher.
 - **exigences** : aucune en propre — le gain se lit dans le rapport de WF-QUA-0060 (US-2300)
 - **opérations** : `updateTaskFacet`, `updateEstimateLine`, `setLineRemaining`, `setTaskProgress`,
   `setNodeTracking`, `setPredecessors`
-- **issue** :
+- **issue** : #3317
 
 **En tant que** chef de projet, **je veux** que la saisie d'un libellé ne coûte pas une lecture
 entière de la structure, **afin de** saisir plusieurs cellules de suite sans attendre chacune.
@@ -581,7 +581,7 @@ prédécesseurs, le collage (#3169). Le front s'adosse au compteur de la structu
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par EP-06 et EP-07
 - **opérations** : `createNode`, `moveNodes`, `previewPaste`, `applyPaste`, `updateTaskFacet`,
   `createRevision`
-- **issue** :
+- **issue** : #3300
 
 **En tant que** développeur, **je veux** que les constats de revue rattachés au code des grilles
 soient corrigés, **afin que** l'EPIC ne laisse pas derrière lui la dette qu'il a reçue.
@@ -610,7 +610,7 @@ soient corrigés, **afin que** l'EPIC ne laisse pas derrière lui la dette qu'il
 - **statut** : à faire
 - **exigences** : aucune en propre — le gain se lit dans le rapport de WF-QUA-0060 (US-2300)
 - **opérations** : `listNodes`, `compareRevisions`, `markRevision`
-- **issue** :
+- **issue** : #3320
 
 **En tant que** chef de projet, **je veux** que la grille d'une révision marquée, qui ne change
 plus, ne se recalcule pas à chaque affichage, **afin de** relire une offre ou la base d'une
@@ -648,7 +648,7 @@ sans écart — EP-27 ; les options 2 et 3 de #3168.
 - **statut** : à faire
 - **exigences** : aucune en propre — le gain se lit dans le rapport de WF-QUA-0060 (US-2300)
 - **opérations** : `listNodes`, et toutes les écritures d'une structure
-- **issue** :
+- **issue** : #3318
 
 **En tant que** chef de projet, **je veux** que le planning ne lise que ses mille tâches, **afin
 de** l'ouvrir sans payer les cinq mille lignes de devis qu'il n'affiche pas.
@@ -687,7 +687,7 @@ migration ni invariant à tenir.
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : `listNodes`
-- **issue** :
+- **issue** : #3323
 
 **En tant que** développeur, **je veux** que les parcours qui lisent PRJ-001 contre le service
 attendent ce que la mesure justifie, **afin que** la file de fusion ne perde plus un passage sur
@@ -714,7 +714,7 @@ une lecture lente.
 - **exigences** : `WF-QUA-0060-A`
 - **opérations** : `listNodes`, `updateTaskFacet`, `updateEstimateLine`, `getProjectWorkload`,
   `markRevision`, `openImport`, `applyImport`, `requestExport`, `getBackgroundTask`
-- **issue** :
+- **issue** : #3325
 
 **En tant qu'** exploitant, **je veux** le rapport de mesures de chaque version, comparé à celui de
 la précédente, **afin de** savoir avant de la publier si elle tient ses temps de réponse ou si elle
