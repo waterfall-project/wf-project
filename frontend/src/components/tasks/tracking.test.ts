@@ -214,7 +214,7 @@ describe("what the tracker follows", () => {
       dismissed.tasks,
     );
     const forgotten = tracking(dismissed, { type: "forget" });
-    expect(forgotten).toEqual({ tasks: [], log: [], dismissed: [], restored: true });
+    expect(forgotten).toEqual({ tasks: [], log: [], dismissed: [], restored: true, cards: [] });
     const late = tracking(forgotten, {
       type: "answer",
       source: "read",
@@ -223,6 +223,72 @@ describe("what the tracker follows", () => {
       outcome: { kind: "done", data: task("task_succeeded") },
     });
     expect(late).toBe(forgotten);
+  });
+});
+
+describe("the cards of the ends (US-2170)", () => {
+  const RUNNING_ID = task("task_running").task_id;
+
+  /** The tracker once a task handed over running has been read in the state named. */
+  function read(state: Tracking, name: string): Tracking {
+    return tracking(state, {
+      type: "answer",
+      source: "read",
+      key: RUNNING_ID,
+      taskId: RUNNING_ID,
+      outcome: { kind: "done", data: task(name) },
+    });
+  }
+
+  it("stacks a card for each success and each failure, the last on top, and none for a follow-up interrupted [WF-IHM-0080-A]", () => {
+    const failed = following(task("task_failed"));
+    const both = read(
+      tracking(failed, { type: "track", task: task("task_running"), launch: {} }),
+      "task_succeeded",
+    );
+    expect(both.cards.map((card) => [card.end, card.key])).toEqual([
+      ["succeeded", RUNNING_ID],
+      ["failed", MARKING],
+    ]);
+    const interrupted = tracking(following(task("task_running")), {
+      type: "answer",
+      source: "read",
+      key: RUNNING_ID,
+      taskId: RUNNING_ID,
+      outcome: {
+        kind: "refused",
+        problem: { code: "NOT_FOUND", status: 404 },
+        conflictingObjectId: null,
+      },
+    });
+    expect(interrupted.log.map((line) => line.end)).toEqual(["interrupted"]);
+    expect(interrupted.cards).toEqual([]);
+  });
+
+  it("keeps a card until it is closed, however many ends the log has kept since [WF-IHM-0080-A]", () => {
+    let state = following(task("task_failed"));
+    const [first] = state.cards;
+    for (let turn = 0; turn < 12; turn += 1) {
+      state = read(
+        tracking(state, { type: "track", task: task("task_running"), launch: {} }),
+        "task_succeeded",
+      );
+    }
+    expect(state.log).not.toContain(first);
+    expect(state.cards).toHaveLength(13);
+    expect(state.cards.at(-1)).toBe(first);
+    const closed = tracking(state, { type: "card_closed", id: first?.id ?? 0 });
+    expect(closed.cards).toHaveLength(12);
+    expect(closed.cards).not.toContain(first);
+    expect(closed.log).toBe(state.log);
+    // A card closed already closes nothing more.
+    expect(tracking(closed, { type: "card_closed", id: first?.id ?? 0 })).toBe(closed);
+  });
+
+  it("leaves the cards as they are on a read that changes nothing, and forgets them on signing out", () => {
+    const ended = following(task("task_failed"));
+    expect(tracking(ended, { type: "found", tasks: [] })).toBe(ended);
+    expect(tracking(ended, { type: "forget" }).cards).toEqual([]);
   });
 });
 

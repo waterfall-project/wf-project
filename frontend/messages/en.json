@@ -1238,6 +1238,15 @@
     "dismissNews": {
       "help": "Removes this line; the task stays followed in the panel of the tasks and messages."
     },
+    "downloadEnd": {
+      "help": "Downloads the file the task made, then closes the card."
+    },
+    "openEnd": {
+      "help": "Opens the screen the task was started from, then closes the card."
+    },
+    "closeEnd": {
+      "help": "Closes the card; the end of the task stays in the panel of the tasks and messages."
+    },
     "startedOnly": {
       "help": "Shows or hides the tasks not started."
     },
@@ -1997,7 +2006,14 @@
     "panel": "Tasks and messages",
     "close": "Close the tasks and messages",
     "started": "Task started: {task}.",
-    "closeNews": "Close the line of the task"
+    "closeNews": "Close the line of the task",
+    "cards": {
+      "label": "Ends of the tasks",
+      "download": "Download",
+      "open": "Open",
+      "openLabel": "Open: {task} — {screen}",
+      "close": "Close the card: {task}"
+    }
   },
   "markRevision": {
     "versionName": "Version name",

@@ -2702,7 +2702,19 @@ is said under the bar, in the flow of the page, on the screen where one is: the 
 short line that stays until the next — the confirmation in place of a success the screen does not
 show —, without an announcement, the log speaking for the ends; its button closes it, by keyboard
 as by mouse, and gives the focus back to the button of the bar, the task staying tracked (author's
-decision, #1179).
+decision, #1179). Each success and each failure is also told by a floating card in the bottom right
+corner of the window (`EndCards`, `end-cards.tsx`, US-2170), mounted by the shell over the page,
+which it does not move: the sentence of the end, the reason of a failure, the action that follows —
+« Download » the file of an export, the task read anew first as from the panel, otherwise « Open »
+the screen it was launched from — and its cross. It stays until it is opened or closed
+(`Tracking.cards`, which the truncated log does not touch); several stack up, the last on top, in a
+column bounded by the window, which scrolls. It is not a live region: the log of the ends announces
+it, without taking the focus, and notes it in the message history, which the panel keeps. An
+interrupted tracking has no card; a task found again, its screen unknown, has only its cross. Closed
+by keyboard, the focus goes to the cross of the next card, otherwise of the previous one, otherwise
+to the button of the bar. The file of an export leaves on its own when its task succeeds and the
+screen that asked for it is still open (`useDownloadWhenTaskSucceeds`, `ExportForm`,
+`TaskTreeExport`, #3103), the task read anew first; the screen left, the card offers it.
 Closed, the panel still follows its tasks — the shell reloads them (`TaskPolling`), outside the
 entries — and its log still speaks, outside the panel, or inside as long as it is open, where the
 focus is held. A relaunch refused as stale (412) loses its command, which would still be, and a

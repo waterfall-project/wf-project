@@ -11,8 +11,9 @@
  * is applied to the task it was asked for, never to the one a relaunch put in its place.
  *
  * Each end — a task succeeded, failed, or whose follow-up the API interrupted — adds a line to
- * a log, which the shell reads out: the ends add up, none replaces the one before. Signing out
- * forgets them all.
+ * a log, which the shell reads out: the ends add up, none replaces the one before. A success or a
+ * failure adds a card too, which the shell floats in the corner of the window until it is opened or
+ * closed (`end-cards.tsx`). Signing out forgets them all.
  *
  * A task is followed from the screen that started it, from what the tab kept of it across a
  * reload, or from the list of the tasks of its user the API gives — started from another tab or
@@ -137,6 +138,8 @@ export interface TrackedTask {
 /** A line of the log of ends. */
 export interface EndLine {
   readonly id: number;
+  /** The key the task is followed under: its first identifier, which a relaunch keeps. */
+  readonly key: string;
   readonly end: EndKind;
   readonly task: BackgroundTask;
   readonly subject: string | undefined;
@@ -161,6 +164,12 @@ export interface Tracking {
    * by the panel itself, no entry being there to tell it (#416).
    */
   readonly refusedResult?: ResultRefusal | undefined;
+  /**
+   * The ends the floating cards of the shell show — each success and failure, never a follow-up
+   * interrupted, which says nothing of the task —, the last first: each stays until it is opened or
+   * closed, whatever the log has kept since.
+   */
+  readonly cards: readonly EndLine[];
 }
 
 /** What changes what the tracker follows. */
@@ -183,10 +192,18 @@ export type TrackingEvent =
   | { readonly type: "clear" | "dismiss"; readonly key: string }
   | { readonly type: "forget" }
   | { readonly type: "result_refused"; readonly refusal: ResultRefusal }
-  | { readonly type: "result_refusal_cleared" };
+  | { readonly type: "result_refusal_cleared" }
+  /** The card of an end opened or closed, by the identifier of its line. */
+  | { readonly type: "card_closed"; readonly id: number };
 
 /** Nothing followed yet. */
-export const NOTHING_TRACKED: Tracking = { tasks: [], log: [], dismissed: [], restored: false };
+export const NOTHING_TRACKED: Tracking = {
+  tasks: [],
+  log: [],
+  dismissed: [],
+  restored: false,
+  cards: [],
+};
 
 /** How many ends the log keeps: the last ones, a reader has heard the others. */
 const LOG_LENGTH = 10;
@@ -224,11 +241,11 @@ export function readsAnew({ end, from }: Pick<EndLine, "end" | "from">, shown: s
 function logged(
   log: readonly EndLine[],
   end: EndKind,
-  { task, subject, from }: Pick<TrackedTask, "task" | "subject" | "from">,
+  { key, task, subject, from }: Pick<TrackedTask, "key" | "task" | "subject" | "from">,
   problem: Problem | undefined,
 ): readonly EndLine[] {
   const id = (log.at(-1)?.id ?? 0) + 1;
-  return [...log, { id, end, task, subject, from, problem }].slice(-LOG_LENGTH);
+  return [...log, { id, key, end, task, subject, from, problem }].slice(-LOG_LENGTH);
 }
 
 /**
@@ -359,8 +376,33 @@ function found(state: Tracking, tasks: readonly BackgroundTask[]): Tracking {
   return added.length === 0 ? state : { ...state, tasks: [...state.tasks, ...added] };
 }
 
+/**
+ * The cards once the log has changed: one more, on top, for each success or failure logged since —
+ * a follow-up interrupted has none.
+ */
+function carded(before: Tracking, after: Tracking): Tracking {
+  if (after.log === before.log) {
+    return after;
+  }
+  const last = before.log.at(-1)?.id ?? 0;
+  const fresh = after.log.filter((line) => line.id > last && line.end !== "interrupted");
+  return fresh.length === 0 ? after : { ...after, cards: [...fresh.toReversed(), ...after.cards] };
+}
+
 /** Change what the tracker follows. */
 export function tracking(state: Tracking, event: TrackingEvent): Tracking {
+  if (event.type === "card_closed") {
+    const cards = state.cards.filter((card) => card.id !== event.id);
+    return cards.length === state.cards.length ? state : { ...state, cards };
+  }
+  return carded(state, followed(state, event));
+}
+
+/** Change what the tracker follows, but its cards. */
+function followed(
+  state: Tracking,
+  event: Exclude<TrackingEvent, { type: "card_closed" }>,
+): Tracking {
   switch (event.type) {
     case "track": {
       const { task, launch } = event;

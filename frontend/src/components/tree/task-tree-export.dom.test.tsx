@@ -62,6 +62,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
@@ -99,6 +100,26 @@ describe("the export of the image of the task tree", () => {
       name: /^Télécharger le résultat/,
     });
     expect(download.getAttribute("href")).toMatch(/^\/tasks\/[^/]+\/result\?from=/);
+  });
+
+  it("downloads the image by itself once drawn, the tree still shown (#3103)", async () => {
+    serve({
+      [EXPORT]: { example: "task_export_queued", status: 202 },
+      [TASK]: "task_export_succeeded",
+    });
+    const followed: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      followed.push(this.getAttribute("href") ?? "");
+    });
+    open(3);
+    await request();
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    await waitFor(() => {
+      expect(followed).toHaveLength(1);
+    });
+    expect(followed[0]).toMatch(/^\/tasks\/01926f3a-7c00-7000-8000-000000000935\/result\?from=/);
   });
 
   it("asks the first level at least, for a plan that has no summary [WF-PLA-0120-A]", async () => {
