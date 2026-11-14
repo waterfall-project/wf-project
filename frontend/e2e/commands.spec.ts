@@ -18,8 +18,8 @@ test("a command the project cannot take now is shown unavailable, naming the con
   // The example of the Vérif (completing a project in pricing) is not served by the fake back: only
   // `exit-command.dom.test.tsx` proves it. This journey plays the same rule on a command it does
   // serve, opening a revision. `revision-cycle.spec.ts` reads the same condition for its refusal
-  // (WF-REV-0010-A); this one proves its presentation: shown beside the command, kept in the
-  // keyboard order, doing nothing when pressed.
+  // (WF-REV-0010-A); this one proves its presentation: read in its tooltip, kept in the
+  // keyboard order, told in an alert when pressed.
   await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const commands = page.getByRole("main").getByRole("region", { name: "Commandes" });
 
@@ -28,13 +28,15 @@ test("a command the project cannot take now is shown unavailable, naming the con
   // Named in a text shown beside it, which describes it to a screen reader too.
   const unmet = /^Condition non remplie\s: aucune révision en cours d’élaboration\.$/;
   await expect(lose).toHaveAccessibleDescription(unmet);
-  await expect(commands.getByText(unmet)).toBeVisible();
-
-  // It stays in the order of the keyboard, and pressed, it does nothing: nothing is told.
+  // Not written under the button: its tooltip says it, to the keyboard as to the pointer.
+  await expect(commands.getByText(unmet)).toBeHidden();
   await lose.focus();
+  await expect(page.getByRole("tooltip")).toContainText("aucune révision en cours d’élaboration");
+
+  // It stays in the order of the keyboard, and pressed, it runs nothing: it tells what it lacks.
   await page.keyboard.press("Enter");
   await expect(lose).toBeFocused();
-  await expect(commands.getByRole("alert")).toHaveCount(0);
+  await expect(commands.getByRole("alert")).toContainText("aucune révision en cours d’élaboration");
 
   // The command the revision can take now is offered.
   await expect(commands.getByRole("button", { name: "Marquer la révision" })).not.toHaveAttribute(

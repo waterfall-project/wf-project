@@ -113,9 +113,15 @@ describe("a command of a screen", () => {
     const complete = screen.getByRole("button", { name: "Terminer le projet" });
     expect(complete).toHaveAttribute("aria-disabled", "true");
     expect(complete).toHaveAccessibleDescription("Condition non remplie\u00A0: projet en cours.");
-    // The text that names it is shown beside the command, not only read out.
+    // The text that names it is not written under the button: it is read in the tooltip.
     const unmet = document.getElementById(complete.getAttribute("aria-describedby") ?? "");
-    expect(unmet).toBeVisible();
+    expect(unmet).not.toBeVisible();
+    await userEvent.tab();
+    expect(complete).toHaveFocus();
+    await screen.findByRole("tooltip");
+    expect(document.querySelector("[data-slot=tooltip-content]")).toHaveTextContent(
+      "projet en cours",
+    );
     // The commands it may take now are offered.
     expect(screen.getByRole("button", { name: "Déclarer le projet perdu" })).not.toHaveAttribute(
       "aria-disabled",
@@ -214,6 +220,20 @@ describe("a command of a screen", () => {
     expect(complete).toHaveFocus();
   });
 
+  it("tells the condition an unavailable command lacks in the region of the refusals when pressed, and not before [WF-IHM-0090-A]", async () => {
+    french(
+      <Command
+        offer={{ is_available: false, missing_conditions: ["project_in_progress"] }}
+        label="Terminer le projet"
+        help="Ce que la commande fait."
+        icon={commandIcon(PROJECT_COMMAND_ICONS.complete)}
+      />,
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Terminer le projet" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("projet en cours");
+  });
+
   it("says what it does in its tooltip, and the conditions it lacks beside its name", async () => {
     french(
       <Command
@@ -255,7 +275,7 @@ describe("a command of a screen", () => {
     expect(command).toHaveAttribute("aria-disabled", "true");
     expect(command).toHaveAccessibleDescription(/Condition non remplie/);
     await userEvent.click(command);
-    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("alert")).toHaveTextContent(/Condition non remplie/);
   });
 });
 
