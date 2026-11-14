@@ -180,10 +180,16 @@ def test_a_completion_dated_before_the_start_of_the_task_is_refused_naming_the_s
 @pytest.mark.requirement("WF-PLA-0130-A")
 def test_a_completion_without_date_is_refused_for_a_task_started_in_the_future(
     tree: Tree,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # The default day is the current day (#2495): a task started tomorrow, completed without
     # a date, is completed before its start, whatever the field not sent (422 on /occurred_on).
-    tomorrow = (datetime.now(UTC).date() + timedelta(days=1)).isoformat()
+    # The clock of the service is fixed a second before midnight (universal time, the service's
+    # day), where the writer of the nodes takes the day of the gesture: the day after it is read
+    # from that clock, not from the day the test runs on.
+    now = datetime(2026, 11, 13, 23, 59, 59, tzinfo=UTC)
+    monkeypatch.setattr("waterfall.api.nodes.utc_now", lambda: now)
+    tomorrow = (now.date() + timedelta(days=1)).isoformat()
     node = tree.made("Câblage")
     started = moved(tree, node, "started", occurred_on=tomorrow)
     answer = gesture(tree, started, "completed")
