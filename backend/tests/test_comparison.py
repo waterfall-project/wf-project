@@ -593,9 +593,8 @@ def test_between_two_reference_years_a_disbursement_line_differs_by_its_projecte
     # outre [...] sur chaque ligne de débours, dont le montant est projeté de même (WF-DEV-0030) ;
     # les tâches et les montants budgétés restent ceux du différentiel. » : the same set-up as the
     # labour line, with a line of material consumed two years after the first reference, whose
-    # re-estimated amount alone differs. A labour line is kept beside it: the lines of a revision
-    # are priced again when its rates are projected, and a revision with no labour line is not
-    # (a defect, outside the lot).
+    # re-estimated amount alone differs. The revision has no labour line at all: its disbursements
+    # are projected all the same when it is opened (#3126).
     offer = opened(api, stage)
     tree = Tree(api, stage, offer)
     wiring = tree.made(
@@ -607,7 +606,6 @@ def test_between_two_reference_years_a_disbursement_line_differs_by_its_projecte
         },
     )
     Lines(tree).made(wiring, **material(costs, "Câbles", "200.00"))
-    Lines(tree).made(tree.made("Montage"), **labour(costs, "Montage — Ingénieur"))
     mark(stage, offer, "v1.0")
     designate(api, stage, offer)
     with stage.owner.begin() as connection:
