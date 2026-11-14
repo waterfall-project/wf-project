@@ -15,13 +15,30 @@ The report names every operation of the table of response times (table 15 of §4
       {"id": "portfolio-view", "objective_s": 2, "unserved": "EP-11"}]}
 
 An operation the service does not yet serve carries ``unserved``, the epic that will measure it,
-and no duration. The two last reports are confronted: an objective exceeded by the median, or a
-median more than a quarter above the previous version's, is a warning of the chain, and a failure
-when the report gives no ``note`` for it. Without a previous report only the objectives are held;
-without any report the check passes.
+and no duration. The durations are in seconds, taken over identical passes: ``median_s`` is their
+median, ``worst_s`` the longest and ``dispersion_s`` their standard deviation. Only the median is
+confronted; the worst duration and the dispersion say what a difference must exceed to be a gain.
+
+The previous version's duration is read in the previous report, not copied into the latest. The two
+last reports are confronted: the command prints, for each served operation, its median and the
+previous version's; an objective exceeded by the median, a median more than a quarter above the
+previous version's (whatever it was, zero included), or an operation served by the previous report
+and no longer by the latest, is a warning of the chain, and a failure when the latest report gives
+no ``note`` for it. Without a previous report only the objectives are held; without any report the
+check passes.
+
+The identifiers of the table, with the line of table 15 and the operations of the contract that
+carry them (EP-26, US-2300): ``open-grid`` and ``filter-sort-search``, ``listNodes`` ;
+``recompute-after-entry``, ``updateTaskFacet`` and ``updateEstimateLine`` ;
+``workload-or-projection``, ``getProjectWorkload`` (the projection of expenses is EP-10) ;
+``mark-revision``, ``markRevision`` ;
+``import-costs``, ``openImport``, ``applyImport`` and ``getBackgroundTask`` ; ``export-planning``,
+``requestExport`` and ``getBackgroundTask``. ``indicators`` (EP-10), ``portfolio-view`` (EP-11),
+``open-compared-grid`` and ``recompute-compared`` (EP-27) have no operation yet: they are unserved.
 """
 
 import json
+import math
 import re
 import sys
 from dataclasses import dataclass
@@ -33,7 +50,7 @@ from wftools import REPOSITORY
 MEASURES = REPOSITORY / "docs" / "measures"
 DEGRADATION = 1.25
 """The ratio above which a duration, against the previous version's, is a degradation."""
-VERSION = re.compile(r"\d+(?:\.\d+)*")
+VERSION = re.compile(r"\d+\.\d+\.\d+")
 EPIC = re.compile(r"EP-\d+")
 DURATIONS = ("median_s", "worst_s", "dispersion_s")
 
@@ -92,12 +109,20 @@ class Finding:
 
 def version_key(version: str) -> tuple[int, ...]:
     """Return the sort key of a version, ``0.10.0`` after ``0.9.0``."""
+    if not VERSION.fullmatch(version):
+        message = f"{version}: a version is numbered as 0.4.0"
+        raise ValueError(message)
     return tuple(int(part) for part in version.split("."))
 
 
 def _number(entry: dict[str, object], key: str, where: str) -> float:
     value = entry.get(key)
-    if isinstance(value, bool) or not isinstance(value, int | float) or value < 0:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int | float)
+        or not math.isfinite(value)
+        or value < 0
+    ):
         message = f"{where}: {key} must be a number of seconds, not {value!r}"
         raise ValueError(message)
     return float(value)
@@ -141,6 +166,10 @@ def parse(text: str, name: str) -> Report:
     if not isinstance(listed, list):
         message = f"{name}: operations must be a list"
         raise TypeError(message)
+    for entry in cast("list[object]", listed):
+        if not isinstance(entry, dict):
+            message = f"{name}: an operation is an object, not {entry!r}"
+            raise TypeError(message)
     entries = cast("list[dict[str, object]]", listed)
     given = {str(entry.get("id")): entry for entry in entries}
     wanted = {line.id: line for line in TABLE}
@@ -178,22 +207,36 @@ def confront(latest: Report, previous: Report | None) -> list[Finding]:
     for line in TABLE:
         measured = latest.operations[line.id]
         median = measured.median_s
-        if median is None:
-            continue
         documented = bool(measured.note)
+        before = None if previous is None else previous.operations[line.id].median_s
+        if median is None:
+            if before is not None and previous is not None:
+                text = f"{line.label}: served by {previous.version}, no longer served"
+                findings.append(Finding(line.id, text, documented))
+            continue
         if median > line.objective_s:
             text = f"{line.label}: {median:g} s, above its objective of {line.objective_s:g} s"
             findings.append(Finding(line.id, text, documented))
-        if previous is None:
+        if previous is None or before is None:
             continue
-        before = previous.operations[line.id].median_s
-        if before and median > before * DEGRADATION:
-            text = (
-                f"{line.label}: {median:g} s, {median / before - 1:.0%} above the "
-                f"{before:g} s of {previous.version}"
-            )
+        if median > before * DEGRADATION:
+            above = f"{median / before - 1:.0%} above" if before else "above"
+            text = f"{line.label}: {median:g} s, {above} the {before:g} s of {previous.version}"
             findings.append(Finding(line.id, text, documented))
     return findings
+
+
+def compare(latest: Report, previous: Report | None) -> list[str]:
+    """Return a line per served operation: its median and the previous version's."""
+    lines: list[str] = []
+    for line in TABLE:
+        median = latest.operations[line.id].median_s
+        if median is None:
+            continue
+        before = None if previous is None else previous.operations[line.id].median_s
+        against = "no previous measure" if before is None else f"{before:g} s before"
+        lines.append(f"{line.id}: {median:g} s, {against} (objective {line.objective_s:g} s)")
+    return lines
 
 
 def main(arguments: list[str]) -> int:
@@ -210,6 +253,8 @@ def main(arguments: list[str]) -> int:
     latest = reports[-1]
     previous = reports[-2] if len(reports) > 1 else None
     print(f"report {latest.version}, against {previous.version if previous else 'the objectives'}")
+    for line in compare(latest, previous):
+        print(line)
     failed = False
     for finding in confront(latest, previous):
         print(f"::warning::{finding.message}")

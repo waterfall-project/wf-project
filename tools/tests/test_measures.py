@@ -3,6 +3,7 @@
 """Tests of the confrontation of the measure reports (WF-QUA-0060-A)."""
 
 import json
+import math
 from typing import TYPE_CHECKING, cast
 
 import pytest
@@ -108,9 +109,53 @@ def test_only_the_two_last_versions_are_confronted_and_ten_follows_nine(
 
 
 @pytest.mark.requirement("WF-QUA-0060-A")
-def test_an_improvement_and_an_unserved_operation_signal_nothing() -> None:
+def test_an_improvement_and_an_operation_unserved_twice_signal_nothing() -> None:
     before = parsed(report("0.4.0", {"mark-revision": 50}))
-    assert measures.confront(parsed(report("0.5.0", {"mark-revision": 20})), before) == []
+    latest = parsed(report("0.5.0", {"mark-revision": 20}))
+    assert latest.operations["portfolio-view"].unserved == "EP-11"
+    assert measures.confront(latest, before) == []
+
+
+@pytest.mark.requirement("WF-QUA-0060-A")
+def test_an_operation_served_then_unserved_is_signalled_and_fails_unless_documented(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(tmp_path, report("0.4.0"))
+    later = report("0.5.0")
+    entry = cast("list[dict[str, object]]", later["operations"])[0]
+    for key in measures.DURATIONS:
+        del entry[key]
+    entry["unserved"] = "EP-30"
+    write(tmp_path, later)
+    code, out = run(tmp_path, capsys)
+    assert code == 1
+    assert "Open a grid of a thousand tasks: served by 0.4.0, no longer served" in out
+    entry["note"] = "the grid is rebuilt"
+    write(tmp_path, later)
+    code, out = run(tmp_path, capsys)
+    assert (code, "::warning::" in out, "::error::" in out) == (0, True, False)
+
+
+@pytest.mark.requirement("WF-QUA-0060-A")
+def test_every_served_operation_shows_its_median_and_the_previous_one(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(tmp_path, report("0.4.0", {"open-grid": 0.4}))
+    write(tmp_path, report("0.5.0", {"open-grid": 0.5}))
+    code, out = run(tmp_path, capsys)
+    assert code == 0
+    assert "open-grid: 0.5 s, 0.4 s before (objective 1 s)" in out
+    assert "mark-revision: 30 s, 30 s before (objective 60 s)" in out
+    assert "portfolio-view" not in out
+    assert out.count(" s before (objective") == len(measures.TABLE) - len(UNSERVED)
+
+
+@pytest.mark.requirement("WF-QUA-0060-A")
+def test_a_median_above_a_previous_median_of_zero_is_a_degradation() -> None:
+    before = parsed(report("0.4.0", {"open-grid": 0}))
+    findings = measures.confront(parsed(report("0.5.0", {"open-grid": 0.1})), before)
+    assert [finding.operation for finding in findings] == ["open-grid"]
+    assert measures.confront(parsed(report("0.5.0", {"open-grid": 0})), before) == []
 
 
 @pytest.mark.requirement("WF-QUA-0060-A")
@@ -124,6 +169,7 @@ def test_without_a_report_of_a_version_the_check_passes(
 
 @pytest.mark.requirement("WF-QUA-0060-A")
 def test_the_repository_reports_hold(capsys: pytest.CaptureFixture[str]) -> None:
+    # Reads the real docs/measures/: it checks nothing until US-2300/L3 pays in the first report.
     assert measures.main([]) == 0
     assert "::error::" not in capsys.readouterr().out
 
@@ -194,12 +240,44 @@ def test_a_report_that_does_not_hold_to_the_table_is_refused(change: str) -> Non
 
 
 @pytest.mark.requirement("WF-QUA-0060-A")
+@pytest.mark.parametrize(
+    ("key", "value"), [("median_s", math.nan), ("worst_s", math.inf), ("dispersion_s", -math.inf)]
+)
+def test_a_duration_that_is_not_finite_is_refused(key: str, value: float) -> None:
+    body = report("0.4.0")
+    cast("list[dict[str, object]]", body["operations"])[0][key] = value
+    with pytest.raises(ValueError, match="number of seconds"):
+        measures.parse(json.dumps(body), "0.4.0")
+
+
+@pytest.mark.requirement("WF-QUA-0060-A")
+def test_an_operation_that_is_not_an_object_is_refused() -> None:
+    body = report("0.4.0")
+    cast("list[object]", body["operations"])[0] = "open-grid"
+    with pytest.raises(TypeError, match="an operation is an object"):
+        measures.parse(json.dumps(body), "0.4.0")
+
+
+@pytest.mark.requirement("WF-QUA-0060-A")
 def test_a_report_that_is_not_an_object_is_refused(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     (tmp_path / "0.4.0.json").write_text("[]", "utf-8")
     code, out = run(tmp_path, capsys)
     assert (code, "::error::0.4.0: a report is an object" in out) == (1, True)
+    for operations in ("{}", "[3]"):
+        text = f'{{"version": "0.4.0", "operations": {operations}}}'
+        (tmp_path / "0.4.0.json").write_text(text, "utf-8")
+        code, out = run(tmp_path, capsys)
+        assert (code, out.startswith("::error::0.4.0: ")) == (1, True)
+
+
+@pytest.mark.requirement("WF-QUA-0060-A")
+@pytest.mark.parametrize("name", ["0.4", "v0.4.0", "1.2.3.4", "latest"])
+def test_a_version_is_numbered_as_x_y_z(name: str) -> None:
+    with pytest.raises(ValueError, match=r"numbered as 0\.4\.0"):
+        measures.version_key(name)
+    assert measures.version_key("0.10.2") == (0, 10, 2)
 
 
 @pytest.mark.requirement("WF-QUA-0060-A")

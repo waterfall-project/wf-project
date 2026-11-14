@@ -3162,11 +3162,13 @@ dépassement ne fait rien échouer (README de la roadmap, section « Lots »).
 `make check-measures` confronte les rapports de mesures des versions (`docs/measures/<version>.json`,
 WF-QUA-0060-A) : la chaîne ne mesure pas, les durées d'un runner variant du simple au double, elle lit
 ce qu'un poste a mesuré et que le dépôt versionne. Un rapport nomme chacune des onze opérations du
-tableau 15 avec son objectif, sa médiane, sa pire durée, sa dispersion et, si elle dépasse son objectif
+tableau 15 avec son objectif, sa médiane, sa pire durée, sa dispersion (l'écart-type des passages identiques, en secondes ; seule la médiane est confrontée) et, si elle dépasse son objectif
 ou se dégrade, un `note` qui le documente ; une opération que le service ne sert pas encore porte
 `unserved`, l'EPIC qui la mesurera, et aucune durée. La commande compare les deux derniers rapports
-(`reference.json`, pris avant toute correction, n'en est pas un) : un objectif dépassé ou une médiane de
-plus d'un quart au-dessus de celle de la version précédente est un avertissement de la chaîne
+(`reference.json`, pris avant toute correction, n'en est pas un) et affiche, pour chaque opération servie,
+sa médiane et celle de la version précédente, lue dans le rapport précédent et non recopiée : un objectif
+dépassé, une médiane de plus d'un quart au-dessus de celle de la version précédente ou une opération
+servie par celle-ci et qui ne l'est plus est un avertissement de la chaîne
 (`::warning::`), et un échec si le rapport ne le documente pas. Sans rapport précédent, seuls les
 objectifs comptent ; sans aucun rapport, elle passe. Famille `measures` de la chaîne, dans
 `make check-all`.
