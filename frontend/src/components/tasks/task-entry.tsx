@@ -403,7 +403,6 @@ export function TaskEntry({
           ref={setDismiss}
           aria-label={t("tasks.dismiss", { task: name })}
           aria-disabled={pending ? true : undefined}
-          className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
           onClick={() => {
             if (!pending) {
               onDismiss(key);

@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Button, buttonVariants } from "./button";
 import { Input } from "./input";
 import { NativeSelect } from "./native-select";
+import { Textarea } from "./textarea";
 
 const VARIANTS = ["default", "outline", "ghost", "row"] as const;
 
@@ -97,5 +98,12 @@ describe("the fields of the charter", () => {
     ]) {
       expect(field).toHaveClass("rounded-full", "border-input");
     }
+  });
+
+  it("draw a multi-line field with a rounded corner, not a pill, bordered by the token of a field #3079", () => {
+    render(<Textarea aria-label="Notes" />);
+    const field = screen.getByRole("textbox", { name: "Notes" });
+    expect(field).toHaveClass("rounded-xl", "border-input");
+    expect(field).not.toHaveClass("rounded-full");
   });
 });
