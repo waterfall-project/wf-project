@@ -377,7 +377,7 @@ describe("the settings of the costs", () => {
     expect(queriesOf(RATES)).toEqual([{ include_inactive: "true" }]);
   });
 
-  it("ignore `include_inactive` in the address, the switch of the screen withdrawn: each list reads the state of its own filte[WF-REF-0150-A] (#3076)", async () => {
+  it("ignore `include_inactive` in the address, the switch of the screen withdrawn: each list reads the state of its own filter [WF-REF-0150-A] (#3076)", async () => {
     await costsAt({ include_inactive: "true", search: "Automatisme" });
     expect(queriesOf("GET /reference/cost-types")).toEqual([
       { is_active: "true" },
