@@ -141,7 +141,7 @@ const ON_FAKE_BACK =
   "the fake back draws every node (#463): only the frieze is proven, not the lanes or the last rectangle";
 const MOVED = "01926f3a-7c00-7000-8000-000000000565";
 
-test("lays out the frieze of a timeline by the keyboard and the mouse, and records the lanes @shared [WF-IHM-0100-A]", async ({
+test("lays out the frieze of a timeline by the keyboard and the mouse, and records the lanes @shared [WF-IHM-0100-A] [WF-PLA-0140-A]", async ({
   page,
 }) => {
   // The timelines read the structure of a thousand tasks: the bound of a grid.
