@@ -61,11 +61,11 @@ describe("the pages of a list of the administration", () => {
         shown={2}
       />,
     );
-    expect(screen.getByRole("link", { name: /Page précédente/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Précédent/ })).toHaveAttribute(
       "href",
       "/admin/backups?include_inactive=true",
     );
-    expect(screen.getByRole("link", { name: /Page suivante/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Suivant/ })).toHaveAttribute(
       "href",
       "/admin/backups?include_inactive=true&offset=4",
     );
@@ -83,7 +83,7 @@ describe("the pages of a list of the administration", () => {
       />,
     );
     expect(screen.getByText("Cette page est au-delà de la fin de la liste.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Page précédente/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Précédent/ })).toHaveAttribute(
       "href",
       "/admin/backups?offset=4",
     );

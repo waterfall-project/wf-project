@@ -18,7 +18,7 @@ The log has no command that writes. To read it:
 - **Project** and **Kind of object**.
 - **Correlation**: the identifier of a request, letters, digits, “.”, “_” and “-”, 64 characters at most.
 - The search field keeps the entries whose name of the object contains the text entered.
-- **Columns** chooses the columns shown; **Rows per page**, **Previous page** and **Next page** go through the log.
+- **Columns** chooses the columns shown; **Rows per page**, **Previous** and **Next** go through the log.
 
 The authors and the projects offered are those the whole log cites, even for whoever cannot read the accounts; an author chosen whom the log no longer cites stays chosen, under their name. In the table:
 

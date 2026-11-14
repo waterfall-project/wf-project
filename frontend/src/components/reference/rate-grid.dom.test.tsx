@@ -607,8 +607,12 @@ describe("the grid of the hourly rates", () => {
     expect(
       screen.getByRole("navigation", { name: "Pages de «\u00a0Grille des taux horaires\u00a0»" }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Page précédente/ })).toBeNull();
-    expect(screen.getByRole("link", { name: /Page suivante/ })).toHaveAttribute(
+    // On the first page, « Précédent » keeps its place, inert (#3073).
+    expect(screen.getByRole("link", { name: /^Précédent/ })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(screen.getByRole("link", { name: /^Suivant/ })).toHaveAttribute(
       "href",
       "/reference/costs?sort_by=rate.2026&sort_order=desc&offset=50",
     );

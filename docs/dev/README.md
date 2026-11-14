@@ -1044,6 +1044,20 @@ unavailable when the API does not find them or refuses them for lack of an hourl
 (`HOURLY_RATE_MISSING`, #159) — these two cases do not bring the screen down; any other response
 follows the rule of the readings (`EstimateSummary`).
 
+The bar of every grid follows one order (`GridToolbar`, US-2080, decision of the author of
+2026-11-14): the commands of the screen, the search, « Filtres » — the menus of a tree grid, or the
+button of the panel of a flat table —, « Colonnes », « Arbre » for a tree grid, then, at the end,
+undo and redo. It says no number of rows: the totals row says it alone, what a filter retains
+included (#3072). The reason undo waits for, cut to the room the bar leaves, opens whole when
+pressed — by a click, a touch or the keyboard —, in a Popover (#3150). Each filter on of a flat table
+is a chip in the tint of the primary colour (`bg-accent`, its text in `text-primary`, the pair
+measured by `contrast.test.ts`), with its label and its cross (#3077). The pages of a list
+(`ListPages`) are at the right under the table, in the text of the table, muted: « Lignes par
+page », the range of the rows shown (« 1–50 sur 150 »), « Précédent », « Page n sur m » and
+« Suivant », these two links in a fixed place, inert at the ends of the list (`aria-disabled`, with
+no address); everything is read from `offset`, `limit` and `meta.total` (`pageSpan`), with no jump
+to a page nor first or last page, and the navigation bears the name of its list (#3073).
+
 A grid that reads a differential (`CostStructure.kind` = `amendment`) is a diff against the main
 structure, which the server computes (`Node.difference`, rendered on each node, with the removed
 nodes in their place): it receives `GridConfig.difference` (`withDifference`, `nodes.tsx`) and a

@@ -95,6 +95,14 @@
       "label": "Rows per page",
       "named": "Rows per page of “{list}”"
     },
+    "pages": {
+      "range": "{from, number}–{to, number} of {total, number}",
+      "page": "Page {page, number} of {pages, number}",
+      "previous": "Previous",
+      "next": "Next",
+      "previousNamed": "Previous, {list}",
+      "nextNamed": "Next, {list}"
+    },
     "names": {
       "estimate": "Estimate grid",
       "planning": "Planning grid",
@@ -274,6 +282,7 @@
       "redo": "Redo",
       "menu": "Cell menu",
       "unavailable": "Unavailable until the server keeps the history of the entries.",
+      "why": "Why undo and redo are unavailable",
       "done": {
         "undo": "Change undone. {count, plural, =0 {No more changes to undo.} one {# change left to undo.} other {# changes left to undo.}}",
         "redo": "Change redone. {count, plural, =0 {No more changes to redo.} one {# change left to redo.} other {# changes left to redo.}}"
@@ -539,9 +548,7 @@
     "generalTotal": "General total",
     "pages": {
       "label": "Pages of the risks",
-      "beyond": "The page asked is beyond the end of the list.",
-      "previous": "Previous risks",
-      "next": "Next risks"
+      "beyond": "The page asked is beyond the end of the list."
     },
     "filter": "Filter by state",
     "everyState": "Every state",
@@ -662,21 +669,15 @@
     "pages": {
       "costs": {
         "label": "Pages of the actual costs",
-        "beyond": "The page asked is beyond the end of the list.",
-        "previous": "Previous lines",
-        "next": "Next lines"
+        "beyond": "The page asked is beyond the end of the list."
       },
       "imports": {
         "label": "Pages of the journal of the imports",
-        "beyond": "The page asked is beyond the end of the journal.",
-        "previous": "More recent imports",
-        "next": "Older imports"
+        "beyond": "The page asked is beyond the end of the journal."
       },
       "exchanges": {
         "label": "Pages of the imports of the project",
-        "beyond": "The page asked is beyond the end of the list.",
-        "previous": "Previous imports",
-        "next": "Next imports"
+        "beyond": "The page asked is beyond the end of the list."
       }
     },
     "imports": {
@@ -742,9 +743,7 @@
     },
     "pages": {
       "label": "Pages of the projects",
-      "beyond": "The page asked is beyond the end of the list.",
-      "previous": "Previous projects",
-      "next": "Next projects"
+      "beyond": "The page asked is beyond the end of the list."
     },
     "value": {
       "title": "Portfolio value",
@@ -2403,8 +2402,6 @@
     },
     "pages": {
       "label": "Pages of “{list}”",
-      "previous": "Previous page",
-      "next": "Next page",
       "beyond": "The page asked for is beyond the end of the list."
     },
     "codedChoice": "{code} · {label}",
@@ -2612,8 +2609,6 @@
   "admin": {
     "pages": {
       "label": "Pages of the list",
-      "previous": "Previous page",
-      "next": "Next page",
       "beyond": "This page is beyond the end of the list."
     },
     "commands": {

@@ -187,6 +187,22 @@ describe("undo and redo, placed in the grids", () => {
     await expectAccessible(bar);
   });
 
+  it("opens the whole reason they wait for when it is pressed, by a touch as by a click, beside the bar (#3150) [WF-IHM-0060-A]", async () => {
+    render(unwiredGrid());
+    const reason = screen.getByRole("button", { name: REASON });
+    expect(reason).toHaveAttribute("aria-haspopup", "dialog");
+    // A touch gives no focus to the button on every browser, and opens no tooltip: the press does.
+    await userEvent.pointer({ keys: "[TouchA]", target: reason });
+    const whole = screen.getByRole("dialog", {
+      name: "Pourquoi annuler et rétablir sont indisponibles",
+    });
+    expect(whole).toHaveTextContent(REASON);
+    expect(within(whole).getByText(REASON)).not.toHaveClass("truncate");
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(reason).toHaveFocus();
+  });
+
   it("places them in the menu of a cell, opened by Shift+F10, with their shortcuts, unavailable and saying why", async () => {
     render(unwiredGrid());
     const cell = focusLabel();
@@ -198,6 +214,7 @@ describe("undo and redo, placed in the grids", () => {
     expect(redo).toHaveTextContent("Ctrl+Maj+Z");
     for (const item of [undo, redo]) {
       expect(item).toHaveAttribute("aria-disabled", "true");
+      expect(item).toHaveClass("aria-disabled:cursor-not-allowed", "aria-disabled:opacity-50");
       expect(item).toHaveAccessibleDescription(REASON);
     }
     // The menu open, the page beside it is hidden from a screen reader: the menu is what is read.

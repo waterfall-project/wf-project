@@ -4,11 +4,13 @@
  * The filters of a flat table, folded into its bar (WF-IHM-0020, WF-IHM-0060, #2916): the button
  * « Filtres (n) », which opens and closes the panel the screen gives — its filters as they are —,
  * the panel itself, and under the bar the chips of the filters on, each lifted by its cross, and
- * « Effacer les filtres ». The panel stays in the page when closed, hidden, so that what a filter
- * holds of an entry is not lost; whether it is open is kept with the settings of the grid
- * (`filters_open`). A chip lifted changes the address only, back to the first page: the server
- * filters (WF-ARC-0020). The search is a field of the bar and not a chip, and clearing the filters
- * leaves it.
+ * « Effacer les filtres ». A chip is a pill in the tint of the primary (`accent`), its words in the
+ * primary, so that the table is seen not to show everything (#3077); its meaning never rests on
+ * the colour, its words and its cross saying it (WF-IHM-0070). The panel stays in the page when
+ * closed, hidden, so that what a filter holds of an entry is not lost; whether it is open is kept
+ * with the settings of the grid (`filters_open`). A chip lifted changes the address only, back to
+ * the first page: the server filters (WF-ARC-0020). The search is a field of the bar and not a
+ * chip, and clearing the filters leaves it.
  */
 "use client";
 
@@ -246,7 +248,7 @@ export function FilterChips({
         {chips.map((chip, at) => (
           <li
             key={chip.key}
-            className="inline-flex items-center gap-1 rounded-full border bg-muted py-0.5 pr-0.5 pl-2.5 text-xs"
+            className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-accent py-0.5 pr-0.5 pl-2.5 text-xs font-medium text-primary"
           >
             <span>{t("chip", { name: chip.name, value: chip.value })}</span>
             <button
@@ -259,7 +261,7 @@ export function FilterChips({
               }}
               type="button"
               aria-label={t("remove", { name: chip.name, value: chip.value })}
-              className="inline-flex size-5 items-center justify-center rounded-full hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              className="inline-flex size-5 items-center justify-center rounded-full hover:bg-primary hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               onClick={() => {
                 lift([chip], (chips[at + 1] ?? chips[at - 1])?.key, false);
               }}

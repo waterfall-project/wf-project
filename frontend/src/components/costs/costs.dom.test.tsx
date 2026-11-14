@@ -88,6 +88,12 @@ function grid(): HTMLElement {
   return screen.getByRole("grid", { name: "Coûts réels" });
 }
 
+/** The pages of the costs, or of the journal of their imports, which name their links alike. */
+function pagesOf(list: "costs" | "journal"): HTMLElement {
+  const name = list === "costs" ? "Pages des coûts réels" : "Pages du journal des imports";
+  return screen.getByRole("navigation", { name });
+}
+
 /** The cells of the row of a document, by its number. */
 function cellsOf(number: string): HTMLElement[] {
   const row = within(grid())
@@ -577,17 +583,17 @@ describe("the pages of a list the server pages", () => {
       ),
     );
     const pages = screen.getByRole("navigation", { name: "Pages des coûts réels" });
-    expect(within(pages).getByRole("link", { name: /Lignes précédentes/ })).toHaveAttribute(
+    expect(within(pages).getByRole("link", { name: /^Précédent/ })).toHaveAttribute(
       "href",
       `${PATHNAME}?in_tracked_scope=true`,
     );
-    expect(within(pages).getByRole("link", { name: /Lignes suivantes/ })).toHaveAttribute(
+    expect(within(pages).getByRole("link", { name: /^Suivant/ })).toHaveAttribute(
       "href",
       `${PATHNAME}?in_tracked_scope=true&offset=2`,
     );
   });
 
-  it("shows no way through a list the page holds whole, and none at all for a list the smallest page holds", () => {
+  it("shows a list the page holds whole on its one page, both turns inert, and nothing at all for a list the smallest page holds", () => {
     const list = listOf("actual_costs");
     const { container } = render(
       inLanguage(
@@ -599,7 +605,12 @@ describe("the pages of a list the server pages", () => {
         />,
       ),
     );
-    expect(screen.queryByRole("navigation", { name: "Pages des coûts réels" })).toBeNull();
+    const pages = pagesOf("costs");
+    for (const name of [/^Précédent/, /^Suivant/]) {
+      expect(within(pages).getByRole("link", { name })).toHaveAttribute("aria-disabled", "true");
+      expect(within(pages).getByRole("link", { name })).not.toHaveAttribute("href");
+    }
+    expect(pages).toHaveTextContent("Page 1 sur 1");
     // The size chosen can be taken back, though the list holds a single page.
     expect(screen.getByRole("combobox", { name: "Lignes par page" })).toHaveValue("50");
     const short = render(
@@ -632,10 +643,7 @@ describe("the pages of a list the server pages", () => {
       ),
     );
     expect(screen.getByText("La page demandée est au-delà de la fin du journal.")).toBeVisible();
-    expect(screen.getByRole("link", { name: /Imports plus récents/ })).toHaveAttribute(
-      "href",
-      PATHNAME,
-    );
+    expect(screen.getByRole("link", { name: /^Précédent/ })).toHaveAttribute("href", PATHNAME);
   });
 
   it("turns a page from the address last asked: a sort under way is kept, from the first page", async () => {
@@ -666,7 +674,7 @@ describe("the pages of a list the server pages", () => {
         { scroll: false },
       );
     });
-    await userEvent.click(screen.getByRole("link", { name: /Lignes suivantes/ }));
+    await userEvent.click(screen.getByRole("link", { name: /^Suivant/ }));
     expect(router.push).toHaveBeenLastCalledWith(
       `${PATHNAME}?sort_by=document_date&sort_order=asc`,
       { scroll: false },
@@ -705,12 +713,12 @@ describe("the pages of a list the server pages", () => {
       `${PATHNAME}?imports_offset=12&in_tracked_scope=false`,
       { scroll: false },
     );
-    await userEvent.click(screen.getByRole("link", { name: /Lignes suivantes/ }));
+    await userEvent.click(within(pagesOf("costs")).getByRole("link", { name: /^Suivant/ }));
     expect(router.push).toHaveBeenLastCalledWith(
       `${PATHNAME}?imports_offset=12&in_tracked_scope=false`,
       { scroll: false },
     );
-    await userEvent.click(screen.getByRole("link", { name: /Imports plus récents/ }));
+    await userEvent.click(within(pagesOf("journal")).getByRole("link", { name: /^Précédent/ }));
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?in_tracked_scope=false`, {
       scroll: false,
     });
@@ -738,10 +746,10 @@ describe("the pages of a list the server pages", () => {
         </PendingAddress>,
       ),
     );
-    await userEvent.click(screen.getByRole("link", { name: /Imports plus récents/ }));
+    await userEvent.click(within(pagesOf("journal")).getByRole("link", { name: /^Précédent/ }));
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?offset=1`, { scroll: false });
     // The journal turned reads nothing of the costs: their next page follows the one shown (#294).
-    await userEvent.click(screen.getByRole("link", { name: /Lignes suivantes/ }));
+    await userEvent.click(within(pagesOf("costs")).getByRole("link", { name: /^Suivant/ }));
     expect(router.push).toHaveBeenLastCalledWith(
       `${PATHNAME}?offset=${String(1 + list.items.length)}`,
       { scroll: false },
@@ -779,7 +787,7 @@ describe("the pages of a list the server pages", () => {
       scroll: false,
     });
     // The line asked and not arrived: the next page still follows the one shown.
-    await userEvent.click(screen.getByRole("link", { name: /Lignes suivantes/ }));
+    await userEvent.click(screen.getByRole("link", { name: /^Suivant/ }));
     expect(router.push).toHaveBeenLastCalledWith(
       `${PATHNAME}?offset=${String(1 + list.items.length)}&${shown}`,
       { scroll: false },

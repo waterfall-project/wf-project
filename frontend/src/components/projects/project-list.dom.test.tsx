@@ -173,7 +173,7 @@ describe("the grid of the list of projects", () => {
       ),
     );
     expect(screen.getByText("La page demandée est au-delà de la fin de la liste.")).toBeVisible();
-    expect(screen.getByRole("link", { name: /Projets précédents/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Précédent/ })).toHaveAttribute(
       "href",
       "/?is_contributor=false&offset=50",
     );
@@ -356,7 +356,7 @@ describe("the filter of the list by state", () => {
     await pick("Filtre par état", "Perdu");
     expect(await lastAddress()).toBe("/?states=lost");
     // The state asked and not arrived: the projects read otherwise start from their first page.
-    await user.click(screen.getByRole("link", { name: /Projets précédents/ }));
+    await user.click(screen.getByRole("link", { name: /^Précédent/ }));
     expect(await lastAddress()).toBe("/?states=lost");
   });
 });

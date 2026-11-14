@@ -271,11 +271,11 @@ describe("the pages of a list of the reference data", () => {
       name: "Pages de «\u00A0Rôles de ressources\u00A0»",
     });
     expect(pages).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Page précédente/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Précédent/ })).toHaveAttribute(
       "href",
       "/reference/resources?calendar_sort_by=label",
     );
-    expect(screen.getByRole("link", { name: /Page suivante/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Suivant/ })).toHaveAttribute(
       "href",
       "/reference/resources?role_offset=100&calendar_sort_by=label",
     );
@@ -299,12 +299,12 @@ describe("the pages of a list of the reference data", () => {
     );
     // A filter of the roles asked, not shown yet: the next page is the first of the list filtered.
     await pick("État", "Actifs", "radio");
-    await userEvent.click(screen.getByRole("link", { name: /Page suivante/ }));
+    await userEvent.click(screen.getByRole("link", { name: /^Suivant/ }));
     expect(lastAddress()).toBe("/reference/resources?role_is_active=true");
     // Shown, the sort of another list under way leaves the place of the roles as it is.
     page.search = "role_offset=50&calendar_sort_by=label";
     rerender(inFrench(<ListPages list={ROLES} title="Rôles" page={MIDDLE} shown={50} />));
-    await userEvent.click(screen.getByRole("link", { name: /Page suivante/ }));
+    await userEvent.click(screen.getByRole("link", { name: /^Suivant/ }));
     expect(lastAddress()).toBe("/reference/resources?role_offset=100&calendar_sort_by=label");
   });
 
@@ -315,11 +315,11 @@ describe("the pages of a list of the reference data", () => {
       inFrench(<ListPages list={ROLES} title="Rôles" page={beyond} shown={0} />),
     );
     expect(screen.getByText("La page demandée est au-delà de la fin de la liste.")).toBeVisible();
-    expect(screen.getByRole("link", { name: /Page précédente/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Précédent/ })).toHaveAttribute(
       "href",
       "/reference/resources?role_offset=150",
     );
-    expect(screen.queryByRole("link", { name: /Page suivante/ })).toBeNull();
+    expect(screen.getByRole("link", { name: /^Suivant/ })).toHaveAttribute("aria-disabled", "true");
     const whole = { ...MIDDLE, offset: 0, total: 50 };
     rerender(inFrench(<ListPages list={ROLES} title="Rôles" page={whole} shown={50} />));
     expect(screen.queryByRole("navigation")).toBeNull();

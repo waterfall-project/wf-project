@@ -31,7 +31,7 @@ Au-dessus de la table, pour tous :
 
 - **Filtrer par origine**, le nœud de rattachement, **Filtrer par rôle** — un compte qui porte l’un des rôles choisis — et **État du compte** ; pour la création et la dernière modification, une période et un auteur. Un auteur se choisit parmi ceux de la page ; **Chercher** en trouve d’autres parmi les comptes.
 - Le champ de recherche retient les comptes dont le nom, le prénom ou l’adresse contient le texte saisi.
-- **Colonnes** choisit les colonnes montrées ; **Lignes par page**, **Page précédente** et **Page suivante** parcourent la liste.
+- **Colonnes** choisit les colonnes montrées ; **Lignes par page**, **Précédent** et **Suivant** parcourent la liste.
 
 La recherche et les filtres sont gardés avec les réglages de la grille : revenir à l’écran sans rien demander les retrouve.
 

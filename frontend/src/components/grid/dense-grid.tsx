@@ -763,7 +763,6 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         onOpen={openFilters}
         address={config.address}
         filterNames={config.filters}
-        count={totalsCaption(shownTotals)}
         grid={sharedName(config, (name) => t(`names.${name}`))}
         columns={toggledColumns(table, config, (column) =>
           headingOf(column, (key) => t(`columns.${key}`)),
