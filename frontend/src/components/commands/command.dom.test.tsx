@@ -257,7 +257,7 @@ describe("a command of a screen", () => {
     );
   });
 
-  it("forgets the refusal of a press once the command is available, and does not tell it again when it is not [WF-IHM-0090]", async () => {
+  it("forgets the refusal of a press once the command is available, and does not tell it again when it is not [WF-IHM-0090-A]", async () => {
     const unavailable = {
       is_available: false,
       missing_conditions: ["project_in_progress"],

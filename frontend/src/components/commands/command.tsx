@@ -10,9 +10,9 @@
  * An unavailable command stays in the order of the keyboard, marked `aria-disabled`, so that
  * its tooltip and its description are reached; pressing it runs nothing, and tells what it lacks
  * in an alert, which is the refusal the screen would have had from the server. Greying it out is a
- * convenience, not a protection: an available command runs its server action, and the refusal the server may
- * still oppose is told like any outcome (`OutcomeNotice`). The navigations of the page wait for its
- * outcome, and do not take place when it is refused (`useHeldCommand`, #688).
+ * convenience, not a protection: an available command runs its server action, and the refusal
+ * the server may still oppose is told like any outcome (`OutcomeNotice`). The navigations of the
+ * page wait for its outcome, and do not take place when it is refused (`useHeldCommand`, #688).
  *
  * Pressed, it waits for what it started — its server action, a write the command opened, the
  * background task it handed to the tracker — inert and saying so, the same way for every command
@@ -125,19 +125,26 @@ function HiddenUnmet({
   );
 }
 
-/** The refusal an unavailable command pressed tells, in the region of the refusals: what it lacks. */
+/**
+ * The refusal an unavailable command pressed tells, in the region of the refusals: what it lacks.
+ * It belongs to the press: the caller keys it by the availability of the command, so that it is
+ * mounted anew, and tells nothing, each time the command changes; it tells once a press has been
+ * counted since it was mounted, and so does not come back, unavailable again, without a new press.
+ */
 function UnmetRefusal({
   offer,
-  pressed,
+  presses,
   unmet,
 }: {
   readonly offer: CommandOffer;
-  readonly pressed: boolean;
+  /** The count of the presses of the command, unavailable or not. */
+  readonly presses: number;
   /** The identifier of the conditions it lacks (`unmetId`): none when it lacks none. */
   readonly unmet: string | undefined;
 }) {
   const text = useUnmet();
-  if (!pressed || unmet === undefined) {
+  const [seen] = useState(presses);
+  if (presses === seen || unmet === undefined) {
     return null;
   }
   return (
@@ -167,20 +174,6 @@ export function useUnmet(): (offer: CommandOffer) => string {
   };
 }
 
-/**
- * The refusal belongs to the press: once the command is no longer unavailable it is forgotten, so
- * that unavailable again it does not come back without a new press.
- */
-function forgetPress(
-  offer: CommandOffer | undefined,
-  pressed: boolean,
-  setPressed: (pressed: boolean) => void,
-): void {
-  if (pressed && offer?.is_available !== false) {
-    setPressed(false);
-  }
-}
-
 /** Render a command as the screen offers it, and tell of the outcome of running it. */
 export function Command({
   offer,
@@ -201,9 +194,8 @@ export function Command({
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   // An unavailable command pressed: it tells what it lacks, as the refusal it would have drawn.
-  const [pressed, setPressed] = useState(false);
+  const [presses, setPresses] = useState(0);
   const held = useHeldCommand();
-  forgetPress(offer, pressed, setPressed);
   if (offer === undefined) {
     return null;
   }
@@ -214,13 +206,12 @@ export function Command({
   const describedBy = writing ? [why, unmet].filter((part) => part !== undefined).join(" ") : unmet;
   const run = () => {
     if (!offer.is_available) {
-      setPressed(true);
+      setPresses((count) => count + 1);
       return;
     }
     if (waiting) {
       return;
     }
-    setPressed(false);
     if (disclosure !== undefined) {
       disclosure.toggle();
       return;
@@ -260,7 +251,12 @@ export function Command({
         </Button>
       </CommandTooltip>
       <HiddenUnmet id={unmet} offer={offer} />
-      <UnmetRefusal offer={offer} pressed={pressed} unmet={unmet} />
+      <UnmetRefusal
+        key={String(offer.is_available)}
+        offer={offer}
+        presses={presses}
+        unmet={unmet}
+      />
       <WritingNote id={why} writing={writing} />
       <OutcomeNotice
         outcome={outcome}
