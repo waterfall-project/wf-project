@@ -303,21 +303,28 @@ sa colonne est refusé au champ qui le provoque (#3093), que les pointeurs de #3
 
 ### Ordre de construction
 
-En six temps, pour que quatre livreurs avancent ensemble.
+En six temps. Quatre livreurs avancent ensemble aux deux premiers ; ensuite, le back des grilles
+est un couloir où les lots se suivent, à côté duquel avancent les processus, la charge et le front.
 
 1. **Les outils, et ce qui ne mesure rien**, en parallèle : la mesure dans le processus, le mode
    exclusif, le parcours de mesure (US-2210) ; le format des rapports et leur confrontation
    (US-2300) ; la fabrique et le réglage des processus, à un processus par défaut (US-2230) ; les
    constats reçus (US-2260) ; la connexion perdue du front (US-2240).
-2. **La mesure de référence** : `reference.json`, pris par le dernier lot d'US-2210.
-3. **Les corrections qui ne partagent aucun fichier**, en parallèle : le chemin de lecture
-   (US-2220) ; la copie d'une révision (US-2240) ; le nombre de processus (US-2230). La saisie
-   (US-2250) touche `core/planning/interface/nodes.py` comme les deux premières : elle ne se livre
-   pas en même temps qu'elles.
-4. **Ce qui s'appuie sur la lecture nouvelle** : l'agrégat (US-2280) et la lecture gardée
-   (US-2270), après US-2220, l'un après l'autre.
+2. **La mesure de référence** : `reference.json`, pris par le dernier lot d'US-2210 ; à côté, la
+   charge des cinquante utilisateurs (US-2300).
+3. **Les corrections du back, une à la fois** : le chemin de lecture (US-2220), la copie d'une
+   révision (US-2240) et la saisie (US-2250) touchent toutes `core/planning/interface/nodes.py` —
+   `list_nodes`, `copy_nodes`, `update_task_facet` —, et les deux premières les crochets de
+   `FacetHooks` : aucune ne se livre en même temps qu'une autre. Le nombre de processus (US-2230)
+   avance à côté.
+4. **Ce qui s'appuie sur la lecture nouvelle**, dans le même couloir : l'agrégat (US-2280), puis
+   la lecture gardée (US-2270).
 5. **Les parcours lourds** (US-2290), corrections livrées et processus réglés.
 6. **Le rapport de la version** (US-2300), en dernier, sur les écrans de travail refondus.
+
+Deux lots ne s'ouvrent que si la mesure les demande, par le livreur du lot qui rend le verdict
+(`make tracking ADD_LOT=…`) : le dernier palier du chemin de lecture, si les deux premiers manquent
+la cible (US-2220) ; le stockage à l'écriture, si l'agrégat la manque (US-2280).
 
 Le Makefile et le guide reçoivent une cible et son paragraphe de plusieurs lots : chacun n'y
 écrit que les siens, et ils ne mettent pas deux lots « pas avec », comme les catalogues dans EP-25.
