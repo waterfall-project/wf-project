@@ -11,7 +11,7 @@ of the paste.
 """
 
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from estimate_support import YEAR, Costing, Lines, add_role, costing
@@ -19,10 +19,11 @@ from history_support import delete, redone, undo, undone
 from nodes_support import Tree, entries, faults, opened, refusal, signed_in
 from projects_support import PROJECTS, Person, Scene
 from projects_support import scene as make_scene
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
 from sqlalchemy.orm import Session
 
 from waterfall.core.estimate import writing
+from waterfall.core.estimate.reading import totals_of
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.interface import facets
 from waterfall.core.revisions.interface import mark_revision
@@ -355,3 +356,22 @@ def test_a_write_of_a_line_refused_keeps_no_entry_of_the_history(
         ("/estimate_line/cost_category_id", "VALUE_REQUIRED", {})
     ]
     assert len(entries(stage)) == held
+
+
+def test_the_figures_of_no_line_are_read_without_a_statement(stage: Scene) -> None:
+    # A detail of the realization which reprises no Vérif (#3048): ``totals_of`` sends nothing to
+    # the database for an empty collection, as ``rows_of`` does.
+    sent: list[str] = []
+
+    def count(*arguments: Any) -> None:
+        sent.append(str(arguments[2]))
+
+    engine = stage.owner
+    event.listen(engine, "before_cursor_execute", count)
+    try:
+        with Session(engine) as session:
+            assert totals_of(session, uuid4(), []) == {}
+            assert totals_of(session, uuid4(), set()) == {}
+    finally:
+        event.remove(engine, "before_cursor_execute", count)
+    assert sent == []

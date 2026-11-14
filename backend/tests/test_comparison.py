@@ -414,15 +414,31 @@ def test_the_comparison_and_the_structure_render_bodies_of_json_values_alone(
 
     monkeypatch.setattr(comparison_routes, "read_body", kept)
     monkeypatch.setattr(node_routes, "read_body", kept)
-    found = comparison(api, stage, revisions(pair))
-    listed = pair.amendment_tree.read()
-    assert (found.status_code, listed.status_code) == (200, 200)
-    assert [len(each["items"]) for each in bodies] == [
-        len(found.json()["items"]),
-        len(listed.json()["items"]),
+    # The pair has lines with a role of resource and tasks of every difference; a third revision,
+    # copied from the amendment, has a task completed, which puts its line's ``remaining_missing``
+    # in the body, the dates and the progress with it.
+    third = opened(api, stage)
+    latest = Tree(api, stage, third)
+    nodes = by_label(latest.items())
+    set_progress(stage, nodes["Conception"]["node_id"], "completed", date(2026, 11, 3))
+    bodies.clear()
+    named = "&fields=task.label,estimate_line.label"
+    answers = [
+        comparison(api, stage, revisions(pair)),
+        comparison(api, stage, revisions(pair), named),
+        latest.read(),
+        latest.read("?fields=task.label,parent_id"),
     ]
+    assert [each.status_code for each in answers] == [200, 200, 200, 200]
+    sizes = [len(each.json()["items"]) for each in answers]
+    assert [len(each["items"]) for each in bodies] == sizes
     assert {each["difference"] for each in bodies[0]["items"]} >= {"added", "removed", "modified"}
-    for body, response in zip(bodies, (found, listed), strict=True):
+    lines: list[dict[str, Any]] = [
+        each["estimate_line"] for each in bodies[2]["items"] if each.get("estimate_line")
+    ]
+    assert any(each.get("resource_role_id") for each in lines)
+    assert any(each["remaining_entry"]["missing_conditions"] for each in lines)
+    for body, response in zip(bodies, answers, strict=True):
         assert json_values(body)
         assert response.content == JSONResponse(jsonable_encoder(body)).body
 

@@ -154,6 +154,10 @@ def totals_of(
     every line before it reads the lines it returns, and a line made an object of the session
     costs several times its columns (#3048). The budgeted amount as ``budgeted_of`` reads it.
     """
+    if not node_ids:
+        return {}
+    if not node_ids:
+        return {}
     rows = session.execute(
         select(
             EstimateLine.node_id,
