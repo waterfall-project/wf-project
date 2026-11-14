@@ -193,3 +193,51 @@ def test_a_currency_and_a_name_well_formed_are_read_by_the_bootstrap(
     monkeypatch.setattr(bootstrap, "install", reached)
     assert bootstrap.main(["install"]) == 0
     assert read == [("EUR", "x" * 200)]
+
+
+@pytest.mark.requirement("WF-EXP-0020-A")
+@pytest.mark.usefixtures("platform_environment")
+@pytest.mark.parametrize("value", ["Mars/Olympus", "europe/paris", "Paris", "+01:00"])
+def test_a_time_zone_unknown_stops_the_bootstrap_before_anything(
+    value: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Proper to US-2200: a time zone the IANA database does not name is refused (WF-EXP-0020,
+    # #2527); the command names the variable, never its value, and returns 2 before it reaches the
+    # database or Keycloak.
+    for name, given in BOOTSTRAP_ENVIRONMENT.items():
+        monkeypatch.setenv(name, given)
+    monkeypatch.setenv("WATERFALL_TIME_ZONE", value)
+
+    def reached(*_: object) -> int:
+        pytest.fail("the bootstrap ran with a time zone unknown")
+
+    monkeypatch.setattr(bootstrap, "install", reached)
+    assert bootstrap.main(["install"]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "WATERFALL_TIME_ZONE: " in captured.err
+
+
+@pytest.mark.requirement("WF-EXP-0020-A")
+@pytest.mark.usefixtures("platform_environment")
+@pytest.mark.parametrize(
+    ("value", "kept"), [(None, None), ("", None), ("Europe/Paris", "Europe/Paris")]
+)
+def test_the_bootstrap_reads_the_time_zone_given_and_none_when_absent_or_empty(
+    value: str | None, kept: str | None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for name, given in BOOTSTRAP_ENVIRONMENT.items():
+        monkeypatch.setenv(name, given)
+    if value is None:
+        monkeypatch.delenv("WATERFALL_TIME_ZONE", raising=False)
+    else:
+        monkeypatch.setenv("WATERFALL_TIME_ZONE", value)
+    read: list[str | None] = []
+
+    def reached(settings: bootstrap.InstallationSettings, _: object) -> int:
+        read.append(settings.time_zone)
+        return 0
+
+    monkeypatch.setattr(bootstrap, "install", reached)
+    assert bootstrap.main(["install"]) == 0
+    assert read == [kept]
