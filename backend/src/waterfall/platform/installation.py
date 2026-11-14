@@ -16,7 +16,7 @@ once, the first time it needs the current day, from the database its entry point
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import BigInteger, CheckConstraint, Integer, SmallInteger, Text
 from sqlalchemy.orm import Mapped, Session, mapped_column
@@ -132,7 +132,12 @@ class ProcessTimeZone:
             if self._source is None:
                 message = "the process names no source of the time zone of the installation"
                 raise RuntimeError(message)
-            self._zone = ZoneInfo(self._source())
+            name = self._source()
+            try:
+                self._zone = ZoneInfo(name)
+            except ZoneInfoNotFoundError:
+                logger.warning("installation.time_zone_unknown")
+                raise UnavailableError(COMPONENT_UNAVAILABLE, {"component": "database"}) from None
         return self._zone
 
 
