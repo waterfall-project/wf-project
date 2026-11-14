@@ -110,13 +110,22 @@ class Probe:
         The signal goes out even when `make` has finished: the stand-in it
         started can outlive it in the same group. Aiming at the group of a
         `make` already waited for is safe, as the group number stays reserved
-        while any member lives. The pipes are drained within a bound, so a
-        process that left the group holding one fails instead of blocking.
+        while any member lives. Every group is killed first, then every run is
+        drained within a bound, so a process that left the group holding a
+        pipe fails instead of blocking, and one timeout does not leave the
+        later runs undrained. The first timeout is raised at the end.
         """
         for run in self.runs:
             with contextlib.suppress(ProcessLookupError):
                 os.killpg(run.pid, signal.SIGKILL)
-            run.communicate(timeout=10)
+        failure: subprocess.TimeoutExpired | None = None
+        for run in self.runs:
+            try:
+                run.communicate(timeout=10)
+            except subprocess.TimeoutExpired as error:
+                failure = failure or error
+        if failure is not None:
+            raise failure
 
     def served(self) -> tuple[int, str]:
         pid, path = self.record.read_text(encoding="utf-8").split()
