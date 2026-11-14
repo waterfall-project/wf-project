@@ -203,6 +203,24 @@ def test_an_entry_recognizes_a_failure_only_when_all_its_patterns_match() -> Non
     assert known(step="e2e-service").recognizes(projects)
 
 
+def test_the_family_b_entries_recognize_their_journey_by_its_title_at_any_line() -> None:
+    catalogue = queue.read_catalogue()
+    costs = queue.Failure(
+        42,
+        "service / paths (2/4)",
+        "e2e-service",
+        file="e2e/reference-costs.spec.ts",
+        line=512,
+        name="presents fixed the type of a nature whose category is employed, with its conditions",
+    )
+    kind, entry = catalogue.classify(costs)
+    assert kind == queue.FLAKY
+    assert entry is not None
+    assert entry.family.startswith("B.")
+    other = replace(costs, name="deactivates a nature from its row")
+    assert catalogue.classify(other) == (queue.TO_CLASSIFY, None)
+
+
 def test_an_entry_that_names_runs_recognizes_nothing_outside_them() -> None:
     (found,) = failures("keycloak-import")
     entry = known(**{"class": queue.REGRESSION}, job="^service / paths$", runs=[42])
