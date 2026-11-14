@@ -267,6 +267,11 @@
       "sentence": "Une tâche démarrée qui couvre exactement quatre mois civils, à mi-parcours à la date de calcul — le premier jour du troisième mois —, dont une ligne porte un reste de 80 heures, présente ces 80 heures sur les deux mois restants au prorata de leurs heures travaillées — 40 et 40 s'ils en comptent autant — et rien sur les mois écoulés ; sur une révision marquée, la date de calcul est sa date de marquage."
     },
     {
+      "key": "WF-DEV-0100-A#72d0671c3c33",
+      "requirement": "WF-DEV-0100-A",
+      "sentence": "Une ligne de 1 200 portée par une tâche qui couvre exactement deux mois civils apparaît sur ces deux mois, au prorata des heures travaillées de la tâche dans chacun."
+    },
+    {
       "key": "WF-RAE-0010-A#1dfcd306dada",
       "requirement": "WF-RAE-0010-A",
       "sentence": "Écarter un risque de provision 40 diminue le reste à engager de 40 ; en identifier un nouveau l'augmente de sa provision."
@@ -425,6 +430,16 @@
       "key": "WF-IND-0100-A#fe59cdb8f930",
       "requirement": "WF-IND-0100-A",
       "sentence": "Avec un délai de paiement de 60 jours saisi sur toutes les lignes, main-d'œuvre comprise, la courbe du budget de référence décalée est la courbe non décalée translatée de 60 jours ; la projection l'est aussi, hormis les lignes de provision, qui restent à leur date ; le coût réel n'est pas décalé."
+    },
+    {
+      "key": "WF-IHM-0160-A#3c0e1839abfb",
+      "requirement": "WF-IHM-0160-A",
+      "sentence": "Entre une base à 1 000 et une révision lue à 1 200, la ligne de totaux du devis porte 1 200, 1 000 et l'écart de 200, et se marque modifiée."
+    },
+    {
+      "key": "WF-IHM-0160-A#b6001b5b2348",
+      "requirement": "WF-IHM-0160-A",
+      "sentence": "Une ligne de 100 retirée depuis la base compte dans le total de la base et dans l'écart, non dans le total de la révision lue."
     },
     {
       "key": "WF-IHM-0100-A#bcb52ee478df",
