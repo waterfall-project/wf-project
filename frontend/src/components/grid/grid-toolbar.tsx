@@ -49,11 +49,13 @@ import { UndoCommands, type UndoControl } from "./undo-commands";
  * The classes of the line of a bar that is not folded: it is never narrower than what it needs on
  * one line; with the filters of a tree it keeps the width of its frame instead, its controls giving
  * up their width down to their floor, and it scrolls sideways when even that does not hold; the
- * padding and the negative margin leave the focus ring of a button room without taller bar.
+ * padding and the negative margin leave the focus ring of a button room without taller bar. A bar
+ * that scrolls loses the least height a flex item has, so it never shrinks (`shrink-0`, US-2020,
+ * #3089): in the column of a screen it is the frame of the grid that gives way, down to its floor.
  */
 function barClass(scrolling: boolean): string {
   return scrolling
-    ? "-my-0.5 flex max-w-full items-center gap-2 overflow-x-auto py-0.5"
+    ? "-my-0.5 flex max-w-full shrink-0 items-center gap-2 overflow-x-auto py-0.5"
     : "flex min-w-min max-w-full items-center gap-2";
 }
 

@@ -1159,7 +1159,7 @@ dans le tableau de suivi pour que ses dépendants l'attendent.
 
 ## US-2020 — La barre d'une grille arborescente garde sa hauteur, quel que soit le nombre de lignes de la grille
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0060-A`
 - **opérations** : aucune
 - **issue** : #3091
