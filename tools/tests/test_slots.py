@@ -20,7 +20,7 @@ from typing import Any
 import pytest
 from test_worktree_slots import MAKEFILE, Workstation, docker_asked
 
-from wftools import REPOSITORY, slots
+from wftools import REPOSITORY, heavyturns, slots
 
 SLOTS = REPOSITORY / "tools" / "src" / "wftools" / "slots.py"
 # Writes its start, waits for the file "go" (60 s at most, never to block), writes its end.
@@ -133,9 +133,9 @@ def test_slots_one_to_nine_and_absent_are_accepted(value: str | None) -> None:
 
 def test_the_locks_are_numbered_from_the_first_of_before(tmp_path: Path) -> None:
     """US-1090: waterfall-heavy.lock, then waterfall-heavy.2.lock to waterfall-heavy.<N>.lock."""
-    names = [path.name for path in slots.lock_paths({"XDG_RUNTIME_DIR": str(tmp_path)}, 3)]
+    names = [path.name for path in heavyturns.lock_paths({"XDG_RUNTIME_DIR": str(tmp_path)}, 3)]
     assert names == ["waterfall-heavy.lock", "waterfall-heavy.2.lock", "waterfall-heavy.3.lock"]
-    assert slots.lock_paths({}, 1) == [Path(os.sep, "tmp", "waterfall-heavy.lock")]
+    assert heavyturns.lock_paths({}, 1) == [Path(os.sep, "tmp", "waterfall-heavy.lock")]
 
 
 def test_a_process_left_behind_does_not_keep_the_slot(tmp_path: Path) -> None:

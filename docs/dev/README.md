@@ -3214,15 +3214,37 @@ coverage of the back and the front, `make test-tools`, the production build of t
 end-to-end paths —, whatever the repository or the worktree. This environment variable, set in the
 profile of the user, is an integer from 1 to 9; absent, it is 1; any other value is refused, and
 said. The admission is `tools/src/wftools/slots.py run --heavy -- <command>` (standard library
-alone, run by `python3` without `uv`), which the Makefile puts before every heavy run: it takes the
-first of N lock files of `$XDG_RUNTIME_DIR` (`/tmp` by default) — `waterfall-heavy.lock`, then
-`waterfall-heavy.2.lock` to `waterfall-heavy.<N>.lock` —, says once that all are taken and tries
+alone, and `heavyturns.py` beside it, which takes the turns; run by `python3` without `uv`), which
+the Makefile puts before every heavy run: it takes the first of N lock files of `$XDG_RUNTIME_DIR`
+(`/tmp` by default) — `waterfall-heavy.lock`, then `waterfall-heavy.2.lock` to
+`waterfall-heavy.<N>.lock` —, says once that all are taken and tries
 again every second, holds the lock until the command ends without passing it to its children (a
 server left behind does not keep the slot), relays the signals and returns the code of the command.
 A run of one single file (`TESTS`) does not wait. It also sets `WATERFALL_PROCESSORS`, the
 processors divided by N, at least 1: the workers of pytest (`-n`, eight at most for the back), of
 Vitest and of Playwright follow it, except `WORKERS`. At N = 1 the share is the whole workstation:
 nothing changes.
+
+**The workstation for a measure alone** (US-2210). `slots.py run --exclusive -- <command>`, which
+the variable `exclusive` of the Makefile puts before a command, takes every turn of the heavy runs:
+first the gate `waterfall-heavy.exclusive.lock`, then the nine lock files, `waterfall-heavy.lock` to
+`waterfall-heavy.9.lock` — the nine, whatever its N, to hold back a deliverer whose N is larger
+too —, always in that order: two exclusive commands pass one after the other, never each with a half
+of the turns. It says once that it waits for the heavy runs in progress to end, keeps everything
+until the command ends, and gives everything back when it is interrupted as well (`SIGINT`,
+`SIGTERM`, an exception). A heavy run started meanwhile waits, saying so once: it takes a shared
+lock of the gate, without waiting, while it looks for a turn. An older tool, which does not know the
+gate, is waited for like any run in progress, but it does not wait for the gate in turn: it polls
+the turns every second and may take one back before the measure, without end. A measure therefore
+holds the workstation against the other deliverers only once their branches have this mode, and the
+pilot does not start one before. The command is given the mark `WATERFALL_SLOTS_HELD=exclusive`: a
+`make` it starts that goes through `$(heavy)`, or another exclusive command, takes no turn — they
+are the measure's —, says so, and runs; without it, it would wait without end for the gate its
+parent holds. The mark is believed only while an exclusive run holds the gate. The command is also
+given the `WATERFALL_PROCESSORS` of the whole workstation, but a recipe that writes it after
+`$(exclusive)`, as `WATERFALL_PROCESSORS=$(WATERFALL_PROCESSORS)`, wins with the share of N make
+computed before: a target of measure takes the variable from the mode, without writing it again.
+The light work of the other deliverers — a file of tests (`TESTS`), the lint, the typing — goes on.
 
 **The slots of the worktrees** (US-1100). Each worktree of a lot takes a slot from 1 to N — the
 same `WATERFALL_SLOTS` —, which gives it its ports, its Compose projects and the tags of its

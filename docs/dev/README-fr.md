@@ -3228,9 +3228,10 @@ couverture du back et du front, `make test-tools`, la construction du front pour
 les parcours de bout en bout —, tous dépôts et worktrees confondus. Cette variable de
 l'environnement, celle du profil de l'utilisateur, est un entier de 1 à 9 ; absente, elle vaut 1 ;
 toute autre valeur est refusée, en le disant. L'admission est
-`tools/src/wftools/slots.py run --heavy -- <commande>` (bibliothèque standard seule, lancée par
-`python3` sans `uv`), que le Makefile place devant chaque exécution lourde : elle prend le premier
-de N fichiers de verrou de `$XDG_RUNTIME_DIR` (`/tmp` à défaut) — `waterfall-heavy.lock`, puis
+`tools/src/wftools/slots.py run --heavy -- <commande>` (bibliothèque standard seule, et
+`heavyturns.py` à côté, qui prend les tours ; lancée par `python3` sans `uv`), que le Makefile
+place devant chaque exécution lourde : elle prend le premier de N fichiers de verrou de
+`$XDG_RUNTIME_DIR` (`/tmp` à défaut) — `waterfall-heavy.lock`, puis
 `waterfall-heavy.2.lock` à `waterfall-heavy.<N>.lock` —, dit une fois que tous sont pris et réessaie
 chaque seconde, garde le verrou jusqu'à la fin de la commande, sans le transmettre à ses enfants (un
 serveur resté derrière ne garde pas le créneau), relaie les signaux et rend le code de la commande.
@@ -3238,6 +3239,28 @@ Une exécution d'un seul fichier (`TESTS`) n'attend pas. Elle pose aussi `WATERF
 processeurs divisés par N, au moins 1 : les workers de pytest (`-n`, huit au plus pour le back), de
 Vitest et de Playwright s'y règlent, sauf `WORKERS`. À N = 1, la part est le poste entier : rien ne
 change.
+
+**Le poste pour une mesure seule** (US-2210). `slots.py run --exclusive -- <commande>`, que la
+variable `exclusive` du Makefile pose devant une commande, prend tous les tours des exécutions
+lourdes : d'abord la barrière `waterfall-heavy.exclusive.lock`, puis les neuf fichiers de verrou,
+`waterfall-heavy.lock` à `waterfall-heavy.9.lock` — les neuf, quel que soit son N, pour retenir
+aussi un livreur dont le N est plus grand —, toujours dans cet ordre : deux commandes exclusives
+passent l'une après l'autre, jamais chacune avec une moitié des tours. Elle dit une fois qu'elle
+attend la fin des exécutions lourdes en cours, garde tout jusqu'à la fin de la commande, et rend
+tout aussi quand on l'interrompt (`SIGINT`, `SIGTERM`, une exception). Une exécution lourde lancée
+pendant ce temps attend, en le disant une fois : elle prend un verrou partagé de la barrière, sans
+attendre, le temps de chercher un tour. Un outil plus ancien, qui ignore la barrière, est attendu
+comme toute exécution en cours, mais il n'attend pas la barrière à son tour : il sonde les tours
+chaque seconde et peut en reprendre un avant la mesure, sans fin. Une mesure ne tient donc le poste
+contre les autres livreurs qu'une fois ce mode repris par leurs branches, et le pilote ne la lance
+pas avant. La commande reçoit le marqueur `WATERFALL_SLOTS_HELD=exclusive` : un `make` qu'elle lance
+et qui passe par `$(heavy)`, ou une autre commande exclusive, ne prend aucun tour — ce sont ceux de
+la mesure —, le dit, et s'exécute ; sans cela il attendrait sans fin la barrière que tient son
+parent. Le marqueur n'est cru que tant qu'une exécution exclusive tient la barrière. La commande
+reçoit aussi `WATERFALL_PROCESSORS` du poste entier, mais une recette qui l'écrit après
+`$(exclusive)`, comme `WATERFALL_PROCESSORS=$(WATERFALL_PROCESSORS)`, l'emporte avec la part de N
+que make a calculée avant : une cible de mesure tire la variable du mode, sans la réécrire. Les
+travaux légers des autres livreurs — un fichier de tests (`TESTS`), le lint, le typage — continuent.
 
 **Les créneaux des worktrees** (US-1100). Chaque worktree d'un lot prend un créneau de 1 à N — le
 même `WATERFALL_SLOTS` —, qui lui donne ses ports, ses projets Compose et les étiquettes de ses

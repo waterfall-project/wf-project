@@ -54,6 +54,15 @@ Ses règles sont dans le skill `pilote` (`.claude/skills/pilote/SKILL.md`). En b
   worktrees dans son dépôt, dépôt principal compris. Un livreur sans créneau rend la main sans
   rien faire, avec le relevé « aucun créneau libre », que le pilote traite comme une limite
   d'usage.
+- **Une mesure prend le poste** (US-2210). Une commande lancée en mode exclusif
+  (`slots.py run --exclusive`, la variable `exclusive` du Makefile ; guide, « Commandes ») attend
+  la fin des exécutions lourdes en cours puis retient toutes les suivantes, de tous les livreurs et
+  de tous les dépôts, tant qu'elle dure : un `make test-back` ou un `make e2e` d'un autre livreur
+  dit alors une fois qu'il attend, et reprend seul à la fin de la mesure. Ce n'est pas un blocage :
+  rien ne s'arrête ni ne se relance, et les travaux légers — un fichier de tests, le lint — passent.
+  Elle ne tient le poste contre les autres livreurs qu'une fois ce mode repris par leurs branches :
+  un `slots.py` plus ancien ignore la barrière et peut reprendre un tour avant la mesure, sans fin.
+  Le pilote ne lance donc aucune mesure tant qu'une branche en cours n'a pas repris US-2210/L2.
 - **Jamais sous `/tmp`.** Un worktree ne se tire jamais sous `/tmp`, scratchpad compris : son
   tmpfs a manqué d'inodes le 2026-11-12 sous les `node_modules` de worktrees tirés dans des
   scratchpads. Le pilote les tire sous le dépôt (`.claude/worktrees/`) ; aucun outil ne le

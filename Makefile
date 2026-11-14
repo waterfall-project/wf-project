@@ -119,6 +119,10 @@ WORKERS ?=
 # always free. `env` keeps the variables set before the command a command of their own.
 SLOTS = python3 $(CURDIR)/tools/src/wftools/slots.py
 heavy = $(if $(TESTS),,$(SLOTS) run --heavy -- env)
+# A measure takes the workstation for itself alone (US-2210): every slot of the heavy runs, in a
+# fixed order, once those in progress have ended; the heavy runs started meanwhile wait for it. The
+# light work of the other deliverers goes on. TESTS changes nothing: a measure is never a light run.
+exclusive = $(SLOTS) run --exclusive -- env
 # A ceiling of memory on the tests of the tools (2026-11-12: a test whose fake never ended its pages
 # filled the 122 GB of the workstation twice, and the kernel killed the whole session of the pilot
 # with its four deliverers). Under systemd the run is a scope of its own: past TOOLS_MEMORY the
