@@ -5,7 +5,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
-import { abandonFileImport, applyFileImport, openFileImport, requestFileExport } from "./exchanges";
+import {
+  abandonFileImport,
+  applyFileImport,
+  openFileImport,
+  requestFileExport,
+  setFileImportDurationRule,
+} from "./exchanges";
 
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 const refresh = vi.hoisted(() => vi.fn());
@@ -119,6 +125,22 @@ describe("the server actions of the exchanges", () => {
         undefined,
       ],
       ["POST /projects/{project_id}/exports", `/projects/${PROJECT}/exports`, request],
+    ]);
+  });
+
+  it("set the duration rule of an import in calendar gap, which analyses it again [WF-INTF-0080-A]", async () => {
+    const client = serve({
+      "PUT /projects/{project_id}/imports/{import_id}/duration-rule": {
+        example: "import_duration_rule_set",
+        status: 202,
+      },
+    });
+    expect(await setFileImportDurationRule(PROJECT, IMPORT, "keep_dates")).toEqual({
+      kind: "done",
+      data: example("import_duration_rule_set"),
+    });
+    expect(client.calls.map(({ path, body }) => [path, body])).toEqual([
+      [`/projects/${PROJECT}/imports/${IMPORT}/duration-rule`, { duration_rule: "keep_dates" }],
     ]);
   });
 });

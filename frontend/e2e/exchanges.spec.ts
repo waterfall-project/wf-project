@@ -160,6 +160,22 @@ test("imports a file in two steps: the report lists the lines rejected with thei
   await expect(page.getByRole("region", { name: "Imports du projet" })).toBeVisible();
 });
 
+test("offers no choice of the duration rule on the report of an import without a calendar gap, the first example of the fake back [WF-PLA-0160-A] [WF-INTF-0080-A]", async ({
+  page,
+}) => {
+  // The fake back serves the first example of each read, which no calendar gap marks: the report of
+  // the import carries none, so neither the gap nor the choice is on the screen — what a file
+  // exported by Waterfall shows. The report in gap, and the change of rule, are proved by
+  // `calendar-gap.dom.test.tsx` on the examples of the contract (`import_planning_calendar_gap`,
+  // `import_duration_rule_set`): prism cannot be asked another example of a server read.
+  await openHydrated(page, `${START}&import=${IMPORT}`);
+  const report = page.getByRole("region", { name: /^Compte rendu de l’import/ });
+  await expect(report.getByText("5 lignes lues.")).toBeVisible();
+  await expect(report.getByRole("radio")).toHaveCount(0);
+  await expect(report.getByText("Écart de calendrier avec l’installation")).toHaveCount(0);
+  await expect(report.getByRole("button", { name: "Appliquer l’import" })).toBeVisible();
+});
+
 test("refuses in the form a file larger than an import takes, before anything is sent", async ({
   page,
 }) => {
