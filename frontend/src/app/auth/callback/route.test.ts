@@ -180,7 +180,7 @@ describe("the return of the sign-in", () => {
   );
 
   it.each(refused)(
-    "leaves a short cookie of the refusal, so that home does not lead to the sign-in again, for %s [WF-SEC-0020] (#2914)",
+    "leaves a short cookie of the refusal, so that home does not lead to the sign-in again, for %s [WF-SEC-0020-A] (#2914)",
     async (_, returning) => {
       const { address, cookie } = await start("/projects");
       const query = realm.signIn(address, "camille");
@@ -191,7 +191,7 @@ describe("the return of the sign-in", () => {
     },
   );
 
-  it("forgets the cookie of a refusal once a sign-in succeeds [WF-SEC-0020] (#2914)", async () => {
+  it("forgets the cookie of a refusal once a sign-in succeeds [WF-SEC-0020-A] (#2914)", async () => {
     const { returned } = await signIn("/projects");
     expect(returned.headers.getSetCookie()).toContainEqual(
       expect.stringMatching(new RegExp(`^${SIGN_IN_REFUSED_COOKIE}=;.*Max-Age=0`)),

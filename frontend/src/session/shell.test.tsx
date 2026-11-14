@@ -78,7 +78,7 @@ describe("the reads of the shell without any cookie (#2914, #687)", () => {
     expect(reached.length).toBeGreaterThan(0);
   });
 
-  it("lead the screen of the system status, which needs a session, to the sign-in page before any call [WF-SEC-0020] (#2914)", async () => {
+  it("lead the screen of the system status, which needs a session, to the sign-in page before any call [WF-SEC-0020-A] (#2914)", async () => {
     const reached = stubNetwork(() => Response.json({}));
     await expect(SystemStatusPage()).rejects.toMatchObject({ digest: SESSION_LOST_DIGEST });
     expect(reached).toEqual([]);

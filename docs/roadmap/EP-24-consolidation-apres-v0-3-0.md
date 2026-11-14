@@ -615,7 +615,7 @@ une issue `contract`). Dépend de L2 à L4 de #2916 (#2929).
 
 ## US-1870 — Un écran ouvert sans session mène à la connexion, et l'accueil d'un compte sans projet le dit
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-SEC-0020-A`, `WF-IHM-0120-A`
 - **opérations** : `getMe`, `listProjects`
 - **issue** : #2971

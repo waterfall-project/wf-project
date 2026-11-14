@@ -99,11 +99,11 @@ test("signing in through the realm and out again, the bodies the service answers
   expect(await holdsSession()).toBe(false);
   const again = await context.newPage();
   await again.goto(ACCOUNT);
-  // No session: the screen opened leads to the sign-in page by itself (#2914) [WF-SEC-0020].
+  // No session: the screen opened leads to the sign-in page by itself (#2914) [WF-SEC-0020-A].
   await expectSignInPage(again);
 });
 
-test("without a session, the home leads by itself to the sign-in page of the realm — never « not found » —, then back to the home and its query, signed in (#1000, #2914) [WF-SEC-0020-A] [WF-SEC-0020]", async ({
+test("without a session, the home leads by itself to the sign-in page of the realm — never « not found » —, then back to the home and its query, signed in (#1000, #2914) [WF-SEC-0020-A]", async ({
   page,
   context,
   browser,

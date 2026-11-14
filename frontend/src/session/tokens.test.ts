@@ -132,17 +132,17 @@ async function signedIn(subject = randomUUID(), expiresIn = 300_000): Promise<st
 }
 
 describe("the token of a request", () => {
-  it("is the session lost without the cookie of a session, which has the screen lead to the sign-in page [WF-SEC-0020] (#2914)", async () => {
+  it("is the session lost without the cookie of a session, which has the screen lead to the sign-in page [WF-SEC-0020-A] (#2914)", async () => {
     await expect(requestBearer()).rejects.toMatchObject({ digest: SESSION_LOST_DIGEST });
     expect(realm.refreshes).toEqual([]);
   });
 
-  it("is none, the request leaving without a token, without the cookie of a session while a sign-in refused is remembered, so that nothing loops [WF-SEC-0020] (#2914)", async () => {
+  it("is none, the request leaving without a token, without the cookie of a session while a sign-in refused is remembered, so that nothing loops [WF-SEC-0020-A] (#2914)", async () => {
     state.jar = cookieJar({ [SIGN_IN_REFUSED_COOKIE]: "1" });
     expect(await requestBearer()).toBeUndefined();
   });
 
-  it("is none, for a read of the shell, without a cookie, and still the session lost for a cookie that names a session gone [WF-SEC-0020] (#2914)", async () => {
+  it("is none, for a read of the shell, without a cookie, and still the session lost for a cookie that names a session gone [WF-SEC-0020-A] (#2914)", async () => {
     expect(await requestBearer(true)).toBeUndefined();
     state.jar = cookieJar({ [SESSION_COOKIE]: randomUUID() });
     await expect(requestBearer(true)).rejects.toMatchObject({ digest: SESSION_LOST_DIGEST });
