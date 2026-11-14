@@ -537,6 +537,35 @@ describe("the form of the thresholds and the delay", () => {
     );
   });
 
+  it.each([
+    ["watch 0,5, alert 0,7, both in ]0, 1[", "0,5", "0,7", true],
+    ["watch 0,2, alert 0,9, both in ]0, 1[", "0,2", "0,9", true],
+    ["watch 0, alert 0,5: the watch at 0 exactly", "0", "0,5", false],
+    ["watch 0,5, alert 1: the alert at 1 exactly", "0,5", "1", false],
+    ["watch 1, alert 1,5: the watch at 1 exactly", "1", "1,5", false],
+    ["watch -0,2, alert 0,5: the watch negative", "-0,2", "0,5", false],
+    ["watch 0,5, alert 1,5: only the alert out of range", "0,5", "1,5", false],
+    ["watch 1,5, alert 0,5: only the watch out of range", "1,5", "0,5", false],
+  ] as const)(
+    "judges the order of the thresholds only between two thresholds within ]0, 1[: %s [WF-REF-0170-A]",
+    async (_, watch, alert, refused) => {
+      const client = serve({ [UPDATE]: "reference_settings_thresholds_updated" });
+      const form = await openIndicators();
+      await retype(field(form, COST, "Seuil de vigilance"), watch);
+      await retype(field(form, COST, "Seuil d’alerte"), alert);
+      await save(form);
+      const order = "Le seuil d’alerte doit être inférieur au seuil de vigilance.";
+      if (refused) {
+        expect(field(form, COST, "Seuil d’alerte")).toHaveAccessibleDescription(order);
+        expect(client.calls).toEqual([]);
+      } else {
+        await vi.waitFor(() => {
+          expect(client.calls).toHaveLength(1);
+        });
+      }
+    },
+  );
+
   it("refuses at its field, before asking anything, a delay that is no whole number of weeks [WF-REF-0180-A]", async () => {
     // Le délai est saisissable en semaines : entières, comme le contrat les compte.
     const client = serve({ [UPDATE]: "reference_settings_thresholds_updated" });

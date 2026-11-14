@@ -14,8 +14,8 @@
  * offered.
  *
  * The form checks before asking that the bounds of each axis rise strictly and that the alert
- * threshold of each index stays below its watch threshold (judged only between two thresholds within
- * ]0, 1[, the range itself being the server's), each broken rule said at the field the
+ * threshold of each index stays below its watch threshold (judged only between two thresholds
+ * within ]0, 1[, the range itself being the server's), each broken rule said at the field the
  * server would point at — the bound of the rank that breaks the order, the alert —; the server
  * judges the rest, a refusal by field said at its field, any other under the form, the version
  * stale (412) with the offer to read the page anew. The answer takes the place of the settings read
@@ -106,8 +106,8 @@ function above(value: string | undefined, other: string | undefined): boolean | 
 
 /**
  * The bounds of the matrix that break their order, as the server would refuse them (WF-REF-0160):
- * on each axis, every bound not strictly above the one before it, at its own rank — a bound refused,
- * or the one before it, left unjudged.
+ * on each axis, every bound not strictly above the one before it, at its own rank — a bound
+ * refused, or the one before it, left unjudged.
  */
 function unorderedBounds(values: Draft): ReadonlyMap<string, FieldProblem> {
   const axes: readonly Axis[] = ["probability_bounds", "severity_bounds"];
@@ -340,8 +340,8 @@ const UNITS = [
 
 /**
  * The form of the three constants of the units of duration, entered as decimals in the language of
- * the reader; the server refuses a constant that is not strictly positive (422), at its field. Under
- * the fields, what the change does to the schedules (WF-PLA-0160, WF-REF-0130).
+ * the reader; the server refuses a constant that is not strictly positive (422), at its field.
+ * Under the fields, what the change does to the schedules (WF-PLA-0160, WF-REF-0130).
  */
 function DurationUnitsForm({ settings, ...handlers }: SettingsFormProps<DurationUnits>) {
   const t = useTranslations("reference");
@@ -382,8 +382,8 @@ function DurationUnitsForm({ settings, ...handlers }: SettingsFormProps<Duration
 /**
  * The settings of a screen with the command that modifies them and its form: the answer of the
  * server shown while it is newer than the settings read, what the last write did said beside the
- * command, a refusal answered once the dialog is gone told above the settings (`Reactivations`). The
- * command waits, inactive and saying why, while a write is under way (#661).
+ * command, a refusal answered once the dialog is gone told above the settings
+ * (`Reactivations`). The command waits, inactive and saying why, while a write is under way (#661).
  */
 function SettingsWriter<Settings extends Versioned>({
   settings,
@@ -483,8 +483,8 @@ export function RiskSettings({ settings }: { readonly settings: ReferenceSetting
 }
 
 /**
- * The thresholds of the indices and the delay between two reviews, and their form, for a session that
- * may modify the indicator settings.
+ * The thresholds of the indices and the delay between two reviews, and their form, for a session
+ * that may modify the indicator settings.
  */
 export function IndicatorSettings({ settings }: { readonly settings: ReferenceSettings }) {
   const t = useTranslations("reference.indicatorForm");

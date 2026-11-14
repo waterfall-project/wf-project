@@ -344,57 +344,51 @@ describe("the correspondence of the extraction of the actual costs, written", ()
     ["a column read", "Montant", "Ajouter un intitulé à « Montant »", "labels", LABELS_LIMIT],
     ["the kept columns", "Colonnes conservées", "Déclarer une colonne conservée", "kept", 50],
   ] as const)(
-    "stops %s at its ceiling, said beside the command that adds one, and says under that list alone the refusal the server designates (#2267) [WF-REF-0190-A]",
-    async (_, group, command, kind, limit) => {
+    "stops %s at its ceiling, said beside the command that adds one, the condition said in full [WF-REF-0190-A]",
+    (_, group, command, kind, limit) => {
       const texts = (count: number, of: string) =>
         Array.from({ length: count }, (_, rank) => `${of} ${String(rank + 1)}`);
-      const ceiling: Mapping = {
-        ...witness,
-        columns: witness.columns.map((each) =>
-          kind === "labels" && each.column === "amount"
-            ? { ...each, labels: texts(limit, "Montant") }
-            : each,
-        ),
-        kept_columns: kind === "kept" ? texts(limit, "Colonne") : witness.kept_columns,
-      };
-      const base = example("actual_cost_mapping_kept_columns_too_many") as Problem & {
-        status: 422;
-      };
-      const [field] = base.fields ?? [];
-      serve({
-        [SET]: {
-          problem: {
-            ...base,
-            fields: [
-              {
-                ...field,
-                code: "VALUE_TOO_LONG",
-                pointer: kind === "labels" ? "/columns/4/labels" : "/kept_columns",
-                params: { max_length: limit },
-              },
-            ],
-          },
+      shown(
+        {
+          ...witness,
+          columns: witness.columns.map((each) =>
+            kind === "labels" && each.column === "amount"
+              ? { ...each, labels: texts(limit, "Montant") }
+              : each,
+          ),
+          kept_columns: kind === "kept" ? texts(limit, "Colonne") : witness.kept_columns,
         },
-      });
-      shown(ceiling, true);
+        true,
+      );
       const list = screen.getByRole("group", { name: new RegExp(`^${group}`) });
       const add = within(list).getByRole("button", { name: command });
       expect(add).toHaveAttribute("aria-disabled", "true");
-      expect(add).toHaveAccessibleDescription(/^Condition non remplie\u00a0: moins de \d+ /);
-      await userEvent.click(add);
-      expect(within(list).getAllByRole("textbox")).toHaveLength(limit);
-      await userEvent.click(screen.getByRole("button", { name: "Enregistrer la correspondance" }));
-      await screen.findByRole("alert");
-      expect(list).toHaveTextContent(/est trop longue/);
-      expect(list).toHaveTextContent(`${String(limit)} `);
-      for (const other of screen.getAllByRole("group")) {
-        if (other !== list) {
-          expect(other).not.toHaveTextContent("est trop longue");
-        }
-      }
-      expect(document.querySelector("[aria-invalid]")).toBeNull();
+      expect(add).toHaveAccessibleDescription(
+        kind === "labels"
+          ? `Condition non remplie\u00a0: moins de ${String(limit)} intitulés pour « Montant ». Le maximum est atteint.`
+          : `Condition non remplie\u00a0: moins de ${String(limit)} colonnes conservées. Le maximum est atteint.`,
+      );
     },
   );
+
+  it("says under the list of the kept columns alone the refusal the server designates, as the contract gives it (#2267) [WF-REF-0190-A]", async () => {
+    serve({
+      [SET]: {
+        problem: example("actual_cost_mapping_kept_columns_too_many") as Problem & { status: 422 },
+      },
+    });
+    shown(witness, true);
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer la correspondance" }));
+    await screen.findByRole("alert");
+    const list = screen.getByRole("group", { name: /^Colonnes conservées/ });
+    expect(list).toHaveTextContent(/est trop longue/);
+    for (const other of screen.getAllByRole("group")) {
+      if (other !== list) {
+        expect(other).not.toHaveTextContent("est trop longue");
+      }
+    }
+    expect(document.querySelector("[aria-invalid]")).toBeNull();
+  });
 
   it("tells the version stale under the form, and offers to read the page anew [WF-IHM-0110, WF-REF-0190-A]", async () => {
     serve({

@@ -11,16 +11,18 @@
  * A session that holds `cost_settings.write` adds, modifies and removes a label, and declares and
  * removes a kept column, in one form that replaces the correspondence whole with the version read
  * (`setActualCostMapping`); another reads the lists, with no command. The server alone judges the
- * labels: each list stops at the ceiling of the contract (`KEPT_COLUMNS_LIMIT` for the kept columns,
- * `LABELS_LIMIT` for a column read), the refusal of the list itself (`/kept_columns` or
+ * labels: each list stops at the ceiling of the contract (`KEPT_COLUMNS_LIMIT` for the kept
+ * columns, `LABELS_LIMIT` for a column read), the refusal of the list itself (`/kept_columns` or
  * `/columns/<rank>/labels`, `VALUE_TOO_LONG`) being said under it; a refusal by
  * field (422) is said at the label its pointer designates (`/columns/<rank>/labels/<rank>`,
  * `/kept_columns/<rank>`), the first one refused taking the focus, a duplicate
  * (`DUPLICATE_COLUMN_LABEL`) naming the label it doubles (`params.duplicate_of`); any other
  * refusal is told under the form — the version stale (412) with the offer to read the page anew,
  * whose reading takes the place of the draft when it has not changed since it was sent, the form
- * never mounted again by a `key`: it keeps the focus and what is typed while the reading arrives. The fields are held while the write is under way
- * and lose the focus: with any answer that refuses no label, it goes back to the control that
+ * never mounted again by a `key`: it keeps the focus and what is typed while the reading arrives.
+ * A reading strictly newer than the answer, with nothing typed since the send, replaces the draft
+ * and may take the focus: this is intended (#2266). The fields are held while the write is under
+ * way and lose the focus: with any answer that refuses no label, it goes back to the control that
  * held it. The answer takes the place of the reading while it is newer (`lock_version`).
  */
 "use client";
@@ -518,10 +520,10 @@ function MappingForm({
   );
   // A command in the page, no transition (#1484): busy from the press to the answer, in one update.
   const [busy, setBusy] = useState(false);
-  // A reading newer than the version the draft rests on takes the place of the draft while the draft
-  // has not changed since it was sent — a version stale, read anew —, without mounting the form again
-  // by a `key`, which would lose the focus and what is typed meanwhile (#2266): adjusted in the
-  // render, once, as React admits for a state drawn from a prop that changes.
+  // A reading newer than the version the draft rests on takes the place of the draft while the
+  // draft has not changed since it was sent — a version stale, read anew —, without mounting the
+  // form again by a `key`, which would lose the focus and what is typed meanwhile (#2266): adjusted
+  // in the render, once, as React admits for a state drawn from a prop that changes.
   if (!busy && mapping.lock_version > basis.version && draft === basis.draft) {
     const read = draftOf(mapping);
     setDraft(read);
@@ -595,8 +597,8 @@ function MappingForm({
     setOutcome(undefined);
     setListProblems(new Map());
     const sentDraft = draft;
-    // From the version the draft rests on: a newer reading that did not replace a draft changed since
-    // is not lent its version.
+    // From the version the draft rests on: a newer reading that did not replace a draft changed
+    // since is not lent its version.
     const body = written(sentDraft, basis.version);
     setBasis((before) => ({ ...before, draft: sentDraft }));
     void held(setActualCostMapping(body), () => true).then((answer) => {
@@ -715,8 +717,8 @@ export function ActualCostMapping({
       </p>
       {writes ? (
         <MappingForm
-          // Not mounted again by a `key` on the version: a reading newer than the one the draft rests
-          // on is taken by the form itself, when the draft has not changed since it was sent.
+          // Not mounted again by a `key` on the version: a reading newer than the one the draft
+          // rests on is taken by the form itself, when the draft has not changed since it was sent.
           mapping={shown}
           onDone={(answer) => {
             setAnswered((before) =>
