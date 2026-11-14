@@ -93,6 +93,31 @@ export async function applyFileImport(
   return outcome;
 }
 
+/** An import as reading it gives it: its report, its task and its commands. */
+export type ImportDetail = components["schemas"]["ImportDetail"];
+
+/** How an MS Project schedule in calendar gap converts its durations. */
+export type ImportDurationRule = components["schemas"]["ImportDurationRule"];
+
+/**
+ * Set the rule under which an import in calendar gap is analysed again (WF-INTF-0080): another rule
+ * than the report's sets it aside and queues a new analysis — the import comes back `analysing`,
+ * its task the new one (202) —; the rule the report was computed under changes nothing, the import
+ * coming back as it is (200). The project stays unchanged until the confirmation.
+ */
+export async function setFileImportDurationRule(
+  projectId: string,
+  importId: string,
+  rule: ImportDurationRule,
+): Promise<Outcome<ImportDetail>> {
+  return decode(() =>
+    serverClient().PUT("/projects/{project_id}/imports/{import_id}/duration-rule", {
+      params: { path: { project_id: projectId, import_id: importId } },
+      body: { duration_rule: rule },
+    }),
+  );
+}
+
 /** Abandon an import: the project is left unchanged, and its file deleted (WF-INTF-0080). */
 export async function abandonFileImport(projectId: string, importId: string): Promise<Settled> {
   return settled(

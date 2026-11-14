@@ -4086,6 +4086,7 @@
       "formatVersion": "Format version",
       "analysing": "The file is being analysed. The background task follow-up will offer to reload the screen once it has finished.",
       "none": "This import has no report.",
+      "failed": "This import failed: reopen the file (drop zone) to analyse it again.",
       "read": "{count, plural, =0 {No line read} one {# line read} other {# lines read}}.",
       "reasons": "Explicit confirmation required",
       "rejected": "{count, plural, =0 {No line rejected} one {# line rejected} other {# lines rejected}}",
@@ -4122,7 +4123,51 @@
       "confirmTitle": "Confirmation of the application",
       "confirmQuestion": "Apply the import “{file}” to the project, in a single operation?",
       "confirm": "Confirm the application",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "calendarGap": {
+        "title": "Calendar gap with the installation",
+        "lead": "The days of the project calendar of the file, or its constants, differ from those of the installation: hours per day on either side, day by day, and the working times of the file.",
+        "daysTable": "Hours per day of the file and of the installation",
+        "day": "Day",
+        "fileTimes": "Working times of the file (“{calendar}”)",
+        "fileHours": "Hours of the file",
+        "installationHours": "Hours of the installation (“{calendar}”)",
+        "noWork": "None",
+        "unnamed": "unnamed",
+        "tasks": "{count, plural, =0 {No task has an own calendar that differs from its Waterfall calendar} one {# task has an own calendar that differs from its Waterfall calendar} other {# tasks have an own calendar that differs from their Waterfall calendar}}",
+        "tasksTable": "Tasks whose own calendar differs from their Waterfall calendar",
+        "task": "Task",
+        "taskCalendar": "Calendar of the file",
+        "taskFileHours": "Hours per day of the file",
+        "taskWaterfallHours": "Hours per day in Waterfall",
+        "ignored": "The calendar of the file is ignored: it is not imported into Waterfall, which dates the tasks on its own calendars.",
+        "days": {
+          "monday": "Monday",
+          "tuesday": "Tuesday",
+          "wednesday": "Wednesday",
+          "thursday": "Thursday",
+          "friday": "Friday",
+          "saturday": "Saturday",
+          "sunday": "Sunday"
+        },
+        "daysShort": {
+          "monday": "Mon",
+          "tuesday": "Tue",
+          "wednesday": "Wed",
+          "thursday": "Thu",
+          "friday": "Fri",
+          "saturday": "Sat",
+          "sunday": "Sun"
+        }
+      },
+      "durationRule": {
+        "legend": "Conversion of the durations of the file",
+        "hint": {
+          "keep_durations": "a duration entered in days, weeks or months keeps its value in its unit; Waterfall dates the tasks on its calendars",
+          "keep_dates": "each automatic task takes for duration the working time between its dates in the file, on its Waterfall calendar"
+        },
+        "option": "{rule} — {hint}."
+      }
     },
     "list": {
       "title": "Imports of the project",

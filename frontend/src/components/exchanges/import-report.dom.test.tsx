@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
+import { TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, fakeClient } from "@/test/fixtures";
 
@@ -37,7 +38,9 @@ function open(entry: Import, locale: "fr" | "en" = "fr") {
   server.client = fakeClient({});
   return render(
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]}>
-      <ImportReport projectId={PROJECT} entry={entry} start={START} />
+      <TaskTracker>
+        <ImportReport projectId={PROJECT} entry={entry} start={START} />
+      </TaskTracker>
     </NextIntlClientProvider>,
   );
 }

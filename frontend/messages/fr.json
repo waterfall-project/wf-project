@@ -4086,6 +4086,7 @@
       "formatVersion": "Version du format",
       "analysing": "L’analyse du fichier est en cours. Le suivi des tâches de fond vous proposera de recharger l’écran quand elle aura abouti.",
       "none": "Cet import n’a pas de compte rendu.",
+      "failed": "Cet import a échoué : rouvrez le fichier (zone de dépôt) pour l’analyser de nouveau.",
       "read": "{count, plural, =0 {Aucune ligne lue} one {# ligne lue} other {# lignes lues}}.",
       "reasons": "Confirmation explicite demandée",
       "rejected": "{count, plural, =0 {Aucune ligne rejetée} one {# ligne rejetée} other {# lignes rejetées}}",
@@ -4122,7 +4123,51 @@
       "confirmTitle": "Confirmation de l’application",
       "confirmQuestion": "Appliquer au projet l’import « {file} », en une seule opération ?",
       "confirm": "Confirmer l’application",
-      "cancel": "Annuler"
+      "cancel": "Annuler",
+      "calendarGap": {
+        "title": "Écart de calendrier avec l’installation",
+        "lead": "Les journées du calendrier du projet du fichier, ou ses constantes, diffèrent de celles de l’installation : heures par jour de part et d’autre, jour par jour, et plages horaires du fichier.",
+        "daysTable": "Heures par jour du fichier et de l’installation",
+        "day": "Jour",
+        "fileTimes": "Plages horaires du fichier (« {calendar} »)",
+        "fileHours": "Heures du fichier",
+        "installationHours": "Heures de l’installation (« {calendar} »)",
+        "noWork": "Aucune",
+        "unnamed": "sans nom",
+        "tasks": "{count, plural, =0 {Aucune tâche n’a un calendrier propre qui diffère de son calendrier Waterfall} one {# tâche a un calendrier propre qui diffère de son calendrier Waterfall} other {# tâches ont un calendrier propre qui diffère de leur calendrier Waterfall}}",
+        "tasksTable": "Tâches dont le calendrier propre diffère de leur calendrier Waterfall",
+        "task": "Tâche",
+        "taskCalendar": "Calendrier du fichier",
+        "taskFileHours": "Heures par jour du fichier",
+        "taskWaterfallHours": "Heures par jour Waterfall",
+        "ignored": "Le calendrier du fichier est ignoré : il n’est pas importé dans Waterfall, qui date les tâches sur ses propres calendriers.",
+        "days": {
+          "monday": "Lundi",
+          "tuesday": "Mardi",
+          "wednesday": "Mercredi",
+          "thursday": "Jeudi",
+          "friday": "Vendredi",
+          "saturday": "Samedi",
+          "sunday": "Dimanche"
+        },
+        "daysShort": {
+          "monday": "lun.",
+          "tuesday": "mar.",
+          "wednesday": "mer.",
+          "thursday": "jeu.",
+          "friday": "ven.",
+          "saturday": "sam.",
+          "sunday": "dim."
+        }
+      },
+      "durationRule": {
+        "legend": "Conversion des durées du fichier",
+        "hint": {
+          "keep_durations": "une durée saisie en jours, semaines ou mois garde sa valeur dans son unité ; Waterfall date les tâches sur ses calendriers",
+          "keep_dates": "chaque tâche automatique prend pour durée le temps de travail entre ses dates du fichier, sur son calendrier Waterfall"
+        },
+        "option": "{rule} — {hint}."
+      }
     },
     "list": {
       "title": "Imports du projet",
