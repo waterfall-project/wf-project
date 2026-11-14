@@ -61,8 +61,12 @@ vi.mock("next/navigation", async (original) => ({
   usePathname: () => navigation.pathname,
   useSearchParams: () => new URLSearchParams(),
 }));
-// The session of the contract, the sizes of pages its account keeps set for a test.
-const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
+// The session of the contract, the sizes of pages or the filters its account keeps set for a test.
+const kept = vi.hoisted(
+  (): {
+    grids: Record<string, { page_size?: number; filters?: Record<string, string> }>;
+  } => ({ grids: {} }),
+);
 vi.mock("@/session/request", async (original) => {
   const actual = await original<typeof import("@/session/request")>();
   return {
@@ -200,8 +204,9 @@ describe("the settings of the costs", () => {
     expect(handed?.currency).toBe("EUR");
     expect(handed?.editable).toBe(true);
     expect(handed?.query).toEqual({ sort: undefined, search: undefined, size: 50 });
-    // The page of the server's size: nothing asked but what the address asks.
-    expect(queriesOf(RATES)).toEqual([{}]);
+    // The page of the server's size: nothing asked but what the address asks, and the state of
+    // the categories by default, the active ones alone.
+    expect(queriesOf(RATES)).toEqual([{ is_active: "true" }]);
   });
 
   it("ask the server for the page, the sort and the search of the rates the address asks, by the names of the contract [WF-IHM-0060-A]", async () => {
@@ -222,6 +227,7 @@ describe("the settings of the costs", () => {
         sort_order: "desc",
         offset: "50",
         limit: "25",
+        is_active: "true",
       },
     ]);
     expect(grids.rates[0]?.query).toEqual({
@@ -233,7 +239,7 @@ describe("the settings of the costs", () => {
 
   it("ask no sort of the rates the contract does not take, nor a page it would refuse", async () => {
     await costsAt({ sort_by: "rate.1999", offset: "-50" });
-    expect(queriesOf(RATES)).toEqual([{}]);
+    expect(queriesOf(RATES)).toEqual([{ is_active: "true" }]);
   });
 
   it("offer no entry of a rate, nor a reactivation the server does not list, to a session that may only read the cost settings [WF-IHM-0090-A]", async () => {
@@ -271,10 +277,11 @@ describe("the settings of the costs", () => {
   });
 
   it("offer no command that deletes a nature or a category, which are deactivated [WF-REF-0010-A]", async () => {
-    const page = await costsAt();
-    // Aucun écran ne propose de supprimer un objet du référentiel.
+    const page = await costsAt({ type_is_active: "all", category_is_active: "all" });
+    // Aucun écran ne propose de supprimer un objet du référentiel — « Effacer les filtres » lifts
+    // the filters of a grid, and deletes nothing.
     expect(text(page)).toContain("Désactiver");
-    expect(text(page)).not.toMatch(/Supprimer|Effacer/);
+    expect(text(page)).not.toMatch(/Supprimer|Effacer(?! les filtres)/);
   });
 
   it("present the natures of cost by their type, and each category by its nature and its accounting code, on dense grids sorted by each of their columns [WF-IHM-0060-A]", async () => {
@@ -333,7 +340,7 @@ describe("the settings of the costs", () => {
         kinds: "labor,provision",
         is_active: "false",
       },
-      // Every nature, which the filter of the categories offers.
+      // Every active nature, which the filter of the categories offers.
       WHOLE,
       // For a session that writes, every nature, its type compared by the category form (#577).
       { include_inactive: "true", ...WHOLE },
@@ -348,30 +355,52 @@ describe("the settings of the costs", () => {
         is_active: "true",
       },
     ]);
-    expect(queriesOf(RATES)).toEqual([{}]);
+    expect(queriesOf(RATES)).toEqual([{ is_active: "true" }]);
   });
 
-  it("ask the active natures, categories and rates alone by default, the deactivated ones too when the address asks for them, and offer to show and hide them back to the first page of each list [WF-REF-0150-A]", async () => {
+  it("open each list on its active objects alone, said by the chip « Actifs (par défaut) », the deactivated ones alone asked by « Désactivés », and every one once the chip is lifted, with no switch of the screen [WF-REF-0150-A]", async () => {
     const shown = await costsAt();
     expect(queriesOf("GET /reference/cost-types")).toEqual([
-      {},
+      { is_active: "true" },
       WHOLE,
       { include_inactive: "true", ...WHOLE },
     ]);
-    expect(queriesOf("GET /reference/cost-categories")).toEqual([{}]);
-    expect(queriesOf(RATES)).toEqual([{}]);
-    expect(shown).toMatch(
-      /<a[^>]*href="\/reference\/costs\?include_inactive=true"[^>]*>.*?Afficher aussi les désactivés<\/a>/,
-    );
+    expect(queriesOf("GET /reference/cost-categories")).toEqual([{ is_active: "true" }]);
+    expect(queriesOf(RATES)).toEqual([{ is_active: "true" }]);
+    // Each of the three grids says its state, a chip whose lifting asks every state.
+    expect(text(shown).match(/État\s:\sActifs \(par défaut\)/g)).toHaveLength(3);
+    expect(shown).not.toContain("Afficher aussi les désactivés");
     server.clients = [];
-    const hidden = await costsAt({ include_inactive: "true", search: "Automatisme" });
+    await costsAt({ type_is_active: "false", category_is_active: "all", is_active: "all" });
+    expect(queriesOf("GET /reference/cost-types")[0]).toEqual({ is_active: "false" });
+    expect(queriesOf("GET /reference/cost-categories")).toEqual([{ include_inactive: "true" }]);
+    expect(queriesOf(RATES)).toEqual([{ include_inactive: "true" }]);
+  });
+
+  it("ignore `include_inactive` in the address, the switch of the screen withdrawn: each list reads the state of its own filter (#3076)", async () => {
+    await costsAt({ include_inactive: "true", search: "Automatisme" });
     expect(queriesOf("GET /reference/cost-types")).toEqual([
-      { include_inactive: "true" },
+      { is_active: "true" },
+      WHOLE,
       { include_inactive: "true", ...WHOLE },
     ]);
+    expect(queriesOf("GET /reference/cost-categories")).toEqual([{ is_active: "true" }]);
+    expect(queriesOf(RATES)).toEqual([{ search: "Automatisme", is_active: "true" }]);
+  });
+
+  it("read the state each grid keeps when the address names none, the address prevailing, and the default for a grid that keeps none [WF-REF-0150-A]", async () => {
+    kept.grids = {
+      cost_types: { filters: { type_is_active: "false" } },
+      cost_categories: { filters: { category_is_active: "all" } },
+    };
+    const page = await costsAt();
+    expect(queriesOf("GET /reference/cost-types")[0]).toEqual({ is_active: "false" });
     expect(queriesOf("GET /reference/cost-categories")).toEqual([{ include_inactive: "true" }]);
-    expect(queriesOf(RATES)).toEqual([{ include_inactive: "true", search: "Automatisme" }]);
-    expect(hidden).toMatch(/<a[^>]*href="\/reference\/costs"[^>]*>.*?Masquer les désactivés<\/a>/);
+    expect(queriesOf(RATES)).toEqual([{ is_active: "true" }]);
+    expect(text(page)).toContain("État : Désactivés");
+    server.clients = [];
+    await costsAt({ type_is_active: "true" });
+    expect(queriesOf("GET /reference/cost-types")[0]).toEqual({ is_active: "true" });
   });
 
   it("offer the reactivation of a deactivated nature or category as the server lists it, and none it does not list [WF-REF-0150-A] [WF-IHM-0090-A]", () => {
@@ -479,7 +508,8 @@ describe("the settings of the costs", () => {
     await costsAt({ rate_min: "110" });
     await costsAt({ rate_year: "2026", rate_min: "110.555", rate_max: "abc" });
     await costsAt({ rate_year: "1999", rate_min: "110" });
-    expect(queriesOf(RATES)).toEqual([{}, {}, {}]);
+    const active = { is_active: "true" };
+    expect(queriesOf(RATES)).toEqual([active, active, active]);
   });
 
   it("present no bound of the rate without its year, nor offer to lift it", async () => {

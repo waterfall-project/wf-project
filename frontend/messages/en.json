@@ -2416,15 +2416,12 @@
       "designationUnavailable": "Designating “{name}” by default is unavailable. {unmet}",
       "rolesUnavailable": "Attributing the roles of “{name}” is unavailable. {unmet}"
     },
-    "inactive": {
-      "show": "Show the deactivated ones too",
-      "hide": "Hide the deactivated ones"
-    },
     "stateFilter": {
       "of": "State of the objects of “{list}”",
       "every": "Every state",
       "active": "Active",
-      "inactive": "Deactivated"
+      "inactive": "Deactivated",
+      "defaultChip": "{state} (by default)"
     },
     "pages": {
       "label": "Pages of “{list}”",

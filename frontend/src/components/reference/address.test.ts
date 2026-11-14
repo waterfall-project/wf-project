@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 
+import type { Permission } from "@/session/request";
 import { example, type Problem } from "@/test/fixtures";
 
-import { identifierOf, shownPage } from "./address";
+import { identifierOf, keptState, shownPage, stateOf, stateQuery } from "./address";
 
 describe("what a list shows of a page whose bounds the API may refuse", () => {
   it("shows the rows of the page read, and no bound refused", () => {
@@ -50,5 +51,49 @@ describe("an identifier of the address", () => {
       );
     }
     expect(identifierOf(new URLSearchParams(), "cost_type_id")).toBeUndefined();
+  });
+});
+
+describe("the state a list of the reference data shows", () => {
+  const WRITES: readonly Permission[] = ["cost_settings.read", "cost_settings.write"];
+  const state = (address: string, kept?: string, permissions = WRITES) =>
+    stateOf(
+      new URLSearchParams(address),
+      "type_is_active",
+      kept,
+      permissions,
+      "cost_settings.write",
+    );
+
+  it("is the active objects alone by default, the deactivated ones alone, or every one, the address prevailing over the account [WF-REF-0150-A]", () => {
+    expect(state("")).toBe(true);
+    expect(state("type_is_active=false")).toBe(false);
+    expect(state("type_is_active=all")).toBeUndefined();
+    // The account's when the address names none; the address's otherwise.
+    expect(state("", "false")).toBe(false);
+    expect(state("", "all")).toBeUndefined();
+    expect(state("type_is_active=true", "all")).toBe(true);
+    // A text of no state is the default; `include_inactive` is not read (#3076).
+    expect(state("type_is_active=maybe")).toBe(true);
+    expect(state("include_inactive=true")).toBe(true);
+  });
+
+  it("is nothing to a session that may not read the deactivated objects, offered no filter [WF-REF-0150-A]", () => {
+    expect(state("type_is_active=false", "all", ["cost_settings.read"])).toBeUndefined();
+    expect(stateQuery(undefined, false)).toEqual({});
+  });
+
+  it("is asked by `is_active`, every one by `include_inactive` alone [WF-REF-0150-A]", () => {
+    expect(stateQuery(true, true)).toEqual({ is_active: true });
+    expect(stateQuery(false, true)).toEqual({ is_active: false });
+    expect(stateQuery(undefined, true)).toEqual({ include_inactive: true });
+  });
+
+  it("is kept with the settings of its grid once it differs from the active ones, the search not kept", () => {
+    expect(keptState("type_is_active")).toEqual({
+      filters: ["type_is_active"],
+      defaulted: { type_is_active: "true" },
+      searchKept: false,
+    });
   });
 });

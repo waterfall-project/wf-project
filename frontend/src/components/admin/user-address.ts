@@ -8,9 +8,10 @@
  * account retained when it holds one at least of them — or none at all, `without_access_role`,
  * « Sans rôle » —, and their state, `is_active` — the active
  * ones alone, or the deactivated ones alone; none, every account, the deactivated ones listed by
- * default (WF-ADM-0060), the page always asking `include_inactive=true`. An address of before, which
- * hid the deactivated accounts by `include_inactive=false`, reads as the active ones alone, which it
- * showed (`readAccountState`); and the periods and the authors of the audit columns
+ * default (WF-ADM-0060), the page always asking `include_inactive=true`, which the address no longer
+ * says: an address of before that hid the deactivated accounts by `include_inactive=false` is
+ * ignored, as the switch of the screens of the reference data is (#3076); and the periods and the
+ * authors of the audit columns
  * (`audit-address.ts`). A filter chosen only changes the address, back to the first page, and the
  * page reads anew: the server filters, never the front (WF-ARC-0020).
  *
@@ -72,24 +73,12 @@ const EVERY_ORIGIN: Readonly<Record<UserOrigin, number>> = {
 export const USER_ORIGINS = Object.keys(EVERY_ORIGIN) as readonly UserOrigin[];
 
 /**
- * The parameter of the contract that lists the deactivated accounts besides the active ones, which
- * the screen always asks: a deactivated account stays listed (WF-ADM-0060). The address no longer
- * writes it; one that says `false`, written before, is read as the active accounts alone, and a
- * state chosen lifts it.
- */
-export const INCLUDE_INACTIVE = "include_inactive";
-
-/**
- * The state the address restricts the accounts to: `is_active` as it names it; failing it, the
- * active ones alone for an address that hid the deactivated ones (`include_inactive=false`); none,
- * every account.
+ * The state the address restricts the accounts to: `is_active` as it names it; none, every account —
+ * `include_inactive`, which an address of before wrote, is not read (#3076).
  */
 export function readAccountState(search: SearchParameters): boolean | undefined {
   const value = search.get(IS_ACTIVE);
-  if (value === "true" || value === "false") {
-    return value === "true";
-  }
-  return search.get(INCLUDE_INACTIVE) === "false" ? true : undefined;
+  return value === "true" || value === "false" ? value === "true" : undefined;
 }
 
 /** The path of the screen of the accounts. */
@@ -101,9 +90,7 @@ export const EMAIL_LENGTH = 254;
 
 /**
  * The parameters of the address the screen filters the accounts by, besides their search: those its
- * grid keeps with its settings. An address of before that hid the deactivated accounts filters too —
- * the active ones alone (`readAccountState`) —: alone in the address, it says something of the grid,
- * which the filters kept do not replace, and it is kept as the others (#2916).
+ * grid keeps with its settings.
  */
 export const USER_FILTERS: readonly string[] = [
   ORIGINS,
@@ -111,7 +98,6 @@ export const USER_FILTERS: readonly string[] = [
   ACCESS_ROLES,
   WITHOUT_ACCESS_ROLE,
   IS_ACTIVE,
-  INCLUDE_INACTIVE,
   ...AUDIT_FILTERS,
 ];
 

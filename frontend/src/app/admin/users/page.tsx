@@ -7,14 +7,14 @@
  * a dense grid (#514), sorted, searched — on the names and the address —, filtered by origin, by
  * node, by access role, by state and on its audit columns, and paged by the server, as the address
  * asks under the names of the contract (`sort_by`, `sort_order`, `search`, `origins`,
- * `org_node_id`, `access_role_ids`, `without_access_role`, `is_active`, `include_inactive`, the
+ * `org_node_id`, `access_role_ids`, `without_access_role`, `is_active`, the
  * periods and the authors of the creation and of the last modification — `created_at_from`,
  * `updated_by_user_id`… —, `offset`), any refusal of the API (422) standing for the list, filters
  * kept, a period said at its field, the authors offered those of the page, an account chosen as an
  * author that the page does not offer read by its names (`readChosenAuthors`); the nodes offered in
  * the order of the tree, the roles as `listAccessRoles` gives them — none to a session that may not
  * read them, to which « Sans rôle » is still offered —; the deactivated accounts listed unless the
- * address says `include_inactive=false`.
+ * filter of the state says otherwise, `include_inactive` in the address not read (#3076).
  * Every figure as the API gives it: the front sorts, filters and pages nothing. An address that
  * says nothing of the table — neither sort, nor search, nor filter — leads, before anything is
  * read, to the address of the search and the filters the account keeps for it, if it keeps any

@@ -1556,15 +1556,22 @@ simple tables, without sort or filter (decision of the author of 2026-10-08, #50
 object is named by the label the server resolves at reading time, active or deactivated — never
 by matching lists in the front; a section is named by `aria-label` (#251).
 
-The lists of the reference data read only the active objects, and the deactivated ones too when the
-address asks for it (`include_inactive`, WF-REF-0150, #300), under the name of the contract, which
-the header of the screen writes or lifts by a link (`InactiveSwitch`), which brings each paginated
-list back to its first page — only for a session that carries the write permission of their part of
-the reference data, without which the contract refuses it (403, `inactiveQuery` of `address.ts`;
-decision #2084, option A, `docs/api/DECISIONS.md`), like the lists of the estimate (#351). The
-filter by state (`is_active`, `StateFilter`) prevails over it: all states, the active only, or the
-deactivated only, offered to the same session only (`stateOf`). A deactivated object is said there
-by a mark and a word, and is reactivated there as
+Each list of the reference data says what it shows of the deactivated objects by its own filter of
+the state (`is_active` under the prefix of its grid, `StateFilter`, WF-REF-0150, US-2090), a filter
+by default of the grid like the states of the list of projects (#1747): absent from the address and
+from the settings of the account, it is « Actifs », said by the chip « État : Actifs (par défaut) »;
+« Désactivés » shows them alone; the chip lifted shows them all, the address then writing `all` so
+that neither the account nor the default takes its place (`stateOf`, `EVERY_STATE` of
+`address.ts`). The front sends `is_active=true`, `is_active=false`, or `include_inactive=true`
+without `is_active` (`stateQuery`). The choice is kept with the settings of the grid, per account,
+once it differs from the default (`keptState`, `GridConfig.defaulted`, `kept-filters.ts`). The
+screen no longer has a switch « Afficher aussi les désactivés », and `include_inactive` in its
+address is no longer read (#3076). The filter is offered only to a session that carries the write
+permission of their part of the reference data, without which the contract refuses the deactivated
+objects (403; decision #2084, option A, `docs/api/DECISIONS.md`): another reads the active ones
+alone, like the lists of the estimate (#351). The lists of choices of the forms offer the active
+ones alone, whatever the tables show. A deactivated object is said there by a mark and a word, and
+is reactivated there as
 the server lists its command (`available_commands`, #532, WF-IHM-0090) — the server lists it only
 for whoever can modify that part, and the front deduces nothing from it: available, through the
 activation command of its nature (`setActivation`, a server action, from the version read), then the

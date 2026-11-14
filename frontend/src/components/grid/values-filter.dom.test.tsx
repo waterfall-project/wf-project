@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { startTransition } from "react";
@@ -58,27 +58,6 @@ function withFlag(chosen: readonly (State | "none")[]) {
         chosen={chosen}
         exhaustive
         flag={{ value: "none", name: "none" }}
-      />
-    </NextIntlClientProvider>
-  );
-}
-
-/** The same filter, an old parameter of the address saying one of its values. */
-function withSaid(
-  chosen: readonly State[],
-  said: { readonly name: string; readonly value: string; readonly reads: State },
-) {
-  return (
-    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-      <ValuesFilter
-        name="states"
-        label="État"
-        every="Tous les états"
-        values={STATES.map((state) => ({ value: state, text: state }))}
-        chosen={chosen}
-        exhaustive
-        lifts={[said.name]}
-        said={said}
       />
     </NextIntlClientProvider>
   );
@@ -237,31 +216,6 @@ describe("the filter of a list on the values of a column", () => {
     expect(router.push).toHaveBeenLastCalledWith("/projects/p/revisions/r/risks?states=closed", {
       scroll: false,
     });
-  });
-
-  it("reads the old parameter as a value only while the parameter of the filter is absent (#3050)", async () => {
-    router.push.mockImplementation(() => {
-      startTransition(() => new Promise<void>(() => undefined));
-    });
-    const said = { name: "old", value: "no", reads: "identified" as const };
-    page.search = "old=no";
-    render(withSaid([], said));
-    await pick("État", "closed");
-    // The old parameter says « identified »: it is read as chosen, and lifted by the choice.
-    expect(router.push).toHaveBeenLastCalledWith(
-      "/projects/p/revisions/r/risks?states=identified%2Cclosed",
-      { scroll: false },
-    );
-    router.push.mockClear();
-    // The filter has its own parameter: the old one says nothing more.
-    page.search = "states=occurred&old=no";
-    cleanup();
-    render(withSaid(["occurred"], said));
-    await pick("État", "closed");
-    expect(router.push).toHaveBeenLastCalledWith(
-      "/projects/p/revisions/r/risks?states=occurred%2Cclosed",
-      { scroll: false },
-    );
   });
 
   it("offers no search to a short menu, and breaks no rule of accessibility (#2916)", async () => {

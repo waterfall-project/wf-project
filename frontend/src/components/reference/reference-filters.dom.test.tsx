@@ -17,9 +17,8 @@ import { menuSummary, openMenu, pick } from "@/test/check-menu";
 import { example } from "@/test/fixtures";
 
 import { listReads } from "./address";
-import { InactiveSwitch, StateFilter } from "./reference-filters";
+import { StateFilter } from "./reference-filters";
 import {
-  CALENDAR_ADDRESS,
   ORG_CODE_LENGTH,
   RESOURCE_ROLE_ADDRESS,
   ROLE_CODE,
@@ -107,7 +106,8 @@ describe("the filters of a list of the reference data", () => {
     expect(lastAddress()).toBe("/reference/resources?role_is_active=true");
     await openMenu("État des objets de «\u00A0Rôles\u00A0»");
     await userEvent.click(screen.getByRole("radio", { name: "Tous les états" }));
-    expect(lastAddress()).toBe("/reference/resources");
+    // Every state is written: an address that named none would read the state kept, or the active.
+    expect(lastAddress()).toBe("/reference/resources?role_is_active=all");
   });
 
   it("show the state asked checked while the server reads the list anew, and the address once it has answered", async () => {
@@ -242,22 +242,6 @@ describe("the filters of a list of the reference data", () => {
     });
     rerender(filter("mo-001"));
     expect(select).toHaveValue("mo-001");
-  });
-
-  it("show the deactivated objects too back to the first page of each list the server pages [WF-REF-0150-A]", () => {
-    page.search = "role_offset=50&calendar_offset=50&role_search=Ing";
-    render(
-      inFrench(
-        <InactiveSwitch
-          shown={false}
-          pages={[RESOURCE_ROLE_ADDRESS.offset, CALENDAR_ADDRESS.offset]}
-        />,
-      ),
-    );
-    expect(screen.getByRole("link", { name: "Afficher aussi les désactivés" })).toHaveAttribute(
-      "href",
-      "/reference/resources?role_search=Ing&include_inactive=true",
-    );
   });
 });
 

@@ -54,7 +54,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import { listReads } from "./address";
+import { keptState, listReads } from "./address";
 import {
   FIRST_YEAR,
   LAST_YEAR,
@@ -180,6 +180,9 @@ export function gridYears(answered: readonly number[], added: readonly AddedYear
 /** The width of the column of the state of a category. */
 const STATE_WIDTH = 100;
 
+/** What the grid keeps of its filters for a session offered them: the state of its categories. */
+const KEPT_RATE_STATE = keptState(RATE_STATE);
+
 /** The grid of the rates, a column for each year of the answer and each the grid added. */
 export function rateGrid(
   years: readonly YearCell[],
@@ -192,6 +195,7 @@ export function rateGrid(
     name: "hourlyRates",
     searched: true,
     paged: true,
+    ...(editable ? KEPT_RATE_STATE : {}),
     rowKey: (row) => row.cost_category_id,
     columns: [
       {
@@ -314,30 +318,34 @@ function AddYear({
           {t("remove", { year: year.toString() })}
         </Button>
       ))}
-      <Label htmlFor={field} className="text-xs">
-        {t("year")}
-      </Label>
-      <Input
-        id={field}
-        inputMode="numeric"
-        value={text}
-        maxLength={4}
-        aria-invalid={refused ? true : undefined}
-        aria-describedby={refused ? problem : undefined}
-        onChange={(event) => {
-          setText(event.target.value);
-        }}
-        className="h-7 w-20 text-xs"
-      />
-      {/* The one filled command of the card of the rates, which has none at the right of its title:
-          marked as its principal command, which creates, for the rule of the commands
-          (`SectionCard`, `expectCommandRule`). */}
-      <PrincipalSlot does="create">
-        <Button type="submit" size="sm" className="h-7 text-xs">
-          <Plus aria-hidden="true" />
-          {t("submit")}
-        </Button>
-      </PrincipalSlot>
+      {/* The year and its command wrap together, never apart: the bar is narrower once its button
+          of the filters counts the state of the categories, on by default (US-2090). */}
+      <span className="flex items-center gap-2">
+        <Label htmlFor={field} className="text-xs">
+          {t("year")}
+        </Label>
+        <Input
+          id={field}
+          inputMode="numeric"
+          value={text}
+          maxLength={4}
+          aria-invalid={refused ? true : undefined}
+          aria-describedby={refused ? problem : undefined}
+          onChange={(event) => {
+            setText(event.target.value);
+          }}
+          className="h-7 w-20 text-xs"
+        />
+        {/* The one filled command of the card of the rates, which has none at the right of its
+            title: marked as its principal command, which creates, for the rule of the commands
+            (`SectionCard`, `expectCommandRule`). */}
+        <PrincipalSlot does="create">
+          <Button type="submit" size="sm" className="h-7 text-xs">
+            <Plus aria-hidden="true" />
+            {t("submit")}
+          </Button>
+        </PrincipalSlot>
+      </span>
     </form>
   );
 }

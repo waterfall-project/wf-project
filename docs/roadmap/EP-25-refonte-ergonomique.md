@@ -570,7 +570,7 @@ fenêtrage des lignes en dépend (#3079).
 
 ## US-2090 — Le filtre « État » de chaque table à la place de « Afficher aussi les désactivés »
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0150-A`
 - **opérations** : `listCostTypes`, `listCostCategories`, `getHourlyRateGrid`, `listOrgNodes`,
   `listResourceRoles`, `listCalendars`, `listUsers`, `getMe`, `updateMyPreferences`

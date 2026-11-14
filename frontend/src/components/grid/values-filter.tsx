@@ -40,8 +40,6 @@ export function ValuesFilter<Value extends string>({
   exhaustive,
   lifted,
   unnamed,
-  lifts = [],
-  said,
   flag,
 }: Pick<ValuesAddress<Value>, "name" | "page" | "exhaustive" | "lifted" | "unnamed"> & {
   /** The name of the menu: what the filter filters on. */
@@ -52,18 +50,6 @@ export function ValuesFilter<Value extends string>({
   readonly values: readonly FilterValue<Value>[];
   /** The values the address filters on. */
   readonly chosen: readonly Value[];
-  /**
-   * Parameters of the address a choice lifts: those of before the filter, which it replaces
-   * (`include_inactive=false`, which the state of the accounts now says).
-   */
-  readonly lifts?: readonly string[] | undefined;
-  /**
-   * What an address of before says of the values, by a parameter that `lifts` removes
-   * (`include_inactive=false`: the active ones alone): the value it reads as, while the parameter
-   * of the filter names none.
-   */
-  readonly said?:
-    { readonly name: string; readonly value: string; readonly reads: Value } | undefined;
   /**
    * One of the `values` that the address writes under a parameter of its own, `true` when checked
    * (« Sans rôle », `without_access_role`), beside the others, in union with them; it does not count
@@ -91,13 +77,7 @@ export function ValuesFilter<Value extends string>({
     startTransition(() => {
       request((query) => {
         const base = new URLSearchParams(query);
-        for (const lift of lifts) {
-          base.delete(lift);
-        }
-        let asked = readFilter(query, filter);
-        if (said !== undefined && query.get(name) === null && query.get(said.name) === said.value) {
-          asked = [said.reads];
-        }
+        const asked = readFilter(query, filter);
         const next = make([
           ...(flag !== undefined && query.get(flag.name) === "true" ? [flag.value] : []),
           ...asked,
