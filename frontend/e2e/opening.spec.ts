@@ -4,6 +4,8 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 
 import { expect, type Page, type Request, test } from "@playwright/test";
 
+import { withinBox } from "./scroll";
+
 // The second of §4.6.2 — « ouvrir une grille de planning, de devis ou de reste à engager de mille
 // tâches : 1 s » —, measured on the structure of the volumes the fake back serves (EP-02/L2): a
 // thousand tasks and five thousand lines, six thousand rows for the estimate; the fake back serves
@@ -404,8 +406,11 @@ async function measuresTheSecond(page: Page, screen: GridScreen, from: GridScree
   const grid = page.getByRole("treegrid", { name: screen.grid });
   await expect(grid).toHaveAttribute("aria-rowcount", screen.rows);
   // The caption of the totals spans the columns that have no figure, which can be wider than the
-  // window: it is in view by its start (US-2080, #3072).
-  await expect(grid.getByRole("gridcell", { name: screen.totals })).toBeInViewport();
+  // window: it is in view by its start (US-2080, #3072), and whole in height, in the box of the
+  // grid and in the window (#3286).
+  const totals = grid.getByRole("gridcell", { name: screen.totals });
+  await expect(totals).toBeInViewport();
+  expect(await withinBox(grid, totals)).toBe(true);
   for (const shown of [
     grid.getByRole("columnheader", { name: "Libellé" }),
     // The label of the first row: the row itself, with the category and the role (US-0120), is

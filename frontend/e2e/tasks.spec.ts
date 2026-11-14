@@ -33,7 +33,7 @@ const TASK = "01926f3a-7c00-7000-8000-000000000931";
  * ends, which says the same to a reader of the screen.
  */
 function said(page: Page, text: RegExp) {
-  // The floating card of the end (#3219) repeats the sentence: it is read apart, not here.
+  // The floating card of the end (#3219) says the sentence of an end: it is read apart, not here.
   return page.locator(
     'p:not([role=log] p):not(section[aria-label="Aboutissements des tâches"] p)',
     {
@@ -153,7 +153,11 @@ test("marking a revision gives the hand back, shows its progress, and tells on a
   release();
   const ended = /^Tâche terminée\s: Marquage d’une révision «\sV2\s»\.$/;
   await expect(log).toHaveText(ended);
-  await expect(said(page, ended)).toBeVisible();
+  // Its card says it, on the screen where the user is, and the line under the bar no longer does
+  // (#3292): the card stays, and carries what follows.
+  const card = page.getByRole("region", { name: "Aboutissements des tâches" }).getByRole("group");
+  await expect(card).toContainText(/Tâche terminée\s: Marquage d’une révision «\sV2\s»\./);
+  await expect(said(page, ended)).toHaveCount(0);
   await expect(page.locator("html")).toHaveAttribute("data-visited", "revisions");
 
   // The panel shows the task ended, and the history keeps the end with a link back to the screen

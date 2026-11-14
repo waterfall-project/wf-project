@@ -64,7 +64,7 @@ beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   window.sessionStorage.clear();
   // The result of an export the tree asked for downloads by itself once made, by a hidden frame
-  // (#3103): held out of the document, happy-dom loading no page in a frame.
+  // (#3103): held, in the document, happy-dom loading no page in it (`download-frames.ts`).
   frames = heldFrames();
 });
 
