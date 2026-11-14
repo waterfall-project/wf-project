@@ -116,6 +116,7 @@ for (const address of OTHERS) {
       await expect(toggle, `« Filtres » of ${where}`).toBeInViewport();
       await toggle.click();
       await expect(toggle).toHaveAttribute("aria-expanded", "true");
+      await expect(toggle).toHaveAttribute("aria-controls", /.+/);
       const panel = page.locator(`[id="${(await toggle.getAttribute("aria-controls")) ?? ""}"]`);
       await expect(panel, `the panel of the filters of ${where}`).toBeVisible();
       await expect(panel, `the panel of the filters of ${where}`).toBeInViewport();

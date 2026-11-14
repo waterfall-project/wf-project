@@ -370,6 +370,67 @@ describe("the focus beside the chips lifted", () => {
     expect(document.body).toHaveFocus();
   });
 
+  it("is no longer armed when the address asked again (A, B, A) arrives with the chip still in it: no later removal moves the focus [WF-IHM-0130-A, défaut n° 20, #3037]", async () => {
+    const states = { key: "states", name: "État", value: "Actifs", params: ["states"] };
+    const origins = { key: "origins", name: "Origine", value: "Locale", params: ["origins"] };
+    const opener = createRef<HTMLButtonElement>();
+    /** Another change of the screen than a lift, asked while the lift is under way. */
+    function Other() {
+      const { request } = usePendingAddress();
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              request((query) => {
+                query.set("sort_by", "email");
+                return `/admin/users?${query.toString()}`;
+              });
+            }}
+          >
+            Trier
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              request((query) => {
+                query.delete("sort_by");
+                return `/admin/users?${query.toString()}`;
+              });
+            }}
+          >
+            Désordonner
+          </button>
+        </>
+      );
+    }
+    const bar = (chips: FilterChip[]) => (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <PendingAddress>
+          <button ref={opener} type="button">
+            Filtres
+          </button>
+          <Other />
+          <FilterChips chips={chips} page={undefined} every={[]} toggle={opener} />
+        </PendingAddress>
+      </NextIntlClientProvider>
+    );
+    page.search = "states=active&origins=local";
+    const { rerender } = render(bar([states, origins]));
+    await userEvent.click(screen.getByRole("button", { name: "Retirer le filtre État : Actifs" }));
+    // Another change is asked before the lift arrives.
+    await userEvent.click(screen.getByRole("button", { name: "Trier" }));
+    // The first address is asked again: the last of the streak is it, not the other change.
+    await userEvent.click(screen.getByRole("button", { name: "Désordonner" }));
+    // The last address arrives, the chip lifted still in it.
+    page.search = String(lastAddress()).split("?")[1] ?? "";
+    rerender(bar([states, origins]));
+    (document.activeElement as HTMLElement | null)?.blur();
+    // Later the chip goes by another way, at the same address: the focus stays where it was.
+    rerender(bar([origins]));
+    expect(document.body).toHaveFocus();
+  });
+
   it("goes to the button of the filters when every filter is cleared [défaut n° 20]", async () => {
     page.search = "origins=local&is_active=true";
     const { rerender } = render(list());

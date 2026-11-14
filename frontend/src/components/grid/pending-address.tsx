@@ -112,6 +112,9 @@ function useAsked() {
         return;
       }
       const streak = askedRef.current?.from === shown ? askedRef.current.streak : new Set<string>();
+      // Deleted first: a Set keeps the place of an address added again, and the last asked is the
+      // last of the streak (read so by the filter bar).
+      streak.delete(query);
       streak.add(query);
       askedRef.current = { from: shown, query, streak };
     },

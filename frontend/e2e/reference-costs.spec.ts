@@ -20,8 +20,8 @@
  * enters it at the same time, the 2015 cell is written by the path of the category alone and the
  * 2013 cell by `service/reference-manager.spec.ts`, which no project orders (US-1890).
  *
- * The known failure of the Escape closing the modification of the nature « Main-d'œuvre » is of
- * unknown cause: see `tools/queue-known.toml`.
+ * The known failure of the Escape closing the modification of the nature « Main-d'œuvre » is
+ * recorded in `tools/queue-known.toml`, with the cause it retains (a hypothesis, not proven).
  */
 import { expect, type Locator } from "@playwright/test";
 

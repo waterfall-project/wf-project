@@ -102,7 +102,7 @@ export function CellEditor({
   const search = useRef({ typed: typed ?? "", at: Number.POSITIVE_INFINITY });
   // Done once validated or abandoned: the blur that follows as it goes validates nothing more.
   const done = useRef(false);
-  // How it opened, once: on a character typed, or on its value.
+  // Read once, at mount, by an effect that runs once: a ref keeps the exhaustive-deps rule satisfied.
   const opened = useRef(typed);
   useLayoutEffect(() => {
     const element = field.current;
@@ -111,8 +111,7 @@ export function CellEditor({
       if (opened.current === undefined) {
         // An entry opened on its value (Enter, F2, a double click) selects all of it: what is
         // typed replaces it, and a key of the cursor or a click in the field lifts the selection
-        // to correct it. `select()`, not `setSelectionRange`: every field here is a text field
-        // (a date and a number are written as text), but `select()` holds for any type of input.
+        // to correct it.
         element.select();
       } else {
         // The character that opened it is already there: the caret goes after it, as when typing

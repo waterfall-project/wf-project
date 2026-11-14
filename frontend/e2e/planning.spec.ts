@@ -297,11 +297,23 @@ test("selects the whole label of a task entered by F2, a key typed replaces it, 
   // A click in the field lifts the selection, and a key typed there goes in: it does not erase.
   await page.keyboard.press("Control+A");
   await field.click();
+  expect(
+    await field.evaluate((input: HTMLInputElement) => input.selectionStart === input.selectionEnd),
+  ).toBe(true);
   await page.keyboard.type("!");
   await expect(field).toHaveValue(/!/);
   await expect(field).toHaveValue(/P.*o.*s.*e/);
   await page.keyboard.press("Escape");
   await expect(cell).toContainText(value);
+  // A double click enters it on its value as well, selected in full, and a key typed replaces it.
+  await cell.dblclick();
+  await expect(field).toHaveValue(value);
+  expect(
+    await field.evaluate((input: HTMLInputElement) => [input.selectionStart, input.selectionEnd]),
+  ).toEqual([0, value.length]);
+  await page.keyboard.type("Pose");
+  await expect(field).toHaveValue("Pose");
+  await page.keyboard.press("Escape");
 });
 
 test("enters a duration with its unit, then the predecessors « 13FD+2 j » of the mounting, and the successor the server redated takes its place in the grid [WF-PLA-0030-A] [WF-PLA-0020-A]", async ({
