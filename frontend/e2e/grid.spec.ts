@@ -296,10 +296,13 @@ test.describe("on a narrow window", () => {
     await totals.evaluate((cell) => {
       cell.style.transform = "translateY(50%)";
     });
-    expect(await withinBox(grid(page), totals)).toBe(false);
-    await totals.evaluate((cell) => {
-      cell.style.transform = "";
-    });
+    try {
+      expect(await withinBox(grid(page), totals)).toBe(false);
+    } finally {
+      await totals.evaluate((cell) => {
+        cell.style.transform = "";
+      });
+    }
   });
 
   test("shows the revision a copy is made of whole, beside the chip of an active filter, without overlap @shared [WF-IHM-0020-A]", async ({

@@ -153,7 +153,16 @@ test("opens the reason Undo waits for by Enter, leaves it by Tab, closes it by E
   await page.keyboard.press("Escape");
   await expect(whole).toHaveCount(0);
   await expect(reason).toBeFocused();
-  await expect(reason).toHaveCSS("box-shadow", /rgb\(2, 125, 198\)/);
+  // The ring of the charter, read from the token as computed in the page, not written here.
+  const ring = await page.evaluate(() => {
+    const probe = document.createElement("span");
+    probe.style.color = "var(--ring)";
+    document.body.append(probe);
+    const colour = getComputedStyle(probe).color;
+    probe.remove();
+    return colour;
+  });
+  await expect(reason).toHaveCSS("box-shadow", new RegExp(ring.replaceAll(/[()]/g, "\\$&")));
 });
 
 test("closes the menu of a cell opened from the keyboard by Escape, its tooltip first, however long the focus has rested on its first item since it opened (#1541)", async ({

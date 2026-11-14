@@ -203,6 +203,21 @@ describe("undo and redo, placed in the grids", () => {
     expect(reason).toHaveFocus();
   });
 
+  it("leaves the focus on the button of the reason when it opens, so that Tab goes on from it and closes it (#3265) [WF-IHM-0100-A]", async () => {
+    render(unwiredGrid());
+    const reason = screen.getByRole("button", { name: REASON });
+    await userEvent.click(reason);
+    const whole = screen.getByRole("dialog", {
+      name: "Pourquoi annuler et rétablir sont indisponibles",
+    });
+    // The focus is not taken by the popover: it holds nothing to reach.
+    expect(reason).toHaveFocus();
+    expect(whole).not.toContainElement(document.activeElement as HTMLElement);
+    await userEvent.tab();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(reason).not.toHaveFocus();
+  });
+
   it("places them in the menu of a cell, opened by Shift+F10, with their shortcuts, unavailable and saying why", async () => {
     render(unwiredGrid());
     const cell = focusLabel();

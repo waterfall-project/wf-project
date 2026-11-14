@@ -201,6 +201,10 @@ const CONTROLS: readonly [string, string][] = [
   ["row-command-border", "card"],
   ["row-command-border", "row-hover"],
   ["row-command-border", "accent"],
+  // ... and on a computed cell (`bg-muted`) and on the tint of a row a differential marks.
+  ...(["muted", "diff-added", "diff-removed", "diff-modified"] as const).map(
+    (background): [string, string] => ["row-command-border", background],
+  ),
   // The line under the current tab of a row of tabs (`Tabs`), on the page and on a card (US-2070).
   ["primary", "background"],
   ["primary", "card"],
@@ -491,6 +495,23 @@ describe("the tokens of the states of a project", () => {
           expect(difference, `${state} and ${signal}`).toBeGreaterThanOrEqual(DISTINCT);
         }
       }
+    });
+  });
+});
+
+// The row under the pointer is told from the card it is set on and from the row selected by a
+// CIE76 difference of 2.3 — the smallest one noticed side by side, which DISTINCT is several times
+// — since the tint is a hint under the pointer, not a signal: the text and the controls it carries
+// are measured above.
+const NOTICED = 2.3;
+
+describe("the row of a table under the pointer", () => {
+  describe.each(MODES)("in %s mode", (mode) => {
+    it.each(["card", "accent"])("is told from the %s [WF-IHM-0100-A]", (other) => {
+      const a = lab(linear(colour("row-hover", mode)));
+      const b = lab(linear(colour(other, mode)));
+      const difference = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+      expect(difference, `row-hover and ${other}`).toBeGreaterThanOrEqual(NOTICED);
     });
   });
 });
