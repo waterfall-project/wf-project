@@ -98,4 +98,7 @@ requête, et échouent au passage du nouvel an ;
 - #3149 — outil : test_e2ebrowser, deux tests attendent une seconde fixe avant d'interrompre le
 shell ;
 - #3161 — outil : le défaut n° 22 de typescript.md, « une exception et une seule », ambigu pour un
-état vidé quand une prop le relaie.
+état vidé quand une prop le relaie ;
+- #3291 — outil : citer un critère propre à une US dans un test, sans emprunter une exigence
+(WF-QUA-0010) — relevé par la revue d'US-2160/L2, reporté d'EP-25 (décision de l'auteur du
+2026-11-14).
