@@ -431,14 +431,15 @@ def test_eight_creations_of_a_project_at_once_meet_no_deadlock(
     assert len(set(created)) == 8
 
 
-# The vacuum of the accounts between two attempts at truncating them, holding ``SHARE UPDATE
-# EXCLUSIVE`` on the table: it waits for none, and tries again every fifty milliseconds, five
-# seconds at most, before it gives the truncation up.
+# The vacuum of the process ``vacuum`` between two attempts at truncating the accounts, holding
+# ``SHARE UPDATE EXCLUSIVE`` on the table: it waits for none, and tries again every fifty
+# milliseconds, five seconds at most, before it gives the truncation up. That process alone: an
+# autovacuum of the accounts waits the same way, and is not the vacuum the test times (#3109).
 TRUNCATING_ACCOUNTS = text(
     "SELECT count(*) FROM pg_stat_activity AS activity JOIN pg_locks AS held "
     "ON held.pid = activity.pid AND held.locktype = 'relation' AND held.granted "
     "AND held.mode = 'ShareUpdateExclusiveLock' AND held.relation = 'user_account'::regclass "
-    "WHERE activity.datname = current_database() AND activity.wait_event = 'VacuumTruncate'"
+    "WHERE activity.pid = :vacuum AND activity.wait_event = 'VacuumTruncate'"
 )
 # Accounts written then deleted at the end of the table: the pages they leave empty are what a
 # vacuum truncates.
@@ -451,15 +452,29 @@ EMPTIED_ACCOUNTS = (
     ),
     text("DELETE FROM user_account WHERE idp_subject LIKE 'vide-%'"),
 )
+# The identifier of the transaction that empties them, by which the snapshots still seeing the rows
+# are found.
+EMPTYING = text("SELECT pg_current_xact_id()::xid::text")
+# The other sessions of the database whose snapshot, or transaction, is as old as the one that
+# emptied the accounts: while one remains, a vacuum keeps the deleted rows, "dead but not yet
+# removable", and finds no empty page to truncate. An autoanalyze of any table of the database
+# holds such a snapshot while it reads.
+SEEING_THE_EMPTIED = text(
+    "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() "
+    "AND pid <> pg_backend_pid() AND (age(backend_xmin) >= age(CAST(:emptying AS xid)) "
+    "OR age(backend_xid) >= age(CAST(:emptying AS xid)))"
+)
 
 
-def vacuumed_accounts(owner: Engine) -> float:
-    """Vacuum the accounts, as an autovacuum would, and give how long it took, in seconds."""
-    with owner.connect() as connection:
-        vacuuming = connection.execution_options(isolation_level="AUTOCOMMIT")
-        started = time.monotonic()
-        vacuuming.execute(text("VACUUM user_account"))
-        return time.monotonic() - started
+def vacuumed_accounts(vacuuming: Connection) -> float:
+    """Vacuum the accounts by ``vacuuming``, outside any transaction, and give how long it took.
+
+    A manual vacuum truncates the empty pages at the end of the table as an autovacuum does; the
+    duration is in seconds.
+    """
+    started = time.monotonic()
+    vacuuming.execute(text("VACUUM user_account"))
+    return time.monotonic() - started
 
 
 def test_a_creation_waits_out_the_truncation_of_a_vacuum_another_session_holds_up(
@@ -470,46 +485,73 @@ def test_a_creation_waits_out_the_truncation_of_a_vacuum_another_session_holds_u
     # vacuum keeps ``SHARE UPDATE EXCLUSIVE`` the five seconds it tries; the creation of a project,
     # which takes ``user_account`` without waiting, gives its locks back and tries again, about ten
     # seconds from the advisory lock: the vacuum gives the truncation up, and the creation ends.
+    # #3109: the vacuum watched and timed is the test's, by its process. No autovacuum of the
+    # accounts, which would truncate the pages first or be watched instead of it; and no other
+    # session still sees the emptied accounts when it starts, or it would find nothing to truncate.
     install(owner)
     complete_reference(database)
     with owner.begin() as connection:
-        for statement in EMPTIED_ACCOUNTS:
-            connection.execute(statement)
-    viewer = Viewer(uuid4(), ("all_projects_read",))
+        connection.execute(text("ALTER TABLE user_account SET (autovacuum_enabled = false)"))
+    try:
+        with owner.begin() as connection:
+            for statement in EMPTIED_ACCOUNTS:
+                connection.execute(statement)
+            emptying = connection.scalar(EMPTYING)
+        until(
+            owner,
+            lambda watching: watching.scalar(SEEING_THE_EMPTIED, {"emptying": emptying}) == 0,
+            "no other session seeing the emptied accounts",
+        )
+        viewer = Viewer(uuid4(), ("all_projects_read",))
 
-    def create() -> UUID:
-        with logging_context(correlation_id="vacuum"), database.transaction() as session:
-            return create_project(session, ProjectDraft("Vacuum"), ACT, viewer).project_id
+        def create() -> UUID:
+            with logging_context(correlation_id="vacuum"), database.transaction() as session:
+                return create_project(session, ProjectDraft("Vacuum"), ACT, viewer).project_id
 
-    with owner.connect() as connection:
-        values = {"locked": locked_tables(connection), "key": PARTITIONS_LOCK}
-    with ThreadPoolExecutor(2) as pool:
-        with database.engine.connect() as reading, reading.begin():
-            reading.execute(text("SELECT count(*) FROM user_account")).one()
-            vacuum = pool.submit(vacuumed_accounts, owner)
-            until(
-                owner,
-                lambda watching: watching.scalar(TRUNCATING_ACCOUNTS) == 1,
-                "the vacuum trying to truncate the accounts",
-            )
-            creation = pool.submit(create)
+        with owner.connect() as connection:
+            values = {"locked": locked_tables(connection), "key": PARTITIONS_LOCK}
+        with owner.connect() as connection, ThreadPoolExecutor(2) as pool:
+            vacuuming = connection.execution_options(isolation_level="AUTOCOMMIT")
+            values["vacuum"] = vacuuming.scalar(select(func.pg_backend_pid()))
+            with database.engine.connect() as reading, reading.begin():
+                reading.execute(text("SELECT count(*) FROM user_account")).one()
+                vacuum = pool.submit(vacuumed_accounts, vacuuming)
 
-            def asleep_behind_the_vacuum(watching: Connection) -> bool:
-                if creation.done():
-                    # Given up — ``lock_not_available`` raised here —, or never held by the vacuum.
-                    creation.result()
-                    pytest.fail("the creation ended before it was seen asleep behind the vacuum")
-                return (
-                    bool(watching.scalars(ASLEEP, values).all())
-                    and watching.scalar(TRUNCATING_ACCOUNTS) == 1
+                def truncating(watching: Connection) -> bool:
+                    if vacuum.done():
+                        pytest.fail(
+                            f"the vacuum ended in {vacuum.result():.3f} s without trying to "
+                            "truncate the accounts"
+                        )
+                    return watching.scalar(TRUNCATING_ACCOUNTS, values) == 1
+
+                until(owner, truncating, "the vacuum trying to truncate the accounts")
+                creation = pool.submit(create)
+
+                def asleep_behind_the_vacuum(watching: Connection) -> bool:
+                    if creation.done():
+                        # Given up — ``lock_not_available`` raised here —, or never held by the
+                        # vacuum.
+                        creation.result()
+                        pytest.fail(
+                            "the creation ended before it was seen asleep behind the vacuum"
+                        )
+                    return (
+                        bool(watching.scalars(ASLEEP, values).all())
+                        and watching.scalar(TRUNCATING_ACCOUNTS, values) == 1
+                    )
+
+                until(
+                    owner, asleep_behind_the_vacuum, "the creation asleep while the vacuum truncates"
                 )
-
-            until(owner, asleep_behind_the_vacuum, "the creation asleep while the vacuum truncates")
-            project_id = creation.result(timeout=15)
-        # The vacuum kept its lock the five seconds of its attempts (PostgreSQL's hard-coded
-        # VACUUM_TRUNCATE_LOCK_TIMEOUT, which the lower bound relies on), and the creation
-        # outlasted it.
-        assert 4 < vacuum.result(timeout=15) < 10
+                project_id = creation.result(timeout=15)
+            # The vacuum kept its lock the five seconds of its attempts (PostgreSQL's hard-coded
+            # VACUUM_TRUNCATE_LOCK_TIMEOUT, which the lower bound relies on), and the creation
+            # outlasted it.
+            assert 4 < vacuum.result(timeout=15) < 10
+    finally:
+        with owner.begin() as connection:
+            connection.execute(text("ALTER TABLE user_account RESET (autovacuum_enabled)"))
     with database.engine.connect() as connection:
         assert partition_of(project_id) in partitions(connection)
 
