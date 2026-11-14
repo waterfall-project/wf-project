@@ -45,6 +45,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { cn } from "@/components/ui/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import { type CellFolding, FoldMenuItems } from "./fold";
@@ -219,9 +220,10 @@ export function UndoCommands({ control }: { readonly control?: UndoControl | und
             variant="outline"
             size="icon"
             aria-label={t(command)}
-            className="size-7"
+            className={cn("size-7", (control === undefined || control.busy) && UNAVAILABLE)}
             // A write under way: the button is marked inactive, as the inline confirmations are, and
-            // pressed does nothing (`useUndoRedo`); `buttonVariants` draws it so (#3125).
+            // pressed does nothing (`useUndoRedo`). The class is drawn here until `buttonVariants`
+            // draws `aria-disabled` itself (US-2070/L2, #3125), which will remove it.
             {...(control?.busy === true ? { "aria-disabled": true } : {})}
             onClick={
               control === undefined || control.busy

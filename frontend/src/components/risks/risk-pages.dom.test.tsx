@@ -58,11 +58,11 @@ describe("the pages of the registry of the risks", () => {
     page.search = "states=identified&sort_by=label&limit=10&offset=10";
     render(pages(SECOND, 10));
     const nav = screen.getByRole("navigation", { name: "Pages des risques" });
-    expect(within(nav).getByRole("link", { name: "Précédent" })).toHaveAttribute(
+    expect(within(nav).getByRole("link", { name: /^Précédent/ })).toHaveAttribute(
       "href",
       `${PATHNAME}?states=identified&sort_by=label&limit=10`,
     );
-    expect(within(nav).getByRole("link", { name: "Suivant" })).toHaveAttribute(
+    expect(within(nav).getByRole("link", { name: /^Suivant/ })).toHaveAttribute(
       "href",
       `${PATHNAME}?states=identified&sort_by=label&limit=10&offset=20`,
     );

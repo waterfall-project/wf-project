@@ -13,6 +13,8 @@ import { describe, expect, it, vi } from "vitest";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { ListPage, PagedList } from "@/navigation/pages";
 
+import { expectAccessible } from "@/test/axe";
+
 import { ListPages, pageSpan } from "./list-pages";
 
 const PATHNAME = "/reference/costs";
@@ -48,8 +50,8 @@ describe("the pages of a flat table", () => {
   it("say the rows shown and the page among the pages, between « Précédent » and « Suivant », after « Lignes par page » [WF-IHM-0060-A]", () => {
     const { container } = pages({ offset: 50, limit: 50, total: 150 }, 50);
     const nav = navigation();
-    expect(within(nav).getByRole("link", { name: "Précédent" })).toHaveAttribute("href", PATHNAME);
-    expect(within(nav).getByRole("link", { name: "Suivant" })).toHaveAttribute(
+    expect(within(nav).getByRole("link", { name: "Précédent, Catégories de coût" })).toHaveAttribute("href", PATHNAME);
+    expect(within(nav).getByRole("link", { name: "Suivant, Catégories de coût" })).toHaveAttribute(
       "href",
       `${PATHNAME}?category_offset=100`,
     );
@@ -63,13 +65,14 @@ describe("the pages of a flat table", () => {
     ).toHaveValue("50");
   });
 
-  it("keep « Précédent » and « Suivant » in their place, inert, at the ends of the list [WF-IHM-0060-A]", () => {
+  it("keep « Précédent » and « Suivant » in their place, inert, at the ends of the list [WF-IHM-0060-A]", async () => {
     const { rerender } = pages({ offset: 0, limit: 50, total: 120 }, 50);
     const first = within(navigation());
-    expect(first.getByRole("link", { name: "Précédent" })).toHaveAttribute("aria-disabled", "true");
-    expect(first.getByRole("link", { name: "Précédent" })).not.toHaveAttribute("href");
-    expect(first.getByRole("link", { name: "Suivant" })).not.toHaveAttribute("aria-disabled");
+    expect(first.getByRole("link", { name: "Précédent, Catégories de coût" })).toHaveAttribute("aria-disabled", "true");
+    expect(first.getByRole("link", { name: "Précédent, Catégories de coût" })).not.toHaveAttribute("href");
+    expect(first.getByRole("link", { name: "Suivant, Catégories de coût" })).not.toHaveAttribute("aria-disabled");
     expect(navigation()).toHaveTextContent("Page 1 sur 3");
+    await expectAccessible(navigation());
     expect(screen.getByText("1–50 sur 120")).toBeVisible();
     rerender(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
@@ -82,14 +85,22 @@ describe("the pages of a flat table", () => {
       </NextIntlClientProvider>,
     );
     const last = within(navigation());
-    expect(last.getByRole("link", { name: "Suivant" })).toHaveAttribute("aria-disabled", "true");
-    expect(last.getByRole("link", { name: "Suivant" })).not.toHaveAttribute("href");
-    expect(last.getByRole("link", { name: "Précédent" })).toHaveAttribute(
+    expect(last.getByRole("link", { name: "Suivant, Catégories de coût" })).toHaveAttribute("aria-disabled", "true");
+    expect(last.getByRole("link", { name: "Suivant, Catégories de coût" })).not.toHaveAttribute("href");
+    expect(last.getByRole("link", { name: "Précédent, Catégories de coût" })).toHaveAttribute(
       "href",
       `${PATHNAME}?category_offset=50`,
     );
     expect(navigation()).toHaveTextContent("Page 3 sur 3");
     expect(screen.getByText("101–120 sur 120")).toBeVisible();
+  });
+
+  it("name each link by its visible word, then its list, one link to each name in a navigation [WF-IHM-0060-A]", () => {
+    pages({ offset: 50, limit: 50, total: 150 }, 50);
+    const nav = within(navigation());
+    expect(nav.getAllByRole("link", { name: /^Précédent/ })).toHaveLength(1);
+    expect(nav.getAllByRole("link", { name: /^Suivant/ })).toHaveLength(1);
+    expect(nav.getByRole("link", { name: "Précédent, Catégories de coût" })).toBeVisible();
   });
 
   it("are written in English too, the numbers grouped as the language groups them [WF-IHM-0060-A]", () => {

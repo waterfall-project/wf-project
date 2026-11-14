@@ -93,11 +93,13 @@ function PageLink({
   offset,
   direction,
   text,
+  name,
 }: {
   readonly list: PagedList;
   readonly offset: number;
   readonly direction: Direction;
   readonly text: string;
+  readonly name: string;
 }) {
   const pathname = usePathname();
   const shown = useSearchParams();
@@ -109,7 +111,7 @@ function PageLink({
   });
   const Link = direction === "previous" ? PaginationPrevious : PaginationNext;
   return (
-    <Link href={href} onClick={onClick} scroll={false} className={TURN}>
+    <Link href={href} onClick={onClick} scroll={false} aria-label={name} className={TURN}>
       {text}
     </Link>
   );
@@ -119,9 +121,17 @@ function PageLink({
  * A link at an end of the list, inert: kept in its place, drawn as the link, marked as one that leads
  * nowhere (`aria-disabled`), and out of the order of the keyboard, having no address.
  */
-function InertTurn({ direction, text }: { readonly direction: Direction; readonly text: string }) {
+function InertTurn({
+  direction,
+  text,
+  name,
+}: {
+  readonly direction: Direction;
+  readonly text: string;
+  readonly name: string;
+}) {
   return (
-    <a role="link" aria-disabled="true" className={cn(TURN, "pointer-events-none opacity-50")}>
+    <a role="link" aria-disabled="true" aria-label={name} className={cn(TURN, "pointer-events-none opacity-50")}>
       {direction === "previous" ? <ChevronLeft aria-hidden="true" /> : null}
       {text}
       {direction === "next" ? <ChevronRight aria-hidden="true" /> : null}
@@ -182,15 +192,23 @@ export function ListPages({
   }
   const label = naming.texts === undefined ? named("label", { list: naming.title }) : t("label");
   const span = pageSpan(page, shown);
-  const turn = (direction: Direction, offset: number | undefined) => (
-    <PaginationItem>
-      {offset === undefined ? (
-        <InertTurn direction={direction} text={said(direction)} />
-      ) : (
-        <PageLink list={list} offset={offset} direction={direction} text={said(direction)} />
-      )}
-    </PaginationItem>
-  );
+  // The name of a link says its visible word first, then its list (WCAG 2.5.3), so that the links of
+  // the several lists of a screen are told apart.
+  const turn = (direction: Direction, offset: number | undefined) => {
+    const text = said(direction);
+    const name = said(direction === "previous" ? "previousNamed" : "nextNamed", {
+      list: naming.title ?? label,
+    });
+    return (
+      <PaginationItem>
+        {offset === undefined ? (
+          <InertTurn direction={direction} text={text} name={name} />
+        ) : (
+          <PageLink list={list} offset={offset} direction={direction} text={text} name={name} />
+        )}
+      </PaginationItem>
+    );
+  };
   return (
     <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-xs text-muted-foreground">
       {beyond ? <p>{t("beyond")}</p> : null}

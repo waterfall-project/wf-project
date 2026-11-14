@@ -583,11 +583,11 @@ describe("the pages of a list the server pages", () => {
       ),
     );
     const pages = screen.getByRole("navigation", { name: "Pages des coûts réels" });
-    expect(within(pages).getByRole("link", { name: "Précédent" })).toHaveAttribute(
+    expect(within(pages).getByRole("link", { name: /^Précédent/ })).toHaveAttribute(
       "href",
       `${PATHNAME}?in_tracked_scope=true`,
     );
-    expect(within(pages).getByRole("link", { name: "Suivant" })).toHaveAttribute(
+    expect(within(pages).getByRole("link", { name: /^Suivant/ })).toHaveAttribute(
       "href",
       `${PATHNAME}?in_tracked_scope=true&offset=2`,
     );
@@ -606,7 +606,7 @@ describe("the pages of a list the server pages", () => {
       ),
     );
     const pages = pagesOf("costs");
-    for (const name of ["Précédent", "Suivant"]) {
+    for (const name of [/^Précédent/, /^Suivant/]) {
       expect(within(pages).getByRole("link", { name })).toHaveAttribute("aria-disabled", "true");
       expect(within(pages).getByRole("link", { name })).not.toHaveAttribute("href");
     }
@@ -643,7 +643,7 @@ describe("the pages of a list the server pages", () => {
       ),
     );
     expect(screen.getByText("La page demandée est au-delà de la fin du journal.")).toBeVisible();
-    expect(screen.getByRole("link", { name: "Précédent" })).toHaveAttribute("href", PATHNAME);
+    expect(screen.getByRole("link", { name: /^Précédent/ })).toHaveAttribute("href", PATHNAME);
   });
 
   it("turns a page from the address last asked: a sort under way is kept, from the first page", async () => {
@@ -674,7 +674,7 @@ describe("the pages of a list the server pages", () => {
         { scroll: false },
       );
     });
-    await userEvent.click(screen.getByRole("link", { name: "Suivant" }));
+    await userEvent.click(screen.getByRole("link", { name: /^Suivant/ }));
     expect(router.push).toHaveBeenLastCalledWith(
       `${PATHNAME}?sort_by=document_date&sort_order=asc`,
       { scroll: false },
@@ -713,12 +713,12 @@ describe("the pages of a list the server pages", () => {
       `${PATHNAME}?imports_offset=12&in_tracked_scope=false`,
       { scroll: false },
     );
-    await userEvent.click(within(pagesOf("costs")).getByRole("link", { name: "Suivant" }));
+    await userEvent.click(within(pagesOf("costs")).getByRole("link", { name: /^Suivant/ }));
     expect(router.push).toHaveBeenLastCalledWith(
       `${PATHNAME}?imports_offset=12&in_tracked_scope=false`,
       { scroll: false },
     );
-    await userEvent.click(within(pagesOf("journal")).getByRole("link", { name: "Précédent" }));
+    await userEvent.click(within(pagesOf("journal")).getByRole("link", { name: /^Précédent/ }));
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?in_tracked_scope=false`, {
       scroll: false,
     });
@@ -746,10 +746,10 @@ describe("the pages of a list the server pages", () => {
         </PendingAddress>,
       ),
     );
-    await userEvent.click(within(pagesOf("journal")).getByRole("link", { name: "Précédent" }));
+    await userEvent.click(within(pagesOf("journal")).getByRole("link", { name: /^Précédent/ }));
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?offset=1`, { scroll: false });
     // The journal turned reads nothing of the costs: their next page follows the one shown (#294).
-    await userEvent.click(within(pagesOf("costs")).getByRole("link", { name: "Suivant" }));
+    await userEvent.click(within(pagesOf("costs")).getByRole("link", { name: /^Suivant/ }));
     expect(router.push).toHaveBeenLastCalledWith(
       `${PATHNAME}?offset=${String(1 + list.items.length)}`,
       { scroll: false },
@@ -787,7 +787,7 @@ describe("the pages of a list the server pages", () => {
       scroll: false,
     });
     // The line asked and not arrived: the next page still follows the one shown.
-    await userEvent.click(screen.getByRole("link", { name: "Suivant" }));
+    await userEvent.click(screen.getByRole("link", { name: /^Suivant/ }));
     expect(router.push).toHaveBeenLastCalledWith(
       `${PATHNAME}?offset=${String(1 + list.items.length)}&${shown}`,
       { scroll: false },

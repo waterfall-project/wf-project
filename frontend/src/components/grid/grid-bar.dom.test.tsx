@@ -130,7 +130,7 @@ const FLAT: GridConfig<EstimateNode, NodeSortColumn, NodeTotals> = {
 };
 
 describe("the number of rows of a flat table, filtered", () => {
-  it("is said by the totals row alone, never by the bar [WF-IHM-0130-A]", () => {
+  it("is said by the totals row alone, never by the bar [WF-IHM-0130-A] [WF-IHM-0060-A]", () => {
     const { container } = render(
       inFrench(
         <DenseGrid

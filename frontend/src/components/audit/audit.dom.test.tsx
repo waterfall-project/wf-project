@@ -536,11 +536,11 @@ describe("the grid of the journal", () => {
     page.search = "actions=backup&sort_by=occurred_at&sort_order=asc&offset=10";
     const { container } = render(journal({ shown: second }));
     const pages = screen.getByRole("navigation", { name: "Pages de la liste" });
-    expect(within(pages).getByRole("link", { name: "Précédent" })).toHaveAttribute(
+    expect(within(pages).getByRole("link", { name: /^Précédent/ })).toHaveAttribute(
       "href",
       "/admin/audit-log?actions=backup&sort_by=occurred_at&sort_order=asc",
     );
-    expect(within(pages).getByRole("link", { name: "Suivant" })).toHaveAttribute(
+    expect(within(pages).getByRole("link", { name: /^Suivant/ })).toHaveAttribute(
       "href",
       "/admin/audit-log?actions=backup&sort_by=occurred_at&sort_order=asc&offset=20",
     );
@@ -553,7 +553,7 @@ describe("the grid of the journal", () => {
     await pick("Filtrer par nature d’auteur", "La plateforme");
     expect(lastAddress()).toBe("/admin/audit-log?actor_kind=platform");
     // The filter asked and not arrived: the journal read otherwise starts from its first page.
-    await userEvent.click(screen.getByRole("link", { name: "Suivant" }));
+    await userEvent.click(screen.getByRole("link", { name: /^Suivant/ }));
     expect(lastAddress()).toBe("/admin/audit-log?actor_kind=platform");
   });
 

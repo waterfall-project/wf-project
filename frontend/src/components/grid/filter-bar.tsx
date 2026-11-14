@@ -6,11 +6,11 @@
  * the panel itself, and under the bar the chips of the filters on, each lifted by its cross, and
  * « Effacer les filtres ». A chip is a pill in the tint of the primary (`accent`), its words in the
  * primary, so that the table is seen not to show everything (#3077); its meaning never rests on
- * the colour, its words and its cross saying it (WF-IHM-0070). The panel stays in the page when closed, hidden, so that what a filter
- * holds of an entry is not lost; whether it is open is kept with the settings of the grid
- * (`filters_open`). A chip lifted changes the address only, back to the first page: the server
- * filters (WF-ARC-0020). The search is a field of the bar and not a chip, and clearing the filters
- * leaves it.
+ * the colour, its words and its cross saying it (WF-IHM-0070). The panel stays in the page when
+ * closed, hidden, so that what a filter holds of an entry is not lost; whether it is open is kept
+ * with the settings of the grid (`filters_open`). A chip lifted changes the address only, back to
+ * the first page: the server filters (WF-ARC-0020). The search is a field of the bar and not a
+ * chip, and clearing the filters leaves it.
  */
 "use client";
 

@@ -112,7 +112,7 @@ describe("the number of rows per page of a flat table", () => {
     // The links to the pages turn from the address asked, and carry the size chosen.
     page.search = "origins=local&limit=10";
     render(accounts(10));
-    expect(screen.getAllByRole("link", { name: "Suivant" }).at(-1)).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /^Suivant/ }).at(-1)).toHaveAttribute(
       "href",
       "/admin/users?origins=local&limit=10&offset=7",
     );

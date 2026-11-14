@@ -99,7 +99,9 @@
       "range": "{from, number}–{to, number} of {total, number}",
       "page": "Page {page, number} of {pages, number}",
       "previous": "Previous",
-      "next": "Next"
+      "next": "Next",
+      "previousNamed": "Previous, {list}",
+      "nextNamed": "Next, {list}"
     },
     "names": {
       "estimate": "Estimate grid",

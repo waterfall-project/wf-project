@@ -99,7 +99,9 @@
       "range": "{from, number}–{to, number} sur {total, number}",
       "page": "Page {page, number} sur {pages, number}",
       "previous": "Précédent",
-      "next": "Suivant"
+      "next": "Suivant",
+      "previousNamed": "Précédent, {list}",
+      "nextNamed": "Suivant, {list}"
     },
     "names": {
       "estimate": "Grille de devis",
