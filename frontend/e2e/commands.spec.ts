@@ -31,7 +31,9 @@ test("a command the project cannot take now is shown unavailable, naming the con
   // Not written under the button: its tooltip says it, to the keyboard as to the pointer.
   await expect(commands.getByText(unmet)).toBeHidden();
   await lose.focus();
-  await expect(page.getByRole("tooltip")).toContainText("aucune révision en cours d’élaboration");
+  await expect(page.locator("[data-slot=tooltip-content]")).toContainText(
+    "aucune révision en cours d’élaboration",
+  );
 
   // It stays in the order of the keyboard, and pressed, it runs nothing: it tells what it lacks.
   await page.keyboard.press("Enter");
