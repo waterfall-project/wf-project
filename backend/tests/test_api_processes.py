@@ -8,7 +8,9 @@ first time it validates a token: the realm counts its readings, and so tells whe
 served by a process that had served none before.
 """
 
+import contextlib
 import json
+import os
 import signal
 import socket
 import subprocess
@@ -66,6 +68,22 @@ class Served:
         return [json.loads(line).get("event", "") for line in lines if line.startswith("{")]
 
 
+def stop(process: subprocess.Popen[bytes]) -> None:
+    """Stop the API and every worker of its group, killing them if they do not stop in time."""
+    group = process.pid
+    try:
+        if process.poll() is None:
+            process.send_signal(signal.SIGTERM)
+            process.wait(STOP_SECONDS)
+    except subprocess.TimeoutExpired:
+        pass
+    finally:
+        # The process leads its own session: its group is the API and the workers it started.
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(group, signal.SIGKILL)
+        process.wait()
+
+
 @pytest.fixture
 def served(
     database: Database, service_environment: dict[str, str], realm: TestRealm, tmp_path: Path
@@ -84,7 +102,10 @@ def served(
     logs = tmp_path / "api.log"
     with logs.open("wb") as written:
         process = subprocess.Popen(
-            [sys.executable, "-m", "waterfall.api.main"], env=environment, stderr=written
+            [sys.executable, "-m", "waterfall.api.main"],
+            env=environment,
+            stderr=written,
+            start_new_session=True,
         )
     started = Served(process, port, logs)
     try:
@@ -100,9 +121,7 @@ def served(
             time.sleep(0.1)
         yield started
     finally:
-        if process.poll() is None:
-            process.send_signal(signal.SIGTERM)
-            process.wait(STOP_SECONDS)
+        stop(process)
 
 
 @pytest.mark.requirement("WF-ARC-0080-A")

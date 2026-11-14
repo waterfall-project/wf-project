@@ -261,7 +261,8 @@ alors demander une nouvelle restauration, qui reprend ce que la première avait 
 ## Les processus de l'API
 
 L'API sert ses requêtes sur `WATERFALL_API_PROCESSES` processus, un par défaut (US-2230) : un
-réglage de `.env`, qui prend effet au prochain `up`. Chaque processus construit son application,
+réglage de `.env`, qui prend effet au prochain `up`. Ce `up` recrée aussi PostgreSQL, dont
+`max_connections` ne change pas à chaud : il interrompt brièvement tout le service. Chaque processus construit son application,
 ouvre ses propres services — la base, Keycloak, Redis, le stockage — et les ferme quand il
 s'arrête ; aucun ne garde d'un utilisateur ce qu'un autre ignorerait (WF-ARC-0080) : une requête
 est servie de même par n'importe lequel.
