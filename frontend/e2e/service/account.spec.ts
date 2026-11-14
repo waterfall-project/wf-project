@@ -14,7 +14,7 @@
 import { type APIRequestContext, type Browser, expect, type Page, test } from "@playwright/test";
 
 import { compileAnswered } from "../compile";
-import { openMenu, setExpanded } from "../hydration";
+import { openMenu, setExpanded, untilHydrated } from "../hydration";
 import { heldToTheContract } from "./contract";
 import {
   type Administrator,
@@ -331,6 +331,9 @@ test("the panel of the filters of the table of the accounts, closed by default, 
       });
     watch(mine, writes);
     await mine.goto(ROLES);
+    // `aria-expanded="false"` is rendered by the server and proves nothing of the hydration: a
+    // write the page defers would come after it (#3037).
+    await untilHydrated(mine);
     await expect(filtersButton(mine)).toHaveAttribute("aria-expanded", "false");
     expect(writes).toEqual([]);
     expect(keptOpen(first.email, "access_roles")).toBeUndefined();
@@ -339,6 +342,7 @@ test("the panel of the filters of the table of the accounts, closed by default, 
     const hersWrites: string[] = [];
     watch(hers, hersWrites);
     await hers.goto(USERS);
+    await untilHydrated(hers);
     await expect(filtersButton(hers)).toHaveAttribute("aria-expanded", "false");
     expect(hersWrites).toEqual([]);
     expect(keptOpen(second.email, "users")).toBeUndefined();

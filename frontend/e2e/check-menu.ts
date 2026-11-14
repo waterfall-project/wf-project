@@ -23,9 +23,14 @@ export async function openMenu(page: Page, label: string): Promise<Locator> {
   const list = page.getByRole("dialog");
   // The state is read, not guessed: the button is pressed only while it says the menu is closed (a
   // menu opening says so at once, and is not pressed again), and until the list shows. An open
-  // menu is modal and hides its button from the tree: the list is what says it opened.
+  // menu is modal and hides its button from the tree: the list is what says it opened. The button
+  // read has a second to be found, not the whole delay of an action, which a list not shown yet and
+  // a button already gone would take from `toPass` (#3037).
   await expect(async () => {
-    if (!(await list.isVisible()) && (await button.getAttribute("aria-expanded")) === "false") {
+    if (
+      !(await list.isVisible()) &&
+      (await button.getAttribute("aria-expanded", { timeout: 1_000 })) === "false"
+    ) {
       await button.click();
     }
     await expect(list).toBeVisible({ timeout: 1_000 });

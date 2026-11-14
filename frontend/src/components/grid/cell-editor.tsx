@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The entry of a cell of a grid, in place of its value (WF-IHM-0040): a field for a text or a
- * number, the list of its choices for a category or a role. It takes the focus as it opens.
+ * number, the list of its choices for a category or a role. It takes the focus as it opens, its
+ * value selected in full — what is typed replaces it, a key of the cursor lifts the selection —,
+ * unless a character typed opened it: the caret then goes after that character (#3122).
  * Enter validates it, and the cursor goes to the row below — to the cell the row was started
  * from when Tab went along it —; Tab validates it and goes to the next cell that takes an entry,
  * Shift+Tab to the one before, traversing the computed cells; Escape abandons it, the cell left
@@ -100,12 +102,23 @@ export function CellEditor({
   const search = useRef({ typed: typed ?? "", at: Number.POSITIVE_INFINITY });
   // Done once validated or abandoned: the blur that follows as it goes validates nothing more.
   const done = useRef(false);
+  // How it opened, once: on a character typed, or on its value.
+  const opened = useRef(typed);
   useLayoutEffect(() => {
     const element = field.current;
     element?.focus();
-    // The caret after what is typed, as when typing goes on.
     if (element instanceof HTMLInputElement) {
-      element.setSelectionRange(element.value.length, element.value.length);
+      if (opened.current === undefined) {
+        // An entry opened on its value (Enter, F2, a double click) selects all of it: what is
+        // typed replaces it, and a key of the cursor or a click in the field lifts the selection
+        // to correct it. `select()`, not `setSelectionRange`: every field here is a text field
+        // (a date and a number are written as text), but `select()` holds for any type of input.
+        element.select();
+      } else {
+        // The character that opened it is already there: the caret goes after it, as when typing
+        // goes on — a selection would have the next key erase it.
+        element.setSelectionRange(element.value.length, element.value.length);
+      }
     }
   }, []);
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {

@@ -20,11 +20,8 @@
  * enters it at the same time, the 2015 cell is written by the path of the category alone and the
  * 2013 cell by `service/reference-manager.spec.ts`, which no project orders (US-1890).
  *
- * The known failure of the Escape closing the modification of the nature « Main-d'œuvre »
- * (`tools/queue-known.toml`) is not tied to that rate. By reading alone, what its description of
- * conditions lists depends on the roles and the categories the installation holds then, which
- * `reference-resources.spec.ts` (now `@serial`) and `service/reference-manager.spec.ts` write;
- * that cause is retained, not proven.
+ * The known failure of the Escape closing the modification of the nature « Main-d'œuvre » is of
+ * unknown cause: see `tools/queue-known.toml`.
  */
 import { expect, type Locator } from "@playwright/test";
 
@@ -72,7 +69,8 @@ test("reads the settings of the costs outside any project with no mock-up notice
   // Its totals row is in the grid; that it stays in view is proven by the stacked layout below.
   await expect(totals).toHaveCount(1);
 
-  // The first rate of 2015 of the third category, entered from the keyboard and answered.
+  // The first rate of the year of RATE_CELL of the third category, entered from the keyboard and
+  // answered.
   // No project is opened here, nothing witnesses the hydration: the cell is clicked and the cursor
   // moved again until React answers them, each try starting from the code of the category.
   const mechanical = rowAt(grid, 3);

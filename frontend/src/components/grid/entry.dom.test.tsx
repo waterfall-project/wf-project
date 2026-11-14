@@ -243,7 +243,7 @@ describe("the keyboard of a grid", () => {
     const field = screen.getByRole("textbox", { name: "Libellé" });
     expect(field).toHaveValue("Câblage des armoires");
     // What is typed differs from what the server answers.
-    await userEvent.keyboard(" bis{Enter}");
+    await userEvent.keyboard("{End} bis{Enter}");
     await vi.waitFor(() => {
       expect(cell(TASK_ROW, "label")).toHaveTextContent("Câblage et repérage des armoires");
     });
@@ -273,10 +273,10 @@ describe("the keyboard of a grid", () => {
     });
     render(grid());
     cell(TASK_ROW, "label").focus();
-    await userEvent.keyboard("{F2} bis{Enter}");
+    await userEvent.keyboard("{F2}{End} bis{Enter}");
     expect(await screen.findByRole("alert")).toHaveTextContent(/modifié cette donnée/);
     expect(cell(TASK_ROW, "label")).toHaveTextContent("Câblage des armoires");
-    await userEvent.keyboard("{ArrowUp}{F2} et repérage{Enter}");
+    await userEvent.keyboard("{ArrowUp}{F2}{End} et repérage{Enter}");
     await vi.waitFor(() => {
       expect(cell(TASK_ROW, "label")).toHaveTextContent("Câblage et repérage des armoires");
     });
@@ -923,7 +923,7 @@ describe("a session lost during an entry", () => {
     rerender(grid("fr", sortedOtherwise().nodes));
     expect(screen.queryByRole("alert")).toBeNull();
     cell(TASK_ROW, "label").focus();
-    await userEvent.keyboard("{F2} bis{Enter}");
+    await userEvent.keyboard("{F2}{End} bis{Enter}");
     await vi.waitFor(() => {
       expect(written(client, TASK)).toHaveLength(1);
     });

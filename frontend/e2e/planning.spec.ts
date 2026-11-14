@@ -277,6 +277,33 @@ test("enters the label of a task from the keyboard, traverses the dates its mode
   ).toBeVisible();
 });
 
+test("selects the whole label of a task entered by F2, a key typed replaces it, and a click in the field lifts the selection to correct it [WF-IHM-0040-A]", async ({
+  page,
+}) => {
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  const at = await columnsOf(grid, { label: "Libellé" });
+  const leaf = grid.getByRole("row", { name: /^9 .*Câblage/ });
+  const cell = leaf.getByRole("gridcell").nth(at.label);
+  await cell.click();
+  await page.keyboard.press("F2");
+  const field = grid.getByRole("textbox", { name: "Libellé" });
+  const value = await field.inputValue();
+  expect(
+    await field.evaluate((input: HTMLInputElement) => [input.selectionStart, input.selectionEnd]),
+  ).toEqual([0, value.length]);
+  await page.keyboard.type("Pose");
+  await expect(field).toHaveValue("Pose");
+  // A click in the field lifts the selection, and a key typed there goes in: it does not erase.
+  await page.keyboard.press("Control+A");
+  await field.click();
+  await page.keyboard.type("!");
+  await expect(field).toHaveValue(/!/);
+  await expect(field).toHaveValue(/P.*o.*s.*e/);
+  await page.keyboard.press("Escape");
+  await expect(cell).toContainText(value);
+});
+
 test("enters a duration with its unit, then the predecessors « 13FD+2 j » of the mounting, and the successor the server redated takes its place in the grid [WF-PLA-0030-A] [WF-PLA-0020-A]", async ({
   page,
 }) => {
