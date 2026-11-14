@@ -467,13 +467,13 @@ et les modèles régénérés.
 | `WF-CRE-0010` | le montant arrondi au centime, la moitié au plus loin de zéro | réalisée : `core/costs/extraction.py` ; `test_an_amount_is_rounded_half_a_cent_away_from_zero` (`test_actual_costs_analysis.py`) |
 | `WF-CRE-0020` | une barre oblique suivie d'aucun code n'est pas de la forme | réalisée : `WBS_ELEMENT_INVALID` ; `test_a_wbs_element_without_the_expected_form_or_of_another_project_is_rejected` (#2721) |
 | `WF-DAT-0080` | l'historique annulable et les plans de collage se suppriment selon leur règle (corps seul) | réalisée : `core/history/interface/purge.py`, `core/exchanges/interface/purge.py` ; `test_purge.py`, `test_history.py` |
-| `WF-DEV-0030` | une part d'une année antérieure à l'année de référence n'est pas projetée | réalisée (`inflation_factor`) ; **écart corrigé ici** : son test ne cite pas l'exigence (US-2010) |
+| `WF-DEV-0030` | une part d'une année antérieure à l'année de référence n'est pas projetée | réalisée (`inflation_factor`) ; écart corrigé par US-2010/L2 : `test_year_before_the_reference_year_is_not_deflated` (`test_pricing.py`) cite `WF-DEV-0030-A` |
 | `WF-INTF-0100` | une lignée en double rejette ses lignes | réalisée : `DUPLICATE_LINEAGE` ; `test_a_lineage_that_two_rows_carry_rejects_both_and_leaves_its_line_as_it_is` |
 | `WF-INTF-0120` | la lignée en double, le fichier sans date de revue, la cellule de reste effacée | réalisée : `core/estimate/remaining/analysing.py` ; `test_a_task_the_file_completes_without_a_date_of_review_rejects_its_lines_set_to_nought`, `test_a_cell_left_empty_on_a_line_known_reads_nought` (`test_remaining_import.py`) |
 | `WF-PLA-0040` | un déplacement sous soi-même est refusé | réalisée : `NODE_CYCLE` ; `test_a_selection_moved_under_itself_or_one_of_its_subordinates_closes_a_loop_refused` ; #2546 se ferme |
-| `WF-PLA-0140` | la disposition en couloirs gardée d'une session à l'autre | réalisée (`DisplayPreferences.timelines`, EP-15) ; **écart corrigé ici** : le parcours qui enregistre les couloirs (`timelines.spec.ts:143`) cite `WF-IHM-0100-A` seul, et aucun test ne cite `WF-PLA-0140-A` pour cette phrase ; le fichier d'EP-06 la note à tort en écart (US-2010) |
+| `WF-PLA-0140` | la disposition en couloirs gardée d'une session à l'autre | réalisée (`DisplayPreferences.timelines`, EP-15) ; écart corrigé par US-2010/L2 : le parcours des couloirs de `timelines.spec.ts`, qui enregistre la disposition puis la relit après rechargement, cite `WF-PLA-0140-A` en plus de `WF-IHM-0100-A` (part TypeScript du lot), et le fichier d'EP-06 ne la note plus en écart |
 | `WF-REF-0100`, glossaire | la capacité déduite de l'effectif et du calendrier | **écart d'EP-10** (décision de l'auteur du 2026-11-12) |
-| `WF-REV-0080` | entre deux années de référence, chaque ligne de débours diffère aussi | réalisée par le calcul (`WF-DEV-0030`) ; **à confirmer par le lot** : `test_between_two_reference_years_only_the_re_estimated_amounts_differ_by_the_rates` (`test_comparison.py`) éprouve les taux, et la ligne de débours n'a pas de test repéré ; le lot l'ajoute s'il manque (US-2010) |
+| `WF-REV-0080` | entre deux années de référence, chaque ligne de débours diffère aussi | réalisée par le calcul (`WF-DEV-0030`) : `test_between_two_reference_years_only_the_re_estimated_amounts_differ_by_the_rates` éprouve les taux, et `test_between_two_reference_years_a_disbursement_line_differs_by_its_projected_amount` (`test_comparison.py`, ajouté par US-2010/L2) la ligne de débours ; réserve : la révision sans aucune ligne de main-d'œuvre ne reprojette pas ses débours à l'ouverture (`copy_rates`), défaut hors périmètre |
 
 ### Décisions
 
@@ -1118,7 +1118,7 @@ une issue `contract`. Dépend de la révision 1.0.5 (US-2010).
 
 ## US-2010 — La spécification 1.0.5 écrit quatre décisions, et la 1.0.4 est relue contre le code
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-DEV-0030-A`
 - **opérations** : aucune
 - **issue** : #2968
@@ -1136,7 +1136,7 @@ soient écrites dans le document, et que chaque phrase de la 1.0.4 ait son test 
 - une fois la 1.0.5 dans `main`, les phrases nouvelles des Vérif sont citées mot pour mot par les US
   qui les réalisent — US-1850, US-1870 et US-2000 ici, et les US des EPIC livrés qui citent ces
   exigences —, et `make roadmap` passe ;
-- `WF-DEV-0030-A` — « Une part consommée l'année qui précède l'année de référence vaut son montant de base, quel que soit le taux d'inflation. » : la phrase de la 1.0.4 est réalisée (`inflation_factor`), mais son test, `test_year_before_the_reference_year_is_not_deflated_pending_2545` (`backend/tests/test_pricing.py`), ne cite aucune exigence « en attendant #2545 » : il cite `WF-DEV-0030-A`, et perd sa réserve ;
+- `WF-DEV-0030-A` — « Une part consommée l'année qui précède l'année de référence vaut son montant de base, quel que soit le taux d'inflation. » : la phrase de la 1.0.4 est réalisée (`inflation_factor`), mais son test, `test_year_before_the_reference_year_is_not_deflated_pending_2545` (`backend/tests/test_pricing.py`), ne cite aucune exigence « en attendant #2545 » : il cite `WF-DEV-0030-A`, et perd sa réserve — il s'appelle désormais `test_year_before_the_reference_year_is_not_deflated` ;
 - écart : `WF-DEV-0030-A` — « Une même ligne consommée deux ans après l'année de référence, avec un taux d'inflation de 3 %, vaut 1,03 x 1,03 fois son montant de base. » : constaté par EP-07, inchangé ;
 - écart : `WF-DEV-0030-A` — « Une ligne consommée dans l'année de référence vaut son montant de base. » : idem ;
 - écart : `WF-DEV-0030-A` — « Une ligne de provision portée par une tâche consommée deux ans après l'année de référence vaut sa gravité pondérée par sa probabilité, sans autre projection. » : EP-08 clôt ;

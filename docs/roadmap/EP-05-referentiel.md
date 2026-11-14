@@ -969,7 +969,8 @@ de charge confronte la charge des projets à ce que l'entreprise peut fournir.
   dispose de 2 × 35 × 52 / 12, soit environ 303,33 heures par mois ; un effectif de 0,5 sur le même
   calendrier en dispose de 75,83. » : la capacité déduite de l'effectif et du calendrier
   (spécification 1.0.4, #2836) vient après la livraison ; `capacity` porte encore les heures
-  saisies, et sa reprise — le contrat, la saisie, la migration des rôles — est à cadrer avec EP-10 ;
+  saisies, et sa reprise — le contrat, la saisie, la migration des rôles — est à EP-10, par
+  décision de l'auteur du 2026-11-12 ;
 - écart : `WF-REF-0100-A` — « Le plan de charge agrégé compare la charge mensuelle de chaque rôle
   à ces heures. » : le plan de charge agrégé est d'EP-11, qui clôt ;
 - `WF-REF-0080-A` — « La désactivation d'un nœud portant deux niveaux de descendants et des rôles

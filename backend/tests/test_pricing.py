@@ -44,11 +44,10 @@ def test_line_consumed_in_the_reference_year_is_its_base_amount() -> None:
     assert projected_amount([Share(2026, D(7) * D("33.33"))], 2026, RATE) == base
 
 
-def test_year_before_the_reference_year_is_not_deflated_pending_2545() -> None:
-    """Fix the reading kept until #2545 settles it (to be decided), not a Vérif of the sentence.
-
-    It cites no requirement, so as not to count as the coverage of WF-DEV-0030-A (#2548).
-    """
+@pytest.mark.requirement("WF-DEV-0030-A")
+def test_year_before_the_reference_year_is_not_deflated() -> None:
+    # « Une part consommée l'année qui précède l'année de référence vaut son montant de base, quel
+    # que soit le taux d'inflation. »
     assert inflation_factor(RATE, 2026, 2025) == D(1)
 
 

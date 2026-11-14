@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Locator, type Page } from "@playwright/test";
+import { expect, type Locator, type Page, type Request } from "@playwright/test";
 
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
@@ -134,14 +134,15 @@ test("offers the time/time tracking of a milestone beside its timelines, checked
 
 // The frieze of the steering committee (US-0530, #1068), against the fake back: the studies and the
 // commissioning, which overlap nowhere, in the first lane; the two receptions, milestones, across.
-// The fake back keeps no preference: the journey proves the moves on the screen and what the frieze
-// sends. A move refused for an overlap is proven by `timeline-chart.dom.test.tsx`: no timeline of
+// The fake back keeps no preference: it plays neither the lanes nor their reading again, the
+// journey proves against the service the moves on the screen, the lanes recorded and read again
+// after a reload. A move refused for an overlap is proven by `timeline-chart.dom.test.tsx`: no timeline of
 // the witness holds two rectangles that overlap.
 const ON_FAKE_BACK =
-  "the fake back draws every node (#463): only the frieze is proven, not the lanes or the last rectangle";
+  "the fake back draws every node (#463) and keeps no preference: it plays neither the lanes nor their reading again";
 const MOVED = "01926f3a-7c00-7000-8000-000000000565";
 
-test("lays out the frieze of a timeline by the keyboard and the mouse, and records the lanes @shared [WF-IHM-0100-A]", async ({
+test("lays out the frieze of a timeline by the keyboard and the mouse, and records the lanes @shared [WF-IHM-0100-A] [WF-PLA-0140-A]", async ({
   page,
 }) => {
   // The timelines read the structure of a thousand tasks: the bound of a grid.
@@ -169,22 +170,32 @@ test("lays out the frieze of a timeline by the keyboard and the mouse, and recor
   ).toBeAttached();
 
   // The keyboard: the last rectangle, a lane down — the lanes shown recorded after a pause.
-  const recorded = page.waitForRequest(
-    (request) => isServerAction(request) && (request.postData() ?? "").includes("lanes"),
-  );
+  const isLanes = (request: Request) =>
+    isServerAction(request) && (request.postData() ?? "").includes("lanes");
+  const recorded = page.waitForResponse((response) => isLanes(response.request()));
   await frieze.focus();
   await page.keyboard.press("End");
   await page.keyboard.press("Alt+ArrowDown");
   await expect(commissioning(2)).toBeVisible();
   const said = page.getByRole("status").filter({ hasText: "Mise en service" });
   await expect(said).toHaveText("« Mise en service » est dans le couloir 2.");
-  expect((await recorded).postData() ?? "").toContain(`"${MOVED}":1`);
+  // The PATCH is deferred after a pause: its answer is awaited before the page is read again.
+  const answer = await recorded;
+  expect(answer.request().postData() ?? "").toContain(`"${MOVED}":1`);
+  expect(answer.ok()).toBe(true);
   // Alone in the last lane, it goes no lower: said, and nothing moves.
   await page.keyboard.press("Alt+ArrowDown");
   await expect(said).toHaveText("« Mise en service » est seule dans le dernier couloir.");
   await expect(commissioning(2)).toBeVisible();
 
+  // The lanes are found again from one session to the next: read again after a reload.
+  await page.reload();
+  await openHydrated(page, `${IN_REVISION}/timelines`);
+  await expect(frieze).toBeVisible({ timeout: WORKING });
+  await expect(commissioning(2)).toBeVisible({ timeout: WORKING });
+
   // The mouse: dragged a lane up, back beside the studies.
+  const restored = page.waitForResponse((response) => isLanes(response.request()));
   const box = await commissioning(2).boundingBox();
   expect(box).not.toBeNull();
   const x = (box?.x ?? 0) + Math.min((box?.width ?? 0) / 2, 8);
@@ -195,6 +206,8 @@ test("lays out the frieze of a timeline by the keyboard and the mouse, and recor
   await page.mouse.up();
   await expect(commissioning(1)).toBeVisible();
   await expect(said).toHaveText("« Mise en service » est dans le couloir 1.");
+  // Left as it was found, for the next test: the answer of the last record is awaited.
+  expect((await restored).ok()).toBe(true);
 });
 
 test("keeps the rectangle the keyboard reaches in view on a zoomed axis, and cuts a name the rectangle cannot hold @shared [WF-IHM-0100-A]", async ({
