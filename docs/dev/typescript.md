@@ -312,8 +312,11 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     #419). Un écran de projet s'ouvre par `openHydrated` (`e2e/hydration.ts`), qui attend le
     cookie que la coquille n'écrit que dans un effet ; hors projet, le geste se répète jusqu'à ce
     que React y réponde (`setExpanded`, `openMenu`). Un lien, lui, n'en a pas besoin : suivi avant
-    l'hydratation, il charge son écran en document entier. Aucun outil ne le tient : la revue le
-    cherche.
+    l'hydratation, il charge son écran en document entier. Le clic répété est borné
+    (`click({ timeout: 1_000 })`) : une commande pressée attend sa réponse `aria-disabled`
+    (n° 24), et Playwright attend une cible active — un second clic sans borne attendrait que la
+    commande disparaisse, au-delà du temps des reprises, contre le service seulement, où la
+    réponse dépasse la seconde (#2260). Aucun outil ne le tient : la revue le cherche.
 20. **Formulaire remonté par une `key` sur l'adresse.** Pour qu'une période ou un texte que
     l'adresse change — en revenant dans l'historique — se montre à neuf, le formulaire porte une
     `key` tirée de l'adresse : appliqué, il est remonté, le bouton ou le champ qui avait le focus

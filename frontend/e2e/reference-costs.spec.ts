@@ -411,11 +411,14 @@ test("deactivates a nature from its row, the row showing what the service or the
   }
   // A nature deactivated from its row: the row shows what the server answers, deactivated and
   // offering its reactivation. The deactivation is pressed again until React answers it, and never
-  // once the row offers the reactivation.
+  // once the row offers the reactivation; each click bounded, the command waiting, `aria-disabled`,
+  // while its write answers (#2260).
   const reactivation = natures.getByRole("button", { name: `Réactiver «\u00a0${label}\u00a0»` });
   await expect(async () => {
     if (!(await reactivation.isVisible())) {
-      await natures.getByRole("button", { name: `Désactiver «\u00a0${label}\u00a0»` }).click();
+      await natures
+        .getByRole("button", { name: `Désactiver «\u00a0${label}\u00a0»` })
+        .click({ timeout: 1_000 });
     }
     await expect(reactivation).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: WORKING });
@@ -452,7 +455,9 @@ test("presents fixed the type of a nature whose category is employed, with its c
   const form = page.getByRole("dialog", { name: "Modifier « Main-d'œuvre »" });
   await expect(async () => {
     if (!(await form.isVisible())) {
-      await natures.getByRole("button", { name: "Modifier « Main-d'œuvre »" }).click();
+      await natures
+        .getByRole("button", { name: "Modifier « Main-d'œuvre »" })
+        .click({ timeout: 1_000 });
     }
     await expect(form).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: WORKING });
