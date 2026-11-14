@@ -27,7 +27,13 @@
 "use client";
 
 import { UserPlus } from "lucide-react";
-import { useTranslations } from "next-intl";
+import {
+  NextIntlClientProvider,
+  useLocale,
+  useMessages,
+  useTimeZone,
+  useTranslations,
+} from "next-intl";
 import {
   createContext,
   type ReactNode,
@@ -39,7 +45,12 @@ import {
   useState,
 } from "react";
 
-import { anonymizeUser, createPasswordSetupLink, resendInvitation } from "@/api/actions/users";
+import {
+  anonymizeUser,
+  createPasswordSetupLink,
+  readUser,
+  resendInvitation,
+} from "@/api/actions/users";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { useAccountNaming } from "@/components/account/account-name";
@@ -151,10 +162,30 @@ export function newer(read: User, answered: User | undefined): User {
 
 /** The commands of the table of the accounts, and the refusals told above it. */
 export function UserCommands({ children }: { readonly children: ReactNode }) {
+  const t = useTranslations("admin.users");
+  const locale = useLocale();
+  const timeZone = useTimeZone();
+  const messages = useMessages();
+  // A write refused as stale says here what to do on this screen: the sentence of the code, shared by
+  // every screen, is left as it is. Two constraints follow. The provider below copies the props of
+  // the one of the shell (`shell.tsx`: locale, messages, time zone): a prop the shell adds there
+  // (`now`, `formats`, `onError`) must be copied here too, or this subtree loses it unseen. And the
+  // sentence holds for every 412 of the subtree: each write of it must go through `reserve`, which
+  // reads the account anew, or the sentence would promise a row that is not checked.
+  const own = useMemo(
+    () => ({ ...messages, errors: { ...messages.errors, STALE_LOCK_VERSION: t("stale") } }),
+    [messages, t],
+  );
   return (
-    <Reactivations reads={USER_READS} fill>
-      <Writes>{children}</Writes>
-    </Reactivations>
+    <NextIntlClientProvider
+      locale={locale}
+      messages={own}
+      {...(timeZone === undefined ? {} : { timeZone })}
+    >
+      <Reactivations reads={USER_READS} fill>
+        <Writes>{children}</Writes>
+      </Reactivations>
+    </NextIntlClientProvider>
   );
 }
 
@@ -244,6 +275,15 @@ function Writes({ children }: { readonly children: ReactNode }) {
       const before = asking.current.get(id) ?? Promise.resolve();
       const sent = before.then(async () => {
         const outcome = await write.send(latest(shown));
+        if (outcome.kind === "stale") {
+          // The account was modified meanwhile: read it anew before the row is free again, so that
+          // it shows its current values and the next write goes from its version. A reading that
+          // fails says no more than the refusal: the row stays as it was.
+          const read = await readUser(id).catch(rejected);
+          if (read.kind === "done") {
+            record(read.data);
+          }
+        }
         if (outcome.kind === "done") {
           record(outcome.data);
           if (write.said !== undefined) {

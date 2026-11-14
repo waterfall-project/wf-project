@@ -183,7 +183,7 @@ describe("the attachment of an account, in its cell", () => {
     [
       "the account changed since it was read",
       { code: "STALE_LOCK_VERSION", status: 412 } satisfies Problem & { status: 412 },
-      "rechargez-la pour voir sa dernière version.",
+      "refaites la modification si elle vaut encore.",
     ],
   ])(
     "tells in the region of the accounts the attachment the server refuses — %s —, the list back at the node read and the focus on its cell [WF-ADM-0030-A]",

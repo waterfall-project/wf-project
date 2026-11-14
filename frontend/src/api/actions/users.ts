@@ -8,6 +8,8 @@
  * handed to who asked it (WF-ADM-0140). Every write answered reads the page anew: the accounts as the server retains them, and the permissions of
  * the session, which an attribution of its own roles may have changed (WF-ADM-0110). The link reads
  * nothing anew: it changes nothing the page shows, nor does the search of an author (`findAccounts`).
+ * Nor does `readUser`, the reading of one account after a 412: it does not call `refresh()` — the
+ * screen replaces that one row with the answer.
  * Nor does the reading of the accounts of the identity provider, asked of the worker (WF-ADM-0070,
  * WF-ARC-0090): it gives a background task back at once, which the tracker of the shell follows to
  * its end.
@@ -46,6 +48,17 @@ export async function createUser(
   user: Schemas["UserCreate"],
 ): Promise<Outcome<Schemas["UserCreated"]>> {
   return readAnew(await decode(() => serverClient().POST("/users", { body: user })));
+}
+
+/**
+ * Read one account (`getUser`), once a write of it was refused as stale (412), so that the screen
+ * puts the answer in place of the row it holds. It does not call `refresh()`, on purpose: the page
+ * is left as it is, and only this row changes.
+ */
+export async function readUser(userId: string): Promise<Outcome<User>> {
+  return decode(() =>
+    serverClient().GET("/users/{user_id}", { params: { path: { user_id: userId } } }),
+  );
 }
 
 /** Modify an account from the version read. */

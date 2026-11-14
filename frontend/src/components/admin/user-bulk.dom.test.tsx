@@ -211,7 +211,7 @@ describe("the actions of the bar on the accounts selected", () => {
         `/users/${user.user_id}/activation`,
       ]),
     );
-    const stale = "Quelqu’un a modifié cette donnée entre-temps";
+    const stale = "refaites la modification si elle vaut encore.";
     const last = "Au moins un compte actif doit garder les permissions d’administration.";
     const alerts = screen.getAllByRole("alert");
     expect(alerts).toHaveLength(4);
@@ -224,6 +224,69 @@ describe("the actions of the bar on the accounts selected", () => {
       expect(alerts[position]).toHaveTextContent(active[Number(index)]?.last_name ?? "");
       expect(alerts[position]).toHaveTextContent(String(text));
     });
+  });
+
+  it("reads the account refused by a 412 anew, and a second try goes from the version read [WF-ADM-0120-A] [WF-IHM-0110-A] #3078", async () => {
+    const client = serve({
+      "PUT /users/{user_id}/activation": [
+        "user_reactivated",
+        { problem: { code: "STALE_LOCK_VERSION", status: 412 } },
+        "user_reactivated",
+      ],
+      "GET /users/{user_id}": "user_deactivated",
+    });
+    const bernard = account("Bernard");
+    render(accounts(true, [bernard, account("Vidal")]));
+    const bar = await selectAll();
+    await userEvent.click(within(bar).getByRole("button", { name: "Désactiver" }));
+    await waitFor(() => {
+      expect(told().textContent).toContain("1 compte refusé");
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "refaites la modification si elle vaut encore.",
+    );
+    // Only the account refused is read anew, and its row shows what the server holds.
+    expect(client.calls.filter(({ route }) => route === "GET /users/{user_id}")).toHaveLength(1);
+    await waitFor(() => {
+      expect(
+        within(grid()).getByRole("switch", { name: "Compte de «\u00a0Noé Vidal\u00a0» actif" }),
+      ).not.toBeChecked();
+    });
+    await userEvent.click(within(bar).getByRole("button", { name: "Désactiver" }));
+    const puts = () =>
+      writes(client).filter(([route]) => route === "PUT /users/{user_id}/activation");
+    await waitFor(() => {
+      expect(puts()).toHaveLength(4);
+    });
+    // The group is sent anew: Bernard from his version, Vidal from the one read.
+    expect(puts()[2]?.[2]).toEqual({ is_active: false, lock_version: bernard.lock_version });
+    expect(puts()[3]?.[2]).toEqual({ is_active: false, lock_version: 2 });
+  });
+
+  it("tells the refusal alone when the account refused cannot be read anew, and a second try goes from the version first held [WF-ADM-0120-A] #3078", async () => {
+    const client = serve({
+      "PUT /users/{user_id}/activation": { problem: { code: "STALE_LOCK_VERSION", status: 412 } },
+      "GET /users/{user_id}": { problem: { code: "NOT_FOUND", status: 404 } },
+    });
+    const vidal = account("Vidal");
+    render(accounts(true, [vidal]));
+    const bar = await selectAll();
+    const name = "Compte de «\u00a0Noé Vidal\u00a0» actif";
+    await userEvent.click(within(bar).getByRole("button", { name: "Désactiver" }));
+    await waitFor(() => {
+      expect(told().textContent).toContain("1 compte refusé");
+    });
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.getByRole("alert")).not.toHaveTextContent("dernière version");
+    // The row stays as it was: still active.
+    expect(within(grid()).getByRole("switch", { name })).toBeChecked();
+    await userEvent.click(within(bar).getByRole("button", { name: "Désactiver" }));
+    const puts = () =>
+      writes(client).filter(([route]) => route === "PUT /users/{user_id}/activation");
+    await waitFor(() => {
+      expect(puts()).toHaveLength(2);
+    });
+    expect(puts()[1]?.[2]).toEqual({ is_active: false, lock_version: vidal.lock_version });
   });
 
   it("writes one group at a time: a second press while the first is under way sends nothing [WF-ADM-0120-A] #2917", async () => {

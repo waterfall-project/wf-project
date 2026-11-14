@@ -2646,6 +2646,7 @@
         "apply": "Appliquer : {command}",
         "applyShort": "Appliquer"
       },
+      "stale": "Ce compte a été modifié entre-temps. Vérifiez sa ligne, puis refaites la modification si elle vaut encore.",
       "bulkDone": "{count, plural, one {# compte modifié.} other {# comptes modifiés.}}",
       "bulkPartial": "{done, plural, =0 {Aucun compte modifié} one {# compte modifié} other {# comptes modifiés}}, {refused, plural, one {# compte refusé} other {# comptes refusés}} : la raison de chacun est dite ci-dessus.",
       "told": "Commandes des comptes",
