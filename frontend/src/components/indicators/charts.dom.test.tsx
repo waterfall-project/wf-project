@@ -294,6 +294,8 @@ function curves(
   };
 }
 
+// These tests carry the criterion of US-2160 (#3097) on the axes, not the Vérif of WF-IHM-0070-A
+// (the signals), which they cite for the requirement they serve.
 describe("the presentation common to the charts (#3097)", () => {
   const ordinate = {
     axisLine: { show: false },

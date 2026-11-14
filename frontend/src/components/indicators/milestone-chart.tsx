@@ -99,13 +99,10 @@ export function MilestoneChart({ tracking, provenance }: MilestoneChartProps) {
         xAxis: timeAxis(palette, formatLocale(locale), [...markings, context.computed_at], true),
         // The forecasts, and the diagonal of equal dates, which runs over the markings.
         yAxis: timeOrdinate(
-          timeAxis(
-            palette,
-            formatLocale(locale),
-            [...forecasts, ...markings, context.computed_at],
-            true,
-          ),
           palette,
+          formatLocale(locale),
+          [...forecasts, ...markings, context.computed_at],
+          true,
         ),
         series: [
           ...milestones.map((milestone, index) => ({

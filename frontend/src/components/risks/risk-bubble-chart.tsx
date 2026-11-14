@@ -35,6 +35,7 @@ import {
   type ChartProvenance,
   dataId,
   escapeHtml,
+  FADED,
   useProvenance,
 } from "@/components/chart/chart";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
@@ -281,7 +282,9 @@ export function RiskBubbleChart({
           nameGap: 54,
           nameTextStyle: { color: palette.text },
           // The ordinate has no line nor tick, and is read across the plot by a grid of light
-          // dashes, as every chart (#3097); its values stay on the levels of the matrix.
+          // dashes, as every chart (#3097); its values stay on the levels of the matrix, and so
+          // do the dashes (the series of the grid below: the grid of an axis follows its own
+          // intervals, not the levels).
           axisLine: { show: false },
           axisTick: { show: false },
           axisLabel: {
@@ -290,7 +293,7 @@ export function RiskBubbleChart({
             customValues: ticks(matrix.severity_levels),
             formatter: (value: number) => percent.format(value),
           },
-          splitLine: { lineStyle: { color: palette.grid, type: "dashed" as const } },
+          splitLine: { show: false },
         },
         tooltip: {
           trigger: "item",
@@ -334,6 +337,19 @@ export function RiskBubbleChart({
             markArea: { silent: true, data: areas },
             markLine: { silent: true, symbol: "none", label: { show: false }, data: edges },
           },
+          {
+            // The grid of the ordinate: a dash across the plot at each level, where its labels are.
+            type: "scatter" as const,
+            silent: true,
+            data: [],
+            markLine: {
+              silent: true,
+              symbol: "none",
+              label: { show: false },
+              lineStyle: { color: palette.grid, type: "dashed" as const },
+              data: ticks(matrix.severity_levels).map((level) => ({ yAxis: level })),
+            },
+          },
           ...present.map((zone) => ({
             type: "scatter" as const,
             name: t(`enums.AlertZone.${zone}`),
@@ -343,7 +359,7 @@ export function RiskBubbleChart({
             z: 3,
             // Under the pointer, the zone stands out and the others fade.
             emphasis: { focus: "series" as const },
-            blur: { itemStyle: { opacity: 0.3 } },
+            blur: { itemStyle: { opacity: FADED } },
             data: points
               .filter((point) => point.zone === zone)
               .flatMap((point) => {
