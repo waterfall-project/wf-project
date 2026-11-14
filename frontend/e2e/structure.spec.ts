@@ -332,9 +332,16 @@ test("inserts a line in the remaining to commit of a project in progress, named,
   await expect(cell).toBeFocused();
 });
 
+// In quarantine against the service (decision of the author of 2026-11-14): the choice of the post
+// does not navigate within `WORKING` by moments in the queue (#3087). The fake back still plays the
+// path; EP-26 plays it again.
+const QUARANTINED_3087 =
+  "in quarantine against the service until EP-26 sets the bounds of the heavy paths (#3087)";
+
 test("filters the remaining to commit by the post « Poste 1.1 » chosen among the work breakdown, the filter shown active in the banner and lifted from it @shared", async ({
   page,
 }) => {
+  test.skip(inService, QUARANTINED_3087);
   test.slow();
   // Le lot ou le poste porté par une tâche rattachée : as the planning and the estimate. The fake
   // back serves the structure whole whatever the filter asks; what the page sends is proven by
