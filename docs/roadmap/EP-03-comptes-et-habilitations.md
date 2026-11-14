@@ -1226,7 +1226,10 @@ chaque EPIC suivant écrive ses tables et ses journaux sans décider à nouveau 
 - écart : `WF-DAT-0100-A` — « La somme des montants budgétés d’une révision est identique quel que soit l’ordre de sommation. » et « Un montant de 0,10 additionné dix fois donne exactement 1,00. » : les sommes du noyau
   arrivent en EP-07, qui clôt l'exigence.
 - écart : `WF-DAT-0100-A` — « Une tâche planifiée au 30 juin s’affiche au 30 juin sur tout poste client, quel que soit son fuseau. » et « Deux tâches de quatre heures liées fin à début, sur un calendrier de huit heures, commencent et finissent le même jour. » : le planning arrive en
-  EP-06 ; l'affichage est déjà celui d'EP-02.
+  EP-06 ; l'affichage est déjà celui d'EP-02 ;
+- écart : `WF-DAT-0100-A` — « Un nombre ou un montant calculé qui dépasse ce que sa colonne tient
+  est refusé, au champ qui le provoque, sans rien écrire. » : ajouté par la spécification 1.0.6
+  (#3100) ; EP-24 l'éprouve (US-1980).
 - propre à l'US : les horodatages d'audit sont conservés en temps universel (WF-DAT-0100).
 - écart : `WF-DAT-0140-A` — « Une installation en version N passe en version N+1 sans perte de données, et le code de la version N s’exécute sur le schéma migré. » : la mise à jour sans interruption relève du
   déploiement — EP-13.

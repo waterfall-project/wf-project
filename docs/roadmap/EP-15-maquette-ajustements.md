@@ -944,7 +944,14 @@ travaille, sans table à plat.
 - écart : `WF-IHM-0020-A` — « Un indicateur affiché porte sa date de calcul. » : constaté par
   EP-02 ; EP-08 clôt.
 - écart : `WF-IHM-0020-A` — « Un filtre actif est visible sans avoir à ouvrir le panneau de
-  filtres. » : constaté par EP-02 ; EP-08 clôt.
+  filtres. » : constaté par EP-02 ; EP-08 clôt ;
+- écart : `WF-IHM-0020-A` — « Depuis la grille de devis de la révision en cours, l'utilisateur
+  choisit une révision marquée pour base sans quitter l'écran ; l'écran la nomme, et la comparaison
+  se lève sans ouvrir aucun panneau. » : ajouté par la spécification 1.0.6 (#3178), la révision lue
+  et la base choisies dans le bandeau de contexte ; EP-25 le réalise ;
+- écart : `WF-IHM-0020-A` — « Depuis la même grille, il ouvre une autre révision du projet sans
+  passer par l'historique. » : ajouté par la spécification 1.0.6 (#3178), la révision lue et la base
+  choisies dans le bandeau de contexte ; EP-25 le réalise.
 - `WF-REV-0080-A` — « Une tâche déplacée sous une autre récapitulative est présentée modifiée. » :
   la marque `M`, que le serveur rend (`difference`, `changes` dont `parent`), sur l'exemple du faux
   back.
@@ -960,7 +967,20 @@ travaille, sans table à plat.
   réestimés diffèrent en outre sur chaque ligne dont le taux a été mis à jour ou projeté jusqu’à la
   nouvelle année de référence (WF-REV-0060), et sur chaque ligne de débours, dont le montant est
   projeté de même (WF-DEV-0030) ; les tâches et les montants budgétés restent ceux du
-  différentiel. » : EP-07.
+  différentiel. » : EP-07 ;
+- écart : `WF-REV-0080-A` — « La révision en cours se compare à la révision marquée dont elle est
+  issue : une tâche dont la fin y est repoussée de cinq jours est présentée modifiée, avec la date
+  de fin de la base ; la date ramenée à celle de la base, la tâche n'est plus présentée modifiée. »
+  : ajouté par la spécification 1.0.6 (#3176), la révision en cours comparée à une base marquée ;
+  EP-25 le réalise ;
+- écart : `WF-REV-0080-A` — « La comparaison d'une révision marquée à une révision marquée
+  postérieure présente retirées les tâches que la seconde ajoute. » : ajouté par la spécification
+  1.0.6 (#3176), la révision en cours comparée à une base marquée ; EP-25 le réalise ;
+- écart : `WF-REV-0080-A` — « Une révision en cours prise pour base est refusée. » : ajouté par la
+  spécification 1.0.6 (#3176), la révision en cours comparée à une base marquée ; EP-25 le réalise ;
+- écart : `WF-REV-0080-A` — « Un utilisateur qui consulte le planning sans consulter les révisions y
+  active une comparaison. » : ajouté par la spécification 1.0.6 (#3176), la révision en cours
+  comparée à une base marquée ; EP-25 le réalise.
 - `WF-REV-0100-A` — « Deux structures différentielles coexistent dans une même révision, et la
   fusion de l'une laisse l'autre intacte. » : le choix de la structure liste chaque différentiel de
   la révision (`structures_amendments`) ; l'indépendance des fusions est du service — EP-08.

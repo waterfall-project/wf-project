@@ -901,6 +901,9 @@ je travaille, **afin de** ne pas m'arrêter à une fiche qui ne me sert pas (#14
   sinon la révision de référence, sinon la dernière révision marquée, le contexte de lecture de
   l'adresse et ses filtres gardés ; quand la révision choisie n'est pas lisible par la session,
   l'écran mène à `/projects/P/revisions` (décision de l'auteur du 2026-10-28) ;
+- écart : `WF-IHM-0010-A` — « Une comparaison active sur le planning l'est encore sur le devis puis
+  sur le reste à engager, avec la même base. » : ajouté par la spécification 1.0.6 (#3178), la base
+  d'une comparaison conservée entre les grilles ; EP-25 le réalise ;
 - propre à l'US : un projet sans révision garde l'écran du projet — l'encart de démarrage du
   planning et les imports qui créent la révision —, sans liste de révisions ;
 - propre à l'US : le compte rendu d'un import nommé par l'adresse (`?import=`) s'ouvre sur l'écran
@@ -955,6 +958,10 @@ prédécesseurs, **afin de** démarrer le travail du jour sans parcourir trois c
 - `WF-IHM-0070-A` — « Une copie d'écran en niveaux de gris laisse identifier chaque signalement. »
 - `WF-IHM-0070-A` — « La même zone d'indice porte la même couleur dans la liste des projets, dans
   les indicateurs du projet et dans la performance du portefeuille. »
+- écart : `WF-IHM-0070-A` — « Avec la préférence des motifs, une copie d'écran en niveaux de gris
+  d'un plan de charge laisse identifier chaque rôle ; sans elle, son infobulle et sa table des
+  valeurs nomment chaque rôle. » : ajouté par la spécification 1.0.6 (#3098), les motifs des séries
+  d'un graphique sur préférence ; EP-25 le réalise (#3097) ;
 - propre à l'US : un champ au-dessus du tableau filtre les trois colonnes par libellé ; un filtre
   « Tâches prêtes » ne garde, dans la colonne Non démarrée, que les tâches prêtes, les deux autres
   colonnes inchangées ; le front filtre sur ce que le serveur rend et ne calcule rien
@@ -1042,6 +1049,10 @@ la zone que le serveur lui rend, **afin de** voir d'un coup d'œil où sont les 
 - `WF-IHM-0070-A` — « Une copie d'écran en niveaux de gris laisse identifier chaque signalement. »
 - `WF-IHM-0070-A` — « La même zone d'indice porte la même couleur dans la liste des projets, dans
   les indicateurs du projet et dans la performance du portefeuille. »
+- écart : `WF-IHM-0070-A` — « Avec la préférence des motifs, une copie d'écran en niveaux de gris
+  d'un plan de charge laisse identifier chaque rôle ; sans elle, son infobulle et sa table des
+  valeurs nomment chaque rôle. » : ajouté par la spécification 1.0.6 (#3098), les motifs des séries
+  d'un graphique sur préférence ; EP-25 le réalise (#3097) ;
 - propre à l'US : la taille d'une bulle selon la gravité, l'infobulle, le clic vers le risque ou
   vers son projet, l'export PNG avec sa provenance, le pliage (#1252) et la table accessible sont
   gardés ;
