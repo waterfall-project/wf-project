@@ -140,12 +140,13 @@ test("opens the reason Undo waits for by Enter, leaves it by Tab, closes it by E
   await expect(whole).toBeVisible();
   // Un contrôle automatisé de contraste ne relève aucun écart au niveau AA: on the reason open.
   expect(await axeViolations(page, '[role="dialog"]')).toEqual([]);
-  // Tab leaves it, and it closes: nothing is trapped.
+  // It holds nothing to reach: the focus stays on its button, and Tab goes on from there, closing
+  // it — nothing is trapped.
+  await expect(reason).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(whole).toHaveCount(0);
   await expect(reason).not.toBeFocused();
-  // Opened again, Escape closes it, and the focus is back on its button, the ring of the charter
-  // drawn around it.
+  // Opened again, Escape closes it, the focus on its button, the ring of the charter drawn around it.
   await reason.focus();
   await page.keyboard.press("Enter");
   await expect(whole).toBeVisible();

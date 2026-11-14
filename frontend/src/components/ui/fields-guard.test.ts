@@ -46,11 +46,13 @@ const SOURCES = modules(SRC).map((path): [string, string] => [
 describe("the fields of the screens (#3259)", () => {
   it("are read, a field written by hand and a box to tick among them", () => {
     expect(SOURCES.length).toBeGreaterThan(100);
-    expect(handWritten('<input\n  id={field}\n  value={name}\n  className="h-9" />')).toHaveLength(1);
+    expect(handWritten('<input\n  id={field}\n  value={name}\n  className="h-9" />')).toHaveLength(
+      1,
+    );
     expect(handWritten("<textarea rows={3} />")).toHaveLength(1);
     expect(handWritten("<select value={kind}>")).toHaveLength(1);
     expect(handWritten('<input type="checkbox" checked={on} />')).toEqual([]);
-    expect(handWritten("<Input type=\"date\" />")).toEqual([]);
+    expect(handWritten('<Input type="date" />')).toEqual([]);
   });
 
   it.each(SOURCES)("are the fields of the charter: %s", (_path, source) => {

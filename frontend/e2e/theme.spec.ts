@@ -216,7 +216,10 @@ test.describe("the two families of screens, in a window of 2560 points", () => {
         new URL(response.url()).pathname === "/reference/costs" &&
         response.request().headers()["next-router-prefetch"] === "1",
     );
-    await setExpanded(nav.getByRole("button", { name: "Paramètres applicatifs", exact: true }), true);
+    await setExpanded(
+      nav.getByRole("button", { name: "Paramètres applicatifs", exact: true }),
+      true,
+    );
     await prefetched;
     const held = await holdRoute(page, "**/reference/costs?**", async (route, released) => {
       const headers = route.request().headers();

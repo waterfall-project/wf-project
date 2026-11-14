@@ -244,7 +244,10 @@ export function UndoCommands({ control }: { readonly control?: UndoControl | und
  * Why the commands wait, beside them: cut to the room the one line of the bar leaves, and pressed —
  * by a click, a touch or the keyboard — it opens the whole text beside it (#3150). The tooltip of a
  * command opens on hover and on the focus, never on a touch, which does not always give the focus;
- * the description of each command (`id`) reads the whole text to a screen reader.
+ * the description of each command (`id`) reads the whole text to a screen reader. Opened, it leaves
+ * the focus on its button: it holds nothing to reach, and the focus given to it was kept there — Tab
+ * did nothing, the popover looping on itself, as a browser showed (#3265) —; Tab goes on from the
+ * button and closes it, Escape closes it, the focus on the button.
  */
 function UnavailableReason({ id }: { readonly id: string }) {
   const t = useTranslations("grid.undo");
@@ -260,7 +263,14 @@ function UnavailableReason({ id }: { readonly id: string }) {
           {t("unavailable")}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" aria-label={t("why")} className="w-64 text-xs">
+      <PopoverContent
+        align="end"
+        aria-label={t("why")}
+        className="w-64 text-xs"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+        }}
+      >
         <p>{t("unavailable")}</p>
       </PopoverContent>
     </Popover>

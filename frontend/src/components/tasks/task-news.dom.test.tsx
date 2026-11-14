@@ -9,7 +9,7 @@ import type { ApiClient } from "@/api/client";
 import type { BackgroundTask } from "@/api/problem";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, fakeClient } from "@/test/fixtures";
-import { tasksButton, tasksRegion } from "@/test/task-panel";
+import { tasksButton } from "@/test/task-panel";
 
 import { POLL_INTERVAL } from "./task-entry";
 import { EndCards } from "./end-cards";
@@ -100,20 +100,23 @@ describe("the line under the bar", () => {
     it.each([
       ["task_succeeded", "Tâche terminée : Marquage d’une révision."],
       ["task_failed", "Tâche échouée : Marquage d’une révision."],
-    ])("says nothing of an end its card says, %s, and closes the line of the task handed over (#3292)", async (answer, sentence) => {
-      server.client = fakeClient({ "GET /tasks/{task_id}": answer });
-      render(shell("task_mark_queued"));
-      await userEvent.click(screen.getByRole("button", { name: "Lancer" }));
-      expect(screen.getByText("Tâche lancée : Marquage d’une révision.")).toBeVisible();
-      await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
-      // The card says it, and stays; the line is gone, its button with it.
-      const cards = screen.getByRole("region", { name: "Aboutissements des tâches" });
-      expect(within(cards).getByRole("group")).toHaveTextContent(sentence);
-      expect(screen.queryByRole("button", { name: "Fermer la ligne de la tâche" })).toBeNull();
-      expect(screen.queryByText(/^Tâche lancée/)).toBeNull();
-      // The task is followed still, in the panel.
-      expect(tasksButton()).toHaveAccessibleName(/1 tâche suivie/);
-    });
+    ] as const)(
+      "says nothing of an end its card says, %s, and closes the line of the task handed over (#3292)",
+      async (answer, sentence) => {
+        server.client = fakeClient({ "GET /tasks/{task_id}": answer });
+        render(shell("task_mark_queued"));
+        await userEvent.click(screen.getByRole("button", { name: "Lancer" }));
+        expect(screen.getByText("Tâche lancée : Marquage d’une révision.")).toBeVisible();
+        await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+        // The card says it, and stays; the line is gone, its button with it.
+        const cards = screen.getByRole("region", { name: "Aboutissements des tâches" });
+        expect(within(cards).getByRole("group")).toHaveTextContent(sentence);
+        expect(screen.queryByRole("button", { name: "Fermer la ligne de la tâche" })).toBeNull();
+        expect(screen.queryByText(/^Tâche lancée/)).toBeNull();
+        // The task is followed still, in the panel.
+        expect(tasksButton()).toHaveAccessibleName(/1 tâche suivie/);
+      },
+    );
 
     it("says a follow-up interrupted, which has no card, and closes by its button, the focus on the button of the bar", async () => {
       server.client = fakeClient({
