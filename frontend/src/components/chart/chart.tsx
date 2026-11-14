@@ -168,7 +168,7 @@ const SERIES_SYMBOLS = ["circle", "triangle", "rect", "diamond"] as const;
 const SERIES_STROKES = ["solid", "dashed", "dotted"] as const;
 
 /** How much a series fades while another is under the pointer: it stays readable. */
-const FADED = 0.3;
+export const FADED = 0.3;
 
 /** The radius of the corners of each part of a bar, in pixels. */
 const BAR_RADIUS = 3;
@@ -346,6 +346,20 @@ export function timeAxis(
       formatter: (value: number) => format.format(value),
     },
     splitLine: vertical ? { lineStyle: { color: palette.grid } } : { show: false },
+  };
+}
+
+/**
+ * An axis of time read on the ordinate (the forecasts of the milestones): like an axis of values,
+ * no line nor tick of its own and a grid of light dashes across the plot (`valueAxis`).
+ */
+export function timeOrdinate(...args: Parameters<typeof timeAxis>) {
+  const [palette] = args;
+  return {
+    ...timeAxis(...args),
+    axisLine: { show: false },
+    axisTick: { show: false },
+    splitLine: { lineStyle: { color: palette.grid, type: "dashed" as const } },
   };
 }
 

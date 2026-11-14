@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { updateChartPreferences } from "@/api/actions/preferences";
 import type { components } from "@/api/generated/schema";
 import type { Settled } from "@/api/problem";
-import type { ChartPalette, ChartProps } from "@/components/chart/chart";
+import { FADED, type ChartPalette, type ChartProps } from "@/components/chart/chart";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { roomForCharts } from "@/test/chart-room";
@@ -138,12 +138,12 @@ function project(matrix: RiskMatrix = MATRIX, folded = true) {
   );
 }
 
-/** The option the chart drew, in the palette above, with the series of bubbles and of zones. */
+/** The option the chart drew, in the palette above, with the series of zones, of the grid and of bubbles. */
 function drawn() {
   const option = charts.props.at(-1)?.option(PALETTE);
   const series = [option?.series].flat() as ScatterSeriesOption[];
-  const [zones, ...bubbles] = series;
-  return { option, zones, bubbles };
+  const [zones, grid, ...bubbles] = series;
+  return { option, zones, grid, bubbles };
 }
 
 /** The `[probability, severity ratio]` of each bubble of a series, by the risk it stands for. */
@@ -182,6 +182,42 @@ describe("the risk matrix as a bubble chart", () => {
     expect(placed(bubbles[0])).toEqual({ [CABLING]: ["0.4", "0.0178"] });
     // No legend of the states: a zone is told by its shape, its stroke and its name.
     expect(option?.legend).toBeUndefined();
+  });
+
+  it("reads the matrix by light dashes across the plot, its ordinate without line nor tick, and makes the zone under the pointer stand out (the criterion of US-2160, #3097, not the Vérif of WF-IHM-0070-A) [WF-IHM-0070-A]", () => {
+    project(IDENTIFIED);
+    const { option, bubbles } = drawn();
+    expect(option?.yAxis).toMatchObject({
+      axisLine: { show: false },
+      axisTick: { show: false },
+    });
+    for (const zone of bubbles) {
+      expect(zone.emphasis).toMatchObject({ focus: "series" });
+      expect(zone.blur).toEqual({ itemStyle: { opacity: FADED } });
+    }
+  });
+
+  it("puts the dashes of the grid on the levels of the ordinate, where its labels are, even when the levels are uneven (the criterion of US-2160, #3097, not the Vérif of WF-IHM-0070-A) [WF-IHM-0070-A]", () => {
+    const uneven = ["0", "0.1", "0.4", "0.7"];
+    project({
+      ...IDENTIFIED,
+      severity_levels: IDENTIFIED.severity_levels.map((level, rank) => ({
+        ...level,
+        lower: uneven[rank] ?? "0.7",
+      })),
+    });
+    const { option, grid, bubbles } = drawn();
+    expect(option?.yAxis).toMatchObject({
+      splitLine: { show: false },
+      axisLabel: { customValues: [0, 0.1, 0.4, 0.7] },
+    });
+    expect(grid?.markLine).toMatchObject({
+      lineStyle: { color: PALETTE.grid, type: "dashed" },
+      data: [{ yAxis: 0 }, { yAxis: 0.1 }, { yAxis: 0.4 }, { yAxis: 0.7 }],
+    });
+    expect(grid).toMatchObject({ silent: true, data: [] });
+    const gridZ = (grid?.markLine as { z: number }).z;
+    for (const bubble of bubbles) expect(gridZ).toBeLessThan((bubble as { z: number }).z);
   });
 
   it("gives the bubbles of each zone the colour of the zone the server rendered and a shape of its own, so that a zone is told without its colour [WF-RIS-0040-A, WF-IHM-0070-A]", () => {
