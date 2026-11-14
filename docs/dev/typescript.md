@@ -312,8 +312,11 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     #419). Un écran de projet s'ouvre par `openHydrated` (`e2e/hydration.ts`), qui attend le
     cookie que la coquille n'écrit que dans un effet ; hors projet, le geste se répète jusqu'à ce
     que React y réponde (`setExpanded`, `openMenu`). Un lien, lui, n'en a pas besoin : suivi avant
-    l'hydratation, il charge son écran en document entier. Aucun outil ne le tient : la revue le
-    cherche.
+    l'hydratation, il charge son écran en document entier. Le clic répété est borné
+    (`click({ timeout: 1_000 })`) : une commande pressée attend sa réponse `aria-disabled`
+    (n° 24), et Playwright attend une cible active — un second clic sans borne attendrait que la
+    commande disparaisse, au-delà du temps des reprises, contre le service seulement, où la
+    réponse dépasse la seconde (#2260). Aucun outil ne le tient : la revue le cherche.
 20. **Formulaire remonté par une `key` sur l'adresse.** Pour qu'une période ou un texte que
     l'adresse change — en revenant dans l'historique — se montre à neuf, le formulaire porte une
     `key` tirée de l'adresse : appliqué, il est remonté, le bouton ou le champ qui avait le focus
@@ -430,7 +433,10 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     `aria-busy` et décrite par « Enregistrement en cours… », tant que l'écriture est en route —
     `onWriting` de `ReferenceForm`, appelé au départ et dans un `finally` à la réponse, quelle
     qu'elle soit (`settings-forms.tsx`, `project-form.tsx`, `backup-schedule.tsx` ; la modification
-    d'un sous-projet tant que celle de ce sous-projet est en route, `subproject-commands.tsx`), ou
+    d'un sous-projet tant que celle de ce sous-projet est en route, `subproject-commands.tsx` ; les
+    commandes d'une ligne d'une liste du référentiel — modifier, désactiver ou réactiver, désigner —
+    tant qu'une écriture de cette ligne est en route, que `CommandedList` tient par son identifiant,
+    `row-writing.dom.test.tsx`, #2260), ou
     son pareil pour un dialogue qui n'est pas un formulaire du référentiel (la liste des
     contributeurs, `contributor-commands.tsx`, EP-14/L54, #734). Les confirmations en ligne
     (`ConfirmedCommand`) tiennent de même leur commande inactive par `writing` de `Command`, tant
