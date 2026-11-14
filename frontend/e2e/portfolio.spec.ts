@@ -192,7 +192,7 @@ test("draws the aggregated workload in stacked bars with the dashed capacity of 
   const { capacity, plot } = await drawing.evaluate((element) => {
     const width = element.getBoundingClientRect().width;
     const label = [...element.querySelectorAll("text")].find((text) =>
-      /^Capacité : .* h par mois$/.test(text.textContent ?? ""),
+      /^Capacité : .* h par mois$/.test(text.textContent),
     );
     const mark = label?.getAttribute("fill");
     const lines = [...element.querySelectorAll("path")]
