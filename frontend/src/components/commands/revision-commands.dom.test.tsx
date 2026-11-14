@@ -136,7 +136,7 @@ describe("the opening of the current revision", () => {
     expect(refresh).toHaveBeenCalled();
   });
 
-  it("says its slow write is under way, the same way as a command that starts a task, and opens no second revision on a second press (#3103)", async () => {
+  it("says its slow write is under way, the same way as a command that starts a task, and opens no second revision on a second press [WF-IHM-0080-A] (#3103)", async () => {
     // The opening of a revision is written within its request — ten seconds on a large project
     // (#3102) —: its button waits for the answer as every command does.
     const answer = held();
@@ -169,7 +169,7 @@ describe("the opening of the current revision", () => {
     expect(create.querySelector("[data-waiting]")).toBeNull();
   });
 
-  it("gives its button back once the server refused the opening, to ask it again (#3103)", async () => {
+  it("gives its button back once the server refused the opening, to ask it again [WF-IHM-0080-A] (#3103)", async () => {
     // A refusal gives the button back at once.
     const client = serve({
       [CREATE]: [

@@ -342,13 +342,23 @@ function subscribeToNothing(): () => void {
  */
 export function useReadAnewWhenTaskEnds(taskId: string | undefined): void {
   const { store } = inTracker(useContext(StateContext));
-  const { log, tasks } = useTracker();
   const router = useRouter();
-  const current = tasks.find((tracked) => tracked.key === taskId)?.task.task_id;
-  const line =
-    taskId === undefined
-      ? undefined
-      : log.findLast((end) => end.task.task_id === taskId || end.task.task_id === current);
+  // Only the line of this task: the screen is not rendered again for the rest of the tracker (#180).
+  const line = useSyncExternalStore(
+    store.subscribe,
+    () => {
+      const { log, tasks } = store.read().tracking;
+      const current = tasks.find((tracked) => tracked.key === taskId)?.task.task_id;
+      return taskId === undefined
+        ? undefined
+        : log.findLast(
+            (end) =>
+              end.end !== "interrupted" &&
+              (end.task.task_id === taskId || end.task.task_id === current),
+          );
+    },
+    () => undefined,
+  );
   useEffect(() => {
     if (line !== undefined) {
       store.readAnew(line, () => {
@@ -439,9 +449,11 @@ export function afterReveal(change: () => void): () => void {
  */
 function ReadAnew({ store }: { readonly store: TrackerStore }) {
   const router = useRouter();
+  // The last end the render saw: an end logged between the render and the effect is read anew too.
+  const [seen] = useState(() => store.read().tracking.log.at(-1));
   useEffect(() => {
-    let last = store.read().tracking.log.at(-1);
-    return store.subscribe(() => {
+    let last = seen;
+    const check = () => {
       const { log } = store.read().tracking;
       if (log.at(-1) === last) {
         return;
@@ -450,15 +462,20 @@ function ReadAnew({ store }: { readonly store: TrackerStore }) {
       // its last lines, or forgotten on signing out.
       const fresh = log.slice(last === undefined ? 0 : log.indexOf(last) + 1);
       last = log.at(-1);
-      for (const line of fresh) {
-        if (readsAnew(line, window.location.pathname)) {
-          store.readAnew(line, () => {
-            router.refresh();
-          });
-        }
+      const concerned = fresh.filter((line) => readsAnew(line, window.location.pathname));
+      // One read for all the ends of a same notification.
+      const asked: EndLine[] = [];
+      for (const line of concerned) {
+        store.readAnew(line, () => asked.push(line));
       }
-    });
-  }, [store, router]);
+      if (asked.length > 0) {
+        router.refresh();
+      }
+    };
+    const unsubscribe = store.subscribe(check);
+    check();
+    return unsubscribe;
+  }, [store, router, seen]);
   return null;
 }
 

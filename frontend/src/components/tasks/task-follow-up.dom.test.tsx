@@ -126,7 +126,7 @@ describe("the follow-up of a task, and the screen read anew at its end", () => {
     expect(tasksButton()).toHaveFocus();
   });
 
-  it("keeps reading a task found where it stood, until it has ended: the follow-up stopped of 2026-11-13 (#3103)", async () => {
+  it("keeps reading a task found where it stood, until it has ended: the follow-up stopped of 2026-11-13 (#3103) [WF-IHM-0080-A]", async () => {
     // An export read at +2 s and +5 s, the same both times, then never again, though it succeeded
     // at +8 s. A read that finds the task where it stood leaves the entry as it was (#180), and the
     // next read waited for a new entry.
@@ -143,7 +143,7 @@ describe("the follow-up of a task, and the screen read anew at its end", () => {
     expect(reads(client)).toHaveLength(4);
   });
 
-  it("keeps reading a task read as it was handed over (#3103)", async () => {
+  it("keeps reading a task read as it was handed over (#3103) [WF-IHM-0080-A]", async () => {
     // Handed over running and read running: the first export of 2026-11-13, read once, never again.
     const client = serve({ [TASK]: ["task_running", "task_succeeded"] });
     await started(task("task_running"));
@@ -154,7 +154,7 @@ describe("the follow-up of a task, and the screen read anew at its end", () => {
     expect(ends()).toEqual([["Tâche terminée\u00A0: Marquage d’une révision."]]);
   });
 
-  it("reads anew by itself the screen of the project a task started from, at its end, a failure too (#3103)", async () => {
+  it("reads anew by itself the screen of the project a task started from, at its end, a failure too (#3103) [WF-IHM-0080-A]", async () => {
     serve({ [TASK]: ["task_running", "task_failed"] });
     window.history.replaceState(null, "", `/projects/${PROJECT}/revisions`);
     await started(task("task_mark_queued"));
@@ -169,7 +169,7 @@ describe("the follow-up of a task, and the screen read anew at its end", () => {
     expect(router.refresh).toHaveBeenCalledOnce();
   });
 
-  it("reads nothing anew on the screen of another project", async () => {
+  it("reads nothing anew on the screen of another project [WF-IHM-0080-A]", async () => {
     serve({ [TASK]: ["task_running", "task_succeeded"] });
     window.history.replaceState(null, "", `/projects/${PROJECT}/revisions`);
     await started(task("task_mark_queued"));
