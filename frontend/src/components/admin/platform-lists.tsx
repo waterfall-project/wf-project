@@ -501,7 +501,7 @@ export function BackupList({
           {read.kind === "read" ? (
             <ListPages
               list={BACKUPS_LIST}
-              texts="admin.pages"
+              texts="admin.backups.pages"
               page={read.page}
               shown={read.items.length}
             />

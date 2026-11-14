@@ -1884,7 +1884,7 @@ Lifting the last filter is said in the address, the search written empty (`searc
 which the `PendingAddress` of a screen that names what its grid keeps sets), as a lifted sort
 writes `sort_by` empty: the preference empties, and the page does not find the kept filters again
 (#836). The roles screen is wired to the service (US-0380/L2, #380): to a session that carries
-`access_roles.write`, the table creates a role inline, by its label alone (`role-commands.tsx`),
+`access_roles.write`, the table creates a role by its label alone, in the dialog that « New role » opens — the filled button at the right of the title of the card (`role-commands.tsx`, `role-creation.tsx`) —,
 renames it in its cell — the grid's input, written by `updateAccessRole` with the permissions of
 the role — and deletes it from its row, after a confirmation that names the role and says the
 deletion is definitive (`AlertDialog`, outside the grid, Escape abandoning it) — a logical deletion
@@ -1944,8 +1944,8 @@ requested reactivation has not answered. What a write does — a rename included
 above the table, on the loading it started from (`Reactivations`), that of a name, at its cell. The
 search and the filters are kept with the settings of the grid and found again when the address says
 nothing of the table (`USER_KEPT`), as for the roles. Without the permission, nothing is written
-and no command is presented. Above the table, the reading of the accounts of the identity provider
-(US-0370, WF-ADM-0070, `identity-sync.tsx`) shows the report of the last completed reading
+and no command is presented. In a card under the table, an outlined command « Read the accounts » at the right of its title and its state in its body, the reading of the accounts of the identity provider
+(US-0370, WF-ADM-0070, US-2100, `identity-sync.tsx`) shows the report of the last completed reading
 (`getLatestIdentitySync`), or says that none has succeeded yet (404): its accounts created,
 updated, deactivated, those whose identity it restored in the provider, the local accounts it
 removes from it, and, on request, what it left as is, each with the reason from the catalogue — an

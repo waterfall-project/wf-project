@@ -217,6 +217,28 @@ describe("the commands of the backups", () => {
     });
   });
 
+  it("waits, inert and busy with a wheel in place of its icon, while the backup it started runs, and is given back when the task fails [WF-IHM-0080-A] [WF-ADM-0150-A] (#3279)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    serve({ [TASK]: "task_failed" });
+    render(backupList());
+    const start = screen.getByRole("button", { name: "Sauvegarder maintenant" });
+    expect(start).toHaveAttribute("aria-busy", "false");
+    await userEvent.click(start);
+    await vi.waitFor(() => {
+      expect(start).toHaveAttribute("aria-busy", "true");
+    });
+    expect(start).toHaveAttribute("aria-disabled", "true");
+    expect(start.querySelector("[data-waiting]")).not.toBeNull();
+    // A second press runs nothing while the task runs.
+    await userEvent.click(start);
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    await vi.waitFor(() => {
+      expect(start).toHaveAttribute("aria-busy", "false");
+    });
+    expect(start).not.toHaveAttribute("aria-disabled");
+    expect(start.querySelector("[data-waiting]")).toBeNull();
+  });
+
   it("note nothing of a command unavailable pressed, nothing having been sent", async () => {
     serve();
     render(backupList([PENDING], { startable: false }));

@@ -1884,7 +1884,7 @@ filtre se dit dans l'adresse, la recherche écrite vide (`search=`, `spokenHref`
 `PendingAddress` d'un écran qui nomme ce que garde sa grille), comme un tri levé écrit `sort_by`
 vide : la préférence se vide, et la page ne retrouve pas les filtres gardés (#836). L'écran des
 rôles est branché sur le service (US-0380/L2, #380) : à une session qui porte `access_roles.write`,
-la table crée un rôle en ligne, par son seul libellé (`role-commands.tsx`), le renomme dans sa
+la table crée un rôle par son seul libellé, dans le dialogue que « Nouveau rôle » ouvre — le bouton plein, à droite du titre de la carte (`role-commands.tsx`, `role-creation.tsx`) —, le renomme dans sa
 cellule — la saisie de la grille, écrite par `updateAccessRole` avec les permissions du rôle — et le
 supprime depuis sa ligne, après une confirmation qui nomme le rôle et dit la suppression définitive
 (`AlertDialog`, hors de la grille, Échap l'abandonnant) — une suppression logique (#456), que rien
@@ -1944,8 +1944,8 @@ comptes » ; un refus de l'interrupteur, des rôles ou de l'anonymisation, au-de
 la lecture d'où il est parti (`Reactivations`), celui d'un nom, à sa cellule. La recherche et les
 filtres se gardent avec les réglages de la grille et se retrouvent quand l'adresse ne dit rien de la
 table (`USER_KEPT`), comme pour les rôles. Sans la permission, rien ne s'écrit et aucune commande ne
-se présente. Au-dessus de la table, la lecture des comptes du fournisseur d'identité (US-0370,
-WF-ADM-0070, `identity-sync.tsx`) montre le compte rendu de la dernière lecture achevée
+se présente. Dans une carte sous la table, à droite de son titre une commande à contour, « Lire les comptes », et son état en corps, la lecture des comptes du fournisseur d'identité (US-0370,
+WF-ADM-0070, US-2100, `identity-sync.tsx`) montre le compte rendu de la dernière lecture achevée
 (`getLatestIdentitySync`), ou dit qu'aucune n'a encore abouti (404) : ses comptes créés, mis à jour,
 désactivés, ceux dont elle a rétabli l'identité dans le fournisseur, les comptes locaux qu'elle en
 retire, et, à la demande, ce qu'elle a laissé tel quel, chacun avec le motif du catalogue — un

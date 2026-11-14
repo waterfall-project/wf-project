@@ -119,9 +119,11 @@ describe("the pages of a flat table", () => {
 
   it.each([
     ["actualCosts.pages.costs", "Pages des coûts réels", "Coûts réels"],
-    ["admin.pages", "Pages de la liste", "Pages de la liste"],
+    ["admin.users.pages", "Pages des comptes utilisateurs", "Comptes utilisateurs"],
+    ["admin.auditLog.pages", "Pages du journal d’audit", "Journal d’audit"],
+    ["admin.backups.pages", "Pages des sauvegardes", "Sauvegardes"],
   ] as const)(
-    "name the links of a list named by its texts %s after the title the texts hold, the name of the navigation only when they hold none (#3262) [WF-IHM-0060-A]",
+    "name the links of a list named by its texts %s after the title the texts hold, the name of the navigation only when they hold none, never « la liste » (#3262, #3295) [WF-IHM-0060-A]",
     (texts, label, list) => {
       render(
         <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">

@@ -246,7 +246,7 @@ describe("the backups", () => {
     expect(text(page)).toContain("La fin de la période ne peut précéder son début.");
     // The command that starts a backup is offered all the same; the pages of a list unread are not.
     expect(buttons(page)).toContain("Sauvegarder maintenant");
-    expect(page).not.toContain('aria-label="Pages de la liste"');
+    expect(page).not.toContain('aria-label="Pages des sauvegardes"');
   });
 
   it("say a size at most below the least the API refuses at its field, the least named [WF-IHM-0130-A]", async () => {

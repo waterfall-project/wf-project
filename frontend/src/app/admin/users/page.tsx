@@ -20,8 +20,8 @@
  * read, to the address of the search and the filters the account keeps for it, if it keeps any
  * (`restoredAddress`, WF-IHM-0060). No screen offers to delete an account (WF-ADM-0060); to a
  * session that may modify the accounts, the table is its own entry, « Créer un compte local » at
- * its head (US-0360, #379); to another, none. Behind a menu « ⋯ » beside it (`IdentityMenu`,
- * #2917), the report of the last reading of the accounts of the identity provider that ended
+ * the right of the title of its card, filled (US-0360, #379, US-2100); to another, none. In a card
+ * of its own under the table (`IdentitySync`, US-2100), the report of the last reading of the accounts of the identity provider that ended
  * (`getLatestIdentitySync`, US-0370, WF-ADM-0070) — the screen says none has yet when the API
  * finds none (404) — and, to a session that may modify the accounts, the command that asks a new
  * one; then its periodicity (`getIdentitySyncSchedule`, WF-ADM-0070), which that session sets
@@ -37,7 +37,7 @@ import { useTranslations } from "next-intl";
 import { readOrFail, readOrRefused, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { UserList } from "@/components/admin/account-lists";
-import { IdentityMenu } from "@/components/admin/identity-sync";
+import { IdentitySync } from "@/components/admin/identity-sync";
 import { USER_GRID_KEY, USER_SORTS } from "@/components/admin/admin-grids";
 import { authorsOf, readAuditFilters, refusedAudit } from "@/components/admin/audit-address";
 import {
@@ -183,7 +183,7 @@ export default async function UsersPage({
   const authors = authorsOf(users.items);
   const named = await readChosenAuthors(audit, authors);
   return (
-    <Screen density={FUNCTION_DENSITY.users} fill>
+    <Screen density={FUNCTION_DENSITY.users}>
       {/* The filters, the grid and the pages compose the changes they make to the address. */}
       <PendingAddress kept={USER_KEPT}>
         <UsersHeader />
@@ -201,9 +201,9 @@ export default async function UsersPage({
           active={active}
           audit={{ ...audit, refused, named }}
           authors={authors}
-          identity={<IdentityMenu report={report} schedule={schedule} startable={editable} />}
           editable={editable}
         />
+        <IdentitySync report={report} schedule={schedule} startable={editable} />
       </PendingAddress>
     </Screen>
   );

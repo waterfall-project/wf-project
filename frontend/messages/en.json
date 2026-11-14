@@ -2634,10 +2634,6 @@
     "boundsRefused": "The list is not read: the server refuses the bounds asked."
   },
   "admin": {
-    "pages": {
-      "label": "Pages of the list",
-      "beyond": "This page is beyond the end of the list."
-    },
     "commands": {
       "unmet": "{command}: {condition}"
     },
@@ -2707,10 +2703,14 @@
       "anonymizationTitle": "Anonymise “{name}”?",
       "anonymizationFinal": "The anonymisation of “{name}” is irreversible: its last name, first name and address are erased, from the table as from the audit log, its avatar is removed, a local account is removed from the identity provider, and the account is never reactivated.",
       "keep": "Keep",
-      "rowBusy": "A write of “{name}” is under way: nothing was written, ask again once it is answered."
+      "rowBusy": "A write of “{name}” is under way: nothing was written, ask again once it is answered.",
+      "pages": {
+        "title": "User accounts",
+        "label": "Pages of the user accounts",
+        "beyond": "This page is beyond the end of the list."
+      }
     },
     "identitySync": {
-      "menu": "Reading of the accounts of the identity provider: state and commands",
       "title": "Reading of the identity provider accounts",
       "schedule": {
         "title": "Reading periodicity",
@@ -2744,9 +2744,9 @@
       "composed": "Composed",
       "none": "No access role.",
       "count": "{count, plural, =0 {No role} one {# role} other {# roles}}",
-      "create": "Create a role",
       "delete": "Delete",
       "creation": "Creation of a role",
+      "creationHint": "The role starts with no permission: they are granted afterwards in the matrix of the permissions.",
       "told": "Commands of the access roles",
       "newLabel": "New role",
       "created": "“{name}” created.",
@@ -2853,7 +2853,12 @@
       "rotatingOnes": "Subject to rotation",
       "bounds": "Bounds of the backups",
       "sizeBytes": "Size (bytes)",
-      "commands": "Commands"
+      "commands": "Commands",
+      "pages": {
+        "title": "Backups",
+        "label": "Pages of the backups",
+        "beyond": "This page is beyond the end of the list."
+      }
     },
     "restore": {
       "title": "Restore the platform",
@@ -2969,6 +2974,11 @@
         "everyObjectKind": "Every kind",
         "correlation": "Correlation",
         "correlationForm": "Letters, digits, “.”, “_”, “-”; 64 at most."
+      },
+      "pages": {
+        "title": "Audit log",
+        "label": "Pages of the audit log",
+        "beyond": "This page is beyond the end of the log."
       }
     }
   },
