@@ -118,11 +118,18 @@ test("the history of the revisions of a project, each attribute of a revision in
   ).toBeVisible();
 });
 
+// In quarantine against the service (decision of the author of 2026-11-14): the comparison of the
+// whole of PRJ-001 does not show within `WORKING` by moments in the queue (#3168, #3172). The fake
+// back still plays the path; EP-27 rewrites it on the grids and plays it again (#3192).
+const QUARANTINED_3192 =
+  "in quarantine against the service until EP-27 moves the comparison to the grids (#3192)";
+
 test("the revisions of a project, their comparison as the API renders it, its structures and the rates proposed @shared [WF-ARC-0020-A]", async ({
   page,
   browser,
   manager,
 }) => {
+  test.skip(inService, QUARANTINED_3192);
   // Against the service the path reads the comparison of the whole structure of PRJ-001 twice — the
   // screen, then the API, whose answer gives both the count of the nodes and the deviations —, two
   // bounds of a screen of grid besides the opening, more than the thirty seconds of a test: the

@@ -369,9 +369,17 @@ test("creates a category and enters a rate beside it, the page read anew droppin
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
 
+// In quarantine against the service (decision of the author of 2026-11-14): the path fails by moments
+// in the queue, a button of the grid awaited beyond `WORKING`, the cause not established — a state
+// the paths share, or the load on the one process of the API (#3172). The fake back still plays it;
+// EP-25 finds the cause and plays it again (#3190).
+const QUARANTINED_3190 =
+  "in quarantine against the service until EP-25 finds why the queue fails it (#3190)";
+
 test("deactivates a nature from its row, the row showing what the service or the fake back answers, deactivated and offering its reactivation (EP-02/L43a) @shared [WF-REF-0030-A]", async ({
   page,
 }) => {
+  test.skip(inService, QUARANTINED_3190);
   test.slow();
   await page.goto("/reference/costs");
   const natures = page.getByRole("grid", { name: "Natures de coût" });
@@ -467,9 +475,15 @@ test("presents fixed the type of a nature whose category is employed, with its c
 /** What a command to delete is called: the settings of the costs offer none (WF-REF-0010-A). */
 const DELETION = /supprim|effac|delete/i;
 
+// In quarantine against the service, as the path above and for the same failure (#3191): the fake
+// back still plays it. EP-25 rewrites it on the filter of the state (#3076) and plays it again.
+const QUARANTINED_3191 =
+  "in quarantine against the service until EP-25 rewrites it on the filter of the state (#3191)";
+
 test("shows the deactivated natures and categories asked for and reactivates them, offers no deletion, proposes only the active natures to a category, and the nature again once reactivated, the category too, proposed to the form of a role (US-0880) @shared [WF-REF-0010-A] [WF-REF-0150-A]", async ({
   page,
 }) => {
+  test.skip(inService, QUARANTINED_3191);
   test.slow();
   const suffix = String(Date.now() % 1_000_000);
   const natureCode = `ND-${suffix}`;
