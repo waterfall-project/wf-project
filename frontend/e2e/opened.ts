@@ -31,7 +31,8 @@
  * the triggers of the screen on each.
  *
  * Left out: the cells whose own refusal is a dialog (`aria-haspopup` on a cell), which opens only
- * once the server refused; the triggers a grid holds row by row, but on the first row of their
+ * once the server refused; the reason the undo commands wait (`data-reason`), a popover that
+ * leaves the focus by Tab, as the popover of a refusal does; the triggers a grid holds row by row, but on the first row of their
  * column — the same dialog or the same menu, for another row; and what an item of a menu opens,
  * out of reach of Enter on the page.
  */
@@ -56,7 +57,7 @@ export interface Opener {
 
 /** The triggers of a dialog or of a menu, enabled, but a cell of a grid. */
 const TRIGGERS =
-  ':is([aria-haspopup="dialog"], [aria-haspopup="menu"]):not(td, th, :disabled, [aria-disabled="true"])';
+  ':is([aria-haspopup="dialog"], [aria-haspopup="menu"]):not(td, th, [data-reason], :disabled, [aria-disabled="true"])';
 
 /** The grids, whose first cell that takes an entry opens its editor. */
 const GRIDS = '[role="grid"], [role="treegrid"]';

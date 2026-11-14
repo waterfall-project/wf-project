@@ -256,6 +256,7 @@ function UnavailableReason({ id }: { readonly id: string }) {
         <button
           id={id}
           type="button"
+          data-reason=""
           className="h-7 min-w-8 shrink basis-56 truncate rounded-sm text-left text-xs text-muted-foreground underline decoration-dotted underline-offset-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           {t("unavailable")}

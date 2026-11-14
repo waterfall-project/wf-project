@@ -26,8 +26,12 @@ test("the remaining to commit, its filter in the bar, keeps its keyboard, its en
 }) => {
   await openHydrated(page, REMAINING);
   const grid = page.getByRole("treegrid", { name: "Grille de reste à engager" });
-  // The filter of the tree lies in the bar of the grid, a menu that opens a dialog (L6).
-  await expect(page.locator("[data-grid-toolbar] button[aria-haspopup='dialog']")).toHaveCount(1);
+  // The filter of the tree lies in the bar of the grid, a menu that opens a dialog (L6),
+  // beside the reason the undo commands wait, a popover as well.
+  await expect(page.locator("[data-grid-toolbar] button[aria-haspopup='dialog']")).toHaveCount(2);
+  await expect(
+    page.locator("[data-grid-toolbar] button[aria-haspopup='dialog']:not([data-reason])"),
+  ).toHaveCount(1);
 
   // The keyboard: the arrows go from row to row, the grid one stop of the tabulation.
   const line = rowAt(grid, 10);
