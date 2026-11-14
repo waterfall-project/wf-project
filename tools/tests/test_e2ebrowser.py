@@ -105,11 +105,18 @@ class Probe:
         return run
 
     def stop(self) -> None:
-        """Stop what `start` launched and has not ended, and close its pipes."""
+        """Kill the process group of every run `start` launched, ended or not.
+
+        The signal goes out even when `make` has finished: the stand-in it
+        started can outlive it in the same group. Aiming at the group of a
+        `make` already waited for is safe, as the group number stays reserved
+        while any member lives. The pipes are drained within a bound, so a
+        process that left the group holding one fails instead of blocking.
+        """
         for run in self.runs:
             with contextlib.suppress(ProcessLookupError):
                 os.killpg(run.pid, signal.SIGKILL)
-            run.communicate()
+            run.communicate(timeout=10)
 
     def served(self) -> tuple[int, str]:
         pid, path = self.record.read_text(encoding="utf-8").split()
