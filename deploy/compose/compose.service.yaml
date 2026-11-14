@@ -29,6 +29,10 @@ x-back: &back
     args: [WATERFALL_MIRROR]
   environment: *back-environment
 
+# The number of the processes of the API (US-2230), one unless the environment says otherwise: the
+# API serves on them, and PostgreSQL counts fifteen connections for each.
+x-api-processes: &api-processes ${WATERFALL_API_PROCESSES:-1}
+
 # Where the browser and the server of Next reach Keycloak, through its front end: the issuer of
 # every token, whoever asks for it; the port the front end is published on, which alone moves —
 # the front end serves localhost and 127.0.0.1 only (#735).
@@ -93,8 +97,16 @@ services:
     # One partition of each partitioned table per project: the restoration drops the schema, and
     # pg_restore makes it again, in one transaction that locks every one of them. The default of 64
     # locks per transaction refuses it ("out of shared memory") from a few hundred projects.
-    command: ["postgres", "-c", "max_locks_per_transaction=1024"]
+    # max_connections carries the connections of every process of the platform: fifteen for each
+    # process of the API, two hundred for the others, Keycloak's hundred included (README.md, « Les
+    # processus de l'API »). Computed from their number by the shell, which then hands over to the
+    # entry point of the image.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - exec docker-entrypoint.sh postgres -c max_locks_per_transaction=1024 -c max_connections=$$((15 * WATERFALL_API_PROCESSES + 200))
     environment:
+      WATERFALL_API_PROCESSES: *api-processes
       POSTGRES_USER: waterfall
       POSTGRES_DB: waterfall
       POSTGRES_PASSWORD: ${WATERFALL_POSTGRES_PASSWORD:?export WATERFALL_POSTGRES_PASSWORD}
@@ -187,6 +199,7 @@ services:
     <<: *back
     environment:
       <<: [*back-environment, *keycloak-client-environment, *storage-environment]
+      WATERFALL_API_PROCESSES: *api-processes
     depends_on:
       service-database-role:
         condition: service_completed_successfully

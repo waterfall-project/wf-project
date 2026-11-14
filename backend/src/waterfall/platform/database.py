@@ -135,6 +135,14 @@ class UtcDateTime(TypeDecorator[datetime]):
         return None if value is None else value.astimezone(UTC)
 
 
+# The reserve of connections of an engine, those of SQLAlchemy written out: five kept, ten more
+# while they are all taken. The calculation of ``max_connections`` counts fifteen per process
+# (deploy/compose/README.md, « Les processus de l'API »).
+POOL_SIZE = 5
+POOL_OVERFLOW = 10
+CONNECTIONS_PER_ENGINE = POOL_SIZE + POOL_OVERFLOW
+
+
 def utc_now() -> datetime:
     """Read the clock, in universal time."""
     return datetime.now(UTC)
@@ -149,9 +157,18 @@ def engine_url(address: str) -> URL:
 
 
 def create_database_engine(address: str) -> Engine:
-    """Open the engine on the database, whose sessions keep time in universal time."""
+    """Open the engine on the database, whose sessions keep time in universal time.
+
+    Its reserve holds ``POOL_SIZE`` connections, and opens ``POOL_OVERFLOW`` more while they are
+    all taken: ``CONNECTIONS_PER_ENGINE`` at most, which ``max_connections`` of the server carries
+    for each process of the platform (US-2230).
+    """
     return create_engine(
-        engine_url(address), connect_args={"options": "-c timezone=UTC"}, pool_pre_ping=True
+        engine_url(address),
+        connect_args={"options": "-c timezone=UTC"},
+        pool_pre_ping=True,
+        pool_size=POOL_SIZE,
+        max_overflow=POOL_OVERFLOW,
     )
 
 

@@ -258,6 +258,42 @@ l'abandon entre le remplacement et la réinscription —, la plateforme sert les
 l'abandon les a laissées, sans le journal d'audit ni la liste des sauvegardes réinscrits : il faut
 alors demander une nouvelle restauration, qui reprend ce que la première avait gardé.
 
+## Les processus de l'API
+
+L'API sert ses requêtes sur `WATERFALL_API_PROCESSES` processus, un par défaut (US-2230) : un
+réglage de `.env`, qui prend effet au prochain `up`. Chaque processus construit son application,
+ouvre ses propres services — la base, Keycloak, Redis, le stockage — et les ferme quand il
+s'arrête ; aucun ne garde d'un utilisateur ce qu'un autre ignorerait (WF-ARC-0080) : une requête
+est servie de même par n'importe lequel.
+
+Chaque processus garde une réserve de quinze connexions à PostgreSQL, cinq ouvertes et dix de plus
+quand elles sont toutes prises. Le serveur porte les deux bases, celle de Waterfall et celle de
+Keycloak, et `max_connections` doit tenir toutes les connexions à la fois. Le fichier Compose le
+calcule au démarrage de PostgreSQL, à partir du même réglage :
+
+```text
+max_connections = 15 × WATERFALL_API_PROCESSES + 200
+```
+
+Les deux cents restants se comptent ainsi, chaque réserve à son plein :
+
+| Qui | Connexions |
+|---|---|
+| le worker, et le `pg_dump` d'une sauvegarde | 15 + 1 |
+| le planificateur : la purge et le dépôt de la lecture des comptes, qui peuvent se croiser | 15 + 15 |
+| le service de la restauration : sa base, le propriétaire pendant une restauration, `pg_restore` | 15 + 15 + 1 |
+| l'amorçage (`install`), lancé à la main | 15 |
+| Keycloak, sa réserve par défaut (`db-pool-max-size`) | 100 |
+| l'application du royaume, l'administrateur temporaire qu'elle crée | 1 |
+| les connexions réservées à l'administrateur `postgres` (`superuser_reserved_connections`) | 3 |
+| la marge des services d'initialisation, qui se terminent avant que l'API ne démarre | 4 |
+| **total** | **200** |
+
+À un processus, le serveur accepte 215 connexions ; à quatre, 260. Chaque connexion admise coûte
+au serveur de la mémoire partagée, même inemployée — avec `max_locks_per_transaction=1024`, de
+l'ordre de 300 Ko : le nombre de processus se choisit avec la mémoire de la machine, pas seulement
+ses cœurs.
+
 ## Arrêter
 
 ```sh
