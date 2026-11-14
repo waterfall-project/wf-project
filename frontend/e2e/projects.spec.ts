@@ -146,6 +146,8 @@ test("the home sorts its projects and filters them by state on the server, from 
   page: shared,
   playwright,
 }) => {
+  // Slow: it creates an account and its roles, signs in and creates a project (as `createOwnProject`).
+  test.slow();
   const home = await homeOfItsOwn(browser, playwright, shared);
   const page = home.page;
   await page.goto("/");
@@ -191,6 +193,8 @@ test("the home filters its projects by the period of their last modification on 
   page: shared,
   playwright,
 }) => {
+  // Slow: it creates an account and its roles, signs in and creates a project (as `createOwnProject`).
+  test.slow();
   const home = await homeOfItsOwn(browser, playwright, shared);
   const page = home.page;
   await page.goto("/");

@@ -214,6 +214,33 @@ test("leaves a cell at its value before when its entry under way is abandoned [W
   await expect(hours).toBeFocused();
 });
 
+test("selects the whole value of a cell entered by Enter, so that a key typed replaces it, and a key of the cursor lifts the selection to correct it [WF-IHM-0040-A]", async ({
+  page,
+}) => {
+  const { grid, at } = await tabIntoGrid(page, AMENDMENT_SCREEN);
+  await press(page, ...times("ArrowDown", AMENDMENT_LINE - 1));
+  const label = cellAt(grid, AMENDMENT_LINE, at.label);
+  await expect(label).toBeFocused();
+  const before = await label.innerText();
+  await page.keyboard.press("Enter");
+  const field = label.getByRole("textbox", { name: "Libellé" });
+  await expect(field).toHaveValue(before);
+  // The value is selected in full: the entry says it, and what is typed replaces it.
+  expect(
+    await field.evaluate((input: HTMLInputElement) => [input.selectionStart, input.selectionEnd]),
+  ).toEqual([0, before.length]);
+  await page.keyboard.type("Essais");
+  await expect(field).toHaveValue("Essais");
+  // A key of the cursor lifts a selection: the value is corrected, not erased.
+  await page.keyboard.press("Home");
+  await page.keyboard.press("Shift+End");
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.type("Re");
+  await expect(field).toHaveValue("ReEssais");
+  await page.keyboard.press("Escape");
+  await expect(label).toHaveText(before);
+});
+
 test("traverses the cells of a summary that its node does not accept or the server computes along its row, without entering them [WF-IHM-0040-A]", async ({
   page,
 }) => {

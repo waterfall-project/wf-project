@@ -66,6 +66,8 @@ export function useRiskChips(
   }
   const { review } = filters;
   if (lastMarkedOn !== undefined && review.to === lastMarkedOn && review.from === undefined) {
+    // A period typed by hand with this same bound and no start is named as the shortcut: the
+    // address does not tell them apart, and the register they filter is the same (#3031).
     // The shortcut of the periodic review (WF-RIS-0020), told as what it asks.
     kit.add(
       "review",

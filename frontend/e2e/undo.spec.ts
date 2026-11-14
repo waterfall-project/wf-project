@@ -111,6 +111,8 @@ test("places Undo and Redo in the grid, its menu and its keys, unavailable and s
   const field = page.getByRole("textbox", { name: "Charge (h)" });
   await expect(field).toBeFocused();
   const effort = await field.inputValue();
+  // The value is selected on entry (#3122): End puts the caret after it, so the typing adds to it.
+  await page.keyboard.press("End");
   await page.keyboard.insertText("9");
   await expect(field).toHaveValue(`${effort}9`);
   await page.keyboard.press("Control+z");

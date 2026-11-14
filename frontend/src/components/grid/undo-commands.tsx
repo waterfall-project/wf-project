@@ -237,11 +237,7 @@ export function UndoCommands({ control }: { readonly control?: UndoControl | und
         </CommandTooltip>
       ))}
       {control === undefined ? (
-        <p
-          id={reason}
-          title={t("unavailable")}
-          className="min-w-0 shrink basis-56 truncate text-xs text-muted-foreground"
-        >
+        <p id={reason} className="min-w-0 shrink basis-56 truncate text-xs text-muted-foreground">
           {t("unavailable")}
         </p>
       ) : null}

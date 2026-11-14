@@ -301,7 +301,7 @@ export function GridToolbar({
       data-grid-toolbar=""
       inert={covered}
       className={cn(
-        folded ? "flex w-full items-center gap-2" : barClass(treeFilters !== undefined),
+        folded ? "flex w-full shrink-0 items-center gap-2" : barClass(treeFilters !== undefined),
         covered ? "invisible" : null,
       )}
       style={folded ? undefined : sized}

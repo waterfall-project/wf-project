@@ -6,7 +6,7 @@
  * serves with a thousand tasks), the bar keeps its height — the search, the filter, « Arbre » and
  * « Colonnes » stay in the window and under the pointer — at 1440 × 900 and in a large window; the
  * grid gives way, down to its floor, and stays in the window under the bar. The flat tables, one
- * of them with the panel of its filters, keep their bar too. The grids of the other paths hold too
+ * of them with the panel of its filters, keep their bar too, « Colonnes » and the panel included. The grids of the other paths hold too
  * few rows to show the defect: the bar, which scrolls sideways, lost its least height and gave up
  * all the room the frame of a thousand rows would not.
  */
@@ -89,7 +89,7 @@ for (const { address, filter } of TREES) {
 }
 
 for (const address of OTHERS) {
-  test(`${address}: the bar of a flat table keeps its height and its search [WF-IHM-0060-A]`, async ({
+  test(`${address}: the bar of a flat table keeps its height, its search, « Colonnes » and the panel of its filters in reach [WF-IHM-0060-A]`, async ({
     page,
   }) => {
     await compile(page.request, address);
@@ -106,6 +106,20 @@ for (const address of OTHERS) {
       await expect(search).toBeVisible();
       await expect(search).toBeInViewport();
       await search.getByRole("searchbox").click({ trial: true });
+      // « Colonnes » and the button of the filters stay in the window and under the pointer, and
+      // the panel the button opens shows in the window as well (#3118).
+      const columns = bar.getByRole("button", { name: /^Colonnes/ });
+      await expect(columns, `« Colonnes » of ${where}`).toBeVisible();
+      await expect(columns, `« Colonnes » of ${where}`).toBeInViewport();
+      await columns.click({ trial: true });
+      const toggle = bar.getByRole("button", { name: /^Filtres( \(|$)/ });
+      await expect(toggle, `« Filtres » of ${where}`).toBeInViewport();
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-expanded", "true");
+      await expect(toggle).toHaveAttribute("aria-controls", /.+/);
+      const panel = page.locator(`[id="${(await toggle.getAttribute("aria-controls")) ?? ""}"]`);
+      await expect(panel, `the panel of the filters of ${where}`).toBeVisible();
+      await expect(panel, `the panel of the filters of ${where}`).toBeInViewport();
     }
   });
 }

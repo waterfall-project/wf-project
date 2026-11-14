@@ -72,7 +72,8 @@ test("reads the settings of the costs outside any project with no mock-up notice
   // Its totals row is in the grid; that it stays in view is proven by the stacked layout below.
   await expect(totals).toHaveCount(1);
 
-  // The first rate of 2015 of the third category, entered from the keyboard and answered.
+  // The first rate of the year of RATE_CELL of the third category, entered from the keyboard and
+  // answered.
   // No project is opened here, nothing witnesses the hydration: the cell is clicked and the cursor
   // moved again until React answers them, each try starting from the code of the category.
   const mechanical = rowAt(grid, 3);
