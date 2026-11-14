@@ -136,6 +136,69 @@ describe("the opening of the current revision", () => {
     expect(refresh).toHaveBeenCalled();
   });
 
+  it("says its slow write is under way, the same way as a command that starts a task, and opens no second revision on a second press [WF-IHM-0080-A] (#3103)", async () => {
+    // The opening of a revision is written within its request — ten seconds on a large project
+    // (#3102) —: its button waits for the answer as every command does.
+    const answer = held();
+    server.client = fakeClient(
+      { [CREATE]: { example: "revision_created", status: 201 } },
+      answer.timing,
+    );
+    const client = server.client as FakeClient;
+    show(
+      <RevisionCommands
+        revision={undefined}
+        context={CONTEXT}
+        project={example("project_without_current_revision") as Project}
+      />,
+    );
+    const create = screen.getByRole("button", { name: "Ouvrir une révision en cours" });
+    await userEvent.click(create);
+    expect(create).toHaveAttribute("aria-busy", "true");
+    expect(create).toHaveAttribute("aria-disabled", "true");
+    expect(create.querySelector("[data-waiting]")).not.toBeNull();
+    await userEvent.click(create);
+    expect(bodies(client, CREATE)).toHaveLength(1);
+    await act(async () => {
+      answer.release();
+      await answer.until;
+    });
+    expect(router.push).toHaveBeenCalledWith(`${REVISIONS}?revision_id=${CREATED}`);
+    expect(create).toHaveAttribute("aria-busy", "false");
+    expect(create).not.toHaveAttribute("aria-disabled");
+    expect(create.querySelector("[data-waiting]")).toBeNull();
+  });
+
+  it("gives its button back once the server refused the opening, to ask it again [WF-IHM-0080-A] (#3103)", async () => {
+    // A refusal gives the button back at once.
+    const client = serve({
+      [CREATE]: [
+        {
+          problem: {
+            code: "STATE_FORBIDS_OPERATION",
+            status: 409 as const,
+            params: { missing_condition: "no_current_revision" },
+          },
+        },
+        { example: "revision_created", status: 201 },
+      ],
+    });
+    show(
+      <RevisionCommands
+        revision={undefined}
+        context={CONTEXT}
+        project={example("project_without_current_revision") as Project}
+      />,
+    );
+    const create = screen.getByRole("button", { name: "Ouvrir une révision en cours" });
+    await userEvent.click(create);
+    await screen.findByRole("alert");
+    expect(create).toHaveAttribute("aria-busy", "false");
+    expect(create).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(create);
+    expect(bodies(client, CREATE)).toHaveLength(2);
+  });
+
   it("is refused while a revision is current: unavailable, naming its condition, and nothing is asked [WF-REV-0010-A]", async () => {
     const client = serve({});
     show(commands());

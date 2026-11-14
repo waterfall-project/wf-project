@@ -12,7 +12,7 @@ import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
-import { tasksRegion } from "@/test/task-panel";
+import { closeTasks, tasksRegion } from "@/test/task-panel";
 
 import { TaskTreeExport } from "./task-tree-export";
 
@@ -65,14 +65,17 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-/** Press the command, and wait for the request to be answered. */
+/** The command. */
+function command() {
+  return screen.getByRole("button", { name: "Exporter l’image de l’arborescence de tâches" });
+}
+
+/** Press the command, and wait for the request to be answered: its task then runs. */
 async function request() {
-  const button = screen.getByRole("button", {
-    name: "Exporter l’image de l’arborescence de tâches",
-  });
+  const button = command();
   await userEvent.click(button);
   await waitFor(() => {
-    expect(button).toHaveAttribute("aria-busy", "false");
+    expect(button.querySelector("[data-waiting]")).not.toBeNull();
   });
 }
 
@@ -119,6 +122,33 @@ describe("the export of the image of the task tree", () => {
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
     await waitFor(() => {
       expect(tasksRegion()).toHaveTextContent(CATALOGUES.fr.errors.TASK_TREE_IMAGE_TOO_LARGE);
+    });
+  });
+
+  it("waits, saying so, while its task runs, asks no second image, and is given back by its failure [WF-IHM-0080-A]", async () => {
+    // The export of an image asked from a button that said nothing (#3103).
+    const client = serve({
+      [EXPORT]: { example: "task_export_queued", status: 202 },
+      [TASK]: "task_export_tree_image_too_large",
+    });
+    open(4);
+    await request();
+    const button = command();
+    expect(button).toHaveAttribute("aria-busy", "true");
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(button);
+    const asked = () => client.calls.filter((call) => call.route === EXPORT);
+    expect(asked()).toHaveLength(1);
+
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    expect(within(tasksRegion()).getByText("Échouée")).toBeVisible();
+    closeTasks();
+    expect(button).toHaveAttribute("aria-busy", "false");
+    expect(button).not.toHaveAttribute("aria-disabled");
+    expect(button.querySelector("[data-waiting]")).toBeNull();
+    await userEvent.click(button);
+    await waitFor(() => {
+      expect(asked()).toHaveLength(2);
     });
   });
 

@@ -24,7 +24,6 @@
 
 import { X } from "lucide-react";
 import { useLocale, useMessages, useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
 import { type SubmitEvent, useEffect, useId, useRef, useState } from "react";
 
 import { type ExitResult, exitProject } from "@/api/actions/projects";
@@ -380,8 +379,9 @@ function ExitForm({
 }
 
 /**
- * Wait for the task that marks the revision: the exit applies when it succeeds, and the page is
- * read again, which lists the project as it now is. A task that fails applies nothing.
+ * Wait for the task that marks the revision: the exit applies when it succeeds, and the tracker reads
+ * the page again, which lists the project as it now is (`readsAnew`). A task that fails applies
+ * nothing.
  */
 function AppliedWhenMarked({
   task,
@@ -390,11 +390,7 @@ function AppliedWhenMarked({
   readonly task: string;
   readonly onApplied: () => void;
 }) {
-  const router = useRouter();
-  useWhenTaskSucceeds(task, () => {
-    onApplied();
-    router.refresh();
-  });
+  useWhenTaskSucceeds(task, onApplied);
   return null;
 }
 

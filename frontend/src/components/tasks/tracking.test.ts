@@ -5,7 +5,14 @@ import { describe, expect, it } from "vitest";
 import type { BackgroundTask } from "@/api/problem";
 import { example } from "@/test/fixtures";
 
-import { givesFile, isPolled, NOTHING_TRACKED, type Tracking, tracking } from "./tracking";
+import {
+  givesFile,
+  isPolled,
+  NOTHING_TRACKED,
+  readsAnew,
+  type Tracking,
+  tracking,
+} from "./tracking";
 
 const MARKING = "01926f3a-7c00-7000-8000-000000000931";
 
@@ -216,6 +223,25 @@ describe("what the tracker follows", () => {
       outcome: { kind: "done", data: task("task_succeeded") },
     });
     expect(late).toBe(forgotten);
+  });
+});
+
+describe("the screen read anew at the end of a task (#3103)", () => {
+  const PROJECT = "/projects/01926f3a-7c00-7000-8000-000000000001";
+  it.each([
+    ["succeeded", `${PROJECT}/revisions?revision_id=1`, `${PROJECT}/revisions`, true],
+    ["failed", `${PROJECT}/revisions`, `${PROJECT}/exchanges`, true],
+    ["interrupted", `${PROJECT}/revisions`, `${PROJECT}/revisions`, false],
+    ["succeeded", `${PROJECT}/revisions`, "/projects/01926f3a-7c00-7000-8000-000000000002", false],
+    ["succeeded", `${PROJECT}/revisions`, "/admin/backups", false],
+    ["succeeded", "/admin/backups?page=2", "/admin/backups", true],
+    ["succeeded", "/admin/backups", "/admin/users", false],
+  ] as const)("a task %s, started on %s, reads %s anew: %s", (end, href, shown, read) => {
+    expect(readsAnew({ end, from: { href } }, shown)).toBe(read);
+  });
+
+  it("reads nothing anew for a task found again, its screen unknown", () => {
+    expect(readsAnew({ end: "succeeded", from: undefined }, "/projects/x/revisions")).toBe(false);
   });
 });
 

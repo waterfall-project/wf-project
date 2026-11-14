@@ -894,7 +894,7 @@ US-2050), qui naissent dans cette présentation.
 
 ## US-2170 — Un traitement en cours se voit là où on l'a lancé, et l'écran se relit quand il aboutit
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0080-A`
 - **opérations** : `getBackgroundTask`, `listBackgroundTasks`, `getBackgroundTaskResult`,
   `requestExport`, `markRevision`, `createRevision`, `applyImport`

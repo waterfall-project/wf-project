@@ -2532,7 +2532,12 @@ suit la permission de modification d'une fonction de portée `platform` (`Platfo
 `Session.permissions`, ou `project_create` pour la création d'un projet, qu'aucun projet ne liste ;
 les commandes d'une sauvegarde sont celles qu'elle liste (`Backup.available_commands`, EP-14/L43f),
 le téléchargement et la restauration comprises. Griser n'est qu'une commodité : une commande
-disponible lance son action serveur, et le refus du serveur est dit par `OutcomeNotice`.
+disponible lance son action serveur, et le refus du serveur est dit par `OutcomeNotice`. Pressée,
+elle attend ce qu'elle a lancé — sa requête, écriture lente faite dans la requête comprise
+(l'ouverture d'une révision), ou la tâche de fond qu'elle a remise au suivi, jusqu'à sa fin
+(`useTaskRunning`) — de la même façon partout (`waiting.tsx`, #3103) : inerte (`aria-disabled`,
+une seconde pression ne relance rien), `aria-busy`, une roue à la place de son icône, à côté de son
+libellé, qui reste ; une réponse, un échec compris, la rend.
 
 ### Les infobulles des commandes
 
@@ -2674,9 +2679,13 @@ catalogue, et l'écran remet la référence au suivi de la coquille par `useTrac
 (`frontend/src/components/tasks/`), avec la commande qui l'a lancée et, s'il y en a un, le nom que
 l'utilisateur lui a donné (WF-IHM-0080). Le suivi est commun aux neuf genres de tâche : il relit la
 tâche toutes les deux secondes tant qu'elle court, par l'action serveur `readBackgroundTask`, en
-montre l'avancement, ajoute sa fin à un journal (`role="log"`) lu quel que soit l'écran, offre de
-recharger l'écran quand elle a abouti — il ne recharge jamais de lui-même —, et rejoue la commande
-d'une tâche échouée. Son panneau est une feuille (`Sheet`) le long du bord droit de la fenêtre, qui
+montre l'avancement, ajoute sa fin à un journal (`role="log"`) lu quel que soit l'écran, relit de
+lui-même l'écran montré quand une tâche qui le concerne aboutit ou échoue — un écran du projet d'où
+elle est partie, ou, hors projet, cet écran même (`readsAnew`) —, offre de recharger l'écran quand
+elle a abouti, et rejoue la commande d'une tâche échouée. La lecture suivante part de la réponse de
+la précédente, non d'une entrée nouvelle : une lecture qui trouvait la tâche où elle en était laissait
+l'entrée telle quelle (#180), et le suivi s'arrêtait là — une tâche lue deux fois, aboutie, plus
+jamais lue (#3103). Son panneau est une feuille (`Sheet`) le long du bord droit de la fenêtre, qui
 porte aussi l'historique des messages (ci-dessous) : un dialogue modal titré « Tâches et messages »,
 qui garde le focus tant qu'il est ouvert et que ferment Échap, son bouton de fermeture, un clic hors
 du panneau ou « Recharger l'écran », le focus rendu au bouton de la barre. Le bouton de la barre
@@ -5302,8 +5311,8 @@ l'anneau du focus ; la police est Geist, celle du logo.
   icône seule porte un nom — le bouton qui la porte, ou l'icône elle-même (`role="img"`), la nature
   d'une ligne dans sa cellule.
 - **La sobriété** : aucun ornement hors des icônes — ni dégradé, ni ombre décorative, ni transition,
-  ni animation, hors la pulsation du squelette de chargement, qui dit un état et s'arrête quand le
-  poste demande moins de mouvement ; une seule ombre, `shadow-md`, sur ce qui flotte au-dessus de la
+  ni animation, hors la pulsation du squelette de chargement et la roue d'un bouton qui attend
+  (`waiting.tsx`), qui disent un état et s'arrêtent quand le poste demande moins de mouvement ; une seule ombre, `shadow-md`, sur ce qui flotte au-dessus de la
   page (un menu), pour l'en détacher. `src/components/ui/sobriety.test.ts` le vérifie pour les
   composants copiés. Un état se dit en mots — un badge, une pastille —, jamais par la seule couleur.
 - **Le logo et le favicon** sont les fichiers de `docs/assets`, copiés à l'octet près dans

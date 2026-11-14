@@ -2524,7 +2524,11 @@ backup —, `platformOffer` follows the permission to change of a function of `p
 which no project lists; the commands of a backup are those it lists (`Backup.available_commands`,
 EP-14/L43f), the download and the restoration included. Greying out is only a convenience: an
 available command launches its server action, and the server's refusal is said by
-`OutcomeNotice`.
+`OutcomeNotice`. Pressed, it waits for what it launched — its request, a slow write done within
+the request included (the opening of a revision), or the background task it handed to the
+tracking, until its end (`useTaskRunning`) — the same way everywhere (`waiting.tsx`, #3103):
+inert (`aria-disabled`, a second press relaunches nothing), `aria-busy`, a wheel in place of its
+icon, beside its label, which stays; an answer, a failure included, gives it back.
 
 ### The tooltips of the commands
 
@@ -2666,8 +2670,12 @@ shell through `useTrackTask()` (`frontend/src/components/tasks/`), with the comm
 it and, if there is one, the name the user gave it (WF-IHM-0080). The tracking is common to the
 nine kinds of task: it reloads the task every two seconds as long as it runs, through the server
 action `readBackgroundTask`, shows its progress, adds its end to a log (`role="log"`) read whatever
-the screen, offers to reload the screen when it has succeeded — it never reloads on its own —, and
-replays the command of a failed task. Its panel is a sheet (`Sheet`) along the right edge of the
+the screen, reads the screen shown anew on its own when a task that concerns it succeeds or fails —
+a screen of the project it was launched from, or, outside a project, that very screen
+(`readsAnew`) —, offers to reload the screen when it has succeeded, and replays the command of a
+failed task. The next read leaves from the answer of the previous one, not from a new entry: a read
+that found the task where it stood left the entry as it was (#180), and the tracking stopped there
+— a task read twice, succeeded, never read again (#3103). Its panel is a sheet (`Sheet`) along the right edge of the
 window, which also carries the message history (below): a modal dialog titled « Tasks and
 messages », which holds the focus as long as it is open and which Escape, its close button, a click
 outside the panel or « Reload the screen » close, the focus given back to the button of the bar.
@@ -5187,8 +5195,8 @@ that of the logo.
   inline. An icon next to its text is `aria-hidden`; a lone icon carries a name — the button that
   carries it, or the icon itself (`role="img"`), the nature of a line in its cell.
 - **Sobriety**: no ornament beyond the icons — neither gradient, nor decorative shadow, nor
-  transition, nor animation, apart from the pulse of the loading skeleton, which says a state and
-  stops when the workstation asks for less motion; a single shadow, `shadow-md`, on what
+  transition, nor animation, apart from the pulse of the loading skeleton and the wheel of a button
+  that waits (`waiting.tsx`), which say a state and stop when the workstation asks for less motion; a single shadow, `shadow-md`, on what
   floats above the page (a menu), to detach it from it. `src/components/ui/sobriety.test.ts`
   checks it for the copied components. A state is said in words — a badge, a dot —, never by colour
   alone.

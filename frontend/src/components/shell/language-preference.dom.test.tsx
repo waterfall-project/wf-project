@@ -28,6 +28,8 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
+  // The router of Next, whose refresh the tracker of the shell calls at the end of a task (#3103).
+  useRouter: () => ({ refresh: vi.fn() }),
   usePathname: () => SCREEN,
   useSearchParams: () => new URLSearchParams({ revision_id: REVISION }),
 }));

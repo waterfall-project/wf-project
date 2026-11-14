@@ -282,7 +282,7 @@ describe("the contractualisation of an amendment", () => {
     expect(screen.getByRole("link", { name: "Voir les révisions" })).toHaveFocus();
   });
 
-  it("tells no reference when the merge fails, does not read the page again, and keeps the command offered, the merge asked again from it and not from the tracker [WF-REV-0050-A]", async () => {
+  it("tells no reference when the merge fails, reads the page again once, and keeps the command offered, the merge asked again from it and not from the tracker [WF-REV-0050-A]", async () => {
     serve({
       [REPORT]: "structure_merge_report",
       [MERGE]: { example: "task_merge_queued", status: 202 },
@@ -310,7 +310,8 @@ describe("the contractualisation of an amendment", () => {
     closeTasks();
     expect(screen.queryByText(/nouvelle révision de référence/)).toBeNull();
     expect(screen.queryByRole("link", { name: "Voir les révisions" })).toBeNull();
-    expect(router.refresh).not.toHaveBeenCalled();
+    // The screen of the project is read anew at the end of its task, a failure too (#3103).
+    expect(router.refresh).toHaveBeenCalledOnce();
     expect(screen.getByRole("button", { name: "Contractualiser l’avenant" })).toBeVisible();
   });
 
@@ -334,7 +335,7 @@ describe("the contractualisation of an amendment", () => {
       /La tâche d’un poste doit rester dans le sous-arbre de la tâche de son lot\. Tâche du lot\s:\s« Poste de commande »\. Tâche du poste en cause\s:\s« Câblage des armoires »\./,
     );
     closeTasks();
-    expect(router.refresh).not.toHaveBeenCalled();
+    expect(router.refresh).toHaveBeenCalledOnce();
   });
 
   it("names the started task the merge will complete [WF-REV-0050-A]", async () => {

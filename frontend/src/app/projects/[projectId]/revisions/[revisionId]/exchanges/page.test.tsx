@@ -55,6 +55,8 @@ vi.mock("@/components/tasks/task-tracker", () => ({
   useTrackTask: () => () => undefined,
   useWhenTaskSucceeds: () => undefined,
   useWhenTaskFails: () => undefined,
+  useReadAnewWhenTaskEnds: () => undefined,
+  useTaskRunning: () => false,
 }));
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),

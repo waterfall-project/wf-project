@@ -27,11 +27,7 @@ import { type ImportDurationRule, setFileImportDurationRule } from "@/api/action
 import type { Outcome } from "@/api/problem";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
-import {
-  useTrackTask,
-  useWhenTaskFails,
-  useWhenTaskSucceeds,
-} from "@/components/tasks/task-tracker";
+import { useReadAnewWhenTaskEnds, useTrackTask } from "@/components/tasks/task-tracker";
 
 const RULES: readonly ImportDurationRule[] = ["keep_durations", "keep_dates"];
 
@@ -50,12 +46,7 @@ export interface DurationRuleProps {
 
 /** Read the screen anew once the analysis of the import has ended, whichever way. */
 function FollowAnalysis({ taskId }: { readonly taskId: string }) {
-  const router = useRouter();
-  const reread = () => {
-    router.refresh();
-  };
-  useWhenTaskSucceeds(taskId, reread);
-  useWhenTaskFails(taskId, reread);
+  useReadAnewWhenTaskEnds(taskId);
   return null;
 }
 

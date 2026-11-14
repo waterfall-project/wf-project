@@ -34,6 +34,7 @@ import { Command } from "./command";
 import { useHeldCommand } from "./held";
 import type { CommandOffer } from "./offer";
 import { type ObjectNames, OutcomeNotice, type Reread } from "./outcome-notice";
+import { WaitingIcon, waitingAttributes } from "./waiting";
 
 /** A command, what it asks to be confirmed, and what follows it. */
 export interface ConfirmedCommandProps<T> {
@@ -176,9 +177,10 @@ export function ConfirmedCommand<T>({
               type="submit"
               size="sm"
               aria-describedby={sentence}
-              aria-disabled={ready ? undefined : true}
+              {...waitingAttributes(busy)}
+              {...(ready ? {} : { "aria-disabled": true })}
             >
-              {icon}
+              <WaitingIcon waiting={busy} icon={icon} />
               {submit}
             </Button>
             <Button

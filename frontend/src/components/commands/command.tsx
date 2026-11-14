@@ -10,6 +10,11 @@
  * protection: an available command runs its server action, and the refusal the server may
  * still oppose is told like any outcome (`OutcomeNotice`). The navigations of the page wait for its
  * outcome, and do not take place when it is refused (`useHeldCommand`, #688).
+ *
+ * Pressed, it waits for what it started — its server action, a write the command opened, the
+ * background task it handed to the tracker — inert and saying so, the same way for every command
+ * (`waiting.tsx`, #3103): a second press runs nothing, and an answer, a failure included, gives it
+ * back.
  */
 "use client";
 
@@ -24,6 +29,7 @@ import { CommandTooltip } from "./command-tooltip";
 import { useHeldCommand } from "./held";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "./offer";
 import { type ObjectNames, OutcomeNotice } from "./outcome-notice";
+import { WaitingIcon, waitingAttributes } from "./waiting";
 import { WritingNote } from "./writing-note";
 
 /** A command, what it is called, and what it does. */
@@ -57,6 +63,11 @@ export interface CommandProps {
    * described by the sentence of the write, so that a late answer cannot close a reopening (n° 24).
    */
   readonly writing?: boolean | undefined;
+  /**
+   * Whether the background task the command started still runs (`useTaskRunning`): the command waits
+   * until it ends, and a failure gives it back, to run the same treatment again (WF-IHM-0080).
+   */
+  readonly running?: boolean | undefined;
 }
 
 /** A command that opens what it asks before it runs. */
@@ -121,6 +132,7 @@ export function Command({
   disclosure,
   subject,
   writing = false,
+  running = false,
 }: CommandProps) {
   const id = useId();
   const unmetText = useUnmet();
@@ -134,7 +146,7 @@ export function Command({
   }
   const unmet = unmetId(offer, id);
   const why = `${id}-writing`;
-  const waiting = busy || writing;
+  const waiting = busy || writing || running;
   // Both the note of the write under way and the unmet condition describe the command, when both are said.
   const describedBy = writing ? [why, unmet].filter((part) => part !== undefined).join(" ") : unmet;
   const run = () => {
@@ -166,18 +178,16 @@ export function Command({
           type="button"
           variant="outline"
           size="sm"
-          aria-busy={waiting}
+          {...waitingAttributes(waiting)}
           // Unavailable with no condition to name: marked all the same, the tooltip saying none.
-          {...((!offer.is_available && unmet === undefined) || writing
-            ? { "aria-disabled": true }
-            : {})}
+          {...(!offer.is_available && unmet === undefined ? { "aria-disabled": true } : {})}
           aria-expanded={disclosure?.expanded}
           aria-controls={disclosure?.expanded === true ? disclosure.controls : undefined}
           ref={disclosure?.ref}
           className={UNAVAILABLE}
           onClick={run}
         >
-          {icon}
+          <WaitingIcon waiting={waiting} icon={icon} />
           {label}
         </Button>
       </CommandTooltip>

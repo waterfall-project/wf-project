@@ -55,6 +55,8 @@ vi.mock("next/headers", () => ({
 }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
+  // The router of Next, whose refresh the tracker of the shell calls at the end of a task (#3103).
+  useRouter: () => ({ refresh: vi.fn() }),
   usePathname: () => SCREEN,
   useSearchParams: () => new URLSearchParams(),
 }));
