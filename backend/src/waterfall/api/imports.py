@@ -3,11 +3,12 @@
 """The imports in two steps (WF-ARC-0100, WF-INTF-0080, WF-INTF-0090).
 
 ``uploadFile``, ``openImport``, ``getImport``, ``listImports``, ``abandonImport`` and
-``applyImport`` (US-1420/L1). A file is deposited whole, written to the storage under
-``uploads/<upload_id>`` before its row; an import opens on it, is analysed by the worker, then
-applied or abandoned. The storage is asked out of any transaction: the head of a file is read
-before the opening is judged, and a file is deleted once the transaction that ends its import is
-committed (WF-DAT-0120).
+``applyImport`` (US-1420/L1); ``setImportDurationRule``, the rule of the durations of a planning
+of MS Project in calendar gap, which analyses the import again (US-2000/L2). A file is deposited
+whole, written to the storage under ``uploads/<upload_id>`` before its row; an import opens on it,
+is analysed by the worker, then applied or abandoned. The storage is asked out of any transaction:
+the head of a file is read before the opening is judged, and a file is deleted once the transaction
+that ends its import is committed (WF-DAT-0120).
 
 Each operation of a project is guarded by ``RequiresProject`` on the reading of the planning, the
 leaf the exchanges are of (FBS-4.3.4): the project, and its imports, exist only for who may
@@ -25,6 +26,7 @@ from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from starlette.datastructures import UploadFile
 from starlette.formparsers import MultiPartException
@@ -36,6 +38,8 @@ from waterfall.api.contract.models import (
     Import,
     ImportApply,
     ImportDetail,
+    ImportDurationRule,
+    ImportDurationRuleWrite,
     ImportRequest,
     PaginationMeta,
 )
@@ -44,12 +48,15 @@ from waterfall.api.queries import Offset
 from waterfall.api.tasks import task_ref
 from waterfall.core.access_roles.interface import Actor, require_project
 from waterfall.core.exchanges.interface import (
+    KEEP_DATES,
+    KEEP_DURATIONS,
     LARGEST_FILE,
     Confirmer,
     ImportMeans,
     ImportOpening,
     ImportRefused,
     ImportView,
+    RuleChange,
     abandon_import,
     apply_import,
     deposit,
@@ -58,6 +65,7 @@ from waterfall.core.exchanges.interface import (
     list_imports,
     open_import,
     read_import,
+    set_duration_rule,
 )
 from waterfall.core.projects.interface import Viewer
 from waterfall.platform.audit import Act
@@ -215,10 +223,10 @@ def _listed(view: ImportView) -> dict[str, Any]:
 def _report(view: ImportView) -> dict[str, Any] | None:
     """Give the report of an import, its unit constants and its calendar gap nil without them.
 
-    A report analysed before ``unit_constants`` (#2580) or ``calendar_gap`` (#2977), or by the code
-    that precedes them during an update (WF-DAT-0140), lacks a key the contract requires: it is
-    read as the constants and the calendars of the file not differing, as every format but MS
-    Project writes them.
+    The analysis of a planning of MS Project writes both (US-2000/L2). A report analysed before
+    ``unit_constants`` (#2580) or ``calendar_gap`` (#2977), or by the code that precedes them during
+    an update (WF-DAT-0140), lacks a key the contract requires, as the reports of the other kinds
+    do: it is read as the constants and the calendars of the file not differing.
     """
     if view.report is None:
         return None
@@ -349,3 +357,30 @@ def post_application(
     if isinstance(answer, ImportRefused):
         raise answer.refusal
     return answer
+
+
+@router.put(
+    f"{IMPORT_PATH}/duration-rule",
+    operation_id="setImportDurationRule",
+    dependencies=READING,
+    response_model=None,
+)
+def put_duration_rule(
+    project_id: UUID,
+    import_id: UUID,
+    body: ImportDurationRuleWrite,
+    actor: Acting,
+    services: ServicesOf,
+) -> JSONResponse:
+    """Set the rule of the durations of an import in calendar gap (WF-INTF-0080).
+
+    Another rule than the report's analyses the import again, its task deposited for the worker
+    (202); the same one gives the import back as it stands (200). The answer is built before the
+    transaction is committed.
+    """
+    rule = KEEP_DATES if body.duration_rule is ImportDurationRule.keep_dates else KEEP_DURATIONS
+    change = RuleChange(project_id, import_id, rule)
+    with services.database.transaction() as session:
+        view = set_duration_rule(session, services.queue, change, confirmer_of(actor))
+        answer = detailed(session, view).model_dump(mode="json", by_alias=True, exclude_unset=True)
+    return JSONResponse(answer, status_code=202 if view.status == "analysing" else 200)

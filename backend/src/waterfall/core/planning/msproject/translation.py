@@ -6,13 +6,17 @@ Pure, as the reader (WF-QUA-0080): what the analysis of an import (US-1430/L3) a
 corpus read of a file. MS Project writes a duration in hours — of work, or elapsed —, a lag in
 tenths of a minute or in whole percents, a date at the hour of the wall clock; the engine reads a
 value in the unit of its entry, and an instant of work, a day and the hours of work elapsed that day
-(WF-DAT-0100). The hours of the file are kept: a duration of « 2 j » at seven hours a day is
-fourteen hours, whatever the constants it is read with (WF-PLA-0160, « importé avec les mêmes
-durées en heures »), and its value in its unit is those hours over the hours of the unit at the
-constants given — the installation's for an import, the file's own for the corpus.
+(WF-DAT-0100). A duration or a lag keeps its value in its unit: its hours in the file over the
+hours of its unit at the constants of the file — « 2 j » entered at seven hours a day is fourteen
+hours of the file and stays two days, sixteen hours at the constants of an installation of eight
+(WF-PLA-0160, 1.0.5, US-2000) —; one in minutes or in hours keeps its hours, and elapsed time is
+converted without constants. The import and the test of the corpus read a file at its own
+constants.
 
 A date of the wall clock is read on the calendar of its task: the hours of work of its day that
-precede it. A calendar of the file sets the days it lists, the others being those of its base.
+precede it. A calendar of the file sets the days it lists, the others being those of its base; a
+file that names no calendar of its project is on the calendar MS Project assumes (``STANDARD``).
+The report writes the working times of a calendar as hours of the clock (``clock_text``).
 """
 
 from dataclasses import dataclass
@@ -80,6 +84,20 @@ def constants_of(project: MsProject) -> UnitConstants:
     )
 
 
+def carried(constants: UnitConstants) -> UnitConstants:
+    """Give constants as a file carries them: whole minutes a day and a week, whole days a month.
+
+    What the export writes of the constants of the installation (``MinutesPerDay``,
+    ``MinutesPerWeek``, ``DaysPerMonth`` are integers of the schema): 21.67 days a month come back
+    22, which is not a constant of another installation.
+    """
+    return UnitConstants(
+        decimal_of(Fraction(round(constants.hours_per_day * MINUTES_PER_HOUR), MINUTES_PER_HOUR)),
+        decimal_of(Fraction(round(constants.hours_per_week * MINUTES_PER_HOUR), MINUTES_PER_HOUR)),
+        Decimal(round(constants.days_per_month)),
+    )
+
+
 def _hour(moment: time, *, end: bool) -> Fraction:
     """Give an hour of the clock in hours from midnight; midnight at the end of a period is 24."""
     hours = Fraction(moment.hour) + Fraction(moment.minute, MINUTES_PER_HOUR)
@@ -123,6 +141,22 @@ def _periods(calendar: MsCalendar) -> dict[int, Periods]:
     }
 
 
+# The calendar MS Project gives a project that names none: from 8:00 to 12:00 and from 13:00 to
+# 17:00, Monday to Friday.
+_DAY: Periods = ((Fraction(8), Fraction(12)), (Fraction(13), Fraction(17)))
+STANDARD = FileCalendar((_DAY, _DAY, _DAY, _DAY, _DAY, (), ()))
+
+
+def clock_text(hours: Fraction) -> str:
+    """Give an hour of the clock as the report writes it (``ImportWorkingTime``).
+
+    ``HH:MM``, or ``HH:MM:SS`` when it falls on a second; the end of the day is ``24:00``.
+    """
+    whole, seconds = divmod(round(hours * SECONDS_PER_HOUR), SECONDS_PER_HOUR)
+    minutes, seconds = divmod(seconds, MINUTES_PER_HOUR)
+    return f"{whole:02d}:{minutes:02d}" + (f":{seconds:02d}" if seconds else "")
+
+
 def calendars_of(project: MsProject) -> dict[int, FileCalendar]:
     """Give each calendar of a file resolved, by its unique identifier.
 
@@ -163,8 +197,9 @@ def _per_unit(unit: DurationUnit, constants: UnitConstants) -> Fraction:
 
 
 def duration_of(task: MsTask, constants: UnitConstants) -> Duration:
-    """Give the duration of a task in the unit of the file, its hours kept (WF-PLA-0160).
+    """Give the duration of a task in the unit of the file, at the constants given (WF-PLA-0160).
 
+    Its hours over those of its unit: at the constants of the file, it keeps its value in its unit.
     A task without a duration lasts nought; a format that says no unit reads in days.
     """
     unit: DurationUnit = task.duration_unit or "d"
@@ -173,7 +208,7 @@ def duration_of(task: MsTask, constants: UnitConstants) -> Duration:
 
 
 def lag_of(link: PredecessorLink, constants: UnitConstants) -> Lag:
-    """Give the lag of a link in the unit of the file, its hours kept; a percent as a percent.
+    """Give the lag of a link in the unit of the file, at the constants given; a percent as such.
 
     ``LinkLag`` is in tenths of a minute — of work, or elapsed —, or in whole percents.
     """

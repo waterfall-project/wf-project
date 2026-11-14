@@ -69,6 +69,9 @@ from waterfall.core.exchanges.interface.imports import (
     DepositedFile as DepositedFile,
 )
 from waterfall.core.exchanges.interface.imports import (
+    DurationRule as DurationRule,
+)
+from waterfall.core.exchanges.interface.imports import (
     ExchangeKind as ExchangeKind,
 )
 from waterfall.core.exchanges.interface.imports import (
@@ -100,6 +103,9 @@ from waterfall.core.exchanges.interface.imports import (
 )
 from waterfall.core.exchanges.interface.imports import (
     Judge as Judge,
+)
+from waterfall.core.exchanges.interface.imports import (
+    RuleChange as RuleChange,
 )
 from waterfall.core.exchanges.interface.imports import (
     abandon_import as abandon_import,
@@ -137,6 +143,9 @@ from waterfall.core.exchanges.interface.imports import (
 from waterfall.core.exchanges.interface.imports import (
     run_apply as run_apply,
 )
+from waterfall.core.exchanges.interface.imports import (
+    set_duration_rule as set_duration_rule,
+)
 
 # ``loading`` (US-1650/L2): an import of the witness, written as it ended, without file nor task.
 from waterfall.core.exchanges.interface.loading import (
@@ -166,4 +175,13 @@ from waterfall.core.exchanges.interface.purge import (
 # ``xml`` (US-1380/L1): the hardened reader of an XML file deposited, for every XML format.
 from waterfall.core.exchanges.interface.xml import (
     hardened_parser as hardened_parser,
+)
+
+# ``judgments`` (US-2000/L2): the rule of the durations of an MS Project schedule in calendar gap,
+# its two values those of the target of an import.
+from waterfall.core.exchanges.judgments import (
+    KEEP_DATES as KEEP_DATES,
+)
+from waterfall.core.exchanges.judgments import (
+    KEEP_DURATIONS as KEEP_DURATIONS,
 )

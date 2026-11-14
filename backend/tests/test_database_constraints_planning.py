@@ -28,7 +28,12 @@ from support import raw_account
 
 from waterfall.api.contract import models
 from waterfall.core.exchanges.interface import ExchangeKind, ExportKind
-from waterfall.core.exchanges.tables import EXCHANGE_KINDS, IMPORT_STATUSES, ImportReport
+from waterfall.core.exchanges.tables import (
+    DURATION_RULES,
+    EXCHANGE_KINDS,
+    IMPORT_STATUSES,
+    ImportReport,
+)
 from waterfall.core.history.interface import UndoneKind
 from waterfall.core.history.tables import NODE_COLUMNS, UNDONE_KINDS, PastePlan, UndoEntry
 from waterfall.core.planning.tables import (
@@ -304,6 +309,12 @@ REFUSALS: list[Refusal] = [
     (ImportReport, {"report": []}, "ck_import_report_report_object"),
     (ImportReport, {"filename": ""}, "ck_import_report_filename_length"),
     (ImportReport, {"filename": "x" * 256}, "ck_import_report_filename_length"),
+    (ImportReport, {"duration_rule": "keep_hours"}, "ck_import_report_duration_rule_known"),
+    (
+        ImportReport,
+        {"kind": "estimate", "duration_rule": "keep_dates"},
+        "ck_import_report_duration_rule_of_a_planning",
+    ),
     (ImportReport, {"upload_id": TAKEN}, "uq_import_report_upload_id"),
     (ImportReport, {"project_id": uuid4()}, "fk_import_report_project_id_project"),
     (ImportReport, {"requested_by": uuid4()}, "fk_import_report_requested_by_user_account"),
@@ -506,6 +517,7 @@ ENUMERATIONS: list[tuple[str, str, tuple[str, ...], type[StrEnum]]] = [
     ("paste_plan", "target_column", NODE_COLUMNS, models.NodeColumn),
     ("import_report", "kind", EXCHANGE_KINDS, models.ExchangeKind),
     ("import_report", "status", IMPORT_STATUSES, IMPORT_STATUS),
+    ("import_report", "duration_rule", DURATION_RULES, models.ImportDurationRule),
 ]
 
 

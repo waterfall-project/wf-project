@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 # The conditions the commands of an import lack (``CommandCondition``).
 AWAITING_DECISION = "import_awaiting_decision"
+CALENDAR_GAP = "import_calendar_gap"
 FILE_ACCEPTED = "import_file_accepted"
 NOT_APPLIED = "import_not_applied"
 IS_CONTRIBUTOR = "is_contributor"
@@ -51,6 +52,28 @@ def expiry_read(read: str, expires_at: datetime | None) -> datetime | None:
 def rejects_the_file(report: Mapping[str, Any] | None) -> bool:
     """Tell whether a report rejects the whole file (``ImportReport.refusals``, EP-14/L42s)."""
     return bool(report and report.get("refusals"))
+
+
+def rule_of(report: Mapping[str, Any] | None) -> str | None:
+    """Give the rule of the durations a report was computed under; ``None`` without a calendar gap.
+
+    A report of another kind, or analysed before the gap was (#2977), carries none (US-2000).
+    """
+    gap = None if report is None else report.get("calendar_gap")
+    return None if not gap else gap["duration_rule"]
+
+
+def rule_lacks(read: str, report: Mapping[str, Any] | None) -> tuple[str, ...]:
+    """Name what a change of the rule of the durations lacks, in the order of the contract.
+
+    An import that no longer awaits its decision first, as for its application; then a report
+    without a calendar gap, which offers no choice (``setImportDurationRule``).
+    """
+    if read != "analysed":
+        return (AWAITING_DECISION,)
+    if rule_of(report) is None:
+        return (CALENDAR_GAP,)
+    return ()
 
 
 def apply_lacks(read: str, report: Mapping[str, Any] | None) -> tuple[str, ...]:

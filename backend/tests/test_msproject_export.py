@@ -578,11 +578,24 @@ def test_a_lag_of_a_fraction_of_a_percent_is_exported_rounded_half_up_and_comes_
 def test_a_lag_entered_in_weeks_or_months_is_exported_then_imported_again_in_its_unit(
     api: ContractClient, stage: Scene, worker: Worker
 ) -> None:
-    # « Un décalage saisi 1 sem est exporté puis réimporté sans changer d'unité. »
+    # « Un décalage saisi 1 sem est exporté puis réimporté sans changer d'unité. » A file exported
+    # by Waterfall carries its calendars and its constants: it presents no calendar gap, and no
+    # choice of the rule of its durations is offered (US-2000).
     revision = opened(api, stage)
     import_file(api, stage, worker, lagged_planning(), apply=True)
     assert links(stage) == CHAIN
     content = exported(api, stage, worker, revision["revision_id"])
+    found = import_file(api, stage, worker, content, apply=False)
+    assert (found["report"]["unit_constants"], found["report"]["calendar_gap"]) == (None, None)
+    rule = api.put(
+        f"{path(stage, found['import_id'])}/duration-rule",
+        headers=stage.manager.headers,
+        json={"duration_rule": "keep_dates"},
+    )
+    assert (rule.status_code, rule.json()["params"]) == (
+        409,
+        {"missing_condition": "import_calendar_gap"},
+    )
     import_file(api, stage, worker, content, apply=True)
     assert links(stage) == CHAIN
 
@@ -592,19 +605,26 @@ def test_a_days_per_month_that_is_not_whole_is_written_whole_and_the_months_are_
     api: ContractClient, stage: Scene, worker: Worker
 ) -> None:
     # The schema writes the constants as integers: 21.67 days a month is written 22. The durations
-    # and the lags travel in hours, and the import takes no constant of the file, so the months
-    # entered come back as they were, the report presenting no difference.
+    # and the lags travel in hours; a file that carries the constants of the installation as the
+    # schema writes them is in no calendar gap (US-2000), and is read at the constants of the
+    # installation, so the months entered come back as they were, the report presenting no
+    # difference.
     with stage.owner.begin() as connection:
         connection.execute(update(DurationUnit).values(days_per_month=Decimal("21.67")))
     revision = opened(api, stage)
-    # A month is 21.67 days of 8 hours: 173.36 hours, 173 h 21 min 36 s, 104016 tenths of a minute.
-    import_file(api, stage, worker, lagged_planning(104016, "PT173H21M36S"), apply=True)
+    # A month is 21.67 days of 8 hours: 173.36 hours, 173 h 21 min 36 s, 104016 tenths of a minute;
+    # the file says 22 days a month, as the export of the installation would.
+    entered = lagged_planning(104016, "PT173H21M36S").replace(
+        b"<DaysPerMonth>20</DaysPerMonth>", b"<DaysPerMonth>22</DaysPerMonth>"
+    )
+    import_file(api, stage, worker, entered, apply=True)
     before = (links(stage), [(each.duration_value, each.duration_unit) for _, each in nodes(stage)])
     assert ("C", "D", "finish_to_start", Decimal(1), "mo") in before[0]
     content = exported(api, stage, worker, revision["revision_id"])
     assert read_project(content).project.days_per_month == 22
     found = import_file(api, stage, worker, content, apply=False)
     assert found["report"]["differences"] == []
+    assert (found["report"]["unit_constants"], found["report"]["calendar_gap"]) == (None, None)
     import_file(api, stage, worker, content, apply=True)
     after = (links(stage), [(each.duration_value, each.duration_unit) for _, each in nodes(stage)])
     assert after == before

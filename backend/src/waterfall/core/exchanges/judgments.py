@@ -34,6 +34,9 @@ if TYPE_CHECKING:
 # planning, an estimate, a remaining to commit (WF-INTF-0090) —, or rows of the project alone,
 # outside any revision, over a period — the actual costs (WF-CRE-0010, WF-CRE-0050).
 type ImportScope = Literal["structure", "project"]
+# How an MS Project schedule in calendar gap converts its durations (``ImportDurationRule``,
+# US-2000): keeping them in their unit, the default, or keeping its dates (WF-INTF-0040).
+type DurationRule = Literal["keep_durations", "keep_dates"]
 # What judges the permission an import of a kind asks of an account on a project, and the quality
 # of contributor a write asks for besides: it lets pass, or raises the refusal (403, 404).
 type Judge = Callable[[Session, UUID, str], None]
@@ -45,6 +48,8 @@ MAY_CREATE_REVISION = "may_create_revision"
 PASSING = (NO_BACKGROUND_TASK_RUNNING, MAY_CREATE_REVISION)
 # Who may create the revision an import creates (WF-INTF-0090).
 REVISIONS_WRITE = "revisions.write"
+KEEP_DURATIONS: DurationRule = "keep_durations"
+KEEP_DATES: DurationRule = "keep_dates"
 # How long a report awaits its decision once analysed (WF-ARC-0100).
 REPORT_LIFETIME = timedelta(hours=24)
 # The keys of the payload of the tasks of an import: the import, the revision its analysis reads.
@@ -74,6 +79,7 @@ class ImportTarget:
     import_id: UUID | None = None
     period_from: date | None = None
     period_to: date | None = None
+    duration_rule: DurationRule = KEEP_DURATIONS
 
 
 def refused(condition: str) -> ConflictError:

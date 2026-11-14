@@ -14,14 +14,15 @@ and EP-09 for theirs —, and read of the file only the header the format asks f
 
 The deposit of a file (``uploadFile``: ``deposit``), the opening of an import (``open_import``:
 the header by the format, the conditions, the task of the analysis), its reading and its list
-(``read_import``, ``list_imports``), its abandonment (``abandon_import``) and its application
-(``apply_import``: the conditions judged again, the task) serve the API; the worker runs the
-analysis and the application (``import_analysis``, ``import_apply``) through ``run_analysis`` and
-``run_apply``. An import ends ``applied``, or without writing — ``abandoned``, ``expired``,
-``failed``, ``refused`` —, and its file is deleted from the storage once the transaction that ends
-it is committed (WF-ARC-0100, WF-DAT-0120). The permission and the quality an import asks of who
-acts on it are judged by the caller's ``Judge``, the API's or the worker's: the evaluation of the
-permissions sits above this module (WF-ADM-0110).
+(``read_import``, ``list_imports``), its abandonment (``abandon_import``), its application
+(``apply_import``: the conditions judged again, the task) and the rule of the durations of a
+planning in calendar gap (``set_duration_rule``: a new analysis under it, US-2000) serve the API;
+the worker runs the analysis and the application (``import_analysis``, ``import_apply``) through
+``run_analysis`` and ``run_apply``. An import ends ``applied``, or without writing —
+``abandoned``, ``expired``, ``failed``, ``refused`` —, and its file is deleted from the storage once
+the transaction that ends it is committed (WF-ARC-0100, WF-DAT-0120). The permission and the
+quality an import asks of who acts on it are judged by the caller's ``Judge``, the API's or the
+worker's: the evaluation of the permissions sits above this module (WF-ADM-0110).
 
 Declared by US-1380/L1; filled by US-1420/L1. The purge of what expired is US-1420/L2's.
 """
@@ -38,6 +39,7 @@ from waterfall.core.exchanges.judgments import (
     IMPORT_KEY,
     PASSING,
     REVISION_KEY,
+    DurationRule,
     FormJudgment,
     ImportScope,
     ImportTarget,
@@ -61,6 +63,8 @@ from waterfall.core.exchanges.states import (
     apply_lacks,
     commands_of,
     expiry_read,
+    rule_lacks,
+    rule_of,
     status_read,
 )
 from waterfall.core.exchanges.tables import ImportReport
@@ -260,6 +264,15 @@ class ImportList:
 
     views: list[ImportView]
     total: int
+
+
+@dataclass(frozen=True, slots=True)
+class RuleChange:
+    """The rule of the durations asked for an import of a project (``ImportDurationRuleWrite``)."""
+
+    project_id: UUID
+    import_id: UUID
+    rule: DurationRule
 
 
 @dataclass(frozen=True, slots=True)
@@ -674,6 +687,54 @@ def apply_import(
     row.task_id, row.status = task_id, "applying"
     session.flush()
     return task_id
+
+
+def set_duration_rule(
+    session: Session, queue: TaskQueue, change: RuleChange, confirmer: Confirmer
+) -> ImportView:
+    """Set the rule of the durations of an import in calendar gap (``setImportDurationRule``).
+
+    Under the lock of the import, read under it:
+    unknown (404); the permission of its kind and the quality of contributor, as for applying it
+    (403); an import no longer ``analysed`` (409 ``import_awaiting_decision``), then a report
+    without a calendar gap (409 ``import_calendar_gap``), the import unchanged. The rule the report
+    was computed under gives the import back as it stands; another sets the report aside and
+    deposits a new analysis, under the rule, on what the last one read — the import ``analysing``
+    again, without a report nor an expiry, its task the new one (WF-INTF-0080, US-2000). The
+    conditions of the state of the project are not judged: the analysis writes nothing, and the
+    application judges them again (#2977).
+    """
+    project_id, rule = change.project_id, change.rule
+    act = confirmer.act
+    row = found_import(session, project_id, change.import_id, lock=True)
+    confirmer.judge(session, project_id, _format_of(row.kind).permission)
+    read = _read(session, row, act.at)
+    lacking = rule_lacks(read, row.report)
+    if lacking:
+        raise refused(lacking[0])
+    if rule_of(row.report) == rule:
+        return _view(session, row, confirmer.viewer, read)
+    payload = {IMPORT_KEY: str(row.id)}
+    revision = _analysed_revision(session, row)
+    if revision is not None:
+        payload[REVISION_KEY] = revision
+    row.duration_rule = rule
+    row.report = None
+    row.status = "analysing"
+    row.analysed_at = None
+    row.expires_at = None
+    # The analysis writes nothing of the project: its task names no project, as at the opening.
+    row.task_id = submit(session, queue, "import_analysis", act.author, payload)
+    session.flush()
+    return _view(session, row, confirmer.viewer, _read(session, row, act.at))
+
+
+def _analysed_revision(session: Session, row: ImportReport) -> str | None:
+    """Give the revision the last analysis of an import read: the one its opening aimed at."""
+    task = None if row.task_id is None else session.get(BackgroundTask, row.task_id)
+    if task is not None:
+        return task.payload.get(REVISION_KEY)
+    return None if row.revision_id is None else str(row.revision_id)
 
 
 def _applied_target(session: Session, row: ImportReport, standing: Standing) -> ImportTarget:

@@ -8,9 +8,10 @@ quality on its project each asks for besides.
 A deposit asks for no permission: it writes nothing of any project, and only its author may open
 an import of it. An import of a project is guarded by the reading of the planning, the leaf the
 exchanges are of (FBS-4.3.4); the permission of its kind and the quality of contributor, which an
-opening, an application and an abandonment ask for besides, are judged with the import itself
+opening, an application, an abandonment and a change of the rule of its durations (US-2000) ask
+for besides, are judged with the import itself
 (``Format.permission``), so that an application whose requester lost them refuses the import for
-good (WF-ARC-0100) — the 403 the contract declares for these three.
+good (WF-ARC-0100) — the 403 the contract declares for these four.
 """
 
 CONSULT = "planning.read"
@@ -23,6 +24,7 @@ ASKED: dict[str, tuple[str, ...]] = {
     "getImport": (CONSULT,),
     "abandonImport": (CONSULT,),
     "applyImport": (CONSULT,),
+    "setImportDurationRule": (CONSULT,),
 }
 # The quality on its project each operation that names one asks for, evaluated by
 # ``RequiresProject``: ``consultation``, ``contributor`` or ``project_manager`` (WF-ADM-0110).
@@ -32,4 +34,5 @@ ON_PROJECT: dict[str, str] = {
     "getImport": "consultation",
     "abandonImport": "consultation",
     "applyImport": "consultation",
+    "setImportDurationRule": "consultation",
 }
