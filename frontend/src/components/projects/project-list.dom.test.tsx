@@ -12,7 +12,7 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { closeMenu, menuSummary, openMenu, pick } from "@/test/check-menu";
-import { example, fakeClient } from "@/test/fixtures";
+import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { listedProject } from "./project-list-grid";
 import { ProjectContributorFilter, ProjectListGrid, ProjectStateFilter } from "./project-list-view";
@@ -289,6 +289,21 @@ describe("the filter of the list on the projects the user contributes to (US-213
     expect(field).toHaveDisplayValue("Tous ceux que vous pouvez ouvrir");
     await userEvent.selectOptions(field, "Mes projets");
     expect(await lastAddress()).toBe("/");
+  });
+
+  it("never writes « Mes projets » in the preferences of the account, whatever the address says of it: at sign-in, the user sees their projects [WF-IHM-0120-A]", async () => {
+    // The states the address chose are kept, which proves the preferences are written at all.
+    page.search = "is_contributor=false&states=lost";
+    render(filteredGrid(false));
+    const client = server.client as FakeClient;
+    await waitFor(() => {
+      expect(client.calls.filter((call) => call.route === "PATCH /me/preferences")).not.toEqual([]);
+    });
+    const written = client.calls
+      .filter((call) => call.route === "PATCH /me/preferences")
+      .map((call) => JSON.stringify(call.body));
+    expect(written.join("")).toContain("lost");
+    expect(written.join("")).not.toContain("is_contributor");
   });
 
   it("offers no chip of the filter to a session that may not lift it: its cross would change nothing (#522)", () => {

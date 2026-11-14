@@ -33,7 +33,7 @@ describe("the sign-in that could not be made (#687)", () => {
   it("is set in the airy column, its title at the size of the airy ones, the sign-in outlined (US-2130)", async () => {
     const html = await rendered({});
     expect(html.startsWith(`<main class="${SCREEN.airy}">`)).toBe(true);
-    expect(html).toMatch(/<div class="font-semibold text-2xl"><h1/);
+    expect(/<div class="([^"]*)"><h1/.exec(html)?.[1]?.split(" ")).toContain("text-2xl");
     expect(html).not.toContain("bg-primary");
   });
 

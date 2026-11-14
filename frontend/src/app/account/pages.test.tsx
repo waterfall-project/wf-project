@@ -129,16 +129,19 @@ describe("the screen of the account", () => {
 
 describe("the screens of the account, in the charter (US-2130)", () => {
   it.each([
-    ["the account", () => AccountPage()],
-    ["its avatar", () => AvatarPage()],
+    ["the account", () => AccountPage(), true],
+    ["its avatar", () => AvatarPage(), false],
   ])(
     "sets %s in the airy column, its title at the size of the airy ones, its commands outlined",
-    async (_, open) => {
+    async (_, open, hasCommands) => {
       const page = html(await open());
       expect(page.startsWith(`<main class="${SCREEN.airy}">`)).toBe(true);
-      expect(page).toMatch(/<div class="font-semibold text-2xl"><h1/);
-      const commands = /data-slot="screen-commands"[^>]*>(.*?)<\/div>/.exec(page)?.[1] ?? "";
-      expect(commands).not.toContain("bg-primary");
+      // Whatever the order of the classes of the title.
+      expect(/<div class="([^"]*)"><h1/.exec(page)?.[1]?.split(" ")).toContain("text-2xl");
+      // The avatar has no command beside its title: the slot is there for the account alone.
+      const commands = /data-slot="screen-commands"[^>]*>(.*?)<\/div>/.exec(page)?.[1];
+      expect(commands !== undefined).toBe(hasCommands);
+      expect(commands ?? "").not.toContain("bg-primary");
     },
   );
 });

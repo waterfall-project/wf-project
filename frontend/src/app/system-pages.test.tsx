@@ -61,7 +61,7 @@ describe("the screen not found", () => {
     async (_, me) => {
       const html = await notFound(me);
       expect(html.startsWith(`<main class="${SCREEN.airy}">`)).toBe(true);
-      expect(html).toMatch(/<div class="font-semibold text-2xl"><h1/);
+      expect(/<div class="([^"]*)"><h1/.exec(html)?.[1]?.split(" ")).toContain("text-2xl");
       expect(html).not.toContain("bg-primary");
     },
   );

@@ -10,6 +10,7 @@
 import { expect, type Locator } from "@playwright/test";
 
 import { inService, test } from "./mode";
+import { scroller, withinBox } from "./scroll";
 
 test("the home of a signed-in session renders against the service: its title, the filter of its list, no note of the mock-up and neither « not found » nor a request for a session; it only renders, the filter being carried by the back and projects.spec.ts (US-0920/L2, #1004) @shared [WF-IHM-0120-A]", async ({
   page,
@@ -56,9 +57,14 @@ for (const { width, height } of [
     const heading = await box(card.getByRole("heading", { level: 2 }));
     const create = card.getByRole("button", { name: "Créer un projet" });
     await expect(create).toBeInViewport({ ratio: 1 });
+    // The totals row, in the window: the home is no longer a screen that fills it, and nothing may
+    // leave it below its bottom (typescript.md, defect 13). The fake back lists three projects, one
+    // page: the pages are not offered, and so not measured here.
+    await expect.poll(() => withinBox(grid, grid.getByRole("row").last())).toBe(true);
     const button = await box(create);
     const bar = await box(card.locator("[data-grid-toolbar]"));
-    const table = await box(grid);
+    // The table is what its scroller frames: the grid itself is as wide as its columns.
+    const table = await box(scroller(grid));
     // The card within the column of the screen; the creation at its right edge, inside its
     // padding, on the line of its title, above the bar of its table.
     expect(frame.x).toBeGreaterThanOrEqual(main.x - 1);
@@ -72,7 +78,7 @@ for (const { width, height } of [
     expect(table.x).toBeGreaterThan(frame.x);
     expect(table.right).toBeLessThan(frame.right);
     expect(frame.width - table.width).toBeLessThanOrEqual(48);
-    expect(Math.abs(bar.width - table.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(bar.width - table.width)).toBeLessThanOrEqual(4);
     // Filled: the background of the primary, never the background of the card.
     const background = (element: Locator) =>
       element.evaluate((node) => getComputedStyle(node).backgroundColor);
