@@ -3,8 +3,9 @@
 /**
  * The native select of shadcn/ui, copied into the repository: the list a cell of a grid chooses
  * from — a category, a role (WF-IHM-0040). The list of the browser, which the keyboard runs
- * through by its arrows and by the first letters of a name; the border of the `input` token, the
- * ring of the charter under the focus, the chevron of Lucide; no shadow, no transition.
+ * through by its arrows and by the first letters of a name; a pill, as every field (US-2070,
+ * #3079), the border of the `input` token, the ring of the charter under the focus, the chevron of
+ * Lucide; no shadow, no transition.
  */
 import { ChevronDown } from "lucide-react";
 import type { ComponentProps } from "react";
@@ -18,7 +19,7 @@ export function NativeSelect({ className, ...props }: ComponentProps<"select">) 
       <select
         data-slot="native-select"
         className={cn(
-          "h-8 w-full min-w-0 appearance-none rounded-md border border-input bg-background py-1 pr-7 pl-2 text-sm text-foreground outline-none",
+          "h-8 w-full min-w-0 appearance-none rounded-full border border-input bg-background py-1 pr-7 pl-3 text-sm text-foreground outline-none",
           "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring aria-invalid:border-destructive",
           className,
         )}
