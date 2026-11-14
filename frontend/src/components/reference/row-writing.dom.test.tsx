@@ -4,7 +4,7 @@
  * The commands of a row of the reference data while a write of the row is under way (US-2180, #2260):
  * apart from `resource-commands.dom.test.tsx`, which the bound of a source file leaves no room for.
  */
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -24,6 +24,7 @@ import {
   type Problem,
 } from "@/test/fixtures";
 
+import { CommandedList, useAnswered, useRowCommand } from "./commands";
 import { type Calendar, type OrgNode } from "./resource-grids";
 import { CalendarList, type NodeOffered, OrgNodeList } from "./resource-lists";
 
@@ -265,6 +266,61 @@ describe("a row of the reference data being written", () => {
     // The calendar as the server answers it, renamed.
     await vi.waitFor(() => {
       expectOffered("Désigner «\u00A0Semaine de quatre jours de dix heures\u00A0» par défaut");
+    });
+  });
+
+  it("keeps in a row the first of two answers at one version, whatever the order they are answered in (#2260)", async () => {
+    const [node] = tree as [OrgNode];
+    const modified = { ...node, label: "Renommé", lock_version: 2 };
+    const deactivated = { ...node, is_active: false, lock_version: 2 };
+    const answers: ((row: OrgNode) => void)[] = [];
+    const answering = () =>
+      new Promise<{ kind: "done"; data: OrgNode[] }>((resolve) => {
+        answers.push((row) => {
+          resolve({ kind: "done", data: [row] });
+        });
+      });
+    function Row() {
+      const [shown] = useAnswered([node]);
+      const [, run] = useRowCommand(node.org_node_id, "target", {}, node.label);
+      return (
+        <>
+          <button
+            onClick={() => {
+              // Two writes of the row, started in one press: both are free to run.
+              run(answering, () => "modified");
+              run(answering, () => "deactivated");
+            }}
+          >
+            Écrire
+          </button>
+          <output>{`${shown?.label ?? ""} ${shown?.is_active === false ? "Désactivé" : "Actif"}`}</output>
+        </>
+      );
+    }
+    render(
+      inFrench(
+        <CommandedList kind="org_node">
+          <Row />
+        </CommandedList>,
+      ),
+    );
+    await userEvent.click(command("Écrire"));
+    // The second write answered first, at the version 2: the row shows it.
+    await act(async () => {
+      answers[1]?.(deactivated);
+      await Promise.resolve();
+    });
+    await vi.waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent(`${node.label} Désactivé`);
+    });
+    // The first answered after, at the same version 2: the row keeps the answer it shows.
+    await act(async () => {
+      answers[0]?.(modified);
+      await Promise.resolve();
+    });
+    await vi.waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent(`${node.label} Désactivé`);
     });
   });
 });

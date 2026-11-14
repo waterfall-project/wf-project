@@ -395,8 +395,7 @@ describe("the settings of the resources", () => {
       new RegExp(`<button[^>]*aria-label="Réactiver «\u00a0${name}\u00a0»"[^>]*>`).exec(page)?.[0];
     expect(command("Cellule robotique")).toContain('aria-disabled="true"');
     expect(command("Bureau d&#x27;études automatismes")).toBeDefined();
-    // The attribute, not the class that presents it once set (`UNAVAILABLE`).
-    expect(command("Bureau d&#x27;études automatismes")).not.toContain("aria-disabled=");
+    expect(command("Bureau d&#x27;études automatismes")).not.toContain("aria-disabled");
   });
 
   it("ask the roles between the bounds of their figures, and count in the totals those the server retains [WF-IHM-0130-A]", async () => {

@@ -403,9 +403,13 @@ export function waitingFor(
 ): {
   readonly unavailable: string | undefined;
   readonly "aria-busy": boolean;
-  readonly className: string;
+  readonly className: string | undefined;
 } {
-  return { unavailable: writing ? said : undefined, "aria-busy": writing, className: UNAVAILABLE };
+  return {
+    unavailable: writing ? said : undefined,
+    "aria-busy": writing,
+    className: writing ? UNAVAILABLE : undefined,
+  };
 }
 
 /** The command that opens the modification of a row, named after it. */
