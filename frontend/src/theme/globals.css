@@ -97,6 +97,10 @@
      the page, a card, a muted or a selected row. The dot never says the state alone: the word
      is written beside it, and « Désactivé » keeps its own mark (WF-IHM-0070). */
   --active-mark: light-dark(#15803d, #4ade80);
+  /* The row of a table under the pointer (US-2080, #3075): a slight tint of the blue of the logos,
+     apart from the grey of the row selected (`--accent`); the text of a row, its signals, its dot
+     « Actif » and the border of a field read on it as on the page (contrast.test.ts). */
+  --row-hover: light-dark(#e9f2fc, #141c29);
   /* The mark of a difference (US-0500): the tint of the row of a node a differential adds, removes
      or modifies, and the mark written on it, `+`, `-` or `M`, in a green, a red and a yellow. The
      character says it first and the colour doubles it, never alone; each reaches 4.5:1 on its tint,
@@ -200,6 +204,7 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-active-mark: var(--active-mark);
+  --color-row-hover: var(--row-hover);
   --color-diff-added: var(--diff-added);
   --color-diff-added-mark: var(--diff-added-mark);
   --color-diff-removed: var(--diff-removed);

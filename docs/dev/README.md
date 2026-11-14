@@ -1007,9 +1007,21 @@ content lines up below (the actual costs, the risks) —, does not fill the wind
 below (`fillWide`, `lg:min-h-0`), just as `/admin/backups` and the reference data of resources and
 costs, which stack their grids, do not fill it: the grid would overflow onto it (#1033).
 `frontend/e2e/grid-frame.spec.ts` measures it on the nine screens that fill the window, in a low
-window, at the two widths of the harness: the frame overlaps nothing. The bar and the « Columns »
-button have the width of the frame of the table, as the browser sets it (scrollbars included,
-`frame-width.ts`), without exceeding it, and never less than what the bar holds on one line
+window, at the two widths of the harness: the frame overlaps nothing. The width of a table is CSS,
+measured by no script (`table-width.ts`, US-2080, #3075): the frame has the width of its card, the
+table the larger of the card and of the sum of its columns, and the label column (`label`) — failing
+one, the last column before any pinned at the end — takes what the others leave, the width chosen
+for it becoming its minimum: its handle and its arrows set that minimum, the column never shrinking
+below what the card gives it. It is wider than its width only when the table does not scroll
+sideways: the offsets of the pinned columns, drawn from the chosen widths, stay right. No line
+between the columns, except beside a pinned column; the row under the pointer is tinted by a token
+(`--row-hover`, `ROW_HOVER`), which a computed cell, a selected row or one marked by a differential
+keep under their own tint. In the totals row, the caption of the count spans the columns without a
+figure that follow it (`colSpan`) instead of being truncated; pinned, it stays stuck over the pinned
+columns alone, its words at the start of its column (#3072). The simple tables (`ui/table.tsx`) have
+the text, the header and the absence of lines of the grids. The bar and the « Columns » button have
+the width of the frame, that of what holds them, without exceeding it, and never less than what the
+bar holds on one line
 (`min-w-min`, the search shrinking before anything wraps, apart from the command list of a screen,
 which wraps by itself); the notices — refusal, paste applied, columns not shown, entry problem —
 keep the whole width (#1042). Hidden columns, widths and sort are a display preference

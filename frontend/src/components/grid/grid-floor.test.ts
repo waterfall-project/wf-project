@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 
-import { barWidthOf, contentRem, floorOf, withBar } from "./grid-floor";
+import { contentRem, floorOf, withBar } from "./grid-floor";
 
 describe("the floor of the frame of a dense grid (#1041)", () => {
   it.each([
@@ -23,16 +23,5 @@ describe("the floor of the frame of a dense grid (#1041)", () => {
 
   it("adds the bar to the floor for what holds the grid", () => {
     expect(withBar(2)).toBe("calc(min(10rem, calc(7.5rem + 2px)) + 2.25rem)");
-  });
-});
-
-describe("the width of the bar of a dense grid (#1042)", () => {
-  it("is that of the frame as the browser laid it out, the scroll bars in", () => {
-    expect(barWidthOf(657, 640)).toBe("657px");
-  });
-
-  it("is the table and the two borders of the frame until the frame is measured", () => {
-    expect(barWidthOf(undefined, 640)).toBe("642px");
-    expect(barWidthOf(0, 640)).toBe("642px");
   });
 });

@@ -405,7 +405,8 @@ describe("the witness path", () => {
     const { html } = await estimateWith({ "GET /me": "me_grid_settings" });
     // The quantity hidden, the label widened.
     expect(html).not.toContain(">Qty<");
-    expect(html).toContain('<col style="width:400px"/>');
+    // The label takes what the card leaves, its width chosen its least: its handle says it (#3075).
+    expect(html).toContain('aria-valuenow="400"');
   });
 
   it("names the category and the role of each line by the reference data, and opens the grid to entry when the structure lists the estimate available", async () => {

@@ -257,10 +257,8 @@ describe("the dense grid, on a thousand rows", () => {
     const totals = rowAt(1002);
     expect(texts(totals)).toEqual([
       "",
+      // The caption spans the category, the role and the quantity, which have no total (#3072).
       "Total — 1 tâche, 999 lignes",
-      "",
-      "",
-      "",
       "0",
       "",
       "",
@@ -604,7 +602,10 @@ describe("the columns and their widths, a display preference of the account", ()
     // The quantity was hidden, the label widened.
     expect(screen.queryByRole("columnheader", { name: /Qté/ })).toBeNull();
     expect(screen.getByRole("columnheader", { name: /Charge/ })).toBeInTheDocument();
-    expect(container.querySelectorAll("col")[1]).toHaveStyle({ width: "400px" });
+    // The label takes what the card leaves, the width chosen its least (#3075).
+    expect(
+      screen.getByRole("separator", { name: "Largeur de la colonne Libellé" }),
+    ).toHaveAttribute("aria-valuenow", "400");
 
     await userEvent.click(screen.getByRole("button", { name: "Colonnes" }));
     const menu = screen.getByRole("menu");

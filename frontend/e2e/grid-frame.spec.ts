@@ -7,6 +7,12 @@
  * covers nothing that follows it; the bar above it is as wide as the frame, scroll bars included,
  * and holds on one line; and a grid of a few rows is no taller than its content. No requirement
  * carries this: it is the layout the guide, « Les grilles », states.
+ *
+ * And the width of a table (US-2080, #3075, #3072), measured rather than compared to an image: its
+ * frame at the width of its card, its table the wider of the card and of its columns, its label
+ * taking the rest and never less than the width chosen for it, no line between its columns but
+ * beside a pinned one, the caption of its totals whole, its pinned columns where they were as it
+ * scrolls sideways (WF-IHM-0060).
  */
 import { expect, type Page, test } from "@playwright/test";
 
@@ -386,3 +392,242 @@ for (const { address, widths, height, folded } of CARD_SCREENS) {
     }
   });
 }
+
+/** A header of a grid as laid out: its column, its width, and the width chosen for it, if it widens. */
+interface Header {
+  readonly column: string;
+  readonly width: number;
+  readonly chosen: number | undefined;
+}
+
+/** What the layout says of the width of a grid, its columns, its lines and its totals (US-2080). */
+interface Width {
+  readonly name: string;
+  /** The width of the frame, and of what holds it and its bar. */
+  readonly frame: number;
+  readonly holder: number;
+  /** The room inside the frame, its borders and its scroll bar out, and the width of its table. */
+  readonly room: number;
+  readonly table: number;
+  readonly bar: number;
+  readonly headers: readonly Header[];
+  /** The cells of the first row that draw a line on a side, and whether each is pinned. */
+  readonly lined: readonly { readonly column: string; readonly pinned: boolean }[];
+  /** Whether the words of the caption of the totals are cut; none for a grid without totals. */
+  readonly cut: boolean | undefined;
+  /** The right edge of the pages under the table, if the screen sets some beside it, and the frame's. */
+  readonly pages: number | undefined;
+  readonly right: number;
+}
+
+/** Measure the width of each grid of the screen. */
+function measureWidths(page: Page): Promise<Width[]> {
+  return page.evaluate(() => {
+    const headersOf = (grid: Element) =>
+      Array.from(grid.querySelectorAll<HTMLElement>("thead th")).map((th) => {
+        const handle = th.querySelector("[role='separator']");
+        return {
+          column: th.dataset.column ?? "",
+          width: th.getBoundingClientRect().width,
+          chosen: handle === null ? undefined : Number(handle.getAttribute("aria-valuenow")),
+        };
+      });
+    const linedOf = (grid: Element) => {
+      const row = grid.querySelector("tbody tr[aria-rowindex]");
+      return Array.from(row?.querySelectorAll<HTMLElement>("td") ?? []).flatMap((cell) => {
+        const style = getComputedStyle(cell);
+        const sides =
+          Number.parseFloat(style.borderLeftWidth) + Number.parseFloat(style.borderRightWidth);
+        const pinned = cell.style.left !== "" || cell.style.right !== "";
+        return sides > 0 ? [{ column: cell.dataset.column ?? "", pinned }] : [];
+      });
+    };
+    const cutOf = (grid: Element) => {
+      const caption = Array.from(grid.querySelectorAll<HTMLElement>("tfoot td")).find(
+        (cell) => cell.textContent !== "",
+      );
+      if (caption === undefined) {
+        return undefined;
+      }
+      const words = caption.querySelector("span") ?? caption;
+      return (
+        caption.scrollWidth > caption.clientWidth + 1 || words.scrollWidth > words.clientWidth + 1
+      );
+    };
+    const grids = Array.from(
+      document.querySelectorAll("main [role='grid'], main [role='treegrid']"),
+    );
+    const after = (one: Node, other: Node) =>
+      (one.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+    // The pages of a grid: the first after it in the page, before the next grid.
+    const pagesOf = (grid: Element, at: number) => {
+      const next = grids[at + 1];
+      return Array.from(document.querySelectorAll("main [data-slot='pagination']")).find(
+        (pages) => after(grid, pages) && (next === undefined || after(pages, next)),
+      )?.parentElement;
+    };
+    return grids.map((grid, at) => {
+      const frame = grid.parentElement;
+      const holder = frame?.parentElement;
+      const bar = holder?.firstElementChild;
+      if (
+        !(frame instanceof HTMLElement) ||
+        !(holder instanceof HTMLElement) ||
+        !(bar instanceof HTMLElement)
+      ) {
+        throw new Error("the grid has no frame");
+      }
+      const pages = pagesOf(grid, at);
+      return {
+        name: grid.getAttribute("aria-label") ?? "",
+        frame: frame.offsetWidth,
+        holder: holder.clientWidth,
+        room: frame.clientWidth,
+        table: grid.getBoundingClientRect().width,
+        bar: bar.offsetWidth,
+        headers: headersOf(grid),
+        lined: linedOf(grid),
+        cut: cutOf(grid),
+        pages: pages?.getBoundingClientRect().right,
+        right: frame.getBoundingClientRect().right,
+      };
+    });
+  });
+}
+
+/** The column that takes the rest of the card: the label, else the last one that widens. */
+function stretchedOf(headers: readonly Header[]): Header | undefined {
+  return (
+    headers.find((header) => header.column === "label") ??
+    headers.filter((header) => header.chosen !== undefined).at(-1)
+  );
+}
+
+/** Check the widths of a grid: its frame, its bar, its table, its columns. */
+function expectWidths(grid: Width, where: string) {
+  expect(
+    Math.abs(grid.frame - grid.holder),
+    `the frame of ${where} in its card`,
+  ).toBeLessThanOrEqual(1);
+  expect(Math.abs(grid.bar - grid.frame), `the bar of ${where}`).toBeLessThanOrEqual(1);
+  const chosen = grid.headers.reduce((sum, header) => sum + (header.chosen ?? header.width), 0);
+  // The table: the wider of the room of its frame and of its columns as chosen.
+  expect(
+    Math.abs(grid.table - Math.max(grid.room, chosen)),
+    `the table of ${where}`,
+  ).toBeLessThanOrEqual(2);
+  const stretched = stretchedOf(grid.headers);
+  for (const header of grid.headers.filter((each) => each.chosen !== undefined)) {
+    const least = header.chosen ?? 0;
+    if (header === stretched) {
+      // The width chosen is its least, and it takes what the other columns leave.
+      expect(header.width, `${header.column} of ${where} at its least`).toBeGreaterThanOrEqual(
+        least - 1,
+      );
+      expect(
+        Math.abs(header.width - least - Math.max(0, grid.room - chosen)),
+        `${header.column} of ${where} takes the rest`,
+      ).toBeLessThanOrEqual(2);
+    } else {
+      expect(Math.abs(header.width - least), `${header.column} of ${where}`).toBeLessThanOrEqual(1);
+    }
+  }
+}
+
+/**
+ * The screens of flat tables and of a tree measured for their width: the reference of the costs —
+ * the natures, the categories, the grid of the rates, wider than its card —, the resources and the
+ * tree of the organisation, the accounts and their pages.
+ */
+const WIDTH_SCREENS = ["/reference/costs", "/reference/resources", "/admin/users"] as const;
+
+for (const address of WIDTH_SCREENS) {
+  test(`${address}: each table takes the width of its card, its label the rest and never less than its width chosen, no line between its columns but beside a pinned one, its bar, its pages and the caption of its totals whole [WF-IHM-0060-A]`, async ({
+    page,
+  }) => {
+    // « Les colonnes masquées et les largeurs choisies sont retrouvées à la réouverture » : the
+    // width chosen for the label becomes its least, the label taking the rest of the card (#3075,
+    // #3079, #3072).
+    await compile(page.request, address);
+    for (const { width } of WINDOWS) {
+      await open(page, address, { width, height: 900 });
+      const grids = await measureWidths(page);
+      expect(grids.length, `${address} has a grid`).toBeGreaterThan(0);
+      for (const grid of grids) {
+        const where = `${grid.name} at ${String(width)}`;
+        expectWidths(grid, where);
+        for (const cell of grid.lined) {
+          expect(cell.pinned, `the line beside ${cell.column} of ${where}`).toBe(true);
+        }
+        expect(grid.lined.length, `the lines of ${where}`).toBeLessThanOrEqual(2);
+        expect(grid.cut, `the caption of the totals of ${where}`).not.toBe(true);
+        if (grid.pages !== undefined) {
+          expect(Math.abs(grid.pages - grid.right), `the pages of ${where}`).toBeLessThanOrEqual(1);
+        }
+      }
+    }
+  });
+}
+
+test("a table wider than its card scrolls in its frame, its label at its width chosen, its pinned columns and the caption of its totals where they were [WF-IHM-0060-A]", async ({
+  page,
+}) => {
+  // « Après défilement de mille lignes, en-têtes et totaux sont toujours visibles, de même que la
+  // colonne de libellé après défilement horizontal » : the grid of the rates, fifteen years wide.
+  const address = "/reference/costs";
+  await compile(page.request, address);
+  for (const { width } of WINDOWS) {
+    await open(page, address, { width, height: 900 });
+    const grid = page.getByRole("grid", { name: "Grille des taux horaires" });
+    // Where the pinned cells of the header and of the first row, and the words of the caption of
+    // the totals, stand in the frame; and how far the frame scrolls sideways.
+    const placed = () =>
+      grid.evaluate((table) => {
+        const frame = table.parentElement;
+        const start = frame?.getBoundingClientRect().left ?? 0;
+        const at = (cell: Element) => {
+          const rect = cell.getBoundingClientRect();
+          return { left: rect.left - start, right: rect.right - start };
+        };
+        const pinned = (cells: NodeListOf<HTMLElement> | undefined) =>
+          Array.from(cells ?? [])
+            .filter((cell) => cell.style.left !== "")
+            .map(at);
+        const caption = Array.from(table.querySelectorAll<HTMLElement>("tfoot td")).find(
+          (cell) => cell.textContent !== "",
+        );
+        const words = caption?.querySelector("span") ?? caption;
+        return {
+          headers: pinned(table.querySelectorAll<HTMLElement>("thead th")),
+          cells: pinned(table.querySelector("tbody tr[aria-rowindex]")?.querySelectorAll("td")),
+          words: words === undefined ? undefined : at(words).left,
+          scroll: (frame?.scrollWidth ?? 0) - (frame?.clientWidth ?? 0),
+        };
+      });
+    const before = await placed();
+    expect(
+      before.scroll,
+      `the rates at ${String(width)} are wider than their card`,
+    ).toBeGreaterThan(100);
+    const [grids] = (await measureWidths(page)).filter(
+      (each) => each.name === "Grille des taux horaires",
+    );
+    if (grids === undefined) {
+      throw new Error("no grid of the rates");
+    }
+    expectWidths(grids, `the rates at ${String(width)}`);
+    // The pinned columns follow one another, each where the one before it ends.
+    expect(before.headers.length).toBeGreaterThan(1);
+    for (const [at, header] of before.headers.slice(1).entries()) {
+      expect(Math.abs(header.left - (before.headers[at]?.right ?? 0))).toBeLessThanOrEqual(1);
+    }
+    expect(before.cells).toEqual(before.headers);
+    await grid.locator("xpath=..").evaluate((frame) => {
+      frame.scrollLeft = 100;
+    });
+    await expect.poll(async () => (await placed()).headers).toEqual(before.headers);
+    const after = await placed();
+    expect(after.cells).toEqual(before.cells);
+    expect(after.words, "the caption of the totals where it was").toBe(before.words);
+  }
+});
