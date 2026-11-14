@@ -1,7 +1,7 @@
 ---
 id: EP-24
 titre: Consolider après la v0.3.0 — les filtres des tables et la gestion des utilisateurs achevés, une file de fusion qui n'échoue plus sans régression, les constats d'EP-09 et d'EP-23 soldés, l'aller-retour MS Project tenu dans MS Project, la spécification 1.0.5
-statut: en cours
+statut: livré
 depend_de: EP-09, EP-23
 famille: front, back, plateforme
 issue: 2932
