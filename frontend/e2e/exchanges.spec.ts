@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import { readFileSync } from "node:fs";
+
 import {
   type APIRequestContext,
   expect,
@@ -320,6 +322,11 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
     report.getByText(catalogue.exchanges.report.unitConstants.split("{", 1).join("").trim()),
   ).toHaveCount(0);
 
+  // No calendar gap, so no choice of the duration rule (WF-PLA-0160-A): the service's report, which
+  // the fake back's example cannot prove for this path, carries none.
+  await expect(report.getByRole("radio")).toHaveCount(0);
+  await expect(report.getByText("Écart de calendrier avec l’installation")).toHaveCount(0);
+
   // Confirmed, the application is a task followed in the shell, to its success (WF-INTF-0010-A: the
   // account leads the flow to its end, #2683), and the service holds the import applied.
   const address = `${API}/projects/${seeded.ids.project}/imports/${opened}`;
@@ -462,6 +469,125 @@ test("exports the estimate as an Excel file, downloads it, sees a file that is n
 
   // The lines obtained are the lines exported: the same, lineage and amounts.
   expect(await lines()).toEqual(before);
+});
+
+test("imports a planning typed at seven hours a day: the calendar gap is on the report before the confirmation, keeping the durations is the default, keeping the dates analyses again and the screen follows, the rule in force changes nothing, and the abandonment leaves the project unchanged, as the project manager of the run @shared [WF-INTF-0080-A] [WF-PLA-0160-A] [WF-INTF-0040-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  // Against the service only: the read of `?import=` and the `PUT …/duration-rule` leave the server
+  // of Next, which `page.route` does not see, and Prism serves the first example (no gap).
+  // #3153: the conversion under « Garder les dates » (two days of 7 h are 16 h or 15 h) and the
+  // comparison of the differences of dates in gap are not settled: no duration converted and no
+  // number of differences is asserted here, only the hours, the option and the choice.
+  test.skip(!inService, "the service reads the import and changes its rule, the fake back not");
+  test.slow();
+  const seeded = await seedPlanning(page, browser, request, manager, "Écart");
+  const screen = `${seeded.revision}/exchanges`;
+  const base = `${API}/projects/${seeded.ids.project}`;
+  const nodes = `${base}/revisions/${seeded.ids.revision}/structures/${seeded.ids.structure}/nodes`;
+  const tasksOfProject = async (): Promise<unknown[]> => {
+    const read = await request.get(nodes, { headers: seeded.headers });
+    expect(read.status(), "GET nodes").toBe(200);
+    return ((await read.json()) as Answer<"listNodes">).items;
+  };
+  const before = await tasksOfProject();
+  expect(before.length).toBeGreaterThan(0);
+  await openHydrated(page, screen);
+
+  const imports = page.getByRole("region", { name: "Importer un fichier" });
+  await imports.getByRole("button", { name: "Importer un planning MS Project" }).click();
+  const form = imports.getByRole("form", { name: "Importer un planning MS Project" });
+  const filename = "14-calendar-gap-seven-hours.xml";
+  await form.getByLabel("Fichier à importer").setInputFiles({
+    name: filename,
+    mimeType: "application/xml",
+    buffer: readFileSync(`${import.meta.dirname}/../../fixtures/msproject/${filename}`),
+  });
+  await form.getByRole("button", { name: "Analyser le fichier" }).click();
+  await expect(page).toHaveURL(/[?&]import=[0-9a-f-]{36}/, { timeout: WORKING });
+  const opened = new URL(page.url()).searchParams.get("import") ?? "";
+  const address = `${base}/imports/${opened}`;
+  const report = page.getByRole("region", { name: `Compte rendu de l’import « ${filename} »` });
+  const keep = {
+    durations: report.getByRole("radio", { name: /^Garder les durées/ }),
+    dates: report.getByRole("radio", { name: /^Garder les dates/ }),
+  };
+  const reportRead = async () => {
+    // The analysis is a task of the background: the report comes when the screen is read anew.
+    await expect(async () => {
+      if ((await report.getByText(/lignes lues\./).count()) === 0) {
+        await page.reload();
+        await page.waitForLoadState("domcontentloaded");
+      }
+      await expect(report.getByText(/lignes lues\./)).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: WORKING, intervals: [500, 1_000, 2_000] });
+  };
+  await reportRead();
+
+  // The gap is on the report, before any confirmation: the hours a day of the file (7) and of the
+  // installation (8), the calendar of the file said ignored, the tasks on another calendar named.
+  await expect(report.getByText("Écart de calendrier avec l’installation")).toBeVisible();
+  const days = report.getByRole("table", {
+    name: "Heures par jour du fichier et de l’installation",
+  });
+  const monday = days.getByRole("row", { name: /^Lundi/ });
+  await expect(monday.getByRole("cell", { name: "7", exact: true })).toBeVisible();
+  await expect(monday.getByRole("cell", { name: "8", exact: true })).toBeVisible();
+  await expect(report.getByText(/^Le calendrier du fichier est ignoré/)).toBeVisible();
+  const own = report.getByRole("table", {
+    name: "Tâches dont le calendrier propre diffère de leur calendrier Waterfall",
+  });
+  for (const label of ["Peinture", "Fabrication"]) {
+    await expect(own.getByRole("cell", { name: label, exact: true })).toBeVisible();
+  }
+  await expect(report.getByRole("button", { name: "Appliquer l’import" })).toBeVisible();
+  const detail = async (): Promise<Schemas["ImportDetail"]> => {
+    const read = await request.get(address, { headers: seeded.headers });
+    expect(read.status(), "GET import").toBe(200);
+    return (await read.json()) as Schemas["ImportDetail"];
+  };
+  expect((await detail()).report?.calendar_gap?.duration_rule).toBe("keep_durations");
+
+  // Keeping the durations is the default.
+  await expect(keep.durations).toBeChecked();
+  await expect(keep.dates).not.toBeChecked();
+
+  // Keeping the dates analyses the import again (202), which the screen follows to the new report,
+  // that carries the new option; the project is unchanged.
+  await keep.dates.click();
+  await expect(keep.dates).toBeChecked({ timeout: WORKING });
+  await expect(async () => {
+    expect((await detail()).report?.calendar_gap?.duration_rule).toBe("keep_dates");
+  }).toPass({ timeout: WORKING });
+  await reportRead();
+  await expect(keep.dates).toBeChecked();
+  await expect(keep.durations).not.toBeChecked();
+  await expect(report.getByText("Écart de calendrier avec l’installation")).toBeVisible();
+
+  // The rule already in force answers 200 and changes nothing. The call of the screen leaves the
+  // server of Next, which the browser does not see, and a radio already checked sends nothing: the
+  // 200 is read by the same call made directly to the API, which then returns the import as it is.
+  const again = await request.put(`${address}/duration-rule`, {
+    headers: seeded.headers,
+    data: { duration_rule: "keep_dates" },
+  });
+  expect(again.status(), "PUT duration-rule, the rule in force").toBe(200);
+  const kept = (await again.json()) as Schemas["ImportDetail"];
+  expect(kept.status).toBe("analysed");
+  expect(kept.report?.calendar_gap?.duration_rule).toBe("keep_dates");
+  await page.reload();
+  await expect(keep.dates).toBeChecked({ timeout: WORKING });
+
+  // Abandoned after the change, the import leaves the project as it was.
+  await report.getByRole("button", { name: "Abandonner l’import" }).click();
+  await expect(page).not.toHaveURL(/[?&]import=/, { timeout: WORKING });
+  await expect(async () => {
+    expect((await detail()).status).toBe("abandoned");
+  }).toPass({ timeout: WORKING });
+  expect(await tasksOfProject()).toEqual(before);
 });
 
 test("exports the remaining to commit as an Excel file, imports it back in two steps, leaves the screen of the exchanges while it is applied, and reads its outcome in the shell, as the project manager of the run @shared [WF-IHM-0080-A]", async ({

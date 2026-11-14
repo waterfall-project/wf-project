@@ -2137,7 +2137,13 @@ estimate`, file `…-devis.xlsx`) through the same screen; its `@shared` path, o
 creates, imports it in two steps (US-1550, #2687): it exports and downloads the estimate, sees a file
 that is no estimate refused at the analysis (format and version expected named), then imports the
 downloaded workbook back, reads the report without a difference, confirms the application, which it
-follows in the shell to its success, and finds the same lines. The lines rejected by a report and the
+follows in the shell to its success, and finds the same lines. The calendar gap of an import (US-2000)
+has its `@shared` path too, on a project the run creates: the synthetic planning at seven hours a day
+(`fixtures/msproject/14-calendar-gap-seven-hours.xml`) shows its gap on the report before any
+confirmation, keeps the durations by default, analyses again when the dates are kept and is followed
+to the new report, and its abandonment leaves the project unchanged; the rule already in force, which
+the server of Next sends and the browser does not see, is read by the same call made to the API (200).
+The lines rejected by a report and the
 abandonment stay on the fake back, as do the remaining to commit and the actual costs (EP-09) and the
 path of the marking.
 
