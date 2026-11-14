@@ -89,7 +89,7 @@ const LABELS = [
 const SHELL_SCREEN = "FBS-4.1";
 
 /** The background of the page in each mode, as the charter paints it (`theme.spec.ts`). */
-const BACKGROUNDS = { light: "rgb(255, 255, 255)", dark: "rgb(10, 10, 10)" } as const;
+const BACKGROUNDS = { light: "rgb(243, 245, 248)", dark: "rgb(11, 17, 27)" } as const;
 
 /** Open a screen by its address, in the first window, named and hydrated. */
 async function open(page: Page, screen: AppScreen): Promise<void> {

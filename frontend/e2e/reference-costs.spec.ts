@@ -24,7 +24,11 @@
  * its commands of a row were pressed again each second until the row answered, and the server
  * action answering past that second, a click pressed again then waited for the command its answer
  * had just taken away — or pressed the other one —, the state shared with no other path. Its
- * commands are now pressed until the request of their action is sent, and never after.
+ * commands are now pressed until the request of their action is sent, and never after. The path of
+ * the deactivation of a nature failed for a cause of its own (#3190): it awaited the reactivation of
+ * a row the page read anew had taken out of a list without the deactivated; in service it now reads
+ * its nature alone, the deactivated shown. Neither failure was a state another path left, nor the
+ * load of the API, which answered their writes within about a second (US-2060).
  */
 import { expect, type Locator } from "@playwright/test";
 
@@ -32,6 +36,7 @@ import { openFilters } from "./check-menu";
 import { sortUntilAddress, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 import { rowAt, scroller, withinBox } from "./scroll";
+import { isDeactivation, pressOnce } from "./server-action";
 
 /** The rate typed in a cell, and what the cell then shows: the service answers what was typed. */
 const TYPED = "85";
@@ -369,26 +374,26 @@ test("creates a category and enters a rate beside it, the page read anew droppin
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
 
-// In quarantine against the service (decision of the author of 2026-11-14): the path fails by moments
-// in the queue, a button of the grid awaited beyond `WORKING`, the cause not established — a state
-// the paths share, or the load on the one process of the API (#3172). The fake back still plays it;
-// EP-25 finds the cause and plays it again (#3190).
-const QUARANTINED_3190 =
-  "in quarantine against the service until EP-25 finds why the queue fails it (#3190)";
-
 test("deactivates a nature from its row, the row showing what the service or the fake back answers, deactivated and offering its reactivation (EP-02/L43a) @shared [WF-REF-0030-A]", async ({
   page,
 }) => {
-  test.skip(inService, QUARANTINED_3190);
   test.slow();
-  await page.goto("/reference/costs");
-  const natures = page.getByRole("grid", { name: "Natures de coût" });
   // The service keeps the deactivation: the path deactivates a nature of its own, whose code no run
   // before holds, and leaves the others as they are. The fake back keeps nothing, and answers the
   // deactivation of its first nature, « Débours », whatever the row pressed.
+  // In service the path reads its nature alone (`type_search`), the deactivated shown: on the list
+  // without them the row of the nature deactivated left the grid as soon as the page was read anew
+  // (`readAnew`), at once when Next applied the answer of the action with that reading, and the
+  // reactivation it offers was then never seen — the failures of the queue of 2026-11-14, one
+  // deactivation answered 200 and the grid read anew in less than two seconds (#3190).
+  const suffix = String(Date.now() % 1_000_000);
+  const code = `NE-${suffix}`;
+  await page.goto(
+    inService ? `/reference/costs?include_inactive=true&type_search=${code}` : "/reference/costs",
+  );
+  const natures = page.getByRole("grid", { name: "Natures de coût" });
   let label = "Débours";
   if (inService) {
-    const suffix = String(Date.now() % 1_000_000);
     label = `Nature d’essai ${suffix}`;
     const form = page.getByRole("dialog", { name: "Nouvelle nature de coût" });
     const section = page.getByRole("region", { name: "Natures de coût" });
@@ -400,7 +405,7 @@ test("deactivates a nature from its row, the row showing what the service or the
       }
       await expect(form).toBeVisible({ timeout: 1_000 });
     }).toPass({ timeout: WORKING });
-    await form.getByRole("textbox", { name: "Code", exact: true }).fill(`NE-${suffix}`);
+    await form.getByRole("textbox", { name: "Code", exact: true }).fill(code);
     await form.getByRole("textbox", { name: "Libellé" }).fill(label);
     await form.getByRole("combobox", { name: "Type" }).selectOption({ label: "Hors main-d’œuvre" });
     await form.getByRole("button", { name: "Créer" }).click();
@@ -410,18 +415,16 @@ test("deactivates a nature from its row, the row showing what the service or the
     });
   }
   // A nature deactivated from its row: the row shows what the server answers, deactivated and
-  // offering its reactivation. The deactivation is pressed again until React answers it, and never
-  // once the row offers the reactivation; each click bounded, the command waiting, `aria-disabled`,
-  // while its write answers (#2260).
+  // offering its reactivation. The deactivation is pressed again until React takes it — its action
+  // sent —, and never after: a press past it would wait for a command the answer has taken away, or
+  // press the reactivation put in its place (#3135).
   const reactivation = natures.getByRole("button", { name: `Réactiver «\u00a0${label}\u00a0»` });
-  await expect(async () => {
-    if (!(await reactivation.isVisible())) {
-      await natures
-        .getByRole("button", { name: `Désactiver «\u00a0${label}\u00a0»` })
-        .click({ timeout: 1_000 });
-    }
-    await expect(reactivation).toBeVisible({ timeout: 1_000 });
-  }).toPass({ timeout: WORKING });
+  await pressOnce(
+    page,
+    natures.getByRole("button", { name: `Désactiver «\u00a0${label}\u00a0»` }),
+    isDeactivation,
+  );
+  await expect(reactivation).toBeVisible({ timeout: WORKING });
   if (inService) {
     await expect(natures.getByRole("row", { name: new RegExp(label) })).toContainText("Désactivé");
   } else {
@@ -480,15 +483,9 @@ test("presents fixed the type of a nature whose category is employed, with its c
 /** What a command to delete is called: the settings of the costs offer none (WF-REF-0010-A). */
 const DELETION = /supprim|effac|delete/i;
 
-// In quarantine against the service, as the path above and for the same failure (#3191): the fake
-// back still plays it. EP-25 rewrites it on the filter of the state (#3076) and plays it again.
-const QUARANTINED_3191 =
-  "in quarantine against the service until EP-25 rewrites it on the filter of the state (#3191)";
-
 test("shows the deactivated natures and categories asked for and reactivates them, offers no deletion, proposes only the active natures to a category, and the nature again once reactivated, the category too, proposed to the form of a role (US-0880) @shared [WF-REF-0010-A] [WF-REF-0150-A]", async ({
   page,
 }) => {
-  test.skip(inService, QUARANTINED_3191);
   test.slow();
   const suffix = String(Date.now() % 1_000_000);
   const natureCode = `ND-${suffix}`;

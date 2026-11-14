@@ -10,8 +10,8 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const SCREEN = `/projects/${PROJECT}/revisions/${REVISION}/indicators`;
 
 // The first series of a chart in the token `--chart-1`, as the browser resolves it in each mode.
-const SERIES_LIGHT = "rgb(2, 112, 179)";
-const SERIES_DARK = "rgb(17, 149, 225)";
+const SERIES_LIGHT = "rgb(61, 106, 158)";
+const SERIES_DARK = "rgb(130, 169, 217)";
 
 test.use({ colorScheme: "light" });
 
