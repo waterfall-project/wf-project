@@ -35,7 +35,9 @@ Dans l'ordre de priorité que l'auteur a fixé le 2026-11-12 :
    groupées (#2917) — US-1860 ; l'écran ouvert sans session et l'accueil d'un compte qui ne peut
    ouvrir aucun projet, dont le code est dans `epic/EP-24` (#2914, #2915, PR #2927 et #2928) —
    US-1870 ; la barre d'une grille arborescente, écrasée dès que la grille tient beaucoup de lignes
-   (#3089, relevé aux essais manuels du 2026-11-13) — US-2020.
+   (#3089, relevé aux essais manuels du 2026-11-13) — US-2020 ; le plan de charge d'un projet, mal
+   empilé dès qu'un rôle est chargé sur moins de mois que les autres (#3096, mêmes essais) —
+   US-2030.
 2. **La chaîne, stabilisée puis raccourcie** : une mesure suivie du taux d'échec de la file hors
    régression et de la durée du palier complet, et l'inventaire des instabilités — US-1880 ; les
    parcours contre le service qui font échouer la file sans régression (#2911, et ceux que
@@ -187,7 +189,9 @@ Le travail de la nuit du 11 au 12 novembre :
 - #2921 — spec : l'ouverture du panneau des filtres, préférence d'une table plate → US-2010, et
   US-1850 pour ses tests ;
 - #3089 — front : la barre d'une grille arborescente est écrasée dès que la grille tient beaucoup de
-  lignes (essais manuels du 2026-11-13, gravité majeure) → US-2020.
+  lignes (essais manuels du 2026-11-13, gravité majeure) → US-2020 ;
+- #3096 — front : le plan de charge empile mal un rôle chargé sur moins de mois que les autres
+  (essais manuels du 2026-11-13) → US-2030.
 
 La chaîne :
 
@@ -1156,3 +1160,41 @@ sur le planning, le devis et le reste à engager.
 
 **Hors périmètre.** La refonte de la barre des tables plates et de leur présentation (EP-25,
 #3071).
+
+---
+
+## US-2030 — Le plan de charge empile chaque rôle sur ses mois, même chargé sur moins de mois que les autres
+
+- **statut** : à faire
+- **exigences** : `WF-DEV-0070-A`
+- **opérations** : `getProjectWorkload`
+- **issue** : #3105
+
+**En tant que** chef de projet, **je veux** que l'histogramme du plan de charge empile, pour chaque
+mois, la charge des rôles de ce mois, **afin de** lire la charge d'un projet dont un rôle
+n'intervient que quelques mois (#3096).
+
+**Critères d'acceptation.**
+
+- `WF-DEV-0070-A` — « La charge d'une ligne portée par une tâche qui couvre exactement deux mois civils apparaît sur ces deux mois, au prorata des heures travaillées de la tâche dans chacun. » : sa forme pour l'histogramme : la barre d'un mois empile la charge de chaque rôle de ce mois, et d'aucun autre, quand les rôles ne sont pas chargés sur les mêmes mois ; l'infobulle du mois ne liste que les rôles qui y ont de la charge, et le total du mois que rend le service ;
+- un test de `stacked-load` donne à un rôle moins de mois qu'aux autres et affirme que ses points
+  sont rangés aux mêmes rangs que les leurs ; un exemple du faux back porte un rôle qui n'a pas tous
+  les mois ; un test survole un mois où un rôle n'a pas de charge, sans erreur ;
+- le plan de charge agrégé, qui emploie la même fonction, tient le même critère ;
+- écart : `WF-DEV-0070-A` — « La capacité de chaque rôle est affichée. » : constaté par EP-07 et EP-09, inchangé;
+- écart : `WF-DEV-0070-A` — « Le filtre par nœud d'organisation ne laisse voir que les rôles qui en relèvent. » : constaté par EP-07 et EP-09, inchangé;
+- écart : `WF-DEV-0070-A` — « Le plan de charge calculé sur le reste à engager ignore les lignes des tâches terminées. » : constaté par EP-07 et EP-09, inchangé;
+- écart : `WF-DEV-0070-A` — « Les trois bases sont proposées ; sur un projet sans révision de référence, la base de la référence est absente, et sur un projet sans aucune révision marquée, seule la révision en cours est proposée. » : constaté par EP-07 et EP-09, inchangé;
+- écart : `WF-DEV-0070-A` — « Une tâche démarrée qui couvre exactement quatre mois civils, à mi-parcours à la date de calcul — le premier jour du troisième mois —, dont une ligne porte un reste de 80 heures, présente ces 80 heures sur les deux mois restants au prorata de leurs heures travaillées — 40 et 40 s'ils en comptent autant — et rien sur les mois écoulés ; sur une révision marquée, la date de calcul est sa date de marquage. » : constaté par EP-07 et EP-09, inchangé;
+- écart : `WF-DEV-0070-A` — « Une tâche non démarrée dont la date de début est antérieure à la date de calcul ne présente aucune charge sur les mois écoulés ; sa charge est la même avant et après son démarrage. » : constaté par EP-07 et EP-09, inchangé.
+
+**Notes de réalisation.** ECharts empile les barres d'un axe de temps par le rang de leurs points,
+non par leur instant ; le service ne rend à un rôle que ses mois chargés, les exemples du faux back
+donnaient les mêmes mois à tous, ce qui a caché le défaut aux tests. `stackedRoles` donne à chaque
+rôle les mois qu'un rôle au moins porte, un mois sans charge restant vide : rien n'est sommé
+(WF-ARC-0020). Essayé le 2026-11-13 sur PRJ-001 : les trous disparaissent, et l'infobulle, qui
+échouait d'abord sur un mois vide (`Not a decimal of the contract`), ne liste plus que les rôles
+chargés (#3096).
+
+**Hors périmètre.** La présentation des graphiques (EP-25, #3097) ; ce que le contrat dit des mois
+qu'il rend, à trancher dans #3096.
