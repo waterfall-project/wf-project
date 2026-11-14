@@ -18,11 +18,13 @@ its tests here ("Les tests du back").
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
 import pytest
 from estimate_support import YEAR, Costing, Lines, costing
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from nodes_support import Tree, opened, refusal, set_progress
 from projects_support import PROJECTS, Scene, create
 from projects_support import scene as make_scene
@@ -30,6 +32,9 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from waterfall.api import comparison as comparison_routes
+from waterfall.api import nodes as node_routes
+from waterfall.api.nodes import read_body
 from waterfall.core.cost_settings.interface import (
     CostCategoryDraft,
     CostTypeDraft,
@@ -383,6 +388,59 @@ def test_an_identical_pair_returns_every_node_unchanged_and_no_amount_difference
     ]
     assert (found["totals"], found["meta"]) == (listed["totals"], listed["meta"])
     assert found["amount_deltas"] == []
+
+
+def json_values(value: object) -> bool:
+    """Tell whether a value is made of texts, integers, booleans, nulls, lists and dicts alone."""
+    if isinstance(value, dict):
+        held = cast("dict[object, object]", value)
+        return all(type(key) is str and json_values(each) for key, each in held.items())
+    if isinstance(value, list):
+        return all(json_values(each) for each in cast("list[object]", value))
+    return value is None or type(value) in {str, int, bool}
+
+
+def test_the_comparison_and_the_structure_render_bodies_of_json_values_alone(
+    api: ContractClient, stage: Scene, pair: Pair, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A detail of the realization which reprises no Vérif (#3048): both operations render their
+    # body themselves (``read_body``), without FastAPI's encoding, which leaves a body of JSON
+    # values as it is; the bytes are those that encoding would have given.
+    bodies: list[dict[str, Any]] = []
+
+    def kept(body: dict[str, Any]) -> JSONResponse:
+        bodies.append(body)
+        return read_body(body)
+
+    monkeypatch.setattr(comparison_routes, "read_body", kept)
+    monkeypatch.setattr(node_routes, "read_body", kept)
+    # The pair has lines with a role of resource and tasks of every difference; a third revision,
+    # copied from the amendment, has a task completed, which puts its line's ``remaining_missing``
+    # in the body, the dates and the progress with it.
+    third = opened(api, stage)
+    latest = Tree(api, stage, third)
+    nodes = by_label(latest.items())
+    set_progress(stage, nodes["Conception"]["node_id"], "completed", date(2026, 11, 3))
+    bodies.clear()
+    named = "&fields=task.label,estimate_line.label"
+    answers = [
+        comparison(api, stage, revisions(pair)),
+        comparison(api, stage, revisions(pair), named),
+        latest.read(),
+        latest.read("?fields=task.label,parent_id"),
+    ]
+    assert [each.status_code for each in answers] == [200, 200, 200, 200]
+    sizes = [len(each.json()["items"]) for each in answers]
+    assert [len(each["items"]) for each in bodies] == sizes
+    assert {each["difference"] for each in bodies[0]["items"]} >= {"added", "removed", "modified"}
+    lines: list[dict[str, Any]] = [
+        each["estimate_line"] for each in bodies[2]["items"] if each.get("estimate_line")
+    ]
+    assert any(each.get("resource_role_id") for each in lines)
+    assert any(each["remaining_entry"]["missing_conditions"] for each in lines)
+    for body, response in zip(bodies, answers, strict=True):
+        assert json_values(body)
+        assert response.content == JSONResponse(jsonable_encoder(body)).body
 
 
 # --- The amounts --------------------------------------------------------------------------------

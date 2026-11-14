@@ -319,11 +319,15 @@ class Reading:
         )
 
     def prefetch(self, node_ids: Collection[UUID]) -> None:
-        """Read once the facets of the nodes of another kind among those named."""
+        """Read once the facets of the nodes of another kind among those named.
+
+        Each task told once, however many nodes it bears: a structure read whole bears thousands.
+        """
         tree = self.tree
+        bearers: dict[UUID, BearingTask] = {}
         for kind, hooks in facets().items():
             held = {
-                each: self.bearer(parent)
+                each: bearers.get(parent) or bearers.setdefault(parent, self.bearer(parent))
                 for each in node_ids
                 if each not in self._facets
                 and tree.nodes[each].kind == kind

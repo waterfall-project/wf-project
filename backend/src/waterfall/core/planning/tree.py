@@ -22,6 +22,7 @@ from sqlalchemy import and_, or_, select
 
 from waterfall.core.planning.interface.open_lines import held_open
 from waterfall.core.planning.tables import Node, Task, TaskLink, TrackingEntry
+from waterfall.platform.database import among
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterator
@@ -192,7 +193,7 @@ def tracking_of(
         return found
     rows = session.scalars(
         select(TrackingEntry)
-        .where(TrackingEntry.project_id == project_id, TrackingEntry.lineage_id.in_(lineage_ids))
+        .where(TrackingEntry.project_id == project_id, among(TrackingEntry.lineage_id, lineage_ids))
         .order_by(TrackingEntry.kind, TrackingEntry.created_at, TrackingEntry.id)
     )
     for entry in rows:

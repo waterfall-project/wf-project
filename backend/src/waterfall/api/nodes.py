@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Annotated, Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Query, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from waterfall.api.authentication import Caller, Transaction
@@ -436,6 +437,17 @@ def _facet(view: NodeView) -> dict[str, Any] | None:
     return _line(facet) if isinstance(facet, LineView) else None
 
 
+def read_body(body: dict[str, Any]) -> JSONResponse:
+    """Give a body written of JSON values alone as the response, rendered as FastAPI renders it.
+
+    A dict a route returns, FastAPI encodes again value by value (``jsonable_encoder``) before
+    rendering it: for the some 6,000 nodes of a whole structure, a sixth of a second of the one
+    process of the API, for nothing — ``node_body`` writes texts, numbers, booleans, lists and
+    dicts alone —, under every other request it serves meanwhile (#3048).
+    """
+    return JSONResponse(body)
+
+
 def node_body(view: NodeView, fields: frozenset[str] | None = None) -> dict[str, Any]:
     """Write a node as the contract does: whole, or what ``fields`` names and the four."""
     whole: dict[str, Any] = {
@@ -639,18 +651,20 @@ def get_nodes(
     place: Placed,
     asked: Annotated[tuple[NodeFilters, frozenset[str] | None], Depends(node_reading)],
     session: Transaction,
-) -> dict[str, Any]:
+) -> JSONResponse:
     """Give the nodes of a structure retained, depth first, their totals and its meta."""
     filters, fields = asked
     read = list_nodes(session, place, filters)
     meta = NodeListMeta.model_validate(
         {"summary_depth": read.summary_depth, "scheduled_at": read.scheduled_at}
     )
-    return {
-        "items": [node_body(each, fields) for each in read.items],
-        "totals": totals_body(read.task_count, read.totals),
-        "meta": meta.model_dump(mode="json"),
-    }
+    return read_body(
+        {
+            "items": [node_body(each, fields) for each in read.items],
+            "totals": totals_body(read.task_count, read.totals),
+            "meta": meta.model_dump(mode="json"),
+        }
+    )
 
 
 @router.post(

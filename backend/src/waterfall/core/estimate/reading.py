@@ -30,6 +30,7 @@ from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.interface import Amounts, FacetRead, node_revisions
 from waterfall.core.projects.interface import subproject_labels, subprojects_with_actual_costs
 from waterfall.core.resource_settings.interface import read_roles
+from waterfall.platform.database import among
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Mapping
@@ -138,7 +139,7 @@ def rows_of(session: Session, project_id: UUID, node_ids: Collection[UUID]) -> l
     return list(
         session.scalars(
             select(EstimateLine)
-            .where(EstimateLine.project_id == project_id, EstimateLine.node_id.in_(list(node_ids)))
+            .where(EstimateLine.project_id == project_id, among(EstimateLine.node_id, node_ids))
             .execution_options(populate_existing=True)
         )
     )
@@ -147,16 +148,35 @@ def rows_of(session: Session, project_id: UUID, node_ids: Collection[UUID]) -> l
 def totals_of(
     session: Session, project_id: UUID, node_ids: Collection[UUID]
 ) -> dict[UUID, Amounts]:
-    """Give the figures of each line named: its hours, its three amounts, its year."""
+    """Give the figures of each line named: its hours, its three amounts, its year.
+
+    Read as columns, not as lines of the session: a reading of a whole structure asks them of
+    every line before it reads the lines it returns, and a line made an object of the session
+    costs several times its columns (#3048). The budgeted amount as ``budgeted_of`` reads it.
+    """
+    if not node_ids:
+        return {}
+    if not node_ids:
+        return {}
+    rows = session.execute(
+        select(
+            EstimateLine.node_id,
+            EstimateLine.hours,
+            EstimateLine.base_amount,
+            EstimateLine.budgeted_amount,
+            EstimateLine.reestimated_amount,
+            EstimateLine.consumption_year,
+        ).where(EstimateLine.project_id == project_id, among(EstimateLine.node_id, node_ids))
+    )
     return {
-        line.node_id: Amounts(
-            line.hours or Decimal(0),
-            line.base_amount,
-            budgeted_of(line),
-            line.reestimated_amount,
-            line.consumption_year,
+        node_id: Amounts(
+            hours or Decimal(0),
+            base,
+            reestimated if budgeted is None else budgeted,
+            reestimated,
+            year,
         )
-        for line in rows_of(session, project_id, node_ids)
+        for node_id, hours, base, budgeted, reestimated, year in rows
     }
 
 
@@ -272,8 +292,10 @@ def read_lines(
     views = _views(session, project_id, rows_of(session, project_id, lines))
     for node_id, (view, costs) in views.items():
         bearer = lines[node_id]
+        # The view is written with nothing missing: copied only for a line it holds back, the
+        # thousands of lines of a structure read whole are not copied for nothing (#3048).
         missing = (TASK_NOT_COMPLETED,) if bearer.progress == COMPLETED else ()
-        whole = replace(view, remaining_missing=missing)
+        whole = replace(view, remaining_missing=missing) if missing else view
         computed, editable = _fields(whole, bearer, costs=costs)
         found[node_id] = FacetRead(whole, whole.label, computed, editable)
     return found

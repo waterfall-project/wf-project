@@ -15,11 +15,12 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import JSONResponse
 
 from waterfall.api.authentication import Transaction
 from waterfall.api.contract.models import NodeListMeta
 from waterfall.api.evaluation import RequiresProject
-from waterfall.api.nodes import CENT, node_body, node_reading, totals_body
+from waterfall.api.nodes import CENT, node_body, node_reading, read_body, totals_body
 from waterfall.api.queries import listed
 from waterfall.core.estimate.interface import (
     AmountDelta,
@@ -84,18 +85,20 @@ def get_comparison(
     project_id: UUID,
     asked: Annotated[tuple[ComparisonAsked, frozenset[str] | None], Depends(comparison_reading)],
     session: Transaction,
-) -> dict[str, Any]:
+) -> JSONResponse:
     """Compare two marked revisions of the project, read as ``listNodes`` reads a structure."""
     comparison, fields = asked
     found = compare_revisions(session, project_id, comparison)
     meta = NodeListMeta.model_validate(
         {"summary_depth": found.summary_depth, "scheduled_at": found.scheduled_at}
     )
-    return {
-        "from_revision_id": str(found.from_revision_id),
-        "to_revision_id": str(found.to_revision_id),
-        "items": [_compared(each, fields) for each in found.items],
-        "totals": totals_body(found.task_count, found.totals),
-        "meta": meta.model_dump(mode="json"),
-        "amount_deltas": [_delta(each) for each in found.amount_deltas],
-    }
+    return read_body(
+        {
+            "from_revision_id": str(found.from_revision_id),
+            "to_revision_id": str(found.to_revision_id),
+            "items": [_compared(each, fields) for each in found.items],
+            "totals": totals_body(found.task_count, found.totals),
+            "meta": meta.model_dump(mode="json"),
+            "amount_deltas": [_delta(each) for each in found.amount_deltas],
+        }
+    )
