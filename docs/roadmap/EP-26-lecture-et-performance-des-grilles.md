@@ -71,6 +71,9 @@ précède tout lot de correction : sans elle, aucun lot ne sait ce qu'il gagne.
 leur dispersion (WF-QUA-0060) ;
 - les bornes de temps des parcours lourds sont celles que la mesure justifie, et le parcours
 `structure.spec.ts` en quarantaine est rejoué contre le service (#3087) ;
+- si US-2060 d'EP-25 établit que leur cause est la charge de la file sur l'API à un seul processus,
+les deux parcours `reference-costs.spec.ts` en quarantaine sont rejoués contre le service (#3190,
+#3191, avec #3172 ; décision de l'auteur du 2026-11-14, au cadrage d'EP-25) ;
 - la file de fusion échoue moins d'une fois sur dix sur cinquante passages ;
 - `make check-all` passe.
 
