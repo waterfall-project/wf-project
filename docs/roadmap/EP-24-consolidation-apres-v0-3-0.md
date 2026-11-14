@@ -143,7 +143,8 @@ consomme :
   échecs qui ne soient pas une régression, classés par l'outil de mesure et relus ; la durée de mur
   du palier complet y est de 12 minutes au plus en médiane, telle que `make queue-report` la mesure (17,8
   minutes de médiane et 21,8 au 90e centile les 10 et 11 novembre ; décision de l'auteur du 2026-11-13,
-  #2989) ;
+  #2989) — non mesuré sur 100 passages et cible de 12 minutes non atteinte : écart accepté par
+  l'auteur le 2026-11-14 (US-1890, US-1900, US-1910, « Clôture ») ;
 - chaque instabilité de l'inventaire est corrigée, ou suivie par une issue qui porte sa décision ;
 - un lot qui touche la chaîne a prouvé son effet par des passages réels, avant et après, et non par
   une mesure sur le poste ;
@@ -369,9 +370,10 @@ le cache de couches manque.
 - **Les tests (US-1920)** : les propositions de #859 et de #1026 ; `installation.setup` attend
   l'état qu'il affirme ; le chargement du témoin prend ses verrous dans un ordre constant, ou attend
   celui qu'il n'obtient pas.
-- **Le chemin critique (US-1910)**, pour 12 minutes en médiane : `service / paths` se coupe en
-  quatre — trois morceaux des projets `service` et `shared`, et un quatrième pour `shared-serial`,
-  `realm` et `restoration`, qui restent en série —, chacun sur sa plateforme ; `back / tests` passe
+- **Le chemin critique (US-1910)**, pour 12 minutes en médiane (non atteint : voir la clôture
+  d'US-1910) : `service / paths` se coupe en quatre — trois morceaux des projets `service` et
+  `shared`, et un quatrième pour `shared-serial`, `realm` et `restoration`, qui restent en série
+  —, chacun sur sa plateforme ; `back / tests` passe
   de deux à quatre morceaux ; les morceaux de l'e2e sont pesés par durée mesurée, les durées gardées
   dans un fichier versionné que la mesure rafraîchit ; un passage de la file lit les caches sans en
   écrire (`front-cache.yml` et `images.yml` restent seuls à écrire, sur la branche), une branche
@@ -690,7 +692,7 @@ lot de la chaîne par ses passages, avant et après, et non par une mesure sur l
 
 ## US-1890 — Les parcours contre le service ne font plus échouer la file sans régression
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune en propre — les lectures que les parcours instables attendent
 - **issue** : #2939
@@ -715,12 +717,21 @@ quand le code n'a pas régressé, **afin de** ne plus remettre une pull request 
 - **la règle d'un parcours lent** est écrite dans le guide (`docs/dev/README-fr.md`, et sa
   traduction) : corriger la lecture d'abord, comme #2924 ; sinon isoler ou sérialiser le parcours ;
   n'élargir une attente qu'en dernier recours, avec la mesure qui la justifie ;
-- l'effet est prouvé sur des passages réels de la file, avant et après (US-1880).
+- l'effet est prouvé sur des passages réels de la file, avant et après (US-1880) — prouvé sur les
+  passages de la nuit du 13 au 14 novembre, sans mesure sur 100 passages : voir « Clôture ».
 
 **Notes de réalisation.** #2924, fusionnée, a corrigé la cause de `structure.spec.ts:333` : une
 requête par tâche pour son calendrier, et les lignes placées deux fois (`getRemainingIndicators` de
 2 845 à 58 requêtes sur PRJ-001). Le lot qui termine L5 et L6 (US-1850) touche `structure.spec.ts`
 et `planning-service.spec.ts`.
+
+**Clôture (décision de l'auteur du 2026-11-14).** L'US est close sur la preuve actuelle, sans la
+mesure sur 100 passages de la file que demande la définition de fini : les entrées de la
+famille B du catalogue de la file reconnaissent ses parcours par leur titre et non plus par leur
+ligne (#3044), `reference-costs.spec.ts:469`, qui faisait échouer la file par intermittence, est
+corrigé (#3135), et 27 pull requests ont été fusionnées
+par la file dans la nuit du 13 au 14 novembre. L'optimisation des tests s'arrête là ; la performance
+se travaille sur l'application, en EP-25.
 
 **Hors périmètre.** Les parcours contre le faux back, hors ceux que l'inventaire relève.
 
@@ -746,7 +757,13 @@ pas échouer la file avant le premier test, **afin qu'**un passage ne dépende q
   Python, vus en échec une fois chacun ;
 - un passage de la file aboutit quand l'une de ces sources ne répond pas, ou échoue en nommant la
   source, sans consommer le palier entier ;
-- l'effet est prouvé sur des passages réels de la file (US-1880).
+- l'effet est prouvé sur des passages réels de la file (US-1880) — prouvé sur les passages de la
+  nuit du 13 au 14 novembre, sans mesure sur 100 passages : voir « Clôture ».
+
+**Clôture (décision de l'auteur du 2026-11-14).** L'US est close sur la preuve actuelle, sans mesure
+sur 100 passages : aucun échec d'`archive.ubuntu.com` dans les passages de la nuit du 13 au 14
+novembre, où 27 pull requests ont été fusionnées par la file. La preuve est cette absence d'échec
+observée sur ces passages, non une panne simulée d'une source.
 
 **Hors périmètre.** Les runners eux-mêmes ; une infrastructure auto-hébergée.
 
@@ -754,7 +771,7 @@ pas échouer la file avant le premier test, **afin qu'**un passage ne dépende q
 
 ## US-1910 — Le palier complet plus court : des morceaux équilibrés, des caches sous leur quota
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2948
@@ -772,10 +789,22 @@ passage de la file coûte moins, en mur comme en minutes-runner.
   ni installation à froid ; `.next/cache` est gardé d'un passage à l'autre ;
 - `service / paths`, le plus long des jobs (environ 16,5 minutes pour 160 parcours), ne tient plus
   le chemin critique au-delà de la cible ;
-- la durée de mur du palier complet est de 12 minutes au plus en médiane sur 100 passages de la
-  file (décision de l'auteur du 2026-11-12), mesurée sur les passages au palier complet comme le fait
-  `make queue-report`, dont la référence est de 17,8 minutes (décision de l'auteur du 2026-11-13,
-  #2989), sans qu'aucun lot dégrade le taux d'US-1880.
+- écart : la durée de mur du palier complet est de 12 minutes au plus en médiane sur 100 passages de
+  la file (décision de l'auteur du 2026-11-12), mesurée sur les passages au palier complet comme le
+  fait `make queue-report`, dont la référence est de 17,8 minutes (décision de l'auteur du
+  2026-11-13, #2989), sans qu'aucun lot dégrade le taux d'US-1880 — non atteint : voir
+  « Clôture, avec écart ».
+
+**Clôture, avec écart (décision de l'auteur du 2026-11-14).** La cible de 12 minutes de médiane
+n'est pas atteinte : 17,5 minutes mesurées dans la file après US-1910/L3 ; un passage seul de la
+file fait 12,3 à 13,5 minutes, et l'écart vient de l'attente de runners, le plafond de 20 jobs
+simultanés du compte étant atteint quand des passages de la file se chevauchent. US-1910/L5 (#3155,
+le départ anticipé des morceaux de `service / paths`) n'a pas raccourci le mur (13,3 à 13,7 min
+avant comme après) : arrêté sans pull request, sa branche `lot/US-1910/L5` (ee6c4428) gardée pour
+mémoire ; mesures dans le commentaire de #3155
+(https://github.com/waterfall-project/wf-project/issues/3155#issuecomment-6873577478). Les leviers
+restants — rééquilibrer les morceaux, lever le plafond de runners ou éviter le chevauchement des
+passages — et la performance prennent le relais en EP-25.
 
 **Hors périmètre.** Retirer un test ou un parcours pour gagner du temps.
 
@@ -1027,7 +1056,7 @@ La capacité d'un rôle (`monthly_hours`, `headcount`) est laissée à EP-10, qu
 
 ## US-1990 — L'export MS Project s'ouvre aux mêmes dates dans MS Project, et le corpus porte un décalage négatif en semaines
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-INTF-0050-A`, `WF-INTF-0040-A`, `WF-QUA-0080-A`
 - **opérations** : `requestExport`, `openImport`
 - **issue** : #2965
@@ -1055,6 +1084,7 @@ Project 2024).
 **Notes de réalisation.** `core/planning/msproject/writer.py`, `_task`. Les deux corrections —
 `Manual*` et `Estimated` — sont confirmées par l'auteur dans MS Project 2024 : nécessaires, et
 suffisantes sur le planning éprouvé. Aucun test ne lit, ne cite ni ne nomme un planning réel.
+Réalisée par US-1990/L1 (#3008) et US-1990/L2 (#3068, le fichier 02 du corpus fourni par l'auteur).
 
 **Hors périmètre.** L'import sur un autre calendrier (US-2000).
 
