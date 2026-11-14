@@ -56,7 +56,14 @@ from waterfall.core.planning.msproject.reader import (
     read_project as read_project,
 )
 
-# ``translation`` (US-1430/L3): a planning of the file in the hours, units and instants of work.
+# ``translation`` (US-2000/L2): the calendar of a project that names none, and an hour of the clock.
+from waterfall.core.planning.msproject.translation import (
+    STANDARD as STANDARD,
+)
+
+# ``translation`` (US-1430/L3): a planning of the file in the hours, units and instants of work;
+# the calendar of a project that names none, constants as a file carries them, an hour of the
+# clock (US-2000/L2).
 from waterfall.core.planning.msproject.translation import (
     FileCalendar as FileCalendar,
 )
@@ -65,6 +72,12 @@ from waterfall.core.planning.msproject.translation import (
 )
 from waterfall.core.planning.msproject.translation import (
     calendars_of as calendars_of,
+)
+from waterfall.core.planning.msproject.translation import (
+    carried as carried,
+)
+from waterfall.core.planning.msproject.translation import (
+    clock_text as clock_text,
 )
 from waterfall.core.planning.msproject.translation import (
     constants_of as constants_of,

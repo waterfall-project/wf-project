@@ -16,7 +16,7 @@ déclare non exécuté sans elle.
 ## Forme
 
 - `NN-<cas>.xml` : un fichier par thème, enregistré par MS Project (« Enregistrer sous → XML »),
-  tel quel, sans retouche à la main.
+  tel quel, sans retouche à la main — sauf le fichier 14, synthétique (voir « Les fichiers »).
 - `corpus.json` : le manifeste, écrit par l'auteur, un objet par fichier :
 
   ```json
@@ -44,7 +44,7 @@ Sans eux, les dates divergent pour une raison qui n'est pas la nôtre.
 
 - Options → Planification : **nouvelles tâches planifiées automatiquement** (MS Project 2013 crée
   du manuel par défaut) ; **8 heures par jour, 40 par semaine, 20 jours par mois** ; début par
-  défaut 08:00, fin 17:00 — sauf le fichier 10, qui éprouve d'autres constantes.
+  défaut 08:00, fin 17:00 — sauf les fichiers 10 et 14, qui éprouvent d'autres constantes.
 - Calendrier Standard **sans exception** — pas de jours fériés, Waterfall n'en connaît pas
   (WF-REF-0110) — : lundi à vendredi, 8:00–12:00 et 13:00–17:00.
 - **Aucune ressource affectée**, sauf dans le fichier 09, qui éprouve qu'elles sont ignorées ; là,
@@ -65,7 +65,8 @@ personnalisés : dans le fichier 09 seulement.
 ## Les fichiers
 
 Dix fichiers petits, de 5 à 30 tâches ; un onzième pour l'import seul ; un douzième, plus gros,
-facultatif.
+facultatif ; un treizième pour les avertissements de l'import ; un quatorzième, synthétique, pour
+l'écart de calendrier (US-2000).
 
 | N° | Fichier | Cas | Contenu |
 |---|---|---|---|
@@ -78,10 +79,11 @@ facultatif.
 | 07 | `07-critical-path.xml` | `two_branches`, `float_equals_gap`, `summary_critical`, `summary_without_float` | deux branches parallèles de durées différentes vers un jalon commun : la longue critique, la courte avec une marge égale à l'écart ; une récapitulative dont une subordonnée est critique ; une récapitulative dont toutes les subordonnées sont manuelles, qui ne porte pas de marge |
 | 08 | `08-constraints.xml` | `constraint_snet`, `constraint_mfo`, `constraint_fnlt` | une tâche « Début au plus tôt le », une « Doit finir le », une « Fin au plus tard le » : Waterfall les importe manuelles aux dates du fichier et les signale |
 | 09 | `09-ignored-content.xml` | `resources_ignored`, `assignments_ignored`, `resource_calendar_ignored`, `progress_ignored`, `costs_ignored`, `custom_fields_ignored` | deux ressources, dont une avec un calendrier propre, affectées à des tâches avec « ignorer les calendriers des ressources » ; une tâche à 50 % d'avancement ; un coût fixe ; un champ personnalisé texte — le compte rendu nomme tout cela ignoré, et la tâche à 50 % est importée non démarrée |
-| 10 | `10-other-constants.xml` | `constants_7_35_20` | 7 heures par jour, 35 par semaine, 20 jours par mois ; des durées en jours et semaines : importées avec les mêmes durées en heures, la différence signalée |
+| 10 | `10-other-constants.xml` | `constants_7_35_20` | 7 heures par jour, 35 par semaine, 20 jours par mois ; des durées en jours et semaines : en écart de calendrier, importées par défaut avec leur valeur dans leur unité (spécification 1.0.5), la différence signalée |
 | 11 | `11-horizon-sixteen-years.xml` | `horizon_exceeded` | un planning de seize ans, rejeté au compte rendu (WF-PLA-0150) ; hors du test de datation — le manifeste le marque `"dating": false` |
 | 12 | `12-mixed-large.xml` (facultatif) | — | ≈ 150 tâches, quatre niveaux, un mélange de tout ; pour la recette, aucun test ne l'exige |
 | 13 | `13-resource-calendars-not-ignored.xml` | `resources_ignored`, `assignments_ignored`, `resource_calendar_ignored` | une première version du 04, dont les calendriers passent par des ressources affectées **sans** « ignorer les calendriers des ressources » : MS Project date par les ressources, et l'écart est attendu ; gardé pour les avertissements de l'import, hors du test de datation — `"dating": false` |
+| 14 | `14-calendar-gap-seven-hours.xml` | `calendar_gap_seven_hours`, `calendar_gap_task_calendar` | **synthétique** : écrit pour le test d'US-2000, ses dates calculées par le moteur sur ses propres calendriers et constantes, non enregistré par MS Project, et sans rien d'un planning réel. Saisi en jours à 7 h par jour (7, 35, 20), son « Standard » de 8:00 à 12:00 et de 13:00 à 16:00 ; « Peinture » et « Fabrication » sur un calendrier de tâche « Atelier » de 9 h, lundi–jeudi 8:00–12:00 et 13:00–18:00 ; une durée en heures, un décalage en jours, une durée écoulée, une tâche manuelle. Il éprouve les deux options de l'écart de calendrier : « Garder les durées » (« 2 j » vaut deux jours) et « Garder les dates » |
 
 ## Les cas critiques — ceux qui départagent deux moteurs
 
@@ -103,8 +105,16 @@ facultatif.
    à la fin du prédécesseur ; la récapitulative garde une durée nulle et reste une récapitulative.
 9. **Les contraintes** (08) : Waterfall ne les calcule pas, il fige la tâche en mode manuel aux
    dates que MS Project a calculées avec la contrainte, et doit les garder telles quelles.
-10. **Les constantes différentes** (10) : « 2 j » à 7 h par jour vaut 14 h, la fin est celle de
-    MS Project, le compte rendu signale la différence.
+10. **Les constantes différentes** (10) : « 1 j » à 7 h par jour se date sur les constantes du
+    fichier comme dans MS Project ; à l'import, le compte rendu signale la différence et le fichier
+    est en écart de calendrier (spécification 1.0.5).
+11. **L'écart de calendrier** (14) : un planning saisi à 7 h par jour, sur un calendrier de projet
+    et un calendrier de tâche que l'installation n'a pas. Gardant les durées, chaque durée en jours
+    ou en semaines garde sa valeur dans son unité, et les dates se décalent ; gardant les dates,
+    chaque tâche automatique prend le travail entre ses dates du fichier sur son calendrier
+    Waterfall. Les calendriers des deux côtés commencent à 8:00 : sans heure de l'horloge dans
+    Waterfall, une tâche qui passe d'un calendrier à l'autre n'y commencerait pas au même instant
+    de son jour sinon.
 
 ## À éviter
 

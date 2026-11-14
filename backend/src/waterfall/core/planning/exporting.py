@@ -10,8 +10,8 @@ back to the same plan (WF-INTF-0060):
   constants of the units of the installation, and the calendars. The schema writes the constants
   as integers, so ``days_per_month`` (a free number in the installation: 21.67) is rounded in the
   file (22): a limit of the schema, not of the export. The durations and the lags travel in
-  hours, so they are read back unchanged on the same installation, which the import does not
-  take the constants of the file for.
+  hours, so they are read back unchanged on the same installation, whose constants the file
+  carries as the schema writes them: the import sees no calendar gap there (``carried``, US-2000).
 - **The calendars.** The default calendar is the calendar of the project (unique identifier 1);
   each other calendar applicable to a task, distinct by its hours, is a calendar of its own, after
   it. A calendar is a base calendar that lists its seven days, a day of work being a single period

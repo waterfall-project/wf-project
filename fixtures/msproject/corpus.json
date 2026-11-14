@@ -180,6 +180,18 @@
       "hours_per_week": 40,
       "days_per_month": 20,
       "notes": "quatre tâches de 16 h, chacune affectée à une ressource dont le calendrier dérive de « 4 heures », « 4x10 », « Vendredi court » ou du Standard, sans « ignorer les calendriers des ressources » : MS Project date par les ressources, Waterfall ne les lit pas — pour les avertissements de l'import, hors du test de datation"
+    },
+    {
+      "file": "14-calendar-gap-seven-hours.xml",
+      "cases": [
+        "calendar_gap_seven_hours",
+        "calendar_gap_task_calendar"
+      ],
+      "project_start": "2026-03-02",
+      "hours_per_day": 7,
+      "hours_per_week": 35,
+      "days_per_month": 20,
+      "notes": "planning synthétique, écrit pour le test et non enregistré par MS Project : saisi en jours à 7 h par jour, 35 par semaine, 20 jours par mois, son « Standard » de 8:00 à 12:00 et de 13:00 à 16:00 ; « Peinture » et « Fabrication » sur le calendrier de tâche « Atelier », lundi–jeudi 8:00–12:00 et 13:00–18:00 ; une durée en heures (Câblage, 56 h), une liaison FD +1 j, une durée écoulée (Séchage, 2 ej), une tâche manuelle (Livraison) ; il éprouve « Garder les durées » et « Garder les dates » (US-2000)"
     }
   ]
 }

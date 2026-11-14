@@ -59,7 +59,8 @@ DATED = [entry for entry in FILES if entry.get("dating", True)]
 # et en pourcentage, des calendriers dont les journées n'ont pas toutes la même durée, des tâches
 # récapitulatives, des jalons et des tâches en mode manuel » — the durations in each unit, the
 # critical path, and the cases the README adds for the import (the constraints, what is ignored,
-# other constants, the horizon), which the README asks of the corpus as well.
+# other constants, the horizon, the calendar gap of US-2000), which the README asks of the corpus
+# as well.
 CASES: dict[str, tuple[str, ...]] = {
     "the four types of link": ("link_fs", "link_ss", "link_ff", "link_sf"),
     "lags in each unit, positive and negative": (
@@ -123,6 +124,7 @@ CASES: dict[str, tuple[str, ...]] = {
     ),
     "other constants": ("constants_7_35_20",),
     "the horizon": ("horizon_exceeded",),
+    "a calendar gap": ("calendar_gap_seven_hours", "calendar_gap_task_calendar"),
 }
 
 # The cases no planning of the corpus declares, each with the issue that says why: the corpus
