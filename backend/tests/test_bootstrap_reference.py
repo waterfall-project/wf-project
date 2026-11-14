@@ -197,7 +197,7 @@ def test_a_currency_and_a_name_well_formed_are_read_by_the_bootstrap(
 
 @pytest.mark.requirement("WF-EXP-0020-A")
 @pytest.mark.usefixtures("platform_environment")
-@pytest.mark.parametrize("value", ["Mars/Olympus", "europe/paris", "", "Paris", "+01:00"])
+@pytest.mark.parametrize("value", ["Mars/Olympus", "europe/paris", "Paris", "+01:00"])
 def test_a_time_zone_unknown_stops_the_bootstrap_before_anything(
     value: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -216,15 +216,15 @@ def test_a_time_zone_unknown_stops_the_bootstrap_before_anything(
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "WATERFALL_TIME_ZONE: " in captured.err
-    if value:
-        assert value not in captured.err
 
 
 @pytest.mark.requirement("WF-EXP-0020-A")
 @pytest.mark.usefixtures("platform_environment")
-@pytest.mark.parametrize(("value", "kept"), [(None, "UTC"), ("Europe/Paris", "Europe/Paris")])
-def test_the_bootstrap_reads_the_time_zone_given_and_delivers_universal_time_without_one(
-    value: str | None, kept: str, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("value", "kept"), [(None, None), ("", None), ("Europe/Paris", "Europe/Paris")]
+)
+def test_the_bootstrap_reads_the_time_zone_given_and_none_when_absent_or_empty(
+    value: str | None, kept: str | None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     for name, given in BOOTSTRAP_ENVIRONMENT.items():
         monkeypatch.setenv(name, given)
@@ -232,7 +232,7 @@ def test_the_bootstrap_reads_the_time_zone_given_and_delivers_universal_time_wit
         monkeypatch.delenv("WATERFALL_TIME_ZONE", raising=False)
     else:
         monkeypatch.setenv("WATERFALL_TIME_ZONE", value)
-    read: list[str] = []
+    read: list[str | None] = []
 
     def reached(settings: bootstrap.InstallationSettings, _: object) -> int:
         read.append(settings.time_zone)

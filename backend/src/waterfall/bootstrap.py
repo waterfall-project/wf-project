@@ -74,7 +74,7 @@ from waterfall.platform.audit import Act
 from waterfall.platform.correlation import correlation_id_from
 from waterfall.platform.database import Database, create_database_engine, utc_now
 from waterfall.platform.errors import ServiceError
-from waterfall.platform.installation import THE_ROW, Installation
+from waterfall.platform.installation import DELIVERED_TIME_ZONE, THE_ROW, Installation
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import (
     INSTALLATION_CLIENT,
@@ -284,7 +284,7 @@ def _bootstrap(
             or administrator.email.lower() != settings.admin_email.lower()
         ):
             logger.warning("installation.admin_email_ignored", user_id=str(administrator.user_id))
-        if time_zone != settings.time_zone:
+        if settings.time_zone is not None and time_zone != settings.time_zone:
             logger.warning("installation.time_zone_ignored")
         with database.transaction() as session:
             _reference_again(session, settings, language)
@@ -303,7 +303,7 @@ def _bootstrap(
             Installation(
                 id=THE_ROW,
                 default_language=settings.default_language,
-                time_zone=settings.time_zone,
+                time_zone=settings.time_zone or DELIVERED_TIME_ZONE,
                 avatar_max_bytes=AVATAR_MAX_BYTES,
                 external_backup_max_bytes=EXTERNAL_BACKUP_MAX_BYTES,
                 installed_at=act.at,

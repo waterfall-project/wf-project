@@ -487,6 +487,13 @@ def test_the_installation_keeps_the_time_zone_it_is_given_and_a_second_run_does_
     link_of(settings)
     link_of(settings)
     assert not logs.named("installation.time_zone_ignored")
+    # Run again without any — the variable not given, or given empty — it keeps its line and says
+    # nothing: the default is that of the first writing only.
+    for given in (None, ""):
+        link_of(InstallationSettings.model_validate({**dict(settings), "time_zone": given}))
+    assert not logs.named("installation.time_zone_ignored")
+    with database.transaction() as session:
+        assert read_settings(session).time_zone == "Europe/Paris"
     link_of(settings.model_copy(update={"time_zone": "Asia/Tokyo"}))
     (ignored,) = logs.named("installation.time_zone_ignored")
     assert ignored["level"] == "warning"
