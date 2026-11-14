@@ -4767,7 +4767,9 @@ préchargement restent dans la part de l'API, le journal rattachant une requête
 instant, non à la requête de Next qui l'a faite. Le parcours se
 joue à un, quatre et huit utilisateurs à la fois (`MEASURE_USERS`), un compte chacun, chacun dans
 son contexte de navigateur, et la durée de `getMe` est relevée pendant ce temps, dans le journal de
-l'API et par un client qui la demande chaque seconde. Les comptes sont créés par la préparation de
+l'API et par un client qui la demande chaque seconde, avec un compte à lui, sans rôle, qui ne joue
+pas le parcours et dont les requêtes n'entrent dans aucune étape ; ses demandes sans réponse de
+succès sont comptées (`lost`). Les comptes sont créés par la préparation de
 la mesure, par les opérations du contrat, jamais par un `INSERT` : l'administrateur de
 l'installation crée chaque compte, donne son lien et ses rôles « Manager » et « Chef de projet » ;
 puisque les chefs de projet du témoin n'ont pas de mot de passe, il les désactive le temps que le
@@ -4781,7 +4783,9 @@ joue un passage non mesuré, puis cinq (`MEASURE_PASSES`) ; le rapport, un JSON
 étape le nombre de mesures et d'étapes inachevées, puis la médiane, la pire et la dispersion —
 l'écart entre la plus haute et la plus basse des médianes d'un passage, absente (`null`) quand
 moins de deux passages ont une mesure, où elle dirait 0 comme un passage stable — de la durée, de ses trois parts,
-des octets de Next et des requêtes de l'API ; et de même pour `getMe`. Sa forme est déclarée par
+des octets de Next et des requêtes de l'API ; et de même pour `getMe`. Chaque médiane se prend
+sur sa grandeur : la médiane d'une part n'est pas la part de l'étape médiane, et les médianes des
+trois parts ne somment pas à celle de la durée. Sa forme est déclarée par
 `MeasureReport` (`frontend/e2e/measure/report.ts`), dont les calculs ont leurs tests unitaires ; il
 ne dit jamais un écart un gain. La mesure n'échoue sur aucune durée : seul un parcours qui ne
 fonctionne plus la fait échouer — un compte qu'elle ne peut créer, un utilisateur qu'elle ne peut
@@ -4792,7 +4796,9 @@ charge : elle est comptée inachevée, et ne fait rien échouer. Le front est co
 pour la production et parle à l'API directement, sans le proxy du contrat, en gardant ses connexions
 comme le front des utilisateurs ; la plateforme est démarrée, amorcée et le témoin chargé comme pour
 `make e2e-service`. Pour un témoin fraîchement chargé, `make service-down WATERFALL_RESET_DATA=yes`
-d'abord. Le projet Playwright `measure-service` n'existe que sous `E2E_PART=measure-service`, que
+d'abord : la mesure ne le recharge pas elle-même, et un témoin qu'on ne recharge pas cumule d'une
+mesure à l'autre les comptes inscrits sur PRJ-001 et les durées saisies, qui redatent le planning
+mesuré ensuite — jusqu'à ce qu'US-2210/L4 le recharge, c'est à faire à la main. Le projet Playwright `measure-service` n'existe que sous `E2E_PART=measure-service`, que
 pose `make measure` seule : aucune cible de la chaîne ne le joue, et les autres projets laissent
 `frontend/e2e/measure/` de côté.
 

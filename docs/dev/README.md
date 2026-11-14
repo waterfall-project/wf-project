@@ -4668,7 +4668,8 @@ log tying a request to an account and a moment, not to the request of Next that 
 journey is played by one,
 four and eight users at once (`MEASURE_USERS`), an account each, each in its own browser context,
 and the duration of `getMe` is recorded meanwhile, in the log of the API and by a client that asks
-for it every second. The accounts are created by the preparation of the measure, through the
+for it every second, with an account of its own, without any role, which plays no journey and whose
+requests enter no step; its askings without an answer of success are counted (`lost`). The accounts are created by the preparation of the measure, through the
 operations of the contract, never by an `INSERT`: the administrator of the installation creates
 each account, gives its link and its roles « Manager » and « Chef de projet »; since the project
 managers of the witness have no password, it deactivates them while the first user, who holds the
@@ -4682,7 +4683,8 @@ gives for each level and each step the number of samples and of unfinished steps
 the worst and the spread — the gap between the highest and the lowest median of a pass, absent
 (`null`) when fewer than two passes have a sample, where it would say 0 as a stable run does — of the
 duration, of its three parts, of the bytes of Next and of the requests of the API; and the same for
-`getMe`. Its form is declared by `MeasureReport` (`frontend/e2e/measure/report.ts`), whose
+`getMe`. Each median is taken over its own quantity: the median of a part is not the part of the
+median step, and the medians of the three parts do not sum to that of the duration. Its form is declared by `MeasureReport` (`frontend/e2e/measure/report.ts`), whose
 computations have their unit tests; it never calls a difference a gain. The measure fails on no
 duration: only a journey that no longer works fails it — an account it cannot create, a user it
 cannot sign in, or a step that a user alone does not bring to its end: a link renamed, a grid that
@@ -4692,7 +4694,9 @@ counted unfinished, and fails nothing. The front is built for
 production and talks to the API directly, without the proxy of the contract, keeping its
 connections as the users' front does; the platform is started, bootstrapped and the witness loaded
 as for `make e2e-service`. For a witness freshly loaded, `make service-down WATERFALL_RESET_DATA=yes`
-first. The Playwright project `measure-service` exists only under `E2E_PART=measure-service`, which
+first: the measure does not reload it itself, and a witness left unreloaded accumulates, from one
+measure to the next, the accounts registered on PRJ-001 and the durations entered, which redate the
+planning measured next — until US-2210/L4 reloads it, this is done by hand. The Playwright project `measure-service` exists only under `E2E_PART=measure-service`, which
 `make measure` alone sets: no goal of the chain plays it, and the other projects leave
 `frontend/e2e/measure/` aside.
 
