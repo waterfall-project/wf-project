@@ -55,16 +55,31 @@ vi.mock("@/components/projects/project-list-view", async (original) => {
     },
   };
 });
-vi.mock("next/navigation", async (original) => ({
-  ...(await original<typeof import("next/navigation")>()),
-  useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
-  usePathname: () => "/",
-  useSearchParams: () => new URLSearchParams(),
-}));
+// `redirect` as Next has it, which the tests of the home that leads nowhere watch.
+const redirected = vi.hoisted(() => ({ calls: 0 }));
+vi.mock("next/navigation", async (original) => {
+  const actual = await original<typeof import("next/navigation")>();
+  return {
+    ...actual,
+    redirect: ((...args: Parameters<typeof actual.redirect>) => {
+      redirected.calls += 1;
+      return actual.redirect(...args);
+    }) as typeof actual.redirect,
+    useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
+    usePathname: () => "/",
+    useSearchParams: () => new URLSearchParams(),
+  };
+});
 // The session of the contract, the sizes of pages its account keeps set for a test.
 const kept = vi.hoisted(
-  (): { grids: Record<string, { page_size?: number; filters?: Record<string, string> }> } => ({
+  (): {
+    grids: Record<string, { page_size?: number; filters?: Record<string, string> }>;
+    permissions: string[] | undefined;
+    roles: string[] | undefined;
+  } => ({
     grids: {},
+    permissions: undefined,
+    roles: undefined,
   }),
 );
 vi.mock("@/session/request", async (original) => {
@@ -77,6 +92,10 @@ vi.mock("@/session/request", async (original) => {
         ? undefined
         : {
             ...session,
+            ...(kept.permissions === undefined
+              ? {}
+              : { permissions: kept.permissions as typeof session.permissions }),
+            ...(kept.roles === undefined ? {} : { access_role_ids: kept.roles }),
             display_preferences: {
               ...session.display_preferences,
               grids: { ...session.display_preferences?.grids, ...kept.grids },
@@ -135,7 +154,10 @@ function listQuery(): Record<string, string> {
 }
 
 beforeEach(() => {
+  redirected.calls = 0;
   kept.grids = {};
+  kept.permissions = undefined;
+  kept.roles = undefined;
   grids.props = [];
   server.clients = [];
   server.unreachable = false;
@@ -144,6 +166,82 @@ beforeEach(() => {
     "GET /projects": "projects",
     "GET /reference/readiness": "reference_readiness",
   };
+});
+
+describe("the home of an account that cannot read any project [WF-IHM-0120] #2915", () => {
+  /** Whether the home asked the API for the list of projects. */
+  function askedList(): boolean {
+    return server.clients.some((client) =>
+      client.calls.some((call) => call.route === "GET /projects"),
+    );
+  }
+
+  it("lists the projects for an account that holds project_settings.read [WF-IHM-0120-A]", async () => {
+    const html = await home();
+    expect(askedList()).toBe(true);
+    expect(text(html)).not.toContain("No project to open");
+  });
+
+  it("says that the account opens no project and leads to the functions it holds, without reading the list [WF-IHM-0120-A]", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_auditor" };
+    const html = await home();
+    expect(askedList()).toBe(false);
+    expect(html).toMatch(/<h1[^>]*>.*No project to open<\/h1>/);
+    expect(text(html)).toContain("Your account cannot open any project");
+    expect(redirected.calls).toBe(0);
+    expect(links(html)).toContain("/admin/audit-log");
+    expect(links(html)).not.toContain("/admin/users");
+    expect(text(html)).not.toContain("no role yet");
+  });
+
+  it("keeps stating the prerequisites the reference data lacks, linked when the account may read them, without reading the list [WF-IHM-0120-A]", async () => {
+    kept.permissions = ["cost_settings.read"];
+    server.answers = {
+      ...server.answers,
+      "GET /reference/readiness": "reference_readiness_incomplete",
+    };
+    const html = await home();
+    expect(askedList()).toBe(false);
+    expect(text(html)).toContain("Incomplete reference data");
+    expect(links(html)).toContain("/reference/costs");
+  });
+
+  it("does not say a role is missing to an account that holds functions of a project only, nor one that holds a command [WF-IHM-0120-A]", async () => {
+    for (const permissions of [["planning.read"], ["all_projects_read"]]) {
+      kept.permissions = permissions;
+      const html = await home();
+      expect(askedList()).toBe(false);
+      expect(text(html)).toContain("exercised in a project, but it cannot open any project");
+      expect(text(html)).not.toContain("no role yet");
+      expect(links(html)).toEqual([]);
+    }
+  });
+
+  it("says that the account has no role yet when it carries no access role [WF-IHM-0120-A]", async () => {
+    kept.roles = [];
+    kept.permissions = [];
+    const html = await home();
+    expect(text(html)).toContain("no role yet");
+  });
+
+  it("leads to the portfolio and the reference data an account holds [WF-IHM-0120-A]", async () => {
+    kept.permissions = ["portfolio_projects.read", "cost_settings.read"];
+    const html = await home();
+    expect(links(html)).toEqual(
+      expect.arrayContaining(["/portfolio/projects", "/reference/costs"]),
+    );
+  });
+
+  it("says that the account has no role yet when it holds no function at all [WF-IHM-0120-A]", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_without_roles" };
+    const html = await home();
+    expect(redirected.calls).toBe(0);
+    expect(askedList()).toBe(false);
+    expect(text(html)).toContain(
+      "Your account has no role yet. An administrator must give you one",
+    );
+    expect(links(html)).toEqual([]);
+  });
 });
 
 describe("the home, the list of projects", () => {
@@ -201,12 +299,10 @@ describe("the home, the list of projects", () => {
 
   it("says the filter by default while it applies, with Created, Pricing and In progress pressed, and lifts it by « Every state » [WF-IHM-0130]", async () => {
     const html = await home();
-    expect(html).toMatch(/role="group" aria-label="Filter by state"/);
-    expect(html).toContain('aria-label="Default filter of the list by state"');
-    const pressed = [...html.matchAll(/aria-pressed="true"[^>]*>(.*?)<\/button>/g)].map((match) =>
-      text(match[1] ?? ""),
-    );
-    expect(pressed).toEqual(["Created", "Pricing", "In progress"]);
+    // The menu of the states, closed, says how many it retains (`CheckMenu`, #2916); the chip of the
+    // filter by default says which, and that they are the default.
+    expect(text(html)).toContain("Filter by state 3 selected");
+    expect(text(html)).toContain("State: Created, Pricing, In progress (by default)");
   });
 
   it("reads the project created today on the home by default, the example of the contract the fake back serves [WF-IHM-0130]", async () => {
@@ -226,13 +322,13 @@ describe("the home, the list of projects", () => {
     kept.grids = { projects: { filters: { states: "pricing" } } };
     const html = await home();
     expect(listQuery()).toEqual({ is_contributor: "true", states: "pricing" });
-    expect(html).not.toContain("Default filter of the list by state");
+    expect(text(html)).not.toContain("(by default)");
   });
 
   it("presses every state, and says no default, for `states=all` [WF-IHM-0130]", async () => {
     const html = await home({ states: "all" });
-    expect(html).not.toContain("Default filter of the list by state");
-    expect(html).toMatch(/aria-pressed="true"[^>]*>.*?Every state/);
+    expect(text(html)).not.toContain("(by default)");
+    expect(text(html)).toContain("Filter by state Every state");
   });
 
   it("takes the states the account kept when the address names none, and the address over them [WF-IHM-0060-A]", async () => {
@@ -242,7 +338,7 @@ describe("the home, the list of projects", () => {
       is_contributor: "true",
       states: "pricing,in_progress,completed",
     });
-    expect(html).not.toContain("Default filter of the list by state");
+    expect(text(html)).not.toContain("(by default)");
     server.clients = [];
     kept.grids = { projects: { filters: { states: "all" } } };
     await home();
@@ -254,10 +350,7 @@ describe("the home, the list of projects", () => {
 
   it("presses in the filter by state the states the address names: the address is the truth of the filter", async () => {
     const html = await home({ states: "pricing" });
-    const pressed = [...html.matchAll(/aria-pressed="true"[^>]*>(.*?)<\/button>/g)].map((match) =>
-      text(match[1] ?? ""),
-    );
-    expect(pressed).toEqual(["Pricing"]);
+    expect(text(html)).toContain("Filter by state Pricing");
   });
 
   it("asks the period of the last modification the address holds, two instants as it names them, back to the first page", async () => {
@@ -277,9 +370,8 @@ describe("the home, the list of projects", () => {
     // Only the browser knows its time zone: the days show, and the period is sent, once hydrated.
     expect(html.match(/<input[^>]*type="date"[^>]*value=""/g)).toHaveLength(2);
     const period = html.slice(html.indexOf('<form aria-label="Modification period"'));
-    expect(period.slice(0, period.indexOf("</form>"))).toMatch(
-      /<button[^>]*type="submit"[^>]*disabled=""/,
-    );
+    // No button to press: the period is sent on Enter and on leaving it (#2916).
+    expect(period.slice(0, period.indexOf("</form>"))).not.toContain("<button");
     expect(grids.props[0]?.projects.map((project) => project.code)).toEqual(["PRJ-002"]);
     // A bound that is no instant — a day alone, a 30 February — is not asked: the API would
     // refuse it.
@@ -313,7 +405,7 @@ describe("the home, the list of projects", () => {
       `<p id="${described ?? ""}" class="text-xs text-destructive">The end of the period may not precede its start.</p>`,
     );
     // The states of the address stay pressed, to be changed.
-    expect(html).toMatch(/aria-pressed="true"[^>]*>.*?Pricing/);
+    expect(text(html)).toContain("Filter by state Pricing");
   });
 
   it("is filtered on the projects the user contributes to, by the filter of the contract, shown with the link that lifts it", async () => {
@@ -380,22 +472,10 @@ describe("the home, the list of projects", () => {
     expect(await home()).not.toMatch(/role="note"|Mock-up/);
   });
 
-  it("offers the six states of the lifecycle and no other in its filter, under their labels [WF-CYC-0010-A]", async () => {
+  it("shows every state when the address lifts the filter, the six states being offered by the menu itself [WF-CYC-0010-A]", async () => {
+    // The six states, and no other, are listed by the menu once open (`project-list.dom.test.tsx`).
     const html = await home({ states: "all" });
-    const group =
-      /role="group" aria-label="Filter by state"[^>]*>(.*?)<\/div>/.exec(html)?.[1] ?? "";
-    const labels = [...group.matchAll(/<button[^>]*>(.*?)<\/button>/g)].map((m) =>
-      text(m[1] ?? ""),
-    );
-    expect(labels).toEqual([
-      "Every state",
-      "Created",
-      "Pricing",
-      "In progress",
-      "Completed",
-      "Lost",
-      "Abandoned",
-    ]);
+    expect(text(html)).toContain("Filter by state Every state");
   });
 
   it("presents the creation of a project unavailable while the minimum reference data is incomplete, which the server would refuse", async () => {
@@ -429,7 +509,7 @@ describe("the empty states of the home", () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home({ states: "all" });
     expect(text(html)).toMatch(
-      /^Projects Help Create a project Projects you contribute to Show all projects Every state .* You contribute to no project\.$/,
+      /^Projects Help Create a project Projects you contribute to Show all projects Filter by state Every state .* You contribute to no project\.$/,
     );
     expect(links(html)).toEqual(["/?states=all&is_contributor=false"]);
     expect(html).not.toContain('role="grid"');
@@ -452,13 +532,13 @@ describe("the empty states of the home", () => {
     },
   );
 
-  it("keeps an empty grid, the badge of the states by default and « Every state », when the states by default retain no project and the address names none (WF-IHM-0130)", async () => {
+  it("keeps an empty grid, the badge of the states by default and the menu of the states, when the states by default retain no project and the address names none (WF-IHM-0130)", async () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home({ is_contributor: "false" });
     expect(listQuery()).toEqual({ states: DEFAULT_STATES });
     expect(html).toMatch(/role="grid"[^>]*aria-label="List of projects"/);
-    expect(text(html)).toContain("By default:");
-    expect(text(html)).toContain("Every state");
+    expect(text(html)).toContain("State: Created, Pricing, In progress (by default)");
+    expect(text(html)).toContain("Filter by state 3 selected");
     expect(text(html)).not.toContain("No project.");
     expect(grids.props[0]?.projects).toEqual([]);
   });
@@ -467,7 +547,7 @@ describe("the empty states of the home", () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home({ is_contributor: "false", states: "all" });
     expect(text(html)).toMatch(
-      /^Projects Help Create a project Show only my projects Every state .* No project\.$/,
+      /^Projects Help Create a project Show only my projects Filter by state Every state .* No project\.$/,
     );
   });
 
@@ -494,7 +574,7 @@ describe("the empty states of the home", () => {
       const html = await home({ states: "all" });
       expect(text(html)).toMatch(
         new RegExp(
-          `^Projects Help Create a project The minimum reference data is incomplete\\. Projects you contribute to Show all projects Incomplete reference data No project can be created until the common reference data has: ${missing} Every state`,
+          `^Projects Help Create a project The minimum reference data is incomplete\\. Projects you contribute to Show all projects Incomplete reference data No project can be created until the common reference data has: ${missing} Filters Columns`,
         ),
       );
       expect(links(html).slice(1, 1 + provided.length)).toEqual(provided);
@@ -534,7 +614,7 @@ describe("the empty states of the home", () => {
       "Projects Help Create a project The minimum reference data is incomplete. Show only my projects " +
         `Incomplete reference data No project can be created until the common reference data has: ` +
         "an active labour category an active resource role " +
-        "Every state Created Pricing In progress Completed Lost Abandoned From To Filter No project.",
+        "Filter by state Every state Modification period From To No project.",
     );
   });
 

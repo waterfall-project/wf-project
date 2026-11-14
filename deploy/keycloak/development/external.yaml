@@ -6,7 +6,12 @@
 # Waterfall until her first sign-in. Its secrets are development values, visible, named as such.
 realm: external
 enabled: true
-displayName: External provider (development)
+displayName: External provider
+# Its login pages in the dress of Waterfall's, the development platform being all one product.
+loginTheme: waterfall
+internationalizationEnabled: true
+supportedLocales: [fr, en]
+defaultLocale: fr
 registrationAllowed: false
 loginWithEmailAllowed: true
 

@@ -109,7 +109,8 @@ classeurs qu'ils écrivent et lisent (US-1940) ; toute liste paginée
 (US-1960) ; `updateAccessRole`, `deleteAccessRole` (US-1970) ; toute lecture qui porte un paramètre
 de requête libre, `setDurationUnits`, les écritures d'un nœud du planning et d'une ligne de devis
 (US-1980) ; `requestExport`, `openImport`, `getImport`, `applyImport` et `abandonImport`, pour
-le format MS Project (US-1990, US-2000).
+le format MS Project (US-1990, US-2000) ; `setImportDurationRule`, que la modification du contrat
+crée, pour US-2000.
 
 Quatre modifications du contrat, chacune par une issue `contract` tranchée par l'auteur et une
 entrée de `docs/api/DECISIONS.md` (« La règle d'après le gel »), faite avant le code qui la
@@ -144,7 +145,8 @@ consomme :
   échecs qui ne soient pas une régression, classés par l'outil de mesure et relus ; la durée de mur
   du palier complet y est de 12 minutes au plus en médiane, telle que `make queue-report` la mesure (17,8
   minutes de médiane et 21,8 au 90e centile les 10 et 11 novembre ; décision de l'auteur du 2026-11-13,
-  #2989) ;
+  #2989) — non mesuré sur 100 passages et cible de 12 minutes non atteinte : écart accepté par
+  l'auteur le 2026-11-14 (US-1890, US-1900, US-1910, « Clôture ») ;
 - chaque instabilité de l'inventaire est corrigée, ou suivie par une issue qui porte sa décision ;
 - un lot qui touche la chaîne a prouvé son effet par des passages réels, avant et après, et non par
   une mesure sur le poste ;
@@ -319,7 +321,12 @@ livrées — `epic/EP-09`, `epic/EP-23` — gardent leurs couches d'images (envi
 — `postgres`, `redis`, `caddy`, `axllent/mailpit`, `dxflrs/garage`, `curlimages/curl`, `node`,
 `python`, `debian`, `maven`, `adorsys/keycloak-config-cli` — et `keycloak/keycloak` ; le registre de
 npm pour Prism et Redocly (`npx --yes`, `make mock-tools`) ; `mcr.microsoft.com` pour l'image de
-Playwright ; GitHub Releases pour pandoc ; le miroir d'Astral pour Python.
+Playwright ; GitHub Releases pour pandoc ; le miroir d'Astral pour Python ;
+et quatre que l'inventaire d'origine omettait (#2981, #3015) : GitHub Releases pour le binaire d'actionlint,
+que construit `actionlint-py` ; `www.postgresql.org` pour la clé du dépôt PGDG, téléchargée par la
+construction de l'image `waterfall` ; `azure.archive.ubuntu.com` pour le client PostgreSQL qu'installait
+`back / tests` ; `deb.debian.org` et `apt.postgresql.org` pour les images `openldap` et `waterfall`, quand
+le cache de couches manque.
 
 ### La chaîne : ce que les lots font
 
@@ -355,12 +362,22 @@ Playwright ; GitHub Releases pour pandoc ; le miroir d'Astral pour Python.
   tirées d'un miroir sous `ghcr.io/waterfall-project/mirror/`, tenu par `images.yml` aux mêmes
   empreintes ; Prism et Redocly deviennent des dépendances de développement épinglées du front, lues
   du magasin de pnpm, sans `npx --yes` ; pandoc est gardé en cache.
+- **Le réseau (US-1900/L4)**, les quatre sources omises : le binaire d'actionlint est mis à part, dans un
+  groupe `workflows` des outils que seul `make lint-workflows` installe, et la roue qu'`actionlint-py`
+  construit (PyPI n'en publie pas) est lue du cache d'uv à `repo / check` ; la clé PGDG est versionnée
+  (`backend/pgdg.asc`) et vérifiée par son empreinte, jamais téléchargée ; `back / tests` ne lance plus apt,
+  l'image des runners portant déjà `postgresql-client-18` (le job le vérifie et s'arrête en le disant) ;
+  pour `openldap` et `waterfall`, apt refait ses requêtes cinq fois, le cache de couches de `images.yml`
+  évite la source le plus souvent, et une source muette fait échouer la construction à l'étape d'apt, qui
+  nomme l'adresse — une couche de base publiée n'est pas faite : deux images de plus à publier, et le poste
+  dépendrait de ghcr.io.
 - **Les tests (US-1920)** : les propositions de #859 et de #1026 ; `installation.setup` attend
   l'état qu'il affirme ; le chargement du témoin prend ses verrous dans un ordre constant, ou attend
   celui qu'il n'obtient pas.
-- **Le chemin critique (US-1910)**, pour 12 minutes en médiane : `service / paths` se coupe en
-  quatre — trois morceaux des projets `service` et `shared`, et un quatrième pour `shared-serial`,
-  `realm` et `restoration`, qui restent en série —, chacun sur sa plateforme ; `back / tests` passe
+- **Le chemin critique (US-1910)**, pour 12 minutes en médiane (non atteint : voir la clôture
+  d'US-1910) : `service / paths` se coupe en quatre — trois morceaux des projets `service` et
+  `shared`, et un quatrième pour `shared-serial`, `realm` et `restoration`, qui restent en série
+  —, chacun sur sa plateforme ; `back / tests` passe
   de deux à quatre morceaux ; les morceaux de l'e2e sont pesés par durée mesurée, les durées gardées
   dans un fichier versionné que la mesure rafraîchit ; un passage de la file lit les caches sans en
   écrire (`front-cache.yml` et `images.yml` restent seuls à écrire, sur la branche), une branche
@@ -457,13 +474,13 @@ et les modèles régénérés.
 | `WF-CRE-0010` | le montant arrondi au centime, la moitié au plus loin de zéro | réalisée : `core/costs/extraction.py` ; `test_an_amount_is_rounded_half_a_cent_away_from_zero` (`test_actual_costs_analysis.py`) |
 | `WF-CRE-0020` | une barre oblique suivie d'aucun code n'est pas de la forme | réalisée : `WBS_ELEMENT_INVALID` ; `test_a_wbs_element_without_the_expected_form_or_of_another_project_is_rejected` (#2721) |
 | `WF-DAT-0080` | l'historique annulable et les plans de collage se suppriment selon leur règle (corps seul) | réalisée : `core/history/interface/purge.py`, `core/exchanges/interface/purge.py` ; `test_purge.py`, `test_history.py` |
-| `WF-DEV-0030` | une part d'une année antérieure à l'année de référence n'est pas projetée | réalisée (`inflation_factor`) ; **écart corrigé ici** : son test ne cite pas l'exigence (US-2010) |
+| `WF-DEV-0030` | une part d'une année antérieure à l'année de référence n'est pas projetée | réalisée (`inflation_factor`) ; écart corrigé par US-2010/L2 : `test_year_before_the_reference_year_is_not_deflated` (`test_pricing.py`) cite `WF-DEV-0030-A` |
 | `WF-INTF-0100` | une lignée en double rejette ses lignes | réalisée : `DUPLICATE_LINEAGE` ; `test_a_lineage_that_two_rows_carry_rejects_both_and_leaves_its_line_as_it_is` |
 | `WF-INTF-0120` | la lignée en double, le fichier sans date de revue, la cellule de reste effacée | réalisée : `core/estimate/remaining/analysing.py` ; `test_a_task_the_file_completes_without_a_date_of_review_rejects_its_lines_set_to_nought`, `test_a_cell_left_empty_on_a_line_known_reads_nought` (`test_remaining_import.py`) |
 | `WF-PLA-0040` | un déplacement sous soi-même est refusé | réalisée : `NODE_CYCLE` ; `test_a_selection_moved_under_itself_or_one_of_its_subordinates_closes_a_loop_refused` ; #2546 se ferme |
-| `WF-PLA-0140` | la disposition en couloirs gardée d'une session à l'autre | réalisée (`DisplayPreferences.timelines`, EP-15) ; **écart corrigé ici** : le parcours qui enregistre les couloirs (`timelines.spec.ts:143`) cite `WF-IHM-0100-A` seul, et aucun test ne cite `WF-PLA-0140-A` pour cette phrase ; le fichier d'EP-06 la note à tort en écart (US-2010) |
+| `WF-PLA-0140` | la disposition en couloirs gardée d'une session à l'autre | réalisée (`DisplayPreferences.timelines`, EP-15) ; écart corrigé par US-2010/L2 : le parcours des couloirs de `timelines.spec.ts`, qui enregistre la disposition puis la relit après rechargement, cite `WF-PLA-0140-A` en plus de `WF-IHM-0100-A` (part TypeScript du lot), et le fichier d'EP-06 ne la note plus en écart |
 | `WF-REF-0100`, glossaire | la capacité déduite de l'effectif et du calendrier | **écart d'EP-10** (décision de l'auteur du 2026-11-12) |
-| `WF-REV-0080` | entre deux années de référence, chaque ligne de débours diffère aussi | réalisée par le calcul (`WF-DEV-0030`) ; **à confirmer par le lot** : `test_between_two_reference_years_only_the_re_estimated_amounts_differ_by_the_rates` (`test_comparison.py`) éprouve les taux, et la ligne de débours n'a pas de test repéré ; le lot l'ajoute s'il manque (US-2010) |
+| `WF-REV-0080` | entre deux années de référence, chaque ligne de débours diffère aussi | réalisée par le calcul (`WF-DEV-0030`) : `test_between_two_reference_years_only_the_re_estimated_amounts_differ_by_the_rates` éprouve les taux, et `test_between_two_reference_years_a_disbursement_line_differs_by_its_projected_amount` (`test_comparison.py`, ajouté par US-2010/L2) la ligne de débours, dans une révision sans aucune ligne de main-d'œuvre (`copy_rates` reprojette alors les débours, #3126) |
 
 ### Décisions
 
@@ -520,7 +537,7 @@ et les modèles régénérés.
 
 ## US-1850 — Les filtres des tables : la vérification de L5 et de L6 terminée, les mineurs reportés soldés
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0060-A`
 - **opérations** : `getMe`, `updateMyPreferences`
 - **issue** : #2933
@@ -563,7 +580,7 @@ provisoire d'une pastille de période avant hydratation, accepté. La chaîne de
 
 ## US-1860 — La gestion des utilisateurs : ses filtres, « Sans rôle » et ses actions groupées
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ADM-0180-A`
 - **opérations** : `listUsers`, `updateUser`, `setUserActivation`, `setUserAccessRoles`
 - **issue** : #2954
@@ -605,7 +622,7 @@ une issue `contract`). Dépend de L2 à L4 de #2916 (#2929).
 
 ## US-1870 — Un écran ouvert sans session mène à la connexion, et l'accueil d'un compte sans projet le dit
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-SEC-0020-A`, `WF-IHM-0120-A`
 - **opérations** : `getMe`, `listProjects`
 - **issue** : #2971
@@ -647,7 +664,7 @@ de service adaptés (`session.spec.ts`, `sign-in.spec.ts`).
 
 ## US-1880 — La file dit son taux d'échec hors régression et la durée de son palier complet
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2934
@@ -679,7 +696,7 @@ lot de la chaîne par ses passages, avant et après, et non par une mesure sur l
 
 ## US-1890 — Les parcours contre le service ne font plus échouer la file sans régression
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune en propre — les lectures que les parcours instables attendent
 - **issue** : #2939
@@ -704,12 +721,21 @@ quand le code n'a pas régressé, **afin de** ne plus remettre une pull request 
 - **la règle d'un parcours lent** est écrite dans le guide (`docs/dev/README-fr.md`, et sa
   traduction) : corriger la lecture d'abord, comme #2924 ; sinon isoler ou sérialiser le parcours ;
   n'élargir une attente qu'en dernier recours, avec la mesure qui la justifie ;
-- l'effet est prouvé sur des passages réels de la file, avant et après (US-1880).
+- l'effet est prouvé sur des passages réels de la file, avant et après (US-1880) — prouvé sur les
+  passages de la nuit du 13 au 14 novembre, sans mesure sur 100 passages : voir « Clôture ».
 
 **Notes de réalisation.** #2924, fusionnée, a corrigé la cause de `structure.spec.ts:333` : une
 requête par tâche pour son calendrier, et les lignes placées deux fois (`getRemainingIndicators` de
 2 845 à 58 requêtes sur PRJ-001). Le lot qui termine L5 et L6 (US-1850) touche `structure.spec.ts`
 et `planning-service.spec.ts`.
+
+**Clôture (décision de l'auteur du 2026-11-14).** L'US est close sur la preuve actuelle, sans la
+mesure sur 100 passages de la file que demande la définition de fini : les entrées de la
+famille B du catalogue de la file reconnaissent ses parcours par leur titre et non plus par leur
+ligne (#3044), `reference-costs.spec.ts:469`, qui faisait échouer la file par intermittence, est
+corrigé (#3135), et 27 pull requests ont été fusionnées
+par la file dans la nuit du 13 au 14 novembre. L'optimisation des tests s'arrête là ; la performance
+se travaille sur l'application, en EP-25.
 
 **Hors périmètre.** Les parcours contre le faux back, hors ceux que l'inventaire relève.
 
@@ -717,7 +743,7 @@ et `planning-service.spec.ts`.
 
 ## US-1900 — La chaîne ne dépend plus d'un réseau qu'elle ne tient pas
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2944
@@ -735,7 +761,13 @@ pas échouer la file avant le premier test, **afin qu'**un passage ne dépende q
   Python, vus en échec une fois chacun ;
 - un passage de la file aboutit quand l'une de ces sources ne répond pas, ou échoue en nommant la
   source, sans consommer le palier entier ;
-- l'effet est prouvé sur des passages réels de la file (US-1880).
+- l'effet est prouvé sur des passages réels de la file (US-1880) — prouvé sur les passages de la
+  nuit du 13 au 14 novembre, sans mesure sur 100 passages : voir « Clôture ».
+
+**Clôture (décision de l'auteur du 2026-11-14).** L'US est close sur la preuve actuelle, sans mesure
+sur 100 passages : aucun échec d'`archive.ubuntu.com` dans les passages de la nuit du 13 au 14
+novembre, où 27 pull requests ont été fusionnées par la file. La preuve est cette absence d'échec
+observée sur ces passages, non une panne simulée d'une source.
 
 **Hors périmètre.** Les runners eux-mêmes ; une infrastructure auto-hébergée.
 
@@ -743,7 +775,7 @@ pas échouer la file avant le premier test, **afin qu'**un passage ne dépende q
 
 ## US-1910 — Le palier complet plus court : des morceaux équilibrés, des caches sous leur quota
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2948
@@ -761,10 +793,22 @@ passage de la file coûte moins, en mur comme en minutes-runner.
   ni installation à froid ; `.next/cache` est gardé d'un passage à l'autre ;
 - `service / paths`, le plus long des jobs (environ 16,5 minutes pour 160 parcours), ne tient plus
   le chemin critique au-delà de la cible ;
-- la durée de mur du palier complet est de 12 minutes au plus en médiane sur 100 passages de la
-  file (décision de l'auteur du 2026-11-12), mesurée sur les passages au palier complet comme le fait
-  `make queue-report`, dont la référence est de 17,8 minutes (décision de l'auteur du 2026-11-13,
-  #2989), sans qu'aucun lot dégrade le taux d'US-1880.
+- écart : la durée de mur du palier complet est de 12 minutes au plus en médiane sur 100 passages de
+  la file (décision de l'auteur du 2026-11-12), mesurée sur les passages au palier complet comme le
+  fait `make queue-report`, dont la référence est de 17,8 minutes (décision de l'auteur du
+  2026-11-13, #2989), sans qu'aucun lot dégrade le taux d'US-1880 — non atteint : voir
+  « Clôture, avec écart ».
+
+**Clôture, avec écart (décision de l'auteur du 2026-11-14).** La cible de 12 minutes de médiane
+n'est pas atteinte : 17,5 minutes mesurées dans la file après US-1910/L3 ; un passage seul de la
+file fait 12,3 à 13,5 minutes, et l'écart vient de l'attente de runners, le plafond de 20 jobs
+simultanés du compte étant atteint quand des passages de la file se chevauchent. US-1910/L5 (#3155,
+le départ anticipé des morceaux de `service / paths`) n'a pas raccourci le mur (13,3 à 13,7 min
+avant comme après) : arrêté sans pull request, sa branche `lot/US-1910/L5` (ee6c4428) gardée pour
+mémoire ; mesures dans le commentaire de #3155
+(https://github.com/waterfall-project/wf-project/issues/3155#issuecomment-6873577478). Les leviers
+restants — rééquilibrer les morceaux, lever le plafond de runners ou éviter le chevauchement des
+passages — et la performance prennent le relais en EP-25.
 
 **Hors périmètre.** Retirer un test ou un parcours pour gagner du temps.
 
@@ -772,7 +816,7 @@ passage de la file coûte moins, en mur comme en minutes-runner.
 
 ## US-1920 — Les tests instables du back et du front attendent ce qu'ils affirment
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2935
@@ -802,13 +846,35 @@ régression (#859, #1026).
   le crash d'un worker Vitest et les cinq échecs de `keycloak / check` — ont leur cause établie et
   leur correction, ou une issue.
 
+**Ce qui tient chaque critère.** #859 : le lot L1 (`cost-commands.dom.test.tsx` attend son
+`rerender` et son `act`). #1026 : le lot L2 (cause établie, le témoin crée les partitions avant
+toute écriture). Le témoin (`LockNotAvailable`, passage 42799623736) : le lot L2 (#2937), par la
+même correction. `installation.setup` : ses deux échecs connus (passages 41132886833 et
+41319278707) étaient deux régressions déterministes, de causes distinctes (`/identity-sync-schedule`,
+#1676 ; `/reference/org-nodes`, #1807), corrigées dans leur pull request avant leur fusion, et
+classées comme telles, une entrée chacune, dans `tools/queue-known.toml` ; l'attente du titre de
+l'écran des comptes, ajoutée au parcours, en rend l'échec lisible (« Introuvable »), elle n'est pas
+ce qui le rend déterministe. Les cinq échecs de `keycloak / check` sont classés dans le même
+catalogue : trois sont des pulls de Docker Hub, que US-1900/L2 (#2946) tire désormais d'un miroir ;
+deux sont le cycle d'imports entre `users` et `resource_settings`, une régression classée dans le
+catalogue sous l'issue #2932. Les autres échecs que l'inventaire dit instables sont classés dans
+le même catalogue, chacun éprouvé par un extrait réel de son journal. `fini` ne clôt pas un constat,
+qui reste ouvert, « à trancher » : #2980 (le crash d'un worker Vitest par une assertion de V8 sous
+Node 24, aucun depuis le passage à Node 26). #2982 (`LockNotAvailable` en production, derrière un
+autovacuum) est clos par le lot L7 : mesurée, une création de projet du service, qu'une autre
+session expose à un vacuum de `user_account` qui tente de le tronquer, attend cinq secondes que
+celui-ci y renonce et passe, par le nouvel essai borné à dix secondes de `create_project_partitions`
+(décision de l'auteur : `NOWAIT` gardé) ; le test
+`test_a_creation_waits_out_the_truncation_of_a_vacuum_another_session_holds_up` échoue quand la
+borne du nouvel essai est réduite sous les cinq secondes du vacuum (essayé à 0 et à 2 s).
+
 **Hors périmètre.** Les parcours de bout en bout (US-1890).
 
 ---
 
 ## US-1930 — Le poste local : un nombre de workers qui ne le sature pas, et pas de worktree sous `/tmp`
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2953
@@ -833,7 +899,7 @@ que la charge (#2890).
 
 ## US-1940 — Le classeur du reste à engager garde la nature d'une ligne à l'aller-retour, et les classeurs abîmés n'ont qu'une liste
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0120-A`
 - **opérations** : `requestExport`, `openImport`, `applyImport`
 - **issue** : #2958
@@ -867,7 +933,7 @@ de version 0.3.0, à retirer avec elle.
 
 ## US-1950 — L'ajout d'une tâche et l'insertion d'une ligne au reste à engager se jouent contre le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-RAE-0040-A`
 - **opérations** : celles que jouent les deux parcours, inchangées
 - **issue** : #2964
@@ -900,7 +966,7 @@ font sur un projet que la course crée (#2193) ». Les jumeaux vont dans `remain
 
 ## US-1960 — Le paramètre `Offset` borné par le contrat
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — correction du contrat et du service
 - **opérations** : toute liste paginée, par le paramètre commun `Offset`
 - **issue** : #2959
@@ -924,7 +990,7 @@ sait lire soit refusé par 422, **afin de** ne jamais recevoir un 500 d'une list
 
 ## US-1970 — L'écran des rôles libère un rôle après un rejet et fait partir un renommage différé, et une référence hors forme ne s'affiche pas
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ADM-0010-A`, `WF-OBS-0020-A`
 - **opérations** : `updateAccessRole`, `deleteAccessRole`, et toute lecture d'un écran
 - **issue** : #2963
@@ -954,7 +1020,7 @@ pas rester devant une ligne inerte ni lire « serveur injoignable » à tort (#2
 
 ## US-1980 — Un caractère NUL ou un décimal démesuré à l'entrée du service est refusé par 422
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — correction du service
 - **opérations** : toute lecture qui porte un paramètre de requête libre ; `setDurationUnits`, les
   écritures d'un nœud du planning et d'une ligne de devis
@@ -994,7 +1060,7 @@ La capacité d'un rôle (`monthly_hours`, `headcount`) est laissée à EP-10, qu
 
 ## US-1990 — L'export MS Project s'ouvre aux mêmes dates dans MS Project, et le corpus porte un décalage négatif en semaines
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0050-A`, `WF-INTF-0040-A`, `WF-QUA-0080-A`
 - **opérations** : `requestExport`, `openImport`
 - **issue** : #2965
@@ -1022,6 +1088,7 @@ Project 2024).
 **Notes de réalisation.** `core/planning/msproject/writer.py`, `_task`. Les deux corrections —
 `Manual*` et `Estimated` — sont confirmées par l'auteur dans MS Project 2024 : nécessaires, et
 suffisantes sur le planning éprouvé. Aucun test ne lit, ne cite ni ne nomme un planning réel.
+Réalisée par US-1990/L1 (#3008) et US-1990/L2 (#3068, le fichier 02 du corpus fourni par l'auteur).
 
 **Hors périmètre.** L'import sur un autre calendrier (US-2000).
 
@@ -1029,9 +1096,9 @@ suffisantes sur le planning éprouvé. Aucun test ne lit, ne cite ni ne nomme un
 
 ## US-2000 — L'import MS Project d'un planning bâti sur un autre calendrier le signale, et garde ses durées ou ses dates
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0040-A`, `WF-PLA-0160-A`, `WF-INTF-0080-A`
-- **opérations** : `openImport`, `getImport`, `applyImport`, `abandonImport`
+- **opérations** : `openImport`, `getImport`, `applyImport`, `abandonImport`, `setImportDurationRule`
 - **issue** : #2972
 
 **En tant que** chef de projet, **je veux** qu'un planning saisi dans MS Project sur des journées de
@@ -1086,7 +1153,7 @@ une issue `contract`. Dépend de la révision 1.0.5 (US-2010).
 
 ## US-2010 — La spécification 1.0.5 écrit quatre décisions, et la 1.0.4 est relue contre le code
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-DEV-0030-A`
 - **opérations** : aucune
 - **issue** : #2968
@@ -1104,7 +1171,7 @@ soient écrites dans le document, et que chaque phrase de la 1.0.4 ait son test 
 - une fois la 1.0.5 dans `main`, les phrases nouvelles des Vérif sont citées mot pour mot par les US
   qui les réalisent — US-1850, US-1870 et US-2000 ici, et les US des EPIC livrés qui citent ces
   exigences —, et `make roadmap` passe ;
-- `WF-DEV-0030-A` — « Une part consommée l'année qui précède l'année de référence vaut son montant de base, quel que soit le taux d'inflation. » : la phrase de la 1.0.4 est réalisée (`inflation_factor`), mais son test, `test_year_before_the_reference_year_is_not_deflated_pending_2545` (`backend/tests/test_pricing.py`), ne cite aucune exigence « en attendant #2545 » : il cite `WF-DEV-0030-A`, et perd sa réserve ;
+- `WF-DEV-0030-A` — « Une part consommée l'année qui précède l'année de référence vaut son montant de base, quel que soit le taux d'inflation. » : la phrase de la 1.0.4 est réalisée (`inflation_factor`), mais son test, `test_year_before_the_reference_year_is_not_deflated_pending_2545` (`backend/tests/test_pricing.py`), ne cite aucune exigence « en attendant #2545 » : il cite `WF-DEV-0030-A`, et perd sa réserve — il s'appelle désormais `test_year_before_the_reference_year_is_not_deflated` ;
 - écart : `WF-DEV-0030-A` — « Une même ligne consommée deux ans après l'année de référence, avec un taux d'inflation de 3 %, vaut 1,03 x 1,03 fois son montant de base. » : constaté par EP-07, inchangé ;
 - écart : `WF-DEV-0030-A` — « Une ligne consommée dans l'année de référence vaut son montant de base. » : idem ;
 - écart : `WF-DEV-0030-A` — « Une ligne de provision portée par une tâche consommée deux ans après l'année de référence vaut sa gravité pondérée par sa probabilité, sans autre projection. » : EP-08 clôt ;
@@ -1127,7 +1194,7 @@ dans le tableau de suivi pour que ses dépendants l'attendent.
 
 ## US-2020 — La barre d'une grille arborescente garde sa hauteur, quel que soit le nombre de lignes de la grille
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0060-A`
 - **opérations** : aucune
 - **issue** : #3091
@@ -1165,7 +1232,7 @@ sur le planning, le devis et le reste à engager.
 
 ## US-2030 — Le plan de charge empile chaque rôle sur ses mois, même chargé sur moins de mois que les autres
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-DEV-0070-A`
 - **opérations** : `getProjectWorkload`
 - **issue** : #3105

@@ -50,6 +50,7 @@ from waterfall.core.planning.interface import (
 )
 from waterfall.core.projects.interface import project_facts
 from waterfall.core.resource_settings.interface import role_calendars
+from waterfall.platform.database import among
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping
@@ -140,7 +141,7 @@ def line_calendars(
         session.execute(
             select(EstimateLine.node_id, EstimateLine.resource_role_id).where(
                 EstimateLine.project_id == project_id,
-                EstimateLine.node_id.in_(list(bearer)),
+                among(EstimateLine.node_id, bearer),
                 EstimateLine.resource_role_id.is_not(None),
             )
         ).all()

@@ -410,21 +410,51 @@ def test_an_import_of_the_project_keeps_its_period_and_aims_at_no_structure(
 
 @pytest.mark.requirement("WF-DAT-0140-A")
 @pytest.mark.usefixtures("trial")
-def test_a_report_written_without_its_unit_constants_is_read_with_them_nil(
+def test_a_report_written_without_its_unit_constants_and_calendar_gap_is_read_with_them_nil(
     api: ContractClient, stage: Scene, worker: Worker, database: Database
 ) -> None:
-    # A report analysed before ``unit_constants`` (#2580), or by the code that precedes them
-    # during an update, lacks the key: it is read as the constants of the file not differing,
-    # not refused by the contract.
+    # A report analysed before ``unit_constants`` (#2580) or ``calendar_gap`` (#2977), or by the
+    # code that precedes them during an update, lacks the keys: it is read as the constants and the
+    # calendars of the file not differing, not refused by the contract.
     import_id = analysed(api, stage, worker)["import_id"]
     report = dict(stored(database, import_id).report or {})
     del report["unit_constants"]
+    del report["calendar_gap"]
     with database.transaction() as session:
         session.execute(
             update(ImportReport).where(ImportReport.id == UUID(import_id)).values(report=report)
         )
     found = read(api, stage, import_id)
-    assert found["report"] == {**report, "unit_constants": None}
+    assert found["report"] == {**report, "unit_constants": None, "calendar_gap": None}
+
+
+@pytest.mark.requirement("WF-INTF-0080-A")
+@pytest.mark.usefixtures("trial")
+def test_the_duration_rule_of_an_import_of_another_kind_is_refused_and_leaves_it_as_it_is(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # « Lorsqu'un import appelle un choix de l'utilisateur — garder les durées ou les dates d'un
+    # planning MS Project saisi sur un autre calendrier —, le compte rendu le propose » : an import
+    # of another kind offers no choice, its report without a calendar gap (409
+    # ``import_calendar_gap``); one no longer analysed awaits no decision, which comes first.
+    found = analysed(api, stage, worker)
+    assert found["report"]["calendar_gap"] is None
+    rule = f"{path(stage, found['import_id'])}/duration-rule"
+    response = api.put(rule, headers=stage.manager.headers, json={"duration_rule": "keep_dates"})
+    assert refusal(response) == (
+        409,
+        "STATE_FORBIDS_OPERATION",
+        {"missing_condition": "import_calendar_gap"},
+    )
+    assert read(api, stage, found["import_id"]) == found
+    abandoned = api.delete(path(stage, found["import_id"]), headers=stage.manager.headers)
+    assert abandoned.status_code == 204
+    response = api.put(rule, headers=stage.manager.headers, json={"duration_rule": "keep_dates"})
+    assert refusal(response) == (
+        409,
+        "STATE_FORBIDS_OPERATION",
+        {"missing_condition": "import_awaiting_decision"},
+    )
 
 
 @pytest.mark.requirement("WF-ARC-0100-A")

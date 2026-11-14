@@ -87,6 +87,10 @@ paths = [
     "backend/pyproject.toml",
     "backend/uv.lock",
     ".github/workflows/contract.yml",
+    ".github/actions/pnpm-store/**",
+    # Redocly, which lints and bundles the contract, is a development dependency of the front.
+    "frontend/package.json",
+    "frontend/pnpm-lock.yaml",
     # The volumes and the readings of the witness (make mock-data), and the projection the
     # inventory reads.
     "tools/src/wftools/mock*.py",
@@ -187,6 +191,13 @@ paths = [
     ".github/actions/**",
     # The variant of the contract Prism serves as a proxy (make mock-spec).
     "tools/src/wftools/mock*.py",
+    # The work image the paths play in (US-1900), and what finds it and plays them in it.
+    "deploy/e2e/**",
+    "tools/src/wftools/e2eimage.py",
+    "tools/src/wftools/registry.py",
+    # The parts of the paths, spread by the seconds they took (US-1910).
+    "tools/src/wftools/e2eparts.py",
+    "tools/e2e-service-durations.json",
 ]
 target = "check-service"
 
@@ -228,6 +239,7 @@ paths = [
     "fixtures/api/**",
     ".github/workflows/front.yml",
     ".github/workflows/e2e.yml",
+    ".github/actions/pnpm-store/**",
     # The catalogues, the routes of the examples, the coverage, what the build prerendered, and
     # the fake back the paths are played against (make mock, which Playwright starts).
     "tools/src/wftools/catalogs.py",
@@ -236,6 +248,13 @@ paths = [
     "tools/src/wftools/frontimage.py",
     "tools/src/wftools/images.py",
     "tools/src/wftools/mock*.py",
+    # The work image the parts of the paths run in (US-1900), and what finds it.
+    "deploy/e2e/**",
+    "tools/src/wftools/e2eimage.py",
+    "tools/src/wftools/registry.py",
+    # What spreads the parts of the paths by their measured durations (US-1910).
+    "tools/src/wftools/e2eparts.py",
+    "tools/e2e-durations.json",
 ]
 target = "check-front"
 
@@ -713,9 +732,12 @@ paths = [
     "fixtures/api/import_apply_expired.json",
     "fixtures/api/import_apply_main_in_progress.json",
     "fixtures/api/import_abandon_applied.json",
+    "fixtures/api/import_duration_rule_without_gap.json",
+    "fixtures/api/import_duration_rule_applied.json",
     "fixtures/api/import_apply_refused_permission.json",
     "fixtures/api/import_remaining_completed_task.json",
     "fixtures/api/users_by_access_role.json",
+    "fixtures/api/users_without_access_role.json",
     "fixtures/api/users_search.json",
     "fixtures/api/users_inactive.json",
     "fixtures/api/users_created_by_platform.json",

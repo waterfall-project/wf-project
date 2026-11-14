@@ -1,8 +1,10 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { type Download, expect, type Locator } from "@playwright/test";
+import { expect, type Locator } from "@playwright/test";
 
+import { closeMenu, menuButton, openMenu, pick } from "./check-menu";
 import { columnsOf } from "./columns";
+import { pngSize } from "./download";
 import { holdScripts, openHydrated, WORKING } from "./hydration";
 import { test } from "./mode";
 import { rowAt, scrollToPosition, withinBox } from "./scroll";
@@ -275,6 +277,45 @@ test("enters the label of a task from the keyboard, traverses the dates its mode
   ).toBeVisible();
 });
 
+test("selects the whole label of a task entered by F2, a key typed replaces it, and a click in the field lifts the selection to correct it [WF-IHM-0040-A]", async ({
+  page,
+}) => {
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  const at = await columnsOf(grid, { label: "Libellé" });
+  const leaf = grid.getByRole("row", { name: /^9 .*Câblage/ });
+  const cell = leaf.getByRole("gridcell").nth(at.label);
+  await cell.click();
+  await page.keyboard.press("F2");
+  const field = grid.getByRole("textbox", { name: "Libellé" });
+  const value = await field.inputValue();
+  expect(
+    await field.evaluate((input: HTMLInputElement) => [input.selectionStart, input.selectionEnd]),
+  ).toEqual([0, value.length]);
+  await page.keyboard.type("Pose");
+  await expect(field).toHaveValue("Pose");
+  // A click in the field lifts the selection, and a key typed there goes in: it does not erase.
+  await page.keyboard.press("Control+A");
+  await field.click();
+  expect(
+    await field.evaluate((input: HTMLInputElement) => input.selectionStart === input.selectionEnd),
+  ).toBe(true);
+  await page.keyboard.type("!");
+  await expect(field).toHaveValue(/!/);
+  await expect(field).toHaveValue(/P.*o.*s.*e/);
+  await page.keyboard.press("Escape");
+  await expect(cell).toContainText(value);
+  // A double click enters it on its value as well, selected in full, and a key typed replaces it.
+  await cell.dblclick();
+  await expect(field).toHaveValue(value);
+  expect(
+    await field.evaluate((input: HTMLInputElement) => [input.selectionStart, input.selectionEnd]),
+  ).toEqual([0, value.length]);
+  await page.keyboard.type("Pose");
+  await expect(field).toHaveValue("Pose");
+  await page.keyboard.press("Escape");
+});
+
 test("enters a duration with its unit, then the predecessors « 13FD+2 j » of the mounting, and the successor the server redated takes its place in the grid [WF-PLA-0030-A] [WF-PLA-0020-A]", async ({
   page,
 }) => {
@@ -347,18 +388,19 @@ test("filters the planning by the post « Poste 1.1 » chosen among the work bre
   // here, and what the page sends is proven by `planning/page.test.tsx`. The subtree and the
   // ancestors the server retains are its own, and are not checked here.
   await openHydrated(page, `${IN_REVISION}/planning`);
-  const filter = page.getByRole("combobox", { name: "Lot ou poste" });
-  await expect(filter.getByRole("option")).toHaveText([
+  const filter = menuButton(page, "Lot ou poste");
+  await expect((await openMenu(page, "Lot ou poste")).getByRole("radio")).toHaveText([
     "Tous les lots et postes",
     "Lot : Lot 1",
     "Poste : Poste 1.1",
   ]);
-  await filter.selectOption({ label: "Poste\u00a0: Poste 1.1" });
+  await closeMenu(page);
+  await pick(page, "Lot ou poste", "Poste\u00a0: Poste 1.1", "radio");
   await expect(page).toHaveURL(
     `${IN_REVISION}/planning?order_item_id=01926f3a-7c00-7000-8000-000000000712`,
     { timeout: WORKING },
   );
-  await expect(filter).toHaveValue("01926f3a-7c00-7000-8000-000000000712");
+  await expect(filter).toContainText("Poste : Poste 1.1");
   const chips = page
     .getByRole("region", { name: "Contexte de lecture" })
     .getByRole("list", { name: "Filtres actifs" })
@@ -366,7 +408,7 @@ test("filters the planning by the post « Poste 1.1 » chosen among the work bre
   await expect(chips).toHaveText(["Poste : Poste 1.1"]);
   await chips.getByRole("link", { name: "Lever le filtre « Poste : Poste 1.1 »" }).click();
   await expect(page).toHaveURL(`${IN_REVISION}/planning`, { timeout: WORKING });
-  await expect(filter).toHaveValue("");
+  await expect(filter).toContainText("Tous les lots et postes");
   await expect(chips).toHaveCount(0);
 });
 
@@ -596,17 +638,6 @@ test("keeps the date at the centre of the column when it zooms in from the Gantt
   // centre eight pixels of the column, a share of the drawing wider than the frame, away.
   expect(Math.abs((after?.left ?? 0) - kept)).toBeLessThanOrEqual(4);
 });
-
-/** The width and the height of the PNG image a download saved, its signature checked. */
-async function pngSize(download: Download): Promise<[number, number]> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of await download.createReadStream()) {
-    chunks.push(chunk as Buffer);
-  }
-  const image = Buffer.concat(chunks);
-  expect(image.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
-  return [image.readUInt32BE(16), image.readUInt32BE(20)];
-}
 
 // aucune exigence : propre à l'US (US-0530, l'export PNG du Gantt sur toute son étendue au niveau
 // choisi).

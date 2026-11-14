@@ -120,6 +120,7 @@ class TrialFormat:
             "signals": [],
             "requires_confirmation_reasons": [],
             "unit_constants": None,
+            "calendar_gap": None,
         }
 
     def prepare(self, content: bytes) -> list[str]:

@@ -51,7 +51,11 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 // The tracker of the shell, which a screen hands its tasks over to, is above the page.
-vi.mock("@/components/tasks/task-tracker", () => ({ useTrackTask: () => () => undefined }));
+vi.mock("@/components/tasks/task-tracker", () => ({
+  useTrackTask: () => () => undefined,
+  useWhenTaskSucceeds: () => undefined,
+  useWhenTaskFails: () => undefined,
+}));
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
 }));

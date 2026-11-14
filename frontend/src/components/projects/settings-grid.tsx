@@ -22,6 +22,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import { DenseGrid } from "@/components/grid/dense-grid";
 import type { GridQuery } from "@/components/grid/query";
@@ -30,13 +31,16 @@ import { formatLocale } from "@/i18n/format";
 
 import { useBreakdownCommands, useBreakdownRows } from "./breakdown-commands";
 import { useContributorRows } from "./contributor-commands";
+import { useBreakdownChips, useContributorChips, useSubprojectChips } from "./settings-chips";
 
 import {
   BREAKDOWN_GRID,
   BREAKDOWN_KINDS,
+  type BreakdownKind,
   type BreakdownRow,
   CONTRIBUTOR_GRID,
   type Contributor,
+  type ContributorKind,
   type ContributorSort,
   SUBPROJECT_GRID,
   type Subproject,
@@ -52,6 +56,8 @@ interface GridProps<Row, Sort extends string> {
   readonly rows: readonly Row[];
   readonly query: GridQuery<Sort>;
   readonly preferences: GridPreferences | undefined;
+  /** The filters of the screen, which the bar of the grid folds into its panel (#2916); none, no panel. */
+  readonly panel?: ReactNode;
 }
 
 /** The three grids, by their kind: the work breakdown, the sub-projects, the contributors. */
@@ -62,6 +68,8 @@ export type SettingsGridProps =
       readonly project: string;
       /** Whether the reading is filtered: an empty one then says nothing of the work breakdown. */
       readonly filtered?: boolean;
+      /** The kinds the address restricts the work breakdown to, told as a chip. */
+      readonly kinds?: readonly BreakdownKind[] | undefined;
     } & GridProps<BreakdownRow, never>)
   | ({
       readonly kind: "subprojects";
@@ -70,8 +78,15 @@ export type SettingsGridProps =
        * lists `update`, available or not.
        */
       readonly editable?: boolean;
+      /** Whether the address retains the sub-projects charged with actual costs, or the others. */
+      readonly actualCosts?: boolean | undefined;
     } & GridProps<Subproject, SubprojectSort>)
-  | ({ readonly kind: "contributors" } & GridProps<Contributor, ContributorSort>);
+  | ({
+      readonly kind: "contributors";
+      /** The capacities the address restricts the contributors to, and the state of their accounts. */
+      readonly kinds?: readonly ContributorKind[] | undefined;
+      readonly active?: boolean | undefined;
+    } & GridProps<Contributor, ContributorSort>);
 
 /** The grid of the sub-projects, with the columns of the commands of its rows. */
 const EDITABLE_SUBPROJECT_GRID = subprojectGrid(true);
@@ -82,8 +97,11 @@ function SubprojectGrid({
   editable = false,
   query,
   preferences,
+  panel,
+  actualCosts,
 }: Omit<Extract<SettingsGridProps, { kind: "subprojects" }>, "kind">) {
   const t = useTranslations("projectLists");
+  const chips = useSubprojectChips(actualCosts);
   const shown = useSubprojectRows(rows);
   return (
     <DenseGrid
@@ -93,6 +111,7 @@ function SubprojectGrid({
       totalsCaption={() => t("subprojects.count", { count: shown.length })}
       query={query}
       preferences={preferences}
+      filtering={panel === undefined ? undefined : { panel, chips }}
     />
   );
 }
@@ -107,8 +126,11 @@ function BreakdownGrid({
   filtered = false,
   query,
   preferences,
+  panel,
+  kinds,
 }: Omit<Extract<SettingsGridProps, { kind: "workBreakdown" }>, "kind">) {
   const t = useTranslations("projectLists.workBreakdown");
+  const chips = useBreakdownChips(kinds);
   const locale = useLocale();
   const shown = useBreakdownRows(rows);
   const commands = useBreakdownCommands();
@@ -130,6 +152,7 @@ function BreakdownGrid({
       }
       query={query}
       preferences={preferences}
+      filtering={panel === undefined ? undefined : { panel, chips }}
       foldScope={project}
       commands={commands}
     />
@@ -141,8 +164,12 @@ function ContributorGrid({
   rows,
   query,
   preferences,
+  panel,
+  kinds,
+  active,
 }: Omit<Extract<SettingsGridProps, { kind: "contributors" }>, "kind">) {
   const t = useTranslations("projectLists");
+  const chips = useContributorChips(kinds, active);
   const shown = useContributorRows(rows);
   return (
     <DenseGrid
@@ -152,6 +179,7 @@ function ContributorGrid({
       totalsCaption={() => t("contributors.count", { count: shown.length })}
       query={query}
       preferences={preferences}
+      filtering={panel === undefined ? undefined : { panel, chips }}
     />
   );
 }

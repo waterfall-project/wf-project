@@ -11,7 +11,8 @@
 # The front family runs in two workflows side by side: front.yml for all but the end-to-end
 # paths, e2e.yml for the paths, in the full tier only and spread over several runners (#492).
 # The paths against the real service, which traverse the front, the back and the platform, run
-# in the full tier only too (service.yml, US-0340), as does the production platform started on the
+# in the full tier only too, spread over four runners, each on a platform of its own (service.yml,
+# US-0340, US-1910), as does the production platform started on the
 # images built here (production.yml, US-0430). Both kinds of paths play the front built for
 # production once in the run, by the job front-build (US-0590).
 name: chain
@@ -62,6 +63,8 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
+          save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: tools/uv.lock
       - id: families
         env:
@@ -88,15 +91,61 @@ jobs:
     if: needs.changes.outputs.contract == 'true'
     uses: ./.github/workflows/contract.yml
 
-  back:
+  # The mirror of the images of Docker Hub (wftools.mirror, US-1900): the jobs pull postgres, redis,
+  # caddy, mailpit, garage, curl, node, python, debian, maven and keycloak's from
+  # ghcr.io/waterfall-project/mirror/ (the services of the jobs; WATERFALL_MIRROR for the Compose
+  # files and the Dockerfiles, which name Docker Hub's elsewhere), by the digest they have there, so
+  # that a pull of Docker Hub ("failed to fetch oauth token") no longer fails a run before its first
+  # test. The mirror is asked first; only an image it does not hold yet is
+  # copied from Docker Hub, once, here — in every tier, since images.yml runs after a merge, and
+  # the first run to need an image is the pull request that adds it. Every job that pulls an image
+  # waits for this one. A mirror that holds everything reads Docker Hub for nothing; one that lacks
+  # an image Docker Hub does not give fails this job, naming Docker Hub, and skips those jobs.
+  mirror:
     needs: changes
+    if: >-
+      needs.changes.outputs.back == 'true' || needs.changes.outputs.front == 'true' ||
+      needs.changes.outputs.front-image == 'true' || needs.changes.outputs.keycloak == 'true' ||
+      needs.changes.outputs.service == 'true' ||
+      (needs.changes.outputs.production == 'true' && needs.changes.outputs.tier == 'full')
+    runs-on: ubuntu-26.04
+    # About thirteen lookups; a copy, a few seconds each, on the first run after a digest changed.
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
+          cache-dependency-glob: tools/uv.lock
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: make mirror PUSH=yes
+
+  back:
+    needs: [changes, mirror]
+    permissions:
+      contents: read
+      packages: read
     if: needs.changes.outputs.back == 'true'
     uses: ./.github/workflows/back.yml
     with:
       tier: ${{ needs.changes.outputs.tier }}
 
   front:
-    needs: changes
+    needs: [changes, mirror]
+    permissions:
+      contents: read
+      packages: read
     if: needs.changes.outputs.front == 'true'
     uses: ./.github/workflows/front.yml
     with:
@@ -106,11 +155,12 @@ jobs:
   # paths, the measure and the paths against the service download this build and play it, and
   # build nothing again (E2E_BUILT). Here, whenever either of them runs: e2e.yml and service.yml
   # are two called workflows, whose jobs no `needs` joins. On the runner, as front.yml builds: the
-  # parts of e2e.yml start it in Playwright's image, on its Node 24 (built here on Node 26: pnpm 12
-  # does not stop on `engines` without engine-strict, and `next start` runs the built files on the
-  # image's Node, which Next supports) and its Ubuntu noble, amd64, at another path of the
-  # workspace, which the build should not depend on (checked by moving the build on a workstation;
-  # the proof in the chain is a run of `chain` on the branch); service.yml on the runner.
+  # parts of e2e.yml start it in the work image of the paths, built on Playwright's, on its Node 24
+  # (built here on Node 26: pnpm 12 does not stop on `engines` without engine-strict, and
+  # `next start` runs the built files on the image's Node, which Next supports) and its Ubuntu
+  # noble, amd64, at another path of the workspace, which the build should not depend on (checked
+  # by moving the build on a workstation; the proof in the chain is a run of `chain` on the
+  # branch); service.yml starts it on the runner, where only its browser is in that image.
   front-build:
     needs: changes
     if: >-
@@ -123,15 +173,24 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # pnpm, at the version `packageManager` names, must exist before setup-node caches it.
+      # pnpm, at the version `packageManager` names, must exist before its store is read.
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           package_json_file: frontend/package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
+      # The store of pnpm is read, never written: front-cache.yml writes it.
+      - uses: ./.github/actions/pnpm-store
+      # Next's cache, which a build reads to compile only what changed: the last one front-cache.yml
+      # wrote, on this branch or on the one it merges into, read and never written here.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: frontend/.next/cache
+          key: next-${{ hashFiles('frontend/pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            next-${{ hashFiles('frontend/pnpm-lock.yaml') }}-
+            next-
       - run: make build-front
       # The build without Next's cache, which only a later build reads, for one day: each job that
       # plays it downloads it where the build wrote it.
@@ -145,17 +204,73 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # The work image of the end-to-end paths (deploy/e2e, US-1900), whenever e2e or service could run,
+  # beside the build of the front: Playwright's image with make, the Python of the tools, pnpm and
+  # Docker's client, so that no job of the paths downloads a package of Ubuntu (#2913). Found in the
+  # registry by the hash of its directory, or built here. In the full tier — the merge queue and a run
+  # by hand — the image built is published, once, by the first run that needs it: images.yml, after a
+  # merge, would come after the merge queue. In the fast tier, an image that changed is built and not
+  # published, so that a build that fails stops the pull request before the queue; an image that did
+  # not change is a lookup. Each request to the registry, the build and its publication are tried
+  # again (wftools.e2eimage, #2530); a registry that still does not answer fails this job, naming it,
+  # and skips the paths, which the gate counts. The build alone, when the image changed, pulls
+  # Playwright's image from mcr.microsoft.com and downloads the package of make from
+  # archive.ubuntu.com: a run whose image is in the registry downloads from neither.
+  e2e-image:
+    needs: changes
+    if: needs.changes.outputs.front == 'true' || needs.changes.outputs.service == 'true'
+    runs-on: ubuntu-26.04
+    # A lookup in the registry; a build, and its publication, when the image changed: about three
+    # minutes, most of it the pull of Playwright's image.
+    timeout-minutes: 15
+    # Write only publishes the image, in the full tier; the fast one, which pushes nothing, holds it
+    # too: an expression is not admitted in `permissions`, and the job is not split in two (every
+    # job that needs the image would then name two).
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
+          cache-dependency-glob: tools/uv.lock
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: image
+        env:
+          PUSH: ${{ needs.changes.outputs.tier == 'full' && 'yes' || 'no' }}
+        run: make e2e-image PUSH="$PUSH" >> "$GITHUB_OUTPUT"
+
   # The other half of the front family: skipped in the fast tier as when the front is not
   # touched, which the gate does not count as a failure.
   e2e:
-    needs: [changes, front-build]
+    needs: [changes, front-build, e2e-image]
     if: needs.changes.outputs.front == 'true' && needs.changes.outputs.tier == 'full'
+    # The image is read from the registry, where it may be private.
+    permissions:
+      contents: read
+      packages: read
     uses: ./.github/workflows/e2e.yml
+    with:
+      image: ${{ needs.e2e-image.outputs.image }}
 
   # The production image of the front, built and started when a pull request changes what makes
   # it (US-0430): images.yml publishes it after the merge alone.
   front-image:
-    needs: changes
+    needs: [changes, mirror]
+    permissions:
+      contents: read
+      packages: read
     if: needs.changes.outputs.front-image == 'true'
     uses: ./.github/workflows/front-image.yml
 
@@ -165,36 +280,50 @@ jobs:
     uses: ./.github/workflows/roadmap.yml
 
   keycloak:
-    needs: changes
+    needs: [changes, mirror]
+    permissions:
+      contents: read
+      packages: read
     if: needs.changes.outputs.keycloak == 'true'
     uses: ./.github/workflows/keycloak.yml
 
   # Skipped in the fast tier as when nothing it traverses is touched.
   service:
-    needs: [changes, front-build]
+    needs: [changes, mirror, front-build, e2e-image]
     if: needs.changes.outputs.service == 'true' && needs.changes.outputs.tier == 'full'
+    permissions:
+      contents: read
+      packages: read
     uses: ./.github/workflows/service.yml
+    with:
+      image: ${{ needs.e2e-image.outputs.image }}
 
   # The production platform on the three images built here (US-0430): in the full tier only, as
   # when nothing it is made of is touched; images.yml holds it again on the images it publishes.
   production:
-    needs: changes
+    needs: [changes, mirror]
+    permissions:
+      contents: read
+      packages: read
     if: needs.changes.outputs.production == 'true' && needs.changes.outputs.tier == 'full'
     uses: ./.github/workflows/production.yml
 
   gate:
     # Every job of the chain, each part of the end-to-end paths included: the result of e2e is
-    # a failure as soon as one of its parts failed or was cancelled. A build of the front that
-    # failed skips e2e and service, which front-build here says.
+    # a failure as soon as one of its parts failed or was cancelled. A build of the front, or a
+    # work image of the paths, that failed skips e2e and service, which front-build or e2e-image
+    # here says.
     needs:
       - changes
       - repo
       - tools
       - spec
       - contract
+      - mirror
       - back
       - front
       - front-build
+      - e2e-image
       - e2e
       - front-image
       - roadmap
@@ -211,6 +340,8 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
+          save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: tools/uv.lock
       - env:
           NEEDS: ${{ toJSON(needs) }}

@@ -14,10 +14,11 @@ import type { GridQuery } from "@/components/grid/query";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
+import { menuSummary, openMenu, pick } from "@/test/check-menu";
 import { example, fakeClient } from "@/test/fixtures";
 
 import { COSTS_LIST, IMPORTS_LIST, readCostFilters } from "./address";
-import { CostFilterBar, type SubprojectChoice } from "./cost-filters";
+import { CostFilterPanel, type SubprojectChoice } from "./cost-filters";
 import { costRow, type CostRows, type CostSortColumn, type ListPage } from "./cost-grid";
 import { CostSummary } from "./cost-totals";
 import { CostsGrid } from "./costs-grid";
@@ -301,6 +302,42 @@ describe("the totals of the actual costs", () => {
   });
 });
 
+describe("the filters of the actual costs, in the bar of the grid", () => {
+  it("tell the scope, the sub-project and the period of the documents by chips, each lifted by its parameters [WF-IHM-0130-A] (#2916)", async () => {
+    page.search = `sort_by=amount&in_tracked_scope=false&subproject_id=${COMMAND}&from=2026-04-01&to=2026-04-30`;
+    const address = new URLSearchParams(page.search);
+    const filters = readCostFilters(address);
+    render(
+      inLanguage(
+        <CostsGrid
+          costs={costsOf("actual_costs")}
+          query={NO_QUERY}
+          preferences={undefined}
+          filters={filters}
+          subproject={COMMAND}
+          subprojects={SUBPROJECTS}
+          panel={
+            <CostFilterPanel filters={filters} subproject={COMMAND} subprojects={SUBPROJECTS} />
+          }
+        />,
+      ),
+    );
+    const chips = screen.getByRole("list", { name: "Filtres actifs" });
+    expect(chips).toHaveTextContent("Périmètre suivi : Exclues");
+    expect(chips).toHaveTextContent("Sous-projet : SP-CMD — Poste de commande");
+    expect(chips).toHaveTextContent("Date de pièce : du 1 avr. 2026 au 30 avr. 2026");
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Retirer le filtre Sous-projet : SP-CMD — Poste de commande",
+      }),
+    );
+    expect(router.push).toHaveBeenLastCalledWith(
+      `${PATHNAME}?sort_by=amount&in_tracked_scope=false&from=2026-04-01&to=2026-04-30`,
+      { scroll: false },
+    );
+  });
+});
+
 describe("the filters of the actual costs", () => {
   /** Render the filters as the address asks them. */
   function renderFilters(search = "") {
@@ -308,7 +345,7 @@ describe("the filters of the actual costs", () => {
     const address = new URLSearchParams(search);
     return render(
       inLanguage(
-        <CostFilterBar
+        <CostFilterPanel
           filters={readCostFilters(address)}
           subproject={address.get("subproject_id") ?? undefined}
           subprojects={SUBPROJECTS}
@@ -319,12 +356,9 @@ describe("the filters of the actual costs", () => {
 
   it("asks the server for the excluded lines alone, by the address, back to the first page [WF-CRE-0040-A]", async () => {
     const { container } = renderFilters("sort_by=amount&sort_order=asc&offset=50");
-    const scope = screen.getByRole("group", { name: "Périmètre" });
-    expect(within(scope).getByRole("button", { name: "Toutes les lignes" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    await userEvent.click(within(scope).getByRole("button", { name: "Exclues" }));
+    await openMenu("Périmètre");
+    expect(screen.getByRole("radio", { name: "Toutes les lignes" })).toBeChecked();
+    await userEvent.click(screen.getByRole("radio", { name: "Exclues" }));
     expect(router.push).toHaveBeenLastCalledWith(
       `${PATHNAME}?sort_by=amount&sort_order=asc&in_tracked_scope=false`,
       { scroll: false },
@@ -334,16 +368,12 @@ describe("the filters of the actual costs", () => {
 
   it("lifts the filter on the scope, and presses the scope the address asks", async () => {
     renderFilters("in_tracked_scope=true");
-    const scope = screen.getByRole("group", { name: "Périmètre" });
-    expect(within(scope).getByRole("button", { name: "Suivies" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    await userEvent.click(within(scope).getByRole("button", { name: "Toutes les lignes" }));
+    expect(menuSummary("Périmètre")).toBe("Suivies");
+    await pick("Périmètre", "Toutes les lignes", "radio");
     expect(router.push).toHaveBeenLastCalledWith(PATHNAME, { scroll: false });
   });
 
-  it("shows the scope asked pressed while the server reads the lines anew, and the address once it has answered", async () => {
+  it("shows the scope asked chosen while the server reads the lines anew, and the address once it has answered", async () => {
     let arrive: () => void = () => undefined;
     const navigation = new Promise<void>((resolve) => {
       arrive = resolve;
@@ -356,29 +386,25 @@ describe("the filters of the actual costs", () => {
       page.search = search;
       const filters = readCostFilters(new URLSearchParams(search));
       return inLanguage(
-        <CostFilterBar filters={filters} subproject={undefined} subprojects={SUBPROJECTS} />,
+        <PendingAddress>
+          <CostFilterPanel filters={filters} subproject={undefined} subprojects={SUBPROJECTS} />
+        </PendingAddress>,
       );
     };
     const { rerender } = render(bar(""));
-    const scope = screen.getByRole("group", { name: "Périmètre" });
-    const excluded = within(scope).getByRole("button", { name: "Exclues" });
-    await userEvent.click(excluded);
+    await pick("Périmètre", "Exclues", "radio");
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?in_tracked_scope=false`, {
       scroll: false,
     });
-    // The address has not changed yet: the scope asked shows pressed, never the address before it.
-    expect(excluded).toHaveAttribute("aria-pressed", "true");
-    expect(within(scope).getByRole("button", { name: "Toutes les lignes" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
-    // The server answers: the address names the scope, which the button goes on showing pressed.
+    // The address has not changed yet: the scope asked shows chosen, never the address before it.
+    expect(menuSummary("Périmètre")).toBe("Exclues");
+    // The server answers: the address names the scope, which the menu goes on showing chosen.
     await act(async () => {
       arrive();
       await navigation;
     });
     rerender(bar("in_tracked_scope=false"));
-    expect(excluded).toHaveAttribute("aria-pressed", "true");
+    expect(menuSummary("Périmètre")).toBe("Exclues");
   });
 
   it("asks the server for a sub-project, or for the lines charged to the project alone [WF-CRE-0040-A]", async () => {
@@ -410,7 +436,7 @@ describe("the filters of the actual costs", () => {
     const { unmount } = renderFilters("in_tracked_scope=true");
     await userEvent.type(screen.getByLabelText("Pièces du"), "2026-04-01");
     await userEvent.type(screen.getByLabelText("Pièces jusqu’au"), "2026-04-30");
-    await userEvent.click(screen.getByRole("button", { name: "Filtrer" }));
+    await userEvent.keyboard("{Enter}");
     expect(router.push).toHaveBeenLastCalledWith(
       `${PATHNAME}?in_tracked_scope=true&from=2026-04-01&to=2026-04-30`,
       { scroll: false },
@@ -420,26 +446,28 @@ describe("the filters of the actual costs", () => {
     expect(screen.getByLabelText("Pièces du")).toHaveValue("2026-04-01");
     await userEvent.clear(screen.getByLabelText("Pièces du"));
     await userEvent.clear(screen.getByLabelText("Pièces jusqu’au"));
-    await userEvent.click(screen.getByRole("button", { name: "Filtrer" }));
+    await userEvent.keyboard("{Enter}");
     expect(router.push).toHaveBeenLastCalledWith(PATHNAME, { scroll: false });
   });
 
-  it("keeps the focus on the button that applied a period once the address arrives, and shows anew a period the address changes", async () => {
+  it("keeps the focus on the field that applied a period once the address arrives, and shows anew a period the address changes", async () => {
     const bar = (search: string) => {
       page.search = search;
       const filters = readCostFilters(new URLSearchParams(search));
       return inLanguage(
-        <CostFilterBar filters={filters} subproject={undefined} subprojects={SUBPROJECTS} />,
+        <PendingAddress>
+          <CostFilterPanel filters={filters} subproject={undefined} subprojects={SUBPROJECTS} />
+        </PendingAddress>,
       );
     };
     const { rerender } = render(bar(""));
     await userEvent.type(screen.getByLabelText("Pièces du"), "2026-04-01");
-    const apply = screen.getByRole("button", { name: "Filtrer" });
-    await userEvent.click(apply);
+    const apply = screen.getByLabelText("Pièces du");
+    await userEvent.keyboard("{Enter}");
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?from=2026-04-01`, { scroll: false });
-    // The address applied arrives: the form stays, and the button with the focus (#537).
+    // The address applied arrives: the form stays, and the field with the focus (#537).
     rerender(bar("from=2026-04-01"));
-    expect(screen.getByRole("button", { name: "Filtrer" })).toBe(apply);
+    expect(screen.getByLabelText("Pièces du")).toBe(apply);
     expect(apply).toHaveFocus();
     // Back in the history to the address the entry was made over: it shows that address, the
     // entry given up.
@@ -456,7 +484,9 @@ describe("the filters of the actual costs", () => {
       page.search = search;
       const filters = readCostFilters(new URLSearchParams(search));
       return inLanguage(
-        <CostFilterBar filters={filters} subproject={undefined} subprojects={SUBPROJECTS} />,
+        <PendingAddress>
+          <CostFilterPanel filters={filters} subproject={undefined} subprojects={SUBPROJECTS} />
+        </PendingAddress>,
       );
     };
     const { rerender } = render(bar(""));
@@ -475,24 +505,23 @@ describe("the filters of the actual costs", () => {
       page.search = search;
       const filters = readCostFilters(new URLSearchParams(search));
       return inLanguage(
-        <CostFilterBar filters={filters} subproject={undefined} subprojects={SUBPROJECTS} />,
+        <PendingAddress>
+          <CostFilterPanel filters={filters} subproject={undefined} subprojects={SUBPROJECTS} />
+        </PendingAddress>,
       );
     };
     const { rerender } = render(bar(""));
     await userEvent.type(screen.getByLabelText("Pièces du"), "2026-04-01");
-    await userEvent.click(screen.getByRole("button", { name: "Filtrer" }));
+    await userEvent.keyboard("{Enter}");
     // Typed before the server answers, then a scope chosen, which carries the period sent.
     await userEvent.type(screen.getByLabelText("Pièces jusqu’au"), "2026-04-30");
-    await userEvent.click(
-      within(screen.getByRole("group", { name: "Périmètre" })).getByRole("button", {
-        name: "Exclues",
-      }),
-    );
+    await pick("Périmètre", "Exclues", "radio");
+    // Leaving the period with the end typed sent it too, and the scope goes on from it.
     expect(router.push).toHaveBeenLastCalledWith(
-      `${PATHNAME}?from=2026-04-01&in_tracked_scope=false`,
+      `${PATHNAME}?from=2026-04-01&to=2026-04-30&in_tracked_scope=false`,
       { scroll: false },
     );
-    rerender(bar("from=2026-04-01&in_tracked_scope=false"));
+    rerender(bar("from=2026-04-01&to=2026-04-30&in_tracked_scope=false"));
     expect(screen.getByLabelText("Pièces du")).toHaveValue("2026-04-01");
     expect(screen.getByLabelText("Pièces jusqu’au")).toHaveValue("2026-04-30");
   });
@@ -651,7 +680,7 @@ describe("the pages of a list the server pages", () => {
     render(
       inLanguage(
         <PendingAddress>
-          <CostFilterBar
+          <CostFilterPanel
             filters={readCostFilters(new URLSearchParams(page.search))}
             subproject={undefined}
             subprojects={SUBPROJECTS}
@@ -671,8 +700,7 @@ describe("the pages of a list the server pages", () => {
         </PendingAddress>,
       ),
     );
-    const scope = screen.getByRole("group", { name: "Périmètre" });
-    await userEvent.click(within(scope).getByRole("button", { name: "Exclues" }));
+    await pick("Périmètre", "Exclues", "radio");
     expect(router.push).toHaveBeenLastCalledWith(
       `${PATHNAME}?imports_offset=12&in_tracked_scope=false`,
       { scroll: false },

@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 from psycopg.errors import UniqueViolation
 from sqlalchemy import (
+    ARRAY,
     CheckConstraint,
     ColumnElement,
     DateTime,
@@ -23,6 +24,9 @@ from sqlalchemy import (
     MetaData,
     SQLColumnExpression,
     Text,
+    Uuid,
+    any_,
+    bindparam,
     create_engine,
     func,
     literal,
@@ -32,7 +36,8 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.types import TypeDecorator
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Generator, Iterable
+    from uuid import UUID
 
     from sqlalchemy.exc import IntegrityError
 
@@ -66,6 +71,17 @@ def contains(text: SQLColumnExpression[str | None], searched: str) -> ColumnElem
     text — the name of an anonymised account — holds nothing.
     """
     return func.strpos(folded(text), folded(literal(searched, Text))) > 0
+
+
+def among(column: SQLColumnExpression[UUID | None], values: Iterable[UUID]) -> ColumnElement[bool]:
+    """Tell whether an identifier is one of those named, given as one array parameter.
+
+    The condition ``IN`` would ask, but whatever their number one parameter and one text: a list
+    of thousands of identifiers — the lines of a structure — costs, each time, a text to render
+    and a statement to parse on both sides, which a reading of a whole structure paid several
+    times over (#3048).
+    """
+    return column == any_(bindparam(None, list(values), type_=ARRAY(Uuid())))
 
 
 def unique_violated(error: IntegrityError) -> str | None:

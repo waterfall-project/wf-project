@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The store of pnpm, read from the caches of GitHub Actions and never written: `cache: pnpm` of
+# setup-node saves one copy per reference when it misses, and a reference of the merge queue, which
+# sees only its own caches and those of main, saved its own at each pass (188 MB, read by none).
+# front-cache.yml is the one that writes it, under the same key and at the same path. The version
+# of a cache of Actions depends on its path, and `pnpm store path` differs between the runner and a
+# job in a container (HOME): the store is fixed at /tmp/pnpm-store, for pnpm of every later step
+# (npm_config_store_dir), here and in the writer. After pnpm/action-setup, which
+# gives `pnpm`, and setup-node, which gives `node`. A lockfile that changed finds the store of the
+# last one, and downloads the difference.
+name: pnpm-store
+description: Restore the store of pnpm from the cache of GitHub Actions, without saving it
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: echo "npm_config_store_dir=/tmp/pnpm-store" >> "$GITHUB_ENV"
+    - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: /tmp/pnpm-store
+        key: node-cache-Linux-x64-pnpm-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+        restore-keys: node-cache-Linux-x64-pnpm-

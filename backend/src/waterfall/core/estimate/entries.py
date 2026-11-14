@@ -24,10 +24,22 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from waterfall.core.cost_settings.interface import category_labels
+from waterfall.core.estimate.pricing import disbursement_base_amount
 from waterfall.core.estimate.recalling import recalled
-from waterfall.core.estimate.tables import LABEL_LENGTH
+from waterfall.core.estimate.tables import (
+    AMOUNT_PRECISION,
+    AMOUNT_SCALE,
+    DISBURSEMENT_PRECISION,
+    DISBURSEMENT_SCALE,
+    HOURS_PRECISION,
+    HOURS_SCALE,
+    LABEL_LENGTH,
+    QUANTITY_PRECISION,
+    QUANTITY_SCALE,
+)
 from waterfall.core.projects.interface import subproject_has_actual_costs, subproject_labels
 from waterfall.core.resource_settings.interface import read_roles
+from waterfall.platform.decimals import exceeds_precision
 from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 
 if TYPE_CHECKING:
@@ -56,6 +68,30 @@ PROVISION = "provision"
 NOT_STARTED = "not_started"
 SEPARATOR = " — "
 NOUGHT = Decimal(0)
+# The digits before the point the columns keep, from their precision and scale.
+DISBURSEMENT_DIGITS = DISBURSEMENT_PRECISION - DISBURSEMENT_SCALE
+QUANTITY_DIGITS = QUANTITY_PRECISION - QUANTITY_SCALE
+HOURS_DIGITS = HOURS_PRECISION - HOURS_SCALE
+AMOUNT_DIGITS = AMOUNT_PRECISION - AMOUNT_SCALE
+
+
+CREATED_LINE = "/estimate_line"
+
+
+class AmountOverflowError(UnprocessableError):
+    """The amounts of a line, priced, cross the digits of their columns (#3035, #3039).
+
+    ``reprice`` (``writing.py``) raises it without a field, as no line of the request is named.
+    The write of a line gives it the quantity (``refuse_overflow``); ``repricing._refused_at``
+    gives it, for the rate of a category and for the inflation, the field that carries the change
+    (``/amount``, ``/inflation_rate``). Elsewhere (the redating of a task, the copy of a revision,
+    ``copy_rates``) it still leaves without a field: a remainder to settle by its own issue.
+    """
+
+
+def overflowing(*amounts: Decimal) -> bool:
+    """Tell whether an amount crosses the digits ``base_amount`` and ``reestimated_amount`` keep."""
+    return any(exceeds_precision(each, AMOUNT_DIGITS) for each in amounts)
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,6 +149,11 @@ class _Faults:
     def add(self, name: str, code: str, params: dict[str, object] | None = None) -> None:
         self.found.append(FieldError(f"{self.prefix}/{name}", code, params or {}))
 
+    def has(self, *names: str) -> bool:
+        """Tell whether a fault is already named on one of the fields."""
+        pointers = {f"{self.prefix}/{name}" for name in names}
+        return any(found.pointer in pointers for found in self.found)
+
     def raise_any(self) -> None:
         if self.found:
             raise UnprocessableError(VALIDATION_FAILED, fields=tuple(self.found))
@@ -121,6 +162,18 @@ class _Faults:
 def _not_negative[T: (Decimal, int)](faults: _Faults, name: str, value: T | None) -> None:
     if value is not None and value < 0:
         faults.add(name, VALUE_OUT_OF_RANGE, {"minimum": 0})
+
+
+def _kept(faults: _Faults, name: str, value: Decimal | None, whole_digits: int) -> None:
+    """Refuse a figure of more than ten decimals or than the digits its column keeps (#2875).
+
+    One fault per field, as the first refusal stops: a figure below nought is refused as such. The
+    decimals of a disbursement are bounded by ``Money`` before the service; the digits are its.
+    """
+    if value is not None and value < 0:
+        return
+    if value is not None and exceeds_precision(value, whole_digits):
+        faults.add(name, VALIDATION_FAILED)
 
 
 def _role(
@@ -214,7 +267,24 @@ def _figure(
     if value is None:
         faults.add(name, VALUE_REQUIRED)
     _not_negative(faults, name, value)
+    if name == "unit_disbursement":
+        _kept(faults, name, value, DISBURSEMENT_DIGITS)
+    elif name == "hours":
+        _kept(faults, name, value, HOURS_DIGITS)
     return value
+
+
+def _product_kept(faults: _Faults, quantity: Decimal | None, disbursement: Decimal | None) -> None:
+    """Refuse, at the quantity, a disbursement line whose product overflows its base amount (#2996).
+
+    Each figure fits its column, yet their product, rounded to the cent, may cross the digits of
+    ``base_amount``: the write would be a ``numeric field overflow``, a 500. A figure already
+    refused is judged alone.
+    """
+    if quantity is None or disbursement is None or faults.has("quantity", "unit_disbursement"):
+        return
+    if overflowing(disbursement_base_amount(quantity, disbursement)):
+        faults.add("quantity", VALIDATION_FAILED)
 
 
 def _kind(
@@ -258,6 +328,7 @@ def _scalars(
     if quantity is None:
         faults.add("quantity", VALUE_REQUIRED)
     _not_negative(faults, "quantity", quantity)
+    _kept(faults, "quantity", quantity, QUANTITY_DIGITS)
     delay = entry.payment_delay_days if entry.given("payment_delay_days") else _delay(current)
     if delay is None:
         faults.add("payment_delay_days", VALUE_REQUIRED)
@@ -281,13 +352,14 @@ def judged_line(
     of an import, which cannot lock what it reads.
     """
     project_id, bearer = held
-    faults = _Faults("/estimate_line" if current is None else "")
+    faults = _Faults(CREATED_LINE if current is None else "")
     role_id, role, category_id, category = _kind(session, faults, entry, current)
     labour = role_id is not None
     hours = _figure(faults, entry, "hours", (None if current is None else current.hours, labour))
     before_disbursement = None if current is None else current.unit_disbursement
     disbursement = _figure(faults, entry, "unit_disbursement", (before_disbursement, not labour))
     quantity, delay = _scalars(faults, entry, current)
+    _product_kept(faults, quantity, disbursement)
     before_subproject = None if current is None else current.subproject_id
     subproject = _subproject(
         session, faults, (project_id, bearer, before_subproject), entry, locking=locking

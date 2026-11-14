@@ -33,6 +33,8 @@ import type { Catalogue } from "@/i18n/catalogues";
 import { formatDecimal, formatPlanningDate } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
 
+import { CalendarGap } from "./calendar-gap";
+import { DurationRule } from "./duration-rule";
 import { ReportCommands } from "./report-commands";
 
 type Import = components["schemas"]["ImportDetail"];
@@ -393,6 +395,7 @@ function Findings({ report }: { readonly report: Report }) {
         {t("exchanges.report.unchanged", { count: report.unchanged_count })}
       </p>
       {report.unit_constants === null ? null : <UnitConstants constants={report.unit_constants} />}
+      {report.calendar_gap === null ? null : <CalendarGap gap={report.calendar_gap} />}
       {reasons.length === 0 ? null : (
         <div className="space-y-1">
           <h3 className={HEADING}>{t("exchanges.report.reasons")}</h3>
@@ -470,11 +473,26 @@ export function ImportReport({ projectId, entry, start, then }: ImportReportProp
       ) : null}
       {entry.report == null ? (
         <p className={MUTED}>
-          {t(entry.status === "analysing" ? "exchanges.report.analysing" : "exchanges.report.none")}
+          {t(
+            entry.status === "analysing"
+              ? "exchanges.report.analysing"
+              : entry.status === "failed"
+                ? "exchanges.report.failed"
+                : "exchanges.report.none",
+          )}
         </p>
       ) : (
         <Findings report={entry.report} />
       )}
+      <DurationRule
+        key={`rule-${entry.import_id}`}
+        projectId={projectId}
+        importId={entry.import_id}
+        filename={entry.filename}
+        rule={entry.report?.calendar_gap?.duration_rule}
+        awaiting={entry.status === "analysed"}
+        task={entry.status === "analysing" ? entry.task.task_id : undefined}
+      />
       {/* Its own commands, as the import lists them: an outcome or an open
           confirmation stays with its import. */}
       <ReportCommands

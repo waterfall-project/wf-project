@@ -15,10 +15,20 @@
  * their own cells — empty in the witness, or a rate they write the same each time — and their own
  * codes, for the installation to be played again. Every path that plays this screen alone is tagged
  * `@shared`; the one that plays the screens of the resources, the risks and the indicators too is
- * not, those being served later (US-0850).
+ * not, those being served later (US-0850). In service the first path writes the rate of 2014 of
+ * MO-003, a cell of its own: the first rate of a year refused with a conflict when another writer
+ * enters it at the same time, the 2015 cell is written by the path of the category alone and the
+ * 2013 cell by `service/reference-manager.spec.ts`, which no project orders (US-1890).
+ *
+ * The path of the deactivated failed the merge queue now and then (#3135), and not at an Escape:
+ * its commands of a row were pressed again each second until the row answered, and the server
+ * action answering past that second, a click pressed again then waited for the command its answer
+ * had just taken away — or pressed the other one —, the state shared with no other path. Its
+ * commands are now pressed until the request of their action is sent, and never after.
  */
 import { expect, type Locator } from "@playwright/test";
 
+import { openFilters } from "./check-menu";
 import { sortUntilAddress, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 import { rowAt, scroller, withinBox } from "./scroll";
@@ -34,6 +44,12 @@ const ENTERED = inService ? "85,00 €" : "85,48 €";
 const ROWS_READ = inService ? 50 : 150;
 /** The rows of the grid then: those read, its header and its totals row. */
 const ROW_COUNT = String(ROWS_READ + 2);
+/**
+ * The cell the first path writes in the row of MO-003, counted from its code: the code, the label,
+ * the state, then 2012 to 2015. The fake back answers the rate of 2015 (index 6) whatever the cell;
+ * the service takes 2014 (index 5), which no other path writes.
+ */
+const RATE_CELL = inService ? 5 : 6;
 /** The address that reads the grid of the rates by code, as the fake back serves it: the service has no other order. */
 const BY_CODE = "/reference/costs?sort_by=code&sort_order=asc";
 
@@ -56,15 +72,15 @@ test("reads the settings of the costs outside any project with no mock-up notice
   // Its totals row is in the grid; that it stays in view is proven by the stacked layout below.
   await expect(totals).toHaveCount(1);
 
-  // The first rate of 2015 of the third category, entered from the keyboard and answered.
+  // The first rate of the year of RATE_CELL of the third category, entered from the keyboard and
+  // answered.
   // No project is opened here, nothing witnesses the hydration: the cell is clicked and the cursor
   // moved again until React answers them, each try starting from the code of the category.
   const mechanical = rowAt(grid, 3);
-  // The code, the label, the state, then 2012 to 2015.
-  const rate = mechanical.getByRole("gridcell").nth(6);
+  const rate = mechanical.getByRole("gridcell").nth(RATE_CELL);
   await expect(async () => {
     await mechanical.getByRole("gridcell", { name: "MO-003" }).click();
-    for (let step = 0; step < 6; step += 1) {
+    for (let step = 0; step < RATE_CELL; step += 1) {
       await page.keyboard.press("ArrowRight");
     }
     await expect(rate).toBeFocused({ timeout: 1_000 });
@@ -80,7 +96,7 @@ test("reads the settings of the costs outside any project with no mock-up notice
   await expect(rate).not.toHaveAttribute("aria-busy", "true");
   await expect(rate).toHaveText(ENTERED);
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
-  await expect(rowAt(grid, 4).getByRole("gridcell").nth(6)).toBeFocused();
+  await expect(rowAt(grid, 4).getByRole("gridcell").nth(RATE_CELL)).toBeFocused();
 
   // Beside it, the natures and the categories of cost, on the dense grid.
   await expect(page.getByRole("grid", { name: "Natures de coût" })).toBeVisible();
@@ -100,7 +116,7 @@ test("reads the settings of the costs outside any project with no mock-up notice
     await expect(
       rowAt(page.getByRole("grid", { name: "Grille des taux horaires" }), 3)
         .getByRole("gridcell")
-        .nth(6),
+        .nth(RATE_CELL),
     ).toHaveText(ENTERED, { timeout: WORKING });
   }
 });
@@ -177,7 +193,8 @@ for (const { width, height } of WINDOWS) {
     });
     await expect(totals).toBeInViewport();
     expect(await withinBox(rates, totals)).toBe(true);
-    // The filters of the rates come with their grid, under its title.
+    // The filters of the rates come with their grid, in the panel of its bar (#2916).
+    await openFilters(page, page.getByRole("region", { name: "Taux horaires" }));
     await expect(
       page.getByRole("form", { name: "Bornes de «\u00a0Grille des taux horaires\u00a0»" }),
     ).toHaveCount(1);
@@ -227,6 +244,7 @@ test("sorts the grid of the hourly rates by the rate of a year, filters the cate
   // The categories filtered by nature, under the names of their grid, the sort of the rates kept:
   // the nature shows chosen at once, and the address carries it once the server has read the
   // screen anew — its three dense grids, in the bound of a grid (`WORKING`).
+  await openFilters(page, page.getByRole("region", { name: "Catégories de coût" }));
   const nature = page.getByRole("combobox", { name: "Nature" });
   await nature.selectOption({ label: "MO · Main-d'œuvre" });
   await expect(nature).toHaveValue("01926f3a-7c00-7000-8000-000000000461");
@@ -235,12 +253,14 @@ test("sorts the grid of the hourly rates by the rate of a year, filters the cate
     { timeout: WORKING },
   );
   // The rate of a year between bounds, under the names of the contract (#545), the rest kept.
+  await openFilters(page, page.getByRole("region", { name: "Taux horaires" }));
   const rateBounds = page.getByRole("form", {
     name: "Bornes de «\u00a0Grille des taux horaires\u00a0»",
   });
   await rateBounds.getByRole("combobox", { name: "Année du taux" }).selectOption("2026");
-  await rateBounds.getByRole("textbox", { name: "Taux horaire, min." }).fill("110,5");
-  await rateBounds.getByRole("button", { name: "Filtrer" }).click();
+  const rateLeast = rateBounds.getByRole("textbox", { name: "Taux horaire, du" });
+  await rateLeast.fill("110,5");
+  await rateLeast.press("Enter");
   await expect(page).toHaveURL(/category_cost_type_id=[\w-]+&rate_min=110\.5&rate_year=2026$/, {
     timeout: WORKING,
   });
@@ -258,6 +278,7 @@ test("filters the roles by calendar, bounds their monthly hours and filters thei
   // and each navigation would replace the one before. A choice made before the hydration stays in
   // the list, which React then takes for none: the list is emptied first.
   await page.goto("/reference/resources?role_offset=50");
+  await openFilters(page, page.getByRole("region", { name: "Rôles de ressources" }));
   const calendar = page.getByRole("combobox", { name: "Calendrier" });
   const standard = "01926f3a-7c00-7000-8000-000000000481";
   await expect(async () => {
@@ -279,8 +300,9 @@ test("filters the roles by calendar, bounds their monthly hours and filters thei
   const roleBounds = page.getByRole("form", {
     name: "Bornes de «\u00a0Rôles de ressources\u00a0»",
   });
-  await roleBounds.getByRole("textbox", { name: "Heures par mois, min." }).fill("300 000");
-  await roleBounds.getByRole("button", { name: "Filtrer" }).click();
+  const hoursLeast = roleBounds.getByRole("textbox", { name: "Heures par mois, du" });
+  await hoursLeast.fill("300 000");
+  await hoursLeast.press("Enter");
   await expect(page).toHaveURL(
     "/reference/resources?role_calendar_id=01926f3a-7c00-7000-8000-000000000481&role_monthly_hours_min=300000",
     { timeout: WORKING },
@@ -328,7 +350,7 @@ test("creates a category and enters a rate beside it, the page read anew droppin
 
   // A rate entered on the grid, in a cell the witness leaves empty (MO-003 holds none for 2015, the
   // cell of the example of `setHourlyRate`, which is where the fake back answers), so that no rate
-  // of the witness is overwritten; the first path enters the same rate in it. Answered by the
+  // of the witness is overwritten; in the fake back the first path enters the same rate in it. Answered by the
   // service — by that example at the fake back. The page the creation read anew may arrive before the rate leaves, between its leaving and its answer, or
   // after it: the same address read anew drops neither the cell pending nor its answer (défaut
   // n° 22 de `typescript.md`), and the path does not depend on the order.
@@ -470,6 +492,17 @@ test("shows the deactivated natures and categories asked for and reactivates the
   const deactivation = natures.getByRole("button", {
     name: `Désactiver «\u00a0${natureLabel}\u00a0»`,
   });
+  // The nature deactivated on a list without the deactivated: its row offers the reactivation until
+  // the page read anew leaves it out, at once or nearly (`readAnew`), and the region of the list says
+  // the deactivation — what stays once the row is gone.
+  const deactivated = reactivation
+    .or(
+      page
+        .getByRole("region", { name: "Natures de coût" })
+        .getByRole("status")
+        .filter({ hasText: `«\u00a0${natureLabel}\u00a0» désactivée.` }),
+    )
+    .first();
   const natureChoice = form
     .getByRole("combobox", { name: "Nature" })
     .getByRole("option", { name: choice });
@@ -485,14 +518,32 @@ test("shows the deactivated natures and categories asked for and reactivates the
       await expect(dialog).toBeVisible({ timeout: 1_000 });
     }).toPass({ timeout: WORKING });
   };
-  /** A command of a row of the natures, pressed again until React answers it. */
+  /**
+   * A command of a row, pressed again until React takes the click — the request of its server action
+   * sent —, and never once it is: its answer then takes the command away, the row showing the other
+   * one, and a click pressed again meanwhile would wait for a command gone, or press the other (#3135).
+   * The request awaited is any server action POST, not this row's: the server actions go through one
+   * queue (n° 16 of docs/dev/typescript.md), and on this path only the row pressed acts at that
+   * instant — no other action is sent meanwhile, so the request seen is its own.
+   * The signs of answer differ on purpose: a reactivation expects the opposite button of the row,
+   * as the list then shows the deactivated and the row stays; a deactivation also accepts the
+   * region's announcement, the row possibly leaving a list that hides the deactivated.
+   */
   const press = async (command: Locator, answered: Locator) => {
     await expect(async () => {
-      if (!(await answered.isVisible())) {
-        await command.click();
+      if (await answered.isVisible()) {
+        return;
       }
-      await expect(answered).toBeVisible({ timeout: 1_000 });
+      await Promise.all([
+        page.waitForRequest(
+          (request) =>
+            request.method() === "POST" && request.headers()["next-action"] !== undefined,
+          { timeout: 1_000 },
+        ),
+        command.click({ timeout: 1_000 }),
+      ]);
     }).toPass({ timeout: WORKING });
+    await expect(answered).toBeVisible({ timeout: WORKING });
   };
 
   await page.goto(`/reference/costs?category_search=${categoryCode}`);
@@ -520,7 +571,7 @@ test("shows the deactivated natures and categories asked for and reactivates the
 
   try {
     // The nature deactivated from its row: its categories go with it (WF-REF-0010-A).
-    await press(deactivation, reactivation);
+    await press(deactivation, deactivated);
     if (inService) {
       // A page read anew, without the deactivated, leaves both out.
       await page.goto(`/reference/costs?category_search=${categoryCode}`);
@@ -600,7 +651,7 @@ test("shows the deactivated natures and categories asked for and reactivates the
       await expect(natures).toBeVisible({ timeout: WORKING });
       await expect(categories).toBeVisible();
       if (await deactivation.isVisible()) {
-        await press(deactivation, reactivation);
+        await press(deactivation, deactivated);
       }
     }
   }

@@ -786,6 +786,12 @@ class GridPreferences(ContractModel):
             max_length=64,
         ),
     ] = None
+    filters_open: Annotated[
+        bool | None,
+        Field(
+            description="Whether the filter panel of the grid is open (`true`) or closed (`false`) (WF-IHM-0060, #2916). Optional: when absent — an account that has never written it —, the panel is closed. The server keeps the boolean as written, without knowing the grids; a `null` is refused with 422 on `/grids/<grid>/filters_open`."
+        ),
+    ] = None
     column_widths: Annotated[
         dict[Annotated[str, StringConstraints(max_length=64)], ColumnWidthsAdditionalProperty]
         | None,
@@ -1013,6 +1019,7 @@ class CommandCondition(StrEnum):
     import_awaiting_decision = "import_awaiting_decision"
     import_file_accepted = "import_file_accepted"
     import_not_applied = "import_not_applied"
+    import_calendar_gap = "import_calendar_gap"
     is_local_account = "is_local_account"
     is_active_account = "is_active_account"
     is_deactivated_account = "is_deactivated_account"
@@ -6265,6 +6272,92 @@ class ImportUnitConstants(ContractModel):
     ]
 
 
+class ImportWorkingTime(ContractModel):
+    from_: Annotated[
+        str, Field(alias="from", pattern="^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$")
+    ]
+    to: Annotated[str, Field(pattern="^(([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?|24:00)$")]
+
+
+class ImportWorkingWeek(ContractModel):
+    monday: list[ImportWorkingTime]
+    tuesday: list[ImportWorkingTime]
+    wednesday: list[ImportWorkingTime]
+    thursday: list[ImportWorkingTime]
+    friday: list[ImportWorkingTime]
+    saturday: list[ImportWorkingTime]
+    sunday: list[ImportWorkingTime]
+
+
+class ImportFileCalendar(ContractModel):
+    name: Annotated[
+        str | None,
+        Field(description="The name of the calendar in the file; null when the file gives none."),
+    ]
+    weekly_hours: Annotated[
+        WeeklyHours,
+        Field(
+            description="The hours worked on each day of the week, the sum of the working times of the day, so that they read beside those of a Waterfall calendar (WF-REF-0110)."
+        ),
+    ]
+    working_times: ImportWorkingWeek
+
+
+class ImportWaterfallCalendar(ContractModel):
+    calendar_id: Uuid
+    label: Annotated[str, Field(max_length=200, min_length=1)]
+    weekly_hours: WeeklyHours
+
+
+class ImportCalendarGapTask(ContractModel):
+    lineage_id: Annotated[
+        Uuid | None,
+        Field(description="The lineage of the task; null for a task that the import creates."),
+    ]
+    label: str
+    file_calendar: Annotated[
+        ImportFileCalendar, Field(description="The own calendar of the task in the file.")
+    ]
+    weekly_hours: Annotated[
+        WeeklyHours,
+        Field(
+            description="The hours per day of the applicable Waterfall calendar of the task, on which Waterfall computes its dates: for each day of the week, the smallest number of hours that the calendars of the roles of its labour lines grant, the default calendar for a task without such a line — a task the import creates (WF-PLA-0010)."
+        ),
+    ]
+
+
+class ImportDurationRule(StrEnum):
+    keep_durations = "keep_durations"
+    keep_dates = "keep_dates"
+
+
+class ImportCalendarGap(ContractModel):
+    project_calendar: Annotated[
+        ImportFileCalendar,
+        Field(
+            description="The project calendar of the file, its hours per day and its working times, as the file carries them."
+        ),
+    ]
+    installation_calendar: Annotated[
+        ImportWaterfallCalendar,
+        Field(
+            description="The default calendar of the installation at the analysis (WF-REF-0120), the one a task without a calendar of its own applies (WF-PLA-0010), and its hours per day."
+        ),
+    ]
+    tasks: Annotated[
+        list[ImportCalendarGapTask],
+        Field(
+            description="The tasks of the file whose own calendar, in the file, has hours per day that differ, day by day, from those of their applicable Waterfall calendar, each named, in the order of the file; empty when only the project calendar or the constants differ."
+        ),
+    ]
+    duration_rule: Annotated[
+        ImportDurationRule,
+        Field(
+            description="The rule the report was computed under: `keep_durations` at the analysis that follows the opening, then the one `setImportDurationRule` set."
+        ),
+    ]
+
+
 class RequiresConfirmationReason(StrEnum):
     lines_outside_project = "lines_outside_project"
     unknown_subproject = "unknown_subproject"
@@ -6342,7 +6435,13 @@ class ImportReport(ContractModel):
     unit_constants: Annotated[
         ImportUnitConstants | None,
         Field(
-            description='For an MS Project schedule whose unit constants differ from those of the installation, the constants of the file and those of the installation: "an MS Project file whose constants differ from those of the installation is imported with the same durations in hours, and the report signals the difference" (WF-PLA-0160, WF-INTF-0040). The durations and the lags are imported with their hours, their values converted at the constants of the installation: "2 d" at seven hours a day is fourteen hours, 1.75 d at eight. A constant the file does not carry is the default of MS Project, eight hours a day, forty a week and twenty days a month. A piece of information, not a reason for confirmation. Always returned: null when the constants are equal, and for the other kinds of import.'
+            description='For an MS Project schedule whose unit constants differ from those of the installation, the constants of the file and those of the installation (WF-PLA-0160, WF-INTF-0040). A constant the file does not carry is the default of MS Project, eight hours a day, forty a week and twenty days a month. Such a file is in calendar gap: `calendar_gap` is then never null, and the rule it names says how the durations and the lags of the file were converted — keeping the durations, the default, a duration or a lag entered in days, weeks or months keeps its value in its unit, its hours in the file divided by the hours of that unit at the constants of the file, "2 d" entered at seven hours a day staying two days, sixteen hours at the constants of the installation; one entered in minutes or hours keeps its hours; keeping the dates, an automatic task takes the working time between its dates in the file. A piece of information, not a reason for confirmation. Always returned: null when the constants are equal, and for the other kinds of import.'
+        ),
+    ]
+    calendar_gap: Annotated[
+        ImportCalendarGap | None,
+        Field(
+            description='For an MS Project schedule whose constants differ from those of the installation (`unit_constants`), or whose project calendar, or the own calendar of one of its tasks, has hours per day that differ, day by day, from those of the applicable Waterfall calendar (WF-PLA-0010), what differs and the rule of conversion of the durations the report was computed under: "the report says so — the hours per day on either side, and the working times of the file — and offers, before application (WF-INTF-0080), to keep the durations or to keep the dates" (WF-INTF-0040, WF-PLA-0160). The calendars of the file are still not imported, and are still said ignored (`ignored`, `calendars`). The other arrays of the report — `differences`, `date_mismatches` included — are those of that rule; changing it analyses the import again and gives a new report, the project unchanged until the confirmation (`setImportDurationRule`, WF-INTF-0080). A file exported by Waterfall carries its calendars and its constants: it presents no gap, and no choice is offered (WF-INTF-0060). Always returned: null without a gap, and for the other kinds of import.'
         ),
     ]
 
@@ -6407,14 +6506,14 @@ class Import(ContractModel):
     status: Annotated[
         Status,
         Field(
-            description="Where the import stands (WF-ARC-0100): `analysing`, its analysis is running, without a report; `analysed`, its report awaits the user's decision until `expires_at`; `applying`, the confirmed application is running; `applied`, it has written; `abandoned`, the user abandoned it; `expired`, twenty-four hours passed without application; `failed`, the task of its analysis or of its application failed (`task.problem`), without writing anything (WF-INTF-0080); `refused`, the application was refused — when checking again the permission, the contributor status or the state of the project, or because the report rejected the file —, the file is deleted (WF-ARC-0100), and the import no longer applies (I-01, #1789). Only an `analysed` import applies (`import_awaiting_decision`); an `applying` or `applied` import cannot be abandoned (`import_not_applied`), and abandoning an import that ended without writing — `abandoned`, `expired`, `failed`, `refused` — returns 204 without effect."
+            description="Where the import stands (WF-ARC-0100): `analysing`, its analysis is running, without a report — that of its opening, or the one that a change of its duration rule runs again (`setImportDurationRule`), the previous report set aside; `analysed`, its report awaits the user's decision until `expires_at`; `applying`, the confirmed application is running; `applied`, it has written; `abandoned`, the user abandoned it; `expired`, twenty-four hours passed without application; `failed`, the task of its analysis or of its application failed (`task.problem`), without writing anything (WF-INTF-0080); `refused`, the application was refused — when checking again the permission, the contributor status or the state of the project, or because the report rejected the file —, the file is deleted (WF-ARC-0100), and the import no longer applies (I-01, #1789). Only an `analysed` import applies (`import_awaiting_decision`); an `applying` or `applied` import cannot be abandoned (`import_not_applied`), and abandoning an import that ended without writing — `abandoned`, `expired`, `failed`, `refused` — returns 204 without effect."
         ),
     ]
     created_at: Timestamp
     expires_at: Annotated[
         Timestamp | None,
         Field(
-            description="Twenty-four hours after the analysis; beyond that the report no longer applies (WF-ARC-0100). Null as long as the analysis is running, if it failed, or if the application was refused (`refused`)."
+            description="Twenty-four hours after the analysis — the last one, when a change of its duration rule analysed it again (`setImportDurationRule`); beyond that the report no longer applies (WF-ARC-0100). Null as long as the analysis is running, if it failed, or if the application was refused (`refused`)."
         ),
     ]
     report: Annotated[
@@ -6484,6 +6583,10 @@ class ImportDetail(Import):
 
 class ImportApply(ContractModel):
     confirmed: Literal[True]
+
+
+class ImportDurationRuleWrite(ContractModel):
+    duration_rule: ImportDurationRule
 
 
 class ExportKind(StrEnum):

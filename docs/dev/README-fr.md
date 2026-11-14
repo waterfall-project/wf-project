@@ -404,70 +404,76 @@ d'identité, ouvre la session — ses jetons dans Redis pour la durée que Keycl
 `refresh_expires_in` — et mène à l'écran visé, son adresse entière ; un `state` inconnu, déjà
 employé ou trop vieux recommence la connexion ; une connexion que le royaume refuse — une erreur au
 retour, un code refusé, un nonce faux — mène à l'accueil sans session, jamais à `/login`, que la
-session de Keycloak bouclerait. Keycloak ou Redis injoignable, ou Keycloak muet au-delà du délai,
-`/login` et `/auth/callback` mènent à `/login/unavailable` en oubliant le témoin `__Host-wf_session`
-— la page relirait sinon Redis pour lui —, qui dit le service injoignable et offre de recommencer
-vers l'écran visé, jamais à une erreur 500 nue (#687). `/login` efface aussi le témoin
-`__Host-wf_session` : la déconnexion y mène sans y toucher (#724). `serverClient()` est le seul
-endroit qui porte le jeton à l'API (`src/session/tokens.ts`) : à chaque requête, il lit la session
-du témoin et rafraîchit un jeton d'accès qui expire dans moins de trente secondes, sous un verrou
-Redis par session qui vit deux fois le délai d'une requête au royaume (`REFRESH_TIMEOUT`, cinq
-secondes), pour que deux requêtes ne présentent jamais le même jeton de rafraîchissement. Un
-rafraîchissement qui échoue une fois parti — refusé, sans réponse dans ce délai, la connexion coupée
-pendant la réponse, un mandataire qui répond à sa place — ferme la session : Keycloak a pu prendre
-le jeton, qui n'est jamais présenté deux fois (#687). Seule une requête qui n'a pu partir (Keycloak
-injoignable : connexion refusée, hôte inconnu ou hors d'atteinte, certificat refusé) ne la ferme pas
-: le jeton d'accès sert tant qu'il vit, puis la requête est le service injoignable (`Unreachable`),
-que l'écran dit comme tel. Redis injoignable pendant une requête ordinaire l'est de même, un
-composant de la plateforme hors d'atteinte (WF-EXP-0040) : `requestBearer` change le
-`StoreUnreachable` du magasin en `Unreachable`, et l'écran dit le service injoignable, jamais une
-erreur inattendue (#861). Quand la session que nomme le témoin ne vit plus, la requête ne part pas
+session de Keycloak bouclerait, et laisse un témoin court (`wf_sign_in_refused`, quelques minutes,
+`HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`) qu'une connexion réussie efface (#2914). Keycloak ou
+Redis injoignable, ou Keycloak muet au-delà du délai, `/login` et `/auth/callback` mènent à
+`/login/unavailable` en oubliant le témoin `__Host-wf_session` — la page relirait sinon Redis pour
+lui —, qui dit le service injoignable et offre de recommencer vers l'écran visé, jamais à une erreur
+500 nue (#687). `/login` efface aussi le témoin `__Host-wf_session` : la déconnexion y mène sans y
+toucher (#724). `serverClient()` est le seul endroit qui porte le jeton à l'API
+(`src/session/tokens.ts`) : à chaque requête, il lit la session du témoin et rafraîchit un jeton
+d'accès qui expire dans moins de trente secondes, sous un verrou Redis par session qui vit deux fois
+le délai d'une requête au royaume (`REFRESH_TIMEOUT`, cinq secondes), pour que deux requêtes ne
+présentent jamais le même jeton de rafraîchissement. Un rafraîchissement qui échoue une fois parti —
+refusé, sans réponse dans ce délai, la connexion coupée pendant la réponse, un mandataire qui répond
+à sa place — ferme la session : Keycloak a pu prendre le jeton, qui n'est jamais présenté deux fois
+(#687). Seule une requête qui n'a pu partir (Keycloak injoignable : connexion refusée, hôte inconnu
+ou hors d'atteinte, certificat refusé) ne la ferme pas : le jeton d'accès sert tant qu'il vit, puis
+la requête est le service injoignable (`Unreachable`), que l'écran dit comme tel. Redis injoignable
+pendant une requête ordinaire l'est de même, un composant de la plateforme hors d'atteinte
+(WF-EXP-0040) : `requestBearer` change le `StoreUnreachable` du magasin en `Unreachable`, et l'écran
+dit le service injoignable, jamais une erreur inattendue (#861). Quand la session que nomme le
+témoin ne vit plus, ou qu'il n'y a aucun témoin (WF-SEC-0020, #2914), la requête ne part pas
 (`SessionLost`) : une lecture mène à la connexion aussitôt, sans clic — l'écran de panne charge
 `/login?next=<écran>` —, une écriture n'est pas appliquée, et l'écran le dit avant d'y mener par un
-lien (`decode`). Sans témoin, la requête part sans jeton, et un 401 de l'API (`SignedOut`), comme le
-refus d'un jeton vivant, offre la connexion par un lien sans y mener seul : une connexion refusée
-revient sans témoin, et y mener bouclerait. Sur un 401 `SESSION_REVOKED` seulement — un jeton d'une
-connexion antérieure à la fermeture des sessions du compte —, ce lien, l'écran de panne
-(`failure.revoked`) comme l'avis d'une action, mène à `/login?next=…&reauthenticate=1`, que `/login`
-envoie au royaume avec `prompt=login` : Keycloak, dont la session a pu survivre à une fermeture
-manquée, redemande les identifiants et renouvelle `auth_time` ; un `SESSION_EXPIRED` ne les
-redemande pas (#855). La déconnexion (`signOut`) ferme les sessions du compte par `closeMySessions`,
-puis efface celles que le front garde de ce compte, sans attendre Keycloak — l'API d'administration
-ferme aussi la session de Keycloak du navigateur, et `/login` redemande les identifiants. Elle ne
-touche pas au témoin : une action serveur qui change un témoin fait rendre à nouveau la page dans sa
-réponse, qui lirait l'API sans session (#724) ; `/login` l'efface. Un compte non admis garde une
-session de Keycloak que l'API ne ferme pas : le navigateur va au point de déconnexion du royaume. La
-coquille ne lui offre ni barre ni menu du compte : la panne `failure.notAdmitted` offre « Se
-déconnecter », un lien vers `/auth/sign-out`, qui mène au même point (`signOutAddress`) ; le
-royaume, sans jeton d'identité, demande de confirmer, puis mène à `/login`, qui redemande les
-identifiants (#664). Quand la session que nomme le témoin ne vit plus, la requête ne part pas, et le
-navigateur passe par une connexion silencieuse (`/login?sign_out=<ticket>`, `prompt=none`). Seule
-l'action `signOut` l'arme : un ticket tiré au hasard, gardé une minute dans Redis et lié à
-l'identifiant que porte le témoin `__Host-wf_session` de la requête, sans toucher au témoin
-(`armRequestSignOut`, `armSignOut`) ; `/login` ne le prend, une seule fois, que si le témoin du
-navigateur porte ce même identifiant (`takeSignOut`). Un ticket inconnu, déjà pris ou trop vieux —
-un lien d'un autre site, qu'une navigation de premier niveau envoie avec le témoin `SameSite=Lax` —,
-ou lié à un autre témoin, ou un navigateur sans témoin, font une connexion ordinaire, qui ne ferme
-rien et laisse le ticket : l'identifiant de l'action est public, et un tiers qui l'appelle depuis
-son serveur, avec un témoin à lui, obtient un ticket qui ne déconnecte que ce témoin. Son retour
-ferme les sessions du compte par `closeMySessions`, avec le jeton qu'elle a obtenu (`tokenClient`),
-sur tous ses postes, puis mène à `/login` ; sans session de Keycloak non plus, il n'y a plus de
-poste à fermer (#689). Un jeton que l'API refuse alors par `SESSION_REVOKED` — la session de
-Keycloak a survécu à une fermeture manquée — mène, comme le refus de `closeMySessions` par ce code
-dans `signOut`, à `/login?…&reauthenticate=1`, qui redemande les identifiants : jamais une nouvelle
-connexion silencieuse, qui ramènerait le même refus (#855). Un clic sur un lien du front attend les
-écritures de la page (`holdNavigation`, `useNavigationHold`) : une cellule validée, un collage
-appliqué, une commande — le bouton d'une commande (`Command`), d'une liste ou d'un formulaire du
-référentiel, l'enregistrement des préférences, l'envoi ou le retrait de l'avatar, la demande d'un
-export, la relance d'une tâche, l'envoi d'un fichier à importer, qui passent tous par
-`useHeldCommand` (`components/commands/held.ts`) ; une refusée — la session perdue comprise —, la
-navigation n'a pas lieu, et l'écran dit le refus là où l'écriture a été faite (#688). La retenue
-appartient à qui dit le refus : un formulaire ou une ligne d'une liste du référentiel prend celle de
-la liste (`held` de `useListReport`), qui dit au-dessus d'elle le refus d'un dialogue fermé pendant
-l'envoi ; fermer le dialogue ne libère donc pas son écriture. La liste ne dit un refus que sur la
-lecture d'où il est parti : lue autrement — une recherche, un filtre d'état —, elle libère ses
-écritures, dont le refus n'est plus dit par la liste, ni au retour sur cette lecture, dont les clics
-ne sont plus retenus — une lecture quittée puis retrouvée en est une autre
+lien (`decode`) ; c'est `requestBearer` qui en décide, une fois pour les écrans, les lectures de la
+coquille — le compte de la mise en page, l'installation qui décide la langue — exceptées :
+`serverClient({ session: "optional" })` les fait partir sans jeton, pour que la page « service
+injoignable » (`/login/unavailable`) se rende au lieu de mener à la connexion, qui bouclerait. Seul
+le témoin `wf_sign_in_refused`, laissé par une connexion que le royaume a refusée, fait partir sans
+jeton une requête sans témoin de session, et un 401 de l'API (`SignedOut`), comme le refus d'un
+jeton vivant, offre la connexion par un lien sans y mener seul : y mener bouclerait. Sur un 401
+`SESSION_REVOKED` seulement — un jeton d'une connexion antérieure à la fermeture des sessions du
+compte —, ce lien, l'écran de panne (`failure.revoked`) comme l'avis d'une action, mène à
+`/login?next=…&reauthenticate=1`, que `/login` envoie au royaume avec `prompt=login` : Keycloak,
+dont la session a pu survivre à une fermeture manquée, redemande les identifiants et renouvelle
+`auth_time` ; un `SESSION_EXPIRED` ne les redemande pas (#855). La déconnexion (`signOut`) ferme les
+sessions du compte par `closeMySessions`, puis efface celles que le front garde de ce compte, sans
+attendre Keycloak — l'API d'administration ferme aussi la session de Keycloak du navigateur, et
+`/login` redemande les identifiants. Elle ne touche pas au témoin : une action serveur qui change un
+témoin fait rendre à nouveau la page dans sa réponse, qui lirait l'API sans session (#724) ;
+`/login` l'efface. Un compte non admis garde une session de Keycloak que l'API ne ferme pas : le
+navigateur va au point de déconnexion du royaume. La coquille ne lui offre ni barre ni menu du
+compte : la panne `failure.notAdmitted` offre « Se déconnecter », un lien vers `/auth/sign-out`, qui
+mène au même point (`signOutAddress`) ; le royaume, sans jeton d'identité, demande de confirmer,
+puis mène à `/login`, qui redemande les identifiants (#664). Quand la session que nomme le témoin ne
+vit plus, la requête ne part pas, et le navigateur passe par une connexion silencieuse
+(`/login?sign_out=<ticket>`, `prompt=none`). Seule l'action `signOut` l'arme : un ticket tiré au
+hasard, gardé une minute dans Redis et lié à l'identifiant que porte le témoin `__Host-wf_session`
+de la requête, sans toucher au témoin (`armRequestSignOut`, `armSignOut`) ; `/login` ne le prend,
+une seule fois, que si le témoin du navigateur porte ce même identifiant (`takeSignOut`). Un ticket
+inconnu, déjà pris ou trop vieux — un lien d'un autre site, qu'une navigation de premier niveau
+envoie avec le témoin `SameSite=Lax` —, ou lié à un autre témoin, ou un navigateur sans témoin, font
+une connexion ordinaire, qui ne ferme rien et laisse le ticket : l'identifiant de l'action est
+public, et un tiers qui l'appelle depuis son serveur, avec un témoin à lui, obtient un ticket qui ne
+déconnecte que ce témoin. Son retour ferme les sessions du compte par `closeMySessions`, avec le
+jeton qu'elle a obtenu (`tokenClient`), sur tous ses postes, puis mène à `/login` ; sans session de
+Keycloak non plus, il n'y a plus de poste à fermer (#689). Un jeton que l'API refuse alors par
+`SESSION_REVOKED` — la session de Keycloak a survécu à une fermeture manquée — mène, comme le refus
+de `closeMySessions` par ce code dans `signOut`, à `/login?…&reauthenticate=1`, qui redemande les
+identifiants : jamais une nouvelle connexion silencieuse, qui ramènerait le même refus (#855). Un
+clic sur un lien du front attend les écritures de la page (`holdNavigation`, `useNavigationHold`) :
+une cellule validée, un collage appliqué, une commande — le bouton d'une commande (`Command`), d'une
+liste ou d'un formulaire du référentiel, l'enregistrement des préférences, l'envoi ou le retrait de
+l'avatar, la demande d'un export, la relance d'une tâche, l'envoi d'un fichier à importer, qui
+passent tous par `useHeldCommand` (`components/commands/held.ts`) ; une refusée — la session perdue
+comprise —, la navigation n'a pas lieu, et l'écran dit le refus là où l'écriture a été faite (#688).
+La retenue appartient à qui dit le refus : un formulaire ou une ligne d'une liste du référentiel
+prend celle de la liste (`held` de `useListReport`), qui dit au-dessus d'elle le refus d'un dialogue
+fermé pendant l'envoi ; fermer le dialogue ne libère donc pas son écriture. La liste ne dit un refus
+que sur la lecture d'où il est parti : lue autrement — une recherche, un filtre d'état —, elle
+libère ses écritures, dont le refus n'est plus dit par la liste, ni au retour sur cette lecture,
+dont les clics ne sont plus retenus — une lecture quittée puis retrouvée en est une autre
 (`useHeldCommand(generation)`) ; encore en route et refusées ensuite, l'avis de la barre les dit,
 comme celles d'un écran quitté (ci-dessous). Tout refus retient le clic, même dit ailleurs que sur
 l'écran quitté : la relance d'une tâche refusée retient la navigation, bien que son refus soit dit
@@ -1064,6 +1070,17 @@ joue l'exemple de la fenêtre contre le faux back, qui sert le premier exemple d
 toute la structure contre le service, où celle de PRJ-001 compte 5 966 nœuds, la volumétrie de 5 999
 nœuds restant au faux back jusqu'à EP-13 (#2696). Les écarts de montants restent une table sous la
 grille, et l'écran est l'un de ceux du harnais d'accessibilité (`DIFFERENTIAL_SCREENS`).
+
+Une table plate peut laisser choisir ses lignes une à une (`DenseGrid.selecting`, désactivé par
+défaut, #2916/L4) : Ctrl ou Cmd et un clic sur la poignée du numéro, Espace seul au clavier
+(Ctrl+Espace en alias), Ctrl ou Cmd et A pour toutes les lignes affichées (hors d'une cellule en
+saisie), la case de l'en-tête des poignées, et, dès qu'une ligne l'est, une barre sombre
+(`SelectionBar`) qui recouvre la barre de la grille à la même place et à la même hauteur, sans
+décaler le cadre ni recalculer sa hauteur : la sélection prime, la recherche, « Colonnes » et les
+commandes de l'écran sont inertes et masquées tant qu'elle dure (leur état, la recherche saisie
+comprise, est gardé), et « Annuler la sélection » ou Échap les rend. Le focus qui était dans l'une
+des deux barres quand l'autre la remplace revient à la cellule active (`useBarFocus`). Une grille
+arborescente garde la sélection contiguë, son glisser-déposer et son clavier.
 
 ### La grille de planning et le Gantt
 
@@ -1766,8 +1783,9 @@ aucun à une session qui ne les lit pas ; tous choisis filtrent encore, un compt
 retenu par aucun, `exhaustive: false`, EP-02/L42f) et par état, un seul choix (`is_active`) — tous,
 les actifs seuls, les désactivés seuls —, qui dit ce que la grille montre : la page demande toujours
 les désactivés aussi (`include_inactive=true`, le contrat les masquant par défaut), une adresse
-d'avant qui les masquait (`include_inactive=false`) se lit « Comptes actifs » (`readAccountState`),
-et tout choix lève ce paramètre ancien (`lifts` de `ChoiceFilter`) — et paginés par le serveur, sous
+d'avant qui les masquait (`include_inactive=false`) se lit « Actif » (`readAccountState`),
+un filtre de la grille, gardé avec ses réglages comme les autres (`USER_FILTERS`, #2916) — seul
+dans l'adresse, il n'est donc pas remplacé par les filtres gardés —, et tout choix lève ce paramètre ancien (`lifts` de `ChoiceFilter`) — et paginés par le serveur, sous
 les noms du contrat — un tri, une recherche ou un filtre ramenant à la première page —, la ligne des
 totaux disant combien le serveur en retient (`meta.total`), l'écran remplissant la fenêtre ; la
 recherche porte sur le nom, le prénom, l'adresse et le nom affiché, sans égard à la casse ni aux
@@ -2116,9 +2134,16 @@ estimate`) et s'exporte (`kind: estimate`, fichier `…-devis.xlsx`) par le mêm
 `@shared`, sur un projet que la course crée, l'importe en deux temps (US-1550, #2687) : il exporte et
 télécharge le devis, voit refuser à l'analyse un fichier qui n'en est pas un (format et version
 attendus nommés), puis réimporte le classeur téléchargé, lit le compte rendu sans écart, confirme
-l'application, qu'il suit dans la coquille jusqu'à sa réussite, et retrouve les mêmes lignes. Les
-lignes rejetées d'un compte rendu et l'abandon restent sur le faux back, comme le reste à engager et
-les coûts réels (EP-09) et le parcours du marquage.
+l'application, qu'il suit dans la coquille jusqu'à sa réussite, et retrouve les mêmes lignes.
+L'écart de calendrier d'un import (US-2000) a lui aussi son parcours `@shared`, sur un projet que la
+course crée : le planning synthétique à sept heures par jour
+(`fixtures/msproject/14-calendar-gap-seven-hours.xml`) montre son écart sur le compte rendu avant
+toute confirmation, garde les durées par défaut, analyse de nouveau quand les dates sont gardées et
+se suit jusqu'au nouveau compte rendu, et son abandon laisse le projet inchangé ; la règle déjà en
+vigueur, que le serveur de Next envoie et que le navigateur ne voit pas, se lit par le même appel
+fait à l'API (200). Les lignes rejetées d'un compte rendu et l'abandon d'un import sans écart
+restent sur le faux back, comme le reste à engager et les coûts réels (EP-09) et le parcours du
+marquage.
 
 La page d'un projet propose de démarrer son planning par l'encart « Démarrer le projet »
 (`ProjectStart`, `components/projects/project-start.tsx`, US-0490) tant que la structure principale
@@ -2271,7 +2296,9 @@ l'exclusion d'une ligne de coût ne s'annulent. Une telle grille les montre en b
 et dans le menu contextuel de ses cellules (clic droit, Maj+F10, touche Menu — `CellMenu`, sans
 arrêt de tabulation de plus), avec leurs raccourcis, et prend Ctrl+Z et Ctrl+Maj+Z — Cmd sur un Mac —
 dans la grille ou sa barre, hors d'un menu ou d'une boîte qu'elle ouvre. Un champ en cours de saisie
-— l'éditeur d'une cellule, la recherche — garde Ctrl+Z pour lui : l'annulation du navigateur y reste.
+— l'éditeur d'une cellule, la recherche — garde Ctrl+Z pour lui : l'annulation du navigateur y reste. Un bouton de filtre de la barre
+(lot ou poste, « Écarts seulement », risque survenu) n'est pas un champ : Ctrl+Z y annule la grille,
+comme sur Colonnes ou sur le menu du plan, sans défaire le filtre (#2916).
 
 **Branchées (planning, US-1450).** La grille de planning les branche sur `undoLastChange` et
 `redoLastUndo` (`src/api/actions/history.ts`) par `useUndoRedo` (`undo-run.ts`), que `DenseGrid`
@@ -2987,7 +3014,7 @@ commande.
 | `make service-purge`                                                    | lance à la main la purge de ce qui a expiré sur la plateforme de service démarrée (`waterfall-worker purge`, dans le conteneur du service `scheduler`, qui l'appelle à l'intervalle de `WATERFALL_PURGE_INTERVAL`, 600 s par défaut) : comptes rendus d'import échus, dépôts échus, exports de plus de vingt-quatre heures, historique des sessions de plus de `WATERFALL_UNDO_RETENTION_HOURS` heures (12 par défaut), et les objets que plus aucune ligne ne désigne sous `uploads/` et `exports/` ; deux purges ne tournent jamais ensemble (verrou consultatif)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `make service-up`, `make service-down`                                  | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, le stockage objet Garage et ses compartiments, les migrations, l'API, le worker et le planificateur de ses tâches, le service de la restauration, Keycloak derrière son frontal HTTPS et son royaume, appliqué de nouveau à chaque démarrage par `keycloak-realm`, qui reste démarré pour le réappliquer après une restauration, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son stockage, son annuaire et l'autorité de son frontal ; `service-up` refuse un volume PostgreSQL d'une autre majeure que 18, en affichant le refus de `postgres-volume`, qui dit ce remède (US-1130)                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `make keycloak-authority`                                               | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `make e2e-service`                                                      | les parcours du projet Playwright `service` (`frontend/e2e/service/`), et ceux de `shared` (l'étiquette `@shared`), contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers` ; il charge le témoin après l'amorçage, comme `make service-witness` ; `TESTS=<arguments de playwright test>` : un fichier seul joue aussi `installation`, et, s'il porte un parcours `@realm-wide` ou `@platform-wide`, les projets dont dépend le sien (`service`, `shared`, `shared-serial`) ; `TESTS="--no-deps --project=shared --project=realm e2e/reference-resources.spec.ts e2e/service/reference-manager.spec.ts"` ne joue que ces fichiers, sans `installation` (sur une installation déjà jouée)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `make e2e-service`                                                      | les parcours du projet Playwright `service` (`frontend/e2e/service/`), et ceux de `shared` (l'étiquette `@shared`), contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers` ; il charge le témoin après l'amorçage, comme `make service-witness` ; `TESTS=<arguments de playwright test>` : un fichier seul joue aussi `installation`, et, s'il porte un parcours `@realm-wide` ou `@platform-wide`, les projets dont dépend le sien (`service`, `shared`, `shared-serial`) ; `TESTS="--no-deps --project=shared --project=realm e2e/reference-resources.spec.ts e2e/service/reference-manager.spec.ts"` ne joue que ces fichiers, sans `installation` (sur une installation déjà jouée) ; `SHARD=i/N` (N d'au moins 2, pas avec `TESTS`) ne joue que le i-ième de N morceaux, sur sa plateforme : les N-1 premiers se partagent `service` et `shared` par durée mesurée (`tools/e2e-service-durations.json`), le dernier joue `shared-serial`, `realm` et `restoration`, seuls                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `make service-logs`                                                     | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `make test-services`, `make test-services-down`                         | démarre, retire les services des tests (`deploy/compose/compose.test.yaml` : PostgreSQL 18, Redis, Garage, en mémoire) pour le créneau du worktree, sur ses ports (`SERVICES=redis` n'en démarre que certains) ; `test-services` attend qu'ils répondent et ne fait rien de plus s'ils tournent, `test-services-down` les retire avec leurs volumes ; `make test-back` et les autres tests qui en ont besoin les démarrent d'eux-mêmes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `make migrate`                                                          | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -3084,12 +3111,15 @@ dépassement ne fait rien échouer (README de la roadmap, section « Lots »).
 `US-1120/L2` pour le lot d'une US qui en a plusieurs) avec `STATE`, `PR` ou `MODEL`, les seuls
 donnés changeant ; `US=<identifiant> STATUS=…` ; `FINDING=<n> ATTACHED=… DECISION=…`, qui ajoute
 le constat (le titre de son issue sans le `[EP-nn]`, `à trancher` en gras), le change s'il est
-déjà là, ou le retire quand son issue est fermée. Le lot coupé à la demande du relecteur s'écrit
-par elle aussi, jamais à la main : `LOT=<identifiant> DEPENDS=<liste>` remplace la cellule « Dépend
-de » ; `ADD_LOT=<identifiant> AFTER=<lot> [DEPENDS=<liste>] [MODEL=…] [LOT_ISSUE=<n>]` insère, sous
-le lot `AFTER` et dans la même US, la ligne du lot nouveau (`US-0820b` pour la part détachée d'une
-US à lot unique, `US-1270/L3` pour une US à plusieurs ; cellules `#`, `US`, « Statut » vides,
-« Dépend de » la liste ou `—`, « État du lot » `à faire`) et refuse un lot déjà là ;
+déjà là, ou le retire quand son issue est fermée. `LOT=<identifiant> NOT_WITH=<liste>` remplace la
+cellule « Pas avec » de ce lot, et d'aucun autre : la symétrie de la colonne (README de la roadmap,
+« Suivi sur GitHub ») se déclare par un appel pour chaque lot de la paire. Le lot coupé à la demande
+du relecteur s'écrit par elle aussi, jamais à la main : `LOT=<identifiant> DEPENDS=<liste>` remplace
+la cellule « Dépend de » ; `ADD_LOT=<identifiant> AFTER=<lot> [DEPENDS=<liste>] [NOT_WITH=<liste>]
+[MODEL=…] [LOT_ISSUE=<n>]` insère, sous le lot `AFTER` et dans la même US, la ligne du lot nouveau
+(`US-0820b` pour la part détachée d'une US à lot unique, `US-1270/L3` pour une US à plusieurs ;
+cellules `#`, `US`, « Statut » vides, « Dépend de » et « Pas avec » la liste ou `—`, « État du lot »
+`à faire`) et refuse un lot déjà là ;
 `REPLACE_DEPENDENCY='<ancien>=<nouveau>'` remplace la mention de l'ancien lot dans « Dépend de » de
 toutes les lignes où elle paraît, sauf celle du lot nouveau lui-même, retire avec elle le ` #n` qui
 la suit (l'issue de l'ancien lot ne reste jamais sur le nouveau), dit combien de lignes ont changé
@@ -3118,6 +3148,29 @@ pas la forme `EP-nn`. Elle est réservée à une personne : un livreur ne la lan
 vérification et, en échec, pose la question ; le garde (`guard.py`) refuse la cible `merge-queue` à
 un agent.
 
+`make queue-report BRANCH=epic/EP-nn [LAST=<n>] [SINCE=AAAA-MM-JJ]` relève, du poste et jamais
+dans la chaîne, les passages de la file de fusion d'une branche (`chain`, événement `merge_group`,
+lus par `gh` ; `wftools.queue`, US-1880) : leur nombre par conclusion, leurs échecs par job et par
+étape — avec la cible du Makefile que nomme `make: ***` —, les parcours et les tests en échec avec
+leur fichier et leur ligne, lus au journal du job (Playwright, pytest, Vitest), la durée de mur des
+passages réussis où le palier complet a tourné en entier — un passage *complet* est un passage où un
+job de `service` et un job de `e2e` ont réussi, `ci.yml` sautant dans la file les familles que le
+changement ne touche pas —, en médiane et au 90e centile (au rang le plus proche), avec le nombre de
+passages que la mesure retient, et les minutes-runner, la
+somme des durées des jobs. Sans `BRANCH`, toutes les branches comptent ; `SINCE` garde les passages
+créés ce jour-là ou après (en UTC), `LAST` les n plus récents ; sans l'un ni l'autre, les 50
+derniers. Chaque échec se classe contre `tools/queue-known.toml`, une entrée par instabilité connue
+— des motifs de job, d'étape, de test ou de message, sa famille, l'issue qui la suit, sa fréquence,
+sa cause établie ou son hypothèse — : instabilité connue, infrastructure, ou régression, qui ne
+s'écrit qu'après la relecture du passage et le nomme. Ce qu'aucune entrée ne reconnaît sort « à
+classer » (`to classify`) : l'outil ne décide jamais seul. `gate`, qui échoue parce qu'un autre job
+a échoué, ne compte que s'il échoue seul. Le fichier porte aussi la référence — 370 passages et 88
+échecs du 2026-11-05 au 2026-11-12, dont 68 dans `service / paths` ; 16 minutes de mur en médiane
+les 10 et 11 novembre —, que le rapport rappelle à sa fin ; la pull request d'un lot de la chaîne
+cite la sortie avant et après. La commande lit les jobs de chaque passage et le journal de chaque
+job en échec : comptez quelques secondes par passage, davantage quand `service / paths` échoue, son
+journal pesant plusieurs mégaoctets.
+
 Le poste n'admet que `WATERFALL_SLOTS` exécutions lourdes à la fois — les tests entiers et la
 couverture du back et du front, `make test-tools`, la construction du front pour la production,
 les parcours de bout en bout —, tous dépôts et worktrees confondus. Cette variable de
@@ -3139,6 +3192,11 @@ même `WATERFALL_SLOTS` —, qui lui donne ses ports, ses projets Compose et les
 images : deux livreurs jouent ensemble les parcours de bout en bout, les tests de Keycloak ou les
 parcours contre le service sans se heurter. Le dépôt principal, comme chaque runner de la chaîne,
 est au créneau 0 : ses ports et ses noms sont ceux d'avant les créneaux.
+
+**Un worktree ne se tire jamais sous `/tmp`** (#2953). Le tmpfs de `/tmp` a manqué d'inodes le
+2026-11-12 sous les `node_modules` de worktrees tirés dans des scratchpads : un worktree se tire
+sous le dépôt (`.claude/worktrees/`) ou ailleurs sur le disque, jamais dans `/tmp` ni dans un
+scratchpad. Aucun outil ne le contrôle : `make slot` et `make slots` ne comptent pas les inodes.
 
 | Commande            | Ce qu'elle fait                                                                                                                                                                                                                                                                                                                           |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -3298,11 +3356,12 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   écrit ce cache et le magasin de pnpm après chaque fusion, sur la branche dont les pull requests et
   la file de fusion lisent les caches : sans lui, elles ne trouveraient rien.
   `back.yml` répartit de même le back : un runner tient le lint, les types et les frontières du
-  cœur (`make check-back-static`), deux jouent chacun la moitié des tests, avec leurs services
-  (`make check-back-tests`, `SHARD=1/2` et `SHARD=2/2`), et au palier complet un dernier rassemble
-  leur couverture et la tient à ses seuils (`make coverage-back-merge`). Une moitié est un test sur
-  deux dans l'ordre de leur collecte (`--shard`, `backend/tests/conftest.py`), plutôt que des
-  fichiers entiers : les fichiers qui chargent le témoin, les plus longs, sont répartis sur les deux.
+  cœur (`make check-back-static`), quatre jouent chacun le quart des tests, avec leurs services
+  (`make check-back-tests`, `SHARD=1/4` à `SHARD=4/4`), et au palier complet un dernier rassemble
+  leur couverture et la tient à ses seuils (`make coverage-back-merge`). Un quart est un test sur
+  quatre dans l'ordre de leur collecte (`--shard`, `backend/tests/conftest.py`), plutôt que des
+  fichiers entiers : les fichiers qui chargent le témoin, les plus longs, sont répartis sur les
+  quatre.
   Le témoin n'est chargé par la commande qu'une fois par processus de pytest ; les tests suivants
   retrouvent ses lignes recopiées (`backend/tests/witness_rows.py`, #2157). Sur un runner, chaque
   test qui le demandait payait son chargement, plus de six minutes en tout. `keycloak.yml`
@@ -3314,11 +3373,38 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   `service.yml` joue les parcours contre le vrai service, au palier complet seulement
   (`make check-service`, soit `make e2e-service`, sur le build du front que partagent les parcours
   d'`e2e.yml`) : la famille `service` se réveille sur le front, le back, le contrat et les fichiers
-  de la plateforme. Il tourne sur le runner même, non dans l'image de Playwright : les parcours
-  joignent la plateforme sur les ports que Docker publie sur le runner, qu'un conteneur de travail
-  ne voit pas ; le navigateur s'y installe avec ses paquets système
-  (`make e2e-browsers PLAYWRIGHT_INSTALL=--with-deps`). `front-image.yml` construit et démarre
-  l'image de production du front, que `images.yml` ne publie qu'après la fusion, aux deux paliers
+  de la plateforme. Ils se jouent en quatre morceaux (US-1910), chacun sur son runner et sa
+  plateforme (`make check-service SHARD=i/4`), par une matrice dont aucun morceau n'annule les
+  autres : les trois premiers se partagent les projets `service` et `shared`, répartis comme ceux
+  d'`e2e.yml` par durée mesurée (`wftools.e2eparts`, `tools/e2e-service-durations.json`) ; le
+  quatrième joue `shared-serial`, `realm` et `restoration`, qui se jouent un à un après les autres,
+  seuls sur sa plateforme, où ils n'attendent plus rien (`E2E_SERVICE_SERIAL`,
+  `playwright.config.ts`). La liste d'un morceau nomme le projet de chaque ligne
+  (`[service] › service/x.spec.ts`) : un fichier sans son projet ferait jouer à `realm` ses tests
+  dans le morceau, et avec eux, sans filtre, chaque projet dont il dépend. Joués entiers sur un
+  runner, ils tenaient le chemin critique du palier complet : 22 minutes, dont 5,5 avant le premier
+  parcours. Chaque morceau repaie ces 5,5 minutes. Mesuré une fois, sur un passage de la branche
+  au palier complet, pas encore de la file (43511917976) : 13,5 minutes de mur pour le passage
+  entier ; les morceaux ont pris 8,8, 11,5, 12,0 et 8,2 minutes, soit 40,5 minutes-runner contre
+  22, et `back / tests (4/4)`, 11,4 minutes, est désormais au coude à coude. Que `service / paths`
+  quitte le chemin critique, et que la médiane de la file tombe à 12 minutes, se constate sur 100
+  passages de la file par `make queue-report`, après la fusion ; les 18,5 minutes-runner de plus
+  sont le prix du découpage, que l'auteur tranche (le commentaire de `service.yml` cite le
+  passage). La plateforme, le front et `playwright test` tournent sur le runner même, par le
+  Makefile ; seul le navigateur tourne dans l'image de travail des parcours (ci-dessous), en
+  serveur de Playwright (`run-server`), sur le réseau du runner, et `playwright test` s'y connecte
+  (`PW_TEST_CONNECT_WS_ENDPOINT`). `E2E_IMAGE=<référence>` le demande à `make e2e-service`, qui
+  lance ce serveur par `wftools.e2eimage` (`docker run --network host`, le dépôt monté à son
+  propre chemin) : un conteneur de travail ne verrait pas les ports que Docker publie sur le
+  runner. Aucun paquet d'Ubuntu ne s'y installe (#2913). Les parcours joués entiers dans l'image
+  prenaient 17,3 minutes de `playwright test` en médiane de quatre passages, contre 14,2 en trois
+  le navigateur seul dans l'image, la médiane d'avant sur le runner (le commentaire de
+  `service.yml` cite les passages). Un téléchargement s'y lit par `download.createReadStream()`,
+  jamais par `download.path()`, que Playwright refuse à un navigateur distant. `wftools.e2eimage
+  run` est fait pour la chaîne : root dans l'image, la socket de Docker à son chemin d'un runner,
+  `DOCKER_HOST` non lu. Sur un poste, sans `E2E_IMAGE`, les parcours se jouent sur le poste, avec
+  le navigateur de `make e2e-browsers`. `front-image.yml` construit et démarre l'image de
+  production du front, que `images.yml` ne publie qu'après la fusion, aux deux paliers
   (`make check-front-image`) : la famille `front-image` se réveille sur ce qui la fait —
   `frontend/Dockerfile` et son `.dockerignore`, `next.config.ts`, `package.json`, `pnpm-lock.yaml`,
   `pnpm-workspace.yaml`, et ce que son serveur vérifie au démarrage, `src/instrumentation.ts`,
@@ -3416,13 +3502,97 @@ le bouton « Merge when ready », ou par la mutation `enqueuePullRequest` de l'A
 dépôt. Une branche sans file de fusion fait tourner le palier complet à la main sur la
 branche d'un lot, avant de le fusionner : `gh workflow run chain --ref <branche>`.
 
+Les images tierces de Docker Hub — PostgreSQL, Redis, Caddy, Mailpit, Garage, curl, Node, Python,
+Debian, Maven, Keycloak et son `keycloak-config-cli` — restent nommées, dans les fichiers Compose et
+les `Dockerfile`, comme sur Docker Hub, par leur empreinte : le poste, la production et la démonstration
+n'en changent pas. Seule la chaîne les tire d'un miroir, `ghcr.io/waterfall-project/mirror/` :
+un pull de Docker Hub (« failed to fetch oauth token », `toomanyrequests`) a fait échouer quatre
+passages de la file avant leur premier test (US-1900). Les fichiers lisent le préfixe du miroir dans
+`WATERFALL_MIRROR` (`${WATERFALL_MIRROR:-}postgres:18-trixie@sha256:…` en Compose, `ARG
+WATERFALL_MIRROR=` avant le `FROM` dans un `Dockerfile`, que `--build-arg WATERFALL_MIRROR` ou
+`args: [WATERFALL_MIRROR]` remplit depuis l'environnement) ; vide, c'est Docker Hub. Dependabot ne lit peut-être plus ces
+références paramétrées (`${WATERFALL_MIRROR:-}…`, `FROM ${WATERFALL_MIRROR}…`) : une montée de version
+d'image demande que le miroir tienne la nouvelle empreinte (`make mirror PUSH=yes`, par une personne
+si le jeton de la pull request ne peut pas écrire). Les workflows
+qui construisent ou lancent Compose (`back.yml`, `keycloak.yml`, `front-image.yml`, `service.yml`,
+`production.yml`, `images.yml`) posent `WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/` et s'y connectent ; les
+services de `back.yml` et de `front.yml` nomment le miroir en toutes lettres. Le miroir est tenu par
+`make mirror PUSH=yes` (`wftools.mirror`) : il lit ces références, demande à ghcr.io si l'empreinte
+y est — présente, rien d'autre n'est lu, Docker Hub non plus —, et copie celles qui manquent de
+Docker Hub, par empreinte (`docker buildx imagetools create` écrit le manifeste tel quel,
+l'empreinte est vérifiée après), sous une étiquette qui porte le début de l'empreinte : une même
+étiquette de Docker Hub a deux empreintes dans nos fichiers (Caddy). Le travail `mirror` de
+`ci.yml`, que tout travail qui tire une image attend, le fait à chaque passage, au palier rapide
+comme au complet : `images.yml` passe après la fusion, donc après le premier passage qui a besoin
+d'une image ajoutée ou d'une empreinte relevée (`images.yml` le refait avant de construire, une
+consultation). Chaque demande est refaite quatre fois au plus (`wftools.registry`, #2530) ; une
+image que ni le miroir ni Docker Hub ne donnent fait échouer ce travail en nommant Docker Hub, et
+saute les travaux qui en dépendent, ce que la porte compte. Pour changer une image tierce : changer
+sa référence et son empreinte dans les fichiers, derrière `${WATERFALL_MIRROR:-}` ; le premier
+passage copie la nouvelle. Les travaux qui tirent du miroir demandent `packages: read` et s'y
+connectent (`docker/login-action`, ou `credentials:` d'un service) : un paquet que GitHub crée est
+privé, et rien hors de la chaîne ne le lit.
+
+Quatre autres sources réseau de la chaîne, que l'inventaire d'origine d'US-1900 ne nommait pas
+(#2981, #3015), sont traitées chacune à sa mesure :
+
+- **le binaire d'actionlint** (GitHub Releases) : `actionlint-py` n'a pas de roue sur PyPI, seulement
+  des sources, et sa construction télécharge l'archive du binaire (empreinte vérifiée, quelques essais
+  refaits). Il quitte le groupe `dev` des outils pour un groupe `workflows` (`tools/pyproject.toml`) que
+  seul `make lint-workflows` installe : `contract / check` et le serveur web de l'e2e ne le construisent
+  plus. Le travail `repo / check` le construit, une fois, puis lit la roue construite dans le cache d'uv
+  (`setup-uv`) tant que `tools/uv.lock` ne change pas ; sur un cache absent et GitHub Releases muet,
+  il échoue en nommant l'adresse (`download failed for https://github.com/rhysd/actionlint/…`) ;
+- **la clé du dépôt PGDG** (`www.postgresql.org`) : versionnée dans `backend/pgdg.asc`, copiée dans
+  l'image `waterfall` et vérifiée à la construction par son empreinte SHA-256, écrite dans le
+  `Dockerfile` avec l'empreinte de la clé. Plus aucun téléchargement de clé. Monter la clé, c'est
+  remplacer le fichier et l'empreinte ensemble ; `tools/tests/test_networksources.py` les tient
+  l'un à l'autre ;
+- **`azure.archive.ubuntu.com`** dans `back / tests` : le job ne lance plus apt. L'image des runners,
+  `ubuntu-26.04`, porte déjà `postgresql-client-18` (apt répondait « already the newest version ») ; le
+  job le vérifie et, si l'image le retirait un jour, s'arrête en le disant au lieu de l'installer.
+  Pas d'image de travail publiée pour cela : elle ne ferait que recopier ce que le runner a ;
+- **`deb.debian.org` et `apt.postgresql.org`**, tirés par les images `openldap` et `waterfall` quand le
+  cache de couches manque : les `Dockerfile` posent `Acquire::Retries "5"` à apt, et le cache de couches
+  que `images.yml` écrit après chaque fusion (`make build-cache`) reste ce qui évite le plus souvent la
+  source. Une source qui ne répond toujours pas fait échouer la construction à l'étape d'apt, qui nomme
+  l'adresse (`Failed to fetch http://deb.debian.org/…`). Une couche de base publiée sur ghcr.io
+  demanderait deux images de plus à étiqueter et à publier, et ferait dépendre la construction du poste
+  de ghcr.io : elle n'est pas faite.
+
 Le palier complet vise moins de huit minutes dans la file pour son travail le plus long
 (#492). Les parcours de bout en bout, la moitié la plus longue, s'y prennent ainsi :
 
-- **dans l'image de Playwright** (`mcr.microsoft.com/playwright`), à la version de
-  `@playwright/test` que résout `frontend/pnpm-lock.yaml`, épinglée par son empreinte (`container:`
-  d'`e2e.yml`) : Chromium et ses paquets système y sont, rien ne vient du miroir d'Ubuntu, dont le
-  débit n'est pas le nôtre (#472). Le travail appelle `make e2e`, qui trouve le navigateur de
+- **dans l'image de travail des parcours** (`deploy/e2e/Dockerfile`, US-1900), bâtie de l'image de
+  Playwright (`mcr.microsoft.com/playwright`) à la version de `@playwright/test` que résout
+  `frontend/pnpm-lock.yaml`, épinglée par son empreinte, avec `make`, le Python de
+  `tools/.python-version` en `python3`, pnpm à la version de `packageManager` et le client de
+  Docker : Chromium et ses paquets système y sont, rien ne vient du miroir d'Ubuntu, dont le débit
+  et la réponse ne sont pas les nôtres (#472, #2913). Elle est construite pour amd64 seulement,
+  l'architecture des runners et des postes. Elle est publiée sur `ghcr.io/waterfall-project/e2e`,
+  étiquetée par l'empreinte de son répertoire : le travail `e2e-image` de `ci.yml`, qui tourne dès
+  qu'`e2e` ou `service` peuvent tourner, à côté de `front-build`, la demande au registre
+  (`make e2e-image`). Présente, il en donne la référence par l'empreinte que le registre lui
+  connaît, que les morceaux (`container:` d'`e2e.yml`) et `service.yml` tirent. Absente, il la
+  construit ; au palier complet (`PUSH=yes`), il la publie, une fois, au premier passage qui en a
+  besoin — celui de la file, ou du palier complet lancé à la main sur une branche —, d'où ses
+  `packages: write` ; au palier rapide, il la construit sans la publier, pour qu'une construction
+  qui échoue arrête la pull request avant la file. `images.yml` ne la publie pas : il passe après
+  la fusion, donc après le premier passage de la file qui en a besoin.
+
+  Chaque demande au registre, la construction et la publication se refont quatre fois au plus,
+  à vingt secondes d'intervalle (#2530) ; une construction refaite repart des couches déjà
+  construites. Un registre qui ne répond toujours pas fait échouer ce travail en le nommant, et
+  saute les parcours, ce que la porte compte ; une image qui ne se tire pas fait échouer
+  l'initialisation du morceau, en nommant le registre, avant toute étape. Deux passages de la
+  file qui ne trouvent pas l'étiquette peuvent la publier chacun : la construction n'est pas
+  reproductible à l'octet, mais chacun tire l'image qu'il a publiée, par son empreinte, et le
+  contenu que nomme l'étiquette est le même.
+
+  `tools/tests/test_e2eimage.py` tient les versions de l'image, ses sources épinglées, et
+  l'absence de paquet d'Ubuntu dans `ci.yml`, `e2e.yml` et `service.yml`.
+
+  Le travail appelle `make e2e`, qui trouve le navigateur de
   l'image (`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`), et non `make check-front-e2e`, qui en
   installerait un. Monter `@playwright/test` monte l'image avec lui, étiquette et empreinte : sinon
   les parcours s'arrêtent d'emblée sur un navigateur introuvable, et
@@ -3431,20 +3601,30 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   `docker buildx imagetools inspect mcr.microsoft.com/playwright:v<X>-noble`, ou l'en-tête
   `docker-content-digest` de
   `curl -sI -H 'Accept: application/vnd.oci.image.index.v1+json' https://mcr.microsoft.com/v2/playwright/manifests/v<X>-noble`.
-  L'image n'a pas `make` : son paquet d'Ubuntu noble est téléchargé, épinglé et vérifié par son
-  empreinte, comme pandoc ;
-- **répartis sur cinq runners** (`make e2e SHARD=i/5`, soit `playwright test --shard=i/5`),
-  la mesure du §4.6.2 sur un sixième, seule (`make e2e-measure`), par une matrice dont aucun
-  morceau n'annule les autres ; le résultat d'`e2e` est un échec dès qu'un morceau échoue ou
-  est annulé, et la porte avec lui. Playwright répartit des fichiers entiers
-  de parcours, à nombre de tests égal, et les plus longs pèsent — sauf un fichier joué test
-  par test (`mode: "parallel"`), comme `accessibility.spec.ts`, dont les tests se répartissent un
-  à un : avant ce fichier, en octobre 2026, le plus long de trois morceaux jouait environ 140 s
-  de parcours sur deux workers, celui de quatre 130 s, et trois suffisaient. En novembre 2026, ce
-  fichier grossi à 500 s de parcours, le plus long de trois morceaux en jouait 290 s, quand chaque
-  morceau paie environ 75 s d'image, d'installation et de serveurs : cinq morceaux en jouent
-  environ 170 s chacun (#2015). Le choix se revoit quand les parcours s'allongent : les durées
-  par fichier se lisent dans le journal de chaque morceau ;
+  Le paquet `make` d'Ubuntu noble, l'archive du client de Docker et celles de pnpm et de son
+  binaire ne se téléchargent qu'à la construction de l'image, épinglés et vérifiés par leur
+  empreinte, le Python par sa version, que uv vérifie par l'empreinte qu'il en porte ;
+- **répartis sur cinq runners** (`make e2e SHARD=i/5`), la mesure du §4.6.2 sur un sixième,
+  seule (`make e2e-measure`), par une matrice dont aucun morceau n'annule les autres ; le résultat
+  d'`e2e` est un échec dès qu'un morceau échoue ou est annulé, et la porte avec lui. `--shard`
+  de Playwright répartit des fichiers entiers, à nombre de tests égal, et les plus longs pèsent :
+  le quatrième de cinq jouait environ 260 s de parcours, les autres environ 150 s. Les morceaux
+  sont donc pesés par durée mesurée (`wftools.e2eparts`, US-1910) : `make e2e SHARD=i/N` liste les
+  tests (`playwright test --list`), les répartit — le plus long d'abord, dans le morceau le moins
+  chargé — et ne joue que ceux du sien (`--test-list`). L'unité est le fichier, ou le test pour un
+  fichier joué test par test (`mode: "parallel"`), comme `accessibility.spec.ts` et
+  `grid-frame.spec.ts` ; les secondes de chaque unité sont gardées dans `tools/e2e-durations.json`.
+  Comme la liste vient de Playwright et non du fichier des durées, aucun test n'est perdu ni joué
+  deux fois, et une unité que le fichier ignore pèse la moyenne des unités connues de son genre.
+  Chaque morceau paie environ 75 s d'image, d'installation et de serveurs (#2015). Le fichier des
+  durées se rafraîchit, quand les parcours changent, depuis le journal d'un passage réel
+  (`make e2e-durations LOG=<fichier>` : le journal du job d'un morceau, ou la sortie de
+  `make e2e-service`, dont les durées vont dans `tools/e2e-service-durations.json`, ou celle de
+  `make e2e`, au rapporteur `list` ; l'entrée standard sans `LOG`, par exemple
+  `gh run view <passage> --log --job <job> | make e2e-durations`, les journaux des cinq morceaux
+  mis bout à bout) ; un journal qui ferait disparaître des unités connues est refusé, sauf
+  `python -m wftools.e2eparts refresh --drop`. Une liste que la ligne `Total: N tests` de Playwright
+  ne confirme pas, ou un morceau vide, fait échouer le morceau au lieu de ne rien jouer ;
 - **sur un seul build du front par exécution** (US-0590) : le travail `front-build` de `ci.yml`,
   qui tourne dès qu'`e2e` ou `service` tourne, lance `make build-front` et téléverse
   `frontend/.next` sans son cache (`.next/cache`, que seul un build suivant lirait). Les cinq
@@ -3454,7 +3634,8 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   ne joint pas les travaux de l'un à ceux de l'autre ; ni l'un ni l'autre n'a d'autre
   déclencheur que cet appel, si bien qu'aucun ne construit le front. Un build en échec saute les
   deux, et la porte, qui l'attend aussi, échoue. Il construit sur le runner, comme `front.yml`, en
-  Node 26 : les morceaux le démarrent dans l'image de Playwright, en Node 24 (son
+  Node 26 : les morceaux le démarrent dans l'image de travail des parcours, bâtie de celle de
+  Playwright, en Node 24 (son
   `NODE_VERSION`, que le lot de Node 26 ne change pas ; `next start` y exécute les fichiers
   construits, et Next 16 accepte Node 24, tandis que pnpm 12 ne s'arrête pas sur `engines` sans
   `engine-strict`, que le front ne pose pas), sur la même Ubuntu noble en amd64, et à un autre
@@ -3480,11 +3661,6 @@ Le back suit le même modèle (#492, levier 5) :
   (`tests/conftest.py`). Les processus doivent collecter les mêmes tests : un paramètre de test
   n'est jamais tiré au hasard (un `uuid4()` dans `parametrize`), il est fixé. Les tests de
   Keycloak restent sur un processus : l'un d'eux redémarre Keycloak.
-
-Reste à écrire, quand la durée l'exige :
-
-- les parcours contre le vrai service (`service.yml`), qu'un seul runner joue tant qu'ils sont
-  courts, se répartissent comme ceux d'`e2e.yml`, la plateforme démarrée dans chaque morceau.
 
 Les images se construisent depuis un cache de GitHub Actions (`type=gha`) : l'extension de
 Keycloak compilée par Maven, les dépendances du front et du back ne se refont pas à chaque
@@ -3517,11 +3693,11 @@ Règles des workflows :
   ignorées : elles suivent l'image de Keycloak. La majeure de TypeScript n'a pas de règle
   d'ignorance : l'auteur ferme sa pull request tant que `typescript-eslint` ne la tient pas.
 - Dependabot ne suit pas, et l'auteur relève à la main, à la pull request mensuelle de
-  Dependabot : `REDOCLY_VERSION` et `PRISM_VERSION` du `Makefile`, `packageManager` du front,
-  l'uv et le client PostgreSQL de l'image `waterfall`, les runners et le pandoc de la chaîne,
-  et `maven.compiler.release` du `pom.xml` de l'extension, qui reste à 21 exprès (le Java de
-  l'image de Keycloak, pas le JDK de construction) : il se relève quand cette image change de
-  Java.
+  Dependabot : `packageManager` du front, l'uv et le client PostgreSQL de l'image `waterfall`
+  (et sa clé, `backend/pgdg.asc`), les runners et le pandoc de la chaîne, et
+  `maven.compiler.release` du `pom.xml` de l'extension,
+  qui reste à 21 exprès (le Java de l'image de Keycloak, pas le JDK de construction) : il se
+  relève quand cette image change de Java.
 
 _Contrôle_ : `make lint-workflows` (actionlint) ; l'épinglage et les permissions, la revue.
 
@@ -3572,15 +3748,17 @@ _Contrôle_ : `make reuse` échoue sur un fichier couvert ni par un en-tête ni 
 ## Outils du dépôt
 
 Les outils vivent dans `tools/`, en Python, avec leurs tests (`make test-tools`, qui exige Docker :
-le test du Compose de service lance `docker compose config` et échoue sans lui). Les tests de
-l'entrypoint de l'annuaire, qui démarrent son image sur des volumes jetables, en sont écartés
-(marqueur `openldap`) : `make test-openldap` les lance, et la famille `keycloak`, que
-`deploy/openldap` réveille, les éprouve. Tout outil
-qui a besoin des exigences les lit par `wftools.projection`, qui lit la projection
-`docs/spec/waterfall-spec.md` : un seul lecteur, pour que deux outils ne puissent pas
-diverger sur ce qu'une exigence dit. Il compare les textes après normalisation — apostrophes
-et espaces typographiques rendus simples —, et découpe un Vérif en phrases. L'exemple du
-§1.3.1, `WF-EXA-0010-A`, n'est pas une exigence du produit : les outils l'excluent.
+le test du Compose de service lance `docker compose config` et échoue sans lui). Il tourne sous un
+plafond de mémoire, `TOOLS_MEMORY` (24G par défaut) : sous systemd utilisateur, le noyau tue le run
+qui le dépasse, non la session ; sans systemd utilisateur (un runner de la chaîne), il n'y a pas de
+plafond. Les tests de l'entrypoint de l'annuaire, qui démarrent son image sur des volumes jetables,
+en sont écartés (marqueur `openldap`) : `make test-openldap` les lance, et la famille `keycloak`,
+que `deploy/openldap` réveille, les éprouve. Tout outil qui a besoin des exigences les lit par
+`wftools.projection`, qui lit la projection `docs/spec/waterfall-spec.md` : un seul lecteur, pour
+que deux outils ne puissent pas diverger sur ce qu'une exigence dit. Il compare les textes après
+normalisation — apostrophes et espaces typographiques rendus simples —, et découpe un Vérif en
+phrases. L'exemple du §1.3.1, `WF-EXA-0010-A`, n'est pas une exigence du produit : les outils
+l'excluent.
 
 _Contrôle_ : `make test-tools`.
 
@@ -3880,12 +4058,53 @@ vérifiée est dans la fenêtre : au-delà des lignes en vue à l'ouverture, le 
 elle (`scrollToPosition`, `frontend/e2e/scroll.ts`) plutôt que de compter sur la marge que la grille
 rend autour de la fenêtre.
 
-`make e2e` : `make mock-tools` met d'abord en cache les Redocly et Prism épinglés (leur
-installation par `npx` comptait dans les 120 s que Playwright donne au faux back, #1901) — il en
-est de même de `make e2e-measure` et de `make e2e-service`, dont Playwright démarre aussi le faux
-back ; Playwright démarre le faux back (`make mock`) et le front, joue les parcours
-dans Chromium, puis arrête les deux — il signale leur groupe de processus entier, sans quoi
-les serveurs que `make` et `pnpm` lancent survivraient. Il démarre toujours ses propres
+**Un parcours lent** — qui dépasse sa borne dans la chaîne sans régression derrière — se traite en
+trois degrés, dans cet ordre (US-1890). D'abord, la cause se mesure dans la chaîne, sous la charge de
+la file, jamais sur un poste seul : le parcours écrit à son journal et en annotation la durée de
+chaque étape de ce qu'il attend, et le journal du service dit le reste (`make service-logs`, versé au
+job quand un parcours échoue). Puis :
+
+1. **corriger la lecture**, ou l'écriture, que la mesure désigne, au back ou au front : #2924 a
+   ramené `getRemainingIndicators` de 2 845 requêtes à 58 ; la création d'un projet par deux workers
+   à la fois finissait en 500 sur un verrou mortel de PostgreSQL entre les créations de partitions
+   (`create_project_partitions`), et le parcours attendait quinze secondes une adresse qui ne venait
+   jamais (famille A d'EP-24, dix-sept passages de la file du 8 au 11 novembre, tous sans la
+   migration `0026` d'US-1560/L3, qui les met l'une après l'autre ; aucun depuis) ;
+2. **sinon, isoler le parcours** — un compte, un projet, un réglage à lui, ce qu'il n'éprouve pas
+   préparé par l'API sous jeton (`inscribe`, `employRole` d'`own-project.ts`) —, **ou le
+   sérialiser** : `@serial`, joué par le projet `shared-serial`, quand il écrit un objet unique de
+   l'installation ;
+3. **n'élargir une attente qu'en dernier recours**, la mesure dans le commentaire qui l'élargit — le
+   passage de la chaîne, les durées relevées —, et `test.slow()` de même.
+
+`createOwnProject` (`frontend/e2e/own-project.ts`) en est l'exemple : chaque création écrit au
+journal « Own project created », l'accueil, la boîte, puis, depuis « Créer », l'action serveur
+demandée et répondue, l'écran du projet demandé, répondu et fini, et l'adresse atteinte ; manquée,
+ce que la boîte affiche. Sur les 52 créations du passage complet 43386149437, la création entière
+prend 2,2 s en médiane et 5,8 s au plus, l'adresse 0,7 s après « Créer », et l'API répond `POST
+/projects` en 0,24 s en médiane, 1,9 s au plus : rien n'y justifie d'élargir `WORKING`.
+
+`ScreenSteps` (`frontend/e2e/screen-steps.ts`) fait de même pour un écran que le serveur relit :
+chaque étape, et les requêtes RSC en vol pendant elle. Sur le parcours de WF-REV-0080-A, elle a
+montré une attente déjà vraie avant son geste : après « Comparer », l'adresse gardait `difference=`
+comme celle d'avant, et le filtre levé aussitôt faisait lire deux comparaisons de PRJ-001 ensemble
+à l'API, qui n'est qu'un processus (2,2 s pour une seule) ; il arrivait en 15 s au lieu de 8 sous
+six workers (#2942). Une attente qui suit un geste attend ce que ce geste change.
+
+`make e2e` : Redocly et Prism sont des dépendances de développement du front, à version exacte
+(`frontend/package.json`, verrouillées par `pnpm-lock.yaml`) : `make install-front`, que la cible
+joue d'abord, les met dans le magasin de pnpm (le cache de la chaîne), d'où le `Makefile` les lit,
+sans `npx --yes` ni registre de npm à chaque passage — leur installation par `npx` comptait dans
+les 120 s que Playwright donne au faux back (#1901), et un registre muet faisait échouer le passage
+avant son premier test (#2913). Les cibles qui lancent Redocly ou Prism sans `install-front`
+(`lint-openapi`, `mock-spec`) installent quand `package.json` ou le verrou sont plus récents que
+`node_modules/.modules.yaml` : un relèvement de version s'installe au passage suivant. Un registre
+qui refuse la connexion fait échouer l'installation en 70 s environ, sur une erreur qui nomme
+l'adresse du paquet demandé ; elle n'a pas d'autre borne, et un registre muet attend celle du
+réseau. `make e2e-measure` et `make e2e-service` lancent `install-front`, puisque
+Playwright y démarre aussi le faux back. Playwright démarre le faux back (`make mock`) et le front,
+joue les parcours dans Chromium, puis arrête les deux — il signale leur groupe de processus entier,
+sans quoi les serveurs que `make` et `pnpm` lancent survivraient. Il démarre toujours ses propres
 serveurs, sur des ports à lui — ceux du créneau du worktree (« Commandes », « Les créneaux des
 worktrees ») : 4110 pour le faux back et 3100 pour le front dans le dépôt principal, au créneau 0,
 `20000 + 100·i + 20` et `+ 40` au créneau i d'un worktree de lot, qui fait d'abord `make slot` —,
@@ -3896,13 +4115,23 @@ disant. Deux worktrees à deux créneaux jouent donc leurs parcours en même tem
 et `E2E_FRONT_PORT`, posés dans l'environnement, l'emportent sur ceux du créneau — le front des
 parcours en prend autant qu'il a de workers, à partir de lui (ci-dessous), quarante au plus dans
 un bloc ; un port qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
-navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, comme
+navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, répartis par durée
+mesurée (`tools/e2e-durations.json`, que rafraîchit `make e2e-durations`) — `SHARD` ne se combine pas
+avec `TESTS=<fichier>`, que la recette refuse : le fichier peut être dans un autre morceau —, comme
 chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les joue sur `n` workers
 (`E2E_WORKERS`, que lit `playwright.config.ts` ; un entier de 1 à 40, rien d'autre : un front par
 worker, et le bloc d'un créneau n'en porte que quarante), moins que Playwright n'en prend de
 lui-même — la moitié des processeurs, plafonnée à quarante — sur un poste chargé, où
-des parcours échouent par délai (#736). Avec `WATERFALL_API_ADDRESS`, le harnais joue
-contre l'API qu'elle nomme et ne démarre aucun faux back.
+des parcours échouent par délai (#736). `make e2e-service` a son défaut à lui (#2890) : les trois
+quarts de `WATERFALL_PROCESSORS`, la part de processeurs du créneau, au moins 1 et au plus 40 — 6 sur
+8 processeurs —, et non la moitié des processeurs du poste, 16 sur 32, où 18 à 23 parcours échouaient
+à naviguer (`toHaveURL`) ; mesuré à 8, 10 et 12 workers sur 8 processeurs, quatre créneaux pris,
+ils échouaient encore à naviguer, à 6 aucun échec de navigation sur deux passages. `WORKERS=<n>` ne vaut
+que pour `make e2e` ; `make e2e-service` prend `E2E_WORKERS=<n>`, dans l'environnement ou sur la
+ligne de commande, qui l'emporte (vide, il est ignoré, sur la ligne de commande comme dans
+l'environnement) ; un `WATERFALL_PROCESSORS` qui n'est pas un entier positif est refusé avant toute
+commande. Avec `WATERFALL_API_ADDRESS`, le harnais joue contre l'API qu'elle nomme et ne démarre aucun
+faux back.
 
 **Les parcours se jouent contre le front construit pour la production** (US-0590), celui
 qu'ouvrent les utilisateurs : un serveur `next start` par worker des parcours, sur `E2E_FRONT_PORT`
@@ -4198,9 +4427,9 @@ chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son ent
   `structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`), que nul EPIC ne renverse ; les
   parcours de ces fichiers qui lisent le témoin se jouent des deux côtés. Les parcours du reste à
   engager de `structure.spec.ts` qui écrivent sur PRJ-001 (l'ajout d'une tâche, l'insertion d'une
-  ligne nommée, avec catégorie et quantité) restent sur le faux back et **n'ont aucun jumeau**
-  contre le service : `remaining.spec.ts` ne rejoue ni l'un ni l'autre sur un projet de la course
-  (#2909 : les y porter, décision à trancher). Celui qui lit — le filtre par poste — se joue des
+  ligne nommée, avec catégorie et quantité) restent sur le faux back ; leurs jumeaux
+  `@shared` de `remaining.spec.ts` les rejouent contre le service sur un projet de la course porté
+  En cours (`bringInProgress`, US-1950, #2909). Celui qui lit — le filtre par poste — se joue des
   deux côtés (EP-09).
 - `planning.spec.ts` — la lecture de la date de début de planning, de ses en-têtes « Démarrée le » et
   « Terminée le » se joue des deux côtés ; seule son écriture (`updateCostStructure`) reste sur le
@@ -4221,9 +4450,9 @@ chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son ent
   par `inService` ou sans étiquette jusqu'à **EP-08**). Les parcours sans étiquette du reste à
   engager de PRJ-001 ne se rejouent pas, le compte de la course n'étant pas contributeur de PRJ-001
   (#2193), et leur jumeau n'est pas toujours celui qu'on croit : le tri après une écriture de
-  `grid.spec.ts` et l'ajout d'une tâche ou d'une ligne de `structure.spec.ts` n'ont pas de jumeau
-  contre le service (#2909 pour ces deux derniers) ; le parcours d'`undo.spec.ts` n'écrit rien, il
-  affirme l'historique indisponible, ce que dit le faux back, et le service est couvert par les
+  `grid.spec.ts` n'a pas de jumeau contre le service ; l'ajout d'une tâche ou d'une ligne de
+  `structure.spec.ts` a le sien dans `remaining.spec.ts` (US-1950) ; le parcours d'`undo.spec.ts`
+  n'écrit rien, il affirme l'historique indisponible, ce que dit le faux back, et le service est couvert par les
   trois parcours d'annulation `@shared` du même fichier (planning, ligne du devis, tâche
   supprimée). Le passage d'un projet En cours
   se joue : le devis de la structure principale en lecture seule contre PRJ-001
@@ -4314,8 +4543,7 @@ la garde et l'entrée ci-dessus :
   pas contributeur (#2193) : leurs jumeaux jouent le service sur un projet de la course
   (`FAKE_BACK_ONLY`, `FAKE_BACK_KEEPS_NOTHING`, `NOT_REPLAYED_IN_SERVICE`, `WITNESS_KEPT`), les
   parcours sans étiquette du reste à engager (`undo.spec.ts` : fond mémoire sans historique, le service
-  étant couvert par ses parcours d'annulation `@shared` ; `grid.spec.ts` ; `structure.spec.ts` : l'ajout
-  d'une tâche et d'une ligne, sans jumeau, #2909) et l'écran des imports de PRJ-001
+  étant couvert par ses parcours d'annulation `@shared` ; `grid.spec.ts`) et l'écran des imports de PRJ-001
   (`exchanges.spec.ts`), qui ne fait que lire cet écran : le parcours `@shared` d'export et de
   réimport du reste à engager couvre un autre geste, sur un projet de la course.
 
@@ -4933,7 +5161,7 @@ deux catalogues, et nomme chaque clé qui manque et le catalogue qui la porte.
 
 ## Charte graphique
 
-La charte vit dans `frontend/src/theme/globals.css`, et nulle part ailleurs : les couleurs,
+La charte vit dans `frontend/src/theme/globals.css`, et nulle part ailleurs (hors les pages de connexion, ci-dessous) : les couleurs,
 la typographie, les espacements et les rayons y sont des jetons — des variables CSS que
 Tailwind et les composants de shadcn/ui lisent par le thème (`bg-primary`,
 `text-muted-foreground`, `rounded-md`). Les bleus viennent des logos de `docs/assets`
@@ -5050,6 +5278,17 @@ qu'un objet ou un littéral écrit sur place ; et, pour la mise en page, qu'un b
 porte son icône hors des tables typées — un bouton écrit à la main —, qu'aucune ombre, aucun dégradé
 ni aucune animation n'orne un composant copié, qu'un écran prenne le gabarit et la densité de sa
 fonction, et qu'un composant copié n'entre qu'avec l'écran qui l'emploie.
+
+**Les pages de connexion.** Keycloak sert les siennes, et aucun fichier du front : le thème
+`waterfall` (`deploy/keycloak/themes/waterfall/login/`) les habille de la charte par sa propre
+feuille, `resources/css/waterfall.css`, posée sur celles de `keycloak.v2`. Elle recopie les jetons
+dont elle a besoin, en clair et en sombre — la seule copie de la charte hors du front : un jeton
+changé dans `globals.css` s'y reporte à la main —, et le thème garde ses copies de la police Geist,
+du logo et de la bannière (`docs/assets/waterfall-banniere.png`, en WebP, recadrée sur mobile).
+Pour l'essayer sans reconstruire l'image, monter le dossier du thème sur
+`/opt/keycloak/themes/waterfall` et couper le cache des thèmes (`KC_SPI_THEME__CACHE_THEMES`,
+`KC_SPI_THEME__CACHE_TEMPLATES` à `false`, `KC_SPI_THEME__STATIC_MAX_AGE` à `-1`) : la page
+rechargée suit le fichier.
 
 ## Migrations
 

@@ -54,6 +54,7 @@ from waterfall.core.planning.shaping import stamp
 from waterfall.core.planning.tables import Node
 from waterfall.core.planning.tree import LINE, read_tree
 from waterfall.core.planning.writing import writing
+from waterfall.platform.database import among
 from waterfall.platform.errors import (
     NOT_FOUND,
     STALE_LOCK_VERSION,
@@ -113,7 +114,7 @@ def lines_of(
         return {}
     rows = session.execute(
         select(Node.parent_id, Node.id)
-        .where(Node.project_id == project_id, Node.parent_id.in_(list(task_ids)), Node.kind == LINE)
+        .where(Node.project_id == project_id, among(Node.parent_id, task_ids), Node.kind == LINE)
         .order_by(Node.rank)
     )
     for parent, node_id in rows:
@@ -252,7 +253,7 @@ def node_revisions(
         return {}
     rows = session.execute(
         select(Node.id, Node.revision_id).where(
-            Node.project_id == project_id, Node.id.in_(list(node_ids))
+            Node.project_id == project_id, among(Node.id, node_ids)
         )
     )
     return dict(rows.all())

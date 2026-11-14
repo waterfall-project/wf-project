@@ -595,17 +595,8 @@ describe("a period of the portfolio the server refuses", () => {
   it("presses in the filter by state of a view refused the states the address names, as it asks them", async () => {
     server.answers = { ...server.answers, "GET /portfolio/performance": inverted };
     const markup = await render(PerformancePage, { ...period, states: "in_progress,completed" });
-    const group = markup.slice(markup.indexOf('aria-label="States retained"'));
-    const pressed = [
-      ...group.matchAll(/<button[^>]*aria-pressed="(true|false)"[^>]*>(.*?)<\/button>/g),
-    ]
-      .slice(0, 3)
-      .map((match) => [text(match[2] ?? ""), match[1]]);
-    expect(pressed).toEqual([
-      ["In progress", "true"],
-      ["Pricing", "false"],
-      ["Completed", "true"],
-    ]);
+    // The menu of the states, closed, says how many it retains (`CheckMenu`, #2916).
+    expect(text(markup)).toContain("States retained 2 selected");
   });
 
   it("says at the field of its start a start the server refuses for following the end it completed the period with, the end named", async () => {

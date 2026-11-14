@@ -6,7 +6,7 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**169 opérations sur 131 chemins, dans 13 familles.**
+**170 opérations sur 132 chemins, dans 13 familles.**
 Le contrat cite **190 des 213 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
@@ -239,7 +239,7 @@ Le contrat cite **190 des 213 exigences** de la spécification.
 
 ## Échanges par fichier
 
-`paths/exchanges.yaml` — 10 opérations
+`paths/exchanges.yaml` — 11 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
@@ -252,6 +252,7 @@ Le contrat cite **190 des 213 exigences** de la spécification.
 | GET | `/projects/{project_id}/imports/{import_id}` | Report of an import | WF-ARC-0110, WF-CRE-0020, WF-IHM-0090, WF-INTF-0040, WF-INTF-0080, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-PLA-0160, WF-REF-0190 |
 | DELETE | `/projects/{project_id}/imports/{import_id}` | Abandon an import | WF-ARC-0100, WF-DAT-0120, WF-INTF-0080 |
 | POST | `/projects/{project_id}/imports/{import_id}/apply` | Apply an import | WF-ARC-0100, WF-CRE-0030, WF-DAT-0110, WF-INTF-0080, WF-INTF-0100, WF-INTF-0140, WF-REF-0190 |
+| PUT | `/projects/{project_id}/imports/{import_id}/duration-rule` | Set the duration rule of an import in calendar gap, and analyse it again | WF-ARC-0100, WF-INTF-0040, WF-INTF-0080, WF-PLA-0160 |
 | POST | `/projects/{project_id}/exports` | Request an export | WF-ARC-0040, WF-CYC-0110, WF-DAT-0120, WF-INTF-0050, WF-INTF-0060, WF-INTF-0110, WF-INTF-0120, WF-INTF-0130, WF-INTF-0180, WF-PLA-0020, WF-PLA-0120 |
 
 ## Portefeuille

@@ -276,8 +276,10 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     (`page.route`), jamais en figeant l'horloge d'une page qui navigue — et une action serveur
     retenue doit être partie avant le clic qui navigue (`page.waitForRequest`, attendue avant
     le clic) : lancée après, elle retient la navigation elle-même (n° 15), et le parcours
-    attend un écran que sa propre retenue empêche de paraître (`tasks.spec.ts`). Aucun outil ne
-    le tient : la revue le cherche.
+    attend un écran que sa propre retenue empêche de paraître (`tasks.spec.ts`). Une retenue
+    trop large — toute lecture de tâche — attrape une action déjà suivie, et la file unique des
+    actions serveur lui fait retenir la confirmation ou la navigation (#3003, #3066). Aucun
+    outil ne le tient : la revue le cherche.
 17. **Route atteinte par un clic, compilée pendant l'attente.** `next dev` compile une route à
     sa première visite ; atteinte par un clic, elle est attendue cinq secondes par une
     assertion, que la compilation mange au premier lancement (#142). Un parcours compile
@@ -492,3 +494,11 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     `src/test/committed.ts`), et la description d'un champ refusé quand il prend le focus (`atFocus`) ;
     `command.dom.test.tsx` et `cost-commands.dom.test.tsx` lancent une commande courte pendant une
     action longue, et la courte dit sa réponse et n'est plus occupée sans l'attendre. Aucun outil ne le tient : la revue le cherche.
+26. **Navigation d'un parcours lancée pendant celle que l'écran mène seul.** Un écran ouvert sans
+    session mène de lui-même à la page de connexion (#2914) : l'écran de panne charge
+    `/login?next=…` dans un effet, après que l'adresse s'est montrée. Un parcours qui, l'adresse
+    vue, lance aussitôt son propre `page.goto` voit l'une interrompre l'autre : `net::ERR_ABORTED`
+    sur son `goto`, ou, selon l'ordre des deux navigations, son `goto` remplacé et la connexion
+    revenue sur l'écran quitté (#3074, `password.spec.ts`). Ce qu'un écran mène seul s'attend avant
+    de naviguer ailleurs — la page de connexion du royaume (`expectSignInPage`) —, jamais l'adresse
+    seule. Aucun outil ne le tient : la revue le cherche.

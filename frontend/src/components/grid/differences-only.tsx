@@ -22,6 +22,10 @@ export function DifferencesOnly({
 }) {
   const t = useTranslations("grid.differenceFilter");
   return offered ? (
-    <DifferenceFilterToggle label={t("label")} pressed={isDifferencesOnly(filter)} />
+    <DifferenceFilterToggle
+      label={t("label")}
+      help={t("help")}
+      pressed={isDifferencesOnly(filter)}
+    />
   ) : null;
 }

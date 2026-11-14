@@ -1,0 +1,23 @@
+2026-11-11T16:45:55.0425551Z ##[group]Run curl -sSfL --retry 10 --retry-all-errors --retry-delay 20 -o make.deb "${MAKE_DEB}"
+2026-11-11T16:45:55.0426280Z [36;1mcurl -sSfL --retry 10 --retry-all-errors --retry-delay 20 -o make.deb "${MAKE_DEB}"[0m
+2026-11-11T16:45:55.0426845Z [36;1mecho "${MAKE_DEB_SHA256}  make.deb" | sha256sum --check --strict[0m
+2026-11-11T16:45:55.0427412Z [36;1mdpkg -i make.deb[0m
+2026-11-11T16:45:55.0427647Z [36;1mrm make.deb[0m
+2026-11-11T16:45:55.0430952Z shell: sh -e {0}
+2026-11-11T16:45:55.0431177Z env:
+2026-11-11T16:45:55.0431822Z   MAKE_DEB: https://archive.ubuntu.com/ubuntu/pool/main/m/make-dfsg/make_4.3-4.1build2_amd64.deb
+2026-11-11T16:45:55.0432431Z   MAKE_DEB_SHA256: 1fe6a815b56c7b6e9ce4086a363f09444bbd0a0d30e230c453d0b78e44b57a99
+2026-11-11T16:45:55.0432837Z   E2E_BUILT: 1
+2026-11-11T16:45:55.0433030Z ##[endgroup]
+2026-11-11T16:46:03.1156644Z curl: (6) Could not resolve host: archive.ubuntu.com
+2026-11-11T16:46:31.1306307Z curl: (6) Could not resolve host: archive.ubuntu.com
+2026-11-11T16:46:59.1571212Z curl: (6) Could not resolve host: archive.ubuntu.com
+2026-11-11T16:47:27.1745377Z curl: (6) Could not resolve host: archive.ubuntu.com
+2026-11-11T16:47:55.1853224Z curl: (6) Could not resolve host: archive.ubuntu.com
+2026-11-11T16:48:23.2126550Z curl: (6) Could not resolve host: archive.ubuntu.com
+2026-11-11T16:48:51.2260643Z curl: (6) Could not resolve host: archive.ubuntu.com
+2026-11-11T16:49:19.2394107Z curl: (6) Could not resolve host: archive.ubuntu.com
+2026-11-11T16:49:47.2668248Z curl: (6) Could not resolve host: archive.ubuntu.com
+2026-11-11T16:50:15.2795030Z curl: (6) Could not resolve host: archive.ubuntu.com
+2026-11-11T16:50:43.3106843Z curl: (6) Could not resolve host: archive.ubuntu.com
+2026-11-11T16:50:43.3168244Z ##[error]Process completed with exit code 6.

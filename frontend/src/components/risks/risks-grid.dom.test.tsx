@@ -12,12 +12,13 @@ import type { GridQuery } from "@/components/grid/query";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
+import { closeMenu, openMenu, pick } from "@/test/check-menu";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
-import type { RiskState } from "./address";
+import { readRiskFilters, type RiskState } from "./address";
 import { RISK_GRID, riskRow, type RiskRows, type RiskSortColumn } from "./risk-grid";
 import { RisksGrid } from "./risks-grid";
-import { RiskStateFilter } from "./state-filter";
+import { RiskFilterPanel } from "./risk-filters";
 
 // The server of Next, as far as the grid needs it: the preferences it writes, the address it reads.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
@@ -388,6 +389,17 @@ function filterOf(states: readonly RiskState[]) {
   );
 }
 
+/** The filter of the risks by state, the one filter of the panel of the register the tests need. */
+function RiskStateFilter({ states }: { readonly states: readonly RiskState[] }) {
+  return (
+    <RiskFilterPanel
+      states={states}
+      filters={readRiskFilters(new URLSearchParams(), [])}
+      fields={[]}
+    />
+  );
+}
+
 /** Render the filter of the risks by state, the address filtering on some. */
 function renderFilter(states: readonly RiskState[]) {
   return render(filterOf(states));
@@ -399,24 +411,26 @@ function filter(): HTMLElement {
 }
 
 describe("the filter of the risks by state", () => {
-  it("offers each state of the contract, and every state pressed while the address filters on none [WF-RIS-0040-A]", async () => {
+  it("offers each state of the contract, and every state checked while the address filters on none [WF-RIS-0040-A]", async () => {
     const { container } = renderFilter([]);
+    await openMenu("Filtrer par état");
     const pressed = within(filter())
-      .getAllByRole("button")
-      .map((button) => [button.textContent, button.getAttribute("aria-pressed")]);
+      .getAllByRole("checkbox")
+      .map((box) => [box.closest("label")?.textContent, box.getAttribute("aria-checked")]);
     expect(pressed).toEqual([
       ["Tous les états", "true"],
       ["Identifié", "false"],
       ["Survenu", "false"],
       ["Écarté", "false"],
     ]);
+    await closeMenu();
     await expectAccessible(container);
   });
 
   it("asks the server to filter on a state chosen, by the address, the rest of it kept [WF-RIS-0040-A]", async () => {
     page.search = "sort_by=provision_amount&sort_order=desc";
     renderFilter([]);
-    await userEvent.click(within(filter()).getByRole("button", { name: "Survenu" }));
+    await pick("Filtrer par état", "Survenu");
     expect(router.push).toHaveBeenLastCalledWith(
       `${PATHNAME}?sort_by=provision_amount&sort_order=desc&states=occurred`,
       { scroll: false },
@@ -426,11 +440,10 @@ describe("the filter of the risks by state", () => {
   it("adds a state to those filtered on, in the order of the contract, and takes one off — from the address arrived, what was asked forgotten", async () => {
     page.search = "states=occurred";
     const { rerender } = renderFilter(["occurred"]);
-    expect(within(filter()).getByRole("button", { name: "Survenu" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    await userEvent.click(within(filter()).getByRole("button", { name: "Identifié" }));
+    await openMenu("Filtrer par état");
+    expect(within(filter()).getByRole("checkbox", { name: "Survenu" })).toBeChecked();
+    await closeMenu();
+    await pick("Filtrer par état", "Identifié");
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?states=identified%2Coccurred`, {
       scroll: false,
     });
@@ -438,12 +451,12 @@ describe("the filter of the risks by state", () => {
     // goes on from the address of the screen, what was asked forgotten (#288).
     page.search = "states=identified";
     rerender(filterOf(["identified"]));
-    await userEvent.click(within(filter()).getByRole("button", { name: "Survenu" }));
+    await pick("Filtrer par état", "Survenu");
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?states=identified%2Coccurred`, {
       scroll: false,
     });
     // What was just asked is kept until it arrives: the next change goes on from it.
-    await userEvent.click(within(filter()).getByRole("button", { name: "Identifié" }));
+    await pick("Filtrer par état", "Identifié");
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?states=occurred`, {
       scroll: false,
     });
@@ -452,7 +465,7 @@ describe("the filter of the risks by state", () => {
   it("lifts the filter on every state", async () => {
     page.search = "states=dismissed&search=automaticien";
     renderFilter(["dismissed"]);
-    await userEvent.click(within(filter()).getByRole("button", { name: "Tous les états" }));
+    await pick("Filtrer par état", "Tous les états");
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?search=automaticien`, {
       scroll: false,
     });
@@ -461,7 +474,7 @@ describe("the filter of the risks by state", () => {
   it("lifts the filter when the last state is chosen too: every state is every risk", async () => {
     page.search = "states=identified%2Coccurred&search=automaticien";
     renderFilter(["identified", "occurred"]);
-    await userEvent.click(within(filter()).getByRole("button", { name: "Écarté" }));
+    await pick("Filtrer par état", "Écarté");
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?search=automaticien`, {
       scroll: false,
     });
@@ -484,11 +497,11 @@ describe("the changes the screen makes to its address, before the server has ans
   it("compose: two states chosen in a row, then a sort, all asked of the server [WF-RIS-0040-A]", async () => {
     renderScreen();
     // The address of the screen stays the one before: no navigation has arrived.
-    await userEvent.click(within(filter()).getByRole("button", { name: "Identifié" }));
+    await pick("Filtrer par état", "Identifié");
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?states=identified`, {
       scroll: false,
     });
-    await userEvent.click(within(filter()).getByRole("button", { name: "Survenu" }));
+    await pick("Filtrer par état", "Survenu");
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?states=identified%2Coccurred`, {
       scroll: false,
     });

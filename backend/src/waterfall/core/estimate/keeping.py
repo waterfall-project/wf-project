@@ -195,10 +195,10 @@ def copy_rates(copy: RevisionCopy) -> None:
     """
     session, project_id = copy.session, copy.project_id
     categories = labour_categories(session, project_id, copy.source)
-    if not categories:
-        return
     source_year = reference_year_of(session, copy.source)
     target_year = reference_year_of(session, copy.target)
+    if not categories and source_year == target_year:
+        return
     held = held_rates(session, (project_id, copy.source, source_year), categories)
     kept: dict[UUID, tuple[Decimal, str]] = {
         category: (amount, REFERENCE) for category, amount in held.items()
@@ -213,22 +213,22 @@ def copy_rates(copy: RevisionCopy) -> None:
         if copy.apply_rate_update:
             for category, amount in reference_rates(session, kept, target_year).items():
                 kept[category] = (amount, REFERENCE)
-    if not kept:
-        return
-    session.execute(
-        insert(RevisionRate),
-        [
-            {
-                "project_id": project_id,
-                "id": new_id(),
-                "revision_id": copy.target,
-                "cost_category_id": category,
-                "amount": amount,
-                "origin": origin,
-            }
-            for category, (amount, origin) in sorted(kept.items())
-        ],
-    )
+    if kept:
+        session.execute(
+            insert(RevisionRate),
+            [
+                {
+                    "project_id": project_id,
+                    "id": new_id(),
+                    "revision_id": copy.target,
+                    "cost_category_id": category,
+                    "amount": amount,
+                    "origin": origin,
+                }
+                for category, (amount, origin) in sorted(kept.items())
+            ],
+        )
+    # The disbursements are projected with the year, whether or not the source has labour rates.
     reprice_revision(session, (project_id, copy.target), copy.at)
 
 

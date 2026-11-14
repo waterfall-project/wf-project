@@ -36,7 +36,7 @@ from waterfall.api.contract.models import (
     SortOrder,
 )
 from waterfall.api.evaluation import Acting, Requires, RequiresProject
-from waterfall.api.queries import Search, listed, refuse_query
+from waterfall.api.queries import Offset, Search, listed, refuse_query
 from waterfall.core.projects.interface import (
     ProjectChange,
     ProjectColumn,
@@ -216,7 +216,7 @@ def project_sort(
 
 def page_of(
     limit: Annotated[int, Query(ge=1, le=GREATEST_LIMIT)] = DEFAULT_LIMIT,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Offset = 0,
 ) -> ProjectPage:
     """Read the page asked for: fifty projects from the first one, unless said otherwise."""
     return ProjectPage(limit, offset)

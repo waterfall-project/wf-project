@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect } from "@playwright/test";
 
+import { closeMenu, menuButton, openFilters, openMenu, pick } from "./check-menu";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 import { bringInProgress, importActualCosts } from "./in-progress";
@@ -64,20 +65,27 @@ test("reads the actual costs of a project: the lines and their three totals, the
   // The sort by amount, and the filter on the excluded lines, asked of the server by the address.
   await grid.getByRole("columnheader", { name: "Montant" }).getByRole("button").click();
   await expect(page).toHaveURL(`${COSTS}?sort_by=amount&sort_order=asc`, { timeout: WORKING });
-  const scope = page.getByRole("group", { name: "Périmètre" });
-  await scope.getByRole("button", { name: "Exclues" }).click();
+  // The filters are folded into a panel, closed until the bar opens it (#2916).
+  await openFilters(page);
+  // The arrows only move the focus in a menu of one choice: nothing is chosen, the menu stays open (#2916).
+  const scopeList = await openMenu(page, "Périmètre");
+  await scopeList.getByRole("radio", { name: "Toutes les lignes" }).focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(scopeList.getByRole("radio", { name: "Suivies" })).toBeFocused();
+  await expect(scopeList).toBeVisible();
+  await expect(page).toHaveURL(`${COSTS}?sort_by=amount&sort_order=asc`);
+  await closeMenu(page);
+  await pick(page, "Périmètre", "Exclues", "radio");
   await expect(page).toHaveURL(`${COSTS}?sort_by=amount&sort_order=asc&in_tracked_scope=false`, {
     timeout: WORKING,
   });
-  await expect(scope.getByRole("button", { name: "Exclues" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  // A period applied: the form stays once the address arrives, and the focus on its button (#537).
+  // A menu of one choice closes on the choice, and says it.
+  await expect(menuButton(page, "Périmètre")).toContainText("Exclues");
+  // A period applied on Enter: the form stays once the address arrives, and the focus on its field (#537).
   const period = page.getByRole("form", { name: "Période des pièces" });
-  await period.getByLabel("Pièces du").fill("2026-04-01");
-  const apply = period.getByRole("button", { name: "Filtrer" });
-  await apply.click();
+  const apply = period.getByLabel("Pièces du");
+  await apply.fill("2026-04-01");
+  await apply.press("Enter");
   await expect(page).toHaveURL(
     `${COSTS}?sort_by=amount&sort_order=asc&in_tracked_scope=false&from=2026-04-01`,
     { timeout: WORKING },
@@ -241,9 +249,14 @@ test("imports the actual costs of a project the run creates, then excludes a lin
     const line = page.getByRole("region", { name: "Ligne FA-0003" });
     await expect(line).toContainText("Suivie");
     await line.getByLabel("Motif de l’exclusion").fill("Câbles d'un autre projet, à réimputer");
-    const command = line.getByRole("button", { name: "Exclure du périmètre suivi" });
-    await command.click();
-    await expect(command).toHaveAttribute("aria-busy", "false", { timeout: WORKING });
+    await line.getByRole("button", { name: "Exclure du périmètre suivi" }).click();
+    // Written, the line flips its command: Next settles the action, which lifts `aria-busy`, then
+    // shows the page its `refresh()` read anew, where the line offers its reinstatement, a few
+    // milliseconds later (n° 22). Only the reinstatement no longer busy says both have come; the
+    // exclusion no longer busy is a moment the polls of an expectation miss when the answer is slow.
+    await expect(
+      line.getByRole("button", { name: "Réintégrer dans le périmètre suivi" }),
+    ).toHaveAttribute("aria-busy", "false", { timeout: WORKING });
     await expect(line.getByRole("alert")).toHaveCount(0);
     await expect(totals).toHaveText(
       /^Totaux des lignes retenues\s*Périmètre suivi\s*1\s260,50\s€\s*Exclu du périmètre suivi\s*100,00\s€\s*Total général\s*1\s360,50\s€\s*Dernier import/,

@@ -10,10 +10,11 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridQuery } from "@/components/grid/query";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { pick } from "@/test/check-menu";
 import { example, fakeClient } from "@/test/fixtures";
 
 import { readRiskFilters, RISK_ZONES, riskFilterQuery, RISKS_LIST, universalDay } from "./address";
-import { RiskColumnFilters } from "./risk-filters";
+import { RiskFilterPanel, UnreviewedSince } from "./risk-filters";
 import { riskRow, type RiskRows, type RiskSortColumn } from "./risk-grid";
 import { RisksGrid } from "./risks-grid";
 
@@ -33,27 +34,18 @@ type FieldProblem = components["schemas"]["FieldProblem"];
 const NONE = { items: [], totals: (example("risks_empty") as RiskRows).totals };
 const NO_QUERY: GridQuery<RiskSortColumn> = { sort: undefined, search: undefined, size: undefined };
 
-/** The filters of the register, as the address of the page asks them, in French. */
-function renderFilters(fields: readonly FieldProblem[] = [], lastMarkedOn?: string, unfold = true) {
+/** The panel of the filters of the register, as the address of the page asks them, in French. */
+function renderFilters(fields: readonly FieldProblem[] = [], lastMarkedOn?: string) {
   const search = new URLSearchParams(page.search);
   const zones = RISK_ZONES.filter((zone) => (search.get("zones") ?? "").split(",").includes(zone));
-  const rendered = render(
+  return render(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <PendingAddress>
-        <RiskColumnFilters
-          filters={readRiskFilters(search, zones)}
-          fields={fields}
-          lastMarkedOn={lastMarkedOn}
-        />
+        <RiskFilterPanel states={[]} filters={readRiskFilters(search, zones)} fields={fields} />
+        {lastMarkedOn === undefined ? null : <UnreviewedSince day={lastMarkedOn} />}
       </PendingAddress>
     </NextIntlClientProvider>,
   );
-  // The bar is folded unless the address filters: the tests that need it open unfold it.
-  const toggle = screen.getByRole("button", { name: "Filtres des colonnes" });
-  if (unfold && toggle.getAttribute("aria-expanded") === "false") {
-    fireEvent.click(toggle);
-  }
-  return rendered;
 }
 
 beforeEach(() => {
@@ -126,81 +118,64 @@ describe("the address of the register of the risks", () => {
 });
 
 describe("the filters of the register on its columns", () => {
-  it("is folded by default, its command named and its shortcut in view, and opens of itself when a filter of a column is active or a side is refused [WF-IHM-0100-A] [WF-IHM-0130-A]", async () => {
-    const { unmount } = renderFilters([], "2026-02-01", false);
-    const toggle = screen.getByRole("button", { name: "Filtres des colonnes" });
+  it("is folded into the bar of the grid, closed until « Filtres » opens it, and tells the filters of the columns on by chips lifted by their parameters [WF-IHM-0100-A] [WF-IHM-0130-A] (#2916)", async () => {
+    page.search =
+      "sort_by=provision_amount&states=identified&zones=alert&probability_min=0.1&severity_min=100&last_review_on_to=2026-02-01";
+    const filters = readRiskFilters(new URLSearchParams(page.search), ["alert"]);
+    render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <PendingAddress>
+          <RisksGrid
+            risks={{ items: [], totals: NONE.totals }}
+            query={NO_QUERY}
+            preferences={undefined}
+            states={["identified"]}
+            filters={filters}
+            lastMarkedOn="2026-02-01"
+            panel={<RiskFilterPanel states={["identified"]} filters={filters} fields={[]} />}
+          />
+        </PendingAddress>
+      </NextIntlClientProvider>,
+    );
+    const toggle = screen.getByRole("button", { name: "Filtres (5)" });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("group", { name: "Filtrer par zone" })).toBeNull();
+    const chips = screen.getByRole("list", { name: "Filtres actifs" });
+    expect(chips).toHaveTextContent("État : Identifié");
+    expect(chips).toHaveTextContent("Zone de la matrice : Alerte");
+    expect(chips).toHaveTextContent("Probabilité : 0,1 au moins");
+    expect(chips).toHaveTextContent("Gravité : 100,00 au moins");
+    // The period ending the day of the last marking is the shortcut of the review, told as such.
+    expect(chips).toHaveTextContent("Non réexaminés depuis le dernier marquage : 1 févr. 2026");
+    // The shortcut stays within reach with the panel closed.
     expect(
       screen.getByRole("link", { name: "Non réexaminés depuis le dernier marquage" }),
     ).toBeVisible();
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Retirer le filtre Non réexaminés depuis le dernier marquage : 1 févr. 2026",
+      }),
+    );
+    expect(router.push).toHaveBeenLastCalledWith(
+      `${PATHNAME}?sort_by=provision_amount&states=identified&zones=alert&probability_min=0.1&severity_min=100`,
+      { scroll: false },
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Retirer le filtre Probabilité : 0,1 au moins" }),
+    );
+    expect(router.push).toHaveBeenLastCalledWith(
+      `${PATHNAME}?sort_by=provision_amount&states=identified&zones=alert&severity_min=100`,
+      { scroll: false },
+    );
     await userEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("group", { name: "Filtrer par zone" })).toBeVisible();
-    unmount();
-    page.search = "zones=alert";
-    const zone = renderFilters([], undefined, false);
-    expect(screen.getByRole("button", { name: "Filtres des colonnes" })).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
-    zone.unmount();
-    page.search = "";
-    const refusal = example("risks_period_inverted") as { fields: FieldProblem[] };
-    renderFilters(refusal.fields, undefined, false);
-    expect(screen.getByRole("button", { name: "Filtres des colonnes" })).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
-  });
-
-  it("follows the address: folded, a filter laid opens the bar; open, the removal of the last filter folds it again [WF-IHM-0130-A]", async () => {
-    const bar = (search: string) => {
-      const query = new URLSearchParams(search);
-      const zones = RISK_ZONES.filter((zone) =>
-        (query.get("zones") ?? "").split(",").includes(zone),
-      );
-      return (
-        <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-          <PendingAddress>
-            <RiskColumnFilters
-              filters={readRiskFilters(query, zones)}
-              fields={[]}
-              lastMarkedOn={undefined}
-            />
-          </PendingAddress>
-        </NextIntlClientProvider>
-      );
-    };
-    const expanded = () =>
-      screen.getByRole("button", { name: "Filtres des colonnes" }).getAttribute("aria-expanded");
-    const toggle = () => screen.getByRole("button", { name: "Filtres des colonnes" });
-    const { rerender } = render(bar(""));
-    expect(expanded()).toBe("false");
-    // Opened by hand, the bar stays open when a filter is laid, then folds with the last one.
-    await userEvent.click(toggle());
-    expect(expanded()).toBe("true");
-    rerender(bar("zones=alert"));
-    expect(expanded()).toBe("true");
-    rerender(bar(""));
-    expect(expanded()).toBe("false");
-    // Folded by hand while filtering, it stays folded until the address stops filtering; a filter
-    // laid again opens it, the earlier choice being forgotten.
-    rerender(bar("zones=alert"));
-    expect(expanded()).toBe("true");
-    await userEvent.click(toggle());
-    expect(expanded()).toBe("false");
-    rerender(bar(""));
-    expect(expanded()).toBe("false");
-    rerender(bar("zones=alert"));
-    expect(expanded()).toBe("true");
+    expect(screen.getByRole("button", { name: /^Filtrer par zone/ })).toBeVisible();
   });
 
   it("offers the zone, the bounds of the probability and of the four columns of amounts, and the period of the last review [WF-IHM-0130-A]", async () => {
     const { container } = renderFilters();
-    expect(screen.getByRole("group", { name: "Filtrer par zone" })).toBeVisible();
+    expect(screen.getByRole("button", { name: /^Filtrer par zone/ })).toBeVisible();
     const probability = screen.getByRole("form", { name: "Bornes de la probabilité, de 0 à 1" });
-    expect(within(probability).getByRole("textbox", { name: "Probabilité, min." })).toBeVisible();
+    expect(within(probability).getByRole("textbox", { name: "Probabilité, du" })).toBeVisible();
     const amounts = screen.getByRole("form", { name: "Bornes des montants" });
     for (const column of [
       "Gravité",
@@ -208,8 +183,8 @@ describe("the filters of the register on its columns", () => {
       "Coût à la survenance",
       "Réestimé des survenus",
     ]) {
-      expect(within(amounts).getByRole("textbox", { name: `${column}, min.` })).toBeVisible();
-      expect(within(amounts).getByRole("textbox", { name: `${column}, max.` })).toBeVisible();
+      expect(within(amounts).getByRole("textbox", { name: `${column}, du` })).toBeVisible();
+      expect(within(amounts).getByRole("textbox", { name: `${column}, au` })).toBeVisible();
     }
     expect(screen.getByRole("form", { name: "Période du dernier réexamen" })).toBeVisible();
     await expectAccessible(container);
@@ -219,15 +194,12 @@ describe("the filters of the register on its columns", () => {
     page.search = "sort_by=provision_amount&sort_order=desc";
     renderFilters();
     const amounts = screen.getByRole("form", { name: "Bornes des montants" });
+    await userEvent.type(within(amounts).getByRole("textbox", { name: "Provision, du" }), "100000");
     await userEvent.type(
-      within(amounts).getByRole("textbox", { name: "Provision, min." }),
-      "100000",
-    );
-    await userEvent.type(
-      within(amounts).getByRole("textbox", { name: "Réestimé des survenus, max." }),
+      within(amounts).getByRole("textbox", { name: "Réestimé des survenus, au" }),
       "300,5",
     );
-    await userEvent.click(within(amounts).getByRole("button", { name: "Filtrer" }));
+    await userEvent.keyboard("{Enter}");
     await waitFor(() => {
       expect(router.push).toHaveBeenCalled();
     });
@@ -239,8 +211,8 @@ describe("the filters of the register on its columns", () => {
   it("writes the bounds of the probability as a rate [WF-IHM-0130-A]", async () => {
     renderFilters();
     const form = screen.getByRole("form", { name: "Bornes de la probabilité, de 0 à 1" });
-    await userEvent.type(within(form).getByRole("textbox", { name: "Probabilité, min." }), "0,2");
-    await userEvent.click(within(form).getByRole("button", { name: "Filtrer" }));
+    await userEvent.type(within(form).getByRole("textbox", { name: "Probabilité, du" }), "0,2");
+    await userEvent.keyboard("{Enter}");
     await waitFor(() => {
       expect(router.push).toHaveBeenCalledWith(`${PATHNAME}?probability_min=0.2`, {
         scroll: false,
@@ -251,11 +223,7 @@ describe("the filters of the register on its columns", () => {
   it("filters on a zone of the matrix, by the address [WF-IHM-0130-A]", async () => {
     page.search = "states=identified";
     renderFilters();
-    await userEvent.click(
-      within(screen.getByRole("group", { name: "Filtrer par zone" })).getByRole("button", {
-        name: "Vigilance",
-      }),
-    );
+    await pick("Filtrer par zone", "Vigilance");
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?states=identified&zones=watch`, {
       scroll: false,
     });
@@ -266,7 +234,7 @@ describe("the filters of the register on its columns", () => {
     const form = screen.getByRole("form", { name: "Période du dernier réexamen" });
     fireEvent.change(within(form).getByLabelText("Du"), { target: { value: "2026-02-01" } });
     fireEvent.change(within(form).getByLabelText("Au"), { target: { value: "2026-03-01" } });
-    await userEvent.click(within(form).getByRole("button", { name: "Filtrer" }));
+    fireEvent.keyDown(within(form).getByLabelText("Au"), { key: "Enter" });
     await waitFor(() => {
       expect(router.push).toHaveBeenCalled();
     });
@@ -329,16 +297,12 @@ describe("the filters of the register on its columns", () => {
     render(
       <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">
         <PendingAddress>
-          <RiskColumnFilters
-            filters={readRiskFilters(search, [])}
-            fields={[]}
-            lastMarkedOn="2026-02-01"
-          />
+          <RiskFilterPanel states={[]} filters={readRiskFilters(search, [])} fields={[]} />
+          <UnreviewedSince day="2026-02-01" />
         </PendingAddress>
       </NextIntlClientProvider>,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Column filters" }));
-    expect(screen.getByRole("group", { name: "Filter by zone" })).toBeVisible();
+    expect(screen.getByRole("button", { name: /^Filter by zone/ })).toBeVisible();
     expect(screen.getByRole("link", { name: "Not reviewed since the last marking" })).toBeVisible();
   });
 });

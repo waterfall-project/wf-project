@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import { closeMenu, menuButton, openMenu, pick } from "./check-menu";
 import { columnsOf } from "./columns";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
@@ -253,7 +254,8 @@ test("adds a task from the remaining to commit of a project in progress, below a
   test.slow();
   // Une tâche ajoutée depuis la grille de reste à engager : the structure lists `edit_remaining`
   // available, and the gesture is the planning's; that it appears in the planning, the reference
-  // unchanged, is the service's (EP-09, served); this path has no twin against it yet (#2909).
+  // unchanged, is the service's (EP-09, served); its twin against the service, on a project the run
+  // creates, is in `remaining.spec.ts` (#2909).
   const { cell } = await focusRow(
     page,
     "remaining",
@@ -303,8 +305,8 @@ test("inserts a line in the remaining to commit of a project in progress, named,
   // Sur un projet En cours, la grille de reste à engager propose la création d'une ligne et d'une
   // tâche : the structure lists `edit_remaining` available. The categories come from the reference.
   // Not played against the service: it writes the remaining of PRJ-001, whose project manager the
-  // account of the run is not (#2193); `remaining.spec.ts` plays the writes on a project the run
-  // creates.
+  // account of the run is not (#2193); its twin in `remaining.spec.ts` plays the insertion on a
+  // project the run creates (#2909).
   const { cell } = await focusRow(
     page,
     "remaining",
@@ -338,13 +340,14 @@ test("filters the remaining to commit by the post « Poste 1.1 » chosen among t
   // back serves the structure whole whatever the filter asks; what the page sends is proven by
   // `remaining/page.test.tsx`.
   await openHydrated(page, `${IN_REVISION}/remaining`);
-  const filter = page.getByRole("combobox", { name: "Lot ou poste" });
-  await expect(filter.getByRole("option")).toHaveText([
+  const filter = menuButton(page, "Lot ou poste");
+  await expect((await openMenu(page, "Lot ou poste")).getByRole("radio")).toHaveText([
     "Tous les lots et postes",
     "Lot : Lot 1",
     "Poste : Poste 1.1",
   ]);
-  await filter.selectOption({ label: "Poste\u00a0: Poste 1.1" });
+  await closeMenu(page);
+  await pick(page, "Lot ou poste", "Poste\u00a0: Poste 1.1", "radio");
   await expect(page).toHaveURL(
     `${IN_REVISION}/remaining?order_item_id=01926f3a-7c00-7000-8000-000000000712`,
     { timeout: WORKING },
@@ -356,7 +359,7 @@ test("filters the remaining to commit by the post « Poste 1.1 » chosen among t
   await expect(chips).toHaveText(["Poste : Poste 1.1, sur la grille seulement"]);
   await chips.getByRole("link", { name: /^Lever le filtre/ }).click();
   await expect(page).toHaveURL(`${IN_REVISION}/remaining`, { timeout: WORKING });
-  await expect(filter).toHaveValue("");
+  await expect(filter).toContainText("Tous les lots et postes");
 });
 
 // The planning written against the service on a planning the run seeds (`planning-seed.ts`): the

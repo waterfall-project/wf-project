@@ -13,8 +13,9 @@
 
       The filters combine (WF-IHM-0130): the search (`search`) covers the last name, the
       first name and the address, and the first name followed by the last name, as the table
-      shows them; the origin (`origins`), the node (`org_node_id`) and the roles (`access_role_ids`)
-      are filtered, the state with `is_active` — deactivated accounts being added to active ones
+      shows them; the origin (`origins`), the node (`org_node_id`) and the roles (`access_role_ids`,
+      and the accounts without one with `without_access_role`, in union with them) are filtered,
+      the state with `is_active` — deactivated accounts being added to active ones
       with `include_inactive` —; the audit columns (WF-DAT-0070) with a period each
       (`created_at_from`, `created_at_to`, `updated_at_from`, `updated_at_to`) and by their author,
       an account or the platform (`created_by_user_id`, `created_by_kind`, `updated_by_user_id`,
@@ -77,7 +78,8 @@
         description: >-
           Restricts to the accounts that hold at least one of these access roles, the roles
           column being filtered (WF-IHM-0130, WF-ADM-0050). An account without a role is retained
-          by no value; an identifier that designates no role retains no account, as
+          by none of these values, but by `without_access_role`, whose accounts are added to
+          theirs when both are given; an identifier that designates no role retains no account, as
           `org_node_id` does an unknown node. The service checks the list like `origins`, after
           the schemas of the other parameters: a malformed identifier, or an empty one, is refused
           with 422 `VALIDATION_FAILED`, `fields[]` designating `/query/access_role_ids`, once those
@@ -86,6 +88,17 @@
           type: array
           items: { $ref: ../components/common.yaml#/Uuid }
         explode: false
+      - name: without_access_role
+        in: query
+        description: >-
+          True, retains the accounts that hold no access role — a deleted role no longer
+          counts, as `User.access_role_ids` no longer names it —, such as an account the
+          identity provider created at its first sign-in, which has no permission until a role is
+          given to it (WF-ADM-0180, WF-IHM-0130). Given with `access_role_ids`, the two retain
+          their union: the accounts without a role and those that hold one of the roles named.
+          Absent or false, nothing changes: the roles filter by `access_role_ids` alone. It combines
+          with the other filters, the sort and the pagination like them (#2976).
+        schema: { type: boolean, default: false }
       - $ref: ../components/parameters.yaml#/CreatedAtFrom
       - $ref: ../components/parameters.yaml#/CreatedAtTo
       - $ref: ../components/parameters.yaml#/CreatedByUserId
@@ -140,6 +153,7 @@
               witness: { $ref: ../../../fixtures/api/users.json }
               page: { $ref: ../../../fixtures/api/users_page.json }
               by_access_role: { $ref: ../../../fixtures/api/users_by_access_role.json }
+              without_access_role: { $ref: ../../../fixtures/api/users_without_access_role.json }
               search: { $ref: ../../../fixtures/api/users_search.json }
               inactive: { $ref: ../../../fixtures/api/users_inactive.json }
               anonymized: { $ref: ../../../fixtures/api/users_anonymized.json }

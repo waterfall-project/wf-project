@@ -26,6 +26,7 @@ import { useTranslations } from "next-intl";
 import type { ObjectNames } from "@/components/commands/outcome-notice";
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import { type Bounds, type RefusedBounds, refusedSides } from "@/components/grid/filters";
+import { FilterFields } from "@/components/grid/filter-fields";
 import { ListPages } from "@/components/grid/list-pages";
 import { CONTRACT_ADDRESS, type GridQuery } from "@/components/grid/query";
 import { RangeFilter } from "@/components/grid/range-filter";
@@ -111,6 +112,26 @@ export function CostTypeList({
   const title = t("costTypes.title");
   const offset = COST_TYPE_ADDRESS.offset;
   const narrowed = query.search !== undefined || kinds.length > 0 || state !== undefined;
+  const panel = (
+    <FilterFields hint={false}>
+      <ValuesFilter
+        name={COST_TYPE_KINDS}
+        label={t("costTypes.kindFilter")}
+        every={t("costTypes.everyKind")}
+        values={COST_TYPE_KIND_VALUES.map((kind) => ({ value: kind, text: named(kind) }))}
+        chosen={kinds}
+        page={offset}
+      />
+      {editable ? (
+        <StateFilter
+          name={COST_TYPE_STATE}
+          label={t("stateFilter.of", { list: title })}
+          chosen={state}
+          page={offset}
+        />
+      ) : null}
+    </FilterFields>
+  );
   return (
     <CommandedList kind="cost_type">
       <ReferenceSection
@@ -122,26 +143,8 @@ export function CostTypeList({
           empty={page.total === 0 && !narrowed ? t("costTypes.none") : undefined}
           reads={COST_TYPE_READS}
           dialog={<CostDialog natures={[]} names={namesOf(rows, (type) => type.cost_type_id)} />}
-          filters={
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-              <ValuesFilter
-                name={COST_TYPE_KINDS}
-                label={t("costTypes.kindFilter")}
-                every={t("costTypes.everyKind")}
-                values={COST_TYPE_KIND_VALUES.map((kind) => ({ value: kind, text: named(kind) }))}
-                chosen={kinds}
-                page={offset}
-              />
-              {editable ? (
-                <StateFilter
-                  name={COST_TYPE_STATE}
-                  label={t("stateFilter.of", { list: title })}
-                  chosen={state}
-                  page={offset}
-                />
-              ) : null}
-            </div>
-          }
+          folded
+          filters={panel}
           grid={
             <CostGrid
               kind="costTypes"
@@ -150,6 +153,9 @@ export function CostTypeList({
               query={query}
               preferences={preferences}
               editable={editable}
+              kinds={kinds}
+              state={state}
+              panel={panel}
             />
           }
           pages={
@@ -200,6 +206,29 @@ export function CostCategoryList({
   const title = t("costCategories.title");
   const offset = COST_CATEGORY_ADDRESS.offset;
   const narrowed = query.search !== undefined || nature !== undefined || state !== undefined;
+  const panel = (
+    <FilterFields hint={false}>
+      <ChoiceFilter
+        name={CATEGORY_COST_TYPE}
+        label={t("costCategories.costTypeFilter")}
+        every={t("costCategories.everyCostType")}
+        choices={natures.map((choice) => ({
+          value: choice.id,
+          text: t("codedChoice", { code: choice.code ?? "", label: choice.label }),
+        }))}
+        chosen={nature}
+        page={offset}
+      />
+      {editable ? (
+        <StateFilter
+          name={CATEGORY_STATE}
+          label={t("stateFilter.of", { list: title })}
+          chosen={state}
+          page={offset}
+        />
+      ) : null}
+    </FilterFields>
+  );
   return (
     <CommandedList kind="cost_category">
       <ReferenceSection
@@ -217,29 +246,8 @@ export function CostCategoryList({
               names={namesOf(rows, (category) => category.cost_category_id)}
             />
           }
-          filters={
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-              <ChoiceFilter
-                name={CATEGORY_COST_TYPE}
-                label={t("costCategories.costTypeFilter")}
-                every={t("costCategories.everyCostType")}
-                choices={natures.map((choice) => ({
-                  value: choice.id,
-                  text: t("codedChoice", { code: choice.code ?? "", label: choice.label }),
-                }))}
-                chosen={nature}
-                page={offset}
-              />
-              {editable ? (
-                <StateFilter
-                  name={CATEGORY_STATE}
-                  label={t("stateFilter.of", { list: title })}
-                  chosen={state}
-                  page={offset}
-                />
-              ) : null}
-            </div>
-          }
+          folded
+          filters={panel}
           grid={
             <CostGrid
               kind="costCategories"
@@ -248,6 +256,10 @@ export function CostCategoryList({
               query={query}
               preferences={preferences}
               editable={editable}
+              nature={nature}
+              natures={natures}
+              state={state}
+              panel={panel}
             />
           }
           pages={
@@ -299,7 +311,7 @@ export function RateFilterBar({
   const list = names("hourlyRates");
   const offset = CONTRACT_ADDRESS.offset;
   return (
-    <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
+    <FilterFields>
       {editable ? (
         <StateFilter
           name={RATE_STATE}
@@ -330,6 +342,6 @@ export function RateFilterBar({
           page={offset}
         />
       )}
-    </div>
+    </FilterFields>
   );
 }

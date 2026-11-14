@@ -65,6 +65,7 @@ export function accounts(
           orgNode={undefined}
           roles={roles}
           accessRoles={[]}
+          withoutRole={false}
           active={undefined}
           audit={NO_AUDIT}
           authors={[]}
@@ -125,4 +126,12 @@ export function account(lastName: string): User {
     throw new Error(`no account ${lastName} in the witness`);
   }
   return found;
+}
+
+/** Open the panel of the filters of the table, closed until the account opens it (#2916). */
+export async function openFilters() {
+  const button = screen.getByRole("button", { name: /^Filtres( \(|$)/ });
+  if (button.getAttribute("aria-expanded") !== "true") {
+    await userEvent.click(button);
+  }
 }

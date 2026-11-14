@@ -136,38 +136,34 @@ describe("the accounts", () => {
     expect((await usersMetadata()).title).toBe("Gestion des utilisateurs — Waterfall");
   });
 
-  it("present above the table the report of the last reading of the accounts, and to a session that may modify the accounts the command that asks a new one", async () => {
+  it("put the reading of the accounts of the identity provider behind a menu « ⋯ » beside « Créer un compte local », its report read for it (the popover is closed)", async () => {
     const page = rendered(await UsersPage(searched()));
-    const said = text(page);
-    expect(said).toContain(
-      "Lecture des comptes du fournisseur d’identité Lire les comptes Dernière lecture achevée le .",
+    const menu = page.indexOf(
+      'aria-label="Lecture des comptes du fournisseur d’identité : état et commandes"',
     );
-    expect(said).toContain(
-      "Aucun compte créé Aucun compte mis à jour Aucun compte désactivé Aucune identité rétablie dans le fournisseur Aucun compte local retiré du fournisseur Rien de signalé",
-    );
-    expect(page).toContain('<time dateTime="2026-06-03T02:00:00Z">');
-    expect(said.indexOf("Lire les comptes")).toBeLessThan(said.indexOf("Comptes utilisateurs"));
+    expect(menu).toBeGreaterThan(-1);
+    expect(buttons(page)).toContain("Créer un compte local");
+    expect(page.indexOf("Créer un compte local")).toBeLessThan(menu);
+    // Out of the way of the table until the menu is opened.
+    expect(text(page)).not.toContain("Lire les comptes");
     expect(queriesOf("GET /identity-syncs/latest")).toEqual([{}]);
   });
 
-  it("present the periodicity of the reading of the accounts, and the command that modifies it to a session that may modify the accounts [WF-ADM-0070-A]", async () => {
-    const page = rendered(await UsersPage(searched()));
-    const said = text(page);
-    expect(said).toContain("Périodicité de la lecture Modifier la périodicité");
-    expect(said).toContain("État Active Fréquence Quotidienne Heure 01:30 UTC");
+  it("read the periodicity of the reading of the accounts for the menu [WF-ADM-0070-A]", async () => {
+    rendered(await UsersPage(searched()));
     expect(queriesOf("GET /identity-sync-schedule")).toEqual([{}]);
   });
 
-  it("offer no reading of the accounts to a session that may not modify them, and say so when no reading has ended yet", async () => {
+  it("offer no command to create an account to a session that may not modify them, the menu of the reading still there", async () => {
     server.answers = {
       ...server.answers,
       "GET /me": "me_estimator",
       "GET /identity-syncs/latest": NOT_FOUND,
     };
     const page = rendered(await UsersPage(searched()));
-    expect(buttons(page)).not.toContain("Lire les comptes");
-    expect(text(page)).toContain(
-      "Lecture des comptes du fournisseur d’identité Aucune lecture des comptes n’a encore abouti.",
+    expect(buttons(page)).not.toContain("Créer un compte local");
+    expect(page).toContain(
+      'aria-label="Lecture des comptes du fournisseur d’identité : état et commandes"',
     );
   });
 
@@ -176,14 +172,14 @@ describe("the accounts", () => {
     server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const page = rendered(await UsersPage(searched()));
     expect(rows(page, "Comptes utilisateurs")).toEqual([
-      "Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État Créé le Créé par Modifié le Modifié par",
-      "Bernard Dominique dominique.bernard@example.com Importé de l’annuaire Aucun Manager Actif La plateforme La plateforme",
-      "Lefèvre Sacha sacha.lefevre@example.com Créé par le fournisseur d’identité Atelier de câblage Aucun rôle Actif La plateforme La plateforme",
-      "Martin Camille camille.martin@example.com Créé dans Waterfall Aucun Direction de projet Actif La plateforme Camille Martin",
-      "Moreau Alix alix.moreau@example.com Créé dans Waterfall Bureau d'études électricité Chef de projet Désactivé Camille Martin Camille Martin",
-      "Petit Lucas lucas.petit@example.com Créé dans Waterfall Aucun Chiffreur Actif Camille Martin Camille Martin",
-      "Roux Inès ines.roux@example.com Créé dans Waterfall Aucun Pilotage de projet Actif Camille Martin Camille Martin",
-      "Vidal Noé noe.vidal@example.com Créé dans Waterfall Aucun Auditeur Actif Camille Martin Camille Martin",
+      "Aucune ligne n’est sélectionnée N° Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État Créé le Créé par Modifié le Modifié par",
+      "1 Bernard Dominique dominique.bernard@example.com Importé de l’annuaire Aucun Manager Actif La plateforme La plateforme",
+      "2 Lefèvre Sacha sacha.lefevre@example.com Créé par le fournisseur d’identité Atelier de câblage Aucun rôle Actif La plateforme La plateforme",
+      "3 Martin Camille camille.martin@example.com Créé dans Waterfall Aucun Direction de projet Actif La plateforme Camille Martin",
+      "4 Moreau Alix alix.moreau@example.com Créé dans Waterfall Bureau d'études électricité Chef de projet Désactivé Camille Martin Camille Martin",
+      "5 Petit Lucas lucas.petit@example.com Créé dans Waterfall Aucun Chiffreur Actif Camille Martin Camille Martin",
+      "6 Roux Inès ines.roux@example.com Créé dans Waterfall Aucun Pilotage de projet Actif Camille Martin Camille Martin",
+      "7 Vidal Noé noe.vidal@example.com Créé dans Waterfall Aucun Auditeur Actif Camille Martin Camille Martin",
       "7 comptes",
     ]);
     expect(sortable(page, "Comptes utilisateurs")).toEqual([
@@ -207,9 +203,7 @@ describe("the accounts", () => {
 
   it("offer the filters of the origins and of the node, the nodes in the order of the tree", async () => {
     const page = text(rendered(await UsersPage(searched())));
-    expect(page).toContain(
-      "Toutes les origines Créé dans Waterfall Importé de l’annuaire Créé par le fournisseur d’identité",
-    );
+    expect(page).toContain("Filtrer par origine Toutes les origines");
     expect(page).toContain("Nœud d’organisation Tous les nœuds DT · Direction technique");
     expect(queriesOf("GET /reference/org-nodes")).toEqual([{}]);
   });
@@ -310,8 +304,9 @@ describe("the accounts", () => {
       },
     ]);
     expect(page).toContain("3 comptes");
-    // The authors to choose: any account, the platform, and the accounts that wrote the page.
-    expect(page).toContain("Modifié par Tous les auteurs Un compte La plateforme Camille Martin");
+    // The authors chosen, named as the page names them: the menu is closed, it says the choice.
+    expect(page).toContain("Créé par La plateforme");
+    expect(page).toContain("Modifié par Camille Martin");
   });
 
   it("say at its field the end of a period the API refuses for preceding its start, the grid unread", async () => {
@@ -373,7 +368,7 @@ describe("the accounts", () => {
         }),
       ),
     );
-    expect(text(page)).toContain("Créé par Tous les auteurs Un compte La plateforme Noé Vidal");
+    expect(text(page)).toContain("Créé par Noé Vidal");
     expect(text(page)).not.toContain(vidal);
     expect(
       server.clients
@@ -393,15 +388,15 @@ describe("the accounts", () => {
       ),
     );
     expect(queriesOf("GET /users/{user_id}")).toHaveLength(1);
-    expect(page).toContain("Modifié par Tous les auteurs Un compte La plateforme Camille Martin");
-    expect(page).toContain(unknown);
+    expect(page).toContain("Créé par Camille Martin");
+    expect(page).toContain(`Modifié par ${unknown}`);
   });
 
   it("present an anonymised account under the neutral label, nowhere by its name nor its address, its reactivation and its anonymisation unavailable [WF-ADM-0060-A]", async () => {
     server.answers = { ...server.answers, "GET /users": "users_anonymized" };
     const page = rendered(await UsersPage(searched({ is_active: "false" })));
     expect(rows(page, "Comptes utilisateurs").slice(1, 2)).toEqual([
-      "Compte anonymisé Créé dans Waterfall Bureau d'études électricité Chef de projet Condition non remplie : compte non anonymisé. Désactivé Camille Martin Camille Martin Anonymiser Condition non remplie : compte non anonymisé.",
+      "1 Compte anonymisé Créé dans Waterfall Bureau d'études électricité Chef de projet Condition non remplie : compte non anonymisé. Désactivé Camille Martin Camille Martin Anonymiser Condition non remplie : compte non anonymisé.",
     ]);
     expect(text(page)).not.toMatch(/Alix|Moreau|alix\.moreau/);
     // Its reactivation, on the switch of its state, and its anonymisation: both unavailable.
@@ -413,7 +408,7 @@ describe("the accounts", () => {
     );
   });
 
-  it("offer no filter by access role to a session that may not read the roles, and ask none", async () => {
+  it("offer to a session that may not read the roles only « Sans rôle » to filter by access role, and ask no role of the service [WF-ADM-0180-A]", async () => {
     server.answers = { ...server.answers, "GET /access-roles": NOT_FOUND };
     const page = text(
       rendered(
@@ -421,7 +416,7 @@ describe("the accounts", () => {
       ),
     );
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true" }]);
-    expect(page).not.toContain("Tous les rôles");
+    expect(page).toContain("Filtrer par rôle Tous les rôles");
     expect(page).toContain("Nœud d’organisation Tous les nœuds");
   });
 
@@ -430,7 +425,7 @@ describe("the accounts", () => {
     expect(text(page)).not.toMatch(/Supprimer/);
     expect(buttons(page)).toContain("Créer un compte local");
     expect(rows(page, "Comptes utilisateurs")[0]).toBe(
-      "Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État Créé le Créé par Modifié le Modifié par Lien de fixation Renvoi du courriel Anonymisation",
+      "Aucune ligne n’est sélectionnée N° Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État Créé le Créé par Modifié le Modifié par Lien de fixation Renvoi du courriel Anonymisation",
     );
     expect(page).toContain('aria-label="Anonymiser «\u00a0Alix Moreau\u00a0»"');
     expect(page).toContain('aria-label="Compte de «\u00a0Alix Moreau\u00a0» actif"');
@@ -470,11 +465,19 @@ describe("the accounts", () => {
     expect(queriesOf("GET /users")).toEqual([
       { include_inactive: "true", offset: "2", is_active: "true" },
     ]);
-    expect(page).toMatch(/<option value="true" selected="">Comptes actifs<\/option>/);
+    expect(text(page)).toContain("État du compte : Actif");
     expect(page).not.toContain("les désactivés</a>");
     server.clients = [];
     await UsersPage(searched({ include_inactive: "maybe" }));
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true" }]);
+  });
+
+  it("read an address that says `include_inactive=false` alone as a filter of the table, never replaced by the filters the account keeps [WF-IHM-0060-A, #2916]", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_grid_settings" };
+    await UsersPage(searched({ include_inactive: "false" }));
+    expect(queriesOf("GET /users")).toEqual([
+      { include_inactive: "true", is_active: "true", limit: "25" },
+    ]);
   });
 
   it("ask the page the address names, and lead back to the one before it", async () => {
@@ -486,8 +489,8 @@ describe("the accounts", () => {
     const page = rendered(await UsersPage(searched({ offset: "2" })));
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true", offset: "2" }]);
     expect(rows(page, "Comptes utilisateurs").slice(1)).toEqual([
-      "Martin Camille camille.martin@example.com Créé dans Waterfall Aucun Direction de projet Actif La plateforme Camille Martin",
-      "Moreau Alix alix.moreau@example.com Créé dans Waterfall Bureau d'études électricité Chef de projet Désactivé Camille Martin Camille Martin",
+      "1 Martin Camille camille.martin@example.com Créé dans Waterfall Aucun Direction de projet Actif La plateforme Camille Martin",
+      "2 Moreau Alix alix.moreau@example.com Créé dans Waterfall Bureau d'études électricité Chef de projet Désactivé Camille Martin Camille Martin",
       "7 comptes",
     ]);
     // The pages before and after: the state of the accounts is a choice, no link.
@@ -504,9 +507,14 @@ describe("the accounts", () => {
   it("list the accounts without the periodicity of the reading where the service does not serve it yet (404, EP-04) [WF-ADM-0070-A]", async () => {
     server.answers = { ...server.answers, "GET /identity-sync-schedule": NOT_FOUND };
     const said = text(rendered(await UsersPage(searched())));
-    expect(said).not.toContain("Périodicité de la lecture");
-    expect(said).toContain("Lecture des comptes du fournisseur d’identité Lire les comptes");
     expect(said).toContain("Comptes utilisateurs");
+  });
+
+  it("ask the accounts without a role of the service when the address says « Sans rôle », in union with the roles [WF-ADM-0180-A]", async () => {
+    rendered(await UsersPage(searched({ without_access_role: "true" })));
+    expect(queriesOf("GET /users")).toEqual([
+      expect.objectContaining({ without_access_role: "true" }),
+    ]);
   });
 });
 
@@ -630,10 +638,8 @@ describe("the access roles", () => {
     expect(rows(deactivated, "Rôles d’habilitation").slice(1, 2)).toEqual([
       "Chef de projet Prédéfini 1 La plateforme Alix Moreau",
     ]);
-    // The author offered to the filter of its column by the same name.
-    expect(text(deactivated)).toContain(
-      "Modifié par Tous les auteurs Un compte La plateforme Alix Moreau",
-    );
+    // The author chosen in the filter of its column, by the same name.
+    expect(text(deactivated)).toContain("Modifié par Alix Moreau");
     server.answers = {
       ...server.answers,
       "GET /access-roles": "access_roles_updated_by_anonymized",
@@ -650,10 +656,8 @@ describe("the access roles", () => {
     const alix = "01926f3a-7c00-7000-8000-000000000303";
     server.answers = { ...server.answers, "GET /users/{user_id}": "user_anonymized" };
     const page = text(rendered(await AccessRolesPage(searched({ updated_by_user_id: alix }))));
-    // The authors of the roles offered, then the account chosen that none of them is.
-    expect(page).toContain(
-      "Modifié par Tous les auteurs Un compte La plateforme Camille Martin Compte anonymisé",
-    );
+    // The account chosen that none of the roles cites, named by the neutral label.
+    expect(page).toContain("Modifié par Compte anonymisé");
     expect(page).not.toMatch(/Alix|Moreau/);
     expect(page).not.toContain(alix);
   });
@@ -684,7 +688,7 @@ describe("the access roles", () => {
       },
       {},
     ]);
-    expect(page).toContain("Créé par Tous les auteurs Un compte La plateforme Camille Martin");
+    expect(page).toContain("Créé par Un compte");
     // No search of the accounts on the screen of the roles: their authors are all offered.
     expect(page).not.toContain("Chercher un compte");
   });

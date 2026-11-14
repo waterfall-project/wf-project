@@ -277,7 +277,11 @@ CommandCondition:
     abandoning remains on offer, and `applyImport` names it in its 409 next (EP-14/L42s).
     `import_not_applied` is missing for the abandonment of an import applied or being applied
     (`applying`, `applied`): what it has written is not undone by abandoning (WF-INTF-0080);
-    `abandonImport` names it in its 409. One depends on the accounts, and the account names it
+    `abandonImport` names it in its 409. `import_calendar_gap` is missing for the change of the
+    duration rule of an import whose report presents no calendar gap (`ImportReport.calendar_gap`
+    null, WF-INTF-0040): there is no choice to make, and `setImportDurationRule` names it in its
+    409 after `import_awaiting_decision`; no command states it in advance, the report saying it
+    by its `calendar_gap` (#2977). One depends on the accounts, and the account names it
     (`User.available_commands`): `last_administrator` is missing for the deactivation of the
     last active account that holds the permissions to modify the accounts and the access roles
     (WF-ADM-0120); `setUserActivation` names it in its 409. Two depend on the nature of the
@@ -444,6 +448,7 @@ CommandCondition:
     - import_awaiting_decision
     - import_file_accepted
     - import_not_applied
+    - import_calendar_gap
     - is_local_account
     - is_active_account
     - is_deactivated_account

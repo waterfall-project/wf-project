@@ -29,6 +29,7 @@ import { type Bounds, type RefusedBounds, refusedSides } from "@/components/grid
 import { ListPages } from "@/components/grid/list-pages";
 import { OFFSET, type GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
+import { FilterFields } from "@/components/grid/filter-fields";
 import { RangeFilter } from "@/components/grid/range-filter";
 import { type FilterValue, ValuesFilter } from "@/components/grid/values-filter";
 import { CELL, ICON } from "@/components/projects/project-tables";
@@ -60,23 +61,102 @@ import {
   USER_ORIGINS,
   type UserOrigin,
   USERS_LIST,
+  WITHOUT_ACCESS_ROLE,
 } from "./user-address";
 import { CreateUser, UserCommands } from "./user-commands";
+
+/** The value of the box « Sans rôle »: no identifier of a role is written so. */
+const WITHOUT = "without";
 
 type AccessRole = components["schemas"]["AccessRole"];
 type Permission = components["schemas"]["Permission"];
 
 /**
- * The accounts of a page of the list, filtered by origin, by node, by access role — one at least of
- * those chosen, an account without a role retained by none: choosing every role still filters —, by
- * state — the active or the deactivated ones alone; none, every account — and by the period and the
- * author of their creation and of their last modification (`AuditFilterBar`), a period the API
- * refused said at its field, the list unread; or that the installation has none — only when the
- * list holds none at all and nothing narrows it: a page asked beyond its end is no empty list; its
- * pages say where it stands (`ListPages`). For a session that may modify the accounts, the commands
- * of the table (`UserCommands`): « Créer un compte local » at its head — offered on an empty list
- * too —, the region that says what a write did, the refusals told above it, and the grid its own
- * entry.
+ * The filters of the accounts, in the panel of the bar of their grid (#2916): the origin, the roles
+ * with « Sans rôle », the state, each a menu of boxes to check, the node of organisation, and the
+ * audit columns in their folded section.
+ */
+function UserFilterPanel({
+  origins,
+  nodes,
+  orgNode,
+  roles,
+  accessRoles,
+  withoutRole,
+  active,
+  audit,
+  authors,
+}: {
+  readonly origins: readonly UserOrigin[];
+  readonly nodes: readonly NodeChoice[];
+  readonly orgNode: string | undefined;
+  readonly roles: readonly RoleChoice[];
+  readonly accessRoles: readonly string[];
+  readonly withoutRole: boolean;
+  readonly active: boolean | undefined;
+  readonly audit: AuditFilters;
+  readonly authors: readonly AuthorChoice[];
+}) {
+  const t = useTranslations("admin.users");
+  const named = useTranslations("enums.UserOrigin");
+  const choices: FilterValue<UserOrigin>[] = USER_ORIGINS.map((origin) => ({
+    value: origin,
+    text: named(origin),
+  }));
+  return (
+    <FilterFields>
+      <ValuesFilter
+        name={ORIGINS}
+        label={t("originFilter")}
+        every={t("everyOrigin")}
+        values={choices}
+        chosen={origins}
+        page={OFFSET}
+      />
+      {/* « Sans rôle » is offered whatever roles the session reads. */}
+      <ValuesFilter
+        name={ACCESS_ROLES}
+        label={t("roleFilter")}
+        every={t("everyRole")}
+        values={[
+          { value: WITHOUT, text: t("withoutRole") },
+          ...roles.map((role) => ({ value: role.id, text: role.label })),
+        ]}
+        chosen={withoutRole ? [WITHOUT, ...accessRoles] : accessRoles}
+        page={OFFSET}
+        exhaustive={false}
+        flag={{ value: WITHOUT, name: WITHOUT_ACCESS_ROLE }}
+      />
+      <ValuesFilter
+        name={IS_ACTIVE}
+        label={t("stateFilter")}
+        every={t("everyState")}
+        values={[
+          { value: "true", text: t("activeState") },
+          { value: "false", text: t("inactiveState") },
+        ]}
+        chosen={active === undefined ? [] : [active ? "true" : "false"]}
+        page={OFFSET}
+        lifts={[INCLUDE_INACTIVE]}
+        said={{ name: INCLUDE_INACTIVE, value: "false", reads: "true" }}
+      />
+      <OrgNodeFilter name={ORG_NODE} nodes={nodes} chosen={orgNode} page={OFFSET} />
+      <AuditFilterBar filters={audit} authors={authors} searchable page={OFFSET} />
+    </FilterFields>
+  );
+}
+
+/**
+ * The accounts of a page of the list, filtered by origin, by node, by access role — the accounts
+ * that hold one of those chosen, or none at all when « Sans rôle » is checked —, by state — the
+ * active or the deactivated ones alone; none, every account — and by the period and the author of
+ * their creation and of their last modification (`AuditFilterBar`), a period the API refused said
+ * at its field, the list unread; or that the installation has none — only when the list holds none
+ * at all and nothing narrows it: a page asked beyond its end is no empty list; its pages say where
+ * it stands (`ListPages`). At the head of the section, « Créer un compte local » for a session
+ * that may modify the accounts (`UserCommands`) — offered on an empty list too — and the menu
+ * « ⋯ » of the reading of the identity provider (`identity`); for that session too, the region
+ * that says what a write did, the refusals told above it, and the grid its own entry.
  */
 export function UserList({
   users,
@@ -88,9 +168,11 @@ export function UserList({
   orgNode,
   roles,
   accessRoles,
+  withoutRole,
   active,
   audit,
   authors,
+  identity,
   editable,
 }: {
   readonly users: readonly User[];
@@ -107,6 +189,8 @@ export function UserList({
   readonly roles: readonly RoleChoice[];
   /** The access roles the address restricts the accounts to; none, every account. */
   readonly accessRoles: readonly string[];
+  /** Whether the address retains the accounts without any role (« Sans rôle »). */
+  readonly withoutRole: boolean;
   /**
    * The state the address restricts the accounts to: the active ones alone, the deactivated ones
    * alone; none, every account — what the grid shows, the choice says.
@@ -116,61 +200,38 @@ export function UserList({
   readonly audit: AuditFilters;
   /** The accounts offered as authors: those of the page shown. */
   readonly authors: readonly AuthorChoice[];
+  /**
+   * The menu « ⋯ » of the reading of the accounts of the identity provider, beside the creation of
+   * a local account at the head of the section; none, none shown.
+   */
+  readonly identity?: ReactNode;
   /** Whether the session may modify the accounts (`platformOffer`). */
   readonly editable: boolean;
 }) {
   const t = useTranslations("admin.users");
-  const named = useTranslations("enums.UserOrigin");
   const narrowed =
     query.search !== undefined ||
     origins.length > 0 ||
     orgNode !== undefined ||
     accessRoles.length > 0 ||
+    withoutRole ||
     active !== undefined ||
     auditNarrowed(audit);
-  const choices: FilterValue<UserOrigin>[] = USER_ORIGINS.map((origin) => ({
-    value: origin,
-    text: named(origin),
-  }));
   const filters = (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <ValuesFilter
-        name={ORIGINS}
-        label={t("originFilter")}
-        every={t("everyOrigin")}
-        values={choices}
-        chosen={origins}
-        page={OFFSET}
-      />
-      <OrgNodeFilter name={ORG_NODE} nodes={nodes} chosen={orgNode} page={OFFSET} />
-      {/* No role the session reads, none offered. */}
-      {roles.length === 0 ? null : (
-        <ValuesFilter
-          name={ACCESS_ROLES}
-          label={t("roleFilter")}
-          every={t("everyRole")}
-          values={roles.map((role) => ({ value: role.id, text: role.label }))}
-          chosen={accessRoles}
-          page={OFFSET}
-          exhaustive={false}
-        />
-      )}
-      <ChoiceFilter
-        name={IS_ACTIVE}
-        label={t("stateFilter")}
-        every={t("everyState")}
-        choices={[
-          { value: "true", text: t("activeAccounts") },
-          { value: "false", text: t("inactiveAccounts") },
-        ]}
-        chosen={active === undefined ? undefined : String(active)}
-        page={OFFSET}
-        lifts={[INCLUDE_INACTIVE]}
-      />
-      <AuditFilterBar filters={audit} authors={authors} searchable page={OFFSET} />
-    </div>
+    <UserFilterPanel
+      origins={origins}
+      nodes={nodes}
+      orgNode={orgNode}
+      roles={roles}
+      accessRoles={accessRoles}
+      withoutRole={withoutRole}
+      active={active}
+      audit={audit}
+      authors={authors}
+    />
   );
   const empty = page.total === 0 && !narrowed;
+  const asked = { origins, orgNode, accessRoles, withoutRole, active, audit, authors };
   let list: ReactNode;
   if (audit.refused !== undefined) {
     list = (
@@ -184,7 +245,6 @@ export function UserList({
   } else {
     list = (
       <>
-        {filters}
         <UserGrid
           users={users}
           page={page}
@@ -193,23 +253,31 @@ export function UserList({
           roles={roles}
           nodes={nodes}
           editable={editable}
+          filters={asked}
+          panel={filters}
         />
         <ListPages list={USERS_LIST} texts="admin.pages" page={page} shown={users.length} />
       </>
     );
   }
-  return (
-    <ReferenceSection title={t("title")} icon={Users} fill>
-      {editable ? (
-        <UserCommands>
-          <CreateUser />
-          {list}
-        </UserCommands>
-      ) : (
-        list
-      )}
+  const section = (
+    <ReferenceSection
+      title={t("title")}
+      icon={Users}
+      fill
+      commands={
+        editable || identity !== undefined ? (
+          <div className="flex items-center gap-2">
+            {editable ? <CreateUser /> : null}
+            {identity}
+          </div>
+        ) : undefined
+      }
+    >
+      {list}
     </ReferenceSection>
   );
+  return editable ? <UserCommands>{section}</UserCommands> : section;
 }
 
 /** The filters of the access roles, as the address asks them, and what the API refused of them. */
@@ -227,13 +295,13 @@ export interface RoleFilters {
 }
 
 /**
- * The filters of the access roles: their kind, a choice, the bounds of their holders, and their audit
- * columns.
+ * The filters of the access roles, in the panel of the bar of their grid (#2916): their kind, a
+ * choice, the bounds of their holders, and their audit columns.
  */
-function RoleFilterBar({ filters }: { readonly filters: RoleFilters }) {
+function RoleFilterPanel({ filters }: { readonly filters: RoleFilters }) {
   const t = useTranslations();
   return (
-    <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
+    <FilterFields>
       <ChoiceFilter
         name={PREDEFINED}
         label={t("admin.accessRoles.kindFilter")}
@@ -257,7 +325,7 @@ function RoleFilterBar({ filters }: { readonly filters: RoleFilters }) {
         ]}
       />
       <AuditFilterBar filters={filters.audit} authors={filters.authors} searchable={false} />
-    </div>
+    </FilterFields>
   );
 }
 
@@ -283,23 +351,31 @@ export function AccessRoleList({
 }) {
   const t = useTranslations("admin.accessRoles");
   const narrowed = rolesNarrowed({ ...filters, query });
-  let list: ReactNode;
+  const panel = <RoleFilterPanel filters={filters} />;
+  let shown: ReactNode;
   if (filters.refused !== undefined || filters.audit.refused !== undefined) {
-    list = <BoundsRefused />;
+    // The list unread: the filters stand above the sentence that stands for the grid.
+    shown = (
+      <>
+        {panel}
+        <BoundsRefused />
+      </>
+    );
   } else if (roles.length === 0 && !narrowed) {
     // Empty only when nothing narrows it; the command that creates a role is offered all the same.
-    list = <p className="text-sm text-muted-foreground">{t("none")}</p>;
+    shown = <p className="text-sm text-muted-foreground">{t("none")}</p>;
   } else {
-    list = (
-      <AccessRoleGrid roles={roles} query={query} preferences={preferences} editable={editable} />
+    shown = (
+      <AccessRoleGrid
+        roles={roles}
+        query={query}
+        preferences={preferences}
+        editable={editable}
+        filters={filters}
+        panel={panel}
+      />
     );
   }
-  const shown = (
-    <>
-      <RoleFilterBar filters={filters} />
-      {list}
-    </>
-  );
   return (
     <ReferenceSection title={t("title")} icon={ShieldCheck}>
       {editable ? (

@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.planning.dating import duration_of, horizon_exceeded, in_days
 from waterfall.core.planning.scheduling import Duration, Moment, WorkInstant
+from waterfall.platform.decimals import exceeds_precision
 from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 
 # The code of the 403 for a permission missing (the planning does not import the access roles).
@@ -92,13 +93,21 @@ def _instant(
     return WorkInstant(sent.day, hours), []
 
 
+def precision_faults(value: Decimal, pointer: str) -> list[FieldError]:
+    """Refuse a value of more than ten decimals or ten digits before the point, at its pointer.
+
+    The columns of a duration and of a lag keep no more (``numeric``, #2875).
+    """
+    return [FieldError(pointer, VALIDATION_FAILED)] if exceeds_precision(value) else []
+
+
 def _duration(duration: Duration | None, pointer: str) -> list[FieldError]:
-    """Refuse a duration missing or negative: a task's is never (WF-PLA-0050, WF-PLA-0160)."""
+    """Refuse a duration missing, negative or too precise: a task's is never (WF-PLA-0050)."""
     if duration is None:
         return [FieldError(pointer, VALUE_REQUIRED)]
     if duration.value < 0:
         return [FieldError(f"{pointer}/value", VALUE_OUT_OF_RANGE, {"minimum": "0"})]
-    return []
+    return precision_faults(duration.value, f"{pointer}/value")
 
 
 def _ordered(start: WorkInstant, finish: WorkInstant, pointer: str) -> list[FieldError]:

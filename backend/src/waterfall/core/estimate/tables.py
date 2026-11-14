@@ -42,6 +42,11 @@ from waterfall.platform.database import CODE_POINTS, Base, UtcDateTime, bounded,
 # The bound the contract puts on the label of a line; the years of a consumption (``Year``); the
 # origins of a rate kept; the kinds of a nature of cost (``CostTypeKind``), which an image keeps.
 LABEL_LENGTH = 300
+# The precision and the scale of the figures a line keeps: the write judges against them (#2875).
+QUANTITY_PRECISION, QUANTITY_SCALE = 14, 4
+DISBURSEMENT_PRECISION, DISBURSEMENT_SCALE = 14, 2
+HOURS_PRECISION, HOURS_SCALE = 12, 2
+AMOUNT_PRECISION, AMOUNT_SCALE = 14, 2
 YEARS = (2000, 2100)
 RATE_ORIGINS = ("reference", "projected")
 COST_TYPE_KINDS = ("labor", "non_labor", "provision")
@@ -124,19 +129,21 @@ class EstimateLine(Base):
     resource_role_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("resource_role.id", ondelete="RESTRICT")
     )
-    quantity: Mapped[Decimal] = mapped_column(Numeric(14, 4))
-    hours: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
-    unit_disbursement: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    quantity: Mapped[Decimal] = mapped_column(Numeric(QUANTITY_PRECISION, QUANTITY_SCALE))
+    hours: Mapped[Decimal | None] = mapped_column(Numeric(HOURS_PRECISION, HOURS_SCALE))
+    unit_disbursement: Mapped[Decimal | None] = mapped_column(
+        Numeric(DISBURSEMENT_PRECISION, DISBURSEMENT_SCALE)
+    )
     payment_delay_days: Mapped[int] = mapped_column(Integer)
     subproject_id: Mapped[UUID | None]
     # Written by the merge of an amendment (EP-08), null until then.
     reference_quantity: Mapped[Decimal | None] = mapped_column(Numeric(14, 4))
     reference_hours: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     reference_unit_disbursement: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
-    base_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    base_amount: Mapped[Decimal] = mapped_column(Numeric(AMOUNT_PRECISION, AMOUNT_SCALE))
     # Fixed by the lineage in the reference revision: null without one (WF-REV-0070).
     budgeted_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
-    reestimated_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    reestimated_amount: Mapped[Decimal] = mapped_column(Numeric(AMOUNT_PRECISION, AMOUNT_SCALE))
     consumption_year: Mapped[int] = mapped_column(SmallInteger)
     # The remaining to commit of the line in the last revision marked in the state In progress,
     # copied at the opening of the revision (EP-09); null before the first review, and for a line

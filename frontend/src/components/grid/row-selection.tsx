@@ -20,7 +20,15 @@
  * which `drag` demands), the grid then dropping nothing. A drop is taken only of what the handles
  * drag, by its type (`DRAGGED_ROWS`).
  *
- * A grid whose screen drags nothing (`RowCommands.drag`) selects nothing, and shows no handle. The
+ * A flat table (no tree) may let its rows be picked one by one (`pick`, #2916/L4): Ctrl or Cmd and a
+ * click on a handle add its row to the selection or take it off, Ctrl and Space do as much from the
+ * keyboard, Shift and a click or an arrow still extend from the anchor to the row; the selection
+ * is then a set of rows found by their identity, not an extent, that a reading anew thins to the rows
+ * it still shows. The header of the handles has a box for all the rows shown. A tree keeps the
+ * contiguous selection, and its drag, whatever it is asked.
+ *
+ * A grid whose screen drags nothing (`RowCommands.drag`), and picks nothing, selects nothing, and
+ * shows no handle. The
  * active cell, in a row selected, follows its row through a reading anew that moves it, so that the
  * next move starts from the same rows; so does it the row a command moved (`RowCommands.moved`),
  * selected or not, once the reading that command asked comes, the focus given back to it unless it
@@ -73,7 +81,12 @@ export interface RowDrag<Row> {
 interface Range {
   readonly anchor: string;
   readonly end: string;
+  /** The rows picked, where the grid picks them one by one: the selection is then these, not an extent. */
+  readonly keys?: ReadonlySet<string> | undefined;
 }
+
+/** How a click or a key on a handle changes the selection: alone, extended to it, or toggled. */
+type Choice = "alone" | "extend" | "toggle" | "add";
 
 /** Where rows dragged would go: beside the row at an index. */
 interface Drop {
@@ -107,12 +120,37 @@ function handleOf(target: EventTarget): number | undefined {
   return at?.column === ROW_NUMBER_KEY ? at.row : undefined;
 }
 
-/** What a key asks of the selection, on a handle: Space, Shift and Space, Escape, Shift and an arrow. */
+/** Whether a key is Ctrl or Cmd and A, out of a field: in a field it keeps its sense of text. */
+function selectsAll(event: KeyboardEvent<HTMLElement>): boolean {
+  const { target } = event;
+  const field =
+    target instanceof HTMLElement &&
+    (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+  return (
+    (event.ctrlKey || event.metaKey) &&
+    !event.altKey &&
+    !event.shiftKey &&
+    event.key.toLowerCase() === "a" &&
+    !field
+  );
+}
+
+/**
+ * What a key asks of the selection, on a handle: Space, Shift and Space, Escape, Shift and an arrow;
+ * and, for a grid that picks, Ctrl or Cmd and Space, which toggles the row of the active cell.
+ */
 function selectionKey(
   event: KeyboardEvent<HTMLElement>,
-): "select" | "extend" | "lift" | "up" | "down" | undefined {
-  if (event.altKey || event.ctrlKey || event.metaKey) {
+  pick: boolean,
+): "select" | "extend" | "toggle" | "lift" | "up" | "down" | undefined {
+  if (event.altKey) {
     return undefined;
+  }
+  if (event.ctrlKey || event.metaKey) {
+    if (!pick || event.shiftKey) {
+      return undefined;
+    }
+    return event.key === " " ? "toggle" : undefined;
   }
   const keys: Readonly<Partial<Record<string, "select" | "lift" | "up" | "down">>> = {
     " ": "select",
@@ -122,7 +160,8 @@ function selectionKey(
   };
   const key = keys[event.key];
   if (key === "select") {
-    return event.shiftKey ? "extend" : key;
+    // Where rows are picked, Space alone toggles the row, as in a listbox that takes several.
+    return event.shiftKey ? "extend" : pick ? "toggle" : key;
   }
   return key === "lift" || event.shiftKey ? key : undefined;
 }
@@ -151,6 +190,138 @@ function droppingOf<Row>(commands: RowDragging<Row> | undefined): RowDrag<Row> |
 /** The commands of a screen the selection reads: the drag, whether busy, the row last moved. */
 type SelectionCommands<Row> = RowDragging<Row> & { readonly moved?: RowMoved<Row> | undefined };
 
+/** The keys of the rows between two keys, both included, among those shown; none unless both are. */
+function between(
+  from: string,
+  to: string,
+  keys: (index: number) => string | undefined,
+  count: number,
+): ReadonlySet<string> | undefined {
+  const bounds = boundsOf({ anchor: from, end: to }, keys, count);
+  if (bounds === undefined) {
+    return undefined;
+  }
+  const found = new Set<string>();
+  for (let index = bounds[0]; index <= bounds[1]; index += 1) {
+    const key = keys(index);
+    if (key !== undefined) {
+      found.add(key);
+    }
+  }
+  return found;
+}
+
+/** The selection that picking the row of a key leaves, if any row is left. */
+function picked(
+  before: Range | undefined,
+  key: string,
+  choice: Choice,
+  reach: (from: string, to: string) => ReadonlySet<string> | undefined,
+): Range | undefined {
+  const keys = before?.keys;
+  if (choice === "toggle") {
+    const next = new Set(keys);
+    if (!next.delete(key)) {
+      next.add(key);
+    }
+    return next.size === 0 ? undefined : { anchor: key, end: key, keys: next };
+  }
+  const found =
+    (choice === "extend" || choice === "add") && before !== undefined
+      ? reach(before.anchor, key)
+      : undefined;
+  if (found === undefined) {
+    return { anchor: key, end: key, keys: new Set([key]) };
+  }
+  const all = choice === "add" ? new Set([...(keys ?? []), ...found]) : found;
+  return { anchor: before?.anchor ?? key, end: key, keys: all };
+}
+
+/** The selection kept of a selection by a reading anew: the rows picked it still shows, if any. */
+function thinned<Row>(
+  range: Range | undefined,
+  rows: readonly Row[],
+  keyOf: (row: Row) => string,
+  keyAt: (index: number) => string | undefined,
+): Range | undefined {
+  if (range?.keys === undefined) {
+    return range === undefined || boundsOf(range, keyAt, rows.length) !== undefined
+      ? range
+      : undefined;
+  }
+  const still = new Set(rows.map(keyOf));
+  const kept = new Set([...range.keys].filter((key) => still.has(key)));
+  if (kept.size === 0) {
+    return undefined;
+  }
+  return kept.size === range.keys.size ? range : { ...range, keys: kept };
+}
+
+/** The rows selected, in the order of the grid: those picked, or the extent of the selection. */
+function chosenOf<Row>(
+  rows: readonly Row[],
+  keyOf: (row: Row) => string,
+  keys: ReadonlySet<string> | undefined,
+  bounds: readonly [number, number] | undefined,
+): readonly Row[] {
+  if (keys !== undefined) {
+    return rows.filter((row) => keys.has(keyOf(row)));
+  }
+  return bounds === undefined ? [] : rows.slice(bounds[0], bounds[1] + 1);
+}
+
+/** The contiguous selection that a click on the row of a key leaves: extended from the anchor, or alone. */
+function stretched(before: Range | undefined, key: string, extend: boolean): Range {
+  return extend && before !== undefined
+    ? { anchor: before.anchor, end: key }
+    : { anchor: key, end: key };
+}
+
+/** The selection of all the rows, or none where all are selected already and it is not only to select. */
+function allRange(keys: readonly string[], chosen: number, onlySelect: boolean): Range | undefined {
+  return chosen === keys.length && !onlySelect ? undefined : everyRow(keys);
+}
+
+/** The selection of every row of a list of keys, none for an empty list. */
+function everyRow(keys: readonly string[]): Range | undefined {
+  const first = keys[0];
+  const last = keys[keys.length - 1];
+  return first === undefined || last === undefined
+    ? undefined
+    : { anchor: first, end: last, keys: new Set(keys) };
+}
+
+/** What a key of the selection asks of a row: select it alone, extend to it, or toggle it; none for the others. */
+function keyChoice(key: string): Choice | undefined {
+  const choices: Readonly<Partial<Record<string, Choice>>> = {
+    select: "alone",
+    extend: "extend",
+    toggle: "toggle",
+  };
+  return choices[key];
+}
+
+/** Whether a key is among those picked. */
+function isPicked(keys: ReadonlySet<string> | undefined, key: string | undefined): boolean {
+  return key !== undefined && keys?.has(key) === true;
+}
+
+/** Whether an index is within the bounds of an extent. */
+function isWithin(bounds: readonly [number, number] | undefined, index: number): boolean {
+  return bounds !== undefined && index >= bounds[0] && index <= bounds[1];
+}
+
+/** What a click on a handle asks: alone, extend, or — for a grid that picks, with Ctrl or Cmd — toggle. */
+function clickChoice(
+  event: { readonly ctrlKey: boolean; readonly metaKey: boolean; readonly shiftKey: boolean },
+  pick: boolean,
+): Choice {
+  if (pick && (event.ctrlKey || event.metaKey)) {
+    return event.shiftKey ? "add" : "toggle";
+  }
+  return event.shiftKey ? "extend" : "alone";
+}
+
 /** What the grid of rows `Row` selects, and drags. */
 export interface RowSelectionOptions<Row> {
   /** The rows the grid shows, in their order. */
@@ -166,6 +337,11 @@ export interface RowSelectionOptions<Row> {
   readonly focusAt: (at: CellPosition) => void;
   /** The element of the grid, which the focus is given back within. */
   readonly scroller: RefObject<HTMLElement | null>;
+  /**
+   * Whether rows are picked one by one — non-contiguous — and selected though the screen drags
+   * nothing: a flat table that has commands on a selection. Never for a tree.
+   */
+  readonly pick?: boolean | undefined;
 }
 
 /** Rows read anew, the rows they replace, and the identity of a row. */
@@ -332,6 +508,7 @@ export function useRowSelection<Row>({
   cursor,
   focusAt,
   scroller,
+  pick = false,
 }: RowSelectionOptions<Row>) {
   const dropping = droppingOf(commands);
   const [range, setRange] = useState<Range>();
@@ -342,8 +519,11 @@ export function useRowSelection<Row>({
     const row = rows[index];
     return row === undefined ? undefined : keyOf(row);
   };
-  const offered = commands?.drag !== undefined;
-  const bounds = offered ? boundsOf(range, keyAt, rows.length) : undefined;
+  const dragging = commands?.drag !== undefined;
+  const offered = dragging || pick;
+  // The extent of a contiguous selection; a selection is set only where the grid offers one.
+  const extent = pick ? undefined : range;
+  const bounds = boundsOf(extent, keyAt, rows.length);
   const following = useFollowing(commands?.moved, cursor.active);
   const take = useTakenFocus(focusAt, scroller);
   // The rows the active cell was among: a reading anew that moves the row a command moved, or the
@@ -351,12 +531,13 @@ export function useRowSelection<Row>({
   const [seen, setSeen] = useState(rows);
   if (seen !== rows) {
     setSeen(rows);
-    if (range !== undefined && boundsOf(range, keyAt, rows.length) === undefined) {
-      setRange(undefined);
+    const thin = thinned(range, rows, keyOf, keyAt);
+    if (thin !== range) {
+      setRange(thin);
     }
     const next = followedRow(
       { seen, rows, keyOf },
-      range,
+      extent,
       cursor.active.row,
       movedFollowed(following, cursor.active, scroller),
     );
@@ -369,26 +550,33 @@ export function useRowSelection<Row>({
     }
   }
   const isSelected = (index: number) =>
-    bounds !== undefined && index >= bounds[0] && index <= bounds[1];
+    pick ? isPicked(range?.keys, keyAt(index)) : isWithin(bounds, index);
+  // Only a grid that picks sets the rows picked: a tree's selection is its extent, a slice.
+  const chosen = chosenOf(rows, keyOf, range?.keys, bounds);
   /** The rows acted on from a row: the selection it stands in, or the row alone. */
   const acted = (index: number): readonly Row[] => {
-    if (bounds !== undefined && isSelected(index)) {
-      return rows.slice(bounds[0], bounds[1] + 1);
+    if (isSelected(index)) {
+      return chosen;
     }
     const row = rows[index];
     return row === undefined ? [] : [row];
   };
-  /** Select the row at an index alone, or extend the selection to it. */
-  const select = (index: number, extend: boolean) => {
+  /** Select the row at an index alone, extend the selection to it, or — where rows are picked — toggle it. */
+  const select = (index: number, choice: Choice) => {
     const key = keyAt(index);
     if (key === undefined) {
       return;
     }
+    const reach = (from: string, to: string) => between(from, to, keyAt, rows.length);
     setRange((before) =>
-      extend && before !== undefined && bounds !== undefined
-        ? { anchor: before.anchor, end: key }
-        : { anchor: key, end: key },
+      pick
+        ? picked(before, key, choice, reach)
+        : stretched(before, key, choice === "extend" && bounds !== undefined),
     );
+  };
+  /** Select every row shown, or lift the selection when every one is. */
+  const toggleAll = (onlySelect = false) => {
+    setRange(allRange(rows.map(keyOf), chosen.length, onlySelect));
   };
   const clear = () => {
     dragged.current = undefined;
@@ -399,7 +587,7 @@ export function useRowSelection<Row>({
     const anchor = isSelected(from) ? range?.anchor : keyAt(from);
     const end = keyAt(from + step);
     if (anchor !== undefined && end !== undefined) {
-      setRange({ anchor, end });
+      setRange({ anchor, end, keys: pick ? between(anchor, end, keyAt, rows.length) : undefined });
     }
   };
   /**
@@ -409,12 +597,18 @@ export function useRowSelection<Row>({
    */
   const onKeyDown = (event: KeyboardEvent<HTMLElement>): boolean => {
     const at = positionOf(event.target);
-    const key = offered && at?.column === ROW_NUMBER_KEY ? selectionKey(event) : undefined;
+    // Ctrl or Cmd and A, from any cell of a grid that picks but one entered, selects all the rows.
+    if (pick && at !== undefined && selectsAll(event)) {
+      toggleAll(true);
+      return true;
+    }
+    const key = offered && at?.column === ROW_NUMBER_KEY ? selectionKey(event, pick) : undefined;
     if (at === undefined || key === undefined || at.row === HEADER_ROW) {
       return false;
     }
-    if (key === "select" || key === "extend") {
-      select(at.row, key === "extend");
+    const choice = keyChoice(key);
+    if (choice !== undefined) {
+      select(at.row, choice);
       return true;
     }
     if (key === "lift") {
@@ -449,17 +643,18 @@ export function useRowSelection<Row>({
   const body = {
     onClick: (event: MouseEvent<HTMLElement>) => {
       const index = offered ? handleOf(event.target) : undefined;
-      if (index !== undefined) {
-        select(index, event.shiftKey);
+      if (index === undefined) {
+        return;
       }
+      select(index, clickChoice(event, pick));
     },
     onDragStart: (event: DragEvent<HTMLElement>) => {
-      const index = offered ? handleOf(event.target) : undefined;
+      const index = dragging ? handleOf(event.target) : undefined;
       if (index === undefined) {
         return;
       }
       if (!isSelected(index)) {
-        select(index, false);
+        select(index, "alone");
       }
       dragged.current = acted(index).map(keyOf);
       event.dataTransfer.effectAllowed = "move";
@@ -501,7 +696,26 @@ export function useRowSelection<Row>({
       drop?.index === index ? drop.place : undefined,
     acted,
     /** How many rows are selected; none where the grid selects nothing. */
-    count: offered ? (bounds === undefined ? 0 : bounds[1] - bounds[0] + 1) : undefined,
+    count: offered ? chosen.length : undefined,
+    /** The rows selected, in the order of the grid. */
+    rows: chosen,
+    /** Whether rows are picked one by one. */
+    pick,
+    /** Whether the handles drag: where the screen moves rows. */
+    dragging,
+    /** Lift the selection. */
+    lift: () => {
+      setRange(undefined);
+    },
+    /** The box of the header of a column, if it is the one of the handles. */
+    boxOf: (column: string) =>
+      column === ROW_NUMBER_KEY && pick
+        ? {
+            state: allOf(chosen.length, rows.length),
+            toggle: toggleAll,
+            disabled: rows.length === 0,
+          }
+        : undefined,
     /** Whether the grid says it takes several rows: where it selects. */
     multiselectable: offered ? true : undefined,
     onKeyDown,
@@ -509,11 +723,21 @@ export function useRowSelection<Row>({
   };
 }
 
+/** Whether all the rows shown are selected, some of them, or none. */
+function allOf(chosen: number, shown: number): "all" | "some" | "none" {
+  if (chosen === 0) {
+    return "none";
+  }
+  return chosen === shown ? "all" : "some";
+}
+
 /** The selection of a grid, as `useRowSelection` gives it. */
 export type RowSelection<Row> = ReturnType<typeof useRowSelection<Row>>;
 
 /** The keys of a handle, as `aria-keyshortcuts` names them. */
 const HANDLE_KEYS = "Space Shift+ArrowUp Shift+ArrowDown Escape";
+/** The same, for a grid whose rows are picked one by one. */
+const PICK_KEYS = "Space Control+Space Control+A Meta+A Shift+ArrowUp Shift+ArrowDown Escape";
 
 /** The classes of a row by what is dropped beside it: a line before or after it, or its shade. */
 const DROP_CLASSES: Readonly<Record<DropPlace, string>> = {
@@ -561,6 +785,8 @@ export function HandleCell({
   selected,
   name,
   hint,
+  draggable,
+  pick,
 }: {
   readonly position: CellPosition;
   readonly state: CellState;
@@ -571,24 +797,44 @@ export function HandleCell({
   readonly selected: boolean;
   readonly name: (number: number) => string;
   readonly hint: string;
+  /** Whether the handle drags its row: where the screen moves rows. */
+  readonly draggable: boolean;
+  /** Whether rows are picked one by one with it. */
+  readonly pick: boolean;
 }) {
   const Mark = selected ? Check : GripVertical;
-  const keys = [...cellKeys(menu, NO_FOLD, "", undefined), HANDLE_KEYS];
+  const keys = [...cellKeys(menu, NO_FOLD, "", undefined), pick ? PICK_KEYS : HANDLE_KEYS];
   return (
     <TableCell
       {...cellAttributes(position, state, false, false, keys)}
-      draggable
+      draggable={draggable}
       aria-label={name(number ?? 0)}
       aria-describedby={hint}
       style={{ left: pinning.left }}
       className={cn(HANDLE_CELL, pinning.className)}
     >
-      <span className="flex cursor-grab items-center justify-end gap-0.5 select-none">
+      <span
+        className={cn(
+          "flex items-center justify-end gap-0.5 select-none",
+          draggable ? "cursor-grab" : "cursor-pointer",
+        )}
+      >
         <Mark aria-hidden="true" className="size-2.5 shrink-0" />
         {number}
       </span>
     </TableCell>
   );
+}
+
+/** What the status says of the selection: how many, and for a grid that picks, none or all. */
+function statusOf(count: number, total: number, pick: boolean): "none" | "every" | "count" | null {
+  if (pick && count === 0) {
+    return "none";
+  }
+  if (pick && count === total) {
+    return "every";
+  }
+  return count === 0 ? null : "count";
 }
 
 /**
@@ -598,21 +844,28 @@ export function HandleCell({
 export function SelectionNotes({
   hint,
   count,
+  total,
+  pick = false,
 }: {
   readonly hint: string;
   readonly count: number | undefined;
+  /** How many rows the grid shows, which tells that all are selected. */
+  readonly total: number;
+  /** Whether rows are picked one by one, which the hint then says. */
+  readonly pick?: boolean;
 }) {
   const t = useTranslations("grid.selection");
   if (count === undefined) {
     return null;
   }
+  const status = statusOf(count, total, pick);
   return (
     <>
       <p id={hint} hidden>
-        {t("hint")}
+        {t(pick ? "hintPick" : "hint")}
       </p>
       <p role="status" aria-live="polite" className="sr-only">
-        {count === 0 ? null : t("count", { count })}
+        {status === null ? null : t(status, { count })}
       </p>
     </>
   );

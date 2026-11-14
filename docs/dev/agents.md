@@ -54,6 +54,10 @@ Ses règles sont dans le skill `pilote` (`.claude/skills/pilote/SKILL.md`). En b
   worktrees dans son dépôt, dépôt principal compris. Un livreur sans créneau rend la main sans
   rien faire, avec le relevé « aucun créneau libre », que le pilote traite comme une limite
   d'usage.
+- **Jamais sous `/tmp`.** Un worktree ne se tire jamais sous `/tmp`, scratchpad compris : son
+  tmpfs a manqué d'inodes le 2026-11-12 sous les `node_modules` de worktrees tirés dans des
+  scratchpads. Le pilote les tire sous le dépôt (`.claude/worktrees/`) ; aucun outil ne le
+  contrôle.
 - **« Pas avec ».** Le pilote ne lance jamais un lot dont un lot « pas avec » est commencé et
   non fusionné (`en cours`, `en revue`, `question`, `bloqué`), même quand leurs dépendances le
   permettent : le cadreur marque ainsi deux lots qu'aucune dépendance ne sépare et qui
@@ -142,9 +146,10 @@ l'accorde. Un test des outils (`tools/tests/test_permissions.py`) l'éprouve.
   — `epic-framer` le crée, `epic-deliverer` le tient — dans le corps de l'issue, jamais en
   commentaire. Un agent ne réécrit pas ce corps lui-même : plusieurs livreurs s'y réécriraient
   l'un l'autre. Il passe par `make tracking ISSUE=<n> LOT=<identifiant> [STATE=…] [PR=…]
-  [MODEL=…]`, `LOT=<identifiant> DEPENDS=<liste>`, `ADD_LOT=<identifiant> AFTER=<lot>
-  [DEPENDS=…] [MODEL=…] [LOT_ISSUE=<n>]` (`LOT_ISSUE` est l'issue du lot inséré, le `#n` de sa
-  ligne), `REPLACE_DEPENDENCY='<ancien>=<nouveau>'`, `US=<identifiant> STATUS=…` ou
+  [MODEL=…]`, `LOT=<identifiant> DEPENDS=<liste>`, `LOT=<identifiant> NOT_WITH=<liste>` (la
+  cellule « Pas avec » de ce lot seul), `ADD_LOT=<identifiant> AFTER=<lot>
+  [DEPENDS=…] [NOT_WITH=…] [MODEL=…] [LOT_ISSUE=<n>]` (`LOT_ISSUE` est l'issue du lot inséré, le
+  `#n` de sa ligne), `REPLACE_DEPENDENCY='<ancien>=<nouveau>'`, `US=<identifiant> STATUS=…` ou
   `FINDING=<n> ATTACHED=… DECISION=…`, qui relit le corps sous un verrou du poste juste avant
   de l'écrire et ne change que la ligne demandée (guide, « Commandes »). Le cadreur, qui écrit le
   tableau pour la première fois, l'écrit lui-même ; ensuite, `make tracking`.

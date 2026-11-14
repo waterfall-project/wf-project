@@ -11,11 +11,11 @@ import type { ApiClient } from "@/api/client";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { closeMenu, menuSummary, openMenu, pick } from "@/test/check-menu";
 import { example, fakeClient } from "@/test/fixtures";
 
 import { listedProject } from "./project-list-grid";
 import { ProjectListGrid, ProjectStateFilter } from "./project-list-view";
-import { DefaultStatesFilter } from "./project-list";
 
 // The server of Next, as far as the screen needs it: the preferences it writes, the address it
 // reads.
@@ -216,15 +216,13 @@ describe("the states of the list, those of the table of the specification", () =
 
   it.each(["fr", "en"] as const)(
     "the filter of the home offers the six states and no other, in %s [WF-CYC-0010-A]",
-    (locale) => {
+    async (locale) => {
       render(inLocale(locale, <ProjectStateFilter states={[]} />));
-      const filter = screen.getByRole("group", {
-        name: locale === "fr" ? "Filtre par état" : "Filter by state",
-      });
+      const list = await openMenu(locale === "fr" ? "Filtre par état" : "Filter by state");
       expect(
-        within(filter)
-          .getAllByRole("button")
-          .map((button) => button.textContent),
+        within(list)
+          .getAllByRole("checkbox")
+          .map((box) => box.closest("label")?.textContent),
       ).toEqual([
         locale === "fr" ? "Tous les états" : "Every state",
         ...SPEC_STATES.map(([, fr, en]) => (locale === "fr" ? fr : en)),
@@ -233,74 +231,109 @@ describe("the states of the list, those of the table of the specification", () =
   );
 
   it.each(SPEC_STATES)(
-    "the filter of the home writes the code %s of its state in the address, pressed from the default [WF-CYC-0010-A]",
+    "the filter of the home writes the code %s of its state in the address, checked from the default [WF-CYC-0010-A]",
     async (code, fr) => {
-      const user = userEvent.setup();
       render(inFrench(<ProjectStateFilter states={[]} />));
-      // Pressed from the default, where every state is pressed, a button retains its state alone.
-      await user.click(screen.getByRole("button", { name: fr }));
+      // Checked from the default, where every state is, a box retains its state alone.
+      await pick("Filtre par état", fr);
       expect(await lastAddress()).toBe(`/?states=${code}`);
     },
   );
 });
 
 describe("the filter of the list by state", () => {
-  it("says the states by default, Créé, Chiffrage and En cours (WF-IHM-0130)", () => {
-    render(inFrench(<DefaultStatesFilter />));
-    const filter = screen.getByRole("region", { name: "Filtre par défaut de la liste par état" });
-    for (const state of ["Créé", "Chiffrage", "En cours"]) {
-      expect(within(filter).getByText(state)).toBeVisible();
-    }
-    expect(within(filter).queryByText("Perdu")).toBeNull();
+  it("says the states by default, Créé, Chiffrage and En cours, by a chip, lifted by naming every state (WF-IHM-0130-A, #2916)", async () => {
+    page.search = "sort_by=code";
+    render(
+      inFrench(
+        <ProjectListGrid
+          projects={LIST.items.map(listedProject)}
+          page={LIST.meta}
+          query={{ sort: undefined, search: undefined, size: undefined }}
+          preferences={undefined}
+          states={["created", "pricing", "in_progress"]}
+          period={{ from: undefined, to: undefined }}
+          panel={<ProjectStateFilter states={["created", "pricing", "in_progress"]} />}
+        />,
+      ),
+    );
+    const chips = screen.getByRole("list", { name: "Filtres actifs" });
+    expect(chips).toHaveTextContent("État : Créé, Chiffrage, En cours (par défaut)");
+    await userEvent.click(screen.getByRole("button", { name: /^Retirer le filtre État/ }));
+    expect(await lastAddress()).toBe("/?sort_by=code&states=all");
   });
 
-  it("presses every state when the address names none, and retains a state chosen, back to the first page", async () => {
-    const user = userEvent.setup();
+  it("tells a state chosen and the period of the last modification, each lifted with the rest kept (WF-IHM-0130-A, #2916)", async () => {
+    page.search = "states=lost&from=2026-03-01T00%3A00%3A00.000Z&sort_by=code";
+    render(
+      inFrench(
+        <ProjectListGrid
+          projects={LIST.items.map(listedProject)}
+          page={LIST.meta}
+          query={{ sort: undefined, search: undefined, size: undefined }}
+          preferences={undefined}
+          states={["lost"]}
+          period={{ from: "2026-03-01T00:00:00.000Z", to: undefined }}
+          panel={<ProjectStateFilter states={["lost"]} />}
+        />,
+      ),
+    );
+    const chips = screen.getByRole("list", { name: "Filtres actifs" });
+    expect(chips).toHaveTextContent("État : Perdu");
+    expect(chips).toHaveTextContent("Modifié le : depuis le 1 mars 2026");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Retirer le filtre Modifié le : depuis le 1 mars 2026" }),
+    );
+    expect(await lastAddress()).toBe("/?states=lost&sort_by=code");
+  });
+
+  it("checks every state when the address names none, and retains a state chosen, back to the first page", async () => {
     page.search = "offset=50&sort_by=code";
     render(inFrench(<ProjectStateFilter states={[]} />));
-    const filter = screen.getByRole("group", { name: "Filtre par état" });
-    expect(within(filter).getByRole("button", { name: "Tous les états" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    await user.click(within(filter).getByRole("button", { name: "Perdu" }));
+    expect(menuSummary("Filtre par état")).toBe("Tous les états");
+    await openMenu("Filtre par état");
+    expect(screen.getByRole("checkbox", { name: "Tous les états" })).toBeChecked();
+    await closeMenu();
+    await pick("Filtre par état", "Perdu");
     expect(await lastAddress()).toBe("/?sort_by=code&states=lost");
   });
 
-  it("names each state by its badge, and releases a state pressed", async () => {
+  it("names each state by its badge, and releases a state checked", async () => {
     const user = userEvent.setup();
     page.search = "states=pricing,lost";
     render(inFrench(<ProjectStateFilter states={["pricing", "lost"]} />));
-    const pricing = screen.getByRole("button", { name: "Chiffrage" });
-    expect(pricing).toHaveAttribute("aria-pressed", "true");
-    expect(within(pricing).getByRole("img", { name: "Chiffrage" })).toBeVisible();
+    expect(menuSummary("Filtre par état")).toBe("2 sélectionnés");
+    const list = await openMenu("Filtre par état");
+    const pricing = within(list).getByRole("checkbox", { name: "Chiffrage" });
+    expect(pricing).toBeChecked();
+    expect(
+      within(pricing.closest("label") as HTMLElement).getByRole("img", { name: "Chiffrage" }),
+    ).toBeVisible();
     await user.click(pricing);
     expect(await lastAddress()).toBe("/?states=lost");
-    await user.click(screen.getByRole("button", { name: "Tous les états" }));
+    await user.click(screen.getByRole("checkbox", { name: "Tous les états" }));
     expect(await lastAddress()).toBe("/?states=all");
   });
 
   it("lifts the filter when the last state is chosen too: every state is every project", async () => {
-    const user = userEvent.setup();
     page.search = "states=created%2Cpricing%2Cin_progress%2Ccompleted%2Clost&sort_by=code";
     render(
       inFrench(
         <ProjectStateFilter states={["created", "pricing", "in_progress", "completed", "lost"]} />,
       ),
     );
-    await user.click(screen.getByRole("button", { name: "Abandonné" }));
+    await pick("Filtre par état", "Abandonné");
     expect(await lastAddress()).toBe("/?states=all&sort_by=code");
   });
 
   it("goes on from the states retained when the address names none, and lifts them by « Tous les états » (WF-IHM-0130)", async () => {
-    const user = userEvent.setup();
     page.search = "sort_by=code";
     render(inFrench(<ProjectStateFilter states={["created", "pricing", "in_progress"]} />));
-    await user.click(screen.getByRole("button", { name: "Perdu" }));
+    await pick("Filtre par état", "Perdu");
     expect(await lastAddress()).toBe(
       "/?sort_by=code&states=created%2Cpricing%2Cin_progress%2Clost",
     );
-    await user.click(screen.getByRole("button", { name: "Tous les états" }));
+    await pick("Filtre par état", "Tous les états");
     expect(await lastAddress()).toBe("/?sort_by=code&states=all");
   });
 
@@ -320,7 +353,7 @@ describe("the filter of the list by state", () => {
         </>,
       ),
     );
-    await user.click(screen.getByRole("button", { name: "Perdu" }));
+    await pick("Filtre par état", "Perdu");
     expect(await lastAddress()).toBe("/?states=lost");
     // The state asked and not arrived: the projects read otherwise start from their first page.
     await user.click(screen.getByRole("link", { name: /Projets précédents/ }));

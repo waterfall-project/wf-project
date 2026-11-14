@@ -1074,7 +1074,9 @@ planning dont le devis portera les lignes.
   (spécification 1.0.3, #2521), réalisé par US-1380/L4 (#2519) ;
 - `WF-PLA-0040-A` — « Un déplacement qui placerait un nœud sous lui-même ou sous l’un de ses
   subordonnés est refusé. » : `moveNodes` refuse par 422 `NODE_CYCLE` (spécification 1.0.4,
-  #2741), réalisé par US-1380/L4 (#2519) ;
+  #2741), réalisé par US-1380/L4 (#2519), éprouvé par
+  `test_a_selection_moved_under_itself_or_one_of_its_subordinates_closes_a_loop_refused`
+  (`test_nodes_move.py`) ;
 - `WF-DAT-0150-A` — « Deux contributeurs lisent la même tâche ; le premier la modifie ; la
   modification du second, fondée sur sa lecture, est refusée, le refus le dit, et la tâche garde la
   valeur du premier. Relue, la tâche se modifie. » : 412 `STALE_LOCK_VERSION` sur le `lock_version`
@@ -1338,9 +1340,11 @@ frise, **afin de** présenter à chaque public les jalons qui le concernent.
   révision suivante retrouve (WF-DAT-0030) ;
 - `WF-PLA-0140-A` — « L’export produit un fichier PNG de la chronologie affichée. » : la frise
   d'EP-15 (US-0530/L3b) exporte son PNG contre le service, le parcours étiqueté `@shared` ;
-- écart : `WF-PLA-0140-A` — « La disposition en couloirs qu’un utilisateur a donnée à une
+- `WF-PLA-0140-A` — « La disposition en couloirs qu’un utilisateur a donnée à une
   chronologie se retrouve d’une session à l’autre. » : une préférence d'affichage
-  (`DisplayPreferences.timelines`), d'EP-15 (US-0530, US-0570/L1) ; spécification 1.0.4, #2871 ;
+  (`DisplayPreferences.timelines`), réalisée par EP-15 (US-0530, US-0570/L1) et enregistrée puis relue après
+  rechargement par le parcours des couloirs de `timelines.spec.ts`, qui cite `WF-PLA-0140-A` en plus de
+  `WF-IHM-0100-A` (US-2010) ; spécification 1.0.4, #2871 ;
 - `WF-PLA-0060-A` — « Une tâche inscrite apparaît dans la chronologie et disparaît lorsqu’elle
   est retirée. » : `setNodeTracking` remplace les inscriptions de la tâche, et `listNodes` avec
   `timeline_id` la rend puis ne la rend plus ;

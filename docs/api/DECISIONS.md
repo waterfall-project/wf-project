@@ -282,6 +282,18 @@ décalage garde son unité (`lag`, `lag_unit` : jours, semaines ou mois, WF-PLA-
 EP-02). C'est un filtre que l'utilisateur voit et lève, jamais une restriction de lecture :
 la consultation ne dépend que des habilitations (WF-PRJ-0060).
 
+**Le rang d'une page est borné comme le compteur d'écriture, et refusé au-delà par 422** (#2778,
+issue « contrat » ; décision de l'auteur du 2026-11-12, EP-24/US-1960). Le paramètre commun
+`Offset` porte `maximum: 2147483647`, la borne de `LockVersion` (« Session et erreurs ») : sans
+borne haute, un entier démesuré passait la validation et atteignait la base, que le service
+n'aurait pas su lire. Il est refusé par la validation, comme toute valeur hors de ses bornes, sur
+chaque liste paginée : 422 `VALIDATION_FAILED`, `fields` désignant `/query/offset` par
+`VALUE_OUT_OF_RANGE`, `params.maximum` à `2147483647`, et aucune lecture n'est faite. Un rang
+jusqu'à la borne reste servi : au-delà de `meta.total`, une page vide. Une modification du contrat
+figé (« La règle d'après le gel »). Écarté : borner dans chaque route sans le contrat, une borne
+que le client engendré et le faux back n'auraient pas connue. `Limit`, déjà borné à 500, ne change
+pas.
+
 ## Révision de la spécification du 2026-10-03 (EP-02/L7)
 
 Ce que la spécification revue impose, et la forme retenue pour chaque chose (#213).
@@ -814,6 +826,94 @@ se lit pas.
 `import_planning_mismatch`, `imports`, `imports_page`, `imports_empty`, `task_export_*` et
 `task_import_*`. Leurs instants et ce qu'ils visent sont recalés sur la chronologie du témoin par
 EP-02/L25 — voir « L'univers témoin », « Coûts, échanges, tâches, comptes ».
+
+**Un planning MS Project en écart de calendrier le dit au compte rendu, et sa règle des durées se
+change par une opération** (#2977, issue « contrat » ; décisions de l'auteur du 2026-11-12,
+EP-24/US-2000 ; #2922). Un planning saisi dans MS Project sur des journées de 7 heures perdait ses
+dates à l'import : le compte rendu ne portait que `unit_constants`, et rien ne laissait choisir
+entre garder les durées et garder les dates, ce que la révision 1.0.5 de la spécification demande
+(WF-INTF-0040, WF-PLA-0160, WF-INTF-0080). Une modification du contrat figé (« La règle d'après le
+gel ») ; `info.version` reste `1.0.0`.
+
+- **`ImportReport.calendar_gap`**, exigé et nullable, comme `unit_constants` : nul sans écart et
+  pour les autres genres d'import. L'écart (`ImportCalendarGap`) est celui d'un fichier dont les
+  constantes diffèrent de celles de l'installation, ou dont le calendrier du projet, ou le
+  calendrier propre d'une tâche, n'a pas les journées du calendrier Waterfall applicable
+  (WF-PLA-0010). Il porte le calendrier du projet du fichier (`project_calendar`,
+  `ImportFileCalendar` : son nom, ses heures par jour de la semaine, `WeeklyHours` comme un
+  calendrier Waterfall, et ses plages horaires, `ImportWorkingWeek`, de `HH:MM` à `HH:MM`, la fin
+  de journée à `24:00`), le calendrier par défaut de l'installation (`installation_calendar`,
+  `ImportWaterfallCalendar` : son identifiant, son libellé et ses heures, figés à l'analyse), les
+  tâches dont le calendrier propre diffère (`tasks`, `ImportCalendarGapTask` : la tâche, son
+  calendrier du fichier, et les heures par jour de son calendrier Waterfall applicable — le plus
+  petit des calendriers des rôles de ses lignes, qui n'est pas toujours un calendrier du
+  référentiel, d'où des heures et non un identifiant), et la règle sous laquelle le compte rendu a
+  été calculé (`duration_rule`, `ImportDurationRule` : `keep_durations`, par défaut, ou
+  `keep_dates`). Les autres tableaux du compte rendu, `differences` et `date_mismatches` compris,
+  sont ceux de cette règle. Les calendriers du fichier restent ignorés et dits ignorés
+  (`ignored`, `calendars`).
+- **`unit_constants` reste**, sa description reprise : il dit toujours les constantes de part et
+  d'autre, mais un fichier dont les constantes diffèrent est désormais en écart de calendrier, et
+  `calendar_gap` dit comment ses durées ont été converties. La phrase « imported with the same
+  durations in hours », que la 1.0.5 a remplacée, est retirée.
+- **`setImportDurationRule`**, `PUT /projects/{project_id}/imports/{import_id}/duration-rule`
+  (« Forme des chemins » : un état est une ressource), corps `ImportDurationRuleWrite`. Une règle
+  autre que celle du compte rendu écarte le compte rendu et relance l'analyse : 202, l'import
+  `analysing`, sans compte rendu ni échéance, sa tâche la nouvelle (`ImportDetail`, comme
+  `openImport`), puis `analysed` sous la nouvelle règle, pour vingt-quatre heures. Si l'analyse
+  relancée échoue, le compte rendu précédent reste écarté : l'import est `failed`, et l'utilisateur
+  rouvre le fichier (`openImport`). La règle déjà en place rend l'import tel quel, 200, sans
+  nouvelle analyse : un client qui renvoie la règle d'un import `analysed` n'analyse pas deux fois.
+  Un rejeu pendant l'analyse, après un 202 perdu, est refusé par le 409 `import_awaiting_decision`
+  (l'import est alors `analysing`) : le client relit l'import (`getImport`). Refus, dans cet ordre :
+  404 ; 403, la permission du genre de l'import et la qualité de contributeur, comme `applyImport` ;
+  409 `STATE_FORBIDS_OPERATION`, `import_awaiting_decision`, un import qui n'est plus `analysed` —
+  en analyse, appliqué, abandonné, expiré, échoué ou refusé —, la condition d'`applyImport` ; puis
+  409 `import_calendar_gap`, une valeur nouvelle de `CommandCondition`, pour un compte rendu sans
+  écart, un import d'un autre genre compris. Le refus « sans écart » est un 409 et non un 422 : ce
+  n'est pas la valeur envoyée qui est refusée, c'est l'état du compte rendu qui ne laisse pas de
+  choix, comme `import_file_accepted` refuse l'application d'un fichier rejeté. Aucune commande ne
+  l'annonce : `calendar_gap` le dit, comme `UndoResult.remaining_depth` annonce
+  `undo_history_not_empty`. Pas de compteur : aucune opération d'import n'en porte, et la règle se
+  pose sous le verrou de l'import. Les conditions de l'état du projet ne sont pas jugées : l'analyse
+  n'écrit rien, et `applyImport` les rejuge. `applyImport` ne change pas : il applique le compte
+  rendu tel qu'analysé.
+- **Le catalogue du front** reçoit `enums.ImportDurationRule.*` et
+  `enums.CommandCondition.import_calendar_gap` ; l'écran est d'US-2000.
+- **Le service** écrit `calendar_gap` à l'analyse et sert l'opération depuis US-2000/L2, la règle
+  gardée dans la colonne `duration_rule` d'`import_report` (migration 0028), nulle hors d'un import
+  MS Project en écart ; un compte rendu écrit avant le champ, ou d'un autre genre, le lit nul
+  (`waterfall.api.imports`). Trois lectures de la règle, que le contrat laisse au service
+  (`waterfall.core.planning.calendar_gap`) : des constantes du fichier égales à celles de
+  l'installation telles qu'un fichier les porte — minutes par jour et par semaine, jours par mois
+  entiers, comme l'export les écrit — ne sont pas un écart, et le fichier se lit alors aux
+  constantes de l'installation. Les deux autres sont des lectures retenues par US-2000/L2 et
+  confirmées par l'auteur le 2026-11-14 (#3153) : « garder les dates » place un instant du fichier à
+  la même part du travail de son jour sur le calendrier Waterfall, qui n'a pas d'heures d'horloge —
+  la fin d'une journée de 7 heures à la fin d'une journée de 8 —, si bien qu'une tâche de deux
+  journées entières dure deux journées (l'autre lecture, écartée : garder l'heure d'horloge, et une
+  journée de 7 heures dure 7 heures sur 8) ; en écart, `date_mismatches` compare les dates par leur
+  jour et la durée d'une récapitulative par sa valeur dans son unité, aux constantes de chaque côté,
+  les heures d'un jour ne se lisant pas de même des deux côtés (l'autre lecture, écartée : comparer
+  les instants, qui signalerait tout fichier en écart). Une durée en temps écoulé et un jalon
+  gardent leur durée sous les deux règles.
+
+Exemples : `import_planning_calendar_gap`, une variante contrefactuelle — la structure principale
+supposée sans tâche — où un planning synthétique saisi à 7 heures par jour, son calendrier
+« Standard » de 8 h à 12 h et de 13 h à 16 h, et sa « Fabrication » sur un calendrier « Atelier »
+de 9 heures du lundi au jeudi, est analysé en gardant les durées : « 2 j » du fichier vaut deux
+jours, et la fin de la « Fabrication » et celle de la « Recette » diffèrent de celles du fichier ;
+`import_duration_rule_set`, sa règle passée à « garder les dates », l'analyse relancée (202) ;
+`import_planning_other_constants`, réécrit : un planning du témoin réenregistré à 7 heures par
+jour, en écart par ses seules constantes, analysé de nouveau en gardant les dates, sans tâche qui
+diffère, et rendu tel quel (200) quand la même règle est redemandée ;
+`import_duration_rule_without_gap` et `import_duration_rule_applied`, les deux 409, engendrés
+(`wftools.mockreview`). Les autres comptes rendus portent `calendar_gap` à nul. Écartés : un compte
+rendu qui porterait les écarts des deux règles, deux fois plus lourd pour un planning de six mille
+tâches ; la règle portée par `applyImport`, qui appliquerait un compte rendu que l'utilisateur n'a
+pas lu ; rouvrir l'import, qui redéposerait le fichier ; un 422 pour l'import sans écart ; une
+commande `ImportCommand` de plus, que tous les imports listeraient pour un choix que seul l'écart
+ouvre ; un identifiant de calendrier pour une tâche, dont le calendrier applicable n'en a pas.
 
 ## Les exemples du portefeuille (US-0240/L3)
 
@@ -3533,8 +3633,25 @@ rôles par compte, et l'écran choisit les rôles qu'il veut voir, comme les ori
 rôle n'est retenu par aucune valeur ; un identifiant qui ne désigne aucun rôle ne retient aucun
 compte, sans refus, comme `org_node_id` un nœud inconnu : les valeurs viennent de
 `listAccessRoles`. Écarté : une valeur « aucun rôle », à la manière d'`unassigned` des
-sous-projets, qu'aucune exigence ne demande. Exemple `users_by_access_role` : les porteurs du chef
+sous-projets, qu'aucune exigence ne demande (traitée depuis par un paramètre booléen,
+`without_access_role`, #2976, plus bas). Exemple `users_by_access_role` : les porteurs du chef
 de projet ou du manager, Alix Moreau, désactivée, comprise.
+
+**Les comptes sans rôle se retiennent par un paramètre booléen, `without_access_role`** (#2976,
+issue « contrat » ; décision de l'auteur du 2026-11-12, EP-24/US-1860). La maquette de la gestion
+des utilisateurs (#2917) offre « Sans rôle » parmi les rôles du filtre, pour retrouver les comptes
+que le fournisseur d'identité a créés à leur première connexion, sans droit tant qu'un rôle ne
+leur est pas donné (WF-ADM-0180) ; la liste étant paginée par le serveur, le front ne peut pas les
+filtrer lui-même. Vrai, `without_access_role` retient les comptes qui ne portent aucun rôle — un
+rôle supprimé ne compte plus, comme `User.access_role_ids` ne le nomme plus — ; donné avec
+`access_role_ids`, les deux retiennent leur union, comme une case de plus du même filtre ; absent
+ou faux, rien ne change. Il se combine aux autres filtres, au tri et à la pagination comme eux. La
+description d'`access_role_ids` le dit, à la place de « An account without a role is retained by no
+value ». Une modification du contrat figé (« La règle d'après le gel »), qui revient sur la valeur
+« aucun rôle » écartée au paragraphe précédent, qu'une exigence demande désormais. Écartés : une
+valeur sentinelle dans `access_role_ids`, qui ne serait plus une liste d'identifiants ; « Sans
+rôle » hors d'EP-24. Exemple `users_without_access_role` : Sacha Lefèvre, sans rôle, avec les
+porteurs du chef de projet ou du manager.
 
 **La recherche des comptes porte sur le nom, le prénom, l'adresse et le nom affiché** (#560). Ce
 sont les trois textes que WF-ADM-0050 donne à un compte, et le nom affiché — le prénom, une espace,
@@ -8288,6 +8405,11 @@ toute écriture de la grille enregistre (#1260, de #1232). Décisions de l'auteu
 Le front — la colonne des prédécesseurs qui résout un numéro hors des lignes lues, `grid/settings.ts`
 qui lit et écrit `known_columns` — est US-0650/L2.
 
+- **L'état du panneau de filtres.** `GridPreferences.filters_open` (#2916, WF-IHM-0060) : booléen,
+  optionnel ; absent, le panneau est fermé. Gardé tel qu'écrit, la grille remplacée entière comme
+  ses voisines, sans que le service connaisse les grilles ; `null` est
+  refusé par 422 sur `/grids/<grille>/filters_open`.
+
 ### Les exemples manquants et les descriptions du contrat (US-0640/L1, #1329)
 
 Les mineurs des relectures d'EP-14 (L42p, L42q, L42s, L44c, L44d, L53) reportés jusqu'ici : #764,
@@ -11663,7 +11785,9 @@ une forme.
   du compte rendu portent le champ à nul. Écartés : un `ImportSignal`, qui nomme une tâche et une
   colonne quand les constantes sont du fichier ; une nature d'élément ignoré, qui compterait les
   constantes sans dire leurs valeurs. Écrit par le lot de suite d'US-1430 (EP-06), au dépôt du
-  corpus complet (#2645).
+  corpus complet (#2645). *Repris par EP-24/US-2000 (#2977) : un fichier dont les constantes
+  diffèrent est en écart de calendrier, et sa conversion suit la règle de `calendar_gap` — « L'import
+  en deux temps », plus haut.*
 - **Toute ressource naît à `lock_version` 1** (#2542, E-16). La règle est celle du 2026-11-07
   (« Un objet naît à la version 1, et la révision n'avance que par ses propres écritures ») : le
   contrat ne change pas, le service s'aligne — la structure principale d'une révision naît à 1, et

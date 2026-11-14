@@ -18,7 +18,9 @@ else is refused (422 ``FILE_FORMAT_UNREADABLE``, ``expected_format``: MSPDI has 
 whole file is read by the reader at the analysis, which fails the import on a file it cannot read.
 The analysis and the application build the same plan (``importing``), the application under the
 lock of the structure, which the task of the exchanges takes after the revision and the project:
-the file is read before, by the preparation, holding no lock (#2582).
+the file is read before, by the preparation, holding no lock (#2582). Both build it under the rule
+of the durations of the import (``ImportTarget.duration_rule``), which a file in calendar gap
+follows (US-2000/L2): the application applies the report as it was analysed.
 """
 
 import re

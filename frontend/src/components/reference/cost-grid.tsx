@@ -20,34 +20,66 @@ import type { ListPage } from "@/navigation/pages";
 
 import {
   type CostCategory,
+  type CostTypeKind,
   type CostCategorySort,
   costCategoryGrid,
   type CostType,
   type CostTypeSort,
   costTypeGrid,
 } from "./cost-grids";
+import type { Choice } from "./kinds";
+import { useCostCategoryChips, useCostTypeChips } from "./reference-chips";
 import { ReferenceGrid, type ReferenceGridProps } from "./resource-grid";
+
+/** What the grid of the natures adds: the types and the state it is filtered on, told as chips. */
+interface CostTypeFiltered {
+  readonly kinds?: readonly CostTypeKind[] | undefined;
+  readonly state?: boolean | undefined;
+}
+
+/** What the grid of the categories adds: the nature and the state it is filtered on, told as chips. */
+interface CostCategoryFiltered {
+  readonly nature?: string | undefined;
+  readonly natures?: readonly Choice[] | undefined;
+  readonly state?: boolean | undefined;
+}
 
 /** The two grids of the natures and the categories of cost, by their kind. */
 export type CostGridProps = { readonly page: ListPage } & (
-  | ({ readonly kind: "costTypes" } & ReferenceGridProps<CostType, CostTypeSort>)
-  | ({ readonly kind: "costCategories" } & ReferenceGridProps<CostCategory, CostCategorySort>)
+  | ({ readonly kind: "costTypes" } & ReferenceGridProps<CostType, CostTypeSort> & CostTypeFiltered)
+  | ({ readonly kind: "costCategories" } & ReferenceGridProps<CostCategory, CostCategorySort> &
+      CostCategoryFiltered)
 );
 
-/** Render a grid of the natures or the categories of cost, by its kind. */
-export function CostGrid(props: CostGridProps) {
+/** The grid of the natures, its filters told as chips. */
+function CostTypeGrid(props: Extract<CostGridProps, { kind: "costTypes" }>) {
   const t = useTranslations("reference");
-  return props.kind === "costTypes" ? (
+  const chips = useCostTypeChips(props.kinds, props.state);
+  return (
     <ReferenceGrid
       {...props}
+      chips={chips}
       make={costTypeGrid}
       count={(count) => t("costTypes.count", { count })}
     />
-  ) : (
+  );
+}
+
+/** The grid of the categories, its filters told as chips. */
+function CostCategoryGrid(props: Extract<CostGridProps, { kind: "costCategories" }>) {
+  const t = useTranslations("reference");
+  const chips = useCostCategoryChips(props.nature, props.natures, props.state);
+  return (
     <ReferenceGrid
       {...props}
+      chips={chips}
       make={costCategoryGrid}
       count={(count) => t("costCategories.count", { count })}
     />
   );
+}
+
+/** Render a grid of the natures or the categories of cost, by its kind. */
+export function CostGrid(props: CostGridProps) {
+  return props.kind === "costTypes" ? <CostTypeGrid {...props} /> : <CostCategoryGrid {...props} />;
 }

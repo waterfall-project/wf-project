@@ -13,18 +13,21 @@ a date constraint, at the dates of the file; a summary always automatic. A summa
 carries in manual mode keeps there the dates entered on it, which Waterfall does not: it is
 compared apart, its dates derived from its subordinates (``DERIVED``). The cases the body of
 WF-QUA-0080 cites, by the identifiers the README of the corpus gives them, are each declared by a
-file of the manifest, but for a negative lag in weeks, which no file carries (#2812).
+file of the manifest.
 """
 
 import json
-from datetime import date
+import os
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 from uuid import NAMESPACE_OID, UUID, uuid5
 
 import pytest
+from lxml import etree
 
+from waterfall.core.exchanges.interface import hardened_parser
 from waterfall.core.planning.msproject import (
     DATE_CONSTRAINTS,
     MsProject,
@@ -34,6 +37,7 @@ from waterfall.core.planning.msproject import (
     duration_of,
     lag_of,
     read_project,
+    write_project,
 )
 from waterfall.core.planning.scheduling import (
     Link,
@@ -55,7 +59,8 @@ DATED = [entry for entry in FILES if entry.get("dating", True)]
 # et en pourcentage, des calendriers dont les journées n'ont pas toutes la même durée, des tâches
 # récapitulatives, des jalons et des tâches en mode manuel » — the durations in each unit, the
 # critical path, and the cases the README adds for the import (the constraints, what is ignored,
-# other constants, the horizon), which the README asks of the corpus as well.
+# other constants, the horizon, the calendar gap of US-2000), which the README asks of the corpus
+# as well.
 CASES: dict[str, tuple[str, ...]] = {
     "the four types of link": ("link_fs", "link_ss", "link_ff", "link_sf"),
     "lags in each unit, positive and negative": (
@@ -119,11 +124,12 @@ CASES: dict[str, tuple[str, ...]] = {
     ),
     "other constants": ("constants_7_35_20",),
     "the horizon": ("horizon_exceeded",),
+    "a calendar gap": ("calendar_gap_seven_hours", "calendar_gap_task_calendar"),
 }
 
 # The cases no planning of the corpus declares, each with the issue that says why: the corpus
 # lacks a file for it, the text of the specification is not in question.
-MISSING: dict[str, str] = {"lag_negative_w": "#2812"}
+MISSING: dict[str, str] = {}
 
 # The summaries the corpus carries in manual mode, by file: MS Project keeps the dates entered on
 # them, Waterfall always computes a summary from its subordinates, and the import makes it
@@ -301,10 +307,72 @@ def test_each_case_the_body_cites_is_declared_by_a_planning_of_the_corpus(
     theme: str, case: str
 ) -> None:
     # « Chaque cas cité par le corps figure dans au moins un planning du corpus. » A case no file
-    # declares is not run only when the test names the issue that says why (#2812, decision of
-    # the 2026-11-10); any other fails, and a case a file declares needs that file in the corpus.
+    # declares is not run only when the test names the issue that says why (``MISSING``, empty
+    # since the file 02 carries a negative lag in weeks, #2812); any other fails, and a case a
+    # file declares needs that file in the corpus.
     declaring = [entry["file"] for entry in FILES if case in entry["cases"]]
     if not declaring and case in MISSING:
         pytest.skip(f"{case} ({theme}): no planning of the corpus declares it ({MISSING[case]})")
     assert declaring, f"{case} ({theme}): no planning of the corpus declares it"
     assert [file for file in declaring if (CORPUS / file).is_file()] != [], declaring
+
+
+@pytest.mark.requirement("WF-INTF-0040-A")
+@pytest.mark.requirement("WF-QUA-0080-A")
+def test_the_manual_tasks_of_the_corpus_are_read_at_the_dates_of_their_start_and_finish() -> None:
+    # « Une tâche en mode manuel du fichier est en mode manuel aux mêmes dates » : the reader reads
+    # a manual task in its fields ``Manual…`` (US-1990), which MS Project wrote equal to ``Start``
+    # and ``Finish`` in each file of the corpus: replayed, the corpus changes no date.
+    read: list[str] = []
+    lasting: list[str] = []
+    for entry in FILES:
+        content = (CORPUS / entry["file"]).read_bytes()
+        tasks = {each.uid: each for each in read_project(content).project.tasks}
+        for element in etree.fromstring(content, hardened_parser()).iterfind("{*}Tasks/{*}Task"):
+            uid = int(element.findtext("{*}UID") or "0")
+            if element.findtext("{*}Manual") != "1" or element.findtext("{*}ManualStart") is None:
+                continue
+            start, finish = (element.findtext(f"{{*}}{name}") for name in ("Start", "Finish"))
+            assert (start, finish) == tuple(
+                element.findtext(f"{{*}}{name}") for name in ("ManualStart", "ManualFinish")
+            ), uid
+            assert (tasks[uid].start, tasks[uid].finish) == (
+                datetime.fromisoformat(start or ""),
+                datetime.fromisoformat(finish or ""),
+            ), uid
+            # The duration read is the ``ManualDuration`` when the file has it, not ``Duration``.
+            manual_duration = element.findtext("{*}ManualDuration")
+            if manual_duration is not None:
+                hours = int(manual_duration.removeprefix("PT").removesuffix("H0M0S"))
+                assert tasks[uid].duration == timedelta(hours=hours), uid
+                lasting.append(f"{entry['file']} {uid}")
+            read.append(f"{entry['file']} {uid}")
+    # The file 06, of the tasks in manual mode, carries them: the test does not pass on none.
+    assert [each for each in read if each.startswith("06-manual-tasks.xml")], read
+    assert [each for each in lasting if each.startswith("06-manual-tasks.xml")], lasting
+
+
+@pytest.fixture
+def schema() -> etree.XMLSchema:
+    """Give the schema of MSPDI the variable names, the test skipped without it (WF-QUA-0080)."""
+    named = os.environ.get("WATERFALL_MSPDI_SCHEMA_PATH")
+    if not named:
+        pytest.skip("WATERFALL_MSPDI_SCHEMA_PATH names no schema of MSPDI")
+    return etree.XMLSchema(etree.parse(Path(named)))
+
+
+@pytest.mark.requirement("WF-QUA-0080-A")
+@pytest.mark.parametrize("entry", FILES, ids=[entry["file"] for entry in FILES])
+def test_each_planning_of_the_corpus_read_then_written_is_valid_against_the_schema(
+    entry: dict[str, Any], schema: etree.XMLSchema
+) -> None:
+    # « Chaque planning du corpus réimporté puis exporté par Waterfall est valide contre le
+    # schéma » : without a database (« Leur exécution ne demande ni MS Project, ni base de
+    # données »), the planning the reader gives is written by the writer of the export, the
+    # working day of its head, ``Estimated`` and the fields ``Manual…`` of its manual tasks
+    # included; the order of the schema is the writer's (``test_msproject.py``).
+    project = read_project((CORPUS / entry["file"]).read_bytes()).project
+    written = write_project(project)
+
+    assert schema.validate(etree.fromstring(written, hardened_parser())), schema.error_log
+    assert read_project(written).project == project

@@ -70,7 +70,6 @@ import { useCurrency } from "@/currency/context";
 import type { Locale } from "@/i18n/locale";
 
 import {
-  alignment,
   type DependencyReader,
   DIFF_MARK_KEY,
   formatCell,
@@ -83,12 +82,12 @@ import { cellAttributes, cellKeys, cellStateOf, invalidRing } from "./cell-attri
 import { CellEditor, EntryProblemNotice } from "./cell-editor";
 import { useCellWrites } from "./cell-writes";
 import { ComputedCell, type ComputedColumn } from "./computed-cell";
+import { cellContent } from "./dense-grid-cell";
 import { DiffMark, differenceTint } from "./diff-mark";
 import {
   FOLD_KEYS,
   useFoldReach,
   FoldContext,
-  FoldToggle,
   isNarrowed,
   useFoldCommands,
   useGridFold,
@@ -106,6 +105,7 @@ import {
   useGridKeyboard,
 } from "./grid-keyboard";
 import { configColumn, type GridFeatures, type GridTable, useGridTable } from "./grid-table";
+import { type Filtering, keptOpenOf, panelLayout } from "./filter-bar";
 import { GridToolbar, toggledColumns } from "./grid-toolbar";
 import { HeaderCell } from "./header-cell";
 import { type KeptFilters, useKeptFilters } from "./kept-filters";
@@ -113,6 +113,7 @@ import { useKeptPageSize } from "./kept-size";
 import { gridBusy, held, sharedName, Spacer } from "./dense-grid-parts";
 import { useGridPaste } from "./paste";
 import { PasteAppliedNotice, PasteDialog, UnshownNotice } from "./paste-dialog";
+import { alignClass, TotalsRow } from "./totals-row";
 import { PendingAddress, usePendingAddress } from "./pending-address";
 import { endPinnedWidth, pinnedWidth, pinningOf, useFrameRoom } from "./pinning";
 import { useRootFontSize, useRowWindow } from "./row-window";
@@ -124,6 +125,13 @@ import {
   selectedRow,
   useRowSelection,
 } from "./row-selection";
+import {
+  isBarOpen,
+  useBarFocus,
+  SelectionBar,
+  type SelectionBarOptions,
+  useSelectedConfig,
+} from "./selection-bar";
 import {
   type GridPreferences,
   gridShape,
@@ -152,9 +160,6 @@ const OVERSCAN = 12;
  * laid it out —: the rows of a first screen are in the page as it arrives.
  */
 const FIRST_SCREEN = { width: 1280, height: 720 };
-
-/** How far a level of the tree indents its label, in pixels. */
-const INDENT = 16;
 
 /** What a grid shows: an answer of the API, what was asked for it, and the settings kept. */
 export interface DenseGridProps<Row extends RowData, Sort extends string, Totals> {
@@ -192,6 +197,8 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
    * around the grid, never a prop of each row (défaut n° 14).
    */
   readonly around?: ((rows: readonly Row[], grid: ReactNode) => ReactNode) | undefined;
+  /** The filters of the screen, as menus in the bar of the grid (#2916/L6); none, the bar as it is. */
+  readonly treeFilters?: ReactNode;
   /**
    * What the folds of a tree are kept for in the session, besides the grid: the revision it reads.
    */
@@ -213,67 +220,20 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
    * observer of the page.
    */
   readonly stacked?: boolean | undefined;
-}
-
-/**
- * The classes that align the content of a column: the row numbers and the figures at the end,
- * an icon alone at the centre.
- */
-function alignClass(column: Parameters<typeof alignment>[0] | undefined): string | null {
-  const align = column === undefined ? "end" : alignment(column);
-  return { start: null, end: "text-right", center: "text-center" }[align];
-}
-
-/** The label of a row and its tree: indented by its level, the icon of its nature before it. */
-function TreeLabel<Row extends RowData, Sort extends string, Totals>({
-  config,
-  row,
-  text,
-}: {
-  readonly config: GridConfig<Row, Sort, Totals>;
-  readonly row: Row;
-  readonly text: string;
-}) {
-  const tree = config.tree;
-  if (tree === undefined) {
-    return text;
-  }
-  const emphasis = tree.emphasis?.(row);
-  return (
-    <span
-      className={cn(
-        "flex min-w-0 items-center gap-1.5",
-        emphasis === "strong" ? "font-semibold" : null,
-        emphasis === "muted" ? "text-muted-foreground" : null,
-      )}
-      style={{ paddingLeft: (tree.level(row) - 1) * INDENT }}
-    >
-      <FoldToggle rowKey={config.rowKey(row)} placeholder />
-      {tree.nature(row)}
-      <span className="truncate">{text}</span>
-    </span>
-  );
-}
-
-/**
- * The content of a cell: the number of the row, the label and its tree, what its column renders,
- * or its value.
- */
-function cellContent<Row extends RowData, Sort extends string, Totals>(
-  config: GridConfig<Row, Sort, Totals>,
-  column: GridColumn<Row, Sort, Totals> | undefined,
-  row: Row,
-  locale: Locale,
-  currency: string | undefined,
-): ReactNode {
-  if (column === undefined) {
-    return config.rowNumber?.(row);
-  }
-  if (column.render !== undefined) {
-    return column.render(row);
-  }
-  const text = formatCell(column.format, column.value(row), locale, currency);
-  return column === config.columns[0] ? <TreeLabel config={config} row={row} text={text} /> : text;
+  /**
+   * Whether the rows of a flat table are selected, picked one by one (Ctrl or Cmd and a click, Ctrl and
+   * Space), all at once by the box of the header of the handles, and acted on from a bar above the
+   * grid (`SelectionBar`), with what the screen gives it (#2916/L4). Off by default; a tree keeps
+   * its contiguous selection, and shows the bar alone.
+   */
+  readonly selecting?: SelectionBarOptions<Row> | undefined;
+  /**
+   * For a flat table whose screen folds its filters into the bar of the grid (#2916): the filters
+   * of the screen, which the panel under the bar holds, and the chips of those on, built from its
+   * address. The panel is closed unless the account keeps it open (`filters_open`). None, the bar
+   * as before and the filters where the screen puts them.
+   */
+  readonly filtering?: Filtering | undefined;
 }
 
 /** Whether the server computes the cell of a column in a row. */
@@ -306,7 +266,10 @@ interface CellStates<Row extends RowData, Sort extends string, Totals> {
   /** The selection of the rows, whose handles are the cells of the row numbers. */
   readonly selection: RowSelection<unknown>;
   /** The name of the handle of the row of a number, and the identifier of what describes it. */
-  readonly handle: { readonly name: (number: number) => string; readonly hint: string };
+  readonly handle: {
+    readonly name: (number: number) => string;
+    readonly hint: string;
+  };
 }
 
 /**
@@ -432,10 +395,12 @@ function BodyRow<Row extends RowData, Sort extends string, Totals>({
               state={cellStateOf(shared.cells, row.id, { row: index, column: cell.column.id })}
               menu={shared.cells.menu}
               pinning={pinningOf(shared.table, cell.column.id, "z-10")}
-              number={shared.config.rowNumber?.(row.original)}
+              number={shared.config.rowNumber?.(row.original) ?? index + 1}
               selected={selection.selected(index) === true}
               name={shared.cells.handle.name}
               hint={shared.cells.handle.hint}
+              draggable={selection.dragging}
+              pick={selection.pick}
             />
           ) : (
             <BodyCell
@@ -447,54 +412,6 @@ function BodyRow<Row extends RowData, Sort extends string, Totals>({
             />
           ),
         )}
-    </TableRow>
-  );
-}
-
-/** The totals of the answer, at the foot: what they count under the label, figures under theirs. */
-function TotalsRow<Row extends RowData, Sort extends string, Totals>({
-  table,
-  config,
-  totals,
-  caption,
-  index,
-  locale,
-}: {
-  readonly table: GridTable<Row>;
-  readonly config: GridConfig<Row, Sort, Totals>;
-  readonly totals: Totals;
-  readonly caption: string;
-  readonly index: number;
-  readonly locale: Locale;
-}) {
-  const currency = useCurrency();
-  return (
-    <TableRow aria-rowindex={index} className="h-8">
-      {table.getVisibleLeafColumns().map((column) => {
-        const configured = configColumn(config, column.id);
-        const pinning = pinningOf(table, column.id, "z-30");
-        const first = configured !== undefined && configured === config.columns[0];
-        return (
-          <TableCell
-            key={column.id}
-            style={{ left: pinning.left, right: pinning.right }}
-            className={cn(
-              "sticky bottom-0 z-20 overflow-hidden border-t border-b-0 bg-muted font-semibold text-ellipsis",
-              pinning.className,
-              first ? null : alignClass(configured),
-            )}
-          >
-            {first
-              ? caption
-              : formatCell(
-                  configured?.format ?? "text",
-                  configured?.total?.(totals),
-                  locale,
-                  currency,
-                )}
-          </TableCell>
-        );
-      })}
     </TableRow>
   );
 }
@@ -516,7 +433,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>(
 
 /** Render a dense grid, the address last asked shared. */
 function SharedGrid<Row extends RowData, Sort extends string, Totals>({
-  config,
+  config: given,
   rows,
   totals,
   totalsCaption,
@@ -526,12 +443,16 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   undoable,
   undo: undoControl,
   around,
+  treeFilters,
   foldScope,
   narrowing,
   commands,
   stacked,
+  selecting,
+  filtering,
 }: DenseGridProps<Row, Sort, Totals>) {
   const t = useTranslations("grid");
+  const { config, pick } = useSelectedConfig(given, selecting);
   const locale = useLocale();
   const currency = useCurrency();
   const pathname = usePathname();
@@ -549,6 +470,10 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   // The settings as they are now, which a preference written later reads: kept at each change.
   const currentSettings = useRef(settings);
   const writer = useSettingsWriter(config.key);
+  // Whether the panel of the filters is open: as the account keeps it, then as the user sets it. A
+  // grid that never set it records none, what the account keeps going back as it came.
+  const [filtersOpen, setFiltersOpen] = useState(keptOpenOf(preferences));
+  const keptOpen = useRef(filtersOpen);
   // The filters its screen keeps with its settings, as the page last showed them (`kept-filters.ts`).
   const { recordShown, shown } = writer;
   const recordFilters = useCallback(
@@ -561,6 +486,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
           filters,
           keptSize,
           shape,
+          { filtersOpen: keptOpen.current },
         ),
       );
       shown();
@@ -580,6 +506,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
           kept.current,
           size,
           shape,
+          { filtersOpen: keptOpen.current },
         ),
       );
       shown();
@@ -590,7 +517,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   const scroller = useRef<HTMLDivElement>(null);
   const frameWidth = useFrameWidth(scroller);
   const room = useFrameRoom(scroller);
-  const roomBelow = useRoomBelow(scroller, stacked);
+  const roomBelow = useRoomBelow(scroller, stacked, panelLayout(filtering, filtersOpen));
   const rowHeight = ROW_REM * useRootFontSize();
 
   // The address the last navigation of the grid — or of its screen — asked for: a search entered
@@ -622,6 +549,25 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         kept.current,
         keptSize,
         shape,
+        { filtersOpen: keptOpen.current },
+      ),
+    );
+  };
+  // The panel opened or closed is recorded at once: a discrete choice, found again on the next visit.
+  const openFilters = (open: boolean) => {
+    setFiltersOpen(open);
+    keptOpen.current = open;
+    // Written as a column is: after a pause, and not before the page shows a sort asked — what
+    // waits for it is built from `keptOpen` when it goes (défaut n° 15).
+    writer.recordLater(() =>
+      recordedPreferences(
+        preferences,
+        currentSettings.current,
+        keptSort.current,
+        kept.current,
+        keptSize,
+        shape,
+        { filtersOpen: keptOpen.current },
       ),
     );
   };
@@ -661,7 +607,9 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       setSettings(next);
       currentSettings.current = next;
       writer.record(
-        recordedPreferences(preferences, next, keptSort.current, kept.current, keptSize, shape),
+        recordedPreferences(preferences, next, keptSort.current, kept.current, keptSize, shape, {
+          filtersOpen: keptOpen.current,
+        }),
       );
     },
   });
@@ -737,7 +685,11 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     cursor,
     focusAt: keyboard.focusAt,
     scroller,
+    pick,
   });
+  // The bar of the selection lies over the bar of the grid, in its place: nothing moves under it.
+  const barOpen = isBarOpen(selecting, selection.rows);
+  const barFocus = useBarFocus(barOpen, keyboard.refocus);
   const screenCommands = onRows(
     commands,
     (index) => model[index]?.original,
@@ -768,7 +720,10 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     menu: hasCellMenu(undoable, folding.menu, screenCommands.menu),
     foldKeys: FOLD_KEYS[foldReach],
     selection,
-    handle: { name: (number) => t("selection.handle", { number }), hint },
+    handle: {
+      name: (number) => t("selection.handle", { number }),
+      hint,
+    },
     editor: (draft, column) =>
       column.entry === undefined ? null : (
         <CellEditor
@@ -788,11 +743,13 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
 
   const grid = (
     <div
-      className="flex min-h-0 flex-col gap-2"
+      className="relative flex min-h-0 flex-col gap-2"
       style={{ minHeight: withBar(bodyRows) }}
       onKeyDown={undo.onKeyDown}
+      onFocusCapture={barFocus}
     >
       <GridToolbar
+        covered={barOpen}
         width={barWidthOf(frameWidth, table.getTotalSize())}
         search={query.search}
         onSearch={config.searched ? search : undefined}
@@ -800,10 +757,26 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         undo={undoControl}
         outline={folding.outline}
         commands={screenCommands.bar(cursor.active.row)}
+        treeFilters={treeFilters}
+        filters={filtering}
+        open={filtersOpen}
+        onOpen={openFilters}
+        address={config.address}
+        filterNames={config.filters}
+        count={totalsCaption(shownTotals)}
         grid={sharedName(config, (name) => t(`names.${name}`))}
         columns={toggledColumns(table, config, (column) =>
           headingOf(column, (key) => t(`columns.${key}`)),
         )}
+      />
+      <SelectionBar
+        rows={selection.rows}
+        options={selecting}
+        width={barWidthOf(frameWidth, table.getTotalSize())}
+        onClear={() => {
+          selection.lift();
+          keyboard.refocus();
+        }}
       />
       <UndoAnnouncer
         offered={undoable}
@@ -811,7 +784,12 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         told={undo.told}
         onDismissed={keyboard.refocus}
       />
-      <SelectionNotes hint={hint} count={selection.count} />
+      <SelectionNotes
+        hint={hint}
+        count={selection.count}
+        total={shownRows.length}
+        pick={selection.pick}
+      />
       <OutcomeNotice
         outcome={writer.outcome}
         onClear={writer.clear}
@@ -902,6 +880,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
                   pinning={{ ...pinning, className: cn("sticky top-0 z-20", pinning.className) }}
                   position={position}
                   active={samePosition(cursor.active, position)}
+                  selectAll={selection.boxOf(header.column.id)}
                 />
               );
             })}

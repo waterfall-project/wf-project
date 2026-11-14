@@ -1,5 +1,5 @@
 {
-  "summary": "L'import d'un planning MS Project lu aujourd'hui à 12 h 20 et analysé à 12 h 21, une variante qu'imports ne reprend pas : le planning de la structure principale du projet témoin exporté aujourd'hui, rouvert puis enregistré dans un MS Project réglé à 7 heures par jour, 35 par semaine et 20 jours par mois, quand l'installation compte 8, 40 et 20. Un aller-retour sur les identifiants que l'export a écrits : les durées et les décalages gardent leurs heures, « 2 j » du fichier, quatorze heures, valant 1,75 j à l'installation ; aucune tâche ne diffère, et le compte rendu signale la différence des constantes, celles du fichier et celles de l'installation ; les 2 calendriers du fichier sont ignorés et dits (WF-PLA-0160, WF-INTF-0040, WF-INTF-0080, #2580).",
+  "summary": "L'import d'un planning MS Project lu aujourd'hui à 12 h 20, une variante qu'imports ne reprend pas : le planning de la structure principale du projet témoin exporté aujourd'hui, rouvert puis enregistré dans un MS Project réglé à 7 heures par jour, 35 par semaine et 20 jours par mois, quand l'installation compte 8, 40 et 20, ses calendriers restant ceux de l'export. Les constantes diffèrent : le fichier est en écart de calendrier, et le compte rendu dit les constantes de part et d'autre, le calendrier du projet du fichier, « Semaine standard », de 8 h à 16 h du lundi au vendredi, et le calendrier par défaut de l'installation, aux mêmes journées ; aucune tâche ne porte un calendrier propre qui diffère du sien. Analysé d'abord en gardant les durées, la règle par défaut, sous laquelle les seize heures d'une durée de « 2 j » de l'export, lues aux 7 heures par jour du fichier, vaudraient près de 2,29 j et chaque tâche changerait de durée, puis analysé de nouveau, à 12 h 21, en gardant les dates, la règle que l'utilisateur a choisie (setImportDurationRule) : chaque tâche reçoit pour durée le temps de travail entre ses dates du fichier sur son calendrier Waterfall, et aucune tâche ne diffère ; les 2 calendriers du fichier sont ignorés et dits. La même règle demandée de nouveau rend l'import tel quel, sans nouvelle analyse (WF-PLA-0160, WF-INTF-0040, WF-INTF-0080, #2580, #2977).",
   "value": {
     "import_id": "01926f3a-7c00-7000-8000-000000000a2a",
     "kind": "ms_project_schedule",
@@ -43,6 +43,69 @@
           "hours_per_week": "40",
           "days_per_month": "20"
         }
+      },
+      "calendar_gap": {
+        "project_calendar": {
+          "name": "Semaine standard",
+          "weekly_hours": {
+            "monday": "8",
+            "tuesday": "8",
+            "wednesday": "8",
+            "thursday": "8",
+            "friday": "8",
+            "saturday": "0",
+            "sunday": "0"
+          },
+          "working_times": {
+            "monday": [
+              {
+                "from": "08:00",
+                "to": "16:00"
+              }
+            ],
+            "tuesday": [
+              {
+                "from": "08:00",
+                "to": "16:00"
+              }
+            ],
+            "wednesday": [
+              {
+                "from": "08:00",
+                "to": "16:00"
+              }
+            ],
+            "thursday": [
+              {
+                "from": "08:00",
+                "to": "16:00"
+              }
+            ],
+            "friday": [
+              {
+                "from": "08:00",
+                "to": "16:00"
+              }
+            ],
+            "saturday": [],
+            "sunday": []
+          }
+        },
+        "installation_calendar": {
+          "calendar_id": "01926f3a-7c00-7000-8000-000000000481",
+          "label": "Semaine standard",
+          "weekly_hours": {
+            "monday": "8",
+            "tuesday": "8",
+            "wednesday": "8",
+            "thursday": "8",
+            "friday": "8",
+            "saturday": "0",
+            "sunday": "0"
+          }
+        },
+        "tasks": [],
+        "duration_rule": "keep_dates"
       }
     },
     "task": {

@@ -19,15 +19,25 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # Redocly lints and bundles the contract: read from the store of pnpm, which the cache holds,
+      # never fetched from the registry of npm by `npx`. pnpm, at the version `packageManager` names,
+      # must exist before its store is read.
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: frontend/package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
+      # The store of pnpm is read, never written: front-cache.yml writes it.
+      - uses: ./.github/actions/pnpm-store
       # The inventory reads the requirements through the repository tools, in Python; the models
       # of the service are engendered from the contract by the tool of the back.
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
+          save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: |
-            tools/uv.lock
             backend/uv.lock
+            tools/uv.lock
       - run: make check-contract

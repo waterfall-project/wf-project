@@ -268,8 +268,19 @@ def calendar_of(
 def calendars_of(
     session: Session, project_id: UUID, task_ids: Collection[UUID]
 ) -> dict[UUID, Applicable]:
-    """Give the calendar applicable to each task named, the default and the facets read once."""
+    """Give the calendar applicable to each task named, the default and the facets read once.
+
+    Computed once for each set of calendars named: the tasks of a structure name few of them, and
+    an intersection costs the building of a calendar (#3048).
+    """
     default = default_calendar(session)
     named = named_calendars(session, project_id, task_ids)
     weeks = weeks_of(session, [each for held in named.values() for each in held])
-    return {task_id: applicable_among(named[task_id], default, weeks) for task_id in task_ids}
+    computed: dict[frozenset[UUID], Applicable] = {}
+    found: dict[UUID, Applicable] = {}
+    for task_id in task_ids:
+        held = frozenset(named[task_id])
+        if held not in computed:
+            computed[held] = applicable_among(held, default, weeks)
+        found[task_id] = computed[held]
+    return found

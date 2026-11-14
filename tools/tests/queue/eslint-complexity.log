@@ -1,0 +1,10 @@
+2026-11-12T20:13:20.8614772Z $ eslint . --max-warnings 0 --cache --cache-strategy content
+2026-11-12T20:13:47.2433662Z 
+2026-11-12T20:13:47.2434648Z /home/runner/work/wf-project/wf-project/frontend/src/components/grid/check-menu.tsx
+2026-11-12T20:13:47.2458211Z ##[error]  183:8  error  Function 'CheckMenu' has a complexity of 15. Maximum allowed is 14  complexity
+2026-11-12T20:13:47.2476764Z 
+2026-11-12T20:13:47.2477314Z ✖ 1 problem (1 error, 0 warnings)
+2026-11-12T20:13:47.2477514Z 
+2026-11-12T20:13:47.6481930Z [ELIFECYCLE] Command failed with exit code 1.
+2026-11-12T20:13:47.6499140Z make: *** [Makefile:502: lint-front] Error 1
+2026-11-12T20:13:47.6511074Z ##[error]Process completed with exit code 2.

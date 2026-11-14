@@ -197,7 +197,7 @@ def main_structure(stage: Scene) -> UUID:
                 CostStructure.project_id == UUID(stage.project["project_id"]),
                 CostStructure.kind == "main",
             )
-            .order_by(CostStructure.created_at.desc())
+            .order_by(CostStructure.created_at.desc(), CostStructure.id.desc())
         ).first() or UUID(int=0)
 
 
@@ -430,7 +430,9 @@ def test_the_summary_in_manual_mode_of_the_corpus_is_signalled_by_the_analysis(
     # « Une récapitulative en mode manuel dans le fichier est importée en mode automatique, et le
     # compte rendu la signale avec l'écart de dates. » The file 06 of the corpus carries one,
     # « Manuelle 4 », entered on the 16th of November 2009 alone; the test of the corpus dates it
-    # from its subordinates.
+    # from its subordinates. Its duration is the one MS Project shows of a manual task, its
+    # ``ManualDuration`` of a day (US-1990), not the work of its subordinates the file writes in
+    # ``Duration``: it differs from Waterfall's too.
     seven_hours_a_day(stage)
     report = analysed(api, stage, worker, corpus("06-manual-tasks.xml"))["report"]
     assert [each for each in report["signals"] if each["code"] == "SUMMARY_TASK_DERIVED"] == [
@@ -442,9 +444,11 @@ def test_the_summary_in_manual_mode_of_the_corpus_is_signalled_by_the_analysis(
             "params": {"start": "2009-11-16", "finish": "2009-11-16"},
         }
     ]
-    assert {"lineage_id": None, "label": "Manuelle 4", "fields": ["start", "finish"]} in report[
-        "date_mismatches"
-    ]
+    assert {
+        "lineage_id": None,
+        "label": "Manuelle 4",
+        "fields": ["duration", "start", "finish"],
+    } in report["date_mismatches"]
 
 
 @pytest.mark.requirement("WF-INTF-0040-A")
@@ -703,12 +707,15 @@ def test_a_task_the_file_makes_a_milestone_over_a_started_subtask_is_rejected(
 
 
 @pytest.mark.requirement("WF-PLA-0160-A")
-def test_a_file_of_other_constants_is_imported_with_the_same_hours(
+def test_a_file_of_other_constants_is_signalled_and_keeps_its_durations_in_their_unit(
     api: ContractClient, stage: Scene, worker: Worker
 ) -> None:
-    # « Un fichier MS Project dont les constantes diffèrent de celles de l'installation est
-    # importé avec les mêmes durées en heures. » Seven hours a day: « 2 j » is fourteen hours,
-    # « 1 sem » thirty-five.
+    # « Un fichier MS Project dont les constantes ou le calendrier diffèrent de ceux de
+    # l'installation est signalé au compte rendu ; importé en gardant les durées, une tâche de
+    # « 2 j » saisie à 7 h par jour vaut deux jours, soit seize heures avec les valeurs par
+    # défaut ; » Seven hours a day, on the calendar of the installation: in calendar gap by its
+    # constants alone, which ``unit_constants`` gives and ``calendar_gap`` never leaves without its
+    # rule (#3129). « 1 sem » of thirty-five hours stays a week.
     opened(api, stage)
     week = link(1, lag=35 * 600, unit=9)
     content = planning(
@@ -721,9 +728,12 @@ def test_a_file_of_other_constants_is_imported_with_the_same_hours(
         "file": {"hours_per_day": "7", "hours_per_week": "35", "days_per_month": "20"},
         "installation": {"hours_per_day": "8", "hours_per_week": "40", "days_per_month": "20"},
     }
+    gap = report["calendar_gap"]
+    assert gap is not None
+    assert (gap["duration_rule"], gap["tasks"]) == ("keep_durations", [])
     cabling = by_label(stage)["Câblage"][1]
-    assert (cabling.duration_value, cabling.duration_unit) == (Decimal("1.75"), "d")
-    assert links(stage) == {("Câblage", "Essais", "finish_to_start", Decimal("0.875"), "w")}
+    assert (cabling.duration_value.normalize(), cabling.duration_unit) == (Decimal(2), "d")
+    assert links(stage) == {("Câblage", "Essais", "finish_to_start", Decimal(1), "w")}
 
 
 @pytest.mark.requirement("WF-PLA-0160-A")
@@ -731,16 +741,18 @@ def test_a_file_of_other_constants_is_imported_with_the_same_hours(
 def test_the_report_of_the_planning_of_other_constants_signals_the_difference(
     api: ContractClient, stage: Scene, worker: Worker
 ) -> None:
-    # « Un fichier MS Project dont les constantes diffèrent de celles de l'installation est
-    # importé avec les mêmes durées en heures, et le compte rendu signale la différence. » The file
-    # 10 of the corpus carries 7 hours a day, 35 a week and 20 days a month; the installation 8, 40
-    # and 20. « 1 j » is seven hours, 0.875 d at the installation.
+    # « Un fichier MS Project dont les constantes ou le calendrier diffèrent de ceux de
+    # l'installation est signalé au compte rendu » : the file 10 of the corpus carries 7 hours a
+    # day, 35 a week and 20 days a month; the installation 8, 40 and 20. Its « Standard » of six
+    # hours a day is not the default calendar either: the file is in calendar gap.
     seven_hours_a_day(stage)
     report = analysed(api, stage, worker, corpus("10-other-constants.xml"))["report"]
     assert report["unit_constants"] == {
         "file": {"hours_per_day": "7", "hours_per_week": "35", "days_per_month": "20"},
         "installation": {"hours_per_day": "8", "hours_per_week": "40", "days_per_month": "20"},
     }
+    assert report["calendar_gap"] is not None
+    assert report["calendar_gap"]["project_calendar"]["weekly_hours"]["monday"] == "6"
     assert report["refusals"] == []
 
 

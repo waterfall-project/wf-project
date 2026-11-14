@@ -1,6 +1,12 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Locator, type Page } from "@playwright/test";
+import {
+  type APIRequestContext,
+  type Browser,
+  expect,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
@@ -8,7 +14,8 @@ import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 import { bringInProgress } from "./in-progress";
 import { createOwnProject, openRevision } from "./own-project";
-import { seedPlanning } from "./planning-seed";
+import { seedPlanning, type Seeded } from "./planning-seed";
+import type { LocalPerson } from "./service/realm";
 import { scrollToPosition, withinBox } from "./scroll";
 import { isServerAction } from "./server-action";
 
@@ -525,6 +532,164 @@ test("starts a task from the Kanban and completes a milestone, on a project the 
     await expect(started.getByRole("listitem").filter({ hasText: "Mise en service" })).toHaveCount(
       0,
     );
+  } finally {
+    await calls.dispose();
+  }
+});
+
+/** The category of expense the insertion chooses: active and `non_labor` in the reference. */
+const EXPENSE = "Sous-traitance";
+
+/**
+ * What the screens say of the reference of a project in progress: its row of the history of the
+ * revisions, and the revision it designates. The reference budget and the planned value are not
+ * read: the service does not serve `getProjectIndicators` yet (EP-10), and the fake back answers
+ * the same figures whatever is written.
+ */
+async function referenceOf(page: Page, seeded: Seeded) {
+  await openHydrated(page, `${seeded.own.path}/revisions`);
+  const history = page.getByRole("table", { name: "Historique des révisions" });
+  // Case-sensitive: the header « Année de référence » is not the row of the reference.
+  const row = history.getByRole("row").filter({ hasText: /Référence/ });
+  await expect(row).toHaveCount(1, { timeout: WORKING });
+  const designated = await row.innerText();
+  const href = (await row.getByRole("link").first().getAttribute("href")) ?? "";
+  const reference = new URL(href, "http://localhost").searchParams.get("revision_id") ?? "";
+  return { reference, designated };
+}
+
+/**
+ * Take a project the run creates, seeded with a planning, to In progress, and open the grid of its
+ * remaining to commit with the tasks not started shown (none is started: the grid is empty
+ * without them). Returns the address of the revision in progress, the grid, and the cell of the
+ * label of the task « Mise en service », focused, with what the planning was seeded as.
+ */
+async function openOwnRemaining(
+  page: Page,
+  browser: Browser,
+  calls: APIRequestContext,
+  manager: LocalPerson | undefined,
+  name: string,
+) {
+  const seeded = await seedPlanning(page, browser, calls, manager, name);
+  await bringInProgress(page, calls, seeded);
+  // The reference as the project in progress has it, read before the grid is opened (the read
+  // leaves the page).
+  const reference = await referenceOf(page, seeded);
+  await openRevision(page, seeded.own);
+  const open = new URL(page.url()).searchParams.get("revision_id") ?? "";
+  const revision = `${seeded.own.path}/revisions/${open}`;
+  await openHydrated(page, `${revision}/remaining?progress=not_started%2Cstarted`);
+  const grid = page.getByRole("treegrid", { name: "Grille de reste à engager" });
+  const at = await columnsOf(grid, { label: "Libellé" });
+  const cell = grid
+    .getByRole("row", { name: /Mise en service/ })
+    .first()
+    .getByRole("gridcell")
+    .nth(at.label);
+  await expect(cell).toBeVisible({ timeout: WORKING });
+  await cell.click();
+  await expect(cell).toBeFocused();
+  return { seeded, reference, revision, grid, cell };
+}
+
+test("adds a task from the remaining to commit of a project in progress the run creates: it appears in the planning of the revision in progress @shared [WF-RAE-0040-A]", async ({
+  page,
+  browser,
+  playwright,
+  manager,
+}) => {
+  // The twin against the service of the path of `structure.spec.ts` (#2909): the witness is never
+  // written by a path (#2193), the project is the run's own, taken In progress (`bringInProgress`).
+  test.skip(!inService, "the fake back keeps nothing: `structure.spec.ts` plays the gesture on it");
+  test.slow();
+  const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
+  try {
+    const { seeded, reference, revision, grid, cell } = await openOwnRemaining(
+      page,
+      browser,
+      calls,
+      manager,
+      "Reste ajouté",
+    );
+    await page.keyboard.press("Insert");
+    const dialog = page.getByRole("dialog", { name: "Insérer au-dessous" });
+    await dialog.getByRole("textbox", { name: "Libellé" }).fill("Reprise des borniers");
+    await dialog.getByRole("button", { name: "Créer" }).click();
+    await expect(page.getByText("« Reprise des borniers » créée.")).toBeVisible({
+      timeout: WORKING,
+    });
+    await expect(dialog).toHaveCount(0);
+    await expect(cell).toBeFocused();
+    // The task is among the tasks of the grid read anew...
+    await expect(grid.getByRole("row", { name: /Reprise des borniers/ })).toBeVisible({
+      timeout: WORKING,
+    });
+    // ... among the tasks not started alone (WF-RAE-0040-A): a task created is not started.
+    await openHydrated(page, `${revision}/remaining?progress=not_started`);
+    await expect(grid.getByRole("row", { name: /Reprise des borniers/ })).toBeVisible({
+      timeout: WORKING,
+    });
+    // ... and in the planning of the revision in progress.
+    await openHydrated(page, `${revision}/planning`);
+    await expect(
+      page
+        .getByRole("treegrid", { name: "Grille de planning" })
+        .getByRole("row", { name: /Reprise des borniers/ }),
+    ).toBeVisible({ timeout: WORKING });
+    // ... while the reference is the same revision, without the task.
+    const kept = await referenceOf(page, seeded);
+    expect(kept.reference).toBe(reference.reference);
+    expect(kept.designated).toMatch(/Référence/);
+    await openHydrated(page, `${seeded.own.path}/revisions/${reference.reference}/planning`);
+    const referenced = page.getByRole("treegrid", { name: "Grille de planning" });
+    await expect(referenced.getByRole("row", { name: /Mise en service/ })).toBeVisible({
+      timeout: WORKING,
+    });
+    await expect(referenced.getByRole("row", { name: /Reprise des borniers/ })).toHaveCount(0);
+  } finally {
+    await calls.dispose();
+  }
+});
+
+test("inserts a line in the remaining to commit of a project in progress the run creates, named, of a category and of a quantity @shared [WF-RAE-0040-A]", async ({
+  page,
+  browser,
+  playwright,
+  manager,
+}) => {
+  // The twin against the service of the path of `structure.spec.ts` (#2909), on the run's own
+  // project, as above.
+  test.skip(!inService, "the fake back keeps nothing: `structure.spec.ts` plays the gesture on it");
+  test.slow();
+  const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
+  try {
+    const { grid, cell } = await openOwnRemaining(page, browser, calls, manager, "Reste inséré");
+    await cell.click({ button: "right" });
+    await page
+      .getByRole("menu", { name: "Menu de la cellule" })
+      .getByRole("menuitem", { name: "Insérer une ligne" })
+      .click();
+    const dialog = page.getByRole("dialog", { name: "Insérer une ligne" });
+    // A category of expense of the reference (`non_labor`), by its label: the roles come first in
+    // the list, and the witness holds the active role of the service (`wiringService`).
+    const entry = dialog.getByRole("combobox", { name: "Rôle ou catégorie" });
+    await entry.selectOption({ label: EXPENSE });
+    await dialog.getByRole("textbox", { name: "Libellé" }).fill("Consommables d’essais");
+    await dialog.getByRole("textbox", { name: "Quantité" }).fill("2,5");
+    await dialog.getByRole("button", { name: "Créer" }).click();
+    await expect(page.getByText("« Consommables d’essais » créée.")).toBeVisible({
+      timeout: WORKING,
+    });
+    await expect(dialog).toHaveCount(0);
+    await expect(cell).toBeFocused();
+    const created = grid.getByRole("row", { name: /Consommables d’essais/ });
+    await expect(created).toBeVisible({ timeout: WORKING });
+    const at = await columnsOf(grid, { quantity: /^Qté$/ });
+    await expect(created.getByRole("gridcell").nth(at.quantity)).toHaveText("2,5");
+    // The grid does not name the category: it marks the line as a line of expense (a role would
+    // make a line of labour), and the quantity is the one entered.
+    await expect(created.getByRole("img", { name: "Ligne de débours" })).toBeVisible();
   } finally {
     await calls.dispose();
   }

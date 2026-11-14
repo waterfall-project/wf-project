@@ -12,7 +12,8 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridPreferences } from "@/components/grid/settings";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { atCommit } from "@/test/committed";
+import { menuSummary, openAudit, openMenu } from "@/test/check-menu";
+import { openFilters } from "@/test/accounts";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { keysOf } from "@/test/grid-preferences";
 
@@ -64,6 +65,7 @@ function accounts(filters: AuditFilters = audit(), kept?: GridPreferences): Reac
           orgNode={undefined}
           roles={[]}
           accessRoles={[]}
+          withoutRole={false}
           active={undefined}
           audit={filters}
           authors={authorsOf(users.items)}
@@ -108,9 +110,21 @@ function lastAddress(): unknown {
   return router.push.mock.calls.at(-1)?.[0];
 }
 
-/** The choice of the author of a column, by its heading. */
-function author(column: "Créé par" | "Modifié par"): HTMLElement {
-  return screen.getByRole("combobox", { name: column });
+/** The choice of the author of a column, by its heading: its menu opened, its list. */
+async function author(column: "Créé par" | "Modifié par"): Promise<HTMLElement> {
+  // The table of the roles has no panel: its filters stand over it.
+  if (screen.queryByRole("button", { name: /^Filtres( \(|$)/ }) !== null) {
+    await openFilters();
+  }
+  await openAudit();
+  return openMenu(column);
+}
+
+/** The names of the authors a list offers, in its order. */
+function offered(list: HTMLElement): (string | null | undefined)[] {
+  return within(list)
+    .getAllByRole("radio")
+    .map((radio) => radio.textContent);
 }
 
 beforeEach(() => {
@@ -130,83 +144,111 @@ afterEach(() => {
 describe("the filter of a table on the author of an audit column", () => {
   it("offers any account, the platform and the accounts that wrote the rows, and writes the one chosen under the names of the contract, back to the first page [WF-IHM-0130-A]", async () => {
     page.search = "origins=local&offset=2";
-    render(accounts());
-    const created = author("Créé par");
-    expect([...within(created).getAllByRole("option")].map((option) => option.textContent)).toEqual(
-      ["Tous les auteurs", "Un compte", "La plateforme", "Camille Martin"],
-    );
-    await userEvent.selectOptions(created, "La plateforme");
+    const { rerender } = render(accounts());
+    const created = await author("Créé par");
+    expect(offered(created)).toEqual([
+      "Tous les auteurs",
+      "Un compte",
+      "La plateforme",
+      "Camille Martin",
+    ]);
+    await userEvent.click(within(created).getByRole("radio", { name: "La plateforme" }));
     expect(lastAddress()).toBe("/admin/users?origins=local&created_by_kind=platform");
     // An account chosen replaces the kind of author, and the kind an account.
     page.search = "origins=local&created_by_kind=platform";
-    await userEvent.selectOptions(created, "Camille Martin");
+    rerender(accounts(audit(page.search)));
+    const again = await author("Créé par");
+    await userEvent.click(within(again).getByRole("radio", { name: "Camille Martin" }));
     expect(lastAddress()).toBe(`/admin/users?origins=local&created_by_user_id=${CAMILLE}`);
     page.search = `origins=local&created_by_user_id=${CAMILLE}`;
-    await userEvent.selectOptions(created, "Tous les auteurs");
+    rerender(accounts(audit(page.search)));
+    const last = await author("Créé par");
+    await userEvent.click(within(last).getByRole("radio", { name: "Tous les auteurs" }));
     expect(lastAddress()).toBe("/admin/users?origins=local");
   });
 
-  it("shows the author the address names, an account or the platform, each column its own", () => {
+  it("shows the author the address names, an account or the platform, each column its own", async () => {
     page.search = `created_by_kind=platform&updated_by_user_id=${CAMILLE}`;
     render(accounts(audit(page.search)));
-    expect(author("Créé par")).toHaveValue("platform");
-    expect(author("Modifié par")).toHaveValue(CAMILLE);
+    await openFilters();
+    await openAudit();
+    expect(menuSummary("Créé par")).toBe("La plateforme");
+    expect(menuSummary("Modifié par")).toBe("Camille Martin");
   });
 
-  it("finds the accounts to choose by a search of the server, deactivated ones included, and says how many it found", async () => {
+  it("finds the accounts to choose by a search inside the list, sent to the server once the typing pauses, deactivated ones included, and says how many it found", async () => {
     const client = serve({ "GET /users": "users_search" });
     render(accounts());
-    // Each search its own form, named by the column it finds an author for.
-    const search = screen.getByRole("form", {
-      name: "Chercher un compte pour «\u00A0Modifié par\u00A0»",
-    });
+    const modified = await author("Modifié par");
+    // No button to press: the search is inside the list, and goes to the server as the typing pauses.
+    expect(screen.queryByRole("button", { name: "Chercher" })).toBeNull();
     await userEvent.type(
-      within(search).getByRole("searchbox", {
-        name: "Chercher un compte pour «\u00A0Modifié par\u00A0»",
+      within(modified).getByRole("searchbox", {
+        name: "Rechercher dans «\u00A0Modifié par\u00A0»",
       }),
       "ines roux",
     );
-    // Whether the search was still held in the commit that told the accounts found: the request
-    // over, never while its button is inactive (#1484).
-    const button = within(search).getByRole("button", { name: "Chercher" });
-    const heldWhenTold = atCommit(
-      search,
-      () => search.textContent.includes("compte trouvé"),
-      () => (button.hasAttribute("disabled") ? "held" : "free"),
-    );
-    await userEvent.click(button);
     expect((await screen.findByText(/^1 compte trouvé/)).textContent).toBe(
       "1 compte trouvé, à choisir dans «\u00A0Modifié par\u00A0».",
     );
-    expect(heldWhenTold.stop()).toEqual(["free"]);
     expect(client.calls.find(({ route }) => route === "GET /users")?.query.toString()).toBe(
       "search=ines+roux&include_inactive=true&limit=20",
     );
-    await userEvent.selectOptions(author("Modifié par"), "Inès Roux");
+    await userEvent.click(within(modified).getByRole("radio", { name: "Inès Roux" }));
     expect(lastAddress()).toBe(`/admin/users?updated_by_user_id=${INES}`);
-    // The other column offers the accounts of the page alone.
-    expect(within(author("Créé par")).queryByRole("option", { name: "Inès Roux" })).toBeNull();
+  });
+
+  it("filters the list by what is typed before the server answers, and offers the accounts of the page alone in the other column", async () => {
+    serve({ "GET /users": "users_search" });
+    render(accounts());
+    const created = await author("Créé par");
+    expect(within(created).queryByRole("radio", { name: "Inès Roux" })).toBeNull();
+    await userEvent.type(
+      within(created).getByRole("searchbox", {
+        name: "Rechercher dans «\u00A0Créé par\u00A0»",
+      }),
+      "cam",
+    );
+    expect(offered(created)).toEqual(["Tous les auteurs", "Camille Martin"]);
   });
 
   it("tells a search the server refuses by the catalogue, and offers nothing more", async () => {
     serve({ "GET /users": { problem: { code: "COMPONENT_UNAVAILABLE", status: 503 } } });
     render(accounts());
+    const created = await author("Créé par");
+    expect(within(created).getAllByRole("radio")).toHaveLength(4);
     await userEvent.type(
-      screen.getByRole("searchbox", { name: "Chercher un compte pour «\u00A0Créé par\u00A0»" }),
-      "Mor{Enter}",
+      within(created).getByRole("searchbox", {
+        name: "Rechercher dans «\u00A0Créé par\u00A0»",
+      }),
+      "Mor",
     );
     expect(await screen.findByRole("alert")).toBeInTheDocument();
-    expect(within(author("Créé par")).getAllByRole("option")).toHaveLength(4);
+    // Nothing found is added to the list.
+    expect(within(created).queryByRole("radio", { name: "Inès Roux" })).toBeNull();
   });
 
-  it("names on the screen of the roles every author of the roles, and offers no search there", () => {
+  it("names on the screen of the roles every author of the roles, and sends no search to the server there", async () => {
     page.path = "/admin/access-roles";
+    const client = serve();
     render(accessRoles(example("access_roles_updated_by_anonymized") as AccessRole[]));
+    const modified = await author("Modifié par");
     // The anonymised author by the neutral label, never by a name it no longer has.
-    expect(
-      [...within(author("Modifié par")).getAllByRole("option")].map((option) => option.textContent),
-    ).toEqual(["Tous les auteurs", "Un compte", "La plateforme", "Compte anonymisé"]);
-    expect(screen.queryByRole("searchbox", { name: /Chercher un compte/ })).toBeNull();
+    expect(offered(modified)).toEqual([
+      "Tous les auteurs",
+      "Un compte",
+      "La plateforme",
+      "Compte anonymisé",
+    ]);
+    await userEvent.type(
+      within(modified).getByRole("searchbox", {
+        name: "Rechercher dans «\u00A0Modifié par\u00A0»",
+      }),
+      "Anon",
+    );
+    expect(offered(modified)).toEqual(["Tous les auteurs", "Compte anonymisé"]);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(client.calls.filter(({ route }) => route === "GET /users")).toEqual([]);
   });
 });
 
@@ -214,19 +256,36 @@ describe("the filter of a table on the period of an audit column", () => {
   it("writes the local days entered as the instants of the contract, under the names of its column, back to the first page [WF-IHM-0130-A]", async () => {
     page.search = "offset=2";
     render(accounts());
+    await openFilters();
+    await openAudit();
     const form = screen.getByRole("form", { name: "Créé le" });
-    // Sent once the page is hydrated, which the browser knows its time zone by.
-    await waitFor(() => {
-      expect(within(form).getByRole("button", { name: "Filtrer" })).toBeEnabled();
-    });
     fireEvent.change(within(form).getByLabelText("Du"), { target: { value: "2026-01-01" } });
     fireEvent.change(within(form).getByLabelText("Au"), { target: { value: "2026-01-31" } });
-    await userEvent.click(within(form).getByRole("button", { name: "Filtrer" }));
+    // Sent on Enter, once the page is hydrated, which the browser knows its time zone by.
+    await waitFor(() => {
+      fireEvent.keyDown(within(form).getByLabelText("Au"), { key: "Enter" });
+      expect(router.push).toHaveBeenCalled();
+    });
     const query = new URLSearchParams({
       created_at_from: new Date(2026, 0, 1).toISOString(),
       created_at_to: new Date(2026, 1, 1).toISOString(),
     });
     expect(lastAddress()).toBe(`/admin/users?${query.toString()}`);
+  });
+
+  it("folds the audit filters at the bottom of the panel, closed until opened and not kept, #2916", async () => {
+    render(accounts());
+    await openFilters();
+    const section = screen.getByRole("button", {
+      name: "Filtres d’audit — création et modification",
+    });
+    expect(section).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("form", { name: "Créé le" })).toBeNull();
+    await userEvent.click(section);
+    expect(section).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("form", { name: "Créé le" })).toBeVisible();
+    expect(screen.getByRole("form", { name: "Modifié le" })).toBeVisible();
+    expect(menuSummary("Créé par")).toBe("Tous les auteurs");
   });
 
   it("says at its field the end the server refuses for preceding the start, the grid unread, and breaks no rule of accessibility", async () => {
@@ -271,5 +330,38 @@ describe("the filters of the audit columns, kept", () => {
         },
       },
     });
+  });
+});
+
+describe("the search inside the list of authors, cleared", () => {
+  it("forgets what the server found, with the sentence that counted it", async () => {
+    serve({ "GET /users": "users_search" });
+    render(accounts());
+    const modified = await author("Modifié par");
+    const search = within(modified).getByRole("searchbox", {
+      name: "Rechercher dans «\u00A0Modifié par\u00A0»",
+    });
+    await userEvent.type(search, "ines roux");
+    expect(await screen.findByText(/^1 compte trouvé/)).toBeInTheDocument();
+    await userEvent.clear(search);
+    expect(screen.queryByText(/compte trouvé/)).toBeNull();
+    expect(within(modified).queryByRole("radio", { name: "Inès Roux" })).toBeNull();
+  });
+
+  it("forgets what the server found when the list is closed and opened again", async () => {
+    serve({ "GET /users": "users_search" });
+    render(accounts());
+    const modified = await author("Modifié par");
+    await userEvent.type(
+      within(modified).getByRole("searchbox", {
+        name: "Rechercher dans «\u00A0Modifié par\u00A0»",
+      }),
+      "ines roux",
+    );
+    expect(await screen.findByText(/^1 compte trouvé/)).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    const again = await author("Modifié par");
+    expect(screen.queryByText(/compte trouvé/)).toBeNull();
+    expect(within(again).queryByRole("radio", { name: "Inès Roux" })).toBeNull();
   });
 });

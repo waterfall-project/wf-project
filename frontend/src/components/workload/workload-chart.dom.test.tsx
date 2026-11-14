@@ -147,6 +147,13 @@ describe("the workload of a project", () => {
     expect(
       series.slice(0, 2).map((each) => (each as BarSeriesOption).itemStyle?.decal),
     ).toMatchObject([{ symbol: "circle" }, { symbol: "triangle" }]);
+    // The wirer, loaded on fewer months, is aligned to the same instants as the other roles: the
+    // chart uses the shared function, which stacks by rank.
+    const instantsOf = (each: BarSeriesOption | LineSeriesOption | undefined) =>
+      (each?.data as unknown[][] | undefined)?.map(([instant]) => instant);
+    expect(series[2]?.name).toBe("Monteur câbleur");
+    expect(instantsOf(series[2])).toEqual(instantsOf(series[0]));
+    expect(instantsOf(series[1])).toEqual(instantsOf(series[0]));
     // What is left of the connection of the terminal blocks and of the drawn tasks under way, in
     // June after the calculation, then the wiring on site and the tasks that follow.
     expect(series[0]?.data?.slice(0, 2)).toEqual([

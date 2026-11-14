@@ -16,7 +16,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useMemo } from "react";
+import { type ReactNode, useMemo } from "react";
 
 import { useAccountNaming } from "@/components/account/account-name";
 import { DenseGrid } from "@/components/grid/dense-grid";
@@ -24,6 +24,7 @@ import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import type { NodeChoice } from "@/components/reference/reference-filters";
 
+import { useAccessRoleChips } from "./role-chips";
 import { useRoleAnswers } from "./role-answers";
 import {
   type AccessRole,
@@ -35,7 +36,10 @@ import {
   type UserSort,
   userGrid,
 } from "./admin-grids";
+import { UserBulkCommands } from "./user-bulk";
 import { newer, useUserWrites } from "./user-commands";
+import { type UserFilters, useUserChips } from "./user-chips";
+import type { RoleFilters } from "./account-lists";
 
 /**
  * Render the grid of a page of the accounts, its totals row the number the server retained — its
@@ -50,6 +54,8 @@ export function UserGrid({
   roles,
   nodes,
   editable,
+  filters,
+  panel,
 }: {
   readonly users: readonly User[];
   readonly page: UserPage;
@@ -61,8 +67,13 @@ export function UserGrid({
   readonly nodes: readonly NodeChoice[];
   /** Whether the session may modify the accounts (`platformOffer`). */
   readonly editable: boolean;
+  /** What the address filters the accounts on, told as chips under the bar. */
+  readonly filters: UserFilters;
+  /** The filters of the screen, which the bar folds into its panel. */
+  readonly panel: ReactNode;
 }) {
   const t = useTranslations("admin.users");
+  const chips = useUserChips(filters, nodes, roles);
   const naming = useAccountNaming();
   const writes = useUserWrites();
   const queue = writes?.queue;
@@ -103,6 +114,14 @@ export function UserGrid({
       totalsCaption={(retained) => t("count", { count: retained.total })}
       query={query}
       preferences={preferences}
+      filtering={{ panel, chips }}
+      // The accounts are picked one by one; the actions on a selection write each by its own call.
+      selecting={{
+        label: (count) => t("selected", { count }),
+        commands: editable
+          ? (rows) => <UserBulkCommands rows={rows} roles={roles} nodes={nodes} />
+          : undefined,
+      }}
     />
   );
 }
@@ -113,14 +132,21 @@ export function AccessRoleGrid({
   query,
   preferences,
   editable,
+  filters,
+  panel,
 }: {
   readonly roles: readonly AccessRole[];
   readonly query: GridQuery<AccessRoleSort>;
   readonly preferences: GridPreferences | undefined;
   /** Whether the session may modify the access roles (`platformOffer`). */
   readonly editable: boolean;
+  /** What the address filters the roles on, told as chips under the bar. */
+  readonly filters: RoleFilters;
+  /** The filters of the screen, which the bar folds into its panel. */
+  readonly panel: ReactNode;
 }) {
   const t = useTranslations("admin.accessRoles");
+  const chips = useAccessRoleChips(filters);
   // The roles the server answered, which the renaming writes from, shared with the matrix.
   const answers = useRoleAnswers();
   const latest = answers?.latest;
@@ -128,6 +154,7 @@ export function AccessRoleGrid({
   const isWriting = answers?.isWriting;
   const begin = answers?.begin;
   const end = answers?.end;
+  const idle = answers?.idle;
   const config = useMemo(
     () =>
       accessRoleGrid(
@@ -136,11 +163,12 @@ export function AccessRoleGrid({
           record === undefined ||
           isWriting === undefined ||
           begin === undefined ||
-          end === undefined
+          end === undefined ||
+          idle === undefined
           ? undefined
-          : { latest, record, isWriting, begin, end },
+          : { latest, record, isWriting, begin, end, idle },
       ),
-    [editable, latest, record, isWriting, begin, end],
+    [editable, latest, record, isWriting, begin, end, idle],
   );
   return (
     <DenseGrid
@@ -150,6 +178,7 @@ export function AccessRoleGrid({
       totalsCaption={() => t("count", { count: roles.length })}
       query={query}
       preferences={preferences}
+      filtering={{ panel, chips }}
     />
   );
 }

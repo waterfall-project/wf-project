@@ -27,18 +27,30 @@
 "use client";
 
 import { UserPlus } from "lucide-react";
-import { useTranslations } from "next-intl";
+import {
+  NextIntlClientProvider,
+  useLocale,
+  useMessages,
+  useTimeZone,
+  useTranslations,
+} from "next-intl";
 import {
   createContext,
   type ReactNode,
   useCallback,
   useContext,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 
-import { anonymizeUser, createPasswordSetupLink, resendInvitation } from "@/api/actions/users";
+import {
+  anonymizeUser,
+  createPasswordSetupLink,
+  readUser,
+  resendInvitation,
+} from "@/api/actions/users";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { useAccountNaming } from "@/components/account/account-name";
@@ -49,6 +61,7 @@ import { Reactivations, useListReport } from "@/components/reference/reactivatio
 import { Button } from "@/components/ui/button";
 
 import type { User } from "./admin-grids";
+import { type BulkAction, bulkSend } from "./user-bulk-write";
 import { AnonymizationDialog, SetupLinkDialog, UserCreation } from "./user-dialogs";
 import { USER_READS } from "./user-address";
 
@@ -80,7 +93,8 @@ export interface UserWrite {
 export interface QueuedWrite {
   /** Send the write from the account as the writes before it left it. */
   readonly send: (user: User) => Promise<Outcome<User>>;
-  readonly said: (answered: User) => string;
+  /** What is said once it is answered; nothing for a write of a group, said whole once done. */
+  readonly said?: ((answered: User) => string) | undefined;
 }
 
 /** The accounts of the table as they show, and the commands that change them. */
@@ -103,6 +117,18 @@ export interface UserWrites {
    * answer kept and said; its outcome given back, for the cell to tell a refusal.
    */
   readonly queue: (shown: User, write: QueuedWrite) => Promise<Outcome<User>>;
+  /**
+   * Write each account of a selection by one call, one after the other, with no atomicity: those
+   * answered stay written, and each refused is told with its reason (#2917). Nothing while a group
+   * is under way.
+   */
+  readonly bulk: (
+    rows: readonly User[],
+    action: BulkAction,
+    back: HTMLElement | null,
+  ) => Promise<boolean>;
+  /** Whether a group of accounts is being written. */
+  readonly bulking: boolean;
   /** Open the creation of a local account, from the command pressed. */
   readonly create: (trigger: HTMLElement) => void;
   /**
@@ -140,10 +166,30 @@ export function newer(read: User, answered: User | undefined): User {
 
 /** The commands of the table of the accounts, and the refusals told above it. */
 export function UserCommands({ children }: { readonly children: ReactNode }) {
+  const t = useTranslations("admin.users");
+  const locale = useLocale();
+  const timeZone = useTimeZone();
+  const messages = useMessages();
+  // A write refused as stale says here what to do on this screen: the sentence of the code, shared by
+  // every screen, is left as it is. Two constraints follow. The provider below copies the props of
+  // the one of the shell (`shell.tsx`: locale, messages, time zone): a prop the shell adds there
+  // (`now`, `formats`, `onError`) must be copied here too, or this subtree loses it unseen. And the
+  // sentence holds for every 412 of the subtree: each write of it must go through `reserve`, which
+  // reads the account anew, or the sentence would promise a row that is not checked.
+  const own = useMemo(
+    () => ({ ...messages, errors: { ...messages.errors, STALE_LOCK_VERSION: t("stale") } }),
+    [messages, t],
+  );
   return (
-    <Reactivations reads={USER_READS} fill>
-      <Writes>{children}</Writes>
-    </Reactivations>
+    <NextIntlClientProvider
+      locale={locale}
+      messages={own}
+      {...(timeZone === undefined ? {} : { timeZone })}
+    >
+      <Reactivations reads={USER_READS} fill>
+        <Writes>{children}</Writes>
+      </Reactivations>
+    </NextIntlClientProvider>
   );
 }
 
@@ -233,9 +279,20 @@ function Writes({ children }: { readonly children: ReactNode }) {
       const before = asking.current.get(id) ?? Promise.resolve();
       const sent = before.then(async () => {
         const outcome = await write.send(latest(shown));
+        if (outcome.kind === "stale") {
+          // The account was modified meanwhile: read it anew before the row is free again, so that
+          // it shows its current values and the next write goes from its version. A reading that
+          // fails says no more than the refusal: the row stays as it was.
+          const read = await readUser(id).catch(rejected);
+          if (read.kind === "done") {
+            record(read.data);
+          }
+        }
         if (outcome.kind === "done") {
           record(outcome.data);
-          say(write.said(outcome.data), { object: naming.person(outcome.data) });
+          if (write.said !== undefined) {
+            say(write.said(outcome.data), { object: naming.person(outcome.data) });
+          }
         }
         return outcome;
       });
@@ -290,6 +347,78 @@ function Writes({ children }: { readonly children: ReactNode }) {
           });
         }
       });
+    },
+    [list, held, reserve, say, t, naming],
+  );
+  const [bulking, setBulking] = useState(false);
+  // Whether a group is under way, as the last press left it: two presses may come before a render.
+  const bulkHeld = useRef(false);
+  // The reading the list is on now: a group left behind by a change of reading tells no refusal.
+  const reading = useRef(list?.generation ?? 0);
+  const generationNow = list?.generation ?? 0;
+  // Synchronous at the commit, before an answer of a group can arrive and compare with it.
+  useLayoutEffect(() => {
+    reading.current = generationNow;
+  }, [generationNow]);
+  const bulk = useCallback(
+    async (rows: readonly User[], action: BulkAction, back: HTMLElement | null) => {
+      if (bulkHeld.current || rows.length === 0) {
+        return false;
+      }
+      bulkHeld.current = true;
+      setBulking(true);
+      const generation = list?.generation ?? 0;
+      const send = bulkSend(action);
+      const run = async () => {
+        let changed = 0;
+        let same = 0;
+        let refused = 0;
+        let first: Outcome<unknown> | undefined;
+        for (const row of rows) {
+          // The version the write goes from: the server rendering the same one wrote nothing.
+          let sentFrom: number | undefined;
+          const outcome = await reserve(row, {
+            send: (user) => {
+              sentFrom = user.lock_version;
+              return send(user).catch(rejected);
+            },
+          });
+          if (outcome.kind === "done") {
+            if (outcome.data.lock_version === sentFrom) {
+              same += 1;
+            } else {
+              changed += 1;
+            }
+            continue;
+          }
+          refused += 1;
+          first ??= outcome;
+          const name = naming.person(row);
+          list?.report({
+            outcome,
+            generation,
+            names: {},
+            target: `bulk ${action.kind} ${row.user_id}`,
+            back,
+            subject: name,
+            lead: name,
+          });
+        }
+        // The refusals are told on the reading the group was pressed on: read otherwise, the
+        // summary that points at them stays silent, as they are.
+        if (refused === 0) {
+          say(t("bulkDone", { count: changed, same }), { noted: true });
+        } else if (reading.current === generation) {
+          say(t("bulkPartial", { done: changed, same, refused }), { noted: false });
+        }
+        // The navigations held wait for the whole group; a refusal is the answer of the first.
+        return first ?? ({ kind: "done", data: null } as const);
+      };
+      await held(run()).finally(() => {
+        bulkHeld.current = false;
+        setBulking(false);
+      });
+      return true;
     },
     [list, held, reserve, say, t, naming],
   );
@@ -364,6 +493,8 @@ function Writes({ children }: { readonly children: ReactNode }) {
       latest,
       run,
       queue: reserve,
+      bulk,
+      bulking,
       create,
       giveLink,
       linking,
@@ -379,6 +510,8 @@ function Writes({ children }: { readonly children: ReactNode }) {
       latest,
       run,
       reserve,
+      bulk,
+      bulking,
       create,
       giveLink,
       linking,

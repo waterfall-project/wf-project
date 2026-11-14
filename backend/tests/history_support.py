@@ -102,7 +102,9 @@ def counter(tree: Tree) -> int:
 def plans(stage: Scene) -> list[PastePlan]:
     """Read the plans of a paste the base keeps."""
     with stage.database.transaction() as session:
-        found = session.scalars(select(PastePlan).order_by(PastePlan.created_at)).all()
+        found = session.scalars(
+            select(PastePlan).order_by(PastePlan.created_at, PastePlan.id)
+        ).all()
         session.expunge_all()
         return list(found)
 

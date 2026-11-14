@@ -1,0 +1,442 @@
+// SPDX-FileCopyrightText: 2026 waterfall-project
+// SPDX-License-Identifier: AGPL-3.0-only
+import { render, screen, waitFor, within } from "@testing-library/react";
+import { userEvent } from "@testing-library/user-event";
+import { NextIntlClientProvider } from "next-intl";
+import { createRef } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { ApiClient } from "@/api/client";
+import type { components } from "@/api/generated/schema";
+import { FilterChips } from "@/components/grid/filter-bar";
+import type { FilterChip } from "@/components/grid/filter-chips";
+import { PendingAddress, usePendingAddress } from "@/components/grid/pending-address";
+import type { GridQuery } from "@/components/grid/query";
+import type { GridPreferences } from "@/components/grid/settings";
+import { CATALOGUES } from "@/i18n/catalogues";
+import { NO_AUDIT } from "@/test/accounts";
+import { expectAccessible } from "@/test/axe";
+import { example, type FakeClient, fakeClient } from "@/test/fixtures";
+
+import { UserList } from "./account-lists";
+import type { User, UserSort } from "./admin-grids";
+import { authorsOf } from "./audit-address";
+import { readAccountState, USER_KEPT } from "./user-address";
+
+// Filters folded into the bar of the table of the accounts (#2916): the panel, closed by default
+// and kept with the settings of the grid, and the chips of the filters on, built from the address.
+const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
+const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }));
+const page = vi.hoisted(() => ({ path: "/admin/users", search: "" }));
+
+vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+vi.mock("next/cache", () => ({ refresh: vi.fn() }));
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  useRouter: () => router,
+  usePathname: () => page.path,
+  useSearchParams: () => new URLSearchParams(page.search),
+}));
+
+const users = example("users") as {
+  items: User[];
+  meta: components["schemas"]["PaginationMeta"];
+};
+
+/** The accounts, filtered as the address says, with the preferences given. */
+function list(
+  preferences?: GridPreferences,
+  query: GridQuery<UserSort> = { sort: undefined, search: undefined, size: undefined },
+) {
+  return (
+    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+      <PendingAddress kept={USER_KEPT}>
+        <UserList
+          users={users.items}
+          page={users.meta}
+          query={query}
+          preferences={preferences}
+          origins={page.search.includes("origins=local") ? ["local"] : []}
+          nodes={[]}
+          orgNode={undefined}
+          roles={[]}
+          accessRoles={[]}
+          withoutRole={false}
+          active={readAccountState(new URLSearchParams(page.search))}
+          audit={NO_AUDIT}
+          authors={authorsOf(users.items)}
+          editable={false}
+        />
+      </PendingAddress>
+    </NextIntlClientProvider>
+  );
+}
+
+const lastAddress = (): unknown => router.push.mock.calls.at(-1)?.[0];
+const toggle = () => screen.getByRole("button", { name: /^Filtres( \(|$)/ });
+
+beforeEach(() => {
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
+  server.client = fakeClient({ "PATCH /me/preferences": "preferences" });
+  page.search = "";
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  router.push.mockClear();
+});
+
+/** The settings the grid recorded, by the calls of the fake back. */
+function recorded(): (GridPreferences | undefined)[] {
+  const client = server.client as FakeClient;
+  return client.calls
+    .filter((call) => call.route === "PATCH /me/preferences")
+    .map((call) => {
+      const body = call.body as { grids: Record<string, GridPreferences> };
+      return body.grids.users;
+    });
+}
+
+describe("the panel of the filters of the table of the accounts", () => {
+  it("is closed by default, its button saying it and naming the panel it controls [WF-IHM-0060-A]", () => {
+    render(list());
+    expect(toggle()).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: /^Filtrer par origine/ })).toBeNull();
+    const panel = document.getElementById(toggle().getAttribute("aria-controls") ?? "");
+    expect(panel).not.toBeNull();
+    expect(panel).not.toBeVisible();
+  });
+
+  it("opens and closes, writes whether it is open with the settings of the grid, and opens as the account keeps it [WF-IHM-0060-A, #2916]", async () => {
+    const { unmount } = render(list());
+    await userEvent.click(toggle());
+    expect(toggle()).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: /^Filtrer par origine/ })).toBeVisible();
+    await waitFor(() => {
+      expect(recorded().at(-1)).toMatchObject({ filters_open: true });
+    });
+    await userEvent.click(toggle());
+    expect(toggle()).toHaveAttribute("aria-expanded", "false");
+    await waitFor(() => {
+      expect(recorded().at(-1)).toMatchObject({ filters_open: false });
+    });
+    unmount();
+    render(list({ filters_open: true }));
+    expect(toggle()).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: /^Filtrer par origine/ })).toBeVisible();
+  });
+
+  it("tells the filters on as chips from the address, counted by the button, whether the panel is open or not [WF-IHM-0130-A]", () => {
+    page.search = "origins=local&is_active=true";
+    render(list());
+    expect(toggle()).toHaveAccessibleName("Filtres (2)");
+    const chips = screen.getByRole("list", { name: "Filtres actifs" });
+    expect(within(chips).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(chips).getByText("Origine : Créé dans Waterfall")).toBeVisible();
+    expect(within(chips).getByText("État du compte : Actif")).toBeVisible();
+  });
+
+  it("lifts a filter by the cross of its chip, in the address, back to the first page [WF-IHM-0130-A]", async () => {
+    page.search = "origins=local&is_active=true&offset=2";
+    render(list());
+    await userEvent.click(
+      screen.getByRole("button", { name: "Retirer le filtre Origine : Créé dans Waterfall" }),
+    );
+    expect(lastAddress()).toBe("/admin/users?is_active=true");
+  });
+
+  it("lifts every filter by « Effacer les filtres », the search kept as the field of the bar shows it [WF-IHM-0130-A]", async () => {
+    page.search = "origins=local&is_active=true&search=Mor&offset=2";
+    render(list());
+    await userEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
+    expect(lastAddress()).toBe("/admin/users?search=Mor");
+  });
+
+  it("lifts by « Effacer les filtres » a parameter the reading set aside too, which no chip tells [WF-IHM-0130-A, #2916]", async () => {
+    // `origins=nope` is no origin of the contract: the page reads none, and no chip says it.
+    page.search = "origins=nope&is_active=true";
+    render(list());
+    expect(toggle()).toHaveAccessibleName("Filtres (1)");
+    await userEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
+    // Nothing left of the table: the address says the reading lifted, the search empty.
+    expect(lastAddress()).toBe("/admin/users?search=");
+  });
+
+  it("tells an address that hid the deactivated accounts as the active ones alone, kept with the settings of the grid, and lifted by its chip or by « Effacer les filtres » [WF-IHM-0060-A, #2916]", async () => {
+    page.search = "include_inactive=false";
+    render(list({ filters: { include_inactive: "false" } }));
+    const chips = screen.getByRole("list", { name: "Filtres actifs" });
+    expect(within(chips).getByText("État du compte : Actif")).toBeVisible();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Retirer le filtre État du compte : Actif" }),
+    );
+    expect(lastAddress()).toBe("/admin/users?search=");
+    await userEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
+    expect(lastAddress()).toBe("/admin/users?search=");
+  });
+
+  it("records `include_inactive=false` with the filters of the grid, a filter the page reads [WF-IHM-0060-A, #2916]", async () => {
+    page.search = "include_inactive=false";
+    render(list());
+    await waitFor(() => {
+      expect(recorded().at(-1)).toMatchObject({ filters: { include_inactive: "false" } });
+    });
+  });
+
+  it("offers no chip, and no way to clear, while no filter is on, and breaks no rule of accessibility", async () => {
+    const { container } = render(list());
+    expect(screen.queryByRole("list", { name: "Filtres actifs" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Effacer les filtres" })).toBeNull();
+    await userEvent.click(toggle());
+    await expectAccessible(container);
+  });
+});
+
+describe("the panel of the filters beside a navigation of the grid", () => {
+  it("waits for the page to show a sort asked, then goes with it, never before it [WF-IHM-0060-A, défaut n° 15]", async () => {
+    const { rerender } = render(list());
+    const heading = within(screen.getByRole("grid", { name: "Comptes utilisateurs" })).getByRole(
+      "button",
+      { name: "Rattachement" },
+    );
+    await userEvent.click(heading);
+    await userEvent.click(toggle());
+    // The sort asked waits for its page: what the panel records does not take its place.
+    await new Promise((done) => setTimeout(done, 700));
+    expect(recorded()).toEqual([]);
+    rerender(
+      list(undefined, {
+        sort: { column: "org_node", order: "asc" },
+        search: undefined,
+        size: undefined,
+      }),
+    );
+    await waitFor(() => {
+      expect(recorded()).toHaveLength(1);
+    });
+    expect(recorded().at(-1)).toMatchObject({
+      filters_open: true,
+      sort: { column: "org_node", order: "asc" },
+    });
+  });
+});
+
+describe("the focus beside the chips lifted", () => {
+  const cross = (name: string) => screen.getByRole("button", { name: `Retirer le filtre ${name}` });
+
+  it("goes to the cross of the next chip, once the address shows the chip lifted [défaut n° 20]", async () => {
+    page.search = "origins=local&is_active=true";
+    const { rerender } = render(list());
+    await userEvent.click(cross("Origine : Créé dans Waterfall"));
+    // The address has not arrived: nothing moves the focus yet.
+    page.search = "is_active=true";
+    rerender(list());
+    expect(cross("État du compte : Actif")).toHaveFocus();
+  });
+
+  it("goes to the cross of the previous chip when the last is lifted [défaut n° 20]", async () => {
+    page.search = "origins=local&is_active=true";
+    const { rerender } = render(list());
+    await userEvent.click(cross("État du compte : Actif"));
+    page.search = "origins=local";
+    rerender(list());
+    expect(cross("Origine : Créé dans Waterfall")).toHaveFocus();
+  });
+
+  it("goes to the button of the filters when the only chip is lifted [défaut n° 20]", async () => {
+    page.search = "origins=local";
+    const { rerender } = render(list());
+    await userEvent.click(cross("Origine : Créé dans Waterfall"));
+    page.search = "";
+    rerender(list());
+    expect(toggle()).toHaveFocus();
+  });
+
+  it("is moved by no later navigation once the lift is forgotten — another address shown that still holds the chip [WF-IHM-0130-A, défaut n° 20, #2916]", async () => {
+    page.search = "origins=local&is_active=true";
+    const { rerender } = render(list());
+    await userEvent.click(cross("Origine : Créé dans Waterfall"));
+    // The lift never arrives: another address is shown, the chip still in it.
+    page.search = "origins=local&is_active=true&sort_by=email&sort_order=asc";
+    rerender(list());
+    (document.activeElement as HTMLElement | null)?.blur();
+    // Later, the chip goes by another way — the history —: the focus stays where it was.
+    page.search = "is_active=true";
+    rerender(list());
+    expect(document.body).toHaveFocus();
+  });
+
+  it("forgets the lift once the address asked arrives with the chip still in it, moved by no later removal [WF-IHM-0130-A, défaut n° 20, #2916]", async () => {
+    const chip = { key: "states", name: "État", value: "Actifs", params: ["states"] };
+    const opener = createRef<HTMLButtonElement>();
+    const bar = (chips: FilterChip[]) => (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <PendingAddress>
+          <button ref={opener} type="button">
+            Filtres
+          </button>
+          <FilterChips chips={chips} page={undefined} every={[]} toggle={opener} />
+        </PendingAddress>
+      </NextIntlClientProvider>
+    );
+    page.search = "states=active";
+    const { rerender } = render(bar([chip]));
+    await userEvent.click(screen.getByRole("button", { name: "Retirer le filtre État : Actifs" }));
+    // The address asked arrives (it is in the streak) and the chip stays in it.
+    page.search = String(lastAddress()).split("?")[1] ?? "";
+    rerender(bar([chip]));
+    (document.activeElement as HTMLElement | null)?.blur();
+    // Later the chip goes by another way, at the same address: the focus stays where it was.
+    rerender(bar([]));
+    expect(document.body).toHaveFocus();
+  });
+
+  it("keeps the lift through the step of a streak Next shows, and gives the focus when the last address arrives without the chip [WF-IHM-0130-A, défaut n° 20, #2916]", async () => {
+    const states = { key: "states", name: "État", value: "Actifs", params: ["states"] };
+    const origins = { key: "origins", name: "Origine", value: "Locale", params: ["origins"] };
+    const opener = createRef<HTMLButtonElement>();
+    const bar = (chips: FilterChip[]) => (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <PendingAddress>
+          <button ref={opener} type="button">
+            Filtres
+          </button>
+          <FilterChips chips={chips} page={undefined} every={[]} toggle={opener} />
+        </PendingAddress>
+      </NextIntlClientProvider>
+    );
+    page.search = "states=active&origins=local";
+    const { rerender } = render(bar([states, origins]));
+    await userEvent.click(screen.getByRole("button", { name: "Retirer le filtre État : Actifs" }));
+    const step = String(lastAddress()).split("?")[1] ?? "";
+    await userEvent.click(
+      screen.getByRole("button", { name: "Retirer le filtre Origine : Locale" }),
+    );
+    const last = String(lastAddress()).split("?")[1] ?? "";
+    expect(step).not.toBe(last);
+    // Next shows the step: the chip of the origins is still there, the lift is kept.
+    page.search = step;
+    rerender(bar([origins]));
+    // The last address arrives, the cross lifted is gone and took the focus with it.
+    page.search = last;
+    rerender(bar([]));
+    expect(opener.current).toHaveFocus();
+  });
+
+  it("is no longer armed by the last address of a streak another change lengthened, which arrives with the chip still in it: no later removal moves the focus [WF-IHM-0130-A, défaut n° 20, #3037]", async () => {
+    const states = { key: "states", name: "État", value: "Actifs", params: ["states"] };
+    const origins = { key: "origins", name: "Origine", value: "Locale", params: ["origins"] };
+    const opener = createRef<HTMLButtonElement>();
+    /** Another change of the screen than a lift, asked while the lift is under way. */
+    function Other() {
+      const { request } = usePendingAddress();
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            request((query) => {
+              query.set("sort_by", "email");
+              return `/admin/users?${query.toString()}`;
+            });
+          }}
+        >
+          Trier
+        </button>
+      );
+    }
+    const bar = (chips: FilterChip[]) => (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <PendingAddress>
+          <button ref={opener} type="button">
+            Filtres
+          </button>
+          <Other />
+          <FilterChips chips={chips} page={undefined} every={[]} toggle={opener} />
+        </PendingAddress>
+      </NextIntlClientProvider>
+    );
+    page.search = "states=active&origins=local";
+    const { rerender } = render(bar([states, origins]));
+    await userEvent.click(screen.getByRole("button", { name: "Retirer le filtre État : Actifs" }));
+    // Another change is asked before the lift arrives: it ends the streak.
+    await userEvent.click(screen.getByRole("button", { name: "Trier" }));
+    // The last address arrives, the chip lifted still in it.
+    page.search = String(lastAddress()).split("?")[1] ?? "";
+    rerender(bar([states, origins]));
+    (document.activeElement as HTMLElement | null)?.blur();
+    // Later the chip goes by another way, at the same address: the focus stays where it was.
+    rerender(bar([origins]));
+    expect(document.body).toHaveFocus();
+  });
+
+  it("is no longer armed when the address asked again (A, B, A) arrives with the chip still in it: no later removal moves the focus [WF-IHM-0130-A, défaut n° 20, #3037]", async () => {
+    const states = { key: "states", name: "État", value: "Actifs", params: ["states"] };
+    const origins = { key: "origins", name: "Origine", value: "Locale", params: ["origins"] };
+    const opener = createRef<HTMLButtonElement>();
+    /** Another change of the screen than a lift, asked while the lift is under way. */
+    function Other() {
+      const { request } = usePendingAddress();
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              request((query) => {
+                query.set("sort_by", "email");
+                return `/admin/users?${query.toString()}`;
+              });
+            }}
+          >
+            Trier
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              request((query) => {
+                query.delete("sort_by");
+                return `/admin/users?${query.toString()}`;
+              });
+            }}
+          >
+            Désordonner
+          </button>
+        </>
+      );
+    }
+    const bar = (chips: FilterChip[]) => (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <PendingAddress>
+          <button ref={opener} type="button">
+            Filtres
+          </button>
+          <Other />
+          <FilterChips chips={chips} page={undefined} every={[]} toggle={opener} />
+        </PendingAddress>
+      </NextIntlClientProvider>
+    );
+    page.search = "states=active&origins=local";
+    const { rerender } = render(bar([states, origins]));
+    await userEvent.click(screen.getByRole("button", { name: "Retirer le filtre État : Actifs" }));
+    // Another change is asked before the lift arrives.
+    await userEvent.click(screen.getByRole("button", { name: "Trier" }));
+    // The first address is asked again: the last of the streak is it, not the other change.
+    await userEvent.click(screen.getByRole("button", { name: "Désordonner" }));
+    // The last address arrives, the chip lifted still in it.
+    page.search = String(lastAddress()).split("?")[1] ?? "";
+    rerender(bar([states, origins]));
+    (document.activeElement as HTMLElement | null)?.blur();
+    // Later the chip goes by another way, at the same address: the focus stays where it was.
+    rerender(bar([origins]));
+    expect(document.body).toHaveFocus();
+  });
+
+  it("goes to the button of the filters when every filter is cleared [défaut n° 20]", async () => {
+    page.search = "origins=local&is_active=true";
+    const { rerender } = render(list());
+    await userEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
+    page.search = "";
+    rerender(list());
+    expect(toggle()).toHaveFocus();
+  });
+});

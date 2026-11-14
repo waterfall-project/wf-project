@@ -21,7 +21,7 @@
 
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useMemo, useTransition } from "react";
+import { type ReactNode, useMemo, useTransition } from "react";
 
 import {
   applyPaste,
@@ -105,6 +105,8 @@ export interface EstimateGridProps {
    * names it by (`OriginMark`); none, and the mark says a risk without its name.
    */
   readonly origins?: Readonly<Record<string, string>> | undefined;
+  /** The filters of the screen, as menus in the bar of the grid (#2916/L6). */
+  readonly treeFilters?: ReactNode;
   /**
    * What the amount re-estimated, inflation included, is corrected by, which the header of its
    * column names: the year of reference of the revision and the rate of inflation it keeps, as the
@@ -237,6 +239,7 @@ export function EstimateGrid({
   preferences,
   differential,
   origins,
+  treeFilters,
   inflation,
 }: EstimateGridProps) {
   const t = useTranslations("estimateGrid");
@@ -350,6 +353,7 @@ export function EstimateGrid({
         undoable={editable}
         undo={undo}
         commands={gestures}
+        treeFilters={treeFilters}
       />
     </OriginRisksProvider>
   );

@@ -21,6 +21,7 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { CurrencyProvider } from "@/currency/context";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
+import { closeMenu, openMenu, pick } from "@/test/check-menu";
 import { roomForCharts } from "@/test/chart-room";
 import { example, fakeClient } from "@/test/fixtures";
 
@@ -319,7 +320,7 @@ describe("the list of the projects of the portfolio", () => {
         </>,
       ),
     );
-    await userEvent.click(screen.getByRole("button", { name: "Alerte" }));
+    await pick("Filtre par zone des indices", "Alerte");
     expect(await lastAddress()).toBe(`${PATHNAME}?zones=alert`);
     // The zone asked and not arrived: the projects read otherwise start from their first page.
     await userEvent.click(screen.getByRole("link", { name: /Projets suivants/ }));
@@ -328,35 +329,59 @@ describe("the list of the projects of the portfolio", () => {
 });
 
 describe("the filter of the list of the projects by zone", () => {
-  it("offers each zone of the contract by its signal, every zone pressed when the address names none, and asks the server for a zone chosen, back to the first page", async () => {
+  it("offers each zone of the contract by its signal, every zone checked when the address names none, and asks the server for a zone chosen, back to the first page", async () => {
     // #313, WF-IHM-0130: the zones `getPortfolioProjects` filters on, offered like the states.
     page.search = "states=in_progress&offset=50";
     const { container } = render(inLanguage(<ZoneFilter zones={[]} />));
-    const filter = screen.getByRole("group", { name: "Filtre par zone des indices" });
-    expect(within(filter).getByRole("button", { name: "Toutes les zones" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    const list = await openMenu("Filtre par zone des indices");
+    expect(within(list).getByRole("checkbox", { name: "Toutes les zones" })).toBeChecked();
     expect(
-      within(filter)
-        .getAllByRole("button")
+      within(list)
+        .getAllByRole("checkbox")
         .slice(1)
-        .map((button) => button.textContent),
+        .map((box) => box.closest("label")?.textContent),
     ).toEqual(["Nominal", "Vigilance", "Alerte"]);
-    await userEvent.click(within(filter).getByRole("button", { name: "Alerte" }));
+    await userEvent.click(within(list).getByRole("checkbox", { name: "Alerte" }));
     expect(await lastAddress()).toBe(`${PATHNAME}?states=in_progress&zones=alert`);
+    await closeMenu();
     await expectAccessible(container);
   });
 
-  it("adds a zone to those asked, and releases one pressed", async () => {
+  it("adds a zone to those asked, and releases one checked", async () => {
     page.search = "zones=watch,alert";
     render(inLanguage(<ZoneFilter zones={["watch", "alert"]} />));
-    const alert = screen.getByRole("button", { name: "Alerte" });
-    expect(alert).toHaveAttribute("aria-pressed", "true");
+    await openMenu("Filtre par zone des indices");
+    const alert = screen.getByRole("checkbox", { name: "Alerte" });
+    expect(alert).toBeChecked();
     await userEvent.click(alert);
     expect(await lastAddress()).toBe(`${PATHNAME}?zones=watch`);
-    await userEvent.click(screen.getByRole("button", { name: "Toutes les zones" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Toutes les zones" }));
     expect(await lastAddress()).toBe(PATHNAME);
+  });
+
+  it("is folded into the bar of the grid: a chip tells the zones asked, lifted by its cross [WF-IHM-0130-A] (#2916)", async () => {
+    page.search = "states=in_progress&zones=watch,alert";
+    render(
+      inLanguage(
+        <ProjectsGrid
+          projects={LIST.items}
+          page={LIST.meta}
+          query={{ sort: undefined, search: undefined, size: undefined }}
+          preferences={undefined}
+          zones={["watch", "alert"]}
+          panel={<ZoneFilter zones={["watch", "alert"]} />}
+        />,
+      ),
+    );
+    expect(screen.getByRole("list", { name: "Filtres actifs" })).toHaveTextContent(
+      "Zone des indices : Vigilance, Alerte",
+    );
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Retirer le filtre Zone des indices : Vigilance, Alerte",
+      }),
+    );
+    expect(await lastAddress()).toBe(`${PATHNAME}?states=in_progress`);
   });
 });
 
@@ -502,23 +527,17 @@ describe("the perimeter of a view of the portfolio", () => {
     });
   });
 
-  it("shows the states the server retained when the address asks none, and adds one to them", async () => {
+  it("shows the states the server retained when the address asks none, and adds one to them [WF-IHM-0130-A]", async () => {
     const { container } = render(perimeterBar("", { period: true, node: true }));
     await expectAccessible(container);
-    const states = screen.getByRole("group", { name: "États retenus" });
-    expect(within(states).getByRole("button", { name: "En cours" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(within(states).getByRole("button", { name: "Terminé" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
-    await userEvent.click(within(states).getByRole("button", { name: "Terminé" }));
+    const list = await openMenu("États retenus");
+    expect(within(list).getByRole("checkbox", { name: "En cours" })).toBeChecked();
+    expect(within(list).getByRole("checkbox", { name: "Terminé" })).not.toBeChecked();
+    await userEvent.click(within(list).getByRole("checkbox", { name: "Terminé" }));
     expect(await lastAddress()).toBe(`${PATHNAME}?states=in_progress%2Cpricing%2Ccompleted`);
   });
 
-  it("shows the states asked pressed while the server computes the view anew, and the address once it has answered", async () => {
+  it("shows the states asked checked while the server computes the view anew, and the address once it has answered", async () => {
     let arrive: () => void = () => undefined;
     const navigation = new Promise<void>((resolve) => {
       arrive = resolve;
@@ -528,34 +547,73 @@ describe("the perimeter of a view of the portfolio", () => {
       startTransition(() => navigation);
     });
     const { rerender } = render(perimeterBar(""));
-    const completed = screen.getByRole("button", { name: "Terminé" });
+    const list = await openMenu("États retenus");
+    const completed = within(list).getByRole("checkbox", { name: "Terminé" });
     await userEvent.click(completed);
     expect(await lastAddress()).toBe(`${PATHNAME}?states=in_progress%2Cpricing%2Ccompleted`);
-    // The address has not changed yet: the state asked shows pressed, never the address before it.
-    expect(completed).toHaveAttribute("aria-pressed", "true");
-    // The server answers: the address names the states, which the buttons go on showing pressed.
+    // The address has not changed yet: the state asked shows checked, never the address before it.
+    expect(completed).toBeChecked();
+    // The server answers: the address names the states, which the menu goes on showing checked.
     await act(async () => {
       arrive();
       await navigation;
     });
     rerender(perimeterBar("states=in_progress,pricing,completed"));
-    expect(completed).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("checkbox", { name: "Terminé" })).toBeChecked();
   });
 
   it("keeps the last state retained, which cannot be released", async () => {
     render(perimeterBar("states=pricing"));
-    const last = screen.getByRole("button", { name: "Chiffrage" });
-    expect(last).toHaveAttribute("aria-pressed", "true");
-    expect(last).toHaveAttribute("aria-disabled", "true");
-    expect(screen.getByRole("button", { name: "En cours" })).not.toHaveAttribute("aria-disabled");
+    const list = await openMenu("États retenus");
+    const last = within(list).getByRole("checkbox", { name: "Chiffrage" });
+    expect(last).toBeChecked();
+    // Disabled, not ignored in silence.
+    expect(last).toBeDisabled();
+    expect(within(list).getByRole("checkbox", { name: "En cours" })).toBeEnabled();
     await userEvent.click(last);
     expect(router.push).not.toHaveBeenCalled();
+    expect(last).toBeChecked();
+  });
+
+  it("checks « Par défaut » while the address names no state, unchecks it once a state is chosen, and checks it again when lifted [WF-IHM-0130-A] (#2916)", async () => {
+    let arrive: () => void = () => undefined;
+    const navigation = new Promise<void>((resolve) => {
+      arrive = resolve;
+    });
+    router.push.mockImplementation(() => {
+      startTransition(() => navigation);
+    });
+    render(perimeterBar(""));
+    const list = await openMenu("États retenus");
+    const byDefault = () => within(list).getByRole("checkbox", { name: "Par défaut" });
+    // The states the server retained are checked beside it, and the button says the default.
+    expect(byDefault()).toBeChecked();
+    expect(within(list).getByRole("checkbox", { name: "En cours" })).toBeChecked();
+    // Lifted already: a click asks nothing.
+    await userEvent.click(byDefault());
+    expect(router.push).not.toHaveBeenCalled();
+    await userEvent.click(within(list).getByRole("checkbox", { name: "Terminé" }));
+    expect(byDefault()).not.toBeChecked();
+    await userEvent.click(byDefault());
+    expect(byDefault()).toBeChecked();
+    await act(async () => {
+      arrive();
+      await navigation;
+    });
   });
 
   it("removes a state the address asks, back to the first page, the sort kept", async () => {
     render(perimeterBar("states=in_progress,pricing&sort_by=label&offset=50"));
-    await userEvent.click(screen.getByRole("button", { name: "Chiffrage" }));
+    const list = await openMenu("États retenus");
+    await userEvent.click(within(list).getByRole("checkbox", { name: "Chiffrage" }));
     expect(await lastAddress()).toBe(`${PATHNAME}?states=in_progress&sort_by=label`);
+  });
+
+  it("lifts the states by « Par défaut », the server then choosing [WF-IHM-0130-A]", async () => {
+    render(perimeterBar("states=in_progress,pricing&sort_by=label"));
+    const list = await openMenu("États retenus");
+    await userEvent.click(within(list).getByRole("checkbox", { name: "Par défaut" }));
+    expect(await lastAddress()).toBe(`${PATHNAME}?sort_by=label`);
   });
 
   it("asks the period and the date of calculation together", async () => {

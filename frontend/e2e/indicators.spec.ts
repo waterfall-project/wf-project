@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Page, test } from "@playwright/test";
 
+import { pngSize } from "./download";
 import { holdScripts, openHydrated, WORKING } from "./hydration";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -88,16 +89,9 @@ test("exports a curve, at the keyboard, as a PNG image drawn on a canvas, named 
     page.keyboard.press("Enter"),
   ]);
   expect(download.suggestedFilename()).toBe("suivi-des-jalons-PRJ-001.png");
-  const stream = await download.createReadStream();
-  const chunks: Buffer[] = [];
-  for await (const chunk of stream) {
-    chunks.push(chunk as Buffer);
-  }
-  const image = Buffer.concat(chunks);
-  // The signature of a PNG, then the width and the height of its header: an image of its own
-  // size, twice as dense as the screen, whatever the size of the window.
-  expect(image.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
-  expect([image.readUInt32BE(16), image.readUInt32BE(20)]).toEqual([2560, 1440]);
+  // The signature of a PNG checked, then the width and the height of its header: an image of its
+  // own size, twice as dense as the screen, whatever the size of the window.
+  expect(await pngSize(download)).toEqual([2560, 1440]);
   // The instance out of the screen is gone with its canvas.
   await expect(page.locator("canvas")).toHaveCount(0);
 });

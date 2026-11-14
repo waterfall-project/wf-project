@@ -248,20 +248,30 @@ séparerait plus.
   `UPDATE … WHERE id = :id AND lock_version = :lu RETURNING …`, qui n'écrit rien si la version
   n'est plus la bonne (412) — jamais une lecture suivie d'une comparaison en Python.
 - **La création des partitions d'un projet s'appelle avant toute écriture** de sa transaction
-  (`_create` de `core/projects`, juste après `share_reference`), et **n'attend jamais en tenant
-  un verrou** (#2603, #2667). Ses DDL verrouillent les tables révisionnées et toutes celles que
-  leurs clés relient ; une lecture ou une écriture qui tient l'une et demande l'autre
-  interbloquait avec elle. `create_project_partitions` (migration `0026`) prend donc le verrou
-  consultatif `PARTITIONS_LOCK` de `core/revisions`, qui range les créations l'une après
-  l'autre, puis tous ses verrous d'un coup, `LOCK TABLE ONLY … NOWAIT` ; s'il en manque un, elle
-  les rend tous et réessaie après une courte pause, une dizaine de secondes au plus comptées
+  (`_create` de `core/projects`, juste après `share_reference` ; pour le témoin, `partition` de
+  `witness/projects`, première chose de sa transaction, avant la référence et les comptes qu'il
+  écrit), et **n'attend jamais en tenant un verrou** (#2603, #2667). Ses DDL verrouillent les tables
+  révisionnées et toutes celles que leurs clés relient ; une lecture ou une écriture qui tient l'une
+  et demande l'autre interbloquait avec elle. `create_project_partitions` (migration `0026`) prend
+  donc le verrou consultatif `PARTITIONS_LOCK` de `core/revisions`, qui range les créations l'une
+  après l'autre, puis tous ses verrous d'un coup, `LOCK TABLE ONLY … NOWAIT` ; s'il en manque un,
+  elle les rend tous et réessaie après une courte pause, une dizaine de secondes au plus comptées
   depuis le verrou consultatif, avant de lever `lock_not_available`, une 500. `NOWAIT` n'annule
-  jamais un autovacuum, qui tient `SHARE UPDATE EXCLUSIVE` : un autovacuum de plus de dix
-  secondes sur l'une de ces tables fait échouer la création ainsi. Elle lit dans le catalogue
-  les tables partitionnées par `project_id` et celles que leurs clés relient : une table
-  révisionnée nouvelle, ou une clé nouvelle, y entre sans qu'aucune migration la remplace. Une
-  création qui aurait déjà écrit tiendrait, en attendant le verrou consultatif, un verrou que la
-  création en cours ne peut prendre : celle-ci réessaierait en vain, puis échouerait.
+  jamais un autovacuum, qui tient `SHARE UPDATE EXCLUSIVE` : un autovacuum de plus de dix secondes
+  sur l'une de ces tables fait échouer la création ainsi. Une transaction qui a déjà écrit l'une
+  d'elles l'y expose : la troncature de l'autovacuum ne se fait pas tant qu'elle y tient un verrou,
+  et réessaie cinq secondes en gardant le sien, sans que rien l'annule puisque la création n'attend
+  pas ; deux tables ainsi, et la création échoue. C'est ce qui faisait échouer le chargement du
+  témoin, qui créait les partitions de ses projets après avoir écrit la référence et les comptes
+  (#2937). Elle lit dans le catalogue les tables partitionnées par `project_id` et celles que
+  leurs clés relient : une table révisionnée nouvelle, ou une clé nouvelle, y entre sans qu'aucune
+  migration la remplace. Une création qui aurait déjà écrit tiendrait, en attendant le verrou
+  consultatif, un verrou que la création en cours ne peut prendre : celle-ci réessaierait en vain,
+  puis échouerait. Une autre session qui tient l'une de ces tables — une lecture de
+  `user_account`, sa transaction ouverte — retient de même la troncature, mais d'une seule table,
+  cinq secondes : la création réessaie, et passe en cinq secondes environ, dans sa borne, quand
+  l'autovacuum y renonce (#2982). `test_partitions.py` le mesure : il échoue quand la borne du
+  nouvel essai est réduite sous les cinq secondes du vacuum (essayé à 0 et à 2 s).
 - Les migrations d'une même base s'appliquent l'une après l'autre : l'environnement d'Alembic
   prend un verrou consultatif de session, pour que deux instances qui démarrent ensemble
   n'appliquent pas la même migration deux fois.

@@ -93,6 +93,8 @@ export interface RoleAnswered {
   readonly begin: (id: string) => void;
   /** Free a role, the server having answered, whatever it answered. */
   readonly end: (id: string) => void;
+  /** Resolves once no write of the role is under way: at once when none is. */
+  readonly idle: (id: string) => Promise<void>;
 }
 
 /** The column of the contract the server sorts the accounts by. */
@@ -375,13 +377,13 @@ function renaming(answers: RoleAnswered | undefined): CellEntry<AccessRole, null
         // A text entered is never emptied (`cell-values.ts`): a defect of the front.
         throw new Error("a role is never left without a label");
       }
-      const role = answers?.latest(shown) ?? shown;
-      if (answers?.isWriting(role.access_role_id) === true) {
-        // The entry was opened before a write of the role started: sending now would go from the
-        // version that write is about to leave, and be refused as stale (#2261). Nothing is sent;
-        // the entry stays to be validated again once the role is free.
-        return { kind: "unreachable" };
+      // The entry may have been validated while a write of the role is under way: sending now would
+      // go from the version that write is about to leave, and be refused as stale (#2261). It waits
+      // for the role to be free, then goes once, from the version answered, with no message (#2897).
+      while (answers?.isWriting(shown.access_role_id) === true) {
+        await answers.idle(shown.access_role_id);
       }
+      const role = answers?.latest(shown) ?? shown;
       answers?.begin(role.access_role_id);
       try {
         const outcome = await updateAccessRole(role.access_role_id, {

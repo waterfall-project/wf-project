@@ -105,7 +105,7 @@ export interface Examples {
     200: "imports" | "imports_empty" | "imports_page";
   };
   "GET /projects/{project_id}/imports/{import_id}": {
-    200: "import_actual_costs_analysed" | "import_actual_costs_column_ignored" | "import_actual_costs_dotted_code" | "import_actual_costs_duplicate_line" | "import_actual_costs_first" | "import_actual_costs_wbs_invalid" | "import_analysed" | "import_analysing" | "import_apply_refused_permission" | "import_estimate_task_without_hours" | "import_planning_mismatch" | "import_planning_non_working_day" | "import_planning_other_constants" | "import_planning_provision_moved" | "import_planning_rejected" | "import_remaining_ambiguous_label" | "import_remaining_analysed" | "import_remaining_completed_task" | "import_remaining_completed_tasks" | "import_remaining_duplicate_lineage" | "import_remaining_subproject_held";
+    200: "import_actual_costs_analysed" | "import_actual_costs_column_ignored" | "import_actual_costs_dotted_code" | "import_actual_costs_duplicate_line" | "import_actual_costs_first" | "import_actual_costs_wbs_invalid" | "import_analysed" | "import_analysing" | "import_apply_refused_permission" | "import_estimate_task_without_hours" | "import_planning_calendar_gap" | "import_planning_mismatch" | "import_planning_non_working_day" | "import_planning_other_constants" | "import_planning_provision_moved" | "import_planning_rejected" | "import_remaining_ambiguous_label" | "import_remaining_analysed" | "import_remaining_completed_task" | "import_remaining_completed_tasks" | "import_remaining_duplicate_lineage" | "import_remaining_subproject_held";
   };
   "GET /projects/{project_id}/indicators": {
     200: "project_indicators" | "project_indicators_marked" | "project_indicators_subproject" | "project_indicators_without_current_revision";
@@ -234,7 +234,7 @@ export interface Examples {
     200: "identity_sync_succeeded" | "task_exit_mark_failed" | "task_exit_mark_relaunched" | "task_exit_mark_relaunched_succeeded" | "task_exit_mark_running" | "task_exit_mark_succeeded" | "task_export_succeeded" | "task_export_tree_image_too_large" | "task_failed" | "task_import_analysis_failed" | "task_import_succeeded" | "task_interrupted_by_restore" | "task_mark_relaunched" | "task_merge_horizon_exceeded" | "task_merge_link_cycle" | "task_merge_link_forbidden" | "task_merge_outside_work_package" | "task_merge_running" | "task_merge_succeeded" | "task_restore_backup_newer_version" | "task_restore_verification_failed" | "task_running" | "task_succeeded";
   };
   "GET /users": {
-    200: "users" | "users_anonymized" | "users_by_access_role" | "users_by_created_at" | "users_created_by_platform" | "users_inactive" | "users_page" | "users_search";
+    200: "users" | "users_anonymized" | "users_by_access_role" | "users_by_created_at" | "users_created_by_platform" | "users_inactive" | "users_page" | "users_search" | "users_without_access_role";
   };
   "GET /users/{user_id}": {
     200: "user" | "user_anonymized" | "user_deactivated";
@@ -416,6 +416,10 @@ export interface Examples {
   };
   "PUT /projects/{project_id}/contributors": {
     200: "contributors_set" | "contributors_set_by_rescuer";
+  };
+  "PUT /projects/{project_id}/imports/{import_id}/duration-rule": {
+    200: "import_planning_other_constants";
+    202: "import_duration_rule_set";
   };
   "PUT /projects/{project_id}/reference-revision": {
     200: "reference_designated";

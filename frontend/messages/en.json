@@ -256,7 +256,8 @@
       "placeholder": "Search a label"
     },
     "differenceFilter": {
-      "label": "Differences only"
+      "label": "Differences only",
+      "help": "Keep only the rows the amendment adds, removes or modifies."
     },
     "breakdownFilter": {
       "label": "Work package or order item",
@@ -285,7 +286,19 @@
     "selection": {
       "handle": "{number} — row handle",
       "hint": "Space selects the row, Shift and an arrow extend the selection, Escape lifts it. Alt+Shift and an arrow move it — Alt+Shift+Up and Alt+Shift+Down by a rank, Alt+Shift+Right and Alt+Shift+Left indenting and outdenting it —, as dragging the handle with the mouse does.",
-      "count": "{count, plural, one {# row selected} other {# rows selected}}"
+      "hintPick": "Space adds the row to the selection or takes it off (Ctrl+Space too), Shift and an arrow extend the selection, Ctrl+A or Cmd+A, from any cell but one entered, selects all the rows shown, Escape lifts it. With the mouse, Ctrl+click or Cmd+click adds or removes a row, Shift+click extends, Ctrl+Shift+click adds the extent.",
+      "count": "{count, plural, one {# row selected} other {# rows selected}}",
+      "none": "No row selected",
+      "every": "All the rows shown are selected",
+      "state": {
+        "all": "All the rows shown are selected",
+        "some": "Some of the rows shown are selected",
+        "none": "No row is selected"
+      },
+      "all": "Select all the rows shown",
+      "bar": "Actions on the selection",
+      "barCount": "{count, plural, one {# row selected} other {# rows selected}}",
+      "clear": "Clear the selection"
     },
     "structure": {
       "insertFirst": "Insert a task",
@@ -343,6 +356,34 @@
       "openIn": "Columns of “{grid}”",
       "title": "Columns shown"
     },
+    "filtering": {
+      "barHelp": "Filters the grid on: {label}. Choice: {value}.",
+      "open": "{count, plural, =0 {Filters} other {Filters ({count})}}",
+      "count": "({count})",
+      "panel": "Filters",
+      "active": "Active filters",
+      "chip": "{name}: {value}",
+      "remove": "Remove the filter {name}: {value}",
+      "clear": "Clear the filters",
+      "between": "from {from} to {to}",
+      "since": "since {from}",
+      "until": "until {to}",
+      "boundsBetween": "from {min} to {max}",
+      "atLeast": "at least {min}",
+      "atMost": "at most {max}",
+      "projectUnknown": "A project",
+      "objectUnknown": "An object",
+      "nodeUnknown": "A node",
+      "categoryUnknown": "A category",
+      "calendarUnknown": "A calendar",
+      "costTypeUnknown": "A cost type",
+      "authorUnknown": "An account",
+      "selected": "{count, plural, one {# selected} other {# selected}}",
+      "search": "Search in “{label}”",
+      "noMatch": "No value matches.",
+      "hint": "A choice applies at once; a period or a bound, on Enter or on leaving the field.",
+      "audit": "Audit filters — creation and modification"
+    },
     "fold": {
       "open": "Tree",
       "title": "Fold and unfold the tree",
@@ -380,11 +421,10 @@
       "unretainedRows": "The pasted block would write rows of the plan that the search or the filter hides: lift the search or the filter before pasting, or paste a shorter block."
     },
     "range": {
-      "min": "{column}, min",
-      "max": "{column}, max",
-      "minShort": "min",
-      "maxShort": "max",
-      "apply": "Filter",
+      "min": "{column}, from",
+      "max": "{column}, to",
+      "minShort": "from",
+      "maxShort": "to",
       "lift": "Lift the bounds",
       "inverted": "The upper bound may not precede the lower one, {minimum}.",
       "money": "Two decimals at most."
@@ -392,13 +432,13 @@
     "period": {
       "from": "From",
       "to": "To",
-      "apply": "Filter",
       "inverted": "The end of the period may not precede its start, {minimum}.",
       "invertedUndated": "The end of the period may not precede its start.",
       "late": "The start of the period may not follow its end, {maximum}.",
       "lateUndated": "The start of the period may not follow its end.",
       "invertedDefault": "The end of the period may not precede its default start, {minimum}.",
-      "lateDefault": "The start of the period may not follow its default end, the date of calculation, {maximum}."
+      "lateDefault": "The start of the period may not follow its default end, the date of calculation, {maximum}.",
+      "invertedEntry": "The start of the period cannot follow its end."
     }
   },
   "estimateGrid": {
@@ -508,6 +548,7 @@
     "filters": {
       "toggle": "Column filters",
       "zone": "Filter by zone",
+      "zoneChip": "Matrix zone",
       "everyZone": "Every zone",
       "probabilityBounds": "Bounds of the probability, from 0 to 1",
       "amountBounds": "Bounds of the amounts",
@@ -616,8 +657,7 @@
       "unknownSubproject": "Unknown subproject",
       "period": "Period of the documents",
       "from": "Documents from",
-      "to": "Documents up to",
-      "apply": "Filter"
+      "to": "Documents up to"
     },
     "pages": {
       "costs": {
@@ -696,6 +736,7 @@
     "projects": {
       "retained": "{count, plural, =0 {No project retained} one {# project retained} other {# projects retained}}",
       "reason": " — {reason}",
+      "zoneChip": "Index zone",
       "zones": "Filter by zone of the indices",
       "everyZone": "Every zone"
     },
@@ -2029,8 +2070,7 @@
       "apply": "Show only my projects",
       "states": "Filter by state",
       "everyState": "Every state",
-      "defaultLabel": "Default filter of the list by state",
-      "defaultStates": "By default:",
+      "defaultChip": "{states} (by default)",
       "period": "Modification period"
     },
     "periodRefused": "The list is not read: the server refuses the period asked."
@@ -2326,6 +2366,13 @@
     "noProjects": "No project.",
     "noContributedProjects": "You contribute to no project."
   },
+  "homeWithoutProject": {
+    "title": "No project to open",
+    "withFunctions": "Your account cannot open any project. It holds other functions, which you reach from here or from the navigation:",
+    "withoutRole": "Your account has no role yet. An administrator must give you one before you can use Waterfall.",
+    "inProjectOnly": "Your account holds functions that are exercised in a project, but it cannot open any project. Ask an administrator to give you the reading of the projects.",
+    "functions": "Functions of your account"
+  },
   "referenceReadiness": {
     "title": "Incomplete reference data",
     "explanation": "No project can be created until the common reference data has:"
@@ -2422,6 +2469,7 @@
       },
       "bounds": {
         "year": "Year of the rate",
+        "chip": "Hourly rate {year}",
         "rate": "Hourly rate"
       }
     },
@@ -2573,6 +2621,7 @@
     },
     "users": {
       "title": "User accounts",
+      "selected": "{count, plural, one {# account selected} other {# accounts selected}}",
       "noRole": "No role",
       "noOrgNode": "None",
       "none": "No account.",
@@ -2584,10 +2633,22 @@
       "anonymizeUser": "Anonymise “{name}”",
       "roleFilter": "Filter by role",
       "everyRole": "Every role",
+      "withoutRole": "Without a role",
+      "activeState": "Active",
+      "inactiveState": "Deactivated",
       "stateFilter": "Account state",
       "everyState": "Every state",
-      "activeAccounts": "Active accounts",
-      "inactiveAccounts": "Deactivated accounts",
+      "bulk": {
+        "addRole": "Add a role",
+        "attach": "Attach to",
+        "activate": "Activate",
+        "deactivate": "Deactivate",
+        "apply": "Apply: {command}",
+        "applyShort": "Apply"
+      },
+      "stale": "This account was modified in the meantime. Check its row, then make the change again if it still applies.",
+      "bulkDone": "{count, plural, =0 {No account modified} one {# account modified} other {# accounts modified}}{same, plural, =0 {} one {, # account already in the state asked} other {, # accounts already in the state asked}}.",
+      "bulkPartial": "{done, plural, =0 {No account modified} one {# account modified} other {# accounts modified}}{same, plural, =0 {} one {, # account already in the state asked} other {, # accounts already in the state asked}}, {refused, plural, one {# account refused} other {# accounts refused}}: the reason of each is told above.",
       "told": "Commands of the accounts",
       "created": "Account “{name}” created.",
       "creationHint": "The account is born with no way to sign in: its holder gets one through the link the identity provider mails them, or, when no invitation went, the link the table hands over. Its roles are then attributed in the table.",
@@ -2627,6 +2688,7 @@
       "rowBusy": "A write of “{name}” is under way: nothing was written, ask again once it is answered."
     },
     "identitySync": {
+      "menu": "Reading of the accounts of the identity provider: state and commands",
       "title": "Reading of the identity provider accounts",
       "schedule": {
         "title": "Reading periodicity",
@@ -2869,25 +2931,20 @@
         "then": "{first}; {second}"
       },
       "filters": {
-        "label": "Filters of the log",
         "period": "Period",
         "from": "From",
         "to": "Before",
-        "apply": "Apply",
         "actorKind": "Filter by kind of author",
         "everyActor": "Every author",
         "user": "Author",
         "everyUser": "Every account",
+        "actions": "Action",
+        "actorChip": "Author kind",
         "everyAction": "Every action",
-        "actionsChosen": "{count, plural, one {# action} other {# actions}}",
-        "actionsNamed": "Filter by action: {chosen}",
         "project": "Project",
         "everyProject": "Every project",
         "objectKind": "Kind of object",
         "everyObjectKind": "Every kind",
-        "object": "Object: {object}",
-        "lift": "Lift",
-        "liftObject": "Lift the filter on “{object}”",
         "correlation": "Correlation",
         "correlationForm": "Letters, digits, “.”, “_”, “-”; 64 at most."
       }
@@ -3471,6 +3528,7 @@
       "import_awaiting_decision": "import awaiting a decision",
       "import_file_accepted": "file accepted by the report",
       "import_not_applied": "import not applied",
+      "import_calendar_gap": "calendar gap in the report",
       "is_local_account": "account created in Waterfall",
       "is_active_account": "active account",
       "is_deactivated_account": "deactivated account",
@@ -3944,6 +4002,10 @@
       "apply": "Apply the import",
       "abandon": "Abandon the import"
     },
+    "ImportDurationRule": {
+      "keep_durations": "Keep the durations",
+      "keep_dates": "Keep the dates"
+    },
     "ExportKind": {
       "ms_project_schedule": "MS Project planning",
       "estimate": "Estimate",
@@ -4024,6 +4086,7 @@
       "formatVersion": "Format version",
       "analysing": "The file is being analysed. The background task follow-up will offer to reload the screen once it has finished.",
       "none": "This import has no report.",
+      "failed": "This import failed: reopen the file (drop zone) to analyse it again.",
       "read": "{count, plural, =0 {No line read} one {# line read} other {# lines read}}.",
       "reasons": "Explicit confirmation required",
       "rejected": "{count, plural, =0 {No line rejected} one {# line rejected} other {# lines rejected}}",
@@ -4060,7 +4123,51 @@
       "confirmTitle": "Confirmation of the application",
       "confirmQuestion": "Apply the import “{file}” to the project, in a single operation?",
       "confirm": "Confirm the application",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "calendarGap": {
+        "title": "Calendar gap with the installation",
+        "lead": "The days of the project calendar of the file, or its constants, differ from those of the installation: hours per day on either side, day by day, and the working times of the file.",
+        "daysTable": "Hours per day of the file and of the installation",
+        "day": "Day",
+        "fileTimes": "Working times of the file (“{calendar}”)",
+        "fileHours": "Hours of the file",
+        "installationHours": "Hours of the installation (“{calendar}”)",
+        "noWork": "None",
+        "unnamed": "unnamed",
+        "tasks": "{count, plural, =0 {No task has an own calendar that differs from its Waterfall calendar} one {# task has an own calendar that differs from its Waterfall calendar} other {# tasks have an own calendar that differs from their Waterfall calendar}}",
+        "tasksTable": "Tasks whose own calendar differs from their Waterfall calendar",
+        "task": "Task",
+        "taskCalendar": "Calendar of the file",
+        "taskFileHours": "Hours per day of the file",
+        "taskWaterfallHours": "Hours per day in Waterfall",
+        "ignored": "The calendar of the file is ignored: it is not imported into Waterfall, which dates the tasks on its own calendars.",
+        "days": {
+          "monday": "Monday",
+          "tuesday": "Tuesday",
+          "wednesday": "Wednesday",
+          "thursday": "Thursday",
+          "friday": "Friday",
+          "saturday": "Saturday",
+          "sunday": "Sunday"
+        },
+        "daysShort": {
+          "monday": "Mon",
+          "tuesday": "Tue",
+          "wednesday": "Wed",
+          "thursday": "Thu",
+          "friday": "Fri",
+          "saturday": "Sat",
+          "sunday": "Sun"
+        }
+      },
+      "durationRule": {
+        "legend": "Conversion of the durations of the file",
+        "hint": {
+          "keep_durations": "a duration entered in days, weeks or months keeps its value in its unit; Waterfall dates the tasks on its calendars",
+          "keep_dates": "each automatic task takes for duration the working time between its dates in the file, on its Waterfall calendar"
+        },
+        "option": "{rule} — {hint}."
+      }
     },
     "list": {
       "title": "Imports of the project",

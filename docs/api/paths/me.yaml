@@ -86,7 +86,8 @@
       (`timelines`, WF-PLA-0140) and the collapsed or expanded state of each chart
       (`charts`, EP-15/US-0550). The front writes with a grid the columns it offered
       (`GridPreferences.known_columns`), so that a column received since takes what the
-      grid gives it by default (EP-16/US-0650). The choice of states of the project list of
+      grid gives it by default (EP-16/US-0650). It also writes there whether the filter panel of the grid is open
+      (`GridPreferences.filters_open`, WF-IHM-0060, #2916). The choice of states of the project list of
       the home page, different from the screen's default — Created, Pricing and In progress —,
       is kept in the grid of that list, `projects`, like any filter of a grid: `filters.states`,
       the chosen states as the address writes them (`GridPreferences.filters`; #1401, #1747).

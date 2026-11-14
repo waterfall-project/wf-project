@@ -28,27 +28,39 @@ the lock of the structure, so that the application judges again what the analysi
   the file, read on the calendar of the task in the file, their hours bounded by the day of its
   calendar in Waterfall, and a day without hours there is kept at hour nought and signalled
   (``NON_WORKING_DAY``, WF-PLA-0020).
-- **The units.** A duration and a lag keep their hours and their unit, their value the hours over
-  those of the unit at the constants of the installation (WF-PLA-0160): the constants of the file
-  are not imported, and the report gives them beside those of the installation when they differ
-  (``unit_constants``, #2580).
+- **The units.** A duration and a lag keep their unit and their value in it, their hours over those
+  of the unit at the constants of the file: « 2 j » entered at seven hours a day is two days
+  (WF-PLA-0160, 1.0.5); one in minutes or in hours keeps its hours, elapsed time is not concerned.
+  The constants of the file are not imported, and the report gives them beside those of the
+  installation when they differ (``unit_constants``, #2580).
+- **The calendar gap** (US-2000/L2, ``calendar_gap``). A file whose constants, project calendar or
+  own calendar of a task differ from the installation's is said in the report, which offers to
+  keep the durations — the units above, the default — or the dates: each automatic leaf then
+  lasts the work between its dates of the file on its Waterfall calendar, its lags keeping their
+  value in their unit; a manual one keeps its dates of the file under either rule. The rule is the
+  import's (``ImportTarget.duration_rule``); a file without a gap ignores it.
 - **The report.** The differences — the start of the structure (``planning_start_on``), each task
   added, updated (``label``, ``description``, ``scheduling_mode``, ``duration``, ``start``,
   ``finish`` for a manual leaf, ``parent``), removed — the work package or order item it bore
   named — or kept, each link added, updated or removed —, the engine replayed on the structure the
   import leaves for ``date_mismatches`` — the start and the finish of each task of the file read
-  on its calendar in the file, the duration of a summary — and the refusals of the whole file:
+  on its calendar in the file, the duration of a summary, by their day and its value in a gap —
+  and the refusals of the whole file:
   the task of an order item outside the subtree of that of its work package
   (``ORDER_ITEM_OUTSIDE_WORK_PACKAGE``, the main structure alone), and a planning beyond fifteen
   years (``PROJECT_HORIZON_EXCEEDED``, WF-PLA-0150), whose dates are then not compared.
 """
 
 from dataclasses import dataclass
+from datetime import timedelta
 from decimal import Decimal
+from fractions import Fraction
 from typing import TYPE_CHECKING, Any, cast
 
+from waterfall.core.exchanges.interface import KEEP_DATES, KEEP_DURATIONS
 from waterfall.core.planning.attachments import OUTSIDE, carriers, strays
-from waterfall.core.planning.calendars import default_calendar
+from waterfall.core.planning.calendar_gap import calendar_gap, gap_tasks, kept_dates, value_in_unit
+from waterfall.core.planning.calendars import named_default_calendar
 from waterfall.core.planning.dating import (
     AUTOMATIC,
     LINK_CYCLE,
@@ -67,6 +79,7 @@ from waterfall.core.planning.msproject import (
     MsTask,
     ReadProject,
     calendar_of,
+    carried,
     hours_of,
     lag_of,
 )
@@ -107,13 +120,14 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-    from waterfall.core.exchanges.interface import ImportTarget
+    from waterfall.core.exchanges.interface import DurationRule, ImportTarget
     from waterfall.core.planning.calendars import Applicable
     from waterfall.core.planning.scheduling import (
         Calendar,
         DurationUnit,
         LagUnit,
         LinkType,
+        ScheduledTask,
         UnitConstants,
     )
     from waterfall.core.planning.tables import Task, TaskLink
@@ -129,6 +143,8 @@ PREDECESSORS = "predecessors"
 
 type Json = dict[str, Any]
 type Pair = tuple[UUID, UUID]
+# The constants of the file, then those of the installation.
+type Constants = tuple[UnitConstants, UnitConstants]
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,7 +209,10 @@ class Plan:
     """The structure an import leaves, and what its report says of it.
 
     ``by_node`` the rows the import writes, by their node; ``children`` and ``order`` the tree it
-    leaves, the order of the plan depth first; ``links`` the links of the file by their two tasks.
+    leaves, the order of the plan depth first; ``links`` the links of the file by their two tasks;
+    ``gap`` the calendar gap of the file, and ``rule`` the rule of its durations, keeping them
+    without a gap; ``constants_differ`` whether the constants of the file differ from the
+    installation's, computed once by ``plan_import``.
     """
 
     aimed: Aimed
@@ -211,6 +230,10 @@ class Plan:
     refusals: list[Json]
     schedule: Schedule | None = None
     constants: UnitConstants | None = None
+    file_constants: UnitConstants | None = None
+    gap: Json | None = None
+    constants_differ: bool = False
+    rule: DurationRule = KEEP_DURATIONS
 
     def parent_of(self, node_id: UUID) -> UUID | None:
         """Give the parent a task has in the structure the import leaves."""
@@ -357,10 +380,13 @@ def _description(notes: str | None) -> str | None:
 
 
 def _facets(
-    plan: Plan, project: MsProject, constants: UnitConstants, file_children: set[int]
+    plan: Plan,
+    project: MsProject,
+    read: tuple[Constants, Mapping[int, FileCalendar]],
+    file_children: set[int],
 ) -> None:
     """Give each row not rejected the facet the file gives it, and its dates of the file."""
-    calendars = file_calendars_of(project)
+    constants, calendars = read
     for row in plan.rows:
         task = row.task
         dated_on = calendar_of(project, calendars, task)
@@ -374,7 +400,7 @@ def _facets(
 def _facet(
     plan: Plan,
     row: Row,
-    read: tuple[UnitConstants, FileCalendar | None],
+    read: tuple[Constants, FileCalendar | None],
     file_children: set[int],
 ) -> Facet:
     """Give the facet of a row: a summary automatic, a leaf in its mode and its unit."""
@@ -390,7 +416,8 @@ def _facet(
             plan.signals.append(_signal(row, "scheduling_mode", SUMMARY_TASK_DERIVED, dates))
         duration = Duration(Decimal(0), "d") if row.old is None else duration_of(row.old)
         return Facet(task.name, description, AUTOMATIC, duration)
-    duration = file_duration_of(task, constants)
+    manual = task.manual or task.constraint in DATE_CONSTRAINTS
+    duration = _leaf_duration(plan, row, constants, None if manual else dated_on)
     if (
         row.old is not None
         and not duration.value
@@ -399,7 +426,6 @@ def _facet(
         # A leaf started or completed does not become a milestone (WF-PLA-0050): it keeps its
         # duration, which the report, the engine replayed and the application all read.
         duration = duration_of(row.old)
-    manual = task.manual or task.constraint in DATE_CONSTRAINTS
     if not manual or row.file_dates is None or dated_on is None:
         return Facet(task.name, description, AUTOMATIC, duration)
     calendar = plan.calendars[row.node_id]
@@ -407,6 +433,29 @@ def _facet(
     start = _kept_day(plan, row, "start", (start, calendar))
     finish = _kept_day(plan, row, "finish", (finish, calendar))
     return Facet(task.name, description, MANUAL, duration, start, finish)
+
+
+def _leaf_duration(
+    plan: Plan, row: Row, constants: Constants, dated_on: FileCalendar | None
+) -> Duration:
+    """Give the duration of a leaf: in its unit at the constants of the file; or its dates kept.
+
+    Keeping the dates (US-2000), an automatic leaf — ``dated_on`` its calendar in the file, none
+    for a manual one — lasts the work between them on its Waterfall calendar; a milestone, and a
+    duration in elapsed time, keep theirs.
+    """
+    file_constants, installation = constants
+    duration = file_duration_of(row.task, file_constants)
+    if (
+        plan.rule != KEEP_DATES
+        or dated_on is None
+        or row.file_dates is None
+        or not duration.value
+        or duration.is_elapsed
+    ):
+        return duration
+    calendars = (dated_on.calendar, plan.calendars[row.node_id])
+    return kept_dates(row.file_dates, calendars, duration.unit, installation)
 
 
 def _links(plan: Plan, constants: UnitConstants) -> None:
@@ -516,6 +565,24 @@ def _strays(plan: Plan, items: Mapping[UUID, WorkBreakdownItem]) -> None:
         plan.refusals.append({"code": OUTSIDE, "params": params})
 
 
+def _gap(
+    plan: Plan,
+    project: MsProject,
+    calendars: Mapping[int, FileCalendar],
+    sides: tuple[bool, tuple[Applicable, str]],
+    rule: DurationRule,
+) -> None:
+    """Say the calendar gap of the file, and give the plan its rule: the import's, in a gap."""
+    written = [
+        (row.task, row.lineage_id, plan.calendars[row.node_id])
+        for row in plan.rows
+        if row.node_id in plan.calendars
+    ]
+    gap = calendar_gap(project, calendars, sides, gap_tasks(project, calendars, written), rule)
+    plan.gap = gap
+    plan.rule = KEEP_DURATIONS if gap is None else rule
+
+
 def plan_import(
     session: Session, target: ImportTarget, read: ReadProject, *, lock: bool
 ) -> tuple[Plan, Mapping[UUID, WorkBreakdownItem]]:
@@ -558,14 +625,21 @@ def plan_import(
     _place(plan, project)
     _judge_milestones(plan, file_children)
     constants = constants_of(session)
-    plan.constants = constants
-    default = default_calendar(session)
+    found = file_constants_of(project)
+    # Constants the export of the installation writes are its own, rounded by the schema.
+    differ = found != carried(constants)
+    file_constants = found if differ else constants
+    plan.constants, plan.file_constants = constants, file_constants
+    plan.constants_differ = differ
+    default = named_default_calendar(session)
     held: Mapping[UUID, Applicable] = (
         calendars_of(session, aimed.project_id, list(tree.tasks)) if tree.tasks else {}
     )
-    plan.calendars = {each: held.get(each, default).calendar for each in plan.order}
-    _facets(plan, project, constants, file_children)
-    _links(plan, constants)
+    plan.calendars = {each: held.get(each, default[0]).calendar for each in plan.order}
+    calendars = file_calendars_of(project)
+    _gap(plan, project, calendars, (differ, default), target.duration_rule)
+    _facets(plan, project, ((file_constants, constants), calendars), file_children)
+    _links(plan, file_constants)
     items = work_breakdown_items(session, aimed.project_id)
     _strays(plan, items)
     _replayed(plan, constants)
@@ -701,23 +775,50 @@ def _mismatches(plan: Plan) -> list[Json]:
     for row in plan.rows:
         if row.dropped or row.file_dates is None or row.node_id not in computed.tasks:
             continue
-        placed = computed.tasks[row.node_id]
-        fields: list[str] = []
-        span = row.task.duration
-        hours = None if span is None else decimal_of(hours_of(span))
-        if plan.is_summary(row.node_id) and hours not in {None, placed.work_hours}:
-            fields.append("duration")
-        start, finish = row.file_dates
-        if start != placed.start:
-            fields.append("start")
-        if finish != placed.finish:
-            fields.append("finish")
+        fields = _differing(plan, row, row.file_dates, computed.tasks[row.node_id])
         if fields:
             lineage = None if row.lineage_id is None else str(row.lineage_id)
             found.append(
                 {"lineage_id": lineage, "label": plan.label_of(row.node_id), "fields": fields}
             )
     return found
+
+
+def _differing(
+    plan: Plan, row: Row, read: tuple[WorkInstant, WorkInstant], placed: ScheduledTask
+) -> list[str]:
+    """Name what of a task differs between the file and the engine: duration, start, finish.
+
+    In a calendar gap, a date compares by its day and a duration by its value in its unit, at the
+    constants of each side: their hours do not read the same (US-2000). The date by its day is a
+    reading of US-2000/L2 awaiting the author (#3153); the other, kept out: the instants.
+    """
+    fields: list[str] = []
+    span = row.task.duration
+    if span is not None and plan.is_summary(row.node_id) and _lasts_otherwise(plan, row, placed):
+        fields.append("duration")
+    start, finish = read
+    if plan.gap is None:
+        dates = ((start, placed.start), (finish, placed.finish))
+    else:
+        dates = ((start.day, placed.start.day), (finish.day, placed.finish.day))
+    fields += [
+        name
+        for name, (in_file, computed) in zip(("start", "finish"), dates, strict=True)
+        if in_file != computed
+    ]
+    return fields
+
+
+def _lasts_otherwise(plan: Plan, row: Row, placed: ScheduledTask) -> bool:
+    """Tell whether a summary lasts otherwise in the file than in the engine."""
+    hours = hours_of(row.task.duration or timedelta())
+    if plan.gap is None or plan.constants is None or plan.file_constants is None:
+        return decimal_of(hours) != placed.work_hours
+    unit = row.task.duration_unit or "d"
+    return value_in_unit(hours, unit, plan.file_constants) != value_in_unit(
+        Fraction(placed.work_hours), unit, plan.constants
+    )
 
 
 def _label(aimed: Aimed) -> str | None:
@@ -734,14 +835,14 @@ def _constants(constants: UnitConstants) -> Json:
     }
 
 
-def _unit_constants(plan: Plan, project: MsProject) -> Json | None:
+def _unit_constants(plan: Plan) -> Json | None:
     """Give the constants of the file and of the installation when they differ (WF-PLA-0160).
 
-    A constant the file does not carry is the default of MS Project; ``None`` when they are equal.
+    A constant the file does not carry is the default of MS Project; ``None`` when they are equal,
+    or those of the installation as a file carries them (``carried``), as the export writes them.
     """
-    installation = plan.constants
-    found = file_constants_of(project)
-    if installation is None or found == installation:
+    installation, found = plan.constants, plan.file_constants
+    if installation is None or found is None or not plan.constants_differ:
         return None
     return {"file": _constants(found), "installation": _constants(installation)}
 
@@ -773,5 +874,6 @@ def report_of(plan: Plan, read: ReadProject, items: Mapping[UUID, WorkBreakdownI
         "date_mismatches": _mismatches(plan),
         "signals": plan.signals,
         "requires_confirmation_reasons": [],
-        "unit_constants": _unit_constants(plan, read.project),
+        "unit_constants": _unit_constants(plan),
+        "calendar_gap": plan.gap,
     }

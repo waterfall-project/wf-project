@@ -3,11 +3,12 @@
 """The reader of a planning of MS Project: an MSPDI file into the model, without a database.
 
 It reads what an import of MS Project uses (EP-06, "Le format MS Project") — the project's start
-and unit constants, its calendars, its tasks and their links — and counts by kind what the file
-carries besides and no import reads (``ImportReport.ignored``, WF-INTF-0040). A file it cannot
-read raises ``UnreadableProjectError``, which the format turns into its refusal: not well formed,
-not a ``Project`` of MSPDI, a value that is not of its type, a tree whose outline levels skip one,
-two tasks of one unique identifier, a link to a task the file does not carry.
+and unit constants, its calendars, its tasks and their links, a manual task at the dates and the
+duration MS Project reads it at — and counts by kind what the file carries besides and no import
+reads (``ImportReport.ignored``, WF-INTF-0040). A file it cannot read raises
+``UnreadableProjectError``, which the format turns into its refusal: not well formed, not a
+``Project`` of MSPDI, a value that is not of its type, a tree whose outline levels skip one, two
+tasks of one unique identifier, a link to a task the file does not carry.
 """
 
 import re
@@ -259,17 +260,30 @@ def _link(element: Tag) -> PredecessorLink:
     )
 
 
+def _scheduled(element: Tag, name: str, *, manual: bool) -> str:
+    """Name the field a task's start, finish or duration is read in: ``Manual…`` for a manual one.
+
+    MS Project reads the dates and the duration of a task in manual mode in ``ManualStart``,
+    ``ManualFinish`` and ``ManualDuration``, and the import reads them as it does: ``Start``,
+    ``Finish`` and ``Duration`` when the file does not carry them, or for an automatic task, whose
+    ``Manual…`` MS Project writes but does not read.
+    """
+    own = f"Manual{name}"
+    return own if manual and _value(element, own) is not None else name
+
+
 def _task(element: Tag, lineage_field: str | None) -> MsTask:
     """Read a task, its links and its lineage."""
+    manual = _boolean(element, "Manual")
     return MsTask(
         uid=_required(element, "UID"),
         name=element.text_of("Name") or "",
         outline_level=_required(element, "OutlineLevel"),
-        manual=_boolean(element, "Manual"),
-        duration=_duration(element, "Duration"),
+        manual=manual,
+        duration=_duration(element, _scheduled(element, "Duration", manual=manual)),
         duration_unit=_duration_unit(element),
-        start=_datetime(element, "Start"),
-        finish=_datetime(element, "Finish"),
+        start=_datetime(element, _scheduled(element, "Start", manual=manual)),
+        finish=_datetime(element, _scheduled(element, "Finish", manual=manual)),
         milestone=_boolean(element, "Milestone"),
         constraint=_code(element, "ConstraintType", CONSTRAINT_TYPES, absent=0),
         calendar_uid=_calendar_uid(element, "CalendarUID"),

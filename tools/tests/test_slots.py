@@ -659,3 +659,82 @@ def test_the_tests_run_with_an_empty_process_table() -> None:
     root = Path(os.environ["WATERFALL_SLOTS_PROC"])
     assert root.is_dir()
     assert not any(root.iterdir())
+
+
+def service_workers(processors: int, tmp_path: Path) -> str:
+    """Return the workers `make e2e-service` hands to Playwright for a share of processors."""
+    outer = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TESTS", "WATERFALL_SLOTS", "E2E_WORKERS")
+    environment = {k: v for k, v in os.environ.items() if k not in outer}
+    environment |= slots.variables(0) | {"WATERFALL_PROCESSORS": str(processors)}
+    environment |= {"XDG_RUNTIME_DIR": str(tmp_path)}
+    printing = "print: ; @echo $(E2E_SERVICE_WORKERS)"
+    done = subprocess.run(
+        ["make", "--no-print-directory", "--eval", printing, "print"],
+        cwd=REPOSITORY,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return done.stdout.strip()
+
+
+@pytest.mark.parametrize(
+    ("processors", "workers"),
+    [(1, "1"), (2, "1"), (8, "6"), (32, "24"), (100, "40")],
+)
+def test_the_workers_of_the_service_paths_are_three_quarters_of_the_share(
+    tmp_path: Path, processors: int, workers: str
+) -> None:
+    """US-1930: the default of E2E_WORKERS follows WATERFALL_PROCESSORS, 1 to 40 (#2890)."""
+    assert service_workers(processors, tmp_path) == workers
+
+
+def service_target(
+    processors: str, tmp_path: Path, given: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
+    """Run the dry `make e2e-service`, a probe printing the E2E_WORKERS its recipes would see."""
+    outer = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TESTS", "WATERFALL_SLOTS", "E2E_WORKERS")
+    environment = {k: v for k, v in os.environ.items() if k not in outer}
+    environment |= slots.variables(0) | {"WATERFALL_PROCESSORS": processors}
+    environment |= {"XDG_RUNTIME_DIR": str(tmp_path)} | (given or {})
+    return subprocess.run(
+        [
+            "make",
+            "-n",
+            "--eval",
+            "e2e-service: probe",
+            "--eval",
+            "probe: ; $(info WORKERS=$(E2E_WORKERS))",
+            "e2e-service",
+        ],
+        cwd=REPOSITORY,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+@pytest.mark.parametrize(
+    ("given", "workers"),
+    [(None, "6"), ({"E2E_WORKERS": ""}, "6"), ({"E2E_WORKERS": "3"}, "3")],
+)
+def test_the_e2e_workers_of_the_service_target_default_when_absent_or_empty(
+    tmp_path: Path, given: dict[str, str] | None, workers: str
+) -> None:
+    """US-1930: an E2E_WORKERS absent or empty gives the default, a given one wins (#2890)."""
+    done = service_target("8", tmp_path, given)
+    assert done.returncode == 0, done.stderr
+    lines = [line for line in done.stdout.splitlines() if line.startswith("WORKERS=")]
+    assert lines[0] == f"WORKERS={workers}"
+
+
+@pytest.mark.parametrize("processors", ["abc", "", "8.5", "0"])
+def test_the_service_target_refuses_processors_that_are_not_a_positive_integer(
+    tmp_path: Path, processors: str
+) -> None:
+    """US-1930: a WATERFALL_PROCESSORS that is no positive integer stops make, clearly."""
+    done = service_target(processors, tmp_path)
+    assert done.returncode != 0
+    assert "WATERFALL_PROCESSORS must be a positive integer" in done.stderr

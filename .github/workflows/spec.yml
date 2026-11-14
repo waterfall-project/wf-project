@@ -26,10 +26,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # The package is kept between runs: a release download answers 502 or 504 now and then, for
-      # an hour at a time (#2530), and the check of the specification must not wait on it. A cache
-      # missed downloads it, curl trying again; its digest is checked either way.
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # The package is kept between runs (read here, written by front-cache.yml): a release
+      # download answers 502 or 504 now and then, for an hour at a time (#2530), and the check of
+      # the specification must not wait on it. A cache missed downloads it, curl trying again: an
+      # attempt that moves under 1 kB/s for 20 s is cut (a slow transfer that progresses goes on),
+      # and `timeout` cuts the whole at four minutes, retries included (the job has ten): a release
+      # that stays silent fails the step here, naming GitHub Releases, not at the end of the job's
+      # limit. Its digest is checked either way.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/pandoc
           key: pandoc-${{ env.PANDOC_VERSION }}-${{ env.PANDOC_SHA256 }}
@@ -38,7 +42,13 @@ jobs:
           deb=~/.cache/pandoc/pandoc.deb
           if [ ! -f "$deb" ]; then
             mkdir -p ~/.cache/pandoc
-            curl -sSfL --retry 10 --retry-all-errors --retry-delay 20 -o "$deb" "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb"
+            url="https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb"
+            timeout 240 curl -sSfL --connect-timeout 15 --speed-limit 1000 --speed-time 20 \
+              --retry 10 --retry-all-errors --retry-delay 15 -o "$deb" "$url" || {
+              rm -f "$deb"
+              echo "::error::GitHub Releases does not answer: pandoc ${PANDOC_VERSION} is not downloaded ($url)"
+              exit 1
+            }
           fi
           echo "${PANDOC_SHA256}  $deb" | sha256sum --check --strict
           sudo dpkg -i "$deb"

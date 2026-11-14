@@ -15,7 +15,7 @@ from pydantic import AwareDatetime
 from waterfall.api.authentication import Caller, Transaction
 from waterfall.api.contract.base import Text
 from waterfall.api.contract.models import BackgroundTaskRef, BackgroundTaskStatus, PaginationMeta
-from waterfall.api.queries import listed
+from waterfall.api.queries import Offset, listed
 from waterfall.core.exchanges.interface import has_file
 from waterfall.platform.errors import NOT_FOUND, NotFoundError
 from waterfall.platform.tasks import BackgroundTask, TaskFilters, list_tasks, read_task
@@ -74,7 +74,7 @@ def get_background_tasks(
     session: Transaction,
     filters: Annotated[TaskFilters, Depends(task_filters)],
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Offset = 0,
 ) -> dict[str, Any]:
     """Give a page of the tasks of the caller, the latest first."""
     rows, total = list_tasks(session, account.user_id, filters, limit, offset)

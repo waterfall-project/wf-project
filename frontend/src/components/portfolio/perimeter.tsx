@@ -8,19 +8,20 @@
  * server orders —, and the horizon
  * and the threshold of under-load (WF-PTF-0060), for the views that take them. A choice only
  * changes the address, under the names of the contract, and the page reads anew what the server
- * computes on it. A state shows pressed as the address asks it, or, when the address asks none, as
+ * computes on it. A state shows checked as the address asks it, or, when the address asks none, as
  * the server retained it by default (`scope.states`): the front assumes no default of its own; the
- * last state pressed cannot be released, a perimeter retaining at least one. A period the server
+ * last state checked cannot be released, a perimeter retaining at least one. A period the server
  * refuses (422) is said at its field, the start named. A change goes on from the address last asked
  * (`usePendingAddress`).
  */
 "use client";
 
-import { CalendarRange, Circle, CircleCheck } from "lucide-react";
+import { CalendarRange } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { type SubmitEvent, useEffect, useId, useOptimistic, useRef, useTransition } from "react";
 
+import { CheckMenu } from "@/components/grid/check-menu";
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import { useDatedEntry } from "@/components/grid/dated-entry";
 import { PendingAddress, usePendingAddress } from "@/components/grid/pending-address";
@@ -64,11 +65,13 @@ function useParameters() {
 }
 
 /**
- * The filter by state: a button for each state of a portfolio, pressed as retained — or as last
- * asked, until the server answers —, the state by its badge (#523), as the filter of the home shows
- * it. Without the states the server retained — a view it did not read —, the states the address
- * names show pressed; naming none, the filter is not offered: nothing would say what is retained,
- * and a state pressed would restrict the perimeter to it alone in silence.
+ * The filter by state: a menu of boxes, a box for each state of a portfolio, checked as retained —
+ * or as last asked, until the server answers —, the state by its badge (#523), as the filter of the
+ * home shows it (`CheckMenu`, #2916). « Par défaut » is checked while the address names no state:
+ * the server chooses, and the states it retained show checked beside it. Without the states the
+ * server retained — a view it did not read —, the states the address names show checked; naming
+ * none, the filter is not offered: nothing would say what is retained, and a state checked would
+ * restrict the perimeter to it alone in silence.
  */
 function StatesFilter({
   asked,
@@ -79,9 +82,9 @@ function StatesFilter({
 }) {
   const t = useTranslations();
   const change = useParameters();
-  // The states asked, pressed until the server answers for them: the buttons would otherwise show
-  // the address until the navigation arrives, and again the address should another navigation
-  // replace it (défaut n° 21 de `typescript.md`).
+  // The states asked, checked until the server answers for them: the menu would otherwise show the
+  // address until the navigation arrives, and again the address should another navigation replace
+  // it (défaut n° 21 de `typescript.md`).
   const [last, show] = useOptimistic(asked);
   const [, startTransition] = useTransition();
   const shown = last.length === 0 ? (retained ?? []) : last;
@@ -89,46 +92,39 @@ function StatesFilter({
     return null;
   }
   return (
-    <div
-      role="group"
-      aria-label={t("portfolio.perimeter.states")}
-      className="flex flex-wrap items-center gap-1.5"
-    >
-      {PORTFOLIO_STATES.map((state) => {
-        const pressed = shown.includes(state);
+    <CheckMenu
+      label={t("portfolio.perimeter.states")}
+      every={t("portfolio.perimeter.byDefault")}
+      multiple
+      searchable={false}
+      options={PORTFOLIO_STATES.map((state) => ({
+        value: state,
+        text: <ProjectStateBadge state={state} />,
+        plain: t(`enums.ProjectState.${state}`),
         // The last state retained stays: releasing it would leave a perimeter of nothing.
-        const kept = pressed && shown.length === 1;
-        const Icon = pressed ? CircleCheck : Circle;
-        return (
-          <Button
-            key={state}
-            size="sm"
-            variant={pressed ? "default" : "outline"}
-            aria-pressed={pressed}
-            aria-disabled={kept ? true : undefined}
-            onClick={() => {
-              if (kept) {
-                return;
-              }
-              startTransition(() => {
-                change((query) => {
-                  const before = readStates(query);
-                  const from = before.length === 0 ? (retained ?? []) : before;
-                  const next = from.includes(state)
-                    ? from.filter((each) => each !== state)
-                    : [...from, state];
-                  show(next);
-                  return { [STATES]: statesValue(next) };
-                });
-              });
-            }}
-          >
-            <Icon aria-hidden="true" className="size-4" />
-            <ProjectStateBadge state={state} />
-          </Button>
-        );
-      })}
-    </div>
+        disabled: shown.length === 1 && shown.includes(state),
+      }))}
+      chosen={shown}
+      lifted={last.length === 0}
+      onChange={(_values, toggled) => {
+        startTransition(() => {
+          change((query) => {
+            // « Par défaut » lifts the states: the server chooses.
+            if (toggled === undefined) {
+              show([]);
+              return { [STATES]: undefined };
+            }
+            const before = readStates(query);
+            const from = before.length === 0 ? (retained ?? []) : before;
+            const next = toggled.checked
+              ? [...from.filter((each) => each !== toggled.value), toggled.value as ProjectState]
+              : from.filter((each) => each !== toggled.value);
+            show(next);
+            return { [STATES]: statesValue(next) };
+          });
+        });
+      }}
+    />
   );
 }
 

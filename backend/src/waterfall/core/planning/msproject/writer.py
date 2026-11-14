@@ -6,8 +6,11 @@ The schema of MS Project 2013 is a sequence at each level: an element out of its
 file invalid (WF-QUA-0080), and MS Project may refuse to open it (WF-INTF-0050). Each function
 here builds one element of the schema, its children in the order the schema declares them —
 ``Project``, ``ExtendedAttribute``, ``Calendar``, ``WeekDay``, ``Task``, ``PredecessorLink`` —, and
-leaves out what the model does not carry. What it writes, the reader reads back the same
-(``test_msproject.py``).
+leaves out what the model does not carry. It adds what MS Project reads and the model does not
+say (#2923): the working day of the calendar of the project in the head, a duration never
+estimated, the dates and the duration of a manual task again where MS Project reads them. What it
+writes, the reader reads back the same (``test_msproject.py``); what MS Project reads of it, the
+tests read in the XML written.
 """
 
 from datetime import timedelta
@@ -47,6 +50,9 @@ class NegativeDurationError(ValueError):
     """A duration below nought: ``xsd:duration`` as MS Project reads it has no such value here."""
 
 
+MONDAY_FIRST = (2, 3, 4, 5, 6, 7, 1)
+"""The ``DayType`` of the days of the week, Monday first: Sunday is 1."""
+
 HOUR = timedelta(hours=1)
 MINUTE = timedelta(minutes=1)
 MICROSECOND = timedelta(microseconds=1)
@@ -54,6 +60,7 @@ MICROSECOND = timedelta(microseconds=1)
 
 def write_project(project: MsProject) -> bytes:
     """Write a planning of MS Project as its MSPDI file, valid against the schema."""
+    opening, closing = _working_hours(project)
     return serialise(
         tag(
             "Project",
@@ -64,6 +71,8 @@ def write_project(project: MsProject) -> bytes:
             # without one writes it empty, which is valid, and MS Project takes its own.
             Tag("CurrencyCode", project.currency_code or ""),
             leaf("CalendarUID", _integer(project.calendar_uid)),
+            leaf("DefaultStartTime", opening),
+            leaf("DefaultFinishTime", closing),
             leaf("MinutesPerDay", _integer(project.minutes_per_day)),
             leaf("MinutesPerWeek", _integer(project.minutes_per_week)),
             leaf("DaysPerMonth", _integer(project.days_per_month)),
@@ -101,6 +110,23 @@ def _duration(value: timedelta | None) -> str | None:
     minutes, rest = divmod(rest, MINUTE)
     seconds = Decimal(rest // MICROSECOND).scaleb(-6).normalize()
     return f"PT{hours}H{minutes}M{seconds:f}S"
+
+
+def _working_hours(project: MsProject) -> tuple[str | None, str | None]:
+    """Write the start and the end of the working day of the calendar of the project.
+
+    MS Project places at them a date entered without its hour, and takes 8:00 and 17:00 without
+    them, past the end of a day of seven hours (#2923). The day is the first the calendar works in
+    the week, from Monday — every working day of an export opens at the same hour —; a calendar
+    that the file does not carry, or that works no day it lists, writes neither.
+    """
+    calendar = next((each for each in project.calendars if each.uid == project.calendar_uid), None)
+    days = {} if calendar is None else {day.day_type: day for day in calendar.days}
+    for day_type in MONDAY_FIRST:
+        day = days.get(day_type)
+        if day is not None and day.working and day.times:
+            return _time(day.times[0][0]), _time(day.times[-1][1])
+    return None, None
 
 
 def _format(unit: LagUnit | None) -> str | None:
@@ -165,17 +191,30 @@ def _link(link: PredecessorLink) -> Tag:
 
 
 def _task(rank: int, task: MsTask) -> Tag:
-    """Write a task, its rank in the file as its ``ID``, its links and its lineage."""
+    """Write a task, its rank in the file as its ``ID``, its links and its lineage.
+
+    A duration is never estimated: without ``Estimated`` at nought, MS Project shows it so, « 0 j? »
+    for a milestone. A manual task carries its dates and its duration again in ``ManualStart``,
+    ``ManualFinish`` and ``ManualDuration``, where MS Project reads them for a task in manual mode:
+    without them, it opens a manual milestone as a task of one estimated day, and its successors a
+    day later (#2923, WF-INTF-0050).
+    """
+    start, finish, duration = (
+        _datetime(task.start),
+        _datetime(task.finish),
+        _duration(task.duration),
+    )
     return tag(
         "Task",
         Tag("UID", str(task.uid)),
         Tag("ID", str(rank)),
         Tag("Name", task.name),
         Tag("OutlineLevel", str(task.outline_level)),
-        leaf("Start", _datetime(task.start)),
-        leaf("Finish", _datetime(task.finish)),
-        leaf("Duration", _duration(task.duration)),
+        leaf("Start", start),
+        leaf("Finish", finish),
+        leaf("Duration", duration),
         leaf("DurationFormat", _format(task.duration_unit)),
+        Tag("Estimated", BOOLEANS[False]),
         Tag("Milestone", BOOLEANS[task.milestone]),
         Tag("ConstraintType", str(CONSTRAINT_TYPES.index(task.constraint))),
         leaf("CalendarUID", _integer(task.calendar_uid)),
@@ -186,4 +225,13 @@ def _task(rank: int, task: MsTask) -> Tag:
         if task.lineage is not None
         else None,
         Tag("Manual", BOOLEANS[task.manual]),
+        *(
+            (
+                leaf("ManualStart", start),
+                leaf("ManualFinish", finish),
+                leaf("ManualDuration", duration),
+            )
+            if task.manual
+            else ()
+        ),
     )

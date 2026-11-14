@@ -22,6 +22,7 @@ import { FolderTree, ListTree, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { CommandOffer } from "@/components/commands/offer";
+import { FilterFields } from "@/components/grid/filter-fields";
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
@@ -120,6 +121,17 @@ export function WorkBreakdownList({
   const partial = breakdown.lock_version === null;
   const none = breakdown.work_packages.length === 0 && !partial;
   const edited = editing?.offer !== undefined;
+  const panel = (
+    <FilterFields hint={false}>
+      <ValuesFilter
+        name={BREAKDOWN_KIND_FILTER}
+        label={t("kindFilter")}
+        every={t("everyKind")}
+        values={BREAKDOWN_KINDS.map((kind) => ({ value: kind, text: named(kind) }))}
+        chosen={kinds}
+      />
+    </FilterFields>
+  );
   return (
     // Keyed by the project: an answer of the server never outlives its project.
     <BreakdownCommands key={project} editing={editing}>
@@ -128,13 +140,6 @@ export function WorkBreakdownList({
         icon={ListTree}
         empty={none && !edited ? t("none") : undefined}
       >
-        <ValuesFilter
-          name={BREAKDOWN_KIND_FILTER}
-          label={t("kindFilter")}
-          every={t("everyKind")}
-          values={BREAKDOWN_KINDS.map((kind) => ({ value: kind, text: named(kind) }))}
-          chosen={kinds}
-        />
         {partial || none ? (
           <p className="text-sm text-muted-foreground">
             {t(partial ? partialNote(shown.query.search, kinds) : "none")}
@@ -146,6 +151,8 @@ export function WorkBreakdownList({
           rows={breakdownRows(breakdown)}
           project={project}
           filtered={partial}
+          kinds={kinds}
+          panel={panel}
           query={shown.query}
           preferences={shown.preferences}
         />
@@ -189,6 +196,20 @@ export function SubprojectList({
   const t = useTranslations("projectLists.subprojects");
   const empty =
     subprojects.length === 0 && shown.query.search === undefined && actualCosts === undefined;
+  const panel = (
+    <FilterFields hint={false}>
+      <ChoiceFilter
+        name={SUBPROJECT_ACTUAL_COSTS}
+        label={t("actualCostsFilter")}
+        every={t("everyActualCosts")}
+        choices={[
+          { value: "true", text: t("withActualCosts") },
+          { value: "false", text: t("withoutActualCosts") },
+        ]}
+        chosen={chosenFlag(actualCosts)}
+      />
+    </FilterFields>
+  );
   return (
     // Keyed by the project: an answer of the server never outlives its project.
     <SubprojectCommands
@@ -204,22 +225,14 @@ export function SubprojectList({
         <ListBody
           empty={empty ? t("none") : undefined}
           reads={SUBPROJECT_READS}
-          filters={
-            <ChoiceFilter
-              name={SUBPROJECT_ACTUAL_COSTS}
-              label={t("actualCostsFilter")}
-              every={t("everyActualCosts")}
-              choices={[
-                { value: "true", text: t("withActualCosts") },
-                { value: "false", text: t("withoutActualCosts") },
-              ]}
-              chosen={chosenFlag(actualCosts)}
-            />
-          }
+          folded
+          filters={panel}
           grid={
             <SettingsGrid
               kind="subprojects"
               rows={subprojects}
+              actualCosts={actualCosts}
+              panel={panel}
               editable={editing?.offer !== undefined}
               query={shown.query}
               preferences={shown.preferences}
@@ -261,32 +274,37 @@ export function ContributorList({
     kinds.length === 0 &&
     active === undefined &&
     shown.query.search === undefined;
+  const panel = (
+    <FilterFields hint={false}>
+      <ValuesFilter
+        name={CONTRIBUTOR_KINDS}
+        label={t("kindFilter")}
+        every={t("everyKind")}
+        values={KINDS.map((kind) => ({ value: kind, text: named(kind) }))}
+        chosen={kinds}
+      />
+      <ChoiceFilter
+        name={CONTRIBUTOR_ACTIVE}
+        label={t("accountFilter")}
+        every={t("everyAccount")}
+        choices={[
+          { value: "true", text: t("activeAccounts") },
+          { value: "false", text: t("inactiveAccounts") },
+        ]}
+        chosen={chosenFlag(active)}
+      />
+    </FilterFields>
+  );
   return (
     <ContributorCommands key={editing?.project} editing={editing}>
       <ListSection title={t("title")} icon={Users} empty={empty ? t("none") : undefined}>
         <ContributorHead />
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-          <ValuesFilter
-            name={CONTRIBUTOR_KINDS}
-            label={t("kindFilter")}
-            every={t("everyKind")}
-            values={KINDS.map((kind) => ({ value: kind, text: named(kind) }))}
-            chosen={kinds}
-          />
-          <ChoiceFilter
-            name={CONTRIBUTOR_ACTIVE}
-            label={t("accountFilter")}
-            every={t("everyAccount")}
-            choices={[
-              { value: "true", text: t("activeAccounts") },
-              { value: "false", text: t("inactiveAccounts") },
-            ]}
-            chosen={chosenFlag(active)}
-          />
-        </div>
         <SettingsGrid
           kind="contributors"
           rows={contributors}
+          kinds={kinds}
+          active={active}
+          panel={panel}
           query={shown.query}
           preferences={shown.preferences}
         />

@@ -32,6 +32,7 @@ import {
 } from "react";
 
 import { CommandTooltip } from "@/components/commands/command-tooltip";
+import { Checkbox } from "@/components/ui/checkbox";
 import { TableHead } from "@/components/ui/table";
 import { cn } from "@/components/ui/utils";
 
@@ -73,6 +74,36 @@ export interface HeaderCellProps<Row extends RowData> {
   readonly position: CellPosition;
   /** Whether it is the active cell of the grid, the one stop of the tabulation. */
   readonly active: boolean;
+  /**
+   * For the header of the handles of a grid whose rows are picked one by one: whether all the rows
+   * shown are selected, some, or none, and the box that selects all of them or lifts the selection.
+   */
+  readonly selectAll?: SelectAll | undefined;
+}
+
+/** The box of the header of the handles: all the rows shown, some, or none, selected. */
+export interface SelectAll {
+  readonly state: "all" | "some" | "none";
+  readonly toggle: () => void;
+  /** Whether there is no row to select: the box is unavailable. */
+  readonly disabled: boolean;
+}
+
+/** The box that selects all the rows shown, mixed when only some are. */
+function SelectAllBox({ all, described }: { readonly all: SelectAll; readonly described: string }) {
+  const t = useTranslations("grid.selection");
+  const checked = { all: true, some: "indeterminate", none: false } as const;
+  return (
+    <Checkbox
+      aria-label={t("all")}
+      aria-describedby={described}
+      checked={checked[all.state]}
+      disabled={all.disabled}
+      tabIndex={-1}
+      onCheckedChange={all.toggle}
+      className="size-3.5 align-middle"
+    />
+  );
 }
 
 /** The icon of the state of the sort of a column. */
@@ -272,6 +303,71 @@ function Defined({
   );
 }
 
+/** What a header holds in place of its heading alone: the button that sorts, or the box of all the rows. */
+function HeadContent({
+  heading,
+  sort,
+  end,
+  selectAll,
+  stateId,
+}: {
+  /** The identifier of what tells the state of the box of all the rows. */
+  readonly stateId: string;
+  readonly heading: ReactNode;
+  readonly sort:
+    | {
+        readonly state: false | "asc" | "desc";
+        readonly onClick: ((event: unknown) => void) | undefined;
+      }
+    | undefined;
+  readonly end: boolean;
+  readonly selectAll: SelectAll | undefined;
+}) {
+  const t = useTranslations("grid.selection");
+  if (sort !== undefined) {
+    return (
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={sort.onClick}
+        className={cn(
+          "inline-flex max-w-full items-center gap-1 rounded-sm font-medium outline-none",
+          "hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring",
+          end ? "flex-row-reverse" : null,
+        )}
+      >
+        {heading}
+        <SortIcon state={sort.state} />
+      </button>
+    );
+  }
+  if (selectAll === undefined) {
+    return heading;
+  }
+  return (
+    <>
+      <SelectAllBox all={selectAll} described={stateId} />
+      <span id={stateId} className="sr-only">
+        {t(`state.${selectAll.state}`)}
+      </span>
+      <span className="sr-only">{heading}</span>
+    </>
+  );
+}
+
+/** Space on the header of the handles selects all the rows shown, or lifts the selection: whether it was pressed. */
+function selectAllKey(
+  selectAll: SelectAll | undefined,
+  event: KeyboardEvent<HTMLElement>,
+): boolean {
+  if (selectAll === undefined || selectAll.disabled || event.key !== " ") {
+    return false;
+  }
+  selectAll.toggle();
+  event.preventDefault();
+  return true;
+}
+
 /** Render a header of a grid. */
 export function HeaderCell<Row extends RowData>({
   table,
@@ -280,6 +376,7 @@ export function HeaderCell<Row extends RowData>({
   pinning,
   position,
   active,
+  selectAll,
 }: HeaderCellProps<Row>) {
   const t = useTranslations("grid");
   const numbers =
@@ -291,6 +388,7 @@ export function HeaderCell<Row extends RowData>({
   // The header is named by its heading alone — the Σ and the label —, not by the name of the
   // handle it holds, which would be read with every cell of the column.
   const id = useId();
+  const stateId = useId();
   const heading = (
     <Heading
       id={id}
@@ -304,7 +402,7 @@ export function HeaderCell<Row extends RowData>({
   const resizes = header.column.getCanResize();
   // The keys the header itself takes, not those of its button or handle, which take their own.
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    if (event.target !== event.currentTarget) {
+    if (event.target !== event.currentTarget || selectAllKey(selectAll, event)) {
       return;
     }
     if (sorts && (event.key === "Enter" || event.key === " ")) {
@@ -316,6 +414,7 @@ export function HeaderCell<Row extends RowData>({
   };
   const shortcuts = [
     sorts ? "Enter Space" : undefined,
+    selectAll === undefined ? undefined : "Space",
     resizes ? "Shift+ArrowLeft Shift+ArrowRight" : undefined,
   ].filter((each) => each !== undefined);
   const head = (
@@ -336,23 +435,15 @@ export function HeaderCell<Row extends RowData>({
         align === "center" ? "text-center" : null,
       )}
     >
-      {sorts ? (
-        <button
-          type="button"
-          tabIndex={-1}
-          onClick={header.column.getToggleSortingHandler()}
-          className={cn(
-            "inline-flex max-w-full items-center gap-1 rounded-sm font-medium outline-none",
-            "hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring",
-            end ? "flex-row-reverse" : null,
-          )}
-        >
-          {heading}
-          <SortIcon state={sorted} />
-        </button>
-      ) : (
-        heading
-      )}
+      <HeadContent
+        heading={heading}
+        sort={
+          sorts ? { state: sorted, onClick: header.column.getToggleSortingHandler() } : undefined
+        }
+        end={end}
+        selectAll={selectAll}
+        stateId={stateId}
+      />
       {cornerOf(column)}
       {resizes ? <ResizeHandle table={table} header={header} label={label} /> : null}
     </TableHead>

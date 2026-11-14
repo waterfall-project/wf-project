@@ -99,10 +99,14 @@ test("signing in through the realm and out again, the bodies the service answers
   expect(await holdsSession()).toBe(false);
   const again = await context.newPage();
   await again.goto(ACCOUNT);
-  await expect(again.getByRole("heading", { level: 1 })).toHaveText("Session requise");
+  // No session: the screen opened leads to the sign-in page by itself (#2914) [WF-SEC-0020-A].
+  await expectSignInPage(again);
+  // Signed in there, she is led back to the screen she had opened, not to the home.
+  await giveIdentifiers(again, person);
+  await expect(again).toHaveURL(ACCOUNT);
 });
 
-test("without a session, the home asks for one — never « not found » — and its sign-in leads to the sign-in page of the realm, then back to the home and its query, signed in (#1000) [WF-SEC-0020-A]", async ({
+test("without a session, the home leads by itself to the sign-in page of the realm — never « not found » —, then back to the home and its query, signed in (#1000, #2914) [WF-SEC-0020-A]", async ({
   page,
   context,
   browser,
@@ -111,9 +115,7 @@ test("without a session, the home asks for one — never « not found » — and
   // A precondition: the path starts without a session.
   expect((await context.cookies()).map(({ name }) => name)).not.toContain(SESSION_COOKIE);
   await page.goto(HOME_SHOWN);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Session requise");
-  // A plain link, which loads its document: no hydration to wait for.
-  await page.getByRole("link", { name: "Se connecter" }).click();
+  // No click: the screen carries `/login?next=…` by itself, as for a session lost (#2914).
   await giveIdentifiers(page, person);
   // Back to the very address shown, its query included.
   await expect(page).toHaveURL(HOME_SHOWN);

@@ -25,6 +25,10 @@ concurrency:
   group: images-${{ github.ref }}
   cancel-in-progress: false
 
+# The Dockerfiles and the Compose files pull Docker Hub's images from the mirror (ci.yml, mirror).
+env:
+  WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/
+
 jobs:
   publish:
     runs-on: ubuntu-26.04
@@ -40,12 +44,17 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
+          save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: tools/uv.lock
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # The images are built on the mirror of Docker Hub's, which the chain filled before the merge
+      # (ci.yml, mirror): asked again here, a lookup, for a branch whose run did not pass through it.
+      - run: make mirror PUSH=yes
       - env:
           IMAGE_BRANCH: ${{ github.ref_name }}
           IMAGE_COMMIT: ${{ github.sha }}
@@ -87,6 +96,8 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
+          save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: tools/uv.lock
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
@@ -104,9 +115,18 @@ jobs:
   cache:
     runs-on: ubuntu-26.04
     timeout-minutes: 20
+    # Reading packages is what pulling the mirror of the images of Docker Hub is.
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: ./.github/actions/build-cache
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - run: make build-cache

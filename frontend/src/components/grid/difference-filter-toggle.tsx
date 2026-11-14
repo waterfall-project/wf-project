@@ -17,6 +17,7 @@ import { Circle, CircleCheck } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useOptimistic, useTransition } from "react";
 
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { Button } from "@/components/ui/button";
 
 import { differencesOnlyHref } from "./difference-filter";
@@ -25,10 +26,13 @@ import { usePendingAddress } from "./pending-address";
 /** Render the button that retains the differences alone, pressed when the address does. */
 export function DifferenceFilterToggle({
   label,
+  help,
   pressed,
 }: {
   /** What the button says: « Écarts seulement ». */
   readonly label: string;
+  /** What the button does, said in its tooltip. */
+  readonly help: string;
   /** Whether the address retains every difference. */
   readonly pressed: boolean;
 }) {
@@ -38,21 +42,24 @@ export function DifferenceFilterToggle({
   const [, startTransition] = useTransition();
   const Icon = shown ? CircleCheck : Circle;
   return (
-    <div className="flex items-center">
-      <Button
-        size="sm"
-        variant={shown ? "default" : "outline"}
-        aria-pressed={shown}
-        onClick={() => {
-          startTransition(() => {
-            show(!shown);
-            request((query) => differencesOnlyHref(pathname, query, !shown));
-          });
-        }}
-      >
-        <Icon aria-hidden="true" className="size-4" />
-        {label}
-      </Button>
+    <div className="flex min-w-24 shrink basis-36 items-center">
+      <CommandTooltip label={label} help={help}>
+        <Button
+          size="sm"
+          variant={shown ? "default" : "outline"}
+          aria-pressed={shown}
+          className="h-7 min-w-0 flex-1 gap-1 text-xs"
+          onClick={() => {
+            startTransition(() => {
+              show(!shown);
+              request((query) => differencesOnlyHref(pathname, query, !shown));
+            });
+          }}
+        >
+          <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+          <span className="truncate">{label}</span>
+        </Button>
+      </CommandTooltip>
     </div>
   );
 }

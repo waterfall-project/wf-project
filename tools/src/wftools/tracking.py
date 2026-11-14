@@ -3,8 +3,9 @@
 """Change one line of the tracking table of an epic's issue, under a lock (US-1120).
 
 Usage: ``python -m wftools.tracking --issue N --lot ID [--state S] [--pr P] [--model M]
-[--depends D]``, ``--issue N --us ID --status S``, ``--issue N --finding F [--attached A]
-[--decision D]``, ``--issue N --add-lot ID --after LOT [--depends D] [--model M]
+[--depends D] [--not-with W]``, ``--issue N --us ID --status S``,
+``--issue N --finding F [--attached A] [--decision D]``,
+``--issue N --add-lot ID --after LOT [--depends D] [--not-with W] [--model M]
 [--issue-number I]`` or ``--issue N --replace-dependency OLD=NEW`` (US-1290).
 
 The body of the issue is read, changed and written again by ``gh`` while the tool holds
@@ -59,6 +60,7 @@ CELL_OPTIONS = (
     "attached",
     "decision",
     "depends",
+    "not_with",
     "after",
     "add_lot",
     "replace_dependency",
@@ -279,6 +281,7 @@ def add_lot(lines: list[str], options: argparse.Namespace) -> None:
     span = order_table(lines)
     wanted = ["Lot"]
     wanted += ["Dépend de"] if options.depends is not None else []
+    wanted += ["Pas avec"] if options.not_with is not None else []
     wanted += ["Modèle"] if options.model is not None else []
     columns(lines, span, wanted)
     story, label, _ = parse_lot(options.add_lot)
@@ -294,7 +297,7 @@ def add_lot(lines: list[str], options: argparse.Namespace) -> None:
     values = {
         "Lot": cell,
         "Dépend de": options.depends or DASH,
-        "Pas avec": DASH,
+        "Pas avec": options.not_with or DASH,
         "État du lot": "à faire",
         "PR": DASH,
         "Modèle": options.model or DASH,
@@ -440,6 +443,7 @@ def apply(body: str, options: argparse.Namespace) -> str:
                 ("PR", options.pr),
                 ("Modèle", options.model),
                 ("Dépend de", options.depends),
+                ("Pas avec", options.not_with),
             )
             if value is not None
         }
@@ -469,6 +473,9 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--pr", help="the cell « PR »")
     result.add_argument("--model", help="the cell « Modèle »")
     result.add_argument("--depends", help="the cell « Dépend de »")
+    result.add_argument(
+        "--not-with", help="the cell « Pas avec » of this lot alone: the other lots name it too"
+    )
     result.add_argument("--add-lot", help="a lot to add: US-0820b, or US-1270/L3")
     result.add_argument("--after", help="the lot the added lot follows")
     result.add_argument("--issue-number", type=int, help="the issue of the added lot")
@@ -488,9 +495,9 @@ def validate(options: argparse.Namespace) -> None:
     names = ("lot", "us", "finding", "add_lot", "replace_dependency")
     if sum(getattr(options, name) is not None for name in names) != 1:
         refuse("give exactly one of LOT, US, FINDING, ADD_LOT or REPLACE_DEPENDENCY")
-    given = (options.state, options.pr, options.model, options.depends)
+    given = (options.state, options.pr, options.model, options.depends, options.not_with)
     if options.lot and all(value is None for value in given):
-        refuse("give at least one of STATE, PR, MODEL or DEPENDS with LOT")
+        refuse("give at least one of STATE, PR, MODEL, DEPENDS or NOT_WITH with LOT")
     if options.us and options.status is None:
         refuse("give STATUS with US")
     if options.add_lot and options.after is None:
@@ -499,6 +506,8 @@ def validate(options: argparse.Namespace) -> None:
         refuse("AFTER and the issue of the lot go with ADD_LOT only")
     if options.depends is not None and not (options.lot or options.add_lot):
         refuse("DEPENDS goes with LOT or ADD_LOT only")
+    if options.not_with is not None and not (options.lot or options.add_lot):
+        refuse("NOT_WITH goes with LOT or ADD_LOT only")
     if (options.add_lot or options.replace_dependency) and (
         options.state or options.pr or options.status or options.attached or options.decision
     ):

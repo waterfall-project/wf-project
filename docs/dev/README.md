@@ -403,12 +403,14 @@ the code, checks the nonce of the identity token, opens the session — its toke
 duration Keycloak gives its session, `refresh_expires_in` — and leads to the target screen, its
 whole address; an unknown `state`, already used or too old, starts the sign-in again; a sign-in
 the realm refuses — an error on return, a refused code, a wrong nonce — leads to the home page
-without a session, never to `/login`, which the Keycloak session would loop. Keycloak or Redis
-unreachable, or Keycloak mute beyond the timeout, `/login` and `/auth/callback` lead to
-`/login/unavailable`, forgetting the `__Host-wf_session` cookie — the page would otherwise re-read
-Redis for it —, which says the service is unreachable and offers to start again towards the target
-screen, never a bare 500 error (#687). `/login` also clears the `__Host-wf_session` cookie: the
-sign-out leads there without touching it (#724).
+without a session, never to `/login`, which the Keycloak session would loop, and leaves a short
+cookie (`wf_sign_in_refused`, a few minutes, `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`) that a
+successful sign-in forgets (#2914). Keycloak or Redis unreachable, or Keycloak mute beyond the
+timeout, `/login` and `/auth/callback` lead to `/login/unavailable`, forgetting the
+`__Host-wf_session` cookie — the page would otherwise re-read Redis for it —, which says the service
+is unreachable and offers to start again towards the target screen, never a bare 500 error (#687).
+`/login` also clears the `__Host-wf_session` cookie: the sign-out leads there without touching it
+(#724).
 `serverClient()` is the only place that carries the token to the API (`src/session/tokens.ts`): on
 each request, it reads the session from the cookie and refreshes an access token that expires in
 less than thirty seconds, under a Redis lock per session that lives twice the timeout of a request
@@ -422,83 +424,85 @@ service unreachable (`Unreachable`), which the screen says as such. Redis unreac
 ordinary request is the same, a component of the platform out of reach (WF-EXP-0040):
 `requestBearer` turns the `StoreUnreachable` of the store into `Unreachable`, and the screen says
 the service is unreachable, never an unexpected error (#861). When the session the cookie names no
-longer lives, the request does not leave (`SessionLost`): a read leads to the sign-in at once,
-without a click — the failure screen loads `/login?next=<écran>` —, a write is not applied, and the
-screen says so before leading there by a link (`decode`). Without a cookie, the request leaves
-without a token, and a 401 from the API (`SignedOut`), like the refusal of a living token, offers
-the sign-in by a link without leading there by itself: a refused sign-in comes back without a
-cookie, and leading there would loop. On a 401 `SESSION_REVOKED` only — a token of a sign-in
-earlier than the closing of the sessions of the account —, this link, the failure screen
-(`failure.revoked`) as well as the notice of an action, leads to
-`/login?next=…&reauthenticate=1`, which `/login` sends to the realm with `prompt=login`: Keycloak,
-whose session may have survived a missed closing, asks for the credentials again and renews
-`auth_time`; a `SESSION_EXPIRED` does not ask for them again (#855). The sign-out (`signOut`)
-closes the sessions of the account by `closeMySessions`, then clears those the front keeps of
-this account, without waiting for Keycloak — the administration API also closes the Keycloak
-session of the browser, and `/login` asks for the credentials again. It does not touch the cookie:
-a server action that changes a cookie makes the page render again in its response, which would
-read the API without a session (#724); `/login` clears it. A not admitted account keeps a Keycloak
-session the API does not close: the browser goes to the sign-out endpoint of the realm. The shell
-offers it neither bar nor account menu: the failure `failure.notAdmitted` offers « Sign out », a
-link to `/auth/sign-out`, which leads to the same endpoint (`signOutAddress`); the realm, without
-an identity token, asks to confirm, then leads to `/login`, which asks for the credentials again
-(#664). When the session the cookie names no longer lives,
-the request does not leave, and the browser goes through a silent sign-in
-(`/login?sign_out=<ticket>`, `prompt=none`). Only the `signOut` action arms it: a ticket drawn at
-random, kept one minute in Redis and bound to the identifier the `__Host-wf_session` cookie of the
-request carries, without touching the cookie (`armRequestSignOut`, `armSignOut`); `/login` takes
-it, once only, only if the cookie of the browser carries that same identifier (`takeSignOut`). An
-unknown ticket, already taken or too old — a link from another site, which a top-level navigation
-sends with the `SameSite=Lax` cookie —, or bound to another cookie, or a browser without a cookie,
-make an ordinary sign-in, which closes nothing and leaves the ticket: the identifier of the action
-is public, and a third party who calls it from its server, with a cookie of its own, obtains a
-ticket that signs out only that cookie. Its return closes the sessions of the account by
-`closeMySessions`, with the token it obtained (`tokenClient`), on all its workstations, then leads
-to `/login`; without a Keycloak session either, there is no workstation left to close (#689). A
-token the API then refuses by `SESSION_REVOKED` — the Keycloak session survived a missed closing —
-leads, like the refusal of `closeMySessions` by this code in `signOut`, to
-`/login?…&reauthenticate=1`, which asks for the credentials again: never a new silent sign-in,
-which would bring back the same refusal (#855). A click on a link of the front waits for the
-writes of the page (`holdNavigation`, `useNavigationHold`): a committed cell, an applied paste, a
-command — the button of a command (`Command`), of a list or of a form of the reference data, the
+longer lives — or when there is no cookie at all (WF-SEC-0020, #2914) —, the request does not leave
+(`SessionLost`): a read leads to the sign-in at once, without a click — the failure screen loads
+`/login?next=<écran>` —, a write is not applied, and the screen says so before leading there by a
+link (`decode`); it is `requestBearer` that decides, once for the screens, the reads of the shell —
+the account of the layout, the installation that decides the language — excepted: `serverClient({
+session: "optional" })` has them leave without a token, so that the page of a service out of reach
+(`/login/unavailable`) renders instead of leading to the sign-in, which would loop. Only with the
+`wf_sign_in_refused` cookie, left by a sign-in the realm refused, does a request without a session
+cookie leave without a token, and a 401 from the API (`SignedOut`), like the refusal of a living
+token, offers the sign-in by a link without leading there by itself: leading there would loop. On a
+401 `SESSION_REVOKED` only — a token of a sign-in earlier than the closing of the sessions of the
+account —, this link, the failure screen (`failure.revoked`) as well as the notice of an action,
+leads to `/login?next=…&reauthenticate=1`, which `/login` sends to the realm with `prompt=login`:
+Keycloak, whose session may have survived a missed closing, asks for the credentials again and
+renews `auth_time`; a `SESSION_EXPIRED` does not ask for them again (#855). The sign-out (`signOut`)
+closes the sessions of the account by `closeMySessions`, then clears those the front keeps of this
+account, without waiting for Keycloak — the administration API also closes the Keycloak session of
+the browser, and `/login` asks for the credentials again. It does not touch the cookie: a server
+action that changes a cookie makes the page render again in its response, which would read the API
+without a session (#724); `/login` clears it. A not admitted account keeps a Keycloak session the
+API does not close: the browser goes to the sign-out endpoint of the realm. The shell offers it
+neither bar nor account menu: the failure `failure.notAdmitted` offers « Sign out », a link to
+`/auth/sign-out`, which leads to the same endpoint (`signOutAddress`); the realm, without an
+identity token, asks to confirm, then leads to `/login`, which asks for the credentials again
+(#664). When the session the cookie names no longer lives, the request does not leave, and the
+browser goes through a silent sign-in (`/login?sign_out=<ticket>`, `prompt=none`). Only the
+`signOut` action arms it: a ticket drawn at random, kept one minute in Redis and bound to the
+identifier the `__Host-wf_session` cookie of the request carries, without touching the cookie
+(`armRequestSignOut`, `armSignOut`); `/login` takes it, once only, only if the cookie of the browser
+carries that same identifier (`takeSignOut`). An unknown ticket, already taken or too old — a link
+from another site, which a top-level navigation sends with the `SameSite=Lax` cookie —, or bound to
+another cookie, or a browser without a cookie, make an ordinary sign-in, which closes nothing and
+leaves the ticket: the identifier of the action is public, and a third party who calls it from its
+server, with a cookie of its own, obtains a ticket that signs out only that cookie. Its return
+closes the sessions of the account by `closeMySessions`, with the token it obtained (`tokenClient`),
+on all its workstations, then leads to `/login`; without a Keycloak session either, there is no
+workstation left to close (#689). A token the API then refuses by `SESSION_REVOKED` — the Keycloak
+session survived a missed closing — leads, like the refusal of `closeMySessions` by this code in
+`signOut`, to `/login?…&reauthenticate=1`, which asks for the credentials again: never a new silent
+sign-in, which would bring back the same refusal (#855). A click on a link of the front waits for
+the writes of the page (`holdNavigation`, `useNavigationHold`): a committed cell, an applied paste,
+a command — the button of a command (`Command`), of a list or of a form of the reference data, the
 saving of the preferences, the sending or the removal of the avatar, the request of an export, the
 retry of a task, the sending of a file to import, which all go through `useHeldCommand`
-(`components/commands/held.ts`); one refused — the lost session included —, the navigation does
-not take place, and the screen says the refusal where the write was made (#688). The hold belongs
-to whoever says the refusal: a form or a row of a list of the reference data takes that of the
-list (`held` of `useListReport`), which says above itself the refusal of a dialog closed during
-the sending; closing the dialog therefore does not release its write. The list says a refusal only
-on the reading from which it left: read otherwise — a search, a state filter —, it releases its
-writes, whose refusal is no longer said by the list, nor on return to that reading, whose clicks
-are no longer held — a reading left and then found again is another one
-(`useHeldCommand(generation)`); still under way and refused afterwards, the notice of the bar says
-them, like those of a screen left (below). Every refusal holds the click, even said elsewhere than
-on the screen left: the retry of a refused task holds the navigation, although its refusal is said
-in the tasks panel of the shell, which outlives the screen — a rule without exception rather than a
-write to judge one by one. The click is
-judged by its gesture, which begins when the pointer goes down or a key is pressed: it waits for
-the writes still under way and for those that left since the start of the gesture, even already
-answered — the cell committed when the pointer goes down on the link, whose lost session answers
-before the click, holds that click. Only the last held click is redone; a screen left releases its
-writes, which hold nothing of the next screen. Not held: a programmatic navigation
-(`router.push`), « Back » and « Forward » of the browser, a link that opens elsewhere — another
-tab, modifier key, download, another site. « Back » and « Forward » change the address at once,
-but since Next 16.4 the router shows the entry found again only once the action under way has
-answered (vercel/next.js#99612, entry of 16.4.0): `runAction`
-(`next/dist/client/components/app-router-instance.js`) now applies the state of the traversal in
-the transition that `traverse` opens, where 16.3 applied it a microtask later, outside it; and
-React gives a transition requested during an asynchronous action the lane of that action
-(`requestTransitionLane`, `currentEntangledLane` of `react-dom`), which commits only on its
-response — here the write awaited in `startTransition(async …)`. The screen left therefore stays
-displayed until the response, and a write refused while it is left for another path — made before
-the traversal or after — goes to the bar, even when what requested it says it still says it
-(`told`), since it goes away with the screen (`away` of `holdNavigation`, `useHeldWrites`); brought
-back to its path before the refusal, the screen says it itself. Brought back after the refusal,
-before the router has shown the entry traversed to — « Forward » pressed while it reads it —, the
-screen, which never left, says it too, and the bar takes back what it said of it (`broughtBack`,
-#1476): the refusal is said twice, one after the other, never at the same time, and noted once in
-the message history, by the identity of its response — for a refusal carried by an `outcome`; a
-boolean response has no identity, and the history notes it apart from what the screen says of it.
+(`components/commands/held.ts`); one refused — the lost session included —, the navigation does not
+take place, and the screen says the refusal where the write was made (#688). The hold belongs to
+whoever says the refusal: a form or a row of a list of the reference data takes that of the list
+(`held` of `useListReport`), which says above itself the refusal of a dialog closed during the
+sending; closing the dialog therefore does not release its write. The list says a refusal only on
+the reading from which it left: read otherwise — a search, a state filter —, it releases its writes,
+whose refusal is no longer said by the list, nor on return to that reading, whose clicks are no
+longer held — a reading left and then found again is another one (`useHeldCommand(generation)`);
+still under way and refused afterwards, the notice of the bar says them, like those of a screen left
+(below). Every refusal holds the click, even said elsewhere than on the screen left: the retry of a
+refused task holds the navigation, although its refusal is said in the tasks panel of the shell,
+which outlives the screen — a rule without exception rather than a write to judge one by one. The
+click is judged by its gesture, which begins when the pointer goes down or a key is pressed: it
+waits for the writes still under way and for those that left since the start of the gesture, even
+already answered — the cell committed when the pointer goes down on the link, whose lost session
+answers before the click, holds that click. Only the last held click is redone; a screen left
+releases its writes, which hold nothing of the next screen. Not held: a programmatic navigation
+(`router.push`), « Back » and « Forward » of the browser, a link that opens elsewhere — another tab,
+modifier key, download, another site. « Back » and « Forward » change the address at once, but since
+Next 16.4 the router shows the entry found again only once the action under way has answered
+(vercel/next.js#99612, entry of 16.4.0): `runAction`
+(`next/dist/client/components/app-router-instance.js`) now applies the state of the traversal in the
+transition that `traverse` opens, where 16.3 applied it a microtask later, outside it; and React
+gives a transition requested during an asynchronous action the lane of that action
+(`requestTransitionLane`, `currentEntangledLane` of `react-dom`), which commits only on its response
+— here the write awaited in `startTransition(async …)`. The screen left therefore stays displayed
+until the response, and a write refused while it is left for another path — made before the
+traversal or after — goes to the bar, even when what requested it says it still says it (`told`),
+since it goes away with the screen (`away` of `holdNavigation`, `useHeldWrites`); brought back to
+its path before the refusal, the screen says it itself. Brought back after the refusal, before the
+router has shown the entry traversed to — « Forward » pressed while it reads it —, the screen, which
+never left, says it too, and the bar takes back what it said of it (`broughtBack`, #1476): the
+refusal is said twice, one after the other, never at the same time, and noted once in the message
+history, by the identity of its response — for a refusal carried by an `outcome`; a boolean response
+has no identity, and the history notes it apart from what the screen says of it.
 Until its response, the write awaited in the
 transition still holds the clicks: the screen left by « Back », still displayed, releases it only
 as it leaves. This holds as long as the router keeps this order, perhaps an upstream defect. A
@@ -1073,6 +1077,17 @@ example of the window against the fake back, which serves the first example of t
 the whole structure against the service, where that of PRJ-001 counts 5,966 nodes, the volume of
 5,999 nodes staying with the fake back until EP-13 (#2696). The amount gaps remain a table under the
 grid, and the screen is one of those of the accessibility harness (`DIFFERENTIAL_SCREENS`).
+
+A flat table may let its rows be picked one by one (`DenseGrid.selecting`, off by default,
+#2916/L4): Ctrl or Cmd and a click on the handle of the number, Space alone from the keyboard
+(Ctrl+Space as an alias), Ctrl or Cmd and A for every row shown (outside a cell being entered), the
+box of the header of the handles, and, as soon as a row is, a dark bar (`SelectionBar`) that covers
+the bar of the grid in the same place and at the same height, without moving the frame nor computing
+its height again: the selection prevails, the search, « Colonnes » and the commands of the screen
+are inert and hidden while it lasts (their state, the search typed included, is kept), and « Annuler
+la sélection » or Escape gives them back. The focus that was in one of the two bars when the other
+replaces it comes back to the active cell (`useBarFocus`). A tree grid keeps the contiguous
+selection, its drag and drop and its keyboard.
 
 ### The planning grid and the Gantt
 
@@ -1768,8 +1783,10 @@ to a session that does not read them; all of them chosen still filter, an accoun
 being kept by none, `exhaustive: false`, EP-02/L42f) and by state, a single choice (`is_active`) —
 all, the active ones only, the deactivated ones only —, which says what the grid shows: the page
 always asks for the deactivated ones too (`include_inactive=true`, the contract hiding them by
-default), an address from before that hid them (`include_inactive=false`) reads as « Active
-accounts » (`readAccountState`), and any choice lifts that old parameter (`lifts` of
+default), an address from before that hid them (`include_inactive=false`) reads as « Active »
+(`readAccountState`), a filter of the grid, kept with its settings like the others
+(`USER_FILTERS`, #2916) — alone in the address, it is therefore not replaced by the filters kept —,
+and any choice lifts that old parameter (`lifts` of
 `ChoiceFilter`) — and paginated by the server, under the names of the contract — a sort, a search
 or a filter bringing back to the first page —, the totals row saying how many the server keeps
 (`meta.total`), the screen filling the window; the search covers the surname, the first name, the
@@ -2120,9 +2137,14 @@ estimate`, file `…-devis.xlsx`) through the same screen; its `@shared` path, o
 creates, imports it in two steps (US-1550, #2687): it exports and downloads the estimate, sees a file
 that is no estimate refused at the analysis (format and version expected named), then imports the
 downloaded workbook back, reads the report without a difference, confirms the application, which it
-follows in the shell to its success, and finds the same lines. The lines rejected by a report and the
-abandonment stay on the fake back, as do the remaining to commit and the actual costs (EP-09) and the
-path of the marking.
+follows in the shell to its success, and finds the same lines. The calendar gap of an import (US-2000)
+has its `@shared` path too, on a project the run creates: the synthetic planning at seven hours a day
+(`fixtures/msproject/14-calendar-gap-seven-hours.xml`) shows its gap on the report before any
+confirmation, keeps the durations by default, analyses again when the dates are kept and is followed
+to the new report, and its abandonment leaves the project unchanged; the rule already in force, which
+the server of Next sends and the browser does not see, is read by the same call made to the API (200).
+The lines rejected by a report and the abandonment of an import without a gap stay on the fake
+back, as do the remaining to commit and the actual costs (EP-09) and the path of the marking.
 
 The page of a project proposes to start its planning through the « Start the project » insert
 (`ProjectStart`, `components/projects/project-start.tsx`, US-0490) as long as the main structure of
@@ -2276,7 +2298,9 @@ nor the exclusion of a cost line can be undone. Such a grid shows them as button
 the context menu of its cells (right click, Shift+F10, Menu key — `CellMenu`, without one more tab
 stop), with their shortcuts, and takes Ctrl+Z and Ctrl+Shift+Z — Cmd on a Mac — in the grid or its
 bar, outside a menu or a box it opens. A field being entered — the editor of a cell, the search —
-keeps Ctrl+Z for itself: the browser's undo stays there.
+keeps Ctrl+Z for itself: the browser's undo stays there. A filter button of the bar (work package
+or order item, « Écarts seulement », risk occurred) is no field: Ctrl+Z there undoes the grid, as on
+Columns or on the outline menu, and does not undo the filter (#2916).
 
 **Wired (planning, US-1450).** The planning grid wires them to `undoLastChange` and `redoLastUndo`
 (`src/api/actions/history.ts`) through `useUndoRedo` (`undo-run.ts`), which `DenseGrid` receives as
@@ -2980,7 +3004,7 @@ its side; a failure of the chain is therefore reproduced by the same command.
 | `make service-purge`                                                    | runs by hand the purge of what expired on the service platform, started (`waterfall-worker purge`, in the container of the `scheduler` service, which calls it at the interval of `WATERFALL_PURGE_INTERVAL`, 600 s by default): reports of imports past their term, deposits past their term, exports of more than twenty-four hours, the history of the sessions older than `WATERFALL_UNDO_RETENTION_HOURS` hours (12 by default), and the objects that no row designates any more under `uploads/` and `exports/`; two purges never run together (advisory lock)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `make service-up`, `make service-down`                                  | starts, stops the service platform (`deploy/compose/compose.service.yaml`: PostgreSQL, Redis, the Garage object storage and its buckets, the migrations, the API, the worker and the scheduler of its tasks, the restoration service, Keycloak behind its HTTPS front end and its realm, applied again at each start by `keycloak-realm`, which stays started to reapply it after a restoration, OpenLDAP, Mailpit); it requires its secrets in the environment (below), and `service-down WATERFALL_RESET_DATA=yes` also deletes its databases, its storage, its directory and the authority of its front end; `service-up` refuses a PostgreSQL volume of another major than 18, printing the refusal of `postgres-volume`, which says this remedy (US-1130)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `make keycloak-authority`                                               | copies out of the platform the root of the authority of Keycloak's front end, into `deploy/compose/.authority/root.crt`, which git ignores; `service-up` and `test-keycloak` do it at each start                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `make e2e-service`                                                      | the paths of the Playwright project `service` (`frontend/e2e/service/`), and those of `shared` (the tag `@shared`), against the real service, through Prism as a proxy (« An end-to-end path »); same secrets as `service-up`, and the browser of `make e2e-browsers`; it loads the witness after the bootstrap, as `make service-witness` does; `TESTS=<arguments of playwright test>`: a single file also plays `installation` and, if it carries a `@realm-wide` or `@platform-wide` path, the projects its own depends on (`service`, `shared`, `shared-serial`); `TESTS="--no-deps --project=shared --project=realm e2e/reference-resources.spec.ts e2e/service/reference-manager.spec.ts"` plays only those files, without `installation` (on an installation already played)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `make e2e-service`                                                      | the paths of the Playwright project `service` (`frontend/e2e/service/`), and those of `shared` (the tag `@shared`), against the real service, through Prism as a proxy (« An end-to-end path »); same secrets as `service-up`, and the browser of `make e2e-browsers`; it loads the witness after the bootstrap, as `make service-witness` does; `TESTS=<arguments of playwright test>`: a single file also plays `installation` and, if it carries a `@realm-wide` or `@platform-wide` path, the projects its own depends on (`service`, `shared`, `shared-serial`); `TESTS="--no-deps --project=shared --project=realm e2e/reference-resources.spec.ts e2e/service/reference-manager.spec.ts"` plays only those files, without `installation` (on an installation already played); `SHARD=i/N` (N of 2 at least, not with `TESTS`) plays only the i-th of N parts, on its own platform: the first N-1 share `service` and `shared` by measured duration (`tools/e2e-service-durations.json`), the last plays `shared-serial`, `realm` and `restoration`, alone                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `make service-logs`                                                     | the logs of the services of the platform, those of `SERVICES` (`SERVICES="keycloak openldap"`), all by default                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `make test-services`, `make test-services-down`                         | start, remove the services of the tests (`deploy/compose/compose.test.yaml`: PostgreSQL 18, Redis, Garage, in memory) for the slot of the worktree, on its ports (`SERVICES=redis` starts only some); `test-services` waits for them to answer and does nothing more if they run, `test-services-down` removes them with their volumes; `make test-back` and the other tests that need them start them by themselves                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `make migrate`                                                          | applies the migrations to the database `WATERFALL_DATABASE_URL` designates                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
@@ -3076,10 +3100,14 @@ changing; `US=<identifier> STATUS=…`; `FINDING=<n> ATTACHED=… DECISION=…`,
 (the title of its issue without the `[EP-nn]`, `à trancher` in bold), changes it where it is, or
 removes it when its issue is closed. The lot cut at the request of the reviewer is written by it
 too, never by hand: `LOT=<identifier> DEPENDS=<list>` replaces the cell « Dépend de »;
-`ADD_LOT=<identifier> AFTER=<lot> [DEPENDS=<list>] [MODEL=…] [LOT_ISSUE=<n>]` inserts, under the
+`LOT=<identifier> NOT_WITH=<list>` replaces the cell « Pas avec » of that lot, and of no other: the
+symmetry of the column (README of the roadmap, « Suivi sur GitHub ») is declared by one call for
+each lot of the pair;
+`ADD_LOT=<identifier> AFTER=<lot> [DEPENDS=<list>] [NOT_WITH=<list>] [MODEL=…] [LOT_ISSUE=<n>]`
+inserts, under the
 lot `AFTER` and in the same story, the row of the new lot (`US-0820b` for the part cut off a story
 of one lot, `US-1270/L3` for a story of several; cells `#`, `US`, « Statut » empty, « Dépend de »
-the list or `—`, « État du lot » `à faire`) and refuses a lot already there;
+and « Pas avec » the list or `—`, « État du lot » `à faire`) and refuses a lot already there;
 `REPLACE_DEPENDENCY='<old>=<new>'` replaces the mention of the old lot in « Dépend de » of every
 row that holds it, except the row of the new lot itself, removes with it the ` #n` that follows it
 (the issue of the old lot never stays on the new one), says how many rows changed and refuses when
@@ -3108,6 +3136,29 @@ and refuses when a ruleset already targets the branch or when `EPIC` is missing 
 `EP-nn`. It is reserved to a person: a deliverer never runs it, it runs the check and, when it
 fails, asks the question; the guard (`guard.py`) refuses the `merge-queue` target to an agent.
 
+`make queue-report BRANCH=epic/EP-nn [LAST=<n>] [SINCE=YYYY-MM-DD]` reports, from the workstation
+and never in the chain, the runs of the merge queue of a branch (`chain`, event `merge_group`, read
+by `gh`; `wftools.queue`, US-1880): their number by conclusion, their failures by job and by step —
+with the target of the Makefile that `make: ***` names —, the paths and the tests that failed with
+their file and line, read from the log of the job (Playwright, pytest, Vitest), the wall time of the
+succeeded runs where the full tier ran in whole — a *complete* run is one where a job of `service`
+and a job of `e2e` succeeded, `ci.yml` skipping in the merge queue the families a change does not
+touch — as a median and at the 90th percentile (by the nearest rank), with the number of runs the
+measure keeps, and the runner
+minutes, the sum of the durations of the jobs. Without `BRANCH`, every branch counts; `SINCE` keeps
+the runs created on that day or after (in UTC), `LAST` the n most recent; without either, the last
+50. Each failure is classified against `tools/queue-known.toml`, one entry per known flakiness —
+patterns of job, step, test or message, its family, the issue that follows it, its frequency, its
+established cause or its hypothesis —: known flakiness, infrastructure, or regression, which is only
+written after the run has been read again, and names it. What no entry recognizes comes out « à
+classer » (`to classify`): the tool never decides alone. `gate`, which fails because another job
+failed, only counts when it fails alone. The file also holds the reference — 370 runs and 88
+failures from 2026-11-05 to 2026-11-12, 68 of them in `service / paths`; 16 minutes of wall time as
+a median on 10 and 11 November —, which the report recalls at its end; the pull request of a lot of
+the chain quotes the output before and after. The command reads the jobs of each run and the log of
+each failed job: count a few seconds per run, more when `service / paths` fails, its log weighing
+several megabytes.
+
 The workstation admits only `WATERFALL_SLOTS` heavy runs at a time — the whole tests and the
 coverage of the back and the front, `make test-tools`, the production build of the front, the
 end-to-end paths —, whatever the repository or the worktree. This environment variable, set in the
@@ -3128,6 +3179,11 @@ same `WATERFALL_SLOTS` —, which gives it its ports, its Compose projects and t
 images: two deliverers play the end-to-end paths, the tests of Keycloak or the paths against the
 service together without colliding. The main repository, like every runner of the chain, is at
 slot 0: its ports and its names are those of before the slots.
+
+**A worktree is never checked out under `/tmp`** (#2953). The tmpfs of `/tmp` ran out of inodes on
+2026-11-12 under the `node_modules` of worktrees checked out in scratchpads: a worktree is checked
+out under the repository (`.claude/worktrees/`) or elsewhere on the disk, never in `/tmp` nor in a
+scratchpad. No tool checks it: `make slot` and `make slots` do not count inodes.
 
 | Command             | What it does                                                                                                                                                                                                                                                                                                            |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -3282,12 +3338,12 @@ The chain is made of GitHub Actions workflows (`.github/workflows/`):
   `front-cache.yml` writes that cache and the pnpm store after each merge, on the branch whose
   caches the pull requests and the merge queue read: without it, they would find nothing.
   `back.yml` spreads the back likewise: one runner holds the lint, the types and the boundaries of
-  the core (`make check-back-static`), two each play half of the tests, with their services
-  (`make check-back-tests`, `SHARD=1/2` and `SHARD=2/2`), and in the full tier a last one gathers
-  their coverage and holds it to its thresholds (`make coverage-back-merge`). A half is one test in
-  two in the order of their collection (`--shard`, `backend/tests/conftest.py`), rather than whole
-  files: the files that load the witness, the longest, are spread over both. The witness is loaded
-  by the command once per pytest process; the tests after it find its rows copied back
+  the core (`make check-back-static`), four each play a quarter of the tests, with their services
+  (`make check-back-tests`, `SHARD=1/4` to `SHARD=4/4`), and in the full tier a last one gathers
+  their coverage and holds it to its thresholds (`make coverage-back-merge`). A quarter is one test
+  in four in the order of their collection (`--shard`, `backend/tests/conftest.py`), rather than
+  whole files: the files that load the witness, the longest, are spread over all four. The witness
+  is loaded by the command once per pytest process; the tests after it find its rows copied back
   (`backend/tests/witness_rows.py`, #2157). On a runner, each test that asked for it paid its
   loading, over six minutes in all.
   `keycloak.yml` builds the image of Keycloak and puts it to the proof on the service platform, its
@@ -3298,10 +3354,36 @@ The chain is made of GitHub Actions workflows (`.github/workflows/`):
   `service.yml` plays the paths against the real service, at the full tier only
   (`make check-service`, that is `make e2e-service`, on the build of the front that the paths of
   `e2e.yml` share): the `service` family wakes on the front, the back, the contract and the files of
-  the platform. It runs on the runner itself, not in the Playwright image: the paths reach the
-  platform on the ports that Docker publishes on the runner, which a job container does not see; the
-  browser is installed there with its system packages
-  (`make e2e-browsers PLAYWRIGHT_INSTALL=--with-deps`). `front-image.yml` builds and starts the
+  the platform. They play in four parts (US-1910), each on its own runner and platform
+  (`make check-service SHARD=i/4`), through a matrix in which no part cancels the others: the first
+  three share the projects `service` and `shared`, spread like those of `e2e.yml` by measured
+  duration (`wftools.e2eparts`, `tools/e2e-service-durations.json`); the fourth plays
+  `shared-serial`, `realm` and `restoration`, which play one at a time after the others, alone on
+  its platform, where they wait for nothing more (`E2E_SERVICE_SERIAL`, `playwright.config.ts`).
+  The list of a part names the project of each line (`[service] › service/x.spec.ts`): a file
+  without its project would make `realm` play its tests in the part, and with them, unfiltered,
+  every project it depends on. Played whole on one runner, they held the critical path of the full
+  tier: 22 minutes, 5.5 of them before the first path. Each part pays those 5.5 minutes again.
+  Measured once, on a run of the branch at the full tier, not yet of the queue (43511917976): 13.5
+  minutes of wall time for the whole run; the parts took 8.8, 11.5, 12.0 and 8.2 minutes, 40.5
+  runner minutes against 22, and `back / tests (4/4)`, 11.4 minutes, is now as long as they are.
+  Whether `service / paths` leaves the critical path, and whether the median of the queue falls to
+  12 minutes, is read on 100 runs of the queue by `make queue-report`, after the merge; the 18.5
+  runner minutes more are the price of the cut, which the author weighs (the comment of
+  `service.yml` cites the run). The platform, the front and `playwright test` run on the runner
+  itself, through the Makefile; the browser alone runs in the work image of the paths (below), as
+  Playwright's server (`run-server`), on the network of the runner, and `playwright test` connects
+  to it (`PW_TEST_CONNECT_WS_ENDPOINT`). `E2E_IMAGE=<reference>` asks `make e2e-service` for it,
+  which starts that server through `wftools.e2eimage` (`docker run --network host`, the repository
+  mounted at its own path): a job container would not see the ports that Docker publishes on the
+  runner. No Ubuntu package is installed there (#2913). The paths played whole in the image took
+  17.3 minutes of `playwright test` in the median of four runs, against 14.2 in three with the
+  browser alone in the image, the median of the runner before (the comment of `service.yml` cites
+  the runs). A download is read there through
+  `download.createReadStream()`, never `download.path()`, which Playwright refuses to a remote
+  browser. `wftools.e2eimage run` is made for the chain: root in the image, Docker's socket at its
+  path on a runner, `DOCKER_HOST` unread. On a workstation, without `E2E_IMAGE`, the paths play on
+  the workstation, with the browser of `make e2e-browsers`. `front-image.yml` builds and starts the
   production image of the front, which `images.yml` publishes only after the merge, at both tiers
   (`make check-front-image`): the `front-image` family wakes on what makes it —
   `frontend/Dockerfile` and its `.dockerignore`, `next.config.ts`, `package.json`, `pnpm-lock.yaml`,
@@ -3397,13 +3479,96 @@ the « Merge when ready » button, or through the `enqueuePullRequest` mutation 
 repository. A branch without a merge queue runs the full tier by hand on the
 branch of a lot, before merging it: `gh workflow run chain --ref <branche>`.
 
+The third-party images of Docker Hub — PostgreSQL, Redis, Caddy, Mailpit, Garage, curl, Node,
+Python, Debian, Maven, Keycloak and its `keycloak-config-cli` — stay named, in the Compose files and
+the `Dockerfile`s, as on Docker Hub, by their digest: the workstation, production and the demonstration
+are unchanged. Only the chain pulls them from a mirror, `ghcr.io/waterfall-project/mirror/`:
+a pull of Docker Hub ("failed to fetch oauth token", `toomanyrequests`) failed four runs of the
+queue before their first test (US-1900). The files read the prefix of the mirror in
+`WATERFALL_MIRROR` (`${WATERFALL_MIRROR:-}postgres:18-trixie@sha256:…` in Compose, `ARG
+WATERFALL_MIRROR=` before the `FROM` of a `Dockerfile`, which `--build-arg WATERFALL_MIRROR` or
+`args: [WATERFALL_MIRROR]` fills from the environment); empty, it is Docker Hub. Dependabot may no longer read these parameterised references
+(`${WATERFALL_MIRROR:-}…`, `FROM ${WATERFALL_MIRROR}…`): raising the version of an image needs the
+mirror to hold the new digest (`make mirror PUSH=yes`, by a person if the token of the pull request
+cannot write). The workflows that
+build or run Compose (`back.yml`, `keycloak.yml`, `front-image.yml`, `service.yml`, `production.yml`,
+`images.yml`)
+set `WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/` and log in to it; the services of
+`back.yml` and `front.yml` name the mirror in full. The mirror is kept by `make mirror PUSH=yes`
+(`wftools.mirror`): it reads those references, asks ghcr.io whether the digest is there — held,
+nothing else is read, Docker Hub neither —, and copies those that are missing from Docker Hub, by
+digest (`docker buildx imagetools create` writes the manifest as it is, the digest is checked
+after), under a tag that carries the start of the digest: one tag of Docker Hub has two digests in
+our files (Caddy). The job `mirror` of `ci.yml`, which every job that pulls an image waits for,
+does it at each run, in the fast tier as in the full one: `images.yml` runs after a merge, so after
+the first run that needs an image added or a digest raised (`images.yml` does it again before
+building, a lookup). Each request is tried again four times at most (`wftools.registry`, #2530); an
+image neither the mirror nor Docker Hub gives fails that job, naming Docker Hub, and skips the jobs
+that depend on it, which the gate counts. To change a third-party image: change its reference and
+its digest in the files, behind `${WATERFALL_MIRROR:-}`; the first run copies the new one. The jobs
+that pull from the mirror ask for `packages: read` and log in to it (`docker/login-action`, or the
+`credentials:` of a service): a package GitHub creates is private, and nothing outside the chain
+reads it.
+
+Four other network sources of the chain, which the original inventory of US-1900 did not name
+(#2981, #3015), are each dealt with in its own way:
+
+- **the binary of actionlint** (GitHub Releases): `actionlint-py` has no wheel on PyPI, only
+  sources, and building it downloads the archive of the binary (digest checked, a few attempts
+  made again). It leaves the `dev` group of the tools for a `workflows` group
+  (`tools/pyproject.toml`) that `make lint-workflows` alone installs: `contract / check` and the
+  web server of the e2e no longer build it. The `repo / check` job builds it, once, then reads the
+  built wheel from the cache of uv (`setup-uv`) as long as `tools/uv.lock` does not change; with
+  an empty cache and GitHub Releases silent, it fails naming the address (`download failed for
+  https://github.com/rhysd/actionlint/…`);
+- **the key of the PGDG repository** (`www.postgresql.org`): versioned in `backend/pgdg.asc`,
+  copied into the `waterfall` image and checked at build by its SHA-256 digest, written in the
+  `Dockerfile` with the fingerprint of the key. No key is downloaded any more. To bump the key,
+  replace the file and the digest together; `tools/tests/test_networksources.py` holds them to
+  each other;
+- **`azure.archive.ubuntu.com`** in `back / tests`: the job no longer runs apt. The runners'
+  image, `ubuntu-26.04`, already carries `postgresql-client-18` (apt answered "already the newest
+  version"); the job checks it and, should the image drop it one day, stops saying so instead of
+  installing it. No published work image for that: it would only copy what the runner has;
+- **`deb.debian.org` and `apt.postgresql.org`**, pulled by the `openldap` and `waterfall` images
+  when the layer cache is missing: the `Dockerfile`s give apt `Acquire::Retries "5"`, and the layer
+  cache that `images.yml` writes after each merge (`make build-cache`) remains what spares the
+  source most of the time. A source that still does not answer fails the build at apt's step, which
+  names the address (`Failed to fetch http://deb.debian.org/…`). A base layer published on ghcr.io
+  would need two more images to tag and publish, and would make the workstation's build depend on
+  ghcr.io: it is not done.
+
 The full tier aims at under eight minutes in the queue for its longest job
 (#492). The end-to-end paths, the longest half, go about it this way:
 
-- **in the Playwright image** (`mcr.microsoft.com/playwright`), at the version of `@playwright/test`
-  that `frontend/pnpm-lock.yaml` resolves, pinned by its digest (`container:` of `e2e.yml`):
+- **in the work image of the paths** (`deploy/e2e/Dockerfile`, US-1900), built from the Playwright
+  image (`mcr.microsoft.com/playwright`) at the version of `@playwright/test` that
+  `frontend/pnpm-lock.yaml` resolves, pinned by its digest, with `make`, the Python of
+  `tools/.python-version` as `python3`, pnpm at the version of `packageManager` and Docker's client:
   Chromium and its system packages are there, nothing comes from the Ubuntu mirror, whose throughput
-  is not ours (#472). The job calls `make e2e`, which finds the browser of the image
+  and answers are not ours (#472, #2913). It is built for amd64 alone, the architecture of the
+  runners and of the workstations. It is published on `ghcr.io/waterfall-project/e2e`, tagged by
+  the hash of its directory: the job `e2e-image` of `ci.yml`, which runs whenever `e2e` or
+  `service` could run, beside `front-build`, asks the registry for it (`make e2e-image`). Present,
+  it gives its reference by the digest the registry knows it by, which the shards (`container:` of
+  `e2e.yml`) and `service.yml` pull. Missing, it builds it; in the full tier (`PUSH=yes`), it
+  publishes it, once, at the first run that needs it — that of the queue, or of the full tier run by
+  hand on a branch —, hence its `packages: write`; in the fast tier, it builds it without
+  publishing it, so that a build that fails stops the pull request before the queue. `images.yml`
+  does not publish it: it runs after the merge, so after the first run of the queue that needs it.
+
+  Each request to the registry, the build and the publication are made again four times at most,
+  twenty seconds apart (#2530); a build made again starts from the layers already built. A registry
+  that still does not answer fails that job, naming it, and skips the paths, which the gate counts;
+  an image that cannot be pulled fails the initialisation of the shard, naming the registry, before
+  any step. Two runs of the queue that do not find the tag may each publish it: the build is not
+  reproducible to the byte, but each pulls the image it published, by its digest, and the content
+  the tag names is the same.
+
+  `tools/tests/test_e2eimage.py` holds the versions of the image, its pinned sources, and the
+  absence of any Ubuntu package in `ci.yml`, `e2e.yml` and `service.yml`.
+
+  The job calls `make e2e`, which finds the browser of the image
   (`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`), and not `make check-front-e2e`, which would install
   one. Raising `@playwright/test` raises the image with it, tag and digest: otherwise the paths stop
   at once on a browser not found, and `tools/tests/test_playwrightimage.py` fails before them, in
@@ -3411,20 +3576,29 @@ The full tier aims at under eight minutes in the queue for its longest job
   `Digest:` of `docker buildx imagetools inspect mcr.microsoft.com/playwright:v<X>-noble` gives, or
   the `docker-content-digest` header of
   `curl -sI -H 'Accept: application/vnd.oci.image.index.v1+json' https://mcr.microsoft.com/v2/playwright/manifests/v<X>-noble`.
-  The image has no `make`: its Ubuntu noble package is downloaded, pinned and verified by its
-  digest, like pandoc;
-- **spread over five runners** (`make e2e SHARD=i/5`, that is `playwright test --shard=i/5`),
-  the measure of §4.6.2 on a sixth, alone (`make e2e-measure`), through a matrix none of whose
-  shards cancels the others; the result of `e2e` is a failure as soon as a shard fails or
-  is cancelled, and the gate with it. Playwright spreads whole files
-  of paths, at an equal number of tests, and the longest weigh — except a file played test
-  by test (`mode: "parallel"`), like `accessibility.spec.ts`, whose tests are spread one
-  by one: before that file, in October 2026, the longest of three shards played about 140 s
-  of paths on two workers, that of four 130 s, and three were enough. By November 2026, that
-  file grown to 500 s of paths, the longest of three shards played 290 s, when each shard pays
-  about 75 s of image, installation and servers: five shards play about 170 s each (#2015). The
-  choice is reconsidered when the paths lengthen: the durations
-  per file can be read in the log of each shard;
+  The `make` package of Ubuntu noble, the archive of Docker's client and those of pnpm and of its
+  binary are downloaded only when the image is built, pinned and verified by their hash, the Python
+  by its version, which uv verifies by the hash it carries for it;
+- **spread over five runners** (`make e2e SHARD=i/5`), the measure of §4.6.2 on a sixth, alone
+  (`make e2e-measure`), through a matrix none of whose shards cancels the others; the result of
+  `e2e` is a failure as soon as a shard fails or is cancelled, and the gate with it. Playwright's
+  `--shard` spreads whole files, at an equal number of tests, and the longest weigh: the fourth of
+  five played about 260 s of paths, the others about 150 s. The shards are therefore weighed by
+  measured duration (`wftools.e2eparts`, US-1910): `make e2e SHARD=i/N` lists the tests
+  (`playwright test --list`), spreads them — the longest first, into the lightest shard — and plays
+  only those of its own (`--test-list`). The unit is the file, or the test for a file played test
+  by test (`mode: "parallel"`), like `accessibility.spec.ts` and `grid-frame.spec.ts`; the seconds
+  of each unit are kept in `tools/e2e-durations.json`. As the list comes from Playwright and not
+  from the durations file, no test is lost nor played twice, and a unit the file does not know
+  weighs the mean of the known units of its kind. Each shard pays about 75 s of image,
+  installation and servers (#2015). The durations file is refreshed, when the paths change, from
+  the log of a real run (`make e2e-durations LOG=<file>`: the log of the job of a shard, or the
+  output of `make e2e-service`, whose durations go to `tools/e2e-service-durations.json`, or the
+  output of `make e2e`, with the `list` reporter; the standard input without `LOG`, for example
+  `gh run view <run> --log --job <job> | make e2e-durations`, the logs of the five shards put end
+  to end); a log that would make known units disappear is refused, unless
+  `python -m wftools.e2eparts refresh --drop`. A listing that Playwright's `Total: N tests` line
+  does not confirm, or a part left empty, fails the shard instead of playing nothing;
 - **on one single build of the front per run** (US-0590): the `front-build` job of `ci.yml`, which
   runs as soon as `e2e` or `service` runs, launches `make build-front` and uploads `frontend/.next`
   without its cache (`.next/cache`, which only a following build would read). The five shards, the
@@ -3433,9 +3607,9 @@ The full tier aims at under eight minutes in the queue for its longest job
   workflows: `e2e.yml` and `service.yml` are two called workflows, and a `needs` does not join the
   jobs of one to those of the other; neither has any other trigger than that call, so that none
   builds the front. A failed build skips the two, and the gate, which waits for it too, fails. It
-  builds on the runner, like `front.yml`, in Node 26: the shards start it in the Playwright image,
-  in Node 24 (its `NODE_VERSION`, which the Node 26 lot does not change; `next start` runs the built
-  files there, and Next 16 accepts Node 24, while pnpm 12 does not stop on `engines` without
+  builds on the runner, like `front.yml`, in Node 26: the shards start it in the work image of the
+  paths, built on the Playwright image, in Node 24 (its `NODE_VERSION`, which the Node 26 lot does
+  not change; `next start` runs the built files there, and Next 16 accepts Node 24, while pnpm 12 does not stop on `engines` without
   `engine-strict`, which the front does not set), on the same Ubuntu noble in amd64, and at another
   path of the workspace (`/__w/…` instead of `/home/runner/work/…`); `service.yml`, on the runner.
   The build does not depend on that path: only `required-server-files.json`, which the standalone
@@ -3459,11 +3633,6 @@ The back follows the same model (#492, lever 5):
   (`tests/conftest.py`). The processes must collect the same tests: a test parameter
   is never drawn at random (a `uuid4()` in `parametrize`), it is fixed. The tests of
   Keycloak stay on one process: one of them restarts Keycloak.
-
-Still to write, when the duration demands it:
-
-- the paths against the real service (`service.yml`), which one single runner plays as long as they
-  are short, are spread like those of `e2e.yml`, the platform started in each shard.
 
 The images are built from a GitHub Actions cache (`type=gha`): the extension of Keycloak compiled by
 Maven, the dependencies of the front and of the back are not redone at each job. The `cache` job of
@@ -3495,11 +3664,10 @@ Rules of the workflows:
   follow the Keycloak image. The TypeScript major has no ignore rule: the author closes its
   pull request as long as `typescript-eslint` does not support it.
 - Dependabot does not follow, and the author bumps by hand, at Dependabot's monthly pull
-  request: `REDOCLY_VERSION` and `PRISM_VERSION` of the `Makefile`, the front's
-  `packageManager`, the uv and the PostgreSQL client of the `waterfall` image, the runners
-  and the pandoc of the chain, and `maven.compiler.release` of the extension's `pom.xml`,
-  which stays at 21 on purpose (the Java of the Keycloak image, not the build JDK): it is
-  bumped when that image changes Java.
+  request: the front's `packageManager`, the uv and the PostgreSQL client of the `waterfall`
+  image (and its key, `backend/pgdg.asc`), the runners and the pandoc of the chain, and
+  `maven.compiler.release` of the extension's `pom.xml`, which stays at 21 on purpose (the
+  Java of the Keycloak image, not the build JDK): it is bumped when that image changes Java.
 
 _Check_: `make lint-workflows` (actionlint); the pinning and the permissions, the review.
 
@@ -3549,16 +3717,17 @@ _Check_: `make reuse` fails on a file covered neither by a header nor by
 
 ## Repository tools
 
-The tools live in `tools/`, in Python, with their tests (`make test-tools`, which needs Docker:
-the test of the service Compose runs `docker compose config` and fails without it). The tests of
-the entrypoint of the directory, which start its image on throwaway volumes, are left out of them
-(marker `openldap`): `make test-openldap` runs them, and the `keycloak` family, which
-`deploy/openldap` wakes, tries them. Every tool
-that needs the requirements reads them through `wftools.projection`, which reads the projection
-`docs/spec/waterfall-spec.md`: one single reader, so that two tools cannot
-diverge on what a requirement says. It compares the texts after normalisation — apostrophes
-and typographic spaces made plain —, and splits a Vérif into sentences. The example of
-§1.3.1, `WF-EXA-0010-A`, is not a requirement of the product: the tools exclude it.
+The tools live in `tools/`, in Python, with their tests (`make test-tools`, which needs Docker: the
+test of the service Compose runs `docker compose config` and fails without it). It runs under a
+ceiling of memory, `TOOLS_MEMORY` (24G by default): under a user systemd the kernel kills the run
+that passes it, not the session; without a user systemd (a runner of the chain) there is no ceiling.
+The tests of the entrypoint of the directory, which start its image on throwaway volumes, are left
+out of them (marker `openldap`): `make test-openldap` runs them, and the `keycloak` family, which
+`deploy/openldap` wakes, tries them. Every tool that needs the requirements reads them through
+`wftools.projection`, which reads the projection `docs/spec/waterfall-spec.md`: one single reader,
+so that two tools cannot diverge on what a requirement says. It compares the texts after
+normalisation — apostrophes and typographic spaces made plain —, and splits a Vérif into sentences.
+The example of §1.3.1, `WF-EXA-0010-A`, is not a requirement of the product: the tools exclude it.
 
 _Check_: `make test-tools`.
 
@@ -3855,27 +4024,78 @@ checked is in the viewport: beyond the lines in view at opening, the path scroll
 (`scrollToPosition`, `frontend/e2e/scroll.ts`) rather than counting on the margin the grid renders
 around the viewport.
 
-`make e2e`: `make mock-tools` first caches the pinned Redocly and Prism (their installation by `npx`
-counted in the 120 s Playwright gives the fake back, #1901) — so do `make e2e-measure` and
-`make e2e-service`, for which Playwright also starts the fake back; Playwright starts the fake back
-(`make mock`) and the front, plays the paths in Chromium, then stops both — it signals their whole
-process group, without which the servers that `make` and `pnpm` start would survive. It always
-starts its own servers, on ports of its own — those of the slot of the worktree (« Commands », « The
-slots of the worktrees »): 4110 for the fake back and 3100 for the front in the main repository, at
-slot 0, `20000 + 100·i + 20` and `+ 40` at slot i of a worktree of a lot, which runs `make slot`
-first —, never those of `make dev`, and its fake back serves a variant of the contract written under
-`frontend/.e2e/`, which `make dev` does not read: a port already taken makes the launch fail saying
-so. Two worktrees at two slots thus play their paths at the same time, with `WATERFALL_SLOTS` of at
-least 2, without which the second waits for the first to end. `E2E_API_PORT` and `E2E_FRONT_PORT`,
-set in the environment, prevail over those of the slot — the front of the paths takes as many as it
-has workers, starting from it (below), forty at most in a block; a port that is not an integer from
-1 to 65535 is refused. `make e2e-browsers` installs the browser. `make e2e SHARD=i/N` plays only the
-i-th of N shards of the paths, like each of the chain's runners (« The chain »), and
-`make e2e WORKERS=<n>` plays them on `n` workers (`E2E_WORKERS`, which `playwright.config.ts` reads;
-an integer from 1 to 40, nothing else: one front per worker, and a slot's block holds only forty),
-fewer than Playwright takes on its own — half the processors, capped at forty — on a loaded
-workstation, where paths fail by timeout (#736). With `WATERFALL_API_ADDRESS`, the harness plays
-against the API it names and starts no fake back.
+**A slow path** — one that exceeds its bound in the chain with no regression behind it — is dealt
+with in three degrees, in this order (US-1890). First, the cause is measured in the chain, under the
+load of the queue, never on a workstation alone: the path writes to its log and in an annotation the
+duration of each step of what it waits for, and the log of the service says the rest
+(`make service-logs`, poured into the job when a path fails). Then:
+
+1. **correct the read**, or the write, that the measurement points to, in the back or in the front:
+   #2924 brought `getRemainingIndicators` down from 2,845 queries to 58; the creation of a project by
+   two workers at once ended in a 500 on a PostgreSQL deadlock between the creations of partitions
+   (`create_project_partitions`), and the path waited fifteen seconds for an address that never came
+   (family A of EP-24, seventeen runs of the queue from November 8 to 11, all without migration
+   `0026` of US-1560/L3, which puts them one after the other; none since);
+2. **otherwise, isolate the path** — an account, a project, a setting of its own, what it does not
+   test prepared through the API under a token (`inscribe`, `employRole` of `own-project.ts`) —,
+   **or serialise it**: `@serial`, played by the project `shared-serial`, when it writes an object
+   unique to the installation;
+3. **widen a wait only as a last resort**, the measurement in the comment that widens it — the run of
+   the chain, the durations recorded —, and `test.slow()` likewise.
+
+`createOwnProject` (`frontend/e2e/own-project.ts`) is the example: each creation writes to the log
+"Own project created", the home, the dialog, then, from "Créer", the server action asked and
+answered, the screen of the project asked, answered and finished, and the address reached; missed,
+what the dialog shows. Over the 52 creations of the full run 43386149437, the whole creation takes
+2.2 s in the median and 5.8 s at most, the address 0.7 s after "Créer", and the API answers `POST
+/projects` in 0.24 s in the median, 1.9 s at most: nothing there justifies widening `WORKING`.
+
+`ScreenSteps` (`frontend/e2e/screen-steps.ts`) does the same for a screen the server reads anew:
+each step, and the RSC requests under way during it. On the path of WF-REV-0080-A, it showed a wait
+already true before its gesture: after "Comparer", the address kept `difference=` as the one before
+did, and the filter lifted at once made the API, which is a single process (2.2 s for one alone),
+read two comparisons of PRJ-001 together; it arrived in 15 s instead of 8 under six workers
+(#2942). A wait that follows a gesture waits for what that gesture changes.
+
+`make e2e`: Redocly and Prism are development dependencies of the front, at an exact version
+(`frontend/package.json`, locked by `pnpm-lock.yaml`): `make install-front`, which the target plays
+first, puts them in the store of pnpm (the cache of the chain), where the `Makefile` reads them,
+with no `npx --yes` and no registry of npm at each run — their installation by `npx` counted in the
+120 s Playwright gives the fake back (#1901), and a silent registry failed the run before its first
+test (#2913). The targets that run Redocly or Prism without `install-front` (`lint-openapi`,
+`mock-spec`) install when `package.json` or the lock file is newer than
+`node_modules/.modules.yaml`: a raised version is installed on the next run. A registry that
+refuses the connection fails the installation in about 70 s, on an error that names the address of
+the package asked for; it has no other bound, and a silent registry waits for the network's.
+`make e2e-measure` and `make e2e-service` run `install-front`, since Playwright also starts the fake
+back there. Playwright starts the fake back (`make mock`) and the front, plays the paths in
+Chromium, then stops both — it signals their whole process group, without which the servers that
+`make` and `pnpm` start would survive. It always starts its own servers, on ports of its own — those
+of the slot of the worktree (« Commands », « The slots of the worktrees »): 4110 for the fake back
+and 3100 for the front in the main repository, at slot 0, `20000 + 100·i + 20` and `+ 40` at slot i
+of a worktree of a lot, which runs `make slot` first —, never those of `make dev`, and its fake back
+serves a variant of the contract written under `frontend/.e2e/`, which `make dev` does not read: a
+port already taken makes the launch fail saying so. Two worktrees at two slots thus play their paths
+at the same time, with `WATERFALL_SLOTS` of at least 2, without which the second waits for the first
+to end. `E2E_API_PORT` and `E2E_FRONT_PORT`, set in the environment, prevail over those of the slot
+— the front of the paths takes as many as it has workers, starting from it (below), forty at most in
+a block; a port that is not an integer from 1 to 65535 is refused. `make e2e-browsers` installs the
+browser. `make e2e SHARD=i/N` plays only the i-th of N shards of the paths, spread by measured
+duration (`tools/e2e-durations.json`, which `make e2e-durations` refreshes), like each of the
+chain's runners (« The chain »; `SHARD` does not combine with `TESTS=<file>`, which the recipe
+refuses: the file may lie in another shard), and `make e2e WORKERS=<n>` plays them on `n` workers
+(`E2E_WORKERS`, which `playwright.config.ts` reads; an integer from 1 to 40, nothing else: one front
+per worker, and a slot's block holds only forty), fewer than Playwright takes on its own — half the
+processors, capped at forty — on a loaded workstation, where paths fail by timeout (#736). `make
+e2e-service` has a default of its own (#2890): three quarters of `WATERFALL_PROCESSORS`, the share
+of processors of the slot, at least 1 and at most 40 — 6 on 8 processors —, and not half the
+processors of the workstation, 16 of 32, where 18 to 23 paths failed to navigate (`toHaveURL`);
+measured at 8, 10 and 12 workers on 8 processors, four slots taken, they still failed to navigate,
+at 6 no failure to navigate over two passes. `WORKERS=<n>` holds only for `make e2e`; `make
+e2e-service` takes `E2E_WORKERS=<n>`, in the environment or on the command line, which prevails
+(empty, it is ignored, on the command line as in the environment); a `WATERFALL_PROCESSORS` that
+is not a positive integer is refused before any command. With `WATERFALL_API_ADDRESS`, the harness
+plays against the API it names and starts no fake back.
 
 **The paths are played against the front built for production** (US-0590), the one users open: one
 `next start` server per worker of the paths, on `E2E_FRONT_PORT` and the ports that follow it, each
@@ -4165,8 +4385,8 @@ the epic that lifts it; that epic removes the guard and its entry:
   `computed.spec.ts`, `keyboard.spec.ts`), which no epic reverses; the paths of these files that
   read the witness play on both sides. The paths of the remaining to commit of `structure.spec.ts`
   that write to PRJ-001 (the addition of a task, the insertion of a named line with a category and
-  a quantity) stay on the fake back and **have no twin** against the service: `remaining.spec.ts`
-  replays neither on a project of the run (#2909: port them there, a decision to take). The one
+  a quantity) stay on the fake back; their `@shared` twins in `remaining.spec.ts` replay them against the
+  service on a project of the run taken In progress (`bringInProgress`, US-1950, #2909). The one
   that reads — the filter by item — plays on both sides (EP-09).
 - `planning.spec.ts` — the read of the planning start date and of its headers « Démarrée le » and
   « Terminée le » plays on both sides; only its write (`updateCostStructure`) stays on the fake
@@ -4186,9 +4406,9 @@ the epic that lifts it; that epic removes the guard and its entry:
   of a risk and of the differential (`paste.spec.ts`, `entry.spec.ts`, guarded by `inService` or
   untagged until **EP-08**). The untagged paths of the remaining to commit of
   PRJ-001 do not replay, the account of the run being no contributor of PRJ-001 (#2193), and their
-  twin is not always the one believed: the sort after a write in `grid.spec.ts` and the addition of
-  a task or of a line in `structure.spec.ts` have no twin against the service (#2909 for the last
-  two); the path of `undo.spec.ts` writes nothing, it asserts the history unavailable, which the
+  twin is not always the one believed: the sort after a write in `grid.spec.ts` has no twin against the service;
+  the addition of a task or of a line in `structure.spec.ts` has its own in `remaining.spec.ts`
+  (US-1950); the path of `undo.spec.ts` writes nothing, it asserts the history unavailable, which the
   fake back says, and the service is covered by the three `@shared` undo paths of the same file
   (planning, line of the estimate, deleted task). The passage of a project to In progress
   plays: the estimate of the main structure read only against PRJ-001 (`structure.spec.ts`), and the
@@ -4230,9 +4450,10 @@ the epic that lifts it; that epic removes the guard and its entry:
   the estimate and the remaining to commit (`:192`), which opens the imports screen of PRJ-001 whose
   account of the run is no contributor (#2193): it stays untagged, like the refusal of a file too
   large; the import of a remaining to commit plays against the service on a project of the run
-  (`:451`), that of an extraction in `actual-costs.spec.ts`, by the API. The export of the planning, imported back and confirmed, plays against the service on a
-  project of the run (US-1430, #2683), as does the export of the remaining to commit, imported back
-  in two steps and left while it is applied (`:451`, US-1630).
+  (`:451`), that of an extraction in `actual-costs.spec.ts`, by the API. The export of the
+  planning, imported back and confirmed, plays against the service on a project of the run
+  (US-1430, #2683), as does the export of the remaining to commit, imported back in two steps and
+  left while it is applied (`:451`, US-1630).
 - `projects.spec.ts` — the paths that write to PRJ-001 or reach it through its planning: the screen
   of the project, its settings and its lifecycle, the exit, the sub-projects and the contributors,
   the work breakdown (`FAKE_BACK_ONLY`): the account of the run is not a project manager of PRJ-001,
@@ -4829,7 +5050,7 @@ two catalogues, and names each key that is missing and the catalogue that carrie
 
 ## Visual identity
 
-The visual identity lives in `frontend/src/theme/globals.css`, and nowhere else: the colours,
+The visual identity lives in `frontend/src/theme/globals.css`, and nowhere else (but the login pages, below): the colours,
 the typography, the spacings and the radii are tokens there — CSS variables that
 Tailwind and the shadcn/ui components read through the theme (`bg-primary`,
 `text-muted-foreground`, `rounded-md`). The blues come from the logos of `docs/assets`
@@ -4943,6 +5164,16 @@ variable rather than an object or a literal written in place; and, for the layou
 an entry carries its icon outside the typed tables — a hand-written button —, that no shadow, no
 gradient and no animation adorns a copied component, that a screen takes the template and the
 density of its function, and that a copied component enters only with the screen that uses it.
+
+**The login pages.** Keycloak serves its own, and no file of the front: the theme `waterfall`
+(`deploy/keycloak/themes/waterfall/login/`) dresses them in the charter with a sheet of its own,
+`resources/css/waterfall.css`, laid over those of `keycloak.v2`. It copies the tokens it needs,
+light and dark — the only copy of the charter outside the front: a token changed in `globals.css`
+is carried over by hand —, and the theme keeps its copies of the Geist font, the logo and the
+banner (`docs/assets/waterfall-banniere.png`, in WebP, cropped on mobile). To try it without
+rebuilding the image, mount the folder of the theme on `/opt/keycloak/themes/waterfall` and turn
+off the cache of the themes (`KC_SPI_THEME__CACHE_THEMES`, `KC_SPI_THEME__CACHE_TEMPLATES` at
+`false`, `KC_SPI_THEME__STATIC_MAX_AGE` at `-1`): the reloaded page follows the file.
 
 ## Migrations
 
@@ -5113,8 +5344,7 @@ the guard and the entry above:
   contributor (#2193): their twins play the service on a project of the run (`FAKE_BACK_ONLY`,
   `FAKE_BACK_KEEPS_NOTHING`, `NOT_REPLAYED_IN_SERVICE`, `WITNESS_KEPT`), the untagged paths of the
   remaining to commit (`undo.spec.ts`: memory background without history, the service being covered by
-  its `@shared` undo paths; `grid.spec.ts`; `structure.spec.ts`: the addition of a task and of a line,
-  with no twin, #2909) and the imports screen of PRJ-001 (`exchanges.spec.ts`), which only reads that
+  its `@shared` undo paths; `grid.spec.ts`) and the imports screen of PRJ-001 (`exchanges.spec.ts`), which only reads that
   screen: the `@shared` path exporting and re-importing the remaining to commit covers another
   gesture, on a project of the run.
 

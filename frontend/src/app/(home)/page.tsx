@@ -22,6 +22,10 @@
  * empty grid, not that notice. A session that holds the permission to create a project is offered
  * its creation in the header (`CreateProject`, WF-ADM-0100); no other session is.
  *
+ * An account without `project_settings.read` cannot read the list: the home does not ask for it,
+ * and says that the account opens no project, leading to the functions it holds, or to the role it
+ * lacks (WF-IHM-0120, #2915).
+ *
  * The page reads what the service serves, the list (`listProjects`) and the readiness of the
  * reference data (`getReferenceReadiness`) as they are (US-0920, #1004): it shows no note of the
  * mock-up, the list being filtered, sorted and paged by the server.
@@ -33,16 +37,17 @@ import type { ReactNode } from "react";
 import type { ApiClient } from "@/api/client";
 import { readOrFail, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
+import { FilterFields } from "@/components/grid/filter-fields";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { readPeriod, refusedPeriod } from "@/components/grid/period";
 import { CONTRACT_ADDRESS, readGridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import { platformOffer } from "@/components/commands/offer";
+import { NoOpenableProject } from "@/components/projects/no-openable-project";
 import { homeQuery } from "@/components/projects/home-list";
 import { CreateProject } from "@/components/projects/project-form";
 import {
   ContributorFilter,
-  DefaultStatesFilter,
   ProjectList,
   ProjectsRefused,
 } from "@/components/projects/project-list";
@@ -58,7 +63,6 @@ import { ReferenceIncomplete } from "@/components/system/empty-states";
 import { type PageSearchParams, pageSearch, searchQuery } from "@/navigation/context";
 import {
   isContributorFiltered,
-  isDefaultStates,
   mayLiftContributorFilter,
   readHomeStates,
   STATES_PARAMETER,
@@ -137,31 +141,38 @@ function ProjectsShown({
     period.from !== undefined ||
     period.to !== undefined ||
     query.search !== undefined;
-  return (
-    <>
-      <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
-        {isDefaultStates(states) ? <DefaultStatesFilter /> : null}
-        <ProjectStateFilter states={states} />
-        <ProjectPeriodFilter
-          period={period}
-          refused={
-            projects.kind === "refused" ? refusedPeriod(projects.problem.fields ?? []) : undefined
-          }
-        />
-      </div>
-      {projects.kind === "refused" ? (
+  const panel = (
+    <FilterFields hint={false}>
+      <ProjectStateFilter states={states} />
+      <ProjectPeriodFilter
+        period={period}
+        refused={
+          projects.kind === "refused" ? refusedPeriod(projects.problem.fields ?? []) : undefined
+        }
+      />
+    </FilterFields>
+  );
+  if (projects.kind === "refused") {
+    // The list unread: the filters stand above the sentence that stands for the grid.
+    return (
+      <>
+        {panel}
         <ProjectsRefused />
-      ) : (
-        <ProjectList
-          projects={projects.data.items.map(listedProject)}
-          page={projects.data.meta}
-          filtered={asked.filtered}
-          narrowed={narrowed}
-          query={query}
-          preferences={preferences}
-        />
-      )}
-    </>
+      </>
+    );
+  }
+  return (
+    <ProjectList
+      projects={projects.data.items.map(listedProject)}
+      page={projects.data.meta}
+      filtered={asked.filtered}
+      narrowed={narrowed}
+      query={query}
+      preferences={preferences}
+      states={states}
+      period={period}
+      panel={panel}
+    />
   );
 }
 
@@ -176,6 +187,21 @@ export default async function HomePage({
   const client = serverClient();
   const session = await requestSession();
   const permissions = session?.permissions ?? [];
+  // An account that cannot read any project is not refused: the list is not read (the API would
+  // answer 404), and the home says so and leads to what the account holds (WF-IHM-0120, #2915).
+  // Decided on the permission, never on the name of a role.
+  if (session !== undefined && !permissions.includes("project_settings.read")) {
+    const readiness = await readOrFail("getReferenceReadiness", () =>
+      client.GET("/reference/readiness"),
+    );
+    return (
+      <NoOpenableProject
+        permissions={permissions}
+        hasRole={session.access_role_ids.length > 0}
+        readiness={readiness}
+      />
+    );
+  }
   // Without the permission to read every project, the list lifted is the list filtered: it is
   // filtered whatever the address says, and no link promises otherwise (WF-IHM-0090, #522).
   const mayLift = mayLiftContributorFilter(permissions);

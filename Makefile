@@ -51,16 +51,24 @@ PNPM    := cd $(FRONT) && $(PNPM_ENV) pnpm
 PNPM_HEAVY = cd $(FRONT) && $(heavy) $(PNPM_ENV) WATERFALL_PROCESSORS=$(WATERFALL_PROCESSORS) pnpm
 # pnpm for the unit tests of the front, which have the Redis of the slot of the worktree (TESTING_FRONT).
 PNPM_TESTING = cd $(FRONT) && $(TESTING_FRONT) $(PNPM_ENV) WATERFALL_PROCESSORS=$(WATERFALL_PROCESSORS) pnpm
-# Pinned so that a check passes or fails on what this repository contains, never on
-# what a tool released overnight. Raise a version here and nowhere else.
-REDOCLY_VERSION := 2.73.0
-PRISM_VERSION   := 5.16.0
-REDOCLY := npx --yes @redocly/cli@$(REDOCLY_VERSION)
-PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
+# Pinned so that a check passes or fails on what this repository contains, never on what a tool
+# released overnight: Redocly and Prism are exact development dependencies of the front, locked
+# by frontend/pnpm-lock.yaml and read from the store of pnpm that `make install-front` fills, never
+# downloaded by `npx` from the registry of npm at each run (#2913). Raise a version in
+# frontend/package.json and nowhere else; the Makefile reads it from there (Compose names Prism's).
+PRISM_VERSION := $(shell sed -n 's/^ *"@stoplight\/prism-cli": *"\([^"]*\)".*/\1/p' $(FRONT)/package.json)
+REDOCLY := $(abspath $(FRONT))/node_modules/.bin/redocly
+PRISM   := $(abspath $(FRONT))/node_modules/.bin/prism
+# What the recipes that run them need first: the installation of the front, unless it is newer than
+# the lock file and package.json (the witness is the file pnpm keeps in node_modules, which
+# `make install-front` touches too). A raised version installs again; the fake back, started by
+# several processes of the harness, does not install at once when `make e2e` has installed before.
+FRONT_WITNESS := $(FRONT)/node_modules/.modules.yaml
+FRONT_TOOLS = $(FRONT_WITNESS)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
-	mock-tools mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-purge service-logs service-down migrate \
+	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-purge service-logs service-down migrate \
 	build-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	production-trial check-production \
 	test-tools test-openldap lint-tools typecheck-tools sources fixtures check-fixtures requirements \
@@ -70,7 +78,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	check-contract check-back check-back-static check-back-tests coverage-back-merge lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
-	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size tracking merge-queue merge-queue-check \
+	coverage-back coverage-front roadmap check-roadmap e2e e2e-durations e2e-measure e2e-browsers e2e-image mirror lot-size tracking merge-queue merge-queue-check queue-report \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -86,8 +94,17 @@ PLAYWRIGHT_INSTALL ?=
 # as the chain does.
 TESTS ?=
 # The part of the end-to-end paths `make e2e` plays, as i/N: the chain spreads them over N
-# runners, and plays the measure of §4.6.2 on one more (e2e.yml). Empty, it plays them all.
+# runners by the seconds the paths took (tools/e2e-durations.json), and plays the measure of
+# §4.6.2 on one more (e2e.yml). Empty, it plays them all. `make e2e-service SHARD=i/N` plays a
+# part of the paths against the service, each on a platform of its own (service.yml).
 SHARD ?=
+# A part of the paths does not combine with a file of them: the file may be in another part.
+# Refused as the Makefile is read, before the installation and the build of the front, which the
+# recipe would otherwise wait for to say so (#3026). Every goal that reaches the paths is named,
+# the families that run them included.
+ifneq ($(and $(SHARD),$(TESTS),$(filter e2e e2e-service check-service check-front-e2e check-front check-all check,$(MAKECMDGOALS))),)
+$(error SHARD and TESTS do not combine for the end-to-end paths: the file may be in another part)
+endif
 # How many workers `make e2e` plays the paths on (E2E_WORKERS, frontend/playwright.config.ts), each
 # against a front of its own: fewer than Playwright takes by itself on a loaded workstation, where
 # paths fail by a timeout (#736). From 1 to 40: a front per worker, forty ports per slot. Empty, its
@@ -102,6 +119,14 @@ WORKERS ?=
 # always free. `env` keeps the variables set before the command a command of their own.
 SLOTS = python3 $(CURDIR)/tools/src/wftools/slots.py
 heavy = $(if $(TESTS),,$(SLOTS) run --heavy -- env)
+# A ceiling of memory on the tests of the tools (2026-11-12: a test whose fake never ended its pages
+# filled the 122 GB of the workstation twice, and the kernel killed the whole session of the pilot
+# with its four deliverers). Under systemd the run is a scope of its own: past TOOLS_MEMORY the
+# kernel kills the run, not the session. The probe asks for the same properties as the run: a host
+# whose user systemd does not delegate the memory controller gets no scope, so no ceiling it ignores.
+# Without a user systemd (a runner of the chain), no ceiling.
+TOOLS_MEMORY ?= 24G
+capped = $(if $(shell systemd-run --user --scope --quiet -p MemoryMax=$(TOOLS_MEMORY) -p MemorySwapMax=0 -- true 2>/dev/null && echo yes),systemd-run --user --scope --quiet -p MemoryMax=$(TOOLS_MEMORY) -p MemorySwapMax=0 --,)
 # The same for tests that need services (US-1110: db, redis, storage, as `slots.py run --services`
 # names them): once the slot is taken, if any, it starts those whose WATERFALL_TEST_*_URL the
 # environment does not give (make test-services), sets the variables on them, and runs the command.
@@ -113,7 +138,12 @@ TESTING_FRONT = $(testing) redis -- env
 # of one file that does not wait.
 # An invalid WATERFALL_SLOTS stops make here, saying so, only where the share is used. It is handed
 # to the shell by hand: GNU make 4.3 does not export a variable of the command line to $(shell).
-WATERFALL_PROCESSORS ?= $(or $(shell $(if $(filter-out undefined,$(origin WATERFALL_SLOTS)),WATERFALL_SLOTS='$(subst ','\'',$(WATERFALL_SLOTS))') $(SLOTS) processors 2>/dev/null),$(error WATERFALL_SLOTS must be an integer from 1 to 9, not '$(WATERFALL_SLOTS)'))
+# GNU make 4.4 exports the exported variables to each $(shell), so it expands E2E_WORKERS (which
+# reads this share) to prepare the very $(shell) that computes it, and reads the share empty
+# (#3029): WATERFALL_PROCESSORS_READING tells E2E_SERVICE_PROCESSORS not to read it meanwhile. The
+# rule from now on: an exported variable that reads the share goes through E2E_SERVICE_PROCESSORS
+# (or tests the flag), and tools/tests/test_e2eworkers.py keeps it under 4.4.
+WATERFALL_PROCESSORS ?= $(eval WATERFALL_PROCESSORS_READING = 1)$(eval WATERFALL_PROCESSORS_SHARE := $(shell $(if $(filter-out undefined,$(origin WATERFALL_SLOTS)),WATERFALL_SLOTS='$(subst ','\'',$(WATERFALL_SLOTS))') $(SLOTS) processors 2>/dev/null))$(eval WATERFALL_PROCESSORS_READING =)$(or $(WATERFALL_PROCESSORS_SHARE),$(error WATERFALL_SLOTS must be an integer from 1 to 9, not '$(WATERFALL_SLOTS)'))
 
 # The slot of the worktree (US-1100): its ports, its projects of Compose and the tags of its images,
 # so that two worktrees play the paths, try Keycloak or run the service platform side by side. The
@@ -141,6 +171,13 @@ full-only = $(if $(filter full,$(TIER)),$(1))
 # The coverage run executes the same tests: in the full tier it replaces the plain run.
 full-else = $(if $(filter full,$(TIER)),$(1),$(2))
 WFTOOLS := uv run --frozen --project $(TOOLS) python -m wftools
+# A part of the paths against the service of a shape the plan refuses (i/N, N >= 2) is refused as the
+# Makefile is read too, before the installation and the build of the front.
+ifneq ($(and $(SHARD),$(filter e2e-service check-service,$(MAKECMDGOALS))),)
+ifneq ($(shell $(WFTOOLS).e2eparts service-part '$(SHARD)' >/dev/null 2>&1 || echo refused),)
+$(error SHARD must be i/N with 1 <= i <= N and N >= 2 for the paths against the service: $(SHARD))
+endif
+endif
 
 help: ## List the commands
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[1m%-18s\033[0m %s\n", $$1, $$2}'
@@ -151,7 +188,7 @@ build-doc: ## Regenerate the Markdown projection from Word and draw.io
 build-doc-strict: ## Same, but fail on any warning (for CI)
 	@$(SPEC)/build.sh --strict
 
-lint-openapi: ## Check the interface contract
+lint-openapi: $(FRONT_TOOLS) ## Check the interface contract
 	@cd $(API) && $(REDOCLY) lint openapi.yaml
 
 build-openapi: lint-openapi ## Check, then bundle the contract into a single file
@@ -163,13 +200,6 @@ inventory: ## Regenerate the endpoint inventory and the requirement coverage
 
 allocate-pbs: ## Write the PBS field of every requirement into the Word document
 	@python3 $(SPEC)/tools/allocate_pbs.py
-
-# The pinned tools of the fake back, fetched once before the harness starts it: left to `npx` at
-# the first `make mock`, their installation counted in the 120 s Playwright gives the fake back
-# (`webServer`), which a slow network used up in the chain (#1901).
-mock-tools: ## Fetch the pinned Redocly and Prism into the cache of npx, so that the fake back starts at once
-	@$(REDOCLY) --version >/dev/null
-	@$(PRISM) --version >/dev/null
 
 mock-spec: lint-openapi ## Derive from the contract the variant the fake back serves
 	@mkdir -p $(dir $(MOCK_SPEC))
@@ -195,8 +225,8 @@ dev-down: ## Stop the development platform
 # stealing, as a few tests of the witness take minutes each and would otherwise wait behind a
 # worker's queue: on four cores, eleven minutes become under five. A heavy run, which takes its
 # share of the processors, unless it selects a single file (TESTS).
-test-tools: ## Run the tests of the repository tools (TESTS=<file> runs one file)
-	@cd $(TOOLS) && $(heavy) uv run --frozen pytest -n $(WATERFALL_PROCESSORS) --dist worksteal $(TESTS)
+test-tools: install-front ## Run the tests of the repository tools (TESTS=<file> runs one file); one of them bundles the contract with the Redocly of the front
+	@cd $(TOOLS) && $(capped) $(heavy) uv run --frozen pytest -n $(WATERFALL_PROCESSORS) --dist worksteal $(TESTS)
 
 # The entrypoint of the directory, tried in Docker on throwaway volumes: a minute of starts that the
 # tools leave out (the marker openldap), run by the keycloak family, which deploy/openldap wakes.
@@ -234,8 +264,10 @@ readmes: ## Each README-fr.md of docs/ has its English README.md, their headings
 reuse: ## Check that every file declares its copyright and licence
 	@uv run --frozen --project $(TOOLS) reuse lint
 
+# actionlint is the one tool of the group `workflows`, not of the default one: its package downloads
+# a binary from GitHub Releases when it is built, which no other install of the tools should wait for.
 lint-workflows: ## Lint the GitHub Actions workflows
-	@uv run --frozen --project $(TOOLS) actionlint
+	@uv run --frozen --project $(TOOLS) --group workflows actionlint
 
 lint-shell: ## Lint the shell scripts
 	@git ls-files '*.sh' | xargs -r uv run --frozen --project $(TOOLS) shellcheck
@@ -318,7 +350,7 @@ lint-compose: ## Validate the Compose files
 	@docker compose -f deploy/compose/compose.test.yaml config --quiet
 
 build-keycloak: ## Build the image of Keycloak: the extension compiled and tested, the themes, the realm (deploy/keycloak)
-	@docker build $(call build-cache-from,keycloak) --tag $(WATERFALL_KEYCLOAK_IMAGE) deploy/keycloak
+	@docker build --build-arg WATERFALL_MIRROR $(call build-cache-from,keycloak) --tag $(WATERFALL_KEYCLOAK_IMAGE) deploy/keycloak
 
 # The cache of the builds of the images on GitHub Actions (type=gha, .github/actions/build-cache):
 # every build of an image reads it, under the name of the image (wftools.images); after a merge,
@@ -329,9 +361,9 @@ build-cache-from = --cache-from type=gha,scope=$(1)
 build-cache-to = --output type=cacheonly --cache-to type=gha,mode=max,scope=$(1) $(call build-cache-from,$(1))
 
 build-cache: ## Write the builds of the images front, waterfall and keycloak into the cache of GitHub Actions (images.yml)
-	@docker build --target production $(call build-cache-to,front) frontend
-	@docker build --target production $(call build-cache-to,waterfall) backend
-	@docker build --target production $(call build-cache-to,keycloak) deploy/keycloak
+	@docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,front) frontend
+	@docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,waterfall) backend
+	@docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,keycloak) deploy/keycloak
 
 # The images the chain publishes (US-0430): front, waterfall and keycloak, under
 # ghcr.io/waterfall-project, tagged by the commit and the branch they are built from, and by the
@@ -407,7 +439,8 @@ check-back: check-back-static check-back-tests ## The back: lint, types, boundar
 # The chain runs the back apart, as the front (back.yml): check-back-static on one runner,
 # check-back-tests SHARD=i/N on each of the others, and in the full tier the measures of their parts
 # gathered (coverage-back-merge). A part is the i-th of N of the tests, one in N in the order of their
-# collection: the files that load the witness, the longest, are spread over all the parts.
+# collection (four in the chain, SHARD=1/4 to 4/4): the files that load the witness, the longest,
+# are spread over all the parts.
 check-back-static: lint-back typecheck-back imports-back ## The back but its tests: lint, types, boundaries
 
 check-back-tests: $(call full-else,coverage-back,test-back) ## The tests of the back, SHARD=i/N one part of them; in the full tier, measured
@@ -467,6 +500,11 @@ check-front-e2e: $(call full-only,e2e-browsers e2e prerendered-front) ## The end
 
 install-front: ## Install the dependencies of the front, as the lock file says
 	@$(PNPM) install --frozen-lockfile --silent
+	@test ! -d $(FRONT)/node_modules || touch $(FRONT_WITNESS)
+
+$(FRONT_WITNESS): $(FRONT)/pnpm-lock.yaml $(FRONT)/package.json
+	@$(PNPM) install --frozen-lockfile --silent
+	@touch $@
 
 generate-client: build-openapi install-front ## Regenerate the API client of the front from the contract
 	@$(PNPM) exec openapi-typescript ../$(BUNDLE) -o src/api/generated/schema.d.ts --silent
@@ -506,7 +544,7 @@ typecheck-front: install-front ## Strict type check of the front
 	@$(PNPM) typecheck
 
 # The contract is bundled here, never read from a bundle left on the disk by an older run.
-catalogs: ## The catalogues of the front are twins, with a key for each value the contract codes (WF-QUA-0070)
+catalogs: $(FRONT_TOOLS) ## The catalogues of the front are twins, with a key for each value the contract codes (WF-QUA-0070)
 	@cd $(API) && $(REDOCLY) bundle openapi.yaml --ext json -o $(notdir $(JSON_BUNDLE)) >/dev/null
 	@$(WFTOOLS).catalogs $(JSON_BUNDLE) $(FRONT)/messages/fr.json $(FRONT)/messages/en.json
 
@@ -564,6 +602,42 @@ roadmap: ## Confront the stories of docs/roadmap with the requirements of the do
 e2e-browsers: install-front ## Install the browser the end-to-end tests run in
 	@$(PNPM) exec playwright install $(PLAYWRIGHT_INSTALL) chromium
 
+# The work image of the end-to-end paths (deploy/e2e, US-1900): Playwright's, with make, the Python
+# of the tools, pnpm and Docker's client, so that no job of the paths downloads a package of Ubuntu
+# (#2913). Tagged by the hash of its directory, it is found in the registry, or built here, and
+# published with PUSH=yes, which the full tier of the chain runs before the paths, the fast one
+# building without it (ci.yml); the line it prints, image=<reference>, is the output of that step
+# (wftools.e2eimage).
+e2e-image: ## Find the work image of the end-to-end paths in the registry by the hash of deploy/e2e, or build it — PUSH=yes publishes it —; prints image=<reference>
+	@$(WFTOOLS).e2eimage publish $(if $(filter yes,$(PUSH)),--push)
+
+mirror: ## Check that ghcr.io holds the images of Docker Hub the files name under mirror/, by their digest — PUSH=yes copies those it does not hold (wftools.mirror, US-1900)
+	@$(WFTOOLS).mirror $(if $(filter yes,$(PUSH)),--push)
+
+# E2E_IMAGE, the reference of that image, plays the browser of the paths against the service in it
+# (service.yml): Playwright's server (run-server) runs in the image, on the network of the host, and
+# `playwright test` connects to it from the runner (PW_TEST_CONNECT_WS_ENDPOINT), where Node, the front
+# and the harness stay. The browser and its system packages are the image's, where the runner would
+# install them from the mirrors of Ubuntu. The paths played whole in the image took 17.3 minutes of
+# `playwright test` in the median of four runs, against 14.2 in three so (US-1900). The server is
+# stopped with the shell, after the paths. Empty, on a workstation, the paths play on it.
+E2E_IMAGE ?=
+E2E_BROWSER_PORT ?= 3990
+e2e-in-image = uv run --frozen --project $(CURDIR)/$(TOOLS) python -m wftools.e2eimage run --image $(E2E_IMAGE) --
+# Before it starts, the port must be free: a server already there would be waited for, and played
+# against, as ours. The server answers on a path drawn at each run, which only the paths know
+# (PW_TEST_CONNECT_WS_ENDPOINT): any process of the host reaching the port could otherwise start a
+# browser, in a container that mounts the socket of Docker. The shell stops the server on exit, and
+# on SIGINT and SIGTERM, which dash would not run the trap of EXIT for. The wait is a loop of the
+# shell itself, bounded at 120 tries of 2 seconds at most (a server that accepts and never answers
+# would hold a bare `curl`), so that an interruption is heard at once (a `timeout` would put it in
+# a group of its own, and the trap would wait for its end); it gives up when the server dies. Any
+# answer ends it, an error too: `run-server` serves only the path drawn, so that something listens
+# on the port is all a request to `/` can tell, and a probe of the path itself would be
+# Playwright's to answer.
+e2e-port-free = python3 -c 'import socket, sys; sys.exit(socket.socket().connect_ex(("127.0.0.1", $(E2E_BROWSER_PORT))) == 0)'
+e2e-browser = $(if $(E2E_IMAGE),$(e2e-port-free) || { echo 'port $(E2E_BROWSER_PORT) is taken (stop the server there or set E2E_BROWSER_PORT)' >&2; exit 1; }; secret=$$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n'); $(e2e-in-image) node node_modules/@playwright/test/cli.js run-server --host 127.0.0.1 --port $(E2E_BROWSER_PORT) --path /$$secret & browser=$$!; trap 'kill $$browser' EXIT; trap 'exit 130' INT TERM; waited=0; until curl --silent --max-time 2 --output /dev/null http://127.0.0.1:$(E2E_BROWSER_PORT)/; do kill -0 $$browser || exit 1; waited=$$((waited + 1)); [ $$waited -lt 120 ] || exit 1; sleep 1; done && export PW_TEST_CONNECT_WS_ENDPOINT=ws://127.0.0.1:$(E2E_BROWSER_PORT)/$$secret &&)
+
 # The paths play against the front built for production (US-0590): built first by build-front, which
 # Next's cache (.next/cache) shortens after the first time, then started by the harness, told it is
 # built (E2E_BUILT). E2E_BUILT=1 set already says the front is built — the chain builds it once for
@@ -578,12 +652,20 @@ e2e-build = $(if $(filter 1,$(E2E_BUILT) $(1)),,build-front)
 e2e: export E2E_PART = $(if $(SHARD),paths)
 e2e: export E2E_BUILT = 1
 e2e: export E2E_WORKERS = $(WORKERS)
-e2e: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths, against the fake back that Playwright starts (US-0080), on the front built for production; SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n (1 to 40, by default half the processors, at most 40) plays them on n workers; TESTS=<file> plays one file; E2E_DEV_SERVER=1 plays them against next dev, on a workstation
-	@$(PNPM_HEAVY) exec playwright test $(if $(SHARD),--shard=$(SHARD)) $(TESTS)
+e2e: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths, against the fake back that Playwright starts (US-0080), on the front built for production; SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n (1 to 40, by default half the processors, at most 40) plays them on n workers; TESTS=<file> plays one file (not with SHARD); E2E_DEV_SERVER=1 plays them against next dev, on a workstation
+	@$(if $(SHARD),dir=$$(mktemp -d) && trap 'rm -rf "$$dir"' EXIT && ( $(PNPM) exec playwright test --list > "$$dir/listing" ) && $(WFTOOLS).e2eparts plan $(SHARD) < "$$dir/listing" > "$$dir/part" && )$(PNPM_HEAVY) exec playwright test $(if $(SHARD),--test-list="$$dir/part") $(TESTS)
+
+# Rewrite tools/e2e-durations.json, the seconds each unit of the paths took, from the log of a run
+# (LOG=<file>, the list reporter's output of a make e2e, or of the job of a part in the chain; the
+# standard input without it), for the parts of make e2e SHARD=i/N (wftools.e2eparts, US-1910); and
+# tools/e2e-service-durations.json, those of the projects `service` and `shared`, from the log of
+# a make e2e-service, for its parts.
+e2e-durations: ## Refresh the durations the parts of the end-to-end paths are spread by, from the log of a run of make e2e or make e2e-service (LOG=<file>, standard input without it)
+	@$(WFTOOLS).e2eparts refresh $(if $(filter command line,$(origin LOG)),$(LOG))
 
 e2e-measure: export E2E_PART = measure
 e2e-measure: export E2E_BUILT = 1
-e2e-measure: install-front mock-tools $(call e2e-build) ## The measure of the second of §4.6.2 alone, against the front built for production (US-0110)
+e2e-measure: install-front $(call e2e-build) ## The measure of the second of §4.6.2 alone, against the front built for production (US-0110)
 	@$(PNPM_HEAVY) exec playwright test
 
 # The paths of the Playwright project `service` (frontend/e2e/service/), against the real service:
@@ -605,13 +687,43 @@ e2e-measure: install-front mock-tools $(call e2e-build) ## The measure of the se
 # one (the guide, « Un parcours de bout en bout »). The witness is loaded once it is bootstrapped
 # (EP-05), as make service-witness does: the paths of the reference read what the examples say.
 E2E_ADMIN_EMAIL ?= administrateur@waterfall.test
+# The workers of the paths against the service (#2890): three quarters of the processors of the slot
+# (WATERFALL_PROCESSORS), at least 1, at most 40 (the fronts of a slot), instead of the half of the
+# processors of the workstation that playwright.config.ts takes, 16 of 32, where 18 to 23 paths
+# failed to navigate. Measured on 8 processors (US-1930): 8 workers and more failed to navigate in
+# two passes, no failure to navigate at 6. An E2E_WORKERS given, in the environment or on the command
+# line, wins (an empty one does not count); a WATERFALL_PROCESSORS that is not a positive integer is
+# refused as the Makefile is read, below, whichever goal reads the share.
+E2E_WORKERS_GIVEN := $(E2E_WORKERS)
+# With SHARD=i/N, the i-th of N parts of the paths, each on a platform of its own, as the chain plays
+# them on N runners (service.yml, US-1910): the parts 1 to N-1 share the projects `service` and
+# `shared`, spread by the seconds their units took (tools/e2e-service-durations.json,
+# wftools.e2eparts), each playing the test list of its share, written under frontend/.e2e/, which
+# git ignores; the last part plays `shared-serial`, `realm` and `restoration`, which play one at a
+# time after the others, alone on its platform (E2E_SERVICE_SERIAL, frontend/playwright.config.ts).
+# The part is checked before the platform starts; the paths are listed once it has, the
+# configuration of Playwright reading the log of its proxy.
+e2e-service-part = $(if $(SHARD),if [ "$$($(WFTOOLS).e2eparts service-part $(SHARD))" = serial ]; then export E2E_SERVICE_SERIAL=1; else mkdir -p $(FRONT)/.e2e && ( cd $(FRONT) && $(PNPM_ENV) pnpm exec playwright test --list ) > $(FRONT)/.e2e/service-listing && $(WFTOOLS).e2eparts plan --service $(SHARD) < $(FRONT)/.e2e/service-listing > $(FRONT)/.e2e/service-part && part=--test-list=.e2e/service-part; fi &&)
+E2E_SERVICE_PROCESSORS = $(if $(WATERFALL_PROCESSORS_READING),1,$(if $(shell printf '%s' '$(WATERFALL_PROCESSORS)' | grep -Eq '^[1-9][0-9]*$$' && echo ok),$(WATERFALL_PROCESSORS),$(error WATERFALL_PROCESSORS must be a positive integer, got '$(WATERFALL_PROCESSORS)')))
+E2E_SERVICE_WORKERS = $(shell workers=$$(($(E2E_SERVICE_PROCESSORS) * 3 / 4)); echo $$((workers < 1 ? 1 : (workers > 40 ? 40 : workers))))
+# Refused where the Makefile is read, before any prerequisite builds anything (#3011): expanding the
+# share stops on one that is no integer. The goals covered are those that surely play e2e-service,
+# as a prerequisite of this very make: e2e-service itself, and check-service and check-all, which
+# do so in the full tier only (TIER=full, full-only above). check, which plays each family in a
+# make of its own and only if the change touches it, is not covered: it would pay a $(shell) in
+# the fast tier, which does not play the paths. The target-specific override below keeps an empty
+# E2E_WORKERS= of the command line, which would win with its empty value, from reaching Playwright.
+$(if $(or $(filter e2e-service,$(MAKECMDGOALS)),$(and $(filter full,$(TIER)),$(filter check-service check-all,$(MAKECMDGOALS)))),$(if $(E2E_SERVICE_PROCESSORS),))
+e2e-service: override export E2E_WORKERS = $(or $(E2E_WORKERS_GIVEN),$(E2E_SERVICE_WORKERS))
 e2e-service: export WATERFALL_FRONT_ADDRESS = http://127.0.0.1:$(E2E_FRONT_PORT)
 e2e-service: export WATERFALL_FRONT_BACKCHANNEL = http://host.docker.internal:$(E2E_FRONT_PORT)
 e2e-service: export E2E_PART = service
+e2e-service: export E2E_SERVICE_SERIAL =
 e2e-service: export WATERFALL_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-service: export E2E_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-service: export E2E_BUILT = 1
-e2e-service: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths of the project `service` against the real service, through Prism as a proxy, on the front built for production (needs the secrets of service-up and a browser, make e2e-browsers); TESTS=<arguments of playwright test>: a file alone also plays installation and, with a @realm-wide or @platform-wide path, the projects its own depends on; TESTS="--no-deps --project=shared --project=realm <files>" plays only the files, on an installation already played
+e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths of the project `service` against the real service, through Prism as a proxy, on the front built for production (needs the secrets of service-up and a browser, make e2e-browsers); TESTS=<arguments of playwright test>: a file alone also plays installation and, with a @realm-wide or @platform-wide path, the projects its own depends on; TESTS="--no-deps --project=shared --project=realm <files>" plays only the files, on an installation already played; SHARD=i/N (N >= 2, not with TESTS) plays the i-th of N parts on a platform of its own, the last one the paths that play one at a time
+	@$(if $(SHARD),$(WFTOOLS).e2eparts service-part $(SHARD) > /dev/null)
 	@$(MAKE) --no-print-directory mock-spec MOCK_SPEC=$(PROXY_SPEC)
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) up --detach --wait contract-proxy
@@ -625,7 +737,8 @@ e2e-service: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End
 		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 && \
 		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
 		export E2E_INSTALLATION_LINK E2E_CONTRACT_PROXY E2E_SERVICE_DATABASE WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
-		$(PNPM) exec playwright test $(TESTS)
+		part= && $(e2e-service-part) \
+		cd $(FRONT) && { $(e2e-browser) $(PNPM_ENV) pnpm exec playwright test $$part $(TESTS); }
 
 # The slot of the worktree, among the N of WATERFALL_SLOTS, in the register of the workstation
 # ($XDG_RUNTIME_DIR/waterfall-slots, /tmp/waterfall-slots without it), whatever the repository.
@@ -658,14 +771,14 @@ lot-size: ## The real size of a lot, against its epic (BASE=origin/epic/EP-nn); 
 # exports the command-line variables to the recipe; an empty value is ignored.
 tracking_option = $(if $(filter command line,$(origin $(1))),$${$(1):+$(2) "$$$(1)"})
 
-tracking: ## Change a line of the tracking table of an epic's issue, under a lock: ISSUE=<n> with LOT=<id> [STATE PR MODEL DEPENDS], US=<id> STATUS=…, FINDING=<n> ATTACHED=… DECISION=…, ADD_LOT=<id> AFTER=<lot> [DEPENDS MODEL LOT_ISSUE], or REPLACE_DEPENDENCY='<old>=<new>'
+tracking: ## Change a line of the tracking table of an epic's issue, under a lock: ISSUE=<n> with LOT=<id> [STATE PR MODEL DEPENDS NOT_WITH], US=<id> STATUS=…, FINDING=<n> ATTACHED=… DECISION=…, ADD_LOT=<id> AFTER=<lot> [DEPENDS NOT_WITH MODEL LOT_ISSUE], or REPLACE_DEPENDENCY='<old>=<new>'
 	@$(WFTOOLS).tracking $(call tracking_option,ISSUE,--issue) $(call tracking_option,LOT,--lot) \
 		$(call tracking_option,US,--us) $(call tracking_option,FINDING,--finding) \
 		$(call tracking_option,STATE,--state) $(call tracking_option,PR,--pr) \
 		$(call tracking_option,MODEL,--model) $(call tracking_option,STATUS,--status) \
 		$(call tracking_option,ATTACHED,--attached) $(call tracking_option,DECISION,--decision) \
 		$(call tracking_option,ADD_LOT,--add-lot) $(call tracking_option,AFTER,--after) \
-		$(call tracking_option,DEPENDS,--depends) $(call tracking_option,LOT_ISSUE,--issue-number) \
+		$(call tracking_option,DEPENDS,--depends) $(call tracking_option,NOT_WITH,--not-with) $(call tracking_option,LOT_ISSUE,--issue-number) \
 		$(call tracking_option,REPLACE_DEPENDENCY,--replace-dependency)
 
 merge-queue: ## Create the merge queue ruleset of an epic's branch from .github/rulesets/merge-queue.json (EPIC=EP-nn); for a person, never a deliverer
@@ -673,6 +786,12 @@ merge-queue: ## Create the merge queue ruleset of an epic's branch from .github/
 
 merge-queue-check: ## Check that an active ruleset with a merge queue targets an epic's branch (EPIC=EP-nn)
 	@$(WFTOOLS).mergequeue check "$(EPIC)"
+
+# The runs of the merge queue of a branch, read by gh from a workstation, never in the chain: their
+# failures by job and step, the tests and paths that failed, classified against
+# tools/queue-known.toml, the wall time and the runner minutes (wftools.queue, US-1880).
+queue-report: ## Report the merge queue runs of the chain on a branch and classify their failures (BRANCH=epic/EP-nn or main, all if empty; LAST=<n>, 50 by default; SINCE=YYYY-MM-DD)
+	@$(WFTOOLS).queue --branch "$(BRANCH)" --last "$(LAST)" --since "$(SINCE)"
 
 changes: ## Print which families of checks the change touches (BASE; HEAD, or the working tree)
 	@$(WFTOOLS).changes "$(BASE)" $(HEAD)

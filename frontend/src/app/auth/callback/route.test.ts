@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET as login } from "@/app/login/route";
 import { createIdentityProvider, type IdentityProvider } from "@/session/provider";
 import { armSignOut, openSession, readSession } from "@/session/store";
-import { requestBearer, SESSION_COOKIE } from "@/session/tokens";
+import { requestBearer, SESSION_COOKIE, SIGN_IN_REFUSED_COOKIE } from "@/session/tokens";
 import {
   example,
   type FakeAnswers,
@@ -178,6 +178,25 @@ describe("the return of the sign-in", () => {
       );
     },
   );
+
+  it.each(refused)(
+    "leaves a short cookie of the refusal, so that home does not lead to the sign-in again, for %s [WF-SEC-0020-A] (#2914)",
+    async (_, returning) => {
+      const { address, cookie } = await start("/projects");
+      const query = realm.signIn(address, "camille");
+      const response = await back(returning(address, query), cookie);
+      expect(response.headers.getSetCookie()).toContain(
+        `${SIGN_IN_REFUSED_COOKIE}=1; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=300`,
+      );
+    },
+  );
+
+  it("forgets the cookie of a refusal once a sign-in succeeds [WF-SEC-0020-A] (#2914)", async () => {
+    const { returned } = await signIn("/projects");
+    expect(returned.headers.getSetCookie()).toContainEqual(
+      expect.stringMatching(new RegExp(`^${SIGN_IN_REFUSED_COOKIE}=;.*Max-Age=0`)),
+    );
+  });
 
   it("asks nothing of the realm for an error in the return", async () => {
     const { address, cookie } = await start("/projects");

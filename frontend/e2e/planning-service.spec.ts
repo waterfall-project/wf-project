@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect } from "@playwright/test";
 
+import { pick } from "./check-menu";
 import { columnsOf } from "./columns";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
@@ -267,8 +268,7 @@ test("attaches tasks to the order items of the work breakdown from their cell, a
 
   // Le filtre sur un poste ne laisse voir que la tâche qui le porte, son sous-arbre et ses parents:
   // « Poste A1 » is borne by the summary, whose subtree is rows 2 to 4.
-  const filter = page.getByRole("combobox", { name: "Lot ou poste" });
-  await filter.selectOption({ label: "Poste\u00a0: Poste A1" });
+  await pick(page, "Lot ou poste", "Poste\u00a0: Poste A1", "radio");
   await expect(page).toHaveURL(new RegExp(`order_item_id=${first}`), { timeout: WORKING });
   for (const [number, label] of [
     [1, SEEDED[1]],
@@ -282,7 +282,7 @@ test("attaches tasks to the order items of the work breakdown from their cell, a
   await expect(grid.getByRole("row", { name: new RegExp(SEEDED[6]) })).toHaveCount(0);
 
   // « Poste A2 » is borne by row 3, a leaf: it and its parent, the summary, and none of its siblings.
-  await filter.selectOption({ label: "Poste\u00a0: Poste A2" });
+  await pick(page, "Lot ou poste", "Poste\u00a0: Poste A2", "radio");
   await expect(page).toHaveURL(new RegExp(`order_item_id=${second}`), { timeout: WORKING });
   await expect(row(3, SEEDED[3])).toBeVisible({ timeout: WORKING });
   await expect(row(1, SEEDED[1])).toBeVisible();

@@ -82,9 +82,13 @@ test("an account an administrator creates signs in only once its holder has set 
   await expect(page.getByRole("main")).toContainText("ne doit pas être identique");
   await setPassword(page, LOCAL_PASSWORD);
   await expectPasswordSet(page);
-  // The page of the realm leads back to Waterfall (#645).
+  // The page of the realm leads back to Waterfall (#645), whose home, without a session, leads by
+  // itself to the sign-in page of the realm (#2914). That navigation is waited for before the path
+  // signs in: it would otherwise abort the one of the sign-in (`net::ERR_ABORTED`), or replace it and
+  // land on the home (#3074).
   await page.getByRole("link", { name: "« Revenir à l'application" }).click();
   await expect(page).toHaveURL("/");
+  await expectSignInPage(page);
 
   await signIn(page, jeanne, ACCOUNT);
   await expect(page.getByRole("main")).toContainText(email);

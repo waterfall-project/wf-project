@@ -51,6 +51,12 @@
  * paths of any file of `e2e/` tagged `@shared`, which `chromium` plays against the fake back: they
  * import `test` from `e2e/mode.ts` (EP-05, US-0810/L1). The seventh, `shared-serial`, plays those of
  * them that also carry `@serial`, one worker, after `shared` and before the realm (US-1330).
+ *
+ * `E2E_SERVICE_SERIAL=1` plays the last part of the paths against the service, which the chain plays
+ * on a platform of its own (`make e2e-service SHARD=i/N`, US-1910): `shared-serial`, the realm and
+ * the restoration, after the installation, without `service` and `shared`, which the other parts
+ * play on theirs and which they then no longer wait for. Those parts play a test list of `service`
+ * and `shared` alone (`wftools.e2eparts`).
  */
 import { randomBytes } from "node:crypto";
 import { availableParallelism } from "node:os";
@@ -198,6 +204,13 @@ const PLAYS_MEASURE = (PART === undefined && !DEVELOPMENT) || PART === "measure"
 if (PLAYS_SERVICE && NAMED_API === undefined) {
   throw new Error("E2E_PART=service plays against the service WATERFALL_API_ADDRESS names");
 }
+// The paths against the service that play one at a time, alone on a platform of their own.
+const SERIAL_ALONE = switchedOn("E2E_SERVICE_SERIAL");
+if (SERIAL_ALONE && !PLAYS_SERVICE) {
+  throw new Error(
+    "E2E_SERVICE_SERIAL=1 plays the last part of the paths against the service: E2E_PART=service",
+  );
+}
 // One front for each worker of the paths, on the ports that follow the first: a `next start` is one
 // process, which rendered the pages of every worker in turn — busy three quarters of the time under
 // six workers, the screen of the risks still loading five seconds after its click (#1477). A worker
@@ -275,7 +288,10 @@ function serviceProjects(): Project[] {
   // Keycloak's front end answers with a certificate of its own local authority (#680), which the
   // server of Next trusts by NODE_EXTRA_CA_CERTS, and the browser by this.
   const use = { ...devices["Desktop Chrome"], locale: "fr-FR", ignoreHTTPSErrors: true };
-  return [
+  // Alone on its platform, the last part neither plays nor waits for the projects the others play.
+  const playedByTheOtherParts = ["service", "shared"];
+  const beside = (...names: string[]) => (SERIAL_ALONE ? [] : names);
+  const projects: Project[] = [
     {
       // The link of the bootstrap serves once: its path sets the password of the administrator,
       // through whom the others act.
@@ -310,7 +326,8 @@ function serviceProjects(): Project[] {
       name: "shared-serial",
       testIgnore: [MEASURES, SERVICE_PATHS],
       grep: SERIAL,
-      dependencies: ["installation", "shared"],
+      // Waits for `shared` alone, not for `service`: the graph the full part has always drawn.
+      dependencies: ["installation", ...beside("shared")],
       workers: 1,
       use,
     },
@@ -320,7 +337,7 @@ function serviceProjects(): Project[] {
       name: "realm",
       testMatch: SERVICE_PATHS,
       grep: REALM_WIDE,
-      dependencies: ["installation", "service", "shared", "shared-serial"],
+      dependencies: ["installation", ...beside(...playedByTheOtherParts), "shared-serial"],
       workers: 1,
       use,
     },
@@ -329,7 +346,7 @@ function serviceProjects(): Project[] {
       name: "restoration",
       testMatch: SERVICE_PATHS,
       grep: PLATFORM_WIDE,
-      dependencies: ["installation", "service", "shared", "shared-serial", "realm"],
+      dependencies: ["installation", ...beside(...playedByTheOtherParts), "shared-serial", "realm"],
       workers: 1,
       use,
     },
@@ -339,6 +356,9 @@ function serviceProjects(): Project[] {
       use,
     },
   ];
+  return projects.filter(
+    ({ name }) => !SERIAL_ALONE || !playedByTheOtherParts.includes(name ?? ""),
+  );
 }
 
 /** The measure, against the front built for production — unless the paths are played alone. */

@@ -18,6 +18,7 @@ from sqlalchemy.dialects.postgresql import insert
 from waterfall.core.resource_settings.interface.extensions import recalculate
 from waterfall.core.resource_settings.interface.readiness import lock_reference
 from waterfall.core.resource_settings.tables import SINGLE_ROW, DurationUnit
+from waterfall.platform.decimals import exceeds_precision
 from waterfall.platform.errors import (
     STALE_LOCK_VERSION,
     VALIDATION_FAILED,
@@ -68,7 +69,8 @@ def _refuse_units(units: Units) -> None:
     """Refuse each constant that is not strictly positive, all named at once (422).
 
     A zero is ``DURATION_UNIT_NOT_POSITIVE``, as the contract has it; a signed
-    one (``-8``, ``-0``) is a value the field refuses.
+    one (``-8``, ``-0``) is a value the field refuses, as is one of more than ten decimals or
+    ten digits before the point, which the column would overflow (#2875).
     """
     faults: list[FieldError] = []
     for name, value in (
@@ -76,7 +78,7 @@ def _refuse_units(units: Units) -> None:
         ("hours_per_week", units.hours_per_week),
         ("days_per_month", units.days_per_month),
     ):
-        if value.is_signed():
+        if value.is_signed() or exceeds_precision(value):
             faults.append(FieldError(f"/{name}", VALIDATION_FAILED))
         elif value == 0:
             faults.append(FieldError(f"/{name}", DURATION_UNIT_NOT_POSITIVE))

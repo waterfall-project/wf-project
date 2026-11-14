@@ -54,11 +54,16 @@ def week_of(hours: WeeklyHours) -> Calendar:
 
 def default_calendar(session: Session) -> Applicable:
     """Read the default calendar: the first in the order of ``is_default``, for it is single."""
+    return named_default_calendar(session)[0]
+
+
+def named_default_calendar(session: Session) -> tuple[Applicable, str]:
+    """Read the default calendar and its label, as the report of an import names it (US-2000)."""
     page = list_calendars(
         session, CalendarFilters(), CalendarSort("is_default"), CalendarWindow(1, 0)
     )
     view = page.calendars[0]
-    return Applicable(view.calendar_id, week_of(view.weekly_hours))
+    return Applicable(view.calendar_id, week_of(view.weekly_hours)), view.label
 
 
 def applicable_of(session: Session, named: Collection[UUID], default: Applicable) -> Applicable:
