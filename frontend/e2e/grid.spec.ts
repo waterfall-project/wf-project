@@ -279,10 +279,7 @@ test.describe("on a narrow window", () => {
     // The label, its header and the caption of the totals stay at the start, beside the row
     // numbers, whatever is scrolled under them.
     const start = await box.boundingBox();
-    for (const pinned of [
-      label,
-      grid(page).getByRole("columnheader", { name: "Libellé" }),
-    ]) {
+    for (const pinned of [label, grid(page).getByRole("columnheader", { name: "Libellé" })]) {
       await expect(pinned).toBeInViewport({ ratio: 1 });
       expect((await pinned.boundingBox())?.x).toBeCloseTo((start?.x ?? 0) + 1 + 48, 0);
     }
