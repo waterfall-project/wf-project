@@ -33,7 +33,13 @@ const TASK = "01926f3a-7c00-7000-8000-000000000931";
  * ends, which says the same to a reader of the screen.
  */
 function said(page: Page, text: RegExp) {
-  return page.locator("p:not([role=log] p)", { hasText: text });
+  // The floating card of the end (#3219) repeats the sentence: it is read apart, not here.
+  return page.locator(
+    'p:not([role=log] p):not(section[aria-label="Aboutissements des tâches"] p)',
+    {
+      hasText: text,
+    },
+  );
 }
 
 /** What an export asked by the API leaves to the paths: the screen it leaves from, and its task. */
