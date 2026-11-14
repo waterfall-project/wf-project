@@ -396,8 +396,8 @@ describe("the actions of the bar on the accounts selected", () => {
       expect(list).toHaveAttribute("aria-busy", "true");
     });
     expect(list).toHaveValue(CHIFFREUR);
-    // A group that does not start (a group already under way) leaves the choice as it is: the
-    // press is refused while `waiting`, and the choice is cleared only by a group that ended.
+    // The choice stays shown while the group is under way (the request is held); it is cleared
+    // only when the group has ended, which the release below brings about.
     held.release();
     await waitFor(() => {
       expect(list).toHaveValue("");
