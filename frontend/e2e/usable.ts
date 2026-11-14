@@ -117,9 +117,10 @@ export interface Usable {
 
 /**
  * When a grid, by its name, was first drawn and first hydrated in the page, on the clock of the
- * operating system, once it is both — the last time, should it have been more than once.
+ * operating system, once it is both — the last time, should it have been more than once —, waited
+ * for within a bound of working (`WORKING`, unless a measure under load gives a wider one).
  */
-export async function usableAt(page: Page, grid: string): Promise<Usable> {
+export async function usableAt(page: Page, grid: string, bound = WORKING): Promise<Usable> {
   const read = () =>
     page.evaluate((name) => {
       const at = (state: string) => {
@@ -132,7 +133,7 @@ export async function usableAt(page: Page, grid: string): Promise<Usable> {
       const hydrated = at("hydrated");
       return drawn === null || hydrated === null ? null : { drawn, hydrated };
     }, grid);
-  await expect.poll(read, { timeout: WORKING }).not.toBeNull();
+  await expect.poll(read, { message: `${grid} usable`, timeout: bound }).not.toBeNull();
   return (await read()) ?? { drawn: Number.POSITIVE_INFINITY, hydrated: Number.POSITIVE_INFINITY };
 }
 
@@ -174,13 +175,14 @@ export function followRequests(page: Page): Requests {
  * its links in the navigation still ask the server for the screens they lead to (prefetching),
  * and a navigation started before they are answered would cut them, while the server still
  * renders them — the first time, loading the modules of each route —, in the time of the gesture
- * measured next. Waited for between the gestures, never within one.
+ * measured next. Waited for between the gestures, never within one, within a bound of working
+ * (`WORKING`, unless a measure under load gives a wider one).
  */
-export async function settle(requests: Requests): Promise<void> {
+export async function settle(requests: Requests, bound = WORKING): Promise<void> {
   await expect
     .poll(() => requests.underWay() === 0 && requests.quietFor() >= QUIET, {
       message: `the page settles: no request under way for ${QUIET.toString()} ms`,
-      timeout: WORKING,
+      timeout: bound,
     })
     .toBe(true);
 }

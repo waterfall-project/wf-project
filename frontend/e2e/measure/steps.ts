@@ -36,7 +36,6 @@ import {
   settle,
   usableAt,
   watchGrids,
-  WORKING,
 } from "../usable";
 import type { FrontRequest, Interval } from "./report";
 
@@ -85,6 +84,13 @@ const REMAINING: GridScreen = {
 function address(screen: GridScreen): string {
   return `/projects/${PROJECT}/revisions/${REVISION}/${screen.segment}`;
 }
+
+/**
+ * How long the measure waits for a grid, a page settled, an answer: a bound of its working, as
+ * `WORKING` is for the paths, but under the load of eight users at once, where the estimate took
+ * past fifteen seconds to show.
+ */
+const LOADED = 60_000;
 
 /** Where the start of a gesture by a key that sends — Enter — is kept, beside that of a click. */
 const KEYED = "wf_measure_keyed";
@@ -290,7 +296,7 @@ const FROM = 20;
  */
 export async function targets({ page, requests }: Player, count: number): Promise<Target[]> {
   await page.goto(address(PLANNING));
-  await usableAt(page, PLANNING.grid);
+  await usableAt(page, PLANNING.grid, LOADED);
   const grid = page.getByRole("treegrid", { name: PLANNING.grid });
   const at = await planningColumns(page);
   const rows = Number(await grid.getAttribute("aria-rowcount")) - 2;
@@ -308,7 +314,7 @@ export async function targets({ page, requests }: Player, count: number): Promis
     }
   }
   expect(found, "tasks to write, one for each user").toHaveLength(count);
-  await settle(requests);
+  await settle(requests, LOADED);
   return found;
 }
 
@@ -334,7 +340,7 @@ async function gestureStart(page: Page, key: string): Promise<number> {
 /** Open the screen of a grid by its address: from the start of the navigation. */
 async function byAddress(page: Page, screen: GridScreen): Promise<Interval> {
   await page.goto(address(screen), { waitUntil: "commit" });
-  const { drawn, hydrated } = await usableAt(page, screen.grid);
+  const { drawn, hydrated } = await usableAt(page, screen.grid, LOADED);
   const start = await page.evaluate(() => performance.timeOrigin);
   return { start, end: Math.max(drawn, hydrated) };
 }
@@ -346,7 +352,7 @@ async function byLink(page: Page, screen: GridScreen): Promise<Interval> {
     .getByRole("navigation", { name: "Fonctions" })
     .getByRole("link", { name: screen.link })
     .click();
-  const { drawn, hydrated } = await usableAt(page, screen.grid);
+  const { drawn, hydrated } = await usableAt(page, screen.grid, LOADED);
   await expect(page).toHaveURL(new RegExp(`/${screen.segment}(\\?|$)`));
   return { start: await gestureStart(page, CLICKED), end: Math.max(drawn, hydrated) };
 }
@@ -367,7 +373,7 @@ async function inPlace(
   const read = () =>
     page.evaluate((armed) => (window as unknown as Record<string, number | null>)[armed], ARMED);
   await expect
-    .poll(read, { message: `${expected.grid} usable after the gesture`, timeout: WORKING })
+    .poll(read, { message: `${expected.grid} usable after the gesture`, timeout: LOADED })
     .not.toBeNull();
   return { start: await gestureStart(page, started), end: (await read()) ?? Number.NaN };
 }
@@ -381,7 +387,7 @@ async function answeredAt(request: Request): Promise<number> {
   await expect
     .poll(() => request.timing().responseEnd >= 0, {
       message: "the answer of the server action ends",
-      timeout: WORKING,
+      timeout: LOADED,
     })
     .toBe(true);
   const { startTime, responseEnd } = request.timing();
@@ -406,7 +412,7 @@ async function write(
   await grid.locator("input, textarea").fill(value);
   const [span, sent] = await Promise.all([
     inPlace(page, expected, KEYED, () => page.keyboard.press("Enter")),
-    page.waitForRequest(isServerAction, { timeout: WORKING }),
+    page.waitForRequest(isServerAction, { timeout: LOADED }),
   ]);
   if (answered === "shown") {
     return span;
@@ -440,7 +446,7 @@ async function gridsShown(page: Page): Promise<string> {
  * the bounds of each of its waits, so that a wait that never ends — a page that never answers —
  * ends the step rather than the whole measure.
  */
-const STEP_BOUND = 60_000;
+const STEP_BOUND = 180_000;
 
 /** Play a step within its bound; past it, the step fails. */
 async function bounded<T>(step: Step, play: () => Promise<T>): Promise<T> {
@@ -542,7 +548,7 @@ export async function journey(player: Player, target: Target, tag: string): Prom
     try {
       const span = await bounded(step, async () => {
         const played = await play();
-        await settle(requests);
+        await settle(requests, LOADED);
         return played;
       });
       timed.push({ step, span });
