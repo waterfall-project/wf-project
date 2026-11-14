@@ -209,8 +209,11 @@ export interface Statistic {
   readonly spread: number;
 }
 
-/** The median of some values; 0 for none. */
-function middle(values: readonly number[]): number {
+/**
+ * The median of some values; 0 for none. The one median of the measures: that of the second
+ * against the fake back (`opening.spec.ts`) is this one too.
+ */
+export function median(values: readonly number[]): number {
   const sorted = values.toSorted((a, b) => a - b);
   const half = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 1
@@ -229,9 +232,9 @@ function tenth(value: number): number {
  */
 export function statisticOf(byPass: readonly (readonly number[])[]): Statistic {
   const all = byPass.flat();
-  const medians = byPass.filter((pass) => pass.length > 0).map(middle);
+  const medians = byPass.filter((pass) => pass.length > 0).map((pass) => median(pass));
   return {
-    median: tenth(middle(all)),
+    median: tenth(median(all)),
     worst: tenth(all.length === 0 ? 0 : Math.max(...all)),
     spread: tenth(medians.length === 0 ? 0 : Math.max(...medians) - Math.min(...medians)),
   };

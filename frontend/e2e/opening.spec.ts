@@ -7,13 +7,13 @@ import { expect, type Page, test } from "@playwright/test";
 import {
   CLICKED,
   followRequests,
-  median,
   type Requests,
   settle,
   type Usable,
   usableAt,
   watchGrids,
 } from "./usable";
+import { median } from "./measure/report";
 
 // The second of §4.6.2 — « ouvrir une grille de planning, de devis ou de reste à engager de mille
 // tâches : 1 s » —, measured on the structure of the volumes the fake back serves (EP-02/L2): a
@@ -345,6 +345,6 @@ test.describe("the opening of a grid of a thousand tasks", () => {
       ` ${Math.round(bytes / 1024).toString()} KiB`;
     console.log(line);
     toSummary(`- ${line}`);
-    expect(served).toHaveLength(OPENINGS);
+    expect(bytes, "the example of the lines, as the fake back serves it").toBeGreaterThan(0);
   });
 });

@@ -186,12 +186,3 @@ export async function settle(requests: Requests, bound = WORKING): Promise<void>
     })
     .toBe(true);
 }
-
-/** The median of some durations; 0 for none. */
-export function median(durations: readonly number[]): number {
-  const sorted = durations.toSorted((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 1
-    ? (sorted[middle] ?? 0)
-    : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
-}
