@@ -179,8 +179,9 @@ function Progress({
 
 /**
  * The offer to read the screen anew once a task has succeeded: what it changed shows only then.
- * The tracker never reloads by itself — the screen may hold what the user is typing —: the user
- * decides, and the panel closes on the screen read anew.
+ * The tracker reads anew by itself only a screen the task concerns — of its project, or the one it
+ * was started from (`readsAnew`) —; on another, the user decides, and the panel closes on the
+ * screen read anew.
  */
 function ReloadScreen({ onShown }: { readonly onShown: () => void }) {
   const t = useTranslations("tasks");
@@ -287,30 +288,43 @@ function Interruption({ refusal }: { readonly refusal: Refusal }) {
  * Ask the server where a task stands, a while after each answer, as long as it is polled. The
  * answer is applied to the task it was asked for: dismissed or relaunched meanwhile, it is
  * dropped — the tracker checks the task, and an entry gone asks nothing more.
+ *
+ * The next read is asked by the answer of the last one, not by a new entry: a read that finds the
+ * task where it stood leaves the entry as it was (#180), and a follow-up that waited for a new
+ * entry stopped there — a task read twice, ended, and never read again (#3103). The loop starts
+ * again only for another task — a relaunch — or once the task is polled again.
  */
 function usePolling(entry: TrackedTask, dispatch: Dispatch<TrackingEvent>) {
+  const { key } = entry;
+  const taskId = entry.task.task_id;
+  const polled = isPolled(entry);
   useEffect(() => {
-    if (!isPolled(entry)) {
+    if (!polled) {
       return undefined;
     }
-    const { key } = entry;
-    const taskId = entry.task.task_id;
     let live = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const ask = () => {
+      timer = setTimeout(() => {
+        void readBackgroundTask(taskId).then(answered, (error: unknown) => {
+          answered(rejected(error));
+        });
+      }, POLL_INTERVAL);
+    };
+    // The answer is applied, then the next read is asked: an answer that ends the task, or the
+    // follow-up, makes the entry no longer polled, and the cleanup below cancels that read.
     const answered = (outcome: Outcome<BackgroundTask>) => {
       if (live) {
         dispatch({ type: "answer", source: "read", key, taskId, outcome });
+        ask();
       }
     };
-    const timer = setTimeout(() => {
-      void readBackgroundTask(taskId).then(answered, (error: unknown) => {
-        answered(rejected(error));
-      });
-    }, POLL_INTERVAL);
+    ask();
     return () => {
       live = false;
       clearTimeout(timer);
     };
-  }, [entry, dispatch]);
+  }, [key, taskId, polled, dispatch]);
 }
 
 /** What the entry of a task shows, and what it does. */

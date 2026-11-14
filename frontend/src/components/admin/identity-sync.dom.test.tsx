@@ -127,10 +127,12 @@ describe("the reading of the accounts", () => {
     expect(screen.getByRole("log").textContent).toBe(
       "Tâche terminée\u00A0: Lecture des comptes du fournisseur d’identité.",
     );
-    // Its result is a report to read on the screen, not a file to download.
+    // Its result is a report to read on the screen, not a file to download: the screen it was
+    // started from is read anew by itself (#3103), and can be read anew from the tracker.
     expect(within(tasks).queryByRole("link", { name: /Télécharger/ })).toBeNull();
-    await userEvent.click(within(tasks).getByRole("button", { name: "Recharger l’écran" }));
     expect(router.refresh).toHaveBeenCalledOnce();
+    await userEvent.click(within(tasks).getByRole("button", { name: "Recharger l’écran" }));
+    expect(router.refresh).toHaveBeenCalledTimes(2);
 
     // No report is asserted: the contract serves none for that task, so the test proves the end of
     // the reading and the offer to read the screen anew, not the report that screen then shows (#984).

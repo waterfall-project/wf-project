@@ -11,6 +11,7 @@
  * API gives the hand back at once with a background task (WF-ARC-0090), handed to the tracker of
  * the shell with the request itself, which runs it again if it fails; its result, a file made on
  * demand and not kept (WF-DAT-0120), is downloaded from the tracker once the task has succeeded.
+ * The request waits, saying so, until the task ends (`waiting.tsx`, #3103): failed, it is given back.
  * A refusal is told under the form (`OutcomeNotice`).
  */
 "use client";
@@ -25,7 +26,8 @@ import { UnmetConditions } from "@/components/commands/command";
 import { useHeldCommand } from "@/components/commands/held";
 import { UNAVAILABLE, unmetId } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
-import { useTrackTask } from "@/components/tasks/task-tracker";
+import { WaitingIcon, waitingAttributes } from "@/components/commands/waiting";
+import { useTaskRunning, useTrackTask } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
 
@@ -89,11 +91,15 @@ function OfferedExports({
   // Busy from the request to the answer, and lifted in the very update that tells it — not a
   // transition, whose end would wait for every other async action of the page (#1484).
   const [busy, setBusy] = useState(false);
+  // The task of the last export asked: the request waits while it runs, given back at its end.
+  const [exporting, setExporting] = useState<string>();
+  const running = useTaskRunning(exporting);
+  const waiting = busy || running;
   // A link clicked while the export is asked waits for it, and is not followed when refused.
   const held = useHeldCommand();
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (busy || offer?.is_available !== true) {
+    if (waiting || offer?.is_available !== true) {
       return;
     }
     // The level of the image of the tree, when the user gives one; the server's otherwise.
@@ -116,6 +122,7 @@ function OfferedExports({
       setBusy(false);
       if (result.kind === "done") {
         track(result.data, { command, subject: t(`enums.ExportKind.${kind}`) });
+        setExporting(result.data.task_id);
       }
       setOutcome(result.kind === "done" ? undefined : result);
     });
@@ -181,11 +188,12 @@ function OfferedExports({
           type="submit"
           size="sm"
           variant="outline"
-          aria-disabled={offer?.is_available === true ? undefined : true}
+          {...waitingAttributes(waiting)}
+          {...(offer?.is_available === true ? {} : { "aria-disabled": true })}
           aria-describedby={unmet}
           className={UNAVAILABLE}
         >
-          <FileDown aria-hidden="true" />
+          <WaitingIcon waiting={waiting} icon={<FileDown aria-hidden="true" />} />
           {t("exchanges.export.request")}
         </Button>
       </div>

@@ -358,7 +358,8 @@ describe("the exits of the lifecycle of a project", () => {
       expect(screen.queryByRole("form")).toBeNull();
     });
     await tick();
-    expect(router.refresh).not.toHaveBeenCalled();
+    // The failure applies nothing; the screen of the project is read anew all the same (#3103).
+    expect(router.refresh).toHaveBeenCalledOnce();
     expect(said()).toEqual([]);
     const relaunch = within(tasksRegion()).getByRole("button", { name: /^Relancer/ });
     await userEvent.click(relaunch);
@@ -369,7 +370,7 @@ describe("the exits of the lifecycle of a project", () => {
     expect(exits(client)[1]).toEqual(exits(client)[0]);
   });
 
-  it("applies the exit once the relaunched task of the marking succeeds: the page is read again once, the new state told [WF-IHM-0080] [WF-CYC-0090]", async () => {
+  it("applies the exit once the relaunched task of the marking succeeds: the page is read again once at each end, the new state told [WF-IHM-0080] [WF-CYC-0090]", async () => {
     // The task fails, then the relaunch (…959) is read succeeded.
     serve({
       [EXIT]: [
@@ -386,21 +387,22 @@ describe("the exits of the lifecycle of a project", () => {
       expect(screen.queryByRole("form")).toBeNull();
     });
     await tick();
-    expect(router.refresh).not.toHaveBeenCalled();
+    // The failure: read anew once, nothing applied.
+    expect(router.refresh).toHaveBeenCalledOnce();
     expect(said()).toEqual([]);
 
     await userEvent.click(within(tasksRegion()).getByRole("button", { name: /^Relancer/ }));
     await tick();
     await tick();
     await waitFor(() => {
-      expect(router.refresh).toHaveBeenCalledOnce();
+      expect(router.refresh).toHaveBeenCalledTimes(2);
     });
     closeTasks();
     await waitFor(() => {
       expect(said()).toEqual(["Le projet est passé à l’état «\u00A0Terminé\u00A0»."]);
     });
     await tick();
-    expect(router.refresh).toHaveBeenCalledOnce();
+    expect(router.refresh).toHaveBeenCalledTimes(2);
   });
 
   it("sends the abandon of the current revision, and the exit answers the project at once [WF-CYC-0090-A] [WF-REV-0010]", async () => {

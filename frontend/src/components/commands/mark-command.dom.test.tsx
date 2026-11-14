@@ -15,7 +15,7 @@ import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tra
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { atCommit } from "@/test/committed";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 import { closeTasks, tasksRegion } from "@/test/task-panel";
 
 import { RevisionCommands } from "./object-commands";
@@ -163,6 +163,79 @@ describe("the marking of a revision", () => {
     );
     expect(within(tasksRegion()).queryByRole("progressbar")).toBeNull();
     expect(client.calls.filter((call) => call.route === TASK)).toHaveLength(2);
+  });
+
+  it("keeps the marking pressed inert and saying it waits, until its request then its task have answered, a second press running nothing [WF-IHM-0080-A]", async () => {
+    // Le marquage d'une révision de dix mille objets laisse l'écran utilisable et présente son
+    // avancement : the button pressed says the marking is under way, where it was pressed (#3103).
+    const answer = held();
+    const { until } = answer;
+    const client = fakeClient(
+      {
+        [MARK]: { example: "task_mark_queued", status: 202 },
+        [TASK]: ["task_running", "task_succeeded"],
+      },
+      { hold: (route) => (route === MARK ? until : undefined) },
+    );
+    server.client = client;
+    open();
+    await userEvent.click(markCommand());
+    await userEvent.type(screen.getByRole("textbox", { name: "Nom de version" }), "V2");
+    const submit = screen.getByRole("button", { name: /^Marquer$/ });
+    await userEvent.click(submit);
+    // The request under way: the button keeps its name, says it waits, and runs nothing more.
+    expect(submit).toHaveAttribute("aria-busy", "true");
+    expect(submit).toHaveAttribute("aria-disabled", "true");
+    expect(submit.querySelector("[data-waiting]")).not.toBeNull();
+    await userEvent.click(submit);
+    expect(marks(client)).toHaveLength(1);
+
+    await act(async () => {
+      answer.release();
+      await until;
+    });
+    // The task handed over runs: the command waits for it, and opens nothing.
+    const command = markCommand();
+    await waitFor(() => {
+      expect(command).toHaveAttribute("aria-busy", "true");
+    });
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    expect(command.querySelector("[data-waiting]")).not.toBeNull();
+    await userEvent.click(command);
+    expect(screen.queryByRole("form")).toBeNull();
+    await tick();
+    expect(command).toHaveAttribute("aria-busy", "true");
+
+    // Ended: the command is given back, and the screen of the revisions is read anew, once.
+    await tick();
+    expect(command).toHaveAttribute("aria-busy", "false");
+    expect(command).not.toHaveAttribute("aria-disabled");
+    expect(command.querySelector("[data-waiting]")).toBeNull();
+    expect(router.refresh).toHaveBeenCalledOnce();
+    expect(marks(client)).toHaveLength(1);
+  });
+
+  it("gives the marking back to the screen that pressed it once its task has failed, and the same marking runs again [WF-IHM-0080-A]", async () => {
+    // L'échec d'un traitement de fond est signalé avec son motif, et le même traitement peut être
+    // relancé : the failure gives the button back to the screen that started it.
+    const client = serve({
+      [MARK]: { example: "task_mark_queued", status: 202 },
+      [TASK]: ["task_running", "task_failed"],
+    });
+    open();
+    await mark("V2");
+    await tick();
+    expect(markCommand()).toHaveAttribute("aria-busy", "true");
+    await tick();
+    expect(within(tasksRegion()).getByText("Échouée")).toBeVisible();
+    closeTasks();
+    expect(markCommand()).toHaveAttribute("aria-busy", "false");
+    expect(markCommand()).not.toHaveAttribute("aria-disabled");
+    await mark("V2");
+    expect(marks(client)).toEqual([
+      { version_name: "V2", lock_version: 4 },
+      { version_name: "V2", lock_version: 4 },
+    ]);
   });
 
   it("opens the entry of the version name, which takes the focus, and closes it again", async () => {

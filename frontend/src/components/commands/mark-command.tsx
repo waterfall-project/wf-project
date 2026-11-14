@@ -5,7 +5,8 @@
  * which marking requires, then asks the API by a server action. The API gives the hand back at
  * once with a background task (WF-ARC-0090), handed to the tracker of the shell with the command
  * itself, which runs it again if it fails (WF-IHM-0080); the form closes, and the screen stays
- * as it was, usable while the revision is marked.
+ * as it was, usable while the revision is marked. The command waits, saying so, until the task ends
+ * (`useTaskRunning`): failed, it is given back.
  *
  * The form is part of the page, not a dialog: nothing else of the screen is withheld while it
  * is open. A refusal — a version name already taken, the revision marked meanwhile or changed
@@ -20,7 +21,7 @@ import { type SubmitEvent, useEffect, useId, useRef, useState } from "react";
 import { markRevision } from "@/api/actions/revisions";
 import type { Outcome } from "@/api/problem";
 import type { Revision } from "@/components/context/read-only";
-import { useTrackTask } from "@/components/tasks/task-tracker";
+import { useTaskRunning, useTrackTask } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
 
 import { Command } from "./command";
@@ -28,6 +29,7 @@ import { commandIcon, REVISION_COMMAND_ICONS } from "./icons";
 import type { CommandOffer } from "./offer";
 import { type ObjectNames, OutcomeNotice } from "./outcome-notice";
 import { rejected } from "./rejection";
+import { WaitingIcon, waitingAttributes } from "./waiting";
 
 /** The marking the revision offers, the revision, and the names that name a conflict. */
 export interface MarkCommandProps {
@@ -42,6 +44,8 @@ interface MarkFormProps {
   readonly revision: Revision;
   readonly names: ObjectNames;
   readonly onClose: () => void;
+  /** The marking is accepted: its task, which the command waits for, is followed. */
+  readonly onMarking: (taskId: string) => void;
 }
 
 const FIELD = "w-full max-w-sm rounded-md border border-input bg-background px-2 text-foreground";
@@ -51,7 +55,7 @@ const LABEL = "block text-sm font-medium";
  * Ask the version name of the marking — and, if the user wishes, a description of the
  * revision —, mark, and hand the task over to the tracker.
  */
-function MarkForm({ id, revision, names, onClose }: MarkFormProps) {
+function MarkForm({ id, revision, names, onClose, onMarking }: MarkFormProps) {
   const t = useTranslations();
   const track = useTrackTask();
   const field = useId();
@@ -92,6 +96,7 @@ function MarkForm({ id, revision, names, onClose }: MarkFormProps) {
         setBusy(false);
         if (result.kind === "done") {
           track(result.data, { command, subject: name });
+          onMarking(result.data.task_id);
           onClose();
         } else {
           setOutcome(result);
@@ -143,8 +148,8 @@ function MarkForm({ id, revision, names, onClose }: MarkFormProps) {
         className={`py-1 ${FIELD}`}
       />
       <div className="flex gap-2">
-        <Button type="submit" size="sm">
-          <Stamp aria-hidden="true" />
+        <Button type="submit" size="sm" {...waitingAttributes(busy)}>
+          <WaitingIcon waiting={busy} icon={<Stamp aria-hidden="true" />} />
           {t("markRevision.submit")}
         </Button>
         <Button type="button" variant="outline" size="sm" onClick={onClose}>
@@ -170,6 +175,9 @@ export function MarkCommand({ offer, revision, names }: MarkCommandProps) {
   const helps = useTranslations("commands");
   const form = useId();
   const [open, setOpen] = useState(false);
+  // The task of the last marking: the command waits while it runs, and is given back at its end.
+  const [marking, setMarking] = useState<string>();
+  const running = useTaskRunning(marking);
   const button = useRef<HTMLButtonElement>(null);
   const close = () => {
     setOpen(false);
@@ -183,6 +191,7 @@ export function MarkCommand({ offer, revision, names }: MarkCommandProps) {
         help={helps("revision.mark.help")}
         icon={commandIcon(REVISION_COMMAND_ICONS.mark)}
         names={names}
+        running={running}
         disclosure={{
           expanded: open,
           controls: form,
@@ -192,7 +201,15 @@ export function MarkCommand({ offer, revision, names }: MarkCommandProps) {
           ref: button,
         }}
       />
-      {open ? <MarkForm id={form} revision={revision} names={names} onClose={close} /> : null}
+      {open ? (
+        <MarkForm
+          id={form}
+          revision={revision}
+          names={names}
+          onClose={close}
+          onMarking={setMarking}
+        />
+      ) : null}
     </div>
   );
 }

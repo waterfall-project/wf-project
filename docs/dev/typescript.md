@@ -508,3 +508,12 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     revenue sur l'écran quitté (#3074, `password.spec.ts`). Ce qu'un écran mène seul s'attend avant
     de naviguer ailleurs — la page de connexion du royaume (`expectSignInPage`) —, jamais l'adresse
     seule. Aucun outil ne le tient : la revue le cherche.
+27. **Boucle portée par l'identité d'un objet que l'on rend stable.** Le suivi d'une tâche relisait
+    la tâche dans un effet qui dépendait de son entrée : chaque réponse faisait une entrée nouvelle,
+    qui relançait l'effet, donc la lecture suivante. Puis une lecture qui trouvait la tâche où elle
+    en était a laissé l'entrée telle quelle, pour ne rien rendre à nouveau (#180) — et la boucle s'est
+    arrêtée là : une tâche lue deux fois, aboutie, plus jamais lue (#3103, cinq exports pour un
+    fichier). Une répétition se relance de la réponse elle-même (`usePolling` de `task-entry.tsx`),
+    et l'effet ne dépend que de ce qui la commence ou l'arrête — la tâche, qu'elle coure encore.
+    `task-tracker.dom.test.tsx` relit trois fois la même tâche ; aucun outil ne le tient : la revue
+    le cherche.

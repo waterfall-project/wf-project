@@ -199,6 +199,27 @@ export function isPolled({ task, interrupted }: TrackedTask): boolean {
   return RUNNING[task.status] && interrupted === undefined;
 }
 
+/** The project an address is of: the segment after `/projects/`, none outside a project. */
+function projectOf(path: string): string | undefined {
+  return /^\/projects\/([^/?#]+)/.exec(path)?.[1];
+}
+
+/**
+ * Whether the screen shown — its path — is read anew once a task has ended (#3103): a task that
+ * succeeded or failed, never a follow-up interrupted, which says nothing of the task; started from a
+ * screen of the same project — the revisions after a marking, the imports after an import —, or,
+ * outside a project, from the same screen — a backup. A task found again, its screen unknown, reads
+ * nothing anew.
+ */
+export function readsAnew({ end, from }: Pick<EndLine, "end" | "from">, shown: string): boolean {
+  if (end === "interrupted" || from === undefined) {
+    return false;
+  }
+  const started = from.href.split(/[?#]/, 1)[0] ?? "";
+  const project = projectOf(started);
+  return project === undefined ? started === shown : project === projectOf(shown);
+}
+
 /** The log with one more end. */
 function logged(
   log: readonly EndLine[],
@@ -247,9 +268,9 @@ function refused(
   ) {
     // Out of reach again at a read: the same refusal, the one already told and noted in the
     // history — a read every few seconds while the API is out of reach notes it once, until a read
-    // is answered. The entry is a new one all the same, which asks again a while later; a relaunch
-    // the user presses is told anew.
-    return { ...entry };
+    // is answered: the entry stays as it was, and the follow-up asks again a while later all the
+    // same, as it does after any answer (`usePolling`); a relaunch the user presses is told anew.
+    return entry;
   }
   if (outcome.kind === "unreachable" || source === "download") {
     // Told in place, by the notice of the entry: the follow-up of the task is not interrupted —
@@ -301,6 +322,9 @@ function answer(state: Tracking, event: Extract<TrackingEvent, { type: "answer" 
           resultUnavailable: source === "download" && outcome.data.result_url == null,
         }
       : refused(entry, source, outcome);
+  if (next === entry) {
+    return state;
+  }
   const tasks = state.tasks.map((tracked) => (tracked === entry ? next : tracked));
   if (next.interrupted !== undefined && entry.interrupted === undefined) {
     return {

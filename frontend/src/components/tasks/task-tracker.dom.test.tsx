@@ -276,19 +276,6 @@ describe("the tracker of background tasks", () => {
     expect(reads(client)).toHaveLength(2);
   });
 
-  it("offers to reload the screen once a task has succeeded, never reloads by itself, and closes the panel on the screen read anew", async () => {
-    serve({ [TASK]: "task_succeeded" });
-    await started(task("task_mark_queued"));
-    await tick();
-    const reload = within(entries()).getByRole("button", { name: "Recharger l’écran" });
-    await tick(2);
-    expect(router.refresh).not.toHaveBeenCalled();
-    await userEvent.click(reload);
-    expect(router.refresh).toHaveBeenCalledOnce();
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(tasksButton()).toHaveFocus();
-  });
-
   it("offers no reload of the screen while a task runs, nor once it has failed", async () => {
     serve({ [TASK]: ["task_running", "task_failed"] });
     await started(task("task_mark_queued"));
@@ -522,9 +509,11 @@ describe("the tracker of background tasks", () => {
       within(entries()).getByText("Pour relancer cette tâche, repartez de l’écran de son objet."),
     ).toBeVisible();
     expect(client.calls.filter((call) => call.route === MARK)).toHaveLength(1);
+    // The failure read the screen anew once already; the refusal reads it anew on demand.
+    expect(router.refresh).toHaveBeenCalledOnce();
     const alert = within(tasksRegion()).getByRole("alert");
     await userEvent.click(within(alert).getByRole("button", { name: "Recharger" }));
-    expect(router.refresh).toHaveBeenCalledOnce();
+    expect(router.refresh).toHaveBeenCalledTimes(2);
     expect(within(tasksRegion()).queryByRole("alert")).toBeNull();
     expect(within(entries()).getByText("Échouée")).toBeVisible();
   });

@@ -961,7 +961,10 @@ describe("the request of an export", () => {
   });
 
   it("asks the date of the review the file of a remaining to commit bears, the day of the request when it gives none [WF-INTF-0130-A]", async () => {
-    const client = serve({ [EXPORT]: { example: "task_export_queued", status: 202 } });
+    const client = serve({
+      [EXPORT]: { example: "task_export_queued", status: 202 },
+      [TASK]: "task_export_succeeded",
+    });
     open(exportForm());
     const form = screen.getByRole("form", { name: "Demander un export" });
     expect(within(form).queryByLabelText("Date de la revue")).toBeNull();
@@ -971,10 +974,12 @@ describe("the request of an export", () => {
     );
     await userEvent.click(within(form).getByRole("button", { name: "Demander l’export" }));
     await settled(form);
+    // The request waits for the export it asked: once it has ended, another may be asked.
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
     await userEvent.type(within(form).getByLabelText("Date de la revue"), "2026-05-29");
     await userEvent.click(within(form).getByRole("button", { name: "Demander l’export" }));
     await settled(form);
-    expect(client.calls.map((call) => call.body)).toEqual([
+    expect(client.calls.filter((call) => call.route === EXPORT).map((call) => call.body)).toEqual([
       { kind: "remaining", revision_id: REVISION, review_date: null },
       { kind: "remaining", revision_id: REVISION, review_date: "2026-05-29" },
     ]);

@@ -5,7 +5,10 @@
  * the hand back at once (WF-ARC-0090), and the screen that started it hands its reference to
  * the tracker, with the command that started it. The tracker asks where each task stands while
  * it runs, shows how far it has gone, and announces its end — success, or failure with its
- * motive, which the same command can run again — whatever screen the user went to meanwhile.
+ * motive, which the same command can run again — whatever screen the user went to meanwhile. Once a
+ * task has ended, the screen shown is read anew if the task concerns it — of the same project, or the
+ * screen it was started from (#3103) —; the button that started it waits until then
+ * (`useTaskRunning`).
  *
  * One tracker for every kind of task, in the root layout: a navigation within the application
  * keeps it, and nothing of it blocks the screen while its panel is closed — no control disabled;
@@ -37,6 +40,7 @@
 "use client";
 
 import { CircleAlert, ListChecks, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   createContext,
@@ -73,8 +77,10 @@ import { restoreTasks, saveTasks } from "./storage";
 import { EndLog, TaskEntry, taskName, TaskPolling, useTaskNaming } from "./task-entry";
 import {
   type EndLine,
+  isPolled,
   type Launch,
   NOTHING_TRACKED,
+  readsAnew,
   type Tracking,
   tracking,
   type TrackingEvent,
@@ -116,6 +122,11 @@ interface TrackerStore {
   readonly show: (shown: boolean) => void;
   /** Say a news under the bar — none, and the line is closed. */
   readonly tell: (news: TaskNews | undefined) => void;
+  /**
+   * Read the screen anew for an end, once: the shell and a screen that waits for the end of its task
+   * both read it anew, and the page is read once (`ReadAnew`, `useReadAnewWhenTaskEnds`).
+   */
+  readonly readAnew: (line: EndLine, refresh: () => void) => void;
 }
 
 /** The news once an event has changed what the tracker follows: an end logged is the last. */
@@ -133,6 +144,7 @@ function newsAfter(before: Held, after: Tracking, event: TrackingEvent): TaskNew
 function trackerStore(): TrackerStore {
   let held = NOTHING_HELD;
   const listeners = new Set<() => void>();
+  const readAnew = new WeakSet<EndLine>();
   const hold = (next: Held) => {
     if (next.tracking === held.tracking && next.shown === held.shown && next.news === held.news) {
       return;
@@ -159,6 +171,12 @@ function trackerStore(): TrackerStore {
     },
     tell: (news) => {
       hold({ ...held, news });
+    },
+    readAnew: (line, refresh) => {
+      if (!readAnew.has(line)) {
+        readAnew.add(line);
+        refresh();
+      }
     },
   };
 }
@@ -290,6 +308,57 @@ export function useWhenTaskFails(taskId: string | undefined, then: () => void): 
 }
 
 /**
+ * Whether the task named still runs in the tracker — the task as it was handed over, or the one a
+ * relaunch put in its place —: the button that started it waits until then (WF-IHM-0080, #3103).
+ * Ended, failed, its follow-up interrupted, or dismissed from the tracker, it no longer runs, and the
+ * button is given back. `task_id` is none until a task was started. Read from the store of the
+ * tracker, the button is rendered again only when the answer changes (#180); a command rendered
+ * outside the tracker has started none.
+ */
+export function useTaskRunning(taskId: string | undefined): boolean {
+  // Outside the tracker no task was ever handed over (`useTrackTask` would have thrown): none runs.
+  const store = useContext(StateContext)?.store;
+  return useSyncExternalStore(
+    store?.subscribe ?? subscribeToNothing,
+    () => {
+      const entry = store?.read().tracking.tasks.find((tracked) => tracked.key === taskId);
+      return entry !== undefined && isPolled(entry);
+    },
+    () => false,
+  );
+}
+
+/** A subscription to nothing: nothing ever changes. */
+function subscribeToNothing(): () => void {
+  return () => undefined;
+}
+
+/**
+ * Read the screen anew once the task named has ended, whichever way — the task as it was handed over,
+ * or the one a relaunch put in its place —, even when the tracker does not know the screen it was
+ * started from: found again after a reload, or read by the screen from its object (an import
+ * analysing). An end the shell has read the screen anew for already reads nothing more. `task_id`
+ * is none until a task was started.
+ */
+export function useReadAnewWhenTaskEnds(taskId: string | undefined): void {
+  const { store } = inTracker(useContext(StateContext));
+  const { log, tasks } = useTracker();
+  const router = useRouter();
+  const current = tasks.find((tracked) => tracked.key === taskId)?.task.task_id;
+  const line =
+    taskId === undefined
+      ? undefined
+      : log.findLast((end) => end.task.task_id === taskId || end.task.task_id === current);
+  useEffect(() => {
+    if (line !== undefined) {
+      store.readAnew(line, () => {
+        router.refresh();
+      });
+    }
+  }, [line, store, router]);
+}
+
+/**
  * The function that forgets every task the tracker follows, what the tab kept of them for a
  * reload, and the history of the messages: signing out leaves nothing of the session to the next
  * user of the tab.
@@ -359,6 +428,38 @@ export function afterReveal(change: () => void): () => void {
     window.removeEventListener("load", loaded);
     clearTimeout(timer);
   };
+}
+
+/**
+ * Read the screen shown anew once a task that concerns it ends (`readsAnew`, #3103): its project
+ * — the list of the revisions after a marking, the imports after an import —, whatever the screen
+ * of the project the user went to meanwhile. The page is read again under what the screen holds —
+ * the router keeps the state of its components, what the user is typing included. The ends already
+ * logged when it mounts read nothing anew.
+ */
+function ReadAnew({ store }: { readonly store: TrackerStore }) {
+  const router = useRouter();
+  useEffect(() => {
+    let last = store.read().tracking.log.at(-1);
+    return store.subscribe(() => {
+      const { log } = store.read().tracking;
+      if (log.at(-1) === last) {
+        return;
+      }
+      // The ends logged since the last one seen: all of them when it is gone from the log — out of
+      // its last lines, or forgotten on signing out.
+      const fresh = log.slice(last === undefined ? 0 : log.indexOf(last) + 1);
+      last = log.at(-1);
+      for (const line of fresh) {
+        if (readsAnew(line, window.location.pathname)) {
+          store.readAnew(line, () => {
+            router.refresh();
+          });
+        }
+      }
+    });
+  }, [store, router]);
+  return null;
 }
 
 /** Follow the background tasks the screens within it start, and those of its user that run. */
@@ -491,6 +592,7 @@ export function TaskTracker({ signedIn = false, accountId, running, children }: 
       <StateContext value={value}>
         {children}
         {streamed}
+        <ReadAnew store={store} />
       </StateContext>
     </TrackContext>
   );

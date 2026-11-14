@@ -80,6 +80,8 @@ vi.mock("next/cache", () => ({ refresh: vi.fn() }));
 // The home page: the address the navigation reads, as the router of Next would give it.
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
+  // The router of Next, whose refresh the tracker of the shell calls at the end of a task (#3103).
+  useRouter: () => ({ refresh: () => undefined }),
   usePathname: () => "/",
   useSearchParams: () => new URLSearchParams(),
 }));
