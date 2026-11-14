@@ -131,7 +131,12 @@ function InertTurn({
   readonly name: string;
 }) {
   return (
-    <a role="link" aria-disabled="true" aria-label={name} className={cn(TURN, "pointer-events-none opacity-50")}>
+    <a
+      role="link"
+      aria-disabled="true"
+      aria-label={name}
+      className={cn(TURN, "pointer-events-none opacity-50")}
+    >
       {direction === "previous" ? <ChevronLeft aria-hidden="true" /> : null}
       {text}
       {direction === "next" ? <ChevronRight aria-hidden="true" /> : null}

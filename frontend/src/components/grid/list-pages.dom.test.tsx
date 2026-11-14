@@ -50,7 +50,9 @@ describe("the pages of a flat table", () => {
   it("say the rows shown and the page among the pages, between « Précédent » and « Suivant », after « Lignes par page » [WF-IHM-0060-A]", () => {
     const { container } = pages({ offset: 50, limit: 50, total: 150 }, 50);
     const nav = navigation();
-    expect(within(nav).getByRole("link", { name: "Précédent, Catégories de coût" })).toHaveAttribute("href", PATHNAME);
+    expect(
+      within(nav).getByRole("link", { name: "Précédent, Catégories de coût" }),
+    ).toHaveAttribute("href", PATHNAME);
     expect(within(nav).getByRole("link", { name: "Suivant, Catégories de coût" })).toHaveAttribute(
       "href",
       `${PATHNAME}?category_offset=100`,
@@ -68,9 +70,16 @@ describe("the pages of a flat table", () => {
   it("keep « Précédent » and « Suivant » in their place, inert, at the ends of the list [WF-IHM-0060-A]", async () => {
     const { rerender } = pages({ offset: 0, limit: 50, total: 120 }, 50);
     const first = within(navigation());
-    expect(first.getByRole("link", { name: "Précédent, Catégories de coût" })).toHaveAttribute("aria-disabled", "true");
-    expect(first.getByRole("link", { name: "Précédent, Catégories de coût" })).not.toHaveAttribute("href");
-    expect(first.getByRole("link", { name: "Suivant, Catégories de coût" })).not.toHaveAttribute("aria-disabled");
+    expect(first.getByRole("link", { name: "Précédent, Catégories de coût" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(first.getByRole("link", { name: "Précédent, Catégories de coût" })).not.toHaveAttribute(
+      "href",
+    );
+    expect(first.getByRole("link", { name: "Suivant, Catégories de coût" })).not.toHaveAttribute(
+      "aria-disabled",
+    );
     expect(navigation()).toHaveTextContent("Page 1 sur 3");
     await expectAccessible(navigation());
     expect(screen.getByText("1–50 sur 120")).toBeVisible();
@@ -85,8 +94,13 @@ describe("the pages of a flat table", () => {
       </NextIntlClientProvider>,
     );
     const last = within(navigation());
-    expect(last.getByRole("link", { name: "Suivant, Catégories de coût" })).toHaveAttribute("aria-disabled", "true");
-    expect(last.getByRole("link", { name: "Suivant, Catégories de coût" })).not.toHaveAttribute("href");
+    expect(last.getByRole("link", { name: "Suivant, Catégories de coût" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(last.getByRole("link", { name: "Suivant, Catégories de coût" })).not.toHaveAttribute(
+      "href",
+    );
     expect(last.getByRole("link", { name: "Précédent, Catégories de coût" })).toHaveAttribute(
       "href",
       `${PATHNAME}?category_offset=50`,
