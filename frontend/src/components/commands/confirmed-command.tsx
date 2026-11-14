@@ -65,8 +65,6 @@ export interface ConfirmedCommandProps<T> {
   readonly reread?: Reread | undefined;
 }
 
-const UNAVAILABLE = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
-
 /** Offer a command, open its confirmation when pressed, and say what followed. */
 export function ConfirmedCommand<T>({
   offer,
@@ -179,7 +177,6 @@ export function ConfirmedCommand<T>({
               size="sm"
               aria-describedby={sentence}
               aria-disabled={ready ? undefined : true}
-              className={UNAVAILABLE}
             >
               {icon}
               {submit}
@@ -189,7 +186,6 @@ export function ConfirmedCommand<T>({
               variant="outline"
               size="sm"
               aria-disabled={busy ? true : undefined}
-              className={UNAVAILABLE}
               onClick={() => {
                 if (!busy) {
                   close();

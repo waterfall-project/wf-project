@@ -183,6 +183,9 @@ const CONTROLS: readonly [string, string][] = [
     "active-mark",
     background,
   ]),
+  // The line under the current tab of a row of tabs (`Tabs`), on the page and on a card (US-2070).
+  ["primary", "background"],
+  ["primary", "card"],
 ];
 
 const MODES: readonly Mode[] = ["light", "dark"];
