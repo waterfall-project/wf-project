@@ -203,6 +203,46 @@ def test_an_entry_recognizes_a_failure_only_when_all_its_patterns_match() -> Non
     assert known(step="e2e-service").recognizes(projects)
 
 
+@pytest.mark.parametrize(
+    ("file", "title", "neighbour"),
+    [
+        (
+            "e2e/projects.spec.ts",
+            "the home filters its projects by the period of their last modification on the server",
+            "an exit of the lifecycle is confirmed, naming the state it leads to",
+        ),
+        (
+            "e2e/reference-resources.spec.ts",
+            "creates a role in its form, moves a node under an active one, and designates",
+            "modifies the units of duration from the settings of the resources",
+        ),
+        (
+            "e2e/reference-settings.spec.ts",
+            "modifies the risk matrix and the thresholds of the indices in their forms",
+            "offers no deletion on the settings of the risks and of the indicators",
+        ),
+        (
+            "e2e/reference-costs.spec.ts",
+            "shows the deactivated natures and categories asked for and reactivates them",
+            "deactivates a nature from its row, the row showing what the service answers",
+        ),
+    ],
+)
+def test_the_family_b_entries_recognize_their_journey_by_its_title_at_any_line(
+    file: str, title: str, neighbour: str
+) -> None:
+    # US-1890/L2 (#3046) moved the journeys that the family B named by their line; the titles are
+    # those of `frontend/e2e/`, the line one that none of them had.
+    (_, structure) = failures("playwright-service-paths")
+    failure = replace(structure, file=file, line=999, name=title, where="e2e/x.ts:1")
+    kind, entry = queue.read_catalogue().classify(failure)
+    assert kind == queue.FLAKY
+    assert entry is not None
+    assert entry.family.startswith("B.")
+    other = replace(failure, name=neighbour)
+    assert queue.read_catalogue().classify(other) == (queue.TO_CLASSIFY, None)
+
+
 def test_an_entry_that_names_runs_recognizes_nothing_outside_them() -> None:
     (found,) = failures("keycloak-import")
     entry = known(**{"class": queue.REGRESSION}, job="^service / paths$", runs=[42])
