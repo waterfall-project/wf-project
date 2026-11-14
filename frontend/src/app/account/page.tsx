@@ -86,7 +86,7 @@ function AccountScreen({
 }) {
   const t = useTranslations();
   return (
-    <Screen>
+    <Screen density="dense">
       <PageHeader
         title={t("accountMenu.account")}
         icon={ACCOUNT_ICONS.account}

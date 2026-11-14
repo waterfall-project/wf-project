@@ -5139,8 +5139,13 @@ that of the logo.
   bounded to 96rem (`--container-column`), at the airy density (`airy`). Each function has its
   family, in a typed table (`FUNCTION_DENSITY`, and `LEAF_DENSITY` for a leaf that has its own
   screen, `function-display.ts`), which `Screen` and `PageHeader` receive;
-  `function-display.test.ts` holds the list of the screens of work. Set aside: a width in
-  percent, and a ceiling of 72rem.
+  `function-display.test.ts` holds the list of the screens of work. `Screen` has no default
+  density, and the screen of a function never writes it as a literal
+  (`src/app/screen-density.test.ts`, which names the screens outside the table: the home, the
+  screen of a project, the account, a page not found…; the account and the screen of a project
+  stay tight until they are recomposed, US-2130). That check and the width of `main` measured on a
+  screen of each family in a wide window (`e2e/theme.spec.ts`) hold the two families. Set aside: a
+  width in percent, and a ceiling of 72rem.
 - **A section of a screen is a card**, `SectionCard`
   (`frontend/src/components/shell/section-card.tsx`, on the `Card` of shadcn/ui): a region named by
   its title, a level 2 heading,
@@ -5149,13 +5154,16 @@ that of the logo.
   itself.
 - **The rule of the commands** (#3088, rules 2 to 4): a card has at most one principal command, the
   last to the right of its title (`principal`), filled when it creates or triggers, outlined when
-  it modifies — the card says what it does (`does`), and the button draws its variant from the same
-  word (`principalVariant`); its other commands are outlined, as are the commands of a screen to
-  the right of its title. Filled is reserved for the principal command: a current choice says
-  itself otherwise. `expectCommandRule` (`frontend/src/test/command-rule.ts`) reads it in what a
-  test rendered — a button is filled when it carries the classes of the filled variant of
-  `buttonVariants` that the outlined variant lacks —; a screen recomposed in cards calls it in its
-  tests.
+  it modifies — the screen tells the card what it does (`does`) and gives it the command as a
+  function of its variant (`command: (variant) => …`), which the card calls with the variant of
+  that word (`principalVariant`): no screen chooses it. A function does not pass from a server
+  component to a client one (defect 12 of `docs/dev/typescript.md`): a server screen renders the
+  card itself. Its other commands are outlined, as are the commands of a screen to the right of its
+  title. Filled is reserved for the principal command: a current choice says itself otherwise.
+  `expectCommandRule` (`frontend/src/test/command-rule.ts`) reads it in what a test rendered — a
+  button is filled when it carries the classes of the filled variant of `buttonVariants` that the
+  outlined variant lacks, and the module refuses to load if they have none that sets them apart —;
+  a screen recomposed in cards calls it in its tests.
 - **A Lucide icon on every navigation entry, every button and every line nature.** For the
   functions, the blocks, the commands, the account pages, the line natures, the scheduling modes and
   the progress states, it is drawn from a table typed on what it represents — `FUNCTION_ICONS`,

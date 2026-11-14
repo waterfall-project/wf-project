@@ -3,6 +3,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { axeViolations } from "./axe";
+import { path } from "./routes";
 
 // The account of the fake back follows the workstation (`theme: default`): the mode the
 // browser asks for alone decides the colours of the charter. The logo is on the side bar, midnight
@@ -162,3 +163,51 @@ for (const mode of ["light", "dark"] as const) {
     });
   });
 }
+
+// The two families of screens (US-2070; EP-25, « Deux familles d'écrans, dites par Screen »),
+// measured in a window wider than the column: a screen of settings is a column bounded to 96rem
+// (`max-w-column`, from `--container-column`), centred in what the side bar leaves; a screen of
+// work fills it. A test of the classes would pass on a utility Tailwind never generated.
+test.describe("the two families of screens, in a window of 2560 points", () => {
+  test.use({ viewport: { width: 2560, height: 1440 } });
+
+  /** Where `main` lies in the part of the window the side bar leaves to the page. */
+  async function placed(page: Page) {
+    // The screen, not the skeleton of its loading (dense, and without a heading) that precedes it.
+    const main = page.getByRole("main");
+    await expect(main.getByRole("heading", { level: 1 })).toBeVisible();
+    const inset = await page.locator('[data-slot="sidebar-inset"]').boundingBox();
+    const box = await main.boundingBox();
+    if (inset === null || box === null) {
+      throw new Error("the page or its main content is not laid out");
+    }
+    return {
+      main,
+      width: box.width,
+      page: inset.width,
+      left: box.x - inset.x,
+      right: inset.x + inset.width - (box.x + box.width),
+    };
+  }
+
+  test("sets a screen of settings in a column of 1536 points at most, centred in the page", async ({
+    page,
+  }) => {
+    await page.goto("/reference/costs");
+    const shown = await placed(page);
+    await expect(shown.main).toHaveCSS("max-width", "1536px");
+    // The page is wider than the column: the column takes its bound, no more.
+    expect(shown.page).toBeGreaterThan(1536);
+    expect(shown.width).toBeCloseTo(1536, 0);
+    expect(Math.abs(shown.left - shown.right)).toBeLessThanOrEqual(1);
+  });
+
+  test("lets a screen of work fill the width the side bar leaves", async ({ page }) => {
+    await page.goto(path("/projects/[projectId]/revisions/[revisionId]/planning"));
+    const shown = await placed(page);
+    await expect(shown.main).toHaveCSS("max-width", "none");
+    expect(shown.page).toBeGreaterThan(1536);
+    expect(shown.width).toBeCloseTo(shown.page, 0);
+    expect(shown.left).toBeCloseTo(0, 0);
+  });
+});

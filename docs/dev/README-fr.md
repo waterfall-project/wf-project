@@ -5253,6 +5253,11 @@ l'anneau du focus ; la police est Geist, celle du logo.
   (`airy`). Chaque fonction a sa famille, dans une table typée (`FUNCTION_DENSITY`, et
   `LEAF_DENSITY` pour une feuille qui a son écran, `function-display.ts`), que `Screen` et
   `PageHeader` reçoivent ; `function-display.test.ts` tient la liste des écrans de travail.
+  `Screen` n'a pas de densité par défaut, et l'écran d'une fonction ne l'écrit jamais en
+  littéral (`src/app/screen-density.test.ts`, qui nomme les écrans hors de la table : l'accueil,
+  l'écran d'un projet, le compte, une page introuvable… ; le compte et l'écran d'un projet restent
+  serrés jusqu'à leur recomposition, US-2130). Ce contrôle et la largeur de `main` mesurée sur un
+  écran de chaque famille dans une fenêtre large (`e2e/theme.spec.ts`) tiennent les deux familles.
   Écartées : une largeur en pourcentage, et un plafond de 72rem.
 - **Une section d'écran est une carte**, `SectionCard`
   (`frontend/src/components/shell/section-card.tsx`, sur la `Card` de shadcn/ui) : une région
@@ -5262,12 +5267,16 @@ l'anneau du focus ; la police est Geist, celle du logo.
   écran ne compose pas sa carte lui-même.
 - **La règle des commandes** (#3088, règles 2 à 4) : une carte a au plus une commande principale,
   la dernière à droite de son titre (`principal`), pleine quand elle crée ou déclenche, à contour
-  quand elle modifie — la carte dit ce qu'elle fait (`does`), et le bouton tire sa variante du même
-  mot (`principalVariant`) ; ses autres commandes sont à contour, comme les commandes d'un écran à
-  droite de son titre. Le plein est réservé à la commande principale : un choix courant se dit
-  autrement. `expectCommandRule` (`frontend/src/test/command-rule.ts`) la lit dans ce qu'un test a
-  rendu — un bouton est plein quand il porte les classes de la variante pleine de `buttonVariants`
-  que la variante à contour n'a pas — ; un écran recomposé en cartes l'appelle dans ses tests.
+  quand elle modifie — l'écran dit à la carte ce qu'elle fait (`does`) et lui donne la commande
+  comme une fonction de sa variante (`command: (variant) => …`), que la carte appelle avec la
+  variante de ce mot (`principalVariant`) : aucun écran ne la choisit. Une fonction ne passe pas
+  d'un composant serveur à un composant client (défaut n° 12 de `docs/dev/typescript.md`) : un
+  écran serveur rend la carte lui-même. Ses autres commandes sont à contour, comme les commandes
+  d'un écran à droite de son titre. Le plein est réservé à la commande principale : un choix
+  courant se dit autrement. `expectCommandRule` (`frontend/src/test/command-rule.ts`) la lit dans
+  ce qu'un test a rendu — un bouton est plein quand il porte les classes de la variante pleine de
+  `buttonVariants` que la variante à contour n'a pas, et le module refuse de se charger si elles
+  n'en ont aucune qui les distingue — ; un écran recomposé en cartes l'appelle dans ses tests.
 - **Une icône Lucide sur chaque entrée de navigation, chaque bouton et chaque nature de ligne.**
   Pour les fonctions, les blocs, les commandes, les pages du compte, les natures de ligne, les modes
   de planification et les états d'avancement, elle est tirée d'une table typée sur ce qu'elle

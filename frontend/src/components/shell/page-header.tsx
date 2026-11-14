@@ -45,12 +45,13 @@ const TITLE: Readonly<Record<Density, string>> = {
  * scrolls.
  */
 export function Screen({
-  density = "dense",
+  density,
   fill = false,
   fillWide = false,
   children,
 }: {
-  readonly density?: Density;
+  /** Its family: every screen says it, a function by its table (`FUNCTION_DENSITY`). */
+  readonly density: Density;
   readonly fill?: boolean;
   /**
    * Whether the screen fills the window from the large breakpoint only: a screen that sets its

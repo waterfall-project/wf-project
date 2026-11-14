@@ -34,6 +34,7 @@ import { PortfolioValueView } from "@/components/portfolio/portfolio-value";
 import { FilterFields } from "@/components/grid/filter-fields";
 import { ProjectsGrid } from "@/components/portfolio/projects-grid";
 import { ZoneFilter } from "@/components/portfolio/zone-filter";
+import { FUNCTION_DENSITY } from "@/components/shell/function-display";
 import { MockupNotice } from "@/components/shell/mockup-notice";
 import { Screen } from "@/components/shell/page-header";
 import { type PageSearchParams, pageSearch } from "@/navigation/context";
@@ -100,7 +101,7 @@ export default async function PortfolioProjectsPage({
   return (
     // The perimeter, the grid and the pages compose the changes they make to the address.
     <PendingAddress>
-      <Screen density="dense" fill>
+      <Screen density={FUNCTION_DENSITY.portfolio_projects} fill>
         <PortfolioHeader fn="portfolio_projects" scope={projects.data.scope} />
         <MockupNotice lists />
         <PerimeterBar perimeter={perimeter} retained={projects.data.scope.states} nodes={nodes} />
