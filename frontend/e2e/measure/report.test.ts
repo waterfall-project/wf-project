@@ -71,7 +71,7 @@ describe("partsOf", () => {
     });
   });
 
-  it("counts the time of a prefetch the step waits for, and the bytes of none it started itself", () => {
+  it("counts the time and the bytes of a prefetch the step waits for, of none it started itself", () => {
     const front = [
       // Asked as a menu opened, before the gesture, and still under way: the step waits for it.
       { start: 900, end: 1_300, bytes: 8_000, prefetch: true },
@@ -79,8 +79,8 @@ describe("partsOf", () => {
       { start: 1_900, end: 2_050, bytes: 50_000, prefetch: true },
     ];
     expect(partsOf({ start: 1_000, end: 2_000 }, front, [], USER)).toMatchObject({
-      next: 300 + 100,
-      browser: 600,
+      next: 300,
+      browser: 700,
       bytes: 8_000,
     });
   });

@@ -16,15 +16,18 @@
  *   the window of the step tie a request to its step;
  * - **Next**, by difference: the time during which the server of Next was answering the browser —
  *   a document, a component tree of the server, a server action, as the browser saw them, a
- *   prefetch too: the menu of a filter prefetches the reading its choice leads to, which a choice
- *   made before it is answered waits for — or the API was answering Next, less the part of the
- *   API;
+ *   prefetch asked before the step too: the menu of a filter prefetches the reading its choice
+ *   leads to, which a choice made before it is answered waits for — or the API was answering Next,
+ *   less the part of the API;
  * - **the browser**: the rest of the step, from the gesture to the grid usable.
  *
  * The weight of the answer is what the server of Next sent the browser for the step, the bodies
- * of its answers as they came over the network: those under way within it, but a prefetch the step
- * started itself — the links of a grid hydrated prefetch the screens they lead to —, which serves
- * a step to come, not this one.
+ * of its answers as they came over the network. Its time and its weight count the same requests of
+ * Next: those under way within the step, but a prefetch the step started itself — the links of a
+ * grid hydrated prefetch the screens they lead to —, which serves a step to come, and which the step
+ * does not wait for: its time is the browser's, at work meanwhile. The requests of the API such a
+ * prefetch makes stay in the part of the API all the same: the log ties a request to an account and
+ * a moment, not to the request of Next that made it — a limit the guide states.
  *
  * Five passes give the dispersion: for each step, the median and the worst of every sample of the
  * passes, and the spread, the gap between the highest and the lowest median of a pass — what a
@@ -120,7 +123,7 @@ export function partsOf(
   const ownFront = front.filter((request) => meets(request, step));
   const answered = ownFront.filter((request) => !request.prefetch || request.start < step.start);
   const ownApi = api.filter((request) => request.actor === actor && meets(request, step));
-  const served = covered([...ownFront, ...ownApi], step);
+  const served = covered([...answered, ...ownApi], step);
   const apiPart = covered(ownApi, step);
   return {
     usable,
