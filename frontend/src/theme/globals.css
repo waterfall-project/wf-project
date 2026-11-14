@@ -7,8 +7,10 @@
  * read them through the theme below; a component names a token (`bg-primary`), never a
  * colour.
  *
- * The blues come from the logos of docs/assets (#027dc6, #1195e1), the neutrals from
- * shadcn/ui. Each colour token holds its light and its dark value side by side, by
+ * The charter of EP-25 (US-2070, after the mock-up the author brought on 2026-11-13, #3079): a
+ * side bar in midnight blue in both modes, a pale grey page under white cards, a midnight blue
+ * for the primary. The blues of the logos of docs/assets (#027dc6, #1195e1) reach a component
+ * through the ring of the focus alone. Each colour token holds its light and its dark value side by side, by
  * `light-dark()`: the document follows the workstation (`color-scheme: light dark`), and the
  * shell forces a mode with `data-theme` when the account asks for one. No component asks
  * which mode shows: the `dark:` variant of Tailwind, which would follow the workstation
@@ -27,26 +29,34 @@
 :root {
   color-scheme: light dark;
 
-  --background: light-dark(#ffffff, #0a0a0a);
-  --foreground: light-dark(#0a0a0a, #fafafa);
-  --card: light-dark(#ffffff, #171717);
-  --card-foreground: light-dark(#0a0a0a, #fafafa);
-  /* The deep blue of the logo, darkened in light mode to carry white text at AA. */
-  --primary: light-dark(#0270b3, #1195e1);
-  --primary-foreground: light-dark(#ffffff, #0a0a0a);
-  /* A primary control under the pointer: darker in light mode, lighter in dark mode. */
-  --primary-hover: light-dark(#02609a, #3aa9ea);
-  --secondary: light-dark(#f5f5f5, #262626);
-  --secondary-foreground: light-dark(#171717, #fafafa);
-  --muted: light-dark(#f5f5f5, #262626);
-  --muted-foreground: light-dark(#6b6b6b, #a3a3a3);
-  --accent: light-dark(#e6f3fb, #0c2c40);
-  --accent-foreground: light-dark(#0a0a0a, #fafafa);
+  /* The page, a pale grey a step under its white cards; in dark mode a near black tinted with the
+     midnight blue, its cards a step lighter, as what rises over a dark page is. */
+  --background: light-dark(#f3f5f8, #0b111b);
+  --foreground: light-dark(#0a0a0a, #f1f4f8);
+  --card: light-dark(#ffffff, #141c28);
+  --card-foreground: light-dark(#0a0a0a, #f1f4f8);
+  /* The midnight blue of the mock-up, carrying white text; in dark mode its mirror, a pale
+     blue grey carrying the midnight blue, so that a filled control stands out of a dark page as
+     it does of a light one. */
+  --primary: light-dark(#14233b, #d6e0ee);
+  --primary-foreground: light-dark(#ffffff, #14233b);
+  /* A primary control under the pointer: a step lighter than its fill, in both modes. */
+  --primary-hover: light-dark(#253a5c, #eaf0f7);
+  /* The very pale blue grey of controls and of the header row of a table, apart from the page and
+     from a card. */
+  --secondary: light-dark(#eef1f6, #1d2736);
+  --secondary-foreground: light-dark(#14233b, #f1f4f8);
+  --muted: light-dark(#eef1f6, #1d2736);
+  --muted-foreground: light-dark(#5f6670, #9aa5b5);
+  /* A row selected, an entry of a menu under the pointer: a tint of the midnight blue. */
+  --accent: light-dark(#e8edf5, #1b2840);
+  --accent-foreground: light-dark(#0a0a0a, #f1f4f8);
   --destructive: light-dark(#b91c1c, #f87171);
   --destructive-foreground: light-dark(#ffffff, #0a0a0a);
-  /* A border that only separates; the border of a field shows where to type, at 3:1. */
-  --border: light-dark(#e5e5e5, #2e2e2e);
-  --input: light-dark(#8c8c8c, #737373);
+  /* A border that only separates, light around a card and between rows; the border of a field
+     shows where to type, at 3:1 on the page and on a card. */
+  --border: light-dark(#e1e6ed, #273244);
+  --input: light-dark(#7d8796, #6e7b8f);
   /* The blues of the logos as they are drawn, deep in light mode, bright in dark mode. */
   --ring: light-dark(#027dc6, #1195e1);
   /* The zones of a signal, one token each, drawn as the text and the icon of `Signal`. The
@@ -75,13 +85,18 @@
   --state-lost-foreground: light-dark(#0a0a0a, #fafafa);
   --state-abandoned: light-dark(#b84d4d, #7a2e2e);
   --state-abandoned-foreground: light-dark(#ffffff, #fafafa);
-  /* The series of a chart (US-0240), in the order a chart takes them: the blue of the logo,
-     then an amber, a purple and a green, apart in hue and told apart without their colour by
-     the symbol and the stroke of each series. Each draws on the page and on a card at 4.5:1. */
-  --chart-1: light-dark(#0270b3, #1195e1);
-  --chart-2: light-dark(#b45309, #f59e0b);
-  --chart-3: light-dark(#7e22ce, #c084fc);
-  --chart-4: light-dark(#047857, #34d399);
+  /* The series of a chart (US-0240), in the order a chart takes them: a blue, an amber, a
+     purple and a green, apart in hue, softened from the saturated palette before (#3079), and
+     told apart without their colour by the symbol and the stroke of each series. Each draws on
+     the page and on a card at 4.5:1. */
+  --chart-1: light-dark(#3d6a9e, #82a9d9);
+  --chart-2: light-dark(#a35a1f, #d9a066);
+  --chart-3: light-dark(#7357a4, #b39ad9);
+  --chart-4: light-dark(#2f7a5a, #6fbf98);
+  /* The dot of the state « Actif » of a line of a table (#3079): a frank green, seen at 3:1 on
+     the page, a card, a muted or a selected row. The dot never says the state alone: the word
+     is written beside it, and « Désactivé » keeps its own mark (WF-IHM-0070). */
+  --active-mark: light-dark(#15803d, #4ade80);
   /* The mark of a difference (US-0500): the tint of the row of a node a differential adds, removes
      or modifies, and the mark written on it, `+`, `-` or `M`, in a green, a red and a yellow. The
      character says it first and the colour doubles it, never alone; each reaches 4.5:1 on its tint,
@@ -100,14 +115,20 @@
   /* What floats over the page — a menu, the panel of a sub-menu —: the surface of a card. */
   --popover: var(--card);
   --popover-foreground: var(--card-foreground);
-  /* The side bar of the shell: a neutral a step off the page, its current entry and the entry
-     under the pointer a step further, light enough to carry the muted text at AA. */
-  --sidebar: light-dark(#fafafa, #121212);
-  --sidebar-foreground: var(--foreground);
-  --sidebar-accent: light-dark(#ededed, #262626);
-  --sidebar-accent-foreground: var(--foreground);
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--ring);
+  /* The side bar of the shell, midnight blue in both modes (EP-25, « Décisions »), the same bar
+     beside a light page and a dark one: its light text, its muted labels, its current entry and
+     the entry under the pointer a step lighter, the tile of the project switcher in the pale
+     mirror of the primary, the focus in the bright blue of the logo, which the deep one does not
+     reach at 3:1 on the current entry. The values repeat in both halves of `light-dark()`. */
+  --sidebar: light-dark(#0f1b2d, #0f1b2d);
+  --sidebar-foreground: light-dark(#e6ebf2, #e6ebf2);
+  --sidebar-muted-foreground: light-dark(#9fb0c8, #9fb0c8);
+  --sidebar-accent: light-dark(#22324b, #22324b);
+  --sidebar-accent-foreground: light-dark(#ffffff, #ffffff);
+  --sidebar-primary: light-dark(#dce5f2, #dce5f2);
+  --sidebar-primary-foreground: light-dark(#14233b, #14233b);
+  --sidebar-border: light-dark(#22324b, #22324b);
+  --sidebar-ring: light-dark(#1195e1, #1195e1);
 
   --radius: 0.5rem;
   /* The widths of the side bar, unfolded and folded into a rail of icons. */
@@ -121,6 +142,21 @@
 
 [data-theme="dark"] {
   color-scheme: dark;
+}
+
+/* Inside the side bar, dark in both modes, the tokens its entries name take the values of the
+   bar: a label in `text-muted-foreground`, the tile of the project switcher in `bg-primary`, the
+   outline of the focus, written for the page, stay legible on it without the components choosing
+   between two names. What it opens — a menu, a tooltip — is rendered outside it, on the page. */
+[data-sidebar="sidebar"] {
+  --foreground: var(--sidebar-foreground);
+  --muted-foreground: var(--sidebar-muted-foreground);
+  --primary: var(--sidebar-primary);
+  --primary-foreground: var(--sidebar-primary-foreground);
+  --accent: var(--sidebar-accent);
+  --accent-foreground: var(--sidebar-accent-foreground);
+  --border: var(--sidebar-border);
+  --ring: var(--sidebar-ring);
 }
 
 @theme inline {
@@ -161,6 +197,7 @@
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
+  --color-active-mark: var(--active-mark);
   --color-diff-added: var(--diff-added);
   --color-diff-added-mark: var(--diff-added-mark);
   --color-diff-removed: var(--diff-removed);
@@ -173,6 +210,9 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted-foreground: var(--sidebar-muted-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);

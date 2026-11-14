@@ -426,7 +426,7 @@ réécrit sur le filtre d'état ; ici, il n'est qu'isolé.
 
 ## US-2070 — La charte nouvelle : barre latérale sombre, fond gris, cartes et pilules, en mode clair et en mode sombre
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0070-A`, `WF-IHM-0100-A`
 - **opérations** : aucune en propre
 - **issue** : #3206

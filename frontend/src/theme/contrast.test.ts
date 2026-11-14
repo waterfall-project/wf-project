@@ -123,12 +123,15 @@ const TEXTS: readonly [string, string][] = [
   ["popover-foreground", "popover"],
   ["muted-foreground", "popover"],
   ["destructive", "popover"],
-  // The side bar: its entries, the labels of its groups, the current entry and the entry
-  // under the pointer, the project whose icon it shows.
+  // The side bar, dark in both modes: its entries, the labels of its groups, the current entry
+  // and the entry under the pointer, the project whose icon it shows, the icon of the project
+  // switcher on its tile. Inside it, the tokens a component names take these values (SIDEBAR).
   ["sidebar-foreground", "sidebar"],
-  ["muted-foreground", "sidebar"],
+  ["sidebar-foreground", "sidebar-accent"],
+  ["sidebar-muted-foreground", "sidebar"],
+  ["sidebar-muted-foreground", "sidebar-accent"],
   ["sidebar-accent-foreground", "sidebar-accent"],
-  ["muted-foreground", "sidebar-accent"],
+  ["sidebar-primary-foreground", "sidebar-primary"],
   // The name and the icon of a signal, wherever a screen sets one: a page, a card, a muted
   // row, a selected row.
   ...Object.values(SIGNALS).flatMap((signal) =>
@@ -168,6 +171,16 @@ const CONTROLS: readonly [string, string][] = [
   ["day-off-mark", "day-off"],
   ["sidebar-ring", "sidebar"],
   ["sidebar-ring", "sidebar-accent"],
+  // The tile of the project switcher, which shows where the switcher is on the dark bar.
+  ["sidebar-primary", "sidebar"],
+  // The border of a field on a muted control or a header row.
+  ["input", "muted"],
+  // The dot of the state « Actif » of a line, wherever a table sets it: a page, a card, a muted
+  // row, a selected row (#3079).
+  ...(["background", "card", "muted", "accent"] as const).map((background): [string, string] => [
+    "active-mark",
+    background,
+  ]),
 ];
 
 const MODES: readonly Mode[] = ["light", "dark"];
@@ -190,13 +203,84 @@ describe("the colour tokens of the charter", () => {
   });
 
   describe.each(MODES)("in %s mode", (mode) => {
-    it.each(TEXTS)("write %s on %s at 4.5:1 at least", (text, background) => {
+    it.each(TEXTS)("write %s on %s at 4.5:1 at least [WF-IHM-0100-A]", (text, background) => {
       expect(contrast(colour(text, mode), colour(background, mode))).toBeGreaterThanOrEqual(4.5);
     });
 
-    it.each(CONTROLS)("draw %s on %s at 3:1 at least", (control, background) => {
+    it.each(CONTROLS)("draw %s on %s at 3:1 at least [WF-IHM-0100-A]", (control, background) => {
       expect(contrast(colour(control, mode), colour(background, mode))).toBeGreaterThanOrEqual(3);
     });
+  });
+});
+
+/** The custom properties a block of rules other than `:root` declares, by name. */
+function rebound(selector: string): Map<string, string> {
+  const at = CSS.indexOf(`${selector} {`);
+  const body = at < 0 ? "" : CSS.slice(at, CSS.indexOf("}", at));
+  return new Map(
+    [...body.matchAll(/--([\w-]+):\s*([^;]+);/g)].map((m) => [m[1] ?? "", m[2] ?? ""]),
+  );
+}
+
+// The tokens a component inside the side bar names, and the token of the bar each takes there.
+const SIDEBAR: Readonly<Record<string, string>> = {
+  foreground: "sidebar-foreground",
+  "muted-foreground": "sidebar-muted-foreground",
+  primary: "sidebar-primary",
+  "primary-foreground": "sidebar-primary-foreground",
+  accent: "sidebar-accent",
+  "accent-foreground": "sidebar-accent-foreground",
+  border: "sidebar-border",
+  ring: "sidebar-ring",
+};
+
+describe("the side bar", () => {
+  it("gives the tokens its entries name the values of the dark bar, measured above", () => {
+    // A label in `text-muted-foreground` or the tile in `bg-primary` would otherwise take the
+    // value written for the page, dark on the dark bar; each token it takes is measured in TEXTS
+    // and CONTROLS.
+    const found = rebound('[data-sidebar="sidebar"]');
+    expect(Object.fromEntries(found)).toEqual(
+      Object.fromEntries(Object.entries(SIDEBAR).map(([name, bar]) => [name, `var(--${bar})`])),
+    );
+    for (const bar of Object.values(SIDEBAR)) {
+      expect(TOKENS.has(bar), bar).toBe(true);
+    }
+  });
+
+  it.each(MODES)("is midnight blue, its text light, in %s mode", (mode) => {
+    // La barre latérale est sombre dans les deux modes (EP-25, « Décisions »): the same bar, its
+    // current entry a step lighter, beside a light page and a dark one.
+    expect(colour("sidebar", mode)).toBe("#0f1b2d");
+    expect(colour("sidebar-accent", mode)).toBe("#22324b");
+    expect(luminance(colour("sidebar-foreground", mode))).toBeGreaterThan(0.7);
+  });
+});
+
+describe("the colours of the charter of EP-25", () => {
+  it("paint the page, the cards and the primary in light mode as the mock-up does", () => {
+    // En mode clair, la page a un fond gris pâle (#f3f5f8) ; la couleur primaire est le bleu
+    // nuit (#14233b), le bleu du logo ne servant plus qu'au logo (#3079).
+    expect(colour("background", "light")).toBe("#f3f5f8");
+    expect(colour("card", "light")).toBe("#ffffff");
+    expect(colour("primary", "light")).toBe("#14233b");
+    // The rings of the focus, on the page and on the bar, are the blues of the logos, and nothing else.
+    for (const name of [...TOKENS.keys()].filter((token) => !token.endsWith("ring"))) {
+      expect(colour(name, "light"), name).not.toMatch(/^#(027dc6|1195e1|0270b3)$/);
+    }
+  });
+
+  it("set in dark mode a page under its cards, and a primary that stands out of both", () => {
+    // Le mode sombre a ses propres valeurs : the cards a step lighter than the page, as what rises
+    // over a dark page is, and a filled control the lightest surface, as it is the darkest in light
+    // mode; the bar dark and apart from the page.
+    const [page, card, primary] = (["background", "card", "primary"] as const).map((name) =>
+      luminance(colour(name, "dark")),
+    );
+    expect(card).toBeGreaterThan(page ?? 1);
+    expect(primary).toBeGreaterThan(0.7);
+    expect(luminance(colour("primary", "light"))).toBeLessThan(0.05);
+    expect(colour("sidebar", "dark")).not.toBe(colour("background", "dark"));
   });
 });
 
@@ -280,6 +364,21 @@ describe("the tokens of the signals", () => {
     for (const token of Object.values(SIGNALS)) {
       expect(CSS).toContain(`--color-${token}: var(--${token});`);
     }
+  });
+
+  it("keep the colours EP-24 left them, whatever the charter around them [WF-IHM-0070-A]", () => {
+    // La même zone d'indice porte la même couleur dans la liste des projets, dans les indicateurs
+    // du projet et dans la performance du portefeuille : one token per zone, which the charter of
+    // EP-25 does not touch, so that their distances for a protanope and a deuteranope, measured
+    // below, stay those that were validated.
+    const values = Object.fromEntries(
+      Object.values(SIGNALS).map((token) => [token, MODES.map((mode) => colour(token, mode))]),
+    );
+    expect(values).toEqual({
+      "signal-nominal": ["#1f756c", "#07a1a3"],
+      "signal-watch": ["#923002", "#f89228"],
+      "signal-alert": ["#6b1d24", "#fdb299"],
+    });
   });
 
   describe.each(MODES)("in %s mode", (mode) => {

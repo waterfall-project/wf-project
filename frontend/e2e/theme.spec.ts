@@ -25,7 +25,7 @@ test.describe("a workstation in dark mode", () => {
     await page.goto("/");
     await expect(page.locator("html")).not.toHaveAttribute("data-theme");
     expect(await shown(page)).toEqual({
-      background: "rgb(10, 10, 10)",
+      background: "rgb(11, 17, 27)",
       logo: "/waterfall_logo-dark.svg",
     });
   });
@@ -37,7 +37,7 @@ test.describe("a workstation in dark mode", () => {
     await page.locator("html").evaluate((html) => {
       html.setAttribute("data-theme", "light");
     });
-    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(243, 245, 248)");
   });
 });
 
@@ -47,7 +47,7 @@ test.describe("a workstation in light mode", () => {
   test("gets the light tokens of the charter and the light logo", async ({ page }) => {
     await page.goto("/");
     expect(await shown(page)).toEqual({
-      background: "rgb(255, 255, 255)",
+      background: "rgb(243, 245, 248)",
       logo: "/waterfall_logo.svg",
     });
   });
@@ -57,7 +57,7 @@ test.describe("a workstation in light mode", () => {
     await page.locator("html").evaluate((html) => {
       html.setAttribute("data-theme", "dark");
     });
-    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(10, 10, 10)");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(11, 17, 27)");
   });
 });
 
@@ -90,6 +90,29 @@ for (const mode of ["light", "dark"] as const) {
       // Un contrôle automatisé de contraste ne relève aucun écart au niveau AA: in the head of
       // every table of the screen.
       expect(await axeViolations(page, "thead")).toEqual([]);
+    });
+  });
+}
+
+// The side bar is midnight blue in both modes (EP-25, US-2070): the tokens its entries name take
+// the values of the bar inside it, which the browser alone resolves.
+for (const mode of ["light", "dark"] as const) {
+  test.describe(`the side bar of a workstation in ${mode} mode`, () => {
+    test.use({ colorScheme: mode });
+
+    test("is midnight blue, its labels and its entries legible on it [WF-IHM-0100-A]", async ({
+      page,
+    }) => {
+      await page.goto("/");
+      const bar = page.locator('[data-sidebar="sidebar"]');
+      await expect(bar).toHaveCSS("background-color", "rgb(15, 27, 45)");
+      // A label of a group, written `text-muted-foreground` for the page: the muted light of the bar.
+      await expect(bar.locator('[data-sidebar="group-label"]').first()).toHaveCSS(
+        "color",
+        "rgb(159, 176, 200)",
+      );
+      // Un contrôle automatisé de contraste ne relève aucun écart au niveau AA: on the dark bar.
+      expect(await axeViolations(page, '[data-sidebar="sidebar"]')).toEqual([]);
     });
   });
 }

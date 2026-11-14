@@ -96,6 +96,12 @@ const ALLOWED: readonly [string, string][] = [
   ['<p className="bg-primary text-primary-foreground">{VALUE}</p>', '""'],
   ['<p className="text-muted-foreground hover:bg-accent/90">{VALUE}</p>', '""'],
   ['<p className="border-input ring-ring md:grid-cols-[16rem_1fr]">{VALUE}</p>', '""'],
+  // The tokens of the charter of EP-25: the dot of « Actif », the bar and its tile (US-2070).
+  ['<span className="size-2 rounded-full bg-active-mark" />', '""'],
+  [
+    '<p className="bg-sidebar-primary text-sidebar-primary-foreground text-sidebar-muted-foreground">{VALUE}</p>',
+    '""',
+  ],
   ['<svg><path d="M0 0" fill="currentColor" /></svg>', '""'],
   ['<svg><path d="M0 0" fill="CurrentColor" /></svg>', '""'],
   ['<svg><path d="M0 0" fill={level > 2 ? "none" : "currentColor"} /></svg>', '""'],
@@ -169,8 +175,11 @@ describe("the colour guard", { timeout: 60_000 }, () => {
   it.each([
     '<p className="bg-signal-alert">{VALUE}</p>',
     "<p className={`p-2 hover:text-signal-watch`}>{VALUE}</p>",
-  ])("refuses the token of a zone outside Signal, in %j", async (jsx) => {
-    // A cell tinted by its zone, without the shape and the name `Signal` gives it (WF-IHM-0070).
+    // The dot of « Actif » has its own token, never the nominal zone a signal shows (#3079).
+    '<span className="size-2 rounded-full bg-signal-nominal" />',
+  ])("refuses the token of a zone outside Signal, in %j [WF-IHM-0070-A]", async (jsx) => {
+    // Aucun écran ne distingue deux états par la seule couleur : a cell tinted by its zone, or a
+    // dot, without the shape and the name `Signal` gives it.
     const [result] = await eslint.lintText(component(jsx), { filePath: COMPONENT });
     expect(result?.messages.map((m) => [m.ruleId, m.severity, m.message])).toContainEqual([
       "no-restricted-syntax",
