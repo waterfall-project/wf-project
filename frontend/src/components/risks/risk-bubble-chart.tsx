@@ -342,8 +342,10 @@ export function RiskBubbleChart({
             type: "scatter" as const,
             silent: true,
             data: [],
+            // A marked line draws at its own z (5 by default), not its series': under the bubbles (3).
             markLine: {
               silent: true,
+              z: 2,
               symbol: "none",
               label: { show: false },
               lineStyle: { color: palette.grid, type: "dashed" as const },

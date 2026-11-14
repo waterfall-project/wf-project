@@ -206,7 +206,7 @@ describe("the risk matrix as a bubble chart", () => {
         lower: uneven[rank] ?? "0.7",
       })),
     });
-    const { option, grid } = drawn();
+    const { option, grid, bubbles } = drawn();
     expect(option?.yAxis).toMatchObject({
       splitLine: { show: false },
       axisLabel: { customValues: [0, 0.1, 0.4, 0.7] },
@@ -215,6 +215,9 @@ describe("the risk matrix as a bubble chart", () => {
       lineStyle: { color: PALETTE.grid, type: "dashed" },
       data: [{ yAxis: 0 }, { yAxis: 0.1 }, { yAxis: 0.4 }, { yAxis: 0.7 }],
     });
+    expect(grid).toMatchObject({ silent: true, data: [] });
+    const gridZ = (grid?.markLine as { z: number }).z;
+    for (const bubble of bubbles) expect(gridZ).toBeLessThan((bubble as { z: number }).z);
   });
 
   it("gives the bubbles of each zone the colour of the zone the server rendered and a shape of its own, so that a zone is told without its colour [WF-RIS-0040-A, WF-IHM-0070-A]", () => {
