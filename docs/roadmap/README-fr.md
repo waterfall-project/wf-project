@@ -161,7 +161,7 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Coûts réels, reste à engager et import des coûts | livré | EP-07 |
 | [EP-23](EP-23-dette-constats-ep02-ep03.md) | Dette des constats d'EP-02 et d'EP-03 | livré | EP-02, EP-03, EP-06 |
 | [EP-24](EP-24-consolidation-apres-v0-3-0.md) | Consolidation après la v0.3.0 | livré | EP-09, EP-23 |
-| [EP-25](EP-25-refonte-ergonomique.md) | Refonte ergonomique | à planifier | EP-24 |
+| [EP-25](EP-25-refonte-ergonomique.md) | Refonte ergonomique | en cours | EP-24 |
 | [EP-26](EP-26-lecture-et-performance-des-grilles.md) | Lecture et performance des grilles | à planifier | EP-25 |
 | [EP-27](EP-27-comparaison-dans-les-grilles.md) | Comparaison dans les grilles | à planifier | EP-26 |
 | [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | en cours | EP-09 |
