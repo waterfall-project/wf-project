@@ -10,13 +10,19 @@
  * is attached to as the server resolves them. Every figure as the API gives it: the front sorts,
  * filters and pages nothing.
  *
- * The lists hold the active objects alone, and the deactivated ones too when the address asks for
- * them and the session may modify the settings (`resource_settings.write`) (WF-REF-0150,
- * `include_inactive`); each object carries the command that reactivates it, as the server lists it.
- * The roles are filtered by their code, by a node of the organisation chosen among the whole tree —
- * read whole a second time when a search or a filter narrows the grid of the tree —, by a category
- * of cost and by a calendar chosen among every one the session reads, each read whole as a list of
- * choices is (#303); the categories, which the settings of the costs keep, are offered only when
+ * Each list shows the state its own filter says (WF-REF-0150, US-2090): the active objects alone by
+ * default, said by the chip « Actifs (par défaut) », the deactivated ones alone, or every one, the
+ * chip lifted — the address says it under the name of each grid, else the account kept it with the
+ * settings of the grid (`stateOf`); the screen has no switch of its own, and `include_inactive` in
+ * its address is no longer read (#3076). Only a session that may modify the settings
+ * (`resource_settings.write`) is offered the filter, without which the contract refuses the
+ * deactivated objects (403): another reads the active ones alone. Each object carries the command
+ * that reactivates it, as the server lists it. The roles are filtered by their code, by a node of the
+ * organisation chosen among the active tree — read whole, and a second time when a search or a filter
+ * narrows the grid of the tree, its state included unless it is the default —, by a category of cost
+ * and by a calendar chosen among the active ones the session reads, each read whole as a list of
+ * choices is (#303), and which the forms offer, whatever the lists show; the categories, which the
+ * settings of the costs keep, are offered only when
  * the API gives them. A session that may modify the settings of the resources creates and modifies
  * the nodes, the roles and the calendars, and deactivates them as each lists it (EP-02/L43b): a
  * role is attached to a category of labour alone (WF-REF-0090), which each category says
@@ -49,18 +55,16 @@ import {
 import { PendingAddress } from "@/components/grid/pending-address";
 import { asked, type GridQuery, readGridQuery, searched } from "@/components/grid/query";
 import {
-  asksInactive,
   given,
   identifierOf,
-  inactiveQuery,
   type KeptGrids,
   levelOf,
   shownPage,
   stateOf,
+  stateQuery,
   textOf,
 } from "@/components/reference/address";
 import { categoryChoice, labourOf } from "@/components/reference/kinds";
-import { InactiveSwitch } from "@/components/reference/reference-filters";
 import {
   CALENDAR_ADDRESS,
   CALENDAR_GRID_KEY,
@@ -107,26 +111,17 @@ export async function generateMetadata(): Promise<Metadata> {
   return screenMetadata("functions.resourceSettings");
 }
 
-/** The pages of the lists the server pages, which the switch of the deactivated objects resets. */
-const PAGES = [RESOURCE_ROLE_ADDRESS.offset, CALENDAR_ADDRESS.offset] as const;
-
 /** The refusal of the bounds of a list: an upper bound below the lower one (#545). */
 const BOUNDS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
 
-/**
- * The title of the screen, and the switch of the deactivated objects for who may modify the
- * settings.
- */
-function ResourcesHeader({ inactive }: { readonly inactive: boolean | undefined }) {
+/** The title of the screen. */
+function ResourcesHeader() {
   const t = useTranslations("functions");
   return (
     <PageHeader
       title={t("resourceSettings")}
       icon={FUNCTION_ICONS.resource_settings}
       density={FUNCTION_DENSITY.resource_settings}
-      actions={
-        inactive === undefined ? undefined : <InactiveSwitch shown={inactive} pages={PAGES} />
-      }
     />
   );
 }
@@ -142,9 +137,6 @@ function bounds<Column extends string>(column: Column, { min, max }: Bounds) {
 interface ResourceQueries {
   /** Whether the session may modify the settings of the resources, and its forms are offered. */
   readonly editable: boolean;
-  readonly inactive: { readonly include_inactive?: true };
-  /** What the categories of cost offered to the filter of the roles ask of the deactivated ones. */
-  readonly inactiveCategories: { readonly include_inactive?: true };
   readonly nodes: GridQuery<never>;
   readonly nodeFilters: OrgNodeFilters;
   readonly roles: GridQuery<ResourceRoleSort>;
@@ -155,14 +147,18 @@ interface ResourceQueries {
   readonly calendarOffset: number | undefined;
 }
 
-/** The tree of the organisation as the address narrows it; none when nothing narrows it. */
-function readNarrowedTree(client: ApiClient, { inactive, nodes, nodeFilters }: ResourceQueries) {
+/**
+ * The tree of the organisation as the address narrows it; none when nothing narrows it — the active
+ * nodes, the state by default or the one a session that may not read the deactivated ones reads,
+ * being the whole tree read.
+ */
+function readNarrowedTree(client: ApiClient, { editable, nodes, nodeFilters }: ResourceQueries) {
   const { code, level, state, levels } = nodeFilters;
   if (
     nodes.search === undefined &&
     code === undefined &&
     level === undefined &&
-    state === undefined &&
+    (state === true || !editable) &&
     !bounded(levels)
   ) {
     return undefined;
@@ -171,13 +167,12 @@ function readNarrowedTree(client: ApiClient, { inactive, nodes, nodeFilters }: R
     client.GET("/reference/org-nodes", {
       params: {
         query: {
-          ...inactive,
           ...searched(nodes),
           ...given("code", code),
           ...given("level", level),
           ...given("level_min", levels.min === undefined ? undefined : Number(levels.min)),
           ...given("level_max", levels.max === undefined ? undefined : Number(levels.max)),
-          ...given("is_active", state),
+          ...stateQuery(state, editable),
         },
       },
     }),
@@ -203,19 +198,18 @@ function narrowedTree<Node>(
 /** The page of the roles the address asks, filtered, bounded and sorted as it says. */
 function readRoles(
   client: ApiClient,
-  { inactive, roles, roleFilters, roleOffset }: ResourceQueries,
+  { editable, roles, roleFilters, roleOffset }: ResourceQueries,
 ) {
   return readOrRefused("listResourceRoles", BOUNDS_REFUSED, () =>
     client.GET("/reference/resource-roles", {
       params: {
         query: {
-          ...inactive,
           ...asked(roles, roleOffset),
           ...given("code", roleFilters.code),
           ...given("org_node_id", roleFilters.orgNode),
           ...given("cost_category_id", roleFilters.category),
           ...given("calendar_id", roleFilters.calendar),
-          ...given("is_active", roleFilters.state),
+          ...stateQuery(roleFilters.state, editable),
           ...bounds("monthly_hours", roleFilters.monthlyHours),
           ...bounds("headcount", roleFilters.headcount),
         },
@@ -230,15 +224,14 @@ function readRoles(
  */
 function readCalendars(
   client: ApiClient,
-  { inactive, calendars, calendarState, calendarOffset }: ResourceQueries,
+  { editable, calendars, calendarState, calendarOffset }: ResourceQueries,
 ) {
   return readOrFail("listCalendars", () =>
     client.GET("/reference/calendars", {
       params: {
         query: {
-          ...inactive,
           ...asked(calendars, calendarOffset),
-          ...given("is_active", calendarState),
+          ...stateQuery(calendarState, editable),
         },
       },
     }),
@@ -246,20 +239,18 @@ function readCalendars(
 }
 
 /**
- * The categories of cost and the calendars the roles may be filtered on, every one the session
- * reads, as a list of choices is read (#303): the categories none when the API refuses them. Each
- * category says the type of its nature, by which a role is attached to a category of labour alone
- * (WF-REF-0090, `cost_type_kind`).
+ * The categories of cost and the calendars the roles may be filtered on, every active one the
+ * session reads, as a list of choices is read (#303): the categories none when the API refuses them.
+ * Each category says the type of its nature, by which a role is attached to a category of labour
+ * alone (WF-REF-0090, `cost_type_kind`).
  */
-function readChoices(client: ApiClient, { inactive, inactiveCategories }: ResourceQueries) {
+function readChoices(client: ApiClient) {
   return Promise.all([
     readEveryPageUnlessRefused("listCostCategories", OPTIONAL_READ_REFUSALS, (page) =>
-      client.GET("/reference/cost-categories", {
-        params: { query: { ...inactiveCategories, ...page } },
-      }),
+      client.GET("/reference/cost-categories", { params: { query: page } }),
     ),
     readEveryPage("listCalendars", (page) =>
-      client.GET("/reference/calendars", { params: { query: { ...inactive, ...page } } }),
+      client.GET("/reference/calendars", { params: { query: page } }),
     ),
   ]);
 }
@@ -269,13 +260,11 @@ async function readLists(queries: ResourceQueries) {
   const client = serverClient();
   return Promise.all([
     readNarrowedTree(client, queries),
-    readOrFail("listOrgNodes", () =>
-      client.GET("/reference/org-nodes", { params: { query: { ...queries.inactive } } }),
-    ),
+    readOrFail("listOrgNodes", () => client.GET("/reference/org-nodes")),
     readRoles(client, queries),
     readCalendars(client, queries),
     readOrFail("getDurationUnits", () => client.GET("/reference/duration-units")),
-    readChoices(client, queries),
+    readChoices(client),
   ]);
 }
 
@@ -290,16 +279,22 @@ function readQueries(
   grids: KeptGrids | undefined,
   permissions: readonly Permission[],
 ): ResourceQueries {
-  const state = (name: string) => stateOf(search, name, permissions, "resource_settings.write");
+  // The state each list shows: the address's, else the one its grid keeps, else the active alone.
+  const state = (name: string, key: string) =>
+    stateOf(
+      search,
+      name,
+      keptBy(grids, key)?.filters?.[name],
+      permissions,
+      "resource_settings.write",
+    );
   return {
     editable: platformOffer(permissions, "resource_settings") !== undefined,
-    inactive: inactiveQuery(asksInactive(search), permissions, "resource_settings.write"),
-    inactiveCategories: inactiveQuery(asksInactive(search), permissions, "cost_settings.write"),
     nodes: readGridQuery<never>(search, [], undefined, ORG_NODE_ADDRESS),
     nodeFilters: {
       code: textOf(search, ORG_CODE, ORG_CODE_LENGTH),
       level: levelOf(search, ORG_LEVEL),
-      state: state(ORG_STATE),
+      state: state(ORG_STATE, ORG_NODE_GRID_KEY),
       levels: readBounds(search, ORG_LEVEL, "level"),
     },
     roles: readGridQuery(
@@ -314,7 +309,7 @@ function readQueries(
       orgNode: identifierOf(search, ROLE_ORG_NODE),
       category: identifierOf(search, ROLE_COST_CATEGORY),
       calendar: identifierOf(search, ROLE_CALENDAR),
-      state: state(ROLE_STATE),
+      state: state(ROLE_STATE, RESOURCE_ROLE_GRID_KEY),
       monthlyHours: readBounds(search, ROLE_MONTHLY_HOURS, "decimal"),
       headcount: readBounds(search, ROLE_HEADCOUNT, "decimal"),
     },
@@ -326,7 +321,7 @@ function readQueries(
       CALENDAR_ADDRESS,
       grids?.[CALENDAR_GRID_KEY]?.page_size,
     ),
-    calendarState: state(CALENDAR_STATE),
+    calendarState: state(CALENDAR_STATE, CALENDAR_GRID_KEY),
     calendarOffset: offsetOf(search.get(CALENDAR_ADDRESS.offset)),
   };
 }
@@ -347,7 +342,6 @@ export default async function ResourceSettingsPage({
   const [narrowed, tree, roles, calendars, units, [categoryRead, calendarRead]] =
     await readLists(queries);
   const { editable } = queries;
-  const shown = queries.inactive.include_inactive === true;
   // The depths of the whole tree, from the first to the deepest the server gives.
   const deepest = Math.max(0, ...tree.map((node) => node.level));
   const nodes: NodeOffered[] = tree.map((node) => ({
@@ -360,7 +354,7 @@ export default async function ResourceSettingsPage({
   return (
     <Screen density={FUNCTION_DENSITY.resource_settings}>
       <PendingAddress>
-        <ResourcesHeader inactive={editable ? shown : undefined} />
+        <ResourcesHeader />
         <OrgNodeList
           {...narrowedTree(narrowed, tree)}
           query={queries.nodes}

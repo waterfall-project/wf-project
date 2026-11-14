@@ -25,7 +25,7 @@ import { listReads } from "./address";
 import { StateCell } from "./commands";
 import type { ActivationTarget } from "./kinds";
 import { Reactivations } from "./reactivation";
-import { InactiveSwitch, OrgNodeFilter } from "./reference-filters";
+import { OrgNodeFilter } from "./reference-filters";
 import { ResourceGrid } from "./resource-grid";
 import {
   CALENDAR_SORTS,
@@ -37,6 +37,7 @@ import {
   RESOURCE_ROLE_ADDRESS,
   RESOURCE_ROLE_SORTS,
   ROLE_ORG_NODE,
+  ROLE_STATE,
   type ResourceRole,
   type ResourceRoleSort,
   resourceRoleGrid,
@@ -97,7 +98,7 @@ function roleGrid(
   rows: readonly ResourceRole[] = roles,
 ) {
   return inFrench(
-    <Reactivations reads={listReads(RESOURCE_ROLE_ADDRESS, ROLE_ORG_NODE)}>
+    <Reactivations reads={listReads(RESOURCE_ROLE_ADDRESS, ROLE_ORG_NODE, ROLE_STATE)}>
       <ResourceGrid
         editable={false}
         kind="resourceRoles"
@@ -275,7 +276,7 @@ describe("the grid of the resource roles", () => {
 
   it("is filtered by node, the address changed under the name of its grid, the rest kept", async () => {
     serve();
-    page.search = "include_inactive=true";
+    page.search = "role_is_active=all";
     render(
       inFrench(
         <OrgNodeFilter
@@ -294,7 +295,7 @@ describe("the grid of the resource roles", () => {
     const bureau = nodes[1]?.org_node_id ?? "";
     await userEvent.selectOptions(filter, bureau);
     expect(lastAddress()).toBe(
-      `/reference/resources?include_inactive=true&role_org_node_id=${bureau}`,
+      `/reference/resources?role_is_active=all&role_org_node_id=${bureau}`,
     );
   });
 
@@ -408,11 +409,11 @@ describe("the grid of the resource roles", () => {
       answer.timing,
     );
     server.client = client;
-    page.search = "include_inactive=true";
+    page.search = "role_is_active=all";
     const { rerender } = render(roleGrid());
     const command = screen.getByRole("button", { name: "Réactiver «\u00a0Automaticien\u00a0»" });
     await userEvent.click(command);
-    // The deactivated ones hidden meanwhile: another reading of the list.
+    // The active ones alone meanwhile: another reading of the list.
     page.search = "";
     rerender(roleGrid());
     answer.release();
@@ -423,21 +424,21 @@ describe("the grid of the resource roles", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     // Back on the reading it was asked from, it is said no more: the click of its gesture was
     // released when the list was read otherwise (#688).
-    page.search = "include_inactive=true";
+    page.search = "role_is_active=all";
     rerender(roleGrid());
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("keeps the refusal of a reactivation said when another list of the screen is sorted", async () => {
     serve({ [ROLE_ACTIVATION]: { problem: { code: "PERMISSION_MISSING", status: 403 } } });
-    page.search = "include_inactive=true";
+    page.search = "role_is_active=all";
     const { rerender } = render(roleGrid());
     await userEvent.click(
       screen.getByRole("button", { name: "Réactiver «\u00a0Automaticien\u00a0»" }),
     );
     expect(await screen.findByRole("alert")).toHaveTextContent("Vous n’avez pas la permission");
     // The calendars sorted: the roles are read as they were.
-    page.search = "include_inactive=true&calendar_sort_by=label&calendar_sort_order=asc";
+    page.search = "role_is_active=all&calendar_sort_by=label&calendar_sort_order=asc";
     rerender(roleGrid());
     expect(screen.getByRole("alert")).toHaveTextContent("Vous n’avez pas la permission");
     // The roles filtered by a node: another reading of their list.
@@ -829,24 +830,4 @@ describe("the reactivation of each kind of object", () => {
       ]);
     },
   );
-});
-
-describe("the switch of the deactivated objects", () => {
-  it("shows them too, the rest of the address kept, and hides them again [WF-REF-0150-A]", async () => {
-    page.search = "role_search=Ing";
-    const { rerender } = render(inFrench(<InactiveSwitch shown={false} />));
-    const show = screen.getByRole("link", { name: "Afficher aussi les désactivés" });
-    expect(show).toHaveAttribute(
-      "href",
-      "/reference/resources?role_search=Ing&include_inactive=true",
-    );
-    await userEvent.click(show);
-    expect(lastAddress()).toBe("/reference/resources?role_search=Ing&include_inactive=true");
-    page.search = "role_search=Ing&include_inactive=true";
-    rerender(inFrench(<InactiveSwitch shown />));
-    expect(screen.getByRole("link", { name: "Masquer les désactivés" })).toHaveAttribute(
-      "href",
-      "/reference/resources?role_search=Ing",
-    );
-  });
 });

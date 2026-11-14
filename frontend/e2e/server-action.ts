@@ -41,6 +41,8 @@ export async function pressOnce(
   asked: (request: Request) => boolean,
 ): Promise<Request> {
   let sent: Request | undefined;
+  // The last click Playwright refused, said with the failure of the tries if none is taken (#3254).
+  let refused: Error | undefined;
   const listen = (request: Request) => {
     if (sent === undefined && isServerAction(request) && asked(request)) {
       sent = request;
@@ -56,26 +58,51 @@ export async function pressOnce(
       try {
         await command.click({ timeout: 1_000 });
         wait = TAKEN;
-      } catch {
+      } catch (error) {
         // Refused by Playwright: no action can have left from this press, the next try presses again.
+        if (error instanceof Error) {
+          refused = error;
+        }
       }
       await expect.poll(() => sent !== undefined, { timeout: wait }).toBe(true);
     }).toPass({ timeout: WORKING });
+  } catch (error) {
+    throw new Error(failedPress(refused), { cause: error });
   } finally {
     page.off("request", listen);
   }
   if (sent === undefined) {
-    throw new Error("no server action asked left from the command pressed");
+    throw new Error(failedPress(refused));
   }
   return sent;
+}
+
+/**
+ * What the tries of `pressOnce` say when no action left from the command: that none did, and the
+ * last click Playwright refused, if any — an element covered, detached… —, which is the cause.
+ */
+export function failedPress(refused: Error | undefined): string {
+  const said = "no server action asked left from the command pressed";
+  return refused === undefined ? said : `${said}; the last click refused: ${refused.message}`;
+}
+
+/** Whether the body of an action is `setActivation(target, state)`: `[{"kind":…,"id":…,…},state]`. */
+function asksActivation(request: Pick<Request, "postData">, state: boolean): boolean {
+  return new RegExp(`^\\[\\{[^\\]]*"kind":"[a-z_]+"[^\\]]*\\},${String(state)}\\]$`).test(
+    request.postData() ?? "",
+  );
 }
 
 /**
  * Whether a request is the deactivation of an object (`setActivation(target, false)`): the body of
  * the action holds the target and the state asked, `[{"kind":…,"id":…,…},false]`.
  */
-export const isDeactivation = (request: Request): boolean =>
-  /^\[\{[^\]]*"kind":"[a-z_]+"[^\]]*\},false\]$/.test(request.postData() ?? "");
+export const isDeactivation = (request: Pick<Request, "postData">): boolean =>
+  asksActivation(request, false);
+
+/** Whether a request is the reactivation of an object (`setActivation(target, true)`). */
+export const isReactivation = (request: Pick<Request, "postData">): boolean =>
+  asksActivation(request, true);
 
 /** The answer of a request, awaited within `WORKING`: that of this request, and of no other. */
 export async function answerOf(request: Request): Promise<Response> {

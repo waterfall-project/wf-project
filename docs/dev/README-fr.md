@@ -1558,15 +1558,21 @@ tables simples, sans tri ni filtre (décision de l'auteur du 2026-10-08, #508). 
 nomme par le libellé que le serveur résout à la lecture, actif ou désactivé — jamais en rapprochant
 des listes dans le front ; une section se nomme par `aria-label` (#251).
 
-Les listes du référentiel ne lisent que les objets actifs, et les désactivés aussi quand l'adresse
-le demande (`include_inactive`, WF-REF-0150, #300), sous le nom du contrat, que l'en-tête de l'écran
-écrit ou lève par un lien (`InactiveSwitch`), qui ramène chaque liste paginée à sa première page — à
-une session seulement qui porte la permission d'écriture de leur partie du référentiel, sans
-laquelle le contrat le refuse (403, `inactiveQuery` d'`address.ts` ; décision #2084, option A,
-`docs/api/DECISIONS.md`), comme les listes du devis (#351). Le filtre par état (`is_active`,
-`StateFilter`) prime sur lui : tous les états, les actifs seuls, ou les désactivés seuls, offert à
-la même session seulement (`stateOf`). Un objet désactivé s'y dit par une marque et un mot, et s'y
-réactive comme le serveur liste sa commande
+Chaque liste du référentiel dit ce qu'elle montre des objets désactivés par son propre filtre
+d'état (`is_active` sous le préfixe de sa grille, `StateFilter`, WF-REF-0150, US-2090), un filtre
+par défaut de la grille comme les états de la liste des projets (#1747) : absent de l'adresse et des
+réglages du compte, il vaut « Actifs », dit par la pastille « État : Actifs (par défaut) » ;
+« Désactivés » les montre seuls ; la pastille ôtée les montre tous, l'adresse écrivant alors `all`
+pour que ni le compte ni le défaut ne reprennent la place (`stateOf`, `EVERY_STATE` d'`address.ts`).
+Le front envoie `is_active=true`, `is_active=false`, ou `include_inactive=true` sans `is_active`
+(`stateQuery`). Le choix se garde avec les réglages de la grille, par compte, dès qu'il diffère du
+défaut (`keptState`, `GridConfig.defaulted`, `kept-filters.ts`). L'écran n'a plus d'interrupteur
+« Afficher aussi les désactivés », et `include_inactive` dans son adresse n'est plus lu (#3076). Le
+filtre n'est offert qu'à une session qui porte la permission d'écriture de leur partie du
+référentiel, sans laquelle le contrat refuse les désactivés (403 ; décision #2084, option A,
+`docs/api/DECISIONS.md`) : une autre ne lit que les actifs, comme les listes du devis (#351). Les
+listes de choix des formulaires n'offrent que les actifs, quoi que montrent les tables. Un objet
+désactivé s'y dit par une marque et un mot, et s'y réactive comme le serveur liste sa commande
 (`available_commands`, #532, WF-IHM-0090) — le serveur ne la liste qu'à qui peut modifier cette
 partie, et le front n'en déduit rien : disponible, par la commande d'activation de sa nature
 (`setActivation`, une action serveur, depuis la version lue), puis la page relit ses listes ;

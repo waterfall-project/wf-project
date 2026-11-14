@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * What the screens of the reference data filter their lists by, besides the search of each grid
- * (WF-IHM-0130): whether they show the deactivated objects too (WF-REF-0150, `include_inactive`);
- * the state of each list (`is_active`, after the prefix of its grid); an object chosen — the node of
+ * (WF-IHM-0130): the state of each list (WF-REF-0150, `is_active` after the prefix of its grid,
+ * the active objects by default); an object chosen — the node of
  * organisation, the category or the calendar of the roles, the nature of the categories, the node of
  * the accounts (`OrgNodeFilter`, `ChoiceFilter`) —; the code (`TextFilter` of the grid) and the depth
  * of the nodes. Each only changes the address, under the name of the contract after the prefix of its
@@ -16,8 +16,6 @@
  */
 "use client";
 
-import { Eye, EyeOff } from "lucide-react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useOptimistic, useTransition } from "react";
@@ -25,42 +23,10 @@ import { useOptimistic, useTransition } from "react";
 import { CheckMenu } from "@/components/grid/check-menu";
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import { filterHref } from "@/components/grid/filters";
-import { usePendingAddress, usePendingLink } from "@/components/grid/pending-address";
-import { buttonVariants } from "@/components/ui/button";
+import { usePendingAddress } from "@/components/grid/pending-address";
 
-import { INCLUDE_INACTIVE } from "./address";
+import { ACTIVE_STATE, EVERY_STATE, INACTIVE_STATE } from "./address";
 import { treeLabel } from "./org-tree";
-
-/**
- * The link that shows the deactivated objects of the lists of the screen too, or hides them again,
- * back to the first page of each list the server pages (`pages`): a link, which works before the
- * page is hydrated.
- */
-export function InactiveSwitch({
-  shown,
-  pages = [],
-}: {
-  readonly shown: boolean;
-  /** The parameters of the pages of the lists of the screen. */
-  readonly pages?: readonly string[];
-}) {
-  const t = useTranslations("reference.inactive");
-  const pathname = usePathname();
-  const { href, onClick } = usePendingLink((query) =>
-    filterHref(pathname, query, INCLUDE_INACTIVE, shown ? undefined : "true", pages),
-  );
-  return (
-    <Link
-      href={href}
-      onClick={onClick}
-      scroll={false}
-      className={buttonVariants({ variant: "outline", size: "sm" })}
-    >
-      {shown ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
-      {shown ? t("hide") : t("show")}
-    </Link>
-  );
-}
 
 /** A node of organisation a list may be restricted to, with its depth in the tree. */
 export interface NodeChoice {
@@ -110,11 +76,12 @@ export function OrgNodeFilter({
 }
 
 /**
- * The filter of a list on the state of its objects (`is_active`): every state — as the switch of the
- * deactivated objects decides —, the active ones alone, or the deactivated ones alone; a button for
- * each, pressed as last asked until the server answers, then as the address shows it. Offered only
- * to a session that may read the deactivated objects: for another, the list holds the active ones
- * alone, and the filter would change nothing.
+ * The filter of a list on the state of its objects (`is_active`, WF-REF-0150): the active ones alone —
+ * the state by default —, the deactivated ones alone, or every state, which the address writes
+ * (`EVERY_STATE`) so that neither the account nor the default takes its place; a button for each,
+ * pressed as last asked until the server answers, then as the address shows it. Offered only to a
+ * session that may read the deactivated objects: for another, the list holds the active ones alone,
+ * and the filter would change nothing.
  */
 export function StateFilter({
   name,
@@ -126,7 +93,7 @@ export function StateFilter({
   readonly name: string;
   /** The name of the menu: the state of which list. */
   readonly label: string;
-  /** The state the address filters on; none, every state. */
+  /** The state the list shows; none, every state. */
   readonly chosen: boolean | undefined;
   /** The parameter of the page of a list the server pages, which a filter takes back to its first. */
   readonly page?: string | undefined;
@@ -145,14 +112,15 @@ export function StateFilter({
       every={t("every")}
       multiple={false}
       options={[
-        { value: "true", text: t("active") },
-        { value: "false", text: t("inactive") },
+        { value: ACTIVE_STATE, text: t("active") },
+        { value: INACTIVE_STATE, text: t("inactive") },
       ]}
-      chosen={shown === undefined ? [] : [String(shown)]}
+      chosen={shown === undefined ? [] : [shown ? ACTIVE_STATE : INACTIVE_STATE]}
       onChange={([value]) => {
         startTransition(() => {
-          show(value === undefined ? undefined : value === "true");
-          request((query) => filterHref(pathname, query, name, value, page));
+          show(value === undefined ? undefined : value === ACTIVE_STATE);
+          // The active ones are written too: an address that named none would read the state kept.
+          request((query) => filterHref(pathname, query, name, value ?? EVERY_STATE, page));
         });
       }}
     />

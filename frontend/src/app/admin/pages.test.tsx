@@ -460,24 +460,18 @@ describe("the accounts", () => {
     expect(page).not.toMatch(/aria-label="(Rôles de|Lien de fixation)/);
   });
 
-  it("ask the deactivated accounts too, and read an address that hid them as the active ones alone, which the choice says", async () => {
+  it("ask the deactivated accounts too, and ignore `include_inactive` in the address, which hid them before: the state is the filter's alone [WF-ADM-0060-A] (#3076)", async () => {
     const page = rendered(await UsersPage(searched({ include_inactive: "false", offset: "2" })));
-    expect(queriesOf("GET /users")).toEqual([
-      { include_inactive: "true", offset: "2", is_active: "true" },
-    ]);
-    expect(text(page)).toContain("État du compte : Actif");
+    expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true", offset: "2" }]);
+    expect(text(page)).not.toContain("État du compte : Actif");
     expect(page).not.toContain("les désactivés</a>");
-    server.clients = [];
-    await UsersPage(searched({ include_inactive: "maybe" }));
-    expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true" }]);
   });
 
-  it("read an address that says `include_inactive=false` alone as a filter of the table, never replaced by the filters the account keeps [WF-IHM-0060-A, #2916]", async () => {
+  it("find again the filters the account keeps for an address that says `include_inactive` alone, which says nothing of the table [WF-IHM-0060-A] (#3076)", async () => {
     server.answers = { ...server.answers, "GET /me": "me_grid_settings" };
-    await UsersPage(searched({ include_inactive: "false" }));
-    expect(queriesOf("GET /users")).toEqual([
-      { include_inactive: "true", is_active: "true", limit: "25" },
-    ]);
+    await expect(UsersPage(searched({ include_inactive: "false" }))).rejects.toMatchObject({
+      digest: expect.stringContaining(";/admin/users?origins=local&is_active=true;") as unknown,
+    });
   });
 
   it("ask the page the address names, and lead back to the one before it", async () => {

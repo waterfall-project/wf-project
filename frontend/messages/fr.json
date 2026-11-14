@@ -2416,15 +2416,12 @@
       "designationUnavailable": "La désignation de « {name} » par défaut est indisponible. {unmet}",
       "rolesUnavailable": "L’attribution des rôles de « {name} » est indisponible. {unmet}"
     },
-    "inactive": {
-      "show": "Afficher aussi les désactivés",
-      "hide": "Masquer les désactivés"
-    },
     "stateFilter": {
       "of": "État des objets de « {list} »",
       "every": "Tous les états",
       "active": "Actifs",
-      "inactive": "Désactivés"
+      "inactive": "Désactivés",
+      "defaultChip": "{state} (par défaut)"
     },
     "pages": {
       "label": "Pages de « {list} »",

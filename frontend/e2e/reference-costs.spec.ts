@@ -24,7 +24,9 @@
  * its commands of a row were pressed again each second until the row answered, and the server
  * action answering past that second, a click pressed again then waited for the command its answer
  * had just taken away — or pressed the other one —, the state shared with no other path. Its
- * commands are now pressed until the request of their action is sent, and never after. The path of
+ * commands are now pressed until the request of their action is sent, and never after, by `pressOnce`
+ * (#3252); it shows the deactivated ones by the filter of the state of each table, which replaced the
+ * switch of the screen (US-2090, #3076, #3191). The path of
  * the deactivation of a nature failed for a cause of its own (#3190): it awaited the reactivation of
  * a row the page read anew had taken out of a list without the deactivated; in service it now reads
  * its nature alone, the deactivated shown. Neither failure was a state another path left, nor the
@@ -32,11 +34,17 @@
  */
 import { expect, type Locator } from "@playwright/test";
 
-import { openFilters } from "./check-menu";
+import { openFilters, pick } from "./check-menu";
 import { sortUntilAddress, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 import { rowAt, scroller, withinBox } from "./scroll";
-import { isDeactivation, pressOnce } from "./server-action";
+import {
+  answerOf,
+  isDeactivation,
+  isReactivation,
+  isServerAction,
+  pressOnce,
+} from "./server-action";
 
 /** The rate typed in a cell, and what the cell then shows: the service answers what was typed. */
 const TYPED = "85";
@@ -126,12 +134,12 @@ test("reads the settings of the costs outside any project with no mock-up notice
   }
 });
 
-test("reads the settings of the resources, the risks and the indicators outside any project, the deactivated objects asked too (US-0250)", async ({
+test("reads the settings of the resources, the risks and the indicators outside any project, every state of the roles asked (US-0250)", async ({
   page,
 }) => {
-  // The deactivated objects asked: the automation engineer, deactivated, is among the roles
-  // only then (WF-REF-0150), whatever the fake back answers without the parameter.
-  await page.goto("/reference/resources?include_inactive=true");
+  // Every state of the roles asked, their chip lifted: the automation engineer, deactivated, is
+  // among them only then (WF-REF-0150), whatever the fake back answers without the parameter.
+  await page.goto("/reference/resources?role_is_active=all");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Paramètres de ressources");
   // The header, the five roles, the totals; the header, the two calendars, the totals.
   await expect(
@@ -505,15 +513,15 @@ test("deactivates a nature from its row, the row showing what the service or the
   // The service keeps the deactivation: the path deactivates a nature of its own, whose code no run
   // before holds, and leaves the others as they are. The fake back keeps nothing, and answers the
   // deactivation of its first nature, « Débours », whatever the row pressed.
-  // In service the path reads its nature alone (`type_search`), the deactivated shown: on the list
-  // without them the row of the nature deactivated left the grid as soon as the page was read anew
-  // (`readAnew`), at once when Next applied the answer of the action with that reading, and the
-  // reactivation it offers was then never seen — the failures of the queue of 2026-11-14, one
+  // In service the path reads its nature alone (`type_search`), every state shown (`all`): on the
+  // list of the active ones alone the row of the nature deactivated left the grid as soon as the
+  // page was read anew (`readAnew`), at once when Next applied the answer of the action with that
+  // reading, and the reactivation it offers was then never seen — the failures of the queue of 2026-11-14, one
   // deactivation answered 200 and the grid read anew in less than two seconds (#3190).
   const suffix = String(Date.now() % 1_000_000);
   const code = `NE-${suffix}`;
   await page.goto(
-    inService ? `/reference/costs?include_inactive=true&type_search=${code}` : "/reference/costs",
+    inService ? `/reference/costs?type_is_active=all&type_search=${code}` : "/reference/costs",
   );
   const natures = page.getByRole("grid", { name: "Natures de coût" });
   let label = "Débours";
@@ -604,10 +612,13 @@ test("presents fixed the type of a nature whose category is employed, with its c
   await expect(form).toBeHidden();
 });
 
-/** What a command to delete is called: the settings of the costs offer none (WF-REF-0010-A). */
-const DELETION = /supprim|effac|delete/i;
+/**
+ * What a command to delete is called: the settings of the costs offer none (WF-REF-0010-A). « Effacer
+ * les filtres », which the chips of the filters of a table bring, lifts filters and deletes nothing.
+ */
+const DELETION = /supprim|effac(?!er les filtres)|delete/i;
 
-test("shows the deactivated natures and categories asked for and reactivates them, offers no deletion, proposes only the active natures to a category, and the nature again once reactivated, the category too, proposed to the form of a role (US-0880) @shared [WF-REF-0010-A] [WF-REF-0150-A]", async ({
+test("shows the deactivated natures and categories by the filter of the state of each table and reactivates them, offers no deletion, proposes only the active natures to a category, and the nature again once reactivated, the category too, proposed to the form of a role (US-0880, US-2090) @shared [WF-REF-0010-A] [WF-REF-0150-A]", async ({
   page,
 }) => {
   test.slow();
@@ -615,12 +626,15 @@ test("shows the deactivated natures and categories asked for and reactivates the
   const natureCode = `ND-${suffix}`;
   const categoryCode = `CD-${suffix}`;
   // The service keeps what is written: the path makes a nature and a category of its own, whose
-  // codes no run before holds. The fake back keeps nothing and ignores `include_inactive`: it
-  // answers its example whatever the address says, so what a read leaves out is asserted in
-  // service alone, and the commands against the fake back are answered by its examples.
+  // codes no run before holds, and the grids of its account start from their defaults (`mode.ts`).
+  // The fake back keeps nothing and ignores the state asked: it answers its example whatever the
+  // address says, so what a read leaves out is asserted in service alone, and the commands against
+  // the fake back are answered by its examples.
   const natureLabel = inService ? `Nature désactivable ${suffix}` : "Débours";
   const categoryLabel = `Catégorie désactivable ${suffix}`;
   const choice = inService ? `${natureCode} · ${natureLabel}` : "DEB · Débours";
+  const naturesRegion = page.getByRole("region", { name: "Natures de coût" });
+  const categoriesRegion = page.getByRole("region", { name: "Catégories de coût" });
   const natures = page.getByRole("grid", { name: "Natures de coût" });
   const categories = page.getByRole("grid", { name: "Catégories de coût" });
   const category = categories.getByRole("row", { name: new RegExp(categoryCode) });
@@ -632,17 +646,28 @@ test("shows the deactivated natures and categories asked for and reactivates the
   const deactivation = natures.getByRole("button", {
     name: `Désactiver «\u00a0${natureLabel}\u00a0»`,
   });
-  // The nature deactivated on a list without the deactivated: its row offers the reactivation until
-  // the page read anew leaves it out, at once or nearly (`readAnew`), and the region of the list says
-  // the deactivation — what stays once the row is gone.
+  const categoryReactivation = categories.getByRole("button", {
+    name: `Réactiver «\u00a0${categoryLabel}\u00a0»`,
+  });
+  const categoryDeactivation = categories.getByRole("button", {
+    name: `Désactiver «\u00a0${categoryLabel}\u00a0»`,
+  });
+  // The nature deactivated on its list of the active ones alone: its row offers the reactivation
+  // until the page read anew leaves it out, at once or nearly (`readAnew`), and the region of the
+  // list says the deactivation — what stays once the row is gone.
   const deactivated = reactivation
     .or(
-      page
-        .getByRole("region", { name: "Natures de coût" })
+      naturesRegion
         .getByRole("status")
         .filter({ hasText: `«\u00a0${natureLabel}\u00a0» désactivée.` }),
     )
     .first();
+  /** The chip of the state of a table, as its filter says it. */
+  const stateChip = (region: Locator, state: string) =>
+    region.getByRole("listitem").filter({ hasText: new RegExp(`^État : ${state}`) });
+  /** The command that lifts the chip of the state of a table. */
+  const liftState = (region: Locator, state: string) =>
+    region.getByRole("button", { name: `Retirer le filtre État : ${state}` });
   const natureChoice = form
     .getByRole("combobox", { name: "Nature" })
     .getByRole("option", { name: choice });
@@ -657,33 +682,6 @@ test("shows the deactivated natures and categories asked for and reactivates the
       }
       await expect(dialog).toBeVisible({ timeout: 1_000 });
     }).toPass({ timeout: WORKING });
-  };
-  /**
-   * A command of a row, pressed again until React takes the click — the request of its server action
-   * sent —, and never once it is: its answer then takes the command away, the row showing the other
-   * one, and a click pressed again meanwhile would wait for a command gone, or press the other (#3135).
-   * The request awaited is any server action POST, not this row's: the server actions go through one
-   * queue (n° 16 of docs/dev/typescript.md), and on this path only the row pressed acts at that
-   * instant — no other action is sent meanwhile, so the request seen is its own.
-   * The signs of answer differ on purpose: a reactivation expects the opposite button of the row,
-   * as the list then shows the deactivated and the row stays; a deactivation also accepts the
-   * region's announcement, the row possibly leaving a list that hides the deactivated.
-   */
-  const press = async (command: Locator, answered: Locator) => {
-    await expect(async () => {
-      if (await answered.isVisible()) {
-        return;
-      }
-      await Promise.all([
-        page.waitForRequest(
-          (request) =>
-            request.method() === "POST" && request.headers()["next-action"] !== undefined,
-          { timeout: 1_000 },
-        ),
-        command.click({ timeout: 1_000 }),
-      ]);
-    }).toPass({ timeout: WORKING });
-    await expect(answered).toBeVisible({ timeout: WORKING });
   };
 
   await page.goto(`/reference/costs?category_search=${categoryCode}`);
@@ -710,10 +708,17 @@ test("shows the deactivated natures and categories asked for and reactivates the
   }
 
   try {
-    // The nature deactivated from its row: its categories go with it (WF-REF-0010-A).
-    await press(deactivation, deactivated);
+    // Each table opens on its active objects alone, which the chip of its state says (#3076).
+    await expect(stateChip(naturesRegion, "Actifs \\(par défaut\\)")).toBeVisible();
+    await expect(stateChip(categoriesRegion, "Actifs \\(par défaut\\)")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Afficher aussi les désactivés" })).toHaveCount(0);
+
+    // The nature deactivated from its row: its categories go with it (WF-REF-0010-A). The command
+    // is pressed until the request of its action leaves, and never after (#3135, #3252).
+    await pressOnce(page, deactivation, isDeactivation);
+    await expect(deactivated).toBeVisible({ timeout: WORKING });
     if (inService) {
-      // A page read anew, without the deactivated, leaves both out.
+      // A page read anew, the active ones alone, leaves both out.
       await page.goto(`/reference/costs?category_search=${categoryCode}`);
       await expect(natures).toBeVisible({ timeout: WORKING });
       await expect(categories).toBeVisible();
@@ -721,47 +726,64 @@ test("shows the deactivated natures and categories asked for and reactivates the
       await expect(category).toHaveCount(0);
     }
 
-    // The deactivated asked of the server by the switch of the header: they are there, named
-    // deactivated, the category naming the nature it is employed under, deactivated too.
-    await page.getByRole("link", { name: "Afficher aussi les désactivés" }).click();
-    await expect(page).toHaveURL(/include_inactive=true/, { timeout: WORKING });
-    await expect(page.getByRole("link", { name: "Masquer les désactivés" })).toBeVisible();
+    // The deactivated natures alone, by the filter of the state of their table.
+    await openFilters(page, naturesRegion);
+    // The menu read by its accessible name, whose non-breaking spaces read as spaces.
+    await pick(page, "État des objets de « Natures de coût »", "Désactivés", "radio");
+    await expect(page).toHaveURL(/type_is_active=false/, { timeout: WORKING });
+    await expect(stateChip(naturesRegion, "Désactivés")).toBeVisible();
     if (inService) {
-      await expect(reactivation).toBeVisible({ timeout: WORKING });
-      await expect(nature).toContainText("Désactivé");
-      await expect(category).toContainText(natureLabel);
-      await expect(category).toContainText("Désactivé");
-      await expect(
-        categories.getByRole("button", { name: `Réactiver «\u00a0${categoryLabel}\u00a0»` }),
-      ).toBeVisible();
+      await expect(nature).toContainText("Désactivé", { timeout: WORKING });
+      await expect(reactivation).toBeVisible();
+      await expect(natures.getByRole("row", { name: /Main-d'œuvre/ })).toHaveCount(0);
     }
-    // No screen offers to delete an object: neither a button nor a link of the page says it.
+    // Every category, the chip of their state lifted: the one under the nature, deactivated with it,
+    // names the nature it is employed under.
+    await liftState(categoriesRegion, "Actifs (par défaut)").click();
+    await expect(page).toHaveURL(/category_is_active=all/, { timeout: WORKING });
+    await expect(stateChip(categoriesRegion, "")).toHaveCount(0);
+    if (inService) {
+      await expect(category).toContainText(natureLabel, { timeout: WORKING });
+      await expect(category).toContainText("Désactivé");
+      await expect(categoryReactivation).toBeVisible();
+    }
+    // No screen offers to delete an object: neither a button nor a link of the page says it —
+    // « Effacer les filtres » lifts filters, and deletes nothing.
     await expect(page.getByRole("main").getByRole("button", { name: DELETION })).toHaveCount(0);
     await expect(page.getByRole("main").getByRole("link", { name: DELETION })).toHaveCount(0);
     await expect(page.getByRole("menuitem", { name: DELETION })).toHaveCount(0);
 
     if (inService) {
-      // A deactivated nature is not among the choices of a category.
+      // A deactivated nature is not among the choices of a category, whatever its table shows.
       await open(form, "Catégories de coût", "Nouvelle catégorie");
       await expect(natureChoice).toHaveCount(0);
       await page.keyboard.press("Escape");
       await expect(form).toBeHidden();
-    }
 
-    // Reactivated by its row: the row shows what the server answers, active again. The fake back
-    // has no example of a reactivation, and ignores the deactivated asked: the service alone.
-    if (inService) {
-      await press(reactivation, deactivation);
+      // Every nature, the chip of their state lifted: kept with the grid for the account, the page
+      // opened again without a state shows them so. The settings are written once the page shows
+      // the address, after a pause: their request, told by the state it keeps, is awaited answered
+      // before the page is left.
+      const keeping = page.waitForRequest(
+        (request) =>
+          isServerAction(request) && (request.postData() ?? "").includes('"type_is_active":"all"'),
+      );
+      await liftState(naturesRegion, "Désactivés").click();
+      await expect(page).toHaveURL(/type_is_active=all/, { timeout: WORKING });
+      expect((await answerOf(await keeping)).ok()).toBe(true);
+      await page.goto(`/reference/costs?category_search=${categoryCode}`);
+      await expect(reactivation).toBeVisible({ timeout: WORKING });
+      await expect(stateChip(naturesRegion, "")).toHaveCount(0);
+
+      // Reactivated by its row: the row shows what the server answers, active again. The fake back
+      // has no example of a reactivation: the service alone.
+      await pressOnce(page, reactivation, isReactivation);
+      await expect(deactivation).toBeVisible({ timeout: WORKING });
       await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
       // The category stays deactivated with the nature reactivated: its row is reactivated in turn
       // (WF-REF-0150-A), and the row shows it active again.
-      const categoryReactivation = categories.getByRole("button", {
-        name: `Réactiver «\u00a0${categoryLabel}\u00a0»`,
-      });
-      const categoryDeactivation = categories.getByRole("button", {
-        name: `Désactiver «\u00a0${categoryLabel}\u00a0»`,
-      });
-      await press(categoryReactivation, categoryDeactivation);
+      await pressOnce(page, categoryReactivation, isReactivation);
+      await expect(categoryDeactivation).toBeVisible({ timeout: WORKING });
       await expect(category).not.toContainText("Désactivé");
       await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
       // Proposed again: the page read anew, the nature is among the choices.
@@ -786,12 +808,14 @@ test("shows the deactivated natures and categories asked for and reactivates the
     }
   } finally {
     if (inService) {
-      // The nature is left deactivated, as the other paths leave theirs, even on a failure.
-      await page.goto(`/reference/costs?category_search=${categoryCode}`);
+      // The nature is left deactivated, as the other paths leave theirs, even on a failure: every
+      // nature asked, whatever state the account keeps.
+      await page.goto(`/reference/costs?category_search=${categoryCode}&type_is_active=all`);
       await expect(natures).toBeVisible({ timeout: WORKING });
       await expect(categories).toBeVisible();
       if (await deactivation.isVisible()) {
-        await press(deactivation, deactivated);
+        await pressOnce(page, deactivation, isDeactivation);
+        await expect(reactivation).toBeVisible({ timeout: WORKING });
       }
     }
   }

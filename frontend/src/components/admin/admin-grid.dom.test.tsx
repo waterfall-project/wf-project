@@ -282,7 +282,7 @@ describe("the grid of the accounts", () => {
     expect(lastAddress()).toBe(`/admin/users?access_role_ids=${every.join("%2C")}`);
   });
 
-  it("is filtered by state by boxes to check, both or none lifting the filter, and lifts the hiding of the deactivated accounts of an address of before [WF-IHM-0130-A]", async () => {
+  it("is filtered by state by boxes to check, both or none lifting the filter, [WF-IHM-0130-A]", async () => {
     // Every account by default: « Tous les états » checked.
     page.search = "offset=2";
     const { rerender } = render(userList(NO_QUERY, second));
@@ -297,27 +297,6 @@ describe("the grid of the accounts", () => {
     expect(screen.getByRole("checkbox", { name: "Désactivé" })).toBeChecked();
     await userEvent.click(screen.getByRole("checkbox", { name: "Actif" }));
     expect(lastAddress()).toBe("/admin/users");
-    // An address of before hid the deactivated accounts: it says the active ones alone, and a
-    // state chosen lifts that hiding.
-    page.search = "origins=local&include_inactive=false&offset=2";
-    rerender(userList(NO_QUERY, second, { origins: ["local"], active: true }));
-    expect(screen.getByRole("checkbox", { name: "Actif" })).toBeChecked();
-    await userEvent.click(screen.getByRole("checkbox", { name: "Actif" }));
-    expect(lastAddress()).toBe("/admin/users?origins=local");
-  });
-
-  it("reads an address of before that hid the deactivated accounts as the active ones, to which « Désactivé » is added", async () => {
-    page.search = "origins=local&include_inactive=false";
-    const { rerender } = render(userList(NO_QUERY, second, { origins: ["local"], active: true }));
-    await openFilters();
-    await openMenu("État du compte");
-    expect(screen.getByRole("checkbox", { name: "Actif" })).toBeChecked();
-    await userEvent.click(screen.getByRole("checkbox", { name: "Désactivé" }));
-    // Both states: the filter is lifted, with the parameter of before; the active ones not undone.
-    expect(lastAddress()).toBe("/admin/users?origins=local");
-    page.search = "origins=local";
-    rerender(userList(NO_QUERY, second, { origins: ["local"] }));
-    expect(screen.getByRole("checkbox", { name: "Tous les états" })).toBeChecked();
   });
 
   it("offers « Sans rôle » first among the roles, written under the name of the contract beside the roles, in union with them, back to the first page [WF-ADM-0180-A]", async () => {

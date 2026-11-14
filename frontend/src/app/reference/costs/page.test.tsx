@@ -146,7 +146,11 @@ describe("the types of the natures the page hands the form of a category", () =>
       [TYPES]: ["cost_types", "cost_types", "cost_types_with_inactive"],
     };
     await costsAt();
-    expect(queriesOf(TYPES)).toEqual([{}, WHOLE, { include_inactive: "true", ...WHOLE }]);
+    expect(queriesOf(TYPES)).toEqual([
+      { is_active: "true" },
+      WHOLE,
+      { include_inactive: "true", ...WHOLE },
+    ]);
     const { every, natures } = handed();
     // The third read gives the types: the disbursements deactivated there, active among the offered.
     expect(disbursements(every)).toBe(false);
@@ -158,15 +162,20 @@ describe("the types of the natures the page hands the form of a category", () =>
     ]);
   });
 
-  it("are the natures offered when the address asks for the deactivated ones already, read once", async () => {
-    server.answers = { ...server.answers, [TYPES]: "cost_types_with_inactive" };
-    await costsAt({ include_inactive: "true" });
+  it("are read apart from the natures offered, the active ones alone, whatever state the list of the natures shows [WF-REF-0150-A]", async () => {
+    // The list of the natures shows every one; the natures offered stay the active ones.
+    server.answers = {
+      ...server.answers,
+      [TYPES]: ["cost_types_with_inactive", "cost_types", "cost_types_with_inactive"],
+    };
+    await costsAt({ type_is_active: "all", include_inactive: "true" });
     expect(queriesOf(TYPES)).toEqual([
       { include_inactive: "true" },
+      WHOLE,
       { include_inactive: "true", ...WHOLE },
     ]);
     const { every, natures } = handed();
-    expect(every).toEqual(natures);
+    expect(disbursements(natures)).toBe(true);
     expect(disbursements(every)).toBe(false);
   });
 
@@ -181,11 +190,16 @@ describe("the types of the natures the page hands the form of a category", () =>
     expect(handed().every).toBeUndefined();
   });
 
-  it("never ask the deactivated objects of a session that only reads the cost settings, which the contract keeps for the permission to modify them, nor offer to show them [WF-REF-0150-A]", async () => {
+  it("never ask the deactivated objects of a session that only reads the cost settings, which the contract keeps for the permission to modify them, nor offer a filter of the state [WF-REF-0150-A]", async () => {
     // `cost_settings.read` without `cost_settings.write`: the fake back would answer the deactivated
     // ones whatever the permission, so the request of the page is what is proved.
     withdrawn.permissions = ["cost_settings.write"];
-    const page = await costsAt({ include_inactive: "true" });
+    const page = await costsAt({
+      include_inactive: "true",
+      type_is_active: "false",
+      category_is_active: "all",
+      is_active: "false",
+    });
     for (const route of [TYPES, "GET /reference/cost-categories", "GET /reference/hourly-rates"]) {
       const queries = queriesOf(route);
       expect(queries.length).toBeGreaterThan(0);
@@ -194,6 +208,8 @@ describe("the types of the natures the page hands the form of a category", () =>
       ).toBe(true);
     }
     expect(page).not.toContain("désactivés");
+    expect(page).not.toContain("Désactivés");
+    expect(page).not.toContain("par défaut)");
     expect(page).not.toContain("Nouvelle catégorie");
   });
 });

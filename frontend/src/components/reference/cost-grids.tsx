@@ -32,6 +32,7 @@ import type { operations } from "@/api/generated/schema";
 import { type GridConfig, sortColumns } from "@/components/grid/columns";
 import { prefixedAddress } from "@/components/grid/query";
 
+import { keptState } from "./address";
 import { commandColumns } from "./command-columns";
 import type { CostCategory, CostType } from "./cost-kinds";
 
@@ -66,6 +67,10 @@ export const COST_TYPE_STATE = "type_is_active";
 export const CATEGORY_COST_TYPE = "category_cost_type_id";
 export const CATEGORY_STATE = "category_is_active";
 
+/** What each grid keeps of its filters for a session offered them: its state (WF-REF-0150). */
+const KEPT_TYPE_STATE = keptState(COST_TYPE_STATE);
+const KEPT_CATEGORY_STATE = keptState(CATEGORY_STATE);
+
 /** The type of a nature, in words. */
 function Kind({ type }: { readonly type: CostType }) {
   const t = useTranslations("enums.CostTypeKind");
@@ -83,6 +88,7 @@ export function costTypeGrid(editable = false): GridConfig<CostType, CostTypeSor
     address: COST_TYPE_ADDRESS,
     searched: true,
     paged: true,
+    ...(editable ? KEPT_TYPE_STATE : {}),
     rowKey: (type) => type.cost_type_id,
     columns: [
       {
@@ -142,6 +148,7 @@ export function costCategoryGrid(
     address: COST_CATEGORY_ADDRESS,
     searched: true,
     paged: true,
+    ...(editable ? KEPT_CATEGORY_STATE : {}),
     rowKey: (category) => category.cost_category_id,
     columns: [
       {

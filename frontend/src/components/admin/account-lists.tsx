@@ -54,7 +54,6 @@ import { HOLDER_COUNT, PREDEFINED, rolesNarrowed } from "./role-address";
 import { CreateRole, RoleCommands } from "./role-commands";
 import {
   ACCESS_ROLES,
-  INCLUDE_INACTIVE,
   IS_ACTIVE,
   ORG_NODE,
   ORIGINS,
@@ -137,8 +136,6 @@ function UserFilterPanel({
         ]}
         chosen={active === undefined ? [] : [active ? "true" : "false"]}
         page={OFFSET}
-        lifts={[INCLUDE_INACTIVE]}
-        said={{ name: INCLUDE_INACTIVE, value: "false", reads: "true" }}
       />
       <OrgNodeFilter name={ORG_NODE} nodes={nodes} chosen={orgNode} page={OFFSET} />
       <AuditFilterBar filters={audit} authors={authors} searchable page={OFFSET} />
