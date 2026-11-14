@@ -297,7 +297,9 @@ describe("the lines and the tint of the rows of a grid (#3075)", () => {
     expect(lined).toHaveLength(1);
     expect(lined[0]?.dataset.column).toBe("label");
     for (const cell of cells.filter((each) => !each.className.includes("bg-muted"))) {
-      expect(cell).toHaveClass("group-hover/row:bg-row-hover");
+      // On the card the table is set on, never the grey of the page (#3277).
+      expect(cell).toHaveClass("bg-card", "group-hover/row:bg-row-hover");
+      expect(cell).not.toHaveClass("bg-background");
     }
   });
 });
