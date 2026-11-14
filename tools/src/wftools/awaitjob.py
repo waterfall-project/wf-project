@@ -14,8 +14,11 @@ is uploaded. A front-build that ended otherwise (failure, cancelled, skipped) fa
 naming it; one that has not ended within ``--within`` seconds fails it too.
 
 The jobs of the run are read by ``gh`` (``GH_TOKEN``, with ``actions: read``), the latest execution
-of each, so that a job a re-run did not repeat is read as it ended. A call GitHub answers by 502,
-503 or 504 is read again at the next poll, not failed.
+of each (``filter=latest``), meant so that a job a re-run did not repeat is read as it ended; how
+the API answers after a partial re-run is not verified. A reading that fails for a cause that may
+pass — GitHub answering 429, 502, 503 or 504, a connection that fails (``gh`` fails without an
+HTTP status), an answer that is not JSON — is read again at the next poll, until the bound; any
+other failure (403, 404…) fails the wait at once.
 """
 
 import argparse
@@ -37,8 +40,9 @@ TOOL = "wftools.awaitjob"
 POLL = 10.0
 """Seconds between two readings of the jobs: a few requests a part, under GitHub's quota."""
 
-WITHIN = 600.0
-"""Seconds a job is waited for by default: front-build takes about a minute, 12 at most."""
+WITHIN = 780.0
+"""Seconds a job is waited for by default: front-build takes about a minute, and its
+``timeout-minutes`` is 12 (720 s), which this bound exceeds."""
 
 PAGE = 100
 """Jobs a page of the API lists; a run of the chain has about forty."""
@@ -46,13 +50,23 @@ PAGE = 100
 MAX_PAGES = 5
 """Pages read at most: more would be a run the chain does not make."""
 
-UNSERVED = re.compile(r"\bHTTP 50[234]\b")
-"""What ``gh`` says of a call GitHub did not serve, as wftools.queue reads it; not imported from
+STATUS = re.compile(r"\bHTTP (\d{3})\b")
+"""The status ``gh`` says of a call GitHub answered, as wftools.queue reads it; not imported from
 there, so that a change of the report of the queue does not wake the paths against the service."""
+
+TRANSIENT = frozenset({429, 502, 503, 504})
+"""The statuses read again at the next poll; 404, 403 and the others fail the wait at once."""
 
 
 class AwaitError(Exception):
     """A job that will not succeed, or a reading of the jobs that fails, said to the user."""
+
+
+class UnreadableError(AwaitError):
+    """A reading that may pass, read again at the next poll.
+
+    A connection that fails, a status in ``TRANSIENT``, an answer that is not JSON.
+    """
 
 
 def gh(arguments: list[str]) -> str:
@@ -64,6 +78,9 @@ def gh(arguments: list[str]) -> str:
         raise AwaitError(message) from error
     if result.returncode != 0:
         message = f"gh {arguments[0]} failed: {result.stderr.strip()}"
+        found = STATUS.search(result.stderr)
+        if found is None or int(found.group(1)) in TRANSIENT:
+            raise UnreadableError(message)
         raise AwaitError(message)
     return result.stdout
 
@@ -92,7 +109,7 @@ def jobs(call: Callable[[list[str]], str], repository: str, run: str) -> list[di
             answer: object = json.loads(call(["api", path]))
         except json.JSONDecodeError as error:
             message = f"gh api did not answer JSON for the jobs of run {run}"
-            raise AwaitError(message) from error
+            raise UnreadableError(message) from error
         listed = cast("dict[str, object]", answer).get("jobs") if isinstance(answer, dict) else None
         if not isinstance(listed, list):
             message = f"gh api did not answer the jobs of run {run}"
@@ -128,9 +145,8 @@ def await_job(
     while True:
         try:
             listed = jobs(world.call, repository, run)
-        except AwaitError as error:
-            if UNSERVED.search(str(error)) is None:
-                raise
+        except UnreadableError:
+            pass
         else:
             if succeeded(listed, name):
                 return world.clock() - start

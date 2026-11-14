@@ -3605,13 +3605,13 @@ The full tier aims at under eight minutes in the queue for its longest job
   starts once every job it waits for has ended. It lives in `ci.yml` and not in one of the two
   workflows: `e2e.yml` and `service.yml` are two called workflows, and a `needs` does not join the
   jobs of one to those of the other; neither has any other trigger than that call, so that none
-  builds the front. A failed build skips `e2e` and fails `service` at its wait, naming it; the gate, which waits
-  for it too, fails. It
-  builds on the runner, like `front.yml`, in Node 26: the shards start it in the work image of the
-  paths, built on the Playwright image, in Node 24 (its `NODE_VERSION`, which the Node 26 lot does
-  not change; `next start` runs the built files there, and Next 16 accepts Node 24, while pnpm 12 does not stop on `engines` without
-  `engine-strict`, which the front does not set), on the same Ubuntu noble in amd64, and at another
-  path of the workspace (`/__w/…` instead of `/home/runner/work/…`); `service.yml`, on the runner.
+  builds the front. A failed build skips `e2e` and fails `service` at its wait, naming it; the gate,
+  which waits for it too, fails. It builds on the runner, like `front.yml`, in Node 26: the shards
+  start it in the work image of the paths, built on the Playwright image, in Node 24 (its
+  `NODE_VERSION`, which the Node 26 lot does not change; `next start` runs the built files there,
+  and Next 16 accepts Node 24, while pnpm 12 does not stop on `engines` without `engine-strict`,
+  which the front does not set), on the same Ubuntu noble in amd64, and at another path of the
+  workspace (`/__w/…` instead of `/home/runner/work/…`); `service.yml`, on the runner.
   The build does not depend on that path: only `required-server-files.json`, which the standalone
   output of the image reads and not `next start`, names it, and a build moved elsewhere, its
   original folder removed, serves its pages (checked on 2026-10-25 on the workstation, by moving the

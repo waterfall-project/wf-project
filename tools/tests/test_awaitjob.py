@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Tests of the wait for a job of the run, and of service started beside the build (US-1910)."""
+"""Tests of the wait for a job of the run (US-1910); the chain is in test_frontimage.py."""
 
 import json
 from typing import TYPE_CHECKING, Any
@@ -14,13 +14,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from pathlib import Path
 
-WORKFLOWS = REPOSITORY / ".github" / "workflows"
 ENVIRONMENT = {"GITHUB_REPOSITORY": "waterfall-project/wf-project", "GITHUB_RUN_ID": "42"}
-
-
-def workflow(name: str) -> dict[Any, Any]:
-    """Return a workflow of the chain, read."""
-    return yaml.safe_load((WORKFLOWS / name).read_text(encoding="utf-8"))
 
 
 def job(name: str, status: str = "completed", conclusion: str | None = "success") -> dict[str, Any]:
@@ -101,8 +95,53 @@ def test_a_job_whose_name_only_begins_like_it_is_not_the_one_waited_for() -> Non
 
 
 def test_github_unserved_is_read_again_at_the_next_poll() -> None:
-    run = Run(awaitjob.AwaitError("gh api failed: HTTP 503"), [job("front-build")])
+    run = Run(awaitjob.UnreadableError("gh api failed: HTTP 503"), [job("front-build")])
     assert run.await_build() == awaitjob.POLL
+
+
+def test_a_connection_that_fails_twice_is_read_again_until_the_job_succeeds() -> None:
+    run = Run(
+        awaitjob.UnreadableError("gh api failed: error connecting to api.github.com"),
+        awaitjob.UnreadableError("gh api failed: error connecting to api.github.com"),
+        [job("front-build")],
+    )
+    assert run.await_build() == 2 * awaitjob.POLL
+
+
+def test_what_may_pass_is_read_again_and_bounded_by_the_delay(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    for stderr, again in [
+        ("error connecting to api.github.com", True),
+        ("HTTP 429: rate limit", True),
+        ("HTTP 502: bad gateway", True),
+        ("HTTP 404: Not Found", False),
+        ("HTTP 403: forbidden", False),
+    ]:
+        script = tmp_path / "gh"
+        script.write_text(f"#!/bin/sh\necho '{stderr}' >&2\nexit 1\n", encoding="utf-8")
+        script.chmod(0o755)
+        monkeypatch.setenv("PATH", str(tmp_path))
+        with pytest.raises(awaitjob.AwaitError) as caught:
+            awaitjob.gh(["api", "repos"])
+        assert isinstance(caught.value, awaitjob.UnreadableError) is again, stderr
+
+
+def test_an_answer_that_is_not_json_is_read_again() -> None:
+    answers = iter(["<html>", json.dumps({"jobs": [job("front-build")]})])
+    world = awaitjob.World(call=lambda _: next(answers), wait=lambda _: None, clock=lambda: 0.0)
+    assert awaitjob.await_job("front-build", 60, ENVIRONMENT, world) == 0
+
+
+def test_a_reading_that_always_fails_ends_at_the_bound() -> None:
+    run = Run(awaitjob.UnreadableError("gh api failed: HTTP 504"))
+    with pytest.raises(awaitjob.AwaitError, match="has not succeeded within 30 s"):
+        run.await_build(within=30)
+
+
+def test_the_default_bound_exceeds_the_timeout_of_the_build() -> None:
+    chain = yaml.safe_load((REPOSITORY / ".github" / "workflows" / "ci.yml").read_text())["jobs"]
+    assert chain["front-build"]["timeout-minutes"] * 60 < awaitjob.WITHIN
 
 
 def test_another_failure_of_gh_fails_the_wait_at_once() -> None:
@@ -154,42 +193,3 @@ def test_outside_a_job_of_github_actions_the_wait_refuses(
     monkeypatch.delenv("GITHUB_RUN_ID", raising=False)
     assert awaitjob.main(["front-build"]) == 1
     assert "made for a job of GitHub Actions" in capsys.readouterr().err
-
-
-# The chain.
-
-
-def test_service_starts_beside_the_build_of_the_front_and_waits_for_it_before_its_download() -> (
-    None
-):
-    # US-1910/L5: service no longer needs front-build, whose end it waited for (1.4 minutes into
-    # the run, in the median of ten runs of the queue of 2026-11-14), and waits for it in the step
-    # before the download, after the work image and Keycloak's image; front-build runs whenever
-    # service does, and both are judged by the gate.
-    chain = workflow("ci.yml")["jobs"]
-    service = chain["service"]
-    assert service["needs"] == ["changes", "mirror", "e2e-image"]
-    assert service["permissions"]["actions"] == "read"
-    build = " ".join(chain["front-build"]["if"].split())
-    assert "needs.changes.outputs.tier == 'full'" in build
-    assert "needs.changes.outputs.service == 'true'" in build
-    assert {"front-build", "service"} <= set(chain["gate"]["needs"])
-
-    (paths,) = workflow("service.yml")["jobs"].values()
-    assert paths["permissions"]["actions"] == "read"
-    steps = paths["steps"]
-    waited = next(
-        i for i, s in enumerate(steps) if s.get("run") == "make await-job JOB=front-build"
-    )
-    assert steps[waited]["env"] == {"GH_TOKEN": "${{ github.token }}"}
-    downloads = [i for i, s in enumerate(steps) if "download-artifact" in s.get("uses", "")]
-    built = next(i for i, s in enumerate(steps) if s.get("run") == "make build-keycloak")
-    assert built < waited
-    assert downloads == [waited + 1]
-
-
-def test_the_gate_judges_every_job_of_the_chain() -> None:
-    # A job that starts earlier is still judged: the gate needs every other job of ci.yml.
-    chain = workflow("ci.yml")["jobs"]
-    assert set(chain["gate"]["needs"]) == set(chain) - {"gate"}
-    assert chain["gate"]["if"] == "always()"

@@ -294,7 +294,9 @@ jobs:
   # parts spend their first minute — runner, work image, Keycloak's image — on what the build does
   # not give. Each waits for front-build in the step before its download (make await-job), which
   # reads the jobs of the run, hence actions: read; whenever service runs, front-build runs too
-  # (its condition is wider), and one that fails fails that step, naming it. In 10 runs of the queue
+  # (its condition is wider), and one that fails fails that step, naming it, after
+  # about 1.5 minutes of waiting in each part (the work image and Keycloak's image are done by then).
+  # In 10 runs of the queue
   # of 2026-11-14, front-build ended 1.4 minutes into the run, and the parts reached their download
   # 1.2 minutes after they started: started at about 0.6, they find the build there.
   service:

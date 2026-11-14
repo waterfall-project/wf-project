@@ -3626,18 +3626,17 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   `service` part à côté de lui, et chacun de ses morceaux l'attend à l'étape qui précède son
   téléchargement (`make await-job JOB=front-build`, `wftools.awaitjob`, qui lit les travaux de
   l'exécution, d'où ses `actions: read`), après l'image de travail et celle de Keycloak
-  (US-1910/L5) : un workflow appelé ne part qu'une fois finis tous les travaux qu'il attend. Il vit dans `ci.yml` et non dans
-  l'un des deux workflows : `e2e.yml` et `service.yml` sont deux workflows appelés, et un `needs`
-  ne joint pas les travaux de l'un à ceux de l'autre ; ni l'un ni l'autre n'a d'autre
-  déclencheur que cet appel, si bien qu'aucun ne construit le front. Un build en échec saute
+  (US-1910/L5) : un workflow appelé ne part qu'une fois finis tous les travaux qu'il attend. Il vit
+  dans `ci.yml` et non dans l'un des deux workflows : `e2e.yml` et `service.yml` sont deux workflows
+  appelés, et un `needs` ne joint pas les travaux de l'un à ceux de l'autre ; ni l'un ni l'autre n'a
+  d'autre déclencheur que cet appel, si bien qu'aucun ne construit le front. Un build en échec saute
   `e2e` et fait échouer `service` à son attente, en le nommant ; la porte, qui l'attend aussi,
-  échoue. Il construit sur le runner, comme `front.yml`, en
-  Node 26 : les morceaux le démarrent dans l'image de travail des parcours, bâtie de celle de
-  Playwright, en Node 24 (son
-  `NODE_VERSION`, que le lot de Node 26 ne change pas ; `next start` y exécute les fichiers
-  construits, et Next 16 accepte Node 24, tandis que pnpm 12 ne s'arrête pas sur `engines` sans
-  `engine-strict`, que le front ne pose pas), sur la même Ubuntu noble en amd64, et à un autre
-  chemin de l'espace de travail (`/__w/…` au lieu de `/home/runner/work/…`) ; `service.yml`, sur le
+  échoue. Il construit sur le runner, comme `front.yml`, en Node 26 : les morceaux le démarrent dans
+  l'image de travail des parcours, bâtie de celle de Playwright, en Node 24 (son `NODE_VERSION`, que
+  le lot de Node 26 ne change pas ; `next start` y exécute les fichiers construits, et Next 16
+  accepte Node 24, tandis que pnpm 12 ne s'arrête pas sur `engines` sans `engine-strict`, que le
+  front ne pose pas), sur la même Ubuntu noble en amd64, et à un autre chemin de l'espace de travail
+  (`/__w/…` au lieu de `/home/runner/work/…`) ; `service.yml`, sur le
   runner. Le build ne dépend pas de ce chemin : seul `required-server-files.json`, que lit la
   sortie autonome de l'image et non `next start`, le nomme, et un build déplacé ailleurs, son
   dossier d'origine retiré, sert ses pages (vérifié le 2026-10-25 sur le poste, en déplaçant le

@@ -373,7 +373,7 @@ def test_the_chain_builds_the_front_once_and_every_part_plays_that_build() -> No
     # service run, and uploads it without Next's cache; each part of the paths, the measure and the
     # paths against the service wait for it, download it where the build wrote it, and say it is
     # built: neither e2e.yml nor service.yml builds it again. US-1910/L5: service waits for it in
-    # the step before its download (test_awaitjob.py), e2e and the gate by their needs.
+    # the step before its download (test_service_starts_beside_…), e2e and the gate by their needs.
     workflows = REPOSITORY / ".github" / "workflows"
     chain = yaml.safe_load((workflows / "ci.yml").read_text())["jobs"]
     build = chain["front-build"]
@@ -383,6 +383,14 @@ def test_the_chain_builds_the_front_once_and_every_part_plays_that_build() -> No
         "(needs.changes.outputs.front == 'true' || needs.changes.outputs.service == 'true')"
     )
     assert [step["run"] for step in build["steps"] if "run" in step][-1] == "make build-front"
+    # US-1910/L5: service reads the job, not its artifact, to know the build is there: a front-build
+    # that succeeded must have uploaded it, so the upload is its last step and runs unconditionally.
+    last = build["steps"][-1]
+    assert "upload-artifact" in last.get("uses", "")
+    assert "if" not in last, (
+        "invariant: a front-build that succeeded has uploaded its artifact — its last step is the "
+        "upload, without `if`"
+    )
     (building,) = [step for step in build["steps"] if step.get("run") == "make build-front"]
     assert not [name for name in building.get("env", {}) if name.startswith("E2E_")]
     (uploaded,) = [
@@ -411,6 +419,49 @@ def test_the_chain_builds_the_front_once_and_every_part_plays_that_build() -> No
     (checked,) = [step for step in service["steps"] if step.get("run") == "make check-service"]
     assert checked["env"]["E2E_BUILT"] == "1"
     assert not [s for s in service["steps"] if "build-front" in s.get("run", "")]
+
+
+def workflow(name: str) -> dict[Any, Any]:
+    """Return a workflow of the chain, read."""
+    return yaml.safe_load((REPOSITORY / ".github" / "workflows" / name).read_text(encoding="utf-8"))
+
+
+def test_service_starts_beside_the_build_of_the_front_and_waits_for_it_before_its_download() -> (
+    None
+):
+    # US-1910/L5: service no longer needs front-build, whose end it waited for (1.4 minutes into
+    # the run, in the median of ten runs of the queue of 2026-11-14), and waits for it in the step
+    # before the download, after the work image and Keycloak's image; front-build runs whenever
+    # service does, and both are judged by the gate.
+    chain = workflow("ci.yml")["jobs"]
+    service = chain["service"]
+    assert service["needs"] == ["changes", "mirror", "e2e-image"]
+    assert service["permissions"]["actions"] == "read"
+    build = " ".join(chain["front-build"]["if"].split())
+    assert "needs.changes.outputs.tier == 'full'" in build
+    assert "needs.changes.outputs.service == 'true'" in build
+    assert {"front-build", "service"} <= set(chain["gate"]["needs"])
+
+    (paths,) = workflow("service.yml")["jobs"].values()
+    assert paths["permissions"]["actions"] == "read"
+    steps = paths["steps"]
+    waited = next(
+        i for i, s in enumerate(steps) if s.get("run") == "make await-job JOB=front-build"
+    )
+    assert steps[waited]["env"] == {"GH_TOKEN": "${{ github.token }}"}
+    downloads = [i for i, s in enumerate(steps) if "download-artifact" in s.get("uses", "")]
+    built = next(i for i, s in enumerate(steps) if s.get("run") == "make build-keycloak")
+    assert built < waited
+    assert downloads == [waited + 1]
+
+
+def test_the_gate_judges_every_job_of_the_chain() -> None:
+    # A job that starts earlier is still judged: the gate needs every other job of ci.yml.
+    chain = workflow("ci.yml")["jobs"]
+    assert set(chain["gate"]["needs"]) == set(chain) - {"gate"}, (
+        "the gate waits for every job of ci.yml, on purpose: a new job must be read by the gate"
+    )
+    assert chain["gate"]["if"] == "always()"
 
 
 def test_a_change_of_what_makes_the_image_wakes_its_check() -> None:
