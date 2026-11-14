@@ -44,6 +44,23 @@ export interface FrontRequest extends Interval {
   readonly prefetch: boolean;
 }
 
+/**
+ * A request of Next the browser gave up — a navigation that took the place of another, a prefetch
+ * it left behind —, waited for until it failed, and none of its bytes. Its timing gives its start
+ * only once an answer came: for one that failed before any, it is 0, and the start is the moment
+ * the page asked it, as the measure kept it — failing that, the failure itself, so that it covers
+ * nothing rather than every step before it.
+ */
+export function failedRequest(
+  timedStart: number,
+  asked: number | undefined,
+  failed: number,
+  prefetch: boolean,
+): FrontRequest {
+  const start = timedStart > 0 ? timedStart : (asked ?? failed);
+  return { start, end: failed, bytes: 0, prefetch };
+}
+
 /** A request the API answered, as its log writes it. */
 export interface ApiRequest extends Interval {
   /** The account that asked: its identifier in Waterfall, or `anonymous`, or `platform`. */

@@ -37,7 +37,7 @@ import {
   usableAt,
   watchGrids,
 } from "../usable";
-import type { FrontRequest, Interval } from "./report";
+import { failedRequest, type FrontRequest, type Interval } from "./report";
 
 export const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 export const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -218,6 +218,13 @@ export async function player(page: Page, origin: string): Promise<Player> {
   await page.addInitScript(markKeys, KEYED);
   const front: FrontRequest[] = [];
   const reading: Promise<void>[] = [];
+  // When the page asked each request of Next: the start of one that fails before any answer.
+  const asked = new WeakMap<Request, number>();
+  page.on("request", (request) => {
+    if (rendered(request, origin)) {
+      asked.set(request, Date.now());
+    }
+  });
   page.on("requestfinished", (request) => {
     if (!rendered(request, origin)) {
       return;
@@ -246,9 +253,10 @@ export async function player(page: Page, origin: string): Promise<Player> {
   // until then: its time counts, up to the moment it failed, and none of its bytes.
   page.on("requestfailed", (request) => {
     if (rendered(request, origin)) {
-      const { startTime: start } = request.timing();
       const prefetch = request.headers()["next-router-prefetch"] !== undefined;
-      front.push({ start, end: Date.now(), bytes: 0, prefetch });
+      front.push(
+        failedRequest(request.timing().startTime, asked.get(request), Date.now(), prefetch),
+      );
     }
   });
   return {

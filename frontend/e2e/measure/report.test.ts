@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import {
   apiRequests,
   covered,
+  failedRequest,
   getMeDurations,
   getMeReport,
   momentOf,
@@ -79,6 +80,28 @@ describe("partsOf", () => {
   it("counts a request of the API that Next made outside any answer to the browser in the server's part", () => {
     const parts = partsOf({ start: 0, end: 100 }, [], [{ start: 10, end: 40 }]);
     expect(parts).toMatchObject({ api: 30, next: 0, browser: 70 });
+  });
+});
+
+describe("failedRequest", () => {
+  it("spans a request given up after its answer began from the start its timing gives", () => {
+    expect(failedRequest(1_200, 1_190, 1_500, false)).toEqual({
+      start: 1_200,
+      end: 1_500,
+      bytes: 0,
+      prefetch: false,
+    });
+  });
+
+  it("spans a request that failed before any answer from the moment the page asked it, not from 0", () => {
+    const failed = failedRequest(0, 1_190, 1_500, true);
+    expect(failed).toEqual({ start: 1_190, end: 1_500, bytes: 0, prefetch: true });
+    // Within a step after it, a prefetch given up before its headers costs that step nothing.
+    expect(partsOf({ start: 1_000, end: 1_100 }, [failed], []).next).toBe(0);
+  });
+
+  it("covers nothing for a request failed before any answer whose asking was not kept", () => {
+    expect(failedRequest(0, undefined, 1_500, false)).toMatchObject({ start: 1_500, end: 1_500 });
   });
 });
 
