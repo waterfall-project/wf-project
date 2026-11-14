@@ -105,7 +105,7 @@ beforeEach(() => {
 });
 
 describe("a command of a screen", () => {
-  it("on a project in pricing, presents completion unavailable, naming the condition it lacks [WF-IHM-0090-A]", async () => {
+  it("on a project in pricing, presents completion unavailable, naming the condition it lacks, which its tooltip opens on the focus of the keyboard [WF-IHM-0090-A]", async () => {
     const { container } = french(
       <LifecycleCommands project={example("project_pricing") as Project} />,
     );
@@ -234,7 +234,7 @@ describe("a command of a screen", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("projet en cours");
   });
 
-  it("says what it does in its tooltip, and the conditions it lacks beside its name", async () => {
+  it("says what it does in its tooltip, and describes the button with the conditions it lacks [WF-IHM-0090-A]", async () => {
     french(
       <Command
         offer={{ is_available: false, missing_conditions: ["project_in_progress"] }}
@@ -251,10 +251,35 @@ describe("a command of a screen", () => {
       "Termine le projet, après confirmation.",
     );
     expect(complete).not.toHaveAttribute("title");
-    // The condition is said beside the command; the tooltip, open, adds its help to the description.
+    // The hidden text of the conditions describes the button; the tooltip, open, adds its help.
     expect(complete).toHaveAccessibleDescription(
       "Condition non remplie\u00A0: projet en cours. Termine le projet, après confirmation.",
     );
+  });
+
+  it("forgets the refusal of a press once the command is available, and does not tell it again when it is not [WF-IHM-0090]", async () => {
+    const unavailable = {
+      is_available: false,
+      missing_conditions: ["project_in_progress"],
+    } as const;
+    const available = { is_available: true, missing_conditions: [] } as const;
+    const command = (offer: typeof available | typeof unavailable) => (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <Command
+          offer={offer}
+          label="Terminer le projet"
+          help="Ce que la commande fait."
+          icon={commandIcon(PROJECT_COMMAND_ICONS.complete)}
+        />
+      </NextIntlClientProvider>
+    );
+    const { rerender } = render(command(unavailable));
+    await userEvent.click(screen.getByRole("button", { name: "Terminer le projet" }));
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    rerender(command(available));
+    expect(screen.queryByRole("alert")).toBeNull();
+    rerender(command(unavailable));
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("leads « Déclarer un risque », available, to the screen of the risks of the revision, which its tooltip says [WF-IHM-0090-A]", async () => {
