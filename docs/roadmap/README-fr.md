@@ -389,7 +389,9 @@ l'ouverture des issues d'EP-06, EP-04 n'ayant plus qu'US-0990/L2 à fusionner, e
 toute la série EP-06 → EP-07 → EP-09 → EP-10 → EP-08, chaque branche tirée de la précédente dès
 le lot pivot que le cadrage de celle-ci désigne (décision du 2026-11-07) : US-1380/L1 (#2328)
 pour `epic/EP-07`, US-1490/L1 (#2370) pour `epic/EP-09`, US-1580/L1 (#2398) pour `epic/EP-10`, US-1660/L1 (#2437) pour
-`epic/EP-08`.
+`epic/EP-08`. Troisième : `epic/EP-26` tirée d'`epic/EP-25` dès l'ouverture des issues d'EP-26,
+ses lots de back et ses outils de mesure ne touchant aucun fichier de la refonte (décision du
+2026-11-14).
 
 La chaîne s'exécute sur toute pull request, vers une branche d'EPIC comme vers `main`, et
 aucune n'est fusionnée si elle échoue.

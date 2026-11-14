@@ -390,7 +390,9 @@ merged into `main` after it, never before. First exception: `epic/EP-04` created
 and likewise for the whole series EP-06 → EP-07 → EP-09 → EP-10 → EP-08, each branch created from
 the previous one as soon as the pivot lot its framing names is merged (decision of 2026-11-07):
 US-1380/L1 (#2328) for `epic/EP-07`, US-1490/L1 (#2370) for `epic/EP-09`, US-1580/L1 (#2398) for `epic/EP-10`, US-1660/L1 (#2437) for
-`epic/EP-08`.
+`epic/EP-08`. Third: `epic/EP-26` created from `epic/EP-25` as soon as the issues of EP-26 are
+opened, its back lots and its measuring tools touching no file of the redesign (decision of
+2026-11-14).
 
 The chain runs on every pull request, towards an epic's branch as towards `main`, and
 none is merged if it fails.
