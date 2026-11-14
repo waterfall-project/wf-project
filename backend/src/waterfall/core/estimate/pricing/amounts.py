@@ -92,7 +92,8 @@ def inflation_factor(inflation_rate: Decimal, reference_year: int, year: int) ->
     """Return the factor of one share: (1 + rate) once per year elapsed since the reference year.
 
     A year before the reference one has no year elapsed, hence a factor of one: nothing deflates.
-    That reading is kept until #2545, which settles it (to be decided): it is not a requirement.
+    WF-DEV-0030-A fixes this factor: a share consumed the year before the reference year is worth
+    its base amount, whatever the inflation rate.
     """
     with localcontext() as context:
         context.prec = _PRECISION

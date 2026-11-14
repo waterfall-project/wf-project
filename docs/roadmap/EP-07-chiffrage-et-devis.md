@@ -594,8 +594,8 @@ chargeur — s'étend à chacun.
   l'année de référence, et le réestimé est la somme des parts projetées, arrondie une fois au
   centime — jamais une somme de parts arrondies, pour que WF-DAT-0100 tienne sur une ligne à cheval
   sur deux années — ; une part consommée dans une année antérieure à l'année de référence garde le
-  facteur 1, aucune année ne s'étant « écoulée depuis » elle (#2545, option a ; la phrase de
-  WF-DEV-0030 proposée à la spécification par #2745) ; `consumption_year` est l'année de la part la
+  facteur 1, aucune année ne s'étant « écoulée depuis » elle (WF-DEV-0030-A, dans la spécification
+  depuis la 1.0.4) ; `consumption_year` est l'année de la part la
   plus lourde, la première à égalité. Le taux d'inflation est celui du projet pour la révision en
   cours, celui conservé pour une révision marquée.
 - **Une tâche sans heure travaillée** — non jalon, de plusieurs jours, dont le calendrier ne
