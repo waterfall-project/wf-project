@@ -61,6 +61,8 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The measure of the core (``measure/``, US-2210) is no part of the package: its tests import it from here.
+pythonpath = ["."]
 # The tests of Keycloak need its platform: `make test-keycloak` selects them, `-m keycloak`
 # overriding the selection below.
 addopts = ["--strict-markers", "--strict-config", "-m", "not keycloak"]
@@ -95,9 +97,10 @@ exclude_also = ["if __name__ == .__main__.:"]
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.14"
-include = ["src", "tests"]
-# The tests share what ``tests/conftest.py`` holds.
-extraPaths = ["src", "tests"]
+include = ["src", "tests", "measure"]
+# The tests share what ``tests/conftest.py`` holds; the measure (``measure/``, beside the package, US-2210)
+# is imported by its tests and by itself from the root of the back.
+extraPaths = ["src", "tests", "."]
 # The models engendered from the contract are written by a tool, not by us.
 exclude = ["src/waterfall/api/contract/models.py"]
 # `# type: ignore` is not honoured: a type error is fixed, never silenced (US-0050).

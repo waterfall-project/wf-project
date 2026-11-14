@@ -85,6 +85,7 @@ from waterfall.core.projects.interface.lifecycle import (
 
 # ``projects`` (US-0920): the project, its commands, its names for the journal.
 from waterfall.core.projects.interface.projects import (
+    ALL_PROJECTS_READ,
     CommandAvailability,
     ProjectChange,
     ProjectColumn,
@@ -169,6 +170,7 @@ from waterfall.core.projects.interface.work_breakdown import (
 )
 
 __all__ = [
+    "ALL_PROJECTS_READ",
     "BEFORE_IN_PROGRESS",
     "BORN_LOCK_VERSION",
     "NO_BACKGROUND_TASK_RUNNING",

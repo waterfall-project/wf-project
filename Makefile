@@ -68,7 +68,7 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
-	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-purge service-logs service-down migrate \
+	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-purge service-logs service-down measure-core migrate \
 	build-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	production-trial check-production \
 	test-tools test-openldap lint-tools typecheck-tools sources fixtures check-fixtures requirements \
@@ -165,6 +165,7 @@ SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_OPE
 SLOT_PATHS := E2E_API_PORT E2E_FRONT_PORT
 $(call slot-export,service-up service-install service-witness service-purge keycloak-authority service-logs service-down \
 	test-keycloak e2e-service,$(SLOT_SERVICE))
+$(call slot-export,measure-core,WATERFALL_POSTGRES_PORT)
 $(call slot-export,build-keycloak,WATERFALL_KEYCLOAK_IMAGE)
 $(call slot-export,test-services test-services-down,WATERFALL_TEST_PROJECT \
 	WATERFALL_TEST_POSTGRES_PORT WATERFALL_TEST_REDIS_PORT WATERFALL_TEST_STORAGE_PORT)
@@ -312,6 +313,17 @@ service-witness: ## Load the witness, the examples of the contract (fixtures/api
 # settings. Two purges never run together: the verb takes a lock of its own.
 service-purge: ## Purge what expired on the service platform, started: imports, deposits, exports, history (`waterfall-worker purge`)
 	@$(COMPOSE_SERVICE) exec --no-TTY scheduler waterfall-worker purge
+
+# The measure of the core in process (US-2210, EP-26, "La mesure"): backend/measure/, which calls the
+# core as the API does, on the database of the service platform of the slot, started and the witness
+# loaded, without HTTP or Keycloak; every write it makes is rolled back. It never fails on a duration
+# and the chain does not run it. RUNS identical runs of the whole read, the cell entered and the
+# revision opened (5; the profile and the waves of reads make one pass), ONLY=<part> one of read,
+# profile, parallel, write, revision (several by repeating: ONLY="read write"), JSON=<file> the report
+# also written as JSON.
+measure-core: ## Measure the core in process on the witness of the service platform, started: whole reads of PRJ-001, profile, threads and processes, a cell entered, a revision opened; RUNS, ONLY="read profile parallel write revision", JSON=<file>
+	@cd $(BACK) && PYTHONDONTWRITEBYTECODE=1 uv run --frozen python -m measure $(if $(RUNS),--runs $(RUNS)) \
+		$(foreach part,$(ONLY),--only $(part)) $(if $(JSON),--json $(abspath $(JSON)))
 
 keycloak-authority: ## Copy out of the service platform the root of the authority of Keycloak's front end (KEYCLOAK_AUTHORITY)
 	@mkdir -p $(dir $(KEYCLOAK_AUTHORITY))
