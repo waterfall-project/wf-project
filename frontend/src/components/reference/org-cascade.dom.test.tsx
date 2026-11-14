@@ -28,6 +28,7 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+const NODE = "PATCH /reference/org-nodes/{org_node_id}";
 const NODE_ACTIVATION = "PUT /reference/org-nodes/{org_node_id}/activation";
 const NO_BOUNDS = { min: undefined, max: undefined };
 const tree = example("org_nodes_with_inactive") as OrgNode[];
@@ -75,6 +76,7 @@ describe("the cascade of the deactivation of a node", () => {
       resource_roles: ResourceRole[];
     };
     const client = fakeClient({
+      [NODE]: "org_node_updated",
       [NODE_ACTIVATION]: { example: "org_node_deactivated_with_descendants", status: 200 },
     });
     server.client = client;
@@ -106,10 +108,9 @@ describe("the cascade of the deactivation of a node", () => {
     });
     // La désactivation d'un nœud portant deux niveaux de descendants et des rôles les désactive tous.
     expect(answer.org_nodes.map((node) => node.code)).toEqual(codes);
-    expect(answer.resource_roles).toHaveLength(3);
+    // This test carries the tree only: no list reads the roles of this answer, so they are not asked.
     for (const node of answer.org_nodes) {
       expect(stateOf(node.code)).toHaveTextContent(/^Désactivé/);
-      expect(node.lock_version).toBe(nodeOf(node.code).lock_version + 1);
     }
     expect(client.calls.map(({ route, path, body }) => ({ route, path, body }))).toEqual([
       {
@@ -119,6 +120,21 @@ describe("the cascade of the deactivation of a node", () => {
       },
     ]);
     // The page is asked once, and the rows shown are those of the answer.
-    expect(refresh).toHaveBeenCalledOnce();
+    await vi.waitFor(() => {
+      expect(refresh).toHaveBeenCalledOnce();
+    });
+    // A descendant is written from the version of the answer, with no page read anew.
+    const descendant = answer.org_nodes.find((node) => node.code === "AT-CABL");
+    expect(descendant).toBeDefined();
+    expect(descendant?.lock_version).not.toBe(nodeOf("AT-CABL").lock_version);
+    await userEvent.click(
+      screen.getByRole("button", { name: `Modifier «\u00A0${nodeOf("AT-CABL").label}\u00A0»` }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(client.calls.filter((call) => call.route === NODE).map((call) => call.body)).toEqual([
+        expect.objectContaining({ lock_version: descendant?.lock_version }),
+      ]);
+    });
   });
 });
