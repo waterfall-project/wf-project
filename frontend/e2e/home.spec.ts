@@ -37,5 +37,7 @@ test("an account that reads no project lands on a home that says so and leads to
   await expect(
     page.getByRole("main").getByRole("link", { name: "Gestion des utilisateurs" }),
   ).toHaveAttribute("href", "/admin/users");
+  // No redirection: the home is where the account stays.
+  await expect(page).toHaveURL("/");
   await expect(page.getByRole("heading", { name: "Introuvable" })).toHaveCount(0);
 });
