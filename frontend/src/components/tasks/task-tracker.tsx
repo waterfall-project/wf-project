@@ -71,11 +71,13 @@ import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/comp
 
 import { listRunningTasks, readBackgroundTask } from "@/api/actions/tasks";
 
+import { downloadWhenThere } from "./result-download";
 import { readRefusal, withoutRefusal } from "./result-refusal";
 import { isOwner, keepOwner, wipeStores } from "./session-end";
 import { restoreTasks, saveTasks } from "./storage";
 import { EndLog, TaskEntry, taskName, TaskPolling, useTaskNaming } from "./task-entry";
 import {
+  type EndCardLine,
   type EndLine,
   isPolled,
   type Launch,
@@ -266,7 +268,7 @@ export function useTrackTask(): TrackTask {
 function useWhenTaskEnded(
   taskId: string | undefined,
   way: "succeeded" | "unsuccessful",
-  then: () => void,
+  then: (line: EndLine) => void,
 ): void {
   const { log, tasks } = useTracker();
   const done = useRef<string>(undefined);
@@ -274,17 +276,18 @@ function useWhenTaskEnded(
   // of the task named is the end of the one now in its place too.
   const current = tasks.find((tracked) => tracked.key === taskId)?.task.task_id;
   const ended =
-    taskId !== undefined &&
-    log.some(
-      // Any end but a success — a failure, an interrupted follow-up — is the unsuccessful way.
-      (line) =>
-        (line.task.task_id === taskId || line.task.task_id === current) &&
-        (line.end === "succeeded") === (way === "succeeded"),
-    );
+    taskId === undefined
+      ? undefined
+      : log.find(
+          // Any end but a success — a failure, an interrupted follow-up — is the unsuccessful way.
+          (line) =>
+            (line.task.task_id === taskId || line.task.task_id === current) &&
+            (line.end === "succeeded") === (way === "succeeded"),
+        );
   useEffect(() => {
-    if (ended && done.current !== taskId) {
+    if (ended !== undefined && done.current !== taskId) {
       done.current = taskId;
-      then();
+      then(ended);
     }
   }, [ended, taskId, then]);
 }
@@ -295,7 +298,10 @@ function useWhenTaskEnded(
  * task that ends while the user is elsewhere leads nowhere. `task_id` is none until a task was
  * started.
  */
-export function useWhenTaskSucceeds(taskId: string | undefined, then: () => void): void {
+export function useWhenTaskSucceeds(
+  taskId: string | undefined,
+  then: (line: EndLine) => void,
+): void {
   useWhenTaskEnded(taskId, "succeeded", then);
 }
 
@@ -366,6 +372,52 @@ export function useReadAnewWhenTaskEnds(taskId: string | undefined): void {
       });
     }
   }, [line, store, router]);
+}
+
+/**
+ * Download the result of the export named once its task has succeeded — a relaunch of it included
+ * —, while the screen that asked for it still shows (#3103): once, for the task named, read anew
+ * first, and left only if the screen is still there once the read has answered. `task_id` is none
+ * until an export was asked.
+ */
+export function useDownloadWhenTaskSucceeds(taskId: string | undefined): void {
+  const { dispatch } = inTracker(useContext(StateContext)).store;
+  const shown = useRef(true);
+  useEffect(() => {
+    shown.current = true;
+    return () => {
+      shown.current = false;
+    };
+  }, []);
+  const download = useCallback(
+    (line: EndLine) => {
+      downloadWhenThere(line, dispatch, () => shown.current);
+    },
+    [dispatch],
+  );
+  useWhenTaskSucceeds(taskId, download);
+}
+
+/** The function that changes what the tracker follows: an answer to a task, a card closed. */
+export function useTrackerDispatch(): Dispatch<TrackingEvent> {
+  return inTracker(useContext(StateContext)).store.dispatch;
+}
+
+/**
+ * The cards of the ends the shell shows, the last first, and the button of the bar, which the focus
+ * goes to once the last card is closed (`EndCards`).
+ */
+export function useEndCards(): {
+  readonly cards: readonly EndCardLine[];
+  readonly button: RefObject<HTMLButtonElement | null>;
+} {
+  const { store, button } = inTracker(useContext(StateContext));
+  const cards = useSyncExternalStore(
+    store.subscribe,
+    () => store.read().tracking.cards,
+    () => NOTHING_TRACKED.cards,
+  );
+  return { cards, button };
 }
 
 /**

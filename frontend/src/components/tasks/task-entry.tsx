@@ -24,18 +24,10 @@
  */
 "use client";
 
-import { Download, RefreshCw, RotateCcw, X } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { RefreshCw, RotateCcw, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
-import {
-  type Dispatch,
-  type MouseEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useTransition,
-} from "react";
+import { type Dispatch, useCallback, useEffect, useMemo, useRef, useTransition } from "react";
 
 import { readBackgroundTask } from "@/api/actions/tasks";
 import type { BackgroundTask, Outcome, Problem } from "@/api/problem";
@@ -43,11 +35,11 @@ import { OutcomeNotice, SignIn, useNoteRefusal } from "@/components/commands/out
 import { useHeldCommand } from "@/components/commands/held";
 import { useNoteMessage } from "@/components/notices/message-history";
 import { rejected } from "@/components/commands/rejection";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { problemMessage } from "@/i18n/problem";
 import { asksIdentifiers } from "@/navigation/login";
 
-import { resultHref, withoutRefusal } from "./result-refusal";
+import { DownloadResult } from "./result-download";
 import {
   type EndKind,
   type EndLine,
@@ -62,7 +54,7 @@ import {
 export const POLL_INTERVAL = 2000;
 
 /** The sentence of each end, by how it ended. */
-const END_SENTENCE: Readonly<Record<EndKind, "succeeded" | "failed" | "interruptedLine">> = {
+export const END_SENTENCE: Readonly<Record<EndKind, "succeeded" | "failed" | "interruptedLine">> = {
   succeeded: "succeeded",
   failed: "failed",
   interrupted: "interruptedLine",
@@ -97,12 +89,12 @@ export function taskName(
 }
 
 /** What a task is called, in the language of the interface. */
-function useTaskName(named: Pick<TrackedTask, "task" | "subject">): string {
+export function useTaskName(named: Pick<TrackedTask, "task" | "subject">): string {
   return taskName(useTaskNaming(), named);
 }
 
 /** The sentence of a motive — of a failure, of a refusal —, from its envelope. */
-function Motive({ problem }: { readonly problem: Problem | null | undefined }) {
+export function Motive({ problem }: { readonly problem: Problem | null | undefined }) {
   const locale = useLocale();
   const messages = useMessages();
   return problem == null ? null : <p>{problemMessage(problem, { locale, messages })}</p>;
@@ -199,76 +191,6 @@ function ReloadScreen({ onShown }: { readonly onShown: () => void }) {
       <RefreshCw aria-hidden="true" />
       {t("reload")}
     </Button>
-  );
-}
-
-/** The screen shown, from which a download leaves, without a refusal it may carry. */
-function useShownScreen(): string {
-  const pathname = usePathname();
-  const search = useSearchParams().toString();
-  return withoutRefusal({ pathname, search });
-}
-
-/**
- * The offer to download the file a task made: made on demand, it is not kept (WF-DAT-0120). The
- * link leaves once the server has said the result is still there: its refusal is told by the
- * notice of the entry, the answer applied to the task as a read of its progress is. The link has no
- * `download`: a refusal of the route brings the browser back to the screen, which a download would
- * save as a file.
- */
-function DownloadResult({
-  entry,
-  name,
-  dispatch,
-}: {
-  readonly entry: TrackedTask;
-  readonly name: string;
-  readonly dispatch: Dispatch<TrackingEvent>;
-}) {
-  const t = useTranslations("tasks");
-  const [pending, startTransition] = useTransition();
-  const from = useShownScreen();
-  // Whether the click is the one the check lets through, to the browser.
-  const checked = useRef(false);
-  // Whether the entry is still shown: dismissed during the read, it downloads nothing.
-  const shown = useRef(true);
-  useEffect(() => {
-    shown.current = true;
-    return () => {
-      shown.current = false;
-    };
-  }, []);
-  const { key, task } = entry;
-  const download = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (checked.current) {
-      checked.current = false;
-      return;
-    }
-    event.preventDefault();
-    if (pending) {
-      return;
-    }
-    const link = event.currentTarget;
-    startTransition(async () => {
-      const outcome = await readBackgroundTask(task.task_id).catch(rejected);
-      dispatch({ type: "answer", source: "download", key, taskId: task.task_id, outcome });
-      if (shown.current && outcome.kind === "done" && outcome.data.result_url != null) {
-        checked.current = true;
-        link.click();
-      }
-    });
-  };
-  return (
-    <a
-      href={resultHref(task.task_id, from)}
-      aria-label={t("downloadLabel", { task: name })}
-      aria-busy={pending}
-      className={buttonVariants({ variant: "outline", size: "sm" })}
-      onClick={download}
-    >
-      <Download aria-hidden="true" />
-      {t("download")}
-    </a>
   );
 }
 
@@ -434,7 +356,15 @@ export function TaskEntry({
       ) : null}
       {interrupted === undefined ? null : <Interruption refusal={interrupted} />}
       {task.status === "succeeded" ? <ReloadScreen onShown={onScreenShown} /> : null}
-      {givesFile(task) ? <DownloadResult entry={entry} name={name} dispatch={dispatch} /> : null}
+      {givesFile(task) ? (
+        <DownloadResult
+          taskKey={key}
+          task={task}
+          name={name}
+          label={t("tasks.download")}
+          dispatch={dispatch}
+        />
+      ) : null}
       {entry.resultUnavailable === true ? (
         <p role="alert" className="text-destructive">
           {t("tasks.resultUnavailable")}

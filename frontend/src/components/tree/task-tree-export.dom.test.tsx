@@ -11,6 +11,7 @@ import { exportOffers } from "@/components/exchanges/offers";
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { heldFrames } from "@/test/download-frames";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { closeTasks, tasksRegion } from "@/test/task-panel";
 
@@ -56,12 +57,19 @@ function open(depth: number) {
   );
 }
 
+/** The hidden frames the image downloads by itself through. */
+let frames: readonly HTMLIFrameElement[] = [];
+
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   window.sessionStorage.clear();
+  // The result of an export the tree asked for downloads by itself once made, by a hidden frame
+  // (#3103): held out of the document, happy-dom loading no page in a frame.
+  frames = heldFrames();
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
@@ -99,6 +107,23 @@ describe("the export of the image of the task tree", () => {
       name: /^Télécharger le résultat/,
     });
     expect(download.getAttribute("href")).toMatch(/^\/tasks\/[^/]+\/result\?from=/);
+  });
+
+  it("downloads the image by itself once drawn, the tree still shown (#3103)", async () => {
+    serve({
+      [EXPORT]: { example: "task_export_queued", status: 202 },
+      [TASK]: "task_export_succeeded",
+    });
+    open(3);
+    await request();
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    await waitFor(() => {
+      expect(frames).toHaveLength(1);
+    });
+    // By a hidden frame: the tree is not left.
+    expect(frames[0]?.getAttribute("src")).toMatch(
+      /^\/tasks\/01926f3a-7c00-7000-8000-000000000935\/result\?from=/,
+    );
   });
 
   it("asks the first level at least, for a plan that has no summary [WF-PLA-0120-A]", async () => {

@@ -3,13 +3,15 @@
 /**
  * What of the shell frames the page the browser shows: the side bar, the bar above the page and
  * the panel of the tasks and the messages, with the line under the bar that says the last task
- * handed over or ended. The page keeps its place in the tree. A navigation waits for
+ * handed over or ended, and the cards of the ends of the tasks in the corner of the window
+ * (`EndCards`). The page keeps its place in the tree. A navigation waits for
  * the writes under way, and does not take place when one is refused (`useNavigationHold`).
  */
 "use client";
 
 import type { ReactNode } from "react";
 
+import { EndCards } from "@/components/tasks/end-cards";
 import { TaskPanel } from "@/components/tasks/task-tracker";
 import { SidebarInset } from "@/components/ui/sidebar";
 
@@ -40,6 +42,7 @@ export function ShellFrame({ navigation, bar, children }: ShellFrameProps) {
         {bar}
         <TaskPanel />
         {children}
+        <EndCards />
       </SidebarInset>
     </>
   );

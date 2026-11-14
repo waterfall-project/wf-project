@@ -1238,6 +1238,15 @@
     "dismissNews": {
       "help": "Retire cette ligne ; la tâche reste suivie dans le panneau des tâches et messages."
     },
+    "downloadEnd": {
+      "help": "Télécharge le fichier que la tâche a produit, puis ferme la carte."
+    },
+    "openEnd": {
+      "help": "Ouvre l’écran d’où la tâche a été lancée, puis ferme la carte."
+    },
+    "closeEnd": {
+      "help": "Ferme la carte ; la fin de la tâche reste dans le panneau des tâches et messages."
+    },
     "startedOnly": {
       "help": "Montre ou masque les tâches qui n’ont pas démarré."
     },
@@ -1997,7 +2006,14 @@
     "panel": "Tâches et messages",
     "close": "Fermer les tâches et messages",
     "started": "Tâche lancée : {task}.",
-    "closeNews": "Fermer la ligne de la tâche"
+    "closeNews": "Fermer la ligne de la tâche",
+    "cards": {
+      "label": "Aboutissements des tâches",
+      "download": "Télécharger",
+      "open": "Ouvrir",
+      "openLabel": "Ouvrir : {task} — {screen}",
+      "close": "Fermer la carte : {task}"
+    }
   },
   "markRevision": {
     "versionName": "Nom de version",
