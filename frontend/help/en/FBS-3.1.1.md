@@ -27,7 +27,7 @@ Above each table, for all:
 - **Kinds of cost type** keeps the cost types of the kinds chosen; **Cost type** keeps the categories of a cost type;
 - a filter of state — **Every state**, **Active**, **Deactivated** — when the deactivated ones are shown;
 - the search field keeps the objects whose code or label contains the text entered, and, for the categories, the accounting code;
-- **Columns**, **Rows per page**, **Previous page** and **Next page**.
+- **Columns**, **Rows per page**, **Previous** and **Next**.
 
 ## Its columns and computed values
 

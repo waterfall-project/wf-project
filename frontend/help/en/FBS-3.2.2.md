@@ -23,7 +23,7 @@ Above the table, for all:
 - **Role code**; **Organisation node**, which keeps the roles of the node and of its descendants; **Cost category**; **Calendar** — each with its choice “Every …” —; a filter of state when the deactivated ones are shown;
 - **Bounds of “Resource roles”**: the hours per month and the headcount between two bounds. An upper bound under the lower bound is refused at its field, and the table is not read;
 - the search field keeps the roles whose code or label contains the text entered;
-- **Columns**, **Rows per page**, **Previous page** and **Next page**.
+- **Columns**, **Rows per page**, **Previous** and **Next**.
 
 ## Its columns and computed values
 

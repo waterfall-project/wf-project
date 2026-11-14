@@ -23,7 +23,7 @@ Au-dessus de la liste :
 
 - **Filtre par zone des indices** retient les projets dont l’indice de coût ou l’indice de délai est dans l’une des zones choisies ; **Toutes les zones** lève le filtre. Un projet sans indice n’est dans aucune zone.
 - Le champ de recherche retient les projets dont le libellé contient le texte saisi.
-- **Colonnes** choisit les colonnes montrées ; **Lignes par page**, **Projets précédents** et **Projets suivants** parcourent la liste.
+- **Colonnes** choisit les colonnes montrées ; **Lignes par page**, **Précédent** et **Suivant** parcourent la liste.
 
 Le libellé d’un projet que vous pouvez consulter est un lien qui l’ouvre.
 

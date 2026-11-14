@@ -483,7 +483,7 @@ essayées avant la maquette — gris froids, tons chauds — sont écartées (#3
 
 ## US-2080 — Les tables plates : la création dans l'en-tête de la carte, une barre, une pagination et une largeur communes
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0060-A`, `WF-IHM-0130-A`
 - **opérations** : toute liste paginée (`offset`, `limit`, `meta.total`) ; `getMe`,
   `updateMyPreferences`

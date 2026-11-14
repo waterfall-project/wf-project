@@ -296,11 +296,11 @@ describe("the list of the projects of the portfolio", () => {
       ),
     );
     const pages = screen.getByRole("navigation", { name: "Pages des projets" });
-    expect(within(pages).getByRole("link", { name: /Projets précédents/ })).toHaveAttribute(
+    expect(within(pages).getByRole("link", { name: "Précédent" })).toHaveAttribute(
       "href",
       `${PATHNAME}?states=in_progress`,
     );
-    expect(within(pages).getByRole("link", { name: /Projets suivants/ })).toHaveAttribute(
+    expect(within(pages).getByRole("link", { name: "Suivant" })).toHaveAttribute(
       "href",
       `${PATHNAME}?states=in_progress&offset=100`,
     );
@@ -323,7 +323,7 @@ describe("the list of the projects of the portfolio", () => {
     await pick("Filtre par zone des indices", "Alerte");
     expect(await lastAddress()).toBe(`${PATHNAME}?zones=alert`);
     // The zone asked and not arrived: the projects read otherwise start from their first page.
-    await userEvent.click(screen.getByRole("link", { name: /Projets suivants/ }));
+    await userEvent.click(screen.getByRole("link", { name: "Suivant" }));
     expect(await lastAddress()).toBe(`${PATHNAME}?zones=alert`);
   });
 });

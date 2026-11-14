@@ -405,11 +405,11 @@ describe("the grid of the accounts", () => {
     page.search = "origins=local&sort_by=email&sort_order=asc&offset=2";
     const { container } = render(userList(NO_QUERY, second, { origins: ["local"] }));
     const pages = screen.getByRole("navigation", { name: "Pages de la liste" });
-    expect(within(pages).getByRole("link", { name: /Page précédente/ })).toHaveAttribute(
+    expect(within(pages).getByRole("link", { name: "Précédent" })).toHaveAttribute(
       "href",
       "/admin/users?origins=local&sort_by=email&sort_order=asc",
     );
-    expect(within(pages).getByRole("link", { name: /Page suivante/ })).toHaveAttribute(
+    expect(within(pages).getByRole("link", { name: "Suivant" })).toHaveAttribute(
       "href",
       "/admin/users?origins=local&sort_by=email&sort_order=asc&offset=4",
     );
@@ -423,7 +423,7 @@ describe("the grid of the accounts", () => {
     await pick("Filtrer par origine", "Importé de l’annuaire");
     expect(lastAddress()).toBe("/admin/users?origins=directory");
     // The origin asked and not arrived: the accounts read otherwise start from their first page.
-    await userEvent.click(screen.getByRole("link", { name: /Page suivante/ }));
+    await userEvent.click(screen.getByRole("link", { name: "Suivant" }));
     expect(lastAddress()).toBe("/admin/users?origins=directory");
   });
 

@@ -17,7 +17,7 @@ Ces commandes ne sont offertes qu’à qui peut modifier les paramètres de ress
 
 Une commande indisponible reste présentée et dit la condition qui lui manque. Un libellé déjà porté est refusé à son champ, qui nomme le calendrier qui le porte.
 
-Au-dessus de la table, pour tous : un filtre d’état quand les désactivés sont affichés ; le champ de recherche, sur le libellé ; **Colonnes**, **Lignes par page**, **Page précédente** et **Page suivante**. Les heures d’un jour ne se filtrent pas.
+Au-dessus de la table, pour tous : un filtre d’état quand les désactivés sont affichés ; le champ de recherche, sur le libellé ; **Colonnes**, **Lignes par page**, **Précédent** et **Suivant**. Les heures d’un jour ne se filtrent pas.
 
 ## Ses colonnes et ses valeurs calculées
 

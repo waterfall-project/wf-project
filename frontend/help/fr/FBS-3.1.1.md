@@ -27,7 +27,7 @@ Au-dessus de chaque table, pour tous :
 - **Types de nature** retient les natures des types choisis ; **Nature** retient les catégories d’une nature ;
 - un filtre d’état — **Tous les états**, **Actifs**, **Désactivés** — quand les désactivés sont affichés ;
 - le champ de recherche retient les objets dont le code ou le libellé contient le texte saisi, et, pour les catégories, le code comptable ;
-- **Colonnes**, **Lignes par page**, **Page précédente** et **Page suivante**.
+- **Colonnes**, **Lignes par page**, **Précédent** et **Suivant**.
 
 ## Ses colonnes et ses valeurs calculées
 

@@ -18,7 +18,7 @@ Le journal n’a pas de commande d’écriture. Pour le lire :
 - **Projet** et **Nature de l’objet**.
 - **Corrélation** : l’identifiant d’une requête, lettres, chiffres, « . », « _ » et « - », 64 caractères au plus.
 - Le champ de recherche retient les inscriptions dont le nom de l’objet contient le texte saisi.
-- **Colonnes** choisit les colonnes montrées ; **Lignes par page**, **Page précédente** et **Page suivante** parcourent le journal.
+- **Colonnes** choisit les colonnes montrées ; **Lignes par page**, **Précédent** et **Suivant** parcourent le journal.
 
 Les auteurs et les projets proposés sont ceux que le journal entier cite, même pour qui ne peut pas lire les comptes ; un auteur choisi que le journal ne cite plus reste choisi, sous son nom. Dans la table :
 

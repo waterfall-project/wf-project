@@ -1036,6 +1036,21 @@ pour qui le lit, et ses indicateurs, avec leur date de calcul, ou qu'ils sont in
 l'API ne les trouve pas ou les refuse faute de taux horaire (`HOURLY_RATE_MISSING`, #159) — ces deux
 cas ne font pas tomber l'écran ; toute autre réponse suit la règle des lectures (`EstimateSummary`).
 
+La barre de toute grille suit un seul ordre (`GridToolbar`, US-2080, décision de l'auteur du
+2026-11-14) : les commandes de l'écran, la recherche, « Filtres » — les menus d'une grille
+arborescente, ou le bouton du panneau d'une table plate —, « Colonnes », « Arbre » pour une grille
+arborescente, puis, à la fin, l'annulation et le rétablissement. Elle ne dit aucun nombre de lignes :
+la ligne de total le dit seule, ce qu'un filtre retient compris (#3072). La raison pour laquelle
+l'annulation attend, coupée à la place que laisse la barre, s'ouvre en entier quand on la presse — au
+clic, au toucher ou au clavier —, dans un Popover (#3150). Chaque filtre actif d'une table plate est
+une pastille dans la teinte de la couleur primaire (`bg-accent`, son texte en `text-primary`, la
+paire mesurée par `contrast.test.ts`), avec son libellé et sa croix (#3077). Les pages d'une liste
+(`ListPages`) sont à droite sous la table, au texte de la table, atténué : « Lignes par page »,
+l'intervalle des lignes montrées (« 1–50 sur 150 »), « Précédent », « Page n sur m » et « Suivant »,
+ces deux liens à place fixe, inertes en bout de liste (`aria-disabled`, sans adresse) ; tout se lit
+d'`offset`, `limit` et `meta.total` (`pageSpan`), sans saut de page ni première ou dernière page, et
+la navigation porte le nom de sa liste (#3073).
+
 Une grille qui lit un différentiel (`CostStructure.kind` = `amendment`) est un diff avec la
 structure principale, que le serveur calcule (`Node.difference`, rendu sur chaque nœud, avec les
 nœuds retirés à leur place) : elle reçoit `GridConfig.difference` (`withDifference`, `nodes.tsx`) et

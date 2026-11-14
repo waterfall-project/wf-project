@@ -3,11 +3,16 @@
 /**
  * The way through the pages of a list the server pages — the actual costs, the journal of their
  * imports, the imports of a project (US-0260), the projects of the home and of the portfolio, the
- * accounts, the journal of audit, the lists of the reference data (#509, #510, #533) —: the links to
- * the page before and the page after the one shown, when there are, by the pagination of shadcn/ui.
- * A list never shows one of its pages as if it were the whole — its totals row says how many it
- * holds —; a page asked beyond its end says so, and leads back to its last page (`pageOffsets`, the
- * one rule of every list, #317).
+ * accounts, the journal of audit, the lists of the reference data (#509, #510, #533) —, at the
+ * right under the table, discreet, its text the size of the table's and muted (#3073, US-2080):
+ * « Lignes par page », the rows shown (« 1–50 sur 150 »), « Précédent », « Page 1 sur 3 » and
+ * « Suivant ». The two links keep their place, inert at the ends of the list rather than gone. All
+ * of it is read from the offset, the size and the total the server answers (`PaginationMeta`),
+ * without asking anything else; there is no jump to a page, nor to the first or the last. The
+ * navigation is named after its list, which tells its pages from those of another list of the
+ * screen. A list never shows one of its pages as if it were the whole — its totals row says how
+ * many it holds —; a page asked beyond its end says so, and leads back to its last page
+ * (`pageOffsets`, the one rule of every list, #317).
  *
  * A page turned only changes the address, under the name of the page of the list, from the address
  * last asked (`usePendingLink`): when that address reads the list otherwise than the one shown — a
@@ -15,19 +20,21 @@
  * the place of a row in the list shown meaning nothing in the other; a sort or a page of another
  * list of the screen leaves it as it is (#294).
  *
- * A flat table of which the account chooses the size of the pages (`PagedList.size`) offers it beside
- * its links — « Lignes par page » (`page-size.tsx`) —, as long as it holds more rows than the
- * smallest page, even when it holds a single page: a size chosen too large must be taken back. A
- * list whose pages have a size of their own, or a tree, offers none.
+ * A flat table of which the account chooses the size of the pages (`PagedList.size`) offers it first
+ * — « Lignes par page » (`page-size.tsx`) —, as long as it holds more rows than the smallest page,
+ * even when it holds a single page: a size chosen too large must be taken back. A list whose pages
+ * have a size of their own, or a tree, offers none.
  *
  * Every prop is data, never a function: a server component hands it over (défaut n° 12 de
  * `typescript.md`).
  */
 "use client";
 
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
+import { buttonVariants } from "@/components/ui/button";
 import {
   Pagination,
   PaginationContent,
@@ -35,6 +42,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { cn } from "@/components/ui/utils";
 import { type ListPage, type PagedList, pageOffsets, readingOf } from "@/navigation/pages";
 
 import { filterHref } from "./filters";
@@ -43,8 +51,8 @@ import { usePendingLink } from "./pending-address";
 import { PAGE_SIZES } from "./query";
 
 /**
- * The texts of the pages of a list alone on its screen, or of one of the costs: those of its links,
- * and the name of its pages.
+ * The texts of the pages of a list alone on its screen, or of one of the costs: the name of its
+ * pages, and what a page asked beyond its end says.
  */
 export type ListTexts =
   | "actualCosts.pages.costs"
@@ -70,6 +78,15 @@ type Naming =
       readonly texts?: never;
     };
 
+/** Whether a link leads to the page before or after the one shown. */
+type Direction = "previous" | "next";
+
+/** The look of « Précédent » and « Suivant »: a ghost of a button, in the size of the table's text. */
+const TURN = cn(
+  buttonVariants({ variant: "ghost", size: "sm" }),
+  "h-7 gap-1 px-2 text-xs font-normal",
+);
+
 /** A link to another page of a list, or to its first one when the address last asked reads it otherwise. */
 function PageLink({
   list,
@@ -79,7 +96,7 @@ function PageLink({
 }: {
   readonly list: PagedList;
   readonly offset: number;
-  readonly direction: "previous" | "next";
+  readonly direction: Direction;
   readonly text: string;
 }) {
   const pathname = usePathname();
@@ -92,19 +109,58 @@ function PageLink({
   });
   const Link = direction === "previous" ? PaginationPrevious : PaginationNext;
   return (
-    <PaginationItem>
-      <Link href={href} onClick={onClick} scroll={false}>
-        {text}
-      </Link>
-    </PaginationItem>
+    <Link href={href} onClick={onClick} scroll={false} className={TURN}>
+      {text}
+    </Link>
   );
 }
 
 /**
- * Render the links to the pages before and after the one shown, of `shown` rows, named by the texts
- * of the list or after its title, and « Lignes par page » beside them as soon as the list holds more
- * rows than the smallest page (`total > 10`), even when it holds a single page; nothing when the
- * list holds neither a page to turn to nor that choice.
+ * A link at an end of the list, inert: kept in its place, drawn as the link, marked as one that leads
+ * nowhere (`aria-disabled`), and out of the order of the keyboard, having no address.
+ */
+function InertTurn({ direction, text }: { readonly direction: Direction; readonly text: string }) {
+  return (
+    <a role="link" aria-disabled="true" className={cn(TURN, "pointer-events-none opacity-50")}>
+      {direction === "previous" ? <ChevronLeft aria-hidden="true" /> : null}
+      {text}
+      {direction === "next" ? <ChevronRight aria-hidden="true" /> : null}
+    </a>
+  );
+}
+
+/** Where the page shown stands: its first and last rows, and the page among the pages. */
+export interface PageSpan {
+  /** The first row shown, counted from one; none shown, zero. */
+  readonly from: number;
+  /** The last row shown, counted from one. */
+  readonly to: number;
+  /** The page shown, counted from one: the one its first row falls in. */
+  readonly at: number;
+  /** How many pages the list holds, one at least. */
+  readonly pages: number;
+}
+
+/**
+ * Where the page shown, of `shown` rows, stands, read from the offset, the size and the total the
+ * server answers (`PaginationMeta`) — the decision of EP-25: they are not asked of the server.
+ */
+export function pageSpan(page: ListPage, shown: number): PageSpan {
+  const limit = Math.max(page.limit, 1);
+  return {
+    from: shown === 0 ? 0 : page.offset + 1,
+    to: page.offset + shown,
+    at: Math.floor(page.offset / limit) + 1,
+    pages: Math.max(1, Math.ceil(page.total / limit)),
+  };
+}
+
+/**
+ * Render the pages of a list, of `shown` rows, its navigation named by the texts of the list or after
+ * its title: « Lignes par page » as soon as the list holds more rows than the smallest page
+ * (`total > 10`), even when it holds a single page; the rows shown, « Précédent », the page among the
+ * pages, and « Suivant », inert at an end. Nothing when the list holds neither a page to turn to nor
+ * that choice.
  */
 export function ListPages({
   list,
@@ -118,31 +174,45 @@ export function ListPages({
 } & Naming) {
   const t = useTranslations(naming.texts ?? NAMED);
   const named = useTranslations(NAMED);
+  const said = useTranslations("grid.pages");
   const { beyond, previous, next } = pageOffsets(page, shown);
   const size = page.total > PAGE_SIZES[0] ? list.size : undefined;
-  const turns = previous !== undefined || next !== undefined;
-  if (!turns && size === undefined) {
+  if (previous === undefined && next === undefined && size === undefined) {
     return null;
   }
   const label = naming.texts === undefined ? named("label", { list: naming.title }) : t("label");
+  const span = pageSpan(page, shown);
+  const turn = (direction: Direction, offset: number | undefined) => (
+    <PaginationItem>
+      {offset === undefined ? (
+        <InertTurn direction={direction} text={said(direction)} />
+      ) : (
+        <PageLink list={list} offset={offset} direction={direction} text={said(direction)} />
+      )}
+    </PaginationItem>
+  );
   return (
-    <div className="flex flex-wrap items-center gap-2 text-sm">
+    <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-xs text-muted-foreground">
       {beyond ? <p>{t("beyond")}</p> : null}
-      {turns ? (
-        <Pagination aria-label={label}>
-          <PaginationContent>
-            {previous === undefined ? null : (
-              <PageLink list={list} offset={previous} direction="previous" text={t("previous")} />
-            )}
-            {next === undefined ? null : (
-              <PageLink list={list} offset={next} direction="next" text={t("next")} />
-            )}
-          </PaginationContent>
-        </Pagination>
-      ) : null}
       {size === undefined ? null : (
         <PageSizeChoice size={size} page={list.page} current={page.limit} title={naming.title} />
       )}
+      {beyond ? null : (
+        <p className="tabular-nums">
+          {said("range", { from: span.from, to: span.to, total: page.total })}
+        </p>
+      )}
+      <Pagination aria-label={label}>
+        <PaginationContent>
+          {turn("previous", previous)}
+          {beyond ? null : (
+            <PaginationItem className="px-1 tabular-nums">
+              {said("page", { page: span.at, pages: span.pages })}
+            </PaginationItem>
+          )}
+          {turn("next", next)}
+        </PaginationContent>
+      </Pagination>
     </div>
   );
 }

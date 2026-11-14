@@ -16,7 +16,7 @@ From top to bottom:
 
 - **Imports and exports**, at the top of the screen, leads to where the actual costs are imported, in the same context.
 - **Scope**: **Every line**, **Tracked** or **Excluded**; **Subproject**, a subproject of the project or **Every subproject**; **Period of the documents**, **Documents from** and **Documents up to**, then **Filter**. A period that ends before it starts, or a subproject the project does not have, is refused in the place of the lines, the filters kept to be changed.
-- **Columns** chooses the columns shown; **Rows per page**, **Previous lines** and **Next lines** go through the list; **More recent imports** and **Older imports** go through the journal.
+- **Columns** chooses the columns shown; **Rows per page**, **Previous** and **Next** go through the list; **Previous** and **Next** under the journal go through it.
 - Where the project offers **Exclude cost lines**, the document number of a line is a link that opens it: **Exclude from the tracked scope**, with an optional **Reason for the exclusion**, or **Reinstate in the tracked scope**; **Close the line** closes it again. A terminal project no longer offers it. The exclusion is kept at the following imports, even when an extraction brings the line back. It is written with no counter: excluding it again, or reinstating a tracked line, changes nothing. The server records it in the audit log, and it does not enter the history of the changes that can be undone. Once written, it moves the amount of the line from the tracked scope to the excluded. On a terminal project, the lines and the journal can be consulted, with no command.
 
 ## Its columns and computed values

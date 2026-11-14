@@ -17,7 +17,7 @@ These commands are offered only to whoever may modify the resource settings:
 
 An unavailable command stays shown and says the condition it lacks. A label already borne is refused at its field, which names the calendar that bears it.
 
-Above the table, for all: a filter of state when the deactivated ones are shown; the search field, on the label; **Columns**, **Rows per page**, **Previous page** and **Next page**. The hours of a day are not filtered.
+Above the table, for all: a filter of state when the deactivated ones are shown; the search field, on the label; **Columns**, **Rows per page**, **Previous** and **Next**. The hours of a day are not filtered.
 
 ## Its columns and computed values
 

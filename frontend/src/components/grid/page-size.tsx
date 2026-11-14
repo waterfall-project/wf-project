@@ -47,13 +47,14 @@ export function PageSizeChoice({
   const [, startTransition] = useTransition();
   return (
     <div className="flex items-center gap-2">
-      <Label htmlFor={id} className="whitespace-nowrap">
+      <Label htmlFor={id} className="text-xs font-normal whitespace-nowrap">
         {t("label")}
       </Label>
-      <div className="w-20 shrink-0">
+      <div className="w-16 shrink-0">
         <NativeSelect
           id={id}
           value={shown}
+          className="h-7 text-xs"
           aria-label={title === undefined ? undefined : t("named", { list: title })}
           onChange={(event) => {
             const value = event.target.value;

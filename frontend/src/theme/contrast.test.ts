@@ -113,6 +113,8 @@ const TEXTS: readonly [string, string][] = [
   ["muted-foreground", "accent"],
   ["destructive-foreground", "destructive"],
   ["primary", "background"],
+  // The words of the chip of a filter on, in the tint of the primary (#3077, US-2080).
+  ["primary", "accent"],
   ["destructive", "background"],
   ["destructive", "card"],
   // The banner of the reading context, on its muted strip, and the headings of the header row of

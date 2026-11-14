@@ -31,7 +31,7 @@ Above the table, for all:
 
 - **Filter by origin**, the node of attachment, **Filter by role** — an account that holds one of the roles chosen — and **Account state**; for the creation and the last modification, a period and an author. An author is chosen among those of the page; **Find** finds others among the accounts.
 - The search field keeps the accounts whose last name, first name or address contains the text entered.
-- **Columns** chooses the columns shown; **Rows per page**, **Previous page** and **Next page** go through the list.
+- **Columns** chooses the columns shown; **Rows per page**, **Previous** and **Next** go through the list.
 
 The search and the filters are kept with the settings of the grid: coming back to the screen without asking anything finds them again.
 
