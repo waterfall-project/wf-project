@@ -26,8 +26,9 @@ module makes their examples, under ``volume/``:
 And, beside them by their name, what is read from the lists written by hand (``org_nodes``,
 ``resource_roles``, ``calendars``, ``cost_types``, ``org_nodes_with_inactive``): each read by a
 session without the permission to modify them (``*_reader``) — the active objects alone, without
-commands —, the roles bounded by their monthly hours, and the reactivation of the office of
-automation, alone, its child left deactivated (WF-REF-0080).
+commands —, the roles bounded by their monthly hours, the reactivation of the office of
+automation, alone, its child left deactivated, and the deactivation of the technical direction,
+which reaches two levels of descendants and their roles (WF-REF-0080, #3244).
 
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """
@@ -60,6 +61,16 @@ hours a row bears, so that the reading shows the bound included."""
 
 AUTOMATION_OFFICE = universe(474)
 """The office of automation, deactivated with the robotics cell under it (``org_nodes``)."""
+
+TECHNICAL_DIRECTION = universe(470)
+"""The technical direction, the root of the organisation: two levels of descendants and roles."""
+
+REACTIVATE = "reactivate"
+"""The command that reactivates a node or a role of the organisation."""
+
+PARENT_ACTIVE, NODE_ACTIVE = "org_node_parent_active", "org_node_active"
+"""The conditions the reactivation misses: a node under a deactivated parent, a role under a
+deactivated node (WF-REF-0080)."""
 
 CHANGE_COST_TYPE = "change_cost_type"
 """The command that moves a category under a nature of another kind (`CostCategoryCommand`)."""
@@ -433,7 +444,66 @@ def named() -> dict[str, JsonObject]:
             "réactivation ne cascade pas, et le client relit les listes (WF-REF-0080).",
             {"org_nodes": [_reactivated(AUTOMATION_OFFICE)], "resource_roles": []},
         ),
+        "org_node_deactivated_with_descendants.json": _example(
+            "La direction technique désactivée aujourd'hui, à partir de la version lue : la "
+            "désactivation cascade à ses descendants actifs, sur deux niveaux — ceux "
+            "qui dépendent d'elle directement, et ceux qui dépendent de ces derniers —, "
+            "et aux rôles actifs rattachés à l'un d'eux — l'ingénieur électricien, "
+            "le monteur câbleur et le technicien de mise en service —, chacun sa version avancée "
+            "d'une ; le bureau d'études automatismes et la cellule robotique, déjà désactivés, "
+            "ne changent pas et ne sont pas rendus. La direction, sans parent, se réactive ; les "
+            "autres nœuds, non, tant que leur parent est désactivé, ni les rôles tant que leur "
+            "nœud l'est (WF-REF-0080).",
+            _deactivated_with_descendants(TECHNICAL_DIRECTION),
+        ),
     }
+
+
+def _deactivated_today(entry: JsonObject, available: list[JsonValue]) -> JsonObject:
+    """Return a node or a role as a deactivation made today leaves it, its version moved on.
+
+    Its author is that of the deactivation of the workshop, today (``org_node_deactivated``).
+    """
+    [workshop] = cast("list[JsonObject]", fixture("org_node_deactivated")["org_nodes"])
+    audit = dict(cast("JsonObject", entry["audit"]))
+    audit["updated_at"] = mockhistory.stamp(TODAY)
+    audit["updated_by"] = cast("JsonObject", workshop["audit"])["updated_by"]
+    written = commanded(entry, available)
+    written.update(
+        is_active=False, audit=audit, lock_version=cast("int", entry["lock_version"]) + 1
+    )
+    return written
+
+
+def _deactivated_with_descendants(org_node_id: str) -> JsonObject:
+    """Return what the deactivation of a node answers: its subtree and its roles that it changed.
+
+    The active nodes of the subtree, in the order of the tree, and the active roles attached to one
+    of them, by label — what ``setOrgNodeActivation`` answers; the deactivated ones are unchanged
+    and left out. The node reactivates, its parent being active; its descendants miss
+    `org_node_parent_active`, the roles `org_node_active` (WF-REF-0080).
+    """
+    nodes = cast("list[JsonObject]", fixture("org_nodes_with_inactive"))
+    subtree = {org_node_id}
+    # In the order of the tree, a parent comes before its children.
+    for node in nodes:
+        if node["parent_id"] in subtree:
+            subtree.add(cast("str", node["org_node_id"]))
+    written_nodes: list[JsonValue] = [
+        _deactivated_today(
+            node,
+            commands(REACTIVATE, [] if node["org_node_id"] == org_node_id else [PARENT_ACTIVE]),
+        )
+        for node in nodes
+        if node["org_node_id"] in subtree and node["is_active"] is True
+    ]
+    roles = cast("list[JsonObject]", fixture("resource_roles")["items"])
+    written_roles: list[JsonValue] = [
+        _deactivated_today(role, commands(REACTIVATE, [NODE_ACTIVE]))
+        for role in sorted(roles, key=lambda role: str(role["label"]))
+        if role["org_node_id"] in subtree and role["is_active"] is True
+    ]
+    return {"org_nodes": written_nodes, "resource_roles": written_roles}
 
 
 def _reactivated(org_node_id: str) -> JsonValue:

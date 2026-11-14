@@ -29,7 +29,7 @@ from nodes_support import (
 from planning_support import node_row
 from projects_support import PROJECTS, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 
 from waterfall.core.planning import writing
 from waterfall.core.planning.interface import ProgressLoad, load_progress
@@ -37,6 +37,7 @@ from waterfall.core.planning.tables import Node, Task
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import NotFoundError, UnprocessableError
+from waterfall.platform.installation import TIME_ZONE, Installation, stored_in
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -145,6 +146,26 @@ def test_a_gesture_without_a_date_is_dated_the_day_it_is_made(tree: Tree) -> Non
 
 
 @pytest.mark.requirement("WF-PLA-0130-A")
+def test_a_gesture_without_a_date_near_midnight_is_dated_the_day_of_the_installation(
+    tree: Tree, stage: Scene, database: Database, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # « Le passage à l'état démarré ou terminé demande une date, proposée au jour courant » : the
+    # day the service writes by default is that of the time zone of the installation (US-2200),
+    # read from its row as a process of the service reads it — at 23:30 in universal time, an
+    # installation in Paris is on the next day.
+    with stage.owner.begin() as connection:
+        connection.execute(update(Installation).values(time_zone="Europe/Paris"))
+    TIME_ZONE.read_from(stored_in(database))
+    now = datetime(2026, 11, 13, 23, 30, tzinfo=UTC)
+    monkeypatch.setattr("waterfall.api.nodes.utc_now", lambda: now)
+    node = tree.made("Câblage")
+    started = moved(tree, node, "started")
+    assert started["task"]["started_on"] == "2026-11-14"
+    done = moved(tree, started, "completed")
+    assert done["task"]["completed_on"] == "2026-11-14"
+
+
+@pytest.mark.requirement("WF-PLA-0130-A")
 def test_a_started_task_is_completed_then_reopened_and_keeps_its_start(tree: Tree) -> None:
     node = tree.made("Câblage")
     started = moved(tree, node, "started", occurred_on=JUNE_THIRD)
@@ -184,9 +205,9 @@ def test_a_completion_without_date_is_refused_for_a_task_started_in_the_future(
 ) -> None:
     # The default day is the current day (#2495): a task started tomorrow, completed without
     # a date, is completed before its start, whatever the field not sent (422 on /occurred_on).
-    # The clock of the service is fixed a second before midnight (universal time, the service's
-    # day), where the writer of the nodes takes the day of the gesture: the day after it is read
-    # from that clock, not from the day the test runs on.
+    # The clock of the service is fixed a second before midnight (universal time, the day of the
+    # installation of the tests), where the writer of the nodes takes the day of the gesture: the
+    # day after it is read from that clock, not from the day the test runs on.
     now = datetime(2026, 11, 13, 23, 59, 59, tzinfo=UTC)
     monkeypatch.setattr("waterfall.api.nodes.utc_now", lambda: now)
     tomorrow = (now.date() + timedelta(days=1)).isoformat()

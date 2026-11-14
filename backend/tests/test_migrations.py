@@ -142,7 +142,13 @@ def test_the_history_of_the_schema_is_one_chain_with_one_head() -> None:
 def test_a_migration_that_is_applied_is_not_replayed(empty_engine: Engine) -> None:
     upgrade(empty_engine)
     with empty_engine.begin() as connection:
-        connection.execute(text("INSERT INTO installation VALUES (1, 'fr', 1000, 1000, now())"))
+        connection.execute(
+            text(
+                "INSERT INTO installation (id, default_language, avatar_max_bytes,"
+                " external_backup_max_bytes, installed_at, time_zone)"
+                " VALUES (1, 'fr', 1000, 1000, now(), 'UTC')"
+            )
+        )
     upgrade(empty_engine)
     with empty_engine.connect() as connection:
         assert applied(connection) == [HEAD]
@@ -828,3 +834,37 @@ def test_the_migration_of_the_planning_start_fills_each_structure_as_the_code_de
         )
     downgrade(empty_engine, "0022")
     assert set(started(empty_engine).values()) == {(None, None)}
+
+
+def test_an_installation_bootstrapped_before_its_time_zone_is_given_universal_time(
+    empty_engine: Engine,
+) -> None:
+    # US-2200: the day it took in fact; the column is then required, without a default, and the
+    # descent drops it again.
+    upgrade(empty_engine, "0028")
+    with empty_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO installation (id, default_language, avatar_max_bytes,"
+                " external_backup_max_bytes, installed_at) VALUES (1, 'fr', 1000, 1000, now())"
+            )
+        )
+    upgrade(empty_engine)
+    with empty_engine.connect() as connection:
+        assert connection.scalar(text("SELECT time_zone FROM installation")) == "UTC"
+        default = connection.scalar(
+            text(
+                "SELECT column_default FROM information_schema.columns"
+                " WHERE table_name = 'installation' AND column_name = 'time_zone'"
+            )
+        )
+    assert default is None
+    downgrade(empty_engine, "0028")
+    with empty_engine.connect() as connection:
+        columns = connection.scalars(
+            text(
+                "SELECT column_name FROM information_schema.columns"
+                " WHERE table_name = 'installation'"
+            )
+        )
+        assert "time_zone" not in set(columns)

@@ -40,6 +40,7 @@ NEVER_NULL = (
     LANGUAGE,
     "theme",
     "highlight_tasks_added_after_reference",
+    "chart_series_patterns",
     GRIDS,
     "timelines",
     "charts",

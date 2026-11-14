@@ -16,7 +16,7 @@ Le contrat cite **190 des 218 exigences** de la spécification.
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
 | GET | `/health` | Liveness probe, and the maintenance of a restore | WF-ADM-0160 |
-| GET | `/installation` | What the front must know about the installation before any session | WF-EXP-0020, WF-INTF-0160 |
+| GET | `/installation` | What the front must know about the installation before any session | WF-EXP-0020, WF-INTF-0160, WF-PLA-0130 |
 | GET | `/health/ready` | Readiness probe | WF-EXP-0040 |
 | GET | `/metrics` | Metrics in Prometheus format | WF-ADM-0130, WF-OBS-0010, WF-SEC-0010 |
 | GET | `/system/status` | System status screen | WF-ADM-0100, WF-ADM-0130, WF-ADM-0170, WF-EXP-0030, WF-OBS-0030 |
@@ -32,7 +32,7 @@ Le contrat cite **190 des 218 exigences** de la spécification.
 |---|---|---|---|
 | GET | `/me` | My account and my preferences | WF-ADM-0040, WF-ADM-0050, WF-ADM-0060, WF-ADM-0110, WF-ADM-0180, WF-ARC-0030, WF-IHM-0090, WF-SEC-0020 |
 | DELETE | `/me/sessions` | Sign me out | WF-ARC-0030, WF-SEC-0020 |
-| PATCH | `/me/preferences` | Edit my display preferences | WF-ADM-0040, WF-IHM-0060, WF-INTF-0160, WF-PLA-0140 |
+| PATCH | `/me/preferences` | Edit my display preferences | WF-ADM-0040, WF-IHM-0060, WF-IHM-0070, WF-INTF-0160, WF-PLA-0140 |
 | PUT | `/me/avatar` | Upload or replace my avatar | WF-ADM-0080, WF-EXP-0020 |
 | DELETE | `/me/avatar` | Remove my avatar | WF-ADM-0080 |
 

@@ -43,6 +43,7 @@ from waterfall.core.access_roles.tables import WRITTEN_BY_MIGRATION, UserAccessR
 from waterfall.core.users.tables import UserAccount
 from waterfall.migrations.runner import upgrade
 from waterfall.platform.database import Base, Database, create_database_engine, engine_url
+from waterfall.platform.installation import DELIVERED_TIME_ZONE, TIME_ZONE
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.maintenance import SUFFIX, Maintenance
@@ -85,6 +86,17 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         (kept if index % int(parts) == int(part) - 1 else left).append(item)
     config.hook.pytest_deselected(items=left)
     items[:] = kept
+
+
+@pytest.fixture(autouse=True)
+def installation_time_zone() -> None:
+    """Give each test a process whose installation is in universal time, read from no database.
+
+    The entry points of the processes name the database their time zone is read from (US-2200); a
+    test reaches the core without them, and may name another source (``TIME_ZONE.read_from``),
+    forgotten at the next test.
+    """
+    TIME_ZONE.read_from(lambda: DELIVERED_TIME_ZONE)
 
 
 @pytest.fixture

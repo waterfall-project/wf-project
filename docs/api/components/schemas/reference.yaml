@@ -754,12 +754,22 @@ HourlyRateWrite:
 
 Installation:
   type: object
-  required: [default_language, avatar_max_bytes, external_backup_max_bytes]
+  required: [default_language, time_zone, avatar_max_bytes, external_backup_max_bytes]
   description: >-
     Installation settings readable without a session: what the front must know before
     opening a session, or to set what it lets through.
   properties:
     default_language: { $ref: ../common.yaml#/Language }
+    time_zone:
+      type: string
+      minLength: 1
+      description: >-
+        The time zone of the installation, its name in the IANA database (`Europe/Paris`,
+        `UTC`), chosen at the bootstrap and unchanged afterwards (WF-EXP-0020); `UTC` for an
+        installation bootstrapped before it was kept. The current day is the day of this time
+        zone (WF-PLA-0130, WF-DAT-0100): the one the service writes by default — the state of a
+        task started or completed, the review date of an export — and the one the front
+        proposes, never the day of the device nor of universal time.
     avatar_max_bytes:
       type: integer
       minimum: 1

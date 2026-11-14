@@ -528,6 +528,13 @@ class Language(StrEnum):
 
 class Installation(ContractModel):
     default_language: Language
+    time_zone: Annotated[
+        str,
+        Field(
+            description="The time zone of the installation, its name in the IANA database (`Europe/Paris`, `UTC`), chosen at the bootstrap and unchanged afterwards (WF-EXP-0020); `UTC` for an installation bootstrapped before it was kept. The current day is the day of this time zone (WF-PLA-0130, WF-DAT-0100): the one the service writes by default — the state of a task started or completed, the review date of an export — and the one the front proposes, never the day of the device nor of universal time.",
+            min_length=1,
+        ),
+    ]
     avatar_max_bytes: Annotated[
         int,
         Field(
@@ -866,6 +873,12 @@ class DisplayPreferences(ContractModel):
         bool | None,
         Field(
             description="The preference that visually distinguishes the tasks added after the reference revision and, in the remaining to commit, the lines whose budgeted amount is zero: a single preference for both (WF-ADM-0040, WF-RAE-0040). When absent, false."
+        ),
+    ] = None
+    chart_series_patterns: Annotated[
+        bool | None,
+        Field(
+            description="The preference that draws the series of every chart with a pattern or a symbol beside their colour — the bars, the points of the curves and the legend —, the image a chart exports included (WF-ADM-0040, WF-IHM-0070, WF-IHM-0130): one setting of the account, for all its charts. When absent, false. The Gantt and the timelines keep their marks."
         ),
     ] = None
     grids: Annotated[

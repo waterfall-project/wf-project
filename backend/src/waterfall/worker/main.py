@@ -25,6 +25,7 @@ from waterfall.core.planning import interface as planning_interface
 from waterfall.platform.correlation import correlation_id_from
 from waterfall.platform.database import Database, create_database_engine, utc_now
 from waterfall.platform.errors import UnavailableError
+from waterfall.platform.installation import TIME_ZONE, stored_in
 from waterfall.platform.logs import PLATFORM, configure_logging, get_logger, logging_context
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.settings import (
@@ -143,6 +144,7 @@ def serve(worker: Worker) -> int:
 def _work(settings: WorkerSettings) -> int:
     logger.info("worker.starting", version=__version__)
     database = Database(create_database_engine(settings.database_url.get_secret_value()))
+    TIME_ZONE.read_from(stored_in(database))
     queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=WORKER_TIMEOUT)
     try:
         return serve(Worker(database, queue, handlers(settings)))
