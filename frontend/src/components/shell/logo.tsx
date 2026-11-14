@@ -29,7 +29,9 @@ export interface LogoProps {
  */
 export function BarLogo() {
   const t = useTranslations("app");
-  // A picture without a source of its own, as the logo on the page: the file served as it is.
+  // A picture without a source of its own, as the logo on the page: the file served as it is. The
+  // picture is what lets a plain image pass `@next/next/no-img-element`, which no comment may
+  // exempt; `next/image` would load the logo lazily and rewrite its attributes.
   return (
     <picture>
       <img src={DARK} alt={t("name")} width={123} height={32} className="h-8 w-auto" />
