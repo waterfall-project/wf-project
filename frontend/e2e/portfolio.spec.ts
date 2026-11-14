@@ -34,9 +34,10 @@ test("reads the portfolio of three hundred projects: its value, its perimeter, t
   // thirty seconds of a test.
   test.slow();
   // The list of the portfolio is a screen of consultation, airy (EP-25, « Deux familles d'écrans »):
-  // its margins and its gaps take 56 points more than a screen of work, and the grid at its floor
-  // no longer fits the 720 points of the default window, the page scrolling then. The totals
-  // are read in view in a window that holds it.
+  // its margins and its gaps (`py-8`, `gap-7`) are taller than those of a screen of work (`py-3`,
+  // `gap-3`), and the grid at its floor no longer fits the 720 points of the default window, the
+  // page scrolling then. The totals are read in view in a window of 800 points: a margin over
+  // what the screen needs, not a floor measured (#3273).
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto(PROJECTS);
   await expect(page).toHaveTitle("Portefeuille de projets — Waterfall");

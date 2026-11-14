@@ -7,23 +7,30 @@
  * a pinned one; the row under the pointer tinted by a token; the caption of the totals spanning the
  * columns with no figure. The browser lays the table out: `grid-frame.spec.ts` measures it.
  */
-import { fireEvent, render } from "@testing-library/react";
+import { act, fireEvent, render, renderHook } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { example, fakeClient } from "@/test/fixtures";
-import { allShown } from "@/test/grid-preferences";
+import { example, fakeClient, type FakeClient } from "@/test/fixtures";
+import { allShown, PREFERENCES } from "@/test/grid-preferences";
 
 import type { GridConfig } from "./columns";
 import { DenseGrid } from "./dense-grid";
 import { ESTIMATE_GRID, type EstimateNode } from "./estimate";
-import type { GridPreferences } from "./settings";
+import { useGridTable } from "./grid-table";
+import { type GridPreferences, WRITE_DELAY } from "./settings";
 import { LABEL_COLUMN, type NodeList, type NodeSortColumn, type NodeTotals } from "./nodes";
+import { stretchedColumn } from "./table-width";
 
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
+
+/** The client the fake back serves, to read its calls. */
+function served(): FakeClient {
+  return server.client as FakeClient;
+}
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/navigation", async (original) => ({
@@ -140,6 +147,25 @@ describe("the width of a flat table (#3075)", () => {
     const { cols } = renderGrid(flat(columns));
     expect(cols.map((col) => col.style.width)).toEqual(["48px", "160px", "", "96px"]);
   });
+
+  it("keeps a column the configuration does not hold a candidate to take the rest (#3281) [WF-IHM-0060-A]", () => {
+    // The table shows a category, a role and the hours; a configuration that holds the hours alone
+    // knows nothing of the alignment of the two others: the role, last before the figures, takes
+    // the rest, never the hours, whose room would open before their figures.
+    const table = flat([column("cost_category"), column("resource_role"), column("hours")]);
+    const { result } = renderHook(() =>
+      useGridTable({
+        config: table,
+        rows: witness.items.slice(0, 3),
+        sort: undefined,
+        onSort: vi.fn(),
+        settings: { visibility: {}, sizing: {} },
+        onSettings: vi.fn(),
+      }),
+    );
+    expect(stretchedColumn(result.current, flat([column("hours")]))).toBe("resource_role");
+    expect(stretchedColumn(result.current, table)).toBe("resource_role");
+  });
 });
 
 describe("the handle of the column that takes the rest (#3075)", () => {
@@ -205,6 +231,51 @@ describe("the handle of the column that takes the rest (#3075)", () => {
     fireEvent.keyDown(label, { key: "ArrowRight" });
     fireEvent.keyDown(label, { key: "ArrowLeft" });
     expect(label).toHaveAttribute("aria-valuenow", "1296");
+  });
+
+  it("writes nothing for a step that changes nothing on the screen: the width chosen stays (#3280) [WF-IHM-0060-A]", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(ROOM);
+      const { handle } = renderGrid(flat(columns), chosen);
+      const label = handle("label");
+      // Chosen at 200, it shows the rest of its card: a step narrower shows the same.
+      fireEvent.keyDown(label, { key: "ArrowLeft" });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(WRITE_DELAY * 2);
+      });
+      expect(label).toHaveAttribute("aria-valuenow", String(REST));
+      expect(served().calls.filter((call) => call.route === PREFERENCES)).toEqual([]);
+      // A step wider changes the screen, and is written once the grid has waited.
+      fireEvent.keyDown(label, { key: "ArrowRight" });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(WRITE_DELAY * 2);
+      });
+      expect(served().calls.filter((call) => call.route === PREFERENCES)).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("draws the axis of the column that takes the rest at its width chosen, before and after the room is measured (#3282) [WF-IHM-0060-A]", () => {
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(ROOM);
+    const drawn: number[] = [];
+    const axised = [
+      {
+        ...LABEL_COLUMN,
+        axis: (width: number) => {
+          drawn.push(width);
+          return <span data-axis={width} />;
+        },
+      },
+      column("cost_category"),
+      column("hours"),
+    ];
+    const { handle } = renderGrid(flat(axised), chosen);
+    // The room is measured: the label shows the rest of its card.
+    expect(handle("label")).toHaveAttribute("aria-valuenow", String(REST));
+    expect(drawn.length).toBeGreaterThan(0);
+    expect(new Set(drawn)).toEqual(new Set([200]));
   });
 
   it("keeps the handle of every other column at the width chosen for it [WF-IHM-0060-A]", () => {

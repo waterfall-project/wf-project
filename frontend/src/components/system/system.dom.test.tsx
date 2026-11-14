@@ -251,7 +251,7 @@ describe("the language of the screen of failure of the root layout", () => {
 
 describe("the skeleton of a screen that loads", () => {
   it("names the page region for the loading, its shapes hidden and busy", async () => {
-    const { container } = inLanguage(<ScreenSkeleton />);
+    const { container } = inLanguage(<ScreenSkeleton density="dense" />);
     const main = screen.getByRole("main", { name: "Chargement de l’écran" });
     // A status, hidden from the eye, says the screen loads — outside any busy region, which
     // may hold back what it contains; only the hidden shapes are busy.
@@ -262,20 +262,48 @@ describe("the skeleton of a screen that loads", () => {
     expect(main.lastElementChild).toHaveAttribute("aria-hidden", "true");
     expect(main.lastElementChild).toHaveAttribute("aria-busy", "true");
     expect(main.querySelectorAll("div > div")).toHaveLength(5);
-    // The template of a dense screen, which the page takes in its place: nothing jumps.
+    // The template of the screen it stands for, which the page takes in its place: nothing jumps.
     expect(main).toHaveAttribute("class", SCREEN.dense);
     await expectAccessible(container);
   });
 
+  // Each segment passes the density of the screens it loads, from the table of the densities: a
+  // screen of settings is not preceded by a dense skeleton, which it would jump from (#3269).
   it.each([
-    ["an address no screen answers", () => import("@/app/[...path]/loading")],
-    ["the home, the list of projects", () => import("@/app/(home)/loading")],
-    ["a project", () => import("@/app/projects/[projectId]/loading")],
-    ["a revision", () => import("@/app/projects/[projectId]/revisions/[revisionId]/loading")],
-  ])("is what %s show while they load", async (_, page) => {
+    ["an address no screen answers", "dense", () => import("@/app/[...path]/loading")],
+    ["the home, the list of projects", "dense", () => import("@/app/(home)/loading")],
+    ["the account", "dense", () => import("@/app/account/loading")],
+    ["the portfolio", "airy", () => import("@/app/portfolio/loading")],
+    ["the state of the system", "airy", () => import("@/app/system/loading")],
+    ["the administration", "airy", () => import("@/app/admin/loading")],
+    ["the audit log", "dense", () => import("@/app/admin/audit-log/loading")],
+    ["the reference", "airy", () => import("@/app/reference/loading")],
+    ["a project", "airy", () => import("@/app/projects/[projectId]/loading")],
+    [
+      "a revision",
+      "dense",
+      () => import("@/app/projects/[projectId]/revisions/[revisionId]/loading"),
+    ],
+    [
+      "the indicators of a revision",
+      "airy",
+      () => import("@/app/projects/[projectId]/revisions/[revisionId]/indicators/loading"),
+    ],
+    [
+      "the exchanges of a revision",
+      "airy",
+      () => import("@/app/projects/[projectId]/revisions/[revisionId]/exchanges/loading"),
+    ],
+    [
+      "the workload of a revision",
+      "airy",
+      () => import("@/app/projects/[projectId]/revisions/[revisionId]/workload/loading"),
+    ],
+  ] as const)("is what %s show while they load, %s", async (_, density, page) => {
     const { default: Loading } = await page();
     inLanguage(<Loading />, "en");
-    expect(screen.getByRole("main", { name: "Loading the screen" })).toBeInTheDocument();
+    const main = screen.getByRole("main", { name: "Loading the screen" });
+    expect(main).toHaveAttribute("class", SCREEN[density]);
     expect(screen.getByRole("status", { name: "Loading the screen" })).toBeInTheDocument();
   });
 });

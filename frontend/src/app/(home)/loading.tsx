@@ -3,11 +3,11 @@
 /**
  * What the screen of this segment shows while the server reads the API for it — from the
  * first request as on each navigation that leads to it: the skeleton of a screen, inside the
- * shell, which stays.
+ * shell, which stays, at the density of the home, dense.
  */
 import { ScreenSkeleton } from "@/components/system/screen-skeleton";
 
 /** Render the skeleton of the screen that loads. */
 export default function Loading() {
-  return <ScreenSkeleton />;
+  return <ScreenSkeleton density="dense" />;
 }
