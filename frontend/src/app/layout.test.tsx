@@ -9,11 +9,13 @@ import { useChartPatterns } from "@/components/chart/patterns";
 import type { ShellProps } from "@/components/shell/shell";
 import { SIDEBAR_COOKIE } from "@/components/ui/sidebar-state";
 import { useCurrency } from "@/currency/context";
+import { useInstallationTimeZone } from "@/installation/time-zone";
 import { LAST_CONTEXT_COOKIE } from "@/navigation/context";
 import {
   type FakeAnswers,
   type FakeClient,
   type FakeTiming,
+  example,
   fakeClient,
   held,
 } from "@/test/fixtures";
@@ -117,6 +119,11 @@ function Patterns() {
 async function patternsOfPage(): Promise<string | undefined> {
   const html = renderToStaticMarkup(await RootLayout({ children: <Patterns /> }));
   return /patterns:([^<]*)/.exec(html)?.[1];
+}
+
+/** What a page below the layout reads as the time zone of the current day. */
+function Zone() {
+  return <p>{`zone:${useInstallationTimeZone()}`}</p>;
 }
 
 /** The document the layout renders around a page. */
@@ -335,6 +342,21 @@ describe("RootLayout", () => {
       "GET /reference/settings",
       "GET /tasks",
     ]);
+  });
+
+  it("hands every page the time zone of the installation, read with the one reading of the installation [WF-PLA-0130-A]", async () => {
+    request("*");
+    const html = renderToStaticMarkup(await RootLayout({ children: <Zone /> }));
+    const { time_zone: zone } = example("installation") as { time_zone: string };
+    expect(/zone:([^<]*)/.exec(html)?.[1]).toBe(zone);
+    const reads = server.client?.calls.filter((call) => call.route === "GET /installation");
+    expect(reads).toHaveLength(1);
+  });
+
+  it("falls back to universal time when the installation cannot be read [WF-PLA-0130-A]", async () => {
+    request("fr", { "GET /installation": UNAVAILABLE });
+    const html = renderToStaticMarkup(await RootLayout({ children: <Zone /> }));
+    expect(/zone:([^<]*)/.exec(html)?.[1]).toBe("UTC");
   });
 
   it("titles the document with the product, from the catalogue", async () => {

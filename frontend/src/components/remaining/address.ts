@@ -146,9 +146,19 @@ export function taskRemainingHref(
   return `${path}?${new URLSearchParams(query).toString()}`;
 }
 
-/** The day, as a date of the planning, in the time of the workstation: what a date asked proposes. */
-export function today(): string {
-  const now = new Date();
-  const two = (value: number) => value.toString().padStart(2, "0");
-  return `${now.getFullYear().toString()}-${two(now.getMonth() + 1)}-${two(now.getDate())}`;
+/**
+ * The day, as a date of the planning, in a time zone — the one of the installation, never the
+ * workstation's nor universal time (WF-PLA-0130, WF-DAT-0100): what a date asked proposes.
+ * `now` is the instant, the current one unless a test fixes it.
+ */
+export function today(timeZone: string, now: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((found) => found.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
 }

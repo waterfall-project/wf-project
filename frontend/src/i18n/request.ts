@@ -17,8 +17,7 @@ import { headers } from "next/headers";
 import { getRequestConfig } from "next-intl/server";
 import { cache } from "react";
 
-import { reach } from "@/api/problem";
-import { serverClient } from "@/api/server";
+import { requestInstallation } from "@/installation/request";
 import { type Account, requestSession } from "@/session/request";
 
 import { CATALOGUES, type Catalogue } from "./catalogues";
@@ -47,10 +46,8 @@ async function languageOf(account: Account | undefined): Promise<RequestLanguage
   if (decided !== undefined) {
     return { locale: decided, preference };
   }
-  const installation = await reach(() =>
-    serverClient({ session: "optional" }).GET("/installation"),
-  );
-  return { locale: installation?.data?.default_language ?? FALLBACK_LOCALE, preference };
+  const installation = await requestInstallation();
+  return { locale: installation?.default_language ?? FALLBACK_LOCALE, preference };
 }
 
 /** The language of the request: read once per request, however many components ask. */

@@ -169,7 +169,7 @@ beforeEach(() => {
   router.refresh.mockReset();
   reading.start = undefined;
   vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(new Date(2026, 5, 3, 10, 0, 0));
+  vi.setSystemTime(new Date(Date.UTC(2026, 5, 3, 10, 0, 0)));
 });
 
 afterEach(() => {
