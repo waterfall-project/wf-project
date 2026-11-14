@@ -11870,6 +11870,45 @@ déjà désactivés, ne sont pas rendus. La direction se réactive ; ses descend
 `org_node_parent_active`, les rôles `org_node_active`. Le test du front qui le lit est d'US-2180.
 Aucune forme ne change.
 
+### Un montant dérivé qui déborde sa colonne est refusé au champ qui le provoque (US-2260/L3, #3093, #3094)
+
+Les montants d'une ligne de devis, `base_amount` et `reestimated_amount`, sont calculés par le
+serveur et gardés à douze chiffres avant la virgule (999 999 999 999,99 au plus, WF-DAT-0100) :
+un produit, un taux ou une inflation peuvent les porter au-delà, chaque grandeur saisie restant
+dans sa propre colonne. US-1980 (#2996, #3035, #3039) a refusé ces débordements par un 422, sans que
+le contrat les décrive : le 422 du taux horaire ne nomme `/amount` que par `VALUE_OUT_OF_RANGE`,
+celui de `updateProject` que les bornes de `/inflation_rate` (#3093). Décision de l'auteur du
+2026-11-14 (option (b) de #3093) : **une règle générale, ici, plutôt qu'une description par
+opération**. Un montant dérivé qui déborde sa colonne est refusé par un 422 `VALIDATION_FAILED`,
+`fields` sur le champ de la requête qui le provoque, de code `VALIDATION_FAILED`, sans paramètre ;
+rien n'est écrit. Les pointeurs servis :
+
+- l'écriture d'une ligne (`createNode`, `updateEstimateLine`) : sa quantité, `/estimate_line/quantity`
+  à la création, `/quantity` à la modification, que le débordement vienne de la quantité, de la
+  charge, du débours, du rôle ou de l'année de consommation (#2996, #3035, #3039) ;
+- le taux horaire d'une catégorie (`setHourlyRate`), qui rechiffre les lignes des révisions en
+  cours : `/amount` (#3035) ;
+- le taux d'inflation d'un projet (`updateProject`), qui rechiffre sa révision en cours :
+  `/inflation_rate` (#3039) ;
+- la redatation d'une tâche, qui déplace ses lignes d'une année à l'autre (#3094) : par
+  `updateTaskFacet`, chacun des champs envoyés qui la datent, dans l'ordre `/scheduling_mode`,
+  `/duration`, `/start`, `/finish` — la grille en envoie un seul, une cellule à la fois
+  (WF-IHM-0040) ; par `setPredecessors`, `/predecessors`.
+
+La règle ne nomme jamais un champ que la requête ne porte pas. Une cause dont aucun champ n'est
+l'origine reste refusée par le même 422 `VALIDATION_FAILED`, sans `fields` : l'ouverture d'une
+révision (`createRevision`), dont la copie des taux projette ceux de la révision source sur l'année
+de l'horloge, au taux d'inflation du projet — son corps ne porte que `description` et
+`apply_rate_update` —, une annulation ou un rétablissement (`undoLastChange`, `redoLastUndo`), sans
+corps. Les autres écritures qui rechiffrent des lignes écrites — la mise à jour des taux
+(`applyRateUpdate`), un déplacement (`moveNodes`), un collage (`applyPaste`), un changement d'un
+calendrier ou des unités de durée — restent aussi, à ce jour, sans `fields`. Leur pointeur, s'il en
+faut un, se tranche par issue (#3303). `info.version` reste `1.0.0` : aucune forme ne change, aucune
+opération n'est touchée.
+Écartées : décrire chaque refus dans le 422 de son opération, avec un exemple (option (a)), et
+`VALUE_OUT_OF_RANGE` avec `params.maximum` au champ, qui dirait une borne du champ saisi alors que
+c'est le montant calculé qui déborde ; laisser tel quel (option (c)).
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
