@@ -70,7 +70,8 @@
       "requires_confirmation_reasons": [
         "unknown_subproject"
       ],
-      "unit_constants": null
+      "unit_constants": null,
+      "calendar_gap": null
     },
     "task": {
       "task_id": "01926f3a-7c00-7000-8000-000000000920",

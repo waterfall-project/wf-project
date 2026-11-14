@@ -732,6 +732,8 @@ paths = [
     "fixtures/api/import_apply_expired.json",
     "fixtures/api/import_apply_main_in_progress.json",
     "fixtures/api/import_abandon_applied.json",
+    "fixtures/api/import_duration_rule_without_gap.json",
+    "fixtures/api/import_duration_rule_applied.json",
     "fixtures/api/import_apply_refused_permission.json",
     "fixtures/api/import_remaining_completed_task.json",
     "fixtures/api/users_by_access_role.json",

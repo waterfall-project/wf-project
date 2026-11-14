@@ -1,0 +1,265 @@
+{
+  "summary": "Variante contrefactuelle, que la liste des imports ne reprend pas : la structure principale de la révision en cours supposée sans tâche, et l'import, ouvert aujourd'hui à 13 h 30 et analysé à 13 h 31, d'un planning synthétique saisi dans MS Project sur des journées de 7 heures — son calendrier de projet « Standard », de 8 h à 12 h et de 13 h à 16 h du lundi au vendredi, ses constantes à 7 heures par jour, 35 par semaine et 20 jours par mois, quand l'installation compte 8, 40 et 20 et que son calendrier par défaut, « Semaine standard », travaille 8 heures du lundi au vendredi. Trois tâches liées de fin à début et sans identifiant, créées : « Études », 2 j, « Fabrication », 4 j, sur le calendrier propre « Atelier » du fichier, 9 heures du lundi au jeudi, que le compte rendu nomme parce que son calendrier Waterfall, celui par défaut, n'a pas ses journées, et « Recette », 1 sem. Le fichier est en écart de calendrier, analysé en gardant les durées, la règle par défaut : chaque durée garde sa valeur dans son unité, ses heures du fichier divisées par les heures de l'unité aux constantes du fichier — « 2 j », quatorze heures du fichier, vaut deux jours, seize heures —, et Waterfall date les tâches sur ses calendriers : les « Études » finissent le 3 mars comme dans le fichier, la « Fabrication » le lundi 9 mars au lieu du mardi 10 et la « Recette » le lundi 16 mars au lieu du mardi 17, écarts présentés en information. Garder les dates se choisit avant la confirmation (setImportDurationRule, import_duration_rule_set) ; les 2 calendriers du fichier sont ignorés et dits (WF-INTF-0040, WF-PLA-0160, WF-INTF-0080, #2922, #2977).",
+  "value": {
+    "import_id": "01926f3a-7c00-7000-8000-000000000a1d",
+    "kind": "ms_project_schedule",
+    "filename": "planning-synthetique-7h.xml",
+    "structure_id": "01926f3a-7c00-7000-8000-000000000201",
+    "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+    "period_from": null,
+    "period_to": null,
+    "status": "analysed",
+    "created_at": "2026-06-03T13:30:00Z",
+    "expires_at": "2026-06-04T13:31:00Z",
+    "report": {
+      "format_version": null,
+      "read_count": 3,
+      "unchanged_count": 0,
+      "rejected": [],
+      "refusals": [],
+      "differences": [
+        {
+          "change": "added",
+          "target": "task",
+          "lineage_id": null,
+          "label": "Études",
+          "predecessor_label": null,
+          "fields": []
+        },
+        {
+          "change": "added",
+          "target": "task",
+          "lineage_id": null,
+          "label": "Fabrication",
+          "predecessor_label": null,
+          "fields": []
+        },
+        {
+          "change": "added",
+          "target": "task",
+          "lineage_id": null,
+          "label": "Recette",
+          "predecessor_label": null,
+          "fields": []
+        }
+      ],
+      "ignored": [
+        {
+          "kind": "calendars",
+          "count": 2,
+          "labels": [
+            "Standard",
+            "Atelier"
+          ]
+        }
+      ],
+      "completed_tasks": [],
+      "date_mismatches": [
+        {
+          "lineage_id": null,
+          "label": "Fabrication",
+          "fields": [
+            "finish"
+          ]
+        },
+        {
+          "lineage_id": null,
+          "label": "Recette",
+          "fields": [
+            "finish"
+          ]
+        }
+      ],
+      "signals": [],
+      "requires_confirmation_reasons": [],
+      "unit_constants": {
+        "file": {
+          "hours_per_day": "7",
+          "hours_per_week": "35",
+          "days_per_month": "20"
+        },
+        "installation": {
+          "hours_per_day": "8",
+          "hours_per_week": "40",
+          "days_per_month": "20"
+        }
+      },
+      "calendar_gap": {
+        "project_calendar": {
+          "name": "Standard",
+          "weekly_hours": {
+            "monday": "7",
+            "tuesday": "7",
+            "wednesday": "7",
+            "thursday": "7",
+            "friday": "7",
+            "saturday": "0",
+            "sunday": "0"
+          },
+          "working_times": {
+            "monday": [
+              {
+                "from": "08:00",
+                "to": "12:00"
+              },
+              {
+                "from": "13:00",
+                "to": "16:00"
+              }
+            ],
+            "tuesday": [
+              {
+                "from": "08:00",
+                "to": "12:00"
+              },
+              {
+                "from": "13:00",
+                "to": "16:00"
+              }
+            ],
+            "wednesday": [
+              {
+                "from": "08:00",
+                "to": "12:00"
+              },
+              {
+                "from": "13:00",
+                "to": "16:00"
+              }
+            ],
+            "thursday": [
+              {
+                "from": "08:00",
+                "to": "12:00"
+              },
+              {
+                "from": "13:00",
+                "to": "16:00"
+              }
+            ],
+            "friday": [
+              {
+                "from": "08:00",
+                "to": "12:00"
+              },
+              {
+                "from": "13:00",
+                "to": "16:00"
+              }
+            ],
+            "saturday": [],
+            "sunday": []
+          }
+        },
+        "installation_calendar": {
+          "calendar_id": "01926f3a-7c00-7000-8000-000000000481",
+          "label": "Semaine standard",
+          "weekly_hours": {
+            "monday": "8",
+            "tuesday": "8",
+            "wednesday": "8",
+            "thursday": "8",
+            "friday": "8",
+            "saturday": "0",
+            "sunday": "0"
+          }
+        },
+        "tasks": [
+          {
+            "lineage_id": null,
+            "label": "Fabrication",
+            "file_calendar": {
+              "name": "Atelier",
+              "weekly_hours": {
+                "monday": "9",
+                "tuesday": "9",
+                "wednesday": "9",
+                "thursday": "9",
+                "friday": "0",
+                "saturday": "0",
+                "sunday": "0"
+              },
+              "working_times": {
+                "monday": [
+                  {
+                    "from": "07:30",
+                    "to": "12:00"
+                  },
+                  {
+                    "from": "13:00",
+                    "to": "17:30"
+                  }
+                ],
+                "tuesday": [
+                  {
+                    "from": "07:30",
+                    "to": "12:00"
+                  },
+                  {
+                    "from": "13:00",
+                    "to": "17:30"
+                  }
+                ],
+                "wednesday": [
+                  {
+                    "from": "07:30",
+                    "to": "12:00"
+                  },
+                  {
+                    "from": "13:00",
+                    "to": "17:30"
+                  }
+                ],
+                "thursday": [
+                  {
+                    "from": "07:30",
+                    "to": "12:00"
+                  },
+                  {
+                    "from": "13:00",
+                    "to": "17:30"
+                  }
+                ],
+                "friday": [],
+                "saturday": [],
+                "sunday": []
+              }
+            },
+            "weekly_hours": {
+              "monday": "8",
+              "tuesday": "8",
+              "wednesday": "8",
+              "thursday": "8",
+              "friday": "8",
+              "saturday": "0",
+              "sunday": "0"
+            }
+          }
+        ],
+        "duration_rule": "keep_durations"
+      }
+    },
+    "task": {
+      "task_id": "01926f3a-7c00-7000-8000-000000000925",
+      "kind": "import_analysis",
+      "status": "succeeded",
+      "progress": 100,
+      "submitted_at": "2026-06-03T13:30:00Z",
+      "finished_at": "2026-06-03T13:31:00Z",
+      "problem": null,
+      "result_url": null
+    },
+    "available_commands": [
+      {
+        "command": "apply",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "abandon",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ]
+  }
+}
