@@ -1024,7 +1024,7 @@ contenu sous l'enveloppe de sa grille, hors de la chaîne qui la contient — f�
 fenêtre étroite, où le contenu voisin se range dessous (les coûts réels, les risques) —, ne remplit
 pas la fenêtre là où il l'a dessous (`fillWide`, `lg:min-h-0`), de même que `/admin/backups` et le
 référentiel des ressources et des coûts, qui empilent leurs grilles, ne la remplissent pas : la
-grille déborderait sur lui (#1033). `frontend/e2e/grid-frame.spec.ts` le mesure sur les neuf écrans
+grille déborderait sur lui (#1033). `frontend/e2e/grid-frame.spec.ts` le mesure sur les huit écrans
 qui remplissent la fenêtre, dans une fenêtre basse, aux deux largeurs du harnais : le cadre ne
 chevauche rien. La largeur d'une table est du CSS, sans mesure en script (`table-width.ts`, US-2080,
 #3075) : le cadre a la largeur de sa carte, la table la plus grande de la carte et de la somme de ses

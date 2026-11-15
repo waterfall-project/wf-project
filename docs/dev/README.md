@@ -1030,7 +1030,7 @@ grid, outside the chain that contains it — were it only in a narrow window, wh
 content lines up below (the actual costs, the risks) —, does not fill the window where it has it
 below (`fillWide`, `lg:min-h-0`), just as `/admin/backups` and the reference data of resources and
 costs, which stack their grids, do not fill it: the grid would overflow onto it (#1033).
-`frontend/e2e/grid-frame.spec.ts` measures it on the nine screens that fill the window, in a low
+`frontend/e2e/grid-frame.spec.ts` measures it on the eight screens that fill the window, in a low
 window, at the two widths of the harness: the frame overlaps nothing. The width of a table is CSS,
 measured by no script (`table-width.ts`, US-2080, #3075): the frame has the width of its card, the
 table the larger of the card and of the sum of its columns, and the label column (`label`) — failing

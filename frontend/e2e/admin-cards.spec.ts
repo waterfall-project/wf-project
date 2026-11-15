@@ -99,11 +99,20 @@ for (const size of WINDOWS) {
     const first = await box(accounts);
     const second = await box(reading);
     expect(first.bottom, "the accounts above the reading").toBeLessThanOrEqual(second.y);
-    const table = await box(accounts.getByRole("grid").locator("xpath=.."));
-    expect(
-      first.bottom - table.bottom,
-      "no band under the table of the accounts",
-    ).toBeLessThanOrEqual(40);
+    // Whatever the page of the accounts holds under its table (pagination, footer, filters), the
+    // card ends right under the lowest thing it shows, within its padding.
+    const slack = await accounts.evaluate((card) => {
+      const bottom = card.getBoundingClientRect().bottom;
+      let lowest = 0;
+      for (const element of card.querySelectorAll("*")) {
+        const rect = element.getBoundingClientRect();
+        if (rect.height > 0 && rect.width > 0) {
+          lowest = Math.max(lowest, rect.bottom);
+        }
+      }
+      return bottom - lowest;
+    });
+    expect(slack, "no band under the content of the accounts").toBeLessThanOrEqual(40);
     // No menu « ⋯ » is left.
     await expect(page.getByRole("button", { name: /état et commandes/ })).toHaveCount(0);
   });

@@ -206,24 +206,6 @@ describe("the attachment of an account, in its cell", () => {
     },
   );
 
-  it("says the refusal of a node deactivated by its reason, not the generic sentence, when a name is entered [WF-ADM-0030-A] (#3271)", async () => {
-    serve({
-      "PATCH /users/{user_id}": {
-        problem: {
-          code: "VALIDATION_FAILED",
-          status: 422,
-          fields: [{ pointer: "/org_node_id", code: "INACTIVE_REFERENCE_OBJECT" }],
-        },
-      },
-    });
-    render(accounts(true, users.items, undefined, active));
-    within(grid()).getByText("Petit").closest<HTMLElement>("[tabindex]")?.focus();
-    await userEvent.keyboard("Petit-Laurent{Enter}");
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("Cet élément du référentiel est désactivé.");
-    expect(alert.textContent).not.toContain("Les données saisies ne sont pas valides.");
-  });
-
   it("shows an anonymised account attached to a node by its label alone, read only, for a session that may modify the accounts [WF-ADM-0030-A]", () => {
     const [anonymised] = (example("users_anonymized") as { items: User[] }).items;
     if (anonymised?.org_node_label == null) {

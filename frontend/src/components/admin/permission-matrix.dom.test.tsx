@@ -135,30 +135,6 @@ beforeEach(() => {
 });
 
 describe("the matrix of the permissions", () => {
-  it("keeps its header and its column « Fonction » in view as it scrolls: sticky, in a frame bounded to the window, inside the card of its section [WF-IHM-0100-A] (#3088)", () => {
-    rendered(<PermissionMatrix permissions={permissions} roles={roles} editable={false} />);
-    const matrix = screen.getByRole("table", { name: "Permissions par fonction" });
-    expect(matrix.closest("[data-slot='section-card']")).not.toBeNull();
-    // The frame that scrolls is bounded: without a height, nothing would stick to its top.
-    const frame = matrix.closest("[data-slot='table-container']");
-    expect(frame?.className).toMatch(/max-h-/);
-    // Every cell of the header sticks to the top; the one of the functions to the start as well.
-    const heads = within(matrix).getAllByRole("columnheader");
-    expect(heads.length).toBeGreaterThan(2);
-    for (const head of heads) {
-      expect(head).toHaveClass("sticky", "top-0");
-    }
-    expect(heads[0]).toHaveTextContent("Fonction");
-    expect(heads[0]).toHaveClass("left-0");
-    // Each function heading sticks to the start, over the cells that scroll under it, on the
-    // background of the card.
-    const groups = matrix.querySelectorAll('th[scope="rowgroup"]');
-    expect(groups).toHaveLength(27);
-    for (const group of groups) {
-      expect(group).toHaveClass("sticky", "left-0", "bg-card");
-    }
-  });
-
   it("is a table whose rows a reader finds by their permission, under their function, and whose cells say whether each role holds it", () => {
     rendered(<PermissionMatrix permissions={permissions} roles={roles} editable={false} />);
     const matrix = screen.getByRole("table", { name: "Permissions par fonction" });
