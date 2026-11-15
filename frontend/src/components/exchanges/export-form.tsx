@@ -25,7 +25,7 @@ import type { Outcome } from "@/api/problem";
 import { UnmetConditions } from "@/components/commands/command";
 import { useHeldCommand } from "@/components/commands/held";
 import { UNAVAILABLE, unmetId } from "@/components/commands/offer";
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
 import { WaitingIcon, waitingAttributes } from "@/components/commands/waiting";
 import { useTaskRunning, useTrackTask } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
@@ -94,7 +94,9 @@ function OfferedExports({
   // The task of the last export asked: the request waits while it runs, given back at its end.
   const [exporting, setExporting] = useState<string>();
   const running = useTaskRunning(exporting);
-  const waiting = busy || running;
+  // An export lost once sent: the request waits until the screen has been read anew (US-2240).
+  const reading = useReadAnew(outcome);
+  const waiting = busy || running || reading;
   // A link clicked while the export is asked waits for it, and is not followed when refused.
   const held = useHeldCommand();
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
@@ -200,6 +202,7 @@ function OfferedExports({
       {offer === undefined ? null : <UnmetConditions id={unmet} offer={offer} />}
       <OutcomeNotice
         outcome={outcome}
+        reading={reading}
         onClear={() => {
           setOutcome(undefined);
         }}

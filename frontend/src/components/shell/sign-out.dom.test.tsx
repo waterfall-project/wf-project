@@ -14,7 +14,13 @@ import { LAST_CONTEXT_COOKIE } from "@/navigation/context";
 import { loadDocument } from "@/navigation/document";
 import { createIdentityProvider } from "@/session/provider";
 import { SessionLost } from "@/session/tokens";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  refusedConnection,
+} from "@/test/fixtures";
 import { TEST_SETTINGS } from "@/test/identity-provider";
 import { cookieJar } from "@/test/session";
 
@@ -179,7 +185,7 @@ describe("signing out from the menu of the account", () => {
   it("says the API out of reach, and keeps what the session left, which still stands", async () => {
     server.client = createApiClient({
       address: "http://unreachable.invalid",
-      fetch: () => Promise.reject(new TypeError("fetch failed")),
+      fetch: () => Promise.reject(refusedConnection()),
     });
     shell();
     await signOut();

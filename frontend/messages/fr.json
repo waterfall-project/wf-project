@@ -1963,6 +1963,8 @@
   },
   "outcome": {
     "unreachable": "Le service est injoignable ; réessayez dans un instant.",
+    "dropped": "La connexion au service a été perdue une fois la demande partie : l’opération a pu aboutir. L’écran est relu ; vérifiez-le avant de recommencer.",
+    "readingAnew": "Relecture de l’écran…",
     "conflictingObject": "Objet en conflit : {name}.",
     "reload": "Recharger",
     "signIn": "Se connecter",

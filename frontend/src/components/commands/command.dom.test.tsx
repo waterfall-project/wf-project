@@ -13,6 +13,7 @@ import { useNavigationHold } from "@/components/shell/navigation-hold";
 import { SESSION_LOST_DIGEST } from "@/components/system/failure";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { holdReading, Reading, releaseReading } from "@/test/held-reading";
 import { atCommit } from "@/test/committed";
 import { example, fakeClient, held, type Problem } from "@/test/fixtures";
 
@@ -101,7 +102,8 @@ function refusal(kind: "conflict" | "stale", problem: Problem): Outcome<unknown>
 }
 
 beforeEach(() => {
-  router.refresh.mockClear();
+  // Reset, not cleared: a test makes it read the page anew (US-2240).
+  router.refresh.mockReset();
 });
 
 describe("a command of a screen", () => {
@@ -588,6 +590,38 @@ describe("the outcome of a command", () => {
     expect((await screen.findByRole("alert")).textContent).toBe(
       "Le service est injoignable\u202F; réessayez dans un instant.",
     );
+  });
+
+  it("waits, pressed again, until the screen has been read anew after a write whose connection was lost once sent (US-2240)", async () => {
+    // The page as Next reads it anew: the refresh a transition that stays pending until the server
+    // answers — here until the test lets it go (`held-reading.tsx`).
+    holdReading(router.refresh);
+    const action = vi.fn(() =>
+      Promise.resolve<Outcome<unknown>>({ kind: "unreachable", sent: true }),
+    );
+    french(<Reading>{available(action)}</Reading>);
+    const command = screen.getByRole("button", { name: "Terminer le projet" });
+    await userEvent.click(command);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("l’opération a pu aboutir");
+    expect(router.refresh).toHaveBeenCalledOnce();
+    // The screen not yet read anew: the command waits, and a press runs nothing.
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    expect(command).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("status")).toHaveTextContent("Relecture de l’écran…");
+    await userEvent.click(command);
+    expect(action).toHaveBeenCalledOnce();
+
+    // The screen read anew: the command is given back, and the reading said no more.
+    await act(async () => {
+      releaseReading();
+      await Promise.resolve();
+    });
+    expect(command).toHaveAttribute("aria-busy", "false");
+    expect(command).not.toHaveAttribute("aria-disabled");
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    await userEvent.click(command);
+    expect(action).toHaveBeenCalledTimes(2);
   });
 
   it("says nothing of a success", async () => {

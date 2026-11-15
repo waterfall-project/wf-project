@@ -37,7 +37,7 @@ import { IdentitySyncScheduleSection } from "@/components/admin/identity-sync-sc
 import { useAccountNaming } from "@/components/account/account-name";
 import { AnonymizedName } from "@/components/account/anonymized-name";
 import { useHeldCommand } from "@/components/commands/held";
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
 import { LocalTime } from "@/components/local-time";
 import { useTrackTask } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
@@ -197,6 +197,8 @@ function Report({ report }: { readonly report: IdentitySyncReport }) {
 interface Told {
   readonly outcome: Outcome<unknown> | undefined;
   readonly set: (outcome: Outcome<unknown> | undefined) => void;
+  /** Whether the screen is read anew after a command lost once sent (`useReadAnew`, US-2240). */
+  readonly reading: boolean;
 }
 
 /** Ask a reading of the accounts, and hand its task over to the tracker. */
@@ -207,8 +209,9 @@ function StartIdentitySync({ told }: { readonly told: Told }) {
   // Busy from the press to the answer, and lifted in the very update that tells it — not a transition,
   // whose end would wait for every other async action of the page (#1484).
   const [busy, setBusy] = useState(false);
+  const waiting = busy || told.reading;
   const start = () => {
-    if (busy) {
+    if (waiting) {
       return;
     }
     setBusy(true);
@@ -221,7 +224,14 @@ function StartIdentitySync({ told }: { readonly told: Told }) {
     });
   };
   return (
-    <Button type="button" variant="outline" size="sm" aria-busy={busy} onClick={start}>
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      aria-busy={waiting}
+      aria-disabled={told.reading ? true : undefined}
+      onClick={start}
+    >
       <UserRoundSearch aria-hidden="true" />
       {t("start")}
     </Button>
@@ -252,7 +262,8 @@ export function IdentitySync({
 }) {
   const t = useTranslations("admin.identitySync");
   const [own, setOwn] = useState<Outcome<unknown>>();
-  const here: Told = { outcome: own, set: setOwn };
+  const reading = useReadAnew(own);
+  const here: Told = { outcome: own, set: setOwn, reading };
   return (
     <section aria-label={t("title")} className="shrink-0 space-y-2 text-sm">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -262,6 +273,7 @@ export function IdentitySync({
       {told === undefined ? (
         <OutcomeNotice
           outcome={own}
+          reading={reading}
           onClear={() => {
             setOwn(undefined);
           }}
@@ -293,6 +305,8 @@ export function IdentityMenu(props: {
 }) {
   const t = useTranslations("admin.identitySync");
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
+  // Read here, where the menu stays mounted as its popover closes (US-2240).
+  const reading = useReadAnew(outcome);
   return (
     <div className="flex flex-col items-end gap-2">
       <Popover>
@@ -306,11 +320,12 @@ export function IdentityMenu(props: {
           aria-label={t("title")}
           className="max-h-[70vh] w-[min(36rem,90vw)] overflow-y-auto"
         >
-          <IdentitySync {...props} told={{ outcome, set: setOutcome }} />
+          <IdentitySync {...props} told={{ outcome, set: setOutcome, reading }} />
         </PopoverContent>
       </Popover>
       <OutcomeNotice
         outcome={outcome}
+        reading={reading}
         onClear={() => {
           setOutcome(undefined);
         }}

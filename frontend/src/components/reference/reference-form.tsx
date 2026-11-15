@@ -61,6 +61,7 @@ import {
   type ObjectNames,
   OutcomeNotice,
   useNoteRefusal,
+  useReadAnew,
 } from "@/components/commands/outcome-notice";
 import { useHeldCommand } from "@/components/commands/held";
 import { Button } from "@/components/ui/button";
@@ -81,6 +82,7 @@ import { problemMessage } from "@/i18n/problem";
 
 import type { ListForm } from "./commands";
 import type { ReferenceObject } from "./kinds";
+import { useListReading } from "./list-reading";
 import { useListReport } from "./reactivation";
 
 /** A refusal of one field, by the server or by the form. */
@@ -440,6 +442,10 @@ export function ReferenceForm<T = ReferenceObject>({
   const [problems, setProblems] = useState<ReadonlyMap<string, FieldProblem>>(() => new Map());
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [pending, startTransition] = useTransition();
+  // A write lost once sent: the form waits until the screen has been read anew (US-2240).
+  const reading = useReadAnew(outcome);
+  const listReading = useListReading();
+  const holding = reading || listReading;
   // The list holds the navigations while the write answers, when it is the one that may tell the
   // refusal: the dialog closed meanwhile, its click is held all the same (#688). Always called,
   // used or not: a hook is not called on a condition.
@@ -475,7 +481,7 @@ export function ReferenceForm<T = ReferenceObject>({
 
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (pending) {
+    if (pending || holding) {
       return;
     }
     setOutcome(undefined);
@@ -638,6 +644,7 @@ export function ReferenceForm<T = ReferenceObject>({
           {after?.(draft)}
           <OutcomeNotice
             outcome={outcome}
+            reading={reading}
             onClear={() => {
               setOutcome(undefined);
             }}
@@ -649,7 +656,11 @@ export function ReferenceForm<T = ReferenceObject>({
               <X aria-hidden="true" />
               {t("cancel")}
             </Button>
-            <Button type="submit" aria-busy={pending}>
+            <Button
+              type="submit"
+              aria-busy={pending || holding}
+              aria-disabled={holding ? true : undefined}
+            >
               {icon ?? CASES[variant].icon}
               {pending ? t("sending") : (submitLabel ?? t(CASES[variant].label))}
             </Button>

@@ -38,6 +38,7 @@ import { rejected } from "@/components/commands/rejection";
 import { parsedEntry } from "@/components/grid/cell-values";
 import { useSaid } from "@/components/notices/said";
 import { CellCommand } from "@/components/reference/cell-command";
+import { useListReading } from "@/components/reference/list-reading";
 import { Reactivations, useListReport } from "@/components/reference/reactivation";
 import { useRaise } from "@/components/system/raise";
 import {
@@ -118,6 +119,8 @@ function Deletion({ children }: { readonly children: ReactNode }) {
   const [asked, setAsked] = useState<{ readonly role: AccessRole; readonly open: boolean }>();
   const answers = useRoleAnswers();
   const raise = useRaise();
+  // A write of the list lost once sent: the list is read anew, and this waits until it is back (US-2240).
+  const reading = useListReading();
   const ask = useCallback((role: AccessRole) => {
     setAsked({ role, open: true });
   }, []);
@@ -127,7 +130,7 @@ function Deletion({ children }: { readonly children: ReactNode }) {
     // opened, and one under way is answered first.
     const role = answers?.latest(shown) ?? shown;
     const id = role.access_role_id;
-    if (answers?.isWriting(id) === true) {
+    if (answers?.isWriting(id) === true || reading) {
       return;
     }
     // The reading the role is deleted from: its refusal is told on it alone.
@@ -181,7 +184,7 @@ function Deletion({ children }: { readonly children: ReactNode }) {
             <AlertDialogAction
               // A write of the role under way is answered first: the confirmation stays open, and
               // its command busy, rather than closing on a press that sends nothing.
-              disabled={answers?.writing.has(asked?.role.access_role_id ?? "") === true}
+              disabled={reading || answers?.writing.has(asked?.role.access_role_id ?? "") === true}
               onClick={() => {
                 if (asked !== undefined) {
                   confirmed(asked.role);
@@ -221,6 +224,8 @@ export function CreateRole() {
   // Busy from the press to the answer, and lifted in the very update that tells it — not a transition,
   // whose end would wait for every other write of the table under way (#1484).
   const [busy, setBusy] = useState(false);
+  // A write of the list lost once sent: the list is read anew, and this waits until it is back (US-2240).
+  const reading = useListReading();
   // Asked anew at each refusal: the field takes the focus after the commit that says its refusal,
   // described by it as it is heard (#1484).
   const [focused, setFocused] = useState<object>();
@@ -246,7 +251,7 @@ export function CreateRole() {
       noValidate
       onSubmit={(event) => {
         event.preventDefault();
-        if (busy) {
+        if (busy || reading) {
           return;
         }
         const parsed = parsedEntry({ type: "text", maxLength: LABEL_LENGTH }, label, locale);
@@ -305,7 +310,13 @@ export function CreateRole() {
           setLabel(event.target.value);
         }}
       />
-      <Button type="submit" variant="outline" size="sm" aria-busy={busy}>
+      <Button
+        type="submit"
+        variant="outline"
+        size="sm"
+        aria-busy={busy || reading}
+        aria-disabled={reading ? true : undefined}
+      >
         <Plus aria-hidden="true" />
         {t("create")}
       </Button>

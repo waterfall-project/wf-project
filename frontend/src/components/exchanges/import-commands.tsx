@@ -22,7 +22,7 @@ import type { ExchangeKind } from "@/api/actions/exchanges";
 import type { Outcome } from "@/api/problem";
 import { Command } from "@/components/commands/command";
 import { commandIcon, PROJECT_COMMAND_ICONS } from "@/components/commands/icons";
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -113,6 +113,9 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
   // Busy from the press to the answer, and lifted in the very update that tells it — not a
   // transition, whose end would wait for every other async action of the page (#1484).
   const [busy, setBusy] = useState(false);
+  // An import lost once sent: the form waits until the screen has been read anew (US-2240).
+  const reading = useReadAnew(outcome);
+  const waiting = busy || reading;
   useEffect(() => {
     input.current?.focus();
   }, []);
@@ -122,7 +125,7 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
   // in the language of the interface, and the field keeps the focus.
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (busy) {
+    if (waiting) {
       return;
     }
     const file = input.current?.files?.[0];
@@ -150,7 +153,7 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
     <form
       id={id}
       aria-label={t(`kinds.${kind}`)}
-      aria-busy={busy}
+      aria-busy={waiting}
       noValidate
       onSubmit={submit}
       className="space-y-2 rounded-md border p-3"
@@ -181,7 +184,7 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
         <PeriodFields from={from} to={to} onFrom={setFrom} onTo={setTo} />
       ) : null}
       <div className="flex gap-2">
-        <Button type="submit" size="sm">
+        <Button type="submit" size="sm" aria-disabled={reading ? true : undefined}>
           <FileSearch aria-hidden="true" />
           {t("analyse")}
         </Button>
@@ -192,6 +195,7 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
       </div>
       <OutcomeNotice
         outcome={outcome}
+        reading={reading}
         onClear={() => {
           setOutcome(undefined);
         }}
