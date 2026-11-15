@@ -17,15 +17,15 @@ The interface re-exports the views; the API writes them as the contract does.
 """
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from waterfall.core.planning.interface.facets import Amounts, BearingTask, facets
 from waterfall.core.planning.scheduling import WorkInstant
-from waterfall.core.planning.tree import TASK, tracking_of
+from waterfall.core.planning.tree import TASK, NodeRow, TaskRow, tracking_of
 from waterfall.core.projects.interface import work_breakdown_items
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Mapping
+    from collections.abc import Collection, Mapping, Sequence
     from datetime import date, datetime
     from decimal import Decimal
     from uuid import UUID
@@ -33,9 +33,9 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.planning.calendars import Applicable
-    from waterfall.core.planning.interface.facets import FacetRead
-    from waterfall.core.planning.tables import TaskLink
-    from waterfall.core.planning.tree import Tree
+    from waterfall.core.planning.interface.facets import FacetColumns, FacetRead
+    from waterfall.core.planning.tables import Node, Task
+    from waterfall.core.planning.tree import LinkColumns, NodeColumns, TaskColumns, Tree
 
 MANUAL = "manual"
 NOT_STARTED = "not_started"
@@ -179,7 +179,9 @@ def _derived(states: list[State], own: tuple[bool, date | None] = (False, None))
     return State(NOT_STARTED, None, None)
 
 
-def own_lines(tree: Tree, node_id: UUID) -> tuple[bool, date | None]:
+def own_lines[N: NodeColumns, T: TaskColumns](
+    tree: Tree[N, T], node_id: UUID
+) -> tuple[bool, date | None]:
     """Tell what the own lines of a summary tell its state: held open, and the day they closed.
 
     Held, as the tree was read (``Tree.held``). The day is the one the entry that set the last of
@@ -227,7 +229,9 @@ def states_without(
     return found
 
 
-def awaits(tree: Tree, node_id: UUID, states: list[State]) -> bool:
+def awaits[N: NodeColumns, T: TaskColumns](
+    tree: Tree[N, T], node_id: UUID, states: list[State]
+) -> bool:
     """Tell whether a summary awaits only its own lines: its subordinates' ``states`` completed.
 
     An own line holds it open (``Tree.held``); a leaf never awaits, whatever its lines (#1775).
@@ -239,15 +243,24 @@ def awaits(tree: Tree, node_id: UUID, states: list[State]) -> bool:
     )
 
 
-class Reading:
-    """What a reading derives of a structure, once for all its nodes."""
+class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
+    """What a reading derives of a structure, once for all its nodes.
+
+    Of a tree of objects of the session, as a write reads it, or of rows, as a reading that writes
+    nothing reads it (``read_rows``, US-2220): the same views of the same columns. A write reads
+    the facets of the other kinds by ``FacetHooks.totals`` and ``FacetHooks.read``; a reading that
+    writes nothing reads them as rows too (``RowsReading``).
+    """
+
+    # Whether the facets of the other kinds are read once as rows (``FacetHooks.columns``).
+    read_only: ClassVar[bool] = False
 
     def __init__(
         self,
         session: Session,
         structure: tuple[UUID, datetime, bool],
-        tree: Tree,
-        links: list[TaskLink],
+        tree: Tree[N, T],
+        links: Sequence[LinkColumns],
         calendars: dict[UUID, Applicable],
     ) -> None:
         """Read the inscriptions of the tasks and the labels of what they bear; derive the states.
@@ -261,8 +274,8 @@ class Reading:
         self.scheduled_on = scheduled_at.date()
         self.links = links
         # The links by their successor, and by each end, built once: a node asks for its own.
-        self._incoming: dict[UUID, list[TaskLink]] = {}
-        self._ends: dict[UUID, list[TaskLink]] = {}
+        self._incoming: dict[UUID, list[LinkColumns]] = {}
+        self._ends: dict[UUID, list[LinkColumns]] = {}
         for link in links:
             self._incoming.setdefault(link.successor_id, []).append(link)
             for end in {link.predecessor_id, link.successor_id}:
@@ -277,9 +290,15 @@ class Reading:
         # The figures of each node of another kind, read once by the hooks of its facet; the
         # facets as read, asked for the nodes a reading returns (``prefetch``).
         self.figures: dict[UUID, Amounts] = {}
+        self._columns: dict[str, FacetColumns] = {}
         for kind, hooks in facets().items():
             held = [each for each, node in tree.nodes.items() if node.kind == kind]
-            if held:
+            if not held:
+                continue
+            if self.read_only:
+                self._columns[kind] = hooks.columns(session, project_id, held)
+                self.figures.update(self._columns[kind].figures)
+            else:
                 self.figures.update(hooks.totals(session, project_id, held))
         self._facets: dict[UUID, FacetRead] = {}
         self.states: dict[UUID, State] = {}
@@ -333,8 +352,13 @@ class Reading:
                 and tree.nodes[each].kind == kind
                 and (parent := tree.nodes[each].parent_id) is not None
             }
-            if held:
+            if not held:
+                continue
+            columns = self._columns.get(kind)
+            if columns is None:
                 self._facets.update(hooks.read(self._session, self._project_id, held))
+            else:
+                self._facets.update(columns.read(held))
 
     def totals(self, node_ids: Collection[UUID]) -> Amounts:
         """Give the sum of the figures of the nodes of another kind among those named."""
@@ -489,3 +513,13 @@ class Reading:
         """Give the level of the deepest summary of the structure, nought without any (0110)."""
         tree = self.tree
         return max((tree.level[each] for each in tree.tasks if tree.is_summary(each)), default=0)
+
+
+class RowsReading(Reading[NodeRow, TaskRow]):
+    """What a reading that writes nothing derives of a structure read as rows (US-2220).
+
+    ``listNodes`` and ``compareRevisions``: the facets of the other kinds are read as rows too, once
+    for their figures and their views (``FacetHooks.columns``).
+    """
+
+    read_only = True

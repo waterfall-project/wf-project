@@ -426,7 +426,7 @@ comparaison (EP-27).
 
 ## US-2220 — Une structure se lit en colonnes, sans objet ORM ni vue intermédiaire par nœud
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre — le gain se lit dans le rapport de WF-QUA-0060 (US-2300)
 - **opérations** : `listNodes`, `compareRevisions`
 - **issue** : #3315
