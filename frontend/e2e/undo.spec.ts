@@ -162,7 +162,7 @@ test("opens the reason Undo waits for by Enter, leaves it by Tab, closes it by E
     probe.remove();
     return colour;
   });
-  await expect(reason).toHaveCSS("box-shadow", new RegExp(ring.replaceAll(/[()]/g, "\\$&")));
+  await expect(reason).toHaveCSS("box-shadow", new RegExp(ring.replaceAll(/[\\()]/g, "\\$&")));
 });
 
 test("closes the menu of a cell opened from the keyboard by Escape, its tooltip first, however long the focus has rested on its first item since it opened (#1541)", async ({
