@@ -322,6 +322,9 @@ US passée `en cours` ou `fini` ; constat ouvert ou tranché. Les agents le chan
 DEPENDS=<liste>`, `LOT=<identifiant> NOT_WITH=<liste>`,
 `ADD_LOT=<identifiant> AFTER=<lot> [DEPENDS=…] [NOT_WITH=…] [MODEL=…] [LOT_ISSUE=<n>]`
 (`LOT_ISSUE` : l'issue du lot inséré, le `#n` de sa ligne),
+`ADD_US=<US-nnnn> AFTER=<US-mmmm> [US_ISSUE=<n>] [FIRST_LOT=<Ln>] [LOT_ISSUE=<n>] [DEPENDS=…]
+[NOT_WITH=…] [MODEL=…]` (la ligne d'une US nouvelle, sous la dernière de `AFTER`, son premier lot
+sur la même ligne, `lot unique` sans `FIRST_LOT` ; les rangs en dessous montent de un),
 `REPLACE_DEPENDENCY='<ancien>=<nouveau>'`, `US=<identifiant> STATUS=…` ou
 `FINDING=<n> ATTACHED=… DECISION=…` —, qui relit le corps sous un verrou du poste juste avant de
 l'écrire et ne change que la ligne demandée : aucun ne réécrit le corps lui-même, plusieurs livreurs

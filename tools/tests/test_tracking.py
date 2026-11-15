@@ -816,3 +816,181 @@ def test_the_epic_template_and_the_tool_agree(tmp_path: Path) -> None:
         assert issue.body != before, arguments
     assert "|   |   |   | L3 | L2 | — | à faire | — | — |" in issue.body
     assert "| US-0020 # | en cours | lot unique | US-0010/L1 |" in issue.body
+
+
+# #3450: ADD_US adds the row of a new story, with its first lot, and renumbers the stories below.
+
+US_BODY = """\
+## Ordre de réalisation
+
+| # | US | Statut | Lot | Dépend de | Pas avec | État du lot | PR | Modèle |
+|---|---|---|---|---|---|---|---|---|
+| 14 | US-2190 #3238 | fini | lot unique | #3196 fermée | — | fusionné | 3434 | sonnet |
+| 15 | US-2120 #3239 | à faire | L1 #3240 | US-2200/L1 #3200 | — | à faire | — | — |
+|  |  |  | L2 #3241 | US-2120/L1 #3240 | — | à faire | — | — |
+| 16 | US-2130 #3242 | à faire | lot unique | US-2120 | — | à faire | — | — |
+|   |   |   | US-2130b | US-2130 | — | à faire | — | — |
+| zz | US-2140 | à faire | lot unique | — | — | à faire | — | — |
+
+## Constats ouverts
+
+Aucun constat.
+"""
+
+
+def test_add_us_inserts_after_the_last_row_of_the_story_and_renumbers(tmp_path: Path) -> None:
+    """#3450: the row takes the rank after AFTER's; the ranks below go up; lots keep theirs."""
+    issue = Issue(tmp_path, US_BODY)
+    code, _ = issue.run(
+        "--add-us", "US-2300", "--after", "US-2120", "--us-issue", "3500", "--model", "opus"
+    )
+    assert code == 0
+    rows = issue.body.splitlines()
+    inserted = "| 16 | US-2300 #3500 | à faire | lot unique | — | — | à faire | — | opus |"
+    assert rows[6:10] == [
+        "|  |  |  | L2 #3241 | US-2120/L1 #3240 | — | à faire | — | — |",
+        inserted,
+        "| 17 | US-2130 #3242 | à faire | lot unique | US-2120 | — | à faire | — | — |",
+        "|   |   |   | US-2130b | US-2130 | — | à faire | — | — |",
+    ]
+    assert rows[10] == "| zz | US-2140 | à faire | lot unique | — | — | à faire | — | — |"
+    expected = US_BODY.replace("| 16 | US-2130", "| 17 | US-2130").replace(
+        "|  |  |  | L2 #3241 | US-2120/L1 #3240 | — | à faire | — | — |\n",
+        "|  |  |  | L2 #3241 | US-2120/L1 #3240 | — | à faire | — | — |\n" + inserted + "\n",
+    )
+    assert issue.body == expected
+
+
+def test_add_us_with_a_first_lot_its_issue_and_a_rank_that_is_not_a_number(tmp_path: Path) -> None:
+    """#3450: FIRST_LOT gives the cell « Lot » with its issue; AFTER without a rank is refused."""
+    issue = Issue(tmp_path, US_BODY)
+    # The rank of AFTER is not a number: the call is refused, the body unchanged.
+    assert issue.run("--add-us", "US-2301", "--after", "US-2140")[0] == 1
+    assert issue.body == US_BODY
+    assert issue.writes == 0
+    code, _ = issue.run(
+        "--add-us",
+        "US-2301",
+        "--after",
+        "US-2130",
+        "--first-lot",
+        "L1",
+        "--issue-number",
+        "3600",
+        "--not-with",
+        "US-2120/L2",
+    )
+    assert code == 0
+    assert (
+        "| 17 | US-2301 | à faire | L1 #3600 | — | US-2120/L2 | à faire | — | — |\n" in issue.body
+    )
+    assert issue.run("--add-us", "US-2302", "--after", "US-2301", "--first-lot", "L2b")[0] == 0
+    assert "| 18 | US-2302 | à faire | L2b | — |" in issue.body
+    assert "| 16 | US-2130 #3242 |" in issue.body
+
+
+def test_add_us_at_the_end_of_a_table_whose_last_rank_is_a_number(tmp_path: Path) -> None:
+    """#3450: no story below, nothing to renumber; the column « Pas avec » may be absent."""
+    body = (
+        "## Ordre de réalisation\n\n"
+        "| # | US | Statut | Lot | Dépend de | État du lot | PR | Modèle |\n"
+        "|---|---|---|---|---|---|---|---|\n"
+        "| 1 | US-0010 #5 | à faire | L1 #6 | — | à faire | — | sonnet |\n"
+        "|   |   |   | L2 #7 | US-0010/L1 | à faire | — | sonnet |\n"
+    )
+    issue = Issue(tmp_path, body)
+    assert issue.run("--add-us", "US-0020", "--after", "US-0010", "--depends", "US-0010")[0] == 0
+    assert (
+        issue.body == body + "| 2 | US-0020 | à faire | lot unique | US-0010 | à faire | — | — |\n"
+    )
+    # Without the final break of the body, the body still ends without one.
+    (tmp_path / "x").mkdir()
+    issue = Issue(tmp_path / "x", body.rstrip("\n"))
+    assert issue.run("--add-us", "US-0020", "--after", "US-0010")[0] == 0
+    assert (
+        issue.body
+        == body.rstrip("\n") + "\n| 2 | US-0020 | à faire | lot unique | — | à faire | — | — |"
+    )
+    # A value for a column the table lacks is refused.
+    assert issue.run("--add-us", "US-0030", "--after", "US-0010", "--not-with", "x")[0] == 1
+
+
+def test_add_us_then_add_lot_on_the_row_created(tmp_path: Path) -> None:
+    """#3450: ADD_LOT finds the first lot of the story ADD_US created and adds the next."""
+    issue = Issue(tmp_path, US_BODY)
+    assert (
+        issue.run(
+            "--add-us",
+            "US-2300",
+            "--after",
+            "US-2120",
+            "--us-issue",
+            "3500",
+            "--first-lot",
+            "L1",
+            "--issue-number",
+            "3501",
+        )[0]
+        == 0
+    )
+    assert (
+        issue.run(
+            "--add-lot", "US-2300/L2", "--after", "US-2300/L1", "--depends", "US-2300/L1 #3501"
+        )[0]
+        == 0
+    )
+    rows = issue.body.splitlines()
+    assert rows[7:11] == [
+        "| 16 | US-2300 #3500 | à faire | L1 #3501 | — | — | à faire | — | — |",
+        "|   |   |   | L2 | US-2300/L1 #3501 | — | à faire | — | — |",
+        "| 17 | US-2130 #3242 | à faire | lot unique | US-2120 | — | à faire | — | — |",
+        "|   |   |   | US-2130b | US-2130 | — | à faire | — | — |",
+    ]
+    assert issue.run("--lot", "US-2300/L1", "--state", "en cours")[0] == 0
+    assert issue.run("--us", "US-2300", "--status", "en cours")[0] == 0
+    assert issue.body.endswith("## Constats ouverts\n\nAucun constat.\n")
+
+
+def test_add_us_refuses_and_leaves_the_body_unchanged(tmp_path: Path) -> None:
+    """#3450: a story already there, an AFTER without row, a bad label, the forbidden mixes."""
+    issue = Issue(tmp_path, US_BODY)
+    base = ["--add-us", "US-2300", "--after", "US-2120"]
+    for arguments in (
+        ["--add-us", "US-2130", "--after", "US-2120"],
+        ["--add-us", "US-2300", "--after", "US-9999"],
+        ["--add-us", "US-2300", "--after", "US-2140"],
+        [*base, "--first-lot", "1"],
+        [*base, "--first-lot", "lot unique"],
+        [*base, "--first-lot", "L2c"],
+        [*base, "--issue-number", "5"],
+        ["--add-us", "US-2300", "--after", "US-2120/L2"],
+        ["--add-us", "US-2300", "--after", "US-2130b"],
+        ["--add-us", "2300", "--after", "US-2120"],
+        ["--add-us", "US-2300"],
+        [*base, "--lot", "US-2130"],
+        [*base, "--us", "US-2130", "--status", "x"],
+        [*base, "--add-lot", "US-2120/L3"],
+        [*base, "--replace-dependency", "a=b"],
+        [*base, "--state", "x"],
+        [*base, "--pr", "1"],
+        ["--lot", "US-2130", "--state", "x", "--us-issue", "1"],
+        ["--add-lot", "US-2120/L3", "--after", "US-2120/L2", "--first-lot", "L1"],
+        ["--add-lot", "US-2120/L3", "--after", "US-2120/L2", "--us-issue", "1"],
+        [*base, "--model", "a\nb"],
+    ):
+        assert issue.run(*arguments)[0] == 1, arguments
+    assert issue.body == US_BODY
+    assert issue.writes == 0
+
+
+def test_make_exposes_add_us(tmp_path: Path) -> None:
+    """#3450: ADD_US, US_ISSUE and FIRST_LOT reach the tool, taken from the command line only."""
+    issue = Issue(tmp_path, US_BODY)
+    code = make_tracking(
+        issue,
+        ["ADD_US=US-2300", "AFTER=US-2120", "US_ISSUE=3500", "FIRST_LOT=L1", "LOT_ISSUE=3501"],
+        {"US_ISSUE": "1", "FIRST_LOT": "L9", "MODEL": "x"},
+    )
+    assert code == 0
+    assert "| 16 | US-2300 #3500 | à faire | L1 #3501 | — | — | à faire | — | — |\n" in issue.body
+    assert make_tracking(issue, ["ADD_US=US-2301"], {}) != 0

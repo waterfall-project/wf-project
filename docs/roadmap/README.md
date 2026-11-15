@@ -323,6 +323,9 @@ story gone `en cours` or `fini`; finding opened or settled. The agents change it
 DEPENDS=<list>`, `LOT=<identifier> NOT_WITH=<list>`,
 `ADD_LOT=<identifier> AFTER=<lot> [DEPENDS=…] [NOT_WITH=…] [MODEL=…] [LOT_ISSUE=<n>]`
 (`LOT_ISSUE`: the issue of the inserted lot, the `#n` of its line),
+`ADD_US=<US-nnnn> AFTER=<US-mmmm> [US_ISSUE=<n>] [FIRST_LOT=<Ln>] [LOT_ISSUE=<n>] [DEPENDS=…]
+[NOT_WITH=…] [MODEL=…]` (the line of a new story, under the last one of `AFTER`, its first lot on
+the same line, `lot unique` without `FIRST_LOT`; the ranks below go up by one),
 `REPLACE_DEPENDENCY='<old>=<new>'`, `US=<identifier> STATUS=…` or
 `FINDING=<n> ATTACHED=… DECISION=…` —, which reads the body again under a lock of
 the workstation just before writing it and changes only the line asked for: none rewrites the
