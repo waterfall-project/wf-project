@@ -794,7 +794,7 @@ l'écran « Révisions » — EP-27 (#3177, #3180).
 
 ## US-2140 — Les écrans de travail d'un projet : serrés, aux couleurs et aux formes nouvelles
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
 - **issue** : #3232
