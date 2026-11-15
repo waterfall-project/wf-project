@@ -44,7 +44,6 @@ from waterfall.core.planning.entries import (
     judged_change,
     judged_creation,
 )
-from waterfall.core.planning.filters import NodeFilters
 from waterfall.core.planning.interface.facets import calendar_of, facets
 from waterfall.core.planning.interface.lines import create_line_node
 from waterfall.core.planning.reading import retained_reading
@@ -98,6 +97,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.planning.entries import Facet
+    from waterfall.core.planning.filters import NodeFilters
     from waterfall.core.planning.scheduling import Duration
     from waterfall.core.planning.writing import Write
     from waterfall.core.revisions.interface import RevisionCopy

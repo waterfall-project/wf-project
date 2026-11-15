@@ -17,8 +17,8 @@ import pytest
 from test_witness_projects import PRJ_001, REVISION_100, REVISION_101, REVISION_102
 from test_witness_tasks import structure_of
 
-from waterfall.core.planning.interface.facets import calendars_of
 from waterfall.core.planning.filters import NodeFilters
+from waterfall.core.planning.interface.facets import calendars_of
 from waterfall.core.planning.interface.nodes import list_nodes
 from waterfall.core.planning.reading import list_records, reading_of
 from waterfall.core.planning.tree import read_links, read_rows, read_tree
@@ -32,11 +32,13 @@ from waterfall.core.planning.views import (
 from waterfall.core.planning.writing import Place, facts_of
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
     from waterfall.core.planning.interface import Amounts
+    from waterfall.core.planning.tree import NodeRow, TaskRow
     from waterfall.platform.database import Database
 
 type Read = tuple[list[NodeView], int, Amounts]
@@ -127,16 +129,23 @@ def test_list_nodes_and_list_records_read_the_same_nodes(
     assert (read.scheduled_at, read.totals) == (records.scheduled_at, records.totals)
 
 
+def test_a_node_its_facet_does_not_read_names_no_field(
+    witness: Database, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A facet its hooks do not read — a line written around the service —: ``prefetch`` leaves it
+    # out of the facets of the reading, which ``records`` then gives without a facet.
 
-def test_a_node_its_facet_does_not_read_names_no_field(witness: Database) -> None:
+    def leave_out(_reading: Reading[NodeRow, TaskRow], _node_ids: Collection[UUID]) -> None:
+        """Read no facet."""
+
+    monkeypatch.setattr(Reading, "prefetch", leave_out)
     with witness.transaction() as session:
         place = Place(PRJ_001, REVISION_102, structure_of(session, REVISION_102))
         facts = facts_of(session, place, lock=False)
         tree = read_rows(session, place.project_id, place.structure_id)
         reading = reading_of(session, place, tree, (facts.scheduled_at, facts.is_main))
         line = next(each for each in tree.order if each not in tree.tasks)
-        assert line not in reading._facets  # noqa: SLF001
-        record = reading._facet_record(line, tree.nodes[line])  # noqa: SLF001
+        (record,) = reading.records([line])
     assert isinstance(record, FacetRecord)
     assert record.computed_fields == ()
     assert record.editable_fields == ()
