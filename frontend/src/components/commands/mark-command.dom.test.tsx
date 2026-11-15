@@ -15,7 +15,14 @@ import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tra
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { atCommit } from "@/test/committed";
-import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  held,
+  refusedConnection,
+} from "@/test/fixtures";
 import { closeTasks, tasksRegion } from "@/test/task-panel";
 
 import { RevisionCommands } from "./object-commands";
@@ -345,7 +352,7 @@ describe("the marking of a revision", () => {
   it("says the API is out of reach, and keeps the name typed", async () => {
     server.client = createApiClient({
       address: "http://unreachable.invalid",
-      fetch: () => Promise.reject(new TypeError("fetch failed")),
+      fetch: () => Promise.reject(refusedConnection()),
     });
     open();
     await mark("V2");

@@ -114,11 +114,12 @@ export class Unreachable extends Error {
 }
 
 /**
- * A write whose connection the API lost once it had left: the request was sent, and no answer came
- * — the socket closed by the other side, reset, or silent past the delay undici gives an answer. The
- * API may have done it before the connection was lost, or be doing it still: the screen says so, and
- * reads anew what it shows before offering to do it again (US-2240). A request that did not leave —
- * the connection refused, the name of the API unknown, the connection not opened in time — is the API
+ * A write whose connection the API may have lost once it had left: no answer came, and `fetch` did
+ * not say the request never left — the socket closed by the other side, reset, or silent past the
+ * delay undici gives an answer, or a rejection it names no better. The API may have done it before
+ * the connection was lost, or be doing it still: the screen says so, and reads anew what it shows
+ * before offering to do it again (US-2240). A request known not to have left — the connection
+ * refused, the name of the API unknown, the connection not opened in time (`NOT_SENT`) — is the API
  * out of reach (`Unreachable`), and nothing was done.
  *
  * Its digest is that of the API out of reach: a write thrown to the screen of failure, rather than
@@ -142,16 +143,22 @@ const READS = new Set(["GET", "HEAD"]);
 const DROPPED: ReadonlySet<string> = new Set(["UND_ERR_SOCKET", "ECONNRESET", "EPIPE"]);
 
 /**
- * What the rejection of `fetch` carries when a request had left and its answer never came: the
- * connection dropped (`DROPPED`), or the answer awaited past undici's delay, its head or its body
- * (`UND_ERR_HEADERS_TIMEOUT`, `UND_ERR_BODY_TIMEOUT`). Any other rejection — `ECONNREFUSED`,
- * `ENOTFOUND`, `EAI_AGAIN`, `UND_ERR_CONNECT_TIMEOUT`, or one that names no code — is a request that
- * did not leave.
+ * What the rejection of `fetch` carries when a request did not leave: the connection refused
+ * (`ECONNREFUSED`), the name of the API unknown or not resolved in time (`ENOTFOUND`, `EAI_AGAIN`),
+ * no route to its network or its host (`ENETUNREACH`, `EHOSTUNREACH`), or the connection not opened
+ * within undici's delay (`UND_ERR_CONNECT_TIMEOUT`). Nothing was sent, and nothing was done. Any
+ * other rejection of a write — the connection dropped, reset, closed, destroyed or aborted, an
+ * answer awaited past undici's delay, a code this list does not name, or none — is a write that may
+ * have left (`Dropped`): telling it to be done again, when it may have been done, is the error this
+ * list is short to avoid.
  */
-const SENT: ReadonlySet<string> = new Set([
-  ...DROPPED,
-  "UND_ERR_HEADERS_TIMEOUT",
-  "UND_ERR_BODY_TIMEOUT",
+const NOT_SENT: ReadonlySet<string> = new Set([
+  "ECONNREFUSED",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "ENETUNREACH",
+  "EHOSTUNREACH",
+  "UND_ERR_CONNECT_TIMEOUT",
 ]);
 
 /** Whether `fetch` rejected, the cause of its rejection naming one of the codes given. */
@@ -171,13 +178,13 @@ function failedWith(error: unknown, codes: ReadonlySet<string>): boolean {
 
 /**
  * The rejection of `fetch` — a `TypeError` — marked as `Unreachable`, or as `Dropped` for a write
- * that had left; any other error as it is.
+ * that may have left (`NOT_SENT`); any other error as it is.
  */
 function marked(error: unknown, read: boolean): unknown {
   if (!(error instanceof TypeError)) {
     return error;
   }
-  return !read && failedWith(error, SENT) ? new Dropped(error) : new Unreachable(error);
+  return read || failedWith(error, NOT_SENT) ? new Unreachable(error) : new Dropped(error);
 }
 
 /**

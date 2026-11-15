@@ -192,7 +192,7 @@ describe("a connection the API drops before answering (#1145)", () => {
       name: "Dropped",
       cause: dropped,
     });
-    await expect(client.DELETE("/me/sessions")).rejects.toBeInstanceOf(Unreachable);
+    await expect(client.DELETE("/me/sessions")).rejects.toBeInstanceOf(Dropped);
     expect(sent.map((request) => request.method)).toEqual(["POST", "DELETE"]);
     expect(warn).not.toHaveBeenCalled();
   });
@@ -262,20 +262,35 @@ describe("a write whose connection is lost once it has left (US-2240)", () => {
     },
   );
 
-  it.each(["PUT", "PATCH", "DELETE"] as const)(
-    "marks any write lost once sent as dropped, %s as well as POST, not the opening of a revision alone",
-    async (method) => {
-      const { send } = failing(rejection("UND_ERR_SOCKET"));
-      const client = createApiClient({ address: "http://localhost:4010", fetch: send });
-      // The method of the request as it leaves: the rule is the method's, not the operation's.
-      client.use({ onRequest: ({ request }) => new Request(request, { method }) });
-      await expect(client.POST("/projects", { body: { label: "Poste" } })).rejects.toBeInstanceOf(
-        Dropped,
-      );
-    },
-  );
+  it("marks a PUT, a PATCH and a DELETE lost once sent as dropped, as well as a POST", async () => {
+    const lost = () => rejection("UND_ERR_SOCKET");
+    const { send, sent } = failing(lost(), lost(), lost());
+    const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+    const path = { project_id: "p", risk_id: "r" };
+    await expect(
+      client.PUT("/reference/org-nodes/{org_node_id}/activation", {
+        params: { path: { org_node_id: "n" } },
+        body: { is_active: false, lock_version: 1 },
+      }),
+    ).rejects.toBeInstanceOf(Dropped);
+    await expect(
+      client.PATCH("/projects/{project_id}/risks/{risk_id}", {
+        params: { path },
+        body: { label: "Retard", lock_version: 1 },
+      }),
+    ).rejects.toBeInstanceOf(Dropped);
+    await expect(client.DELETE("/me/sessions")).rejects.toBeInstanceOf(Dropped);
+    expect(sent.map((request) => request.method)).toEqual(["PUT", "PATCH", "DELETE"]);
+  });
 
-  it.each(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "UND_ERR_CONNECT_TIMEOUT"])(
+  it.each([
+    "ECONNREFUSED",
+    "ENOTFOUND",
+    "EAI_AGAIN",
+    "ENETUNREACH",
+    "EHOSTUNREACH",
+    "UND_ERR_CONNECT_TIMEOUT",
+  ])(
     "marks a write that did not leave, refused by %s, as the API out of reach, not as dropped",
     async (code) => {
       const { send } = failing(rejection(code));
@@ -286,14 +301,41 @@ describe("a write whose connection is lost once it has left (US-2240)", () => {
     },
   );
 
-  it("marks a write rejected without a code as the API out of reach, not as dropped", async () => {
+  // Codes undici gives, or the network does, that do not say the write never left: told as a
+  // write that may have been done, never as one to do again.
+  it.each([
+    "UND_ERR_ABORTED",
+    "UND_ERR_CLOSED",
+    "UND_ERR_DESTROYED",
+    "UND_ERR_RES_CONTENT_LENGTH_MISMATCH",
+    "ETIMEDOUT",
+    "ECONNABORTED",
+  ])("marks a write rejected by %s, which does not say it never left, as dropped", async (code) => {
+    const { send, sent } = failing(rejection(code));
+    const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+    await expect(client.POST("/projects", { body: { label: "Poste" } })).rejects.toBeInstanceOf(
+      Dropped,
+    );
+    expect(sent).toHaveLength(1);
+  });
+
+  it("marks a write rejected without a code as dropped: nothing says it never left", async () => {
     const down = createApiClient({
       address: "http://localhost:4010",
       fetch: () => Promise.reject(new TypeError("fetch failed")),
     });
-    await expect(down.POST("/projects", { body: { label: "Poste" } })).rejects.not.toBeInstanceOf(
-      Dropped,
-    );
+    await expect(down.POST("/projects", { body: { label: "Poste" } })).rejects.toMatchObject({
+      name: "Dropped",
+      digest: UNREACHABLE_DIGEST,
+    });
+  });
+
+  it("marks a read rejected without a code as the API out of reach, not as dropped", async () => {
+    const down = createApiClient({
+      address: "http://localhost:4010",
+      fetch: () => Promise.reject(new TypeError("fetch failed")),
+    });
+    await expect(down.GET("/health")).rejects.not.toBeInstanceOf(Dropped);
   });
 
   it("never marks a read as dropped: dropped twice, it is the API out of reach", async () => {

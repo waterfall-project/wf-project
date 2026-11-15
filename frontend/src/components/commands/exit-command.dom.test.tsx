@@ -22,6 +22,7 @@ import {
   fakeClient,
   type FakeTiming,
   held,
+  refusedConnection,
 } from "@/test/fixtures";
 import { closeTasks, tasksRegion } from "@/test/task-panel";
 
@@ -645,7 +646,7 @@ describe("the exits of the lifecycle of a project", () => {
   it("says the API out of reach, and the screen stays", async () => {
     server.client = createApiClient({
       address: "http://unreachable.invalid",
-      fetch: () => Promise.reject(new TypeError("fetch failed")),
+      fetch: () => Promise.reject(refusedConnection()),
     });
     open();
     await confirm("Abandonner le projet");

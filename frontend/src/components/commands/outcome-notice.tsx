@@ -11,8 +11,9 @@
  * session (401), the way to the sign-in page,
  * which comes back here; and, the API out of reach, that it is — the screen stays, it never goes
  * blank —, or, for a write whose connection was lost once it had left, that it may have been done,
- * the screen read anew before the command is pressed again (US-2240). The objects the refusal gives
- * by their identifiers alone are named as the screen read them, those it was given (`names`).
+ * the screen read anew before the command can be pressed again (US-2240, `useReadAnew`). The
+ * objects the refusal gives by their identifiers alone are named as the screen read them, those it
+ * was given (`names`).
  *
  * Every one is an alert: it follows a command the user just gave, and is announced at once — save
  * the lines or the projects listed, which may run to thousands: out of the alert, which would read
@@ -34,6 +35,7 @@ import {
   useId,
   useMemo,
   useRef,
+  useState,
   useTransition,
 } from "react";
 
@@ -116,6 +118,12 @@ export interface OutcomeNoticeProps {
    * the alert: the deletion of a task started leads to its remaining to commit (WF-PLA-0070).
    */
   readonly follow?: ReactNode;
+  /**
+   * Whether the screen, read anew by the caller after a write whose connection was lost once sent
+   * (`useReadAnew`), is still being read: the caller holds its command meanwhile, and the notice
+   * says it and reads nothing itself. Without it, the notice reads the screen anew on its own.
+   */
+  readonly reading?: boolean | undefined;
 }
 
 /**
@@ -190,27 +198,57 @@ function Reload({ onClear }: { readonly onClear: () => void }) {
 }
 
 /**
- * The screen read anew by the server, once, as soon as a write whose connection was lost once sent
+ * Read the screen anew by the server, once, as soon as a write whose connection was lost once sent
  * is told (US-2240): the API may have done it, and what the screen shows — the commands it offers
- * among them, the one that would do it again — is read before the user does it again. Said while it
- * reads; the state of the client, a value entered, is kept, as by any `refresh`. Once per outcome:
- * the same outcome rendered again, or its effect run twice in development, reads nothing more.
+ * among them, the one that would do it again — is read before the user does it again. Whether it is
+ * still reading: from the render that tells the lost write — before the refresh has even started —
+ * to the end of the transition of `router.refresh`, when the screen read anew is shown; the command
+ * that would do it again waits as long (`waiting.tsx`), and a press runs nothing. The state of the
+ * client, a value entered, is kept, as by any `refresh`. Nothing for any other outcome.
+ *
+ * Once per outcome, for as long as the component that calls it stays: the same outcome rendered
+ * again, or its effect run twice in development, reads nothing more. A component mounted anew with
+ * the same outcome — a notice in a form closed and opened again — reads anew once more: a read, which
+ * changes nothing on the API, and the outcome the notice tells is the one the command has just had.
+ * A command calls it itself, where it stays mounted, rather than leave it to its notice.
  */
-function ReadAnew({ lost }: { readonly lost: Outcome<unknown> }) {
-  const t = useTranslations("outcome");
+export function useReadAnew(outcome: Outcome<unknown> | undefined): boolean {
   const router = useRouter();
+  const lost = outcome?.kind === "unreachable" && outcome.sent === true ? outcome : undefined;
   const [reading, startReading] = useTransition();
-  const read = useRef<Outcome<unknown> | undefined>(undefined);
+  // The outcome whose reading has ended: set within the transition, so shown with its end.
+  const [read, setRead] = useState<Outcome<unknown>>();
+  const started = useRef<Outcome<unknown> | undefined>(undefined);
   useEffect(() => {
-    if (read.current === lost) {
+    if (lost === undefined || started.current === lost) {
       return;
     }
-    read.current = lost;
+    started.current = lost;
     startReading(() => {
+      setRead(lost);
       router.refresh();
     });
   }, [lost, router]);
-  return reading ? <p aria-busy="true">{t("readingAnew")}</p> : null;
+  return lost !== undefined && (reading || read !== lost);
+}
+
+/**
+ * What a notice says while the screen is read anew, out of its alert — announced once, politely, and
+ * not again with the alert —: a region present while the outcome is told, so that what it says is
+ * announced.
+ */
+function Reading({ reading }: { readonly reading: boolean }) {
+  const t = useTranslations("outcome");
+  return (
+    <p role="status" className="text-muted-foreground">
+      {reading ? t("readingAnew") : null}
+    </p>
+  );
+}
+
+/** The screen read anew by the notice itself, its caller holding no command that would do it again. */
+function ReadAnew({ lost }: { readonly lost: Outcome<unknown> }) {
+  return <Reading reading={useReadAnew(lost)} />;
 }
 
 /** The offer to read anew what a command confirmed, which has changed since it was read. */
@@ -459,6 +497,7 @@ export function OutcomeNotice({
   reread,
   lead,
   follow,
+  reading,
 }: OutcomeNoticeProps) {
   const t = useTranslations("outcome");
   const failure = useTranslations("failure");
@@ -475,15 +514,23 @@ export function OutcomeNotice({
   const dismiss = dismissible ? <Dismiss onClear={dismissed} told={sentenceId} /> : null;
   const leading = lead === undefined ? null : <p className="font-medium">{lead}</p>;
   if (refusal.kind === "unreachable") {
+    const readAnew =
+      refusal.sent !== true ? null : reading === undefined ? (
+        <ReadAnew lost={refusal} />
+      ) : (
+        <Reading reading={reading} />
+      );
     return (
-      <div role="alert" className={ALERT}>
-        {leading}
-        <p id={sentenceId} className={SENTENCE}>
-          <WifiOff aria-hidden="true" className={ICON} />
-          {told.sentence}
-        </p>
-        {refusal.sent === true ? <ReadAnew lost={refusal} /> : null}
-        {dismiss}
+      <div className={ALERT}>
+        <div role="alert" className="space-y-1">
+          {leading}
+          <p id={sentenceId} className={SENTENCE}>
+            <WifiOff aria-hidden="true" className={ICON} />
+            {told.sentence}
+          </p>
+          {dismiss}
+        </div>
+        {readAnew}
       </div>
     );
   }

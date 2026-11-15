@@ -2837,13 +2837,15 @@ longtemps que la marge : la requête part alors sur une connexion que l'API vien
 plus court n'y change rien, retenu de même. Une lecture (`GET`, `HEAD`) ainsi coupée part une
 seconde fois, sur une connexion nouvelle, et la coupure s'écrit au journal du serveur
 (`console.warn`) ; coupée encore, c'est l'API hors d'atteinte (`Unreachable`), jamais un silence.
-Une écriture ne repart jamais : l'API a pu la faire avant de fermer. Sa connexion perdue une fois
-partie — `UND_ERR_SOCKET`, `ECONNRESET`, `EPIPE`, ou sa réponse attendue au-delà du délai d'undici,
-`UND_ERR_HEADERS_TIMEOUT`, `UND_ERR_BODY_TIMEOUT` —, elle est `Dropped`, dont le décodeur fait une
-issue `unreachable` avec `sent` : `OutcomeNotice` dit que l'opération a pu aboutir, et relit l'écran
-(`router.refresh`) avant que la commande soit pressée à nouveau (US-2240). Une écriture qui n'est pas
-partie — `ECONNREFUSED`, `ENOTFOUND`, tout autre rejet — et toute lecture gardent « Le service est
-injoignable ; réessayez dans un instant. ». `WATERFALL_API_CONNECTIONS` dit
+Une écriture ne repart jamais : l'API a pu la faire avant de fermer. Une écriture qui n'est pas
+partie — le rejet de `fetch` nomme `ECONNREFUSED`, `ENOTFOUND`, `EAI_AGAIN`, `ENETUNREACH`,
+`EHOSTUNREACH` ou `UND_ERR_CONNECT_TIMEOUT` — et toute lecture gardent « Le service est
+injoignable ; réessayez dans un instant. ». Tout autre rejet d'une écriture — sa connexion perdue
+(`UND_ERR_SOCKET`, `ECONNRESET`), sa réponse attendue au-delà du délai d'undici, un code que cette
+liste ne nomme pas, ou aucun — la fait `Dropped`, dont le décodeur fait une issue `unreachable` avec
+`sent` : `OutcomeNotice` dit que l'opération a pu aboutir, et relit l'écran (`router.refresh`), la
+commande indisponible jusqu'au retour de la relecture (US-2240). La liste est celle des codes qui
+disent que rien n'est parti : dire de recommencer une écriture peut-être faite est l'erreur évitée. `WATERFALL_API_CONNECTIONS` dit
 comment le serveur tient ses connexions : `kept`, ou rien, en production comme en développement ;
 `closed`, une connexion par requête, fermée une fois répondue (`Connection: close`), que seul le
 harnais pose (« Un parcours de bout en bout »), et que le serveur, démarré ainsi hors du harnais du

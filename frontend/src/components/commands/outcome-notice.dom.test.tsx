@@ -231,6 +231,33 @@ describe("the notice of an outcome", () => {
     expect(router.refresh).toHaveBeenCalledTimes(2);
   });
 
+  it("reads the screen anew once more when its notice is mounted anew with the same outcome, a form opened again: a read, which changes nothing (US-2240)", async () => {
+    const outcome = await lostWrite("UND_ERR_SOCKET");
+    const notice = (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <OutcomeNotice outcome={outcome} onClear={vi.fn()} />
+      </NextIntlClientProvider>
+    );
+    const { unmount } = render(notice);
+    expect(router.refresh).toHaveBeenCalledOnce();
+    unmount();
+    render(notice);
+    expect(router.refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it("says the screen read anew in a status out of the alert, so that the alert is not announced again with it (US-2240)", async () => {
+    // What the status says while the screen is read is the test of the command (`command.dom.test`):
+    // here, the region it says it in, present while the outcome is told.
+    const { container } = render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <OutcomeNotice outcome={await lostWrite("UND_ERR_SOCKET")} onClear={vi.fn()} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(within(screen.getByRole("alert")).queryByRole("status")).toBeNull();
+    await expectAccessible(container);
+  });
+
   it("says a write that did not leave out of reach, to try again in a moment, and reads nothing anew (US-2240)", async () => {
     render(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>

@@ -33,7 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Command } from "./command";
 import { useHeldCommand } from "./held";
 import type { CommandOffer } from "./offer";
-import { type ObjectNames, OutcomeNotice, type Reread } from "./outcome-notice";
+import { type ObjectNames, OutcomeNotice, type Reread, useReadAnew } from "./outcome-notice";
 import { WaitingIcon, waitingAttributes } from "./waiting";
 
 /** A command, what it asks to be confirmed, and what follows it. */
@@ -96,6 +96,10 @@ export function ConfirmedCommand<T>({
   // transition, whose end would wait for every other async action of the page (#1484).
   const [busy, setBusy] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
+  // A write lost once sent: the confirmation waits until the screen has been read anew (US-2240),
+  // read here, where it stays mounted, rather than by the notice of the form, which may close.
+  const reading = useReadAnew(outcome);
+  const waiting = busy || reading;
   // The page read again may no longer offer the command: its confirmation is not shown.
   const offered = presented && offer.is_available;
   const shown = open && offered;
@@ -121,7 +125,7 @@ export function ConfirmedCommand<T>({
 
   const confirm = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (busy || !ready) {
+    if (waiting || !ready) {
       return;
     }
     setBusy(true);
@@ -177,10 +181,10 @@ export function ConfirmedCommand<T>({
               type="submit"
               size="sm"
               aria-describedby={sentence}
-              {...waitingAttributes(busy)}
+              {...waitingAttributes(waiting)}
               {...(ready ? {} : { "aria-disabled": true })}
             >
-              <WaitingIcon waiting={busy} icon={icon} />
+              <WaitingIcon waiting={waiting} icon={icon} />
               {submit}
             </Button>
             <Button
@@ -203,6 +207,7 @@ export function ConfirmedCommand<T>({
             names={names}
             subject={subject}
             reread={reread}
+            reading={reading}
             onClear={() => {
               setOutcome(undefined);
             }}

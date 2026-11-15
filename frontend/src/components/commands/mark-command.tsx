@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Command } from "./command";
 import { commandIcon, REVISION_COMMAND_ICONS } from "./icons";
 import type { CommandOffer } from "./offer";
-import { type ObjectNames, OutcomeNotice } from "./outcome-notice";
+import { type ObjectNames, OutcomeNotice, useReadAnew } from "./outcome-notice";
 import { rejected } from "./rejection";
 import { WaitingIcon, waitingAttributes } from "./waiting";
 
@@ -66,6 +66,9 @@ function MarkForm({ id, revision, names, onClose, onMarking }: MarkFormProps) {
   // Busy from the press to the answer, and lifted in the very update that tells it — not a
   // transition, whose end would wait for every other async action of the page (#1484).
   const [busy, setBusy] = useState(false);
+  // A write lost once sent: the marking waits until the screen has been read anew (US-2240).
+  const reading = useReadAnew(outcome);
+  const waiting = busy || reading;
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
     input.current?.focus();
@@ -75,7 +78,7 @@ function MarkForm({ id, revision, names, onClose, onMarking }: MarkFormProps) {
   // the language of the interface, and the field keeps the focus.
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (busy) {
+    if (waiting) {
       return;
     }
     if (name.trim() === "") {
@@ -148,8 +151,8 @@ function MarkForm({ id, revision, names, onClose, onMarking }: MarkFormProps) {
         className={`py-1 ${FIELD}`}
       />
       <div className="flex gap-2">
-        <Button type="submit" size="sm" {...waitingAttributes(busy)}>
-          <WaitingIcon waiting={busy} icon={<Stamp aria-hidden="true" />} />
+        <Button type="submit" size="sm" {...waitingAttributes(waiting)}>
+          <WaitingIcon waiting={waiting} icon={<Stamp aria-hidden="true" />} />
           {t("markRevision.submit")}
         </Button>
         <Button type="button" variant="outline" size="sm" onClick={onClose}>
@@ -161,6 +164,7 @@ function MarkForm({ id, revision, names, onClose, onMarking }: MarkFormProps) {
         outcome={outcome}
         names={names}
         subject={names[revision.revision_id]}
+        reading={reading}
         onClear={() => {
           setOutcome(undefined);
         }}

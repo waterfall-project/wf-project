@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import { SessionLost } from "@/session/tokens";
-import { example, type FakeAnswer, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswer, fakeClient, refusedConnection } from "@/test/fixtures";
 
 import {
   ACCOUNT_DEACTIVATED_DIGEST,
@@ -165,7 +165,7 @@ describe("the decoder of an answer of the API", () => {
   });
 
   it("tells an API out of reach apart from any refusal", async () => {
-    const client = answering(() => Promise.reject(new TypeError("fetch failed")));
+    const client = answering(() => Promise.reject(refusedConnection()));
     const outcome = await decode(() => client.PATCH("/me/preferences", { body: {} }));
     expect(outcome).toEqual({ kind: "unreachable" });
   });
@@ -186,6 +186,12 @@ describe("the decoder of an answer of the API", () => {
       expect(outcome).toEqual(expected);
     },
   );
+
+  it("tells a write rejected without a code as one that may have left: nothing says it did not (US-2240)", async () => {
+    const client = answering(() => Promise.reject(new TypeError("fetch failed")));
+    const outcome = await decode(() => client.PATCH("/me/preferences", { body: {} }));
+    expect(outcome).toEqual({ kind: "unreachable", sent: true });
+  });
 
   it("takes an answer without the envelope for the unexpected error of the service", async () => {
     const client = answering(() =>
