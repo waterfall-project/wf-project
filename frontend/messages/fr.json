@@ -637,7 +637,6 @@
     }
   },
   "actualCosts": {
-    "summary": "{count, plural, =0 {aucune ligne retenue} one {# ligne retenue} other {# lignes retenues}}",
     "refused": {
       "period": "Les coûts réels ne se lisent pas sur cette période : sa fin précède son début.",
       "subproject": "Les coûts réels ne se lisent pas : le sous-projet demandé n’existe pas.",
@@ -1257,6 +1256,9 @@
     },
     "timelines": {
       "help": "Ouvre les chronologies du projet, en frise."
+    },
+    "exportRequest": {
+      "help": "Demande le fichier du type choisi ; il se télécharge de lui-même une fois prêt."
     },
     "exchanges": {
       "help": "Ouvre les imports et exports de la révision."
@@ -2170,6 +2172,7 @@
     "reread": "Relire le compte rendu"
   },
   "projectForm": {
+    "card": "Projet",
     "create": "Créer un projet",
     "createHint": "Le projet naît à l’état Créé, et vous en êtes chef de projet. Le code projet peut attendre la commande.",
     "modifyTitle": "Modifier « {name} »",

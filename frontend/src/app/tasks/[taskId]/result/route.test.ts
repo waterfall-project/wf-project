@@ -38,10 +38,15 @@ function answering(body: BodyInit, headers: Record<string, string>): void {
   });
 }
 
-/** Ask the front for the result of a task, from a screen. */
-function download(taskId = TASK, from: string | null = SCREEN): Promise<Response> {
+/** Ask the front for the result of a task, from a screen; by a hidden frame if `destination` says. */
+function download(
+  taskId = TASK,
+  from: string | null = SCREEN,
+  destination?: "iframe" | "document",
+): Promise<Response> {
   const query = from === null ? "" : `?${new URLSearchParams({ from }).toString()}`;
-  return GET(new Request(`http://front.invalid/tasks/${taskId}/result${query}`), {
+  const headers = destination === undefined ? {} : { "sec-fetch-dest": destination };
+  return GET(new Request(`http://front.invalid/tasks/${taskId}/result${query}`, { headers }), {
     params: Promise.resolve({ taskId }),
   });
 }
@@ -122,6 +127,28 @@ describe("the result of a task, downloaded", () => {
     );
     serve({ [RESULT]: { problem: { code: "NOT_FOUND", status: 404 } } });
     expect(sentBackTo(await download())).toContain("refusal=404%3ANOT_FOUND");
+  });
+
+  it("sends a hidden frame to a page with nothing in it, the same parameters of the refusal in its address, not to the screen it left (#3297) [WF-DAT-0120-A]", async () => {
+    serve({ [RESULT]: { problem: { code: "STATE_FORBIDS_OPERATION", status: 409 } } });
+    const framed = sentBackTo(await download(TASK, SCREEN, "iframe"));
+    expect(framed).toBe(
+      `/tasks/${TASK}/refused?refused_task=${TASK}&refusal=409%3ASTATE_FORBIDS_OPERATION`,
+    );
+    // The same parameters as the address of the screen carries: the task and the refusal.
+    const screen = new URL(sentBackTo(await download()), "http://front.invalid").searchParams;
+    const frame = new URL(framed, "http://front.invalid").searchParams;
+    expect(frame.get("refused_task")).toBe(screen.get("refused_task"));
+    expect(frame.get("refusal")).toBe(screen.get("refusal"));
+    // Any other destination — a link followed — goes back to the screen.
+    expect(sentBackTo(await download(TASK, SCREEN, "document"))).toMatch(/^\/projects\/p\//);
+  });
+
+  it("tells a session ended to a hidden frame by the status of the API, 401, in the address of its page (#3297) [WF-DAT-0120-A]", async () => {
+    serve({ [RESULT]: { problem: { code: "SESSION_REQUIRED", status: 401 } } });
+    expect(sentBackTo(await download(TASK, SCREEN, "iframe"))).toBe(
+      `/tasks/${TASK}/refused?refused_task=${TASK}&refusal=401%3ASESSION_REQUIRED`,
+    );
   });
 
   it.each([

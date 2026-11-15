@@ -743,7 +743,12 @@ project, its trigger and the conditions it still lacks, one by one (`getProjectN
 trigger is one of the two facts the contract enumerates (`LifecycleTrigger`), said by its
 catalogue (`enums.LifecycleTrigger`). A project that no fact leads any further — the server
 answers without a next state or a trigger — says so: in progress, only its exits remain; terminal
-— a state an exit leads to (`EXIT_STATES`) —, it is closed, and no state follows it (WF-CYC-0080).
+— a state an exit leads to (`EXIT_STATES`) —, it is closed, and no state follows it (WF-CYC-0080). The next state and the history of the states are
+each a section card, in the airy column (US-2130); the exits stay at the right of the title of the
+screen, outlined. The screen of the revisions follows the same presentation without changing its
+structure (EP-27 recasts it): a card per section, « Open a current revision » — the filled command,
+which `RevisionHistory` receives as `creation` — at the right of the title of the history card, the
+commands of the revision read at the right of the title of the screen.
 
 ### The periods of a list
 
@@ -2567,8 +2572,9 @@ project belong to the forms of their domain, its modification to the one of its 
 `is_available` and its conditions — a marked revision lists them unavailable, for lack of being
 under elaboration —, its exports left to the imports and exports screen, which offers them
 (`ExportForm`), its inputs (`edit_*`) to their grids and the skeleton to the empty planning grid
-(EP-14/L44d); `findOffer` draws a single one from it, and `UnmetConditions` names what the offer of
-a form that is not a `Command` lacks. Outside the project — accounts, roles, reference data,
+(EP-14/L44d); `findOffer` draws a single one from it, and forms say what they lack as the other
+commands do, by `CommandTooltip` and, when pressed, `PressRefusal`; `UnmetConditions` remains only
+for the commands of the timelines (#3290). Outside the project — accounts, roles, reference data,
 backup —, `platformOffer` follows the permission to change of a function of `platform` scope
 (`PlatformFunction`) in `Session.permissions`, or `project_create` for the creation of a project,
 which no project lists; the commands of a backup are those it lists (`Backup.available_commands`,

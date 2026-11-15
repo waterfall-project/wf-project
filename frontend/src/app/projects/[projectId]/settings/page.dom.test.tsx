@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CATALOGUES } from "@/i18n/catalogues";
+import { expectCommandRule } from "@/test/command-rule";
 import { type FakeAnswers, fakeClient } from "@/test/fixtures";
 
 import SettingsPage from "./page";
@@ -49,5 +50,27 @@ describe("the settings of a project, rendered", () => {
       </NextIntlClientProvider>,
     );
     expect(screen.getByRole("button", { name: "Generate the planning" })).toBeVisible();
+  });
+
+  it("sets the attributes, the work breakdown, the sub-projects and the contributors each in a card, « Edit the project » at the right of the title of the first [WF-IHM-0100-A]", async () => {
+    const page = await SettingsPage({
+      params: Promise.resolve({ projectId: PROJECT }),
+      searchParams: Promise.resolve({}),
+    });
+    const { container } = render(
+      <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
+        {page}
+      </NextIntlClientProvider>,
+    );
+    for (const title of ["Project", "Work breakdown", "Subprojects", "Contributors"]) {
+      expect(screen.getByRole("region", { name: title })).toHaveAttribute(
+        "data-slot",
+        "section-card",
+      );
+    }
+    const project = screen.getByRole("region", { name: "Project" });
+    const modify = within(project).getByRole("button", { name: "Edit the project" });
+    expect(modify.closest('[data-slot="section-card-commands"]')).not.toBeNull();
+    expectCommandRule(container);
   });
 });

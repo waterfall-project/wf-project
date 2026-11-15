@@ -17,7 +17,7 @@ From top to bottom:
 
 ## Its commands
 
-At the top of the screen, the commands of the revision read, each available or naming the condition it lacks:
+Each section is a card. At the top of the screen, the commands of the revision read, each available or naming the condition it lacks; **Open a current revision**, the one filled command, is at the right of the title of the history card:
 
 - **Open a current revision** creates the draft revision, a copy of the last marked revision. Unavailable when the project already has one (“no draft revision”) or when it is closed.
 - **Mark the revision** asks for a version name, required, and a description; the marking, handed to the background processing, freezes the revision and keeps its indicators. Unavailable on a revision already marked (“draft revision”) or during a background process.

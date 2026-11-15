@@ -612,7 +612,7 @@ la lecture de `include_inactive` y disparaissent.
 
 ## US-2100 — Les écrans d'administration en cartes : utilisateurs, rôles, sauvegardes, journal d'audit
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
 - **issue** : #3226
@@ -741,7 +741,7 @@ l'amorçage (WF-REF-0140, WF-EXP-0020).
 
 ## US-2130 — L'accueil, les écrans de réglage et de consultation d'un projet, et le compte, en cartes
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`, `WF-IHM-0120-A`, `WF-IHM-0090-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
 - **issue** : #3221
@@ -794,7 +794,7 @@ l'écran « Révisions » — EP-27 (#3177, #3180).
 
 ## US-2140 — Les écrans de travail d'un projet : serrés, aux couleurs et aux formes nouvelles
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
 - **issue** : #3232
@@ -823,7 +823,7 @@ comparaison (EP-27) ; la performance (EP-26).
 
 ## US-2150 — Les écrans que le service ne sert pas encore, mis en page contre le faux back : portefeuille, risques, indicateurs, état du système
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent déjà, sur les exemples du contrat
 - **issue** : #3235
@@ -998,7 +998,7 @@ qui le lit.
 
 ## US-2190 — La page de connexion à la charte nouvelle
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #3238

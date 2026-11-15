@@ -225,7 +225,8 @@ export function auditGrid(reach: AuditReach): GridConfig<AuditEvent, AuditSort, 
         label: "project",
         help: "auditLog.project",
         format: "text",
-        width: 300,
+        // Wide enough for « code · label » whole, the longest of the journal's projects (#3088).
+        width: 400,
         contract: "project",
         // Without a code, the label the cell shows alone: copied and exported alike, never null.
         value: (event) =>

@@ -735,7 +735,12 @@ qu'aucune commande ne mène à Chiffrage ni à En cours (WF-CYC-0020) ; le décl
 deux faits que le contrat énumère (`LifecycleTrigger`), dit par son catalogue
 (`enums.LifecycleTrigger`). Un projet qu'aucun fait ne mène plus loin — le serveur répond sans
 prochain état ni déclencheur — le dit : en cours, seules ses sorties restent ; terminal — un état où
-mène une sortie (`EXIT_STATES`) —, il est clos, et aucun état ne le suit (WF-CYC-0080).
+mène une sortie (`EXIT_STATES`) —, il est clos, et aucun état ne le suit (WF-CYC-0080). Le prochain
+état et l'historique des états sont chacun une carte de section, dans la colonne aérée (US-2130) ;
+les sorties restent à droite du titre de l'écran, à contour. L'écran des révisions suit la même
+présentation sans changer de structure (EP-27 la refond) : une carte par section, « Ouvrir une
+révision en cours » — la commande pleine, que `RevisionHistory` reçoit par `creation` — à droite du
+titre de la carte de l'historique, les commandes de la révision lue à droite du titre de l'écran.
 
 ### Les périodes d'une liste
 
@@ -2576,8 +2581,9 @@ appartiennent aux formulaires de leur domaine, sa modification à celui de ses p
 et ses conditions — une révision marquée les liste indisponibles, faute d'être en cours
 d'élaboration —, ses exports laissés à l'écran des imports et exports, qui les offre (`ExportForm`),
 ses saisies (`edit_*`) à leurs grilles et le squelette à la grille de planning vide (EP-14/L44d) ;
-`findOffer` en tire une seule, et `UnmetConditions` nomme ce qui manque à l'offre d'un formulaire
-qui n'est pas un `Command`. Hors projet — comptes, rôles, référentiel, sauvegarde —, `platformOffer`
+`findOffer` en tire une seule, et les formulaires disent ce qui leur manque comme les autres
+commandes, par `CommandTooltip` et, pressées, `PressRefusal` ; `UnmetConditions` ne reste que pour
+les commandes des chronologies (#3290). Hors projet — comptes, rôles, référentiel, sauvegarde —, `platformOffer`
 suit la permission de modification d'une fonction de portée `platform` (`PlatformFunction`) dans
 `Session.permissions`, ou `project_create` pour la création d'un projet, qu'aucun projet ne liste ;
 les commandes d'une sauvegarde sont celles qu'elle liste (`Backup.available_commands`, EP-14/L43f),

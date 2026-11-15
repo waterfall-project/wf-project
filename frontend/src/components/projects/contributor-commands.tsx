@@ -53,7 +53,7 @@ import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { useAccountNaming } from "@/components/account/account-name";
 import { KeptName } from "@/components/account/anonymized-name";
-import { UnmetConditions, useUnmet } from "@/components/commands/command";
+import { PressRefusal, useUnmet } from "@/components/commands/command";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
 import { OutcomeNotice, useNoteRefusal } from "@/components/commands/outcome-notice";
@@ -231,6 +231,8 @@ function ModifyContributors({
   const helps = useTranslations("commands");
   const unmetText = useUnmet();
   const id = useId();
+  // The presses of the command while it is unavailable: each says what it lacks.
+  const [presses, setPresses] = useState(0);
   const { offer } = commands.editing;
   // What the dialog starts from: the rows and the counter of the reading, whole.
   const reading =
@@ -247,7 +249,7 @@ function ModifyContributors({
         label={t("modify")}
         help={helps("project.manage_contributors.help")}
         unavailable={unmet === undefined ? undefined : unmetText(offer)}
-        describedBy={writing ? why : unmet}
+        describedBy={writing ? why : undefined}
       >
         <Button
           type="button"
@@ -258,7 +260,11 @@ function ModifyContributors({
           aria-haspopup="dialog"
           className={UNAVAILABLE}
           onClick={(event: MouseEvent<HTMLElement>) => {
-            if (offer.is_available && !writing && reading !== undefined) {
+            if (!offer.is_available) {
+              setPresses((count) => count + 1);
+              return;
+            }
+            if (!writing && reading !== undefined) {
               commands.refuse(undefined);
               commands.open({ ...reading, trigger: event.currentTarget });
             }
@@ -268,7 +274,7 @@ function ModifyContributors({
           {t("modify")}
         </Button>
       </CommandTooltip>
-      <UnmetConditions id={unmet} offer={offer} />
+      <PressRefusal offer={offer} presses={presses} />
       <WritingNote id={why} writing={writing} />
     </>
   );

@@ -524,7 +524,12 @@ describe("the modification of the contributors of a project", () => {
     expect(command).toHaveAccessibleDescription(
       "Condition non remplie\u00A0: être chef de projet.",
     );
+    // The condition is not written under the button: pressed, it is told in the refusals (#3289).
+    expect(screen.queryByRole("alert")).toBeNull();
     await userEvent.click(command);
     expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Condition non remplie : être chef de projet.",
+    );
   });
 });

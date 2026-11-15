@@ -21,7 +21,7 @@ export const BAD_GATEWAY: ResultRefusal = {
 };
 
 /** Neither the browser nor anything between keeps the file, nor the way back of a refusal. */
-const NOT_KEPT = "private, no-store";
+export const NOT_KEPT = "private, no-store";
 
 /** A media type, its parameters aside, in lower case; empty when the API gives none. */
 export function mediaType(type: string | null): string {

@@ -26,6 +26,7 @@ import {
   prepareAmendment,
 } from "@/api/actions/revisions";
 import type { Outcome } from "@/api/problem";
+import type { PrincipalVariant } from "@/components/shell/section-card";
 import { Input } from "@/components/ui/input";
 
 import { Command } from "./command";
@@ -60,10 +61,13 @@ export function CreateRevisionCommand({
   offer,
   projectId,
   names,
+  variant,
 }: {
   readonly offer: CommandOffer;
   readonly projectId: string;
   readonly names: ObjectNames;
+  /** The variant the card of the history gives it, being its principal command. */
+  readonly variant?: PrincipalVariant | undefined;
 }) {
   const t = useTranslations("revisionCommands");
   const helps = useTranslations("commands");
@@ -71,6 +75,7 @@ export function CreateRevisionCommand({
   return (
     <Command
       offer={offer}
+      variant={variant}
       label={t("create")}
       help={helps("project.create_revision.help")}
       icon={commandIcon(PROJECT_COMMAND_ICONS.create_revision)}
