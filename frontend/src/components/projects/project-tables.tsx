@@ -21,6 +21,7 @@ import type { components } from "@/api/generated/schema";
 import { KeptName } from "@/components/account/anonymized-name";
 import { LocalTime } from "@/components/local-time";
 import { ProjectStateBadge } from "@/components/projects/project-state-badge";
+import { SectionCard, type SectionCardProps } from "@/components/shell/section-card";
 import {
   Table,
   TableBody,
@@ -58,6 +59,39 @@ export function ListSection({
       </h2>
       {empty === undefined ? children : <p className="text-sm text-muted-foreground">{empty}</p>}
     </section>
+  );
+}
+
+/**
+ * A list of a project in the card of its section (`SectionCard`, US-2130): under its title with its
+ * icon, its commands at the right of the title, and the sentence that says it is empty. A server
+ * screen gives the principal command; a client component never hands it on (typescript.md, defect
+ * 12).
+ */
+export function ListCard({
+  title,
+  icon,
+  empty,
+  principal,
+  footer,
+  children,
+}: {
+  readonly title: string;
+  readonly icon: LucideIcon;
+  /** What the card says when the list is empty; `undefined` when it is not. */
+  readonly empty: string | undefined;
+  readonly principal?: SectionCardProps["principal"];
+  /** What stays under the list, whether it is empty or not. */
+  readonly footer?: ReactNode;
+  readonly children: ReactNode;
+}) {
+  return (
+    <SectionCard title={title} icon={icon} principal={principal}>
+      <div className="flex min-w-0 flex-col gap-3">
+        {empty === undefined ? children : <p className="text-sm text-muted-foreground">{empty}</p>}
+        {footer}
+      </div>
+    </SectionCard>
   );
 }
 
@@ -120,7 +154,7 @@ export function TransitionList({
 }) {
   const t = useTranslations("projectLists.transitions");
   return (
-    <ListSection
+    <ListCard
       title={t("title")}
       icon={History}
       empty={transitions.length === 0 ? t("none") : undefined}
@@ -152,6 +186,6 @@ export function TransitionList({
           </TableRow>
         ))}
       </ListTable>
-    </ListSection>
+    </ListCard>
   );
 }

@@ -26,6 +26,7 @@ import { CircleAlert } from "lucide-react";
 import { type ReactElement, type Ref, useId, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
+import type { PrincipalVariant } from "@/components/shell/section-card";
 import { Button } from "@/components/ui/button";
 import { formatLocale } from "@/i18n/format";
 
@@ -72,6 +73,20 @@ export interface CommandProps {
    * until it ends, and a failure gives it back, to run the same treatment again (WF-IHM-0080).
    */
   readonly running?: boolean | undefined;
+  /**
+   * The variant of its button: outlined, unless the command is the principal one of a card, which
+   * gives it the variant of what it does (`SectionCard`, `principalVariant`).
+   */
+  readonly variant?: PrincipalVariant | undefined;
+}
+
+/**
+ * The variant of the button of a command: outlined, unless its card gives it another. Kept out of
+ * `Command`: a default (`variant = "outline"`, or `??`) there would bring its complexity over the
+ * limit (15 for 14).
+ */
+function outlinedUnless(variant: PrincipalVariant | undefined): PrincipalVariant {
+  return variant ?? "outline";
 }
 
 /** A command that opens what it asks before it runs. */
@@ -186,6 +201,7 @@ export function Command({
   subject,
   writing = false,
   running = false,
+  variant,
 }: CommandProps) {
   const id = useId();
   const unmetText = useUnmet();
@@ -235,7 +251,7 @@ export function Command({
       >
         <Button
           type="button"
-          variant="outline"
+          variant={outlinedUnless(variant)}
           size="sm"
           {...waitingAttributes(waiting)}
           // Unavailable with no condition to name: marked all the same, the tooltip saying none.

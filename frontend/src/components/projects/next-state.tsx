@@ -18,6 +18,7 @@ import { useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
 import { EXIT_STATES } from "@/components/commands/exits";
+import { SectionCard } from "@/components/shell/section-card";
 
 import { ProjectStateBadge } from "./project-state-badge";
 
@@ -34,11 +35,7 @@ export function NextStateFacts({ next }: { readonly next: NextState }) {
   const triggers = useTranslations("enums.LifecycleTrigger");
   const { next_state: state, trigger, missing_conditions: missing } = next;
   return (
-    <section aria-label={t("title")} className="space-y-2">
-      <h2 className="flex items-center gap-2 text-base font-semibold">
-        <CircleArrowRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-        {t("title")}
-      </h2>
+    <SectionCard title={t("title")} icon={CircleArrowRight}>
       {state === null ? (
         <p className="text-sm">{t(TERMINAL.includes(next.current_state) ? "closed" : "none")}</p>
       ) : (
@@ -67,6 +64,6 @@ export function NextStateFacts({ next }: { readonly next: NextState }) {
           </dd>
         </dl>
       )}
-    </section>
+    </SectionCard>
   );
 }
