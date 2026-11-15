@@ -4,10 +4,12 @@
 
 What ``document.py`` of #3173 tried, written again: the last marked revision of the project read
 whole from its rows, then made and kept, then read from what is kept, whole and projected as the
-grid of the estimate asks; the size of the body and of what is kept, and the volume a platform of
-the volumes of §4.6.2 would keep. Then the marking of the current revision, and the keeping of its
-main structure after it, as the marking would do in its task. Every write is rolled back: the
-witness is left as it was.
+grid of the estimate asks, each against the rows; the size of the body and of what is kept, and the
+volume a platform of the volumes of §4.6.2 would keep. Then the marking of the current revision,
+and the keeping of its main structure after it, as the marking would do in its task. Then the
+comparison of the two last marked revisions, from the rows and from the readings kept, and the
+filtered readings from the rows against the least a filter of the document would cost (the rule of
+the third, #3168). Every write is rolled back: the witness is left as it was.
 """
 
 from dataclasses import dataclass
@@ -21,7 +23,9 @@ from sqlalchemy.orm import Session
 from measure.figures import ratio, summarise
 from measure.report import Measure
 from measure.target import MeasureError
-from waterfall.api.nodes import nodes_body, read_body, whole_nodes
+from waterfall.api.comparison import comparison_body, kept_comparison
+from waterfall.api.nodes import kept_body, nodes_body, read_body, whole_nodes
+from waterfall.core.estimate.interface import ComparisonAsked, compare_revisions
 from waterfall.core.planning.interface import NodeFilters, Place, list_records
 from waterfall.core.planning.tables import StructureReading
 from waterfall.core.projects.interface import Viewer
@@ -31,12 +35,14 @@ from waterfall.core.revisions.interface import (
     last_marked_revision,
     list_cost_structures,
     mark_revision,
+    marked_revisions_at,
 )
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from typing import Any
 
     from measure.target import Target
     from waterfall.platform.database import Database
@@ -138,6 +144,12 @@ def measure_kept(database: Database, target: Target, runs: int) -> tuple[Measure
             made = _timed(lambda: whole_nodes(session, place, None))
             kept = [_timed(lambda: whole_nodes(session, place, None)) for _ in range(runs)]
             projected = [_timed(lambda: whole_nodes(session, place, _FIELDS)) for _ in range(runs)]
+
+            def rows_projected() -> bytes:
+                read = list_records(session, place, NodeFilters())
+                return bytes(read_body(nodes_body(read, _FIELDS)).body)
+
+            from_rows_projected = [_timed(rows_projected) for _ in range(runs)]
             document = session.scalar(
                 select(StructureReading.document).where(
                     StructureReading.project_id == place.project_id,
@@ -162,7 +174,18 @@ def measure_kept(database: Database, target: Target, runs: int) -> tuple[Measure
             kept_summary,
             {"kept_over_rows": round(ratio(kept_summary.median, rows_summary.median), 3)},
         ),
-        Measure("marked revision read as kept, projected", summarise(projected)),
+        Measure(
+            "marked revision read whole from its rows, projected", summarise(from_rows_projected)
+        ),
+        Measure(
+            "marked revision read as kept, projected",
+            summarise(projected),
+            {
+                "kept_over_rows": round(
+                    ratio(summarise(projected).median, summarise(from_rows_projected).median), 3
+                )
+            },
+        ),
         Measure(
             "volume of the readings kept",
             facts={
@@ -216,4 +239,130 @@ def measure_marking(database: Database, target: Target, runs: int) -> Measure:
             "with_keeping_median_ms": round((marking.median + keeping.median) * 1000, 1),
         },
         notes=("the minute of table 15 is the bound of a marking (§4.6.2)",),
+    )
+
+
+def _marked_pair(database: Database, target: Target) -> ComparisonAsked:
+    """Give the comparison of the two last marked revisions of the project measured, whole."""
+    with database.transaction() as session:
+        marked = marked_revisions_at(session, target.place.project_id)
+    if len(marked) < len(("base", "compared")):
+        message = "the project measured has not two marked revisions"
+        raise MeasureError(message)
+    base, compared = sorted(marked, key=lambda each: (marked[each], each))[-2:]
+    return ComparisonAsked(base, compared, NodeFilters())
+
+
+def measure_comparison(database: Database, target: Target, runs: int) -> tuple[Measure, ...]:
+    """Measure the comparison of the two last marked revisions, from the rows, then as kept.
+
+    In one transaction rolled back: the first comparison from what is kept makes and keeps the
+    readings of the two structures, the next read them. ``same_body`` tells the two bodies are the
+    same, to the byte.
+    """
+    asked = _marked_pair(database, target)
+    project_id = target.place.project_id
+    with Session(database.engine) as session:
+        try:
+
+            def rows() -> bytes:
+                found = compare_revisions(session, project_id, asked)
+                return bytes(read_body(comparison_body(found, None)).body)
+
+            def kept() -> bytes | None:
+                body = kept_comparison(session, project_id, asked, None)
+                return None if body is None else bytes(read_body(body).body)
+
+            from_rows = rows()
+            timed_rows = [_timed(rows) for _ in range(runs)]
+            made = _timed(kept)
+            timed_kept = [_timed(kept) for _ in range(runs)]
+            same = kept() == from_rows
+        finally:
+            session.rollback()
+    rows_summary, kept_summary = summarise(timed_rows), summarise(timed_kept)
+    return (
+        Measure(
+            "comparison of two marked revisions from the rows",
+            rows_summary,
+            {"body_mb": round(len(from_rows) / _MEGABYTE, 2)},
+        ),
+        Measure("comparison of two marked revisions, their readings made", summarise([made])),
+        Measure(
+            "comparison of two marked revisions from the readings kept",
+            kept_summary,
+            {
+                "kept_over_rows": round(ratio(kept_summary.median, rows_summary.median), 3),
+                "same_body": same,
+            },
+        ),
+    )
+
+
+_LEVEL = 2
+# The filtered readings of ``listNodes`` measured against the document: the grid of the planning
+# (``kinds=task``), a search the harness of US-2220 asks, a level; each with the test by node the
+# least a filter of the document would make.
+_FILTERED: dict[str, tuple[NodeFilters, Callable[[dict[str, Any]], bool]]] = {
+    "kinds=task": (NodeFilters(kinds=("task",)), lambda item: item["kind"] == "task"),
+    "search=revue&progress=not_started,started": (
+        NodeFilters(search="revue", progress=("not_started", "started")),
+        lambda item: item["task"] is not None and "revue" in item["task"]["label"].lower(),
+    ),
+    f"max_level={_LEVEL}": (NodeFilters(max_level=_LEVEL), lambda item: item["level"] <= _LEVEL),
+}
+THIRD = 1 / 3
+"""The share of a reading from the rows under which a filtered reading reads the document, #3168."""
+
+
+def measure_filtered(database: Database, target: Target, runs: int) -> Measure:
+    """Measure filtered readings of a marked revision from its rows, and from its reading kept.
+
+    From the reading kept, the least a filter of the document would cost: the document read, its
+    inscriptions joined, a test by node and the body of the nodes retained written; neither their
+    ancestors, nor their totals, nor a sort, which a filter would add. Its share of the reading from
+    the rows over the third, the filtered reading keeps the rows (#3168).
+    """
+    place = marked_place(database, target)
+    rows: list[dict[str, str | float | bool]] = []
+    with Session(database.engine) as session:
+        try:
+            whole_nodes(session, place, None)
+            for name, (filters, test) in _FILTERED.items():
+
+                def from_rows(filters: NodeFilters = filters) -> None:
+                    read_body(nodes_body(list_records(session, place, filters)))
+
+                def from_document(test: Callable[[dict[str, Any]], bool] = test) -> None:
+                    read = kept_body(session, place)
+                    if read is not None:
+                        read["items"] = [each for each in read["items"] if test(each)]
+                        read_body(read)
+
+                from_rows()
+                timed_rows = summarise([_timed(from_rows) for _ in range(runs)]).median
+                timed_document = summarise([_timed(from_document) for _ in range(runs)]).median
+                share = ratio(timed_document, timed_rows)
+                rows.append(
+                    {
+                        "filter": name,
+                        "rows_ms": round(timed_rows * 1000, 1),
+                        "document_ms": round(timed_document * 1000, 1),
+                        "document_over_rows": round(share, 3),
+                        "under_the_third": share < THIRD,
+                    }
+                )
+        finally:
+            session.rollback()
+    return Measure(
+        "filtered readings of a marked revision, rows against the document",
+        facts={"under_the_third": sum(1 for each in rows if each["under_the_third"])},
+        rows=tuple(rows),
+        notes=(
+            (
+                "document: the least a filter of the reading kept costs, without ancestors, "
+                "totals nor sort; over the third of the rows, the filtered reading keeps the rows "
+                "(#3168)"
+            ),
+        ),
     )

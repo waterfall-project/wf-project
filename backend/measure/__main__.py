@@ -9,7 +9,12 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import OperationalError
 
-from measure.document import measure_kept, measure_marking
+from measure.document import (
+    measure_comparison,
+    measure_filtered,
+    measure_kept,
+    measure_marking,
+)
 from measure.reading import (
     measure_processes,
     measure_profile,
@@ -90,6 +95,8 @@ def _passage(address: str, target: Target, runs: int, parts: Sequence[str]) -> t
         "kept": lambda: (
             *measure_kept(database, target, runs),
             measure_marking(database, target, runs),
+            *measure_comparison(database, target, runs),
+            measure_filtered(database, target, runs),
         ),
     }
     return tuple(measure for part in _PARTS if part in parts for measure in plan[part]())

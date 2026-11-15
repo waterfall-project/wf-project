@@ -10,8 +10,8 @@ and says what a reading kept depends on outside the revision, which still change
 
 - what a current gesture changes — an inscription of a task to a timeline or to the time/time
   tracking, kept by lineage across the revisions (WF-PLA-0060) — does not enter the document: the
-  inscriptions of the project are read at each reading (``KeptReading.inscriptions``), and joined
-  to it by the API;
+  inscriptions of the tasks of the structure are read at each reading
+  (``KeptReading.inscriptions``), and joined to it by the API;
 - what a setting changes — the calendars and the calendar of each role (WF-PLA-0010), the label of
   a work package or an order item (WF-PLA-0170), the label of a subproject (EP-07) — makes the
   readings kept of the project stale: their digest (``settings_digest``), read before the reading
@@ -30,15 +30,16 @@ import zlib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 
-from waterfall.core.planning.tables import StructureReading, TrackingEntry
+from waterfall.core.planning.tables import Node, StructureReading, TrackingEntry
+from waterfall.core.planning.tree import TASK
 from waterfall.core.planning.views import TrackingView
 from waterfall.core.projects.interface import project_subproject_labels, work_breakdown_items
 from waterfall.core.resource_settings.interface import calendar_settings
 from waterfall.core.revisions.interface import revision_marked_at
-from waterfall.platform.database import utc_now
+from waterfall.platform.database import UtcDateTime
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -59,9 +60,9 @@ class KeptReading:
 
     ``document`` the body kept, decompressed, of the format asked and of the settings of now; none
     when the reading is to be made, and kept with ``settings_digest``. ``inscriptions`` the
-    inscriptions of the tasks of the project, by lineage, in the order a reading gives them.
-    ``read_at`` the instant the settings were read, taken as their digest is: the reading made
-    from them is kept with it (``keep_reading``).
+    inscriptions of the tasks of the structure, by lineage, in the order a reading gives them.
+    ``read_at`` the instant the settings were read, taken as their digest is, by the clock of the
+    database: the reading made from them is kept with it (``keep_reading``).
     """
 
     document: bytes | None
@@ -91,15 +92,27 @@ def _settings_digest(session: Session, project_id: UUID) -> bytes:
     return hashlib.sha256(settings.encode()).digest()
 
 
-def _inscriptions_of(session: Session, project_id: UUID) -> dict[UUID, tuple[TrackingView, ...]]:
-    """Read the inscriptions of the tasks of a project, by lineage, the time/time tracking first.
+def _inscriptions_of(session: Session, place: Place) -> dict[UUID, tuple[TrackingView, ...]]:
+    """Read the inscriptions of the tasks of a structure, by lineage, the time/time tracking first.
 
-    In the order a reading gives the inscriptions of a task (``tracking_of``).
+    Those of its tasks alone, not of the project's (#3481); in the order a reading gives the
+    inscriptions of a task (``tracking_of``).
     """
     found: dict[UUID, list[TrackingView]] = {}
     rows = session.execute(
         select(TrackingEntry.lineage_id, TrackingEntry.kind, TrackingEntry.timeline_id)
-        .where(TrackingEntry.project_id == project_id)
+        .join(
+            Node,
+            and_(
+                Node.project_id == TrackingEntry.project_id,
+                Node.lineage_id == TrackingEntry.lineage_id,
+            ),
+        )
+        .where(
+            TrackingEntry.project_id == place.project_id,
+            Node.structure_id == place.structure_id,
+            Node.kind == TASK,
+        )
         .order_by(TrackingEntry.kind, TrackingEntry.created_at, TrackingEntry.id)
     )
     for lineage_id, kind, timeline_id in rows:
@@ -116,7 +129,9 @@ def kept_reading(session: Session, place: Place, form: int) -> KeptReading | Non
     """
     if revision_marked_at(session, place.revision_id) is None:
         return None
-    read_at = utc_now()
+    # The clock of the database, the one every process of the API reads, not each process its own:
+    # two processes whose clocks differ still order their readings as the database does (#3505).
+    read_at = session.execute(select(func.clock_timestamp(type_=UtcDateTime()))).scalar_one()
     digest = _settings_digest(session, place.project_id)
     row = session.execute(
         select(
@@ -132,7 +147,7 @@ def kept_reading(session: Session, place: Place, form: int) -> KeptReading | Non
         if row is not None and row.format == form and row.settings_digest == digest
         else None
     )
-    return KeptReading(document, digest, _inscriptions_of(session, place.project_id), read_at)
+    return KeptReading(document, digest, _inscriptions_of(session, place), read_at)
 
 
 def keep_reading(
@@ -145,7 +160,9 @@ def keep_reading(
     is: the second write is ignored. Nor is one of settings read later replaced by one of settings
     read earlier (``kept.read_at``): a reading that read the settings before a change and is kept
     after another's, of the settings changed, is ignored; of the same instant, the other settings
-    replace.
+    replace. The instants are the database's, one clock for every process (#3505): put back, it can
+    make a reading kept stale, which the next reading finds of other settings and makes again — a
+    reading more, never a body of other settings served.
     """
     statement = insert(StructureReading).values(
         project_id=place.project_id,

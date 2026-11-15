@@ -16,11 +16,13 @@ import json
 import zlib
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+from datetime import timedelta
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 import pytest
 from projects_support import PROJECTS, READING, person
-from sqlalchemy import select, text, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import Session
 from support import wait_for_a_lock
 from test_reading_bodies import ESTIMATE_FIELDS, MARKED_DIGEST, TASKS_DIGESTS
@@ -28,15 +30,17 @@ from test_witness_projects import PRJ_001, REVISION_100, REVISION_101, REVISION_
 from test_witness_tasks import structure_of
 
 from waterfall.api.contract.models import Node, NodeListMeta, NodeTotals
-from waterfall.api.nodes import FORMAT, nodes_body, read_body
+from waterfall.api.nodes import FORMAT, joined, kept_body, kept_document, nodes_body, read_body
 from waterfall.core.planning.interface import (
     NodeFilters,
     Place,
+    TrackingView,
     keep_reading,
     kept_reading,
     list_records,
 )
-from waterfall.core.planning.tables import StructureReading
+from waterfall.core.planning.tables import Node as NodeRow
+from waterfall.core.planning.tables import StructureReading, TrackingEntry
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -378,3 +382,136 @@ def test_the_format_names_the_body_it_writes(witness: Database) -> None:
     # revision, and the format with it.
     body = from_rows(witness, place_of(witness, REVISION_100))
     assert FORMAT_BODIES[FORMAT] == sha(body)
+
+
+# --- The inscriptions joined (#3481) and the order of the readings kept (#3505) ------------------
+
+
+def test_the_inscriptions_are_written_in_the_document_as_reading_it_would_write_them(
+    witness: Database,
+) -> None:
+    # The document kept is not read again to join the inscriptions of its tasks: written in it,
+    # they give the bytes the document read, joined and written again gives, which are the rows'.
+    place = place_of(witness, REVISION_101)
+    with witness.transaction() as session:
+        found = kept_document(session, place)
+        assert found is not None
+        document, kept = found
+        reread = kept_body(session, place)
+        assert reread is not None
+        written = bytes(read_body(reread).body)
+    assert kept.inscriptions
+    assert joined(document, kept.inscriptions) == written == from_rows(witness, place)
+
+
+def test_the_keys_of_a_node_are_written_in_the_order_the_join_of_the_inscriptions_reads(
+    witness: Database,
+) -> None:
+    # ``joined`` glues bytes: each node opens with its ``node_id``, its ``lineage_id`` comes before
+    # the ``tracking`` of its task. A change of the order of the keys of ``Node`` fails here.
+    place = place_of(witness, REVISION_101)
+    with witness.transaction() as session:
+        found = kept_document(session, place)
+    assert found is not None
+    nodes = found[0].split(b'"node_id":')[1:]
+    tasks = [each for each in nodes if b'"tracking":[]' in each]
+    assert tasks
+    for each in tasks:
+        assert each.count(b'"lineage_id":"') == 1
+        assert each.index(b'"lineage_id":"') < each.index(b'"tracking":[]')
+
+
+def test_an_inscription_is_joined_to_its_task_alone_never_to_the_node_after_it() -> None:
+    # A lineage inscribed that is a line's has no inscriptions of its own to receive: the empty
+    # ones of the task after it are left as they are. A text that writes the key is escaped.
+    line, task = uuid4(), uuid4()
+    document = bytes(
+        read_body(
+            {
+                "items": [
+                    {"node_id": "a", "lineage_id": str(line), "task": None},
+                    {
+                        "node_id": "b",
+                        "lineage_id": str(task),
+                        "task": {"label": '"tracking":[]', "tracking": []},
+                    },
+                ]
+            }
+        ).body
+    )
+    inscribed = (TrackingView("milestone_tracking", None),)
+    assert joined(document, {line: inscribed}) == document
+    assert json.loads(joined(document, {task: inscribed}))["items"][1]["task"] == {
+        "label": '"tracking":[]',
+        "tracking": [{"kind": "milestone_tracking", "timeline_id": None}],
+    }
+
+
+def test_the_inscriptions_read_are_those_of_the_tasks_of_the_structure_alone(
+    witness: Database,
+) -> None:
+    # An inscription of a lineage the structure has no task of is not read with its reading kept,
+    # though of the project.
+    place = place_of(witness, REVISION_100)
+    elsewhere = uuid4()
+    with Session(witness.engine) as session:
+        now = session.execute(select(func.now())).scalar_one()
+        session.add(
+            TrackingEntry(
+                id=uuid4(),
+                project_id=PRJ_001,
+                lineage_id=elsewhere,
+                kind="milestone_tracking",
+                timeline_id=None,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        session.flush()
+        kept = kept_reading(session, place, FORMAT)
+        tasks = set(
+            session.scalars(
+                select(NodeRow.lineage_id).where(
+                    NodeRow.project_id == place.project_id,
+                    NodeRow.structure_id == place.structure_id,
+                    NodeRow.kind == "task",
+                )
+            )
+        )
+        session.rollback()
+    assert kept is not None
+    assert kept.inscriptions
+    assert elsewhere not in kept.inscriptions
+    assert set(kept.inscriptions) <= tasks
+
+
+def test_a_reading_of_the_same_instant_replaces_one_of_other_settings_an_earlier_one_does_not(
+    witness: Database,
+) -> None:
+    # The guard of ``keep_reading`` at its bound (#3505): a reading whose settings were read at
+    # the instant of the one kept, of other settings, replaces it; one a microsecond earlier does
+    # not.
+    place = place_of(witness, REVISION_100)
+    with witness.transaction() as session:
+        kept = kept_reading(session, place, FORMAT)
+        assert kept is not None
+        keep_reading(session, place, FORMAT, kept, b"first")
+        same = replace(kept, settings_digest=bytes(32))
+        keep_reading(session, place, FORMAT, same, b"same instant")
+        earlier = replace(kept, read_at=kept.read_at - timedelta(microseconds=1))
+        keep_reading(session, place, FORMAT, earlier, b"earlier")
+    row = kept_row(witness, place)
+    assert row is not None
+    assert (zlib.decompress(row.document), row.kept_at) == (b"same instant", kept.read_at)
+
+
+def test_the_instant_of_a_reading_is_read_on_the_clock_of_the_database(witness: Database) -> None:
+    # One clock for every process of the API (#3505): the instant the settings are read is the
+    # database's, between two readings of its clock.
+    place = place_of(witness, REVISION_100)
+    with witness.transaction() as session:
+        before = session.execute(select(func.clock_timestamp())).scalar_one()
+        kept = kept_reading(session, place, FORMAT)
+        after = session.execute(select(func.clock_timestamp())).scalar_one()
+    assert kept is not None
+    assert before <= kept.read_at <= after

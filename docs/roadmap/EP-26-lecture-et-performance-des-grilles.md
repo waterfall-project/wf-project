@@ -80,9 +80,9 @@ Déjà servies, et reprises pour ce que l'EPIC change à leur durée, non à leu
 `compareRevisions` (US-2220, US-2270, US-2280) ; `updateTaskFacet`, `updateEstimateLine`,
 `setLineRemaining`, `setTaskProgress`, `setNodeTracking`, `setPredecessors`, `createNode`,
 `moveNodes`, `deleteNode`, `previewPaste`, `applyPaste`, `undoLastChange`, `redoLastUndo` (US-2250,
-US-2260, US-2280) ; `createRevision`, `listRevisions` (US-2240) ; `markRevision` (US-2270) ;
-`getProjectWorkload`, `openImport`, `applyImport`, `requestExport`, `getBackgroundTask` (US-2300) ;
-`getMe` (US-2210, US-2230).
+US-2260, US-2280) ; `createRevision`, `listRevisions` (US-2240) ;
+`getProjectWorkload`, `markRevision`, `openImport`, `applyImport`, `requestExport`,
+`getBackgroundTask` (US-2300) ; `getMe` (US-2210, US-2230).
 
 Aucune opération nouvelle, aucune réponse changée. Une seule modification du contrat, qui n'est
 pas une forme : la règle générale des refus de débordement d'un montant dérivé, écrite dans
@@ -616,9 +616,9 @@ soient corrigés, **afin que** l'EPIC ne laisse pas derrière lui la dette qu'il
 
 ## US-2270 — La lecture d'une structure marquée est calculée une fois et gardée
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre — le gain se lit dans le rapport de WF-QUA-0060 (US-2300)
-- **opérations** : `listNodes`, `compareRevisions`, `markRevision`
+- **opérations** : `listNodes`, `compareRevisions`
 - **issue** : #3320
 
 **En tant que** chef de projet, **je veux** que la grille d'une révision marquée, qui ne change
@@ -647,7 +647,25 @@ comparaison sans attendre.
 **Notes de réalisation.** La base d'une comparaison sera toujours marquée (#3176) : cette lecture
 gardée est la moitié stable de toute comparaison d'EP-27, dont elle est le préalable. Rapports de
 la session cloud, à refaire : relire un document gardé coûte un dixième d'une lecture depuis les
-lignes ; il pèse 7,8 Mo, 0,46 Mo compressé.
+lignes ; il pèse 7,8 Mo, 0,46 Mo compressé. US-2270/L2 : l'union lit des deux documents ce qu'elle
+unit et marque, leurs identifiants laissés en texte, et applique à chaque nœud du document sa place,
+ses prédécesseurs renommés et sa marque — un seul algorithme d'union pour les lignes et les
+documents. Les inscriptions s'écrivent dans le document gardé sans le relire (#3481). La lecture
+filtrée garde le chemin des lignes : le moins que coûterait un filtre du document (le lire, un test
+par nœud, l'écrire, sans ancêtres, totaux ni tri) dépasse déjà le tiers de la lecture filtrée
+depuis les lignes pour les filtres mesurés (`make measure-core ONLY=kept`). Ce plancher ne compte ni
+ancêtres, ni totaux, ni tri : il minore le coût d'un filtre appliqué au document, et dépasse le
+tiers pour les trois filtres mesurés, de peu pour deux d'entre eux. Les autres filtres (`sort`,
+`subtree_of`, `timeline_id`, montants) gardent le chemin des lignes par la même règle, sans être
+mesurés. Mesure
+du 2026-11-15 (médianes de 5 passages, dispersion entre parenthèses) : la grille entière d'une
+révision marquée, 290 ms (46) depuis les lignes, 15 ms (3) gardée — 103 ms (2) avant US-2270/L2 ;
+projetée par les champs du devis, 255 ms (77) contre 77 ms (55) ; `compareRevisions` de deux
+révisions marquées, 640 ms (84) depuis les lignes, 240 ms (87) gardée, le corps identique — la
+première comparaison, qui garde les deux lectures, 907 ms. Plancher du document contre lecture
+filtrée depuis les lignes, rapport des médianes : `kinds=task` 70,7 / 72,9 ms (0,97),
+`search=revue&progress=…` 61,1 / 151,7 (0,40), `max_level=2` 59,5 / 147,1 (0,41) : tous
+dépassent le tiers (0,33) en deçà duquel filtrer le document se justifierait.
 
 **Hors périmètre.** « Écarts seulement », que la spécification 1.0.6 change en repli des branches
 sans écart — EP-27 ; les options 2 et 3 de #3168.
