@@ -10,14 +10,16 @@
  * PatternFly of keycloak.v2, which sets pf-v5-theme-dark on <html> when the workstation is dark
  * (prefers-color-scheme), the mechanism kept.
  *
- * The blue of the logos serves the logo, the banner and the ring of the focus alone (as in the
- * front, where `--ring` is the one blue that reaches a component); the primary is the midnight blue.
+ * The blue of the logos serves the logo, the banner and the ring of the focus alone: the one
+ * exception, copied from the front, whose token `--ring` is the one blue that reaches a component
+ * (the focus is seen on any background); the primary is the midnight blue.
  *
  * Contrast (WCAG AA, computed on these values, light / dark): text on the page 16.3 / 17.1, text
  * on the card 17.9 / 15.5, muted text on the card 5.4 / 6.9 and on the page 5.0 / 7.6, text of
  * the primary button on its fill 15.8 / 11.8 (hovered 11.4 / 13.7), text on the accent of a
- * hovered button 15.7 / 13.4, error text on the card 6.5 / 6.2, border of a field on the card 3.5
- * / 4.0 (3:1 asked), ring on the card 4.4 / 5.2 (3:1 asked).
+ * hovered button 15.7 / 13.4, error text on the card 6.5 / 6.2, border of a field, of the language,
+ * of a secondary button and of the external provider on the card (`--input`, as the outline
+ * buttons of the front) 3.5 / 4.0 (3:1 asked; `--border` serves the separators alone), ring on the card 4.4 / 5.2 (3:1 asked).
  */
 
 @font-face {
@@ -97,7 +99,6 @@
 /* The page: the background of the front, no image of Keycloak. */
 .login-pf body,
 body#keycloak-bg {
-  background: var(--wf-background);
   color: var(--wf-foreground);
   font-family: var(--pf-v5-global--FontFamily--text);
   -webkit-font-smoothing: antialiased;
@@ -193,6 +194,12 @@ body#keycloak-bg {
   min-height: 2.5rem;
 }
 
+.pf-v5-c-button.pf-m-primary:disabled,
+.pf-v5-c-button.pf-m-primary.pf-m-disabled {
+  background: var(--pf-v5-global--disabled-color--200);
+  color: var(--pf-v5-global--disabled-color--100);
+}
+
 .pf-v5-c-button.pf-m-primary:hover,
 .pf-v5-c-button.pf-m-primary:focus {
   background: var(--wf-primary-hover);
@@ -200,7 +207,7 @@ body#keycloak-bg {
 }
 
 .pf-v5-c-button.pf-m-secondary {
-  border: 1px solid var(--wf-border);
+  border: 1px solid var(--wf-input);
   color: var(--wf-foreground);
   background: var(--wf-card);
 }
@@ -274,7 +281,7 @@ input[type="radio"] {
 
 .pf-v5-c-login__main-header-utilities .pf-v5-c-form-control {
   width: auto;
-  border-color: var(--wf-border);
+  border-color: var(--wf-input);
 }
 
 .pf-v5-c-login__main-header-utilities select {
@@ -291,7 +298,7 @@ input[type="radio"] {
   width: 100%;
   white-space: normal;
   gap: 0.75rem;
-  border: 1px solid var(--wf-border);
+  border: 1px solid var(--wf-input);
   border-radius: var(--wf-radius-pill);
   color: var(--wf-foreground);
   min-height: 2.5rem;
