@@ -5,7 +5,7 @@
  * than compared to an image: at the two widths of the harness — 1366 points, then 911, what a zoom
  * of 150 % leaves of it — each section is a card whose commands stand at the right of its title, on
  * its line, the principal one filled and the others outlined (WF-IHM-0100); the column of the screen
- * is centred and bounded; the card of the accounts is as tall as its content; the matrix of the
+ * is centred and bounded; the card of the accounts ends right under the lowest text or control it shows, within its padding; the matrix of the
  * permissions keeps its header and its column « Fonction » in view as it scrolls (#3088). That the
  * screens are walked entirely by the keyboard, their contrast measured in both modes and nothing
  * lost at 911 points is proven by `accessibility.spec.ts`, which draws these screens from the table
@@ -95,16 +95,20 @@ for (const size of WINDOWS) {
         .or(reading.getByRole("time")),
     ).toBeVisible();
     // The cards one under the other, none over the next; the card of the accounts takes the height of
-    // its content: its table — a few accounts, one page — is the last thing in it, within its padding.
+    // its content: it ends within its padding under the lowest text or control it shows.
     const first = await box(accounts);
     const second = await box(reading);
     expect(first.bottom, "the accounts above the reading").toBeLessThanOrEqual(second.y);
-    // Whatever the page of the accounts holds under its table (pagination, footer, filters), the
-    // card ends right under the lowest thing it shows, within its padding.
+    // Only real content is measured — leaf elements carrying text, and controls or icons — never a
+    // wrapper, which would stretch with a card stretched itself (flex-1, h-full, min-height): the
+    // card must end right under the lowest of them, within its padding.
     const slack = await accounts.evaluate((card) => {
       const bottom = card.getBoundingClientRect().bottom;
       let lowest = 0;
       for (const element of card.querySelectorAll("*")) {
+        const isControl = element.matches("button, input, select, textarea, a, svg, img");
+        const isText = element.children.length === 0 && element.textContent.trim() !== "";
+        if (!isControl && !isText) continue;
         const rect = element.getBoundingClientRect();
         if (rect.height > 0 && rect.width > 0) {
           lowest = Math.max(lowest, rect.bottom);
@@ -112,6 +116,7 @@ for (const size of WINDOWS) {
       }
       return bottom - lowest;
     });
+    expect(slack, "the content of the accounts stays inside its card").toBeGreaterThanOrEqual(0);
     expect(slack, "no band under the content of the accounts").toBeLessThanOrEqual(40);
     // No menu « ⋯ » is left.
     await expect(page.getByRole("button", { name: /état et commandes/ })).toHaveCount(0);
