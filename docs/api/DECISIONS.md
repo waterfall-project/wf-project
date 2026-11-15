@@ -11896,15 +11896,22 @@ rien n'est écrit. Les pointeurs servis :
   (WF-IHM-0040) ; par `setPredecessors`, `/predecessors`.
 
 La règle ne nomme jamais un champ que la requête ne porte pas. Une cause dont aucun champ n'est
-l'origine reste refusée par le même 422 `VALIDATION_FAILED`, sans `fields` : l'ouverture d'une
-révision (`createRevision`), dont la copie des taux projette ceux de la révision source sur l'année
-de l'horloge, au taux d'inflation du projet — son corps ne porte que `description` et
-`apply_rate_update` —, une annulation ou un rétablissement (`undoLastChange`, `redoLastUndo`), sans
-corps. Les autres écritures qui rechiffrent des lignes écrites — la mise à jour des taux
-(`applyRateUpdate`), un déplacement (`moveNodes`), un collage (`applyPaste`), un changement d'un
-calendrier ou des unités de durée — restent aussi, à ce jour, sans `fields`. Leur pointeur, s'il en
-faut un, se tranche par issue (#3303). `info.version` reste `1.0.0` : aucune forme ne change, aucune
-opération n'est touchée.
+l'origine reste refusée par le même 422 `VALIDATION_FAILED`, sans `fields` : une annulation ou un
+rétablissement (`undoLastChange`, `redoLastUndo`), sans corps, et l'ouverture d'une révision
+(`createRevision`), dont la copie des taux projette ceux de la révision source sur l'année de
+l'horloge, au taux d'inflation du projet — son corps ne porte que `description` et
+`apply_rate_update`, l'année vient de l'horloge, l'inflation du projet, les montants de la révision
+source. Décision de l'auteur du 2026-11-15 (option (a) de #3303) : cette ouverture reste refusée
+sans `fields`, et le critère « un pointeur par cause » d'US-2260 se lit « par cause qui a un
+champ ». Écartées : `/apply_rate_update` (option (b)), qui ne serait juste que si le débordement
+venait du taux de référence appliqué, et faux sans mise à jour ; un code propre au niveau du
+problème, les lignes débordées en `params` (option (c)), une forme nouvelle du contrat que la
+conception d'EP-26 exclut. Les autres écritures qui rechiffrent des lignes écrites — la mise à jour
+des taux (`applyRateUpdate`), un déplacement (`moveNodes`), un collage (`applyPaste`), un
+changement d'un calendrier ou des unités de durée — restent aussi, à ce jour, sans `fields`, même
+quand un champ de la requête en serait l'origine (`/cost_category_ids` pour `applyRateUpdate`,
+#3401) : leur pointeur est reporté → EP-27, par la même décision. `info.version` reste `1.0.0` :
+aucune forme ne change, aucune opération n'est touchée.
 Écartées : décrire chaque refus dans le 422 de son opération, avec un exemple (option (a)), et
 `VALUE_OUT_OF_RANGE` avec `params.maximum` au champ, qui dirait une borne du champ saisi alors que
 c'est le montant calculé qui déborde ; laisser tel quel (option (c)).
