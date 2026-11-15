@@ -108,7 +108,9 @@ export function RiskZoneCell({ risk }: { readonly risk: RiskRow }) {
   return <Signal zone={risk.matrix_cell.zone} variant="icon" />;
 }
 
-/** Render the link that closes the detail of a risk: the same screen, its query kept, without it. */
+/**
+ * Render the link that closes the detail of a risk: the same screen, its query kept, without it.
+ */
 export function CloseRiskDetail() {
   const t = useTranslations("risks.detail");
   const { href, onClick } = useRiskNavigation(undefined);

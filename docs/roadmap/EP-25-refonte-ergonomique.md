@@ -823,7 +823,7 @@ comparaison (EP-27) ; la performance (EP-26).
 
 ## US-2150 — Les écrans que le service ne sert pas encore, mis en page contre le faux back : portefeuille, risques, indicateurs, état du système
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent déjà, sur les exemples du contrat
 - **issue** : #3235
