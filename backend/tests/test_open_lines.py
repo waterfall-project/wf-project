@@ -764,11 +764,14 @@ def test_a_task_not_started_goes_straight_to_completed_by_its_remaining_set_to_n
     assert card(tree, "Étude", bears_lines=False) == [("complete", "completed", [])]
 
 
+@pytest.mark.requirement("WF-PLA-0040-A")
+@pytest.mark.requirement("WF-PLA-0130-A")
 def test_the_tasks_read_alone_derive_from_their_lines_what_the_whole_reading_derives(
     review: Review,
 ) -> None:
-    # US-2280, no requirement of its own: ``kinds=task`` reads none of the lines, but what they
-    # count under each task. A summary its own line holds open (the batch), one its own line set to
+    # US-2280: ``kinds=task`` reads none of the lines, but what they count under each task, and
+    # derives the state of a summary held open (WF-PLA-0040) and its date of completion
+    # (WF-PLA-0130) as the whole reading does. A summary its own line holds open (the batch), one its own line set to
     # nought completed on Friday (the phase), one a provision does not hold (the hazards): their
     # state, their signal, their sums and the places of their subtasks, after their lines, are
     # those the whole reading derives.

@@ -177,6 +177,12 @@ def tasks_reading(session: Session, place: Place, scheduled: tuple[datetime, boo
     tallies name (WF-PLA-0010).
     """
     tree = read_task_rows(session, place.project_id, place.structure_id)
+    # The session of a reading is not frozen (a ``READ COMMITTED`` transaction): the tree, the
+    # tallies and the links are three statements, each of the state of its own instant. A line a
+    # write committed in between shifts the numbers of the rows after it by one, or leaves a link
+    # out, until the next reading; ``frozen_reading`` (#2679) would remove it, a change of the
+    # session this reading does not make. The whole reading numbers from its tree alone, and has
+    # the gap of the links only.
     tallies = tallies_of(session, place)
     numbered(tree, {task_id: tally.count for task_id, tally in tallies.items()})
     tree.held = frozenset(
