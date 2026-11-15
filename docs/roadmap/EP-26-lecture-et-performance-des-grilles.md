@@ -645,7 +645,7 @@ sans écart — EP-27 ; les options 2 et 3 de #3168.
 
 ## US-2280 — Le planning ne lit plus les lignes de devis : leurs sommes par tâche viennent d'un agrégat, ou sont stockées à l'écriture si la mesure le demande
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre — le gain se lit dans le rapport de WF-QUA-0060 (US-2300)
 - **opérations** : `listNodes`, et toutes les écritures d'une structure
 - **issue** : #3318

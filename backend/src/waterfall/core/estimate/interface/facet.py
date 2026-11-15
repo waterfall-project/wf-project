@@ -14,7 +14,8 @@ on (``line_dependencies``), and the lines a move gives another task, whose roles
 hour (``judge_moved_lines``, WF-PLA-0010; US-1490/L4), and the cells a paste gives a line, judged
 and written (``judge_line_cell``, ``write_line_cell``, ``pasting``; US-1560/L1), and the lines of
 a reading that writes nothing read once as rows, their figures and their facets (``line_columns``;
-US-2220/L1).
+US-2220/L1), and what the lines of each task count, read grouped, for a reading of the tasks alone
+(``line_tallies``, ``tallying``; US-2280/L1).
 
 The copy of a line keeps its figures and its amounts, and takes for its budgeted amount that of the
 line of the same lineage in the reference revision, nought without one; null on a project without a
@@ -43,6 +44,7 @@ from waterfall.core.estimate.reading import (
     totals_of,
 )
 from waterfall.core.estimate.tables import EstimateLine
+from waterfall.core.estimate.tallying import line_tallies
 from waterfall.core.estimate.writing import create_line, reprice
 from waterfall.core.planning.interface import (
     FacetHooks,
@@ -303,4 +305,5 @@ LINE_FACET = FacetHooks(
     write_cell=write_line_cell,
     before_lock=share_natures,
     columns=line_columns,
+    tally=line_tallies,
 )

@@ -5,7 +5,9 @@
 The nodes of a structure, each with its facet task if it is one, ordered as the plan reads them:
 under each parent, its lines first, then its subtasks, each kind by its rank (``Node.rank``);
 the whole depth first. ``row_number``, ``level`` and ``position`` are computed here, on the whole
-structure, whatever a reading returns of it (``Node.row_number``, WF-PLA-0080). A task is a
+structure, whatever a reading returns of it (``Node.row_number``, WF-PLA-0080); a tree of the tasks
+alone, read without the nodes they bear (``read_task_rows``), is numbered from how many each bears
+(``numbered``, US-2280). A task is a
 summary when it bears a subtask (WF-PLA-0040), a milestone when it is a leaf of nought duration
 (WF-PLA-0050); its lines do not make it a summary. The summaries an own line holds open are read
 with the tree (``held``, US-1590/L1): those whose subordinates are all completed and one of whose
@@ -32,7 +34,7 @@ from waterfall.core.planning.tables import Node, Task, TaskLink, TrackingEntry
 from waterfall.platform.database import among
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterator
+    from collections.abc import Collection, Iterator, Mapping
     from datetime import date
     from decimal import Decimal
 
@@ -254,24 +256,79 @@ def read_rows(session: Session, project_id: UUID, structure_id: UUID) -> Tree[No
     return tree
 
 
-def _closing[N: NodeColumns, T: TaskColumns](tree: Tree[N, T]) -> dict[UUID, list[UUID]]:
-    """Give the summaries whose subtasks are all completed, each with its own lines to ask.
+def read_task_rows(
+    session: Session, project_id: UUID, structure_id: UUID
+) -> Tree[NodeRow, TaskRow]:
+    """Read the tasks of a structure alone as rows, none of the nodes they bear (US-2280).
 
-    Their leaves completed, whatever the lines of the summaries between hold; the lines a risk
-    provides for left out (WF-RIS-0010), and a summary without another line too: nothing holds it.
+    The columns ``read_rows`` reads of a task, in one statement; numbered as the whole structure
+    once ``numbered`` is told how many nodes each task bears, held open as its reader tells.
+    """
+    rows = session.execute(
+        select(*_NODE_COLUMNS, *_TASK_COLUMNS)
+        .join(Task, and_(Task.project_id == Node.project_id, Task.node_id == Node.id))
+        .where(Node.project_id == project_id, Node.structure_id == structure_id, Node.kind == TASK)
+    )
+    split = len(_NODE_COLUMNS)
+    nodes: dict[UUID, NodeRow] = {}
+    tasks: dict[UUID, TaskRow] = {}
+    for row in rows:
+        node = NodeRow._make(row[:split])
+        nodes[node.id] = node
+        tasks[node.id] = TaskRow._make(row[split:])
+    return Tree(nodes, tasks)
+
+
+def numbered[N: NodeColumns, T: TaskColumns](tree: Tree[N, T], borne: Mapping[UUID, int]) -> None:
+    """Set the rows and places of a tree of the tasks alone, from how many nodes each task bears.
+
+    As the whole structure numbers them: under a task its lines come first, then its subtasks, so
+    a task is followed by the rows of its lines, and its subtasks are placed after them. The level
+    does not change: no task is under a line.
+    """
+    row = 0
+    for node_id in tree.order:
+        row += 1
+        tree.row_number[node_id] = row
+        row += borne.get(node_id, 0)
+    for parent, below in tree.children.items():
+        if parent is not None:
+            for place, child in enumerate(below, start=1 + borne.get(parent, 0)):
+                tree.position[child] = place
+
+
+def completed_below[N: NodeColumns, T: TaskColumns](tree: Tree[N, T]) -> list[UUID]:
+    """Give the summaries whose subtasks are all completed, their leaves, deepest first.
+
+    Whatever the lines of the summaries between hold: a summary held open by its own line is
+    completed below.
     """
     done: dict[UUID, bool] = {}
-    found: dict[UUID, list[UUID]] = {}
+    found: list[UUID] = []
     for node_id in reversed(tree.order):
         if node_id not in tree.tasks:
             continue
         below = tree.subtasks(node_id)
-        if not below:
-            done[node_id] = tree.tasks[node_id].progress == COMPLETED
-            continue
-        done[node_id] = all(done[each] for each in below)
+        done[node_id] = (
+            all(done[each] for each in below)
+            if below
+            else tree.tasks[node_id].progress == COMPLETED
+        )
+        if below and done[node_id]:
+            found.append(node_id)
+    return found
+
+
+def _closing[N: NodeColumns, T: TaskColumns](tree: Tree[N, T]) -> dict[UUID, list[UUID]]:
+    """Give the summaries whose subtasks are all completed, each with its own lines to ask.
+
+    The lines a risk provides for left out (WF-RIS-0010), and a summary without another line too:
+    nothing holds it.
+    """
+    found: dict[UUID, list[UUID]] = {}
+    for node_id in completed_below(tree):
         lines = [each for each in tree.lines(node_id) if tree.nodes[each].origin_risk_id is None]
-        if done[node_id] and lines:
+        if lines:
             found[node_id] = lines
     return found
 

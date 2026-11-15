@@ -8,9 +8,13 @@ revision of PRJ-001 of the loaded witness — two marked, one current —, every
 structure is read whole by each path, its facet included, and the two readings are the same: the
 views, the depth of the summaries, the totals of the lines. ``listNodes`` writes its body from
 records rather than views (US-2220/L2): the records of the rows are the views of the objects made
-records (``record_of``), which every other route writes its nodes from.
+records (``record_of``), which every other route writes its nodes from. A reading of the tasks
+alone reads none of the lines, but what they count under each task (US-2280): the whole reading of
+the same filters is its oracle.
 """
 
+import itertools
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 import pytest
@@ -18,15 +22,16 @@ from test_witness_projects import PRJ_001, REVISION_100, REVISION_101, REVISION_
 from test_witness_tasks import structure_of
 
 from waterfall.core.planning.filters import NodeFilters
-from waterfall.core.planning.interface.facets import calendars_of
+from waterfall.core.planning.interface.facets import LineSort, calendars_of
 from waterfall.core.planning.interface.nodes import list_nodes
-from waterfall.core.planning.reading import list_records, reading_of
+from waterfall.core.planning.reading import list_records, reading_of, retained_reading
 from waterfall.core.planning.tree import read_links, read_rows, read_tree
 from waterfall.core.planning.views import (
     FacetRecord,
     NodeView,
     Reading,
     TaskRecord,
+    TasksReading,
     record_of,
 )
 from waterfall.core.planning.writing import Place, facts_of
@@ -150,3 +155,56 @@ def test_a_node_its_facet_does_not_read_names_no_field(
     assert record.computed_fields == ()
     assert record.editable_fields == ()
     assert record.facet is None
+
+
+# What a reading of the tasks alone is asked, each against the whole reading (US-2280): the tasks
+# alone, filtered by a task, by their level, their summaries, sorted by a column of the line.
+TASKS_ALONE = {
+    "tasks": NodeFilters(kinds=("task",)),
+    "searched, by state": NodeFilters(
+        kinds=("task",), search="revue", progress=("not_started", "started")
+    ),
+    "two levels": NodeFilters(kinds=("task",), max_level=2),
+    "summaries": NodeFilters(kinds=("task",), summaries_only=True),
+    "sorted by a line": NodeFilters(kinds=("task",), sort=LineSort("base_amount", descending=True)),
+}
+
+
+@pytest.mark.parametrize("revision", [REVISION_100, REVISION_101, REVISION_102])
+@pytest.mark.parametrize("name", list(TASKS_ALONE))
+def test_the_tasks_read_alone_are_those_the_whole_reading_gives(
+    witness: Database, revision: UUID, name: str
+) -> None:
+    # ``kinds=task`` reads the tasks and the tallies of their lines, none of these (US-2280): its
+    # records, the count, the depth and the totals of the lines retained are those the whole
+    # reading gives of the same filters, its lines left out.
+    filters = TASKS_ALONE[name]
+    with witness.transaction() as session:
+        place = Place(PRJ_001, revision, structure_of(session, revision))
+        alone_read, _, _ = retained_reading(session, place, filters)
+        whole_read, _, _ = retained_reading(session, place, replace(filters, kinds=None))
+        alone = list_records(session, place, filters)
+        whole = list_records(session, place, replace(filters, kinds=None))
+    assert isinstance(alone_read, TasksReading)
+    assert not isinstance(whole_read, TasksReading)
+    tasks = tuple(each for each in whole.items if isinstance(each, TaskRecord))
+    assert tasks
+    assert alone.items == tasks
+    assert (alone.task_count, alone.summary_depth) == (whole.task_count, whole.summary_depth)
+    assert (alone.scheduled_at, alone.totals) == (whole.scheduled_at, whole.totals)
+
+
+def test_the_tasks_read_alone_are_numbered_and_summed_through_their_lines(
+    witness: Database,
+) -> None:
+    # The numbers and the sums of the tasks read alone come from the tallies of their lines: on the
+    # witness, tasks bear lines, and the next task is numbered past them (the places after the
+    # lines of a summary: ``test_open_lines``).
+    with witness.transaction() as session:
+        place = Place(PRJ_001, REVISION_102, structure_of(session, REVISION_102))
+        records = list_records(session, place, NodeFilters(kinds=("task",))).items
+    tasks = [each for each in records if isinstance(each, TaskRecord)]
+    assert len(tasks) == len(records) > 100
+    gaps = [after.row_number - before.row_number for before, after in itertools.pairwise(tasks)]
+    assert max(gaps) > 1
+    assert any(each.amounts.base > 0 for each in tasks)
