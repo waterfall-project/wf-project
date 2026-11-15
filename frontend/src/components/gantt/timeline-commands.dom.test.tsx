@@ -329,7 +329,7 @@ describe("the commands of the timelines of a project", () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 
-  it("presents its commands unavailable with the conditions they lack, and opens nothing", async () => {
+  it("presents its commands unavailable with the conditions they lack, said in the tooltip and, pressed, in the refusals, and opens nothing [WF-IHM-0090-A]", async () => {
     serve();
     render(choice({ is_available: false, missing_conditions: ["project_not_terminal"] }));
     for (const name of [
@@ -342,8 +342,31 @@ describe("the commands of the timelines of a project", () => {
       await userEvent.click(command);
       expect(screen.queryByRole("dialog")).toBeNull();
     }
+    // The condition is read in the tooltip and, pressed, in the region of the refusals: never
+    // written under the command (WF-IHM-0090-A, #3290).
+    expect(screen.getByRole("alert")).toHaveTextContent("Condition non remplie : projet non clos.");
     // Nothing was sent: the history notes nothing of the conditions said.
     expect(readMessages().messages).toEqual([]);
+  });
+
+  it("chooses the timeline by a row of tabs, the one shown current, and fills the creation alone [WF-IHM-0100-A]", () => {
+    serve();
+    render(choice(AVAILABLE));
+    const row = screen.getByRole("navigation", { name: "Chronologie affichée" });
+    expect(row).toHaveAttribute("data-slot", "tabs");
+    const [shown, other] = within(row).getAllByRole("link");
+    expect(shown).toHaveAttribute("aria-current", "true");
+    expect(other).not.toHaveAttribute("aria-current");
+    for (const link of [shown, other]) {
+      expect(link).toHaveClass("border-b-2");
+      expect(link).not.toHaveClass("bg-primary");
+    }
+    expect(screen.getByRole("button", { name: "Nouvelle chronologie" })).toHaveClass("bg-primary");
+    expect(
+      screen.getByRole("button", {
+        name: `Supprimer la chronologie ${quoted("Comité de pilotage")}`,
+      }),
+    ).not.toHaveClass("bg-primary");
   });
 
   it("offers nothing to a session the project lists no command to", () => {

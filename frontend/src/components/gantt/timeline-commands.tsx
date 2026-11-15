@@ -7,7 +7,10 @@
  * at it —; the timeline shown deleted once confirmed, its inscriptions with it, the tasks keeping
  * their dates — nothing refuses it but a terminal project (WF-DAT-0080). They follow the command
  * `manage_timelines` the project lists: absent, nothing is offered; unavailable, presented
- * `aria-disabled`, described by the conditions it lacks.
+ * `aria-disabled`, the conditions it lacks read in its tooltip and, pressed, in the region of the
+ * refusals, never written under it, as every command (`Command`, WF-IHM-0090-A, #3290). The choice
+ * of the timeline is a row of tabs (`Tabs`), the one shown underlined; the creation, which creates,
+ * is the one filled button beside it (EP-25, US-2140/L2).
  *
  * What a write did is said in a region of its own; a refusal answered once its dialog is gone, and a
  * refusal of a deletion, above the timelines (`Reactivations`). A creation adds no link: the page read
@@ -32,7 +35,6 @@ import {
   type ReactNode,
   useContext,
   useEffect,
-  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -42,14 +44,14 @@ import {
 
 import { createTimeline, deleteTimeline } from "@/api/actions/projects";
 import type { components } from "@/api/generated/schema";
-import { UnmetConditions, useUnmet } from "@/components/commands/command";
+import { PressRefusal, useUnmet } from "@/components/commands/command";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { useHeldCommand } from "@/components/commands/held";
-import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
+import { type CommandOffer, UNAVAILABLE } from "@/components/commands/offer";
 import { useSaid } from "@/components/notices/said";
 import { Reactivations, useListReport } from "@/components/reference/reactivation";
 import { ReferenceForm, required } from "@/components/reference/reference-form";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -58,6 +60,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Tabs, tabVariants } from "@/components/ui/tabs";
 
 /** A named timeline of a project. */
 type Timeline = components["schemas"]["Timeline"];
@@ -156,13 +159,10 @@ export function TimelineChoice(props: TimelineChoiceProps) {
 /** The commands that create a timeline and delete the one shown, as the project lists them. */
 function ManageButtons({
   offer,
-  unmet,
   current,
   open,
 }: {
   readonly offer: CommandOffer;
-  /** The identifier of the text that names the conditions the offer lacks. */
-  readonly unmet: string | undefined;
   readonly current: Timeline | undefined;
   readonly open: (deleting: Timeline | undefined, trigger: HTMLElement) => void;
 }) {
@@ -170,23 +170,29 @@ function ManageButtons({
   const helps = useTranslations("commands");
   const unmetText = useUnmet();
   const unavailable = offer.is_available ? undefined : unmetText(offer);
+  // The presses of either command while unavailable: each says what it lacks, in the region of the
+  // refusals, the condition itself being read in the tooltip (WF-IHM-0090-A, #3290).
+  const [presses, setPresses] = useState(0);
+  const press = (deleting: Timeline | undefined, trigger: HTMLElement) => {
+    if (offer.is_available) {
+      open(deleting, trigger);
+    } else {
+      setPresses((count) => count + 1);
+    }
+  };
   return (
     <>
-      <CommandTooltip
-        label={t("create")}
-        help={helps("create.help")}
-        unavailable={unavailable}
-        describedBy={unmet}
-      >
+      <CommandTooltip label={t("create")} help={helps("create.help")} unavailable={unavailable}>
+        {/* Filled: it creates, the one principal command of the choice (#3088, #3090). */}
         <Button
           type="button"
-          variant="outline"
+          variant="default"
           size="sm"
           aria-disabled={offer.is_available ? undefined : true}
           aria-haspopup="dialog"
           className={UNAVAILABLE}
           onClick={(event: MouseEvent<HTMLElement>) => {
-            open(undefined, event.currentTarget);
+            press(undefined, event.currentTarget);
           }}
         >
           <Plus aria-hidden="true" />
@@ -198,7 +204,6 @@ function ManageButtons({
           label={t("deleteNamed", { label: current.label })}
           help={helps("deleteTimeline.help")}
           unavailable={unavailable}
-          describedBy={unmet}
         >
           <Button
             type="button"
@@ -209,7 +214,7 @@ function ManageButtons({
             aria-disabled={offer.is_available ? undefined : true}
             className={UNAVAILABLE}
             onClick={(event: MouseEvent<HTMLElement>) => {
-              open(current, event.currentTarget);
+              press(current, event.currentTarget);
             }}
           >
             <Trash2 aria-hidden="true" />
@@ -217,6 +222,7 @@ function ManageButtons({
           </Button>
         </CommandTooltip>
       )}
+      <PressRefusal offer={offer} presses={presses} />
     </>
   );
 }
@@ -230,7 +236,6 @@ function Choice({ project, offer, timelines, shown, hrefs }: TimelineChoiceProps
   // The list, which tells the refusal, holds the navigations while the deletion answers (#688).
   const own = useHeldCommand();
   const held = list?.held ?? own;
-  const id = useId();
   const { deleted, drop } = useDeletions();
   // What the last write did, noted in the history of the messages as it is said.
   const [said, say] = useSaid();
@@ -258,7 +263,6 @@ function Choice({ project, offer, timelines, shown, hrefs }: TimelineChoiceProps
       mounted.current = false;
     };
   }, []);
-  const unmet = offer === undefined ? undefined : unmetId(offer, id);
   const deleting = opened?.deleting;
   const open = (deleting: Timeline | undefined, trigger: HTMLElement) => {
     if (offer?.is_available === true) {
@@ -312,28 +316,20 @@ function Choice({ project, offer, timelines, shown, hrefs }: TimelineChoiceProps
         {said === undefined ? null : <span key={said.count}>{said.text}</span>}
       </p>
       {listed.length === 0 ? null : (
-        <nav aria-label={t("choice")} className="flex flex-wrap items-center gap-1 text-sm">
+        <Tabs aria-label={t("choice")}>
           {listed.map((timeline) => (
             <Link
               key={timeline.timeline_id}
               href={hrefs[timeline.timeline_id] ?? ""}
               aria-current={timeline === current ? "true" : undefined}
-              className={buttonVariants({
-                variant: timeline === current ? "default" : "outline",
-                size: "sm",
-              })}
+              className={tabVariants()}
             >
               {timeline.label}
             </Link>
           ))}
-        </nav>
+        </Tabs>
       )}
-      {offer === undefined ? null : (
-        <>
-          <ManageButtons offer={offer} unmet={unmet} current={current} open={open} />
-          <UnmetConditions id={unmet} offer={offer} />
-        </>
-      )}
+      {offer === undefined ? null : <ManageButtons offer={offer} current={current} open={open} />}
       {opened === undefined ? null : deleting === undefined ? (
         <ReferenceForm<Timeline>
           key={opened.opening}

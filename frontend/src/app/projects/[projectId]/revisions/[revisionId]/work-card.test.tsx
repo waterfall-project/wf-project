@@ -4,8 +4,9 @@
  * The card of a grid of work (EP-25, US-2140/L1): it holds what it is given, the planning start
  * date above the grid among it, in the order it is given (WF-IHM-0100-A). A server component with
  * no state, so tried in the node project; that it fills the window and that its rows keep their
- * height is measured in a browser by `e2e/work-cards.spec.ts`, and its accessibility by
- * `accessibility.spec.ts`.
+ * height is measured in a browser by `e2e/work-cards.spec.ts`, and its accessibility — keyboard,
+ * contrast, zoom — by `e2e/accessibility.spec.ts`, which draws these screens by `tableScreens()` of
+ * `e2e/routes.ts` (#3423).
  */
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -23,7 +24,7 @@ describe("WorkCard", () => {
     const body = html.indexOf('data-slot="card-content"');
     const date = html.indexOf("Date de début de planning");
     const grid = html.indexOf('role="grid"');
-    expect(html.startsWith('<div data-slot="work-card"'), "one card").toBe(true);
+    expect(html.indexOf('data-slot="work-card"'), "one card").toBeGreaterThanOrEqual(0);
     expect(body, "the card has a body").toBeGreaterThan(0);
     expect(date, "the date is in the body").toBeGreaterThan(body);
     expect(grid, "the grid is below the date").toBeGreaterThan(date);

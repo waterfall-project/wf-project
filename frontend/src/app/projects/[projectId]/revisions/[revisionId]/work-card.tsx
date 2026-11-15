@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The card of a grid of work of a revision (EP-25, US-2140/L1): the planning, the estimate, the
- * remaining to commit, the task tree. Bare of any title of section — the title of the screen says
- * it —, it holds what belongs to the grid: its bar, its table, its pages, and above them what only
+ * remaining to commit, the task tree and, from US-2140/L2, the actual costs. Bare of any title of
+ * section — the title of the screen says it —, it holds what belongs to the grid: its bar, its table, its pages, and above them what only
  * the grid reads, such as the planning start date, so that nothing floats under the title of the
  * screen. The screen stays one of work (`FUNCTION_DENSITY`): tight, as wide as the window; the card
  * fills what the screen leaves it (`Screen fill`), its content shrinking to it, the grid down to

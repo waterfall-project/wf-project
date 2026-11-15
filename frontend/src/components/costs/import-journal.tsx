@@ -5,8 +5,9 @@
  * the server gives it: of each import, its date in the local time of the workstation, its author,
  * the period extracted and the counts of the lines created, updated, unchanged and rejected —
  * figures the server counted, in the format of the language. The way through its pages, when the server holds
- * more than one; that it is empty, when no import was ever made. A region named by its label, as
- * the totals and the filters are: no identifier drawn on the server (#251).
+ * more than one; that it is empty, when no import was ever made. A card of the screen
+ * (`SectionCard`, EP-25, US-2140/L2), a region named by its title, as the totals and the filters
+ * are: no identifier drawn on the server (#251).
  */
 import { History } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -16,7 +17,8 @@ import { KeptListSize } from "@/components/grid/kept-list-size";
 import { ListPages } from "@/components/grid/list-pages";
 import type { GridPreferences } from "@/components/grid/settings";
 import { LocalTime } from "@/components/local-time";
-import { Actor, CELL, ICON, ListTable } from "@/components/projects/project-tables";
+import { Actor, CELL, ListTable } from "@/components/projects/project-tables";
+import { SectionCard } from "@/components/shell/section-card";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatDecimal, formatPlanningDate } from "@/i18n/format";
 
@@ -57,11 +59,7 @@ export function ImportJournal({
   const locale = useLocale();
   const count = (value: number) => formatDecimal(String(value), locale);
   return (
-    <section aria-label={t("title")} className="space-y-2">
-      <h2 className="flex items-center gap-2 text-base font-semibold">
-        <History aria-hidden="true" className={ICON} />
-        {t("title")}
-      </h2>
+    <SectionCard title={t("title")} icon={History}>
       {page.total === 0 ? <p className="text-sm text-muted-foreground">{t("none")}</p> : null}
       {imports.length === 0 ? null : (
         <ListTable
@@ -115,6 +113,6 @@ export function ImportJournal({
         address={IMPORTS_ADDRESS}
         preferences={preferences}
       />
-    </section>
+    </SectionCard>
   );
 }

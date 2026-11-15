@@ -637,7 +637,6 @@
     }
   },
   "actualCosts": {
-    "summary": "{count, plural, =0 {aucune ligne retenue} one {# ligne retenue} other {# lignes retenues}}",
     "refused": {
       "period": "Les coûts réels ne se lisent pas sur cette période : sa fin précède son début.",
       "subproject": "Les coûts réels ne se lisent pas : le sous-projet demandé n’existe pas.",
