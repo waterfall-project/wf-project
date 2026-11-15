@@ -643,7 +643,7 @@ de l'écran de référence, **afin de** y retrouver les commandes à la même pl
 
 ## US-2110 — Les écrans de paramètres applicatifs en cartes : coûts, ressources, risques, indicateurs, correspondance des coûts réels
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
 - **issue** : #3229

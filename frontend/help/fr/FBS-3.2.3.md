@@ -10,7 +10,7 @@ Un et un seul calendrier actif est désigné **Par défaut**, marqué dans sa co
 
 Ces commandes ne sont offertes qu’à qui peut modifier les paramètres de ressources :
 
-- **Nouveau calendrier** ouvre le formulaire : le libellé et les heures de chacun des sept jours, tous requis.
+- **Nouveau calendrier**, bouton plein à droite du titre de la carte des calendriers, ouvre le formulaire : le libellé et les heures de chacun des sept jours, tous requis.
 - **Modifier**, sur une ligne, ouvre le même formulaire sur le calendrier.
 - **Désigner**, dans la colonne **Par défaut**, fait du calendrier celui par défaut, à la place du précédent. Indisponible pour un calendrier désactivé (« calendrier actif »).
 - **Désactiver** et **Réactiver**, dans la colonne **État**, sans confirmation. Le calendrier par défaut ne se désactive qu’après qu’un autre a été désigné (« calendrier autre que celui par défaut »).
