@@ -49,7 +49,6 @@ import {
   type MouseEvent,
   type ReactNode,
   useContext,
-  useId,
   useMemo,
   useRef,
   useState,
@@ -57,11 +56,13 @@ import {
 } from "react";
 
 import { deleteSubproject, writeSubproject } from "@/api/actions/projects";
-import { UnmetConditions } from "@/components/commands/command";
+import { PressRefusal, useUnmet } from "@/components/commands/command";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { useHeldCommand } from "@/components/commands/held";
-import { type CommandOffer, findOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
+import { type CommandOffer, findOffer, UNAVAILABLE } from "@/components/commands/offer";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { type Said, type Say, useSaid } from "@/components/notices/said";
+import type { PrincipalVariant } from "@/components/shell/section-card";
 import { CellCommand, UnavailableCellCommand } from "@/components/reference/cell-command";
 import { ANOTHER_OBJECT } from "@/components/reference/commands";
 import { useListReading } from "@/components/reference/list-reading";
@@ -251,12 +252,21 @@ function focusBack(trigger: HTMLElement, list: (() => void) | undefined) {
  * deletion lacks —, rendered from the start so that a reader of the screen hears it; and the command
  * that creates a sub-project, as the project lists `update`.
  */
-export function SubprojectHead({ offer }: { readonly offer: CommandOffer | undefined }) {
+export function SubprojectHead({
+  offer,
+  variant = "outline",
+}: {
+  readonly offer: CommandOffer | undefined;
+  /** The variant its card draws the creation at (`principalVariant`). */
+  readonly variant?: PrincipalVariant;
+}) {
   const t = useTranslations("projectLists.subprojects");
+  const helps = useTranslations("commands");
+  const unmet = useUnmet();
   const commands = useContext(SubprojectContext);
-  const id = useId();
+  // The presses of the creation while it is unavailable: each says what it lacks.
+  const [presses, setPresses] = useState(0);
   const said = commands?.said;
-  const unmet = offer === undefined ? undefined : unmetId(offer, id);
   return (
     <div className="flex flex-wrap items-center gap-2">
       <p role="status" aria-live="polite" className="text-sm text-muted-foreground empty:sr-only">
@@ -273,24 +283,30 @@ export function SubprojectHead({ offer }: { readonly offer: CommandOffer | undef
       </p>
       {offer === undefined ? null : (
         <>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            aria-disabled={offer.is_available ? undefined : true}
-            aria-describedby={unmet}
-            aria-haspopup="dialog"
-            className={UNAVAILABLE}
-            onClick={(event: MouseEvent<HTMLElement>) => {
-              if (offer.is_available) {
-                commands?.open({ row: undefined, trigger: event.currentTarget, deleting: false });
-              }
-            }}
+          <CommandTooltip
+            label={t("create")}
+            help={helps("create.help")}
+            unavailable={offer.is_available ? undefined : unmet(offer)}
           >
-            <Plus aria-hidden="true" />
-            {t("create")}
-          </Button>
-          <UnmetConditions id={unmet} offer={offer} />
+            <Button
+              type="button"
+              variant={variant}
+              size="sm"
+              aria-haspopup="dialog"
+              className={UNAVAILABLE}
+              onClick={(event: MouseEvent<HTMLElement>) => {
+                if (!offer.is_available) {
+                  setPresses((count) => count + 1);
+                  return;
+                }
+                commands?.open({ row: undefined, trigger: event.currentTarget, deleting: false });
+              }}
+            >
+              <Plus aria-hidden="true" />
+              {t("create")}
+            </Button>
+          </CommandTooltip>
+          <PressRefusal offer={offer} presses={presses} />
         </>
       )}
     </div>

@@ -7,7 +7,9 @@ what it answers: the SHA-256 of each body below was taken on the loaded witness 
 touched the code, and a byte apart fails the test (EP-26, "La lecture d'une structure"). The
 readings are those of the issue: ``listNodes`` of the current revision whole, with ``kinds=task``,
 with the fields the grid of the estimate asks, filtered and sorted — by a task, by a line —, and
-``compareRevisions`` of the two marked revisions, whole, then filtered and sorted.
+``compareRevisions`` of the two marked revisions, whole, then filtered and sorted. US-2280 reads the
+tasks alone without their lines: ``kinds=task`` filtered by a task, and of a marked revision, are
+added, their SHA-256 taken before US-2280/L1 touched the code (``TASKS_DIGESTS``).
 The bodies are read straight from the application, unchecked against the contract: their form is
 the other tests' (``test_witness_lines_reads``), their bytes this one's.
 """
@@ -63,6 +65,25 @@ NODES = {
         "&sort_by=base_amount&sort_order=desc"
     ),
 }
+# The readings of the tasks alone added by US-2280/L1, and their SHA-256 taken before it (commit
+# 7a43a670c of epic/EP-26).
+TASKS = {
+    "kinds=task, filtered by a task": "?kinds=task&search=revue&progress=not_started,started",
+    "kinds=task, by level, sorted by a line": (
+        "?kinds=task&max_level=2&sort_by=base_amount&sort_order=desc"
+    ),
+}
+TASKS_DIGESTS = {
+    "kinds=task, filtered by a task": (
+        "27426087badf17a3dc8e8577f886f1f718d23bf64ba989ee7405c9fdb317baf8"
+    ),
+    "kinds=task, by level, sorted by a line": (
+        "056334a6ccf96fd37b9085d82066a283de0e581ee00a71fd65e8c1caf363a594"
+    ),
+    "kinds=task of a marked revision": (
+        "d4bc9de494d853535c226b866f15973338ea67ed3b364656f3f4c4ea6604c601"
+    ),
+}
 COMPARISONS = {
     "whole comparison": "",
     "comparison filtered and sorted": (
@@ -106,6 +127,25 @@ def test_the_nodes_of_the_current_revision_read_to_the_byte_what_they_read_befor
         structure = structure_of(session, REVISION_102)
     url = f"{PROJECTS}/{PRJ_001}/revisions/{REVISION_102}/structures/{structure}/nodes{NODES[name]}"
     assert digest(api, witness, realm, url) == DIGESTS[name]
+
+
+@pytest.mark.parametrize("name", list(TASKS))
+def test_the_tasks_of_the_current_revision_read_alone_to_the_byte_what_they_read_before_us_2280(
+    api: ContractClient, witness: Database, realm: TestRealm, name: str
+) -> None:
+    with witness.transaction() as session:
+        structure = structure_of(session, REVISION_102)
+    url = f"{PROJECTS}/{PRJ_001}/revisions/{REVISION_102}/structures/{structure}/nodes{TASKS[name]}"
+    assert digest(api, witness, realm, url) == TASKS_DIGESTS[name]
+
+
+def test_the_tasks_of_a_marked_revision_read_alone_to_the_byte_what_they_read_before_us_2280(
+    api: ContractClient, witness: Database, realm: TestRealm
+) -> None:
+    with witness.transaction() as session:
+        structure = structure_of(session, REVISION_100)
+    url = f"{PROJECTS}/{PRJ_001}/revisions/{REVISION_100}/structures/{structure}/nodes?kinds=task"
+    assert digest(api, witness, realm, url) == TASKS_DIGESTS["kinds=task of a marked revision"]
 
 
 @pytest.mark.parametrize("name", list(COMPARISONS))

@@ -753,13 +753,12 @@ describe("the follow-up across a full reload of the tab", () => {
     expect(reads(client)).toHaveLength(2);
     expect(ends()).toEqual([["Tâche terminée\u00A0: Marquage d’une révision."]]);
 
-    // The line under the bar says the end, on whatever screen; opened, the panel lists the task as
-    // it now stands.
+    // The line under the bar no longer says the end, which its card says (#3292), nor the task
+    // handed over before it; opened, the panel lists the task as it now stands.
     const said = screen
-      .getAllByText("Tâche terminée : Marquage d’une révision.")
+      .queryAllByText(/^Tâche (?:terminée|lancée)/)
       .filter((line) => line.closest("[role=log]") === null);
-    expect(said).toHaveLength(1);
-    expect(said[0]).toBeVisible();
+    expect(said).toEqual([]);
     await userEvent.click(tasksButton());
     expect(within(entries()).getByText("Réussie")).toBeVisible();
   });

@@ -95,7 +95,9 @@ describe("the number of rows per page of a flat table", () => {
         .map((option) => option.textContent),
     ).toEqual(["10", "25", "50", "100"]);
     expect(choice).toHaveValue("25");
-    expect(screen.getByRole("navigation", { name: "Pages de la liste" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("navigation", { name: "Pages des comptes utilisateurs" }),
+    ).toBeInTheDocument();
     await expectAccessible(container);
   });
 

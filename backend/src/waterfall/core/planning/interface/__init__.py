@@ -40,8 +40,8 @@ from waterfall.core.planning.interface.closing import (
     delete_nodes as delete_nodes,
 )
 
-# ``facets`` (US-1380/L1; read by US-1380/L2; completed by US-1490/L3, US-2260/L3): the facets of
-# a node other than the task (EP-07).
+# ``facets`` (US-1380/L1; read by US-1380/L2; completed by US-1490/L3, US-2260/L3, US-2280/L1): the
+# facets of a node other than the task (EP-07).
 from waterfall.core.planning.interface.facets import (
     Amounts as Amounts,
 )
@@ -80,6 +80,9 @@ from waterfall.core.planning.interface.facets import (
 )
 from waterfall.core.planning.interface.facets import (
     RepricedBeyondColumnError as RepricedBeyondColumnError,
+)
+from waterfall.core.planning.interface.facets import (
+    Tally as Tally,
 )
 from waterfall.core.planning.interface.facets import (
     calendar_of as calendar_of,

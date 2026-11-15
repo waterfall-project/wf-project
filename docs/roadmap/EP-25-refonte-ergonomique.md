@@ -36,8 +36,8 @@ projet et du compte (#3079, #3088, #3090), et celle des dix écrans que le servi
 — les sept du portefeuille, les risques et les indicateurs d'un projet, l'état du système —, contre
 le faux back (décision de l'auteur du 2026-11-14, au cadrage) ;
 - l'écran « Installation » de la section « Administration », qui reçoit le nom de l'entreprise, sous
-une fonction nouvelle du catalogue des permissions, une fois la spécification révisée (#3088 ;
-décision de l'auteur du 2026-11-14, au cadrage) ;
+une fonction nouvelle du catalogue des permissions, FBS-1.6 (#3088 ; décisions de l'auteur du
+2026-11-14, au cadrage, et du 2026-11-15 : la spécification est mise à jour ensuite, #3197) ;
 - le fuseau horaire de l'installation, gardé à l'amorçage, dans lequel s'entend le jour courant, et
 que l'écran « Installation » montre (#2527, repris d'EP-13 ; décision de l'auteur du 2026-11-14, au
 cadrage : avant que les grilles se finalisent) ;
@@ -50,7 +50,9 @@ WF-ADM-0040, WF-IHM-0130) ;
 WF-IHM-0080) ;
 - les deux parcours des paramètres de coûts mis en quarantaine contre le service : leur cause, puis
 leur réactivation, par le premier lot (#3190, #3191) ;
-- les mineurs ouverts sur les écrans que l'EPIC reprend.
+- les mineurs ouverts sur les écrans que l'EPIC reprend ;
+- les constats « à trancher » que les lots d'écran ont relevés sur des composants communs, et la
+dette de tests qu'ils laissent, soldés en fin d'EPIC (US-2310, décision de l'auteur du 2026-11-15).
 
 ## Ce qui n'en fait pas partie
 
@@ -101,7 +103,7 @@ de `docs/api/DECISIONS.md` (« La règle d'après le gel »), faite avant le cod
 2026-11-13) — US-2160 ;
 - la fonction « installation » : ses deux permissions dans `PermissionCode`, et le nom de
 l'entreprise écrit sous elle et non plus sous `cost_settings.write` (`updateReferenceSettings`) —
-US-2120, après la révision de la spécification ;
+US-2120, sur la décision de l'auteur que #3197 porte ;
 - le fuseau horaire de l'installation, qu'aucune opération ne rend aujourd'hui, rendu par
 `getInstallation` — US-2200 ;
 - un exemple de `setOrgNodeActivation` qui désactive un nœud et deux niveaux de descendants (#2270)
@@ -116,9 +118,10 @@ essais et des décisions — #3071 à #3079, #3088, #3090, #3097 —, couleurs c
 clair et l'écran des paramètres de coûts. Les deux premières US de présentation (US-2070, US-2080)
 refont cet écran ; **l'auteur le valide sur la plateforme de service, en mode clair et en mode
 sombre, avant le premier lot d'un autre écran** (décision de l'auteur du 2026-11-14, au cadrage).
-- La révision de la spécification qui donne une fonction « Installation » à l'arborescence
-fonctionnelle (WF-ADM-0100), écrite par l'auteur, précède US-2120 ; le reste de l'EPIC ne l'attend
-pas.
+- La fonction « Installation » de l'arborescence fonctionnelle (WF-ADM-0100), FBS-1.6, est décidée
+par l'auteur (2026-11-13, #3088) ; US-2120 la réalise sans attendre la révision de la
+spécification, qui vient dans un second temps par l'issue `specification` #3197, sans révision
+propre à ce constat (décision de l'auteur du 2026-11-15).
 - Une branche `epic/EP-25` existe déjà sur le dépôt, identique à `main` au cadrage (a31b569f) : le
 premier lot la reprend de `main` à jour plutôt que de la tirer.
 
@@ -225,7 +228,7 @@ Deux migrations, dans cet ordre, la seconde attendant la première dans la chaî
 - **`0030`, les deux permissions de la fonction « installation »** (US-2120) : une migration de
   données, comme `0005` et `0006`. `installation.read` et `installation.write` entrent au catalogue
   à la place que le contrat leur donne, après `audit_log.read`, les suivantes gardant leur ordre ;
-  leur `fbs_code` est celui que la spécification révisée donne à la fonction. Elle les donne à tout
+  leur `fbs_code` est `FBS-1.6`, celui que #3197 donne à la fonction. Elle les donne à tout
   rôle non supprimé qui porte les deux permissions d'administration de WF-ADM-0120 (`users.write`
   et `access_roles.write`), et à aucun autre.
 
@@ -271,13 +274,13 @@ modèles du service, la variante du faux back et `make inventory` suivent dans l
    session, comme la langue par défaut (US-2200). Les exemples `installation*` le portent.
 3. **Un exemple de `setOrgNodeActivation`** qui désactive un nœud portant deux niveaux de
    descendants et des rôles (US-2180, #2270).
-4. **La fonction « installation »** (US-2120, après la révision de la spécification) :
+4. **La fonction « installation »** (US-2120, sur la décision que porte #3197) :
    `installation.read` et `installation.write` dans `PermissionCode` ; la description de
    `updateReferenceSettings`, où `company_name` passe sous `installation.write` ; les exemples des
    permissions, des rôles prédéfinis et du compte administrateur ; l'exemple du 403.
 
-Les trois premières ne dépendent de rien et se font ensemble, en tête ; la quatrième attend la
-révision de la spécification. Aucune opération nouvelle.
+Les trois premières ne dépendent de rien et se font ensemble, en tête ; la quatrième suit la
+décision que porte #3197, la spécification mise à jour ensuite. Aucune opération nouvelle.
 
 ### Ordre de construction
 
@@ -308,9 +311,86 @@ répertoire, et les écrans par domaine, une fois l'écran de référence valid�
    l'état du système (US-2150). Les lots d'un couloir se suivent, les couloirs avancent ensemble.
    Les écrans que touche US-2090 — ressources, utilisateurs — l'attendent. US-2190, la page de
    connexion, qui ne touche pas le front, prend un créneau dès qu'il s'en libère un.
-5. **US-2120**, en dernier : après la révision de la spécification, après US-2200 pour la chaîne
+5. **US-2120**, en dernier : sur la décision que porte #3197, après US-2200 pour la chaîne
    des migrations et le fuseau qu'elle montre, après US-2100 et US-2110 qui lui laissent le nom de
    l'entreprise.
+
+**Les constats des revues des lots livrés** (US-2080/L4 #3347, décision de l'auteur du
+2026-11-14). Les revues locales des lots fusionnés des vagues 1 et 2 ont laissé seize constats
+« à trancher » sur des composants communs, que les lots d'écran ne corrigent pas (« Un lot d'écran
+ne touche que ses fichiers ») : le fond des cellules sur la carte (#3277) et le bord des commandes
+de ligne (#3332), la colonne étirée et les parcours de la grille (#3280, #3281, #3282, #3286,
+#3287), l'annulation (#3265, #3272), le squelette de chargement (#3269), la fin d'un traitement
+dite deux fois (#3292) et le cadre caché du téléchargement (#3298), les champs écrits à la main
+hors des pilules (#3259), un parcours intermittent des coûts (#3266) et deux retouches de tests
+ou de commentaires (#3273, #3293). Un lot de correction les solde, rangé sous US-2080 sans
+critère nouveau, prêt dès son ouverture et lancé avant que l'auteur juge l'écran de référence
+(#3196), dont il change les cellules et le bord des commandes. Il est « pas avec » les lots qui
+touchent ses fichiers : US-2090, US-2110/L2, US-2130/L3, US-2130/L4, US-2140/L1, US-2150/L2.
+Tranchés par l'auteur : le bord des commandes de ligne atteint 3:1 dans les deux modes, mesuré
+par `contrast.test.ts` ; la ligne sous la barre ne dit plus une fin que la carte d'aboutissement
+porte ; les champs écrits à la main passent aux composants communs dans ce lot plutôt que dans
+les couloirs. Écarté : #3291, la forme de citation d'un critère propre à une US, règle commune
+de la chaîne, reporté → EP-28.
+
+**Les composants communs et la dette de tests, en fin d'EPIC** (US-2310, décision de l'auteur du
+2026-11-15). Les lots d'écran des vagues 4 et 5 ont relevé sur des composants communs des constats
+qu'ils ne corrigeaient pas ; l'auteur les confie à une US de complément, qui se livre quand les
+lots d'écran qui touchent ses fichiers sont fusionnés, par ses « Pas avec » plutôt que par des
+dépendances : rien ne l'attend, et elle n'attend pas les lots qui ne la croisent pas. Aucune table,
+aucune migration, aucune modification du contrat ; tout est au front, et au guide. Deux lots,
+US-2310/L1 #3452 (#3404) et US-2310/L2 #3453 (les autres), « pas avec » l'un l'autre par le guide,
+et sans fichier commun avec les lots d'écran encore ouverts. Ses lignes n'entrent au tableau de
+#3195 qu'une fois `make tracking` doté de l'ajout d'une US (#3450, un lot court vers `main`,
+décision de l'auteur du 2026-11-15) : l'outil n'ajoute un lot qu'après un lot de sa propre US.
+
+- **L'attente retrouvée au remontage** (#3404) — `components/tasks`, `components/commands` et les
+  boutons qui attendent une tâche. Le suivi des tâches de la coquille garde, avec chaque tâche qui
+  court, l'objet qu'en a dit le bouton qui l'a lancée : une clé que le bouton compose de sa nature
+  et de ce qu'il vise — la révision exportée ou marquée, le projet d'un import, l'installation pour
+  une sauvegarde ou une lecture des comptes. La clé est gardée dans la session de l'onglet avec le
+  reste de la tâche (`storage.ts`), et relue avec elle. Un bouton monté demande au suivi la tâche
+  qui court pour sa clé, et attend sur elle comme sur celle qu'il vient de lancer : `useTaskRunning`
+  reçoit la tâche lancée ou, à défaut, la tâche retrouvée. Tous les boutons à l'attente commune
+  passent par là — marquage, exports d'une révision et de l'arbre des tâches, analyse et application
+  d'un import, sauvegarde, lecture des comptes du fournisseur d'identité.
+- **La carte de grille** (#3421) — `components/shell` : une carte sans titre ni commandes, qui porte
+  la grille d'un écran de travail et remplit la place que l'écran lui laisse ; le titre est celui de
+  l'en-tête de l'écran. Elle remplace `JournalCard` (`app/admin/audit-log/page.tsx`) et `WorkCard`
+  (`work-card.tsx`, et les écrans de travail d'un projet qui l'importent).
+- **La condition d'un item de menu** (#3430) — `commands/menu-command.tsx`,
+  `remaining/kanban-card.tsx` : un item indisponible suit la règle de `Command` — la condition dans
+  son infobulle, et dans la région des refus quand il est pressé ; le champ `detail` de
+  `MenuCommand`, que seules les cartes du Kanban emploient, disparaît.
+- **La densité de l'en-tête** (#3397) — `app/screen-density.test.ts` refuse un fichier qui écrit un
+  écran aéré sans écrire la densité aérée sur son en-tête.
+- **Les paramètres de projets** (#3417, #3418) — `projects/contributor-commands.tsx` et
+  `settings-lists.tsx` : « Modifier les contributeurs » passe dans les commandes de sa carte ; la
+  page d'aide de l'écran le suit (WF-IHM-0140). `e2e/project-cards.spec.ts` mesure les commandes
+  du lotissement à 1024 et 1100 points ; si elles débordent, leur passage sur une ligne monte au
+  point de rupture suivant (`breakdown-commands.tsx`). L'ordre des imports de
+  `subproject-commands.tsx` suit.
+- **Les tests de l'accueil et le guide** (#3399) — `e2e/home.spec.ts`,
+  `projects/project-list.dom.test.tsx`, `docs/dev/README-fr.md` et sa traduction.
+
+Revérifiés au cadrage, soldés par US-2080/L4 et laissés fermés : #3259, #3265, #3266, #3272, #3273,
+#3286, #3287, #3293, #3298. #3266 échoue encore dans la file d'`epic/EP-26`, tirée d'`epic/EP-25`
+avant L4 : la synchronisation d'`epic/EP-26` le règle (décision de l'auteur du 2026-11-15). Hors du
+complément : #3416, corrigé par US-2110/L1 par exception, la barre étant celle de toutes les
+grilles ; #3431, reporté → EP-28 avec #3396 ; #3432, abandonné.
+
+Tranchés par l'auteur le 2026-11-15, avec les options écartées :
+
+- l'attente vaut dans l'onglet, par le suivi des tâches. Écartés : lire aussi les tâches du compte
+  sur le serveur (`listBackgroundTasks`), un appel de plus par écran pour une tâche dont la liste ne
+  dit pas l'objet ; ajouter l'objet à `BackgroundTaskRef`, une modification du contrat pour un
+  remontage ; garder la tâche dans l'adresse, qu'un aller-retour par la navigation perd ;
+- la carte de grille est un composant à part. Écarté : un titre facultatif sur la carte de section,
+  qui dissocierait de son titre le nom de sa région et la règle d'une commande pleine par carte ;
+- un item de menu suit la règle de `Command`. Écarté : garder la condition sous son libellé, lisible
+  dans un menu, mais une seconde règle pour une même chose ;
+- la densité de l'en-tête se prouve par un test. Écarté : la rendre exigée sur `PageHeader`, une
+  trentaine d'appels touchés, ceux des lots d'écran compris.
 
 ### Décisions
 
@@ -483,7 +563,7 @@ essayées avant la maquette — gris froids, tons chauds — sont écartées (#3
 
 ## US-2080 — Les tables plates : la création dans l'en-tête de la carte, une barre, une pagination et une largeur communes
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0060-A`, `WF-IHM-0130-A`
 - **opérations** : toute liste paginée (`offset`, `limit`, `meta.total`) ; `getMe`,
   `updateMyPreferences`
@@ -552,7 +632,7 @@ fenêtrage des lignes en dépend (#3079).
 
 ## US-2090 — Le filtre « État » de chaque table à la place de « Afficher aussi les désactivés »
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0150-A`
 - **opérations** : `listCostTypes`, `listCostCategories`, `getHourlyRateGrid`, `listOrgNodes`,
   `listResourceRoles`, `listCalendars`, `listUsers`, `getMe`, `updateMyPreferences`
@@ -587,11 +667,14 @@ propre filtre, **afin de** ne plus dépendre d'un bouton de l'écran qui vaut po
 pour « Désactivés », `include_inactive=true` sans `is_active` quand la pastille est ôtée. Le défaut
 suit le précédent du filtre d'états de la liste des projets (`docs/api/DECISIONS.md`, #1747). Écarté
 au cadrage (2026-11-14) : une table qui montre tout sans filtre, essayée par le prototype — le Vérif
-de WF-REF-0150 dit qu'un désactivé n'apparaît pas par défaut.
+de WF-REF-0150 dit qu'un désactivé n'apparaît pas par défaut. La table des comptes garde son défaut,
+tous les comptes, selon la décision « `listUsers` porte son propre `include_inactive` »
+(`docs/api/DECISIONS.md`) et WF-ADM-0060 : WF-REF-0150 ne vise que le référentiel ; seuls le bouton et
+la lecture de `include_inactive` y disparaissent.
 
 ## US-2100 — Les écrans d'administration en cartes : utilisateurs, rôles, sauvegardes, journal d'audit
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
 - **issue** : #3226
@@ -686,8 +769,8 @@ sur l'écran des coûts, auquel il n'a pas trait.
   constaté par EP-05 (US-0810) ;
 - `WF-ADM-0100-A` — « Chaque fonction de second niveau de l'arborescence est représentée par ses
   deux permissions, ou par la seule permission de consulter pour FBS-1.3, FBS-1.5 et FBS-2.1 à
-  FBS-2.7. » : la fonction « Installation » que la spécification révisée donne à l'arborescence a
-  ses deux permissions au catalogue ;
+  FBS-2.7. » : la fonction « Installation », FBS-1.6, que #3197 ajoute à l'arborescence,
+  a ses deux permissions au catalogue ;
 - écart : `WF-ADM-0100-A` — « Un rôle disposant de la modification du chiffrage mais non du marquage
   permet de modifier un devis et refuse de marquer la révision ; un rôle disposant du marquage mais
   non de la fusion refuse de fusionner un différentiel. » : EP-04 et EP-08, comme le dit US-1050 ;
@@ -707,20 +790,22 @@ sur l'écran des coûts, auquel il n'a pas trait.
 **Notes de réalisation.** Décision de l'auteur du 2026-11-14, au cadrage, qui revient sur « la
 spécification ne change pas » de #3088 : WF-ADM-0100 définit les permissions par fonction de second
 niveau de l'arborescence fonctionnelle, qui s'arrête à FBS-1.5 ; une fonction « Installation » la
-complète, par une révision de la spécification que l'auteur écrit sur une issue `specification`
-ouverte par le cadrage. L'US attend cette révision ; ses critères se relisent alors contre le Vérif
-révisé, que `make roadmap` confronte. Le contrat suit par une issue `contract` : les deux
-permissions, le nom de l'entreprise écrit sous la fonction nouvelle. Le rôle prédéfini
-« administrateur » reçoit les deux permissions, sur une installation neuve comme par la migration là
-où il existe encore, et lui seul (décision de l'auteur du 2026-11-14, au cadrage). Écartés : l'écran sous la permission des coûts — un administrateur sans les réglages de coûts ne le
-verrait pas ; le report à EP-13.
+complète, FBS-1.6, par une révision de la spécification que porte l'issue `specification` #3197.
+L'US n'attend plus cette révision : elle suit la rédaction que #3197 propose, et la spécification
+est mise à jour dans un second temps, sans révision propre à ce constat ; ses critères se relisent
+alors contre le Vérif révisé, que `make roadmap` confronte (décision de l'auteur du 2026-11-15).
+Le contrat suit par une issue `contract` : les deux permissions, le nom de l'entreprise écrit sous
+la fonction nouvelle. Le rôle prédéfini « administrateur » reçoit les deux permissions, sur une
+installation neuve comme par la migration là où il existe encore, et lui seul (décision de l'auteur
+du 2026-11-14, au cadrage). Écartés : l'écran sous la permission des coûts — un administrateur sans
+les réglages de coûts ne le verrait pas ; le report à EP-13.
 
 **Hors périmètre.** Modifier la devise, la langue par défaut ou le fuseau horaire : ils sont fixés à
 l'amorçage (WF-REF-0140, WF-EXP-0020).
 
 ## US-2130 — L'accueil, les écrans de réglage et de consultation d'un projet, et le compte, en cartes
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`, `WF-IHM-0120-A`, `WF-IHM-0090-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
 - **issue** : #3221
@@ -761,8 +846,8 @@ passant du référentiel à un projet.
   cours » pleine ; la structure de l'écran ne change pas (décision de l'auteur du 2026-11-14, au
   cadrage) ;
 - propre à l'US : paramètres de projets — une carte « Projet » pour les attributs, « Modifier le
-  projet » à droite de son titre ; le lotissement en carte, ses commandes sur une ligne, sa table à
-  la largeur de la carte ;
+  projet » à droite de son titre ; le lotissement en carte, ses commandes sur une ligne à partir de
+  1024 points, repliées en dessous, sa table à la largeur de la carte (#3418) ;
 - propre à l'US : cycle de vie, imports et exports, plan de charge — une carte par section ; les
   filtres du plan de charge dans sa carte ;
 - propre à l'US : mon compte, déjà conforme, prend les couleurs et les formes ; les écrans hors
@@ -773,7 +858,7 @@ l'écran « Révisions » — EP-27 (#3177, #3180).
 
 ## US-2140 — Les écrans de travail d'un projet : serrés, aux couleurs et aux formes nouvelles
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
 - **issue** : #3232
@@ -802,7 +887,7 @@ comparaison (EP-27) ; la performance (EP-26).
 
 ## US-2150 — Les écrans que le service ne sert pas encore, mis en page contre le faux back : portefeuille, risques, indicateurs, état du système
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent déjà, sur les exemples du contrat
 - **issue** : #3235
@@ -819,7 +904,9 @@ sur le service n'aient pas à la refaire.
 - `WF-IHM-0100-A` — « À 150 % d'agrandissement, aucune commande ne devient inatteignable. » ;
 - propre à l'US : les sept écrans du portefeuille, « Indicateurs projets » et « Surveillance de
   l'état du système » sont en colonne centrée et en cartes, une carte par section, par table et par
-  graphique ; leurs filtres de périmètre sont dans une carte ou dans la barre de leur table ;
+  graphique ; leurs filtres de périmètre sont dans une carte ou dans la barre de leur table — pour
+  « Indicateurs projets », écran d'un projet, la bannière de contexte en tient lieu, comme sur
+  l'écran de référence des coûts réels (#3422, décision de l'auteur du 2026-11-15) ;
 - propre à l'US : « Gestion des risques » — le registre, grille de saisie, reste serré comme un écran
   de travail ; la matrice et la couverture sont en cartes ;
 - propre à l'US : la mise en page se constate contre le faux back, sur les exemples du contrat ;
@@ -894,7 +981,7 @@ US-2050), qui naissent dans cette présentation.
 
 ## US-2170 — Un traitement en cours se voit là où on l'a lancé, et l'écran se relit quand il aboutit
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0080-A`
 - **opérations** : `getBackgroundTask`, `listBackgroundTasks`, `getBackgroundTaskResult`,
   `requestExport`, `markRevision`, `createRevision`, `applyImport`
@@ -977,7 +1064,7 @@ qui le lit.
 
 ## US-2190 — La page de connexion à la charte nouvelle
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #3238
@@ -1045,3 +1132,71 @@ et ne touche pas ces fichiers ; EP-10, qui vient après EP-27.
 
 **Hors périmètre.** Modifier le fuseau après l'amorçage ; l'heure d'une sauvegarde planifiée, que
 le contrat dit sans fuseau (`docs/api/DECISIONS.md`).
+
+## US-2310 — Les composants communs et la dette de tests : ce que les lots d'écran ont laissé à trancher
+
+- **statut** : à faire
+- **exigences** : `WF-IHM-0080-A`, `WF-IHM-0090-A`, `WF-IHM-0100-A`
+- **opérations** : aucune en propre — celles que le suivi des tâches lit déjà
+  (`getBackgroundTask`, `listBackgroundTasks`)
+- **issue** : #3451
+
+**En tant que** manager, **je veux** que les commandes et les cartes communes se comportent de la
+même façon sur chaque écran, **afin de** ne pas relancer un traitement qui court ni retrouver d'un
+écran à l'autre les écarts que la refonte a relevés.
+
+**Critères d'acceptation.**
+
+- `WF-IHM-0080-A` — « Le marquage d'une révision de dix mille objets laisse l'écran utilisable et
+  présente son avancement. » : le bouton qui a lancé une tâche reste inerte et marqué « en cours »
+  tant qu'elle court, après un rechargement ou un aller-retour dans le même onglet aussi ; il la
+  retrouve au montage par le suivi des tâches de la coquille, à sa nature et à son objet ; ainsi
+  de chaque bouton à l'attente commune — marquage, exports, imports, sauvegarde, lecture des
+  comptes du fournisseur d'identité (#3404, décision de l'auteur du 2026-11-15) ;
+- écart : `WF-IHM-0080-A` — « Un utilisateur qui change d'écran pendant un import est informé de
+  son aboutissement. » : non touché ; tenu par US-2170 ;
+- écart : `WF-IHM-0080-A` — « L'échec d'un traitement de fond est signalé avec son motif, et le
+  même traitement peut être relancé. » : non touché ; tenu par US-2170 ;
+- `WF-IHM-0090-A` — « Sur un projet en chiffrage, la commande de terminaison est présentée
+  indisponible en nommant la condition manquante. » : la règle qu'US-2130 donne aux boutons vaut
+  pour un item de menu — la condition d'un item indisponible, ceux des cartes du Kanban, se lit dans
+  son infobulle et, à la presse, dans la région des refus ; elle ne s'écrit plus sous son libellé
+  (#3430, décision de l'auteur du 2026-11-15) ;
+- écart : `WF-IHM-0090-A` — « Un utilisateur sans la permission de marquer une révision ne voit pas
+  cette commande. » : non touché ; constaté par EP-02 (US-0170) ;
+- écart : `WF-IHM-0090-A` — « Un refus de saisie sur un projet dont l'utilisateur n'est pas
+  contributeur nomme cette condition. » : non touché ; constaté par EP-02 (US-0170) ;
+- écart : `WF-IHM-0090-A` — « Pendant un traitement de fond sur le projet, la saisie du lotissement
+  est présentée indisponible en nommant le traitement en cours comme condition manquante, et une
+  écriture tentée est refusée en le nommant. » : non touché ; d'US-0660/L2 (#1336), comme le dit
+  US-0170 ;
+- `WF-IHM-0100-A` — « À 150 % d'agrandissement, aucune commande ne devient inatteignable. » : les
+  commandes du lotissement tiennent sur une ligne à partir de 1024 points sans déborder de leur
+  carte, mesurées à 1024 et à 1100 points comme à 1366, et se replient en dessous (#3418) ;
+- écart : `WF-IHM-0100-A` — « Chaque écran se parcourt entièrement au clavier et le focus reste
+  visible. » : non touché ; tenu écran par écran par US-2100 à US-2150 ;
+- écart : `WF-IHM-0100-A` — « Un contrôle automatisé de contraste ne relève aucun écart au niveau
+  AA. » : non touché ; tenu écran par écran par US-2100 à US-2150 ;
+- propre à l'US : une carte de grille commune, sans titre, à côté de la carte de section, porte la
+  grille d'un écran de travail qui remplit sa fenêtre ; elle remplace les cartes que les écrans
+  composaient eux-mêmes — celle du journal d'audit et celle des écrans de travail d'un projet ; la
+  carte de section garde son titre exigé (#3421, décision de l'auteur du 2026-11-15) ;
+- propre à l'US : un écran aéré l'est jusqu'à son en-tête : un test refuse un fichier qui écrit un
+  écran aéré et laisse son en-tête à la densité serrée (#3397) ;
+- propre à l'US : paramètres de projets — « Modifier les contributeurs » est à droite du titre de sa
+  carte, comme « Modifier le projet » (#3417, décision de l'auteur du 2026-11-15) ;
+- propre à l'US : les tests de l'accueil disent ce qu'ils mesurent — le nombre de projets du faux
+  back, la tolérance de largeur entre la barre et la table justifiée ou retirée, le corps écrit des
+  réglages de la liste des projets réduit aux clés attendues — et la phrase du guide sur les états
+  n'est plus coupée (#3399).
+
+**Notes de réalisation.** Complément décidé par l'auteur le 2026-11-15, en fin d'EPIC : les lots
+d'écran ne touchent que leurs fichiers (conception, « Décisions »), et les constats qu'ils ont
+relevés sur des composants communs restaient « à trancher ». La dette de tests confiée au complément
+est revérifiée au cadrage : #3259, #3265, #3266, #3272, #3273, #3286, #3287, #3293 et #3298 sont
+soldés sur `epic/EP-25` par US-2080/L4 ; #3399 seul reste. L'attente retrouvée tient à l'onglet,
+dont le suivi des tâches garde les tâches qui courent ; un autre onglet ne la voit pas.
+
+**Hors périmètre.** L'attente vue d'un autre onglet ou d'un autre poste ; la barre repliée d'une
+grille arborescente à 911 points (#3416), corrigée par US-2110/L1 ; les mineurs du parcours du thème
+de connexion (#3431), reportés → EP-28 ; le test des pages des coûts réels (#3432), abandonné.

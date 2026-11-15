@@ -8,7 +8,8 @@
  * The charter of EP-25 (US-2070, #3079): a pill. A button that cannot be pressed now looks the
  * same whether it is `disabled` or marked `aria-disabled` (#3125) — the latter keeps the pointer,
  * for the tooltip that says what it lacks and the press that says it again. The commands of a row
- * of a table (`row`) keep a border, the light one of the tables, and a label of normal weight.
+ * of a table (`row`) keep a border of their own, seen at 3:1 on the card where the tables are set
+ * (#3332), and a label of normal weight.
  */
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentProps } from "react";
@@ -27,7 +28,7 @@ export const buttonVariants = cva(
         outline:
           "border border-input bg-background font-medium hover:bg-accent hover:text-accent-foreground",
         ghost: "font-medium hover:bg-accent hover:text-accent-foreground",
-        row: "border border-border bg-transparent font-normal hover:bg-accent hover:text-accent-foreground",
+        row: "border border-row-command-border bg-transparent font-normal hover:bg-accent hover:text-accent-foreground",
       },
       size: {
         default: "h-9 px-4 py-2",

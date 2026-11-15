@@ -21,7 +21,9 @@ judgement of the nodes a move gives another task (``moved``), by US-1560/L1 with
 and the write of the cells a paste gives a node of the kind (``judge_cell``, ``write_cell``), by
 US-1570/L5 with what a write takes before the lock of its structure (``before_lock``, #2615), and by
 US-2220/L1 with the reading of the facets of a structure as rows, which a reading that writes
-nothing asks instead of ``totals`` and ``read`` (``columns``, EP-26, "La lecture d'une structure").
+nothing asks instead of ``totals`` and ``read`` (``columns``, EP-26, "La lecture d'une structure"),
+and by US-2280/L1 with what the nodes of a kind count under each task, read grouped, which a reading
+of the tasks alone asks instead of reading them (``tally``, ``Tally``; EP-26, "L'agrégat d'abord").
 """
 
 from dataclasses import dataclass
@@ -29,10 +31,9 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from waterfall.core.planning.calendars import (
-    applicable_among,
+    applicable_calendars,
     applicable_of,
     default_calendar,
-    weeks_of,
 )
 from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.registry import Registry
@@ -41,6 +42,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Mapping
     from uuid import UUID
 
+    from sqlalchemy import Subquery
     from sqlalchemy.orm import Session
 
     from waterfall.core.history.interface import JsonValue
@@ -113,6 +115,24 @@ class FacetColumns:
 
     figures: Mapping[UUID, Amounts]
     read: Callable[[Mapping[UUID, BearingTask]], Mapping[UUID, FacetRead]]
+
+
+@dataclass(frozen=True, slots=True)
+class Tally:
+    """What the nodes of a kind a task bears count, read grouped by task (``FacetHooks.tally``).
+
+    ``amounts`` their figures summed, as ``Amounts`` adds them, nought for nodes without a facet;
+    ``count`` how many they are, those without a facet included; ``own`` whether one is not
+    provided for a risk (``Node.origin_risk_id``); ``held_open`` whether one of those keeps it open,
+    as ``register_open_lines`` tells; ``calendars`` the calendars they name, as ``calendars`` gives
+    them (WF-PLA-0010).
+    """
+
+    amounts: Amounts
+    count: int
+    own: bool
+    held_open: bool
+    calendars: frozenset[UUID]
 
 
 @dataclass(frozen=True, slots=True)
@@ -232,7 +252,10 @@ class FacetHooks:
     the lock of the natures (#2615) —, called first by every write of the tree. ``columns`` reads
     the nodes named once as rows, for a reading that writes nothing (``listNodes``,
     ``compareRevisions``): their figures and their facets, which ``totals`` and ``read`` give a
-    write from its objects (US-2220).
+    write from its objects (US-2220). ``tally`` gives, by task, what its nodes of the kind count
+    (``Tally``), read in one statement grouped by task from the nodes of the structure the planning
+    names — a subquery of their ``node_id``, the ``task_id`` bearing them and whether they are
+    ``from_risk`` —, for a reading of the tasks alone, which reads none of these nodes (US-2280).
     """
 
     read: Callable[[Session, UUID, Mapping[UUID, BearingTask]], Mapping[UUID, FacetRead]]
@@ -252,6 +275,7 @@ class FacetHooks:
     write_cell: Callable[[FacetWrite, object], None]
     before_lock: Callable[[Session], None]
     columns: Callable[[Session, UUID, Collection[UUID]], FacetColumns]
+    tally: Callable[[Session, UUID, Subquery], Mapping[UUID, Tally]]
 
 
 # The hooks of each kind of node other than the task, in the order of their registration.
@@ -304,14 +328,4 @@ def calendars_of(
     Computed once for each set of calendars named: the tasks of a structure name few of them, and
     an intersection costs the building of a calendar (#3048).
     """
-    default = default_calendar(session)
-    named = named_calendars(session, project_id, task_ids)
-    weeks = weeks_of(session, [each for held in named.values() for each in held])
-    computed: dict[frozenset[UUID], Applicable] = {}
-    found: dict[UUID, Applicable] = {}
-    for task_id in task_ids:
-        held = frozenset(named[task_id])
-        if held not in computed:
-            computed[held] = applicable_among(held, default, weeks)
-        found[task_id] = computed[held]
-    return found
+    return applicable_calendars(session, named_calendars(session, project_id, task_ids))

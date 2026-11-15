@@ -139,7 +139,7 @@ function journal({
         />
         <ListPages
           list={AUDIT_LIST}
-          texts="admin.pages"
+          texts="admin.auditLog.pages"
           page={shown.meta}
           shown={shown.items.length}
         />
@@ -535,7 +535,7 @@ describe("the grid of the journal", () => {
   it("leads to the pages before and after the one shown, its filters and its sort kept, and breaks no rule of accessibility", async () => {
     page.search = "actions=backup&sort_by=occurred_at&sort_order=asc&offset=10";
     const { container } = render(journal({ shown: second }));
-    const pages = screen.getByRole("navigation", { name: "Pages de la liste" });
+    const pages = screen.getByRole("navigation", { name: "Pages du journal d’audit" });
     expect(within(pages).getByRole("link", { name: /^Précédent/ })).toHaveAttribute(
       "href",
       "/admin/audit-log?actions=backup&sort_by=occurred_at&sort_order=asc",

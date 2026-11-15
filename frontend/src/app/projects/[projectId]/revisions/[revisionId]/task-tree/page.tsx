@@ -35,6 +35,7 @@ import { type PageSearchParams, searchQuery } from "@/navigation/context";
 import { screenMetadata } from "../../../../../title";
 import { gridAddress, readGridScreen } from "../grid-screen";
 import type { RevisionParams } from "../page";
+import { WorkCard } from "../work-card";
 
 /** Title the tab with the leaf, and with the project. */
 export async function generateMetadata({
@@ -100,7 +101,7 @@ function TaskTreeScreen({
 }) {
   const t = useTranslations();
   return (
-    <Screen density={LEAF_DENSITY["FBS-4.3.5"]}>
+    <Screen density={LEAF_DENSITY["FBS-4.3.5"]} fill>
       <PageHeader
         title={t("functions.taskTree")}
         icon={LEAF_ICONS["FBS-4.3.5"]}
@@ -113,7 +114,9 @@ function TaskTreeScreen({
           </div>
         }
       />
-      <TaskTree name={t("taskTree.name")} project={project} nodes={nodes} />
+      <WorkCard fill>
+        <TaskTree name={t("taskTree.name")} project={project} nodes={nodes} />
+      </WorkCard>
       {levels === 0 ? (
         <p className="text-sm text-muted-foreground">{t("taskTree.noSummary")}</p>
       ) : null}

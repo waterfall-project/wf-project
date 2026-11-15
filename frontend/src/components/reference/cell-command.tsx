@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * A command in a cell of a dense grid — modify, deactivate, reactivate, designate by default, mark a
- * backup, restore from it —: a small button, its icon and its word, out of the order of tabulation,
- * the grid being one stop, which Enter on its cell presses (`CELL_COMMAND`). And the same command
+ * backup, restore from it —: a small button, its icon and its word, in the light border of the
+ * tables and a label of normal weight (`row`, #3079), out of the order of tabulation, the grid
+ * being one stop, which Enter on its cell presses (`CELL_COMMAND`). And the same command
  * when the server lists it unavailable (`UnavailableCellCommand`): marked `aria-disabled`, described
  * by the conditions it lacks, and, pressed, saying them where the list tells what it could not do
  * rather than running — the one presentation of every unavailable command of a grid (WF-IHM-0090).
@@ -56,7 +57,7 @@ export function CellCommand({
     <CommandTooltip label={label} help={help} unavailable={unavailable}>
       <Button
         type="button"
-        variant="outline"
+        variant="row"
         size="sm"
         tabIndex={-1}
         {...{ [CELL_COMMAND]: "" }}

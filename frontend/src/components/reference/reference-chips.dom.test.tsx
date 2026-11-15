@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { cleanup, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -126,13 +126,6 @@ describe("the chips of the filters of the resource roles", () => {
       lifts: ["role_org_node_id"],
     },
     {
-      name: "the state",
-      search: "role_is_active=false",
-      filters: { state: false },
-      chip: "État : Désactivés",
-      lifts: ["role_is_active"],
-    },
-    {
       name: "the bounds of the monthly hours",
       search: "role_monthly_hours_min=100&role_monthly_hours_max=160",
       filters: { monthlyHours: { min: "100", max: "160" } },
@@ -164,6 +157,25 @@ describe("the chips of the filters of the resource roles", () => {
     },
   );
 
+  it.each([
+    ["the deactivated ones alone", "role_is_active=false", false, "État : Désactivés"],
+    ["the active ones alone, the state by default", "", true, "État : Actifs (par défaut)"],
+  ] as const)(
+    "tell the state of %s, and lift it by naming every state, which neither the account nor the default replaces [WF-REF-0150-A]",
+    async (_, search, state, chip) => {
+      page.search = `role_sort_by=code&${OFFSET}&${search}`;
+      render(roleList({ state }));
+      await userEvent.click(screen.getByRole("button", { name: `Retirer le filtre ${chip}` }));
+      expect(lastAddress()).toBe("/reference/resources?role_sort_by=code&role_is_active=all");
+    },
+  );
+
+  it("tell no state of every state, nor of a session that may not read the deactivated ones [WF-REF-0150-A]", () => {
+    page.search = "role_is_active=all";
+    render(roleList({ state: undefined }));
+    expect(screen.queryByText(/^État :/)).toBeNull();
+  });
+
   it("tell a node of organisation by its code and its label [WF-IHM-0130-A]", () => {
     page.search = `role_org_node_id=${NODE?.org_node_id ?? ""}`;
     render(roleList({ orgNode: NODE?.org_node_id }));
@@ -185,7 +197,8 @@ describe("the chips of the filters of the resource roles", () => {
     page.search = "role_sort_by=code&role_code=AUT&role_is_active=true&role_offset=50";
     render(roleList({ code: "AUT", state: true }));
     await userEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
-    expect(lastAddress()).toBe("/reference/resources?role_sort_by=code");
+    // Every state named: the active ones alone are a filter by default (WF-REF-0150-A).
+    expect(lastAddress()).toBe("/reference/resources?role_sort_by=code&role_is_active=all");
   });
 });
 
@@ -234,29 +247,17 @@ describe("the chips of the filters of the other lists of the reference data", ()
         />,
       );
     const { unmount } = render(list(true));
-    await userEvent.click(screen.getByRole("button", { name: "Retirer le filtre État : Actifs" }));
-    expect(lastAddress()).toBe("/reference/resources");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Retirer le filtre État : Actifs (par défaut)" }),
+    );
+    expect(lastAddress()).toBe("/reference/resources?calendar_is_active=all");
     unmount();
+    // A session that cannot read the deactivated ones, whose address carries a state all the same:
+    // the page reads none for it (`stateOf`), and neither a chip nor a panel says one.
+    page.search = "calendar_is_active=false";
     render(list(false));
     expect(screen.queryByRole("button", { name: /^Filtres/ })).toBeNull();
-    cleanup();
-    // A session that cannot read the deactivated ones, whose address carries a state all the same:
-    // the chip and « Effacer » lift it.
-    page.search = "calendar_is_active=false";
-    render(
-      inFrench(
-        <CalendarList
-          rows={calendars.items}
-          page={calendars.meta}
-          query={QUERY}
-          preferences={undefined}
-          editable={false}
-          state={false}
-        />,
-      ),
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
-    expect(lastAddress()).toBe("/reference/resources");
+    expect(screen.queryByRole("list", { name: "Filtres actifs" })).toBeNull();
   });
 
   it("tell the types of the natures of cost and their state [WF-IHM-0130-A]", async () => {
@@ -276,8 +277,9 @@ describe("the chips of the filters of the other lists of the reference data", ()
     );
     const chips = screen.getByRole("list", { name: "Filtres actifs" });
     expect(chips.children).toHaveLength(2);
+    expect(chips).toHaveTextContent("État : Désactivés");
     await userEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
-    expect(lastAddress()).toBe("/reference/resources");
+    expect(lastAddress()).toBe("/reference/resources?type_is_active=all");
   });
 
   it("tell the nature of the categories of cost by its code and its label [WF-IHM-0130-A]", () => {

@@ -8,33 +8,29 @@
  * #332). Whichever shows it, the import shown afterwards is the one the address names
  * (`readShownImport`).
  */
-import { FileUp } from "lucide-react";
+import { FileUp, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
-import { ICON } from "@/components/projects/project-tables";
+import { SectionCard } from "@/components/shell/section-card";
 
 import { ImportCommands } from "./import-commands";
 import { EXCHANGE_KINDS, type ImportOffers, type MappingGap } from "./offers";
 
-/** A part of a screen under its title, named by it. */
+/** A part of a screen in its card (`SectionCard`), named by its title. */
 export function Part({
   title,
   icon,
   children,
 }: {
   readonly title: string;
-  readonly icon: ReactNode;
+  readonly icon: LucideIcon;
   readonly children: ReactNode;
 }) {
   return (
-    <section aria-label={title} className="space-y-2">
-      <h2 className="flex items-center gap-2 text-base font-semibold">
-        {icon}
-        {title}
-      </h2>
+    <SectionCard title={title} icon={icon}>
       {children}
-    </section>
+    </SectionCard>
   );
 }
 
@@ -55,7 +51,7 @@ export function ImportPart({
   const t = useTranslations("exchanges.import");
   const offered = EXCHANGE_KINDS.some((kind) => offers[kind] !== undefined);
   return (
-    <Part title={t("title")} icon={<FileUp aria-hidden="true" className={ICON} />}>
+    <Part title={t("title")} icon={FileUp}>
       {offered ? (
         <ImportCommands projectId={projectId} offers={offers} start={start} gap={gap} />
       ) : (

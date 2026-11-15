@@ -19,7 +19,6 @@ import type { RoleChoice } from "./admin-grids";
 import { AUTHORS, type AuditFilters, type AuthorChoice, PERIODS, WRITTEN } from "./audit-address";
 import {
   ACCESS_ROLES,
-  INCLUDE_INACTIVE,
   IS_ACTIVE,
   ORG_NODE,
   ORIGINS,
@@ -84,7 +83,7 @@ export function useUserChips(
       IS_ACTIVE,
       t("admin.users.stateFilter"),
       filters.active ? t("admin.users.activeState") : t("admin.users.inactiveState"),
-      [IS_ACTIVE, INCLUDE_INACTIVE],
+      [IS_ACTIVE],
     );
   }
   return [...kit.chips, ...useAccountAuditChips(filters.audit, filters.authors)];

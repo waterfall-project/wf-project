@@ -5,7 +5,7 @@ import { type Download, expect, type Locator, test } from "@playwright/test";
 import { menuButton, pick } from "./check-menu";
 import { compile } from "./compile";
 import { sortUntilAddress, WORKING } from "./hydration";
-import { withinBox } from "./scroll";
+import { scrollPageToGrid, withinBox } from "./scroll";
 
 // The fake back serves the first example of each read of the portfolio — the three hundred projects
 // of §4.6.2 at 3 June 2026, the witness project first, and the views summed from them —, whatever
@@ -34,9 +34,10 @@ test("reads the portfolio of three hundred projects: its value, its perimeter, t
   // thirty seconds of a test.
   test.slow();
   // The list of the portfolio is a screen of consultation, airy (EP-25, « Deux familles d'écrans »):
-  // its margins and its gaps take 56 points more than a screen of work, and the grid at its floor
-  // no longer fits the 720 points of the default window, the page scrolling then. The totals
-  // are read in view in a window that holds it.
+  // its margins and its gaps (`py-8`, `gap-7`) are taller than those of a screen of work (`py-3`,
+  // `gap-3`), and the grid at its floor no longer fits the 720 points of the default window, the
+  // page scrolling then. The totals are read in view in a window of 800 points: a margin over
+  // what the screen needs, not a floor measured (#3273).
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto(PROJECTS);
   await expect(page).toHaveTitle("Portefeuille de projets — Waterfall");
@@ -68,8 +69,11 @@ test("reads the portfolio of three hundred projects: its value, its perimeter, t
   const witness = grid.getByRole("row", { name: /Modernisation du poste de commande/ });
   await expect(witness.getByRole("img", { name: "Nominal" })).toHaveCount(1);
   await expect(witness.getByRole("img", { name: "Vigilance" })).toHaveCount(1);
-  // The grid holds in the window: its totals, the number of projects the server retained, in view.
-  // Its cells stick to the foot of the grid, their row keeping its place in the table.
+  // The list lies in a card under the perimeter and the value, which the 800 points of the window
+  // no longer leave the grid at its floor: the page scrolls to the grid (`scrollPageToGrid`), whose
+  // totals, the number of projects the server retained, are then in view. Its cells stick to the
+  // foot of the grid, their row keeping its place in the table.
+  await scrollPageToGrid(grid);
   const total = grid.getByRole("gridcell", { name: "300 projets retenus" });
   await expect(total).toHaveCount(1);
   expect(await withinBox(grid, total)).toBe(true);

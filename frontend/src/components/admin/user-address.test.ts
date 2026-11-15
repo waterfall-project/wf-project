@@ -37,8 +37,12 @@ describe("what the list of the accounts reads of its address", () => {
       audit: EVERY_AUDIT,
       offset: 50,
     });
-    const asked = Object.keys(query).filter((name) => name !== USERS_LIST.page);
-    expect(asked).toHaveLength(17);
+    // `include_inactive` is always asked, never read from the address (#3076).
+    const asked = Object.keys(query).filter(
+      (name) => name !== USERS_LIST.page && name !== "include_inactive",
+    );
+    expect(asked).toHaveLength(16);
+    expect(USERS_LIST.reads).not.toContain("include_inactive");
     expect(USERS_LIST.reads).toEqual(expect.arrayContaining(asked));
   });
 
@@ -64,9 +68,9 @@ describe("what the list of the accounts reads of its address", () => {
     expect(readWithoutRole(new URLSearchParams())).toBe(false);
   });
 
-  it("reads the state the address names, an address that hid the deactivated accounts as the active ones alone", () => {
+  it("reads the state the address names, never `include_inactive`, which an address of before wrote (#3076)", () => {
     expect(readAccountState(new URLSearchParams("is_active=false"))).toBe(false);
-    expect(readAccountState(new URLSearchParams("include_inactive=false"))).toBe(true);
+    expect(readAccountState(new URLSearchParams("include_inactive=false"))).toBeUndefined();
     expect(readAccountState(new URLSearchParams("include_inactive=false&is_active=false"))).toBe(
       false,
     );

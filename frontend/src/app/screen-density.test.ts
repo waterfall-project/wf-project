@@ -17,16 +17,22 @@ const SRC = join(import.meta.dirname, "..");
 /**
  * The files that write their density, each a screen that is no function of the table: the home
  * and the home of an account that opens no project, the screen of a project, the account and its
- * avatar, a page not found, a session the server cannot open.
+ * avatar, a page not found, a session the server cannot open, the screen of a failure — and the
+ * skeletons of the segments of the home, of the account and of an address no screen answers
+ * (#3269).
  */
 const NOT_A_FUNCTION = [
   "app/(home)/page.tsx",
+  "app/(home)/loading.tsx",
+  "app/account/loading.tsx",
+  "app/[...path]/loading.tsx",
   "components/projects/no-openable-project.tsx",
   "app/projects/[projectId]/page.tsx",
   "app/account/page.tsx",
   "app/account/avatar/page.tsx",
   "app/not-found.tsx",
   "app/login/unavailable/page.tsx",
+  "components/system/system-failure.tsx",
 ];
 
 /** The source files of the screens: the routes, and the components that render a screen. */

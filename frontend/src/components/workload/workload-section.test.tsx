@@ -63,6 +63,14 @@ describe("the workload section", () => {
     expect(section({})).toMatch(/^<section aria-label="Project workload"/);
   });
 
+  it("sets its filters in its card, the choice of the basis within the section of the card [WF-IHM-0100-A]", () => {
+    const page = section({});
+    const card = page.indexOf('data-slot="section-card"');
+    expect(card).toBeGreaterThan(-1);
+    expect(page.indexOf("<form")).toBeGreaterThan(card);
+    expect(page.indexOf("</form>")).toBeLessThan(page.lastIndexOf("</section>"));
+  });
+
   it("says a marked revision without a version name so, never the revision under way", () => {
     const [reference, ...others] = MARKED;
     if (reference === undefined) {

@@ -203,11 +203,11 @@ describe("a value of a grid the server computes", () => {
     const labour = "Raccordement des borniers";
     const hours = cell(labour, HOURS);
     const amount = cell(labour, REFERENCE);
-    // The effort is entered: its value alone, on the background of the page.
+    // The effort is entered: its value alone, on the background of the card (#3277).
     expect(hours).toHaveTextContent(/^12,5$/);
     expect(hours).not.toHaveAttribute("aria-haspopup");
     expect(within(hours).queryByRole("img")).toBeNull();
-    expect(hours).toHaveClass("bg-background");
+    expect(hours).toHaveClass("bg-card");
     // The amount is computed: shaded, marked Σ and named so, whatever the colour.
     expect(amount).toHaveClass("bg-muted");
     expect(amount).toHaveAccessibleName(/^Calculé 1\s000,00$/);
@@ -414,7 +414,7 @@ describe("a value of a grid the server computes", () => {
     expect(cell("Revue de conception", FINISH)).toHaveAttribute("aria-haspopup", "dialog");
     expect(cell("Revue de conception", DURATION)).not.toHaveAttribute("aria-haspopup");
     expect(cell("Revue de conception", PROGRESS)).not.toHaveAttribute("aria-haspopup");
-    expect(cell("Revue de conception", DURATION)).toHaveClass("bg-background");
+    expect(cell("Revue de conception", DURATION)).toHaveClass("bg-card");
   });
 
   it("marks the quantity and the unit disbursement of a provision, which come from its risk", async () => {
@@ -442,7 +442,7 @@ describe("a value of a grid the server computes", () => {
     expect(labour).toHaveClass("bg-muted");
     expect(labour).toHaveAccessibleName(/^Calculé/);
     expect(labour).toHaveAttribute("aria-haspopup", "dialog");
-    expect(cell("Borniers", CATEGORY)).toHaveClass("bg-background");
+    expect(cell("Borniers", CATEGORY)).toHaveClass("bg-card");
     expect(cell("Borniers", CATEGORY)).not.toHaveAttribute("aria-haspopup");
     await userEvent.click(labour);
     expect((await said()).paragraphs.slice(1, 3)).toEqual([
@@ -463,7 +463,7 @@ describe("a value of a grid the server computes", () => {
     expect(provision).toHaveAccessibleName(/^Calculé/);
     expect(provision).toHaveAttribute("aria-haspopup", "dialog");
     // The sub-project of a line of labour is entered.
-    expect(cell("Raccordement des borniers", SUBPROJECT)).toHaveClass("bg-background");
+    expect(cell("Raccordement des borniers", SUBPROJECT)).toHaveClass("bg-card");
     await userEvent.click(provision);
     expect((await said()).paragraphs[1]).toBe(
       "Sous-projet ne se saisit pas\u00A0: Waterfall calcule cette valeur.",

@@ -117,6 +117,30 @@ describe("the pages of a flat table", () => {
     expect(nav.getByRole("link", { name: "Précédent, Catégories de coût" })).toBeVisible();
   });
 
+  it.each([
+    ["actualCosts.pages.costs", "Pages des coûts réels", "Coûts réels"],
+    ["admin.users.pages", "Pages des comptes utilisateurs", "Comptes utilisateurs"],
+    ["admin.auditLog.pages", "Pages du journal d’audit", "Journal d’audit"],
+    ["admin.backups.pages", "Pages des sauvegardes", "Sauvegardes"],
+  ] as const)(
+    "name the links of a list named by its texts %s after the title the texts hold, the name of the navigation only when they hold none, never « la liste » (#3262, #3295) [WF-IHM-0060-A]",
+    (texts, label, list) => {
+      render(
+        <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+          <ListPages
+            list={CATEGORIES}
+            texts={texts}
+            page={{ offset: 50, limit: 50, total: 150 }}
+            shown={50}
+          />
+        </NextIntlClientProvider>,
+      );
+      const nav = within(screen.getByRole("navigation", { name: label }));
+      expect(nav.getByRole("link", { name: `Précédent, ${list}` })).toBeVisible();
+      expect(nav.getByRole("link", { name: `Suivant, ${list}` })).toBeVisible();
+    },
+  );
+
   it("are written in English too, the numbers grouped as the language groups them [WF-IHM-0060-A]", () => {
     pages({ offset: 1000, limit: 100, total: 12_345 }, 100, "en");
     expect(screen.getByText("1,001–1,100 of 12,345")).toBeVisible();

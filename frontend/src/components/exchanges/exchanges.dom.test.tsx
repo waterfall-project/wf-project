@@ -13,6 +13,7 @@ import type { Revision } from "@/components/context/read-only";
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { heldFrames } from "@/test/download-frames";
 import { expectAccessible } from "@/test/axe";
 import { atCommit } from "@/test/committed";
 import {
@@ -169,9 +170,13 @@ beforeEach(() => {
   router.refresh.mockClear();
   vi.useFakeTimers({ shouldAdvanceTime: true });
   window.sessionStorage.clear();
+  // The result of an export the screen asked for downloads by itself once made, by a hidden frame
+  // (#3103): held, in the document, happy-dom loading no page in it (`download-frames.ts`).
+  heldFrames();
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
@@ -949,8 +954,13 @@ describe("the request of an export", () => {
     const request = within(form).getByRole("button", { name: "Demander l’export" });
     expect(request).toHaveAttribute("aria-disabled", "true");
     expect(request).toHaveAccessibleDescription("Condition non remplie\u00A0: révision marquée.");
+    // The condition is not written under the button: pressed, it is told in the refusals (#3289).
+    expect(within(form).queryByRole("alert")).toBeNull();
     await userEvent.click(request);
     expect(client.calls).toEqual([]);
+    expect(within(form).getByRole("alert")).toHaveTextContent(
+      "Condition non remplie : révision marquée.",
+    );
   });
 
   it("says no export is offered without a revision that offers one", () => {

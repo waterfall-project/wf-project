@@ -552,7 +552,9 @@ valeur de l'API ne prenne un sens pour Next (`NEXT_REDIRECT;…`), et qu'il affi
 le préfixe (`failure.ts`). Sans enveloppe, ou sans `correlation_id`, la référence affichée est le
 digest que Next calcule, celui de ses propres journaux. Un écran ne dit jamais « vide » sur une
 réponse qu'il n'a pas lue. Quand la session est illisible, la navigation garde l'écran d'état
-(WF-ADM-0130). Chaque segment qui lit l'API a son `loading.tsx`, le squelette `ScreenSkeleton`, qui
+(WF-ADM-0130). Chaque segment qui lit l'API a son `loading.tsx`, le squelette `ScreenSkeleton`, à la
+densité de ses écrans, que le `loading.tsx` lit dans la table des densités — un écran d'une autre
+famille que son segment a le sien, et l'écran aéré ne saute pas à son arrivée (#3269) —, qui
 porte un `role="status"` nommé — un lecteur d'écran ne l'annonce pas toujours ; la réponse est alors
 diffusée, et « introuvable » répond 200 et non 404 — un 404 doux, que Next marque `noindex` : le
 statut part avec le squelette, avant que la page sache l'objet introuvable. Il est le même pour
@@ -563,26 +565,35 @@ référentiel incomplet — se montre sur un exemple nommé du contrat (`empty`,
 
 L'accueil, `/`, est la liste des projets (`frontend/src/app/(home)/`, un groupe de routes pour qu'il
 ait son squelette sans en donner un à toutes les pages) : filtrée par défaut sur les projets dont
-l'utilisateur est contributeur, par le filtre du contrat (`is_contributor`), que l'écran montre et
-qu'un lien lève — `?is_contributor=false`, sous le nom du contrat
-(`frontend/src/navigation/home.ts`) — : un filtre, jamais une restriction de lecture (WF-PRJ-0060).
-Le lien qui le lève n'est offert qu'à une session qui porte `all_projects_read` (WF-ADM-0110) : levé
-pour un autre, le filtre rendrait la même liste, et le lien promettrait ce qu'il ne fait pas
-(WF-IHM-0090, #522) ; sans cette permission, l'accueil reste filtré quoi que dise l'adresse —
-`?is_contributor=false` compris, la page demandant `is_contributor=true` —, le badge « Mes projets »
-affiché sans aucun lien, et le choix du projet mène à l'accueil plutôt qu'à la liste levée. La barre
+l'utilisateur est contributeur, par le filtre du contrat (`is_contributor`) : un filtre, jamais une
+restriction de lecture (WF-PRJ-0060). L'écran est aéré (`PageHeader` en densité `airy`) et sa table
+tient dans une carte, `SectionCard` « Liste des projets », dont « Créer un projet » est la commande
+principale, pleine, à la droite du titre — pour la session qui porte la permission de créer un
+projet, aucune autre n'en a l'offre. Le filtre est une pastille « Mes projets (par défaut) » sous la
+barre de la table, que l'on ôte, et un champ « Projets » du panneau des filtres ; l'ôter écrit
+`?is_contributor=false`, sous le nom du contrat (`frontend/src/navigation/home.ts`), et une adresse
+qui ne dit rien vaut le filtre. Il n'est jamais gardé, ni dans l'adresse ni dans les préférences de
+la grille : à la connexion, l'utilisateur voit ses projets (WF-IHM-0120). La pastille et le champ ne
+sont offerts qu'à une session qui porte `all_projects_read` (WF-ADM-0110) : levé pour un autre, le
+filtre rendrait la même liste, et la pastille promettrait ce qu'elle ne fait pas (WF-IHM-0090,
+#522) ; sans cette permission, l'accueil reste filtré quoi que dise l'adresse —
+`?is_contributor=false` compris, la page demandant `is_contributor=true` —, sans pastille ni champ,
+et la description de la carte dit seule que la liste tient les projets dont la session est
+contributeur ; le choix du projet mène alors à l'accueil plutôt qu'à la liste levée. La barre
 latérale et le fil d'Ariane mènent à la liste filtrée, le choix du projet à la liste levée, « Tous
 les projets » ; `/projects`, l'ancienne adresse, renvoie à l'accueil. Les projets sont une
 configuration de plus de la grille dense (`project-list-grid.tsx`, préférences sous la clé
 `projects`) : le libellé, lien qui ouvre le projet, le code, l'état par sa pastille et la date de
 modification, chaque colonne triée par le serveur (`sort_by`), cherchée par lui sur le libellé et le
-code (`search`), filtrée par état — des boutons pressés qui n'écrivent que l'adresse (`states`) — et
+code (`search`), filtrée par état — un champ du panneau qui n'écrit que l'adresse (`states`) — et
 par période sur la dernière modification (`from`, `to`, EP-02/L42e) : deux jours saisis dans l'heure
 locale du lecteur, envoyés comme les instants du début du premier et du début du lendemain du
-dernier, la fin exclue. Une adresse qui ne nomme aucun état demande les six, l'accueil montrant tout
-ce que l'utilisateur peut ouvrir, là où le contrat, sans `states`, ne rendrait que les projets en
-cours (WF-PTF-0010) ; les boutons pressés sont les états que l'adresse nomme, « Tous les états »
-quand elle n'en nomme aucun : l'adresse fait foi. Une période que le serveur refuse — une fin qui
+dernier, la fin exclue. Les états se disent comme le filtre des projets, par des pastilles : une
+adresse qui ne nomme aucun état demande ceux que le compte a gardés, à défaut les états par défaut,
+Créé, Chiffrage et En cours, dits « (par défaut) » ; `states=all` les lève et demande les six,
+là où le contrat, sans `states`, ne rendrait que les projets en cours (WF-PTF-0010) : l'adresse fait
+foi.
+Une période que le serveur refuse — une fin qui
 précède le début, 422 `VALUE_OUT_OF_RANGE` sur `/query/to`, `params.minimum` le début donné — est
 dite à son champ, le début nommé par son jour local, qui prend le focus chaque fois que la liste
 revient refusée, comme une borne d'une colonne de nombres (`range-filter.tsx`) ; la liste n'est pas
@@ -724,7 +735,12 @@ qu'aucune commande ne mène à Chiffrage ni à En cours (WF-CYC-0020) ; le décl
 deux faits que le contrat énumère (`LifecycleTrigger`), dit par son catalogue
 (`enums.LifecycleTrigger`). Un projet qu'aucun fait ne mène plus loin — le serveur répond sans
 prochain état ni déclencheur — le dit : en cours, seules ses sorties restent ; terminal — un état où
-mène une sortie (`EXIT_STATES`) —, il est clos, et aucun état ne le suit (WF-CYC-0080).
+mène une sortie (`EXIT_STATES`) —, il est clos, et aucun état ne le suit (WF-CYC-0080). Le prochain
+état et l'historique des états sont chacun une carte de section, dans la colonne aérée (US-2130) ;
+les sorties restent à droite du titre de l'écran, à contour. L'écran des révisions suit la même
+présentation sans changer de structure (EP-27 la refond) : une carte par section, « Ouvrir une
+révision en cours » — la commande pleine, que `RevisionHistory` reçoit par `creation` — à droite du
+titre de la carte de l'historique, les commandes de la révision lue à droite du titre de l'écran.
 
 ### Les périodes d'une liste
 
@@ -1015,18 +1031,23 @@ contenu sous l'enveloppe de sa grille, hors de la chaîne qui la contient — f�
 fenêtre étroite, où le contenu voisin se range dessous (les coûts réels, les risques) —, ne remplit
 pas la fenêtre là où il l'a dessous (`fillWide`, `lg:min-h-0`), de même que `/admin/backups` et le
 référentiel des ressources et des coûts, qui empilent leurs grilles, ne la remplissent pas : la
-grille déborderait sur lui (#1033). `frontend/e2e/grid-frame.spec.ts` le mesure sur les neuf écrans
+grille déborderait sur lui (#1033). `frontend/e2e/grid-frame.spec.ts` le mesure sur les huit écrans
 qui remplissent la fenêtre, dans une fenêtre basse, aux deux largeurs du harnais : le cadre ne
 chevauche rien. La largeur d'une table est du CSS, sans mesure en script (`table-width.ts`, US-2080,
 #3075) : le cadre a la largeur de sa carte, la table la plus grande de la carte et de la somme de ses
 colonnes, et la colonne du libellé (`label`) — à défaut, la dernière avant une colonne figée à la
 fin — prend ce que les autres laissent, la largeur choisie pour elle devenant son minimum : sa
 poignée et ses flèches règlent ce minimum, sans que la colonne rétrécisse sous ce que la carte lui
-donne. Elle n'est plus large que sa largeur que quand la table ne défile pas de côté : les décalages
-des colonnes figées, tirés des largeurs choisies, restent justes. Aucun trait entre les colonnes,
-sauf à côté d'une colonne figée ; la ligne sous le pointeur est teinte d'un jeton (`--row-hover`,
-`ROW_HOVER`), qu'une cellule calculée, une ligne choisie ou marquée d'un différentiel gardent sous
-leur propre teinte. Dans la ligne de total, le libellé du nombre s'étend sur les colonnes sans
+donne ; un pas qui ne change rien à l'écran n'écrit rien, si bien que, tant que la carte est large,
+ce minimum ne peut que monter (#3280). Elle n'est plus large que sa largeur que quand la table ne
+défile pas de côté : les décalages des colonnes figées, tirés des largeurs choisies, restent justes.
+Aucun trait entre les colonnes, sauf à côté d'une colonne figée ; les cellules du corps prennent le
+fond de la carte qui porte la table (`CELL_BACKGROUND`, `bg-card`, #3277), opaque pour les colonnes
+figées, et la ligne sous le pointeur est teinte d'un jeton (`--row-hover`, `ROW_HOVER`), qu'une
+cellule calculée, une ligne choisie ou marquée d'un différentiel gardent sous leur propre teinte. Les
+commandes d'une ligne (variante `row` de `Button`) ont un bord à elles, `--row-command-border`, à
+3:1 sur la carte, le survol et la ligne choisie ; `--border`, qui ne fait que séparer, reste clair
+(#3332). Dans la ligne de total, le libellé du nombre s'étend sur les colonnes sans
 chiffre qui le suivent (`colSpan`) au lieu de se tronquer ; figé, il ne reste collé que sur les
 colonnes figées, ses mots au début de sa colonne (#3072). Les tables simples (`ui/table.tsx`) ont
 le texte, l'en-tête et l'absence de traits des grilles. La barre et le bouton « Colonnes » ont la
@@ -1558,15 +1579,21 @@ tables simples, sans tri ni filtre (décision de l'auteur du 2026-10-08, #508). 
 nomme par le libellé que le serveur résout à la lecture, actif ou désactivé — jamais en rapprochant
 des listes dans le front ; une section se nomme par `aria-label` (#251).
 
-Les listes du référentiel ne lisent que les objets actifs, et les désactivés aussi quand l'adresse
-le demande (`include_inactive`, WF-REF-0150, #300), sous le nom du contrat, que l'en-tête de l'écran
-écrit ou lève par un lien (`InactiveSwitch`), qui ramène chaque liste paginée à sa première page — à
-une session seulement qui porte la permission d'écriture de leur partie du référentiel, sans
-laquelle le contrat le refuse (403, `inactiveQuery` d'`address.ts` ; décision #2084, option A,
-`docs/api/DECISIONS.md`), comme les listes du devis (#351). Le filtre par état (`is_active`,
-`StateFilter`) prime sur lui : tous les états, les actifs seuls, ou les désactivés seuls, offert à
-la même session seulement (`stateOf`). Un objet désactivé s'y dit par une marque et un mot, et s'y
-réactive comme le serveur liste sa commande
+Chaque liste du référentiel dit ce qu'elle montre des objets désactivés par son propre filtre
+d'état (`is_active` sous le préfixe de sa grille, `StateFilter`, WF-REF-0150, US-2090), un filtre
+par défaut de la grille comme les états de la liste des projets (#1747) : absent de l'adresse et des
+réglages du compte, il vaut « Actifs », dit par la pastille « État : Actifs (par défaut) » ;
+« Désactivés » les montre seuls ; la pastille ôtée les montre tous, l'adresse écrivant alors `all`
+pour que ni le compte ni le défaut ne reprennent la place (`stateOf`, `EVERY_STATE` d'`address.ts`).
+Le front envoie `is_active=true`, `is_active=false`, ou `include_inactive=true` sans `is_active`
+(`stateQuery`). Le choix se garde avec les réglages de la grille, par compte, dès qu'il diffère du
+défaut (`keptState`, `GridConfig.defaulted`, `kept-filters.ts`). L'écran n'a plus d'interrupteur
+« Afficher aussi les désactivés », et `include_inactive` dans son adresse n'est plus lu (#3076). Le
+filtre n'est offert qu'à une session qui porte la permission d'écriture de leur partie du
+référentiel, sans laquelle le contrat refuse les désactivés (403 ; décision #2084, option A,
+`docs/api/DECISIONS.md`) : une autre ne lit que les actifs, comme les listes du devis (#351). Les
+listes de choix des formulaires n'offrent que les actifs, quoi que montrent les tables. Un objet
+désactivé s'y dit par une marque et un mot, et s'y réactive comme le serveur liste sa commande
 (`available_commands`, #532, WF-IHM-0090) — le serveur ne la liste qu'à qui peut modifier cette
 partie, et le front n'en déduit rien : disponible, par la commande d'activation de sa nature
 (`setActivation`, une action serveur, depuis la version lue), puis la page relit ses listes ;
@@ -1869,7 +1896,7 @@ filtre se dit dans l'adresse, la recherche écrite vide (`search=`, `spokenHref`
 `PendingAddress` d'un écran qui nomme ce que garde sa grille), comme un tri levé écrit `sort_by`
 vide : la préférence se vide, et la page ne retrouve pas les filtres gardés (#836). L'écran des
 rôles est branché sur le service (US-0380/L2, #380) : à une session qui porte `access_roles.write`,
-la table crée un rôle en ligne, par son seul libellé (`role-commands.tsx`), le renomme dans sa
+la table crée un rôle par son seul libellé, dans le dialogue que « Nouveau rôle » ouvre — le bouton plein, à droite du titre de la carte (`role-commands.tsx`, `role-creation.tsx`) —, le renomme dans sa
 cellule — la saisie de la grille, écrite par `updateAccessRole` avec les permissions du rôle — et le
 supprime depuis sa ligne, après une confirmation qui nomme le rôle et dit la suppression définitive
 (`AlertDialog`, hors de la grille, Échap l'abandonnant) — une suppression logique (#456), que rien
@@ -1929,8 +1956,8 @@ comptes » ; un refus de l'interrupteur, des rôles ou de l'anonymisation, au-de
 la lecture d'où il est parti (`Reactivations`), celui d'un nom, à sa cellule. La recherche et les
 filtres se gardent avec les réglages de la grille et se retrouvent quand l'adresse ne dit rien de la
 table (`USER_KEPT`), comme pour les rôles. Sans la permission, rien ne s'écrit et aucune commande ne
-se présente. Au-dessus de la table, la lecture des comptes du fournisseur d'identité (US-0370,
-WF-ADM-0070, `identity-sync.tsx`) montre le compte rendu de la dernière lecture achevée
+se présente. Dans une carte sous la table, à droite de son titre une commande à contour, « Lire les comptes », et son état en corps, la lecture des comptes du fournisseur d'identité (US-0370,
+WF-ADM-0070, US-2100, `identity-sync.tsx`) montre le compte rendu de la dernière lecture achevée
 (`getLatestIdentitySync`), ou dit qu'aucune n'a encore abouti (404) : ses comptes créés, mis à jour,
 désactivés, ceux dont elle a rétabli l'identité dans le fournisseur, les comptes locaux qu'elle en
 retire, et, à la demande, ce qu'elle a laissé tel quel, chacun avec le motif du catalogue — un
@@ -2554,8 +2581,9 @@ appartiennent aux formulaires de leur domaine, sa modification à celui de ses p
 et ses conditions — une révision marquée les liste indisponibles, faute d'être en cours
 d'élaboration —, ses exports laissés à l'écran des imports et exports, qui les offre (`ExportForm`),
 ses saisies (`edit_*`) à leurs grilles et le squelette à la grille de planning vide (EP-14/L44d) ;
-`findOffer` en tire une seule, et `UnmetConditions` nomme ce qui manque à l'offre d'un formulaire
-qui n'est pas un `Command`. Hors projet — comptes, rôles, référentiel, sauvegarde —, `platformOffer`
+`findOffer` en tire une seule, et les formulaires disent ce qui leur manque comme les autres
+commandes, par `CommandTooltip` et, pressées, `PressRefusal` ; `UnmetConditions` ne reste que pour
+les commandes des chronologies (#3290). Hors projet — comptes, rôles, référentiel, sauvegarde —, `platformOffer`
 suit la permission de modification d'une fonction de portée `platform` (`PlatformFunction`) dans
 `Session.permissions`, ou `project_create` pour la création d'un projet, qu'aucun projet ne liste ;
 les commandes d'une sauvegarde sont celles qu'elle liste (`Backup.available_commands`, EP-14/L43f),
@@ -2719,11 +2747,34 @@ qui garde le focus tant qu'il est ouvert et que ferment Échap, son bouton de fe
 du panneau ou « Recharger l'écran », le focus rendu au bouton de la barre. Le bouton de la barre
 (`TasksButton`) l'ouvre et dit, dans son nom et ses pastilles, le nombre des tâches suivies et celui
 des refus non lus. Rien ne l'ouvre de lui-même, sauf le refus d'un résultat au retour du navigateur,
-dont le téléchargement est parti du panneau. Une tâche remise ou finie se dit sous la barre, dans le
-flux de la page, sur l'écran où l'on est : la dernière, en une ligne courte qui reste jusqu'à la
-suivante — la confirmation sur place d'un succès que l'écran ne montre pas —, sans annonce, le
-journal parlant pour les fins ; son bouton la ferme, au clavier comme à la souris, et rend le focus
-au bouton de la barre, la tâche restant suivie (décision de l'auteur, #1179). Fermé, le panneau suit
+dont le téléchargement est parti du panneau. Une tâche remise se dit sous la barre, dans le flux de
+la page, sur l'écran où l'on est : la dernière, en une ligne courte qui reste jusqu'à la suivante,
+sans annonce ; son bouton la ferme, au clavier comme à la souris, et rend le focus au bouton de la
+barre, la tâche restant suivie (décision de l'auteur, #1179). La ligne ne dit pas une fin que porte
+une carte d'aboutissement — un succès, un échec — : la carte, qui reste et porte l'action, la dit
+seule, avec le journal des fins et le panneau, et la ligne de la tâche remise se ferme à son
+arrivée ; elle ne dit plus qu'un suivi interrompu, qui n'a pas de carte (décision de l'auteur du
+2026-11-14, #3292). Chaque succès et chaque échec se dit par une carte flottante au coin bas droit
+de la fenêtre (`EndCards`,
+`end-cards.tsx`, US-2170), montée par la coquille au-dessus de la page, qu'elle ne déplace pas : la
+phrase de la fin, le motif d'un échec, l'action qui suit — « Télécharger » le fichier d'un export, la
+tâche relue d'abord comme depuis le panneau, sinon « Ouvrir » l'écran d'où elle est partie — et sa
+croix. Elle reste jusqu'à ce qu'on l'ouvre — « Ouvrir » d'un clic simple, pas d'un clic qui ouvre
+un autre onglet — ou la ferme (`Tracking.cards`, faites avant que le journal soit tronqué) ;
+plusieurs s'empilent, la dernière en tête, dans une colonne bornée à la fenêtre, qui défile. Ce
+n'est pas une région vivante : le journal des fins l'annonce, sans prendre le focus, et l'inscrit à
+l'historique des messages, que le panneau garde. Un suivi interrompu n'a pas de carte ; une tâche
+retrouvée, son écran inconnu, n'a que sa croix. Fermée — par sa croix ou par son action — alors que
+le focus était dans la pile, le focus passe à la croix de la suivante, sinon de la précédente, sinon
+au bouton de la barre. Le fichier d'un export part de lui-même quand sa tâche aboutit et que l'écran
+qui l'a demandé est encore ouvert (`useDownloadWhenTaskSucceeds`, `ExportForm`, `TaskTreeExport`,
+#3103), la tâche relue d'abord ; l'écran quitté, la carte l'offre. Parti de lui-même, sans geste de
+l'utilisateur, il ne quitte ni ne recharge jamais l'écran : il passe par un cadre caché, sans
+scripts (`sandbox`), un refus de la route lu à l'adresse où elle renvoie le cadre et dit par la carte
+(`downloadWhenThere`, `result-download.tsx`) — pas par `fetch`, que la garde du réseau réserve au
+client de l'API et qui tiendrait le fichier en mémoire. Servi une fois (WF-DAT-0120), le fichier n'est
+plus offert par la carte, qui garde sa phrase et sa croix — ni quand la relecture avant un clic le
+dit parti. Fermé, le panneau suit
 encore ses tâches — la coquille les relit (`TaskPolling`), hors des entrées — et son journal parle
 toujours, hors du panneau, ou dedans tant qu'il est ouvert, où le focus est gardé. Une relance
 refusée comme périmée (412) perd sa commande, qui le serait encore, et une relecture refusée
