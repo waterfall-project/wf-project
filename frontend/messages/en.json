@@ -743,6 +743,7 @@
       "node": "Labour of {node} and of its descendants"
     },
     "projects": {
+      "title": "Projects of the portfolio",
       "retained": "{count, plural, =0 {No project retained} one {# project retained} other {# projects retained}}",
       "reason": " — {reason}",
       "zoneChip": "Index zone",
@@ -839,6 +840,7 @@
       }
     },
     "costCurve": {
+      "section": "S-curve",
       "chartTitle": "Cumulative costs of the portfolio",
       "chartTitleDelayed": "Cumulative cash-out of the portfolio",
       "description": "Cumulative curves, month by month, of the reference budget of the projects of the perimeter, of their actual cost up to the calculation date, then of their project managers’ projection: each point is the sum of the points of the projects, as the server computes it.",

@@ -12,11 +12,12 @@
  * the server retained it by default (`scope.states`): the front assumes no default of its own; the
  * last state checked cannot be released, a perimeter retaining at least one. A period the server
  * refuses (422) is said at its field, the start named. A change goes on from the address last asked
- * (`usePendingAddress`).
+ * (`usePendingAddress`). The filters lie in a card of their own (`SectionCard`, EP-25), named by
+ * « Périmètre du portefeuille ».
  */
 "use client";
 
-import { CalendarRange } from "lucide-react";
+import { CalendarRange, ListFilter } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { type SubmitEvent, useEffect, useId, useOptimistic, useRef, useTransition } from "react";
@@ -30,6 +31,7 @@ import { usePeriodProblem } from "@/components/grid/period-filter";
 import { OFFSET } from "@/components/grid/query";
 import { ProjectStateBadge } from "@/components/projects/project-state-badge";
 import { type NodeChoice, OrgNodeFilter } from "@/components/reference/reference-filters";
+import { SectionCard } from "@/components/shell/section-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -294,59 +296,61 @@ export function PerimeterBar({
   // typed while dates sent are on their way survives their arrival, a state chosen meanwhile too.
   return (
     <PendingAddress>
-      <section aria-label={t("label")} className="flex flex-wrap items-center gap-x-6 gap-y-2">
-        <StatesFilter asked={perimeter.states} retained={retained} />
-        <DatesForm
-          perimeter={perimeter}
-          fields={takes.period ? DATES.period : DATES.date}
-          refused={refused}
-        />
-        {/* No node to choose — none in the reference, none the API lets one read —: none offered,
+      <SectionCard title={t("label")} icon={ListFilter}>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <StatesFilter asked={perimeter.states} retained={retained} />
+          <DatesForm
+            perimeter={perimeter}
+            fields={takes.period ? DATES.period : DATES.date}
+            refused={refused}
+          />
+          {/* No node to choose — none in the reference, none the API lets one read —: none offered,
           unless the address already filters on one, which stays shown to be cleared. */}
-        {takes.node && (nodes.length > 0 || perimeter.orgNode !== undefined) ? (
-          <OrgNodeFilter
-            name={ORG_NODE}
-            label={t("orgNode")}
-            every={t("everyNode")}
-            nodes={nodes}
-            chosen={perimeter.orgNode}
-            page={OFFSET}
-          />
-        ) : null}
-        {view !== undefined && "horizon" in view ? (
-          <ChoiceFilter
-            name={HORIZON}
-            label={t("horizon")}
-            every={t("byDefault")}
-            choices={withChosen(HORIZONS, view.horizon).map((months) => ({
-              value: months,
-              text: t("months", { months }),
-            }))}
-            chosen={view.horizon}
-            page={OFFSET}
-          />
-        ) : null}
-        {view !== undefined && "threshold" in view ? (
-          <ChoiceFilter
-            name={THRESHOLD}
-            label={t("threshold")}
-            every={t("byDefault")}
-            choices={withChosen(THRESHOLDS, view.threshold).map((value) => ({
-              value,
-              text: formatPercent(value, locale),
-            }))}
-            chosen={view.threshold}
-            page={OFFSET}
-          />
-        ) : null}
-        {/* Read from the states the server retained, never from the address, which may name none:
+          {takes.node && (nodes.length > 0 || perimeter.orgNode !== undefined) ? (
+            <OrgNodeFilter
+              name={ORG_NODE}
+              label={t("orgNode")}
+              every={t("everyNode")}
+              nodes={nodes}
+              chosen={perimeter.orgNode}
+              page={OFFSET}
+            />
+          ) : null}
+          {view !== undefined && "horizon" in view ? (
+            <ChoiceFilter
+              name={HORIZON}
+              label={t("horizon")}
+              every={t("byDefault")}
+              choices={withChosen(HORIZONS, view.horizon).map((months) => ({
+                value: months,
+                text: t("months", { months }),
+              }))}
+              chosen={view.horizon}
+              page={OFFSET}
+            />
+          ) : null}
+          {view !== undefined && "threshold" in view ? (
+            <ChoiceFilter
+              name={THRESHOLD}
+              label={t("threshold")}
+              every={t("byDefault")}
+              choices={withChosen(THRESHOLDS, view.threshold).map((value) => ({
+                value,
+                text: formatPercent(value, locale),
+              }))}
+              chosen={view.threshold}
+              page={OFFSET}
+            />
+          ) : null}
+          {/* Read from the states the server retained, never from the address, which may name none:
           the server then chooses, and the front assumes no default of its own. */}
-        {completedWithoutEffect !== undefined && retained?.includes("completed") ? (
-          <p role="note" className="basis-full text-sm text-muted-foreground">
-            {t(NO_EFFECT[completedWithoutEffect])}
-          </p>
-        ) : null}
-      </section>
+          {completedWithoutEffect !== undefined && retained?.includes("completed") ? (
+            <p role="note" className="basis-full text-sm text-muted-foreground">
+              {t(NO_EFFECT[completedWithoutEffect])}
+            </p>
+          ) : null}
+        </div>
+      </SectionCard>
     </PendingAddress>
   );
 }
