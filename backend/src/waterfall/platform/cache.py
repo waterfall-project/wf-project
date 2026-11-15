@@ -69,7 +69,8 @@ class IndicatorsCache:
     def read(self, key: str) -> str | None:
         """Give the document kept under a key, or ``None`` if none is or Redis does not answer.
 
-        A client that gives bytes, not decoded strings, is served all the same.
+        A client that gives bytes, not decoded strings, is served all the same; an entry that is not
+        UTF-8 is unreadable, hence ``None``, and logged like the other causes.
         """
         try:
             document = self.client.get(PREFIX + key)
@@ -77,7 +78,11 @@ class IndicatorsCache:
             _report(error)
             return None
         if isinstance(document, bytes):
-            return document.decode("utf-8")
+            try:
+                return document.decode("utf-8")
+            except UnicodeDecodeError as error:
+                _report(error)
+                return None
         return document if isinstance(document, str) else None
 
     def write(self, key: str, document: str) -> None:
@@ -88,11 +93,12 @@ class IndicatorsCache:
             _report(error)
 
 
-def _report(error: RedisError) -> None:
+def _report(error: RedisError | UnicodeDecodeError) -> None:
     """Log the first fault of each cause; the cause is the class of the error.
 
     Two ``ResponseError`` (``WRONGTYPE``, ``OOM``, ``READONLY``…) are one cause: the message of the
-    first is logged with it, and carries no address, hence no secret.
+    first is logged with it. It carries no identifier and no password, only the address of the Redis
+    (``host:port``) for a connection or a delay error.
     """
     cause = type(error).__name__
     if cause in _reported:

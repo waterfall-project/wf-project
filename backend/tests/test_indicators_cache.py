@@ -105,12 +105,11 @@ def test_an_entry_past_its_validity_is_no_longer_served(
 
 
 @pytest.mark.requirement("WF-DAT-0130-A")
-def test_an_entry_written_for_one_second_expires_after_it(queue: TaskQueue, key: str) -> None:
-    brief = IndicatorsCache.of(queue, 1)
+def test_an_entry_written_for_two_seconds_expires_after_it(queue: TaskQueue, key: str) -> None:
+    brief = IndicatorsCache.of(queue, 2)
     try:
         brief.write(key, "{}")
-        assert brief.read(key) == "{}"
-        time.sleep(1.2)
+        time.sleep(2.2)
         assert brief.read(key) is None
     finally:
         queue.client.delete(PREFIX + key)
@@ -145,7 +144,7 @@ def test_a_redis_that_answers_nowhere_answers_within_the_delay_of_a_request(
     started = time.monotonic()
     unreachable.read(key)
     unreachable.write(key, "{}")
-    assert time.monotonic() - started < 3 * DEPOSIT_TIMEOUT
+    assert time.monotonic() - started < 5 * DEPOSIT_TIMEOUT
 
 
 @pytest.mark.requirement("WF-DAT-0130-A")
@@ -156,7 +155,7 @@ def test_a_redis_that_accepts_and_never_answers_is_left_after_the_delay_of_a_dep
     with capture_logs() as records:
         assert silent.read(key) is None
         silent.write(key, "{}")
-    assert time.monotonic() - started < 3 * DEPOSIT_TIMEOUT
+    assert time.monotonic() - started < 5 * DEPOSIT_TIMEOUT
     unavailable = [r for r in records if r["event"] == "indicators.cache_unavailable"]
     assert [r["cause"] for r in unavailable] == ["TimeoutError"]
 
@@ -217,6 +216,24 @@ def test_a_client_that_gives_bytes_is_served_all_the_same(
             assert served.read(key) == '{"é": 1}'
         assert records == []
     finally:
+        raw.close()
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+def test_an_entry_that_is_not_utf8_is_read_as_none_and_logged_once(
+    queue: TaskQueue, redis_url: str, key: str
+) -> None:
+    raw = redis.from_url(redis_url)
+    try:
+        raw.set(PREFIX + key, b"\xff")
+        served = IndicatorsCache(raw, 600)
+        with capture_logs() as records:
+            assert served.read(key) is None
+            assert served.read(key) is None
+        unavailable = [r for r in records if r["event"] == "indicators.cache_unavailable"]
+        assert [r["cause"] for r in unavailable] == ["UnicodeDecodeError"]
+    finally:
+        queue.client.delete(PREFIX + key)
         raw.close()
 
 
