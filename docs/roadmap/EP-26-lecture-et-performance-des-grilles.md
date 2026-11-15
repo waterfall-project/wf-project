@@ -654,16 +654,18 @@ documents. Les inscriptions s'écrivent dans le document gardé sans le relire (
 filtrée garde le chemin des lignes : le moins que coûterait un filtre du document (le lire, un test
 par nœud, l'écrire, sans ancêtres, totaux ni tri) dépasse déjà le tiers de la lecture filtrée
 depuis les lignes pour les filtres mesurés (`make measure-core ONLY=kept`). Ce plancher ne compte ni
-ancêtres, ni totaux, ni tri : il minore le coût de tout filtre, `sort`, `subtree_of`, `timeline_id`
-et filtres de montants compris, qui n'ont pas été mesurés — la conclusion vaut pour tous. Mesure
+ancêtres, ni totaux, ni tri : il minore le coût d'un filtre appliqué au document, et dépasse le
+tiers pour les trois filtres mesurés, de peu pour deux d'entre eux. Les autres filtres (`sort`,
+`subtree_of`, `timeline_id`, montants) gardent le chemin des lignes par la même règle, sans être
+mesurés. Mesure
 du 2026-11-15 (médianes de 5 passages, dispersion entre parenthèses) : la grille entière d'une
 révision marquée, 290 ms (46) depuis les lignes, 15 ms (3) gardée — 103 ms (2) avant US-2270/L2 ;
 projetée par les champs du devis, 255 ms (77) contre 77 ms (55) ; `compareRevisions` de deux
 révisions marquées, 640 ms (84) depuis les lignes, 240 ms (87) gardée, le corps identique — la
 première comparaison, qui garde les deux lectures, 907 ms. Plancher du document contre lecture
 filtrée depuis les lignes, rapport des médianes : `kinds=task` 70,7 / 72,9 ms (0,97),
-`search=revue&progress=…` 61,1 / 151,7 (0,40), `max_level=2` 59,5 / 147,1 (0,41) : aucun
-n'atteint le tiers (0,33) qui justifierait de filtrer le document.
+`search=revue&progress=…` 61,1 / 151,7 (0,40), `max_level=2` 59,5 / 147,1 (0,41) : tous
+dépassent le tiers (0,33) en deçà duquel filtrer le document se justifierait.
 
 **Hors périmètre.** « Écarts seulement », que la spécification 1.0.6 change en repli des branches
 sans écart — EP-27 ; les options 2 et 3 de #3168.
