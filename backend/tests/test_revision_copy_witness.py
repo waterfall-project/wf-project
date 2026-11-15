@@ -16,7 +16,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, inspect, select
 from test_witness_projects import PRJ_001, REVISION_100, REVISION_101, REVISION_102
 
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
@@ -50,31 +50,22 @@ pytestmark = pytest.mark.requirement("WF-REV-0010-A")
 SAME_YEAR = datetime(2026, 6, 3, 14, 5, tzinfo=UTC)
 NEXT_YEAR = datetime(2027, 1, 11, 9, 0, tzinfo=UTC)
 CENT = Decimal("0.01")
-# What a task keeps of its source, but its dates, which the opening dates again (WF-PLA-0160).
-TASK_KEPT = (
-    "kind",
-    "label",
-    "description",
-    "scheduling_mode",
-    "duration_value",
-    "duration_unit",
-    "progress",
-    "external_id",
-    "work_package_id",
-    "order_item_id",
-)
-# What a line keeps of its source, but its amounts, which the copy of the rates prices again.
-LINE_KEPT = (
-    "kind",
-    "label",
-    "cost_category_id",
-    "resource_role_id",
-    "quantity",
-    "hours",
-    "unit_disbursement",
-    "subproject_id",
-    "remaining_reason",
-    "reestimated_at",
+# What a copy does not take as it is, whatever the year: the keys (the node, the structure, which
+# are the copy's own), and, of a line, the lock version, the stamp and what the opening sets by
+# its own rule, each proved apart below.
+TASK_OWN = ("node_id", "structure_id")
+LINE_OWN = (
+    "node_id",
+    "lock_version",
+    "created_at",
+    "created_by",
+    "updated_at",
+    "updated_by",
+    "budgeted_amount",
+    "previous_quantity",
+    "previous_hours",
+    "previous_unit_disbursement",
+    "previous_reestimated_amount",
 )
 PREVIOUS = ("quantity", "hours", "unit_disbursement", "reestimated_amount")
 
@@ -105,6 +96,15 @@ def _opened(database: Database, at: datetime) -> UUID:
         return create_revision(session, PRJ_001, Act(manager, at), viewer).revision_id
 
 
+def _columns(row: Task | EstimateLine, own: tuple[str, ...]) -> dict[str, object]:
+    """Give every column of a row but those ``own``: a column added later is compared too."""
+    return {
+        column.key: getattr(row, column.key)
+        for column in inspect(type(row)).column_attrs
+        if column.key not in own
+    }
+
+
 def _nodes(session: Session, revision_id: UUID) -> dict[UUID, Node]:
     """Give the nodes of a revision of PRJ-001, by their lineage."""
     return {
@@ -133,6 +133,18 @@ def _lines(session: Session, nodes: dict[UUID, Node]) -> dict[UUID, EstimateLine
         )
     )
     return {lineage[row.node_id]: row for row in rows}
+
+
+def _rates(session: Session, revision_id: UUID) -> dict[UUID, tuple[Decimal, str]]:
+    """Give the rates a revision keeps, by cost category: their amount and their origin."""
+    return {
+        rate.cost_category_id: (rate.amount, rate.origin)
+        for rate in session.scalars(
+            select(RevisionRate).where(
+                RevisionRate.project_id == PRJ_001, RevisionRate.revision_id == revision_id
+            )
+        )
+    }
 
 
 def _links(session: Session, revision_id: UUID) -> set[tuple[object, ...]]:
@@ -188,17 +200,15 @@ def test_a_revision_opened_on_prj_001_bears_the_same_tasks_and_lines_as_its_mark
         tasks = _tasks(session, source), _tasks(session, copy)
         assert len(tasks[1]) == len(tasks[0]) > 900
         for lineage, task in tasks[1].items():
-            kept = [getattr(tasks[0][lineage], name) for name in TASK_KEPT]
-            assert [getattr(task, name) for name in TASK_KEPT] == kept
+            assert _columns(task, TASK_OWN) == _columns(tasks[0][lineage], TASK_OWN)
         assert _links(session, opened) == _links(session, REVISION_101)
         lines = _lines(session, source), _lines(session, copy)
         assert len(lines[1]) == len(lines[0]) > 4900
         reference = _lines(session, _nodes(session, REVISION_100))
         for lineage, line in lines[1].items():
             was = lines[0][lineage]
-            assert [getattr(line, name) for name in LINE_KEPT] == [
-                getattr(was, name) for name in LINE_KEPT
-            ]
+            # At the year of the source, its amounts as they are: the rates are the same.
+            assert _columns(line, LINE_OWN) == _columns(was, LINE_OWN)
             assert line.lock_version == 1
             # The 101 is a review: its figures are the remaining to commit before it (EP-09).
             assert [getattr(line, f"previous_{name}") for name in PREVIOUS] == [
@@ -213,6 +223,8 @@ def test_a_revision_opened_on_prj_001_bears_the_same_tasks_and_lines_as_its_mark
                 else held.budgeted_amount
             )
             assert line.budgeted_amount == budgeted
+        # And at the year of the source, the rates it kept: the same, to the cent and the origin.
+        assert _rates(session, opened) == _rates(session, REVISION_101) != {}
 
 
 def test_a_revision_opened_on_prj_001_a_year_later_projects_the_rates_its_source_kept(
@@ -226,19 +238,9 @@ def test_a_revision_opened_on_prj_001_a_year_later_projects_the_rates_its_source
             select(Project.inflation_rate).where(Project.id == PRJ_001)
         ).one()
 
-        def rates(revision_id: UUID) -> dict[UUID, tuple[Decimal, str]]:
-            return {
-                rate.cost_category_id: (rate.amount, rate.origin)
-                for rate in session.scalars(
-                    select(RevisionRate).where(
-                        RevisionRate.project_id == PRJ_001, RevisionRate.revision_id == revision_id
-                    )
-                )
-            }
-
-        kept = rates(REVISION_101)
+        kept = _rates(session, REVISION_101)
         assert kept
-        assert rates(opened) == {
+        assert _rates(session, opened) == {
             category: (
                 (amount * (1 + inflation)).quantize(CENT, rounding=ROUND_HALF_UP),
                 "projected",
