@@ -126,3 +126,18 @@ def test_list_nodes_and_list_records_read_the_same_nodes(
     assert (read.task_count, read.summary_depth) == (records.task_count, records.summary_depth)
     assert (read.scheduled_at, read.totals) == (records.scheduled_at, records.totals)
 
+
+
+def test_a_node_its_facet_does_not_read_names_no_field(witness: Database) -> None:
+    with witness.transaction() as session:
+        place = Place(PRJ_001, REVISION_102, structure_of(session, REVISION_102))
+        facts = facts_of(session, place, lock=False)
+        tree = read_rows(session, place.project_id, place.structure_id)
+        reading = reading_of(session, place, tree, (facts.scheduled_at, facts.is_main))
+        line = next(each for each in tree.order if each not in tree.tasks)
+        assert line not in reading._facets  # noqa: SLF001
+        record = reading._facet_record(line, tree.nodes[line])  # noqa: SLF001
+    assert isinstance(record, FacetRecord)
+    assert record.computed_fields == ()
+    assert record.editable_fields == ()
+    assert record.facet is None
