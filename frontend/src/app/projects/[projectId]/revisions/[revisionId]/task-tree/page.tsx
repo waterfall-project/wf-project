@@ -101,7 +101,7 @@ function TaskTreeScreen({
 }) {
   const t = useTranslations();
   return (
-    <Screen density={LEAF_DENSITY["FBS-4.3.5"]}>
+    <Screen density={LEAF_DENSITY["FBS-4.3.5"]} fill>
       <PageHeader
         title={t("functions.taskTree")}
         icon={LEAF_ICONS["FBS-4.3.5"]}
@@ -114,7 +114,7 @@ function TaskTreeScreen({
           </div>
         }
       />
-      <WorkCard>
+      <WorkCard fill>
         <TaskTree name={t("taskTree.name")} project={project} nodes={nodes} />
       </WorkCard>
       {levels === 0 ? (

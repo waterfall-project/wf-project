@@ -32,10 +32,18 @@ const ROW = 28;
 /** The margin of a screen of work, in pixels: `px-5` on each side. */
 const MARGIN = 20;
 
+/** The vertical padding of a screen of work, in pixels: `py-3` under the card. */
+const PADDING = 12;
+
 const GRIDS = [`${REVISION}/planning`, `${REVISION}/estimate`, `${REVISION}/remaining`] as const;
 
 interface Fit {
-  readonly main: { readonly left: number; readonly right: number; readonly width: number };
+  readonly main: {
+    readonly left: number;
+    readonly right: number;
+    readonly bottom: number;
+    readonly width: number;
+  };
   readonly card: { readonly left: number; readonly right: number; readonly bottom: number };
   readonly body: number;
   readonly frame: number;
@@ -67,7 +75,7 @@ function measure(page: Page): Promise<Fit> {
     const box = main.getBoundingClientRect();
     const around = card.getBoundingClientRect();
     return {
-      main: { left: box.left, right: box.right, width: box.width },
+      main: { left: box.left, right: box.right, bottom: box.bottom, width: box.width },
       card: { left: around.left, right: around.right, bottom: around.bottom },
       body: body.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
       frame: frame?.getBoundingClientRect().width ?? 0,
@@ -94,19 +102,28 @@ for (const address of GRIDS) {
       const fit = await measure(page);
       // Tight, in no centred column: the card spans the window less the margin of the screen.
       expect(fit.card.left, "the card at the left margin").toBeCloseTo(fit.main.left + MARGIN, 0);
-      expect(fit.card.right, "the card at the right margin").toBeGreaterThanOrEqual(
-        fit.main.right - MARGIN - 20,
+      expect(fit.card.right, "the card at the right margin").toBeCloseTo(
+        fit.main.right - MARGIN,
+        0,
       );
-      // It fills the window: its foot is no higher than the window, never above half of it.
-      expect(fit.card.bottom).toBeGreaterThan(size.height / 2);
+      // It fills the window: its foot is at the foot of the window, less the padding of `main`.
+      expect(fit.main.bottom, "main reaches the foot of the window").toBeCloseTo(size.height, 0);
+      expect(fit.card.bottom, "the foot of the card at the foot of the window").toBeCloseTo(
+        fit.main.bottom - PADDING,
+        0,
+      );
       expect(
         Math.abs(fit.frame - fit.body),
         "the frame is as wide as the body",
       ).toBeLessThanOrEqual(1);
       expect(fit.table, "the table fills its frame").toBeGreaterThanOrEqual(fit.frame - 2);
-      if (fit.row > 0) {
-        expect(fit.row, "the height of a row").toBeLessThanOrEqual(ROW + 4);
-      }
+      expect(fit.row, "the grid has at least one row").toBeGreaterThan(0);
+      // Measured: the cells of the planning hold an editable control as tall as the row, `h-7`, and
+      // the row adds its bottom border, 1 px; the card does not change it (components untouched).
+      expect(fit.row, "the height of a row").toBeCloseTo(
+        address.endsWith("/planning") ? ROW + 1 : ROW,
+        0,
+      );
       if (address.endsWith("/planning")) {
         expect(fit.start, "the planning start date is in the card").toBe(true);
       }
@@ -132,5 +149,10 @@ test("the task tree is in a card as wide as the window, no centred column [WF-IH
     return { main: screen, card: around };
   });
   expect(card.left).toBeCloseTo(main.left + MARGIN, 0);
-  expect(card.right).toBeGreaterThanOrEqual(main.right - MARGIN - 20);
+  expect(card.right).toBeCloseTo(main.right - MARGIN, 0);
+  expect(main.bottom, "main reaches the foot of the window").toBeCloseTo(WINDOWS[0].height, 0);
+  expect(card.bottom, "the foot of the card at the foot of the window").toBeCloseTo(
+    main.bottom - PADDING,
+    0,
+  );
 });
