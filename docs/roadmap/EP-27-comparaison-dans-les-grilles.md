@@ -1,10 +1,10 @@
 ---
 id: EP-27
 titre: Comparer la révision lue à une révision marquée dans les grilles où l'on travaille
-statut: prêt
+statut: en cours
 depend_de: EP-26
 famille: front, back
-issue:
+issue: 3482
 ---
 
 # EP-27 — Comparaison dans les grilles
@@ -359,7 +359,7 @@ Prises par l'auteur le 2026-11-15, au cadrage, sauf mention.
 - **statut** : à faire
 - **exigences** : `WF-REV-0080-A`
 - **opérations** : `compareRevisions`, `getRevision`, `listCostStructures`, `listRevisions`
-- **issue** :
+- **issue** : #3483
 
 **En tant que** chef de projet, **je veux** comparer la révision que je lis, en cours ou marquée, à
 une révision marquée de mon projet, et lire pour chaque valeur modifiée celle que la base portait,
@@ -432,7 +432,7 @@ US-2340 et US-2350.
 - **statut** : à faire
 - **exigences** : `WF-IHM-0020-A`, `WF-IHM-0010-A`
 - **opérations** : `listRevisions`, `getRevision`, `compareRevisions`
-- **issue** :
+- **issue** : #3485
 
 **En tant que** chef de projet, **je veux** choisir depuis la grille où je travaille la révision
 que je lis et celle à laquelle je la compare, **afin de** ne plus passer par l'écran « Révisions »
@@ -500,7 +500,7 @@ conséquence acceptée, que le Vérif ne dit pas (même décision).
 - **opérations** : `compareRevisions`, `listNodes`, `updateTaskFacet`, `updateEstimateLine`,
   `setLineRemaining`, `setTaskProgress`, `setPredecessors`, `setNodeTracking`, `createNode`,
   `moveNodes`, `deleteNode`, `previewPaste`, `applyPaste`, `undoLastChange`, `redoLastUndo`
-- **issue** :
+- **issue** : #3487
 
 **En tant que** chef de projet, **je veux** lire les écarts à la base dans la grille où je
 travaille, avec la valeur que la base portait, et continuer d'y saisir, **afin de** juger un écart
@@ -554,7 +554,7 @@ chronologies, qui ne portent pas la base.
 - **statut** : à faire
 - **exigences** : `WF-IHM-0160-A`
 - **opérations** : `compareRevisions`
-- **issue** :
+- **issue** : #3488
 
 **En tant que** chef de projet, **je veux** lire d'un regard ce que la comparaison pèse, et où,
 **afin de** discuter un avenant ou une offre sur son total avant d'entrer dans ses lignes.
@@ -588,7 +588,7 @@ les compte : la règle est gardée et écrite par la spécification 1.0.6 (déci
 - **statut** : à faire
 - **exigences** : `WF-IHM-0170-A`
 - **opérations** : `compareRevisions`
-- **issue** :
+- **issue** : #3489
 
 **En tant que** chef de projet, **je veux** ne voir d'une comparaison que ce qui change, **afin
 de** lire quelques dizaines d'écarts sur mille tâches sans rien retirer de ce que la grille
@@ -624,7 +624,7 @@ applique (`difference`, US-0700) — EP-08, qui sert les différentiels.
   et EP-08
 - **opérations** : `listRevisions`, `getRevision`, `createRevision`, `abandonRevision`,
   `markRevision`, `designateReferenceRevision`, `getRateUpdateProposal`, `applyRateUpdate`
-- **issue** :
+- **issue** : #3486
 
 **En tant que** chef de projet, **je veux** un écran « Révisions » qui ne porte que l'historique
 du projet et ce qu'on y fait d'une révision, **afin de** ne plus chercher une commande dans un
@@ -662,7 +662,7 @@ tombe avec cette section : la comparaison se lit dans les grilles. WF-REV-0060 v
 - **statut** : à faire
 - **exigences** : aucune en propre — le parcours éprouve US-2320 à US-2360 de bout en bout
 - **opérations** : `compareRevisions`, `listRevisions`, `updateTaskFacet`
-- **issue** :
+- **issue** : #3490
 
 **En tant que** développeur, **je veux** que le parcours de la comparaison se joue de nouveau
 contre le service, **afin que** la file de fusion éprouve la comparaison telle qu'on s'en sert.
@@ -687,7 +687,7 @@ contre le service, **afin que** la file de fusion éprouve la comparaison telle 
 - **statut** : à faire
 - **exigences** : aucune en propre — l'outil de WF-QUA-0060, que clôt US-2300 (EP-26)
 - **opérations** : `compareRevisions`, `updateTaskFacet`, `updateEstimateLine`
-- **issue** :
+- **issue** : #3491
 
 **En tant qu'** exploitant, **je veux** les durées d'une grille comparée dans le rapport de
 mesures, **afin de** savoir si la comparaison tient ses deux secondes avant de publier la version.
@@ -718,7 +718,7 @@ mesures, **afin de** savoir si la comparaison tient ses deux secondes avant de p
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par EP-06 et EP-07
 - **opérations** : `applyRateUpdate`, `moveNodes`, `applyPaste`, `updateCalendar`,
   `setDurationUnits`
-- **issue** :
+- **issue** : #3484
 
 **En tant que** développeur, **je veux** que les constats rattachés à cet EPIC soient corrigés,
 **afin qu'** il ne laisse pas derrière lui la dette qu'il a reçue.
