@@ -21,7 +21,7 @@ These commands are offered only to whoever may modify the resource settings:
 Above the tree, for all:
 
 - **Code of the node** keeps the nodes whose code contains the text entered; **Level** keeps a level; **Bounds of “Organisation tree”**, a minimum and maximum level;
-- a filter of state when the deactivated ones are shown;
+- the **State** filter of its bar — **Active** (by default), **Deactivated**, **Every state** —, offered to whoever may modify the resource settings;
 - the search field keeps the nodes whose code or label contains the text entered;
 - **Columns**; **Tree** folds everything, unfolds everything, or folds down to a level; the button of a label folds or unfolds its row.
 

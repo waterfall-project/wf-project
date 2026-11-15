@@ -2624,7 +2624,6 @@
       "saved": "Mapping saved."
     },
     "companyForm": {
-      "title": "Company",
       "modify": "Modify the company name",
       "hint": "The company name appears on the exported files; it is required, of 200 characters at most.",
       "name": "Company name",
@@ -2995,12 +2994,21 @@
     "applicationSettings": "Application settings",
     "projects": "Projects"
   },
+  "installation": {
+    "title": "Installation",
+    "name": "Company name",
+    "currency": "Currency",
+    "defaultLanguage": "Default language",
+    "timeZone": "Time zone",
+    "fixed": "The currency, the default language and the time zone are fixed at installation: no screen modifies them."
+  },
   "functions": {
     "users": "User management",
     "accessRoles": "Access role management",
     "systemStatus": "System status monitoring",
     "backups": "Backup and restore",
     "auditLog": "Audit log",
+    "installation": "Installation",
     "portfolioProjects": "Project portfolio",
     "portfolioWorkload": "Aggregated workload",
     "portfolioPerformance": "Portfolio performance",

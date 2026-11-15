@@ -47,6 +47,7 @@ export const PLATFORM_FUNCTIONS = [
   "system_status",
   "backups",
   "audit_log",
+  "installation",
   "portfolio_projects",
   "portfolio_workload",
   "portfolio_performance",

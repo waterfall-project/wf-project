@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { FUNCTION_GROUPS, PLATFORM_FUNCTIONS } from "@/navigation/functions";
+import { FUNCTION_GROUPS } from "@/navigation/functions";
 
 import { FUNCTION_DENSITY, LEAF_DENSITY } from "./function-display";
 import { SCREEN } from "./page-header";
@@ -29,14 +29,8 @@ const WORK = [
 describe("the families of the screens", () => {
   it("set every function of the navigation and every leaf with its own screen in one", () => {
     const functions = FUNCTION_GROUPS.flatMap((group) => group.functions);
-    // The installation (FBS-1.6) has its permissions and its tables here; its entry in the
-    // navigation comes with its screen (EP-25, US-2120/L2). The two assertions below make the
-    // exception checkable: L2 (#3241) puts the installation in the navigation, which fails them —
-    // it must then remove `"installation"` from the expected keys, and these two lines.
-    expect(functions.map((fn) => fn.permission)).not.toContain("installation");
-    expect(PLATFORM_FUNCTIONS).not.toContain("installation");
     expect(Object.keys(FUNCTION_DENSITY).sort()).toEqual(
-      [...functions.map((fn) => fn.permission), "installation"].sort(),
+      functions.map((fn) => fn.permission).sort(),
     );
     expect(Object.keys(LEAF_DENSITY).sort()).toEqual(
       functions.flatMap((fn) => (fn.leaves ?? []).map((leaf) => leaf.code)).sort(),

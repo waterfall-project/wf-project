@@ -223,3 +223,86 @@ def test_the_command_names_what_it_finds(
 def test_the_repository_declares_only_leaves_without_a_screen() -> None:
     leaves = {fn.code for fn in projection.leaves(projection.read_functions())}
     assert set(screens.WITHOUT_SCREEN) <= leaves
+
+
+def with_pending() -> dict[str, object]:
+    """Return a table whose first group, FBS-1, has the function FBS-1.6 the FBS does not draw."""
+    found = table()
+    groups = cast("list[dict[str, object]]", found["groups"])
+    groups.insert(
+        0,
+        {
+            "code": "FBS-1",
+            "functions": [
+                {"code": "FBS-1.1", "route": "/admin/installation"},
+                {"code": "FBS-1.6", "route": "/admin/installation"},
+            ],
+        },
+    )
+    return found
+
+
+PENDING_TREE = (
+    Function("FBS-1", "Administration"),
+    Function("FBS-1.1", "Utilisateurs"),
+    *TREE,
+)
+
+
+def pending_app() -> dict[str, str]:
+    return {**app(), "/admin/installation": ""}
+
+
+def test_the_function_pending_in_the_specification_is_accepted_under_its_parent() -> None:
+    assert screens.confront(PENDING_TREE, with_pending(), pending_app(), {}, "FBS-1.6") == []
+    assert screens.confront(PENDING_TREE, with_pending(), pending_app(), {}) == [
+        "FBS-1.6: in the table, but not a function of the FBS"
+    ]
+
+
+def test_another_unknown_code_is_still_refused_with_a_pending_function() -> None:
+    found = with_pending()
+    groups = cast("list[dict[str, object]]", found["groups"])
+    cast("list[dict[str, object]]", groups[0]["functions"]).append(
+        {"code": "FBS-1.7", "route": "/admin/installation"}
+    )
+    assert screens.confront(PENDING_TREE, found, pending_app(), {}, "FBS-1.6") == [
+        "FBS-1.7: in the table, but not a function of the FBS"
+    ]
+
+
+def test_a_pending_function_without_its_parent_in_the_tree_is_not_accepted() -> None:
+    findings = screens.confront(TREE, with_pending(), pending_app(), {}, "FBS-1.6")
+    assert "FBS-1.6: in the table, but not a function of the FBS" in findings
+
+
+def test_a_pending_declaration_the_specification_has_met_is_named() -> None:
+    tree = (*PENDING_TREE, Function("FBS-1.6", "Installation"))
+    assert screens.confront(tree, with_pending(), pending_app(), {}, "FBS-1.6") == [
+        "FBS-1.6: declared pending in the specification, but it has it"
+    ]
+
+
+def test_the_repository_declares_a_pending_function_the_projection_lacks() -> None:
+    named = {fn.code for fn in projection.read_functions()}
+    assert screens.PENDING_IN_THE_SPECIFICATION not in named
+
+
+def test_the_command_accepts_the_pending_function_until_the_specification_has_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "functions.json"
+    path.write_text(json.dumps(with_pending()), encoding="utf-8")
+    tree = PENDING_TREE
+    monkeypatch.setattr(screens, "TABLE", path)
+    monkeypatch.setattr(projection, "read_functions", lambda: tree)
+
+    def pages(_: Path) -> dict[str, str]:
+        return pending_app()
+
+    monkeypatch.setattr(screens, "pages", pages)
+    monkeypatch.setattr(screens, "WITHOUT_SCREEN", {})
+    monkeypatch.setattr(screens, "PENDING_IN_THE_SPECIFICATION", "FBS-1.6")
+    assert screens.main() == 0
+    tree = (*PENDING_TREE, Function("FBS-1.6", "Installation"))
+    assert screens.main() == 1

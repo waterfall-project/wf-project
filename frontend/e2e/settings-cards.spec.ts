@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The settings of the risks and of the indicators, the correspondence of the actual costs and the
- * name of the company in the layout of EP-25 (US-2110/L2), measured at the two widths of the
+ * The settings of the risks and of the indicators and the correspondence of the actual costs in the
+ * layout of EP-25 (US-2110/L2), measured at the two widths of the
  * harness — 1366 points, then 911, what a zoom of 150 % leaves of it: « Modifier … » outlined at the
  * right of the title of the screen, on its line; the two cards of the correspondence, its fields
- * bounded to a reading width, its save filled below them; the name of the company in its card. That
+ * bounded to a reading width, its save filled below them. That
  * these screens are walked entirely by the keyboard, their contrast measured in both modes and
  * nothing lost at 911 points is proven by `accessibility.spec.ts`.
  */
@@ -41,7 +41,7 @@ async function open(page: Page, address: string, size: { width: number; height: 
 }
 
 for (const size of WINDOWS) {
-  const at = `at ${String(size.width)} points [WF-IHM-0100-A]`;
+  const at = `at ${String(size.width)} points`;
 
   for (const [address, command] of [
     ["/reference/risks", "Modifier la matrice de risques"],
@@ -54,6 +54,8 @@ for (const size of WINDOWS) {
       const button = page.getByRole("main").getByRole("button", { name: command });
       const title = await box(page.getByRole("heading", { level: 1 }));
       const measured = await box(button);
+      // At 911 points the command may wrap under the title; it never stands before it.
+      expect(measured.x, "after the start of the title").toBeGreaterThanOrEqual(title.x);
       if (size.width >= 1366) {
         expect(measured.x, "after the end of the title").toBeGreaterThanOrEqual(
           title.x + title.width,
@@ -82,13 +84,5 @@ for (const size of WINDOWS) {
     expect((await box(field)).width, "a field no wider than a reading line").toBeLessThanOrEqual(
       576,
     );
-  });
-
-  test(`sets the name of the company in its card ${at}`, async ({ page }) => {
-    await open(page, "/reference/costs", size);
-    const card = page.getByRole("region", { name: "Entreprise", exact: true });
-    await expect(
-      card.getByRole("button", { name: "Modifier le nom de l’entreprise" }),
-    ).toBeVisible();
   });
 }

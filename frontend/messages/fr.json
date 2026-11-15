@@ -2624,7 +2624,6 @@
       "saved": "Correspondance enregistrée."
     },
     "companyForm": {
-      "title": "Entreprise",
       "modify": "Modifier le nom de l’entreprise",
       "hint": "Le nom de l’entreprise figure sur les fichiers exportés ; il est obligatoire, de 200 caractères au plus.",
       "name": "Nom de l’entreprise",
@@ -2995,12 +2994,21 @@
     "applicationSettings": "Paramètres applicatifs",
     "projects": "Projets"
   },
+  "installation": {
+    "title": "Installation",
+    "name": "Nom de l’entreprise",
+    "currency": "Devise",
+    "defaultLanguage": "Langue par défaut",
+    "timeZone": "Fuseau horaire",
+    "fixed": "La devise, la langue par défaut et le fuseau horaire sont fixés à l’installation : aucun écran ne les modifie."
+  },
   "functions": {
     "users": "Gestion des utilisateurs",
     "accessRoles": "Gestion des rôles d’habilitation",
     "systemStatus": "Surveillance de l’état du système",
     "backups": "Sauvegarde et restauration",
     "auditLog": "Journal d’audit",
+    "installation": "Installation",
     "portfolioProjects": "Portefeuille de projets",
     "portfolioWorkload": "Plan de charge agrégé",
     "portfolioPerformance": "Performance du portefeuille",

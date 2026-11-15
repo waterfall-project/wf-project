@@ -23,7 +23,8 @@ import {
 } from "@/test/fixtures";
 
 import { updateReferenceSettings } from "@/api/actions/reference";
-import { CompanyName, CompanySettings, IndicatorSettings, RiskSettings } from "./settings-forms";
+import { InstallationFacts } from "./installation-facts";
+import { IndicatorSettings, InstallationSettings, RiskSettings } from "./settings-forms";
 
 type ReferenceSettings = components["schemas"]["ReferenceSettings"];
 
@@ -63,6 +64,7 @@ vi.mock("next/navigation", async (original) => ({
 
 const UPDATE = "PATCH /reference/settings";
 const witness = example("reference_settings") as ReferenceSettings;
+const installation = example("installation") as components["schemas"]["Installation"];
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers, timing: FakeTiming = {}): FakeClient {
@@ -339,12 +341,12 @@ describe("the form of the risk matrix", () => {
 describe("the form of the name of the company", () => {
   /** Open the form of the name, and give it back. */
   async function openCompany(): Promise<HTMLElement> {
-    render(inFrench(<CompanySettings settings={witness} />));
+    render(inFrench(<InstallationSettings settings={witness} installation={installation} />));
     await userEvent.click(screen.getByRole("button", { name: "Modifier le nom de l’entreprise" }));
     return screen.getByRole("dialog", { name: "Modifier le nom de l’entreprise" });
   }
 
-  it("reads the name, modifies it, sends it alone with the version read, and shows the answer in place of the reading", async () => {
+  it("reads the name, modifies it, sends it alone with the version read, and shows the answer in place of the reading [WF-EXP-0020-A]", async () => {
     const client = serve({ [UPDATE]: "reference_settings_company_updated" });
     const form = await openCompany();
     const name = within(form).getByRole("textbox", { name: /Nom de l’entreprise/ });
@@ -455,10 +457,20 @@ describe("the form of the name of the company", () => {
     expect(command).not.toHaveAttribute("aria-disabled");
   });
 
-  it("reads the name as a term and its description, one named by the other", () => {
-    render(inFrench(<CompanyName name="Delmas Automatismes" />));
-    expect(screen.getByRole("term")).toHaveTextContent("Nom de l’entreprise");
-    expect(screen.getByRole("definition")).toHaveTextContent("Delmas Automatismes");
+  it("reads the name, the currency, the default language and the time zone as terms and their descriptions", () => {
+    render(
+      inFrench(
+        <InstallationFacts name="Delmas Automatismes" currency="EUR" installation={installation} />,
+      ),
+    );
+    const terms = screen.getAllByRole("term").map((term) => term.textContent);
+    expect(terms).toEqual(["Nom de l’entreprise", "Devise", "Langue par défaut", "Fuseau horaire"]);
+    expect(screen.getAllByRole("definition").map((each) => each.textContent)).toEqual([
+      "Delmas Automatismes",
+      "EUR",
+      "Français",
+      "Europe/Paris",
+    ]);
   });
 });
 
