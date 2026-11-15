@@ -6,7 +6,7 @@ Pure, on exact amounts; each amount is rounded once, to the cent.
 """
 
 from dataclasses import dataclass
-from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from waterfall.core.indicators.formulas.computable import (
     NO_ACTUAL_COST,
@@ -14,6 +14,9 @@ from waterfall.core.indicators.formulas.computable import (
     Computable,
 )
 from waterfall.core.indicators.formulas.rounding import NOUGHT, round_amount
+
+if TYPE_CHECKING:
+    from decimal import Decimal
 
 
 @dataclass(frozen=True, slots=True)

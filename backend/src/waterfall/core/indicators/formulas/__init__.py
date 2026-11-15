@@ -31,11 +31,6 @@ from waterfall.core.indicators.formulas.computable import (
     Computable as Computable,
 )
 
-# ``rounding``.
-from waterfall.core.indicators.formulas.rounding import (
-    NOUGHT as NOUGHT,
-)
-
 # ``indicators``.
 from waterfall.core.indicators.formulas.indicators import (
     Amounts as Amounts,
@@ -90,6 +85,11 @@ from waterfall.core.indicators.formulas.ratios import (
 # ``rounding``.
 from waterfall.core.indicators.formulas.rounding import (
     CENT as CENT,
+)
+
+# ``rounding``.
+from waterfall.core.indicators.formulas.rounding import (
+    NOUGHT as NOUGHT,
 )
 from waterfall.core.indicators.formulas.rounding import (
     RATIO_STEP as RATIO_STEP,

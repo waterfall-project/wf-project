@@ -184,6 +184,18 @@ def test_a_variance_is_taken_on_the_exact_projection_and_rounded_once() -> None:
     assert shown.variance_project_manager == _d("0.00")
 
 
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_the_other_two_projections_and_their_variances_are_rounded_once_too() -> None:
+    # At budget: 0.0011 + 100.004 - 0 = 100.0051, shown 100.01; the variance is 0.0011, shown 0.00.
+    at_budget = projections(_d("100.004"), NOUGHT, _d("0.0011"), NOUGHT)
+    assert at_budget.at_budget == _d("100.01")
+    assert at_budget.variance_at_budget == _d("0.00")
+    # At the observed rate: 100.004 * 1.00001 / 1 = 100.00500004, shown 100.01; variance 0.00.
+    observed = projections(_d("100.004"), _d("1"), _d("1.00001"), NOUGHT)
+    assert observed.at_observed_rate.value == _d("100.01")
+    assert observed.variance_at_observed_rate == _d("0.00")
+
+
 @pytest.mark.requirement("WF-IND-0010-A")
 def test_a_figure_with_both_a_value_and_a_reason_or_neither_is_refused() -> None:
     with pytest.raises(ValueError, match="exactly one"):

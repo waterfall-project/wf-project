@@ -5,7 +5,7 @@
 Pure, on exact amounts; each ratio is rounded once, to four decimals (WF-IND-0040 to WF-IND-0080).
 """
 
-from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from waterfall.core.indicator_settings.interface import index_zone
 from waterfall.core.indicators.formulas.computable import (
@@ -16,6 +16,9 @@ from waterfall.core.indicators.formulas.computable import (
     Computable,
 )
 from waterfall.core.indicators.formulas.rounding import NOUGHT, round_ratio
+
+if TYPE_CHECKING:
+    from decimal import Decimal
 
 
 def _ratio(numerator: Decimal, denominator: Decimal, reason: str) -> Computable:

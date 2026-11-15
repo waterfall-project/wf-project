@@ -7,7 +7,10 @@ infinity. The reasons are the codes of ``NotComputableReason`` of the contract.
 """
 
 from dataclasses import dataclass
-from decimal import Decimal
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from decimal import Decimal
 
 NO_ACTUAL_COST = "no_actual_cost"
 NO_EARNED_VALUE = "no_earned_value"
