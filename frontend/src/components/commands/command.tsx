@@ -69,7 +69,8 @@ export interface CommandProps {
    */
   readonly writing?: boolean | undefined;
   /**
-   * Whether the background task the command started still runs (`useTaskRunning`): the command waits
+   * Whether the background task the command started still runs (`useTaskRunning`) — or, the command
+   * mounted anew, the one of its aim it finds running (`useRunningTask`, #3404): the command waits
    * until it ends, and a failure gives it back, to run the same treatment again (WF-IHM-0080).
    */
   readonly running?: boolean | undefined;

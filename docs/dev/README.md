@@ -2584,7 +2584,14 @@ available command launches its server action, and the server's refusal is said b
 the request included (the opening of a revision), or the background task it handed to the
 tracking, until its end (`useTaskRunning`) — the same way everywhere (`waiting.tsx`, #3103):
 inert (`aria-disabled`, a second press relaunches nothing), `aria-busy`, a wheel in place of its
-icon, beside its label, which stays; an answer, a failure included, gives it back.
+icon, beside its label, which stays; an answer, a failure included, gives it back. The waiting is
+found again on remounting, within the tab: the button hands its task to the tracking with what it
+aims at (`aim`, composed by `taskAim` from its kind and its object — the revision marked or
+exported, the project of an import, the installation for a backup or a reading of the accounts),
+which the tracking keeps with it in the session of the tab (`storage.ts`); remounted — the tab
+reloaded, the screen left then found again —, it waits on the task it has just launched or, failing
+that, on the one running for what it aims at (`useRunningTask`, #3404). A task launched from another
+tab or another workstation has no object: no button waits for it.
 
 ### The tooltips of the commands
 

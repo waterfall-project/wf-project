@@ -2593,7 +2593,13 @@ elle attend ce qu'elle a lancé — sa requête, écriture lente faite dans la r
 (l'ouverture d'une révision), ou la tâche de fond qu'elle a remise au suivi, jusqu'à sa fin
 (`useTaskRunning`) — de la même façon partout (`waiting.tsx`, #3103) : inerte (`aria-disabled`,
 une seconde pression ne relance rien), `aria-busy`, une roue à la place de son icône, à côté de son
-libellé, qui reste ; une réponse, un échec compris, la rend.
+libellé, qui reste ; une réponse, un échec compris, la rend. L'attente se retrouve au remontage, dans
+l'onglet : le bouton remet sa tâche au suivi avec ce qu'il vise (`aim`, composé par `taskAim` de sa
+nature et de son objet — la révision marquée ou exportée, le projet d'un import, l'installation pour
+une sauvegarde ou une lecture des comptes), que le suivi garde avec elle dans la session de l'onglet
+(`storage.ts`) ; remonté — l'onglet rechargé, l'écran quitté puis retrouvé —, il attend sur la tâche
+qu'il vient de lancer ou, à défaut, sur celle qui court pour ce qu'il vise (`useRunningTask`, #3404).
+Une tâche lancée d'un autre onglet ou d'un autre poste n'a pas d'objet : aucun bouton ne l'attend.
 
 ### Les infobulles des commandes
 

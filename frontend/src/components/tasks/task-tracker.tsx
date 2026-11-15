@@ -8,7 +8,7 @@
  * motive, which the same command can run again — whatever screen the user went to meanwhile. Once a
  * task has ended, the screen shown is read anew if the task concerns it — of the same project, or the
  * screen it was started from (#3103) —; the button that started it waits until then
- * (`useTaskRunning`).
+ * (`useTaskRunning`), mounted anew too, finding it by what it aims at (`useRunningTask`, #3404).
  *
  * One tracker for every kind of task, in the root layout: a navigation within the application
  * keeps it, and nothing of it blocks the screen while its panel is closed — no control disabled;
@@ -337,6 +337,25 @@ export function useTaskRunning(taskId: string | undefined): boolean {
       return entry !== undefined && isPolled(entry);
     },
     () => false,
+  );
+}
+
+/**
+ * The task that runs for what a button aims at (`taskAim`), by the key it is followed under — the
+ * last one handed over, when several were —; none when none runs. The button that started a task
+ * forgets it once mounted anew — the tab reloaded, the screen left and come back to —: it waits on
+ * the task it has just started or, failing it, on the one it finds so, and is given back at its end
+ * as at the end of its own (#3404). Only in the tab: a task started from another tab or another
+ * workstation comes without its aim (`listBackgroundTasks`), and no button finds it.
+ */
+export function useRunningTask(aim: string): string | undefined {
+  const store = useContext(StateContext)?.store;
+  return useSyncExternalStore(
+    store?.subscribe ?? subscribeToNothing,
+    () =>
+      store?.read().tracking.tasks.findLast((tracked) => tracked.aim === aim && isPolled(tracked))
+        ?.key,
+    () => undefined,
   );
 }
 

@@ -12,7 +12,9 @@
  * the shell with the request itself, which runs it again if it fails; its result, a file made on
  * demand and not kept (WF-DAT-0120), is downloaded by itself once the task has succeeded, if the
  * form still shows — from the card of its end, or from the tracker, otherwise (#3103).
- * The request waits, saying so, until the task ends (`waiting.tsx`, #3103): failed, it is given back.
+ * The request waits, saying so, until the task ends (`waiting.tsx`, #3103) — mounted anew, the tab
+ * reloaded or the screen left and come back to, until the export of the revision it finds still
+ * running ends (`useRunningTask`, #3404) —: failed, it is given back.
  * A refusal is told under the form (`OutcomeNotice`).
  */
 "use client";
@@ -31,9 +33,11 @@ import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { WaitingIcon, waitingAttributes } from "@/components/commands/waiting";
 import {
   useDownloadWhenTaskSucceeds,
+  useRunningTask,
   useTaskRunning,
   useTrackTask,
 } from "@/components/tasks/task-tracker";
+import { taskAim } from "@/components/tasks/tracking";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -100,10 +104,14 @@ function OfferedExports({
   // Busy from the request to the answer, and lifted in the very update that tells it — not a
   // transition, whose end would wait for every other async action of the page (#1484).
   const [busy, setBusy] = useState(false);
-  // The task of the last export asked: the request waits while it runs, given back at its end.
+  // The task of the last export asked — else, mounted anew, the export of the revision that runs
+  // (#3404): the request waits while it runs, given back at its end.
+  const aim = taskAim("export", revisionId);
   const [exporting, setExporting] = useState<string>();
-  const running = useTaskRunning(exporting);
-  // Its file leaves by itself once made, while the form still shows (#3103).
+  const found = useRunningTask(aim);
+  const running = useTaskRunning(exporting ?? found);
+  // Its file leaves by itself once made, while the form that asked it still shows (#3103): one found
+  // again leaves from the card of its end, lest a form mounted after that end download it again.
   useDownloadWhenTaskSucceeds(exporting);
   const waiting = busy || running;
   // A link clicked while the export is asked waits for it, and is not followed when refused.
@@ -136,7 +144,7 @@ function OfferedExports({
     void held(command()).then((result) => {
       setBusy(false);
       if (result.kind === "done") {
-        track(result.data, { command, subject: t(`enums.ExportKind.${kind}`) });
+        track(result.data, { command, subject: t(`enums.ExportKind.${kind}`), aim });
         setExporting(result.data.task_id);
       }
       setOutcome(result.kind === "done" ? undefined : result);

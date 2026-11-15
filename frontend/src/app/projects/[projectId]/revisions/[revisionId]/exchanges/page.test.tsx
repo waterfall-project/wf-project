@@ -57,6 +57,7 @@ vi.mock("@/components/tasks/task-tracker", () => ({
   useWhenTaskFails: () => undefined,
   useReadAnewWhenTaskEnds: () => undefined,
   useTaskRunning: () => false,
+  useRunningTask: () => undefined,
   useDownloadWhenTaskSucceeds: () => undefined,
 }));
 vi.mock("next/headers", () => ({

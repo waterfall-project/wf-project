@@ -15,8 +15,17 @@ import { type Import, type ImportAsked, openFileImport } from "@/api/actions/exc
 import type { Outcome } from "@/api/problem";
 import { useHeldCommand } from "@/components/commands/held";
 import { useTrackTask } from "@/components/tasks/task-tracker";
+import { taskAim } from "@/components/tasks/tracking";
 
 import { importHref, shownScreen } from "./offers";
+
+/**
+ * What the analysis of an import aims at: the project, by which the drop zone finds again the
+ * analysis of a file it sent, once mounted anew (#3404).
+ */
+export function analysisAim(projectId: string): string {
+  return taskAim("import_analysis", projectId);
+}
 
 /**
  * The function that sends a file as an import of the project: its outcome, the report shown where the
@@ -36,7 +45,7 @@ export function useOpenImport(
     if (result.kind === "done") {
       const opened = result.data;
       if (opened.task !== undefined) {
-        track(opened.task, { subject: opened.filename });
+        track(opened.task, { subject: opened.filename, aim: analysisAim(projectId) });
       }
       // The report is shown only if the screen is still the one the file was sent from.
       if (shownScreen() === start.split("?")[0]) {

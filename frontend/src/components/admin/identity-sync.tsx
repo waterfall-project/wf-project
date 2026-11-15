@@ -39,7 +39,8 @@ import { useHeldCommand } from "@/components/commands/held";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { WaitingIcon, waitingAttributes } from "@/components/commands/waiting";
 import { LocalTime } from "@/components/local-time";
-import { useTaskRunning, useTrackTask } from "@/components/tasks/task-tracker";
+import { useRunningTask, useTaskRunning, useTrackTask } from "@/components/tasks/task-tracker";
+import { INSTALLATION, taskAim } from "@/components/tasks/tracking";
 import { SectionCard } from "@/components/shell/section-card";
 import { Button } from "@/components/ui/button";
 
@@ -190,6 +191,9 @@ function Report({ report }: { readonly report: IdentitySyncReport }) {
   );
 }
 
+/** What a reading of the accounts aims at: the installation, by which its command finds it again (#3404). */
+const SYNC_AIM = taskAim("identity_sync", INSTALLATION);
+
 /** Ask a reading of the accounts, and hand its task over to the tracker. */
 function StartIdentitySync({
   onTold,
@@ -203,9 +207,11 @@ function StartIdentitySync({
   // Busy from the press to the answer, and lifted in the very update that tells it — not a transition,
   // whose end would wait for every other async action of the page (#1484).
   const [busy, setBusy] = useState(false);
-  // The task of the last reading asked: the command waits while it runs (WF-IHM-0080, #3279).
+  // The task of the last reading asked — else, mounted anew, the reading that runs (#3404): the command
+  // waits while it runs (WF-IHM-0080, #3279).
   const [started, setStarted] = useState<string>();
-  const running = useTaskRunning(started);
+  const found = useRunningTask(SYNC_AIM);
+  const running = useTaskRunning(started ?? found);
   const waiting = busy || running;
   const start = () => {
     if (waiting) {
@@ -215,7 +221,7 @@ function StartIdentitySync({
     void held(startIdentitySync()).then((result) => {
       setBusy(false);
       if (result.kind === "done") {
-        track(result.data, { command: startIdentitySync });
+        track(result.data, { command: startIdentitySync, aim: SYNC_AIM });
         setStarted(result.data.task_id);
       }
       onTold(result.kind === "done" ? undefined : result);
