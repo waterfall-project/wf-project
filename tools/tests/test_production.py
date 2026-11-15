@@ -128,7 +128,10 @@ def test_postgresql_carries_fifteen_connections_for_each_process_of_the_api(
     # Proper to US-2230: « les connexions à PostgreSQL de tous les processus tiennent sous
     # max_connections », computed from the very setting the API serves on.
     found = compose(path)["services"]
-    setting = "${WATERFALL_API_PROCESSES:-1}"
+    # The service platform serves on four unless told otherwise (the measure of US-2230/L2),
+    # production on one: its example of settings advises the number.
+    default = 4 if path == SERVICE else 1
+    setting = f"${{WATERFALL_API_PROCESSES:-{default}}}"
     assert found["api"]["environment"]["WATERFALL_API_PROCESSES"] == setting
     server = found["postgres"]
     assert server["environment"]["WATERFALL_API_PROCESSES"] == setting

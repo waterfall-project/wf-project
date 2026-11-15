@@ -164,6 +164,7 @@ def test_without_a_report_of_a_version_the_check_passes(
 ) -> None:
     assert run(tmp_path / "absent", capsys)[0] == 0
     (tmp_path / "reference.json").write_text("not even read", "utf-8")
+    (tmp_path / "processes.json").write_text("not even read", "utf-8")
     assert run(tmp_path, capsys)[0] == 0
 
 

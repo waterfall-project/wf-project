@@ -29,9 +29,10 @@ x-back: &back
     args: [WATERFALL_MIRROR]
   environment: *back-environment
 
-# The number of the processes of the API (US-2230), one unless the environment says otherwise: the
+# The number of the processes of the API (US-2230), four unless the environment says otherwise (the
+# measure of docs/measures/processes.json: README.md, « Les processus de l'API »): the
 # API serves on them, and PostgreSQL counts fifteen connections for each.
-x-api-processes: &api-processes ${WATERFALL_API_PROCESSES:-1}
+x-api-processes: &api-processes ${WATERFALL_API_PROCESSES:-4}
 
 # Where the browser and the server of Next reach Keycloak, through its front end: the issuer of
 # every token, whoever asks for it; the port the front end is published on, which alone moves —

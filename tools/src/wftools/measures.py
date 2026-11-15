@@ -6,7 +6,8 @@ Usage: ``python -m wftools.measures [DIRECTORY]``, DIRECTORY being ``docs/measur
 
 A version's measures are a JSON file, ``docs/measures/<version>.json``, taken on a workstation and
 versioned with the code: the chain does not measure, the durations of a runner vary from simple to
-double. ``reference.json``, taken before any correction, is not a version and is not confronted.
+double. ``reference.json``, taken before any correction, and ``processes.json``, the journey played
+at one, two and four processes of the API (US-2230), are not versions and are not confronted.
 The report names every operation of the table of response times (table 15 of §4.6.2) once::
 
     {"version": "0.4.0", "operations": [
@@ -62,6 +63,8 @@ MEASURES = REPOSITORY / "docs" / "measures"
 DEGRADATION = 1.25
 """The ratio above which a duration, against the previous version's, is a degradation."""
 VERSION = re.compile(r"\d+\.\d+\.\d+")
+# Reports kept beside those of the versions, which are not one: the reference and the processes.
+NOT_VERSIONS = frozenset({"reference", "processes"})
 EPIC = re.compile(r"EP-\d+")
 DURATIONS = ("median_s", "worst_s", "dispersion_s")
 
@@ -203,7 +206,7 @@ def read(directory: Path) -> list[Report]:
     """Return the reports of the versions under ``directory``, oldest first."""
     if not directory.is_dir():
         return []
-    files = [file for file in directory.glob("*.json") if file.stem != "reference"]
+    files = [file for file in directory.glob("*.json") if file.stem not in NOT_VERSIONS]
     for file in files:
         if not VERSION.fullmatch(file.stem):
             message = f"{file.name}: a report is named for its version, as 0.4.0.json"
