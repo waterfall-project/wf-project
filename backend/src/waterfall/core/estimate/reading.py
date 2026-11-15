@@ -25,6 +25,7 @@ for their figures and their facets (``line_columns``), and filters and sorts the
 
 from dataclasses import dataclass, replace
 from decimal import Decimal
+from functools import cache
 from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import select
@@ -360,11 +361,20 @@ def _fields(view: LineView, bearer: BearingTask, *, costs: bool) -> tuple[tuple[
     computed = (CATEGORY,) if labour else ()
     if bearer.is_main and bearer.progress == COMPLETED:
         return computed, ()
+    subproject = not costs or bearer.progress == NOT_STARTED
+    return computed, _editable(labour=labour, subproject=subproject)
+
+
+@cache
+def _editable(*, labour: bool, subproject: bool) -> tuple[str, ...]:
+    """Give the fields a line accepts, of a labour line or not, its subproject or not.
+
+    Four tuples, written once: a structure read whole asks them of its thousands of lines.
+    """
     refused = {"cost_category_id", "unit_disbursement"} if labour else {"resource_role_id", "hours"}
-    if costs and bearer.progress != NOT_STARTED:
+    if not subproject:
         refused.add("subproject_id")
-    editable = tuple(f"estimate_line.{name}" for name in EDITABLE if name not in refused)
-    return computed, editable
+    return tuple(f"estimate_line.{name}" for name in EDITABLE if name not in refused)
 
 
 def read_lines(

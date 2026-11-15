@@ -6,7 +6,9 @@ A write reads the tree as objects of the session, which it changes (``read_tree`
 ``listNodes`` and ``compareRevisions`` read it as rows (``read_rows``, ``reading_of``). On each
 revision of PRJ-001 of the loaded witness — two marked, one current —, every node of the main
 structure is read whole by each path, its facet included, and the two readings are the same: the
-views, the depth of the summaries, the totals of the lines.
+views, the depth of the summaries, the totals of the lines. ``listNodes`` writes its body from
+records rather than views (US-2220/L2): the records of the rows are the views of the objects made
+records (``record_of``), which every other route writes its nodes from.
 """
 
 from typing import TYPE_CHECKING
@@ -15,18 +17,28 @@ import pytest
 from test_witness_projects import PRJ_001, REVISION_100, REVISION_101, REVISION_102
 from test_witness_tasks import structure_of
 
+from waterfall.core.planning.filters import NodeFilters
 from waterfall.core.planning.interface.facets import calendars_of
-from waterfall.core.planning.reading import reading_of
+from waterfall.core.planning.interface.nodes import list_nodes
+from waterfall.core.planning.reading import list_records, reading_of
 from waterfall.core.planning.tree import read_links, read_rows, read_tree
-from waterfall.core.planning.views import NodeView, Reading
+from waterfall.core.planning.views import (
+    FacetRecord,
+    NodeView,
+    Reading,
+    TaskRecord,
+    record_of,
+)
 from waterfall.core.planning.writing import Place, facts_of
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
     from waterfall.core.planning.interface import Amounts
+    from waterfall.core.planning.tree import NodeRow, TaskRow
     from waterfall.platform.database import Database
 
 type Read = tuple[list[NodeView], int, Amounts]
@@ -79,3 +91,62 @@ def test_the_rows_and_the_objects_of_a_structure_read_the_same_tree(
     assert depth > 0
     assert totals.base > 0
     assert rows == objects
+
+
+@pytest.mark.parametrize("revision", [REVISION_100, REVISION_101, REVISION_102])
+def test_the_records_of_a_reading_are_the_views_of_the_objects_made_records(
+    witness: Database, revision: UUID
+) -> None:
+    with witness.transaction() as session:
+        place = Place(PRJ_001, revision, structure_of(session, revision))
+        views, _, _ = by_objects(session, place)
+    with witness.transaction() as session:
+        facts = facts_of(session, place, lock=False)
+        tree = read_rows(session, place.project_id, place.structure_id)
+        reading = reading_of(session, place, tree, (facts.scheduled_at, facts.is_main))
+        records = reading.records(tree.order)
+    tasks = [each for each in records if isinstance(each, TaskRecord)]
+    # What a record derives is compared on values that are there: summaries, milestones,
+    # predecessors, links in conflict, lines with their facet.
+    assert len(records) > 5000
+    assert any(each.is_summary for each in tasks)
+    assert any(each.predecessors for each in tasks)
+    assert all(each.facet is not None for each in records if isinstance(each, FacetRecord))
+    assert records == [record_of(view) for view in views]
+
+
+@pytest.mark.parametrize("filters", [NodeFilters(), NodeFilters(kinds=("task",))])
+def test_list_nodes_and_list_records_read_the_same_nodes(
+    witness: Database, filters: NodeFilters
+) -> None:
+    with witness.transaction() as session:
+        place = Place(PRJ_001, REVISION_102, structure_of(session, REVISION_102))
+        read = list_nodes(session, place, filters)
+        records = list_records(session, place, filters)
+    assert len(read.items) > 100
+    assert tuple(record_of(view) for view in read.items) == records.items
+    assert (read.task_count, read.summary_depth) == (records.task_count, records.summary_depth)
+    assert (read.scheduled_at, read.totals) == (records.scheduled_at, records.totals)
+
+
+def test_a_node_its_facet_does_not_read_names_no_field(
+    witness: Database, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A facet its hooks do not read — a line written around the service —: ``prefetch`` leaves it
+    # out of the facets of the reading, which ``records`` then gives without a facet.
+
+    def leave_out(_reading: Reading[NodeRow, TaskRow], _node_ids: Collection[UUID]) -> None:
+        """Read no facet."""
+
+    monkeypatch.setattr(Reading, "prefetch", leave_out)
+    with witness.transaction() as session:
+        place = Place(PRJ_001, REVISION_102, structure_of(session, REVISION_102))
+        facts = facts_of(session, place, lock=False)
+        tree = read_rows(session, place.project_id, place.structure_id)
+        reading = reading_of(session, place, tree, (facts.scheduled_at, facts.is_main))
+        line = next(each for each in tree.order if each not in tree.tasks)
+        (record,) = reading.records([line])
+    assert isinstance(record, FacetRecord)
+    assert record.computed_fields == ()
+    assert record.editable_fields == ()
+    assert record.facet is None

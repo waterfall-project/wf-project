@@ -18,9 +18,8 @@ from sqlalchemy import event
 from measure.figures import ratio, summarise
 from measure.report import Measure, Scalar
 from measure.target import database_of
-from waterfall.api.contract.models import NodeListMeta
-from waterfall.api.nodes import node_body, read_body, totals_body
-from waterfall.core.planning.interface import NodeFilters, Place, list_nodes
+from waterfall.api.nodes import nodes_body, read_body
+from waterfall.core.planning.interface import NodeFilters, Place, list_records
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Mapping, Sequence
@@ -68,19 +67,12 @@ def read_once(database: Database, place: Place, kinds: tuple[str, ...] | None = 
     """Read a structure whole, or only the kinds asked, and write its body as the API does."""
     started = perf_counter()
     with database.transaction() as session:
-        found = list_nodes(session, place, NodeFilters(kinds=kinds))
+        found = list_records(session, place, NodeFilters(kinds=kinds))
     read = perf_counter()
-    # What ``get_nodes`` does after the read, with the same functions: the meta, the bodies of
-    # the nodes, and the response rendered by ``read_body``. Left out: the guards of the route,
-    # the parsing of the query and the transfer.
-    meta = NodeListMeta.model_validate(
-        {"summary_depth": found.summary_depth, "scheduled_at": found.scheduled_at}
-    )
-    body = {
-        "items": [node_body(each) for each in found.items],
-        "totals": totals_body(found.task_count, found.totals),
-        "meta": meta.model_dump(mode="json"),
-    }
+    # What ``get_nodes`` does after the read, with the same functions: the body of the nodes, their
+    # totals and the meta, and the response rendered by ``read_body``. Left out: the guards of the
+    # route, the parsing of the query and the transfer.
+    body = nodes_body(found)
     bodies = perf_counter()
     raw = read_body(body).body
     dumped = perf_counter()
