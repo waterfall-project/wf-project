@@ -18,7 +18,7 @@ from waterfall.core.planning.dating import constants_of
 from waterfall.core.planning.filters import retained
 from waterfall.core.planning.interface.facets import calendars_of
 from waterfall.core.planning.tree import read_link_rows, read_rows
-from waterfall.core.planning.views import Reading
+from waterfall.core.planning.views import RowsReading
 from waterfall.core.planning.writing import StructureTotals, facts_of
 
 if TYPE_CHECKING:
@@ -53,12 +53,12 @@ class StructureRead:
 
 def reading_of(
     session: Session, place: Place, tree: Tree[NodeRow, TaskRow], scheduled: tuple[datetime, bool]
-) -> Reading[NodeRow, TaskRow]:
+) -> RowsReading:
     """Read what a reading of a structure derives: its links, its calendars, its states.
 
-    Of the tree read as rows (``read_rows``), its links too: a reading writes nothing. The links
-    are read after the tree, in their own statement: one whose ends a write committed in between is
-    of a later state than the tree, and left out.
+    Of the tree read as rows (``read_rows``), its links and its facets too: a reading writes
+    nothing. The links are read after the tree, in their own statement: one whose ends a write
+    committed in between is of a later state than the tree, and left out.
     """
     links = [
         link
@@ -66,7 +66,8 @@ def reading_of(
         if {link.predecessor_id, link.successor_id} <= tree.tasks.keys()
     ]
     calendars = calendars_of(session, place.project_id, tree.tasks)
-    return Reading(session, (place.project_id, *scheduled), tree, links, calendars)
+    structure = (place.project_id, *scheduled)
+    return RowsReading(session, structure, tree, links, calendars)
 
 
 def read_structure(session: Session, place: Place, filters: NodeFilters) -> StructureRead:

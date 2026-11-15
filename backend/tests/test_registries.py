@@ -229,6 +229,7 @@ LINE_HOOKS = (
     f"{CORE}.pasting.judge_line_cell",
     f"{CORE}.pasting.write_line_cell",
     "waterfall.core.cost_settings.records.share_natures",
+    f"{CORE}.reading.line_columns",
 )
 # What the estimate answers the projects of its lines (US-1490/L4), in the order of
 # ``EstimateFacts``.

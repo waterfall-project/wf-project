@@ -17,11 +17,11 @@ The interface re-exports the views; the API writes them as the contract does.
 """
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from waterfall.core.planning.interface.facets import Amounts, BearingTask, facets
 from waterfall.core.planning.scheduling import WorkInstant
-from waterfall.core.planning.tree import TASK, tracking_of
+from waterfall.core.planning.tree import TASK, NodeRow, TaskRow, tracking_of
 from waterfall.core.projects.interface import work_breakdown_items
 
 if TYPE_CHECKING:
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.planning.calendars import Applicable
-    from waterfall.core.planning.interface.facets import FacetRead
+    from waterfall.core.planning.interface.facets import FacetColumns, FacetRead
     from waterfall.core.planning.tables import Node, Task
     from waterfall.core.planning.tree import LinkColumns, NodeColumns, TaskColumns, Tree
 
@@ -247,8 +247,13 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
     """What a reading derives of a structure, once for all its nodes.
 
     Of a tree of objects of the session, as a write reads it, or of rows, as a reading that writes
-    nothing reads it (``read_rows``, US-2220): the same views of the same columns.
+    nothing reads it (``read_rows``, US-2220): the same views of the same columns. A write reads
+    the facets of the other kinds by ``FacetHooks.totals`` and ``FacetHooks.read``; a reading that
+    writes nothing reads them as rows too (``RowsReading``).
     """
+
+    # Whether the facets of the other kinds are read once as rows (``FacetHooks.columns``).
+    read_only: ClassVar[bool] = False
 
     def __init__(
         self,
@@ -285,9 +290,15 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
         # The figures of each node of another kind, read once by the hooks of its facet; the
         # facets as read, asked for the nodes a reading returns (``prefetch``).
         self.figures: dict[UUID, Amounts] = {}
+        self._columns: dict[str, FacetColumns] = {}
         for kind, hooks in facets().items():
             held = [each for each, node in tree.nodes.items() if node.kind == kind]
-            if held:
+            if not held:
+                continue
+            if self.read_only:
+                self._columns[kind] = hooks.columns(session, project_id, held)
+                self.figures.update(self._columns[kind].figures)
+            else:
                 self.figures.update(hooks.totals(session, project_id, held))
         self._facets: dict[UUID, FacetRead] = {}
         self.states: dict[UUID, State] = {}
@@ -341,8 +352,13 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
                 and tree.nodes[each].kind == kind
                 and (parent := tree.nodes[each].parent_id) is not None
             }
-            if held:
+            if not held:
+                continue
+            columns = self._columns.get(kind)
+            if columns is None:
                 self._facets.update(hooks.read(self._session, self._project_id, held))
+            else:
+                self._facets.update(columns.read(held))
 
     def totals(self, node_ids: Collection[UUID]) -> Amounts:
         """Give the sum of the figures of the nodes of another kind among those named."""
@@ -497,3 +513,13 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
         """Give the level of the deepest summary of the structure, nought without any (0110)."""
         tree = self.tree
         return max((tree.level[each] for each in tree.tasks if tree.is_summary(each)), default=0)
+
+
+class RowsReading(Reading[NodeRow, TaskRow]):
+    """What a reading that writes nothing derives of a structure read as rows (US-2220).
+
+    ``listNodes`` and ``compareRevisions``: the facets of the other kinds are read as rows too, once
+    for their figures and their views (``FacetHooks.columns``).
+    """
+
+    read_only = True

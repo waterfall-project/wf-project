@@ -18,8 +18,10 @@ whose facets name no calendar, the intersection of those they name otherwise; ``
 gives it to the tasks of a structure, the default read once, the calendars of the facets asked
 once. Completed by US-1490/L3 (EP-07, "Les points d'extension"), by US-1490/L4 with the
 judgement of the nodes a move gives another task (``moved``), by US-1560/L1 with the judgement
-and the write of the cells a paste gives a node of the kind (``judge_cell``, ``write_cell``), and by
-US-1570/L5 with what a write takes before the lock of its structure (``before_lock``, #2615).
+and the write of the cells a paste gives a node of the kind (``judge_cell``, ``write_cell``), by
+US-1570/L5 with what a write takes before the lock of its structure (``before_lock``, #2615), and by
+US-2220/L1 with the reading of the facets of a structure as rows, which a reading that writes
+nothing asks instead of ``totals`` and ``read`` (``columns``, EP-26, "La lecture d'une structure").
 """
 
 from dataclasses import dataclass
@@ -97,6 +99,19 @@ class FacetRead:
     label: str
     computed_fields: tuple[str, ...]
     editable_fields: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class FacetColumns:
+    """The facets of nodes of a kind read once as rows, for a reading that writes nothing.
+
+    ``figures`` what each node counts in the totals, as ``FacetHooks.totals`` gives it; ``read`` the
+    facet of each node named, the task bearing it given, as ``FacetHooks.read`` gives it, from the
+    same rows, in the transaction they were read in.
+    """
+
+    figures: Mapping[UUID, Amounts]
+    read: Callable[[Mapping[UUID, BearingTask]], Mapping[UUID, FacetRead]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,7 +217,10 @@ class FacetHooks:
     ``judge_cell`` judges the cells a paste gives a node, by the very functions of the entry of a
     cell, naming every refusal at once; ``write_cell`` writes the entry it judged; ``before_lock``
     takes what a write of the tree must hold before the lock of its structure — the estimate shares
-    the lock of the natures (#2615) —, called first by every write of the tree.
+    the lock of the natures (#2615) —, called first by every write of the tree. ``columns`` reads
+    the nodes named once as rows, for a reading that writes nothing (``listNodes``,
+    ``compareRevisions``): their figures and their facets, which ``totals`` and ``read`` give a
+    write from its objects (US-2220).
     """
 
     read: Callable[[Session, UUID, Mapping[UUID, BearingTask]], Mapping[UUID, FacetRead]]
@@ -221,6 +239,7 @@ class FacetHooks:
     judge_cell: Callable[[CellsPasted], CellsJudged]
     write_cell: Callable[[FacetWrite, object], None]
     before_lock: Callable[[Session], None]
+    columns: Callable[[Session, UUID, Collection[UUID]], FacetColumns]
 
 
 # The hooks of each kind of node other than the task, in the order of their registration.
