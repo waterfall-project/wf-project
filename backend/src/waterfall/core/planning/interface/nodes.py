@@ -1,26 +1,25 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The nodes of a structure: the tree read and written, what the revisions ask of it, its copy.
+"""The nodes of a structure: the tree read and written, what the revisions ask of it.
 
-The planning registers, at the import of its interface, the copy of the nodes of a revision opened
-from a marked one (``copy_nodes``, after the structures', whose copies it finds in
-``RevisionCopy.identifiers``) and the question the designation of the reference asks of its tasks
-(``revision_has_tasks``, WF-CYC-0030). The reading and the writes of the tree — ``listNodes``,
-``createNode``, ``updateTaskFacet``, ``getComputedValueDependencies``, ``resolveRowNumber`` — are
-US-1380/L2's, the deletion, the move and the attachment to the work breakdown (``deleteNode``,
-``moveNodes``, ``work_package_id`` and ``order_item_id`` of a creation and a modification)
-US-1380/L3's; each write judges its revision, opens its entry of the history, locks its structure,
-replays the engine on it and gives back what it wrote (``writing``). A marked revision reads as the
-current one. The copy leaves null the attachment to an element marked deleted (WF-PLA-0170).
-The creation of ``createNode``, judged then written (``judge_creation``, ``write_creation``), is
-also that of the rows of a paste past the last node, in the paste's one write (US-1450/L5).
-The tasks of the witness are written by ``loading`` (US-1480/L2).
+The planning registers, at the import of its interface, the question the designation of the
+reference asks of its tasks (``revision_has_tasks``, WF-CYC-0030); the copy of the nodes of a
+revision opened from a marked one is ``copying``'s (US-2240/L2). The reading and the writes of
+the tree — ``listNodes``, ``createNode``, ``updateTaskFacet``, ``getComputedValueDependencies``,
+``resolveRowNumber`` — are US-1380/L2's, the deletion, the move and the attachment to the work
+breakdown (``deleteNode``, ``moveNodes``, ``work_package_id`` and ``order_item_id`` of a creation
+and a modification) US-1380/L3's; each write judges its revision, opens its entry of the
+history, locks its structure, replays the engine on it and gives back what it wrote (``writing``).
+A marked revision reads as the current one. The creation of ``createNode``, judged then written
+(``judge_creation``, ``write_creation``), is also that of the rows of a paste past the last node,
+in the paste's one write (US-1450/L5). The tasks of the witness are written by ``loading``
+(US-1480/L2).
 """
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sqlalchemy import exists, insert, inspect, select, update
+from sqlalchemy import exists, inspect, select, update
 
 from waterfall.core.planning.attachments import (
     ORDER_ITEM_ID,
@@ -101,7 +100,6 @@ if TYPE_CHECKING:
     from waterfall.core.planning.filters import NodeFilters
     from waterfall.core.planning.scheduling import Duration
     from waterfall.core.planning.writing import Write
-    from waterfall.core.revisions.interface import RevisionCopy
     from waterfall.platform.audit import Act
 
 UNKNOWN_TASK = "UNKNOWN_TASK"
@@ -217,109 +215,6 @@ def revision_has_tasks(session: Session, revision_id: UUID) -> bool:
 def _columns(row: Node | Task | TaskLink) -> dict[str, object]:
     """Give the columns of a row, by name."""
     return {column.key: getattr(row, column.key) for column in inspect(row).mapper.column_attrs}
-
-
-def _depth_first(nodes: list[Node]) -> list[Node]:
-    """Order nodes so that each parent comes before its children."""
-    held = {node.id for node in nodes}
-    depth: dict[UUID, int] = {}
-
-    def level(node: Node) -> int:
-        if node.id not in depth:
-            parent = node.parent_id
-            depth[node.id] = 0 if parent is None or parent not in held else 1 + level(by[parent])
-        return depth[node.id]
-
-    by = {node.id: node for node in nodes}
-    return sorted(nodes, key=lambda node: (level(node), node.id))
-
-
-def copy_nodes(copy: RevisionCopy) -> None:
-    """Copy the nodes of the source, their facet task and their links (WF-DAT-0010).
-
-    The nodes of each structure copied, under identifiers of their own and their lineage, at their
-    place, at their first version, their dates as computed, their attachment to the work breakdown
-    but to an element marked deleted, which the revision opened does not take up (WF-PLA-0170); the
-    facets the later modules register after them (``register_facet``). The inscriptions follow the
-    lineage, and stay.
-    """
-    session, ids = copy.session, copy.identifiers
-    nodes = [
-        node
-        for node in session.scalars(
-            select(Node).where(Node.project_id == copy.project_id, Node.revision_id == copy.source)
-        )
-        if node.structure_id in ids
-    ]
-    for node in nodes:
-        ids[node.id] = new_id()
-    stamp = {
-        "created_at": copy.at,
-        "created_by": copy.author,
-        "updated_at": copy.at,
-        "updated_by": copy.author,
-    }
-    rows = [
-        {
-            "project_id": copy.project_id,
-            "id": ids[node.id],
-            "revision_id": copy.target,
-            "structure_id": ids[node.structure_id],
-            "lineage_id": node.lineage_id,
-            "kind": node.kind,
-            "parent_id": None if node.parent_id is None else ids[node.parent_id],
-            "rank": node.rank,
-            "origin_risk_id": node.origin_risk_id,
-            "lock_version": 1,
-            **stamp,
-        }
-        for node in _depth_first(nodes)
-    ]
-    if not rows:
-        return
-    session.execute(insert(Node), rows)
-    tasks = session.scalars(
-        select(Task).where(Task.project_id == copy.project_id, Task.node_id.in_(list(ids)))
-    ).all()
-    gone = {
-        item.item_id
-        for item in work_breakdown_items(session, copy.project_id).values()
-        if item.deleted
-    }
-    session.execute(
-        insert(Task),
-        [
-            {
-                **_columns(task),
-                "node_id": ids[task.node_id],
-                "structure_id": ids[task.structure_id],
-                "work_package_id": None if task.work_package_id in gone else task.work_package_id,
-                "order_item_id": None if task.order_item_id in gone else task.order_item_id,
-            }
-            for task in tasks
-        ],
-    )
-    links = session.scalars(
-        select(TaskLink).where(
-            TaskLink.project_id == copy.project_id, TaskLink.revision_id == copy.source
-        )
-    ).all()
-    copied_links = [
-        {
-            **_columns(link),
-            "id": new_id(),
-            "revision_id": copy.target,
-            "structure_id": ids[link.structure_id],
-            "predecessor_id": ids[link.predecessor_id],
-            "successor_id": ids[link.successor_id],
-        }
-        for link in links
-        if link.structure_id in ids
-    ]
-    if copied_links:
-        session.execute(insert(TaskLink), copied_links)
-    for hooks in facets().values():
-        hooks.copy(copy)
 
 
 def list_nodes(session: Session, place: Place, filters: NodeFilters) -> NodeList:

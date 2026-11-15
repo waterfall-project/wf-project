@@ -533,7 +533,11 @@ pas croire à un échec à chaque revue.
 - propre à l'US : `createRevision` sur PRJ-001 répond en deux secondes au plus à l'API, pour un
   utilisateur seul, sur un poste (borne de l'auteur du 2026-11-14 : celle des opérations d'écran
   nouvelles du tableau 15, qui ne nomme pas l'ouverture d'une révision) ; mesurée par US-2210,
-  avant et après ;
+  avant et après. Décision de l'auteur du 2026-11-15 (#3314, option B) : la borne est dépassée de
+  0,35 s — médiane de 2,35 s sur cinq mesures, contre 5,4 à 6,2 s avant le lot ; `make
+  measure-core ONLY=revision`, 3 885 puis 1 744 ms — et l'auteur garde 2,35 s : la double reprise
+  du planning (`redate_copy`, puis `reprice_revision` dans `copy_rates`) n'est pas retirée, et la
+  tâche de fond reste écartée ;
 - propre à l'US : la cause de la rupture de l'appel du front au bout de cinq secondes est établie —
   uvicorn, le frontal, undici —, puis corrigée ou écrite ;
 - propre à l'US : une connexion perdue une fois une écriture partie ne s'affiche plus « Le service

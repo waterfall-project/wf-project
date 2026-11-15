@@ -1,15 +1,14 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""A line reestimated, and the remaining to commit a revision copies of the review before (US-1580).
+"""A line reestimated (US-1580).
 
 ``set_line_remaining`` writes the figures of a line of a task not completed by the function that
 writes the estimate (``change_line``), marks its re-estimation and keeps its reason; a remaining set
 to zero on the last open line of a task completes it, by the planning, in the same write
-(``write_remaining``, ``setLineRemaining``, WF-RAE-0040). ``copy_previous`` is the second copy the
-estimate registers (``register_copy``), after that of the lines: a line copied from a revision
-marked in the state In progress receives the figures and the reestimated amount of its source as
-its remaining to commit before the review (``previous_*``), none from a revision marked before
-(EP-09, "Ce que le cadrage décide").
+(``write_remaining``, ``setLineRemaining``, WF-RAE-0040). The remaining to commit before the review
+a line copied from a revision marked in the state In progress receives (``previous_*``, EP-09, "Ce
+que le cadrage décide") was a second copy the estimate registered, ``copy_previous``; the copy of
+the lines writes it since US-2240/L2, in its one statement.
 
 Declared by US-1580/L1; filled by US-1580/L2.
 """
@@ -28,7 +27,6 @@ if TYPE_CHECKING:
 
     from waterfall.core.estimate.entries import LineEntry
     from waterfall.core.planning.interface import NodesWritten, Place, Writer
-    from waterfall.core.revisions.interface import RevisionCopy
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,8 +65,3 @@ def set_line_remaining(
         entry.completed_on,
     )
     return write_remaining(session, place, change, writer)
-
-
-def copy_previous(copy: RevisionCopy) -> None:
-    """Give the lines copied the remaining to commit of their source, if it was a review."""
-    reviewing.copy_previous(copy)
