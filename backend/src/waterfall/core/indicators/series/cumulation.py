@@ -1,0 +1,126 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+"""The cumulative series at the step of the month (WF-IND-0100-A, WF-IND-0110-A).
+
+Each point carries the cumulative total at the end of its month. The first, zero, sits at the end
+of the month that precedes the first amount; the date of calculation is one more point on the
+series that stop or start there. Amounts are rounded to the cent once, on the cumulative total of
+each point, half away from zero as ``Money`` does, so that the parts rounded by difference add up to
+the total (WF-DAT-0100).
+"""
+
+from dataclasses import dataclass
+from decimal import ROUND_HALF_UP, Decimal
+from typing import TYPE_CHECKING
+
+from waterfall.core.indicators.series.months import (
+    end_of,
+    month_before,
+    month_of,
+    months_between,
+)
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from datetime import date
+
+    from waterfall.core.estimate.interface import Month
+
+CENT = Decimal("0.01")
+ZERO = Decimal("0.00")
+
+
+@dataclass(frozen=True, slots=True)
+class Point:
+    """A point of a series: a day, and the cumulative amount at that day."""
+
+    day: date
+    amount: Decimal
+
+
+def to_cent(amount: Decimal) -> Decimal:
+    """Round an amount to the cent, a half going away from zero."""
+    return amount.quantize(CENT, rounding=ROUND_HALF_UP)
+
+
+def cumulative(shares: Mapping[Month, Decimal], *, through: date | None = None) -> list[Point]:
+    """Return the cumulative series by month-end, none without a part.
+
+    It runs from the month before the first part, at zero, to the month of the last part, or of
+    ``through`` when that is later: a series that stays flat to the end of a reference.
+    """
+    if not shares:
+        return []
+    first = min(shares)
+    last = max(shares)
+    if through is not None:
+        last = max(last, month_of(through))
+    running = Decimal(0)
+    points = [Point(end_of(month_before(first)), ZERO)]
+    for month in months_between(first, last):
+        running += shares.get(month, Decimal(0))
+        points.append(Point(end_of(month), to_cent(running)))
+    return points
+
+
+def cumulative_until(
+    shares: Mapping[Month, Decimal], as_of: date, *, from_month: Month | None = None
+) -> list[Point]:
+    """Return the cumulative series that stops at the date of calculation, a point of its own.
+
+    The month-ends before ``as_of`` are followed by ``as_of`` carrying every part up to it; the
+    parts of later months are left out. ``from_month`` makes a series without a part start at
+    zero, as a line without a document is drawn at zero (WF-IND-0100-A).
+    """
+    cut = month_of(as_of)
+    kept = {month: part for month, part in shares.items() if month <= cut}
+    starts = [*kept, *([from_month] if from_month is not None else [])]
+    if not starts:
+        return []
+    first = min(starts)
+    points = [Point(end_of(month_before(first)), ZERO)]
+    running = Decimal(0)
+    for month in months_between(first, cut):
+        running += kept.get(month, Decimal(0))
+        if end_of(month) < as_of:
+            points.append(Point(end_of(month), to_cent(running)))
+    points.append(Point(as_of, to_cent(running)))
+    return points
+
+
+def cumulative_from(shares: Mapping[Month, Decimal], as_of: date, base: Decimal) -> list[Point]:
+    """Return the cumulative series that starts at the date of calculation, from its ``base``.
+
+    The first point is ``as_of`` at the base — the actual cost there —; each month-end from the
+    month of ``as_of`` adds its parts, a month-end that is ``as_of`` itself being that same point.
+    """
+    first = month_of(as_of)
+    kept = {month: part for month, part in shares.items() if month >= first}
+    points = [Point(as_of, to_cent(base))]
+    running = base
+    for month in months_between(first, max(kept, default=first)):
+        running += kept.get(month, Decimal(0))
+        point = Point(end_of(month), to_cent(running))
+        if point.day == as_of:
+            points[0] = point
+        else:
+            points.append(point)
+    return points
+
+
+def apportioned(shares: Mapping[Month, Decimal]) -> dict[Month, Decimal]:
+    """Round the parts to the cent by difference of the rounded cumulative totals.
+
+    The rounded parts add up to the rounded total, whatever the number of months.
+    """
+    if not shares:
+        return {}
+    rounded: dict[Month, Decimal] = {}
+    running = Decimal(0)
+    previous = ZERO
+    for month in months_between(min(shares), max(shares)):
+        running += shares.get(month, Decimal(0))
+        current = to_cent(running)
+        rounded[month] = current - previous
+        previous = current
+    return rounded

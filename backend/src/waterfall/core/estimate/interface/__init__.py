@@ -356,7 +356,16 @@ from waterfall.core.estimate.repricing import (
 
 # ``spreading`` (US-1520/L1): the line the planned value is computed on, which EP-10 reads.
 from waterfall.core.estimate.spreading import (
+    Month as Month,
+)
+from waterfall.core.estimate.spreading import (
+    Placement as Placement,
+)
+from waterfall.core.estimate.spreading import (
     PlannedLine as PlannedLine,
+)
+from waterfall.core.estimate.spreading import (
+    spread_by_month as spread_by_month,
 )
 
 # ``workloading`` (US-1520): what a plan of workload is asked and gives.
