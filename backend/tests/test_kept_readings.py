@@ -14,11 +14,15 @@ the byte; the format, a reading of another being ignored and made again.
 import hashlib
 import json
 import zlib
+from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import pytest
 from projects_support import PROJECTS, READING, person
 from sqlalchemy import select, text, update
+from sqlalchemy.orm import Session
+from support import wait_for_a_lock
 from test_reading_bodies import ESTIMATE_FIELDS, MARKED_DIGEST, TASKS_DIGESTS
 from test_witness_projects import PRJ_001, REVISION_100, REVISION_101, REVISION_102
 from test_witness_tasks import structure_of
@@ -47,6 +51,9 @@ if TYPE_CHECKING:
 # the totals and of the meta. A field added to a node changes it, and fails the test until
 # ``FORMAT`` changes with it (EP-26, "Le format").
 FORMAT_SHAPES = {1: "b6ea495a278e259e6c01f87644f2905e907b2592bbea8c8c46c9903444023da7"}
+# The body of the marked revision 100 as a format writes it, as the rows give it: a value written
+# otherwise, the shape the same, changes it, and fails the test until ``FORMAT`` changes with it.
+FORMAT_BODIES = {1: "eaadbe84e77482ac75b037e5a3269ab44183badd3154112f6d9818a503967dae"}
 # A body no reading gives, which a reading kept is replaced by to tell it is read.
 FORGED = b'{"items":[],"totals":{},"meta":{}}'
 
@@ -202,6 +209,57 @@ def test_the_second_write_of_the_same_reading_is_ignored_another_replaces_it(
         assert again.document == b"fourth"
 
 
+def test_an_older_reading_does_not_replace_a_newer_one_of_other_settings(
+    witness: Database, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A reading that read the settings before a change and is kept after another's, of the settings
+    # changed, does not put the former back; the reading that follows is not made again for it.
+    place = place_of(witness, REVISION_100)
+    monkeypatch.setattr(
+        "waterfall.core.planning.interface.kept_readings.utc_now",
+        lambda: datetime(2026, 1, 3, tzinfo=UTC),
+    )
+    with witness.transaction() as session:
+        kept = kept_reading(session, place, FORMAT)
+        assert kept is not None
+        keep_reading(session, place, FORMAT, bytes(32), b"newer")
+    monkeypatch.setattr(
+        "waterfall.core.planning.interface.kept_readings.utc_now",
+        lambda: datetime(2026, 1, 2, tzinfo=UTC),
+    )
+    with witness.transaction() as session:
+        keep_reading(session, place, FORMAT, kept.settings_digest, b"older")
+    row = kept_row(witness, place)
+    assert row is not None
+    assert zlib.decompress(row.document) == b"newer"
+
+
+def test_a_write_waits_for_the_row_another_transaction_inserts_and_leaves_it_as_it_is(
+    witness: Database,
+) -> None:
+    # Two processes read the structure together: the first inserts and has not committed, the
+    # second waits for its row, then finds it, of the same settings, and replaces nothing.
+    place = place_of(witness, REVISION_100)
+    with witness.transaction() as session:
+        kept = kept_reading(session, place, FORMAT)
+    assert kept is not None
+
+    def second() -> None:
+        with witness.transaction() as session:
+            keep_reading(session, place, FORMAT, kept.settings_digest, b"second")
+
+    with ThreadPoolExecutor(1) as others, Session(witness.engine) as first:
+        keep_reading(first, place, FORMAT, kept.settings_digest, b"first")
+        writing = others.submit(second)
+        wait_for_a_lock(witness)
+        assert not writing.done()
+        first.commit()
+        writing.result(timeout=10)
+    row = kept_row(witness, place)
+    assert row is not None
+    assert zlib.decompress(row.document) == b"first"
+
+
 def test_a_revision_not_marked_has_no_reading_kept(witness: Database) -> None:
     place = place_of(witness, REVISION_102)
     with witness.transaction() as session:
@@ -311,3 +369,10 @@ def test_the_format_names_the_shape_of_the_body_it_writes() -> None:
             shape[name] = sorted(held.get("properties", {}))
     digest = hashlib.sha256(json.dumps(shape, sort_keys=True).encode()).hexdigest()
     assert FORMAT_SHAPES[FORMAT] == digest
+
+
+def test_the_format_names_the_body_it_writes(witness: Database) -> None:
+    # What the properties do not tell: a value written otherwise changes the body of a marked
+    # revision, and the format with it.
+    body = from_rows(witness, place_of(witness, REVISION_100))
+    assert FORMAT_BODIES[FORMAT] == sha(body)

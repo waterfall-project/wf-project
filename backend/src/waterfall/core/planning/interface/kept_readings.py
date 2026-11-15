@@ -30,7 +30,7 @@ import zlib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.dialects.postgresql import insert
 
 from waterfall.core.planning.tables import StructureReading, TrackingEntry
@@ -71,7 +71,9 @@ def _settings_digest(session: Session, project_id: UUID) -> bytes:
 
     The calendars and the calendar of each role, the work packages and the order items of the
     project, its subprojects, each with what a reading shows of it: a change of one of them changes
-    the digest, and makes the readings kept of the project stale.
+    the digest, and makes the readings kept of the project stale. The labels and the states of the
+    roles and the categories are not in it: a marked revision reads them on its images, made at its
+    marking for every role and category its lines employ, and which no setting changes after.
     """
     items = sorted(
         (str(item.item_id), item.kind, item.label, item.deleted)
@@ -133,7 +135,8 @@ def keep_reading(session: Session, place: Place, form: int, digest: bytes, docum
 
     In the transaction of the reading. One of another format or of other settings is replaced; the
     same one, written by a process that read the structure together with this one, is left as it
-    is: the second write is ignored.
+    is: the second write is ignored. Nor is a newer one replaced by an older: a reading that read
+    the settings before a change and is kept after another's, of the settings changed, is ignored.
     """
     statement = insert(StructureReading).values(
         project_id=place.project_id,
@@ -154,9 +157,12 @@ def keep_reading(session: Session, place: Place, form: int, digest: bytes, docum
                 "document": written.document,
                 "kept_at": written.kept_at,
             },
-            where=or_(
-                StructureReading.format != written.format,
-                StructureReading.settings_digest != written.settings_digest,
+            where=and_(
+                StructureReading.kept_at <= written.kept_at,
+                or_(
+                    StructureReading.format != written.format,
+                    StructureReading.settings_digest != written.settings_digest,
+                ),
             ),
         )
     )
