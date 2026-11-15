@@ -9,13 +9,13 @@ From top to bottom, each part under its title:
 - [the cost types and categories](FBS-3.1.1.md): two tables, the **Cost types** then the **Cost categories**;
 - the [hourly rates](FBS-3.1.2.md): a row per labour category, a column per year.
 
-Each table is sorted, searched, filtered and paged by the server, and keeps its own height. The lists show only the active objects, unless the deactivated ones are asked for too: nothing is deleted in the reference data, an object is deactivated and can be reactivated. A deactivated object is no longer offered for entry, and stays readable wherever it is used.
+Each table is sorted, searched, filtered and paged by the server, and keeps its own height. The lists show only the active objects by default; the “State” filter also shows the deactivated ones: nothing is deleted in the reference data, an object is deactivated and can be reactivated. A deactivated object is no longer offered for entry, and stays readable wherever it is used.
 
 ## Its commands
 
 At the top of the screen:
 
-- **Show the deactivated ones too** adds to the three tables the deactivated objects, and adds to them a filter of state; **Hide the deactivated ones** comes back from it. Offered to whoever may modify the cost settings: the contract keeps the deactivated objects for that permission, and the screen does not ask them of whoever may only read.
+- In the bar of each of the three tables, the **State** filter chooses the objects shown: **Active** (by default, said by the chip “Active (by default)”), **Deactivated** or **Every state**. Offered to whoever may modify the cost settings: the contract keeps the deactivated objects for that permission, and the screen does not ask them of whoever may only read.
 - **Actual cost mapping** leads to the [actual cost extraction mapping](FBS-3.1.3.md).
 - **Modify the company name** opens its form: the name is required, of 200 characters at most.
 

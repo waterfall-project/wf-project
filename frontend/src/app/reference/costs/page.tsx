@@ -98,7 +98,7 @@ import {
   yearOf,
 } from "@/components/reference/rate-columns";
 import { type HourlyRateGrid, RateGrid } from "@/components/reference/rate-grid";
-import { CompanyName, CompanySettings } from "@/components/reference/settings-forms";
+import { CompanyCard, CompanySettings } from "@/components/reference/settings-forms";
 import { BoundsRefused, ReferenceCard } from "@/components/reference/section";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
@@ -312,7 +312,7 @@ function CostsHeader({
       {renames ? (
         <CompanySettings settings={settings} />
       ) : (
-        <CompanyName name={settings.company_name} />
+        <CompanyCard name={settings.company_name} />
       )}
     </>
   );

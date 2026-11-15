@@ -34,4 +34,10 @@ describe("the failure of a command pressed that sent nothing", () => {
       "no server action asked left from the command pressed; the last click refused: element is not visible",
     );
   });
+
+  it("says the command was occupied and not pressed (#3448)", () => {
+    expect(failedPress(undefined, true)).toBe(
+      "no server action asked left from the command pressed; the command was occupied, and not pressed",
+    );
+  });
 });

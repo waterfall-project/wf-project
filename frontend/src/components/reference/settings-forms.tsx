@@ -27,7 +27,7 @@
  */
 "use client";
 
-import { Pencil, Timer, type LucideIcon } from "lucide-react";
+import { Building2, Pencil, Timer, type LucideIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { type ComponentType, type ReactNode, useId, useRef, useState } from "react";
 
@@ -41,6 +41,7 @@ import { Button } from "@/components/ui/button";
 import { compareDecimals, editableDecimal, editablePercent, percentRatio } from "@/i18n/format";
 
 import { Reactivations } from "./reactivation";
+import { SettingsHeader, type SettingsScreen } from "./settings-header";
 import { type Draft, type FormField, ReferenceForm, required } from "./reference-form";
 import {
   DurationUnitFigures,
@@ -391,7 +392,7 @@ function SettingsWriter<Settings extends Versioned>({
   command,
   saved,
   form: Form,
-  card,
+  place,
   children,
 }: {
   readonly settings: Settings;
@@ -399,10 +400,14 @@ function SettingsWriter<Settings extends Versioned>({
   readonly saved: string;
   readonly form: ComponentType<SettingsFormProps<Settings>>;
   /**
-   * The card the settings stand in, its command at the right of its title, outlined — it modifies
-   * (`SectionCard`); none for settings that stand bare, the command above them.
+   * Where the settings stand, one place or the other: in a card, its command at the right of its
+   * title, outlined — it modifies (`SectionCard`); or the screen itself, its header, whose command
+   * stands at the right of the title of the function, outlined (`SettingsHeader`); none for
+   * settings that stand bare, the command above them.
    */
-  readonly card?: { readonly title: string; readonly icon: LucideIcon };
+  readonly place?:
+    | { readonly kind: "card"; readonly title: string; readonly icon: LucideIcon }
+    | { readonly kind: "screen"; readonly screen: SettingsScreen };
   readonly children: (shown: Settings) => ReactNode;
 }) {
   const [answered, setAnswered] = useState<Settings>();
@@ -453,13 +458,14 @@ function SettingsWriter<Settings extends Versioned>({
   );
   const body = (
     <>
-      {card === undefined ? (
+      {place === undefined ? (
         <div className="flex flex-wrap items-start gap-2">
           {modify("outline")}
           {note}
         </div>
       ) : (
-        // In its card the command is in the header: the note stands alone, and takes no room
+        // In its card, or in the header of its screen, the command is in the header: the note
+        // stands alone, and takes no room
         // (no empty row, no gap above the figures) until it has something to say.
         note
       )}
@@ -488,12 +494,20 @@ function SettingsWriter<Settings extends Versioned>({
     </>
   );
   const refusals = <Reactivations reads={[]}>{body}</Reactivations>;
-  return card === undefined ? (
+  if (place?.kind === "screen") {
+    return (
+      <>
+        <SettingsHeader screen={place.screen} actions={modify("outline")} />
+        {refusals}
+      </>
+    );
+  }
+  return place === undefined ? (
     refusals
   ) : (
     <SectionCard
-      title={card.title}
-      icon={card.icon}
+      title={place.title}
+      icon={place.icon}
       principal={{ does: "modify", command: modify }}
     >
       <div className="flex min-w-0 flex-col gap-2">{refusals}</div>
@@ -505,7 +519,13 @@ function SettingsWriter<Settings extends Versioned>({
 export function RiskSettings({ settings }: { readonly settings: ReferenceSettings }) {
   const t = useTranslations("reference.riskForm");
   return (
-    <SettingsWriter settings={settings} command={t("modify")} saved={t("saved")} form={RiskForm}>
+    <SettingsWriter
+      settings={settings}
+      command={t("modify")}
+      saved={t("saved")}
+      form={RiskForm}
+      place={{ kind: "screen", screen: "risk_settings" }}
+    >
       {(shown) => (
         <>
           <RiskBoundsTable matrix={shown.risk_matrix} />
@@ -528,6 +548,7 @@ export function IndicatorSettings({ settings }: { readonly settings: ReferenceSe
       command={t("modify")}
       saved={t("saved")}
       form={IndicatorForm}
+      place={{ kind: "screen", screen: "indicator_settings" }}
     >
       {(shown) => (
         <>
@@ -552,7 +573,7 @@ export function DurationUnitSettings({ units }: { readonly units: DurationUnits 
       command={t("modify")}
       saved={t("saved")}
       form={DurationUnitsForm}
-      card={{ title, icon: Timer }}
+      place={{ kind: "card", title, icon: Timer }}
     >
       {(shown) => <DurationUnitFigures units={shown} />}
     </SettingsWriter>
@@ -566,7 +587,13 @@ export function DurationUnitSettings({ units }: { readonly units: DurationUnits 
 export function CompanySettings({ settings }: { readonly settings: ReferenceSettings }) {
   const t = useTranslations("reference.companyForm");
   return (
-    <SettingsWriter settings={settings} command={t("modify")} saved={t("saved")} form={CompanyForm}>
+    <SettingsWriter
+      settings={settings}
+      command={t("modify")}
+      saved={t("saved")}
+      form={CompanyForm}
+      place={{ kind: "card", title: t("title"), icon: Building2 }}
+    >
       {(shown) => <CompanyName name={shown.company_name} />}
     </SettingsWriter>
   );
@@ -580,5 +607,15 @@ export function CompanyName({ name }: { readonly name: string }) {
       <dt className="inline text-muted-foreground">{t("name")}</dt>{" "}
       <dd className="inline font-semibold">{name}</dd>
     </dl>
+  );
+}
+
+/** The name of the company in its card, read: what a session that may not modify it sees. */
+export function CompanyCard({ name }: { readonly name: string }) {
+  const t = useTranslations("reference.companyForm");
+  return (
+    <SectionCard title={t("title")} icon={Building2}>
+      <CompanyName name={name} />
+    </SectionCard>
   );
 }
