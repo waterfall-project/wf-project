@@ -743,6 +743,7 @@
       "node": "Main-d’œuvre de {node} et de ses descendants"
     },
     "projects": {
+      "title": "Projets du portefeuille",
       "retained": "{count, plural, =0 {Aucun projet retenu} one {# projet retenu} other {# projets retenus}}",
       "reason": " — {reason}",
       "zoneChip": "Zone des indices",
@@ -839,6 +840,7 @@
       }
     },
     "costCurve": {
+      "section": "Courbe en S",
       "chartTitle": "Coûts cumulés du portefeuille",
       "chartTitleDelayed": "Décaissements cumulés du portefeuille",
       "description": "Courbes cumulées, mois par mois, du budget de référence des projets du périmètre, de leur coût réel jusqu’à la date de calcul, puis de la projection de leurs chefs de projet : chaque point est la somme des points des projets, telle que le serveur la calcule.",

@@ -101,4 +101,6 @@ shell ;
 état vidé quand une prop le relaie ;
 - #3291 — outil : citer un critère propre à une US dans un test, sans emprunter une exigence
 (WF-QUA-0010) — relevé par la revue d'US-2160/L2, reporté d'EP-25 (décision de l'auteur du
-2026-11-14).
+2026-11-14) ;
+- #3431 — front : trois mineurs du parcours du thème de connexion (revue 2 d'US-2190) — reporté
+d'EP-25 avec #3396 (décision de l'auteur du 2026-11-15).

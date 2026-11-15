@@ -131,4 +131,10 @@ describe("the state of the platform and its backups", () => {
     ).toBeInTheDocument();
     await expectAccessible(container);
   });
+
+  it("says a list of alerts that is empty in a card of section [WF-IHM-0100-A]", () => {
+    rendered(<AlertList alerts={[]} />, "en");
+    const sentence = screen.getByText("No current alert.");
+    expect(sentence.closest('[data-slot="section-card"]')).not.toBeNull();
+  });
 });

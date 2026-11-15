@@ -10,7 +10,7 @@ Read as cash-out, the curve becomes **Cumulative cash-out of the portfolio**: ea
 
 ## Its commands
 
-- **Read as cash-out** turns the curve into cash-out; **Back to the cumulative costs** brings it back.
+- **Read as cash-out**, at the right of the title of the **S-curve** card, turns the curve into cash-out; **Back to the cumulative costs** brings it back.
 - **Export as PNG** saves a chart as an image, with the perimeter, the horizon and the date of calculation; **Values of the chart** unfolds its values, as a table.
 
 **Portfolio perimeter**, above the view:
