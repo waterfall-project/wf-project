@@ -459,7 +459,9 @@ function SettingsWriter<Settings extends Versioned>({
           {note}
         </div>
       ) : (
-        <div className="flex flex-wrap items-start gap-2">{note}</div>
+        // In its card the command is in the header: the note stands alone, and takes no room
+        // (no empty row, no gap above the figures) until it has something to say.
+        note
       )}
       {children(shown)}
       {editing === undefined ? null : (

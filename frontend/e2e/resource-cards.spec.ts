@@ -90,11 +90,14 @@ for (const size of WINDOWS) {
     const card = page.getByRole("region", { name: "Unités de durée", exact: true });
     const button = card.getByRole("button", { name: "Modifier les unités de durée" });
     await expectAtTitle(card, button, "« Modifier les unités de durée »");
-    const creation = page
-      .getByRole("region", { name: "Calendriers", exact: true })
-      .getByRole("button", { name: "Nouveau calendrier" });
-    expect(await backgroundOf(button), "outlined, not filled").not.toBe(
-      await backgroundOf(creation),
+    const style = await button.evaluate((element) => {
+      const computed = getComputedStyle(element);
+      return { border: computed.borderTopColor, width: computed.borderTopWidth };
+    });
+    expect(style.width, "outlined: a border").not.toBe("0px");
+    expect(style.border, "outlined: a visible border").not.toBe("rgba(0, 0, 0, 0)");
+    expect(await backgroundOf(button), "outlined: on the background of the page, not filled").toBe(
+      await page.evaluate(() => getComputedStyle(document.body).backgroundColor),
     );
   });
 

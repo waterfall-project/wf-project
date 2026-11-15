@@ -7,14 +7,13 @@
  * right of the title of its card; the bar of the tree in the order of every grid.
  */
 import { render, screen, within } from "@testing-library/react";
+import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
 import { PendingAddress } from "@/components/grid/pending-address";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/components/ui/utils";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { ListPage } from "@/navigation/pages";
 import { expectAccessible } from "@/test/axe";
@@ -120,7 +119,7 @@ function card(title: string): HTMLElement {
 
 /** Whether a button is drawn filled. */
 function filled(button: HTMLElement): boolean {
-  return button.className === cn(buttonVariants({ variant: "default", size: "sm" }));
+  return button.classList.contains("bg-primary");
 }
 
 beforeEach(() => {
@@ -159,7 +158,7 @@ describe("the cards of the settings of the resources", () => {
     const section = card("Unités de durée");
     const button = within(section).getByRole("button", { name: "Modifier les unités de durée" });
     expect(filled(button)).toBe(false);
-    expect(button.className).toContain("border");
+    expect(button).toHaveClass("border", "border-input", "bg-background");
     const header = section.querySelector('[data-slot="card-header"]');
     expect(header?.contains(button)).toBe(true);
     expect(header?.contains(within(section).getByRole("heading", { level: 2 }))).toBe(true);
@@ -167,6 +166,18 @@ describe("the cards of the settings of the resources", () => {
       "data-does",
       "modify",
     );
+  });
+
+  it("opens the dialog of the units from the command of its card, and gives the focus back to it on closing [WF-IHM-0100-A]", async () => {
+    render(screenOf());
+    const button = within(card("Unités de durée")).getByRole("button", {
+      name: "Modifier les unités de durée",
+    });
+    await userEvent.click(button);
+    const form = screen.getByRole("dialog", { name: "Modifier les unités de durée" });
+    await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(button);
   });
 
   it("keeps the rule of the commands: one filled creation in each list, nothing filled in the units [WF-IHM-0100-A]", () => {
