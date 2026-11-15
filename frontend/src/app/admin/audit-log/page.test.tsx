@@ -157,10 +157,24 @@ describe("the journal of audit", () => {
       "La plateforme Sauvegarde Sauvegarde Sauvegarde Hors projet 01926f3a-7c00-7000-8000-000800000040",
     );
     expect(shown.at(-1)).toBe("43 inscriptions");
-    expect(text(page)).toContain("Journal d’audit Aide 43 inscriptions");
     // Each date, an instant the browser writes in its local time; the history, an icon named.
     expect(page).toContain('<time dateTime="2026-06-03T08:30:00Z">');
     expect(page).toContain('aria-label="Histoire de l’objet"');
+  });
+
+  it("sets the table in a card without a title of section, and tells the count in the totals row alone, not under the title [WF-IHM-0100-A]", async () => {
+    const page = await journal();
+    // The card is bare: the title of the screen names the journal, no section of the card does.
+    expect(page).toContain('data-slot="card"');
+    expect(page).not.toContain('data-slot="section-card"');
+    expect(page).not.toContain('data-slot="card-header"');
+    expect(page).not.toContain('data-slot="card-title"');
+    // The grid is in the card, with its pages; the count stands once, in the totals row of the grid.
+    const card = /<div data-slot="card"[^>]*>(.*)$/s.exec(page)?.[1] ?? "";
+    expect(card).toContain('role="grid"');
+    expect(card).toContain("sur 43");
+    expect(text(page)).not.toContain("Aide 43 inscriptions");
+    expect(text(page).match(/43 inscriptions/g)).toHaveLength(1);
   });
 
   it("asks the newest inscriptions first, and the other direction when the address asks it [WF-IHM-0060-A]", async () => {

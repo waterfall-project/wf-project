@@ -15,6 +15,7 @@ import { forgetMessages, readMessages } from "@/components/notices/message-histo
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { expectCommandRule } from "@/test/command-rule";
 import { atCommit } from "@/test/committed";
 import {
   announced,
@@ -143,6 +144,22 @@ describe("the commands of the backups", () => {
       }),
     ).toBeVisible();
     expect(screen.queryByRole("button", { name: /Supprimer/ })).toBeNull();
+  });
+
+  it("set the list in a card whose filled principal command is « Sauvegarder maintenant », at the right of its title, and none to who may not start one [WF-IHM-0100-A]", () => {
+    serve();
+    const { container, rerender } = render(backupList(backups.items));
+    const card = screen.getByRole("region", { name: "Sauvegardes" });
+    expect(card).toHaveAttribute("data-slot", "section-card");
+    const start = within(card).getByRole("button", { name: "Sauvegarder maintenant" });
+    // The one filled command of its card, in the slot of the principal command, which triggers.
+    const slot = start.closest('[data-slot="section-card-principal"]');
+    expect(slot).toHaveAttribute("data-does", "trigger");
+    expect(card.querySelector('[data-slot="section-card-commands"]')).toContainElement(start);
+    expectCommandRule(container);
+    rerender(backupList(backups.items, { startable: false }));
+    expect(screen.queryByRole("button", { name: "Sauvegarder maintenant" })).toBeNull();
+    expectCommandRule(container);
   });
 
   it("present a command the backup lists unavailable, described by the condition it lacks, which a press says, asking nothing [WF-IHM-0090-A]", async () => {

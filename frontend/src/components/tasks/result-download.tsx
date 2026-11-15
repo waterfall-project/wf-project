@@ -18,8 +18,9 @@
  * Downloaded by itself, no gesture of the user asked for it: it never leaves nor loads the screen
  * again, where the user may be typing. It goes by a hidden frame, which the route answers as the
  * screen would be: the file, which the browser downloads from the frame, as it comes — never held
- * in memory —; or, refused, the screen it was sent back to, loaded in the frame without its scripts
- * (`sandbox`), whose address says the refusal (`readRefusal`), told by the card of the end. Not by
+ * in memory —; or, refused, a page with nothing in it, loaded in the frame without its scripts
+ * (`sandbox`), whose address says the refusal (`readRefusal`), told by the card of the end — and,
+ * the session having ended, the sign-in page, which says that. Not by
  * `fetch`, which the network guard keeps to the client of the API (WF-ARC-0020), and which would hold
  * the whole file in memory before saving it.
  */
@@ -42,8 +43,15 @@ import type { BackgroundTask, Outcome } from "@/api/problem";
 import { rejected } from "@/components/commands/rejection";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/components/ui/utils";
+import { LOGIN_ROUTE } from "@/navigation/login";
 
-import { readRefusal, type ResultRefusal, resultHref, withoutRefusal } from "./result-refusal";
+import {
+  readRefusal,
+  type ResultRefusal,
+  resultHref,
+  SESSION_ENDED,
+  withoutRefusal,
+} from "./result-refusal";
 import { type EndLine, givesFile, type TrackingEvent } from "./tracking";
 
 /**
@@ -184,7 +192,9 @@ export function downloadWhenThere(
 
 /**
  * Download the file at an address by a hidden frame, the screen staying as it is: what the route
- * refuses, it sends the frame back to the screen with the refusal in its address, told to `refused`.
+ * refuses, it sends the frame to a page with nothing in it, the refusal in its address
+ * (`app/tasks/[taskId]/refused`, #3297), told to `refused`; a frame that comes to the sign-in page
+ * says the session ended.
  * The frame runs no script — the application it would load —, keeps the origin of the screen — the
  * session goes with the request, and its address can be read —, and may download.
  */
@@ -199,25 +209,36 @@ function inFrame(href: string, refused: (refusal: ResultRefusal) => void): void 
     frame.remove();
   }, FRAME_KEPT);
   frame.addEventListener("load", () => {
-    const refusal = readRefusal(new URLSearchParams(frameSearch(frame)));
+    const shown = frameAddress(frame);
+    // A frame that came to the sign-in page — the session ended — carries nothing of the refusal:
+    // it is told as the end of the session.
+    const refusal = isSignIn(shown.pathname)
+      ? SESSION_ENDED
+      : readRefusal(new URLSearchParams(shown.search))?.refusal;
     if (refusal === undefined) {
       return;
     }
     clearTimeout(timer);
     frame.remove();
-    refused(refusal.refusal);
+    refused(refusal);
   });
   frame.src = href;
   document.body.append(frame);
 }
 
-/** The query of the address a frame shows, none when it cannot be read. */
-function frameSearch(frame: HTMLIFrameElement): string {
+/** The path and the query of the address a frame shows, empty when they cannot be read. */
+function frameAddress(frame: HTMLIFrameElement): { pathname: string; search: string } {
   try {
-    return frame.contentWindow?.location.search ?? "";
+    const { pathname = "", search = "" } = frame.contentWindow?.location ?? {};
+    return { pathname, search };
   } catch {
-    return "";
+    return { pathname: "", search: "" };
   }
+}
+
+/** Whether a path is the sign-in page of the front, or one of its pages. */
+function isSignIn(pathname: string): boolean {
+  return pathname === LOGIN_ROUTE || pathname.startsWith(`${LOGIN_ROUTE}/`);
 }
 
 /** How long a frame that downloads is kept: the download it began goes on without it. */

@@ -46,10 +46,13 @@ export function heldFrames(): readonly HTMLIFrameElement[] {
   return frames;
 }
 
-/** Load in a frame held the screen the route sends it back to, at the address given. */
+/**
+ * Load in a frame held the page the route sends it to — a page with nothing in it (#3297) — or the
+ * one it ends at, the sign-in page when the session ended, at the address given.
+ */
 export function sendBack(frame: HTMLIFrameElement, address: string): void {
-  const { search } = new URL(address, window.location.origin);
-  Object.defineProperty(frame, "contentWindow", { value: { location: { search } } });
+  const { pathname, search } = new URL(address, window.location.origin);
+  Object.defineProperty(frame, "contentWindow", { value: { location: { pathname, search } } });
   const load = new Event("load");
   SENT_BACK.add(load);
   frame.dispatchEvent(load);
