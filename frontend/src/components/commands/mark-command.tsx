@@ -54,11 +54,12 @@ interface MarkFormProps {
 
 const FIELD = "max-w-sm";
 
+const LABEL = "block text-sm font-medium";
+
 /** What the marking aims at: its revision, by which the command finds it again (#3404). */
 function markAim(revision: Revision): string {
   return taskAim("revision_mark", revision.revision_id);
 }
-const LABEL = "block text-sm font-medium";
 
 /**
  * Ask the version name of the marking — and, if the user wishes, a description of the

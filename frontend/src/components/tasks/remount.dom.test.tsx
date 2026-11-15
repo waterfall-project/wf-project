@@ -224,9 +224,8 @@ describe("a button mounted anew while the task it started runs", () => {
   it.each(CASES)(
     "$name waits after the screen is left and come back to, and after a reload, until the task ends [WF-IHM-0080-A]",
     async ({ part, button: pressed, press, route, answers }) => {
-      // Le marquage d'une révision de dix mille objets laisse l'écran utilisable et présente son
-      // avancement : the button that started the task stays inert while it runs (#3404). A read
-      // while it runs finds it running still.
+      // The button that started the task stays inert while it runs (#3404). A read while it runs
+      // finds it running still.
       const client = serve({ ...answers, [TASK]: "task_running" });
       const view = render(shell(part()));
       await press();
@@ -279,5 +278,67 @@ describe("a button mounted anew while the task it started runs", () => {
       expect(screen.getByRole("button", { name: /^Tâches et messages/ })).toHaveAccessibleName(/1/);
     });
     expect(button("Marquer la révision")()).toHaveAttribute("aria-busy", "false");
+  });
+});
+
+describe("what a task found again does not do by itself", () => {
+  /** Keep a running task of the tab, as a reload finds it. */
+  function keep(task: KeptTask) {
+    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify([task]));
+  }
+
+  it("takes no file in the drop zone while the analysis found again runs [WF-IHM-0080-A]", async () => {
+    keep({
+      key: "01926f3a-7c00-7000-8000-000000000932",
+      task_id: "01926f3a-7c00-7000-8000-000000000932",
+      kind: "import_analysis",
+      status: "running",
+      subject: "planning.xml",
+      aim: taskAim("import_analysis", PROJECT),
+    });
+    const client = serve({ [TASK]: "task_running" });
+    render(shell(<FileDrop projectId={PROJECT} start={START} />));
+    await waitFor(() => {
+      expectWaiting(button(/^Choisir/)());
+    });
+    fireEvent.drop(within(screen.getByRole("main")).getByRole("group"), {
+      dataTransfer: { files: [new File(["<Project/>"], "other.xml", { type: "text/xml" })] },
+    });
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(client.calls.filter((call) => call.route.startsWith("POST "))).toHaveLength(0);
+  });
+
+  it("downloads nothing by itself when the export found again succeeds [WF-IHM-0080-A] [WF-DAT-0120]", async () => {
+    // A file served once: only the screen that asked for the export downloads it by itself; the
+    // card of the end offers it to the user.
+    keep({
+      key: "01926f3a-7c00-7000-8000-000000000935",
+      task_id: "01926f3a-7c00-7000-8000-000000000935",
+      kind: "export",
+      status: "running",
+      subject: "Devis",
+      aim: taskAim("export", REVISION),
+    });
+    serve({ [TASK]: "task_running" });
+    render(
+      shell(
+        <ExportForm
+          projectId={PROJECT}
+          revisionId={REVISION}
+          offers={exportOffers(example("revision") as Revision)}
+        />,
+      ),
+    );
+    await waitFor(() => {
+      expectWaiting(button("Demander l’export")());
+    });
+    const client = serve({ [TASK]: "task_export_succeeded" });
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    await waitFor(() => {
+      expect(button("Demander l’export")()).toHaveAttribute("aria-busy", "false");
+    });
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    expect(document.querySelector("iframe")).toBeNull();
+    expect(client.calls.filter((call) => call.route === TASK).length).toBeLessThanOrEqual(2);
   });
 });

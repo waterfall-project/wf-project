@@ -183,9 +183,8 @@ test("marking a revision gives the hand back, shows its progress, and tells on a
 test("keeps the command of a backup waiting across a reload of the tab while the backup runs, found again by the tracker of the shell [WF-IHM-0080-A]", async ({
   page,
 }) => {
-  // Le marquage d'une révision de dix mille objets laisse l'écran utilisable et présente son
-  // avancement : the button that started a task stays inert while it runs, after a reload too
-  // (#3404). The reads of the backup are held until the test lets them come: the fake back would
+  // The button that started a task stays inert while it runs, after a reload too (#3404). The
+  // reads of the backup are held until the test lets them come: the fake back would
   // answer them with its first example, ended. A reload is no navigation of the router: no server
   // action held holds it (defect 15 of `docs/dev/typescript.md`).
   let release!: () => void;
