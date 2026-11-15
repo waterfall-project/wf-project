@@ -1387,7 +1387,7 @@ l'inscription elle-même (EP-06).
 
 ## US-1720 — Le cache des indicateurs au jour courant
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-DAT-0130-A`
 - **opérations** : `getProjectIndicators`, `getCostCurve`, `getEarnedValueCurves`,
   `getIndexHistory` (le dernier point) ; `updateEstimateLine`, `setActualCostTrackedScope`,
