@@ -109,6 +109,7 @@ def test_an_entry_written_for_two_seconds_expires_after_it(queue: TaskQueue, key
     brief = IndicatorsCache.of(queue, 2)
     try:
         brief.write(key, "{}")
+        assert brief.read(key) == "{}"
         time.sleep(2.2)
         assert brief.read(key) is None
     finally:
