@@ -854,7 +854,7 @@ measure-version: export E2E_MEASURE_TASK_PASSES = $(MEASURE_TASK_PASSES)
 measure-version: export E2E_MEASURE_VERSION = $(MEASURE_VERSION)
 measure-version: export E2E_MEASURE_VERSION_REPORT = $(abspath $(MEASURE_VERSION_REPORT))
 measure-version: export PRISM_VERSION := $(PRISM_VERSION)
-measure-version: install-front $(call e2e-build) ## The report of the measures of a version (US-2300): on the witness loaded afresh, each operation of table 15 the service serves, measured by a browser under the load of fifty users played by k6, then the export, the import of 18,000 lines of actual costs and the marking, read at their tasks; takes the workstation alone; MEASURE_VERSION (that of frontend/package.json), MEASURE_PASSES=5, MEASURE_TASK_PASSES=3, MEASURE_VERSION_REPORT=<file> (frontend/.e2e/measures/<version>.json); needs the secrets of service-up and a browser
+measure-version: measure-secrets install-front $(call e2e-build) ## The report of the measures of a version (US-2300): on the witness loaded afresh, each operation of table 15 the service serves, measured by a browser under the load of fifty users played by k6, then the export, the import of 18,000 lines of actual costs and the marking, read at their tasks; takes the workstation alone; MEASURE_VERSION (that of frontend/package.json), MEASURE_PASSES=5, MEASURE_TASK_PASSES=3, MEASURE_VERSION_REPORT=<file> (frontend/.e2e/measures/<version>.json); needs the secrets of service-up and a browser
 	@$(MAKE) --no-print-directory service-down WATERFALL_RESET_DATA=yes
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) build --quiet install witness
