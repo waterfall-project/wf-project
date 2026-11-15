@@ -67,6 +67,7 @@ import { functionHref, leafOf } from "@/navigation/functions";
 import { screenMetadata } from "../../../../../title";
 import { gridAddress, provenanceOf, readGridScreen } from "../grid-screen";
 import type { RevisionParams } from "../page";
+import { WorkCard } from "../work-card";
 
 /** Title the tab with the function, and with the project. */
 export async function generateMetadata({
@@ -254,41 +255,43 @@ export default async function PlanningPage({
           offer={findOffer(screen.reading.revision?.available_commands ?? [], "merge_structure")}
           revision={revision}
         />
-        <PlanningWithGantt
-          key={screen.structure.structure_id}
-          reading={screen.reading}
-          scheduledAt={screen.scheduledAt}
-          hoursPerDay={units.hours_per_day}
-          grid={{
-            nodes: screen.nodes,
-            structure: screen.structure,
-            structureVersion: screen.structureVersion,
-            planningStart: { on: screen.planningStart, label: screen.label },
-            filters: screen.filters,
-            query: screen.query,
-            preferences: screen.preferences,
-            undoable: editable,
-            editable,
-            differential: screen.kind === "amendment",
-            origins: originNames(screen.origin),
-            treeFilters: (
-              <TreeFilters
-                breakdown={screen.breakdown}
-                difference={screen.difference}
-                differential={screen.kind === "amendment"}
-                origin={screen.origin}
-              />
-            ),
-            // The attachment is chosen among the same items, where the planning may be entered.
-            breakdown: editable ? screen.breakdown?.items : undefined,
-            skeleton,
-            timelines,
-            timelineCreation: findOffer(
-              screen.reading.project.available_commands,
-              "manage_timelines",
-            ),
-          }}
-        />
+        <WorkCard fill>
+          <PlanningWithGantt
+            key={screen.structure.structure_id}
+            reading={screen.reading}
+            scheduledAt={screen.scheduledAt}
+            hoursPerDay={units.hours_per_day}
+            grid={{
+              nodes: screen.nodes,
+              structure: screen.structure,
+              structureVersion: screen.structureVersion,
+              planningStart: { on: screen.planningStart, label: screen.label },
+              filters: screen.filters,
+              query: screen.query,
+              preferences: screen.preferences,
+              undoable: editable,
+              editable,
+              differential: screen.kind === "amendment",
+              origins: originNames(screen.origin),
+              treeFilters: (
+                <TreeFilters
+                  breakdown={screen.breakdown}
+                  difference={screen.difference}
+                  differential={screen.kind === "amendment"}
+                  origin={screen.origin}
+                />
+              ),
+              // The attachment is chosen among the same items, where the planning may be entered.
+              breakdown: editable ? screen.breakdown?.items : undefined,
+              skeleton,
+              timelines,
+              timelineCreation: findOffer(
+                screen.reading.project.available_commands,
+                "manage_timelines",
+              ),
+            }}
+          />
+        </WorkCard>
       </Screen>
     </PendingAddress>
   );

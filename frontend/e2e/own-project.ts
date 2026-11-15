@@ -175,7 +175,7 @@ export async function openRevision(page: Page, own: OwnProject): Promise<void> {
   await openHydrated(page, `${own.path}/revisions`);
   await page
     .getByRole("main")
-    .getByRole("region", { name: "Commandes" })
+    .getByRole("region", { name: "Historique des révisions" })
     .getByRole("button", { name: "Ouvrir une révision en cours" })
     .click();
   await expect(page).toHaveURL(/\?revision_id=[0-9a-f-]{36}$/, { timeout: WORKING });

@@ -715,8 +715,11 @@ describe("the work breakdown edited in its grid", () => {
     const create = screen.getByRole("button", { name: "Nouveau lot" });
     expect(create).toHaveAttribute("aria-disabled", "true");
     expect(create).toHaveAccessibleDescription(`Condition non remplie\u00a0: ${said}.`);
+    // Not written under the button: told, pressed, in the region of the refusals (#3289).
+    expect(screen.queryByRole("alert")).toBeNull();
     await userEvent.click(create);
     expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("alert")).toHaveTextContent(`Condition non remplie : ${said}.`);
     await fromMenu(PACKAGE, `Supprimer le lot ${quoted(PACKAGE)}`);
     const item = screen.getByRole("menuitem", { name: `Supprimer le lot ${quoted(PACKAGE)}` });
     expect(item).toHaveAttribute("aria-disabled", "true");

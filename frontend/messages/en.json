@@ -552,6 +552,7 @@
     "summary": "{risks, plural, =0 {no risk retained} one {# risk retained} other {# risks retained}}",
     "generalTotal": "General total",
     "pages": {
+      "title": "Risks",
       "label": "Pages of the risks",
       "beyond": "The page asked is beyond the end of the list."
     },
@@ -636,7 +637,6 @@
     }
   },
   "actualCosts": {
-    "summary": "{count, plural, =0 {no line retained} one {# line retained} other {# lines retained}}",
     "refused": {
       "period": "The actual costs cannot be read over this period: its end precedes its start.",
       "subproject": "The actual costs cannot be read: the sub-project asked for does not exist.",
@@ -673,14 +673,17 @@
     },
     "pages": {
       "costs": {
+        "title": "Actual costs",
         "label": "Pages of the actual costs",
         "beyond": "The page asked is beyond the end of the list."
       },
       "imports": {
+        "title": "Journal of the imports",
         "label": "Pages of the journal of the imports",
         "beyond": "The page asked is beyond the end of the journal."
       },
       "exchanges": {
+        "title": "Imports of the project",
         "label": "Pages of the imports of the project",
         "beyond": "The page asked is beyond the end of the list."
       }
@@ -747,6 +750,7 @@
       "everyZone": "Every zone"
     },
     "pages": {
+      "title": "Projects",
       "label": "Pages of the projects",
       "beyond": "The page asked is beyond the end of the list."
     },
@@ -1238,11 +1242,23 @@
     "dismissNews": {
       "help": "Removes this line; the task stays followed in the panel of the tasks and messages."
     },
+    "downloadEnd": {
+      "help": "Downloads the file the task made, then closes the card."
+    },
+    "openEnd": {
+      "help": "Opens the screen the task was started from, then closes the card."
+    },
+    "closeEnd": {
+      "help": "Closes the card; the end of the task stays in the panel of the tasks and messages."
+    },
     "startedOnly": {
       "help": "Shows or hides the tasks not started."
     },
     "timelines": {
       "help": "Opens the timelines of the project, as a frieze."
+    },
+    "exportRequest": {
+      "help": "Asks for the file of the chosen kind; it downloads by itself once it is ready."
     },
     "exchanges": {
       "help": "Opens the imports and exports of the revision."
@@ -1999,7 +2015,14 @@
     "panel": "Tasks and messages",
     "close": "Close the tasks and messages",
     "started": "Task started: {task}.",
-    "closeNews": "Close the line of the task"
+    "closeNews": "Close the line of the task",
+    "cards": {
+      "label": "Ends of the tasks",
+      "download": "Download",
+      "open": "Open",
+      "openLabel": "Open: {task} — {screen}",
+      "close": "Close the card: {task}"
+    }
   },
   "markRevision": {
     "versionName": "Version name",
@@ -2068,12 +2091,14 @@
     }
   },
   "projectList": {
+    "title": "List of projects",
     "count": "{count, plural, one {# project} other {# projects}}",
     "filter": {
-      "label": "Filter of the list",
       "mine": "Projects you contribute to",
-      "lift": "Show all projects",
-      "apply": "Show only my projects",
+      "projects": "Projects",
+      "mineChoice": "My projects",
+      "mineChip": "My projects (by default)",
+      "openable": "All those you may open",
       "states": "Filter by state",
       "everyState": "Every state",
       "defaultChip": "{states} (by default)",
@@ -2149,6 +2174,7 @@
     "reread": "Read the report again"
   },
   "projectForm": {
+    "card": "Project",
     "create": "Create a project",
     "createHint": "The project is born in the Created state, and you are its project manager. The project code may wait for the order.",
     "modifyTitle": "Modify “{name}”",
@@ -2397,15 +2423,12 @@
       "designationUnavailable": "Designating “{name}” by default is unavailable. {unmet}",
       "rolesUnavailable": "Attributing the roles of “{name}” is unavailable. {unmet}"
     },
-    "inactive": {
-      "show": "Show the deactivated ones too",
-      "hide": "Hide the deactivated ones"
-    },
     "stateFilter": {
       "of": "State of the objects of “{list}”",
       "every": "Every state",
       "active": "Active",
-      "inactive": "Deactivated"
+      "inactive": "Deactivated",
+      "defaultChip": "{state} (by default)"
     },
     "pages": {
       "label": "Pages of “{list}”",
@@ -2616,10 +2639,6 @@
     "boundsRefused": "The list is not read: the server refuses the bounds asked."
   },
   "admin": {
-    "pages": {
-      "label": "Pages of the list",
-      "beyond": "This page is beyond the end of the list."
-    },
     "commands": {
       "unmet": "{command}: {condition}"
     },
@@ -2689,10 +2708,14 @@
       "anonymizationTitle": "Anonymise “{name}”?",
       "anonymizationFinal": "The anonymisation of “{name}” is irreversible: its last name, first name and address are erased, from the table as from the audit log, its avatar is removed, a local account is removed from the identity provider, and the account is never reactivated.",
       "keep": "Keep",
-      "rowBusy": "A write of “{name}” is under way: nothing was written, ask again once it is answered."
+      "rowBusy": "A write of “{name}” is under way: nothing was written, ask again once it is answered.",
+      "pages": {
+        "title": "User accounts",
+        "label": "Pages of the user accounts",
+        "beyond": "This page is beyond the end of the list."
+      }
     },
     "identitySync": {
-      "menu": "Reading of the accounts of the identity provider: state and commands",
       "title": "Reading of the identity provider accounts",
       "schedule": {
         "title": "Reading periodicity",
@@ -2726,9 +2749,9 @@
       "composed": "Composed",
       "none": "No access role.",
       "count": "{count, plural, =0 {No role} one {# role} other {# roles}}",
-      "create": "Create a role",
       "delete": "Delete",
       "creation": "Creation of a role",
+      "creationHint": "The role starts with no permission: they are granted afterwards in the matrix of the permissions.",
       "told": "Commands of the access roles",
       "newLabel": "New role",
       "created": "“{name}” created.",
@@ -2835,7 +2858,12 @@
       "rotatingOnes": "Subject to rotation",
       "bounds": "Bounds of the backups",
       "sizeBytes": "Size (bytes)",
-      "commands": "Commands"
+      "commands": "Commands",
+      "pages": {
+        "title": "Backups",
+        "label": "Pages of the backups",
+        "beyond": "This page is beyond the end of the list."
+      }
     },
     "restore": {
       "title": "Restore the platform",
@@ -2951,6 +2979,11 @@
         "everyObjectKind": "Every kind",
         "correlation": "Correlation",
         "correlationForm": "Letters, digits, “.”, “_”, “-”; 64 at most."
+      },
+      "pages": {
+        "title": "Audit log",
+        "label": "Pages of the audit log",
+        "beyond": "This page is beyond the end of the log."
       }
     }
   },

@@ -47,8 +47,8 @@ test("the opening of a second current revision and the designation beyond the co
   test.skip(inService, NOT_REPLAYED_IN_SERVICE);
   await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const main = page.getByRole("main");
-  const commands = main.getByRole("region", { name: "Commandes" });
-  const create = commands.getByRole("button", { name: "Ouvrir une révision en cours" });
+  const history = main.getByRole("region", { name: "Historique des révisions" });
+  const create = history.getByRole("button", { name: "Ouvrir une révision en cours" });
   await expect(create).toHaveAttribute("aria-disabled", "true");
   await expect(create).toHaveAccessibleDescription(
     /^Condition non remplie\s: aucune révision en cours d’élaboration\.$/,
@@ -134,7 +134,9 @@ test("a project created, a revision opened, marked by the worker, the designatio
   await expect(marker).toHaveAccessibleDescription(
     /^Condition non remplie\s: révision en cours d’élaboration\.$/,
   );
-  const open = commands.getByRole("button", { name: "Ouvrir une révision en cours" });
+  const open = main
+    .getByRole("region", { name: "Historique des révisions" })
+    .getByRole("button", { name: "Ouvrir une révision en cours" });
   await expect(open).not.toHaveAttribute("aria-disabled", "true");
 
   // The designation of the marked revision is refused for the lack of tasks and lines, and says so

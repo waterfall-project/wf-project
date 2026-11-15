@@ -12,6 +12,7 @@ import type { Project } from "@/components/context/reading";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { expectCommandRule } from "@/test/command-rule";
 import {
   example,
   type FakeAnswers,
@@ -93,7 +94,7 @@ function dialog(name: string): HTMLElement {
 
 /** Open the creation of a project, and give its form back. */
 async function openCreation(): Promise<HTMLElement> {
-  render(inFrench(<CreateProject ready />));
+  render(inFrench(<CreateProject ready variant="default" />));
   await userEvent.click(screen.getByRole("button", { name: "Créer un projet" }));
   return dialog("Créer un projet");
 }
@@ -242,7 +243,7 @@ describe("the creation of a project", () => {
   it("leads nowhere once the home is gone: a creation answered after the user left does not take the place of their navigation", async () => {
     const answer = held();
     const client = serve({}, answer.timing);
-    const { unmount } = render(inFrench(<CreateProject ready />));
+    const { unmount } = render(inFrench(<CreateProject ready variant="default" />));
     await userEvent.click(screen.getByRole("button", { name: "Créer un projet" }));
     const form = dialog("Créer un projet");
     await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Rénovation");
@@ -278,13 +279,29 @@ describe("the creation of a project", () => {
 
   it("presents the creation unavailable while the reference data is incomplete: pressed, it opens nothing", async () => {
     const client = serve();
-    render(inFrench(<CreateProject ready={false} />));
+    render(inFrench(<CreateProject ready={false} variant="default" />));
     const create = screen.getByRole("button", { name: "Créer un projet" });
     expect(create).toHaveAttribute("aria-disabled", "true");
     expect(create).toHaveAccessibleDescription("Le référentiel minimal est incomplet.");
     await userEvent.click(create);
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(client.calls).toEqual([]);
+  });
+});
+
+describe("the card of the project on its settings [WF-IHM-0100-A]", () => {
+  it("sets the attributes in the card « Projet », « Modifier le projet » at the right of its title, outlined (US-2130)", () => {
+    const { container } = render(inFrench(<ProjectIdentity project={witness} />));
+    const card = screen.getByRole("region", { name: "Projet" });
+    expect(card).toHaveAttribute("data-slot", "section-card");
+    expect(within(card).getByLabelText("Paramètres du projet")).toBeInTheDocument();
+    const command = within(card).getByRole("button", { name: "Modifier le projet" });
+    expect(command.closest('[data-slot="section-card-commands"]')).not.toBeNull();
+    expect(command.closest('[data-slot="section-card-principal"]')).toHaveAttribute(
+      "data-does",
+      "modify",
+    );
+    expectCommandRule(container);
   });
 });
 

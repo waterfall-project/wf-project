@@ -3,21 +3,56 @@
 /**
  * The pieces the screens of the reference data share (US-0250): a section under its title, named
  * by it — by `aria-label`, never by an identifier of `useId`, which a server component may share
- * with a client one of the shell (#251) —; the state of an object, active or deactivated — a
- * deactivated one stays readable (WF-REF-0150) —; what stands for a list whose bounds the API
- * refused (#545); the body of a list, its grid within the region that tells the refusals of its
- * commands (`ListBody`).
+ * with a client one of the shell (#251) —, in its card on a screen recomposed by EP-25
+ * (`ReferenceCard`), bare on the others until their lot recomposes them (`ReferenceSection`); the
+ * state of an object, active or deactivated — a deactivated one stays readable (WF-REF-0150) —;
+ * what stands for a list whose bounds the API refused (#545); the body of a list, its grid within
+ * the region that tells the refusals of its commands (`ListBody`).
  */
-import { CircleOff, type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import { ICON } from "@/components/projects/project-tables";
-import { Badge } from "@/components/ui/badge";
+import { type Principal, SectionCard } from "@/components/shell/section-card";
+import { ActivityBadge } from "@/components/ui/activity-badge";
 
 import { Reactivations } from "./reactivation";
 
-/** A list or a set of values of the reference data, under its title. */
+/**
+ * A list or a set of values of the reference data in its card (US-2080, #3071): its title, the
+ * command that creates in it at the right of the title — filled, the one filled command of the
+ * card (`SectionCard`) —, offered on an empty list too, and its body (`ListBody` says an empty
+ * list). The screen gives the creation as a function of the variant the card draws it at, never
+ * the variant itself.
+ */
+export function ReferenceCard({
+  title,
+  icon,
+  creation,
+  children,
+}: {
+  readonly title: string;
+  readonly icon: LucideIcon;
+  /** The command that creates an object of the list; none for a session that does not write. */
+  readonly creation?: Principal["command"] | undefined;
+  readonly children: ReactNode;
+}) {
+  return (
+    <SectionCard
+      title={title}
+      icon={icon}
+      principal={creation === undefined ? undefined : { does: "create", command: creation }}
+    >
+      <div className="flex min-w-0 flex-col gap-2">{children}</div>
+    </SectionCard>
+  );
+}
+
+/**
+ * A list or a set of values of the reference data, under its title, bare: the screens EP-25 has not
+ * recomposed in cards yet (`ReferenceCard`).
+ */
 export function ReferenceSection({
   title,
   icon: Icon,
@@ -56,17 +91,14 @@ export function ReferenceSection({
   );
 }
 
-/** Whether an object is active, or deactivated — said by a mark and a word, not by colour. */
+/**
+ * Whether an object is active, or deactivated — « Actif » by a dot and its word, « Désactivé » by
+ * its outlined mark and its word: by their shape and their word, never by colour alone
+ * (`ActivityBadge`, WF-IHM-0070, #3079).
+ */
 export function ActiveState({ active }: { readonly active: boolean }) {
   const t = useTranslations("reference.state");
-  return active ? (
-    t("active")
-  ) : (
-    <Badge variant="outline">
-      <CircleOff aria-hidden="true" />
-      {t("inactive")}
-    </Badge>
-  );
+  return <ActivityBadge active={active}>{active ? t("active") : t("inactive")}</ActivityBadge>;
 }
 
 /** What stands for the grid of a list whose bounds the API refused (422), the list unread. */

@@ -34,6 +34,8 @@ const OTHERWISE_OPENED: Readonly<Record<string, string>> = {
     "the form is mounted by the commands of reference/commands.tsx and settings-forms.tsx, which bear aria-haspopup",
   "components/admin/user-dialogs.tsx":
     "the dialogs are mounted by the commands of user-commands.tsx and user-cells.tsx, which bear aria-haspopup",
+  "components/admin/role-creation.tsx":
+    "the dialog is mounted by the command « Nouveau rôle » of role-commands.tsx, which bears aria-haspopup",
   "components/admin/restore-dialog.tsx":
     "the dialog is mounted by the command of backup-commands.tsx, which bears aria-haspopup",
 };

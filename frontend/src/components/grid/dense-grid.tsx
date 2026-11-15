@@ -56,11 +56,8 @@ import {
   useTransition,
 } from "react";
 
-import {
-  OutcomeNotice,
-  refusalDescription,
-  useReadAnew,
-} from "@/components/commands/outcome-notice";
+import { OutcomeNotice, refusalDescription } from "@/components/commands/outcome-notice";
+import { useReadAnew } from "@/components/commands/outcome-notice";
 import {
   Table,
   TableBody,
@@ -252,6 +249,8 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
    * as before and the filters where the screen puts them.
    */
   readonly filtering?: Filtering | undefined;
+  /** What the screen puts at the end of the bar, at its right edge (`GridToolbar`, #3071). */
+  readonly ending?: ReactNode;
 }
 
 /** Whether the server computes the cell of a column in a row. */
@@ -473,6 +472,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   stacked,
   selecting,
   filtering,
+  ending,
 }: DenseGridProps<Row, Sort, Totals>) {
   const t = useTranslations("grid");
   const { config, pick } = useSelectedConfig(given, selecting);
@@ -793,6 +793,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         onOpen={openFilters}
         address={config.address}
         filterNames={config.filters}
+        ending={ending}
         grid={sharedName(config, (name) => t(`names.${name}`))}
         columns={toggledColumns(table, config, (column) =>
           headingOf(column, (key) => t(`columns.${key}`)),

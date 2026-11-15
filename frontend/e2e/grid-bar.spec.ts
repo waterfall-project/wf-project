@@ -243,10 +243,14 @@ test(`${COSTS}: the pages of a flat table are at the right under it, in the size
   const range = page.getByText(/^\d+–\d+ sur \d+$/);
   await expect(range).toBeVisible();
   const line = nav.locator("xpath=..");
-  const [frame, pages, holder] = await Promise.all([
+  const [frame, pages, holder, inset] = await Promise.all([
     grid.locator("xpath=..").boundingBox(),
     nav.boundingBox(),
     line.locator("xpath=..").boundingBox(),
+    // The holder is the content of a card of work, which keeps its own padding at the right.
+    line
+      .locator("xpath=..")
+      .evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingRight)),
   ]);
   if (frame === null || pages === null || holder === null) {
     throw new Error("the grid or its pages are not laid out");
@@ -254,7 +258,7 @@ test(`${COSTS}: the pages of a flat table are at the right under it, in the size
   // Under the frame the table scrolls in, at the right of what holds them.
   expect(pages.y, "the pages under the table").toBeGreaterThanOrEqual(frame.y + frame.height - 1);
   expect(
-    Math.abs(pages.x + pages.width - (holder.x + holder.width)),
+    Math.abs(pages.x + pages.width - (holder.x + holder.width - inset)),
     "the pages at the right",
   ).toBeLessThanOrEqual(1);
   // In the size of the text of the table, muted.

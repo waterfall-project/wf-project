@@ -4,13 +4,13 @@
 
 Les rôles d’habilitation de l’installation, hors de tout projet, et les permissions que chacun donne. Un rôle est prédéfini — livré avec l’installation — ou composé par un administrateur ; un compte porte aucun, un ou plusieurs rôles, et tient ses permissions de leur réunion. Une permission dit ce qu’un compte peut faire, jamais sur quel projet.
 
-De haut en bas : la table des rôles, chacun avec sa nature et le nombre de comptes qui le portent, que le serveur trie, cherche et filtre ; puis la matrice **Permissions par fonction** : une ligne par permission du catalogue, rangée sous le nom de la fonction qu’elle couvre, et une colonne par rôle que la table retient, dans son ordre, chaque case disant si le rôle porte la permission. Aucun écran ne crée une permission : le catalogue est celui de l’installation.
+De haut en bas : la table des rôles, dans sa carte, chacun avec sa nature et le nombre de comptes qui le portent, que le serveur trie, cherche et filtre ; puis la matrice **Permissions par fonction** : une ligne par permission du catalogue, rangée sous le nom de la fonction qu’elle couvre, et une colonne par rôle que la table retient, dans son ordre, chaque case disant si le rôle porte la permission. En défilant dans la matrice, son en-tête et la colonne **Fonction** restent en vue. Aucun écran ne crée une permission : le catalogue est celui de l’installation.
 
 ## Ses commandes
 
 Ces commandes ne sont offertes qu’à qui peut modifier les rôles ; aux autres, l’écran se lit.
 
-- **Nouveau rôle** et **Créer un rôle**, en tête de la table, créent un rôle composé de son seul libellé, sans permission : ses permissions se cochent ensuite dans la matrice. Un libellé laissé vide est refusé à son champ.
+- **Nouveau rôle**, bouton plein à droite du titre de la carte des rôles, ouvre un dialogue où se saisit le libellé ; **Créer** crée un rôle composé de ce seul libellé, sans permission : ses permissions se cochent ensuite dans la matrice. Un libellé laissé vide est refusé à son champ.
 - Le libellé d’un rôle se saisit dans sa cellule, qui le renomme.
 - **Supprimer**, après confirmation, supprime le rôle ; rien ne le restaure, et un rôle recréé sous le même libellé n’est jamais prédéfini. Indisponible tant qu’un compte porte le rôle : la commande dit combien.
 - Dans la matrice, chaque case est une case à cocher : cochée ou décochée, elle enregistre aussitôt les permissions du rôle. Les autres cases du rôle attendent la réponse du serveur ; un refus est dit au-dessus de la matrice, et la case reprend l’état d’avant.

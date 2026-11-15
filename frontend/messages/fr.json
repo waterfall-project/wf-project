@@ -552,6 +552,7 @@
     "summary": "{risks, plural, =0 {aucun risque retenu} one {# risque retenu} other {# risques retenus}}",
     "generalTotal": "Total général",
     "pages": {
+      "title": "Risques",
       "label": "Pages des risques",
       "beyond": "La page demandée est au-delà de la fin de la liste."
     },
@@ -636,7 +637,6 @@
     }
   },
   "actualCosts": {
-    "summary": "{count, plural, =0 {aucune ligne retenue} one {# ligne retenue} other {# lignes retenues}}",
     "refused": {
       "period": "Les coûts réels ne se lisent pas sur cette période : sa fin précède son début.",
       "subproject": "Les coûts réels ne se lisent pas : le sous-projet demandé n’existe pas.",
@@ -673,14 +673,17 @@
     },
     "pages": {
       "costs": {
+        "title": "Coûts réels",
         "label": "Pages des coûts réels",
         "beyond": "La page demandée est au-delà de la fin de la liste."
       },
       "imports": {
+        "title": "Journal des imports",
         "label": "Pages du journal des imports",
         "beyond": "La page demandée est au-delà de la fin du journal."
       },
       "exchanges": {
+        "title": "Imports du projet",
         "label": "Pages des imports du projet",
         "beyond": "La page demandée est au-delà de la fin de la liste."
       }
@@ -747,6 +750,7 @@
       "everyZone": "Toutes les zones"
     },
     "pages": {
+      "title": "Projets",
       "label": "Pages des projets",
       "beyond": "La page demandée est au-delà de la fin de la liste."
     },
@@ -1238,11 +1242,23 @@
     "dismissNews": {
       "help": "Retire cette ligne ; la tâche reste suivie dans le panneau des tâches et messages."
     },
+    "downloadEnd": {
+      "help": "Télécharge le fichier que la tâche a produit, puis ferme la carte."
+    },
+    "openEnd": {
+      "help": "Ouvre l’écran d’où la tâche a été lancée, puis ferme la carte."
+    },
+    "closeEnd": {
+      "help": "Ferme la carte ; la fin de la tâche reste dans le panneau des tâches et messages."
+    },
     "startedOnly": {
       "help": "Montre ou masque les tâches qui n’ont pas démarré."
     },
     "timelines": {
       "help": "Ouvre les chronologies du projet, en frise."
+    },
+    "exportRequest": {
+      "help": "Demande le fichier du type choisi ; il se télécharge de lui-même une fois prêt."
     },
     "exchanges": {
       "help": "Ouvre les imports et exports de la révision."
@@ -1999,7 +2015,14 @@
     "panel": "Tâches et messages",
     "close": "Fermer les tâches et messages",
     "started": "Tâche lancée : {task}.",
-    "closeNews": "Fermer la ligne de la tâche"
+    "closeNews": "Fermer la ligne de la tâche",
+    "cards": {
+      "label": "Aboutissements des tâches",
+      "download": "Télécharger",
+      "open": "Ouvrir",
+      "openLabel": "Ouvrir : {task} — {screen}",
+      "close": "Fermer la carte : {task}"
+    }
   },
   "markRevision": {
     "versionName": "Nom de version",
@@ -2068,12 +2091,14 @@
     }
   },
   "projectList": {
+    "title": "Liste des projets",
     "count": "{count, plural, one {# projet} other {# projets}}",
     "filter": {
-      "label": "Filtre de la liste",
       "mine": "Projets dont vous êtes contributeur",
-      "lift": "Voir tous les projets",
-      "apply": "N’afficher que mes projets",
+      "projects": "Projets",
+      "mineChoice": "Mes projets",
+      "mineChip": "Mes projets (par défaut)",
+      "openable": "Tous ceux que vous pouvez ouvrir",
       "states": "Filtre par état",
       "everyState": "Tous les états",
       "defaultChip": "{states} (par défaut)",
@@ -2149,6 +2174,7 @@
     "reread": "Relire le compte rendu"
   },
   "projectForm": {
+    "card": "Projet",
     "create": "Créer un projet",
     "createHint": "Le projet naît à l’état Créé, et vous en êtes chef de projet. Le code projet peut attendre la commande.",
     "modifyTitle": "Modifier « {name} »",
@@ -2397,15 +2423,12 @@
       "designationUnavailable": "La désignation de « {name} » par défaut est indisponible. {unmet}",
       "rolesUnavailable": "L’attribution des rôles de « {name} » est indisponible. {unmet}"
     },
-    "inactive": {
-      "show": "Afficher aussi les désactivés",
-      "hide": "Masquer les désactivés"
-    },
     "stateFilter": {
       "of": "État des objets de « {list} »",
       "every": "Tous les états",
       "active": "Actifs",
-      "inactive": "Désactivés"
+      "inactive": "Désactivés",
+      "defaultChip": "{state} (par défaut)"
     },
     "pages": {
       "label": "Pages de « {list} »",
@@ -2616,10 +2639,6 @@
     "boundsRefused": "La liste n’est pas lue : le serveur refuse les bornes demandées."
   },
   "admin": {
-    "pages": {
-      "label": "Pages de la liste",
-      "beyond": "Cette page est au-delà de la fin de la liste."
-    },
     "commands": {
       "unmet": "{command} : {condition}"
     },
@@ -2689,10 +2708,14 @@
       "anonymizationTitle": "Anonymiser « {name} » ?",
       "anonymizationFinal": "L’anonymisation de « {name} » est irréversible : son nom, son prénom et son adresse sont effacés, de la table comme du journal d’audit, son avatar est retiré, un compte local est retiré du fournisseur d’identité, et le compte ne se réactive plus.",
       "keep": "Conserver",
-      "rowBusy": "Une écriture de « {name} » est en cours : rien n’a été écrit, renouvelez la demande une fois la réponse donnée."
+      "rowBusy": "Une écriture de « {name} » est en cours : rien n’a été écrit, renouvelez la demande une fois la réponse donnée.",
+      "pages": {
+        "title": "Comptes utilisateurs",
+        "label": "Pages des comptes utilisateurs",
+        "beyond": "Cette page est au-delà de la fin de la liste."
+      }
     },
     "identitySync": {
-      "menu": "Lecture des comptes du fournisseur d’identité : état et commandes",
       "title": "Lecture des comptes du fournisseur d’identité",
       "schedule": {
         "title": "Périodicité de la lecture",
@@ -2726,9 +2749,9 @@
       "composed": "Composé",
       "none": "Aucun rôle d’habilitation.",
       "count": "{count, plural, =0 {Aucun rôle} one {# rôle} other {# rôles}}",
-      "create": "Créer un rôle",
       "delete": "Supprimer",
       "creation": "Création d’un rôle",
+      "creationHint": "Le rôle naît sans permission : elles s’accordent ensuite dans la matrice des permissions.",
       "told": "Commandes des rôles d’habilitation",
       "newLabel": "Nouveau rôle",
       "created": "« {name} » créé.",
@@ -2835,7 +2858,12 @@
       "rotatingOnes": "Soumises à la rotation",
       "bounds": "Bornes des sauvegardes",
       "sizeBytes": "Taille (octets)",
-      "commands": "Commandes"
+      "commands": "Commandes",
+      "pages": {
+        "title": "Sauvegardes",
+        "label": "Pages des sauvegardes",
+        "beyond": "Cette page est au-delà de la fin de la liste."
+      }
     },
     "restore": {
       "title": "Restaurer la plateforme",
@@ -2951,6 +2979,11 @@
         "everyObjectKind": "Toutes les natures",
         "correlation": "Corrélation",
         "correlationForm": "Lettres, chiffres, « . », « _ », « - » ; 64 au plus."
+      },
+      "pages": {
+        "title": "Journal d’audit",
+        "label": "Pages du journal d’audit",
+        "beyond": "Cette page est au-delà de la fin du journal."
       }
     }
   },

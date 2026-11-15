@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,10 +12,11 @@ import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tra
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { atCommit } from "@/test/committed";
+import { expectCommandRule } from "@/test/command-rule";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { tasksRegion } from "@/test/task-panel";
 
-import { IdentityMenu, IdentitySync, type IdentitySyncReport } from "./identity-sync";
+import { IdentitySync, type IdentitySyncReport } from "./identity-sync";
 
 type IdentitySyncSchedule = components["schemas"]["IdentitySyncSchedule"];
 
@@ -277,95 +278,63 @@ describe("the reading of the accounts", () => {
   });
 });
 
-/** The menu « ⋯ » of the reading, within the shell that follows the tasks. */
-function menu(startable = true) {
-  return render(
-    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-      <TaskTracker>
-        <TasksButton />
-        <TaskPanel />
-        <main>
-          <IdentityMenu
-            report={undefined}
-            schedule={example("identity_sync_schedule") as IdentitySyncSchedule}
-            startable={startable}
-          />
-        </main>
-      </TaskTracker>
-    </NextIntlClientProvider>,
-  );
-}
-
-/** The button « ⋯ » that opens the menu of the reading. */
-function trigger() {
-  return screen.getByRole("button", {
-    name: "Lecture des comptes du fournisseur d’identité : état et commandes",
-  });
-}
-
-/** The popover the menu opened. */
-function popover() {
-  return screen.getByRole("dialog", { name: "Lecture des comptes du fournisseur d’identité" });
-}
-
-describe("the menu « ⋯ » of the reading of the accounts", () => {
-  it("hides the report, the command and the periodicity until it is opened, then gives them, with the state when no reading has ended [WF-ADM-0070-A]", async () => {
+describe("the card of the reading of the accounts (US-2100)", () => {
+  it("puts the reading in a card, its command at the right of its title, outlined, its state, its report and its periodicity in its body [WF-ADM-0070-A] [WF-IHM-0100-A]", async () => {
     serve({});
-    menu();
-    expect(screen.queryByRole("button", { name: "Lire les comptes" })).toBeNull();
-    expect(screen.queryByText("Aucune lecture des comptes n’a encore abouti.")).toBeNull();
-    await userEvent.click(trigger());
-    expect(within(popover()).getByRole("button", { name: "Lire les comptes" })).toBeVisible();
-    expect(
-      within(popover()).getByText("Aucune lecture des comptes n’a encore abouti."),
-    ).toBeVisible();
-    expect(within(popover()).getByText("Périodicité de la lecture")).toBeVisible();
-    await expectAccessible(document.body);
+    const { container } = open(undefined);
+    const card = section();
+    expect(card).toHaveAttribute("data-slot", "section-card");
+    const command = within(card).getByRole("button", { name: "Lire les comptes" });
+    // The command is among the commands of the card, not its principal one: outlined, never filled.
+    expect(command.closest("[data-slot='section-card-commands']")).not.toBeNull();
+    expect(command.closest("[data-slot='section-card-principal']")).toBeNull();
+    expectCommandRule(container);
+    expect(within(card).getByText("Aucune lecture des comptes n’a encore abouti.")).toBeVisible();
+    expect(within(card).getByText("Périodicité de la lecture")).toBeVisible();
+    await expectAccessible(container);
   });
 
-  it("tells a refusal of the reading beside the menu, and keeps it when the menu is closed unread", async () => {
+  it("tells a refusal of the reading in the body of the card, kept until it is dismissed", async () => {
     serve({ [START]: { problem: { code: "PERMISSION_MISSING", status: 403 } } });
-    menu();
-    await userEvent.click(trigger());
-    await userEvent.click(within(popover()).getByRole("button", { name: "Lire les comptes" }));
-    const told = "Vous n’avez pas la permission nécessaire.";
-    expect((await screen.findByRole("alert")).textContent).toContain(told);
-    await userEvent.keyboard("{Escape}");
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(screen.getByRole("alert").textContent).toContain(told);
+    open(undefined);
+    await userEvent.click(within(section()).getByRole("button", { name: "Lire les comptes" }));
+    expect((await within(section()).findByRole("alert")).textContent).toContain(
+      "Vous n’avez pas la permission nécessaire.",
+    );
   });
 
-  it("follows the task of a reading asked from the menu after the menu is closed [WF-ARC-0090-A]", async () => {
-    const client = serve({
+  it("waits, inert and busy with a wheel in place of its icon, while the task it started runs, and is given back once it ended [WF-IHM-0080-A] [WF-ARC-0090-A]", async () => {
+    serve({
       [START]: { example: "identity_sync_queued", status: 202 },
       [TASK]: "identity_sync_succeeded",
     });
-    menu();
-    await userEvent.click(trigger());
-    await userEvent.click(within(popover()).getByRole("button", { name: "Lire les comptes" }));
-    await userEvent.keyboard("{Escape}");
-    expect(screen.queryByRole("dialog")).toBeNull();
+    open(undefined);
+    const start = within(section()).getByRole("button", { name: "Lire les comptes" });
+    expect(start).toHaveAttribute("aria-busy", "false");
+    await userEvent.click(start);
+    await waitFor(() => {
+      expect(start).toHaveAttribute("aria-busy", "true");
+    });
+    expect(start).toHaveAttribute("aria-disabled", "true");
+    expect(start.querySelector("[data-waiting]")).not.toBeNull();
+    // The label stays: the button keeps its name.
+    expect(start).toHaveAccessibleName("Lire les comptes");
     await tick();
-    expect(client.calls.filter((call) => call.route === TASK)).toHaveLength(1);
-    expect(within(tasksRegion()).getByText("Réussie")).toBeVisible();
+    await waitFor(() => {
+      expect(start).toHaveAttribute("aria-busy", "false");
+    });
+    expect(start).not.toHaveAttribute("aria-disabled");
+    expect(start.querySelector("[data-waiting]")).toBeNull();
   });
 
-  it("keeps the dialog of the periodicity open, the focus in it, while the menu that opened it stays [WF-ADM-0070-A]", async () => {
+  it("keeps the dialog of the periodicity open, the focus in it [WF-ADM-0070-A]", async () => {
     serve({});
-    menu();
-    await userEvent.click(trigger());
+    open(undefined);
     await userEvent.click(
-      within(popover()).getByRole("button", { name: "Modifier la périodicité" }),
+      within(section()).getByRole("button", { name: "Modifier la périodicité" }),
     );
     const form = screen.getByRole("dialog", { name: "Modifier la périodicité" });
     expect(form).toBeVisible();
     expect(form.contains(document.activeElement)).toBe(true);
-    // The menu stays: the dialog is not a click outside of it.
-    expect(
-      screen.getByRole("dialog", {
-        name: "Lecture des comptes du fournisseur d’identité",
-        hidden: true,
-      }),
-    ).toBeInTheDocument();
   });
 });

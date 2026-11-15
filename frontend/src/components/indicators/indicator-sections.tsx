@@ -24,6 +24,7 @@ import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import type { ChartProvenance } from "@/components/chart/chart";
+import { SectionCard } from "@/components/shell/section-card";
 import { buttonVariants } from "@/components/ui/button";
 
 import { type CurveSeries, CurveSeriesChart } from "./curve-series-chart";
@@ -50,13 +51,23 @@ function addressWith(address: ScreenAddress, name: string, value: string | undef
   return text === "" ? address.pathname : `${address.pathname}?${text}`;
 }
 
-/** A section of the screen under its title, named by it (`aria-label`, #251). */
-function Section({ title, children }: { readonly title: string; readonly children: ReactNode }) {
+/**
+ * A section of the screen in its card (`SectionCard`, EP-25), named by its title: its command, when
+ * it has one, at the right of the title; its body spaced.
+ */
+function Section({
+  title,
+  commands,
+  children,
+}: {
+  readonly title: string;
+  readonly commands?: ReactNode;
+  readonly children: ReactNode;
+}) {
   return (
-    <section aria-label={title} className="space-y-2">
-      <h2 className="text-lg font-semibold">{title}</h2>
-      {children}
-    </section>
+    <SectionCard title={title} commands={commands}>
+      <div className="flex min-w-0 flex-col gap-3">{children}</div>
+    </SectionCard>
   );
 }
 
@@ -142,10 +153,11 @@ export function MilestoneSection({
 }
 
 /**
- * The cumulative costs, for the sub-project the address filters, and the command that shifts them
- * by the payment delays or takes the shift back: the curves are named as the API says they are —
- * shifted or not —, not as asked. A curve with nothing to draw has nothing to shift: the command is
- * not offered; shifted, it keeps the one that takes the shift back, the way out of it.
+ * The cumulative costs, for the sub-project the address filters, and the command, at the right of
+ * the title of its card, that shifts them by the payment delays or takes the shift back: the curves
+ * are named as the API says they are — shifted or not —, not as asked. A curve with nothing to draw
+ * has nothing to shift: the command is not offered; shifted, it keeps the one that takes the shift
+ * back, the way out of it.
  */
 export function CostCurveSection({
   curves,
@@ -159,17 +171,21 @@ export function CostCurveSection({
   const t = useTranslations("projectIndicators.costCurve");
   const shifted = curves.payment_delays;
   return (
-    <Section title={t("title")}>
-      {isEmptyCurve(curves) && !shifted ? null : (
-        <Link
-          href={addressWith(address, PAYMENT_DELAYS, shifted ? undefined : "true")}
-          scroll={false}
-          className={buttonVariants({ variant: "outline", size: "sm" })}
-        >
-          <Banknote aria-hidden="true" />
-          {shifted ? t("undelay") : t("delay")}
-        </Link>
-      )}
+    <Section
+      title={t("title")}
+      commands={
+        isEmptyCurve(curves) && !shifted ? undefined : (
+          <Link
+            href={addressWith(address, PAYMENT_DELAYS, shifted ? undefined : "true")}
+            scroll={false}
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            <Banknote aria-hidden="true" />
+            {shifted ? t("undelay") : t("delay")}
+          </Link>
+        )
+      }
+    >
       <CurveOrNothing curves={curves}>
         <CurveSeriesChart
           curves={curves}

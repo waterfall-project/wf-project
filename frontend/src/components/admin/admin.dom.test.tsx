@@ -56,7 +56,7 @@ describe("the pages of a list of the administration", () => {
     const { container } = rendered(
       <ListPages
         list={BACKUPS_LIST}
-        texts="admin.pages"
+        texts="admin.backups.pages"
         page={{ limit: 2, offset: 2, total: 5 }}
         shown={2}
       />,
@@ -77,7 +77,7 @@ describe("the pages of a list of the administration", () => {
     rendered(
       <ListPages
         list={BACKUPS_LIST}
-        texts="admin.pages"
+        texts="admin.backups.pages"
         page={{ limit: 2, offset: 8, total: 5 }}
         shown={0}
       />,

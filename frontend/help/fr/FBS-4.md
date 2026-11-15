@@ -4,19 +4,19 @@
 
 L’accueil de Waterfall : la liste des projets, d’où s’ouvre chacun. Un projet porte tout ce qu’on y fait, de sa création à sa clôture — ses révisions, ses paramètres, son planning, son devis, son reste à engager, ses risques, ses coûts réels, ses indicateurs. Ce qui s’y modifie dépend de son état : une révision marquée ne bouge plus, un projet terminal non plus.
 
-La liste s’ouvre sur les projets dont vous êtes contributeur, à l’état **Créé**, **Chiffrage** ou **En cours** : deux filtres que l’écran dit, au-dessus de la liste, tant qu’ils s’appliquent. Le service filtre, trie, cherche et pagine, sur ce qu’il a gardé ; le pied de la liste dit combien de projets il retient. Au-dessus, quand le référentiel commun n’a pas encore le minimum qu’un projet demande, l’encart **Référentiel incomplet** nomme ce qui manque : aucun projet ne se crée avant.
+La liste, dans sa carte **Liste des projets**, s’ouvre sur les projets dont vous êtes contributeur, à l’état **Créé**, **Chiffrage** ou **En cours** : deux filtres par défaut, que disent leurs pastilles sous la barre de la liste, marquées « (par défaut) », tant qu’ils s’appliquent. Le service filtre, trie, cherche et pagine, sur ce qu’il a gardé ; le pied de la liste dit combien de projets il retient. Au-dessus, quand le référentiel commun n’a pas encore le minimum qu’un projet demande, l’encart **Référentiel incomplet** nomme ce qui manque : aucun projet ne se crée avant.
 
 **La page d’un projet**, que son libellé ouvre, mène à sa révision : elle vous amène à la révision en cours, sinon à la révision de référence, sinon à la dernière révision marquée, dans le même contexte de lecture — le sous-projet et la date de l’adresse sont gardés — ; le bandeau du contexte nomme le projet et son état, et ses [paramètres](FBS-4.2.md) portent sa fiche. Si cette révision n’est pas lisible par votre session, vous arrivez à la [gestion des révisions](FBS-4.1.md). Un compte rendu d’import nommé par l’adresse suit le même chemin et s’ouvre sur les [imports et exports](FBS-4.3.4.md) de la révision. Seul un projet sans révision garde sa page : elle dit ce qu’est le projet — son code, son état, la date de réception de sa commande, sa description —, offre ses imports, puisqu’un import de planning, de devis ou de reste à engager crée la révision à laquelle il s’applique — un import de coûts réels, lui, n’écrit dans aucune révision —, et, tant que la structure principale de la révision en cours n’a aucune tâche, l’encart **Démarrer le projet** propose de lancer le planning.
 
 ## Ses commandes
 
-En tête de la liste :
+À droite du titre de la carte :
 
 - **Créer un projet**, offerte à qui en a la permission, ouvre le formulaire : le **Libellé**, obligatoire, le **Code projet**, qui peut attendre la commande, le **Client** et la **Description**, facultatifs. Le projet naît à l’état Créé, et vous en êtes chef de projet. Indisponible tant que le référentiel est incomplet. Un code que porte déjà un autre projet est refusé à son champ.
-- **Voir tous les projets** lève le filtre « contributeur », à qui peut consulter tous les projets ; **N’afficher que mes projets** le remet. Aux autres, le filtre reste, sans lien : il ne restreint pas ce qu’ils peuvent lire, il dit ce que la liste montre.
 
-Au-dessus de la liste :
+Dans la barre de la liste, **Filtres** ouvre ses filtres ; sous elle, chaque filtre actif a sa pastille, que sa croix retire :
 
+- **Projets** : la pastille « Mes projets (par défaut) », à qui peut consulter tous les projets ; la retirer montre aussi les projets que vous pouvez ouvrir sans en être contributeur, et le champ **Projets** des filtres la remet. Le filtre revient à chaque connexion. Aux autres, la carte dit « Projets dont vous êtes contributeur », sans pastille : le filtre ne restreint pas ce qu’ils peuvent lire, il dit ce que la liste montre.
 - **Filtre par état** : un bouton par état, pressé quand il est retenu, et **Tous les états** pour les lever. Un choix d’états autre que celui par défaut se garde dans vos préférences.
 - **Période de modification**, **Du** et **Au**, puis **Filtrer** : une fin qui précède le début est refusée à son champ, la liste non lue.
 - Le champ de recherche retient les projets dont le libellé ou le code contient le texte saisi.

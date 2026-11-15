@@ -312,6 +312,24 @@ répertoire, et les écrans par domaine, une fois l'écran de référence valid�
    des migrations et le fuseau qu'elle montre, après US-2100 et US-2110 qui lui laissent le nom de
    l'entreprise.
 
+**Les constats des revues des lots livrés** (US-2080/L4 #3347, décision de l'auteur du
+2026-11-14). Les revues locales des lots fusionnés des vagues 1 et 2 ont laissé seize constats
+« à trancher » sur des composants communs, que les lots d'écran ne corrigent pas (« Un lot d'écran
+ne touche que ses fichiers ») : le fond des cellules sur la carte (#3277) et le bord des commandes
+de ligne (#3332), la colonne étirée et les parcours de la grille (#3280, #3281, #3282, #3286,
+#3287), l'annulation (#3265, #3272), le squelette de chargement (#3269), la fin d'un traitement
+dite deux fois (#3292) et le cadre caché du téléchargement (#3298), les champs écrits à la main
+hors des pilules (#3259), un parcours intermittent des coûts (#3266) et deux retouches de tests
+ou de commentaires (#3273, #3293). Un lot de correction les solde, rangé sous US-2080 sans
+critère nouveau, prêt dès son ouverture et lancé avant que l'auteur juge l'écran de référence
+(#3196), dont il change les cellules et le bord des commandes. Il est « pas avec » les lots qui
+touchent ses fichiers : US-2090, US-2110/L2, US-2130/L3, US-2130/L4, US-2140/L1, US-2150/L2.
+Tranchés par l'auteur : le bord des commandes de ligne atteint 3:1 dans les deux modes, mesuré
+par `contrast.test.ts` ; la ligne sous la barre ne dit plus une fin que la carte d'aboutissement
+porte ; les champs écrits à la main passent aux composants communs dans ce lot plutôt que dans
+les couloirs. Écarté : #3291, la forme de citation d'un critère propre à une US, règle commune
+de la chaîne, reporté → EP-28.
+
 ### Décisions
 
 - **Le catalogue ne met pas deux lots « pas avec ».** Les catalogues n'ont qu'un fichier par
@@ -483,7 +501,7 @@ essayées avant la maquette — gris froids, tons chauds — sont écartées (#3
 
 ## US-2080 — Les tables plates : la création dans l'en-tête de la carte, une barre, une pagination et une largeur communes
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0060-A`, `WF-IHM-0130-A`
 - **opérations** : toute liste paginée (`offset`, `limit`, `meta.total`) ; `getMe`,
   `updateMyPreferences`
@@ -552,7 +570,7 @@ fenêtrage des lignes en dépend (#3079).
 
 ## US-2090 — Le filtre « État » de chaque table à la place de « Afficher aussi les désactivés »
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0150-A`
 - **opérations** : `listCostTypes`, `listCostCategories`, `getHourlyRateGrid`, `listOrgNodes`,
   `listResourceRoles`, `listCalendars`, `listUsers`, `getMe`, `updateMyPreferences`
@@ -587,11 +605,14 @@ propre filtre, **afin de** ne plus dépendre d'un bouton de l'écran qui vaut po
 pour « Désactivés », `include_inactive=true` sans `is_active` quand la pastille est ôtée. Le défaut
 suit le précédent du filtre d'états de la liste des projets (`docs/api/DECISIONS.md`, #1747). Écarté
 au cadrage (2026-11-14) : une table qui montre tout sans filtre, essayée par le prototype — le Vérif
-de WF-REF-0150 dit qu'un désactivé n'apparaît pas par défaut.
+de WF-REF-0150 dit qu'un désactivé n'apparaît pas par défaut. La table des comptes garde son défaut,
+tous les comptes, selon la décision « `listUsers` porte son propre `include_inactive` »
+(`docs/api/DECISIONS.md`) et WF-ADM-0060 : WF-REF-0150 ne vise que le référentiel ; seuls le bouton et
+la lecture de `include_inactive` y disparaissent.
 
 ## US-2100 — Les écrans d'administration en cartes : utilisateurs, rôles, sauvegardes, journal d'audit
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
 - **issue** : #3226
@@ -720,7 +741,7 @@ l'amorçage (WF-REF-0140, WF-EXP-0020).
 
 ## US-2130 — L'accueil, les écrans de réglage et de consultation d'un projet, et le compte, en cartes
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`, `WF-IHM-0120-A`, `WF-IHM-0090-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
 - **issue** : #3221
@@ -773,7 +794,7 @@ l'écran « Révisions » — EP-27 (#3177, #3180).
 
 ## US-2140 — Les écrans de travail d'un projet : serrés, aux couleurs et aux formes nouvelles
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
 - **issue** : #3232
@@ -802,7 +823,7 @@ comparaison (EP-27) ; la performance (EP-26).
 
 ## US-2150 — Les écrans que le service ne sert pas encore, mis en page contre le faux back : portefeuille, risques, indicateurs, état du système
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent déjà, sur les exemples du contrat
 - **issue** : #3235
@@ -894,7 +915,7 @@ US-2050), qui naissent dans cette présentation.
 
 ## US-2170 — Un traitement en cours se voit là où on l'a lancé, et l'écran se relit quand il aboutit
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0080-A`
 - **opérations** : `getBackgroundTask`, `listBackgroundTasks`, `getBackgroundTaskResult`,
   `requestExport`, `markRevision`, `createRevision`, `applyImport`
@@ -977,7 +998,7 @@ qui le lit.
 
 ## US-2190 — La page de connexion à la charte nouvelle
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #3238

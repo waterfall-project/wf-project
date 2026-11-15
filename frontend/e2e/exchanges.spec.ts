@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 
 import {
   type APIRequestContext,
+  type Download,
   expect,
   type Locator,
   type Page,
@@ -49,6 +50,35 @@ const START = `/projects/${PROJECT}/revisions/${REVISION}/exchanges?as_of=2026-0
 const APPLICATION = "01926f3a-7c00-7000-8000-000000000932";
 
 type Schemas = components["schemas"];
+
+/**
+ * Ask for the export chosen, and take its file, which downloads by itself once made while the
+ * screen that asked for it still shows (#3103) — by a hidden frame, the screen never left —: the
+ * download, and the address of the result the frame asked for. The
+ * card of its end stays in the corner of the window, its sentence and its cross, and offers the file
+ * no more: served once (WF-DAT-0120).
+ */
+async function exportDownloaded(
+  page: Page,
+  exports: Locator,
+): Promise<{ readonly download: Download; readonly result: string }> {
+  const made = page.waitForEvent("download", { timeout: WORKING });
+  const fetched = page.waitForResponse(
+    (response) => /^\/tasks\/[0-9a-f-]{36}\/result$/.test(new URL(response.url()).pathname),
+    { timeout: WORKING },
+  );
+  const shown = page.url();
+  await exports.getByRole("button", { name: "Demander l’export" }).click();
+  const { pathname, search } = new URL((await fetched).url());
+  const download = await made;
+  const card = page
+    .getByRole("region", { name: "Aboutissements des tâches" })
+    .getByRole("group", { name: /Export/ });
+  await expect(card.getByRole("button", { name: /^Fermer la carte/ })).toBeVisible();
+  await expect(card.getByRole("link", { name: /^Télécharger le résultat/ })).toHaveCount(0);
+  expect(page.url()).toBe(shown);
+  return { download, result: `${pathname}${search}` };
+}
 
 /** What `applyAndFollow` is given: the screen it acts on, and the import it reads back. */
 interface Application {
@@ -254,17 +284,13 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
   await expect(
     exports.getByRole("combobox", { name: "Fichier à exporter" }).getByRole("option").first(),
   ).toHaveText("Planning MS Project", { timeout: WORKING });
-  await exports.getByRole("button", { name: "Demander l’export" }).click();
-  await page.getByRole("button", { name: /^Tâches et messages\s:/ }).click();
-  const panel = page.getByRole("dialog", { name: "Tâches et messages" });
-  const tasks = panel.getByRole("region", { name: "Tâches de fond" });
-  const link = tasks.getByRole("link", { name: /^Télécharger le résultat/ });
-  await expect(link).toBeVisible({ timeout: WORKING });
-  const result = await link.getAttribute("href");
+  // Downloaded by itself once made: a file named after the project, which is the XML of MS Project.
+  const { download, result } = await exportDownloaded(page, exports);
+  // The background tasks of the shell, in its panel, where the import is followed.
+  const tasks = page
+    .getByRole("dialog", { name: "Tâches et messages" })
+    .getByRole("region", { name: "Tâches de fond" });
   expect(result).toMatch(/^\/tasks\/[0-9a-f-]{36}\/result\?/);
-
-  // Downloaded: a file named after the project, which is the XML of MS Project.
-  const [download] = await Promise.all([page.waitForEvent("download"), link.click()]);
   expect(download.suggestedFilename()).toMatch(/^ms-project(-.+)?\.xml$/);
   const xml = await downloaded(download);
   const text = xml.toString("utf8");
@@ -275,7 +301,7 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
 
   // The service deletes the object and marks the result consumed after the last byte: wait for it
   // (`result_url` null) before the second navigation, or it could download again.
-  const task = /^\/tasks\/([0-9a-f-]{36})\/result\?/.exec(result ?? "")?.[1] ?? "";
+  const task = /^\/tasks\/([0-9a-f-]{36})\/result\?/.exec(result)?.[1] ?? "";
   await expect(async () => {
     const read = await request.get(`${API}/tasks/${task}`, { headers: seeded.headers });
     expect(read.status(), "GET task").toBe(200);
@@ -286,7 +312,7 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
   // task tells the refusal.
   await page.evaluate((address) => {
     window.location.assign(address);
-  }, result ?? "");
+  }, result);
   await expect(page).toHaveURL(screen, { timeout: WORKING });
   await expect(page.getByRole("region", { name: "Tâches de fond" }).getByRole("alert")).toBeVisible(
     { timeout: WORKING },
@@ -384,20 +410,16 @@ test("exports the estimate as an Excel file, downloads it, sees a file that is n
   const kinds = exports.getByRole("combobox", { name: "Fichier à exporter" });
   await expect(kinds.getByRole("option", { name: "Devis" })).toHaveCount(1, { timeout: WORKING });
   await kinds.selectOption({ label: "Devis" });
-  await exports.getByRole("button", { name: "Demander l’export" }).click();
-  await page.getByRole("button", { name: /^Tâches et messages\s:/ }).click();
-  const panel = page.getByRole("dialog", { name: "Tâches et messages" });
-  const tasks = panel.getByRole("region", { name: "Tâches de fond" });
-  const link = tasks.getByRole("link", { name: /^Télécharger le résultat/ });
-  await expect(link).toBeVisible({ timeout: WORKING });
-  const [download] = await Promise.all([page.waitForEvent("download"), link.click()]);
+  const { download } = await exportDownloaded(page, exports);
+  // The background tasks of the shell, in its panel, where the import is followed.
+  const tasks = page
+    .getByRole("dialog", { name: "Tâches et messages" })
+    .getByRole("region", { name: "Tâches de fond" });
   const filename = download.suggestedFilename();
   expect(filename).toMatch(/-devis\.xlsx$/);
   // A workbook is a zip archive, whose bytes past 0x7f Prism would have rewritten.
   const workbook = await downloaded(download);
   expect(workbook.subarray(0, 4)).toEqual(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
-  await page.keyboard.press("Escape");
-  await expect(panel).toHaveCount(0);
 
   // A file that is no estimate is refused at the analysis, under the form, with the format and the
   // version the service expects (WF-INTF-0070-A); the project is untouched, the screen as it was.
@@ -634,25 +656,20 @@ test("exports the remaining to commit as an Excel file, imports it back in two s
     timeout: WORKING,
   });
   await kinds.selectOption({ label: "Reste à engager" });
-  await exports.getByRole("button", { name: "Demander l’export" }).click();
-  await page.getByRole("button", { name: /^Tâches et messages\s:/ }).click();
-  const panel = page.getByRole("dialog", { name: "Tâches et messages" });
-  const tasks = panel.getByRole("region", { name: "Tâches de fond" });
-  const link = tasks.getByRole("link", { name: /^Télécharger le résultat/ });
-  await expect(link).toBeVisible({ timeout: WORKING });
+  const { download, result } = await exportDownloaded(page, exports);
+  // The background tasks of the shell, in its panel, where the import is followed.
+  const tasks = page
+    .getByRole("dialog", { name: "Tâches et messages" })
+    .getByRole("region", { name: "Tâches de fond" });
   // The task of the export, which the shell has followed: its reads are not the application's.
-  const href = (await link.getAttribute("href")) ?? "";
-  const exported = /^\/tasks\/([0-9a-f-]{36})\/result/.exec(href)?.[1];
+  const exported = /^\/tasks\/([0-9a-f-]{36})\/result/.exec(result)?.[1];
   if (exported === undefined) {
-    throw new Error(`the link of the result names no task: ${href}`);
+    throw new Error(`the address of the result names no task: ${result}`);
   }
-  const [download] = await Promise.all([page.waitForEvent("download"), link.click()]);
   const filename = download.suggestedFilename();
   expect(filename).toMatch(/-reste-a-engager\.xlsx$/);
   const workbook = await downloaded(download);
   expect(workbook.subarray(0, 4)).toEqual(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
-  await page.keyboard.press("Escape");
-  await expect(panel).toHaveCount(0);
 
   // Imported back as it is: the report comes before any confirmation.
   const imports = page.getByRole("region", { name: "Importer un fichier" });

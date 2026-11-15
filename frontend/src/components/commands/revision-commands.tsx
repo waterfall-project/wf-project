@@ -26,6 +26,8 @@ import {
   prepareAmendment,
 } from "@/api/actions/revisions";
 import type { Outcome } from "@/api/problem";
+import type { PrincipalVariant } from "@/components/shell/section-card";
+import { Input } from "@/components/ui/input";
 
 import { Command } from "./command";
 import { ConfirmedCommand } from "./confirmed-command";
@@ -59,10 +61,13 @@ export function CreateRevisionCommand({
   offer,
   projectId,
   names,
+  variant,
 }: {
   readonly offer: CommandOffer;
   readonly projectId: string;
   readonly names: ObjectNames;
+  /** The variant the card of the history gives it, being its principal command. */
+  readonly variant?: PrincipalVariant | undefined;
 }) {
   const t = useTranslations("revisionCommands");
   const helps = useTranslations("commands");
@@ -70,6 +75,7 @@ export function CreateRevisionCommand({
   return (
     <Command
       offer={offer}
+      variant={variant}
       label={t("create")}
       help={helps("project.create_revision.help")}
       icon={commandIcon(PROJECT_COMMAND_ICONS.create_revision)}
@@ -207,7 +213,7 @@ export function PrepareAmendmentCommand({
         <label htmlFor={field} className="block text-sm font-medium">
           {t("name")}
         </label>
-        <input
+        <Input
           id={field}
           value={label}
           required
@@ -215,7 +221,7 @@ export function PrepareAmendmentCommand({
           onChange={(event) => {
             setLabel(event.target.value);
           }}
-          className="h-9 w-full max-w-sm rounded-md border border-input bg-background px-2 text-foreground"
+          className="max-w-sm"
         />
       </div>
     </ConfirmedCommand>

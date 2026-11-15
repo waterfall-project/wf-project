@@ -15,6 +15,7 @@ import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { expectCommandRule } from "@/test/command-rule";
 import { openMenu, pick } from "@/test/check-menu";
 import { refusedBounds } from "@/components/grid/filters";
 import { NO_AUDIT, openFilters } from "@/test/accounts";
@@ -282,7 +283,7 @@ describe("the grid of the accounts", () => {
     expect(lastAddress()).toBe(`/admin/users?access_role_ids=${every.join("%2C")}`);
   });
 
-  it("is filtered by state by boxes to check, both or none lifting the filter, and lifts the hiding of the deactivated accounts of an address of before [WF-IHM-0130-A]", async () => {
+  it("is filtered by state by boxes to check, both or none lifting the filter, [WF-IHM-0130-A]", async () => {
     // Every account by default: « Tous les états » checked.
     page.search = "offset=2";
     const { rerender } = render(userList(NO_QUERY, second));
@@ -297,27 +298,6 @@ describe("the grid of the accounts", () => {
     expect(screen.getByRole("checkbox", { name: "Désactivé" })).toBeChecked();
     await userEvent.click(screen.getByRole("checkbox", { name: "Actif" }));
     expect(lastAddress()).toBe("/admin/users");
-    // An address of before hid the deactivated accounts: it says the active ones alone, and a
-    // state chosen lifts that hiding.
-    page.search = "origins=local&include_inactive=false&offset=2";
-    rerender(userList(NO_QUERY, second, { origins: ["local"], active: true }));
-    expect(screen.getByRole("checkbox", { name: "Actif" })).toBeChecked();
-    await userEvent.click(screen.getByRole("checkbox", { name: "Actif" }));
-    expect(lastAddress()).toBe("/admin/users?origins=local");
-  });
-
-  it("reads an address of before that hid the deactivated accounts as the active ones, to which « Désactivé » is added", async () => {
-    page.search = "origins=local&include_inactive=false";
-    const { rerender } = render(userList(NO_QUERY, second, { origins: ["local"], active: true }));
-    await openFilters();
-    await openMenu("État du compte");
-    expect(screen.getByRole("checkbox", { name: "Actif" })).toBeChecked();
-    await userEvent.click(screen.getByRole("checkbox", { name: "Désactivé" }));
-    // Both states: the filter is lifted, with the parameter of before; the active ones not undone.
-    expect(lastAddress()).toBe("/admin/users?origins=local");
-    page.search = "origins=local";
-    rerender(userList(NO_QUERY, second, { origins: ["local"] }));
-    expect(screen.getByRole("checkbox", { name: "Tous les états" })).toBeChecked();
   });
 
   it("offers « Sans rôle » first among the roles, written under the name of the contract beside the roles, in union with them, back to the first page [WF-ADM-0180-A]", async () => {
@@ -404,7 +384,7 @@ describe("the grid of the accounts", () => {
   it("leads to the pages before and after the one shown, its filters and its sort kept, and breaks no rule of accessibility", async () => {
     page.search = "origins=local&sort_by=email&sort_order=asc&offset=2";
     const { container } = render(userList(NO_QUERY, second, { origins: ["local"] }));
-    const pages = screen.getByRole("navigation", { name: "Pages de la liste" });
+    const pages = screen.getByRole("navigation", { name: "Pages des comptes utilisateurs" });
     expect(within(pages).getByRole("link", { name: /^Précédent/ })).toHaveAttribute(
       "href",
       "/admin/users?origins=local&sort_by=email&sort_order=asc",
@@ -413,6 +393,35 @@ describe("the grid of the accounts", () => {
       "href",
       "/admin/users?origins=local&sort_by=email&sort_order=asc&offset=4",
     );
+    await expectAccessible(container);
+  });
+
+  it("names the links of the pages after the list, not « la liste », so that the lists of an administration screen are told apart (#3295) [WF-IHM-0060-A]", () => {
+    page.search = "offset=2";
+    render(userList(NO_QUERY, second));
+    const pages = screen.getByRole("navigation", { name: "Pages des comptes utilisateurs" });
+    expect(
+      within(pages).getByRole("link", { name: "Précédent, Comptes utilisateurs" }),
+    ).toBeVisible();
+    expect(
+      within(pages).getByRole("link", { name: "Suivant, Comptes utilisateurs" }),
+    ).toBeVisible();
+    expect(pages.textContent).not.toContain("la liste");
+  });
+
+  it("sets the accounts in a card, « Créer un compte local » the one filled command at the right of its title, and no rule of the commands broken [WF-IHM-0100-A]", async () => {
+    const { container } = render(userList(NO_QUERY, users, { editable: true }));
+    const card = screen.getByRole("region", { name: "Comptes utilisateurs" });
+    expect(card).toHaveAttribute("data-slot", "section-card");
+    const create = within(card).getByRole("button", { name: "Créer un compte local" });
+    expect(create.closest("[data-slot='section-card-principal']")).toHaveAttribute(
+      "data-does",
+      "create",
+    );
+    expect(create.closest("[data-slot='section-card-commands']")).not.toBeNull();
+    expectCommandRule(container);
+    // The menu « ⋯ » of the reading of the accounts of the provider is no longer there.
+    expect(screen.queryByRole("button", { name: /Lecture des comptes/ })).toBeNull();
     await expectAccessible(container);
   });
 
@@ -484,24 +493,33 @@ describe("the grid of the access roles", () => {
     expect(lastAddress()).toBe("/admin/access-roles?search=Chef");
   });
 
-  it("offers to a session that may modify the roles to create one in line, to rename each in its cell and to delete each, and breaks no rule of accessibility", async () => {
+  it("offers to a session that may modify the roles to create one by « Nouveau rôle », to rename each in its cell and to delete each, and breaks no rule of accessibility or of the commands [WF-IHM-0100-A]", async () => {
     page.path = "/admin/access-roles";
     const { container } = render(roleList(true));
     const grid = screen.getByRole("grid", { name: "Rôles d’habilitation" });
     expect(within(grid).getAllByRole("button", { name: /^Supprimer «/ })).toHaveLength(7);
     // The renaming is the entry of the label: no command modifies a role besides the matrix.
     expect(within(grid).queryByRole("button", { name: /^Modifier «/ })).toBeNull();
-    const creation = screen.getByRole("form", { name: "Création d’un rôle" });
-    expect(within(creation).getByRole("textbox", { name: "Nouveau rôle" })).toHaveAttribute(
-      "maxlength",
-      "100",
-    );
+    // The creation is a filled button at the right of the title of the card, no field in line.
+    expect(screen.queryByRole("form", { name: "Création d’un rôle" })).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Nouveau rôle" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Nouveau rôle" }));
+    expect(
+      within(screen.getByRole("dialog", { name: "Création d’un rôle" })).getByRole("textbox", {
+        name: "Libellé",
+      }),
+    ).toHaveAttribute("maxlength", "100");
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    expectCommandRule(container);
     // The region is there from the start, empty, for a reader to hear what is put in it.
     expect(told().textContent).toBe("");
     await expectAccessible(container);
   });
 
-  it("creates a role in line from its label alone, and says at its field the label the server refuses", async () => {
+  it("creates a role from its label alone, and says at its field the label the server refuses", async () => {
     page.path = "/admin/access-roles";
     const refused: Problem & { status: 422 } = {
       code: "VALIDATION_FAILED",
@@ -511,7 +529,8 @@ describe("the grid of the access roles", () => {
     const client = fakeClient({ [ROLES]: { problem: refused } });
     server.client = client;
     render(roleList(true));
-    const label = screen.getByRole("textbox", { name: "Nouveau rôle" });
+    await userEvent.click(screen.getByRole("button", { name: "Nouveau rôle" }));
+    const label = await screen.findByRole("textbox", { name: "Libellé" });
     await userEvent.type(label, "Contrôle de gestion{Enter}");
     await waitFor(() => {
       expect(label).toHaveAttribute("aria-invalid", "true");
@@ -532,7 +551,8 @@ describe("the grid of the access roles", () => {
       [ROLES]: { problem: { code: "PERMISSION_MISSING", status: 403 } },
     });
     render(roleList(true));
-    await userEvent.type(screen.getByRole("textbox", { name: "Nouveau rôle" }), "Audit{Enter}");
+    await userEvent.click(screen.getByRole("button", { name: "Nouveau rôle" }));
+    await userEvent.type(await screen.findByRole("textbox", { name: "Libellé" }), "Audit{Enter}");
     expect(await screen.findByRole("alert")).toHaveTextContent(
       CATALOGUES.fr.errors.PERMISSION_MISSING,
     );
@@ -872,7 +892,7 @@ describe("the grid of the access roles", () => {
     page.path = "/admin/access-roles";
     render(roleList(true, NO_QUERY, NO_ROLE_FILTER, []));
     expect(screen.getByText("Aucun rôle d’habilitation.")).toBeInTheDocument();
-    expect(screen.getByRole("form", { name: "Création d’un rôle" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Nouveau rôle" })).toBeInTheDocument();
   });
 
   it("is filtered by its kind under the name of the contract, and keeps its grid when a filter retains nothing", async () => {

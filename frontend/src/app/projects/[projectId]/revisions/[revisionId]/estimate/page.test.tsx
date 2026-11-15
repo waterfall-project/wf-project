@@ -201,6 +201,19 @@ describe("the reference data the estimate is entered from", () => {
     expect(grid?.reference.roles).toBeDefined();
   });
 
+  it("ignores `include_inactive` in the address, the permissions of the reference alone deciding what its lists read (#3076)", async () => {
+    // An address of before, which the switch of the screens of the reference wrote: never read here.
+    withdrawn.permissions = ["cost_settings.write", "resource_settings.write"];
+    await estimatePage("me", { include_inactive: "true" });
+    expect(queryOf("/cost-categories")?.has("include_inactive")).toBe(false);
+    expect(queryOf("/resource-roles")?.has("include_inactive")).toBe(false);
+    server.clients = [];
+    withdrawn.permissions = [];
+    await estimatePage("me", { include_inactive: "false" });
+    expect(queryOf("/cost-categories")?.get("include_inactive")).toBe("true");
+    expect(queryOf("/resource-roles")?.get("include_inactive")).toBe("true");
+  });
+
   it("asks the deactivated categories and roles with the permissions of the reference that keep them", async () => {
     const grid = await estimateFor("me");
     expect(queryOf("/cost-categories")?.get("include_inactive")).toBe("true");

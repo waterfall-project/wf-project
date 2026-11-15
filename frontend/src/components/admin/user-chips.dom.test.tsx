@@ -162,11 +162,11 @@ const CASES: readonly Case[] = [
     lifts: ["access_role_ids"],
   },
   {
-    name: "the active accounts, which lifts the old hiding of the deactivated ones too",
-    search: "is_active=true&include_inactive=false",
+    name: "the active accounts",
+    search: "is_active=true",
     asked: { active: true },
     chip: "État du compte : Actif",
-    lifts: ["is_active", "include_inactive"],
+    lifts: ["is_active"],
   },
   {
     name: "the deactivated accounts",
@@ -294,20 +294,8 @@ describe("the chips of the filters of the accounts", () => {
     expect(lastAddress()).toBe("/admin/users?search=a");
   });
 
-  it("tell the hiding of the deactivated accounts of an old address, `include_inactive` alone, as the active accounts, and lift it [WF-ADM-0060-A] (#2916)", async () => {
-    page.search = "include_inactive=false&sort_by=email";
-    render(table({ active: true }));
-    expect(screen.getByRole("list", { name: "Filtres actifs" })).toHaveTextContent(
-      "État du compte : Actif",
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: "Retirer le filtre État du compte : Actif" }),
-    );
-    expect(lastAddress()).toBe("/admin/users?sort_by=email");
-  });
-
-  it("tell nothing of `include_inactive=true`, which every account satisfies [WF-ADM-0060-A] (#2916)", () => {
-    page.search = "include_inactive=true";
+  it("tell nothing of `include_inactive`, which the address no longer says, whatever its value [WF-ADM-0060-A] (#3076)", () => {
+    page.search = "include_inactive=false";
     render(table());
     expect(screen.queryByRole("list", { name: "Filtres actifs" })).toBeNull();
   });

@@ -60,7 +60,9 @@ export type ListTexts =
   | "actualCosts.pages.exchanges"
   | "portfolio.pages"
   | "risks.pages"
-  | "admin.pages";
+  | "admin.users.pages"
+  | "admin.auditLog.pages"
+  | "admin.backups.pages";
 
 /** The texts of the pages of a list among several of the reference data, named after its title. */
 const NAMED = "reference.pages";
@@ -196,13 +198,17 @@ export function ListPages({
     return null;
   }
   const label = naming.texts === undefined ? named("label", { list: naming.title }) : t("label");
+  // The name of the list the links of its pages carry: its title, given or in its texts, and the
+  // name of its navigation only for texts that hold no title (#3262).
+  const listTitle =
+    naming.title ?? (naming.texts !== undefined && t.has("title") ? t("title") : label);
   const span = pageSpan(page, shown);
   // The name of a link says its visible word first, then its list (WCAG 2.5.3), so that the links of
   // the several lists of a screen are told apart.
   const turn = (direction: Direction, offset: number | undefined) => {
     const text = said(direction);
     const name = said(direction === "previous" ? "previousNamed" : "nextNamed", {
-      list: naming.title ?? label,
+      list: listTitle,
     });
     return (
       <PaginationItem>

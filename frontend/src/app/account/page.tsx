@@ -5,7 +5,8 @@
  * it comes from —, its display preferences, the language and the mode, which the menu of the
  * account offers too (WF-ADM-0040, WF-INTF-0160), the way to its avatar, and, for a local account,
  * the way to its page at the identity provider, which holds its password (WF-ADM-0140): an account
- * of the directory or of an external provider has none there to change.
+ * of the directory or of an external provider has none there to change. A screen of settings, in the
+ * airy column (US-2130), its sections in their cards.
  */
 import { KeyRound } from "lucide-react";
 import type { Metadata } from "next";
@@ -86,10 +87,11 @@ function AccountScreen({
 }) {
   const t = useTranslations();
   return (
-    <Screen density="dense">
+    <Screen density="airy">
       <PageHeader
         title={t("accountMenu.account")}
         icon={ACCOUNT_ICONS.account}
+        density="airy"
         actions={<OtherPages />}
       />
       <div className="grid max-w-3xl gap-5">

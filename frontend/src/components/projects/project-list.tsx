@@ -2,87 +2,36 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The pieces of the list of projects, the home (US-0090, US-0210, #522), on the side of the
- * server: its filter on the projects the user contributes to, always shown while it applies —
- * never a restriction of reading (WF-PRJ-0060) —, lifted by a link offered only to a session that
- * may read every project (`all_projects_read`, WF-ADM-0110): lifted for anyone else, the list
- * would show the same projects, and the link would promise what it does not do (WF-IHM-0090);
- * and the projects themselves, in the dense grid, or, when the server holds none, that it holds
+ * server: the projects themselves, in the dense grid, or, when the server holds none, that it holds
  * none; or, when the server refuses the period asked (422), that the list is not read, the filters
- * staying to be changed. A link of the filter keeps the rest of the address — the states, the
- * period, the sort, the search —, back to the first page.
+ * staying to be changed. Its filter on the projects the user contributes to — never a restriction
+ * of reading (WF-PRJ-0060) — is a filter by default of the grid (US-2130): told by its chip while it
+ * applies and lifted by removing it, to a session that may read every project
+ * (`all_projects_read`, WF-ADM-0110); for anyone else, lifted, the list would show the same
+ * projects, and the card of the list says it instead (WF-IHM-0090).
  */
-import { ListFilter, X } from "lucide-react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import type { Period } from "@/components/grid/period";
 import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
-import { parametersHref } from "@/components/portfolio/address";
 import { NoProjects } from "@/components/system/empty-states";
-import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
-import { CONTRIBUTOR_PARAMETER, HOME, type ProjectState } from "@/navigation/home";
+import type { ProjectState } from "@/navigation/home";
 
 import type { ListedProjectPage, ListedProjectRow, ListedProjectSort } from "./project-list-grid";
 import { ProjectListGrid } from "./project-list-view";
-
-const LINK = buttonVariants({ variant: "outline", size: "sm" });
-
-/** What the filter of the list shows. */
-export interface ContributorFilterProps {
-  /** Whether the list is filtered on the projects the user contributes to. */
-  readonly filtered: boolean;
-  /** Whether the session may read the projects it does not contribute to. */
-  readonly mayLift: boolean;
-  /** The query of the address, which a link of the filter keeps. */
-  readonly query: URLSearchParams;
-}
-
-/**
- * The filter of the list: shown while it applies, with the link that lifts it to a session that
- * may read every project; once lifted, the link that applies it again. A session that may not read
- * every project is always filtered (`mayLiftContributorFilter`): the badge alone, no link.
- */
-export function ContributorFilter({ filtered, mayLift, query }: ContributorFilterProps) {
-  const t = useTranslations("projectList.filter");
-  return (
-    <section aria-label={t("label")} className="flex flex-wrap items-center gap-2 text-sm">
-      {filtered ? (
-        <>
-          <Badge variant="outline">
-            <ListFilter aria-hidden="true" />
-            {t("mine")}
-          </Badge>
-          {mayLift ? (
-            <Link
-              href={parametersHref(HOME, query, { [CONTRIBUTOR_PARAMETER]: "false" })}
-              className={LINK}
-            >
-              <X aria-hidden="true" />
-              {t("lift")}
-            </Link>
-          ) : null}
-        </>
-      ) : (
-        <Link
-          href={parametersHref(HOME, query, { [CONTRIBUTOR_PARAMETER]: undefined })}
-          className={LINK}
-        >
-          <ListFilter aria-hidden="true" />
-          {t("apply")}
-        </Link>
-      )}
-    </section>
-  );
-}
 
 /** What the list of projects shows: a page of the projects the server retained. */
 export interface ProjectListProps {
   readonly projects: readonly ListedProjectRow[];
   readonly page: ListedProjectPage;
   readonly filtered: boolean;
+  /**
+   * Whether the list is filtered on the projects the user contributes to, as its chip tells it;
+   * `undefined` for a session that may not lift the filter, which has no chip.
+   */
+  readonly mine: boolean | undefined;
   /** Whether the list is narrowed besides its filter: by states, a period or a search. */
   readonly narrowed: boolean;
   readonly query: GridQuery<ListedProjectSort>;
@@ -96,16 +45,17 @@ export interface ProjectListProps {
 
 /**
  * The projects of a page of the list, or that there is none: only when the list holds none at
- * all, and nothing narrows it but its filter — a page asked beyond its end is no empty list, and
- * leads back into it; a list emptied by states (the states by default count as a filter), a period
- * or a search keeps its grid, whose bar and filters change them — the states by default said by a
- * chip, like any filter. The filter that would empty it
- * is lifted by the link the header shows.
+ * all, and nothing narrows it — a page asked beyond its end is no empty list, and leads back into
+ * it; a list emptied by a filter its chips tell (the states by default, the projects the user
+ * contributes to, for a session that may lift it), a period or a search keeps its grid, whose bar,
+ * filters and chips change them. A session that may not lift the filter on the contributor reads
+ * that it contributes to no project.
  */
 export function ProjectList({
   projects,
   page,
   filtered,
+  mine,
   narrowed,
   query,
   preferences,
@@ -113,7 +63,7 @@ export function ProjectList({
   period,
   panel,
 }: ProjectListProps) {
-  if (page.total === 0 && !narrowed) {
+  if (page.total === 0 && !narrowed && mine !== true) {
     // No grid to hold the bar: the filters stand above the notice, as they always did.
     return (
       <>
@@ -128,6 +78,7 @@ export function ProjectList({
       page={page}
       query={query}
       preferences={preferences}
+      mine={mine}
       states={states}
       period={period}
       panel={panel}

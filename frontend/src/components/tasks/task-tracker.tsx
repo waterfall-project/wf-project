@@ -71,11 +71,13 @@ import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/comp
 
 import { listRunningTasks, readBackgroundTask } from "@/api/actions/tasks";
 
+import { downloadWhenThere } from "./result-download";
 import { readRefusal, withoutRefusal } from "./result-refusal";
 import { isOwner, keepOwner, wipeStores } from "./session-end";
 import { restoreTasks, saveTasks } from "./storage";
 import { EndLog, TaskEntry, taskName, TaskPolling, useTaskNaming } from "./task-entry";
 import {
+  type EndCardLine,
   type EndLine,
   isPolled,
   type Launch,
@@ -129,15 +131,21 @@ interface TrackerStore {
   readonly readAnew: (line: EndLine, refresh: () => void) => void;
 }
 
-/** The news once an event has changed what the tracker follows: an end logged is the last. */
+/**
+ * The news once an event has changed what the tracker follows: an end logged is the last. A success
+ * or a failure has its floating card (`EndCards`), which stays and carries what follows: the line
+ * under the bar does not say it a second time, and says nothing more of the task handed over before
+ * it (#3292). A follow-up interrupted, which has no card, is said by the line.
+ */
 function newsAfter(before: Held, after: Tracking, event: TrackingEvent): TaskNews | undefined {
   if (event.type === "forget") {
     return undefined;
   }
   const ended = after.log.at(-1);
-  return ended !== undefined && ended !== before.tracking.log.at(-1)
-    ? { kind: "ended", line: ended }
-    : before.news;
+  if (ended === undefined || ended === before.tracking.log.at(-1)) {
+    return before.news;
+  }
+  return ended.end === "interrupted" ? { kind: "ended", line: ended } : undefined;
 }
 
 /** A store of the tracker, holding nothing yet; a change that changes nothing tells no one. */
@@ -266,7 +274,7 @@ export function useTrackTask(): TrackTask {
 function useWhenTaskEnded(
   taskId: string | undefined,
   way: "succeeded" | "unsuccessful",
-  then: () => void,
+  then: (line: EndLine) => void,
 ): void {
   const { log, tasks } = useTracker();
   const done = useRef<string>(undefined);
@@ -274,17 +282,18 @@ function useWhenTaskEnded(
   // of the task named is the end of the one now in its place too.
   const current = tasks.find((tracked) => tracked.key === taskId)?.task.task_id;
   const ended =
-    taskId !== undefined &&
-    log.some(
-      // Any end but a success — a failure, an interrupted follow-up — is the unsuccessful way.
-      (line) =>
-        (line.task.task_id === taskId || line.task.task_id === current) &&
-        (line.end === "succeeded") === (way === "succeeded"),
-    );
+    taskId === undefined
+      ? undefined
+      : log.find(
+          // Any end but a success — a failure, an interrupted follow-up — is the unsuccessful way.
+          (line) =>
+            (line.task.task_id === taskId || line.task.task_id === current) &&
+            (line.end === "succeeded") === (way === "succeeded"),
+        );
   useEffect(() => {
-    if (ended && done.current !== taskId) {
+    if (ended !== undefined && done.current !== taskId) {
       done.current = taskId;
-      then();
+      then(ended);
     }
   }, [ended, taskId, then]);
 }
@@ -295,7 +304,10 @@ function useWhenTaskEnded(
  * task that ends while the user is elsewhere leads nowhere. `task_id` is none until a task was
  * started.
  */
-export function useWhenTaskSucceeds(taskId: string | undefined, then: () => void): void {
+export function useWhenTaskSucceeds(
+  taskId: string | undefined,
+  then: (line: EndLine) => void,
+): void {
   useWhenTaskEnded(taskId, "succeeded", then);
 }
 
@@ -366,6 +378,52 @@ export function useReadAnewWhenTaskEnds(taskId: string | undefined): void {
       });
     }
   }, [line, store, router]);
+}
+
+/**
+ * Download the result of the export named once its task has succeeded — a relaunch of it included
+ * —, while the screen that asked for it still shows (#3103): once, for the task named, read anew
+ * first, and left only if the screen is still there once the read has answered. `task_id` is none
+ * until an export was asked.
+ */
+export function useDownloadWhenTaskSucceeds(taskId: string | undefined): void {
+  const { dispatch } = inTracker(useContext(StateContext)).store;
+  const shown = useRef(true);
+  useEffect(() => {
+    shown.current = true;
+    return () => {
+      shown.current = false;
+    };
+  }, []);
+  const download = useCallback(
+    (line: EndLine) => {
+      downloadWhenThere(line, dispatch, () => shown.current);
+    },
+    [dispatch],
+  );
+  useWhenTaskSucceeds(taskId, download);
+}
+
+/** The function that changes what the tracker follows: an answer to a task, a card closed. */
+export function useTrackerDispatch(): Dispatch<TrackingEvent> {
+  return inTracker(useContext(StateContext)).store.dispatch;
+}
+
+/**
+ * The cards of the ends the shell shows, the last first, and the button of the bar, which the focus
+ * goes to once the last card is closed (`EndCards`).
+ */
+export function useEndCards(): {
+  readonly cards: readonly EndCardLine[];
+  readonly button: RefObject<HTMLButtonElement | null>;
+} {
+  const { store, button } = inTracker(useContext(StateContext));
+  const cards = useSyncExternalStore(
+    store.subscribe,
+    () => store.read().tracking.cards,
+    () => NOTHING_TRACKED.cards,
+  );
+  return { cards, button };
 }
 
 /**
@@ -659,10 +717,11 @@ const END_SENTENCE = {
 } as const;
 
 /**
- * The last task handed over or ended, under the bar, in the flow of the page: a short line that
- * stays until the next, not announced — the log of the ends speaks, and a task handed over follows
- * a command the user just gave —, or until it is closed (#1179), by its button, reached by the
- * keyboard; the focus goes then to the button of the bar, where the task is still followed.
+ * The last task handed over, or whose follow-up was interrupted, under the bar, in the flow of the
+ * page: a short line that stays until the next, not announced — the log of the ends speaks, and a
+ * task handed over follows a command the user just gave —, or until it is closed (#1179), by its
+ * button, reached by the keyboard; the focus goes then to the button of the bar, where the task is
+ * still followed. A success or a failure is said by its card alone, which closes the line (#3292).
  */
 function News({
   news,
