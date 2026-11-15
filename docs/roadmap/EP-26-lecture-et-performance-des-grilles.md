@@ -378,7 +378,7 @@ Prises par l'auteur le 2026-11-14, au cadrage, sauf mention.
 
 ## US-2210 — La mesure de référence des grilles : dans le processus, puis du clic à l'affichage contre le service, à un, quatre et huit utilisateurs
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre — l'outil de WF-QUA-0060, que clôt US-2300
 - **opérations** : `listNodes`, `updateTaskFacet`, `updateEstimateLine`, `createRevision`, `getMe`
 - **issue** : #3304
@@ -426,7 +426,7 @@ comparaison (EP-27).
 
 ## US-2220 — Une structure se lit en colonnes, sans objet ORM ni vue intermédiaire par nœud
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre — le gain se lit dans le rapport de WF-QUA-0060 (US-2300)
 - **opérations** : `listNodes`, `compareRevisions`
 - **issue** : #3315

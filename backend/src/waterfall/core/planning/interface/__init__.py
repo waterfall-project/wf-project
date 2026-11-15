@@ -58,6 +58,9 @@ from waterfall.core.planning.interface.facets import (
     CellsPasted as CellsPasted,
 )
 from waterfall.core.planning.interface.facets import (
+    FacetColumns as FacetColumns,
+)
+from waterfall.core.planning.interface.facets import (
     FacetCreation as FacetCreation,
 )
 from waterfall.core.planning.interface.facets import (

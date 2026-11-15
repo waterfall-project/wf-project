@@ -64,7 +64,7 @@ from waterfall.core.planning.shaping import (
 )
 from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tables import Node, Task, TaskLink
-from waterfall.core.planning.tree import TASK, Tree, read_tree
+from waterfall.core.planning.tree import TASK, Tree, read_rows, read_tree
 from waterfall.core.planning.views import COMPLETED, NOT_STARTED, NodeView, state_of
 from waterfall.core.planning.writing import (
     NodesWritten,
@@ -329,7 +329,7 @@ def list_nodes(session: Session, place: Place, filters: NodeFilters) -> NodeList
     the revision or the structure is unknown (404).
     """
     facts = facts_of(session, place, lock=False)
-    tree = read_tree(session, place.project_id, place.structure_id)
+    tree = read_rows(session, place.project_id, place.structure_id)
     reading = reading_of(session, place, tree, (facts.scheduled_at, facts.is_main))
     structure = (place.project_id, place.structure_id)
     found = retained(session, structure, reading, filters, constants_of(session))
