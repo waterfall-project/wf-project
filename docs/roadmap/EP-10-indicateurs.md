@@ -2,7 +2,7 @@
 id: EP-10
 titre: Lire où en est un projet : avancement, indices, projections et courbes
 statut: en cours
-depend_de: EP-26
+depend_de: EP-25, EP-26
 famille: front, back
 issue: 2427
 ---
@@ -216,12 +216,23 @@ suivi :
 
 ## Préalables
 
-EP-26 livré : `epic/EP-10` se tire de `main`, selon la règle générale (décision de l'auteur du
-2026-11-15, au recadrage). Elle y trouve la lecture d'une structure en colonnes, l'agrégat par tâche
-et la lecture gardée d'une révision marquée (US-2220, US-2280, US-2270), sur lesquels l'avancement
-physique s'appuie, le fuseau de l'installation (US-2200 d'EP-25) et l'outil de mesure (US-2210,
-US-2300). Le cadrage du 2026-11-07 la tirait d'`epic/EP-09` pendant qu'EP-06, EP-07 et EP-09 se
-livraient : ils sont livrés, et aucun lot d'EP-10 n'attend plus un lot d'un autre EPIC.
+EP-25 livré : `epic/EP-10` se tire alors de `main`, sans attendre EP-26 (décision de l'auteur du
+2026-11-15, au recadrage). Elle y trouve le fuseau de l'installation (US-2200) et l'écran des
+indicateurs remis en page (US-2150, US-2160). Le cadrage du 2026-11-07 la tirait d'`epic/EP-09`
+pendant qu'EP-06, EP-07 et EP-09 se livraient : ils sont livrés.
+
+Deux lots attendent en outre qu'EP-26 soit livré dans `main` et qu'`epic/EP-10` l'ait reprise :
+US-1680, qui s'appuie sur la lecture en colonnes, l'agrégat par tâche et la lecture gardée d'une
+révision marquée (US-2220, US-2280, US-2270), et US-2420, qui mesure par son outil et complète son
+rapport de version (US-2210, US-2300). US-1740/L2, qui attend tous les lots, les attend donc aussi :
+EP-10 se livre après EP-26, mais ses vingt-deux autres lots avancent sans lui. Aucun autre lot
+n'attend un lot d'un autre EPIC.
+
+La migration du socle se chaîne sur la dernière de `main` à ce moment ; EP-26 en porte une, et le
+second des deux EPIC à entrer dans `main` rechaîne les siennes — EP-10, qui finit après. Les deux
+fichiers d'interface qu'US-1660/L3 complète (`core/planning/interface/__init__.py`,
+`core/estimate/interface/__init__.py`) sont aussi touchés par les lots d'EP-26 : le conflit se
+règle à la reprise de `main`.
 
 EP-27 n'est pas un préalable : il ne porte aucune migration, et ses fichiers — la comparaison, les
 grilles, le bandeau — ne sont pas ceux d'EP-10. Les deux EPIC se fusionnent dans `main` dans
@@ -266,8 +277,10 @@ change, et prime sur le texte d'origine là où ils diffèrent.
 
 Décisions de l'auteur du 2026-11-15, sauf mention « recadrage », qui sont du cadreur.
 
-- **`epic/EP-10` se tire de `main`, EP-26 livré.** Écartés : la tirer d'`epic/EP-26` à côté
-  d'EP-27, ou d'`epic/EP-27` à sa suite. Aucun lot d'EP-10 n'attend plus un lot d'un autre EPIC :
+- **`epic/EP-10` se tire de `main`, EP-25 livré, sans attendre EP-26** ; seuls US-1680 et US-2420
+  attendent EP-26 dans `main` (« Préalables »). Écartés : attendre EP-26, dont les lots restants
+  se suivent en série, pour deux lots sur vingt-cinq ; la tirer d'`epic/EP-26` à côté d'EP-27, ou
+  d'`epic/EP-27` à sa suite. Hors ces deux lots, aucun lot d'EP-10 n'attend un lot d'un autre EPIC :
   les numéros de lots d'EP-06, d'EP-07 et d'EP-09 que cite la suite sont tous fusionnés, et se
   lisent comme l'origine d'un fichier, non comme une attente.
 - **Les migrations ne portent plus de numéro dans ce fichier** (recadrage). `0028` est prise par
@@ -799,8 +812,8 @@ cache (les structures des risques, les risques eux-mêmes).
 
 ### L'ordre de construction
 
-Réécrit au recadrage du 2026-11-15 : plus aucun lot n'attend un autre EPIC, et l'ordre ne tient
-qu'aux lots d'EP-10 entre eux.
+Réécrit au recadrage du 2026-11-15 : l'ordre ne tient qu'aux lots d'EP-10 entre eux, hors
+l'avancement physique (US-1680) et la mesure (US-2420), qui attendent EP-26 dans `main`.
 
 1. **Le socle, et ce qui ne l'attend pas**, en parallèle : le socle (US-1660 : la migration, le
    module à vide, la signature du registre, les routeurs vides) ; les formules et les séries,
