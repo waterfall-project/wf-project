@@ -163,7 +163,7 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-24](EP-24-consolidation-apres-v0-3-0.md) | Consolidation après la v0.3.0 | livré | EP-09, EP-23 |
 | [EP-25](EP-25-refonte-ergonomique.md) | Refonte ergonomique | en cours | EP-24 |
 | [EP-26](EP-26-lecture-et-performance-des-grilles.md) | Lecture et performance des grilles | en cours | EP-25 |
-| [EP-27](EP-27-comparaison-dans-les-grilles.md) | Comparaison dans les grilles | à planifier | EP-26 |
+| [EP-27](EP-27-comparaison-dans-les-grilles.md) | Comparaison dans les grilles | en cours | EP-26 |
 | [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | en cours | EP-09 |
 | [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | à planifier | EP-10, EP-27 |
 | [EP-11](EP-11-portefeuille.md) | Portefeuille | à planifier | EP-08 |
@@ -394,7 +394,8 @@ le lot pivot que le cadrage de celle-ci désigne (décision du 2026-11-07) : US-
 pour `epic/EP-07`, US-1490/L1 (#2370) pour `epic/EP-09`, US-1580/L1 (#2398) pour `epic/EP-10`, US-1660/L1 (#2437) pour
 `epic/EP-08`. Troisième : `epic/EP-26` tirée d'`epic/EP-25` dès l'ouverture des issues d'EP-26,
 ses lots de back et ses outils de mesure ne touchant aucun fichier de la refonte (décision du
-2026-11-14).
+2026-11-14). Quatrième : `epic/EP-27` tirée d'`epic/EP-26` dès la fusion d'US-2270/L2 (#3322), la
+comparaison sur les lectures gardées, sur laquelle la sienne s'appuie (décision du 2026-11-15).
 
 La chaîne s'exécute sur toute pull request, vers une branche d'EPIC comme vers `main`, et
 aucune n'est fusionnée si elle échoue.
