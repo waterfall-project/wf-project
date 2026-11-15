@@ -195,8 +195,8 @@ describe("the result of an export", () => {
     await waitFor(() => {
       expect(frames).toHaveLength(1);
     });
-    // The result expired between the read and the download (409): the route sends the frame back to
-    // the screen, the refusal in its address.
+    // The result expired between the read and the download (409): the route sends the frame to a
+    // page with nothing in it, the refusal in its address (#3297).
     const [frame] = frames;
     if (frame === undefined) {
       throw new Error("no frame was appended");
@@ -205,7 +205,7 @@ describe("the result of an export", () => {
     act(() => {
       sendBack(
         frame,
-        `${EXCHANGES}?refused_task=${EXPORTED}&refusal=409:STATE_FORBIDS_OPERATION:task_succeeded`,
+        `/tasks/${EXPORTED}/refused?refused_task=${EXPORTED}&refusal=409:STATE_FORBIDS_OPERATION:task_succeeded`,
       );
     });
     const card = exportCard();
@@ -226,6 +226,31 @@ describe("the result of an export", () => {
     expect(screen.getByRole("form", { name: "Demander un export" })).toBe(form);
     expect(kinds).toBeInTheDocument();
     expect(kinds.value).toBe(chosen);
+  });
+
+  it("tells the end of the session on its card when the frame comes to the sign-in page, which carries nothing of the refusal, the file offered again (#3297) [WF-DAT-0120-A]", async () => {
+    serve({
+      [EXPORT]: { example: "task_export_queued", status: 202 },
+      [TASK]: "task_export_succeeded",
+    });
+    render(shell(true));
+    await ask();
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    await waitFor(() => {
+      expect(frames).toHaveLength(1);
+    });
+    const [frame] = frames;
+    if (frame === undefined) {
+      throw new Error("no frame was appended");
+    }
+    act(() => {
+      sendBack(frame, `/login?next=${encodeURIComponent(EXCHANGES)}`);
+    });
+    const card = exportCard();
+    expect(await within(card).findByRole("alert")).toBeVisible();
+    expect(frame.isConnected).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(within(card).getByRole("link", { name: /^Télécharger le résultat/ })).toBeVisible();
   });
 
   it("is not downloaded by itself once the screen that asked for it is left: its card offers it (#3103)", async () => {
