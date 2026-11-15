@@ -8,21 +8,22 @@
  * hold back what it contains —, says that the screen loads: a reader finds it by its role and
  * its name. Whether it is spoken as it appears depends on the reader: a live region inserted
  * with its text already in it is not announced by every one. The pulse stops when the
- * workstation asks for less motion. It takes the template of a dense screen (`SCREEN`), so that
- * the page does not jump when it replaces it.
+ * workstation asks for less motion. It takes the template of the screen it stands for, at the
+ * density of its segment (`SCREEN`), which each `loading.tsx` reads in the table of the densities
+ * and passes on: an airy screen does not jump when it replaces a dense skeleton (#3269).
  */
 import { useTranslations } from "next-intl";
 
-import { SCREEN } from "@/components/shell/page-header";
+import { type Density, SCREEN } from "@/components/shell/page-header";
 
 const ROWS = ["w-full", "w-11/12", "w-5/6", "w-2/3"] as const;
 const BLOCK = "rounded-md bg-muted motion-safe:animate-pulse";
 
-/** Render the skeleton of a screen that loads. */
-export function ScreenSkeleton() {
+/** Render the skeleton of a screen that loads, at the density of the screen to come. */
+export function ScreenSkeleton({ density }: { readonly density: Density }) {
   const t = useTranslations("loading");
   return (
-    <main aria-label={t("label")} className={SCREEN.dense}>
+    <main aria-label={t("label")} className={SCREEN[density]}>
       <p role="status" aria-label={t("label")} className="sr-only">
         {t("label")}
       </p>

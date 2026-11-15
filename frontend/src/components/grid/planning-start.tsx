@@ -22,6 +22,7 @@ import { updateStructure } from "@/api/actions/nodes";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { ConfirmedCommand } from "@/components/commands/confirmed-command";
+import { Input } from "@/components/ui/input";
 import { formatPlanningDate, isPlanningDate } from "@/i18n/format";
 
 import type { StructurePath } from "./nodes";
@@ -123,7 +124,7 @@ export function PlanningStart({
             <label htmlFor={field} className="block text-sm font-medium">
               {t("label")}
             </label>
-            <input
+            <Input
               id={field}
               type="date"
               required
@@ -131,7 +132,7 @@ export function PlanningStart({
               onChange={(event) => {
                 setTyped(event.target.value);
               }}
-              className="h-9 rounded-md border border-input bg-background px-2 text-foreground"
+              className="w-auto"
             />
           </div>
         </ConfirmedCommand>

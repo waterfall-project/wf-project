@@ -22,11 +22,17 @@ import {
 export const BODY_ROW = "group/row";
 
 /**
- * The background of a cell of the body on the page, tinted slightly while the pointer is over its row
+ * The background of a cell of the body: that of the card the tables are set on (#3277), never the
+ * grey of the page. It is opaque, so that the rows scrolled under a pinned column do not show through.
+ */
+export const CELL_BACKGROUND = "bg-card";
+
+/**
+ * The background of a cell of the body, tinted slightly while the pointer is over its row
  * (US-2080, #3075). A cell computed keeps its shade, a row selected or marked by a difference its
  * tint: their selectors weigh more than this class.
  */
-export const ROW_HOVER = "bg-background group-hover/row:bg-row-hover";
+export const ROW_HOVER = `${CELL_BACKGROUND} group-hover/row:bg-row-hover`;
 
 /** What a cell of the body is doing: active, entered, written, its refusal shown. */
 export interface CellState {

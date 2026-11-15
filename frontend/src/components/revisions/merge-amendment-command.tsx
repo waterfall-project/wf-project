@@ -38,6 +38,8 @@ import { Differences } from "@/components/exchanges/import-report";
 import { DiffMark } from "@/components/grid/diff-mark";
 import { DoneNotice } from "@/components/notices/done-notice";
 import { Following } from "@/components/tasks/following";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { problemMessage } from "@/i18n/problem";
 
 type Report = components["schemas"]["StructureMergeReport"];
@@ -70,8 +72,7 @@ const COUNTED_CHANGES: readonly {
   { change: "removed", key: "removed", mark: "removed" },
 ];
 
-const FIELD =
-  "h-9 w-full max-w-sm rounded-md border border-input bg-background px-2 text-foreground";
+const FIELD = "max-w-sm";
 const HEADING = "text-sm font-semibold";
 
 /** The counts of what the merge adds, modifies and removes, by object, in the marks of the diff. */
@@ -194,7 +195,7 @@ function ReportPanel({
         <label htmlFor={field} className="block text-sm font-medium">
           {t("versionName")}
         </label>
-        <input
+        <Input
           id={field}
           value={name}
           required
@@ -213,14 +214,14 @@ function ReportPanel({
         <label htmlFor={`${field}-description`} className="block text-sm font-medium">
           {t("description")}
         </label>
-        <textarea
+        <Textarea
           id={`${field}-description`}
           value={description}
           rows={3}
           onChange={(event) => {
             onDescription(event.target.value);
           }}
-          className={`py-1 ${FIELD}`}
+          className={FIELD}
         />
       </div>
     </div>

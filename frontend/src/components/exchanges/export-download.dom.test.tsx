@@ -89,6 +89,9 @@ function record(event: Event) {
 /** The address of the result of the export, leaving from the screen of the exchanges. */
 const RESULT = `/tasks/${EXPORTED}/result?from=${encodeURIComponent(EXCHANGES)}`;
 
+/** How long a frame that downloads is kept (`FRAME_KEPT` of `result-download.tsx`): five minutes. */
+const FRAME_KEPT = 5 * 60_000;
+
 /** The hidden frames the result downloads by itself through. */
 let frames: readonly HTMLIFrameElement[] = [];
 
@@ -152,6 +155,28 @@ describe("the result of an export", () => {
     expect(within(card).getByRole("button", { name: /^Fermer la carte/ })).toBeVisible();
   });
 
+  it("keeps the hidden frame in the document five minutes, then takes it away, the download going on without it (#3298)", async () => {
+    serve({
+      [EXPORT]: { example: "task_export_queued", status: 202 },
+      [TASK]: "task_export_succeeded",
+    });
+    render(shell(true));
+    await ask();
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    await waitFor(() => {
+      expect(frames).toHaveLength(1);
+    });
+    const [frame] = frames;
+    expect(frame?.isConnected).toBe(true);
+    await act(() => vi.advanceTimersByTimeAsync(FRAME_KEPT - POLL_INTERVAL));
+    expect(frame?.isConnected).toBe(true);
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    expect(frame?.isConnected).toBe(false);
+    // Taken away, it began no other download, and the screen stays.
+    expect(frames).toHaveLength(1);
+    expect(window.location.pathname).toBe(EXCHANGES);
+  });
+
   it("leaves the screen as it is when the route refuses the file after the read, its card telling why (#3103)", async () => {
     serve({
       [EXPORT]: { example: "task_export_queued", status: 202 },
@@ -176,6 +201,7 @@ describe("the result of an export", () => {
     if (frame === undefined) {
       throw new Error("no frame was appended");
     }
+    expect(frame.isConnected).toBe(true);
     act(() => {
       sendBack(
         frame,
@@ -186,6 +212,12 @@ describe("the result of an export", () => {
     expect(await within(card).findByRole("alert")).toHaveTextContent(
       /^L’état actuel ne permet pas cette opération/,
     );
+    // The frame the refusal came back in leaves the document at once, and its timer with it: five
+    // minutes later, nothing is taken away twice (#3298).
+    expect(frame.isConnected).toBe(false);
+    await act(() => vi.advanceTimersByTimeAsync(FRAME_KEPT));
+    expect(frames).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(0);
     // Not served, the file is offered again: the click reads the task anew first.
     expect(within(card).getByRole("link", { name: /^Télécharger le résultat/ })).toBeVisible();
     expect(followed).toEqual([]);

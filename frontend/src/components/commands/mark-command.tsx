@@ -23,6 +23,8 @@ import type { Outcome } from "@/api/problem";
 import type { Revision } from "@/components/context/read-only";
 import { useTaskRunning, useTrackTask } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 import { Command } from "./command";
 import { commandIcon, REVISION_COMMAND_ICONS } from "./icons";
@@ -48,7 +50,7 @@ interface MarkFormProps {
   readonly onMarking: (taskId: string) => void;
 }
 
-const FIELD = "w-full max-w-sm rounded-md border border-input bg-background px-2 text-foreground";
+const FIELD = "max-w-sm";
 const LABEL = "block text-sm font-medium";
 
 /**
@@ -116,7 +118,7 @@ function MarkForm({ id, revision, names, onClose, onMarking }: MarkFormProps) {
       <label htmlFor={field} className={LABEL}>
         {t("markRevision.versionName")}
       </label>
-      <input
+      <Input
         id={field}
         ref={input}
         value={name}
@@ -128,7 +130,7 @@ function MarkForm({ id, revision, names, onClose, onMarking }: MarkFormProps) {
           setName(event.target.value);
           setMissing(false);
         }}
-        className={`h-9 ${FIELD}`}
+        className={FIELD}
       />
       {missing ? (
         <p id={`${field}-missing`} role="alert" className="text-sm text-destructive">
@@ -138,14 +140,14 @@ function MarkForm({ id, revision, names, onClose, onMarking }: MarkFormProps) {
       <label htmlFor={`${field}-description`} className={LABEL}>
         {t("markRevision.description")}
       </label>
-      <textarea
+      <Textarea
         id={`${field}-description`}
         value={description}
         rows={3}
         onChange={(event) => {
           setDescription(event.target.value);
         }}
-        className={`py-1 ${FIELD}`}
+        className={FIELD}
       />
       <div className="flex gap-2">
         <Button type="submit" size="sm" {...waitingAttributes(busy)}>

@@ -26,6 +26,7 @@ import {
   prepareAmendment,
 } from "@/api/actions/revisions";
 import type { Outcome } from "@/api/problem";
+import { Input } from "@/components/ui/input";
 
 import { Command } from "./command";
 import { ConfirmedCommand } from "./confirmed-command";
@@ -207,7 +208,7 @@ export function PrepareAmendmentCommand({
         <label htmlFor={field} className="block text-sm font-medium">
           {t("name")}
         </label>
-        <input
+        <Input
           id={field}
           value={label}
           required
@@ -215,7 +216,7 @@ export function PrepareAmendmentCommand({
           onChange={(event) => {
             setLabel(event.target.value);
           }}
-          className="h-9 w-full max-w-sm rounded-md border border-input bg-background px-2 text-foreground"
+          className="max-w-sm"
         />
       </div>
     </ConfirmedCommand>

@@ -74,6 +74,8 @@ async function totalUnder(page: Page, column: string) {
     covered += span;
     return covered > index;
   });
+  // No cell covering the column would be -1, which `nth` reads as the last cell (#3287).
+  expect(position).toBeGreaterThanOrEqual(0);
   return cells.nth(position);
 }
 
@@ -265,8 +267,10 @@ test.describe("on a narrow window", () => {
     const box = scroller(grid(page));
     await expect(label).toBeInViewport({ ratio: 1 });
     // The caption spans the columns that have no figure, wider than the window: it is in view by
-    // its start, its words cut where the pinned columns end (US-2080, #3072).
+    // its start, its words cut where the pinned columns end (US-2080, #3072) — and whole in height,
+    // in the box of the grid and in the window (#3286).
     await expect(totals).toBeInViewport();
+    expect(await withinBox(grid(page), totals)).toBe(true);
 
     // The grid is wider than the window: it scrolls sideways, to its last column.
     await box.evaluate((element) => {
@@ -286,6 +290,19 @@ test.describe("on a narrow window", () => {
     const words = totals.locator("span");
     await expect(words).toBeInViewport();
     expect((await words.boundingBox())?.x).toBeCloseTo((start?.x ?? 0) + 1 + 48, 0);
+    // Scrolled sideways, the row of the totals is still whole in height (#3286): what proves it
+    // fails on the row moved down by half its height, half under the box of the grid.
+    expect(await withinBox(grid(page), totals)).toBe(true);
+    await totals.evaluate((cell) => {
+      cell.style.transform = "translateY(50%)";
+    });
+    try {
+      expect(await withinBox(grid(page), totals)).toBe(false);
+    } finally {
+      await totals.evaluate((cell) => {
+        cell.style.transform = "";
+      });
+    }
   });
 
   test("shows the revision a copy is made of whole, beside the chip of an active filter, without overlap @shared [WF-IHM-0020-A]", async ({

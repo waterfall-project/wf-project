@@ -24,6 +24,7 @@ import { Command } from "@/components/commands/command";
 import { commandIcon, PROJECT_COMMAND_ICONS } from "@/components/commands/icons";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 import {
   EXCHANGE_KINDS,
@@ -35,8 +36,8 @@ import {
 } from "./offers";
 import { useOpenImport } from "./open-import";
 
-/** The field of a date. */
-const DATE = "h-8 rounded-md border border-input bg-background px-2 text-foreground";
+/** The field of a date, as wide as the date. */
+const DATE = "w-auto";
 
 /** The imports the server offers, the project, and the address of the screen in its context. */
 export interface ImportCommandsProps {
@@ -73,7 +74,7 @@ function PeriodFields({
       <legend className="mb-1 text-sm font-medium">{t("period")}</legend>
       <label className="flex items-center gap-2 text-sm">
         {t("periodFrom")}
-        <input
+        <Input
           type="date"
           value={from}
           onChange={(event) => {
@@ -84,7 +85,7 @@ function PeriodFields({
       </label>
       <label className="flex items-center gap-2 text-sm">
         {t("periodTo")}
-        <input
+        <Input
           type="date"
           value={to}
           onChange={(event) => {

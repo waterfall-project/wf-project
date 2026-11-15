@@ -33,6 +33,8 @@ import { DoneNotice } from "@/components/notices/done-notice";
 import { useTrackTask, useWhenTaskSucceeds } from "@/components/tasks/task-tracker";
 import type { TaskCommand } from "@/components/tasks/tracking";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { problemMessage } from "@/i18n/problem";
 import type { ProjectState } from "@/navigation/home";
 
@@ -85,7 +87,7 @@ interface ExitFormProps {
   readonly onRefused: (outcome: Outcome<unknown> | undefined) => void;
 }
 
-const FIELD = "w-full max-w-md rounded-md border border-input bg-background px-2 py-1";
+const FIELD = "max-w-md";
 /** What the user chose to do of the current revision; none until they choose. */
 type Fate = components["schemas"]["CurrentRevisionFate"]["action"] | undefined;
 
@@ -273,7 +275,7 @@ function ExitForm({
       <label htmlFor={field} className="block font-medium">
         {t("exitProject.reason")}
       </label>
-      <textarea
+      <Textarea
         id={field}
         ref={input}
         value={reason}
@@ -316,7 +318,7 @@ function ExitForm({
               <label htmlFor={`${field}-version`} className="block font-medium">
                 {t("exitProject.versionName")}
               </label>
-              <input
+              <Input
                 id={`${field}-version`}
                 ref={nameInput}
                 value={versionName}
@@ -328,7 +330,7 @@ function ExitForm({
                   setVersionName(event.target.value);
                   setProblems(without(problems, "name"));
                 }}
-                className={`h-9 ${FIELD}`}
+                className={FIELD}
               />
               {problems.name === undefined ? null : (
                 <p id={`${field}-name-problem`} role="alert" className="text-sm text-destructive">
@@ -340,7 +342,7 @@ function ExitForm({
               <label htmlFor={`${field}-description`} className="block font-medium">
                 {t("exitProject.description")}
               </label>
-              <textarea
+              <Textarea
                 id={`${field}-description`}
                 value={description}
                 rows={2}

@@ -795,7 +795,13 @@ test("shows the deactivated natures and categories by the filter of the state of
       await page.keyboard.press("Escape");
       await expect(form).toBeHidden();
       // The nature being of labour, the category is proposed to the form of a role.
+      // The form offers the categories the page read with its lists: the form opens once that
+      // reading is over, the grid of the roles shown — opened before, under the load of the
+      // queue, it found no category reactivated (#3266).
       await page.goto("/reference/resources");
+      await expect(page.getByRole("grid", { name: "Rôles de ressources" })).toBeVisible({
+        timeout: WORKING,
+      });
       const roleForm = page.getByRole("dialog", { name: "Nouveau rôle de ressource" });
       await open(roleForm, "Rôles de ressources", "Nouveau rôle");
       await expect(

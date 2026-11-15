@@ -558,7 +558,9 @@ without the prefix (`failure.ts`). Without an envelope, or without a `correlatio
 displayed is the digest Next computes, that of its own logs. A screen never says « empty » on a
 response it has not read. When the session is unreadable, the navigation keeps the status screen
 (WF-ADM-0130). Each segment that reads the API has its `loading.tsx`, the `ScreenSkeleton` skeleton,
-which carries a named `role="status"` — a screen reader does not always announce it; the response is
+at the density of its screens, which the `loading.tsx` reads in the table of the densities — a
+screen of another family than its segment has its own, and the airy screen does not jump when it
+comes (#3269) —, which carries a named `role="status"` — a screen reader does not always announce it; the response is
 then streamed, and « not found » answers 200 and not 404 — a soft 404, which Next marks `noindex`:
 the status leaves with the skeleton, before the page knows the object is not found. It is the same
 for every address not found, which is what counts here. Each empty state — no project, project
@@ -1036,11 +1038,16 @@ measured by no script (`table-width.ts`, US-2080, #3075): the frame has the widt
 table the larger of the card and of the sum of its columns, and the label column (`label`) — failing
 one, the last column before any pinned at the end — takes what the others leave, the width chosen
 for it becoming its minimum: its handle and its arrows set that minimum, the column never shrinking
-below what the card gives it. It is wider than its width only when the table does not scroll
-sideways: the offsets of the pinned columns, drawn from the chosen widths, stay right. No line
-between the columns, except beside a pinned column; the row under the pointer is tinted by a token
-(`--row-hover`, `ROW_HOVER`), which a computed cell, a selected row or one marked by a differential
-keep under their own tint. In the totals row, the caption of the count spans the columns without a
+below what the card gives it; a step that changes nothing on the screen writes nothing, so that,
+while the card is wide, that minimum can only rise (#3280). It is wider than its width only when the
+table does not scroll sideways: the offsets of the pinned columns, drawn from the chosen widths, stay
+right. No line between the columns, except beside a pinned column; the cells of the body take the
+background of the card that holds the table (`CELL_BACKGROUND`, `bg-card`, #3277), opaque for the
+pinned columns, and the row under the pointer is tinted by a token (`--row-hover`, `ROW_HOVER`),
+which a computed cell, a selected row or one marked by a differential keep under their own tint. The
+commands of a row (variant `row` of `Button`) have a border of their own, `--row-command-border`, at
+3:1 on the card, the hover and the selected row; `--border`, which only separates, stays light
+(#3332). In the totals row, the caption of the count spans the columns without a
 figure that follow it (`colSpan`) instead of being truncated; pinned, it stays stuck over the pinned
 columns alone, its words at the start of its column (#3072). The simple tables (`ui/table.tsx`) have
 the text, the header and the absence of lines of the grids. The bar and the « Columns » button have
@@ -2724,13 +2731,15 @@ messages », which holds the focus as long as it is open and which Escape, its c
 outside the panel or « Reload the screen » close, the focus given back to the button of the bar.
 The button of the bar (`TasksButton`) opens it and says, in its name and its badges, the number of
 tracked tasks and that of the unread refusals. Nothing opens it on its own, except the refusal of a
-result on the browser's return, whose download left from the panel. A handed-over or finished task
-is said under the bar, in the flow of the page, on the screen where one is: the last one, in a
-short line that stays until the next — the confirmation in place of a success the screen does not
-show —, without an announcement, the log speaking for the ends; its button closes it, by keyboard
-as by mouse, and gives the focus back to the button of the bar, the task staying tracked (author's
-decision, #1179). Each success and each failure is also told by a floating card in the bottom right
-corner of the window (`EndCards`, `end-cards.tsx`, US-2170), mounted by the shell over the page,
+result on the browser's return, whose download left from the panel. A handed-over task is said
+under the bar, in the flow of the page, on the screen where one is: the last one, in a short line
+that stays until the next, without an announcement; its button closes it, by keyboard as by mouse,
+and gives the focus back to the button of the bar, the task staying tracked (author's decision,
+#1179). The line does not tell an end that an end card carries — a success, a failure —: the card,
+which stays and carries the action, tells it alone, with the log of the ends and the panel, and the
+line of the handed-over task closes when it comes; the line only tells an interrupted follow-up,
+which has no card (author's decision of 2026-11-14, #3292). Each success and each failure is told
+by a floating card in the bottom right corner of the window (`EndCards`, `end-cards.tsx`, US-2170), mounted by the shell over the page,
 which it does not move: the sentence of the end, the reason of a failure, the action that follows —
 « Download » the file of an export, the task read anew first as from the panel, otherwise « Open »
 the screen it was launched from — and its cross. It stays until it is opened — « Open » by a plain
