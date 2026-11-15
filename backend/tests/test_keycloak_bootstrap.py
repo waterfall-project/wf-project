@@ -227,6 +227,12 @@ def test_after_installation_the_administrator_sets_its_password_signs_in_and_fin
     assert all(role["is_predefined"] for role in roles)
     administrator = next(role for role in roles if role["label"] == "Administrateur")
     assert set(me["permissions"]) == set(administrator["permissions"])
+    # WF-ADM-0100-A: the function of the installation is the administrator's alone.
+    installation = {"installation.read", "installation.write"}
+    assert installation <= set(administrator["permissions"])
+    others = [role for role in roles if role["label"] != "Administrateur"]
+    assert len(others) == 2
+    assert all(not installation & set(role["permissions"]) for role in others)
     catalogue = api.get(PERMISSIONS, headers=headers).json()
     with database.transaction() as session:
         assert len(catalogue) == session.scalar(select(func.count()).select_from(Permission))

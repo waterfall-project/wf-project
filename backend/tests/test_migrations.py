@@ -939,3 +939,6 @@ def test_the_permissions_of_the_installation_arrive_by_a_migration_to_whoever_ad
     assert grants - added == before[1]
     downgrade(empty_engine, "0029")
     assert catalogue_and_grants(empty_engine) == before
+    # And up again: the catalogue and the grants of the first rise (0029, 0030, 0029, 0030).
+    upgrade(empty_engine)
+    assert catalogue_and_grants(empty_engine) == (catalogue, grants)

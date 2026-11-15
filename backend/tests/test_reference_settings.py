@@ -215,8 +215,8 @@ THRESHOLDS = example("reference_settings")["index_thresholds"]
     [
         # The example of the contract: the matrix by a session of the indicators alone.
         ((INDICATORS,), {"risk_matrix": MATRIX, "index_thresholds": THRESHOLDS}, RISKS),
-        # The example of the contract: the name by a session of the cost settings, which wrote it
-        # before the function of the installation (#3245).
+        # The name by a session of the cost settings, which wrote it before the function of the
+        # installation (#3245); the example of the contract is compared just below.
         ((COSTS, RISKS, INDICATORS), {"company_name": "Autre"}, INSTALLATION),
         ((RISKS, INDICATORS), {"company_name": "Autre", "risk_matrix": MATRIX}, INSTALLATION),
         (
@@ -245,6 +245,23 @@ def test_a_field_whose_permission_the_session_lacks_is_refused_and_nothing_is_wr
     refused = api.patch(SETTINGS, headers=session_of(*held), json={**sent, "lock_version": 1})
     assert refusal(refused)[:3] == (403, "PERMISSION_MISSING", {"missing_permission": missing})
     assert api.get(SETTINGS, headers=session_of()).json() == before
+
+
+@pytest.mark.requirement("WF-ADM-0100-A")
+def test_the_refusal_of_the_name_by_the_cost_settings_is_the_example_of_the_contract(
+    api: ContractClient, session_of: Any
+) -> None:
+    witness = example("reference_settings_company_permission_missing")
+    refused = api.patch(
+        SETTINGS,
+        headers=session_of(COSTS, RISKS, INDICATORS),
+        json={"company_name": "Autre", "lock_version": 1},
+    )
+    assert refused.status_code == witness["status"]
+    # The correlation identifier is that of the request, not of the example.
+    assert {k: v for k, v in refused.json().items() if k != "correlation_id"} == {
+        k: v for k, v in witness.items() if k != "correlation_id"
+    }
 
 
 NULL_FAULT = "VALIDATION_FAILED"
