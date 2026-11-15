@@ -94,11 +94,13 @@ def test_the_time_zone_is_read_from_the_row_of_the_installation_once_it_is_boots
 
 
 @pytest.mark.requirement("WF-EXP-0020-A")
-def test_a_time_zone_the_row_names_wrongly_is_unavailable_not_a_server_error() -> None:
-    # A name the tz database does not know, written in the row, is refused like an installation
-    # not yet bootstrapped (503), and not kept: the next reading asks again.
+@pytest.mark.parametrize("name", ["Mars/X", "/etc/localtime", "../Europe/Paris", "Europe/../Paris"])
+def test_a_time_zone_the_row_names_wrongly_is_unavailable_not_a_server_error(name: str) -> None:
+    # A name the tz database does not know, or one malformed — an absolute path, a ``..`` that
+    # ``ZoneInfo`` refuses by a ``ValueError`` (#3258) —, written in the row, is refused like an
+    # installation not yet bootstrapped (503), and not kept: the next reading asks again.
     reading = ProcessTimeZone()
-    reading.read_from(lambda: "Mars/X")
+    reading.read_from(lambda: name)
     with pytest.raises(UnavailableError):
         reading.zone()
     reading.read_from(lambda: "Europe/Paris")
