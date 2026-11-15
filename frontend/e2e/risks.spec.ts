@@ -15,6 +15,9 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const RISKS = `/projects/${PROJECT}/revisions/${REVISION}/risks`;
 const CABLING = "01926f3a-7c00-7000-8000-000000000751";
 
+/** What the card of the matrix takes of its width around the figure: its padding and its border. */
+const CARD_FRAME = 42;
+
 /** The box of an element in the window, which the page has laid out. */
 async function boxOf(element: Locator) {
   const box = await element.boundingBox();
@@ -114,9 +117,9 @@ test("draws the matrix over the whole width between the cards and the grid, the 
   const registerBox = await boxOf(grid);
   expect(unfolded.y).toBeGreaterThan(cardsBox.y + cardsBox.height - 1);
   expect(unfolded.y + unfolded.height).toBeLessThan(registerBox.y + 1);
-  // Its card, not the figure inside the padding of the card, is as wide as the register.
-  const matrixCard = await boxOf(page.getByRole("region", { name: "Matrice des risques" }));
-  expect(matrixCard.width).toBeGreaterThan(registerBox.width - 1);
+  // The drawing fills the card, within its padding (20 points each side, and its border): it is
+  // as wide as the register less that.
+  expect((await boxOf(drawing)).width).toBeGreaterThan(registerBox.width - CARD_FRAME - 1);
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await expect(drawing).toHaveCount(0);
@@ -125,9 +128,7 @@ test("draws the matrix over the whole width between the cards and the grid, the 
   const register = await boxOf(grid);
   expect(frame.y).toBeGreaterThan(cards.y + cards.height - 1);
   expect(frame.y).toBeLessThan(register.y);
-  expect(
-    (await boxOf(page.getByRole("region", { name: "Matrice des risques" }))).width,
-  ).toBeGreaterThan(register.width - 1);
+  expect(frame.width).toBeGreaterThan(register.width - CARD_FRAME - 1);
   await figure.getByText("Valeurs du graphique").click();
   const matrix = figure.getByRole("table", {
     name: "Décompte des risques identifiés par case de la matrice",

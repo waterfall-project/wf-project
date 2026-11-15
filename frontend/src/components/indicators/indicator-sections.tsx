@@ -154,10 +154,10 @@ export function MilestoneSection({
 
 /**
  * The cumulative costs, for the sub-project the address filters, and the command, at the right of
- * the title of its card, that shifts them
- * by the payment delays or takes the shift back: the curves are named as the API says they are —
- * shifted or not —, not as asked. A curve with nothing to draw has nothing to shift: the command is
- * not offered; shifted, it keeps the one that takes the shift back, the way out of it.
+ * the title of its card, that shifts them by the payment delays or takes the shift back: the curves
+ * are named as the API says they are — shifted or not —, not as asked. A curve with nothing to draw
+ * has nothing to shift: the command is not offered; shifted, it keeps the one that takes the shift
+ * back, the way out of it.
  */
 export function CostCurveSection({
   curves,
