@@ -25,7 +25,7 @@ from waterfall.core.planning.tree import TASK, tracking_of
 from waterfall.core.projects.interface import work_breakdown_items
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Mapping
+    from collections.abc import Collection, Mapping, Sequence
     from datetime import date, datetime
     from decimal import Decimal
     from uuid import UUID
@@ -34,8 +34,8 @@ if TYPE_CHECKING:
 
     from waterfall.core.planning.calendars import Applicable
     from waterfall.core.planning.interface.facets import FacetRead
-    from waterfall.core.planning.tables import TaskLink
-    from waterfall.core.planning.tree import Tree
+    from waterfall.core.planning.tables import Node, Task
+    from waterfall.core.planning.tree import LinkColumns, NodeColumns, TaskColumns, Tree
 
 MANUAL = "manual"
 NOT_STARTED = "not_started"
@@ -179,7 +179,9 @@ def _derived(states: list[State], own: tuple[bool, date | None] = (False, None))
     return State(NOT_STARTED, None, None)
 
 
-def own_lines(tree: Tree, node_id: UUID) -> tuple[bool, date | None]:
+def own_lines[N: NodeColumns, T: TaskColumns](
+    tree: Tree[N, T], node_id: UUID
+) -> tuple[bool, date | None]:
     """Tell what the own lines of a summary tell its state: held open, and the day they closed.
 
     Held, as the tree was read (``Tree.held``). The day is the one the entry that set the last of
@@ -227,7 +229,9 @@ def states_without(
     return found
 
 
-def awaits(tree: Tree, node_id: UUID, states: list[State]) -> bool:
+def awaits[N: NodeColumns, T: TaskColumns](
+    tree: Tree[N, T], node_id: UUID, states: list[State]
+) -> bool:
     """Tell whether a summary awaits only its own lines: its subordinates' ``states`` completed.
 
     An own line holds it open (``Tree.held``); a leaf never awaits, whatever its lines (#1775).
@@ -239,15 +243,19 @@ def awaits(tree: Tree, node_id: UUID, states: list[State]) -> bool:
     )
 
 
-class Reading:
-    """What a reading derives of a structure, once for all its nodes."""
+class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
+    """What a reading derives of a structure, once for all its nodes.
+
+    Of a tree of objects of the session, as a write reads it, or of rows, as a reading that writes
+    nothing reads it (``read_rows``, US-2220): the same views of the same columns.
+    """
 
     def __init__(
         self,
         session: Session,
         structure: tuple[UUID, datetime, bool],
-        tree: Tree,
-        links: list[TaskLink],
+        tree: Tree[N, T],
+        links: Sequence[LinkColumns],
         calendars: dict[UUID, Applicable],
     ) -> None:
         """Read the inscriptions of the tasks and the labels of what they bear; derive the states.
@@ -261,8 +269,8 @@ class Reading:
         self.scheduled_on = scheduled_at.date()
         self.links = links
         # The links by their successor, and by each end, built once: a node asks for its own.
-        self._incoming: dict[UUID, list[TaskLink]] = {}
-        self._ends: dict[UUID, list[TaskLink]] = {}
+        self._incoming: dict[UUID, list[LinkColumns]] = {}
+        self._ends: dict[UUID, list[LinkColumns]] = {}
         for link in links:
             self._incoming.setdefault(link.successor_id, []).append(link)
             for end in {link.predecessor_id, link.successor_id}:
