@@ -1186,7 +1186,7 @@ elle-même (EP-06) ; les lignes de provision et les tâches issues d'un risque s
 
 ## US-1690 — Les courbes : coûts cumulés, décaissements, valeur acquise, conservées au marquage
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IND-0100-A`, `WF-IND-0110-A`
 - **opérations** : `getCostCurve`, `getEarnedValueCurves` ; `markRevision` (les courbes conservées)
 - **issue** : 2431
