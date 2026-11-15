@@ -597,9 +597,16 @@ disparu retirés, l'ordre du plan recalculé ; aucun appelant ne dit ce qu'il a 
 qui le disait (`kept_places`) a disparu. Une écriture avance le compteur de tout nœud qu'elle écrit,
 par ses objets ou par une instruction : c'est sur quoi la relecture d'un nœud repose. Un test fige une lecture par écriture et la
 même réponse qu'en relisant l'arbre (`test_inert_writes.py`, `test_skeleton.py`, `test_paste.py`,
-`test_estimate_import_application.py`). Mesure du 2026-11-15 (`make measure-core ONLY=write`, médianes de 5
-passages, dispersion entre parenthèses) : un libellé, 348 ms (49) avant, 131 ms (65) après ; une
-durée qui redate 957 tâches, 815 ms (32) avant, 724 ms (53) après. Ce qui reste d'un libellé est
+`test_estimate_import_application.py`). Mesure du 2026-11-15 (`make measure-core ONLY=write`,
+médianes de 5 passages, dispersion entre parenthèses) : un libellé, 348 ms (49) avant, 131 ms (65)
+après ; une durée qui redate 957 tâches, 815 ms (32) avant, 724 ms (53) après, le rejeu reprenant
+alors l'arbre lu des seules écritures qui ne créaient, ne supprimaient ni ne déplaçaient rien.
+Reprise le soir même, trois états mesurés dans la même séance sur un poste plus chargé (le
+libellé, dont le chemin n'a pas changé, y passe de 131 à 173 ms) — avant l'US, l'arbre gardé sur
+la parole de l'appelant, puis `reshaped` : un libellé, 395 ms (76), 164 ms (69), 173 ms (77) ; une
+durée, 858 ms (62), 775 ms (150), 799 ms (102). Le gain du libellé dépasse la
+dispersion ; celui de la durée, ce soir-là, non ; et `reshaped` ne coûte pas, à la durée, au-delà
+de la dispersion de l'état qu'il remplace. Ce qui reste d'un libellé est
 surtout la lecture de l'arbre en objets de session, deux tiers du chemin court ; d'une durée, le
 moteur et la réévaluation des lignes des tâches redatées.
 
