@@ -490,7 +490,8 @@ def bring_back(
     ``facts`` are those of the structure read under the lock the frame of the history took, not
     read again. The nodes of the entry that its undoing deletes go first, those it brings back are
     rewritten, or written again with their facet, their links and inscriptions; the engine is then
-    replayed on the structure. The objects as they are left are handed to the frame
+    replayed on the structure, on the tree read before, brought to what was restored rather than
+    read again (``reshaped``, US-2250). The objects as they are left are handed to the frame
     (``Restoring.keep_present``). Refused by 409 ``UNDO_CONFLICT`` when another change holds what
     the entry would take back (see the module); nothing is written then.
     """
@@ -521,7 +522,8 @@ def bring_back(
         for state in restoring.restored
         if "facet" in state.rows and (parent := _id(_row(state, "node"), "parent_id")) is not None
     }
-    held = Holding(facts, None, conflicts, bearers)
+    # The tree read before the restoration, brought to it rather than read again (US-2250).
+    held = Holding(facts, None, conflicts, bearers, tree)
     redated = redated_structure(session, place, writer.act, held)
     ids = tuple(state.object_id for state in restoring.restored)
     restoring.keep_present(taken(session, project_id, ids))

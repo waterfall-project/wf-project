@@ -467,7 +467,7 @@ def write_facet(
         redated = (
             write.count()
             if inert
-            else write.redate((parent, tree.tasks[parent].label), None, (parent,), kept_places=True)
+            else write.redate((parent, tree.tasks[parent].label), None, (parent,))
         )
         write.after((node_id,))
         return redated.written((node_id,))

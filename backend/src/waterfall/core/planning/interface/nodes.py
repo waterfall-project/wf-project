@@ -581,9 +581,7 @@ def update_task_facet(
         redated = (
             write.count()
             if inert
-            else write.redate(
-                (node_id, task.label), entered=dating_pointers(entry), kept_places=True
-            )
+            else write.redate((node_id, task.label), entered=dating_pointers(entry))
         )
         write.after((node_id,))
         return redated.written((node_id,))

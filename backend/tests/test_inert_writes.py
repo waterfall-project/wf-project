@@ -13,13 +13,18 @@ of PRJ-001 (#3169):
 - the inert ones, and they alone, take the short path: the engine not replayed, the instant of the
   structure's dates left as it is, its counter advanced; their answer is the one the whole path
   gives, and their entry of the history is undone as any;
-- every write, short or whole, reads the tree once.
+- every write, short or whole, reads the tree once — one that creates, deletes or moves nodes, a
+  write of the structure itself, an undoing and a redoing included: the replay is handed the tree
+  read under the lock, brought to what the write made of it (``reshaped``), and gives back what it
+  gave reading the tree a second time.
 """
 
 from dataclasses import dataclass, replace
 from datetime import timedelta
 from decimal import Decimal
+from itertools import count
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 import pytest
 from sqlalchemy import select
@@ -36,27 +41,37 @@ from waterfall.core.estimate.interface import (
     update_line,
 )
 from waterfall.core.estimate.interface.facet import LINE_INERT
-from waterfall.core.planning import rescheduling, writing
+from waterfall.core.planning import rescheduling, restoring, writing
 from waterfall.core.planning.entries import INERT_TASK_FIELDS
 from waterfall.core.planning.interface import (
     ENTRIES,
     Duration,
     InstantSent,
+    NodeCreation,
     NodeFilters,
+    NodeMoving,
     Place,
     PredecessorSent,
     PredecessorsEntry,
     ProgressEntry,
+    StructureChange,
     TaskEntry,
     TrackingChange,
     Writer,
+    create_node,
+    delete_node,
     list_nodes,
+    move_nodes,
+    redo_last_undo,
     set_node_tracking,
     set_predecessors,
     set_task_progress,
     undo_last_change,
+    update_cost_structure,
     update_task_facet,
 )
+from waterfall.core.planning.interface import lines as line_writes
+from waterfall.core.planning.interface import nodes as node_writes
 from waterfall.core.planning.interface.facets import facets
 from waterfall.core.planning.writing import Write
 from waterfall.core.projects.interface import work_breakdown_items
@@ -67,9 +82,11 @@ from waterfall.platform.audit import Act
 if TYPE_CHECKING:
     from collections.abc import Callable
     from datetime import datetime
-    from uuid import UUID
+    from types import ModuleType
 
     from waterfall.core.planning.interface import NodeList, NodesWritten, NodeView
+    from waterfall.core.planning.tree import Tree
+    from waterfall.core.revisions.interface import StructureFacts
     from waterfall.platform.database import Database
 
 LINE = "estimate_line"
@@ -340,6 +357,41 @@ class Done:
     engines_run: int
 
 
+@dataclass(slots=True)
+class Counted:
+    """How many times a function was called since it was counted."""
+
+    count: int = 0
+
+
+def counting(
+    monkeypatch: pytest.MonkeyPatch, modules: tuple[ModuleType, ...], name: str
+) -> Counted:
+    """Count the calls of a function by the modules that name it, from now on."""
+    counted = Counted()
+
+    def wrapping[**P, R](real: Callable[P, R]) -> Callable[P, R]:
+        def wrapped(*args: P.args, **kwargs: P.kwargs) -> R:
+            counted.count += 1
+            return real(*args, **kwargs)
+
+        return wrapped
+
+    for module in modules:
+        monkeypatch.setattr(module, name, wrapping(getattr(module, name)))
+    return counted
+
+
+def trees_read(monkeypatch: pytest.MonkeyPatch) -> Counted:
+    """Count the trees the writes read whole, as objects of the session, from now on.
+
+    The readings of a write of the tree, under the lock (``writing``), of a replay
+    (``rescheduling``), and of an undoing or a redoing (``restoring``): one per write, its replay
+    reading none (US-2250). Named by the tests of the writes that create, delete or move nodes.
+    """
+    return counting(monkeypatch, (writing, rescheduling, restoring), "read_tree")
+
+
 def write_counted(
     witness: Database,
     monkeypatch: pytest.MonkeyPatch,
@@ -348,18 +400,12 @@ def write_counted(
 ) -> tuple[Read, Done]:
     """Write on the witness, counting the trees read and the engines run; roll it back."""
     read = read_of(witness)
-    counted = {"trees": 0, "engines": 0}
-
-    def counting[**P, R](name: str, real: Callable[P, R]) -> Callable[P, R]:
-        def wrapped(*args: P.args, **kwargs: P.kwargs) -> R:
-            counted[name] += 1
-            return real(*args, **kwargs)
-
-        return wrapped
-
-    for module in (writing, rescheduling):
-        monkeypatch.setattr(module, "read_tree", counting("trees", module.read_tree))
-    monkeypatch.setattr(rescheduling, "dated", counting("engines", rescheduling.dated))
+    trees = trees_read(monkeypatch)
+    engines = counting(monkeypatch, (rescheduling,), "dated")
+    # The nodes a write creates are named alike from one write to the next, to compare them.
+    made = (UUID(int=(1 << 64) + each) for each in count())
+    for module in (node_writes, line_writes):
+        monkeypatch.setattr(module, "new_id", lambda: next(made))
     place = read.place
     with Session(witness.engine) as session:
         try:
@@ -372,8 +418,8 @@ def write_counted(
         written,
         facts.scheduled_at,
         facts.lock_version,
-        counted["trees"],
-        counted["engines"],
+        trees.count,
+        engines.count,
     )
     return read, done
 
@@ -459,7 +505,7 @@ def test_the_short_path_gives_back_what_the_whole_path_does(
     _, short = write_counted(witness, monkeypatch, write)
 
     def whole(self: Write) -> writing.Redated:
-        return self.redate(None, kept_places=True)
+        return self.redate(None)
 
     monkeypatch.setattr(Write, "count", whole)
     _, replayed = write_counted(witness, monkeypatch, write)
@@ -470,14 +516,19 @@ def test_the_short_path_gives_back_what_the_whole_path_does(
     assert short.written.totals is not None
 
 
-@pytest.mark.parametrize("field", ["task.label", f"{LINE}.label", "task.tracking"])
-def test_a_write_on_the_short_path_is_undone_as_any(witness: Database, field: str) -> None:
-    write, _ = COLUMNS[field]
-    read = read_of(witness)
+def stacked(witness: Database, read: Read) -> Writer:
+    """Give a writer that keeps a stack of the history: an account, a session of sign-in."""
     with witness.transaction() as session:
         author = session.scalars(select(UserAccount.id).order_by(UserAccount.id)).first()
     assert author is not None
-    writer = Writer(Act(author, read.listed.scheduled_at), "inert-session")
+    return Writer(Act(author, read.listed.scheduled_at), "inert-session")
+
+
+@pytest.mark.parametrize("field", sorted(INERT))
+def test_a_write_on_the_short_path_is_undone_as_any(witness: Database, field: str) -> None:
+    write, _ = COLUMNS[field]
+    read = read_of(witness)
+    writer = stacked(witness, read)
     place = read.place
     with Session(witness.engine) as session:
         try:
@@ -502,12 +553,137 @@ def both(session: Session, read: Read, writer: Writer) -> NodesWritten:
     return _line(session, read, node, writer, label="entered", quantity=more)
 
 
-# The writes of the whole path: each column that is not inert, a line sent with an inert field and
-# another, a re-estimate.
-WHOLE: dict[str, Writing] = {
-    **{field: write for field, (write, _) in COLUMNS.items() if field not in INERT},
-    "line label and quantity": both,
-    "remaining": remaining,
+def _children(read: Read) -> dict[UUID | None, list[NodeView]]:
+    """Give the children of each node, in the order of the plan, the roots under ``None``."""
+    found: dict[UUID | None, list[NodeView]] = {}
+    for each in read.nodes:
+        found.setdefault(each.parent_id, []).append(each)
+    return found
+
+
+def _untouched(read: Read) -> NodeView:
+    """Give the first summary none of whose tasks has started: it may be deleted, or receive."""
+    below = _children(read)
+
+    def not_started(node: NodeView) -> bool:
+        return (node.task is None or node.task.progress == "not_started") and all(
+            not_started(each) for each in below.get(node.node_id, [])
+        )
+
+    return read.first(
+        lambda each: each.task is not None and each.task.is_summary and not_started(each)
+    )
+
+
+def _facts(session: Session, read: Read) -> StructureFacts:
+    place = read.place
+    return structure_facts(session, place.project_id, place.structure_id, lock=False)
+
+
+def create_task(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # At the head of the subtasks of a summary: its subtasks move down by one, in one statement.
+    entry = TaskEntry(label="Créée")
+    creation = NodeCreation(_untouched(read).node_id, None, after_given=True, task=entry)
+    return create_node(session, read.place, creation, writer)
+
+
+def create_line(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # A line as the first one of a task not started, at the head of its lines, which move down.
+    below = _children(read)
+    node = read.first(
+        lambda each: (
+            each.kind == LINE
+            and (task := read.first(lambda one: one.node_id == each.parent_id).task) is not None
+            and task.progress == "not_started"
+            and below[each.parent_id][0].node_id == each.node_id
+        )
+    )
+    view = view_of(node)
+    entry = LineEntry(
+        label="Créée",
+        cost_category_id=view.cost_category_id,
+        quantity=view.quantity,
+        resource_role_id=view.resource_role_id,
+        hours=view.hours,
+        unit_disbursement=view.unit_disbursement,
+        payment_delay_days=view.payment_delay_days,
+        sent=frozenset(
+            {
+                "label",
+                "cost_category_id",
+                "quantity",
+                "resource_role_id",
+                "hours",
+                "unit_disbursement",
+                "payment_delay_days",
+            }
+        ),
+    )
+    creation = NodeCreation(node.parent_id, None, after_given=True, kind=LINE, facet=entry)
+    return create_node(session, read.place, creation, writer)
+
+
+def delete(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # A summary deleted with its subtree, which follows it by the keys of the base.
+    node = _untouched(read)
+    return delete_node(session, read.place, node.node_id, node.lock_version, writer)
+
+
+def move(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # A summary moved at the head of the tasks of the first level: its siblings there move down.
+    node = _untouched(read)
+    counter = _facts(session, read).lock_version
+    moving = NodeMoving((node.node_id,), None, None, after_given=True, lock_version=counter)
+    return move_nodes(session, read.place, moving, writer)
+
+
+def structure(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # The start of the structure moved a week on: its automatic tasks are redated.
+    facts = _facts(session, read)
+    later = facts.planning_start_on + timedelta(days=7)
+    change = StructureChange(later, None, facts.lock_version)
+    return update_cost_structure(session, read.place, change, writer)
+
+
+def _undone(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    place = read.place
+    return undo_last_change(session, place.project_id, place.revision_id, writer, ENTRIES).written
+
+
+def undo_deletion(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # The subtree deleted created again.
+    delete(session, read, writer)
+    return _undone(session, read, writer)
+
+
+def redo_deletion(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # The subtree created again deleted again.
+    undo_deletion(session, read, writer)
+    place = read.place
+    return redo_last_undo(session, place.project_id, place.revision_id, writer, ENTRIES).written
+
+
+def undo_creation(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # The task created deleted, its siblings moved back up.
+    create_task(session, read, writer)
+    return _undone(session, read, writer)
+
+
+# The writes of the whole path, with how many writes each makes: each column that is not inert, a
+# line sent with an inert field and another, a re-estimate; then the writes that create, delete or
+# move nodes, a write of the structure itself, an undoing and a redoing (US-2250).
+WHOLE: dict[str, tuple[Writing, int]] = {
+    **{field: (write, 1) for field, (write, _) in COLUMNS.items() if field not in INERT},
+    "line label and quantity": (both, 1),
+    "remaining": (remaining, 1),
+    "createNode task": (create_task, 1),
+    "createNode line": (create_line, 1),
+    "deleteNode": (delete, 1),
+    "moveNodes": (move, 1),
+    "updateCostStructure": (structure, 1),
+    "undoLastChange deletion": (undo_deletion, 2),
+    "redoLastUndo deletion": (redo_deletion, 3),
+    "undoLastChange creation": (undo_creation, 2),
 }
 
 
@@ -515,16 +691,17 @@ WHOLE: dict[str, Writing] = {
 def test_the_whole_path_reads_the_tree_once_and_gives_back_what_it_did_reading_it_twice(
     witness: Database, monkeypatch: pytest.MonkeyPatch, name: str
 ) -> None:
-    write = WHOLE[name]
-    _, once = write_counted(witness, monkeypatch, write)
-    redate = Write.redate
+    write, writes = WHOLE[name]
+    writer = stacked(witness, read_of(witness))
+    _, once = write_counted(witness, monkeypatch, write, writer)
 
-    def read_again(self: Write, *args: Any, **kwargs: Any) -> writing.Redated:
-        return redate(self, *args, **{**kwargs, "kept_places": False})
+    def read_again(session: Session, project_id: UUID, structure_id: UUID, _: object) -> Tree:
+        return rescheduling.read_tree(session, project_id, structure_id)
 
-    monkeypatch.setattr(Write, "redate", read_again)
-    _, twice = write_counted(witness, monkeypatch, write)
-    assert once.engines_run == 1
-    assert once.trees_read == 1
-    assert twice.trees_read == 2
+    monkeypatch.setattr(rescheduling, "reshaped", read_again)
+    _, twice = write_counted(witness, monkeypatch, write, writer)
+    assert once.engines_run == writes
+    # Once per write, under the lock: the replay brings that tree to the write (``reshaped``).
+    assert once.trees_read == writes
+    assert twice.trees_read == 2 * writes
     assert once.written == twice.written

@@ -361,7 +361,7 @@ def set_task_progress(
         node.lock_version += 1
         node.updated_at = act.at
         node.updated_by = act.author
-        redated = write.redate((node_id, tree.tasks[node_id].label), kept_places=True)
+        redated = write.redate((node_id, tree.tasks[node_id].label))
         write.after(kept)
         return redated.written((node_id,))
 
@@ -506,9 +506,7 @@ def write_remaining(
         write.touched.update(written)
         write.frame.keep_before(tuple(state for state in before if state.object_id in written))
         write.name(written)
-        redated = write.redate(
-            (task_id, tree.tasks[task_id].label), None, (task_id,), kept_places=True
-        )
+        redated = write.redate((task_id, tree.tasks[task_id].label), None, (task_id,))
         write.after(written)
         return redated.written(written)
 

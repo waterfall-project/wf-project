@@ -9,9 +9,9 @@ dates' instant moved on and its counter advanced. The interface offers it as ``r
 (``interface.structures``); the frame of a write calls it here, so that the interface may frame a
 write of the structure itself without the two files importing each other. A write that holds the
 lock of the structure already hands the replay what it read under it (``Holding``, #2492): the
-structure, not read again, what the engine's refusal names, and the links in conflict; and, when
-the write left every node at its place, the tree it read, which is replayed as the write left it
-rather than read a second time (US-2250, #3169). The nodes of the other kinds under the tasks it
+structure, not read again, what the engine's refusal names, and the links in conflict; and the
+tree it read under the lock, which is brought to what the write made of it rather than read a
+second time (``reshaped``, US-2250, #3169). The nodes of the other kinds under the tasks it
 redated, and under those the write names, are then priced again by the hooks of their facets
 (``FacetHooks.reinflate``, EP-07, "Le calcul des montants").
 
@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 from waterfall.core.planning.dating import dated, horizon_exceeded, kept, replay_of
 from waterfall.core.planning.interface.facets import BearingTask, calendars_of, facets
 from waterfall.core.planning.scheduling import WorkInstant
-from waterfall.core.planning.tree import read_tree, reheld
+from waterfall.core.planning.tree import read_tree, reshaped
 from waterfall.core.planning.views import state_of
 from waterfall.core.revisions.interface import structure_facts, structure_rescheduled
 
@@ -83,8 +83,8 @@ class Holding:
     conflict moves its ends that stay (``kept``). ``None`` takes the links of the replay as they
     are, which a recalculation writes none of. ``repriced`` the tasks whose nodes of the other
     kinds are priced again whether they moved or not: the bearer of a line written. ``tree`` the
-    tree the write read under the lock, none to read it: handed only by a write that created,
-    deleted and moved no node, whose objects of the session are then the structure as it wrote it.
+    tree the write read under the lock, before it wrote, none to read it: the replay brings it to
+    what the write made of it (``reshaped``), whatever the write created, deleted or moved.
     """
 
     facts: StructureFacts | None = None
@@ -104,8 +104,8 @@ def replayed(
     """Replay the engine on a structure locked, write what changes; give what it moved.
 
     The structure is locked (read under its lock unless ``held`` hands what the write read), its
-    dates' instant moved on to ``at`` and its counter advanced. A tree ``held`` hands is replayed
-    as the write left it, the summaries an own line holds open read again (``reheld``).
+    dates' instant moved on to ``at`` and its counter advanced. A tree ``held`` hands is brought to
+    what the write made of it (``reshaped``), not read again.
     Beyond fifteen years (WF-PLA-0150), refused (422 ``PROJECT_HORIZON_EXCEEDED``), nothing
     written: naming the task the write blames — its node, none for a task created, and its label
     — or, without one, the task that finishes last. A loop of links is named from the origin the
@@ -115,11 +115,11 @@ def replayed(
     blamed = held.blamed
     facts = held.facts or structure_facts(session, project_id, structure_id, lock=True)
     session.flush()
-    if held.tree is None:
-        tree = read_tree(session, project_id, structure_id)
-    else:
-        tree = held.tree
-        reheld(session, project_id, tree)
+    tree = (
+        read_tree(session, project_id, structure_id)
+        if held.tree is None
+        else reshaped(session, project_id, structure_id, held.tree)
+    )
     calendars = calendars_of(session, project_id, tree.tasks)
     replay = replay_of(
         session, (project_id, structure_id, facts.planning_start_on), tree, calendars

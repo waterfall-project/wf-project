@@ -19,9 +19,9 @@ Under the lock, the write hands the history the nodes it touches as they are (``
 writes, replays the engine on the whole structure and keeps what it computes (``dating``), moves
 the instant of the structure's dates on and advances its counter, hands the nodes as they now are,
 and gives back what it wrote (``NodesWritten``) before its transaction commits. The tree is read
-once, under the lock: a write that leaves every node at its place hands it to the replay, which
-does not read it again (``Write.redate``, ``kept_places``); one that creates, deletes or moves a
-node has it read again.
+once, under the lock: the write hands it to the replay, which brings it to what the write made of
+it — the nodes it created, deleted or moved — rather than read it again (``Write.redate``,
+``reshaped``, US-2250).
 
 A write that can move no date nor change an amount — every column it sends inert, as the facet of
 its kind declares them (``INERT_TASK_FIELDS``, ``FacetHooks.inert``) — takes the short path
@@ -228,8 +228,6 @@ class Write:
         origin: Origin = None,
         repriced: Collection[UUID] = (),
         entered: tuple[str, ...] = (),
-        *,
-        kept_places: bool = False,
     ) -> Redated:
         """Replay the engine on the structure written, keep what it computes, advance it.
 
@@ -242,20 +240,21 @@ class Write:
         nodes it touches (``before``): a task written, or the task a line written is under. A node
         priced again beyond its column is refused at ``entered``, the pointers of the fields of the
         request that redate (``RepricedBeyondColumnError``, #3094); without them, without a field.
-        ``kept_places`` tells a write that created, deleted and moved no node: the tree it read is
-        replayed as it wrote it, not read again (US-2250).
+        The tree read under the lock is handed to the replay, which brings it to what the write
+        made of it rather than read it again (``reshaped``, US-2250); the write holds it after.
         """
         named = None if blamed is None else Blamed(*blamed, origin)
         priced = (*repriced, *self.touched)
-        tree = self.tree if kept_places else None
-        held = Holding(self.facts, named, self.conflicts, priced, tree)
+        held = Holding(self.facts, named, self.conflicts, priced, self.tree)
         try:
-            return redated_structure(self.session, self.place, self.writer.act, held)
+            redated = redated_structure(self.session, self.place, self.writer.act, held)
         except RepricedBeyondColumnError as refused:
             if refused.fields or not entered:
                 raise
             fields = tuple(FieldError(pointer, refused.code) for pointer in entered)
             raise RepricedBeyondColumnError(refused.code, refused.params, fields) from None
+        self.tree = redated.reading.tree
+        return redated
 
     def count(self) -> Redated:
         """Count a write that can move no date nor change an amount; give the structure it leaves.
@@ -292,8 +291,8 @@ def redated_structure(
     redoing, whose frame holds the lock of the structure (``history.undo``). ``held`` is what the
     caller read under that lock (``Holding``): the facts of the structure, what it names if the
     engine refuses, the links in conflict read before the write, the tasks whose nodes of the other
-    kinds are priced again whether they moved or not, and the tree of a write that left every node
-    at its place, replayed rather than read again (US-2250).
+    kinds are priced again whether they moved or not, and the tree it read before it wrote, brought
+    to what it made of it rather than read again (``reshaped``, US-2250).
     """
     done = replayed(session, place.project_id, place.structure_id, act.at, held)
     reading = Reading(

@@ -583,12 +583,21 @@ prédécesseurs, le collage (#3169). Le front s'adosse au compteur de la structu
 (`structure-version.ts`). Colonnes inertes retenues : la tâche, son libellé, sa description, son
 poste, son lot et ses inscriptions (`INERT_TASK_FIELDS`, `setNodeTracking` toujours par le chemin
 court) ; la ligne, son libellé, son délai de paiement et son sous-projet (`FacetHooks.inert`). Les
-autres restent dans le chemin entier : le mode, la durée et les dates (le moteur), l'avancement (il
-déplace l'instant où les fins dépassées se jugent), les prédécesseurs, la catégorie, le rôle (le
-calendrier de la tâche), la quantité, les heures et le déboursé (le prix). Le chemin court relit le
-nœud écrit et ses ancêtres de l'arbre déjà lu, sur les calendriers de leurs seules tâches ; les
-écritures qui ne créent, ne suppriment ni ne déplacent aucun nœud rejouent l'arbre lu sous le
-verrou (`Holding.tree`). Mesure du 2026-11-15 (`make measure-core ONLY=write`, médianes de 5
+autres restent dans le chemin entier : le mode, la durée et les dates (le moteur), l'avancement
+(l'état d'une tâche est une entrée du rejeu, qui en dérive celui de ses récapitulatives et réévalue
+ses lignes dessus), les prédécesseurs, la catégorie, le rôle (le calendrier de la tâche), la
+quantité, les heures et le déboursé (le prix). Le chemin court relit le nœud écrit et ses ancêtres
+de l'arbre déjà lu, sur les calendriers de leurs seules tâches. Toute écriture qui passe par
+`Write` — création, suppression, déplacement, collage, écriture de la structure, ébauche,
+application d'un import de devis — et l'annulation comme le rétablissement lisent l'arbre une fois,
+sous le verrou : le rejeu reçoit cet arbre (`Holding.tree`) et le met à jour de l'écriture
+(`reshaped`) — la place et le compteur de chaque nœud lus en lignes, les nœuds créés ou écrits par
+une instruction (le décalage des frères d'une création) relus seuls avec leur facette, ceux qui ont
+disparu retirés, l'ordre du plan recalculé ; aucun appelant ne dit ce qu'il a changé, et le drapeau
+qui le disait (`kept_places`) a disparu. Une écriture avance le compteur de tout nœud qu'elle écrit,
+par ses objets ou par une instruction : c'est sur quoi la relecture d'un nœud repose. Un test fige une lecture par écriture et la
+même réponse qu'en relisant l'arbre (`test_inert_writes.py`, `test_skeleton.py`, `test_paste.py`,
+`test_estimate_import_application.py`). Mesure du 2026-11-15 (`make measure-core ONLY=write`, médianes de 5
 passages, dispersion entre parenthèses) : un libellé, 348 ms (49) avant, 131 ms (65) après ; une
 durée qui redate 957 tâches, 815 ms (32) avant, 724 ms (53) après. Ce qui reste d'un libellé est
 surtout la lecture de l'arbre en objets de session, deux tiers du chemin court ; d'une durée, le

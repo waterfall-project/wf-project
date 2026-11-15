@@ -60,7 +60,8 @@ DATING = ("scheduling_mode", "duration", "start", "finish")
 # place in the tree and the calendars its lines name (``dating``, ``scheduling``), and reads its
 # label only to name a refusal; the estimate prices a line on the dates, the calendar and the state
 # of its task (``BearingTask``). The inscriptions are ``setNodeTracking``'s. The progress is not
-# inert: its write moves the instant the overdue finishes are judged at (``setTaskProgress``).
+# inert: the state of a task is an input of the replay, which derives from it that of the
+# summaries above it and prices its lines on it (``state_of``, ``setTaskProgress``).
 INERT_TASK_FIELDS = frozenset(
     {
         "task.label",
