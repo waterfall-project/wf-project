@@ -35,8 +35,7 @@ import { dirname } from "node:path";
 
 import { type APIRequestContext, type Browser, test } from "@playwright/test";
 
-import { API, frontToken, type LocalPerson, resetGridPreferences, signIn } from "../service/realm";
-import { settle } from "../usable";
+import { API, frontToken, type LocalPerson, resetGridPreferences } from "../service/realm";
 import { administratorReady, contributorsOf, measureUsers } from "./accounts";
 import { apiAnswered, clockOffset } from "./api-log";
 import {
@@ -51,10 +50,10 @@ import {
 } from "./report";
 import {
   journey,
-  player,
   type Player,
   PROJECT,
   REVISION,
+  signedIn,
   STEPS,
   type Target,
   targets,
@@ -165,26 +164,6 @@ function probeGetMe(
       thrown: { count: state.thrown, first: state.first },
     };
   };
-}
-
-/** Sign each user in, in a browser context of its own, outside the measure. */
-async function signedIn(
-  browser: Browser,
-  users: readonly LocalPerson[],
-  origin: string,
-): Promise<Player[]> {
-  const players: Player[] = [];
-  for (const user of users) {
-    const context = await browser.newContext();
-    const page = await context.newPage();
-    const one = await player(page, origin);
-    await signIn(page, user, "/account");
-    // The screen of the account prefetches the screens its links lead to: a navigation away before
-    // they are answered leaves requests the browser never ends, and the page would never settle.
-    await settle(one.requests);
-    players.push(one);
-  }
-  return players;
 }
 
 /** A user of the measure: its account, its browser, the task it writes. */

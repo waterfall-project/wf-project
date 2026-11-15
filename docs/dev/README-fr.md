@@ -3160,20 +3160,79 @@ code de production, tests et le reste (documentation, configuration, contrat), l
 engendrés mis à part. La pull request met ce nombre à côté de l'estimation de son issue ; un
 dépassement ne fait rien échouer (README de la roadmap, section « Lots »).
 
-`make check-measures` confronte les rapports de mesures des versions (`docs/measures/<version>.json`,
-WF-QUA-0060-A) : la chaîne ne mesure pas, les durées d'un runner variant du simple au double, elle lit
-ce qu'un poste a mesuré et que le dépôt versionne. Un rapport nomme chacune des onze opérations du
-tableau 15 avec son objectif, sa médiane, sa pire durée, sa dispersion (l'écart-type de l'échantillon,
-n − 1, des passages identiques, en secondes ; seule la médiane est confrontée) et, si elle dépasse son
-objectif ou se dégrade, un `note` qui le documente ; une opération que le service ne sert pas encore porte
-`unserved`, l'EPIC qui la mesurera, et aucune durée. La commande compare les deux derniers rapports
-(`reference.json`, pris avant toute correction, n'en est pas un) et affiche, pour chaque opération servie,
-sa médiane et celle de la version précédente, lue dans le rapport précédent et non recopiée : un objectif
-dépassé, une médiane de plus d'un quart au-dessus de celle de la version précédente ou une opération
-servie par celle-ci et qui ne l'est plus est un avertissement de la chaîne
-(`::warning::`), et un échec si le rapport ne le documente pas. Sans rapport précédent, seuls les
-objectifs comptent ; sans aucun rapport, elle passe. Famille `measures` de la chaîne, dans
-`make check-all`.
+`make check-measures` confronte les rapports de mesures des versions
+(`docs/measures/<version>.json`, WF-QUA-0060-A) : la chaîne ne mesure pas, les durées d'un runner
+variant du simple au double, elle lit ce qu'un poste a mesuré et que le dépôt versionne. Un rapport
+nomme chacune des onze opérations du tableau 15 avec son objectif, sa médiane, sa pire durée, sa
+dispersion (l'écart-type de l'échantillon, n − 1, des passages identiques, en secondes ; seule la
+médiane est confrontée) et, si elle dépasse son objectif ou se dégrade, un `note` qui le documente ;
+une opération que le service ne sert pas encore porte `unserved`, l'EPIC qui la mesurera, et aucune
+durée. La commande compare les deux derniers rapports (`reference.json`, pris avant toute
+correction, n'en est pas un) et affiche, pour chaque opération servie, sa médiane et celle de la
+version précédente, lue dans le rapport précédent et non recopiée : un objectif dépassé, une médiane
+de plus d'un quart au-dessus de celle de la version précédente ou une opération servie par celle-ci
+et qui ne l'est plus est un avertissement de la chaîne (`::warning::`), et un échec si le rapport ne
+le documente pas. Sans rapport précédent, seuls les objectifs comptent ; sans aucun rapport, elle
+passe. Famille `measures` de la chaîne, dans `make check-all`.
+
+`make measure-version` prend le rapport de mesures d'une version (US-2300,
+`frontend/e2e/measure/version.measure.ts`), sur un poste, le poste pour elle seule (`$(exclusive)`,
+« Le poste pour une mesure seule ») : elle remet à zéro les données de la plateforme de service du
+créneau (`make service-down WATERFALL_RESET_DATA=yes`), la démarre, l'amorce et charge le témoin
+comme `make measure`, puis mesure sur PRJ-001, sous la charge de cinquante utilisateurs, chaque
+opération d'écran du tableau 15 que le service sert. La préparation, hors de la mesure, crée par les
+opérations du contrat cinquante et un comptes (`accounts.ts`) — cinquante pour la charge, un pour le
+navigateur —, les inscrit sur PRJ-001, prend au fournisseur d'identité les jetons des utilisateurs
+de la charge, par le flux du front (`frontTokens`), et choisit la tâche que chacun écrit — en mode
+automatique, non démarrée, ni récapitulative ni jalon, réparties sur la seconde moitié du planning,
+loin de celle du navigateur — ; elle écrit le tout dans `frontend/.e2e/load/load.json`, lisible de
+son seul propriétaire, effacé une fois la charge arrêtée. La charge est k6, dans le service `load`
+de la plateforme (profil `load`, image épinglée par son empreinte), qui joue
+`frontend/bench/load.ts` : un fichier TypeScript du front, typé et analysé avec lui (`@types/k6`),
+dont le tirage (`bench/draw.ts`) et les requêtes (`bench/screens.ts`) ont leurs tests unitaires.
+Chaque utilisateur virtuel fait un geste toutes les dix secondes en moyenne, après une pause tirée
+entre cinq et quinze, et une saisie dans chaque suite de dix gestes, à une place tirée : neuf
+lectures pour une saisie, exactement ; le tirage part d'une graine fixe et du numéro de
+l'utilisateur, le même d'une mesure à l'autre. Une lecture demande à l'API ce que porte un écran du
+parcours des grilles — les structures et les nœuds de la grille de planning, de devis ou de reste à
+engager, avec les champs, les genres et les filtres par défaut que demande sa page (le test les
+confronte à `nodeFieldNames`), le devis filtré par un lot, trié, cherché, le plan de charge — ; une
+saisie écrit le libellé de sa tâche, ou une durée qui la redate, au compteur lu, repris du refus
+`412` quand une autre saisie l'a périmé. Les requêtes que le serveur de Next fait à côté pour chaque
+écran (session, projet, navigation) ne sont pas rejouées. k6 parle à l'API et renouvelle chaque
+jeton par son jeton de rafraîchissement, une minute avant son expiration, sur le canal arrière de
+Keycloak, dans le réseau de la plateforme. Sous cette charge, le navigateur joue le parcours des
+grilles de `make measure` (`steps.ts`) puis ouvre le plan de charge par la navigation
+(`workload.ts`, utilisable quand sa section est hydratée et que son graphique est dessiné, le haut
+dans la fenêtre), un passage non mesuré puis `MEASURE_PASSES` (cinq) ; puis, `MEASURE_TASK_PASSES`
+fois (trois), l'export du planning, l'analyse et l'application d'un import de dix-huit mille lignes
+de coût réel, aux pièces propres à chaque passage, et le marquage de la révision en cours, rouverte
+(`createRevision`, hors de la mesure) avant chaque passage après le premier, chacun lu à sa tâche de
+fond (`getBackgroundTask`), de sa soumission à sa fin. Le marquage vient en dernier : il fige la
+révision que la charge écrit, dont les saisies sont dès lors refusées. Le rapport
+(`frontend/e2e/measure/version.ts`) a la forme que `make check-measures` confronte, plus `taken_at`
+et `conditions`, dont les volumes lus à la préparation (tâches, lignes de devis) et le résumé de la charge (gestes, lectures et saisies refusées, durée, gestes attendus) ; ouvrir une grille regroupe les quatre
+ouvertures du parcours, filtrer, trier ou chercher les trois gestes sur le devis, recalculer la
+durée saisie (le libellé ne recalcule rien) ; la médiane et la pire durée sont celles de toutes les
+mesures, la dispersion l'écart-type (n − 1) des médianes des passages. Il s'écrit dans
+`MEASURE_VERSION_REPORT` (`frontend/.e2e/measures/<version>.json`, la version de
+`frontend/package.json` sauf `MEASURE_VERSION`), jamais de lui-même sous `docs/measures/`, où le
+versionne le lot de la version, avec les `note` de ses dépassements. La mesure n'échoue sur aucune
+durée : seulement sur un compte qu'elle ne peut créer, des volumes inférieurs à ceux du §4.6.2 (mille
+tâches, cinq lignes de devis par tâche en moyenne, à l'arrondi près du témoin : 4,9 au moins), une étape que le navigateur ne mène pas à sa fin, une tâche
+de fond qui échoue, ou une charge qui n'a pas tourné comme demandé (`load-check.ts`) : sans résumé,
+un utilisateur refusé faute de jeton, plus d'un pour cent de lectures ou de saisies refusées — les
+saisies refusées par le marquage (`409`), seules attendues, mises à part —, moins de la moitié des
+gestes que promettent les pauses (utilisateurs × durée ÷ 10 s). Les passages d'import ne sont pas à
+volume constant : le deuxième importe ses dix-huit mille lignes à côté des dix-huit mille du
+premier, le troisième à côté de trente-six mille, comme le ferait un projet qui reçoit des coûts, et
+le rapport le dit. Le conteneur de la charge s'arrête à la fin de la mesure, réussie ou non ; après
+une interruption, `make e2e-down` ou `make service-down` l'arrête. `E2E_LOAD_USERS` (cinquante) est
+réservé aux essais — `make measure-version exclusive= E2E_LOAD_USERS=3 MEASURE_PASSES=2
+MEASURE_TASK_PASSES=2` —, et un rapport de version se prend à cinquante : le rapport consigne
+`users`. Mêmes secrets que `make
+service-up`, et le navigateur de `make e2e-browsers` ; le projet Playwright `measure-version`, que
+pose `E2E_PART=measure-version`, n'est joué par aucune cible de la chaîne.
 
 `make tracking ISSUE=<n>` change une ligne du tableau de suivi du corps de l'issue de l'EPIC, par
 `gh`, et ne touche à rien d'autre : `LOT=<identifiant>` (`US-1080` pour une US d'un seul lot,
@@ -3594,7 +3653,7 @@ le bouton « Merge when ready », ou par la mutation `enqueuePullRequest` de l'A
 dépôt. Une branche sans file de fusion fait tourner le palier complet à la main sur la
 branche d'un lot, avant de le fusionner : `gh workflow run chain --ref <branche>`.
 
-Les images tierces de Docker Hub — PostgreSQL, Redis, Caddy, Mailpit, Garage, curl, Node, Python,
+Les images tierces de Docker Hub — PostgreSQL, Redis, Caddy, Mailpit, Garage, curl, k6, Node, Python,
 Debian, Maven, Keycloak et son `keycloak-config-cli` — restent nommées, dans les fichiers Compose et
 les `Dockerfile`, comme sur Docker Hub, par leur empreinte : le poste, la production et la démonstration
 n'en changent pas. Seule la chaîne les tire d'un miroir, `ghcr.io/waterfall-project/mirror/` :

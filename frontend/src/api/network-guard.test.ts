@@ -185,6 +185,8 @@ const DEV_DEPENDENCIES = [
   "@testing-library/jest-dom",
   "@testing-library/react",
   "@testing-library/user-event",
+  // The types of k6 alone, for the scenario of the load (bench/load.ts): nothing that runs in Node.
+  "@types/k6",
   "@types/node",
   "@types/react",
   "@types/react-dom",

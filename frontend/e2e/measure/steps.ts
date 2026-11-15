@@ -21,11 +21,13 @@
  * makes of the server of Next is kept with the bytes of its answer, for the parts of each step
  * (`report.ts`).
  */
-import { expect, type Locator, type Page, type Request } from "@playwright/test";
+import { type Browser, expect, type Locator, type Page, type Request } from "@playwright/test";
 
+import { ESTIMATE_SEARCH, ESTIMATE_SORT } from "../../bench/screens";
 import { pick } from "../check-menu";
 import { columnsOf } from "../columns";
 import { scrollToPosition } from "../scroll";
+import { type Person, signIn } from "../service/realm";
 import { isServerAction } from "../server-action";
 import {
   CLICKED,
@@ -90,7 +92,7 @@ function address(screen: GridScreen): string {
  * `WORKING` is for the paths, but under the load of eight users at once, where the estimate took
  * past fifteen seconds to show.
  */
-const LOADED = 60_000;
+export const LOADED = 60_000;
 
 /** Where the start of a gesture by a key that sends — Enter — is kept, beside that of a click. */
 const KEYED = "wf_measure_keyed";
@@ -269,6 +271,26 @@ export async function player(page: Page, origin: string): Promise<Player> {
   };
 }
 
+/** Sign each user in, in a browser context of its own, outside the measure. */
+export async function signedIn(
+  browser: Browser,
+  users: readonly Person[],
+  origin: string,
+): Promise<Player[]> {
+  const players: Player[] = [];
+  for (const user of users) {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    const one = await player(page, origin);
+    await signIn(page, user, "/account");
+    // The screen of the account prefetches the screens its links lead to: a navigation away before
+    // they are answered leaves requests the browser never ends, and the page would never settle.
+    await settle(one.requests);
+    players.push(one);
+  }
+  return players;
+}
+
 /** The task a user writes: its position among the tasks of the planning, and its label as read. */
 export interface Target {
   readonly position: number;
@@ -327,7 +349,7 @@ export async function targets({ page, requests }: Player, count: number): Promis
 }
 
 /** Forget the marks and the gestures of the page: what follows is the next step's. */
-async function forget(page: Page): Promise<void> {
+export async function forget(page: Page): Promise<void> {
   await page.evaluate(
     ([clicked, keyed]) => {
       performance.clearMarks();
@@ -339,7 +361,7 @@ async function forget(page: Page): Promise<void> {
 }
 
 /** When the last gesture of a kind started, on the clock of the operating system. */
-async function gestureStart(page: Page, key: string): Promise<number> {
+export async function gestureStart(page: Page, key: string): Promise<number> {
   const read = () => page.evaluate((name) => sessionStorage.getItem(name), key);
   await expect.poll(read, { message: `the gesture kept under ${key}` }).not.toBeNull();
   return Number(await read());
@@ -500,7 +522,7 @@ export async function journey(player: Player, target: Target, tag: string): Prom
     [
       "estimate.sort",
       () =>
-        inPlace(page, { grid: ESTIMATE.grid, query: "sort_by=base_amount" }, CLICKED, () =>
+        inPlace(page, { grid: ESTIMATE.grid, query: `sort_by=${ESTIMATE_SORT}` }, CLICKED, () =>
           estimate
             .getByRole("columnheader", { name: "Calculé Montant (année de réf.)" })
             .getByRole("button")
@@ -510,9 +532,12 @@ export async function journey(player: Player, target: Target, tag: string): Prom
     [
       "estimate.search",
       async () => {
-        await page.getByRole("searchbox", { name: "Rechercher un libellé" }).fill("revue");
-        return inPlace(page, { grid: ESTIMATE.grid, query: "search=revue" }, KEYED, () =>
-          page.keyboard.press("Enter"),
+        await page.getByRole("searchbox", { name: "Rechercher un libellé" }).fill(ESTIMATE_SEARCH);
+        return inPlace(
+          page,
+          { grid: ESTIMATE.grid, query: `search=${ESTIMATE_SEARCH}` },
+          KEYED,
+          () => page.keyboard.press("Enter"),
         );
       },
     ],
