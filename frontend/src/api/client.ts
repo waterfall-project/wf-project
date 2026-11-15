@@ -113,6 +113,25 @@ export class Unreachable extends Error {
   }
 }
 
+/**
+ * A write whose connection the API lost once it had left: the request was sent, and no answer came
+ * — the socket closed by the other side, reset, or silent past the delay undici gives an answer. The
+ * API may have done it before the connection was lost, or be doing it still: the screen says so, and
+ * reads anew what it shows before offering to do it again (US-2240). A request that did not leave —
+ * the connection refused, the name of the API unknown, the connection not opened in time — is the API
+ * out of reach (`Unreachable`), and nothing was done.
+ *
+ * Its digest is that of the API out of reach: a write thrown to the screen of failure, rather than
+ * decoded into an outcome (`decode`, `src/api/problem.ts`), is told as before.
+ */
+export class Dropped extends Unreachable {
+  /** The rejection of `fetch`, kept as the cause: what undici said of the connection lost. */
+  constructor(cause: unknown) {
+    super(cause, "the API lost the connection of a write once sent");
+    this.name = "Dropped";
+  }
+}
+
 /** The methods of a read: asked again, it changes nothing on the API. */
 const READS = new Set(["GET", "HEAD"]);
 
@@ -120,10 +139,23 @@ const READS = new Set(["GET", "HEAD"]);
  * What the rejection of `fetch` carries when the API closed the connection before answering:
  * undici's socket closed by the other side (`UND_ERR_SOCKET`, « other side closed »), or reset.
  */
-const DROPPED = new Set(["UND_ERR_SOCKET", "ECONNRESET", "EPIPE"]);
+const DROPPED: ReadonlySet<string> = new Set(["UND_ERR_SOCKET", "ECONNRESET", "EPIPE"]);
 
-/** Whether `fetch` rejected because the API closed the connection before answering. */
-function isDropped(error: unknown): boolean {
+/**
+ * What the rejection of `fetch` carries when a request had left and its answer never came: the
+ * connection dropped (`DROPPED`), or the answer awaited past undici's delay, its head or its body
+ * (`UND_ERR_HEADERS_TIMEOUT`, `UND_ERR_BODY_TIMEOUT`). Any other rejection — `ECONNREFUSED`,
+ * `ENOTFOUND`, `EAI_AGAIN`, `UND_ERR_CONNECT_TIMEOUT`, or one that names no code — is a request that
+ * did not leave.
+ */
+const SENT: ReadonlySet<string> = new Set([
+  ...DROPPED,
+  "UND_ERR_HEADERS_TIMEOUT",
+  "UND_ERR_BODY_TIMEOUT",
+]);
+
+/** Whether `fetch` rejected, the cause of its rejection naming one of the codes given. */
+function failedWith(error: unknown, codes: ReadonlySet<string>): boolean {
   if (!(error instanceof TypeError)) {
     return false;
   }
@@ -133,13 +165,19 @@ function isDropped(error: unknown): boolean {
     cause !== null &&
     "code" in cause &&
     typeof cause.code === "string" &&
-    DROPPED.has(cause.code)
+    codes.has(cause.code)
   );
 }
 
-/** The rejection of `fetch` — a `TypeError` — marked as `Unreachable`; any other error as it is. */
-function marked(error: unknown): unknown {
-  return error instanceof TypeError ? new Unreachable(error) : error;
+/**
+ * The rejection of `fetch` — a `TypeError` — marked as `Unreachable`, or as `Dropped` for a write
+ * that had left; any other error as it is.
+ */
+function marked(error: unknown, read: boolean): unknown {
+  if (!(error instanceof TypeError)) {
+    return error;
+  }
+  return !read && failedWith(error, SENT) ? new Dropped(error) : new Unreachable(error);
 }
 
 /**
@@ -147,9 +185,10 @@ function marked(error: unknown): unknown {
  * connection of before answering is sent once more: a connection kept alive and closed by the API
  * at the very moment it is reused — the API closes an idle one after a delay of its own, which the
  * platform's cannot be sure to stay under, its timer held up by a loaded loop. Sent again, it opens
- * a new one. A write is never sent again: the API may have done it before closing. The read dropped
- * a second time is the API out of reach, and the first drop is written to the log of the server —
- * its method and path, never its query —, never passed over in silence.
+ * a new one. A write is never sent again: the API may have done it before closing, and its loss is
+ * marked `Dropped`, told apart from a write that did not leave. The read dropped a second time is
+ * the API out of reach, and the first drop is written to the log of the server — its method and
+ * path, never its query —, never passed over in silence.
  */
 function transport(send: (request: Request) => Promise<Response>, connections: Connections) {
   return async (request: Request): Promise<Response> => {
@@ -161,8 +200,8 @@ function transport(send: (request: Request) => Promise<Response>, connections: C
       // A read keeps its request whole, to be sent again.
       return await send(read ? request.clone() : request);
     } catch (error) {
-      if (!read || !isDropped(error)) {
-        throw marked(error);
+      if (!read || !failedWith(error, DROPPED)) {
+        throw marked(error, read);
       }
       // The path alone: the query may carry what the log of the server has no need of.
       const { pathname } = new URL(request.url);
@@ -171,7 +210,7 @@ function transport(send: (request: Request) => Promise<Response>, connections: C
     try {
       return await send(request);
     } catch (error) {
-      throw marked(error);
+      throw marked(error, read);
     }
   };
 }

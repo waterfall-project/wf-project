@@ -10,8 +10,9 @@
  * it in a region that scrolls (`estimate_lines`, EP-14/L53; `projects`, EP-14/L54); without a
  * session (401), the way to the sign-in page,
  * which comes back here; and, the API out of reach, that it is — the screen stays, it never goes
- * blank. The objects the refusal gives by their identifiers alone are named as the screen read them,
- * those it was given (`names`).
+ * blank —, or, for a write whose connection was lost once it had left, that it may have been done,
+ * the screen read anew before the command is pressed again (US-2240). The objects the refusal gives
+ * by their identifiers alone are named as the screen read them, those it was given (`names`).
  *
  * Every one is an alert: it follows a command the user just gave, and is announced at once — save
  * the lines or the projects listed, which may run to thousands: out of the alert, which would read
@@ -26,7 +27,15 @@
 import { CircleAlert, LogIn, RefreshCw, WifiOff, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
-import { type ReactNode, useCallback, useId, useMemo } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useTransition,
+} from "react";
 
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
@@ -180,6 +189,30 @@ function Reload({ onClear }: { readonly onClear: () => void }) {
   );
 }
 
+/**
+ * The screen read anew by the server, once, as soon as a write whose connection was lost once sent
+ * is told (US-2240): the API may have done it, and what the screen shows — the commands it offers
+ * among them, the one that would do it again — is read before the user does it again. Said while it
+ * reads; the state of the client, a value entered, is kept, as by any `refresh`. Once per outcome:
+ * the same outcome rendered again, or its effect run twice in development, reads nothing more.
+ */
+function ReadAnew({ lost }: { readonly lost: Outcome<unknown> }) {
+  const t = useTranslations("outcome");
+  const router = useRouter();
+  const [reading, startReading] = useTransition();
+  const read = useRef<Outcome<unknown> | undefined>(undefined);
+  useEffect(() => {
+    if (read.current === lost) {
+      return;
+    }
+    read.current = lost;
+    startReading(() => {
+      router.refresh();
+    });
+  }, [lost, router]);
+  return reading ? <p aria-busy="true">{t("readingAnew")}</p> : null;
+}
+
 /** The offer to read anew what a command confirmed, which has changed since it was read. */
 function RereadOffer({
   reread,
@@ -298,13 +331,18 @@ interface Told {
 function told(
   outcome: Outcome<unknown> | undefined,
   known: ObjectNames,
-  say: { readonly unreachable: string; readonly problem: (problem: Problem) => string },
+  say: {
+    readonly unreachable: string;
+    readonly dropped: string;
+    readonly problem: (problem: Problem) => string;
+  },
 ): Told | undefined {
   if (outcome === undefined || outcome.kind === "done") {
     return undefined;
   }
   if (outcome.kind === "unreachable") {
-    return { refusal: outcome, sentence: say.unreachable, name: undefined };
+    const sentence = outcome.sent === true ? say.dropped : say.unreachable;
+    return { refusal: outcome, sentence, name: undefined };
   }
   const { problem, conflictingObjectId } = outcome;
   return {
@@ -345,6 +383,7 @@ function useSay(known: ObjectNames) {
   return useMemo(
     () => ({
       unreachable: t("unreachable"),
+      dropped: t("dropped"),
       problem: (problem: ProblemText) =>
         problemMessage(problem, { locale, messages, names: known }),
     }),
@@ -443,6 +482,7 @@ export function OutcomeNotice({
           <WifiOff aria-hidden="true" className={ICON} />
           {told.sentence}
         </p>
+        {refusal.sent === true ? <ReadAnew lost={refusal} /> : null}
         {dismiss}
       </div>
     );

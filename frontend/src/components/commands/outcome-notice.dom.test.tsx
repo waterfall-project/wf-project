@@ -94,6 +94,19 @@ function refusedFor(lines: ReturnType<typeof borneLines>) {
   );
 }
 
+/**
+ * The outcome of a write whose `fetch` rejected as undici does, its cause carrying the code of the
+ * network given: decoded as a server action decodes it.
+ */
+function lostWrite(code: string) {
+  const lost = new TypeError("fetch failed", { cause: Object.assign(new Error(code), { code }) });
+  const client = createApiClient({
+    address: "http://api.invalid",
+    fetch: () => Promise.reject(lost),
+  });
+  return decode(() => client.PATCH("/me/preferences", { body: {} }));
+}
+
 beforeEach(() => {
   forgetMessages();
   vi.clearAllMocks();
@@ -180,6 +193,52 @@ describe("the notice of an outcome", () => {
       </NextIntlClientProvider>,
     );
     expect(screen.getByRole("alert")).toHaveTextContent("Le service est injoignable");
+  });
+
+  it.each([
+    ["fr", "l’opération a pu aboutir", "injoignable"],
+    ["en", "the operation may have gone through", "cannot be reached"],
+  ] as const)(
+    "says, in %s, that a write whose connection was lost once sent may have been done, never to try again in a moment (US-2240)",
+    async (locale, said, unsaid) => {
+      const outcome = await lostWrite("UND_ERR_SOCKET");
+      render(
+        <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]}>
+          <OutcomeNotice outcome={outcome} onClear={vi.fn()} />
+        </NextIntlClientProvider>,
+      );
+      const alert = screen.getByRole("alert");
+      expect(alert).toHaveTextContent(said);
+      expect(alert).not.toHaveTextContent(unsaid);
+      expect(readMessages().messages[0]?.sentence).toContain(said);
+    },
+  );
+
+  it("reads the screen anew, once, before the write is offered again, when its connection was lost once sent (US-2240)", async () => {
+    const outcome = await lostWrite("ECONNRESET");
+    const notice = (told: typeof outcome) => (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <OutcomeNotice outcome={told} onClear={vi.fn()} />
+      </NextIntlClientProvider>
+    );
+    const { rerender } = render(notice(outcome));
+    expect(router.refresh).toHaveBeenCalledOnce();
+    // The same outcome rendered again — by the screen read anew — reads nothing more.
+    rerender(notice(outcome));
+    expect(router.refresh).toHaveBeenCalledOnce();
+    // Another write lost the same way reads the screen anew in its turn.
+    rerender(notice(await lostWrite("UND_ERR_SOCKET")));
+    expect(router.refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it("says a write that did not leave out of reach, to try again in a moment, and reads nothing anew (US-2240)", async () => {
+    render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <OutcomeNotice outcome={await lostWrite("ECONNREFUSED")} onClear={vi.fn()} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Le service est injoignable");
+    expect(router.refresh).not.toHaveBeenCalled();
   });
 
   it("names the holder of a value taken by the label the refusal gives it, when the screen does not show it, and by its own name otherwise (#714)", () => {

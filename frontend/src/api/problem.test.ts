@@ -170,6 +170,23 @@ describe("the decoder of an answer of the API", () => {
     expect(outcome).toEqual({ kind: "unreachable" });
   });
 
+  it.each([
+    ["ECONNREFUSED", { kind: "unreachable" }],
+    ["ENOTFOUND", { kind: "unreachable" }],
+    ["UND_ERR_SOCKET", { kind: "unreachable", sent: true }],
+    ["ECONNRESET", { kind: "unreachable", sent: true }],
+  ] as const)(
+    "tells a write that did not leave apart from one whose connection was lost once sent, here %s (US-2240)",
+    async (code, expected) => {
+      const lost = new TypeError("fetch failed", {
+        cause: Object.assign(new Error(code), { code }),
+      });
+      const client = answering(() => Promise.reject(lost));
+      const outcome = await decode(() => client.PATCH("/me/preferences", { body: {} }));
+      expect(outcome).toEqual(expected);
+    },
+  );
+
   it("takes an answer without the envelope for the unexpected error of the service", async () => {
     const client = answering(() =>
       Promise.resolve(

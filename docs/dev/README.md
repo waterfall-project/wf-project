@@ -2829,7 +2829,13 @@ then leaves on a connection the API has just closed, and `fetch` rejects it (`UN
 A read (`GET`, `HEAD`) cut this way leaves a second time, on a new connection, and the cut is
 written to the server's log (`console.warn`); cut again, it is the API out of reach
 (`Unreachable`), never a silence. A write never leaves again: the API may have done it before
-closing. `WATERFALL_API_CONNECTIONS` says how the server holds its connections: `kept`, or nothing,
+closing. Its connection lost once it has left — `UND_ERR_SOCKET`, `ECONNRESET`, `EPIPE`, or its
+answer awaited past undici's delay, `UND_ERR_HEADERS_TIMEOUT`, `UND_ERR_BODY_TIMEOUT` —, it is
+`Dropped`, which the decoder makes an outcome `unreachable` with `sent`: `OutcomeNotice` says that
+the operation may have gone through, and reads the screen anew (`router.refresh`) before the command
+is pressed again (US-2240). A write that did not leave — `ECONNREFUSED`, `ENOTFOUND`, any other
+rejection — and any read keep « The service cannot be reached; try again in a moment. ».
+`WATERFALL_API_CONNECTIONS` says how the server holds its connections: `kept`, or nothing,
 in production as in development; `closed`, one connection per request, closed once answered
 (`Connection: close`), which only the harness sets (« An end-to-end path »), and which the server,
 started this way outside the harness of the fake back (`WATERFALL_E2E`), reports once to the log;

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { UNREACHABLE_DIGEST } from "@/components/system/failure";
 
-import { API_PREFIX, createApiClient, Unreachable } from "./client";
+import { API_PREFIX, createApiClient, Dropped, Unreachable } from "./client";
 
 /** A fetch that records the requests it receives, and answers an empty object. */
 function recorder(): {
@@ -189,7 +189,7 @@ describe("a connection the API drops before answering (#1145)", () => {
     const { send, sent } = failing(dropped, dropped, dropped, dropped);
     const client = createApiClient({ address: "http://localhost:4010", fetch: send });
     await expect(client.POST("/projects", { body: { label: "Poste" } })).rejects.toMatchObject({
-      name: "Unreachable",
+      name: "Dropped",
       cause: dropped,
     });
     await expect(client.DELETE("/me/sessions")).rejects.toBeInstanceOf(Unreachable);
@@ -234,6 +234,75 @@ describe("a connection the API drops before answering (#1145)", () => {
       "close",
       null,
     ]);
+  });
+});
+
+describe("a write whose connection is lost once it has left (US-2240)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    "UND_ERR_SOCKET",
+    "ECONNRESET",
+    "EPIPE",
+    "UND_ERR_HEADERS_TIMEOUT",
+    "UND_ERR_BODY_TIMEOUT",
+  ])(
+    "marks a write lost by %s as dropped once sent, never sent again, told as the API out of reach to the screen of failure",
+    async (code) => {
+      const lost = rejection(code);
+      const { send, sent } = failing(lost);
+      const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+      const write = client.POST("/projects", { body: { label: "Poste" } });
+      await expect(write).rejects.toBeInstanceOf(Dropped);
+      // Still the API out of reach to whatever reads only that, the screen of failure included.
+      await expect(write).rejects.toMatchObject({ cause: lost, digest: UNREACHABLE_DIGEST });
+      expect(sent).toHaveLength(1);
+    },
+  );
+
+  it.each(["PUT", "PATCH", "DELETE"] as const)(
+    "marks any write lost once sent as dropped, %s as well as POST, not the opening of a revision alone",
+    async (method) => {
+      const { send } = failing(rejection("UND_ERR_SOCKET"));
+      const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+      // The method of the request as it leaves: the rule is the method's, not the operation's.
+      client.use({ onRequest: ({ request }) => new Request(request, { method }) });
+      await expect(client.POST("/projects", { body: { label: "Poste" } })).rejects.toBeInstanceOf(
+        Dropped,
+      );
+    },
+  );
+
+  it.each(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "UND_ERR_CONNECT_TIMEOUT"])(
+    "marks a write that did not leave, refused by %s, as the API out of reach, not as dropped",
+    async (code) => {
+      const { send } = failing(rejection(code));
+      const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+      const write = client.POST("/projects", { body: { label: "Poste" } });
+      await expect(write).rejects.toBeInstanceOf(Unreachable);
+      await expect(write).rejects.not.toBeInstanceOf(Dropped);
+    },
+  );
+
+  it("marks a write rejected without a code as the API out of reach, not as dropped", async () => {
+    const down = createApiClient({
+      address: "http://localhost:4010",
+      fetch: () => Promise.reject(new TypeError("fetch failed")),
+    });
+    await expect(down.POST("/projects", { body: { label: "Poste" } })).rejects.not.toBeInstanceOf(
+      Dropped,
+    );
+  });
+
+  it("never marks a read as dropped: dropped twice, it is the API out of reach", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { send } = failing(rejection("UND_ERR_SOCKET"), rejection("UND_ERR_SOCKET"));
+    const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+    const read = client.GET("/health");
+    await expect(read).rejects.toBeInstanceOf(Unreachable);
+    await expect(read).rejects.not.toBeInstanceOf(Dropped);
   });
 });
 

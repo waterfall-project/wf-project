@@ -500,7 +500,7 @@ lectures simultanées durent chacune six fois une lecture seule.
 
 ## US-2240 — Ouvrir une révision d'un projet de mille tâches en deux secondes, sans que le front la dise injoignable
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-REV-0010-A`
 - **opérations** : `createRevision`, `listRevisions`
 - **issue** : #3312
