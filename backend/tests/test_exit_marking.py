@@ -175,7 +175,7 @@ def test_an_exit_whose_marking_fails_applies_nothing_and_can_be_asked_again(
     open_revision(api, stage)
     before = written(database, stage)
 
-    def failing(_session: Session, _revision: UUID) -> None:
+    def failing(_session: Session, _revision: UUID, _act: Act) -> None:
         raise UnprocessableError(HOURLY_RATE_MISSING, MISSING_RATES)
 
     with ExitStack() as registered:

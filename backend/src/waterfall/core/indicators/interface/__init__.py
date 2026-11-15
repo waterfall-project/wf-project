@@ -1,0 +1,77 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+"""What the indicators (FBS-4.8) offer to the API, the worker, the other modules and the witness.
+
+One file per object, each filled by the story that serves it and re-exported here: the names of a
+file are imported in a statement of their own, below the comment that names the file, so that two
+stories filling two files write two places of this one. Every function the design names (EP-10,
+"Modules") is declared from US-1660/L1 on: it raises ``NotImplementedError`` naming the story that
+fills it, but for the entry the marking calls before, without effect until then. A name a story
+adds besides joins the import of its file, below the comment that names it. Another module imports
+them from here, never from the file; no module of the domain imports this one, which reads the
+interfaces of the estimate, the actual costs, the planning, the revisions, the projects and the
+settings.
+
+The indicators fill, at the import of this interface, ``register_indicators`` of the revisions:
+``store_indicators``, which keeps the indicators of a revision in the transaction of its marking
+(US-1670/L1). The entry points that mark a revision — the API, which imports it from US-1660/L1 on,
+the loader of the witness, which marks by ``load_marking``, and the worker, which imports it from
+US-1670/L1 on (EP-10, "Le worker") — import it (#2180).
+"""
+
+# ``curves`` (US-1660/L1; US-1690/L2, US-1690/L3): the cumulative costs, the earned value curves.
+from waterfall.core.indicators.interface.curves import (
+    cost_curve as cost_curve,
+)
+from waterfall.core.indicators.interface.curves import (
+    earned_value_curves as earned_value_curves,
+)
+
+# ``documents`` (US-1660/L1): the documents a reading answers and a marking keeps, and their kinds.
+from waterfall.core.indicators.interface.documents import (
+    Document as Document,
+)
+from waterfall.core.indicators.interface.documents import (
+    IndicatorKind as IndicatorKind,
+)
+
+# ``index_history`` (US-1660/L1; US-1700): the evolution of the indices.
+from waterfall.core.indicators.interface.index_history import (
+    index_history as index_history,
+)
+
+# ``milestone_tracking`` (US-1660/L1; US-1710): the time/time diagram.
+from waterfall.core.indicators.interface.milestone_tracking import (
+    milestone_tracking as milestone_tracking,
+)
+
+# ``physical_progress`` (US-1660/L1; US-1680): the physical progress of the summary tasks.
+from waterfall.core.indicators.interface.physical_progress import (
+    physical_progress as physical_progress,
+)
+
+# ``project_indicators`` (US-1660/L1; US-1660/L3, US-1670/L2): the indicators of a project.
+from waterfall.core.indicators.interface.project_indicators import (
+    project_indicators as project_indicators,
+)
+
+# ``reading`` (US-1660/L1): what a reading asks, its revision, its scope and its instant.
+from waterfall.core.indicators.interface.reading import (
+    IndicatorsReading as IndicatorsReading,
+)
+
+# ``stored_documents`` (US-1660/L1; US-1670/L2): a document a marked revision kept.
+from waterfall.core.indicators.interface.stored_documents import (
+    stored_document as stored_document,
+)
+
+# ``storing`` (US-1660/L1; US-1670/L1): what a revision keeps at its marking.
+from waterfall.core.indicators.interface.storing import (
+    store_indicators as store_indicators,
+)
+
+# The registry the indicators fill.
+from waterfall.core.revisions.interface import register_indicators
+
+# The registration, once, at the import: what a marking keeps of the indicators (US-1670/L1).
+register_indicators(store_indicators)

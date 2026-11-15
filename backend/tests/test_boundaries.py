@@ -109,8 +109,9 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "rates",
     },
 }
-# The modules of the planning, the history and the exchanges (EP-06), one file per story or
-# subject, laid by the socle (US-1380/L1) so that no later story opens their ``__init__``.
+# The modules of the planning, the history and the exchanges (EP-06), and of the indicators (EP-10),
+# one file per story or subject, laid by their socle (US-1380/L1, US-1660/L1) so that no later story
+# opens their ``__init__``.
 PLANNING_INTERFACES: dict[str, set[str]] = {
     "planning": {
         "closing",
@@ -134,6 +135,17 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
     },
     "history": {"closing", "plans", "purge", "recording", "undo"},
     "exchanges": {"damages", "exports", "imports", "loading", "purge", "xml"},
+    "indicators": {
+        "curves",
+        "documents",
+        "index_history",
+        "milestone_tracking",
+        "physical_progress",
+        "project_indicators",
+        "reading",
+        "stored_documents",
+        "storing",
+    },
 }
 # What the design names of each (EP-04, "Modules"), declared from US-0910/L1 on, which the other
 # stories call before theirs fill them.
@@ -230,6 +242,18 @@ DESIGNED: dict[str, set[str]] = {
         "remove_purged",
         "stored_before",
         "hardened_parser",
+    },
+    # EP-10, "Modules": what the API, the marking, the planning and the readings of EP-07 and EP-09
+    # call before the story that fills each.
+    "indicators": {
+        "project_indicators",
+        "cost_curve",
+        "earned_value_curves",
+        "index_history",
+        "milestone_tracking",
+        "store_indicators",
+        "physical_progress",
+        "stored_document",
     },
 }
 
@@ -519,6 +543,8 @@ SILENT = {
         "detach_work_breakdown_item",
     },
     "history": {"close_history"},
+    # What the marking calls before the story that keeps the indicators (US-1670/L1).
+    "indicators": {"store_indicators"},
 }
 
 
