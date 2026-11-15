@@ -3291,6 +3291,12 @@ inserts, under the
 lot `AFTER` and in the same story, the row of the new lot (`US-0820b` for the part cut off a story
 of one lot, `US-1270/L3` for a story of several; cells `#`, `US`, « Statut » empty, « Dépend de »
 and « Pas avec » the list or `—`, « État du lot » `à faire`) and refuses a lot already there;
+`ADD_US=<US-nnnn> AFTER=<US-mmmm> [US_ISSUE=<n>] [FIRST_LOT=<Ln>] [LOT_ISSUE=<n>] [DEPENDS=<list>]
+[NOT_WITH=<list>] [MODEL=…]` inserts the row of the new story under the last row of `AFTER` (story
+and lots): its rank is the one of `AFTER` plus 1, the stories below are renumbered, its cell « Lot »
+is `lot unique` without `FIRST_LOT` and `<Ln>` with it (`LOT_ISSUE`, the issue of that first lot,
+goes with `FIRST_LOT` only: a `lot unique` has no issue of its own), and a story already there is
+refused;
 `REPLACE_DEPENDENCY='<old>=<new>'` replaces the mention of the old lot in « Dépend de » of every
 row that holds it, except the row of the new lot itself, removes with it the ` #n` that follows it
 (the issue of the old lot never stays on the new one), says how many rows changed and refuses when
