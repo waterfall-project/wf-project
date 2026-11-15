@@ -540,9 +540,7 @@ def test_a_mode_sent_with_a_duration_that_carries_a_line_beyond_its_column_is_na
     at_its_limit(lines, costs, task)
     before = kept_line(tree)
     read = tree.node(task["node_id"])
-    refused = tree.change(
-        read, scheduling_mode="automatic", duration={"value": "500", "unit": "d"}
-    )
+    refused = tree.change(read, scheduling_mode="automatic", duration={"value": "500", "unit": "d"})
     assert faults(refused) == [
         ("/scheduling_mode", PRECISION, {}),
         ("/duration", PRECISION, {}),
