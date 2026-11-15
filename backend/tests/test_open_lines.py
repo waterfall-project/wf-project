@@ -771,10 +771,10 @@ def test_the_tasks_read_alone_derive_from_their_lines_what_the_whole_reading_der
 ) -> None:
     # US-2280: ``kinds=task`` reads none of the lines, but what they count under each task, and
     # derives the state of a summary held open (WF-PLA-0040) and its date of completion
-    # (WF-PLA-0130) as the whole reading does. A summary its own line holds open (the batch), one its own line set to
-    # nought completed on Friday (the phase), one a provision does not hold (the hazards): their
-    # state, their signal, their sums and the places of their subtasks, after their lines, are
-    # those the whole reading derives.
+    # (WF-PLA-0130) as the whole reading does. A summary its own line holds open (the batch), one
+    # its own line set to nought completed on Friday (the phase), one a provision does not hold
+    # (the hazards): their state, their signal, their sums and the places of their subtasks, after
+    # their lines, are those the whole reading derives.
     tree = review.tree
     moved(tree, "Jalon", "completed", DAY)
     done(tree, "Essai")

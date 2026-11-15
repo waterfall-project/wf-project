@@ -59,7 +59,6 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from sqlalchemy import Subquery
-
     from sqlalchemy.orm import Session
 
     from waterfall.core.planning.interface.facets import FacetHooks
