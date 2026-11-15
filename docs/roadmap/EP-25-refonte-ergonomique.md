@@ -612,7 +612,7 @@ la lecture de `include_inactive` y disparaissent.
 
 ## US-2100 — Les écrans d'administration en cartes : utilisateurs, rôles, sauvegardes, journal d'audit
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
 - **issue** : #3226

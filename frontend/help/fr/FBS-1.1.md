@@ -4,18 +4,18 @@
 
 Les comptes de l’installation, hors de tout projet : chaque compte avec son origine, le nœud d’organisation auquel il est rattaché, ses rôles d’habilitation et son état. Un compte désactivé reste listé et peut être réactivé ; aucun écran ne supprime un compte. Les rôles donnent les permissions, et la permission ne dit que ce qu’un compte peut faire : c’est la liste des contributeurs d’un projet qui dit sur quels projets.
 
-En tête, le compte rendu de la dernière lecture des comptes du fournisseur d’identité qui a abouti, ou l’indication qu’aucune n’a encore abouti : les comptes créés — sans rôle —, mis à jour, désactivés, les identités de comptes locaux rétablies dans le fournisseur, les comptes locaux qui en ont été retirés, et ce qui a été laissé tel quel, avec son motif, sous **Détails de la dernière lecture**.
+La table des comptes, dans sa carte, que le serveur trie, cherche, filtre et pagine ; son pied dit combien de comptes il retient.
+
+Sous la table, dans une carte à part, la lecture des comptes du fournisseur d’identité : son titre, la commande **Lire les comptes** à sa droite, à contour, et en corps le compte rendu de la dernière lecture des comptes du fournisseur d’identité qui a abouti, ou l’indication qu’aucune n’a encore abouti : les comptes créés — sans rôle —, mis à jour, désactivés, les identités de comptes locaux rétablies dans le fournisseur, les comptes locaux qui en ont été retirés, et ce qui a été laissé tel quel, avec son motif, sous **Détails de la dernière lecture**.
 
 Sous ce compte rendu, la **Périodicité de la lecture** : la plateforme lit d’elle-même les comptes du fournisseur d’identité, chaque jour par défaut, à l’heure et, pour une lecture hebdomadaire, au jour réglés ; l’écran dit si la lecture planifiée est active ou suspendue, sa fréquence, son jour et son heure en temps universel (UTC).
-
-Puis la table des comptes, que le serveur trie, cherche, filtre et pagine ; son pied dit combien de comptes il retient.
 
 ## Ses commandes
 
 Ces commandes ne sont offertes qu’à qui peut modifier les comptes ; aux autres, l’écran se lit.
 
 - **Lire les comptes** demande une nouvelle lecture des comptes du fournisseur d’identité. Elle se fait en tâche de fond : le panneau des tâches la suit et propose, à sa fin, de relire l’écran, où paraît son compte rendu.
-- **Créer un compte local** ouvre le formulaire : nom, prénom et adresse électronique, tous trois requis. Le compte naît sans rôle ni moyen de se connecter : son titulaire reçoit par courriel le lien qui lui fait fixer son mot de passe. Quand aucune invitation n’a pu partir, le formulaire le dit et offre **Remettre le lien**.
+- **Créer un compte local**, bouton plein à droite du titre de la carte des comptes, ouvre le formulaire : nom, prénom et adresse électronique, tous trois requis. Le compte naît sans rôle ni moyen de se connecter : son titulaire reçoit par courriel le lien qui lui fait fixer son mot de passe. Quand aucune invitation n’a pu partir, le formulaire le dit et offre **Remettre le lien**.
 - **Modifier la périodicité** ouvre le formulaire de la périodicité de la lecture : actif ou suspendu, quotidienne ou hebdomadaire, le jour pour une lecture hebdomadaire seulement, et l’heure en temps universel (UTC), avec l’heure locale de ce poste qu’elle représente. La périodicité s’enregistre entière ; une lecture en cours n’est pas interrompue, le réglage vaut dès la suivante.
 - Dans la table, le nom et le prénom d’un compte créé dans Waterfall se saisissent dans leur cellule ; ceux d’un compte de l’annuaire ou du fournisseur d’identité sont les leurs, et ne se saisissent pas.
 - **État** : l’interrupteur active ou désactive le compte. La désactivation est indisponible pour le dernier compte actif qui porte les permissions d’administration (« un autre compte actif portant les permissions d’administration »), et la réactivation d’un compte anonymisé l’est toujours.

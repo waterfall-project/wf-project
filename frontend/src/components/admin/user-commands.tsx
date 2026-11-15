@@ -56,7 +56,9 @@ import type { Outcome } from "@/api/problem";
 import { useAccountNaming } from "@/components/account/account-name";
 import { useHeldCommand } from "@/components/commands/held";
 import { rejected } from "@/components/commands/rejection";
-import { type Say, useSaid } from "@/components/notices/said";
+import { byField } from "@/components/grid/cell-writes";
+import { type Said, type Say, useSaid } from "@/components/notices/said";
+import type { PrincipalVariant } from "@/components/shell/section-card";
 import { Reactivations, useListReport } from "@/components/reference/reactivation";
 import { Button } from "@/components/ui/button";
 
@@ -150,6 +152,8 @@ export interface UserWrites {
   readonly anonymize: (user: User, back: HTMLElement | null) => void;
   /** Say in the region of the table what a command did, or the condition it lacks. */
   readonly say: Say;
+  /** What the last command said, which the region at the head of the card tells. */
+  readonly said: Said | undefined;
 }
 
 const WritesContext = createContext<UserWrites | undefined>(undefined);
@@ -186,7 +190,7 @@ export function UserCommands({ children }: { readonly children: ReactNode }) {
       messages={own}
       {...(timeZone === undefined ? {} : { timeZone })}
     >
-      <Reactivations reads={USER_READS} fill>
+      <Reactivations reads={USER_READS}>
         <Writes>{children}</Writes>
       </Reactivations>
     </NextIntlClientProvider>
@@ -380,7 +384,9 @@ function Writes({ children }: { readonly children: ReactNode }) {
           const outcome = await reserve(row, {
             send: (user) => {
               sentFrom = user.lock_version;
-              return send(user).catch(rejected);
+              // A refusal by field says its reason — a node deactivated since, #3271 — as the cell of
+              // the attachment tells it.
+              return send(user).then(byField).catch(rejected);
             },
           });
           if (outcome.kind === "done") {
@@ -502,6 +508,7 @@ function Writes({ children }: { readonly children: ReactNode }) {
       resending,
       anonymize,
       say,
+      said,
     }),
     [
       answered,
@@ -519,18 +526,11 @@ function Writes({ children }: { readonly children: ReactNode }) {
       resending,
       anonymize,
       say,
+      said,
     ],
   );
   return (
     <WritesContext value={writes}>
-      <p
-        role="status"
-        aria-live="polite"
-        aria-label={t("told")}
-        className="min-h-5 text-sm text-muted-foreground"
-      >
-        {said === undefined ? null : <span key={said.count}>{said.text}</span>}
-      </p>
       {children}
       {creating === undefined ? null : (
         <UserCreation
@@ -592,23 +592,38 @@ function Writes({ children }: { readonly children: ReactNode }) {
   );
 }
 
-/** The command that opens the creation of a local account, at the head of the table. */
-export function CreateUser() {
+/**
+ * The command that opens the creation of a local account, at the right of the title of the card of
+ * the accounts — the principal command of the card, which draws it at its variant —, after the
+ * region that says what the last write of the table did, rendered from the start so that a reader
+ * of the screen hears what is put in it, and taking no room while it says nothing.
+ */
+export function CreateUser({ variant = "outline" }: { readonly variant?: PrincipalVariant }) {
   const t = useTranslations("admin.users");
   const writes = useUserWrites();
+  const said = writes?.said;
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      className="self-start"
-      aria-haspopup="dialog"
-      onClick={(event) => {
-        writes?.create(event.currentTarget);
-      }}
-    >
-      <UserPlus aria-hidden="true" />
-      {t("create")}
-    </Button>
+    <div className="flex flex-wrap items-center gap-2">
+      <p
+        role="status"
+        aria-live="polite"
+        aria-label={t("told")}
+        className="text-sm text-muted-foreground empty:sr-only"
+      >
+        {said === undefined ? null : <span key={said.count}>{said.text}</span>}
+      </p>
+      <Button
+        type="button"
+        variant={variant}
+        size="sm"
+        aria-haspopup="dialog"
+        onClick={(event) => {
+          writes?.create(event.currentTarget);
+        }}
+      >
+        <UserPlus aria-hidden="true" />
+        {t("create")}
+      </Button>
+    </div>
   );
 }

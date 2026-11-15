@@ -4,13 +4,13 @@
 
 The access roles of the installation, outside any project, and the permissions each one gives. A role is predefined — delivered with the installation — or composed by an administrator; an account holds none, one or several roles, and has its permissions from their union. A permission says what an account may do, never on which project.
 
-From top to bottom: the table of the roles, each with its kind and the number of accounts that hold it, which the server sorts, searches and filters; then the matrix **Permissions by function**: a row per permission of the catalogue, filed under the name of the function it covers, and a column per role the table keeps, in its order, each box saying whether the role holds the permission. No screen creates a permission: the catalogue is that of the installation.
+From top to bottom: the table of the roles, in its card, each with its kind and the number of accounts that hold it, which the server sorts, searches and filters; then the matrix **Permissions by function**: a row per permission of the catalogue, filed under the name of the function it covers, and a column per role the table keeps, in its order, each box saying whether the role holds the permission. As the matrix scrolls, its header and the **Function** column stay in view. No screen creates a permission: the catalogue is that of the installation.
 
 ## Its commands
 
 These commands are offered only to whoever may modify the roles; to the others, the screen is read only.
 
-- **New role** and **Create a role**, at the top of the table, create a role made of its label alone, without a permission: its permissions are then checked in the matrix. A label left empty is refused at its field.
+- **New role**, a filled button at the right of the title of the card of the roles, opens a dialog where the label is entered; **Create** creates a role made of that label alone, without a permission: its permissions are then checked in the matrix. A label left empty is refused at its field.
 - The label of a role is entered in its cell, which renames it.
 - **Delete**, once confirmed, deletes the role; nothing restores it, and a role created again under the same label is never predefined. Unavailable while an account holds the role: the command says how many.
 - In the matrix, each box is a checkbox: checked or unchecked, it saves the permissions of the role at once. The other boxes of the role wait for the answer of the server; a refusal is said above the matrix, and the box takes back its former state.

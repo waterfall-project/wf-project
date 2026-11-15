@@ -55,6 +55,7 @@ import type { Outcome } from "@/api/problem";
 import { useHeldCommand } from "@/components/commands/held";
 import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { WaitingIcon, waitingAttributes } from "@/components/commands/waiting";
 import { LocalTime, useLocalTimestamp } from "@/components/local-time";
 import { useNoteMessage } from "@/components/notices/message-history";
 import { type Said, type Say, useSaid } from "@/components/notices/said";
@@ -62,7 +63,7 @@ import { CellCommand, UnavailableCellCommand } from "@/components/reference/cell
 import { ANOTHER_OBJECT, focusBack, WrittenRegion } from "@/components/reference/commands";
 import { useListReport } from "@/components/reference/reactivation";
 import type { ResultRefusal } from "@/components/tasks/result-refusal";
-import { afterReveal, useTrackTask } from "@/components/tasks/task-tracker";
+import { afterReveal, useTaskRunning, useTrackTask } from "@/components/tasks/task-tracker";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -173,14 +174,18 @@ function StartBackupButton() {
   // Busy from the press to the answer, and lifted in the very update that tells it — not a transition,
   // whose end would wait for every other async action of the page (#1484).
   const [busy, setBusy] = useState(false);
+  // The task of the last backup asked: the command waits while it runs (WF-IHM-0080, #3279).
+  const [started, setStarted] = useState<string>();
+  const running = useTaskRunning(started);
+  const waiting = busy || running;
   return (
     <Button
       type="button"
       variant="outline"
       size="sm"
-      aria-busy={busy}
+      {...waitingAttributes(waiting)}
       onClick={() => {
-        if (busy) {
+        if (waiting) {
           return;
         }
         const generation = list?.generation ?? 0;
@@ -189,6 +194,7 @@ function StartBackupButton() {
           setBusy(false);
           if (outcome.kind === "done") {
             track(outcome.data, { command: startBackup });
+            setStarted(outcome.data.task_id);
             // The tracker notes the task handed over: the history has it once.
             commands?.say(t("started"), { noted: false });
           } else {
@@ -197,7 +203,7 @@ function StartBackupButton() {
         });
       }}
     >
-      <DatabaseBackup aria-hidden="true" />
+      <WaitingIcon waiting={waiting} icon={<DatabaseBackup aria-hidden="true" />} />
       {t("start")}
     </Button>
   );

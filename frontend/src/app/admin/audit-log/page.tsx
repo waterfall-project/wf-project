@@ -236,7 +236,7 @@ function Inscriptions({
       />
       <ListPages
         list={AUDIT_LIST}
-        texts="admin.pages"
+        texts="admin.auditLog.pages"
         page={journal.meta}
         shown={journal.items.length}
       />

@@ -21,7 +21,8 @@ import { type DragEvent, useCallback, useId, useRef, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
-import { useWhenTaskFails } from "@/components/tasks/task-tracker";
+import { WaitingIcon, waitingAttributes } from "@/components/commands/waiting";
+import { useTaskRunning, useWhenTaskFails } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
 
 import { IMPORT_MAX_BYTES, MEBIBYTE } from "./offers";
@@ -67,6 +68,9 @@ export function FileDrop({
   const [sent, setSent] = useState<string>();
   // The task that analyses the file sent: its failure frees the zone.
   const [analysis, setAnalysis] = useState<string>();
+  // The button waits while the file is sent and while its analysis runs (WF-IHM-0080, #3279).
+  const analysing = useTaskRunning(analysis);
+  const waiting = busy || analysing;
   // The drags that entered the zone or one of its children and did not leave yet.
   const depth = useRef(0);
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
@@ -160,7 +164,9 @@ export function FileDrop({
         type="button"
         variant="outline"
         size="sm"
-        aria-disabled={busy || sent !== undefined ? true : undefined}
+        {...waitingAttributes(waiting)}
+        // A file sent whose analysis was not handed over: no other is taken, the button marked all the same.
+        {...(sent !== undefined ? { "aria-disabled": true } : {})}
         aria-describedby={problem === undefined ? undefined : `${id}-problem`}
         onClick={() => {
           if (!busy && sent === undefined) {
@@ -168,7 +174,7 @@ export function FileDrop({
           }
         }}
       >
-        <Upload aria-hidden="true" />
+        <WaitingIcon waiting={waiting} icon={<Upload aria-hidden="true" />} />
         {t("choose")}
       </Button>
       {sending === undefined ? null : (
