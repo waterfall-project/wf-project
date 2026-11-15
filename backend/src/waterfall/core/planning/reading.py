@@ -3,8 +3,8 @@
 """What a reading derives of a structure, and a structure read whole, private to the module.
 
 ``reading_of`` reads what a reading of a structure derives once for all its nodes — its links, its
-calendars, its states —, which ``listNodes`` reads by (``nodes``), of the tree read as rows: a
-reading writes nothing, and the objects of the session are the writes' (US-2220).
+calendars, its states — from the tree read as rows, which ``listNodes`` uses: a reading writes
+nothing, and the objects of the session are left to the writes (US-2220).
 ``read_structure`` reads a structure whole and what the filters of a reading retain of it, without
 the ancestors a reading adds and whatever its kinds and its sort: what the comparison of two
 revisions reads of each (``compareRevisions``, US-1530), which numbers and orders their union

@@ -86,6 +86,11 @@ DIGESTS = {
 }
 
 
+# The SHA-256 of ``listNodes`` of the marked revision REVISION_100, whole: its labels are read
+# through the revisions of the tasks bearing the lines. Taken at 587127f0c, as the others.
+MARKED_DIGEST = "eaadbe84e77482ac75b037e5a3269ab44183badd3154112f6d9818a503967dae"
+
+
 def digest(api: ContractClient, witness: Database, realm: TestRealm, url: str) -> str:
     """Read a route as a reader of the project, unchecked; give the SHA-256 of its body."""
     answer = api.client.get(url, headers=person(witness, realm, *READING).headers)
@@ -112,3 +117,12 @@ def test_the_comparison_of_two_revisions_reads_to_the_byte_what_it_read_before_t
         f"?from_revision_id={REVISION_100}&to_revision_id={REVISION_101}{COMPARISONS[name]}"
     )
     assert digest(api, witness, realm, url) == DIGESTS[name]
+
+
+def test_the_nodes_of_a_marked_revision_read_to_the_byte_what_they_read_before_the_lot(
+    api: ContractClient, witness: Database, realm: TestRealm
+) -> None:
+    with witness.transaction() as session:
+        structure = structure_of(session, REVISION_100)
+    url = f"{PROJECTS}/{PRJ_001}/revisions/{REVISION_100}/structures/{structure}/nodes"
+    assert digest(api, witness, realm, url) == MARKED_DIGEST

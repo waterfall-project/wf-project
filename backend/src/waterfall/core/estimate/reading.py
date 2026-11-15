@@ -181,28 +181,29 @@ _LINE_COLUMNS = (
 )
 
 
-def budgeted_of(line: LineColumns) -> Decimal:
+class _Figures(NamedTuple):
+    """What a line counts in the totals, as columns: its hours, its amounts, its year."""
+
+    hours: Decimal | None
+    base_amount: Decimal
+    budgeted_amount: Decimal | None
+    reestimated_amount: Decimal
+    consumption_year: int
+
+
+def budgeted_of(line: LineColumns | _Figures) -> Decimal:
     """Give the budgeted amount of a line as read: its re-estimated one without a reference."""
     return line.reestimated_amount if line.budgeted_amount is None else line.budgeted_amount
 
 
-def _amounts(
-    hours: Decimal | None,
-    base: Decimal,
-    budgets: tuple[Decimal | None, Decimal],
-    year: int,
-) -> Amounts:
-    """Give what a line counts in the totals; ``budgets`` its budgeted and re-estimated amounts.
-
-    The budgeted amount as ``budgeted_of`` reads it.
-    """
-    budgeted, reestimated = budgets
+def _amounts(line: LineColumns | _Figures) -> Amounts:
+    """Give what a line counts in the totals: its hours, its three amounts, its year."""
     return Amounts(
-        hours or Decimal(0),
-        base,
-        reestimated if budgeted is None else budgeted,
-        reestimated,
-        year,
+        line.hours or Decimal(0),
+        line.base_amount,
+        budgeted_of(line),
+        line.reestimated_amount,
+        line.consumption_year,
     )
 
 
@@ -252,10 +253,7 @@ def totals_of(
             EstimateLine.consumption_year,
         ).where(EstimateLine.project_id == project_id, among(EstimateLine.node_id, node_ids))
     )
-    return {
-        node_id: _amounts(hours, base, (budgeted, reestimated), year)
-        for node_id, hours, base, budgeted, reestimated, year in rows
-    }
+    return {row.node_id: _amounts(_Figures(*row[1:])) for row in rows}
 
 
 @dataclass(frozen=True, slots=True)
@@ -384,15 +382,7 @@ def line_columns(session: Session, project_id: UUID, node_ids: Collection[UUID])
     bearing it, which the reader is given: it is not read again.
     """
     rows = {row.node_id: row for row in line_rows(session, project_id, node_ids)}
-    figures = {
-        node_id: _amounts(
-            row.hours,
-            row.base_amount,
-            (row.budgeted_amount, row.reestimated_amount),
-            row.consumption_year,
-        )
-        for node_id, row in rows.items()
-    }
+    figures = {node_id: _amounts(row) for node_id, row in rows.items()}
 
     def read(lines: Mapping[UUID, BearingTask]) -> dict[UUID, FacetRead]:
         held = [rows[each] for each in lines if each in rows]
