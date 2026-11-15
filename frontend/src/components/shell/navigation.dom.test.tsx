@@ -217,6 +217,13 @@ describe("the navigation", () => {
     expect(screen.getByRole("link", { name: "Portefeuille de projets" })).toBeInTheDocument();
   });
 
+  it("hides the entry « Installation » from a session that reads another function of the administration but not the installation", async () => {
+    render(navigation("me_auditor"));
+    await openBlocks();
+    expect(screen.getByRole("link", { name: "Journal d’audit" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Installation" })).toBeNull();
+  });
+
   it("carries the revision, the sub-project and the calculation date from one function of a project to the others", async () => {
     visit(`${IN_PROJECT}/remaining`, `${CONTEXT}&sort_by=label`);
     const { container } = render(navigation());

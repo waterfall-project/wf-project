@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The settings of the costs (FBS-3.1, US-0250), outside any project: the currency of the
- * installation, every amount expressed in it (WF-REF-0140); the name of the company is not here: it
- * stands in the card of the installation (FBS-1.6, US-2120); then, stacked one under the other in a page that scrolls, as the settings of the resources are
- * (US-0570, #1044), the natures and the categories of cost (FBS-3.1.1), two dense grids searched,
+ * installation, every amount expressed in it (WF-REF-0140); the name of the company is not here:
+ * it stands in the card of the installation (FBS-1.6, US-2120); then, stacked one under the
+ * other in a page that scrolls, as the settings of the resources are (US-0570, #1044), the natures and the categories of cost (FBS-3.1.1), two dense grids searched,
  * filtered, sorted and paged by the server, as the address asks under the names of each grid
  * (#510), and the grid of the hourly rates (FBS-3.1.2), a row for each category of labour and a
  * column for each year, on the dense grid, searched, filtered on the state of its categories and on
