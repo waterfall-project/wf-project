@@ -14,10 +14,13 @@ import type { Project } from "@/components/context/reading";
 import {
   type DesignatedRevision,
   ReferenceDesignation,
+  RevisionHistory,
+  revisionCreation,
 } from "@/components/revisions/revision-history";
 import { RateUpdate } from "@/components/revisions/revision-parts";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { expectCommandRule } from "@/test/command-rule";
 import {
   example,
   type FakeAnswers,
@@ -80,13 +83,24 @@ function show(children: ReactNode) {
   );
 }
 
-/** The commands of the screen: the project's opening, and the current revision's. */
+/** The commands of the current revision, at the right of the title of the screen. */
 function commands(project = "project") {
   return (
     <RevisionCommands
       revision={example("revision") as Revision}
       context={CONTEXT}
       project={example(project) as Project}
+    />
+  );
+}
+
+/** The card of the history, whose principal command opens the current revision of the project. */
+function opening(project = "project") {
+  return (
+    <RevisionHistory
+      revisions={[]}
+      context={CONTEXT}
+      creation={revisionCreation(example(project) as Project)}
     />
   );
 }
@@ -122,13 +136,9 @@ beforeEach(() => {
 describe("the opening of the current revision", () => {
   it("is offered as the project lists it, and leads to the revision created [WF-REV-0010-A]", async () => {
     const client = serve({ [CREATE]: { example: "revision_created", status: 201 } });
-    show(
-      <RevisionCommands
-        revision={undefined}
-        context={CONTEXT}
-        project={example("project_without_current_revision") as Project}
-      />,
-    );
+    show(opening("project_without_current_revision"));
+    // The principal command of the card of the history, filled; the others outlined (WF-IHM-0090-A).
+    expectCommandRule(document.body);
     await userEvent.click(screen.getByRole("button", { name: "Ouvrir une révision en cours" }));
 
     expect(bodies(client, CREATE)).toEqual([{ apply_rate_update: false }]);
@@ -145,13 +155,7 @@ describe("the opening of the current revision", () => {
       answer.timing,
     );
     const client = server.client as FakeClient;
-    show(
-      <RevisionCommands
-        revision={undefined}
-        context={CONTEXT}
-        project={example("project_without_current_revision") as Project}
-      />,
-    );
+    show(opening("project_without_current_revision"));
     const create = screen.getByRole("button", { name: "Ouvrir une révision en cours" });
     await userEvent.click(create);
     expect(create).toHaveAttribute("aria-busy", "true");
@@ -183,13 +187,7 @@ describe("the opening of the current revision", () => {
         { example: "revision_created", status: 201 },
       ],
     });
-    show(
-      <RevisionCommands
-        revision={undefined}
-        context={CONTEXT}
-        project={example("project_without_current_revision") as Project}
-      />,
-    );
+    show(opening("project_without_current_revision"));
     const create = screen.getByRole("button", { name: "Ouvrir une révision en cours" });
     await userEvent.click(create);
     await screen.findByRole("alert");
@@ -201,7 +199,7 @@ describe("the opening of the current revision", () => {
 
   it("is refused while a revision is current: unavailable, naming its condition, and nothing is asked [WF-REV-0010-A]", async () => {
     const client = serve({});
-    show(commands());
+    show(opening());
     const create = screen.getByRole("button", { name: "Ouvrir une révision en cours" });
     expect(create).toHaveAttribute("aria-disabled", "true");
     expect(create).toHaveAccessibleDescription(/^Condition non remplie\s: /);
@@ -220,13 +218,7 @@ describe("the opening of the current revision", () => {
         },
       },
     });
-    show(
-      <RevisionCommands
-        revision={undefined}
-        context={CONTEXT}
-        project={example("project_without_current_revision") as Project}
-      />,
-    );
+    show(opening("project_without_current_revision"));
     await userEvent.click(screen.getByRole("button", { name: "Ouvrir une révision en cours" }));
     expect((await screen.findByRole("alert")).textContent).toContain("aucune révision en cours");
     expect(router.push).not.toHaveBeenCalled();

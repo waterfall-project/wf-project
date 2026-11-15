@@ -224,9 +224,9 @@ describe("the screen of the revisions of a project", () => {
       "GET /projects/{project_id}/revisions": "revisions_empty",
     };
     const page = html(await RevisionsPage(at()));
+    expect(text(page)).toContain("Ce projet n’a aucune révision.");
     expect(text(page)).toContain(
-      "Historique des révisions Ce projet n’a aucune révision. " +
-        "Comparaison de deux révisions La comparaison demande deux révisions marquées.",
+      "Comparaison de deux révisions La comparaison demande deux révisions marquées.",
     );
     expect(page).not.toContain("<form");
   });

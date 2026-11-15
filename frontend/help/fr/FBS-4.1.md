@@ -16,7 +16,7 @@ De haut en bas :
 
 ## Ses commandes
 
-En tête de l’écran, les commandes de la révision lue, chacune disponible ou nommant la condition qui lui manque :
+Chaque section est une carte. En tête de l’écran, les commandes de la révision lue, chacune disponible ou nommant la condition qui lui manque ; **Ouvrir une révision en cours**, la seule commande pleine, est à droite du titre de la carte de l’historique :
 
 - **Ouvrir une révision en cours** crée la révision en cours d’élaboration, copie de la dernière révision marquée. Indisponible quand le projet en a déjà une (« aucune révision en cours d’élaboration ») ou qu’il est clos.
 - **Marquer la révision** demande un nom de version, obligatoire, et une description ; le marquage, confié au traitement de fond, fige la révision et conserve ses indicateurs. Indisponible sur une révision déjà marquée (« révision en cours d’élaboration ») ou pendant un traitement de fond.

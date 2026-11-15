@@ -735,7 +735,12 @@ qu'aucune commande ne mène à Chiffrage ni à En cours (WF-CYC-0020) ; le décl
 deux faits que le contrat énumère (`LifecycleTrigger`), dit par son catalogue
 (`enums.LifecycleTrigger`). Un projet qu'aucun fait ne mène plus loin — le serveur répond sans
 prochain état ni déclencheur — le dit : en cours, seules ses sorties restent ; terminal — un état où
-mène une sortie (`EXIT_STATES`) —, il est clos, et aucun état ne le suit (WF-CYC-0080).
+mène une sortie (`EXIT_STATES`) —, il est clos, et aucun état ne le suit (WF-CYC-0080). Le prochain
+état et l'historique des états sont chacun une carte de section, dans la colonne aérée (US-2130) ;
+les sorties restent à droite du titre de l'écran, à contour. L'écran des révisions suit la même
+présentation sans changer de structure (EP-27 la refond) : une carte par section, « Ouvrir une
+révision en cours » — la commande pleine, que `RevisionHistory` reçoit par `creation` — à droite du
+titre de la carte de l'historique, les commandes de la révision lue à droite du titre de l'écran.
 
 ### Les périodes d'une liste
 
