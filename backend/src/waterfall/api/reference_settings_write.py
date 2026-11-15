@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The writing of the settings the installation shares, and the change it makes (FBS-3.1).
+"""The writing of the settings the installation shares and the change it makes (FBS-1.6, FBS-3).
 
 What ``updateReferenceSettings`` reads of its body — the shape of ``ReferenceSettingsWrite`` and
 the judgement of its values by the rules of their modules, all at once (422) —, in a module with

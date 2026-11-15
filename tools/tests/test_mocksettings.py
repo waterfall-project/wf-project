@@ -119,13 +119,18 @@ def test_an_empty_name_is_refused_at_its_field_and_nothing_is_written() -> None:
     assert "`VALUE_TOO_LONG`" in said.split("/company_name", 1)[1].split(";", 1)[0]
 
 
-def test_the_name_is_written_under_the_permission_of_the_cost_settings() -> None:
-    # The refusal of a session without it names it, as it names those of the matrix and thresholds.
+def test_the_name_is_written_under_the_permission_of_the_installation() -> None:
+    # The refusal of a session without it names it, as it names those of the matrix and thresholds;
+    # the function of the installation, no longer the cost settings (US-2120, #3245), whose
+    # session alone the example refuses.
     forbidden = " ".join(_operation().split("'403':", 1)[1].split("content:", 1)[0].split())
-    assert "`cost_settings.write` for the company name" in forbidden
+    assert "`installation.write` for the company name" in forbidden
     text = (SCHEMAS / "reference.yaml").read_text(encoding="utf-8")
     write = " ".join(_block(text, "ReferenceSettingsWrite").split())
-    assert "the company name (`cost_settings.write`)" in write
+    assert "the company name (`installation.write`)" in write
+    refused = fixture("reference_settings_company_permission_missing")
+    assert (refused["status"], refused["code"]) == (403, "PERMISSION_MISSING")
+    assert refused["params"] == {"missing_permission": "installation.write"}
 
 
 def test_the_name_is_required_read_optional_written_and_bounded_alike() -> None:

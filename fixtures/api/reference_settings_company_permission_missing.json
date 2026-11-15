@@ -1,0 +1,11 @@
+{
+  "summary": "Le nom de l'entreprise envoyé par une session qui porte la modification des paramètres de coûts (cost_settings.write) mais non celle de l'installation : refusé, la permission de l'installation nommée ; rien n'est écrit. Le nom de l'entreprise relève de la fonction « Installation » (FBS-1.6), non plus des paramètres de coûts (WF-ADM-0100, WF-ADM-0110, WF-EXP-0020 ; #3245).",
+  "value": {
+    "code": "PERMISSION_MISSING",
+    "status": 403,
+    "params": {
+      "missing_permission": "installation.write"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001307"
+  }
+}

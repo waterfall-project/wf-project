@@ -133,9 +133,11 @@ class ProcessTimeZone:
                 message = "the process names no source of the time zone of the installation"
                 raise RuntimeError(message)
             name = self._source()
+            # A name unknown, or malformed — an absolute path, ``..`` —, which only a database
+            # changed by hand holds: the bootstrap refuses both (#3258).
             try:
                 self._zone = ZoneInfo(name)
-            except ZoneInfoNotFoundError:
+            except ZoneInfoNotFoundError, ValueError:
                 logger.warning("installation.time_zone_unknown")
                 raise UnavailableError(COMPONENT_UNAVAILABLE, {"component": "database"}) from None
         return self._zone

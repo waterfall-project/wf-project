@@ -42,10 +42,11 @@ VALUE_TOO_LONG = "VALUE_TOO_LONG"
 # The first version of the settings, written by the bootstrap.
 FIRST_VERSION = 1
 # The permission each field of a writing asks for, in the order of the contract
-# (``ReferenceSettingsWrite``): the name beside the currency, the matrix, the thresholds and the
-# delay, each under the function it belongs to (WF-ADM-0100).
+# (``ReferenceSettingsWrite``): the name, the matrix, the thresholds and the delay, each under the
+# function it belongs to (WF-ADM-0100) — the name under that of the installation (FBS-1.6), no
+# longer under the cost settings (EP-25, US-2120, #3245).
 FIELD_PERMISSIONS: dict[str, str] = {
-    "company_name": "cost_settings.write",
+    "company_name": "installation.write",
     "risk_matrix": "risk_settings.write",
     "index_thresholds": "indicator_settings.write",
     "max_weeks_between_reviews": "indicator_settings.write",

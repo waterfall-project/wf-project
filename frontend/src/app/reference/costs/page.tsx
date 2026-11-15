@@ -275,11 +275,14 @@ async function readCosts(queries: CostQueries) {
  */
 function CostsHeader({
   settings,
-  writes,
+  renames,
 }: {
   readonly settings: ReferenceSettings;
-  /** Whether the session may modify the cost settings, and its commands write. */
-  readonly writes: boolean;
+  /**
+   * Whether the session may modify the name of the company: the service asks for
+   * `installation.write` (WF-ADM-0100-A), not `cost_settings.write`.
+   */
+  readonly renames: boolean;
 }) {
   const t = useTranslations();
   return (
@@ -306,7 +309,7 @@ function CostsHeader({
           </div>
         }
       />
-      {writes ? (
+      {renames ? (
         <CompanySettings settings={settings} />
       ) : (
         <CompanyCard name={settings.company_name} />
@@ -382,7 +385,7 @@ export default async function CostSettingsPage({
   return (
     <Screen density={FUNCTION_DENSITY.cost_settings}>
       <PendingAddress>
-        <CostsHeader settings={settings} writes={editable} />
+        <CostsHeader settings={settings} renames={permissions.includes("installation.write")} />
         <CostTypeList
           rows={types.items}
           page={types.meta}

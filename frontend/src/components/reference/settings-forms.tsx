@@ -7,8 +7,8 @@
  * that session may write: the risk matrix, its six bounds and its sixteen zones (FBS-3.3,
  * WF-REF-0160), under `risk_settings.write`; the thresholds of the indices and the delay between
  * two reviews (FBS-3.4, WF-REF-0170, WF-REF-0180), under `indicator_settings.write`; the name of
- * the company, which the exported files bear (WF-EXP-0020), under `cost_settings.write`, beside the
- * currency. Each form sends the part of its screen alone with the version read
+ * the company, which the exported files bear (WF-EXP-0020), under `installation.write`
+ * (WF-ADM-0100-A), beside the currency. Each form sends the part of its screen alone with the version read
  * (`updateReferenceSettings`), never a field of the other screen; neither the currency, which is
  * not modified (WF-REF-0140), nor the default language of the installation, which is EP-03's, is
  * offered.
