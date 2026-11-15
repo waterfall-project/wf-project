@@ -2602,6 +2602,7 @@
       "required": "(exigée)",
       "optional": "(facultative)",
       "noLabel": "Aucun intitulé.",
+      "readColumns": "Colonnes lues",
       "kept": "Colonnes conservées",
       "keptHint": "Les colonnes de l’extraction que Waterfall conserve à titre d’information, restituées à la consultation des lignes importées. Une colonne lue ne se déclare pas aussi conservée.",
       "noKept": "Aucune colonne conservée.",
@@ -2623,6 +2624,7 @@
       "saved": "Correspondance enregistrée."
     },
     "companyForm": {
+      "title": "Entreprise",
       "modify": "Modifier le nom de l’entreprise",
       "hint": "Le nom de l’entreprise figure sur les fichiers exportés ; il est obligatoire, de 200 caractères au plus.",
       "name": "Nom de l’entreprise",
