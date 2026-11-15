@@ -80,9 +80,9 @@ Déjà servies, et reprises pour ce que l'EPIC change à leur durée, non à leu
 `compareRevisions` (US-2220, US-2270, US-2280) ; `updateTaskFacet`, `updateEstimateLine`,
 `setLineRemaining`, `setTaskProgress`, `setNodeTracking`, `setPredecessors`, `createNode`,
 `moveNodes`, `deleteNode`, `previewPaste`, `applyPaste`, `undoLastChange`, `redoLastUndo` (US-2250,
-US-2260, US-2280) ; `createRevision`, `listRevisions` (US-2240) ; `markRevision` (US-2270) ;
-`getProjectWorkload`, `openImport`, `applyImport`, `requestExport`, `getBackgroundTask` (US-2300) ;
-`getMe` (US-2210, US-2230).
+US-2260, US-2280) ; `createRevision`, `listRevisions` (US-2240) ;
+`getProjectWorkload`, `markRevision`, `openImport`, `applyImport`, `requestExport`,
+`getBackgroundTask` (US-2300) ; `getMe` (US-2210, US-2230).
 
 Aucune opération nouvelle, aucune réponse changée. Une seule modification du contrat, qui n'est
 pas une forme : la règle générale des refus de débordement d'un montant dérivé, écrite dans
@@ -618,7 +618,7 @@ soient corrigés, **afin que** l'EPIC ne laisse pas derrière lui la dette qu'il
 
 - **statut** : fini
 - **exigences** : aucune en propre — le gain se lit dans le rapport de WF-QUA-0060 (US-2300)
-- **opérations** : `listNodes`, `compareRevisions`, `markRevision`
+- **opérations** : `listNodes`, `compareRevisions`
 - **issue** : #3320
 
 **En tant que** chef de projet, **je veux** que la grille d'une révision marquée, qui ne change
