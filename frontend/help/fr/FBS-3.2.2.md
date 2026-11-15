@@ -12,7 +12,7 @@ Le service garde ce qui s’écrit. Les rôles actifs se lisent sans permission 
 
 Ces commandes ne sont offertes qu’à qui peut modifier les paramètres de ressources :
 
-- **Nouveau rôle** ouvre le formulaire : code, unique, libellé, nœud, catégorie de main-d’œuvre, calendrier, heures par mois et effectif, tous requis.
+- **Nouveau rôle**, bouton plein à droite du titre de la carte des rôles, ouvre le formulaire : code, unique, libellé, nœud, catégorie de main-d’œuvre, calendrier, heures par mois et effectif, tous requis.
 - **Modifier**, sur une ligne, ouvre le même formulaire, sans le nœud, que le formulaire nomme.
 - **Désactiver** et **Réactiver**, dans la colonne **État**, sans confirmation. La réactivation d’un rôle dont le nœud est désactivé est indisponible (« nœud d’organisation actif ») : la commande reste présentée et dit la condition qui lui manque.
 

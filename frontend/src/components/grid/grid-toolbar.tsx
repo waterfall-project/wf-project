@@ -311,7 +311,9 @@ export function GridToolbar({
       data-grid-toolbar=""
       inert={covered}
       className={cn(
-        folded ? "flex w-full shrink-0 items-center gap-2" : barClass(treeFilters !== undefined),
+        folded
+          ? "-my-0.5 flex w-full shrink-0 items-center gap-2 overflow-x-auto py-0.5"
+          : barClass(treeFilters !== undefined),
         ending === undefined ? null : "flex-wrap",
         covered ? "invisible" : null,
       )}
@@ -384,7 +386,7 @@ export function GridToolbar({
     return bar;
   }
   return (
-    <div className="flex min-w-min max-w-full flex-col gap-2" style={sized} data-folded="">
+    <div className="flex min-w-0 max-w-full flex-col gap-2" style={sized} data-folded="">
       {bar}
       <FilterPanel id={panel} open={filters.open}>
         {filters.panel}

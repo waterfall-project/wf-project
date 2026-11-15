@@ -105,4 +105,8 @@ la base conservée entre les grilles (WF-IHM-0020, WF-IHM-0010) ;
 - #3180 — front : les structures et la mise à jour des taux de la révision lue sous l'historique de
 l'écran « Révisions » ;
 - #3192 — e2e : le parcours de la comparaison de PRJ-001 (revisions.spec.ts:121) en quarantaine
-contre le service.
+contre le service ;
+- #3401 — back : `applyRateUpdate` refuse un montant débordé sans `fields`, alors que
+`/cost_category_ids` en est l'origine — relevé pendant EP-26, reporté ici avec la famille des
+écritures encore sans `fields` que nomme `docs/api/DECISIONS.md` (décision de l'auteur du
+2026-11-15).

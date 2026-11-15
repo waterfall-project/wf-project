@@ -14,7 +14,7 @@ Une recherche ou un filtre retient des nœuds, et l’arbre les montre avec leur
 
 Ces commandes ne sont offertes qu’à qui peut modifier les paramètres de ressources :
 
-- **Nouveau nœud** ouvre le formulaire : code, unique, libellé, et **Parent** — **Aucun — racine** pour une racine. Un nœud ne prend place que sous un nœud actif.
+- **Nouveau nœud**, bouton plein à droite du titre de la carte de l’arbre, ouvre le formulaire : code, unique, libellé, et **Parent** — **Aucun — racine** pour une racine. Un nœud ne prend place que sous un nœud actif.
 - **Modifier**, sur une ligne, ouvre le même formulaire sur le nœud. Déplacé sous un autre parent, il emmène ses descendants et ses rôles ; jamais sous lui-même ni sous l’un de ses descendants. Son parent désactivé se garde.
 - **Désactiver** et **Réactiver**, dans la colonne **État**, sans confirmation. La réactivation d’un nœud dont le parent est désactivé est indisponible (« nœud parent actif ») : la commande reste présentée et dit la condition qui lui manque.
 

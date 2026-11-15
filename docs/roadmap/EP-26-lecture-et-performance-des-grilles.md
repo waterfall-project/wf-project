@@ -479,8 +479,9 @@ révision marquée (US-2270).
   constaté par EP-13, qui clôt l'exigence ;
 - écart : `WF-ARC-0080-A` — « Aucun service ne lit un fichier que lui-même a écrit sur son disque
   local lors d’une requête antérieure. » : constaté par EP-13 ;
-- propre à l'US : un réglage de l'API dit le nombre de ses processus ; la plateforme de service et
-  celle de production en lancent plusieurs ;
+- propre à l'US : un réglage de l'API dit le nombre de ses processus ; la plateforme de service en
+  lance plusieurs, et l'exemple de réglages de la production en conseille plusieurs — un par défaut,
+  le nombre dépendant des cœurs de l'hôte (#3441, option B, décision de l'auteur du 2026-11-15) ;
 - propre à l'US : ce qu'un processus garde en mémoire entre deux requêtes est inventorié — les clés
   de Keycloak, l'état de maintenance, le fuseau de l'installation (US-2200 d'EP-25), tout cache de
   module — ; chaque état trouvé est rangé dans PostgreSQL ou dans Redis, ou établi identique d'un

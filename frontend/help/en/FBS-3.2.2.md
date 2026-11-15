@@ -12,7 +12,7 @@ The service keeps what is written. Active roles are read without any particular 
 
 These commands are offered only to whoever may modify the resource settings:
 
-- **New role** opens the form: code, unique, label, node, labour category, calendar, hours per month and headcount, all required.
+- **New role**, a filled button at the right of the title of the roles card, opens the form: code, unique, label, node, labour category, calendar, hours per month and headcount, all required.
 - **Modify**, on a row, opens the same form, without the node, which the form names.
 - **Deactivate** and **Reactivate**, in the column **State**, without confirmation. The reactivation of a role whose node is deactivated is unavailable (“organisation node active”): the command stays shown and says the condition it lacks.
 
