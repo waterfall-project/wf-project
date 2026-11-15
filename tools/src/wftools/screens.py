@@ -135,7 +135,8 @@ def confront(
         if pending in named:
             findings.append(f"{pending}: declared pending in the specification, but it has it")
         elif pending.rpartition(".")[0] in named:
-            named[pending] = Function(pending, pending)
+            # The label is the one the specification will give it, for the findings only.
+            named[pending] = Function(pending, "Installation")
     leaves = {fn.code: fn for fn in projection.leaves(tree)}
     seen: set[str] = set()
     for address in addresses(table):

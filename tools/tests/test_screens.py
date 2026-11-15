@@ -286,3 +286,23 @@ def test_a_pending_declaration_the_specification_has_met_is_named() -> None:
 def test_the_repository_declares_a_pending_function_the_projection_lacks() -> None:
     named = {fn.code for fn in projection.read_functions()}
     assert screens.PENDING_IN_THE_SPECIFICATION not in named
+
+
+def test_the_command_accepts_the_pending_function_until_the_specification_has_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "functions.json"
+    path.write_text(json.dumps(with_pending()), encoding="utf-8")
+    tree = PENDING_TREE
+    monkeypatch.setattr(screens, "TABLE", path)
+    monkeypatch.setattr(projection, "read_functions", lambda: tree)
+
+    def pages(_: Path) -> dict[str, str]:
+        return pending_app()
+
+    monkeypatch.setattr(screens, "pages", pages)
+    monkeypatch.setattr(screens, "WITHOUT_SCREEN", {})
+    monkeypatch.setattr(screens, "PENDING_IN_THE_SPECIFICATION", "FBS-1.6")
+    assert screens.main() == 0
+    tree = (*PENDING_TREE, Function("FBS-1.6", "Installation"))
+    assert screens.main() == 1
