@@ -280,6 +280,8 @@ describe("a command of a screen", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     rerender(command(unavailable));
     expect(screen.queryByRole("alert")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Terminer le projet" }));
+    expect(screen.getByRole("alert")).toHaveTextContent(/Condition non remplie/);
   });
 
   it("leads « Déclarer un risque », available, to the screen of the risks of the revision, which its tooltip says [WF-IHM-0090-A]", async () => {

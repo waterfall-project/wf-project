@@ -2581,8 +2581,9 @@ appartiennent aux formulaires de leur domaine, sa modification à celui de ses p
 et ses conditions — une révision marquée les liste indisponibles, faute d'être en cours
 d'élaboration —, ses exports laissés à l'écran des imports et exports, qui les offre (`ExportForm`),
 ses saisies (`edit_*`) à leurs grilles et le squelette à la grille de planning vide (EP-14/L44d) ;
-`findOffer` en tire une seule, et `UnmetConditions` nomme ce qui manque à l'offre d'un formulaire
-qui n'est pas un `Command`. Hors projet — comptes, rôles, référentiel, sauvegarde —, `platformOffer`
+`findOffer` en tire une seule, et les formulaires disent ce qui leur manque comme les autres
+commandes, par `CommandTooltip` et, pressées, `PressRefusal` ; `UnmetConditions` ne reste que pour
+les commandes des chronologies (#3290). Hors projet — comptes, rôles, référentiel, sauvegarde —, `platformOffer`
 suit la permission de modification d'une fonction de portée `platform` (`PlatformFunction`) dans
 `Session.permissions`, ou `project_create` pour la création d'un projet, qu'aucun projet ne liste ;
 les commandes d'une sauvegarde sont celles qu'elle liste (`Backup.available_commands`, EP-14/L43f),

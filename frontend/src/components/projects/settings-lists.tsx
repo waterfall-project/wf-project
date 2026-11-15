@@ -28,7 +28,7 @@ import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import { ValuesFilter } from "@/components/grid/values-filter";
 import { listReads } from "@/components/reference/address";
-import { ListBody, ReferenceSection } from "@/components/reference/section";
+import { ListBody, ReferenceCard } from "@/components/reference/section";
 
 import { BreakdownCommands, type BreakdownEditing, BreakdownHead } from "./breakdown-commands";
 import {
@@ -36,7 +36,7 @@ import {
   type ContributorEditing,
   ContributorHead,
 } from "./contributor-commands";
-import { ListSection } from "./project-tables";
+import { ListCard } from "./project-tables";
 import { SettingsGrid } from "./settings-grid";
 import {
   BREAKDOWN_KIND_FILTER,
@@ -135,11 +135,7 @@ export function WorkBreakdownList({
   return (
     // Keyed by the project: an answer of the server never outlives its project.
     <BreakdownCommands key={project} editing={editing}>
-      <ListSection
-        title={t("title")}
-        icon={ListTree}
-        empty={none && !edited ? t("none") : undefined}
-      >
+      <ListCard title={t("title")} icon={ListTree} empty={none && !edited ? t("none") : undefined}>
         {partial || none ? (
           <p className="text-sm text-muted-foreground">
             {t(partial ? partialNote(shown.query.search, kinds) : "none")}
@@ -156,7 +152,7 @@ export function WorkBreakdownList({
           query={shown.query}
           preferences={shown.preferences}
         />
-      </ListSection>
+      </ListCard>
     </BreakdownCommands>
   );
 }
@@ -194,6 +190,7 @@ export function SubprojectList({
   };
 }) {
   const t = useTranslations("projectLists.subprojects");
+  const offer = editing?.offer;
   const empty =
     subprojects.length === 0 && shown.query.search === undefined && actualCosts === undefined;
   const panel = (
@@ -217,10 +214,14 @@ export function SubprojectList({
       project={editing?.project}
       estimated={editing?.estimated}
     >
-      <ReferenceSection
+      <ReferenceCard
         title={t("title")}
         icon={FolderTree}
-        commands={<SubprojectHead offer={editing?.offer} />}
+        creation={
+          offer === undefined
+            ? undefined
+            : (variant) => <SubprojectHead offer={offer} variant={variant} />
+        }
       >
         <ListBody
           empty={empty ? t("none") : undefined}
@@ -240,7 +241,7 @@ export function SubprojectList({
           }
           dialog={<SubprojectDialog />}
         />
-      </ReferenceSection>
+      </ReferenceCard>
     </SubprojectCommands>
   );
 }
@@ -297,7 +298,7 @@ export function ContributorList({
   );
   return (
     <ContributorCommands key={editing?.project} editing={editing}>
-      <ListSection title={t("title")} icon={Users} empty={empty ? t("none") : undefined}>
+      <ListCard title={t("title")} icon={Users} empty={empty ? t("none") : undefined}>
         <ContributorHead />
         <SettingsGrid
           kind="contributors"
@@ -308,7 +309,7 @@ export function ContributorList({
           query={shown.query}
           preferences={shown.preferences}
         />
-      </ListSection>
+      </ListCard>
     </ContributorCommands>
   );
 }

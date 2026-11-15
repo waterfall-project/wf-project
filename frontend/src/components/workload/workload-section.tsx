@@ -13,10 +13,11 @@
  * budget with a reference revision, the remaining of a marked revision when the project has one, the
  * revision under way always. A basis the API refuses all the same is said unavailable, and why.
  *
- * The section is named by `aria-label`, and each field by an identifier of its own: an identifier
- * of `useId` in a server component may meet one of a client component of the shell (#251).
+ * The section is the card of the screen (`SectionCard`), the choice in it. The card is named by
+ * `aria-label`, and each field by an identifier of its own: an identifier of `useId` in a server
+ * component may meet one of a client component of the shell (#251).
  */
-import { ListFilter } from "lucide-react";
+import { ChartColumnStacked, ListFilter } from "lucide-react";
 import Form from "next/form";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
@@ -25,6 +26,7 @@ import type { components } from "@/api/generated/schema";
 import type { ReadOrRefused } from "@/api/problem";
 import type { ChartProvenance } from "@/components/chart/chart";
 import { treeLabel } from "@/components/reference/org-tree";
+import { SectionCard } from "@/components/shell/section-card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -285,18 +287,20 @@ export function WorkloadSection(props: WorkloadSectionProps) {
       : (orgNodes.find((each) => each.org_node_id === asked.orgNode)?.label ??
         t("workload.unknownOrgNode"));
   return (
-    <section aria-label={t("workload.title")} className="space-y-3">
-      <WorkloadChoices {...props} />
-      {workload.kind === "refused" ? (
-        <Said>{t(`workload.refused.${refusalReason(workload)}`)}</Said>
-      ) : (
-        <ComputedWorkload
-          workload={workload.data}
-          node={node}
-          project={project}
-          known={[...(shown === undefined ? [] : [shown]), ...marked]}
-        />
-      )}
-    </section>
+    <SectionCard title={t("workload.title")} icon={ChartColumnStacked}>
+      <div className="flex min-w-0 flex-col gap-3">
+        <WorkloadChoices {...props} />
+        {workload.kind === "refused" ? (
+          <Said>{t(`workload.refused.${refusalReason(workload)}`)}</Said>
+        ) : (
+          <ComputedWorkload
+            workload={workload.data}
+            node={node}
+            project={project}
+            known={[...(shown === undefined ? [] : [shown]), ...marked]}
+          />
+        )}
+      </div>
+    </SectionCard>
   );
 }

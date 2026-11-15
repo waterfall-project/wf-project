@@ -12,6 +12,7 @@ import type { Project } from "@/components/context/reading";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { expectCommandRule } from "@/test/command-rule";
 import {
   example,
   type FakeAnswers,
@@ -285,6 +286,22 @@ describe("the creation of a project", () => {
     await userEvent.click(create);
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(client.calls).toEqual([]);
+  });
+});
+
+describe("the card of the project on its settings [WF-IHM-0100-A]", () => {
+  it("sets the attributes in the card « Projet », « Modifier le projet » at the right of its title, outlined (US-2130)", () => {
+    const { container } = render(inFrench(<ProjectIdentity project={witness} />));
+    const card = screen.getByRole("region", { name: "Projet" });
+    expect(card).toHaveAttribute("data-slot", "section-card");
+    expect(within(card).getByLabelText("Paramètres du projet")).toBeInTheDocument();
+    const command = within(card).getByRole("button", { name: "Modifier le projet" });
+    expect(command.closest('[data-slot="section-card-commands"]')).not.toBeNull();
+    expect(command.closest('[data-slot="section-card-principal"]')).toHaveAttribute(
+      "data-does",
+      "modify",
+    );
+    expectCommandRule(container);
   });
 });
 

@@ -47,7 +47,6 @@ import { readMappingGap } from "@/components/exchanges/mapping-gap";
 import { readShownImport } from "@/components/exchanges/shown-import";
 import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridPreferences } from "@/components/grid/settings";
-import { ICON } from "@/components/projects/project-tables";
 import { LEAF_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { contextQuery, type PageSearchParams } from "@/navigation/context";
@@ -107,7 +106,7 @@ function ExportPart({
 }) {
   const t = useTranslations("exchanges.export");
   return (
-    <Part title={t("title")} icon={<FileDown aria-hidden="true" className={ICON} />}>
+    <Part title={t("title")} icon={FileDown}>
       <ExportForm projectId={revision.projectId} revisionId={revision.revisionId} offers={offers} />
     </Part>
   );
