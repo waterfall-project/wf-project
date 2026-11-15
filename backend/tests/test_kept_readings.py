@@ -404,6 +404,23 @@ def test_the_inscriptions_are_written_in_the_document_as_reading_it_would_write_
     assert joined(document, kept.inscriptions) == written == from_rows(witness, place)
 
 
+def test_the_keys_of_a_node_are_written_in_the_order_the_join_of_the_inscriptions_reads(
+    witness: Database,
+) -> None:
+    # ``joined`` glues bytes: each node opens with its ``node_id``, its ``lineage_id`` comes before
+    # the ``tracking`` of its task. A change of the order of the keys of ``Node`` fails here.
+    place = place_of(witness, REVISION_101)
+    with witness.transaction() as session:
+        found = kept_document(session, place)
+    assert found is not None
+    nodes = found[0].split(b'"node_id":')[1:]
+    tasks = [each for each in nodes if b'"tracking":[]' in each]
+    assert tasks
+    for each in tasks:
+        assert each.count(b'"lineage_id":"') == 1
+        assert each.index(b'"lineage_id":"') < each.index(b'"tracking":[]')
+
+
 def test_an_inscription_is_joined_to_its_task_alone_never_to_the_node_after_it() -> None:
     # A lineage inscribed that is a line's has no inscriptions of its own to receive: the empty
     # ones of the task after it are left as they are. A text that writes the key is escaped.

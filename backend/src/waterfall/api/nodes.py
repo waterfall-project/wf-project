@@ -573,6 +573,8 @@ def kept_body(session: Session, place: Place) -> dict[str, Any] | None:
         return None
     document, kept = found
     read = json.loads(document)
+    if not kept.inscriptions:
+        return read
     inscriptions = {str(lineage): held for lineage, held in kept.inscriptions.items()}
     for item in read["items"]:
         held = inscriptions.get(item["lineage_id"])
@@ -581,9 +583,8 @@ def kept_body(session: Session, place: Place) -> dict[str, Any] | None:
     return read
 
 
-# The lineage of a node, and the inscriptions of a task, as a document kept writes them
+# The inscriptions of a task, and the keys that bound them, as a document kept writes them
 # (``read_body``): their keys can be nowhere else, a quote in a text being written ``\"``.
-_LINEAGE = re.compile(rb'"lineage_id":"([0-9a-f-]{36})"')
 _UNINSCRIBED = b'"tracking":[]'
 _NODE = b'"node_id":'
 
@@ -601,17 +602,19 @@ def joined(document: bytes, inscriptions: Mapping[UUID, tuple[TrackingView, ...]
         str(lineage).encode(): bytes(read_body({"tracking": tracking_body(held)}).body)[1:-1]
         for lineage, held in inscriptions.items()
     }
+    # Only the lineages inscribed are looked for, by the regular expression: the nodes without
+    # inscriptions are not visited one by one.
+    sought = re.compile(
+        rb'"lineage_id":"(' + b"|".join(re.escape(lineage) for lineage in written) + rb')"'
+    )
     parts: list[bytes] = []
     start = 0
-    for match in _LINEAGE.finditer(document):
-        inscribed = written.get(match.group(1))
-        if inscribed is None:
-            continue
+    for match in sought.finditer(document):
         at = document.find(_UNINSCRIBED, match.end())
         following = document.find(_NODE, match.end())
         if at < 0 or 0 <= following < at:
             continue
-        parts += (document[start:at], inscribed)
+        parts += (document[start:at], written[match.group(1)])
         start = at + len(_UNINSCRIBED)
     parts.append(document[start:])
     return b"".join(parts)
