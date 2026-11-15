@@ -109,7 +109,11 @@ describe("the sections of the views of the portfolio in cards (EP-25, US-2150)",
     const structure = example(
       "volume/portfolio_cost_structure",
     ) as Schemas["PortfolioCostStructure"];
-    expect(cards(<CostStructureView structure={structure} />)).toHaveLength(3);
+    expect(cards(<CostStructureView structure={structure} />)).toEqual([
+      "Reference budget by cost type",
+      "Remaining to commit by cost type",
+      "Labour by organisation node",
+    ]);
   });
 
   it("sets the value of the portfolio in a card named by its title [WF-IHM-0100-A]", () => {

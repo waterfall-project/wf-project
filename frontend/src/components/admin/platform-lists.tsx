@@ -103,6 +103,9 @@ function Outcome({
  * A section of the state of the platform, in its card (`SectionCard`, EP-25): its title with its
  * icon, no command — the screen is read, not written —, and its body spaced; what the section says
  * in place of its table when it is empty, as the one sentence.
+ *
+ * It does what `ReferenceCard` (`reference/section.tsx`) does, plus that sentence; the two stay
+ * apart until the common card of section is settled (#3446), a screen's lot not touching it.
  */
 function StatusCard({
   title,

@@ -47,6 +47,9 @@ export function ViewSection({
  * A chart in its card, as wide as the screen: the chart names itself — its caption — and holds its
  * own commands — fold, export — at the right of it, so the card adds no header of its own, nor a
  * second title.
+ *
+ * A stopgap: `SectionCard` requires a title, so the plain `Card` is composed here, until a section
+ * card without a title exists (#3446).
  */
 export function ChartCard({ children }: { readonly children: ReactNode }) {
   return (
