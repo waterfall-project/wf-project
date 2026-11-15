@@ -321,8 +321,8 @@ service-purge: ## Purge what expired on the service platform, started: imports, 
 # started again, bootstrapped and the witness loaded (measure-fresh-witness), so that a measure
 # changes nothing of the next. It never fails on a duration and the chain does not run it. RUNS
 # identical runs of the whole read, the cell entered and the revision opened (5; the profile and the
-# waves of reads make one pass), ONLY=<part> one of read, profile, parallel, write, revision (several
-# by repeating: ONLY="read write"), JSON=<file> the report also written as JSON. A lot that corrects
+# waves of reads make one pass), ONLY=<part> one of read, profile, parallel, write, revision, kept
+# (several by repeating: ONLY="read write"), JSON=<file> the report also written as JSON. A lot that corrects
 # the back measures before and after it in one pass: ONLY and RUNS the same, two commands in one.
 .PHONY: measure-core measure-core-run measure-fresh-witness measure-secrets
 # The secrets of service-up, asked before the workstation is taken: the Compose file refuses to
@@ -331,7 +331,7 @@ $(call slot-export,measure-secrets,$(SLOT_SERVICE))
 measure-secrets:
 	@$(COMPOSE_SERVICE) --profile install --profile witness config --quiet
 
-measure-core: measure-secrets ## Measure the core in process, the workstation for itself alone, on a witness freshly loaded of the service platform (needs the secrets of service-up): whole reads of PRJ-001, profile, threads and processes, a cell entered, a revision opened; RUNS, ONLY="read profile parallel write revision", JSON=<file>
+measure-core: measure-secrets ## Measure the core in process, the workstation for itself alone, on a witness freshly loaded of the service platform (needs the secrets of service-up): whole reads of PRJ-001, profile, threads and processes, a cell entered, a revision opened, a marked revision read as kept and the marking (US-2270); RUNS, ONLY="read profile parallel write revision kept", JSON=<file>
 	@$(exclusive) $(MAKE) --no-print-directory measure-core-run
 
 $(call slot-export,measure-core-run,$(SLOT_SERVICE))

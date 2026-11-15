@@ -231,11 +231,12 @@ US-2270 le garde pour une révision marquée.
   courant change — une inscription de suivi — n'entre pas dans le document, et se joint à chaque
   lecture ; ce qu'un réglage change — le libellé d'un lot, un calendrier — périme les lectures
   gardées du projet, refaites à la demande.
-- **Quand.** Au marquage, dans la transaction de sa tâche, par `register_marking`, pour la
-  structure principale : comme les indicateurs d'une révision marquée, calculés une fois et
-  conservés avec elle (§4.4.2). Les autres structures, et les révisions marquées avant le lot, à
-  leur première lecture entière, écrite dans la transaction de la lecture ; deux processus qui la
-  calculent ensemble écrivent la même, la seconde écriture ignorée.
+- **Quand.** À la première lecture entière d'une structure de révision marquée, la structure
+  principale comprise, écrite dans la transaction de la lecture ; deux processus qui la calculent
+  ensemble écrivent la même, la seconde écriture ignorée. Pas au marquage : le corps de `listNodes`
+  s'écrit dans `api/`, que le worker du marquage n'importe pas, et la première lecture entière ne
+  coûte qu'environ 0,06 s de plus, une fois par structure (`make measure-core ONLY=kept`, PRJ-001).
+  Décision de l'auteur du 2026-11-15.
 - **Le format.** Une lecture gardée porte le format du code qui l'a écrite ; d'un autre format,
   elle est ignorée et refaite. Un champ ajouté au nœud change le format.
 - **La comparaison.** `compareRevisions` de deux révisions marquées part des deux lectures gardées.
@@ -275,7 +276,7 @@ US-2270 le garde pour une révision marquée.
 
 | Table | US | Ce qu'elle porte |
 |---|---|---|
-| `structure_reading` | US-2270 | par structure : le projet, la révision, la structure, le format, le document compressé, l'instant où il a été gardé. Partitionnée par projet comme les tables du contenu d'une révision ; supprimée avec sa structure ; aucune règle d'immuabilité, puisqu'elle se refait |
+| `structure_reading` | US-2270 | par structure : le projet, la révision, la structure, le format, `settings_digest` (l'empreinte SHA-256 des réglages lus : calendriers, calendrier de chaque rôle, lots et postes, sous-projets, gardée avec la lecture ; une empreinte différente la périme), le document compressé, l'instant où il a été gardé. Partitionnée par projet comme les tables du contenu d'une révision ; supprimée avec sa structure ; aucune règle d'immuabilité, puisqu'elle se refait |
 | colonnes de `task` | US-2280, second lot, s'il a lieu | les sommes et l'état dérivé que l'agrégat lit trop lentement, nulles tant qu'aucune écriture ne les a posées |
 
 Les migrations se chaînent après la dernière d'`epic/EP-25`. EP-25 entre le premier dans `main` :
@@ -357,6 +358,9 @@ Prises par l'auteur le 2026-11-14, au cadrage, sauf mention.
 - **L'agrégat avant le stockage, la mesure tranche.** Écartés : l'agrégat seul, sans recours ; le
   stockage d'emblée, que #3170 proposait — une migration, un invariant sur dix chemins d'écriture
   et un cas à part pour les révisions marquées, avant de savoir s'il le faut.
+- **La lecture est gardée à la première lecture entière, non au marquage** (2026-11-15, lot
+  US-2270/L1). Écarté : la garder au marquage, dans sa tâche : le corps de `listNodes` s'écrit dans
+  `api/`, que le worker n'importe pas, pour un gain d'environ 0,06 s, une fois par structure.
 - **Le document gardé est le corps, non ses lignes d'origine** (cadrage). Écarté : garder les
   enregistrements lus de la base, qui n'épargnent que le chargement, un tiers d'une lecture, quand
   le corps gardé en épargne les neuf dixièmes pour la lecture entière.
@@ -608,7 +612,7 @@ soient corrigés, **afin que** l'EPIC ne laisse pas derrière lui la dette qu'il
 
 ## US-2270 — La lecture d'une structure marquée est calculée une fois et gardée
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre — le gain se lit dans le rapport de WF-QUA-0060 (US-2300)
 - **opérations** : `listNodes`, `compareRevisions`, `markRevision`
 - **issue** : #3320
@@ -621,9 +625,9 @@ comparaison sans attendre.
 
 - propre à l'US : la lecture entière d'une structure d'une révision marquée est calculée une fois
   et gardée dans PostgreSQL ; `listNodes` d'une révision marquée et `compareRevisions` la lisent ;
-- propre à l'US : elle est gardée au marquage, dans sa tâche de fond, si le marquage de PRJ-001
-  reste loin de la minute du tableau 15 ; une révision marquée avant le lot la reçoit à sa première
-  demande ;
+- propre à l'US : elle est gardée à sa première lecture entière, la structure principale comprise,
+  et non au marquage ; deux processus qui la calculent ensemble écrivent la même, la seconde
+  écriture ignorée ;
 - propre à l'US : ce qui change encore après le marquage est établi par un test — marquer une
   révision, garder le corps de `listNodes`, changer une inscription de suivi, le libellé d'un lot,
   un reste à engager tenu ouvert, un calendrier, relire et comparer octet pour octet — ; chaque

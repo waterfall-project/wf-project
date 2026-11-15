@@ -50,7 +50,14 @@ from waterfall.core.estimate.tables import (
 )
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.history.tables import PastePlan, UndoEntry
-from waterfall.core.planning.tables import Node, Task, TaskLink, Timeline, TrackingEntry
+from waterfall.core.planning.tables import (
+    Node,
+    StructureReading,
+    Task,
+    TaskLink,
+    Timeline,
+    TrackingEntry,
+)
 from waterfall.core.projects.tables import (
     Contributor,
     Deliverable,
@@ -289,6 +296,7 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         TaskLink.__tablename__,
         Timeline.__tablename__,
         TrackingEntry.__tablename__,
+        StructureReading.__tablename__,
         ImportReport.__tablename__,
         UndoEntry.__tablename__,
         PastePlan.__tablename__,
@@ -423,6 +431,9 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     "import_report": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "undo_entry": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "paste_plan": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    # The reading kept of a structure of a marked revision (EP-26, US-2270): inserted at its first
+    # reading, replaced when its format or its settings change, deleted with its structure.
+    "structure_reading": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     # The estimate (EP-07): a line and a rate of a current revision are changed and deleted with it,
     # a marked one's the database refuses to change (migration 0025); an image is written once, at
     # the marking, and never changed nor deleted, its revision marked for good.
@@ -517,7 +528,7 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
 
 
 # The revised tables of the revisions and the planning (EP-04, EP-06), and of the estimate (EP-07).
-PLANNING_REVISED = ("cost_structure", "node", "task", "task_link")
+PLANNING_REVISED = ("cost_structure", "node", "structure_reading", "task", "task_link")
 ESTIMATE_REVISED = (
     "estimate_line",
     "revision_rate",
@@ -614,14 +625,15 @@ def test_a_partition_attached_is_one_created_by_the_function_of_0025_but_for_its
 ) -> None:
     # The function of 0026 creates a partition alone, then attaches it: its columns, constraints,
     # keys, indexes and triggers are those ``PARTITION OF`` gave by the function of 0025. The
-    # descent puts that function back, as it was.
+    # descent puts that function back, as it was. Compared at 0026: a revised table a later
+    # migration adds gives its partition to the projects that exist, which ``created`` is not.
     upgrade(empty_engine, "0025")
     created, attached = uuid4(), uuid4()
     definition = text("SELECT pg_get_functiondef('create_project_partitions(uuid)'::regprocedure)")
     with empty_engine.begin() as connection:
         former = connection.scalar(definition)
         connection.execute(select(func.create_project_partitions(created)))
-    upgrade(empty_engine)
+    upgrade(empty_engine, "0026")
     with empty_engine.begin() as connection:
         assert connection.scalar(definition) != former
         connection.execute(select(func.create_project_partitions(attached)))
@@ -868,3 +880,47 @@ def test_an_installation_bootstrapped_before_its_time_zone_is_given_universal_ti
             )
         )
         assert "time_zone" not in set(columns)
+
+
+@pytest.mark.requirement("WF-DAT-0050-A")
+def test_the_projects_that_exist_receive_their_partition_of_the_readings_kept(
+    empty_engine: Engine,
+) -> None:
+    # US-2270: 0030 gives a project that exists its partition of ``structure_reading``, as the
+    # function gives one to a project created after it — bound, triggers, keys —; a reading is kept
+    # in it, and neither the table nor the partition is truncated. The descent drops them again.
+    upgrade(empty_engine, "0029")
+    existing, created, revision_id, structure_id = uuid4(), uuid4(), uuid4(), uuid4()
+    with empty_engine.begin() as connection:
+        connection.execute(insert_project(id=existing))
+        connection.execute(select(func.create_project_partitions(existing)))
+        connection.execute(insert_revision(existing, id=revision_id))
+        connection.execute(insert_structure(existing, revision_id, id=structure_id))
+    upgrade(empty_engine, "0030")
+    with empty_engine.begin() as connection:
+        connection.execute(insert_project(id=created))
+        connection.execute(select(func.create_project_partitions(created)))
+        connection.execute(
+            insert(StructureReading).values(
+                project_id=existing,
+                structure_id=structure_id,
+                revision_id=revision_id,
+                format=1,
+                settings_digest=bytes(32),
+                document=b"{}",
+                kept_at=datetime(2026, 11, 15, 8, 0, tzinfo=UTC),
+            )
+        )
+    partition = f"structure_reading_p_{existing.hex}"
+    with empty_engine.connect() as connection:
+        assert partition_parts(connection, existing) == partition_parts(connection, created)
+        kept_in = text("SELECT tableoid::regclass::text FROM structure_reading")
+        assert connection.scalars(kept_in).all() == [partition]
+    for truncated in ("structure_reading", partition):
+        with pytest.raises(DBAPIError, match="never truncated"), empty_engine.begin() as connection:
+            connection.execute(text(f'TRUNCATE TABLE "{truncated}" CASCADE'))
+    downgrade(empty_engine, "0029")
+    with empty_engine.connect() as connection:
+        assert connection.scalar(text("SELECT to_regclass(:name)"), {"name": partition}) is None
+        procedure = text("SELECT to_regprocedure('structure_reading_refuse_truncate()')")
+        assert connection.scalar(procedure) is None

@@ -6,7 +6,9 @@ Regime "revised", partitioned by project as the cost structures (WF-DAT-0050): t
 structure, one collection for its two facets (``kind``, the task here, the estimate line by EP-07,
 whose facet is a table of its module), the facet task, and the links between tasks. Regime
 "project": the named timelines of a project and the inscriptions of the tasks, by their lineage, to
-a timeline or to the time/time tracking of a milestone.
+a timeline or to the time/time tracking of a milestone. The reading of a structure of a marked
+revision, kept (``structure_reading``, EP-26, US-2270): partitioned by project as the content of a
+revision, but under no rule of immutability, since it is made again.
 
 Every key refuses (``RESTRICT``), but inside a current revision, where the §4.4.1 lets the deletion
 cascade: the facet follows its node, a link either of its tasks, a node its structure and its
@@ -30,6 +32,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    LargeBinary,
     Numeric,
     Text,
     UniqueConstraint,
@@ -323,3 +326,29 @@ class TrackingEntry(Stamped):
     lineage_id: Mapped[UUID]
     kind: Mapped[str] = mapped_column(Text)
     timeline_id: Mapped[UUID | None] = mapped_column(ForeignKey("timeline.id", ondelete="CASCADE"))
+
+
+class StructureReading(Base):
+    """The reading of a structure of a marked revision, kept: computed once, read many times.
+
+    The body of ``listNodes`` of the structure read whole, compressed, of the format of the code
+    that wrote it (``format``), and the digest of the settings outside the revision it was read
+    with (``settings_digest``): a reading of another format, or of other settings, is ignored and
+    made again (EP-26, "Ce qui est gardé", US-2270). One by structure, deleted with it; no rule of
+    immutability, since it is made again.
+    """
+
+    __tablename__ = "structure_reading"
+    __table_args__ = (
+        _in_revision(),
+        CheckConstraint("format >= 1", name="format_positive"),
+        {"postgresql_partition_by": BY_PROJECT},
+    )
+
+    project_id: Mapped[UUID] = mapped_column(primary_key=True)
+    structure_id: Mapped[UUID] = mapped_column(primary_key=True)
+    revision_id: Mapped[UUID]
+    format: Mapped[int] = mapped_column(Integer)
+    settings_digest: Mapped[bytes] = mapped_column(LargeBinary)
+    document: Mapped[bytes] = mapped_column(LargeBinary)
+    kept_at: Mapped[datetime] = mapped_column(UtcDateTime)
