@@ -45,6 +45,7 @@ import {
 import { createTimeline, deleteTimeline } from "@/api/actions/projects";
 import type { components } from "@/api/generated/schema";
 import { PressRefusal, useUnmet } from "@/components/commands/command";
+import { unmetId } from "@/components/commands/offer";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { useHeldCommand } from "@/components/commands/held";
 import { type CommandOffer, UNAVAILABLE } from "@/components/commands/offer";
@@ -169,7 +170,7 @@ function ManageButtons({
   const t = useTranslations("timelines");
   const helps = useTranslations("commands");
   const unmetText = useUnmet();
-  const unavailable = offer.is_available ? undefined : unmetText(offer);
+  const unavailable = unmetId(offer, "unmet") === undefined ? undefined : unmetText(offer);
   // The presses of either command while unavailable: each says what it lacks, in the region of the
   // refusals, the condition itself being read in the tooltip (WF-IHM-0090-A, #3290).
   const [presses, setPresses] = useState(0);

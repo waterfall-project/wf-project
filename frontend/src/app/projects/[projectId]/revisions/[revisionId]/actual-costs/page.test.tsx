@@ -141,7 +141,9 @@ describe("the screen of the actual costs", () => {
     expect(page.startsWith(BANNER)).toBe(true);
     expect(queryOf(COSTS)).toEqual({});
     expect(queryOf(IMPORTS)).toEqual({});
-    // The title says no count of lines: the total line of the grid says they are the ones retained.
+    // The title says no count of lines: the total line of the grid says they are the ones retained
+    // (WF-CRE-0040-A) — said, not merely absent from a page that would be empty.
+    expect(text(page)).toContain("General total of the lines retained");
     expect(text(page)).not.toContain("28 lines retained");
   });
 
@@ -256,7 +258,9 @@ describe("the screen of the actual costs", () => {
   it("shows the way to the next page when the server holds more lines than the page [WF-CRE-0040-A]", async () => {
     server.answers = { ...server.answers, [COSTS]: { example: "actual_costs_page", status: 200 } };
     const page = await costsAt({ offset: "1" });
-    // The title says no count of lines: the total line of the grid says they are the ones retained.
+    // The title says no count of lines: the total line of the grid says they are the ones retained
+    // (WF-CRE-0040-A) — said, not merely absent from a page that would be empty.
+    expect(text(page)).toContain("General total of the lines retained");
     expect(text(page)).not.toContain("28 lines retained");
     expect(page).toContain('aria-label="Pages of the actual costs"');
     expect(page).toContain(`href="${PATHNAME}?offset=2"`);
@@ -450,7 +454,9 @@ describe("the screen served by the service, not by the fake back", () => {
     };
     const page = await costsAt();
     expect(page).toContain('<time dateTime="2026-06-03T08:30:00Z">');
-    // The title says no count of lines: the total line of the grid says they are the ones retained.
+    // The title says no count of lines: the total line of the grid says they are the ones retained
+    // (WF-CRE-0040-A) — said, not merely absent from a page that would be empty.
+    expect(text(page)).toContain("General total of the lines retained");
     expect(text(page)).not.toContain("28 lines retained");
     expect(text(page)).toContain("No actual cost has been imported yet.");
   });
