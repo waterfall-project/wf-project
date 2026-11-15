@@ -26,6 +26,11 @@ if TYPE_CHECKING:
     from waterfall.core.estimate.interface import Month, Placement
 
 
+# The parts of a delayed line are cut at ten places — far below the cent, so that the rounding of
+# the cumulative total at the cent never sees them — and the last part takes the rest, so that the
+# sum is the amount. The estimate exposes no such constant in its interface. 50 significant digits
+# hold the quotient of any amount (14 digits) by the hours of a task with ten places to spare, so
+# the context never rounds before ``quantize`` does.
 TEN_PLACES = Decimal("0.0000000001")
 PRECISION = 50
 

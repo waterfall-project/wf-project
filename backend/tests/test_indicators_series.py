@@ -16,6 +16,7 @@ from waterfall.core.estimate.interface import Month, Placement
 from waterfall.core.indicators.series import (
     Point,
     SpreadLine,
+    apportioned,
     cash_out_by_month,
     cumulative,
     cumulative_from,
@@ -25,6 +26,7 @@ from waterfall.core.indicators.series import (
     month_before,
     month_end,
     month_ends,
+    shifted,
     spread_lines,
 )
 from waterfall.core.planning.interface import WorkInstant, weekly_calendar
@@ -320,3 +322,56 @@ def test_the_actual_cost_is_not_shifted_in_the_cash_out() -> None:
 @pytest.mark.requirement("WF-IND-0100-A")
 def test_a_cash_out_without_amount_has_no_month() -> None:
     assert cash_out_by_month({}, {}) == []
+
+
+@pytest.mark.requirement("WF-DAT-0100")
+def test_a_negative_part_lowers_the_cumulative_and_is_rounded_by_difference() -> None:
+    shares = {FEBRUARY: Decimal("100.005"), MARCH: Decimal("-30.004"), APRIL: Decimal("0.001")}
+    assert amounts(cumulative(shares)) == [
+        Decimal(0),
+        Decimal("100.01"),
+        Decimal("70.00"),
+        Decimal("70.00"),
+    ]
+    parts = apportioned(shares)
+    assert parts[MARCH] < 0
+    assert sum(parts.values()) == Decimal("70.00")
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_a_date_of_calculation_before_the_first_amount_draws_zero_to_that_date() -> None:
+    events = [(date(2026, 3, 5), Decimal(100))]
+    assert cumulative_until(events, date(2026, 2, 10)) == []
+    points = cumulative_until(events, date(2026, 2, 10), from_month=FEBRUARY)
+    assert days(points) == [date(2026, 1, 31), date(2026, 2, 10)]
+    assert set(amounts(points)) == {Decimal(0)}
+    # A ``from_month`` after the date of calculation is brought back to the month of the date.
+    later = cumulative_until(events, date(2026, 2, 10), from_month=Month(2026, 4))
+    assert days(later) == [date(2026, 1, 31), date(2026, 2, 10)]
+    assert set(amounts(later)) == {Decimal(0)}
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_a_piece_after_the_date_of_calculation_is_not_counted_whatever_the_caller_does() -> None:
+    as_of = date(2026, 3, 16)
+    events = [
+        (date(2026, 3, 16), Decimal(10)),
+        (date(2026, 3, 17), Decimal(50)),
+        (date(2026, 4, 2), Decimal(7)),
+    ]
+    points = cumulative_until(events, as_of)
+    assert points[-1] == Point(as_of, Decimal("10.00"))
+    assert all(point.day <= as_of for point in points)
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_a_delayed_task_without_an_hour_of_work_is_spent_whole_at_its_end_shifted() -> None:
+    weekend = SpreadLine(Decimal(500), task(date(2026, 2, 7), date(2026, 2, 8)), 40)
+    assert shifted(weekend) == {MARCH: Decimal(500)}
+    assert shifted(weekend, as_of=date(2026, 2, 7)) == {MARCH: Decimal(500)}
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_a_delayed_task_whose_end_is_past_is_spent_whole_at_the_date_shifted() -> None:
+    past = SpreadLine(Decimal(800), task(date(2026, 2, 2), date(2026, 2, 13)), 20)
+    assert shifted(past, as_of=date(2026, 3, 16)) == {APRIL: Decimal(800)}
