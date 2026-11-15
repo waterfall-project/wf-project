@@ -39,8 +39,14 @@ import { requestSessionState, type SessionState } from "@/session/request";
 function NothingHere() {
   const t = useTranslations("notFound");
   return (
-    <Screen density="dense">
-      <PageHeader title={t("title")} icon={SearchX} subtitle={t("explanation")} helped={false} />
+    <Screen density="airy">
+      <PageHeader
+        title={t("title")}
+        icon={SearchX}
+        subtitle={t("explanation")}
+        density="airy"
+        helped={false}
+      />
       <Link
         href={HOME}
         className={buttonVariants({ variant: "outline", size: "sm", className: "w-fit" })}
@@ -59,11 +65,12 @@ type SessionRefusal = Exclude<SessionState["kind"], "open" | "unreadable">;
 function SessionRefused({ kind }: { readonly kind: SessionRefusal }) {
   const t = useTranslations("failure");
   return (
-    <Screen density="dense">
+    <Screen density="airy">
       <PageHeader
         title={t(`${FAILURE_TEXTS[kind]}.title`)}
         icon={LockKeyhole}
         subtitle={t(`${FAILURE_TEXTS[kind]}.explanation`)}
+        density="airy"
         helped={false}
       />
       <FailureWayOut kind={kind} />

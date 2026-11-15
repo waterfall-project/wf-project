@@ -60,6 +60,26 @@ export interface SectionCardProps {
   readonly children: ReactNode;
 }
 
+/**
+ * The mark of the principal command of a card, which the rule of the commands (`expectCommandRule`)
+ * reads. `SectionCard` draws its own with it; a screen whose principal command sits elsewhere than
+ * at the right of the title — at the end of the bar of its grid — wraps it in this too, never
+ * writing the attributes itself.
+ */
+export function PrincipalSlot({
+  does,
+  children,
+}: {
+  readonly does: PrincipalDoes;
+  readonly children: ReactNode;
+}) {
+  return (
+    <div data-slot="section-card-principal" data-does={does} className="flex">
+      {children}
+    </div>
+  );
+}
+
 /** Render a section of a screen in its card. */
 export function SectionCard({
   title,
@@ -90,9 +110,9 @@ export function SectionCard({
             >
               {commands}
               {principal === undefined ? null : (
-                <div data-slot="section-card-principal" data-does={principal.does} className="flex">
+                <PrincipalSlot does={principal.does}>
                   {principal.command(principalVariant(principal.does))}
-                </div>
+                </PrincipalSlot>
               )}
             </div>
           ) : null}

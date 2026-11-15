@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { Coins } from "lucide-react";
 import { render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
@@ -11,6 +12,7 @@ import type { GridQuery } from "@/components/grid/query";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
+import { expectCommandRule } from "@/test/command-rule";
 import {
   example,
   type FakeAnswers,
@@ -20,6 +22,7 @@ import {
   type Problem,
 } from "@/test/fixtures";
 
+import { ReferenceCard } from "./section";
 import { RATE_SORTS, type RateSort } from "./rate-columns";
 import { type HourlyRateGrid, RateGrid } from "./rate-grid";
 
@@ -383,6 +386,62 @@ describe("the grid of the hourly rates", () => {
     expect(state(1)).toHaveTextContent(/^Désactivé$/);
   });
 
+  it("says « Actif » by a dot and its word, « Désactivé » by its outlined mark and its word, never by colour alone [WF-IHM-0070-A]", () => {
+    serve();
+    const [first, second, ...rest] = fewRows.rows;
+    if (first === undefined || second === undefined) {
+      throw new Error("the grid of the volumes has its first rows");
+    }
+    render(
+      rates("fr", true, { ...fewRows, rows: [first, { ...second, is_active: false }, ...rest] }),
+    );
+    const mark = (row: number) =>
+      screen
+        .getByRole("grid")
+        .querySelector(`td[data-row="${row.toString()}"][data-column="state"] [data-slot]`);
+    // The dot, hidden from a reader, beside its word; the mark of the deactivated, a badge and
+    // its struck circle: two shapes, which a grey copy of the screen tells apart.
+    expect(mark(0)?.getAttribute("data-slot")).toBe("activity");
+    expect(mark(0)?.querySelector('span[aria-hidden="true"]')?.className).toContain("rounded-full");
+    expect(mark(1)?.getAttribute("data-slot")).toBe("activity");
+    expect(mark(1)?.querySelector("svg")).not.toBeNull();
+    expect(mark(1)?.querySelector('span[aria-hidden="true"]')).toBeNull();
+  });
+
+  it("sets « Année » and « Ajouter la colonne », filled, at the end of its bar, after « Colonnes », preceded by their messages and « Retirer la colonne » [WF-IHM-0060-A]", async () => {
+    serve();
+    render(rates());
+    const form = screen.getByRole("form", { name: "Ajouter une année à la grille" });
+    await userEvent.type(within(form).getByRole("textbox", { name: "Année" }), "2027");
+    await userEvent.click(within(form).getByRole("button", { name: "Ajouter la colonne" }));
+    const bar = screen.getByRole("searchbox").closest("[data-grid-toolbar]");
+    if (!(bar instanceof HTMLElement)) {
+      throw new Error("the grid has no bar");
+    }
+    expect(bar.contains(form)).toBe(true);
+    const shown = [...bar.querySelectorAll("input, button, [role=status]")].map(
+      (each) => each.getAttribute("aria-label") ?? each.textContent.trim(),
+    );
+    expect(shown).toEqual([
+      "Rechercher un libellé",
+      "Colonnes",
+      expect.stringMatching(/^Colonne 2027 ajoutée/),
+      "Retirer la colonne 2027",
+      "",
+      "Ajouter la colonne",
+    ]);
+    // The last of the bar, and its one filled command: the others are outlined.
+    const add = within(form).getByRole("button", { name: "Ajouter la colonne" });
+    const filled = [...bar.querySelectorAll("button")].filter((button) =>
+      button.className.includes("bg-primary"),
+    );
+    expect(filled).toEqual([add]);
+    expect(add.closest('[data-slot="section-card-principal"]')).toHaveAttribute(
+      "data-does",
+      "create",
+    );
+  });
+
   it("adds the column of a year the grid has none for, empty, in the order of the years, the rates of the other years unchanged [WF-REF-0060-A]", async () => {
     const client = serve();
     render(rates());
@@ -616,6 +675,27 @@ describe("the grid of the hourly rates", () => {
       "href",
       "/reference/costs?sort_by=rate.2026&sort_order=desc&offset=50",
     );
+  });
+
+  it("keeps the rule of the commands in its card: the column of a year is its one filled command, marked as its principal one [WF-IHM-0060-A]", () => {
+    serve();
+    const { container } = render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <ReferenceCard title="Taux horaires" icon={Coins}>
+          <RateGrid
+            grid={fewRows}
+            currency="EUR"
+            editable
+            query={{ sort: undefined, search: undefined, size: undefined }}
+            preferences={undefined}
+          />
+        </ReferenceCard>
+      </NextIntlClientProvider>,
+    );
+    const principal = container.querySelector('[data-slot="section-card-principal"]');
+    expect(principal).toContainElement(screen.getByRole("button", { name: "Ajouter la colonne" }));
+    expect(principal).toHaveAttribute("data-does", "create");
+    expectCommandRule(container);
   });
 
   it("is named and headed in English too", () => {

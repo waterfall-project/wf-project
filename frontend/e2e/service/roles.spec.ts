@@ -77,15 +77,17 @@ test("an administrator creates a role, renames it, gives it a permission in the 
   const roles = page.getByRole("grid", { name: "Rôles d’habilitation" });
   const told = page.getByRole("status", { name: "Commandes des rôles d’habilitation" });
 
-  // Created from its label alone; no project is opened here, nothing witnesses the hydration: the
-  // label is typed and the command pressed again until React answers it.
-  const label = page.getByRole("textbox", { name: "Nouveau rôle" });
-  const create = page.getByRole("button", { name: "Créer un rôle" });
-  const createdTold = told.filter({ hasText: `${quoted(created)} créé.` });
-  await pressUntilAnswered(create, createdTold, async () => {
-    await label.fill(created);
-    await create.click({ timeout: 1_000 });
+  // Created from its label alone, in the dialog « Nouveau rôle » opens; no project is opened here,
+  // nothing witnesses the hydration: the command is pressed again until React answers it.
+  const open = page.getByRole("button", { name: "Nouveau rôle" });
+  const dialog = page.getByRole("dialog", { name: "Création d’un rôle" });
+  const label = dialog.getByRole("textbox", { name: "Libellé" });
+  const create = dialog.getByRole("button", { name: "Créer", exact: true });
+  await pressUntilAnswered(open, dialog, async () => {
+    await open.click({ timeout: 1_000 });
   });
+  await label.fill(created);
+  await create.click();
   await expect(told).toHaveText(`${quoted(created)} créé.`, { timeout: WORKING });
   const cell = roles.getByRole("gridcell", { name: created, exact: true });
   await expect(cell).toBeVisible({ timeout: WORKING });

@@ -247,7 +247,7 @@ describe("the home of an account that cannot read any project [WF-IHM-0120] #291
 describe("the home, the list of projects", () => {
   it("hands the grid the projects in the order of the server, each with its code, its state and when it was modified", async () => {
     const html = await home();
-    expect(html.startsWith(`<main data-fill="" class="${SCREEN.dense} min-h-0">`)).toBe(true);
+    expect(html.startsWith(`<main class="${SCREEN.airy}">`)).toBe(true);
     expect(html).toMatch(/<h1[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Projects<\/h1>/);
     expect(html).toMatch(/role="grid"[^>]*aria-label="List of projects"/);
     const [grid] = grids.props;
@@ -322,12 +322,12 @@ describe("the home, the list of projects", () => {
     kept.grids = { projects: { filters: { states: "pricing" } } };
     const html = await home();
     expect(listQuery()).toEqual({ is_contributor: "true", states: "pricing" });
-    expect(text(html)).not.toContain("(by default)");
+    expect(text(html)).not.toMatch(/State: [^:]*\(by default\)/);
   });
 
   it("presses every state, and says no default, for `states=all` [WF-IHM-0130]", async () => {
     const html = await home({ states: "all" });
-    expect(text(html)).not.toContain("(by default)");
+    expect(text(html)).not.toMatch(/State: [^:]*\(by default\)/);
     expect(text(html)).toContain("Filter by state Every state");
   });
 
@@ -338,7 +338,7 @@ describe("the home, the list of projects", () => {
       is_contributor: "true",
       states: "pricing,in_progress,completed",
     });
-    expect(text(html)).not.toContain("(by default)");
+    expect(text(html)).not.toMatch(/State: [^:]*\(by default\)/);
     server.clients = [];
     kept.grids = { projects: { filters: { states: "all" } } };
     await home();
@@ -408,46 +408,43 @@ describe("the home, the list of projects", () => {
     expect(text(html)).toContain("Filter by state Pricing");
   });
 
-  it("is filtered on the projects the user contributes to, by the filter of the contract, shown with the link that lifts it", async () => {
+  it("is filtered by default on the projects the user contributes to, by the filter of the contract, told by its chip « (by default) » and not by a command of the screen [WF-IHM-0120-A]", async () => {
+    // Un contributeur de deux projets les voit à sa connexion.
     const html = await home();
-    expect(html).toMatch(/<section aria-label="Filter of the list"/);
-    expect(text(html)).toContain("Projects you contribute to Show all projects");
-    expect(links(html)[0]).toBe("/?is_contributor=false");
-  });
-
-  it("keeps the states, the sort and the search when the filter is lifted, back to the first page", async () => {
-    const html = await home({ states: "pricing", sort_by: "code", offset: "50" });
-    expect(links(html)[0]).toBe("/?states=pricing&sort_by=code&is_contributor=false");
-  });
-
-  it("shows the filter without the link that lifts it to a session that may not read every project (#522)", async () => {
-    // A contributor without « consulter tous les projets » would see the same list lifted: the
-    // link would promise what it does not do (WF-ADM-0110).
-    server.answers = { ...server.answers, "GET /me": "me_estimator" };
-    const html = await home();
-    expect(text(html)).toContain("Projects you contribute to");
-    expect(text(html)).not.toContain("Show all projects");
+    expect(listQuery()).toMatchObject({ is_contributor: "true" });
+    expect(grids.props[0]?.mine).toBe(true);
+    expect(text(html)).toContain("Projects: My projects (by default)");
+    expect(html).not.toContain('data-slot="screen-commands"');
     expect(links(html)).not.toContain("/?is_contributor=false");
   });
 
-  it("stays filtered, without either link, for a session that may not read every project, whatever the address says (#522)", async () => {
+  it("never keeps the filter lifted: an address that says nothing of it is filtered, whatever the account kept [WF-IHM-0120-A]", async () => {
+    kept.grids = { projects: { filters: { is_contributor: "false" } } };
+    await home();
+    expect(listQuery()).toMatchObject({ is_contributor: "true" });
+  });
+
+  it("lists, the filter lifted, every project the session may open: the filter of the contract left out, the chip gone and the field offering it again [WF-IHM-0120-A]", async () => {
+    // La levée du filtre montre aussi les projets qu'il peut ouvrir sans en être contributeur, et
+    // aucun autre : the server answers what the session may open, the front filters nothing.
+    const html = await home({ is_contributor: "false", states: "all" });
+    expect(listQuery()).toEqual({ states: EVERY_STATE });
+    expect(grids.props[0]?.mine).toBe(false);
+    expect(text(html)).not.toContain("(by default)");
+    expect(html).toMatch(/<option value="false" selected="">All those you may open<\/option>/);
+    expect(grids.props[0]?.projects.map((project) => project.project_id)).toContain(PROJECT);
+  });
+
+  it("says the filter by the card, without chip nor field, to a session that may not read every project, and stays filtered whatever the address says (#522) [WF-IHM-0120-A]", async () => {
+    // A contributor without « consulter tous les projets » would see the same list lifted: a cross
+    // would promise what it does not do (WF-ADM-0110).
     server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const html = await home({ is_contributor: "false" });
     expect(listQuery()).toEqual({ is_contributor: "true", states: DEFAULT_STATES });
-    expect(text(html)).toContain("Projects you contribute to");
-    expect(text(html)).not.toContain("Show all projects");
-    expect(text(html)).not.toContain("Show only my projects");
-    const filter = html.slice(html.indexOf('aria-label="Filter of the list"'));
-    expect(filter.slice(0, filter.indexOf("</section>"))).not.toContain("<a ");
-  });
-
-  it("lists every project the user may read once the filter is lifted, and offers it again: a filter, never a restriction of reading", async () => {
-    const html = await home({ is_contributor: "false", states: "all" });
-    expect(listQuery()).toEqual({ states: EVERY_STATE });
-    expect(text(html)).toContain("Show only my projects");
-    expect(text(html)).not.toContain("Projects you contribute to");
-    expect(links(html)[0]).toBe("/?states=all");
-    expect(grids.props[0]?.projects.map((project) => project.project_id)).toContain(PROJECT);
+    expect(grids.props[0]?.mine).toBeUndefined();
+    expect(text(html)).toContain("List of projects Projects you contribute to");
+    expect(text(html)).not.toContain("My projects");
+    expect(text(html)).not.toContain("All those you may open");
   });
 
   it("asks the page its address holds, and offers none before the first nor after the last", async () => {
@@ -505,13 +502,24 @@ describe("the home, the list of projects", () => {
 });
 
 describe("the empty states of the home", () => {
-  it("says the user contributes to no project when the filter empties the list, which the filter shown lifts, once", async () => {
+  it("keeps the grid of a list the filter on the contributor empties, its chip there to lift it, for a session that may lift it", async () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home({ states: "all" });
+    expect(html).toMatch(/role="grid"[^>]*aria-label="List of projects"/);
+    expect(text(html)).toContain("Projects: My projects (by default)");
+    expect(text(html)).not.toContain("You contribute to no project");
+  });
+
+  it("says the user contributes to no project when the filter empties the list of a session that may not lift it", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /me": "me_estimator",
+      "GET /projects": "projects_empty",
+    };
+    const html = await home({ states: "all" });
     expect(text(html)).toMatch(
-      /^Projects Help Create a project Projects you contribute to Show all projects Filter by state Every state .* You contribute to no project\.$/,
+      /^Projects Help List of projects Projects you contribute to Filter by state Every state .* You contribute to no project\.$/,
     );
-    expect(links(html)).toEqual(["/?states=all&is_contributor=false"]);
     expect(html).not.toContain('role="grid"');
   });
 
@@ -547,7 +555,7 @@ describe("the empty states of the home", () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home({ is_contributor: "false", states: "all" });
     expect(text(html)).toMatch(
-      /^Projects Help Create a project Show only my projects Filter by state Every state .* No project\.$/,
+      /^Projects Help List of projects Create a project Projects My projects All those you may open Filter by state Every state .* No project\.$/,
     );
   });
 
@@ -574,10 +582,10 @@ describe("the empty states of the home", () => {
       const html = await home({ states: "all" });
       expect(text(html)).toMatch(
         new RegExp(
-          `^Projects Help Create a project The minimum reference data is incomplete\\. Projects you contribute to Show all projects Incomplete reference data No project can be created until the common reference data has: ${missing} Filters Columns`,
+          `^Projects Help Incomplete reference data No project can be created until the common reference data has: ${missing} List of projects Create a project The minimum reference data is incomplete\\. Filters`,
         ),
       );
-      expect(links(html).slice(1, 1 + provided.length)).toEqual(provided);
+      expect(links(html).slice(0, provided.length)).toEqual(provided);
     },
   );
 
@@ -605,15 +613,15 @@ describe("the empty states of the home", () => {
     const html = await home({ is_contributor: "false", states: "all" });
     // The heading of the screen first, then the notice of the reference under it.
     expect(html).toMatch(
-      new RegExp(
-        `^<main data-fill="" class="${SCREEN.dense} min-h-0">.*?</h1>.*?<section aria-label="[^"]+"`,
-      ),
+      new RegExp(`^<main class="${SCREEN.airy}">.*?</h1>.*?<section aria-label="[^"]+"`),
     );
     expect(html.match(/<h1/g)).toHaveLength(1);
     expect(text(html)).toBe(
-      "Projects Help Create a project The minimum reference data is incomplete. Show only my projects " +
+      "Projects Help " +
         `Incomplete reference data No project can be created until the common reference data has: ` +
         "an active labour category an active resource role " +
+        "List of projects Create a project The minimum reference data is incomplete. " +
+        "Projects My projects All those you may open " +
         "Filter by state Every state Modification period From To No project.",
     );
   });

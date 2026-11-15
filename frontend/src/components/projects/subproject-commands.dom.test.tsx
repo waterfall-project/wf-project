@@ -670,6 +670,20 @@ describe("the commands a sub-project lists", () => {
   });
 });
 
+describe("the creation of a sub-project the project lists unavailable [WF-IHM-0090-A]", () => {
+  it("is described by the condition it lacks, writes it nowhere under the button, and tells it, pressed, in the refusals (#3289)", async () => {
+    serve();
+    render(list({ is_available: false, missing_conditions: ["project_not_terminal"] }, []));
+    const create = screen.getByRole("button", { name: "Nouveau sous-projet" });
+    expect(create).toHaveAttribute("aria-disabled", "true");
+    expect(create).toHaveAccessibleDescription(/^Condition non remplie/);
+    expect(screen.queryByRole("alert")).toBeNull();
+    await userEvent.click(create);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("alert")).toHaveTextContent(/^Condition non remplie/);
+  });
+});
+
 describe("the commands a project lists", () => {
   it("offers neither the creation nor the commands of each row on a terminal project, which lists none, and asks nothing (US-0702/L3)", () => {
     // The sub-projects of the witness terminated, the project lists no command (EP-14/L42o).

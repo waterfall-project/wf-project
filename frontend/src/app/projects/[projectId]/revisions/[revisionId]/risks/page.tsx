@@ -76,6 +76,7 @@ import { RisksGrid } from "@/components/risks/risks-grid";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { MockupNotice } from "@/components/shell/mockup-notice";
+import { Card, CardContent } from "@/components/ui/card";
 import type { PageSearchParams } from "@/navigation/context";
 import { functionHref, functionOf } from "@/navigation/functions";
 import type { ListPage } from "@/navigation/pages";
@@ -301,9 +302,11 @@ function RisksHeader({ count, actions }: { readonly count: number; readonly acti
 }
 
 /**
- * The matrix of the revision as a bubble chart over the whole width of the screen, its exported
- * image naming the project, the revision and the date of the calculation of the coverage, which
- * the matrix is read with.
+ * The matrix of the revision as a bubble chart, in a card over the whole width of the screen, its
+ * exported image naming the project, the revision and the date of the calculation of the coverage,
+ * which the matrix is read with. The chart names itself and holds its own commands — fold, export —
+ * at the right of its caption: the card adds no header of its own, which a window 768 high could
+ * not afford over the grid, and no second title.
  */
 function RiskMatrixSection({
   reading,
@@ -319,16 +322,20 @@ function RiskMatrixSection({
   const t = useTranslations("contextBanner");
   const { project, revision } = reading;
   return (
-    <ProjectRiskMatrix
-      matrix={matrix}
-      provenance={{
-        project: project.label,
-        code: project.code ?? project.project_id,
-        revision: revision?.version_name ?? t("currentRevision"),
-      }}
-      computedAt={computedAt}
-      folded={folded}
-    />
+    <Card>
+      <CardContent className="min-w-0">
+        <ProjectRiskMatrix
+          matrix={matrix}
+          provenance={{
+            project: project.label,
+            code: project.code ?? project.project_id,
+            revision: revision?.version_name ?? t("currentRevision"),
+          }}
+          computedAt={computedAt}
+          folded={folded}
+        />
+      </CardContent>
+    </Card>
   );
 }
 

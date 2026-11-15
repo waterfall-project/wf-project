@@ -8,8 +8,10 @@
  * flat table; « Colonnes », the choice of the columns shown, a menu whose entries stay open while
  * several are set; for a tree, « Arbre », the menu that unfolds it whole, folds it whole, or folds
  * it down to a level, as the « Afficher » of Microsoft Project (`fold.tsx`); and, at the end, for a
- * grid that enters a revision in progress, undo and redo (`UndoCommands`). The bar says no number
- * of rows: the totals row says it alone, what a filter retains included (WF-IHM-0130, #3072).
+ * grid that enters a revision in progress, undo and redo (`UndoCommands`) — a screen may put a
+ * command of its own just before them, at the right edge (`ending`: the column of a year of the
+ * hourly rates, #3071). The bar says no number of rows: the totals row says it alone, what a
+ * filter retains included (WF-IHM-0130, #3072).
  */
 "use client";
 
@@ -157,6 +159,13 @@ export interface GridToolbarProps {
   readonly address?: GridAddress | undefined;
   /** The parameters of the address the table reads as its search and its filters. */
   readonly filterNames?: readonly string[] | undefined;
+  /**
+   * What the screen puts at the end of the bar, at its right edge, before undo and redo: the column
+   * of a year of the grid of the hourly rates, with its messages (US-2080, #3071). It takes the rest
+   * of the line and wraps on itself; the bar wraps it whole under the rest when the line is too
+   * short for it, rather than push the bar wider than its frame.
+   */
+  readonly ending?: ReactNode;
 }
 
 /**
@@ -283,6 +292,7 @@ export function GridToolbar({
   onOpen,
   address,
   filterNames,
+  ending,
 }: GridToolbarProps) {
   const filters = barFilters(
     filtering,
@@ -302,6 +312,7 @@ export function GridToolbar({
       inert={covered}
       className={cn(
         folded ? "flex w-full shrink-0 items-center gap-2" : barClass(treeFilters !== undefined),
+        ending === undefined ? null : "flex-wrap",
         covered ? "invisible" : null,
       )}
       style={folded ? undefined : sized}
@@ -353,7 +364,19 @@ export function GridToolbar({
         </DropdownMenuContent>
       </DropdownMenu>
       {outline === undefined ? null : <OutlineMenu outline={outline} />}
-      <div className="flex-1" />
+      {/* What the screen puts at the end takes the rest of the line, its content at the right
+          edge; the bar wraps it whole under the rest when the line is too short for its widest
+          piece, rather than crush the search or overflow the frame. */}
+      {ending === undefined ? (
+        <div className="flex-1" />
+      ) : (
+        <div
+          data-slot="bar-ending"
+          className="flex flex-1 flex-wrap items-center justify-end gap-2"
+        >
+          {ending}
+        </div>
+      )}
       {undoable === true ? <UndoCommands control={undo} /> : null}
     </div>
   );

@@ -23,6 +23,7 @@ import {
   History,
   Server,
   SlidersHorizontal,
+  type LucideIcon,
 } from "lucide-react";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
@@ -42,7 +43,8 @@ import { ValuesFilter } from "@/components/grid/values-filter";
 import { LocalTime } from "@/components/local-time";
 import { CELL, ICON, ListTable } from "@/components/projects/project-tables";
 import { Reactivations } from "@/components/reference/reactivation";
-import { BoundsRefused, ReferenceSection } from "@/components/reference/section";
+import { BoundsRefused } from "@/components/reference/section";
+import { SectionCard } from "@/components/shell/section-card";
 import { Signal } from "@/components/signal/signal";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 import type { ResultRefusal } from "@/components/tasks/result-refusal";
@@ -64,7 +66,13 @@ import {
   SIZE_BYTES,
   VERIFICATIONS,
 } from "./backup-address";
-import { BackupCommands, BackupHead, DownloadRefusal, RestoreOpened } from "./backup-commands";
+import {
+  BackupCommands,
+  BackupHead,
+  DownloadRefusal,
+  RestoreOpened,
+  StartBackupButton,
+} from "./backup-commands";
 import { BackupGrid } from "./backup-grid";
 
 type SystemStatus = components["schemas"]["SystemStatus"];
@@ -91,6 +99,37 @@ function Outcome({
   );
 }
 
+/**
+ * A section of the state of the platform, in its card (`SectionCard`, EP-25): its title with its
+ * icon, no command — the screen is read, not written —, and its body spaced; what the section says
+ * in place of its table when it is empty, as the one sentence.
+ *
+ * It does what `ReferenceCard` (`reference/section.tsx`) does, plus that sentence; the two stay
+ * apart until the common card of section is settled (#3446), a screen's lot not touching it.
+ */
+function StatusCard({
+  title,
+  icon,
+  empty,
+  children,
+}: {
+  readonly title: string;
+  readonly icon: LucideIcon;
+  /** What the section says when its list is empty; `undefined` when it is not. */
+  readonly empty?: string | undefined;
+  readonly children: ReactNode;
+}) {
+  return (
+    <SectionCard title={title} icon={icon}>
+      {empty === undefined ? (
+        <div className="flex min-w-0 flex-col gap-2">{children}</div>
+      ) : (
+        <p className="text-sm text-muted-foreground">{empty}</p>
+      )}
+    </SectionCard>
+  );
+}
+
 /** The components of the platform, each available or not, when last checked, and its version. */
 export function ComponentList({
   components: list,
@@ -100,7 +139,7 @@ export function ComponentList({
   const t = useTranslations("admin.status");
   const names = useTranslations("enums.PlatformComponent");
   return (
-    <ReferenceSection title={t("components")} icon={Server}>
+    <StatusCard title={t("components")} icon={Server}>
       <ListTable
         label={t("components")}
         columns={[t("component"), t("availability"), t("checkedAt"), t("componentVersion")]}
@@ -118,7 +157,7 @@ export function ComponentList({
           </TableRow>
         ))}
       </ListTable>
-    </ReferenceSection>
+    </StatusCard>
   );
 }
 
@@ -131,7 +170,7 @@ export function StorageFacts({ storage }: { readonly storage: SystemStatus["stor
     ["free", storage.available_bytes],
   ] as const;
   return (
-    <ReferenceSection title={t("storage")} icon={HardDrive}>
+    <StatusCard title={t("storage")} icon={HardDrive}>
       <dl className="grid w-fit grid-cols-[auto_auto] gap-x-6 gap-y-1 text-sm">
         {facts.map(([key, value]) => (
           <div key={key} className="contents">
@@ -140,7 +179,7 @@ export function StorageFacts({ storage }: { readonly storage: SystemStatus["stor
           </div>
         ))}
       </dl>
-    </ReferenceSection>
+    </StatusCard>
   );
 }
 
@@ -166,7 +205,7 @@ export function OperatingParametersFacts({
     ["errorWindow", t("seconds", { count: parameters.error_rate_window_seconds })],
   ] as const;
   return (
-    <ReferenceSection title={t("title")} icon={SlidersHorizontal}>
+    <StatusCard title={t("title")} icon={SlidersHorizontal}>
       <dl className="grid w-fit grid-cols-[auto_auto] gap-x-6 gap-y-1 text-sm">
         {facts.map(([key, value]) => (
           <div key={key} className="contents">
@@ -175,7 +214,7 @@ export function OperatingParametersFacts({
           </div>
         ))}
       </dl>
-    </ReferenceSection>
+    </StatusCard>
   );
 }
 
@@ -223,7 +262,7 @@ function OperationRow({
 export function OperationList({ status }: { readonly status: SystemStatus }) {
   const t = useTranslations("admin.status");
   return (
-    <ReferenceSection title={t("operations")} icon={History}>
+    <StatusCard title={t("operations")} icon={History}>
       <ListTable
         label={t("operations")}
         columns={[t("operation"), t("at"), t("outcome"), t("motive")]}
@@ -233,7 +272,7 @@ export function OperationList({ status }: { readonly status: SystemStatus }) {
         <OperationRow name={t("backupCopy")} outcome={status.last_backup_copy} />
         <OperationRow name={t("restoreTest")} outcome={status.last_restore_test} />
       </ListTable>
-    </ReferenceSection>
+    </StatusCard>
   );
 }
 
@@ -291,7 +330,7 @@ export function AlertList({ alerts }: { readonly alerts: readonly Alert[] }) {
   const t = useTranslations("admin.status");
   const codes = useTranslations("enums.Alert.code");
   return (
-    <ReferenceSection
+    <StatusCard
       title={t("alerts")}
       icon={Bell}
       empty={alerts.length === 0 ? t("noAlert") : undefined}
@@ -312,7 +351,7 @@ export function AlertList({ alerts }: { readonly alerts: readonly Alert[] }) {
           </TableRow>
         ))}
       </ListTable>
-    </ReferenceSection>
+    </StatusCard>
   );
 }
 
@@ -452,10 +491,12 @@ function BackupBody({
  * address asks, or that there is none — only when the list holds none at all and nothing narrows
  * it: a page asked beyond its end shows no grid, and its pages say where it stands (`ListPages`);
  * filters the API refused (422) leave the list unread, the bound said at its field, a sentence
- * standing for the grid — that of the period when the API refused it, that of the bounds otherwise. The head of the list says what the last command did, and offers to start a
- * backup to who may modify them (`startable`); the refusals, and that of a download the browser came
- * back with, are told above the list. The commands of each backup are those it lists. The list
- * keeps its height — the grid no taller than the window —: the deposit comes under it (`BackupsPage`).
+ * standing for the grid — that of the period when the API refused it, that of the bounds otherwise.
+ * The list is a card (`SectionCard`): « Sauvegarder maintenant », filled, is its principal command
+ * for who may modify the backups (`startable`), the region that says what the last command did
+ * beside it; the refusals, and that of a download the browser came back with, are told above the
+ * list. The commands of each backup are those it lists. The list keeps its height — the grid no
+ * taller than the window —: the deposit comes under it (`BackupsPage`).
  */
 export function BackupList({
   read,
@@ -491,22 +532,34 @@ export function BackupList({
     <BackupCommands backups={backups}>
       <Reactivations reads={BACKUPS_READS}>
         <DownloadRefusal refused={refused} />
-        <ReferenceSection
+        <SectionCard
           title={t("title")}
           icon={DatabaseBackup}
-          empty={empty ? t("none") : undefined}
-          commands={startable || listed ? <BackupHead startable={startable} /> : undefined}
+          commands={startable || listed ? <BackupHead /> : undefined}
+          principal={
+            startable
+              ? { does: "trigger", command: (variant) => <StartBackupButton variant={variant} /> }
+              : undefined
+          }
         >
-          {body}
-          {read.kind === "read" ? (
-            <ListPages
-              list={BACKUPS_LIST}
-              texts="admin.pages"
-              page={read.page}
-              shown={read.items.length}
-            />
-          ) : null}
-        </ReferenceSection>
+          <div className="flex min-w-0 flex-col gap-2">
+            {empty ? (
+              <p className="text-sm text-muted-foreground">{t("none")}</p>
+            ) : (
+              <>
+                {body}
+                {read.kind === "read" ? (
+                  <ListPages
+                    list={BACKUPS_LIST}
+                    texts="admin.backups.pages"
+                    page={read.page}
+                    shown={read.items.length}
+                  />
+                ) : null}
+              </>
+            )}
+          </div>
+        </SectionCard>
         <RestoreOpened />
       </Reactivations>
     </BackupCommands>

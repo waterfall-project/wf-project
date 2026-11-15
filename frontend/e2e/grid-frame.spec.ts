@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The frame of a dense grid in the window, measured (US-0560, #1033, #1041, #1042): on each of the
- * nine screens that fill the window, in a window too low for the grid at its floor, at the two
+ * eight screens that fill the window, in a window too low for the grid at its floor, at the two
  * widths of the harness — 1366 points, then 911, what a zoom of 150 % leaves of it —, the frame
  * covers nothing that follows it; the bar above it is as wide as the frame, scroll bars included,
  * and holds on one line; and a grid of a few rows is no taller than its content. No requirement
@@ -31,11 +31,10 @@ const WINDOWS = [
 
 const REVISION = "/projects/[projectId]/revisions/[revisionId]";
 
-/** The nine screens that fill the window (`Screen`, `fill` or `fillWide`). */
+/** The eight screens that fill the window (`Screen`, `fill` or `fillWide`). */
 const SCREENS = [
   "/",
   "/portfolio/projects",
-  "/admin/users",
   "/admin/audit-log",
   path(`${REVISION}/estimate`),
   path(`${REVISION}/planning`),
@@ -243,7 +242,7 @@ for (const address of FILTERED) {
 }
 
 /** The screens whose frame is measured again after the window is resized, with no new load. */
-const RESIZED = ["/admin/users", path(`${REVISION}/planning`)] as const;
+const RESIZED = ["/", path(`${REVISION}/planning`)] as const;
 
 for (const address of RESIZED) {
   test(`${address}: the bar follows the frame when the window is resized, with no new load (#1144)`, async ({
@@ -285,11 +284,28 @@ test("the height of a grid is measured again when the panel of its filters or th
   page,
 }) => {
   // The bar of the selection lies over the bar of the grid, in its place, and moves nothing: the
-  // path of the selection of the accounts measures it (`admin.spec.ts`).
-  const address = "/admin/users";
+  // path of the selection of the accounts measures it (`admin.spec.ts`). The journal of audit holds
+  // it: the screen of the accounts is no longer a screen that fills the window (US-2100).
+  const address = "/admin/audit-log";
   await compile(page.request, address);
   const toggle = page.getByRole("button", { name: /^Filtres( \(|$)/ });
   const totals = page.getByRole("grid").getByRole("row").last().locator("td, th").first();
+  // The totals span every column, the width of the table: they are in the window when they lie
+  // between its top and its bottom, whatever the columns the frame scrolls sideways.
+  const expectTotalsInWindow = async () => {
+    await expect
+      .poll(async () => {
+        const place = await totals.boundingBox();
+        const window = page.viewportSize();
+        return (
+          place !== null &&
+          window !== null &&
+          place.y >= 0 &&
+          place.y + place.height <= window.height
+        );
+      })
+      .toBe(true);
+  };
   // In a tall window, where the panel opened lies: how far it pushes the frame down.
   await open(page, address, { width: 1366, height: 1400 });
   const closed = await frameBox(page);
@@ -297,7 +313,7 @@ test("the height of a grid is measured again when the panel of its filters or th
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
   await expect.poll(async () => (await frameBox(page)).top).toBeGreaterThan(closed.top);
   const panel = (await frameBox(page)).top - closed.top;
-  // A window that leaves the frame of the open panel 200 points, under the content of the seven
+  // A window that leaves the frame of the open panel 200 points, under the content of the
   // accounts (260) and over the floor (160): the frame is bounded to the room left below it.
   const room = 200;
   const height = Math.ceil(closed.top + panel + room);
@@ -305,7 +321,7 @@ test("the height of a grid is measured again when the panel of its filters or th
   await expect.poll(async () => (await frameBox(page)).bottom).toBeLessThanOrEqual(height + 1);
   const opened = await frameBox(page);
   expect(opened.bottom - opened.top).toBeLessThanOrEqual(room + 1);
-  await expect(totals).toBeInViewport({ ratio: 1 });
+  await expectTotalsInWindow();
 
   // Closed, the frame goes back up and takes the room the panel left.
   await toggle.click();
@@ -314,21 +330,21 @@ test("the height of a grid is measured again when the panel of its filters or th
   const shut = await frameBox(page);
   expect(shut.bottom).toBeLessThanOrEqual(height + 1);
   expect(shut.bottom - shut.top).toBeGreaterThan(opened.bottom - opened.top);
-  await expect(totals).toBeInViewport({ ratio: 1 });
+  await expectTotalsInWindow();
 
   // A filter on: its chip under the bar pushes the frame down, bounded still; lifted, it comes back.
-  await open(page, `${address}?is_active=true`, { width: 1366, height });
+  await open(page, `${address}?object_kind=risk`, { width: 1366, height });
   const chipped = await frameBox(page);
   expect(chipped.top).toBeGreaterThan(closed.top);
   expect(chipped.bottom).toBeLessThanOrEqual(height + 1);
-  await expect(totals).toBeInViewport({ ratio: 1 });
-  await page.getByRole("button", { name: "Retirer le filtre État du compte : Actif" }).click();
+  await expectTotalsInWindow();
+  await page.getByRole("button", { name: /^Retirer le filtre Nature de l’objet/ }).click();
   await expect(page.getByRole("list", { name: "Filtres actifs" })).toHaveCount(0, {
     timeout: WORKING,
   });
   await expect.poll(async () => (await frameBox(page)).top).toBe(closed.top);
   expect((await frameBox(page)).bottom).toBeLessThanOrEqual(height + 1);
-  await expect(totals).toBeInViewport({ ratio: 1 });
+  await expectTotalsInWindow();
 });
 
 test("a grid of a few rows is no taller than its content, in a window that would hold more", async ({

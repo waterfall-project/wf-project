@@ -56,7 +56,7 @@ describe("the pages of a list of the administration", () => {
     const { container } = rendered(
       <ListPages
         list={BACKUPS_LIST}
-        texts="admin.pages"
+        texts="admin.backups.pages"
         page={{ limit: 2, offset: 2, total: 5 }}
         shown={2}
       />,
@@ -77,7 +77,7 @@ describe("the pages of a list of the administration", () => {
     rendered(
       <ListPages
         list={BACKUPS_LIST}
-        texts="admin.pages"
+        texts="admin.backups.pages"
         page={{ limit: 2, offset: 8, total: 5 }}
         shown={0}
       />,
@@ -130,5 +130,11 @@ describe("the state of the platform and its backups", () => {
       screen.getByText("Vers secours-lyon, dossier waterfall/sauvegardes — 30 copies gardées"),
     ).toBeInTheDocument();
     await expectAccessible(container);
+  });
+
+  it("says a list of alerts that is empty in a card of section [WF-IHM-0100-A]", () => {
+    rendered(<AlertList alerts={[]} />, "en");
+    const sentence = screen.getByText("No current alert.");
+    expect(sentence.closest('[data-slot="section-card"]')).not.toBeNull();
   });
 });

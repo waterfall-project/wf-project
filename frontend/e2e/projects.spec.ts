@@ -11,7 +11,7 @@ import {
 } from "@playwright/test";
 
 import { compile } from "./compile";
-import { openHydrated, sortUntilAddress, WORKING } from "./hydration";
+import { openHydrated, sortUntilAddress, untilHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 import {
   attachToService,
@@ -91,17 +91,22 @@ const FAKE_BACK_ONLY =
 // The twin of a path that the fake back, which keeps nothing, cannot play.
 const SERVICE_ONLY = "the fake back keeps nothing of what is written";
 
-test("the home lists the projects the user contributes to, a filter shown and lifted, never a restriction of reading @shared [WF-IHM-0120-A]", async ({
+test("the home lists the projects the user contributes to, a filter by default told by its chip and lifted by removing it, never a restriction of reading @shared [WF-IHM-0120-A]", async ({
   page,
 }) => {
+  // Un contributeur de deux projets les voit à sa connexion ; la levée du filtre montre aussi les
+  // projets qu'il peut ouvrir sans en être contributeur, et aucun autre.
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Projets");
-  const filter = page.getByRole("main").getByRole("region", { name: "Filtre de la liste" });
-  await expect(filter).toContainText("Projets dont vous êtes contributeur");
+  await untilHydrated(page);
+  const chips = page.getByRole("list", { name: "Filtres actifs" });
+  await expect(chips).toContainText("Projets : Mes projets (par défaut)");
 
-  await filter.getByRole("link", { name: "Voir tous les projets" }).click();
-  await expect(page).toHaveURL("/?is_contributor=false");
-  await expect(filter.getByRole("link", { name: "N’afficher que mes projets" })).toBeVisible();
+  await chips
+    .getByRole("button", { name: "Retirer le filtre Projets : Mes projets (par défaut)" })
+    .click();
+  await expect(page).toHaveURL("/?is_contributor=false", { timeout: WORKING });
+  await expect(chips).not.toContainText("Mes projets");
   const list = page.getByRole("grid", { name: "Liste des projets" });
   // Its header, the two projects of the example and its totals; the service lists, besides the two
   // projects of the witness, those other paths created.
@@ -136,9 +141,12 @@ test("the home lists the projects the user contributes to, a filter shown and li
     await expect(total).toContainText("2 projets");
   }
 
-  await filter.getByRole("link", { name: "N’afficher que mes projets" }).click();
-  await expect(page).toHaveURL("/");
-  await expect(filter).toContainText("Projets dont vous êtes contributeur");
+  // The filter applied again from its field in the panel: the address says nothing of it.
+  await untilHydrated(page);
+  await openFilters(page);
+  await page.getByRole("combobox", { name: "Projets" }).selectOption({ label: "Mes projets" });
+  await expect(page).toHaveURL("/", { timeout: WORKING });
+  await expect(chips).toContainText("Projets : Mes projets (par défaut)");
 });
 
 test("the home sorts its projects and filters them by state on the server, from the address (#522) @shared [WF-IHM-0130-A]", async ({

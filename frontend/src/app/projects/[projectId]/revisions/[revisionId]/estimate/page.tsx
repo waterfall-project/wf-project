@@ -62,6 +62,7 @@ import { type Permission, requestSession } from "@/session/request";
 import { screenMetadata } from "../../../../../title";
 import { type GridAddress, gridAddress, readGridScreen } from "../grid-screen";
 import type { RevisionParams } from "../page";
+import { WorkCard } from "../work-card";
 
 /** Title the tab with the function, and with the project. */
 export async function generateMetadata({
@@ -325,29 +326,31 @@ export default async function EstimatePage({
           permissions={session?.permissions ?? []}
           currency={currency}
         />
-        <EstimateGrid
-          key={screen.structure.structure_id}
-          nodes={subprojectsEntered ? screen.nodes : withoutSubprojectIds(screen.nodes)}
-          structure={screen.structure}
-          structureVersion={screen.structureVersion}
-          filters={screen.filters}
-          reference={reference}
-          editable={editable}
-          tasksEditable={screen.commands.has("edit_planning")}
-          query={screen.query}
-          preferences={screen.preferences}
-          differential={screen.kind === "amendment"}
-          origins={originNames(screen.origin)}
-          treeFilters={
-            <TreeFilters
-              breakdown={screen.breakdown}
-              difference={screen.difference}
-              differential={screen.kind === "amendment"}
-              origin={screen.origin}
-            />
-          }
-          inflation={inflationOf(screen.reading)}
-        />
+        <WorkCard fill>
+          <EstimateGrid
+            key={screen.structure.structure_id}
+            nodes={subprojectsEntered ? screen.nodes : withoutSubprojectIds(screen.nodes)}
+            structure={screen.structure}
+            structureVersion={screen.structureVersion}
+            filters={screen.filters}
+            reference={reference}
+            editable={editable}
+            tasksEditable={screen.commands.has("edit_planning")}
+            query={screen.query}
+            preferences={screen.preferences}
+            differential={screen.kind === "amendment"}
+            origins={originNames(screen.origin)}
+            treeFilters={
+              <TreeFilters
+                breakdown={screen.breakdown}
+                difference={screen.difference}
+                differential={screen.kind === "amendment"}
+                origin={screen.origin}
+              />
+            }
+            inflation={inflationOf(screen.reading)}
+          />
+        </WorkCard>
       </Screen>
     </PendingAddress>
   );

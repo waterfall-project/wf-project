@@ -10,7 +10,8 @@
  * not offered; one it would list unavailable would stay, the request naming what it lacks. The
  * API gives the hand back at once with a background task (WF-ARC-0090), handed to the tracker of
  * the shell with the request itself, which runs it again if it fails; its result, a file made on
- * demand and not kept (WF-DAT-0120), is downloaded from the tracker once the task has succeeded.
+ * demand and not kept (WF-DAT-0120), is downloaded by itself once the task has succeeded, if the
+ * form still shows — from the card of its end, or from the tracker, otherwise (#3103).
  * The request waits, saying so, until the task ends (`waiting.tsx`, #3103): failed, it is given back.
  * A refusal is told under the form (`OutcomeNotice`).
  */
@@ -22,13 +23,19 @@ import { type SubmitEvent, useId, useState } from "react";
 
 import { type ExportRequest, requestFileExport } from "@/api/actions/exchanges";
 import type { Outcome } from "@/api/problem";
-import { UnmetConditions } from "@/components/commands/command";
+import { PressRefusal, useUnmet } from "@/components/commands/command";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { useHeldCommand } from "@/components/commands/held";
-import { UNAVAILABLE, unmetId } from "@/components/commands/offer";
+import { UNAVAILABLE } from "@/components/commands/offer";
 import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
 import { WaitingIcon, waitingAttributes } from "@/components/commands/waiting";
-import { useTaskRunning, useTrackTask } from "@/components/tasks/task-tracker";
+import {
+  useDownloadWhenTaskSucceeds,
+  useTaskRunning,
+  useTrackTask,
+} from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 
 import { isPlanningDate } from "@/i18n/format";
@@ -84,7 +91,9 @@ function OfferedExports({
   // The kind chosen while the revision still offers it; the first it offers otherwise.
   const kind = chosen !== undefined && offered.includes(chosen) ? chosen : offered[0];
   const offer = offers[kind];
-  const unmet = offer === undefined ? undefined : unmetId(offer, field);
+  const unmet = useUnmet();
+  // The presses of the request while the kind is unavailable: each says what it lacks.
+  const [presses, setPresses] = useState(0);
   const [depth, setDepth] = useState("");
   const [reviewDate, setReviewDate] = useState("");
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
@@ -96,11 +105,17 @@ function OfferedExports({
   const running = useTaskRunning(exporting);
   // An export lost once sent: the request waits until the screen has been read anew (US-2240).
   const reading = useReadAnew(outcome);
+  // Its file leaves by itself once made, while the form still shows (#3103).
+  useDownloadWhenTaskSucceeds(exporting);
   const waiting = busy || running || reading;
   // A link clicked while the export is asked waits for it, and is not followed when refused.
   const held = useHeldCommand();
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (offer?.is_available === false) {
+      setPresses((count) => count + 1);
+      return;
+    }
     if (waiting || offer?.is_available !== true) {
       return;
     }
@@ -147,6 +162,8 @@ function OfferedExports({
             onChange={(event) => {
               if (isExportKind(event.target.value)) {
                 setKind(event.target.value);
+                // The presses were told of the kind left: the next kind starts without a refusal.
+                setPresses(0);
               }
             }}
           >
@@ -160,7 +177,7 @@ function OfferedExports({
         {kind === "task_tree_image" ? (
           <label className="flex items-center gap-2 text-sm">
             {t("exchanges.export.depth")}
-            <input
+            <Input
               type="number"
               min={1}
               step={1}
@@ -169,37 +186,42 @@ function OfferedExports({
               onChange={(event) => {
                 setDepth(event.target.value);
               }}
-              className="h-8 w-20 rounded-md border border-input bg-background px-2 text-foreground"
+              className="w-20"
             />
           </label>
         ) : null}
         {kind === "remaining" ? (
           <label className="flex items-center gap-2 text-sm">
             {t("exchanges.export.reviewDate")}
-            <input
+            <Input
               type="date"
               value={reviewDate}
               onChange={(event) => {
                 setReviewDate(event.target.value);
               }}
-              className="h-8 rounded-md border border-input bg-background px-2 text-foreground"
+              className="w-auto"
             />
           </label>
         ) : null}
-        <Button
-          type="submit"
-          size="sm"
-          variant="outline"
-          {...waitingAttributes(waiting)}
-          {...(offer?.is_available === true ? {} : { "aria-disabled": true })}
-          aria-describedby={unmet}
-          className={UNAVAILABLE}
+        <CommandTooltip
+          label={t("exchanges.export.request")}
+          help={t("commands.exportRequest.help")}
+          unavailable={offer === undefined || offer.is_available ? undefined : unmet(offer)}
         >
-          <WaitingIcon waiting={waiting} icon={<FileDown aria-hidden="true" />} />
-          {t("exchanges.export.request")}
-        </Button>
+          <Button
+            type="submit"
+            size="sm"
+            variant="outline"
+            {...waitingAttributes(waiting)}
+            {...(offer?.is_available === true ? {} : { "aria-disabled": true })}
+            className={UNAVAILABLE}
+          >
+            <WaitingIcon waiting={waiting} icon={<FileDown aria-hidden="true" />} />
+            {t("exchanges.export.request")}
+          </Button>
+        </CommandTooltip>
       </div>
-      {offer === undefined ? null : <UnmetConditions id={unmet} offer={offer} />}
+      {offer === undefined ? null : <PressRefusal offer={offer} presses={presses} />}
       <OutcomeNotice
         outcome={outcome}
         reading={reading}

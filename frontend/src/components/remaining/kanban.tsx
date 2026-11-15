@@ -24,6 +24,10 @@
  * read them again, when that reading is over without having brought its answer (the principle of
  * the busy state of the grids, #1224). The screen offers no
  * gesture the card does not list, and deduces none of the nature of the task or of its lines.
+ *
+ * Its columns are panels (EP-25, US-2140/L2): a rounded border on the muted of the page under the
+ * white cards, each titled by the shape of its state — the icon of the state of progress of the
+ * planning —, never by a colour alone.
  */
 "use client";
 
@@ -44,6 +48,7 @@ import {
 import { setTaskProgress } from "@/api/actions/nodes";
 import { useUnmet } from "@/components/commands/command";
 import { useHeldCommand } from "@/components/commands/held";
+import { PROGRESS_ICONS } from "@/components/grid/planning-cells";
 
 import type { KanbanFilters, TaskProgress } from "./address";
 import { AnsweredCards } from "./kanban-answers";
@@ -390,6 +395,7 @@ export function Kanban({
         {COLUMNS.map(([state, title]) => {
           const listed = shown[state];
           const total = everyCard[state].length;
+          const StateIcon = PROGRESS_ICONS[state];
           const reachable =
             moving !== undefined &&
             moving.state !== state &&
@@ -407,11 +413,12 @@ export function Kanban({
               onDrop={(event) => {
                 drop(event, state);
               }}
-              className={`space-y-2 rounded-md ${
+              className={`min-w-0 space-y-2 rounded-lg border bg-muted p-3 ${
                 reachable ? "outline-2 outline-dashed outline-offset-4 outline-ring" : ""
               }`}
             >
               <h2 className="text-sm font-semibold">
+                <StateIcon aria-hidden="true" className="mr-2 inline size-4 align-text-bottom" />
                 {t(title)}
                 {listed.length < total ? (
                   <>
