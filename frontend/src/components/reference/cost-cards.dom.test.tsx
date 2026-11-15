@@ -148,10 +148,10 @@ describe("the cards of the natures and of the categories", () => {
     expectCommandRule(container);
   });
 
-  it("draws the commands of a row in the light border of the tables, at a label of normal weight (#3079)", () => {
+  it("draws the commands of a row in their own border, at a label of normal weight (#3079, #3332)", () => {
     render(lists());
     const modify = within(card("Natures de coût")).getAllByRole("button", { name: /^Modifier/ })[0];
-    expect(modify?.className).toContain("border-border");
+    expect(modify?.className).toContain("border-row-command-border");
     expect(modify?.className).toContain("font-normal");
     expect(modify?.className).not.toContain("border-input");
   });

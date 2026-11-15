@@ -55,14 +55,16 @@ describe("buttonVariants", () => {
     expect(pressed).toHaveBeenCalledOnce();
   });
 
-  it("draws the command of a row with the light border of the tables, its label in normal weight #3079", () => {
+  it("draws the command of a row with a border of its own, measured at 3:1, its label in normal weight #3079 #3332", () => {
     render(
       <Button type="button" variant="row" size="sm">
         Modify
       </Button>,
     );
     const button = screen.getByRole("button", { name: "Modify" });
-    expect(button).toHaveClass("border", "border-border", "font-normal");
+    expect(button).toHaveClass("border", "border-row-command-border", "font-normal");
+    // Neither the light border of the tables, under 3:1, nor that of a field.
+    expect(button).not.toHaveClass("border-border");
     expect(button).not.toHaveClass("border-input");
     expect(button).not.toHaveClass("font-medium");
     // A filled or an outlined command keeps the weight of a command.

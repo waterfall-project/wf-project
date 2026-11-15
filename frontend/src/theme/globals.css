@@ -98,9 +98,18 @@
      is written beside it, and « Désactivé » keeps its own mark (WF-IHM-0070). */
   --active-mark: light-dark(#15803d, #4ade80);
   /* The row of a table under the pointer (US-2080, #3075): a slight tint of the blue of the logos,
-     apart from the grey of the row selected (`--accent`); the text of a row, its signals, its dot
-     « Actif » and the border of a field read on it as on the page (contrast.test.ts). */
-  --row-hover: light-dark(#e9f2fc, #141c29);
+     apart from the grey of the row selected (`--accent`), a step off the card its cells are set on
+     (#3277) — in dark mode a step lighter than the card, as the card is than the page; the text of
+     a row, its signals, its dot « Actif », the border of a field and that of a command of the row
+     read on it as on the card. It stays a hint, not a signal: it is told from the card and from the
+     row selected by a CIE76 difference of 2.3 at least — the smallest noticed side by side; 4.0
+     from the card and 6.6 from the selected row in dark mode (contrast.test.ts). */
+  --row-hover: light-dark(#e9f2fc, #1a2332);
+  /* The border of a command of a row of a table (the variant `row` of `Button`, #3332): it shows
+     the control at 3:1 on the card, on a row under the pointer and on a row selected, in both
+     modes (WCAG 1.4.11). A token of its own, not `--border`: darkened to 3:1, the border of the
+     tables would weigh on every rule between their rows and around every card. */
+  --row-command-border: light-dark(#7a889d, #66748a);
   /* The mark of a difference (US-0500): the tint of the row of a node a differential adds, removes
      or modifies, and the mark written on it, `+`, `-` or `M`, in a green, a red and a yellow. The
      character says it first and the colour doubles it, never alone; each reaches 4.5:1 on its tint,
@@ -205,6 +214,7 @@
   --color-chart-4: var(--chart-4);
   --color-active-mark: var(--active-mark);
   --color-row-hover: var(--row-hover);
+  --color-row-command-border: var(--row-command-border);
   --color-diff-added: var(--diff-added);
   --color-diff-added-mark: var(--diff-added-mark);
   --color-diff-removed: var(--diff-removed);

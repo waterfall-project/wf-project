@@ -138,8 +138,9 @@ function widestOf<Row extends RowData>(header: GridHeader<Row>): number {
   return header.column.columnDef.maxSize ?? MAX_WIDTH;
 }
 
-/** The width a column shows, and the narrowest its handle takes it to. */
+/** The width chosen for a column, the width it shows, and the narrowest its handle takes it to. */
 interface Span {
+  readonly chosen: number;
   readonly shown: number;
   readonly least: number;
 }
@@ -150,7 +151,8 @@ interface Span {
  */
 function spanOf<Row extends RowData>(header: GridHeader<Row>, rest: number | undefined): Span {
   const least = Math.max(MIN_WIDTH, rest ?? MIN_WIDTH);
-  return { shown: Math.max(header.getSize(), least), least };
+  const chosen = Math.max(header.getSize(), MIN_WIDTH);
+  return { chosen, shown: Math.max(chosen, least), least };
 }
 
 /**
@@ -292,7 +294,10 @@ function Heading({
   readonly label: string;
   /** Whether the label names the column to the readers of the screen alone: too narrow to write. */
   readonly named: boolean;
-  /** The width of the column, at which an axis draws. */
+  /**
+   * The width chosen for the column, at which an axis draws: never the width it shows, known only
+   * once the frame is measured, which would draw the axis anew after the loading (#3282).
+   */
   readonly width: number;
 }) {
   const t = useTranslations("grid");
@@ -440,7 +445,7 @@ export function HeaderCell<Row extends RowData>({
       id={id}
       column={column}
       label={label}
-      width={span.shown}
+      width={span.chosen}
       named={header.column.id === DIFF_MARK_KEY}
     />
   );

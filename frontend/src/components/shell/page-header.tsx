@@ -26,9 +26,9 @@ import { HelpPanel } from "./help-panel";
 export type Density = "dense" | "airy";
 
 /**
- * The classes of the `<main>` of a screen, by density: what its skeleton takes too. The airy
- * screen takes the margin of the dense one under the large breakpoint, where a zoom of 150 %
- * leaves a grid bar 40 points less than it needs.
+ * The classes of the `<main>` of a screen, by density: what its skeleton takes too, at the density
+ * its segment passes it. The airy screen takes the margin of the dense one under 1024 points (the
+ * breakpoint `lg`), where a zoom of 150 % leaves a grid bar 40 points less than it needs.
  */
 export const SCREEN: Readonly<Record<Density, string>> = {
   dense: "flex min-w-0 flex-1 flex-col gap-3 px-5 py-3",

@@ -34,6 +34,7 @@ import {
   useTrackTask,
 } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 
 import { isPlanningDate } from "@/i18n/format";
@@ -165,7 +166,7 @@ function OfferedExports({
         {kind === "task_tree_image" ? (
           <label className="flex items-center gap-2 text-sm">
             {t("exchanges.export.depth")}
-            <input
+            <Input
               type="number"
               min={1}
               step={1}
@@ -174,20 +175,20 @@ function OfferedExports({
               onChange={(event) => {
                 setDepth(event.target.value);
               }}
-              className="h-8 w-20 rounded-md border border-input bg-background px-2 text-foreground"
+              className="w-20"
             />
           </label>
         ) : null}
         {kind === "remaining" ? (
           <label className="flex items-center gap-2 text-sm">
             {t("exchanges.export.reviewDate")}
-            <input
+            <Input
               type="date"
               value={reviewDate}
               onChange={(event) => {
                 setReviewDate(event.target.value);
               }}
-              className="h-8 rounded-md border border-input bg-background px-2 text-foreground"
+              className="w-auto"
             />
           </label>
         ) : null}

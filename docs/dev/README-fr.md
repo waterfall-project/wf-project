@@ -552,7 +552,9 @@ valeur de l'API ne prenne un sens pour Next (`NEXT_REDIRECT;…`), et qu'il affi
 le préfixe (`failure.ts`). Sans enveloppe, ou sans `correlation_id`, la référence affichée est le
 digest que Next calcule, celui de ses propres journaux. Un écran ne dit jamais « vide » sur une
 réponse qu'il n'a pas lue. Quand la session est illisible, la navigation garde l'écran d'état
-(WF-ADM-0130). Chaque segment qui lit l'API a son `loading.tsx`, le squelette `ScreenSkeleton`, qui
+(WF-ADM-0130). Chaque segment qui lit l'API a son `loading.tsx`, le squelette `ScreenSkeleton`, à la
+densité de ses écrans, que le `loading.tsx` lit dans la table des densités — un écran d'une autre
+famille que son segment a le sien, et l'écran aéré ne saute pas à son arrivée (#3269) —, qui
 porte un `role="status"` nommé — un lecteur d'écran ne l'annonce pas toujours ; la réponse est alors
 diffusée, et « introuvable » répond 200 et non 404 — un 404 doux, que Next marque `noindex` : le
 statut part avec le squelette, avant que la page sache l'objet introuvable. Il est le même pour
@@ -1031,11 +1033,16 @@ chevauche rien. La largeur d'une table est du CSS, sans mesure en script (`table
 colonnes, et la colonne du libellé (`label`) — à défaut, la dernière avant une colonne figée à la
 fin — prend ce que les autres laissent, la largeur choisie pour elle devenant son minimum : sa
 poignée et ses flèches règlent ce minimum, sans que la colonne rétrécisse sous ce que la carte lui
-donne. Elle n'est plus large que sa largeur que quand la table ne défile pas de côté : les décalages
-des colonnes figées, tirés des largeurs choisies, restent justes. Aucun trait entre les colonnes,
-sauf à côté d'une colonne figée ; la ligne sous le pointeur est teinte d'un jeton (`--row-hover`,
-`ROW_HOVER`), qu'une cellule calculée, une ligne choisie ou marquée d'un différentiel gardent sous
-leur propre teinte. Dans la ligne de total, le libellé du nombre s'étend sur les colonnes sans
+donne ; un pas qui ne change rien à l'écran n'écrit rien, si bien que, tant que la carte est large,
+ce minimum ne peut que monter (#3280). Elle n'est plus large que sa largeur que quand la table ne
+défile pas de côté : les décalages des colonnes figées, tirés des largeurs choisies, restent justes.
+Aucun trait entre les colonnes, sauf à côté d'une colonne figée ; les cellules du corps prennent le
+fond de la carte qui porte la table (`CELL_BACKGROUND`, `bg-card`, #3277), opaque pour les colonnes
+figées, et la ligne sous le pointeur est teinte d'un jeton (`--row-hover`, `ROW_HOVER`), qu'une
+cellule calculée, une ligne choisie ou marquée d'un différentiel gardent sous leur propre teinte. Les
+commandes d'une ligne (variante `row` de `Button`) ont un bord à elles, `--row-command-border`, à
+3:1 sur la carte, le survol et la ligne choisie ; `--border`, qui ne fait que séparer, reste clair
+(#3332). Dans la ligne de total, le libellé du nombre s'étend sur les colonnes sans
 chiffre qui le suivent (`colSpan`) au lieu de se tronquer ; figé, il ne reste collé que sur les
 colonnes figées, ses mots au début de sa colonne (#3072). Les tables simples (`ui/table.tsx`) ont
 le texte, l'en-tête et l'absence de traits des grilles. La barre et le bouton « Colonnes » ont la
@@ -2734,12 +2741,15 @@ qui garde le focus tant qu'il est ouvert et que ferment Échap, son bouton de fe
 du panneau ou « Recharger l'écran », le focus rendu au bouton de la barre. Le bouton de la barre
 (`TasksButton`) l'ouvre et dit, dans son nom et ses pastilles, le nombre des tâches suivies et celui
 des refus non lus. Rien ne l'ouvre de lui-même, sauf le refus d'un résultat au retour du navigateur,
-dont le téléchargement est parti du panneau. Une tâche remise ou finie se dit sous la barre, dans le
-flux de la page, sur l'écran où l'on est : la dernière, en une ligne courte qui reste jusqu'à la
-suivante — la confirmation sur place d'un succès que l'écran ne montre pas —, sans annonce, le
-journal parlant pour les fins ; son bouton la ferme, au clavier comme à la souris, et rend le focus
-au bouton de la barre, la tâche restant suivie (décision de l'auteur, #1179). Chaque succès et
-chaque échec se dit aussi par une carte flottante au coin bas droit de la fenêtre (`EndCards`,
+dont le téléchargement est parti du panneau. Une tâche remise se dit sous la barre, dans le flux de
+la page, sur l'écran où l'on est : la dernière, en une ligne courte qui reste jusqu'à la suivante,
+sans annonce ; son bouton la ferme, au clavier comme à la souris, et rend le focus au bouton de la
+barre, la tâche restant suivie (décision de l'auteur, #1179). La ligne ne dit pas une fin que porte
+une carte d'aboutissement — un succès, un échec — : la carte, qui reste et porte l'action, la dit
+seule, avec le journal des fins et le panneau, et la ligne de la tâche remise se ferme à son
+arrivée ; elle ne dit plus qu'un suivi interrompu, qui n'a pas de carte (décision de l'auteur du
+2026-11-14, #3292). Chaque succès et chaque échec se dit par une carte flottante au coin bas droit
+de la fenêtre (`EndCards`,
 `end-cards.tsx`, US-2170), montée par la coquille au-dessus de la page, qu'elle ne déplace pas : la
 phrase de la fin, le motif d'un échec, l'action qui suit — « Télécharger » le fichier d'un export, la
 tâche relue d'abord comme depuis le panneau, sinon « Ouvrir » l'écran d'où elle est partie — et sa

@@ -131,15 +131,21 @@ interface TrackerStore {
   readonly readAnew: (line: EndLine, refresh: () => void) => void;
 }
 
-/** The news once an event has changed what the tracker follows: an end logged is the last. */
+/**
+ * The news once an event has changed what the tracker follows: an end logged is the last. A success
+ * or a failure has its floating card (`EndCards`), which stays and carries what follows: the line
+ * under the bar does not say it a second time, and says nothing more of the task handed over before
+ * it (#3292). A follow-up interrupted, which has no card, is said by the line.
+ */
 function newsAfter(before: Held, after: Tracking, event: TrackingEvent): TaskNews | undefined {
   if (event.type === "forget") {
     return undefined;
   }
   const ended = after.log.at(-1);
-  return ended !== undefined && ended !== before.tracking.log.at(-1)
-    ? { kind: "ended", line: ended }
-    : before.news;
+  if (ended === undefined || ended === before.tracking.log.at(-1)) {
+    return before.news;
+  }
+  return ended.end === "interrupted" ? { kind: "ended", line: ended } : undefined;
 }
 
 /** A store of the tracker, holding nothing yet; a change that changes nothing tells no one. */
@@ -711,10 +717,11 @@ const END_SENTENCE = {
 } as const;
 
 /**
- * The last task handed over or ended, under the bar, in the flow of the page: a short line that
- * stays until the next, not announced — the log of the ends speaks, and a task handed over follows
- * a command the user just gave —, or until it is closed (#1179), by its button, reached by the
- * keyboard; the focus goes then to the button of the bar, where the task is still followed.
+ * The last task handed over, or whose follow-up was interrupted, under the bar, in the flow of the
+ * page: a short line that stays until the next, not announced — the log of the ends speaks, and a
+ * task handed over follows a command the user just gave —, or until it is closed (#1179), by its
+ * button, reached by the keyboard; the focus goes then to the button of the bar, where the task is
+ * still followed. A success or a failure is said by its card alone, which closes the line (#3292).
  */
 function News({
   news,
