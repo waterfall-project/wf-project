@@ -27,7 +27,7 @@
  */
 "use client";
 
-import { Pencil } from "lucide-react";
+import { Pencil, Timer, type LucideIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { type ComponentType, type ReactNode, useId, useRef, useState } from "react";
 
@@ -35,6 +35,7 @@ import { setDurationUnits, updateReferenceSettings } from "@/api/actions/referen
 import type { components } from "@/api/generated/schema";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { WritingNote } from "@/components/commands/writing-note";
+import { SectionCard } from "@/components/shell/section-card";
 import { useSaid } from "@/components/notices/said";
 import { Button } from "@/components/ui/button";
 import { compareDecimals, editableDecimal, editablePercent, percentRatio } from "@/i18n/format";
@@ -390,12 +391,18 @@ function SettingsWriter<Settings extends Versioned>({
   command,
   saved,
   form: Form,
+  card,
   children,
 }: {
   readonly settings: Settings;
   readonly command: string;
   readonly saved: string;
   readonly form: ComponentType<SettingsFormProps<Settings>>;
+  /**
+   * The card the settings stand in, its command at the right of its title, outlined — it modifies
+   * (`SectionCard`); none for settings that stand bare, the command above them.
+   */
+  readonly card?: { readonly title: string; readonly icon: LucideIcon };
   readonly children: (shown: Settings) => ReactNode;
 }) {
   const [answered, setAnswered] = useState<Settings>();
@@ -412,35 +419,50 @@ function SettingsWriter<Settings extends Versioned>({
   const why = useId();
   const shown =
     answered !== undefined && answered.lock_version > settings.lock_version ? answered : settings;
-  return (
-    <Reactivations reads={[]}>
-      <div className="flex flex-wrap items-start gap-2">
-        <Button
-          ref={trigger}
-          aria-haspopup="dialog"
-          type="button"
-          variant="outline"
-          size="sm"
-          aria-disabled={writing ? true : undefined}
-          aria-busy={writing}
-          aria-describedby={writing ? why : undefined}
-          className={UNAVAILABLE}
-          onClick={() => {
-            if (writing) {
-              return;
-            }
-            openings.current += 1;
-            setEditing({ settings: shown, opening: openings.current });
-          }}
-        >
-          <Pencil aria-hidden="true" />
-          {command}
-        </Button>
-        <WritingNote id={why} writing={writing} />
-        <p role="status" aria-live="polite" className="text-sm text-muted-foreground empty:sr-only">
-          {said === undefined ? null : <span key={said.count}>{said.text}</span>}
-        </p>
-      </div>
+  const modify = (variant: "default" | "outline") => (
+    <Button
+      ref={trigger}
+      aria-haspopup="dialog"
+      type="button"
+      variant={variant}
+      size="sm"
+      aria-disabled={writing ? true : undefined}
+      aria-busy={writing}
+      aria-describedby={writing ? why : undefined}
+      className={UNAVAILABLE}
+      onClick={() => {
+        if (writing) {
+          return;
+        }
+        openings.current += 1;
+        setEditing({ settings: shown, opening: openings.current });
+      }}
+    >
+      <Pencil aria-hidden="true" />
+      {command}
+    </Button>
+  );
+  // What the last write did, said beside the command, and the wait that holds it.
+  const note = (
+    <>
+      <WritingNote id={why} writing={writing} />
+      <p role="status" aria-live="polite" className="text-sm text-muted-foreground empty:sr-only">
+        {said === undefined ? null : <span key={said.count}>{said.text}</span>}
+      </p>
+    </>
+  );
+  const body = (
+    <>
+      {card === undefined ? (
+        <div className="flex flex-wrap items-start gap-2">
+          {modify("outline")}
+          {note}
+        </div>
+      ) : (
+        // In its card the command is in the header: the note stands alone, and takes no room
+        // (no empty row, no gap above the figures) until it has something to say.
+        note
+      )}
       {children(shown)}
       {editing === undefined ? null : (
         <Form
@@ -463,7 +485,19 @@ function SettingsWriter<Settings extends Versioned>({
           onClosed={() => trigger.current?.focus()}
         />
       )}
-    </Reactivations>
+    </>
+  );
+  const refusals = <Reactivations reads={[]}>{body}</Reactivations>;
+  return card === undefined ? (
+    refusals
+  ) : (
+    <SectionCard
+      title={card.title}
+      icon={card.icon}
+      principal={{ does: "modify", command: modify }}
+    >
+      <div className="flex min-w-0 flex-col gap-2">{refusals}</div>
+    </SectionCard>
   );
 }
 
@@ -511,12 +545,14 @@ export function IndicatorSettings({ settings }: { readonly settings: ReferenceSe
  */
 export function DurationUnitSettings({ units }: { readonly units: DurationUnits }) {
   const t = useTranslations("reference.durationUnitsForm");
+  const title = useTranslations("reference.durationUnits")("title");
   return (
     <SettingsWriter
       settings={units}
       command={t("modify")}
       saved={t("saved")}
       form={DurationUnitsForm}
+      card={{ title, icon: Timer }}
     >
       {(shown) => <DurationUnitFigures units={shown} />}
     </SettingsWriter>
