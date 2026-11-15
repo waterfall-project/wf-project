@@ -1,5 +1,7 @@
 {
   "reference": "before the corrections of EP-26 (US-2210)",
+  "commit": "47295ed440011427e744de22dd62cd1fe8b3796e",
+  "taken_at": "2026-11-15T00:32:28.415Z",
   "targets": {
     "objective_ms": 1000.0,
     "api_target_ms": {

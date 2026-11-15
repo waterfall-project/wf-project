@@ -323,8 +323,14 @@ service-purge: ## Purge what expired on the service platform, started: imports, 
 # waves of reads make one pass), ONLY=<part> one of read, profile, parallel, write, revision (several
 # by repeating: ONLY="read write"), JSON=<file> the report also written as JSON. A lot that corrects
 # the back measures before and after it in one pass: ONLY and RUNS the same, two commands in one.
-.PHONY: measure-core measure-core-run measure-fresh-witness
-measure-core: ## Measure the core in process, the workstation for itself alone, on a witness freshly loaded of the service platform (needs the secrets of service-up): whole reads of PRJ-001, profile, threads and processes, a cell entered, a revision opened; RUNS, ONLY="read profile parallel write revision", JSON=<file>
+.PHONY: measure-core measure-core-run measure-fresh-witness measure-secrets
+# The secrets of service-up, asked before the workstation is taken: the Compose file refuses to
+# render without them and names the one missing (the same check as lint-compose).
+$(call slot-export,measure-secrets,$(SLOT_SERVICE))
+measure-secrets:
+	@$(COMPOSE_SERVICE) --profile install --profile witness config --quiet
+
+measure-core: measure-secrets ## Measure the core in process, the workstation for itself alone, on a witness freshly loaded of the service platform (needs the secrets of service-up): whole reads of PRJ-001, profile, threads and processes, a cell entered, a revision opened; RUNS, ONLY="read profile parallel write revision", JSON=<file>
 	@$(exclusive) $(MAKE) --no-print-directory measure-core-run
 
 $(call slot-export,measure-core-run,$(SLOT_SERVICE))
@@ -336,6 +342,7 @@ measure-core-run: measure-fresh-witness
 # started again, bootstrapped (its link discarded) and the witness loaded.
 $(call slot-export,measure-fresh-witness,$(SLOT_SERVICE))
 measure-fresh-witness:
+	@echo 'The data of the service platform of this slot are dropped (service-down WATERFALL_RESET_DATA=yes).'
 	@$(MAKE) --no-print-directory service-down WATERFALL_RESET_DATA=yes
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) build --quiet install witness
@@ -796,10 +803,11 @@ measure: export E2E_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 measure: export E2E_MEASURE_USERS = $(MEASURE_USERS)
 measure: export E2E_MEASURE_PASSES = $(MEASURE_PASSES)
 measure: export E2E_MEASURE_REPORT = $(abspath $(MEASURE_REPORT))
-measure: install-front $(call e2e-build) ## Measure the journey of the grids against the service, the front built for production and no proxy of the contract, at one, four and eight users, five passes, in three parts: the API, Next, the browser (US-2210); MEASURE_USERS="1 4 8", MEASURE_PASSES=5, MEASURE_REPORT=<file of the JSON> (frontend/.e2e/measure.json); the workstation for itself alone, on a witness freshly loaded; needs the secrets of service-up and a browser
+measure: measure-secrets install-front $(call e2e-build) ## Measure the journey of the grids against the service, the front built for production and no proxy of the contract, at one, four and eight users, five passes, in three parts: the API, Next, the browser (US-2210); MEASURE_USERS="1 4 8", MEASURE_PASSES=5, MEASURE_REPORT=<file of the JSON> (frontend/.e2e/measure.json); the workstation for itself alone, on a witness freshly loaded; needs the secrets of service-up and a browser
 	@$(exclusive) $(MAKE) --no-print-directory measure-run
 
 measure-run:
+	@echo 'The data of the service platform of this slot are dropped (service-down WATERFALL_RESET_DATA=yes).'
 	@$(MAKE) --no-print-directory service-down WATERFALL_RESET_DATA=yes
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) build --quiet install witness
@@ -840,7 +848,9 @@ test-services-down: ## Remove the services of the tests of the slot of this work
 # make measure-core (CORE) and make measure (JOURNEY), as written, and the target of the API for
 # opening a grid, in docs/measures/reference.json. Not the report of a version.
 measure-reference: ## Assemble docs/measures/reference.json from the JSON of measure-core (CORE=<file>) and of measure (JOURNEY=<file>)
-	@$(WFTOOLS).measurereference "$(CORE)" "$(JOURNEY)" docs/measures/reference.json
+	$(if $(and $(CORE),$(JOURNEY)),,$(error measure-reference needs CORE=<JSON of make measure-core> and JOURNEY=<JSON of make measure>))
+	@$(WFTOOLS).measurereference "$(CORE)" "$(JOURNEY)" docs/measures/reference.json \
+		--commit "$(or $(MEASURED_COMMIT),$$(git merge-base origin/epic/EP-26 HEAD))"
 
 lot-size: ## The real size of a lot, against its epic (BASE=origin/epic/EP-nn); never fails
 	@$(WFTOOLS).lotsize "$(BASE)" $(HEAD)

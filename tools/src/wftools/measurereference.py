@@ -12,7 +12,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 OBJECTIVE_MS = 1000.0
 # The step of the journey that opens each grid by itself: the planning by its address, the quote by
@@ -20,20 +20,44 @@ OBJECTIVE_MS = 1000.0
 OPENINGS = {"planning": "planning.by-address", "estimate": "estimate.from-planning"}
 
 
+def _refuse(message: str) -> NoReturn:
+    """Stop with a message, not a trace."""
+    raise SystemExit(message)
+
+
 def api_target(step: dict[str, Any]) -> float:
     """Return what the API may take of the objective once Next and the browser have taken theirs."""
     return round(OBJECTIVE_MS - step["next_ms"]["median"] - step["browser_ms"]["median"], 1)
 
 
-def assemble(core: dict[str, Any], journey: dict[str, Any]) -> dict[str, Any]:
-    """Return the reference made of the two reports, and of the target of the API they give."""
-    alone = next(level for level in journey["levels"] if level["users"] == 1)
-    steps = {grid: alone["steps"][name] for grid, name in OPENINGS.items()}
+def _opening_steps(journey: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Return the steps that open each grid, at one user, or stop saying what the report lacks."""
+    alone = next((level for level in journey.get("levels", []) if level.get("users") == 1), None)
+    if alone is None:
+        _refuse("the report of make measure has no level at one user: the target needs it")
+    steps: dict[str, dict[str, Any]] = {}
+    for grid, name in OPENINGS.items():
+        step = alone.get("steps", {}).get(name)
+        if step is None:
+            _refuse(f"the report of make measure has no step {name} at one user")
+        steps[grid] = step
+    return steps
+
+
+def assemble(core: dict[str, Any], journey: dict[str, Any], commit: str) -> dict[str, Any]:
+    """Return the reference of the two reports, the commit measured and the target of the API."""
+    steps = _opening_steps(journey)
+    try:
+        targets = {grid: api_target(step) for grid, step in steps.items()}
+    except (KeyError, TypeError) as error:
+        _refuse(f"a step of the report of make measure lacks its medians: {error}")
     return {
         "reference": "before the corrections of EP-26 (US-2210)",
+        "commit": commit,
+        "taken_at": journey.get("taken_at"),
         "targets": {
             "objective_ms": OBJECTIVE_MS,
-            "api_target_ms": {grid: api_target(step) for grid, step in steps.items()},
+            "api_target_ms": targets,
             "from": {grid: f"journey, one user, step {name}" for grid, name in OPENINGS.items()},
         },
         "core": core,
@@ -47,10 +71,12 @@ def main(arguments: list[str]) -> int:
     parser.add_argument("core", type=Path, help="the JSON of make measure-core")
     parser.add_argument("journey", type=Path, help="the JSON of make measure")
     parser.add_argument("output", type=Path, help="the reference to write")
+    parser.add_argument("--commit", required=True, help="the commit of epic/EP-26 measured")
     options = parser.parse_args(arguments)
     reference = assemble(
         json.loads(options.core.read_text(encoding="utf-8")),
         json.loads(options.journey.read_text(encoding="utf-8")),
+        options.commit,
     )
     options.output.parent.mkdir(parents=True, exist_ok=True)
     options.output.write_text(json.dumps(reference, indent=2) + "\n", encoding="utf-8")
