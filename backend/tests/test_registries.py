@@ -266,11 +266,10 @@ REGISTERED_BY_EP07 = {
 }
 COSTS = "waterfall.core.costs.interface"
 # What the socle of EP-09 registers without effect (US-1580/L1), each in the order it acts: the
-# formats and
-# the exporter of the remaining to commit and of the actual costs, by their kind; and what the
-# actual costs answer the projects of a subproject (US-1610/L3), in the order of ``CostFacts``; and
-# the own lines that hold a summary task open, which the estimate tells the planning (US-1590/L1),
-# and when they were set to nought (US-1650/L2, #2803).
+# formats and the exporter of the remaining to commit and of the actual costs, by their kind; and
+# what the actual costs answer the projects of a subproject (US-1610/L3), in the order of
+# ``CostFacts``; and the own lines that hold a summary task open, which the estimate tells the
+# planning (US-1590/L1), and when they were set to nought (US-1650/L2, #2803).
 REGISTERED_BY_EP09 = {
     "projects.cost_facts": [
         (

@@ -85,6 +85,8 @@ def _copy_links(copy: RevisionCopy, nodes: dict[UUID, UUID], structures: dict[UU
     }
     if not links:
         return
+    # The joins on the nodes lose no link: a link keeps its two tasks in its own structure
+    # (``_in_structure``), and every node of a structure copied is copied above.
     link, structure = copies(links, "copied_link"), copies(structures, "copied_structure")
     predecessor, successor = copies(nodes, "predecessor"), copies(nodes, "successor")
     names, columns = copied_columns(
