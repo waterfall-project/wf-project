@@ -106,6 +106,9 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (4) :
   passer un identifiant de l'adresse qui n'est pas un UUID, que le service refuse par 422. Relevé au
   cadrage d'EP-23, qui corrige la fonction du référentiel (US-1770, #2269) ; reporté ici par
   l'auteur le 2026-11-11, rattaché à EP-23 (#2858) jusqu'à l'ouverture de l'issue d'EP-11.
+- #3341 — back : `ALL_PROJECTS_READ` défini deux fois, dans `access_roles` et dans l'interface des
+  projets. Relevé par la revue d'US-2210/L1 d'EP-26 ; reporté ici par l'auteur le 2026-11-15 :
+  l'EPIC qui lit l'ensemble des projets sur un périmètre.
 
 ## Préalables
 

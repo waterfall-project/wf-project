@@ -103,4 +103,9 @@ shell ;
 (WF-QUA-0010) — relevé par la revue d'US-2160/L2, reporté d'EP-25 (décision de l'auteur du
 2026-11-14) ;
 - #3431 — front : trois mineurs du parcours du thème de connexion (revue 2 d'US-2190) — reporté
-d'EP-25 avec #3396 (décision de l'auteur du 2026-11-15).
+d'EP-25 (décision de l'auteur du 2026-11-15) ;
+- #3343 — outil : le marqueur d'une mesure exclusive est cru sous la mesure d'un autre livreur —
+reporté d'EP-26 (décision de l'auteur du 2026-11-15) ;
+- #3447 — outil : les traces Playwright d'un parcours en échec dans la file ne sont pas versées en
+artefact — reporté d'EP-26 (décision de l'auteur du 2026-11-15) ; leur absence a laissé déduite,
+non lue, la cause de #3266 (#3448).
