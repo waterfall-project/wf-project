@@ -10,7 +10,7 @@ Lue en décaissements, la courbe devient **Décaissements cumulés du portefeuil
 
 ## Ses commandes
 
-- **Lire en décaissements** passe la courbe en décaissements ; **Revenir aux coûts cumulés** la ramène.
+- **Lire en décaissements**, à droite du titre de la carte **Courbe en S**, passe la courbe en décaissements ; **Revenir aux coûts cumulés** la ramène.
 - **Exporter en PNG** enregistre un graphique en image, avec le périmètre, l’horizon et la date de calcul ; **Valeurs du graphique** déplie ses valeurs, en table.
 
 **Périmètre du portefeuille**, au-dessus de la vue :
