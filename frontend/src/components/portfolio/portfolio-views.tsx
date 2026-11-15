@@ -18,7 +18,7 @@ import { useFormatter, useLocale, useTranslations } from "next-intl";
 import type { components } from "@/api/generated/schema";
 import { ComputableValue } from "@/components/computable-value";
 import { ComputedAmount, ComputedTotal } from "@/components/computed-amount";
-import { FiguresCard, FiguresGrid, FiguresList } from "@/components/figures-card";
+import { FiguresList } from "@/components/figures-card";
 import { CELL, ListTable } from "@/components/projects/project-tables";
 import { PortfolioRiskMatrix } from "@/components/risks/risk-bubble-chart";
 import { OccurredCost } from "@/components/risks/risk-coverage";
@@ -26,7 +26,7 @@ import { Signal } from "@/components/signal/signal";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatDecimal, formatMonth, formatPlanningDate, formatShare } from "@/i18n/format";
 
-import { Figure, ViewSection } from "./portfolio-value";
+import { CardRow, ChartCard, Figure, ViewSection } from "./portfolio-value";
 import { PortfolioWorkloadChart } from "./workload-chart";
 
 type Schemas = components["schemas"];
@@ -92,26 +92,24 @@ export function PerformanceView({
   ] as const;
   return (
     <>
-      <FiguresGrid>
-        <FiguresCard title={t("portfolio.performance.indices")}>
-          <FiguresList>
-            <PortfolioIndex name={t("indicator.names.costIndex")} index={performance.cost_index} />
-            <PortfolioIndex
-              name={t("indicator.names.scheduleIndex")}
-              index={performance.schedule_index}
-            />
-            <Figure name={t("projectIndicators.figures.costVariance")}>
-              <OptionalComputedAmount amount={performance.cost_variance} />
-            </Figure>
-            <Figure name={t("projectIndicators.figures.scheduleVariance")}>
-              <OptionalComputedAmount amount={performance.schedule_variance} />
-            </Figure>
-            <Figure name={t("projectIndicators.figures.referenceBudget")}>
-              <OptionalComputedAmount amount={performance.reference_budget} />
-            </Figure>
-          </FiguresList>
-        </FiguresCard>
-      </FiguresGrid>
+      <ViewSection title={t("portfolio.performance.indices")}>
+        <FiguresList>
+          <PortfolioIndex name={t("indicator.names.costIndex")} index={performance.cost_index} />
+          <PortfolioIndex
+            name={t("indicator.names.scheduleIndex")}
+            index={performance.schedule_index}
+          />
+          <Figure name={t("projectIndicators.figures.costVariance")}>
+            <OptionalComputedAmount amount={performance.cost_variance} />
+          </Figure>
+          <Figure name={t("projectIndicators.figures.scheduleVariance")}>
+            <OptionalComputedAmount amount={performance.schedule_variance} />
+          </Figure>
+          <Figure name={t("projectIndicators.figures.referenceBudget")}>
+            <OptionalComputedAmount amount={performance.reference_budget} />
+          </Figure>
+        </FiguresList>
+      </ViewSection>
       <ViewSection title={t("portfolio.performance.projections")}>
         <ListTable
           label={t("portfolio.performance.projections")}
@@ -205,7 +203,7 @@ export function CostStructureView({
   return (
     <>
       <p className="text-sm text-muted-foreground">{t("noActualCost")}</p>
-      <div className="grid gap-6 lg:grid-cols-2">
+      <CardRow>
         <Breakdown
           title={t("budget")}
           keyName={t("nature")}
@@ -216,7 +214,7 @@ export function CostStructureView({
           keyName={t("nature")}
           parts={structure.remaining_by_cost_type}
         />
-      </div>
+      </CardRow>
       <Breakdown title={t("labor")} keyName={t("orgNode")} parts={structure.labor_by_org_node} />
     </>
   );
@@ -233,8 +231,8 @@ export function PortfolioRisksView({ risks }: { readonly risks: Schemas["Portfol
   const t = useTranslations("portfolio.risks");
   return (
     <>
-      <FiguresGrid>
-        <FiguresCard title={t("provisions")}>
+      <CardRow>
+        <ViewSection title={t("provisions")}>
           <FiguresList>
             <ComputedTotal name={t("identifiedTotal")} amount={risks.identified_total} />
             <ComputedTotal name={t("occurred")} amount={risks.period_outcome.occurred_provisions} />
@@ -243,8 +241,8 @@ export function PortfolioRisksView({ risks }: { readonly risks: Schemas["Portfol
               amount={risks.period_outcome.dismissed_provisions}
             />
           </FiguresList>
-        </FiguresCard>
-        <FiguresCard title={t("coverage")}>
+        </ViewSection>
+        <ViewSection title={t("coverage")}>
           <FiguresList>
             <ComputedTotal name={t("reserve")} amount={risks.coverage.reserve} />
             <ComputedTotal
@@ -254,26 +252,26 @@ export function PortfolioRisksView({ risks }: { readonly risks: Schemas["Portfol
             <OccurredCost coverage={risks.coverage} />
             <ComputedTotal name={t("coverageVariance")} amount={risks.coverage.coverage_variance} />
           </FiguresList>
-        </FiguresCard>
-      </FiguresGrid>
-      <div className="space-y-6">
-        <ViewSection title={t("heaviest")}>
-          <ListTable label={t("heaviest")} columns={[t("risk"), t("project"), t("provision")]}>
-            {risks.heaviest.map((risk) => (
-              <TableRow key={risk.risk_id}>
-                <TableCell className={CELL}>{risk.label}</TableCell>
-                <TableCell className={CELL}>
-                  <ProjectLink id={risk.project_id} label={risk.project_label} />
-                </TableCell>
-                <TableCell className={`${CELL} tabular-nums`}>
-                  <ComputedAmount amount={risk.provision_amount} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </ListTable>
         </ViewSection>
+      </CardRow>
+      <ViewSection title={t("heaviest")}>
+        <ListTable label={t("heaviest")} columns={[t("risk"), t("project"), t("provision")]}>
+          {risks.heaviest.map((risk) => (
+            <TableRow key={risk.risk_id}>
+              <TableCell className={CELL}>{risk.label}</TableCell>
+              <TableCell className={CELL}>
+                <ProjectLink id={risk.project_id} label={risk.project_label} />
+              </TableCell>
+              <TableCell className={`${CELL} tabular-nums`}>
+                <ComputedAmount amount={risk.provision_amount} />
+              </TableCell>
+            </TableRow>
+          ))}
+        </ListTable>
+      </ViewSection>
+      <ChartCard>
         <PortfolioRiskMatrix matrix={risks.matrix} scope={risks.scope} />
-      </div>
+      </ChartCard>
     </>
   );
 }
@@ -288,46 +286,54 @@ export function WorkloadView({ workload }: { readonly workload: Schemas["Portfol
   const bounds = useTranslations("share");
   const locale = useLocale();
   if (workload.roles.length === 0) {
-    return <p className="text-sm text-muted-foreground">{t("none")}</p>;
+    return (
+      <ViewSection title={t("title")}>
+        <p className="text-sm text-muted-foreground">{t("none")}</p>
+      </ViewSection>
+    );
   }
   return (
-    <div className="space-y-4">
-      <PortfolioWorkloadChart workload={workload} />
-      <div className="overflow-x-auto">
-        <ListTable
-          label={t("title")}
-          columns={[
-            t("role"),
-            t("capacity"),
-            // The months of the horizon head the columns; each role has one for each, in order.
-            ...workload.months.map((month) => formatMonth(month, locale)),
-          ]}
-        >
-          {workload.roles.map((role) => (
-            <TableRow key={role.resource_role_id}>
-              <TableCell className={CELL}>{role.label}</TableCell>
-              <TableCell className={`${CELL} tabular-nums`}>
-                {t("hours", { hours: formatDecimal(role.capacity_monthly_hours, locale) })}
-              </TableCell>
-              {role.months.map((month) => (
-                <TableCell key={month.month} className={`${CELL} tabular-nums`}>
-                  <span className="flex flex-col">
-                    <span>{t("hours", { hours: formatDecimal(month.hours, locale) })}</span>
-                    <span className="inline-flex items-center gap-1">
-                      <Signal zone={month.zone} variant="icon" />
-                      <ComputableValue
-                        value={month.load_ratio}
-                        format={(ratio) => formatShare(ratio, locale, bounds)}
-                      />
-                    </span>
-                  </span>
+    <>
+      <ChartCard>
+        <PortfolioWorkloadChart workload={workload} />
+      </ChartCard>
+      <ViewSection title={t("title")}>
+        <div className="overflow-x-auto">
+          <ListTable
+            label={t("title")}
+            columns={[
+              t("role"),
+              t("capacity"),
+              // The months of the horizon head the columns; each role has one for each, in order.
+              ...workload.months.map((month) => formatMonth(month, locale)),
+            ]}
+          >
+            {workload.roles.map((role) => (
+              <TableRow key={role.resource_role_id}>
+                <TableCell className={CELL}>{role.label}</TableCell>
+                <TableCell className={`${CELL} tabular-nums`}>
+                  {t("hours", { hours: formatDecimal(role.capacity_monthly_hours, locale) })}
                 </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </ListTable>
-      </div>
-    </div>
+                {role.months.map((month) => (
+                  <TableCell key={month.month} className={`${CELL} tabular-nums`}>
+                    <span className="flex flex-col">
+                      <span>{t("hours", { hours: formatDecimal(month.hours, locale) })}</span>
+                      <span className="inline-flex items-center gap-1">
+                        <Signal zone={month.zone} variant="icon" />
+                        <ComputableValue
+                          value={month.load_ratio}
+                          format={(ratio) => formatShare(ratio, locale, bounds)}
+                        />
+                      </span>
+                    </span>
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </ListTable>
+        </div>
+      </ViewSection>
+    </>
   );
 }
 
@@ -363,33 +369,39 @@ function SignalDetail({ signal }: { readonly signal: PilotSignal }) {
 export function PilotHealthView({ health }: { readonly health: Schemas["PilotHealth"] }) {
   const t = useTranslations();
   if (health.signals.length === 0) {
-    return <p className="text-sm text-muted-foreground">{t("portfolio.pilotHealth.none")}</p>;
+    return (
+      <ViewSection title={t("portfolio.pilotHealth.signals")}>
+        <p className="text-sm text-muted-foreground">{t("portfolio.pilotHealth.none")}</p>
+      </ViewSection>
+    );
   }
   return (
-    <ListTable
-      label={t("portfolio.pilotHealth.signals")}
-      columns={[
-        t("portfolio.pilotHealth.project"),
-        t("portfolio.pilotHealth.signal"),
-        t("portfolio.pilotHealth.zone"),
-      ]}
-    >
-      {health.signals.map((signal, rank) => (
-        // A project may give the same signal twice — two milestones overdue —: its rank tells them
-        // apart.
-        <TableRow key={`${signal.project_id}-${signal.code}-${rank.toString()}`}>
-          <TableCell className={CELL}>
-            <ProjectLink id={signal.project_id} label={signal.project_label} />
-          </TableCell>
-          <TableCell className={CELL}>
-            {t(`enums.PilotHealth.signals.code.${signal.code}`)}
-            <SignalDetail signal={signal} />
-          </TableCell>
-          <TableCell className={CELL}>
-            <Signal zone={signal.zone} />
-          </TableCell>
-        </TableRow>
-      ))}
-    </ListTable>
+    <ViewSection title={t("portfolio.pilotHealth.signals")}>
+      <ListTable
+        label={t("portfolio.pilotHealth.signals")}
+        columns={[
+          t("portfolio.pilotHealth.project"),
+          t("portfolio.pilotHealth.signal"),
+          t("portfolio.pilotHealth.zone"),
+        ]}
+      >
+        {health.signals.map((signal, rank) => (
+          // A project may give the same signal twice — two milestones overdue —: its rank tells them
+          // apart.
+          <TableRow key={`${signal.project_id}-${signal.code}-${rank.toString()}`}>
+            <TableCell className={CELL}>
+              <ProjectLink id={signal.project_id} label={signal.project_label} />
+            </TableCell>
+            <TableCell className={CELL}>
+              {t(`enums.PilotHealth.signals.code.${signal.code}`)}
+              <SignalDetail signal={signal} />
+            </TableCell>
+            <TableCell className={CELL}>
+              <Signal zone={signal.zone} />
+            </TableCell>
+          </TableRow>
+        ))}
+      </ListTable>
+    </ViewSection>
   );
 }
