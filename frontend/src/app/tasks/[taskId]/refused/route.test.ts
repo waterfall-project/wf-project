@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { GET } from "./route";
 
 describe("the page a hidden frame is sent to when the result is refused", () => {
-  it("is an empty document, never kept, whatever the refusal its address says (#3297)", async () => {
+  it("is an empty document, never kept, whatever the refusal its address says (#3297) [WF-DAT-0120-A]", async () => {
     const response = GET();
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");

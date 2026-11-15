@@ -232,6 +232,9 @@ function frameAddress(frame: HTMLIFrameElement): { pathname: string; search: str
     const { pathname = "", search = "" } = frame.contentWindow?.location ?? {};
     return { pathname, search };
   } catch {
+    // Not proven against a real frame: a policy of headers (`frame-ancestors`, `X-Frame-Options`)
+    // would land here, and the refusal would be lost without a sound. No e2e plays the download by
+    // itself against the page of a refusal, which the tests of the frame simulate.
     return { pathname: "", search: "" };
   }
 }

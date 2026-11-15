@@ -7,13 +7,13 @@
  * commands stand at the right of its title, on its line, the principal one filled and the others
  * outlined (WF-IHM-0100); the column of the screen is centred and bounded; the card of the accounts
  * ends right under the lowest text or control it shows, within its padding; the matrix of the
- * permissions keeps its header and its column « Fonction » in view as it scrolls (#3088); « Sauvegarder
- * maintenant » is filled, and the deposit of a backup of another installation a card whose
- * « Déposer » stands at the right of its field; the journal of audit is tight, fills its window, its
- * table in a card without a title of section, no count under its title, its column « Projet » whole.
- * That the screens are walked entirely by the keyboard, their contrast measured in both modes and
- * nothing lost at 911 points is proven by `accessibility.spec.ts`, which draws these screens from
- * the table of the functions.
+ * permissions keeps its header and its column « Fonction » in view as it scrolls (#3088); «
+ * Sauvegarder maintenant » is filled, and the deposit of a backup of another installation a card
+ * whose « Déposer » stands at the right of its field; the journal of audit is tight, fills its
+ * window, its table in a card without a title of section, no count under its title, its column «
+ * Projet » whole. That the screens are walked entirely by the keyboard, their contrast measured in
+ * both modes and nothing lost at 911 points is proven by `accessibility.spec.ts`, which draws these
+ * screens from the table of the functions.
  */
 import { expect, type Locator, type Page, test } from "@playwright/test";
 

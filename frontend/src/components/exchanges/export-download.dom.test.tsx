@@ -228,7 +228,7 @@ describe("the result of an export", () => {
     expect(kinds.value).toBe(chosen);
   });
 
-  it("tells the end of the session on its card when the frame comes to the sign-in page, which carries nothing of the refusal, the file offered again (#3297)", async () => {
+  it("tells the end of the session on its card when the frame comes to the sign-in page, which carries nothing of the refusal, the file offered again (#3297) [WF-DAT-0120-A]", async () => {
     serve({
       [EXPORT]: { example: "task_export_queued", status: 202 },
       [TASK]: "task_export_succeeded",

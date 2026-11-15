@@ -129,7 +129,7 @@ describe("the result of a task, downloaded", () => {
     expect(sentBackTo(await download())).toContain("refusal=404%3ANOT_FOUND");
   });
 
-  it("sends a hidden frame to a page with nothing in it, the same parameters of the refusal in its address, not to the screen it left (#3297)", async () => {
+  it("sends a hidden frame to a page with nothing in it, the same parameters of the refusal in its address, not to the screen it left (#3297) [WF-DAT-0120-A]", async () => {
     serve({ [RESULT]: { problem: { code: "STATE_FORBIDS_OPERATION", status: 409 } } });
     const framed = sentBackTo(await download(TASK, SCREEN, "iframe"));
     expect(framed).toBe(
@@ -144,7 +144,7 @@ describe("the result of a task, downloaded", () => {
     expect(sentBackTo(await download(TASK, SCREEN, "document"))).toMatch(/^\/projects\/p\//);
   });
 
-  it("tells a session ended to a hidden frame by the status of the API, 401, in the address of its page (#3297)", async () => {
+  it("tells a session ended to a hidden frame by the status of the API, 401, in the address of its page (#3297) [WF-DAT-0120-A]", async () => {
     serve({ [RESULT]: { problem: { code: "SESSION_REQUIRED", status: 401 } } });
     expect(sentBackTo(await download(TASK, SCREEN, "iframe"))).toBe(
       `/tasks/${TASK}/refused?refused_task=${TASK}&refusal=401%3ASESSION_REQUIRED`,
