@@ -15,7 +15,7 @@ import hashlib
 import json
 import zlib
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 import pytest
@@ -30,7 +30,6 @@ from test_witness_tasks import structure_of
 from waterfall.api.contract.models import Node, NodeListMeta, NodeTotals
 from waterfall.api.nodes import FORMAT, nodes_body, read_body
 from waterfall.core.planning.interface import (
-    KeptReading,
     NodeFilters,
     Place,
     keep_reading,
@@ -194,44 +193,47 @@ def test_the_second_write_of_the_same_reading_is_ignored_another_replaces_it(
         kept = kept_reading(session, place, FORMAT)
         assert kept is not None
         assert kept.document is None
-        keep_reading(session, place, FORMAT, kept.settings_digest, b"first")
-        keep_reading(session, place, FORMAT, kept.settings_digest, b"second")
-        assert kept_reading(session, place, FORMAT) == KeptReading(
-            b"first", kept.settings_digest, kept.inscriptions
-        )
-        keep_reading(session, place, FORMAT, bytes(32), b"third")
+        keep_reading(session, place, FORMAT, kept, b"first")
+        keep_reading(session, place, FORMAT, kept, b"second")
+        held = kept_reading(session, place, FORMAT)
+        assert held is not None
+        assert (held.document, held.settings_digest) == (b"first", kept.settings_digest)
+        keep_reading(session, place, FORMAT, replace(kept, settings_digest=bytes(32)), b"third")
         stale = kept_reading(session, place, FORMAT)
         assert stale is not None
         assert stale.document is None
-        keep_reading(session, place, FORMAT, kept.settings_digest, b"fourth")
+        keep_reading(session, place, FORMAT, kept, b"fourth")
         again = kept_reading(session, place, FORMAT)
         assert again is not None
         assert again.document == b"fourth"
 
 
 def test_an_older_reading_does_not_replace_a_newer_one_of_other_settings(
-    witness: Database, monkeypatch: pytest.MonkeyPatch
+    witness: Database,
 ) -> None:
-    # A reading that read the settings before a change and is kept after another's, of the settings
-    # changed, does not put the former back; the reading that follows is not made again for it.
+    # A reads the settings, a setting changes, B reads the changed ones and is kept first; A, kept
+    # after, does not put its stale settings back; the reading that follows is not made again.
     place = place_of(witness, REVISION_100)
-    monkeypatch.setattr(
-        "waterfall.core.planning.interface.kept_readings.utc_now",
-        lambda: datetime(2026, 1, 3, tzinfo=UTC),
-    )
     with witness.transaction() as session:
-        kept = kept_reading(session, place, FORMAT)
-        assert kept is not None
-        keep_reading(session, place, FORMAT, bytes(32), b"newer")
-    monkeypatch.setattr(
-        "waterfall.core.planning.interface.kept_readings.utc_now",
-        lambda: datetime(2026, 1, 2, tzinfo=UTC),
-    )
+        older = kept_reading(session, place, FORMAT)
     with witness.transaction() as session:
-        keep_reading(session, place, FORMAT, kept.settings_digest, b"older")
+        session.execute(text("UPDATE calendar SET monday = monday - 1 WHERE is_default"))
+    with witness.transaction() as session:
+        newer = kept_reading(session, place, FORMAT)
+        assert newer is not None
+        keep_reading(session, place, FORMAT, newer, b"newer")
+    assert older is not None
+    assert older.read_at < newer.read_at
+    assert older.settings_digest != newer.settings_digest
+    with witness.transaction() as session:
+        keep_reading(session, place, FORMAT, older, b"older")
     row = kept_row(witness, place)
     assert row is not None
     assert zlib.decompress(row.document) == b"newer"
+    with witness.transaction() as session:
+        again = kept_reading(session, place, FORMAT)
+    assert again is not None
+    assert again.document == b"newer"
 
 
 def test_a_write_waits_for_the_row_another_transaction_inserts_and_leaves_it_as_it_is(
@@ -246,10 +248,10 @@ def test_a_write_waits_for_the_row_another_transaction_inserts_and_leaves_it_as_
 
     def second() -> None:
         with witness.transaction() as session:
-            keep_reading(session, place, FORMAT, kept.settings_digest, b"second")
+            keep_reading(session, place, FORMAT, kept, b"second")
 
     with ThreadPoolExecutor(1) as others, Session(witness.engine) as first:
-        keep_reading(first, place, FORMAT, kept.settings_digest, b"first")
+        keep_reading(first, place, FORMAT, kept, b"first")
         writing = others.submit(second)
         wait_for_a_lock(witness)
         assert not writing.done()

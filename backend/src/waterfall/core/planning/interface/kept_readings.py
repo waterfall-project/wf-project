@@ -42,6 +42,7 @@ from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+    from datetime import datetime
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -59,11 +60,14 @@ class KeptReading:
     ``document`` the body kept, decompressed, of the format asked and of the settings of now; none
     when the reading is to be made, and kept with ``settings_digest``. ``inscriptions`` the
     inscriptions of the tasks of the project, by lineage, in the order a reading gives them.
+    ``read_at`` the instant the settings were read, taken as their digest is: the reading made
+    from them is kept with it (``keep_reading``).
     """
 
     document: bytes | None
     settings_digest: bytes
     inscriptions: Mapping[UUID, tuple[TrackingView, ...]]
+    read_at: datetime
 
 
 def _settings_digest(session: Session, project_id: UUID) -> bytes:
@@ -112,6 +116,7 @@ def kept_reading(session: Session, place: Place, form: int) -> KeptReading | Non
     """
     if revision_marked_at(session, place.revision_id) is None:
         return None
+    read_at = utc_now()
     digest = _settings_digest(session, place.project_id)
     row = session.execute(
         select(
@@ -127,25 +132,29 @@ def kept_reading(session: Session, place: Place, form: int) -> KeptReading | Non
         if row is not None and row.format == form and row.settings_digest == digest
         else None
     )
-    return KeptReading(document, digest, _inscriptions_of(session, place.project_id))
+    return KeptReading(document, digest, _inscriptions_of(session, place.project_id), read_at)
 
 
-def keep_reading(session: Session, place: Place, form: int, digest: bytes, document: bytes) -> None:
+def keep_reading(
+    session: Session, place: Place, form: int, kept: KeptReading, document: bytes
+) -> None:
     """Keep the reading of a structure of a marked revision, of a format and settings, compressed.
 
     In the transaction of the reading. One of another format or of other settings is replaced; the
     same one, written by a process that read the structure together with this one, is left as it
-    is: the second write is ignored. Nor is a newer one replaced by an older: a reading that read
-    the settings before a change and is kept after another's, of the settings changed, is ignored.
+    is: the second write is ignored. Nor is one of settings read later replaced by one of settings
+    read earlier (``kept.read_at``): a reading that read the settings before a change and is kept
+    after another's, of the settings changed, is ignored; of the same instant, the other settings
+    replace.
     """
     statement = insert(StructureReading).values(
         project_id=place.project_id,
         structure_id=place.structure_id,
         revision_id=place.revision_id,
         format=form,
-        settings_digest=digest,
+        settings_digest=kept.settings_digest,
         document=zlib.compress(document, COMPRESSION),
-        kept_at=utc_now(),
+        kept_at=kept.read_at,
     )
     written = statement.excluded
     session.execute(

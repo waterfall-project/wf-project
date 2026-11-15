@@ -558,7 +558,7 @@ def whole_nodes(session: Session, place: Place, fields: frozenset[str] | None) -
             if item["task"] is not None:
                 item["task"]["tracking"] = []
         document = bytes(read_body(body).body)
-        keep_reading(session, place, FORMAT, kept.settings_digest, document)
+        keep_reading(session, place, FORMAT, kept, document)
     if fields is None and not kept.inscriptions:
         return Response(document, media_type=JSONResponse.media_type)
     inscriptions = {str(lineage): held for lineage, held in kept.inscriptions.items()}
