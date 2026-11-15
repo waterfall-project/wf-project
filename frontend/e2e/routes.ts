@@ -125,8 +125,9 @@ export const OTHER_SCREENS: readonly AppScreen[] = [
  * differential (`structures`): the marks of a difference, `+`, `-` and `M`, tint their rows in a
  * green, a red and a yellow, and the contrast of those colours is held in both modes (US-0500).
  * The comparison of two revisions marks its nodes alike, in the same grid: the screen of the
- * revisions opened on the offer compared to the reference. Three more addresses of pages the table
- * already names, not three more pages: they are checked with the screens, and not counted in them
+ * revisions opened on the offer compared to the reference; the report of an import, opened by
+ * `?import=` on the exchanges and on the revisions. More addresses of pages the table
+ * already names, not more pages: they are checked with the screens, and not counted in them
  * (`src/app/screens.test.ts`).
  */
 export const DIFFERENTIAL_SCREENS: readonly AppScreen[] = [
@@ -148,6 +149,17 @@ export const DIFFERENTIAL_SCREENS: readonly AppScreen[] = [
       "&to_revision_id=01926f3a-7c00-7000-8000-000000000101",
     name: text("functions.revisions"),
   },
+  // The report of an import, a card of its own, on the screen of the exchanges and on that of the
+  // revisions, which the screen of a project leads to (US-2130, #3410).
+  ...[
+    ["exchanges-report", "/projects/[projectId]/revisions/[revisionId]/exchanges", "exchanges"],
+    ["revisions-report", "/projects/[projectId]/revisions", "revisions"],
+  ].map(([code = "", route = "", label = ""]) => ({
+    code,
+    route,
+    address: `${path(route)}?import=01926f3a-7c00-7000-8000-000000000a11`,
+    name: text(`functions.${label}`),
+  })),
 ];
 
 /** The pages that only redirect, and have no screen of their own to check. */

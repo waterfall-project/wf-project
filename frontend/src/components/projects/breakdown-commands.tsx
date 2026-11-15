@@ -341,7 +341,7 @@ export function useBreakdownCommands(): RowCommands<BreakdownRow> | undefined {
   const why = writing ? `${id}-writing` : unmetId(offer, id);
   return {
     bar: (row) => (
-      <div className="flex flex-wrap items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1">
         {on(row).map((command) => (
           <CommandTooltip
             key={command.key}
