@@ -123,10 +123,10 @@ for (const address of GRIDS) {
       expect(fit.table, "the table fills its frame").toBeGreaterThanOrEqual(fit.frame - 2);
       expect(fit.row, "the grid has at least one row").toBeGreaterThan(0);
       // Measured: the cells of the planning hold an editable control as tall as the row, `h-7`, and
-      // the row adds its bottom border, 1 px, 29 px in all. That is the height the planning had
-      // before the card: epic/EP-25 at a6e3e6cc1, the commit before US-2140/L1, drew its rows by the
-      // same `h-7` of `dense-grid.tsx`, and `git diff a6e3e6cc1 1a4d46105 -- frontend/src/components`
-      // is empty — no grid component moved with the card, so these 29 px are not new (#3423).
+      // the row adds its bottom border, 1 px, 29 px in all. The planning had the same height before
+      // the card: on 2026-11-15, on the tree before US-2140/L1 (the planning in no card, 1366 x 900
+      // points), a probe read 29 px for each of the first three rows of its treegrid. These 29 px are
+      // not new (#3423).
       expect(fit.row, "the height of a row").toBeCloseTo(
         address.endsWith("/planning") ? ROW + 1 : ROW,
         0,
