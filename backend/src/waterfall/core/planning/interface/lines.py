@@ -84,11 +84,16 @@ NODE_NOT_SIBLING = "NODE_NOT_SIBLING"
 
 @dataclass(frozen=True, slots=True)
 class FacetChange:
-    """A write of the facet of a node: the node, the counter read, and what writes the facet."""
+    """A write of the facet of a node: the node, the counter read, and what writes the facet.
+
+    ``sent`` names the fields of the facet the write sends, as its body names them (``label``): a
+    write that sends none but the inert fields of its kind takes the short path (US-2250).
+    """
 
     node_id: UUID
     lock_version: int
     apply: Callable[[FacetWrite], None]
+    sent: frozenset[str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -438,7 +443,8 @@ def write_facet(
     version than the one read (412), under a completed task of the main structure (409
     ``task_not_completed``); then the facet writes what is sent (``change.apply``), refusing what
     it does not accept (422). The node is counted, the structure redated and the lines of its task
-    priced again.
+    priced again; or, when every field sent is inert for its kind (``FacetHooks.inert``), counted
+    by the short path, the engine not replayed (``Write.count``, US-2250).
     """
     node_id = change.node_id
     with writing(session, place, writer, ("cell", (node_id,))) as write:
@@ -457,7 +463,12 @@ def write_facet(
             FacetWrite(session, place.project_id, place.revision_id, node_id, bearer, writer.act)
         )
         stamp(node, writer.act)
-        redated = write.redate((parent, tree.tasks[parent].label), None, (parent,))
+        inert = {f"{node.kind}.{name}" for name in change.sent} <= set(facets()[node.kind].inert)
+        redated = (
+            write.count()
+            if inert
+            else write.redate((parent, tree.tasks[parent].label), None, (parent,), kept_places=True)
+        )
         write.after((node_id,))
         return redated.written((node_id,))
 

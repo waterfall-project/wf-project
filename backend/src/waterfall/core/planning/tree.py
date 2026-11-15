@@ -228,8 +228,17 @@ def read_tree(session: Session, project_id: UUID, structure_id: UUID) -> Tree:
     ).all()
     tasks = {node.id: task for node, task in rows if node.kind == TASK}
     tree = Tree({node.id: node for node, _ in rows}, tasks)
-    tree.held = held_open(session, project_id, _closing(tree))
+    reheld(session, project_id, tree)
     return tree
+
+
+def reheld(session: Session, project_id: UUID, tree: Tree) -> None:
+    """Read the summaries an own line holds open, as the tree now stands (``held``).
+
+    At the reading of the tree, and again once a write that kept every node at its place has
+    written: a state or a remaining to commit it wrote changes them (US-2250).
+    """
+    tree.held = held_open(session, project_id, _closing(tree))
 
 
 def read_rows(session: Session, project_id: UUID, structure_id: UUID) -> Tree[NodeRow, TaskRow]:

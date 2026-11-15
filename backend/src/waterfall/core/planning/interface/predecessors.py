@@ -113,7 +113,9 @@ def set_predecessors(
         node.updated_by = writer.act.author
         # A predecessor whose link in conflict is withdrawn loses its signal: it moved too, which
         # the replay judges against the links in conflict read before the write.
-        redated = write.redate((node_id, task.label), Entry(node_id), entered=("/predecessors",))
+        redated = write.redate(
+            (node_id, task.label), Entry(node_id), entered=("/predecessors",), kept_places=True
+        )
         write.after((node_id,))
         return redated.written((node_id,))
 

@@ -55,6 +55,21 @@ MANUAL = "manual"
 ONE_DAY = Duration(Decimal(1), "d")
 # The fields of a modification of a task that date it, in the order of ``TaskFacetUpdate``.
 DATING = ("scheduling_mode", "duration", "start", "finish")
+# The fields of a task whose write can move no date nor change an amount, as ``editable_fields``
+# names them (US-2250): the engine reads of a task its mode, its duration, its manual dates, its
+# place in the tree and the calendars its lines name (``dating``, ``scheduling``), and reads its
+# label only to name a refusal; the estimate prices a line on the dates, the calendar and the state
+# of its task (``BearingTask``). The inscriptions are ``setNodeTracking``'s. The progress is not
+# inert: its write moves the instant the overdue finishes are judged at (``setTaskProgress``).
+INERT_TASK_FIELDS = frozenset(
+    {
+        "task.label",
+        "task.description",
+        "task.order_item_id",
+        "task.work_package_id",
+        "task.tracking",
+    }
+)
 
 
 def dating_pointers(entry: TaskEntry) -> tuple[str, ...]:

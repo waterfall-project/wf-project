@@ -39,6 +39,7 @@ from waterfall.core.planning.carrying import (
 from waterfall.core.planning.dating import constants_of
 from waterfall.core.planning.entries import (
     AUTOMATIC,
+    INERT_TASK_FIELDS,
     MANUAL,
     dating_pointers,
     judged_change,
@@ -560,7 +561,10 @@ def update_task_facet(
     version (412), or for what it computes or does not accept (422, ``entries``), its attachment
     to the work breakdown with it (``attachments``, WF-PLA-0170). Beyond fifteen years, refused
     naming the task (WF-PLA-0150), an amount past its column at the fields that date it (#3094).
+    A write whose fields are all inert takes the short path, the engine not replayed
+    (``INERT_TASK_FIELDS``, ``Write.count``, US-2250).
     """
+    inert = {f"{TASK}.{name}" for name in entry.sent} <= INERT_TASK_FIELDS
     with writing(session, place, writer, ("cell", (node_id,))) as write:
         tree = write.tree
         if node_id not in tree.tasks:
@@ -574,7 +578,13 @@ def update_task_facet(
         judged = judge_cell(ground, node_id, entry)
         write.before((node_id,))
         write_cell(ground, node_id, entry, judged, writer.act)
-        redated = write.redate((node_id, task.label), entered=dating_pointers(entry))
+        redated = (
+            write.count()
+            if inert
+            else write.redate(
+                (node_id, task.label), entered=dating_pointers(entry), kept_places=True
+            )
+        )
         write.after((node_id,))
         return redated.written((node_id,))
 

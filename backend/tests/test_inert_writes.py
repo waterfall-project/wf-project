@@ -1,0 +1,530 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+"""A write that can move no date nor change an amount takes the short path (EP-26, US-2250).
+
+The criteria of US-2250, its own — the story has no requirement of its own, its gain being read in
+the report of WF-QUA-0060 (US-2300) —, on the witness, the main structure of its current revision
+of PRJ-001 (#3169):
+
+- the inert columns are those of the declarations, the task's in the planning
+  (``INERT_TASK_FIELDS``), the line's by its hooks (``FacetHooks.inert``); each column a grid
+  accepts (``editable_fields``) has its write here, and the write of an inert one gives back no task
+  redated and no amount moved;
+- the inert ones, and they alone, take the short path: the engine not replayed, the instant of the
+  structure's dates left as it is, its counter advanced; their answer is the one the whole path
+  gives, and their entry of the history is undone as any;
+- every write, short or whole, reads the tree once.
+"""
+
+from dataclasses import dataclass, replace
+from datetime import timedelta
+from decimal import Decimal
+from typing import TYPE_CHECKING, Any
+
+import pytest
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+from test_witness_projects import PRJ_001, REVISION_102
+from test_witness_tasks import structure_of
+
+from measure.writing import entered_leaf
+from waterfall.core.estimate.interface import (
+    LineEntry,
+    LineRemaining,
+    LineView,
+    set_line_remaining,
+    update_line,
+)
+from waterfall.core.estimate.interface.facet import LINE_INERT
+from waterfall.core.planning import rescheduling, writing
+from waterfall.core.planning.entries import INERT_TASK_FIELDS
+from waterfall.core.planning.interface import (
+    ENTRIES,
+    Duration,
+    InstantSent,
+    NodeFilters,
+    Place,
+    PredecessorSent,
+    PredecessorsEntry,
+    ProgressEntry,
+    TaskEntry,
+    TrackingChange,
+    Writer,
+    list_nodes,
+    set_node_tracking,
+    set_predecessors,
+    set_task_progress,
+    undo_last_change,
+    update_task_facet,
+)
+from waterfall.core.planning.interface.facets import facets
+from waterfall.core.planning.writing import Write
+from waterfall.core.projects.interface import work_breakdown_items
+from waterfall.core.revisions.interface import structure_facts
+from waterfall.core.users.tables import UserAccount
+from waterfall.platform.audit import Act
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from datetime import datetime
+    from uuid import UUID
+
+    from waterfall.core.planning.interface import NodeList, NodesWritten, NodeView
+    from waterfall.platform.database import Database
+
+LINE = "estimate_line"
+INERT = INERT_TASK_FIELDS | set(LINE_INERT)
+
+
+@dataclass(frozen=True, slots=True)
+class Read:
+    """The structure as it stands before a write: its place, its nodes read whole."""
+
+    place: Place
+    listed: NodeList
+
+    @property
+    def nodes(self) -> tuple[NodeView, ...]:
+        return self.listed.items
+
+    def first(self, keep: Callable[[NodeView], bool]) -> NodeView:
+        """Give the first node in the order of the plan that ``keep`` retains."""
+        return next(each for each in self.nodes if keep(each))
+
+    def line(
+        self, field: str, keep: Callable[[LineView], bool] = lambda _: True
+    ) -> tuple[NodeView, LineView]:
+        """Give the first line whose grid accepts ``field`` and whose facet ``keep`` retains."""
+        node = self.first(
+            lambda each: each.kind == LINE and field in each.editable_fields and keep(view_of(each))
+        )
+        return node, view_of(node)
+
+    def leaf(self) -> NodeView:
+        """Give the leaf the measure enters a cell in: scheduled in days, followed by many."""
+        return entered_leaf(tuple(each for each in self.nodes if each.task is not None))
+
+
+type Writing = Callable[[Session, Read, Writer], NodesWritten]
+
+
+def view_of(node: NodeView) -> LineView:
+    """Give the facet of a line as the estimate reads it."""
+    assert node.facet is not None
+    view = node.facet.view
+    assert isinstance(view, LineView)
+    return view
+
+
+def _task(
+    session: Session, read: Read, node: NodeView, writer: Writer, **sent: Any
+) -> NodesWritten:
+    entry = TaskEntry(**sent, sent=frozenset(sent), lock_version=node.lock_version)
+    return update_task_facet(session, read.place, node.node_id, entry, writer)
+
+
+def _line(
+    session: Session, read: Read, node: NodeView, writer: Writer, **sent: Any
+) -> NodesWritten:
+    entry = LineEntry(**sent, sent=frozenset(sent), lock_version=node.lock_version)
+    return update_line(session, read.place, node.node_id, entry, writer)
+
+
+def label(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    leaf = read.leaf()
+    assert leaf.task is not None
+    return _task(session, read, leaf, writer, label=f"{leaf.task.label} x")
+
+
+def description(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    return _task(session, read, read.leaf(), writer, description="noted")
+
+
+def _package(read: Read) -> NodeView:
+    """Give the task that bears a work package: on the witness, a summary."""
+    return read.first(lambda each: each.task is not None and each.task.work_package_id is not None)
+
+
+def order_item(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # An order item of the work package a summary bears, given to a leaf under that summary.
+    package = _package(read)
+    assert package.task is not None
+    items = work_breakdown_items(session, read.place.project_id).values()
+    item = min(
+        each.item_id
+        for each in items
+        if each.work_package_id == package.task.work_package_id and not each.deleted
+    )
+    parents = {each.node_id: each.parent_id for each in read.nodes}
+
+    def under(node_id: UUID) -> bool:
+        above = parents[node_id]
+        while above is not None and above != package.node_id:
+            above = parents[above]
+        return above == package.node_id
+
+    leaf = read.first(
+        lambda each: (
+            each.task is not None
+            and not each.task.is_summary
+            and "task.order_item_id" in each.editable_fields
+            and under(each.node_id)
+        )
+    )
+    return _task(session, read, leaf, writer, order_item_id=item)
+
+
+def work_package(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # The work package taken from the summary that bears it.
+    return _task(session, read, _package(read), writer, work_package_id=None)
+
+
+def tracking(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # The inscriptions of a task withdrawn.
+    node = read.first(lambda each: each.task is not None and bool(each.task.tracking))
+    change = TrackingChange((), node.lock_version)
+    return set_node_tracking(session, read.place, node.node_id, change, writer)
+
+
+def scheduling_mode(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    return _task(session, read, read.leaf(), writer, scheduling_mode="manual")
+
+
+def duration(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    leaf = read.leaf()
+    assert leaf.task is not None
+    longer = Duration(leaf.task.duration_value + 3, "d")
+    return _task(session, read, leaf, writer, duration=longer)
+
+
+def start(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # The dates of a task are entered in manual mode: the leaf is made manual by the same write.
+    leaf = read.leaf()
+    assert leaf.task is not None
+    day = InstantSent(leaf.task.start.day)
+    return _task(session, read, leaf, writer, scheduling_mode="manual", start=day)
+
+
+def finish(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    leaf = read.leaf()
+    assert leaf.task is not None
+    day = InstantSent(leaf.task.finish.day)
+    return _task(session, read, leaf, writer, scheduling_mode="manual", finish=day)
+
+
+def progress(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # A leaf not started, no milestone, started on its first day.
+    leaf = read.first(
+        lambda each: (
+            each.task is not None
+            and each.task.progress == "not_started"
+            and not each.task.is_milestone
+            and "task.progress" in each.editable_fields
+        )
+    )
+    assert leaf.task is not None
+    entry = ProgressEntry("started", leaf.lock_version, leaf.task.start.day)
+    return set_task_progress(session, read.place, leaf.node_id, entry, writer)
+
+
+def predecessors(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # The predecessors of a task sent again as they are.
+    node = read.first(lambda each: each.task is not None and bool(each.predecessors))
+    sent = tuple(
+        PredecessorSent(each.predecessor_id, each.link_type, each.lag_value, each.lag_unit)
+        for each in node.predecessors
+    )
+    entry = PredecessorsEntry(sent, node.lock_version)
+    return set_predecessors(session, read.place, node.node_id, entry, writer)
+
+
+def line_label(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    node, _ = read.line(f"{LINE}.label")
+    return _line(session, read, node, writer, label="entered")
+
+
+def payment_delay(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    node, view = read.line(f"{LINE}.payment_delay_days")
+    later = view.payment_delay_days + 30
+    return _line(session, read, node, writer, payment_delay_days=later)
+
+
+def subproject(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # A line taken from its subproject.
+    node, _ = read.line(f"{LINE}.subproject_id", lambda view: view.subproject_id is not None)
+    return _line(session, read, node, writer, subproject_id=None)
+
+
+def quantity(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    node, view = read.line(f"{LINE}.quantity")
+    return _line(session, read, node, writer, quantity=view.quantity + 1)
+
+
+def hours(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    node, view = read.line(f"{LINE}.hours")
+    assert view.hours is not None
+    return _line(session, read, node, writer, hours=view.hours + 1)
+
+
+def disbursement(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    node, view = read.line(f"{LINE}.unit_disbursement")
+    assert view.unit_disbursement is not None
+    more = view.unit_disbursement + 1
+    return _line(session, read, node, writer, unit_disbursement=more)
+
+
+def category(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # The category of a line sent again as it is: a category is priced, inert or not.
+    node, view = read.line(f"{LINE}.cost_category_id")
+    return _line(session, read, node, writer, cost_category_id=view.cost_category_id)
+
+
+def role(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # The role of a line sent again as it is: a role names a calendar, inert or not.
+    node, view = read.line(f"{LINE}.resource_role_id")
+    return _line(session, read, node, writer, resource_role_id=view.resource_role_id)
+
+
+def remaining(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # A re-estimate (``setLineRemaining``), which no grid names a field of: never inert.
+    node, view = read.line(f"{LINE}.quantity")
+    figures = LineEntry(
+        quantity=view.quantity + 1,
+        sent=frozenset({"quantity"}),
+        lock_version=node.lock_version,
+    )
+    entry = LineRemaining(figures, "entered", None)
+    return set_line_remaining(session, read.place, node.node_id, entry, writer)
+
+
+# Each column a grid accepts, with a write of it on the witness; ``True`` for one whose write moves
+# a date or an amount there, which shows why it is not inert, ``None`` for one sent as it is.
+COLUMNS: dict[str, tuple[Writing, bool | None]] = {
+    "task.label": (label, False),
+    "task.description": (description, False),
+    "task.order_item_id": (order_item, False),
+    "task.work_package_id": (work_package, False),
+    "task.tracking": (tracking, False),
+    "task.scheduling_mode": (scheduling_mode, None),
+    "task.duration": (duration, True),
+    "task.start": (start, None),
+    "task.finish": (finish, None),
+    "task.progress": (progress, None),
+    "task.predecessors": (predecessors, None),
+    f"{LINE}.label": (line_label, False),
+    f"{LINE}.payment_delay_days": (payment_delay, False),
+    f"{LINE}.subproject_id": (subproject, False),
+    f"{LINE}.quantity": (quantity, True),
+    f"{LINE}.hours": (hours, True),
+    f"{LINE}.unit_disbursement": (disbursement, True),
+    f"{LINE}.cost_category_id": (category, None),
+    f"{LINE}.resource_role_id": (role, None),
+}
+
+
+def read_of(witness: Database) -> Read:
+    """Read the main structure of the current revision of PRJ-001 whole."""
+    with witness.transaction() as session:
+        place = Place(PRJ_001, REVISION_102, structure_of(session, REVISION_102))
+        return Read(place, list_nodes(session, place, NodeFilters()))
+
+
+@dataclass(frozen=True, slots=True)
+class Done:
+    """What a write gave back, the structure after it, and what it read and ran."""
+
+    written: NodesWritten
+    scheduled_at: datetime
+    lock_version: int
+    trees_read: int
+    engines_run: int
+
+
+def write_counted(
+    witness: Database,
+    monkeypatch: pytest.MonkeyPatch,
+    write: Writing,
+    writer: Writer | None = None,
+) -> tuple[Read, Done]:
+    """Write on the witness, counting the trees read and the engines run; roll it back."""
+    read = read_of(witness)
+    counted = {"trees": 0, "engines": 0}
+
+    def counting[**P, R](name: str, real: Callable[P, R]) -> Callable[P, R]:
+        def wrapped(*args: P.args, **kwargs: P.kwargs) -> R:
+            counted[name] += 1
+            return real(*args, **kwargs)
+
+        return wrapped
+
+    for module in (writing, rescheduling):
+        monkeypatch.setattr(module, "read_tree", counting("trees", module.read_tree))
+    monkeypatch.setattr(rescheduling, "dated", counting("engines", rescheduling.dated))
+    place = read.place
+    with Session(witness.engine) as session:
+        try:
+            held = writer or Writer(Act(None, read.listed.scheduled_at), None)
+            written = write(session, read, held)
+            facts = structure_facts(session, place.project_id, place.structure_id, lock=False)
+        finally:
+            session.rollback()
+    done = Done(
+        written,
+        facts.scheduled_at,
+        facts.lock_version,
+        counted["trees"],
+        counted["engines"],
+    )
+    return read, done
+
+
+def moved(read: Read, written: NodesWritten) -> bool:
+    """Tell whether a write gave back a task redated or an amount moved.
+
+    A task redated, a node priced again, the totals of the structure, or the dates or the amounts
+    of the summaries above the nodes written.
+    """
+    before = {each.node_id: each for each in read.nodes}
+    summaries = [
+        (each.task.start, each.task.finish, each.task.amounts)
+        for each in written.ancestors
+        if each.task is not None
+    ]
+    former = [
+        (task.start, task.finish, task.amounts)
+        for each in written.ancestors
+        if (task := before[each.node_id].task) is not None
+    ]
+    return (
+        bool(written.rescheduled)
+        or bool(written.reinflated)
+        or written.totals != read.listed.totals
+        or summaries != former
+    )
+
+
+def test_every_column_a_grid_accepts_has_its_write_and_the_inert_are_among_them(
+    witness: Database,
+) -> None:
+    read = read_of(witness)
+    accepted = {field for each in read.nodes for field in each.editable_fields}
+    assert set(COLUMNS) == accepted
+    assert accepted >= INERT
+    assert set(facets()[LINE].inert) == set(LINE_INERT)
+    # A column that moves is declared nowhere inert.
+    assert not {field for field, (_, moves) in COLUMNS.items() if moves} & INERT
+
+
+@pytest.mark.parametrize("field", list(COLUMNS))
+def test_a_column_entered_on_the_witness_takes_the_short_path_only_when_inert(
+    witness: Database, monkeypatch: pytest.MonkeyPatch, field: str
+) -> None:
+    write, moves = COLUMNS[field]
+    read, done = write_counted(witness, monkeypatch, write)
+    # Every write reads the tree once (#3169): under the lock, never again for the replay.
+    assert done.trees_read == 1
+    assert done.lock_version == done.written.structure_lock_version
+    if field in INERT:
+        # Neither a task redated nor an amount moved; no engine, the instant of the dates kept.
+        assert not moved(read, done.written)
+        assert done.engines_run == 0
+        assert done.scheduled_at == read.listed.scheduled_at
+    else:
+        assert done.engines_run == 1
+    if moves:
+        assert moved(read, done.written)
+
+
+def test_the_counter_advances_by_one_and_the_instant_stays_on_the_short_path(
+    witness: Database, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    read = read_of(witness)
+    with witness.transaction() as session:
+        place = read.place
+        before = structure_facts(session, place.project_id, place.structure_id, lock=False)
+    later = Writer(Act(None, before.scheduled_at + timedelta(days=3)), None)
+    _, short = write_counted(witness, monkeypatch, label, later)
+    _, whole = write_counted(witness, monkeypatch, duration, later)
+    assert short.lock_version == before.lock_version + 1
+    assert short.scheduled_at == before.scheduled_at
+    assert whole.lock_version == before.lock_version + 1
+    assert whole.scheduled_at == later.act.at
+
+
+@pytest.mark.parametrize("field", sorted(INERT))
+def test_the_short_path_gives_back_what_the_whole_path_does(
+    witness: Database, monkeypatch: pytest.MonkeyPatch, field: str
+) -> None:
+    write, _ = COLUMNS[field]
+    _, short = write_counted(witness, monkeypatch, write)
+
+    def whole(self: Write) -> writing.Redated:
+        return self.redate(None, kept_places=True)
+
+    monkeypatch.setattr(Write, "count", whole)
+    _, replayed = write_counted(witness, monkeypatch, write)
+    assert replayed.engines_run == 1
+    # The instant of the writes is the structure's: the overdue finishes are judged alike.
+    assert short.written == replayed.written
+    assert short.written.nodes
+    assert short.written.totals is not None
+
+
+@pytest.mark.parametrize("field", ["task.label", f"{LINE}.label", "task.tracking"])
+def test_a_write_on_the_short_path_is_undone_as_any(witness: Database, field: str) -> None:
+    write, _ = COLUMNS[field]
+    read = read_of(witness)
+    with witness.transaction() as session:
+        author = session.scalars(select(UserAccount.id).order_by(UserAccount.id)).first()
+    assert author is not None
+    writer = Writer(Act(author, read.listed.scheduled_at), "inert-session")
+    place = read.place
+    with Session(witness.engine) as session:
+        try:
+            written = write(session, read, writer)
+            node_id = written.nodes[0].node_id
+            undone = undo_last_change(session, place.project_id, place.revision_id, writer, ENTRIES)
+            again = list_nodes(session, place, NodeFilters())
+        finally:
+            session.rollback()
+    before = next(each for each in read.nodes if each.node_id == node_id)
+    after = next(each for each in again.items if each.node_id == node_id)
+    assert undone.node_ids == (node_id,)
+    # The node is back as it was, but its counter, which the undoing advances again.
+    assert replace(after, lock_version=before.lock_version) == before
+    assert after.lock_version > written.nodes[0].lock_version
+
+
+def both(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # A label sent with a quantity: one field that is not inert is enough for the whole path.
+    node, view = read.line(f"{LINE}.quantity")
+    more = view.quantity + Decimal(1)
+    return _line(session, read, node, writer, label="entered", quantity=more)
+
+
+# The writes of the whole path: each column that is not inert, a line sent with an inert field and
+# another, a re-estimate.
+WHOLE: dict[str, Writing] = {
+    **{field: write for field, (write, _) in COLUMNS.items() if field not in INERT},
+    "line label and quantity": both,
+    "remaining": remaining,
+}
+
+
+@pytest.mark.parametrize("name", list(WHOLE))
+def test_the_whole_path_reads_the_tree_once_and_gives_back_what_it_did_reading_it_twice(
+    witness: Database, monkeypatch: pytest.MonkeyPatch, name: str
+) -> None:
+    write = WHOLE[name]
+    _, once = write_counted(witness, monkeypatch, write)
+    redate = Write.redate
+
+    def read_again(self: Write, *args: Any, **kwargs: Any) -> writing.Redated:
+        return redate(self, *args, **{**kwargs, "kept_places": False})
+
+    monkeypatch.setattr(Write, "redate", read_again)
+    _, twice = write_counted(witness, monkeypatch, write)
+    assert once.engines_run == 1
+    assert once.trees_read == 1
+    assert twice.trees_read == 2
+    assert once.written == twice.written
