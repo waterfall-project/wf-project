@@ -54,12 +54,14 @@ describe("the readings of the load", () => {
       "remaining",
       "workload",
     ]);
-    expect(nodesQuery("planning").getAll("kinds")).toEqual(["task"]);
-    expect(nodesQuery("planning").getAll("fields")).toEqual(nodeFieldNames(PLANNING_FIELDS));
+    expect(nodesQuery("planning").get("kinds")).toBe("task");
+    expect(nodesQuery("planning").get("fields")?.split(",")).toEqual(
+      nodeFieldNames(PLANNING_FIELDS),
+    );
     expect(nodesQuery("estimate.filter").get("work_package_id")).toBe("w");
     expect(nodesQuery("estimate.sort").get("sort_by")).toBe("base_amount");
     expect(nodesQuery("estimate.search").get("search")).toBe("revue");
-    expect(nodesQuery("remaining").getAll("progress")).toEqual(["started"]);
+    expect(nodesQuery("remaining").get("progress")).toBe("started");
     const [structures, nodes] = READINGS[0]?.asks(PLACE) ?? [];
     expect(structures?.path).toBe(
       `/projects/${PLACE.project}/revisions/${PLACE.revision}/structures`,
@@ -73,9 +75,9 @@ describe("the readings of the load", () => {
 });
 
 describe("query", () => {
-  it("repeats a list under its name and escapes each value", () => {
+  it("joins a list by commas under its name, as the contract declares it, and escapes each value", () => {
     expect(query({ fields: ["a", "task.b"], search: "revue de projet" })).toBe(
-      "?fields=a&fields=task.b&search=revue%20de%20projet",
+      "?fields=a,task.b&search=revue%20de%20projet",
     );
     expect(query({})).toBe("");
   });

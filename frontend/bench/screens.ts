@@ -153,13 +153,15 @@ export const PLANNING_KINDS = ["task"] as const;
 /** The progress the remaining to commit shows unless its address says otherwise (`readProgress`). */
 export const REMAINING_PROGRESS = ["started"] as const;
 
-/** A query string, each value of a list repeated under its name, as the generated client sends it. */
+/**
+ * A query string as the generated client sends it: a list joined by commas under its name, each
+ * value escaped — the contract declares its lists `explode: false`, and the API reads them so.
+ */
 export function query(parameters: Readonly<Record<string, string | readonly string[]>>): string {
-  const pairs = Object.entries(parameters).flatMap(([name, value]) =>
-    (typeof value === "string" ? [value] : value).map(
-      (one) => `${encodeURIComponent(name)}=${encodeURIComponent(one)}`,
-    ),
-  );
+  const pairs = Object.entries(parameters).map(([name, value]) => {
+    const values = typeof value === "string" ? [value] : value;
+    return `${encodeURIComponent(name)}=${values.map((one) => encodeURIComponent(one)).join(",")}`;
+  });
   return pairs.length === 0 ? "" : `?${pairs.join("&")}`;
 }
 

@@ -85,7 +85,7 @@ export async function placeAndTasks(
   if (main === undefined) {
     throw new Error("the revision of PRJ-001 has no main structure");
   }
-  const fields = CHOSEN_BY.map((field) => `fields=${field}`).join("&");
+  const fields = `fields=${CHOSEN_BY.join(",")}`;
   const { items } = await api.get<NodeList>(
     `/projects/${project}/revisions/${revision}/structures/${main.structure_id}/nodes?kinds=task&${fields}`,
   );
@@ -93,12 +93,13 @@ export async function placeAndTasks(
     ?.work_package_id;
   const writable = items
     .slice(Math.floor(items.length / 2))
+    // A projection leaves out a flag that is false: a task neither summary nor milestone has none.
     .filter(
       ({ task }) =>
-        task?.is_summary === false &&
-        task.is_milestone === false &&
-        task.scheduling_mode === "automatic" &&
-        task.progress === "not_started",
+        task?.scheduling_mode === "automatic" &&
+        task.progress === "not_started" &&
+        task.is_summary !== true &&
+        task.is_milestone !== true,
     );
   if (workPackage == null || writable.length < count) {
     throw new Error(
