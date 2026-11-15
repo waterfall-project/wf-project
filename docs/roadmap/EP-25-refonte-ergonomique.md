@@ -1145,7 +1145,7 @@ le contrat dit sans fuseau (`docs/api/DECISIONS.md`).
 
 ## US-2310 — Les composants communs et la dette de tests : ce que les lots d'écran ont laissé à trancher
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0080-A`, `WF-IHM-0090-A`, `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que le suivi des tâches lit déjà
   (`getBackgroundTask`, `listBackgroundTasks`)
