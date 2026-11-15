@@ -5126,6 +5126,34 @@ class WorkloadZone(StrEnum):
     alert = "alert"
 
 
+class Month(ContractModel):
+    month: Annotated[str, Field(pattern="^\\d{4}-(0[1-9]|1[0-2])$")]
+    hours: Hours
+
+
+class WorkloadTask(ContractModel):
+    node_id: Uuid
+    row_number: Annotated[
+        int,
+        Field(
+            description="The row of the task in the numbering of the whole structure, as `Node.row_number`.",
+            ge=1,
+        ),
+    ]
+    label: str
+    start: WorkInstant
+    finish: WorkInstant
+    hours: Annotated[
+        Hours, Field(description="The hours of the task for the role, the sum of its `months`.")
+    ]
+    months: Annotated[
+        list[Month],
+        Field(
+            description="Only the months in which the task is loaded for the role, ascending, as for a role (#3096); empty when its hours are zero."
+        ),
+    ]
+
+
 class Basis(StrEnum):
     reference_budget = "reference_budget"
     marked_remaining = "marked_remaining"
@@ -5148,7 +5176,7 @@ class MonthlyTotal(ContractModel):
     hours: Hours
 
 
-class Month(ContractModel):
+class Month1(ContractModel):
     month: Annotated[str, Field(pattern="^\\d{4}-(0[1-9]|1[0-2])$")]
     hours: Hours
     zone: WorkloadZone
@@ -5159,7 +5187,18 @@ class Role(ContractModel):
     label: str
     org_node_id: Uuid
     capacity_monthly_hours: Hours
-    months: list[Month]
+    months: Annotated[
+        list[Month1],
+        Field(
+            description="Only the months in which the role is loaded, ascending: a month without load is absent, not returned at zero, so that a role loaded on fewer months than the others has fewer entries; the axis of the plan is `monthly_totals` (#3096). Each month the sum of the parts of its lines, rounded as `tasks` says: the hours of the tasks of the role that month sum to it exactly (WF-DEV-0090)."
+        ),
+    ]
+    tasks: Annotated[
+        list[WorkloadTask],
+        Field(
+            description="The detail of the role by task (WF-DEV-0090): each task that bears a labour line of the role, on the basis, by the spreading and under the filter of the plan — on a basis of remaining to commit, a completed task is absent —, in the order of its start (`start`, its date then its hours), then of the plan (`row_number`; the author's decision of 2026-11-14, #3181). Empty for a role that no line loads. Computed when read, on the revision read (`context.revision_id`): on `marked_remaining`, on what its marking froze, never stored by it (#3181)."
+        ),
+    ]
 
 
 class WorkloadPlan(ContractModel):
@@ -5192,6 +5231,76 @@ class WorkloadPlan(ContractModel):
         list[Role],
         Field(
             description="Every active role, with its capacity, whether the lines load it on the horizon or not; restricted, with `org_node_id`, to the roles of that node and of its descendants (WF-DEV-0070)."
+        ),
+    ]
+
+
+class SpendingMonth(ContractModel):
+    month: Annotated[str, Field(pattern="^\\d{4}-(0[1-9]|1[0-2])$")]
+    amount: Money
+
+
+class SpendingCategory(ContractModel):
+    cost_category_id: Uuid
+    label: str
+    total: Money
+    months: Annotated[
+        list[SpendingMonth],
+        Field(
+            description="Only the months in which the category carries an amount, ascending (#3096)."
+        ),
+    ]
+
+
+class SpendingCostType(ContractModel):
+    cost_type_id: Uuid
+    label: str
+    total: Money
+    months: Annotated[
+        list[SpendingMonth],
+        Field(
+            description="Only the months in which the cost type carries an amount, ascending (#3096)."
+        ),
+    ]
+    categories: Annotated[
+        list[SpendingCategory],
+        Field(
+            description="The categories of the cost type that carry an amount, in the order of the reference data — that of `listCostCategories` without a sort, by code, then by identifier.",
+            min_length=1,
+        ),
+    ]
+
+
+class SpendingProjection(ContractModel):
+    context: CalculationContext
+    basis: Annotated[
+        Basis,
+        Field(
+            description="The basis used: the budget of the reference revision, the re-estimated amounts of a marked revision, or those of the current revision (WF-DEV-0100). `context.revision_id` names the revision read."
+        ),
+    ]
+    payment_delays: Annotated[
+        bool,
+        Field(
+            description="True when each amount is shifted by the payment delay of its line: the cash-out (WF-DEV-0100). False otherwise."
+        ),
+    ]
+    total: Annotated[
+        Money,
+        Field(
+            description="The total of the projection, the sum of its cost types; on a basis of remaining to commit, the remaining to commit of the scope without its provisions (WF-RAE-0010)."
+        ),
+    ]
+    monthly_totals: Annotated[
+        list[SpendingMonth],
+        Field(
+            description="The total of each month, the sum of the cost types that month: from the first to the last month that a cost type loads, ascending and without gaps, a month without amount included at zero, as `WorkloadPlan.monthly_totals`; empty when no line carries an amount."
+        ),
+    ]
+    cost_types: Annotated[
+        list[SpendingCostType],
+        Field(
+            description="The cost types that carry an amount, in the order of the reference data — that of `listCostTypes` without a sort, by code, then by identifier —; never the provision type, whose lines are excluded (WF-DEV-0100)."
         ),
     ]
 
@@ -6767,11 +6876,11 @@ class PortfolioValue(ContractModel):
     ]
 
 
-class Month1(RootModel[str]):
+class Month2(RootModel[str]):
     root: Annotated[str, Field(pattern="^\\d{4}-(0[1-9]|1[0-2])$")]
 
 
-class Month2(ContractModel):
+class Month3(ContractModel):
     month: Annotated[str, Field(pattern="^\\d{4}-(0[1-9]|1[0-2])$")]
     hours: Hours
     load_ratio: Annotated[
@@ -6793,7 +6902,7 @@ class Role1(ContractModel):
     label: str
     capacity_monthly_hours: Hours
     months: Annotated[
-        list[Month2],
+        list[Month3],
         Field(
             description="One month per month of `months`, in the same order, a month without load included."
         ),
@@ -6815,7 +6924,7 @@ class PortfolioWorkload(ContractModel):
         ),
     ]
     months: Annotated[
-        list[Month1],
+        list[Month2],
         Field(
             description="The months of the horizon, ascending and without gaps; the columns. Each role carries one month per month of this list, in the same order, and so does `monthly_totals`."
         ),

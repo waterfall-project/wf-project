@@ -11907,6 +11907,64 @@ exemple (`actual_cost_mapping_kept_columns_too_many`, `/kept_columns`) : le fron
 intitulés pour l'élément d'OTP, refusée au pointeur `/columns/0/labels`, `params.max_length` 20.
 Aucune forme ne change ; le test du front qui le lit vient avec le formulaire.
 
+### Le détail du plan de charge et la projection de dépenses (US-2040/L1, #3511)
+
+La spécification 1.0.6 ajoute le détail du plan de charge par tâche (WF-DEV-0090, #3181) et la
+projection de dépenses du projet (WF-DEV-0100, #3182) ; le front empilait mal un rôle chargé sur
+moins de mois que les autres (#3096). Décisions de l'auteur du 2026-11-14 et du 2026-11-15
+(recadrage d'EP-10, « Opérations du contrat » et « Le plan de charge détaillé et la projection de
+dépenses ») :
+
+- **`getProjectWorkload` rend le détail par tâche** : chaque rôle de `WorkloadPlan` porte `tasks`,
+  exigé, des `WorkloadTask` — le nœud, le numéro de ligne, le libellé, le début et la fin
+  (`WorkInstant`, la convention de la tâche), le total des heures du rôle et `months` —, sur la base,
+  par la répartition et sous le filtre du plan, dans l'ordre du début (sa date, puis ses heures),
+  puis du planning (`row_number`). Deux lignes d'un même rôle sous une même tâche y sont sommées ;
+  sur la base du reste à engager, une tâche terminée n'y est pas. Le détail est calculé à la lecture,
+  sur une révision marquée aussi, jamais conservé par son marquage. Écartée : une opération à part,
+  qui étalerait deux fois les mêmes lignes.
+- **`months` ne porte que les mois chargés** (#3096), pour un rôle comme pour une tâche, une nature
+  ou une catégorie de la projection : un mois sans charge est absent, non rendu à zéro ;
+  `monthly_totals` porte, lui, chaque mois de l'horizon sans trou, l'axe du graphique. La
+  description de `getProjectWorkload` et celles des `months` le disent ; l'exemple `workload` le
+  montre, le monteur câbleur chargé sur 8 des 39 mois du plan. Écarté : tous les mois de l'horizon, à
+  zéro.
+- **Les parts d'une ligne s'arrondissent de façon que leur somme soit son total** : chaque part au
+  centième d'heure, ou au centime (`Money`), le reliquat des arrondis porté au dernier mois de la
+  ligne ; tout total — d'un mois, d'une tâche, d'un rôle, d'une catégorie, d'une nature, de la
+  projection — est la somme de parts déjà arrondies, ce qui tient au centième les égalités des Vérif
+  de WF-DEV-0090 et de WF-DEV-0100. Le plan de charge existant passe par là : ses mois bougent d'un
+  centième, et ses exemples, réengendrés, avec eux le plan de charge agrégé du portefeuille, qui
+  somme celui du témoin.
+- **`getProjectSpending`, opération nouvelle**, `GET /projects/{project_id}/spending`, sous
+  `estimate.read`, sur le modèle de `getProjectWorkload` : la base (`WorkloadBasis`, dont la
+  description s'étend aux montants) et `revision_id`, avec ses refus — 409
+  `STATE_FORBIDS_OPERATION` d'une base absente, 422 sur `/query/revision_id` — ;
+  `payment_delays`, comme `getCostCurve` ; `subproject_id` (`SubprojectFilter`, `unassigned`
+  compris), refusé comme le filtre des coûts réels, 422 `UNKNOWN_SUBPROJECT` sur
+  `/query/subproject_id`. Sa réponse, `SpendingProjection` : le contexte de calcul
+  (`context.is_stored` toujours faux, `context.scope` le périmètre), la base, `payment_delays`, le
+  total, le total de chaque mois (`monthly_totals`, sans trou), et les natures de coût qui portent un
+  montant (`SpendingCostType`), chacune avec son total, ses mois et ses catégories
+  (`SpendingCategory`), dans l'ordre du référentiel — celui de `listCostTypes` et de
+  `listCostCategories` sans tri, le code, puis l'identifiant —, jamais la nature des provisions,
+  dont les lignes n'entrent pas. Les montants sont les montants enregistrés des lignes, comme ceux de
+  la courbe de coûts cumulés : une `Money`, sans enveloppe `Computable`. Le front n'y somme rien
+  (WF-ARC-0020). Écartés : les natures et les catégories sans montant, à zéro ; le total de la
+  projection laissé au front.
+- **Les exemples sont engendrés sur le témoin** (`wftools.mockcurves`, `wftools.mockspending`) :
+  ceux du plan de charge, réengendrés avec leurs tâches — un rôle porte jusqu'à 800 tâches, une par
+  ligne du fichier, `make mock-data` disposant désormais sur plusieurs lignes l'élément d'une liste
+  qui porte lui-même une longue liste — ; `spending` (le reste à engager de la révision en cours),
+  `spending_reference_budget` (le budget de la référence, mois antérieurs à la date de calcul
+  compris), `spending_marked_remaining`, `spending_payment_delays` et `spending_subproject` ; les
+  refus `spending_no_reference`, `spending_revision_refused` et `spending_subproject_unknown`,
+  écrits à la main comme ceux du plan de charge. Le catalogue du front reçoit les trois valeurs de
+  `SpendingProjection.basis`.
+
+`info.version` reste `1.0.0` : une opération et des champs rendus de plus. Le service du détail est
+d'US-2040/L2, celui de la projection d'US-2050.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
