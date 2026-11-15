@@ -530,6 +530,29 @@ def test_a_duration_that_carries_a_written_line_beyond_its_column_is_refused_at_
 
 @pytest.mark.requirement("WF-DEV-0040-A")
 @pytest.mark.requirement("WF-DAT-0100-A")
+def test_a_mode_sent_with_a_duration_that_carries_a_line_beyond_its_column_is_named_in_dating_order(
+    api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # #3303: the mode and the duration both redate the task: each is named, in the order of DATING
+    # (scheduling_mode, duration); nothing is written.
+    assert inflated(api, stage, "0.03").status_code == 200
+    task = tree.made("Câblage")
+    at_its_limit(lines, costs, task)
+    before = kept_line(tree)
+    read = tree.node(task["node_id"])
+    refused = tree.change(
+        read, scheduling_mode="automatic", duration={"value": "500", "unit": "d"}
+    )
+    assert faults(refused) == [
+        ("/scheduling_mode", PRECISION, {}),
+        ("/duration", PRECISION, {}),
+    ]
+    assert kept_line(tree) == before
+    assert tree.node(task["node_id"])["task"] == read["task"]
+
+
+@pytest.mark.requirement("WF-DEV-0040-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
 def test_dates_that_carry_a_written_line_beyond_its_column_are_refused_at_each_date_sent(
     api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
 ) -> None:
