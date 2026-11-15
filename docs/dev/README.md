@@ -558,7 +558,9 @@ without the prefix (`failure.ts`). Without an envelope, or without a `correlatio
 displayed is the digest Next computes, that of its own logs. A screen never says « empty » on a
 response it has not read. When the session is unreadable, the navigation keeps the status screen
 (WF-ADM-0130). Each segment that reads the API has its `loading.tsx`, the `ScreenSkeleton` skeleton,
-which carries a named `role="status"` — a screen reader does not always announce it; the response is
+at the density of its screens, which the `loading.tsx` reads in the table of the densities — a
+screen of another family than its segment has its own, and the airy screen does not jump when it
+comes (#3269) —, which carries a named `role="status"` — a screen reader does not always announce it; the response is
 then streamed, and « not found » answers 200 and not 404 — a soft 404, which Next marks `noindex`:
 the status leaves with the skeleton, before the page knows the object is not found. It is the same
 for every address not found, which is what counts here. Each empty state — no project, project
@@ -569,32 +571,40 @@ without a revision, incomplete reference data — is shown on a named example of
 
 The home page, `/`, is the list of projects (`frontend/src/app/(home)/`, a route group so that it
 has its skeleton without giving one to every page): filtered by default on the projects of which
-the user is a contributor, by the filter of the contract (`is_contributor`), which the screen shows
-and which a link lifts — `?is_contributor=false`, under the name of the contract
-(`frontend/src/navigation/home.ts`) —: a filter, never a restriction of reading (WF-PRJ-0060).
-The link that lifts it is offered only to a session that carries `all_projects_read` (WF-ADM-0110):
-lifted for another, the filter would render the same list, and the link would promise what it does
-not do (WF-IHM-0090, #522); without this permission, the home page stays filtered whatever the
-address says — `?is_contributor=false` included, the page asking for `is_contributor=true` —, the
-« My projects » badge displayed without any link, and the choice of the project leads to the home
-page rather than to the lifted list. The sidebar and the breadcrumb lead to the filtered list, the
-choice of the project to the lifted list, « All projects »; `/projects`, the former address,
-redirects to the home page. The projects are one more configuration of the dense grid
-(`project-list-grid.tsx`, preferences under the `projects` key): the label, a link that opens the
-project, the code, the state by its badge and the date of modification, each column sorted by the
-server (`sort_by`), searched by it on the label and the code (`search`), filtered by state —
-pressed buttons that write only the address (`states`) — and by period on the last modification
-(`from`, `to`, EP-02/L42e): two days entered in the local time of the reader, sent as the instants
-of the start of the first and of the start of the day after the last, the end excluded. An address
-that names no state asks for all six, the home page showing everything the user may open, where
-the contract, without `states`, would render only the projects in progress (WF-PTF-0010); the
-pressed buttons are the states the address names, « Every state » when it names none: the address
-is authoritative. A period the server refuses — an end before the start, 422 `VALUE_OUT_OF_RANGE`
-on `/query/to`, `params.minimum` the start given — is said at its field, the start named by its
-local day, which takes the focus each time the list comes back refused, like a bound of a column
-of numbers (`range-filter.tsx`); the list is not read, and a sentence holds the place of the grid.
-Its totals row says how many projects the server retains, and it leads to the other pages by
-`ListPages`; a page asked for beyond its end says so, and brings back to its last page: only a
+the user is a contributor, by the filter of the contract (`is_contributor`): a filter, never a
+restriction of reading (WF-PRJ-0060). The screen is airy (`PageHeader` in `airy` density) and its
+table sits in a card, `SectionCard` « Liste des projets », of which « Create a project » is the
+principal command, filled, at the right of the title — for a session that carries the permission to
+create a project, no other is offered it. The filter is an « My projects (by default) » chip under
+the bar of the table, which one removes, and a « Projects » field of the panel of the filters;
+removing it writes `?is_contributor=false`, under the name of the contract
+(`frontend/src/navigation/home.ts`), and an address that says nothing means the filter. It is never
+kept, neither in the address nor in the preferences of the grid: at sign-in, the user sees their
+projects (WF-IHM-0120). The chip and the field are offered only to a session that carries
+`all_projects_read` (WF-ADM-0110): lifted for another, the filter would render the same list, and
+the chip would promise what it does not do (WF-IHM-0090, #522); without this permission, the home
+page stays filtered whatever the address says — `?is_contributor=false` included, the page asking
+for `is_contributor=true` —, with neither chip nor field, and the description of the card alone says
+that the list holds the projects the session contributes to; the choice of the project then leads
+to the home page rather than to the lifted list. The sidebar and the breadcrumb lead to the
+filtered list, the choice of the project to the lifted list, « All projects »; `/projects`, the
+former address, redirects to the home page. The projects are one more configuration of the dense
+grid (`project-list-grid.tsx`, preferences under the `projects` key): the label, a link that opens
+the project, the code, the state by its badge and the date of modification, each column sorted by
+the server (`sort_by`), searched by it on the label and the code (`search`), filtered by state — a
+field of the panel that writes only the address (`states`) — and by period on the last
+modification (`from`, `to`, EP-02/L42e): two days entered in the local time of the reader, sent as
+the instants of the start of the first and of the start of the day after the last, the end
+excluded. The states are told as the filter of the projects is, by chips: an address that names no
+state asks those the account kept, else the states by default, Created, Pricing and In progress,
+told « (by default) »; `states=all` lifts them and asks all six, where the contract, without
+`states`, would render only the projects in progress (WF-PTF-0010): the address is authoritative. A
+period the server refuses — an end before the start, 422 `VALUE_OUT_OF_RANGE` on `/query/to`,
+`params.minimum` the start given — is said at its field, the start named by its local day, which
+takes the focus each time the list comes back refused, like a bound of a column of numbers
+(`range-filter.tsx`); the list is not read, and a sentence holds the place of the grid. Its totals
+row says how many projects the server retains, and it leads to the other pages by `ListPages`; a
+page asked for beyond its end says so, and brings back to its last page: only a
 list that holds no project, without state, period or search, says it is empty. The screens of the
 project itself — the project, its settings with its subprojects and its contributors, its
 lifecycle — exercise the exit from the lifecycle (`ExitCommand`), irreversible, confirmed in the
@@ -733,7 +743,12 @@ project, its trigger and the conditions it still lacks, one by one (`getProjectN
 trigger is one of the two facts the contract enumerates (`LifecycleTrigger`), said by its
 catalogue (`enums.LifecycleTrigger`). A project that no fact leads any further — the server
 answers without a next state or a trigger — says so: in progress, only its exits remain; terminal
-— a state an exit leads to (`EXIT_STATES`) —, it is closed, and no state follows it (WF-CYC-0080).
+— a state an exit leads to (`EXIT_STATES`) —, it is closed, and no state follows it (WF-CYC-0080). The next state and the history of the states are
+each a section card, in the airy column (US-2130); the exits stay at the right of the title of the
+screen, outlined. The screen of the revisions follows the same presentation without changing its
+structure (EP-27 recasts it): a card per section, « Open a current revision » — the filled command,
+which `RevisionHistory` receives as `creation` — at the right of the title of the history card, the
+commands of the revision read at the right of the title of the screen.
 
 ### The periods of a list
 
@@ -782,14 +797,14 @@ textual alternative (WF-IHM-0100). The client component of the curve's own (`ind
 `milestone-chart.tsx`, `curve-series-chart.tsx`, `workload-chart.tsx`) hands it its option, built
 in a palette: ECharts writes its colours in the attributes of its SVG, where a CSS variable does
 not reach, and the tokens `--chart-1` to `--chart-4`, `--muted-foreground`, `--foreground`,
-`--input`, `--border` and `--background` get there through hidden probes the browser paints in the
+`--input`, `--border`, `--background` and `--card` get there through hidden probes the browser paints in the
 displayed mode; a change of mode, from the workstation or forced by the account (`data-theme`),
 redraws the curve. It is drawn in one go, without animation, and a legend is inert there: a
 click, with the mouse alone, hides no series. `curve` names each curve at its last plotted point,
 whatever their number — no legend, which one entry per subproject would make overflow onto the
-plot —, the names that would overlap set aside, and distinguishes it also by its colour, its symbol
-and its stroke; a workload plan is a stacked histogram (`stackedRoles` of
-`workload/stacked-load.ts`: one bar per month, divided by role, the patterns kept), whose tooltip
+plot —, the names that would overlap set aside, and distinguishes it also by its colour and its
+stroke, and by its symbol when the account asks for the patterns; a workload plan is a stacked histogram (`stackedRoles` of
+`workload/stacked-load.ts`: one bar per month, divided by role), whose tooltip
 for a month lists the roles and their hours (`monthTooltip`, labels escaped); that of the project
 has no capacity line (#375) but carries at the top of each bar the total of the month the server
 renders (`monthly_totals`, `monthTotals`), like that of the portfolio, which also carries, dotted,
@@ -800,8 +815,8 @@ their signals being under the chart; the links to the workload plan open a basis
 otherwise; the link from the remaining to commit to this plan is an icon alone (`aria-label`,
 `title`), the title of the screen and the totals of its grid fitting in the 1280-point window only
 at that price (`remaining.spec.ts`); a curve without a plotted point has no name on the drawing,
-its table names it; a series of bars (`bars`) is also distinguished by the pattern of the symbol of
-its rank, which the legend shows; `timeAxis` graduates a time axis at the first of each month that
+its table names it; a series of bars (`bars`) bears the pattern of the symbol of its rank, which the
+legend shows, when the account asks for it; `timeAxis` graduates a time axis at the first of each month that
 `monthTicks` draws from the instants it shows — every two, three, six months or every year over a
 long range, the year alone then, or every two, five, ten years, on the years that are multiples of
 the step (#415) —, written in the language of the workstation, in its time zone or in UTC for an
@@ -839,6 +854,22 @@ image (`wrapLines`), the figure moved down by the height of their lines, on the 
 visual identity, then releases the instance. A choice that changes what a curve reads — the
 payment terms, the basis and the organisation node of the workload plan — is a parameter of the
 address, which the server sends to the API: the front neither filters nor shifts anything.
+
+**The common presentation** (US-2160, #3097): plain colours; slim bars (`bars`: half the room of
+the month, 28 points at most), each part rounded and parted from its neighbours by a thread of the
+colour of the page; an axis of values without line nor tick, read by a horizontal grid of light
+dashes (`valueAxis`), no vertical line (`timeAxis`); the legend at the top left, a dot of the colour
+of each series; the tooltip a card (the `--card` token, the border and the shadow in the tone of
+`--border`); the series under the pointer stands out, the others fade. `Chart` sets the legend and
+the tooltip (`presented`), on the screen as in the exported image; the axes and the series come
+from the common functions each chart calls. The scale is neither broken nor zoomed: the tooltip and
+the table give the values a very loaded month crushes. **The patterns** — those of the bars, the
+symbols of the points, and the legend that shows them — are drawn only if the account asks for them
+(`chart_series_patterns` of `DisplayPreferences`, set on "My account", off by default): the root
+layout reads the preference with the account and passes it through `ChartPatternsProvider`
+(`chart/patterns.tsx`); `Chart` alone reads it and puts it in the palette (`ChartPalette.patterns`)
+the option receives, which makes the export follow the preference of whoever exports. The Gantt
+and the timelines keep their marks (`readPalette` without the preference).
 
 The workload plan of the project (`…/workload`, FBS-4.4.4) is wired to the service (EP-07,
 US-1520): the page no longer carries the notice of the mock-up (`MockupNotice`), `getProjectWorkload`
@@ -1006,10 +1037,27 @@ grid, outside the chain that contains it — were it only in a narrow window, wh
 content lines up below (the actual costs, the risks) —, does not fill the window where it has it
 below (`fillWide`, `lg:min-h-0`), just as `/admin/backups` and the reference data of resources and
 costs, which stack their grids, do not fill it: the grid would overflow onto it (#1033).
-`frontend/e2e/grid-frame.spec.ts` measures it on the nine screens that fill the window, in a low
-window, at the two widths of the harness: the frame overlaps nothing. The bar and the « Columns »
-button have the width of the frame of the table, as the browser sets it (scrollbars included,
-`frame-width.ts`), without exceeding it, and never less than what the bar holds on one line
+`frontend/e2e/grid-frame.spec.ts` measures it on the eight screens that fill the window, in a low
+window, at the two widths of the harness: the frame overlaps nothing. The width of a table is CSS,
+measured by no script (`table-width.ts`, US-2080, #3075): the frame has the width of its card, the
+table the larger of the card and of the sum of its columns, and the label column (`label`) — failing
+one, the last column before any pinned at the end — takes what the others leave, the width chosen
+for it becoming its minimum: its handle and its arrows set that minimum, the column never shrinking
+below what the card gives it; a step that changes nothing on the screen writes nothing, so that,
+while the card is wide, that minimum can only rise (#3280). It is wider than its width only when the
+table does not scroll sideways: the offsets of the pinned columns, drawn from the chosen widths, stay
+right. No line between the columns, except beside a pinned column; the cells of the body take the
+background of the card that holds the table (`CELL_BACKGROUND`, `bg-card`, #3277), opaque for the
+pinned columns, and the row under the pointer is tinted by a token (`--row-hover`, `ROW_HOVER`),
+which a computed cell, a selected row or one marked by a differential keep under their own tint. The
+commands of a row (variant `row` of `Button`) have a border of their own, `--row-command-border`, at
+3:1 on the card, the hover and the selected row; `--border`, which only separates, stays light
+(#3332). In the totals row, the caption of the count spans the columns without a
+figure that follow it (`colSpan`) instead of being truncated; pinned, it stays stuck over the pinned
+columns alone, its words at the start of its column (#3072). The simple tables (`ui/table.tsx`) have
+the text, the header and the absence of lines of the grids. The bar and the « Columns » button have
+the width of the frame, that of what holds them, without exceeding it, and never less than what the
+bar holds on one line
 (`min-w-min`, the search shrinking before anything wraps, apart from the command list of a screen,
 which wraps by itself); the notices — refusal, paste applied, columns not shown, entry problem —
 keep the whole width (#1042). Hidden columns, widths and sort are a display preference
@@ -1043,6 +1091,20 @@ for whoever reads it, and its indicators, with their date of computation, or tha
 unavailable when the API does not find them or refuses them for lack of an hourly rate
 (`HOURLY_RATE_MISSING`, #159) — these two cases do not bring the screen down; any other response
 follows the rule of the readings (`EstimateSummary`).
+
+The bar of every grid follows one order (`GridToolbar`, US-2080, decision of the author of
+2026-11-14): the commands of the screen, the search, « Filtres » — the menus of a tree grid, or the
+button of the panel of a flat table —, « Colonnes », « Arbre » for a tree grid, then, at the end,
+undo and redo. It says no number of rows: the totals row says it alone, what a filter retains
+included (#3072). The reason undo waits for, cut to the room the bar leaves, opens whole when
+pressed — by a click, a touch or the keyboard —, in a Popover (#3150). Each filter on of a flat table
+is a chip in the tint of the primary colour (`bg-accent`, its text in `text-primary`, the pair
+measured by `contrast.test.ts`), with its label and its cross (#3077). The pages of a list
+(`ListPages`) are at the right under the table, in the text of the table, muted: « Lignes par
+page », the range of the rows shown (« 1–50 sur 150 »), « Précédent », « Page n sur m » and
+« Suivant », these two links in a fixed place, inert at the ends of the list (`aria-disabled`, with
+no address); everything is read from `offset`, `limit` and `meta.total` (`pageSpan`), with no jump
+to a page nor first or last page, and the navigation bears the name of its list (#3073).
 
 A grid that reads a differential (`CostStructure.kind` = `amendment`) is a diff against the main
 structure, which the server computes (`Node.difference`, rendered on each node, with the removed
@@ -1514,15 +1576,22 @@ simple tables, without sort or filter (decision of the author of 2026-10-08, #50
 object is named by the label the server resolves at reading time, active or deactivated — never
 by matching lists in the front; a section is named by `aria-label` (#251).
 
-The lists of the reference data read only the active objects, and the deactivated ones too when the
-address asks for it (`include_inactive`, WF-REF-0150, #300), under the name of the contract, which
-the header of the screen writes or lifts by a link (`InactiveSwitch`), which brings each paginated
-list back to its first page — only for a session that carries the write permission of their part of
-the reference data, without which the contract refuses it (403, `inactiveQuery` of `address.ts`;
-decision #2084, option A, `docs/api/DECISIONS.md`), like the lists of the estimate (#351). The
-filter by state (`is_active`, `StateFilter`) prevails over it: all states, the active only, or the
-deactivated only, offered to the same session only (`stateOf`). A deactivated object is said there
-by a mark and a word, and is reactivated there as
+Each list of the reference data says what it shows of the deactivated objects by its own filter of
+the state (`is_active` under the prefix of its grid, `StateFilter`, WF-REF-0150, US-2090), a filter
+by default of the grid like the states of the list of projects (#1747): absent from the address and
+from the settings of the account, it is « Actifs », said by the chip « État : Actifs (par défaut) »;
+« Désactivés » shows them alone; the chip lifted shows them all, the address then writing `all` so
+that neither the account nor the default takes its place (`stateOf`, `EVERY_STATE` of
+`address.ts`). The front sends `is_active=true`, `is_active=false`, or `include_inactive=true`
+without `is_active` (`stateQuery`). The choice is kept with the settings of the grid, per account,
+once it differs from the default (`keptState`, `GridConfig.defaulted`, `kept-filters.ts`). The
+screen no longer has a switch « Afficher aussi les désactivés », and `include_inactive` in its
+address is no longer read (#3076). The filter is offered only to a session that carries the write
+permission of their part of the reference data, without which the contract refuses the deactivated
+objects (403; decision #2084, option A, `docs/api/DECISIONS.md`): another reads the active ones
+alone, like the lists of the estimate (#351). The lists of choices of the forms offer the active
+ones alone, whatever the tables show. A deactivated object is said there by a mark and a word, and
+is reactivated there as
 the server lists its command (`available_commands`, #532, WF-IHM-0090) — the server lists it only
 for whoever can modify that part, and the front deduces nothing from it: available, through the
 activation command of its nature (`setActivation`, a server action, from the version read), then the
@@ -1827,7 +1896,7 @@ Lifting the last filter is said in the address, the search written empty (`searc
 which the `PendingAddress` of a screen that names what its grid keeps sets), as a lifted sort
 writes `sort_by` empty: the preference empties, and the page does not find the kept filters again
 (#836). The roles screen is wired to the service (US-0380/L2, #380): to a session that carries
-`access_roles.write`, the table creates a role inline, by its label alone (`role-commands.tsx`),
+`access_roles.write`, the table creates a role by its label alone, in the dialog that « New role » opens — the filled button at the right of the title of the card (`role-commands.tsx`, `role-creation.tsx`) —,
 renames it in its cell — the grid's input, written by `updateAccessRole` with the permissions of
 the role — and deletes it from its row, after a confirmation that names the role and says the
 deletion is definitive (`AlertDialog`, outside the grid, Escape abandoning it) — a logical deletion
@@ -1887,8 +1956,8 @@ requested reactivation has not answered. What a write does — a rename included
 above the table, on the loading it started from (`Reactivations`), that of a name, at its cell. The
 search and the filters are kept with the settings of the grid and found again when the address says
 nothing of the table (`USER_KEPT`), as for the roles. Without the permission, nothing is written
-and no command is presented. Above the table, the reading of the accounts of the identity provider
-(US-0370, WF-ADM-0070, `identity-sync.tsx`) shows the report of the last completed reading
+and no command is presented. In a card under the table, an outlined command « Read the accounts » at the right of its title and its state in its body, the reading of the accounts of the identity provider
+(US-0370, WF-ADM-0070, US-2100, `identity-sync.tsx`) shows the report of the last completed reading
 (`getLatestIdentitySync`), or says that none has succeeded yet (404): its accounts created,
 updated, deactivated, those whose identity it restored in the provider, the local accounts it
 removes from it, and, on request, what it left as is, each with the reason from the catalogue — an
@@ -2503,14 +2572,26 @@ project belong to the forms of their domain, its modification to the one of its 
 `is_available` and its conditions — a marked revision lists them unavailable, for lack of being
 under elaboration —, its exports left to the imports and exports screen, which offers them
 (`ExportForm`), its inputs (`edit_*`) to their grids and the skeleton to the empty planning grid
-(EP-14/L44d); `findOffer` draws a single one from it, and `UnmetConditions` names what the offer of
-a form that is not a `Command` lacks. Outside the project — accounts, roles, reference data,
+(EP-14/L44d); `findOffer` draws a single one from it, and forms say what they lack as the other
+commands do, by `CommandTooltip` and, when pressed, `PressRefusal`; `UnmetConditions` remains only
+for the commands of the timelines (#3290). Outside the project — accounts, roles, reference data,
 backup —, `platformOffer` follows the permission to change of a function of `platform` scope
 (`PlatformFunction`) in `Session.permissions`, or `project_create` for the creation of a project,
 which no project lists; the commands of a backup are those it lists (`Backup.available_commands`,
 EP-14/L43f), the download and the restoration included. Greying out is only a convenience: an
 available command launches its server action, and the server's refusal is said by
-`OutcomeNotice`.
+`OutcomeNotice`. Pressed, it waits for what it launched — its request, a slow write done within
+the request included (the opening of a revision), or the background task it handed to the
+tracking, until its end (`useTaskRunning`) — the same way everywhere (`waiting.tsx`, #3103):
+inert (`aria-disabled`, a second press relaunches nothing), `aria-busy`, a wheel in place of its
+icon, beside its label, which stays; an answer, a failure included, gives it back. The waiting is
+found again on remounting, within the tab: the button hands its task to the tracking with what it
+aims at (`aim`, composed by `taskAim` from its kind and its object — the revision marked or
+exported, the project of an import, the installation for a backup or a reading of the accounts),
+which the tracking keeps with it in the session of the tab (`storage.ts`); remounted — the tab
+reloaded, the screen left then found again —, it waits on the task it has just launched or, failing
+that, on the one running for what it aims at (`useRunningTask`, #3404). A task launched from another
+tab or another workstation has no object: no button waits for it.
 
 ### The tooltips of the commands
 
@@ -2541,8 +2622,11 @@ A menu item is written by `MenuCommand` (`menu-command.tsx`), which takes the it
 icon and `onSelect`: the name is both the text of the item and that of the tooltip, and the keys
 are set on the item, shown at its end and in the tooltip, from a single input. An item that leads
 elsewhere takes `href` instead of `onSelect` — one or the other, never both —, and is rendered as a
-link; `detail` is a text the item says under its name, the condition a gesture of the Kanban lacks
-(#1435).
+link. An unavailable item follows the rule of `Command` (#3430): the condition it lacks
+(`unavailable`) is read in its tooltip, by pointer as by keyboard, and describes it, without being
+written under its name; pressed, it runs nothing, and the screen that holds the menu says what is
+missing in its region of the refusals, from its `onSelect` — the card of the Kanban, by the alert of
+the card, the menu closed.
 
 The tooltip follows WCAG 1.4.13: it opens on hover, after a short rest, and on keyboard focus, at
 once — in a menu, after the same rest, so that Escape pressed at once closes the menu (`inMenu`,
@@ -2652,19 +2736,44 @@ shell through `useTrackTask()` (`frontend/src/components/tasks/`), with the comm
 it and, if there is one, the name the user gave it (WF-IHM-0080). The tracking is common to the
 nine kinds of task: it reloads the task every two seconds as long as it runs, through the server
 action `readBackgroundTask`, shows its progress, adds its end to a log (`role="log"`) read whatever
-the screen, offers to reload the screen when it has succeeded — it never reloads on its own —, and
-replays the command of a failed task. Its panel is a sheet (`Sheet`) along the right edge of the
+the screen, reads the screen shown anew on its own when a task that concerns it succeeds or fails —
+a screen of the project it was launched from, or, outside a project, that very screen
+(`readsAnew`) —, offers to reload the screen when it has succeeded, and replays the command of a
+failed task. The next read leaves from the answer of the previous one, not from a new entry: a read
+that found the task where it stood left the entry as it was (#180), and the tracking stopped there
+— a task read twice, succeeded, never read again (#3103). Its panel is a sheet (`Sheet`) along the right edge of the
 window, which also carries the message history (below): a modal dialog titled « Tasks and
 messages », which holds the focus as long as it is open and which Escape, its close button, a click
 outside the panel or « Reload the screen » close, the focus given back to the button of the bar.
 The button of the bar (`TasksButton`) opens it and says, in its name and its badges, the number of
 tracked tasks and that of the unread refusals. Nothing opens it on its own, except the refusal of a
-result on the browser's return, whose download left from the panel. A handed-over or finished task
-is said under the bar, in the flow of the page, on the screen where one is: the last one, in a
-short line that stays until the next — the confirmation in place of a success the screen does not
-show —, without an announcement, the log speaking for the ends; its button closes it, by keyboard
-as by mouse, and gives the focus back to the button of the bar, the task staying tracked (author's
-decision, #1179).
+result on the browser's return, whose download left from the panel. A handed-over task is said
+under the bar, in the flow of the page, on the screen where one is: the last one, in a short line
+that stays until the next, without an announcement; its button closes it, by keyboard as by mouse,
+and gives the focus back to the button of the bar, the task staying tracked (author's decision,
+#1179). The line does not tell an end that an end card carries — a success, a failure —: the card,
+which stays and carries the action, tells it alone, with the log of the ends and the panel, and the
+line of the handed-over task closes when it comes; the line only tells an interrupted follow-up,
+which has no card (author's decision of 2026-11-14, #3292). Each success and each failure is told
+by a floating card in the bottom right corner of the window (`EndCards`, `end-cards.tsx`, US-2170), mounted by the shell over the page,
+which it does not move: the sentence of the end, the reason of a failure, the action that follows —
+« Download » the file of an export, the task read anew first as from the panel, otherwise « Open »
+the screen it was launched from — and its cross. It stays until it is opened — « Open » by a plain
+click, not one that opens another tab — or closed (`Tracking.cards`, made before the log is
+truncated); several stack up, the last on top, in a column bounded by the window, which scrolls. It
+is not a live region: the log of the ends announces it, without taking the focus, and notes it in
+the message history, which the panel keeps. An interrupted tracking has no card; a task found
+again, its screen unknown, has only its cross. Closed — by its cross or by its action — while the
+focus was in the stack, the focus goes to the cross of the next card, otherwise of the previous one,
+otherwise to the button of the bar. The file of an export leaves on its own when its task succeeds
+and the screen that asked for it is still open (`useDownloadWhenTaskSucceeds`, `ExportForm`,
+`TaskTreeExport`, #3103), the task read anew first; the screen left, the card offers it. Downloaded
+on its own, with no gesture of the user, it never leaves nor reloads the screen: it goes by a hidden
+frame, sandboxed without scripts, a refusal of the route read from the address it sends the frame
+back to and told by the card (`downloadWhenThere`, `result-download.tsx`) — not by `fetch`, which
+the network guard keeps to the client of the API and which would hold the file in memory. Served once
+(WF-DAT-0120), the file is then no longer offered by the card, which keeps its sentence and its
+cross — nor once a read before a click finds it gone.
 Closed, the panel still follows its tasks — the shell reloads them (`TaskPolling`), outside the
 entries — and its log still speaks, outside the panel, or inside as long as it is open, where the
 focus is held. A relaunch refused as stale (412) loses its command, which would still be, and a
@@ -2999,7 +3108,7 @@ its side; a failure of the chain is therefore reproduced by the same command.
 | `make check-<famille>`                                                  | one family: `repo`, `spec`, `contract`, `back`, `front`, `front-image`, `roadmap`, `keycloak`, `service`, `production`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `make changes BASE=…`                                                 | the families a change touches                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `make test-back TESTS=…`, `make test-front TESTS=…`, `make e2e TESTS=…` | one single test file, during development; without `TESTS`, all of them, as in the chain                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `make service-install`                                                  | bootstraps the started service platform, its realm applied (`waterfall-api install`, US-0420): applies the migrations under the owner of the tables, creates the installation, its three predefined roles and its local administrator, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` by default), in the language `WATERFALL_DEFAULT_LANGUAGE` (`fr` by default), and its minimal reference (EP-05): the shared settings, with the currency `WATERFALL_CURRENCY` (`EUR` by default) and the name of the company `WATERFALL_COMPANY_NAME` (`Delmas Automatismes` by default, those of the witness), the units of duration, the mapping of the actual costs, empty, the default calendar, the nature and the category of provision for risks; writes on its output only the link that sets its password, valid until it is used; run again, it creates nothing, says another currency or another name ignored, and writes a new link, which replaces the previous one, as long as the administrator has no password, none afterwards                                                                                                                                                                                                   |
+| `make service-install`                                                  | bootstraps the started service platform, its realm applied (`waterfall-api install`, US-0420): applies the migrations under the owner of the tables, creates the installation, its three predefined roles and its local administrator, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` by default), in the language `WATERFALL_DEFAULT_LANGUAGE` (`fr` by default), and its minimal reference (EP-05): the shared settings, with the currency `WATERFALL_CURRENCY` (`EUR` by default) and the name of the company `WATERFALL_COMPANY_NAME` (`Delmas Automatismes` by default, those of the witness), and the time zone `WATERFALL_TIME_ZONE` (`UTC` if the variable is empty, at the first writing only, a name of the IANA database, refused if unknown, in which the current day is taken, US-2200), the units of duration, the mapping of the actual costs, empty, the default calendar, the nature and the category of provision for risks; writes on its output only the link that sets its password, valid until it is used; run again, it creates nothing, says another currency, another name or another time zone ignored — run again without a time zone, nothing is said —, and writes a new link, which replaces the previous one, as long as the administrator has no password, none afterwards                                                                                                                                                                                                   |
 | `make service-witness`                                                  | loads the witness on the service platform, started and bootstrapped (`waterfall-api load-witness`, service `witness`, EP-05): the examples of the contract, `fixtures/api/`, mounted read-only, written by the role of the service; run again, it writes nothing; one slice per object, in the order of the dependencies, in one transaction ("The back and the boundaries of the core")                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `make service-purge`                                                    | runs by hand the purge of what expired on the service platform, started (`waterfall-worker purge`, in the container of the `scheduler` service, which calls it at the interval of `WATERFALL_PURGE_INTERVAL`, 600 s by default): reports of imports past their term, deposits past their term, exports of more than twenty-four hours, the history of the sessions older than `WATERFALL_UNDO_RETENTION_HOURS` hours (12 by default), and the objects that no row designates any more under `uploads/` and `exports/`; two purges never run together (advisory lock)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `make service-up`, `make service-down`                                  | starts, stops the service platform (`deploy/compose/compose.service.yaml`: PostgreSQL, Redis, the Garage object storage and its buckets, the migrations, the API, the worker and the scheduler of its tasks, the restoration service, Keycloak behind its HTTPS front end and its realm, applied again at each start by `keycloak-realm`, which stays started to reapply it after a restoration, OpenLDAP, Mailpit); it requires its secrets in the environment (below), and `service-down WATERFALL_RESET_DATA=yes` also deletes its databases, its storage, its directory and the authority of its front end; `service-up` refuses a PostgreSQL volume of another major than 18, printing the refusal of `postgres-volume`, which says this remedy (US-1130)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
@@ -4734,6 +4843,10 @@ US-0200 in the file of EP-14 says it too):
   the list of the revisions of a project, in light and dark mode, at both widths (US-1220); a fault
   specific to the shell of another screen — a header the page changes — would show only in its axe
   audit and its walk by Tab, which are played on each screen;
+- the help panel of each screen: it is opened and audited by axe only on the reference screen of
+  the shell, the list of the revisions, its pages sharing their rendering — a single component,
+  `ScreenHelp` of `help-panel.tsx`, a single charter —; the content of each help page is read
+  elsewhere (`help.test.ts`) (#1985, option 1, the author's decision of 2026-11-14);
 - the list or the popover a cell editor would render in a portal outside the cell: the audit of an
   editor covers the cell, and no editor today renders one;
 - the content of a closed `details` — the table of the values of a curve — and a state a gesture
@@ -5059,9 +5172,12 @@ two catalogues, and names each key that is missing and the catalogue that carrie
 The visual identity lives in `frontend/src/theme/globals.css`, and nowhere else (but the login pages, below): the colours,
 the typography, the spacings and the radii are tokens there — CSS variables that
 Tailwind and the shadcn/ui components read through the theme (`bg-primary`,
-`text-muted-foreground`, `rounded-md`). The blues come from the logos of `docs/assets`
-(`#027dc6`, `#1195e1`), which reach a component only through measured tokens, the
-neutrals from shadcn/ui; the typeface is Geist, that of the logo.
+`text-muted-foreground`, `rounded-md`). The charter is that of EP-25 (US-2070, after the author's
+mockup, #3079): a midnight blue sidebar (`#0f1b2d`, the current entry `#22324b`, its text light) in
+both modes, a pale grey page (`#f3f5f8`) under white cards, a midnight blue primary colour
+(`#14233b`); the dark mode has the same shapes and its own values. The blues of the logos of
+`docs/assets` (`#027dc6`, `#1195e1`) serve only the logo and the focus ring; the typeface is Geist,
+that of the logo.
 
 - **Light and dark through the same tokens.** Each colour token carries its two values,
   `light-dark(claire, sombre)`. The document follows the workstation (`color-scheme: light dark`);
@@ -5121,16 +5237,52 @@ neutrals from shadcn/ui; the typeface is Geist, that of the logo.
   single one, examined for the network guard. A component that passes another to a client component
   from a server component passes it an element, never a function — an icon is handed over drawn
   (`commandIcon`).
-- **The layout** follows the mockup validated by the user (EP-02, « Charte graphique »): the sidebar
-  is the Sidebar of shadcn/ui, collapsible into a rail of icons where each entry keeps its name and
-  shows it in a tooltip; the top bar carries the breadcrumb, the search, the button of the tasks and
-  messages panel and, on the right, the avatar button that drops down the account menu
-  (DropdownMenu). A screen is built on the template of
+- **The layout** follows the mockup validated by the author (EP-02, then EP-25): the sidebar is the
+  Sidebar of shadcn/ui, dark in both modes, collapsible into a rail of icons where each entry keeps
+  its name and shows it in a tooltip; inside it, the tokens its entries name (`muted-foreground`,
+  `primary`, `ring`…) take the values of the bar (`[data-sidebar="sidebar"]` of `globals.css`), and
+  the pale tile of the project switcher carries its midnight blue icon there. The top bar, without a
+  background of its own, lies on the grey of the page; it carries the breadcrumb, the search, the
+  button of the tasks and messages panel and, on the right, the avatar button that drops down the
+  account menu (DropdownMenu). A screen is built on the template of
   `frontend/src/components/shell/page-header.tsx`: `Screen`, its `<main>`, and `PageHeader`, the
   title and the icon of its function, a line below, its commands on the right.
-- **Density**: the grids and the lists are dense — the most information before the
-  eyes —, the indicator screens airy; each function has its own, in a typed table
-  (`FUNCTION_DENSITY`, `function-display.ts`), which `Screen` and `PageHeader` receive.
+- **Two families of screens, told by `Screen`** (EP-25, #3075, #3090). A screen of work — planning,
+  estimate, remaining to commit, task tree, actual costs, Kanban, timelines, risk register, audit
+  log — is tight (`dense`) and takes the whole width of the window, and its height when it carries a
+  grid (`fill`); a screen of settings or of consultation — all the others — is a centred column,
+  bounded to 96rem (`--container-column`), at the airy density (`airy`). Each function has its
+  family, in a typed table (`FUNCTION_DENSITY`, and `LEAF_DENSITY` for a leaf that has its own
+  screen, `function-display.ts`), which `Screen` and `PageHeader` receive;
+  `function-display.test.ts` holds the list of the screens of work. `Screen` has no default
+  density, and the screen of a function never writes it as a literal
+  (`src/app/screen-density.test.ts`, which names the screens outside the table: the home, the
+  screen of a project, the account, a page not found…; the account and the screen of a project
+  stay tight until they are recomposed, US-2130). That check and the width of `main` measured on a
+  screen of each family in a wide window (`e2e/theme.spec.ts`) hold the two families. Set aside: a
+  width in percent, and a ceiling of 72rem.
+- **A section of a screen is a card**, `SectionCard`
+  (`frontend/src/components/shell/section-card.tsx`, on the `Card` of shadcn/ui): a region named by
+  its title, a level 2 heading,
+  its commands to the right of the title, then its body. Its commands wrap under the title rather
+  than overflow: at a zoom of 150 %, none becomes unreachable. A screen does not compose its card
+  itself. The grid of a screen of work, which has no title of section — the title of the screen says
+  it —, and a chart that names itself take the card of the grid, `GridCard`
+  (`frontend/src/components/shell/grid-card.tsx`, #3421, #3446): without title or commands, it fills
+  the room its screen leaves it (`fill`); `SectionCard` keeps its required title. An empty section
+  says its sentence in place of its body (`empty` of `ReferenceCard`).
+- **The rule of the commands** (#3088, rules 2 to 4): a card has at most one principal command, the
+  last to the right of its title (`principal`), filled when it creates or triggers, outlined when
+  it modifies — the screen tells the card what it does (`does`) and gives it the command as a
+  function of its variant (`command: (variant) => …`), which the card calls with the variant of
+  that word (`principalVariant`): no screen chooses it. A function does not pass from a server
+  component to a client one (defect 12 of `docs/dev/typescript.md`): a server screen renders the
+  card itself. Its other commands are outlined, as are the commands of a screen to the right of its
+  title. Filled is reserved for the principal command: a current choice says itself otherwise.
+  `expectCommandRule` (`frontend/src/test/command-rule.ts`) reads it in what a test rendered — a
+  button is filled when it carries the classes of the filled variant of `buttonVariants` that the
+  outlined variant lacks, and the module refuses to load if they have none that sets them apart —;
+  a screen recomposed in cards calls it in its tests.
 - **A Lucide icon on every navigation entry, every button and every line nature.** For the
   functions, the blocks, the commands, the account pages, the line natures, the scheduling modes and
   the progress states, it is drawn from a table typed on what it represents — `FUNCTION_ICONS`,
@@ -5140,14 +5292,15 @@ neutrals from shadcn/ui; the typeface is Geist, that of the logo.
   inline. An icon next to its text is `aria-hidden`; a lone icon carries a name — the button that
   carries it, or the icon itself (`role="img"`), the nature of a line in its cell.
 - **Sobriety**: no ornament beyond the icons — neither gradient, nor decorative shadow, nor
-  transition, nor animation, apart from the pulse of the loading skeleton, which says a state and
-  stops when the workstation asks for less motion; a single shadow, `shadow-md`, on what
+  transition, nor animation, apart from the pulse of the loading skeleton and the wheel of a button
+  that waits (`waiting.tsx`), which say a state and stop when the workstation asks for less motion; a single shadow, `shadow-md`, on what
   floats above the page (a menu), to detach it from it. `src/components/ui/sobriety.test.ts`
   checks it for the copied components. A state is said in words — a badge, a dot —, never by colour
   alone.
 - **The logo and the favicon** are the files of `docs/assets`, copied byte for byte into
-  `frontend/public/` and `frontend/src/app/icon.svg`; the logo takes its dark variant where
-  the dark mode applies.
+  `frontend/public/` and `frontend/src/app/icon.svg`. On the sidebar, dark in both modes, the logo
+  is always in its variant for a dark ground (`BarLogo`); laid on the page — the top bar, without a
+  sidebar —, it takes its dark variant where the dark mode applies (`Logo`).
 
 _Checks_: `make lint-front` — `no-restricted-syntax` (`COLOUR_SYNTAX` of
 `frontend/eslint.config.mjs`) refuses, in any string of the code, a colour class of the palette, an
@@ -5169,7 +5322,8 @@ template with expressions or by a function, and a `style` or an SVG attribute th
 variable rather than an object or a literal written in place; and, for the layout, that a button or
 an entry carries its icon outside the typed tables — a hand-written button —, that no shadow, no
 gradient and no animation adorns a copied component, that a screen takes the template and the
-density of its function, and that a copied component enters only with the screen that uses it.
+family of its function, that its sections are cards and that its tests call `expectCommandRule`,
+and that a copied component enters only with the screen that uses it.
 
 **The login pages.** Keycloak serves its own, and no file of the front: the theme `waterfall`
 (`deploy/keycloak/themes/waterfall/login/`) dresses them in the charter with a sheet of its own,

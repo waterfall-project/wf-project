@@ -24,7 +24,6 @@
 
 import { X } from "lucide-react";
 import { useLocale, useMessages, useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
 import { type SubmitEvent, useEffect, useId, useRef, useState } from "react";
 
 import { type ExitResult, exitProject } from "@/api/actions/projects";
@@ -34,6 +33,8 @@ import { DoneNotice } from "@/components/notices/done-notice";
 import { useTrackTask, useWhenTaskSucceeds } from "@/components/tasks/task-tracker";
 import type { TaskCommand } from "@/components/tasks/tracking";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { problemMessage } from "@/i18n/problem";
 import type { ProjectState } from "@/navigation/home";
 
@@ -86,7 +87,7 @@ interface ExitFormProps {
   readonly onRefused: (outcome: Outcome<unknown> | undefined) => void;
 }
 
-const FIELD = "w-full max-w-md rounded-md border border-input bg-background px-2 py-1";
+const FIELD = "max-w-md";
 /** What the user chose to do of the current revision; none until they choose. */
 type Fate = components["schemas"]["CurrentRevisionFate"]["action"] | undefined;
 
@@ -105,7 +106,6 @@ function asTask(exit: () => Promise<Outcome<ExitResult>>): TaskCommand {
       : { kind: "unreachable" };
   };
 }
-const UNAVAILABLE = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
 
 type FieldProblem = components["schemas"]["FieldProblem"];
 /** The fields of the confirmation a refusal is said at, by the pointer the contract gives each. */
@@ -275,7 +275,7 @@ function ExitForm({
       <label htmlFor={field} className="block font-medium">
         {t("exitProject.reason")}
       </label>
-      <textarea
+      <Textarea
         id={field}
         ref={input}
         value={reason}
@@ -318,7 +318,7 @@ function ExitForm({
               <label htmlFor={`${field}-version`} className="block font-medium">
                 {t("exitProject.versionName")}
               </label>
-              <input
+              <Input
                 id={`${field}-version`}
                 ref={nameInput}
                 value={versionName}
@@ -330,7 +330,7 @@ function ExitForm({
                   setVersionName(event.target.value);
                   setProblems(without(problems, "name"));
                 }}
-                className={`h-9 ${FIELD}`}
+                className={FIELD}
               />
               {problems.name === undefined ? null : (
                 <p id={`${field}-name-problem`} role="alert" className="text-sm text-destructive">
@@ -342,7 +342,7 @@ function ExitForm({
               <label htmlFor={`${field}-description`} className="block font-medium">
                 {t("exitProject.description")}
               </label>
-              <textarea
+              <Textarea
                 id={`${field}-description`}
                 value={description}
                 rows={2}
@@ -366,7 +366,6 @@ function ExitForm({
           variant="outline"
           size="sm"
           aria-disabled={busy ? true : undefined}
-          className={UNAVAILABLE}
           onClick={() => {
             if (!busy) {
               onClose();
@@ -382,8 +381,9 @@ function ExitForm({
 }
 
 /**
- * Wait for the task that marks the revision: the exit applies when it succeeds, and the page is
- * read again, which lists the project as it now is. A task that fails applies nothing.
+ * Wait for the task that marks the revision: the exit applies when it succeeds, and the tracker reads
+ * the page again, which lists the project as it now is (`readsAnew`). A task that fails applies
+ * nothing.
  */
 function AppliedWhenMarked({
   task,
@@ -392,11 +392,7 @@ function AppliedWhenMarked({
   readonly task: string;
   readonly onApplied: () => void;
 }) {
-  const router = useRouter();
-  useWhenTaskSucceeds(task, () => {
-    onApplied();
-    router.refresh();
-  });
+  useWhenTaskSucceeds(task, onApplied);
   return null;
 }
 

@@ -483,7 +483,7 @@ Tranchés par l'auteur le 2026-11-15, avec les options écartées :
 
 ## US-2060 — Les deux parcours des paramètres de coûts en quarantaine : leur cause établie, puis rejoués contre le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : `listCostTypes`, `listCostCategories`, `setCostTypeActivation`,
   `setCostCategoryActivation`, par les parcours qui les jouent
@@ -516,7 +516,7 @@ réécrit sur le filtre d'état ; ici, il n'est qu'isolé.
 
 ## US-2070 — La charte nouvelle : barre latérale sombre, fond gris, cartes et pilules, en mode clair et en mode sombre
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0070-A`, `WF-IHM-0100-A`
 - **opérations** : aucune en propre
 - **issue** : #3206
@@ -573,7 +573,7 @@ essayées avant la maquette — gris froids, tons chauds — sont écartées (#3
 
 ## US-2080 — Les tables plates : la création dans l'en-tête de la carte, une barre, une pagination et une largeur communes
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0060-A`, `WF-IHM-0130-A`
 - **opérations** : toute liste paginée (`offset`, `limit`, `meta.total`) ; `getMe`,
   `updateMyPreferences`
@@ -642,7 +642,7 @@ fenêtrage des lignes en dépend (#3079).
 
 ## US-2090 — Le filtre « État » de chaque table à la place de « Afficher aussi les désactivés »
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0150-A`
 - **opérations** : `listCostTypes`, `listCostCategories`, `getHourlyRateGrid`, `listOrgNodes`,
   `listResourceRoles`, `listCalendars`, `listUsers`, `getMe`, `updateMyPreferences`
@@ -677,11 +677,14 @@ propre filtre, **afin de** ne plus dépendre d'un bouton de l'écran qui vaut po
 pour « Désactivés », `include_inactive=true` sans `is_active` quand la pastille est ôtée. Le défaut
 suit le précédent du filtre d'états de la liste des projets (`docs/api/DECISIONS.md`, #1747). Écarté
 au cadrage (2026-11-14) : une table qui montre tout sans filtre, essayée par le prototype — le Vérif
-de WF-REF-0150 dit qu'un désactivé n'apparaît pas par défaut.
+de WF-REF-0150 dit qu'un désactivé n'apparaît pas par défaut. La table des comptes garde son défaut,
+tous les comptes, selon la décision « `listUsers` porte son propre `include_inactive` »
+(`docs/api/DECISIONS.md`) et WF-ADM-0060 : WF-REF-0150 ne vise que le référentiel ; seuls le bouton et
+la lecture de `include_inactive` y disparaissent.
 
 ## US-2100 — Les écrans d'administration en cartes : utilisateurs, rôles, sauvegardes, journal d'audit
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
 - **issue** : #3226
@@ -712,7 +715,7 @@ de l'écran de référence, **afin de** y retrouver les commandes à la même pl
 
 ## US-2110 — Les écrans de paramètres applicatifs en cartes : coûts, ressources, risques, indicateurs, correspondance des coûts réels
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
 - **issue** : #3229
@@ -743,7 +746,7 @@ de référence, **afin de** régler le référentiel sans chercher une commande 
 
 ## US-2120 — L'écran « Installation » : le nom de l'entreprise, modifiable, et ce que l'amorçage a fixé
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-EXP-0020-A`, `WF-ADM-0100-A`
 - **opérations** : `getInstallation`, `getReferenceSettings`, `updateReferenceSettings`,
   `listPermissions`, `getMe`
@@ -812,7 +815,7 @@ l'amorçage (WF-REF-0140, WF-EXP-0020).
 
 ## US-2130 — L'accueil, les écrans de réglage et de consultation d'un projet, et le compte, en cartes
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`, `WF-IHM-0120-A`, `WF-IHM-0090-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
 - **issue** : #3221
@@ -854,7 +857,7 @@ passant du référentiel à un projet.
   cadrage) ;
 - propre à l'US : paramètres de projets — une carte « Projet » pour les attributs, « Modifier le
   projet » à droite de son titre ; le lotissement en carte, ses commandes sur une ligne à partir de
-  1024 points, repliées en dessous, sa table à la largeur de la carte (#3418) ;
+  1280 points, repliées en dessous, sa table à la largeur de la carte (#3418) ;
 - propre à l'US : cycle de vie, imports et exports, plan de charge — une carte par section ; les
   filtres du plan de charge dans sa carte ;
 - propre à l'US : mon compte, déjà conforme, prend les couleurs et les formes ; les écrans hors
@@ -865,7 +868,7 @@ l'écran « Révisions » — EP-27 (#3177, #3180).
 
 ## US-2140 — Les écrans de travail d'un projet : serrés, aux couleurs et aux formes nouvelles
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
 - **issue** : #3232
@@ -894,7 +897,7 @@ comparaison (EP-27) ; la performance (EP-26).
 
 ## US-2150 — Les écrans que le service ne sert pas encore, mis en page contre le faux back : portefeuille, risques, indicateurs, état du système
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent déjà, sur les exemples du contrat
 - **issue** : #3235
@@ -928,7 +931,7 @@ sur le service n'aient pas à la refaire.
 
 ## US-2160 — Les graphiques : une présentation sobre, et les motifs des séries sur préférence du compte
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0070-A`, `WF-ADM-0040-A`, `WF-IHM-0130-A`
 - **opérations** : `getMe`, `updateMyPreferences` ; les lectures des graphiques, inchangées
 - **issue** : #3214
@@ -988,7 +991,7 @@ US-2050), qui naissent dans cette présentation.
 
 ## US-2170 — Un traitement en cours se voit là où on l'a lancé, et l'écran se relit quand il aboutit
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0080-A`
 - **opérations** : `getBackgroundTask`, `listBackgroundTasks`, `getBackgroundTaskResult`,
   `requestExport`, `markRevision`, `createRevision`, `applyImport`
@@ -1028,7 +1031,7 @@ cinq que le front dit « injoignable » — EP-26 (#3102).
 
 ## US-2180 — Les saisies du référentiel et de l'administration : les constats de la revue du front soldés
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0080-A`, `WF-REF-0170-A`
 - **opérations** : `updateOrgNode`, `updateResourceRole`, `updateCalendar`, `setOrgNodeActivation`,
   `setResourceRoleActivation`, `setCalendarActivation`, `setDefaultCalendar`, `updateCostType`,
@@ -1071,7 +1074,7 @@ qui le lit.
 
 ## US-2190 — La page de connexion à la charte nouvelle
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #3238
@@ -1093,7 +1096,7 @@ les valeurs sont celles que l'application a arrêtées.
 
 ## US-2200 — Le jour courant s'entend dans le fuseau horaire de l'installation
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0130-A`
 - **opérations** : `getInstallation` ; `setTaskProgress`, `requestExport` et les autres opérations
   qui datent au jour courant, inchangées
@@ -1142,7 +1145,7 @@ le contrat dit sans fuseau (`docs/api/DECISIONS.md`).
 
 ## US-2310 — Les composants communs et la dette de tests : ce que les lots d'écran ont laissé à trancher
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0080-A`, `WF-IHM-0090-A`, `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que le suivi des tâches lit déjà
   (`getBackgroundTask`, `listBackgroundTasks`)
@@ -1178,8 +1181,9 @@ même façon sur chaque écran, **afin de** ne pas relancer un traitement qui co
   écriture tentée est refusée en le nommant. » : non touché ; d'US-0660/L2 (#1336), comme le dit
   US-0170 ;
 - `WF-IHM-0100-A` — « À 150 % d'agrandissement, aucune commande ne devient inatteignable. » : les
-  commandes du lotissement tiennent sur une ligne à partir de 1024 points sans déborder de leur
-  carte, mesurées à 1024 et à 1100 points comme à 1366, et se replient en dessous (#3418) ;
+  commandes du lotissement tiennent sur une ligne à partir de 1280 points sans déborder de leur
+  carte, et se replient en dessous, mesurées à 1024 et à 1100 points comme à 1366 : sur une ligne,
+  elles débordaient de leur carte sous 1280 points (#3418) ;
 - écart : `WF-IHM-0100-A` — « Chaque écran se parcourt entièrement au clavier et le focus reste
   visible. » : non touché ; tenu écran par écran par US-2100 à US-2150 ;
 - écart : `WF-IHM-0100-A` — « Un contrôle automatisé de contraste ne relève aucun écart au niveau

@@ -139,7 +139,7 @@ function journal({
         />
         <ListPages
           list={AUDIT_LIST}
-          texts="admin.pages"
+          texts="admin.auditLog.pages"
           page={shown.meta}
           shown={shown.items.length}
         />
@@ -535,12 +535,12 @@ describe("the grid of the journal", () => {
   it("leads to the pages before and after the one shown, its filters and its sort kept, and breaks no rule of accessibility", async () => {
     page.search = "actions=backup&sort_by=occurred_at&sort_order=asc&offset=10";
     const { container } = render(journal({ shown: second }));
-    const pages = screen.getByRole("navigation", { name: "Pages de la liste" });
-    expect(within(pages).getByRole("link", { name: /Page précédente/ })).toHaveAttribute(
+    const pages = screen.getByRole("navigation", { name: "Pages du journal d’audit" });
+    expect(within(pages).getByRole("link", { name: /^Précédent/ })).toHaveAttribute(
       "href",
       "/admin/audit-log?actions=backup&sort_by=occurred_at&sort_order=asc",
     );
-    expect(within(pages).getByRole("link", { name: /Page suivante/ })).toHaveAttribute(
+    expect(within(pages).getByRole("link", { name: /^Suivant/ })).toHaveAttribute(
       "href",
       "/admin/audit-log?actions=backup&sort_by=occurred_at&sort_order=asc&offset=20",
     );
@@ -553,7 +553,7 @@ describe("the grid of the journal", () => {
     await pick("Filtrer par nature d’auteur", "La plateforme");
     expect(lastAddress()).toBe("/admin/audit-log?actor_kind=platform");
     // The filter asked and not arrived: the journal read otherwise starts from its first page.
-    await userEvent.click(screen.getByRole("link", { name: /Page suivante/ }));
+    await userEvent.click(screen.getByRole("link", { name: /^Suivant/ }));
     expect(lastAddress()).toBe("/admin/audit-log?actor_kind=platform");
   });
 

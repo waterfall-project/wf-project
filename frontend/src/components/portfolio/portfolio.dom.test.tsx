@@ -92,8 +92,10 @@ const PALETTE: ChartPalette = {
   axis: "rgb(5, 5, 5)",
   grid: "rgb(6, 6, 6)",
   background: "rgb(7, 7, 7)",
+  card: "rgb(8, 8, 8)",
   zones: { nominal: "nominal", watch: "watch", alert: "alert" },
   font: "sans-serif",
+  patterns: false,
 };
 
 /** A part of the screen, in a language, under the address of the screen. */
@@ -296,11 +298,11 @@ describe("the list of the projects of the portfolio", () => {
       ),
     );
     const pages = screen.getByRole("navigation", { name: "Pages des projets" });
-    expect(within(pages).getByRole("link", { name: /Projets précédents/ })).toHaveAttribute(
+    expect(within(pages).getByRole("link", { name: /^Précédent/ })).toHaveAttribute(
       "href",
       `${PATHNAME}?states=in_progress`,
     );
-    expect(within(pages).getByRole("link", { name: /Projets suivants/ })).toHaveAttribute(
+    expect(within(pages).getByRole("link", { name: /^Suivant/ })).toHaveAttribute(
       "href",
       `${PATHNAME}?states=in_progress&offset=100`,
     );
@@ -323,7 +325,7 @@ describe("the list of the projects of the portfolio", () => {
     await pick("Filtre par zone des indices", "Alerte");
     expect(await lastAddress()).toBe(`${PATHNAME}?zones=alert`);
     // The zone asked and not arrived: the projects read otherwise start from their first page.
-    await userEvent.click(screen.getByRole("link", { name: /Projets suivants/ }));
+    await userEvent.click(screen.getByRole("link", { name: /^Suivant/ }));
     expect(await lastAddress()).toBe(`${PATHNAME}?zones=alert`);
   });
 });
@@ -790,6 +792,17 @@ describe("the charts of the portfolio", () => {
       }
     },
   );
+
+  it("reads the curves of the portfolio across the plot by light dashes, their ordinate without line nor tick (the criterion of US-2160, #3097, not the Vérif of WF-IHM-0070-A) [WF-IHM-0070-A]", () => {
+    const curves = example("portfolio_cost_curve") as Schemas["PortfolioCostCurve"];
+    charts.props = [];
+    render(inLanguage(<PortfolioCurveChart curves={curves} scope={curves.scope} />));
+    expect(charts.props.at(-1)?.option(PALETTE).yAxis).toMatchObject({
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: PALETTE.grid, type: "dashed" } },
+    });
+  });
 
   it("ends the step of the last month at the first of the next", () => {
     expect(monthAfter("2026-09")).toBe("2026-10");

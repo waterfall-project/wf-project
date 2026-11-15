@@ -191,6 +191,29 @@ describe("the actions of the bar on the accounts selected", () => {
     ]);
   });
 
+  it("tells an account refused because the node was deactivated meanwhile by the reason of its field, not by the generic sentence [WF-ADM-0030-A] (#3271)", async () => {
+    serve({
+      "PATCH /users/{user_id}": {
+        problem: {
+          code: "VALIDATION_FAILED",
+          status: 422,
+          fields: [{ pointer: "/org_node_id", code: "INACTIVE_REFERENCE_OBJECT" }],
+        },
+      },
+    });
+    const node = "01926f3a-7c00-7000-8000-000000000471";
+    render(
+      accounts(true, [account("Moreau")], undefined, [
+        { id: node, code: "ACH", label: "Service des achats", level: 0 },
+      ]),
+    );
+    const bar = await selectAll();
+    await apply(bar, "Rattacher à", node);
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Cet élément du référentiel est désactivé.");
+    expect(alert.textContent).not.toContain("Les données saisies ne sont pas valides.");
+  });
+
   it("goes on after a refusal, keeps the accounts done, and tells each refused with its reason: a 412, the last administrator [WF-ADM-0120-A] #2917", async () => {
     // Held at version 1, each is answered at another version (2, then 5): each is modified.
     const active = users.items

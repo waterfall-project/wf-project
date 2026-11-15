@@ -12,7 +12,10 @@
  * start — is said at its field, the view unread (`RefusedView`); any other read the API refuses, or
  * cannot answer, is thrown for the pages of the shell to say.
  */
+import { BriefcaseBusiness } from "lucide-react";
 import type { Metadata } from "next";
+import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import { serverClient } from "@/api/server";
 import { readPage } from "@/components/costs/address";
@@ -34,8 +37,10 @@ import { PortfolioValueView } from "@/components/portfolio/portfolio-value";
 import { FilterFields } from "@/components/grid/filter-fields";
 import { ProjectsGrid } from "@/components/portfolio/projects-grid";
 import { ZoneFilter } from "@/components/portfolio/zone-filter";
+import { FUNCTION_DENSITY } from "@/components/shell/function-display";
 import { MockupNotice } from "@/components/shell/mockup-notice";
 import { Screen } from "@/components/shell/page-header";
+import { SectionCard } from "@/components/shell/section-card";
 import { type PageSearchParams, pageSearch } from "@/navigation/context";
 import { requestSession } from "@/session/request";
 
@@ -52,6 +57,16 @@ export function generateMetadata(): Promise<Metadata> {
 function readValue(perimeter: Perimeter) {
   return readView("getPortfolioValue", () =>
     serverClient().GET("/portfolio/value", { params: { query: perimeterQuery(perimeter) } }),
+  );
+}
+
+/** The list of the projects in its card, its title naming the region; no command beside it. */
+function ProjectsCard({ children }: { readonly children: ReactNode }) {
+  const t = useTranslations("portfolio.projects");
+  return (
+    <SectionCard title={t("title")} icon={BriefcaseBusiness}>
+      <div className="flex min-w-0 flex-col gap-2">{children}</div>
+    </SectionCard>
   );
 }
 
@@ -100,12 +115,12 @@ export default async function PortfolioProjectsPage({
   return (
     // The perimeter, the grid and the pages compose the changes they make to the address.
     <PendingAddress>
-      <Screen density="dense" fill>
+      <Screen density={FUNCTION_DENSITY.portfolio_projects}>
         <PortfolioHeader fn="portfolio_projects" scope={projects.data.scope} />
         <MockupNotice lists />
         <PerimeterBar perimeter={perimeter} retained={projects.data.scope.states} nodes={nodes} />
         <PortfolioValueView value={value.data} />
-        <div className="flex min-h-0 flex-1 flex-col gap-2">
+        <ProjectsCard>
           <ProjectsGrid
             projects={projects.data.items}
             page={projects.data.meta}
@@ -124,7 +139,7 @@ export default async function PortfolioProjectsPage({
             page={projects.data.meta}
             shown={projects.data.items.length}
           />
-        </div>
+        </ProjectsCard>
       </Screen>
     </PendingAddress>
   );

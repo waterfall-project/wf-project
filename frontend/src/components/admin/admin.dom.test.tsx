@@ -56,16 +56,16 @@ describe("the pages of a list of the administration", () => {
     const { container } = rendered(
       <ListPages
         list={BACKUPS_LIST}
-        texts="admin.pages"
+        texts="admin.backups.pages"
         page={{ limit: 2, offset: 2, total: 5 }}
         shown={2}
       />,
     );
-    expect(screen.getByRole("link", { name: /Page précédente/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Précédent/ })).toHaveAttribute(
       "href",
       "/admin/backups?include_inactive=true",
     );
-    expect(screen.getByRole("link", { name: /Page suivante/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Suivant/ })).toHaveAttribute(
       "href",
       "/admin/backups?include_inactive=true&offset=4",
     );
@@ -77,13 +77,13 @@ describe("the pages of a list of the administration", () => {
     rendered(
       <ListPages
         list={BACKUPS_LIST}
-        texts="admin.pages"
+        texts="admin.backups.pages"
         page={{ limit: 2, offset: 8, total: 5 }}
         shown={0}
       />,
     );
     expect(screen.getByText("Cette page est au-delà de la fin de la liste.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Page précédente/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Précédent/ })).toHaveAttribute(
       "href",
       "/admin/backups?offset=4",
     );
@@ -130,5 +130,11 @@ describe("the state of the platform and its backups", () => {
       screen.getByText("Vers secours-lyon, dossier waterfall/sauvegardes — 30 copies gardées"),
     ).toBeInTheDocument();
     await expectAccessible(container);
+  });
+
+  it("says a list of alerts that is empty in a card of section [WF-IHM-0100-A]", () => {
+    rendered(<AlertList alerts={[]} />, "en");
+    const sentence = screen.getByText("No current alert.");
+    expect(sentence.closest('[data-slot="section-card"]')).not.toBeNull();
   });
 });

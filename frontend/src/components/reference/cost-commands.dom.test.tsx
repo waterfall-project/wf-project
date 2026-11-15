@@ -629,7 +629,10 @@ describe("a write whose dialog is closed, and the focus", () => {
       within(dialog("Modifier «\u00a0Débours\u00a0»")).getByRole("button", { name: "Enregistrer" }),
     );
     await userEvent.keyboard("{Escape}");
-    await userEvent.click(screen.getByRole("button", { name: "Désactiver «\u00a0Débours\u00a0»" }));
+    // Another row: the commands of the one modified wait for its answer (#2260).
+    await userEvent.click(
+      screen.getByRole("button", { name: "Désactiver «\u00a0Main-d'œuvre\u00a0»" }),
+    );
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Vous n’avez pas la permission nécessaire.",
     );
@@ -665,43 +668,6 @@ describe("a write whose dialog is closed, and the focus", () => {
     expect(screen.getByRole("button", { name: "Fermer l’avis" })).toHaveAccessibleDescription(
       "Quelqu’un a modifié cette donnée entre-temps\u202f; rechargez-la pour voir sa dernière version.",
     );
-  });
-
-  it("keeps in a row the first of two answers at one version, whatever the order they are answered in", async () => {
-    const modification = held();
-    const activation = held();
-    serve(
-      {},
-      {
-        hold: (route) =>
-          route === TYPE
-            ? modification.until
-            : route === TYPE_ACTIVATION
-              ? activation.until
-              : undefined,
-      },
-    );
-    render(natures());
-    await userEvent.click(screen.getByRole("button", { name: "Modifier «\u00a0Débours\u00a0»" }));
-    await userEvent.click(
-      within(dialog("Modifier «\u00a0Débours\u00a0»")).getByRole("button", { name: "Enregistrer" }),
-    );
-    await userEvent.keyboard("{Escape}");
-    await userEvent.click(screen.getByRole("button", { name: "Désactiver «\u00a0Débours\u00a0»" }));
-    // The deactivation answered first, at the version 2: the row shows it.
-    activation.release();
-    const row = () =>
-      screen.getByRole("grid", { name: "Natures de coût" }).querySelector("tbody tr");
-    await vi.waitFor(() => {
-      expect(row()).toHaveTextContent("Désactivé");
-    });
-    // The modification answered after, at the same version 2: the row keeps the answer it shows.
-    modification.release();
-    await vi.waitFor(() => {
-      expect(announced()).toContain("«\u00a0Débours et achats\u00a0» enregistrée.");
-    });
-    expect(row()).toHaveTextContent("Désactivé");
-    expect(row()).not.toHaveTextContent("Débours et achats");
   });
 
   it("gives the focus back to the list once its dialog is closed, the page read anew no longer holding the row", async () => {
@@ -901,8 +867,11 @@ describe("the activation of a nature or a category", () => {
     );
     await userEvent.keyboard("{Escape}");
     // Busy no more in the commit that tells the refusal, which waits not for the modification under
-    // way: the state of the command lifted with the answer, never by a transition (#1484).
-    const deactivate = screen.getByRole("button", { name: "Désactiver «\u00a0Débours\u00a0»" });
+    // way: the state of the command lifted with the answer, never by a transition (#1484). Another
+    // row: the commands of the one modified wait for its answer (#2260).
+    const deactivate = screen.getByRole("button", {
+      name: "Désactiver «\u00a0Main-d'œuvre\u00a0»",
+    });
     const busyWhenTold = atCommit(
       container,
       () => screen.queryByRole("alert") !== null,
@@ -914,7 +883,7 @@ describe("the activation of a nature or a category", () => {
     );
     expect(busyWhenTold.stop()).toEqual(["false"]);
     expect(
-      screen.getByRole("button", { name: "Désactiver «\u00a0Débours\u00a0»" }),
+      screen.getByRole("button", { name: "Désactiver «\u00a0Main-d'œuvre\u00a0»" }),
     ).toBeInTheDocument();
     modification.release();
     await vi.waitFor(() => {

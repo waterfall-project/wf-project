@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import { axeViolations } from "./axe";
 import { columnsOf } from "./columns";
 import { idle, seedEstimate } from "./estimate-seed";
 import { openHydrated, WORKING } from "./hydration";
@@ -118,6 +119,50 @@ test("places Undo and Redo in the grid, its menu and its keys, unavailable and s
   await page.keyboard.press("Control+z");
   await expect(field).toHaveValue(effort);
   await expect(field).toBeFocused();
+});
+
+// The reason the commands wait, a popover that is no dialog to trap the focus in: the walk of the
+// dialogs of `accessibility.spec.ts` leaves it out (`opened.ts`, `data-reason`), and it is played
+// here in the browser, by the keyboard (#3265).
+test("opens the reason Undo waits for by Enter, leaves it by Tab, closes it by Escape, the focus back and seen on its button [WF-IHM-0100-A]", async ({
+  page,
+}) => {
+  await openHydrated(page, REMAINING);
+  const reason = page.getByRole("button", {
+    name: "Indisponibles tant que le serveur ne conserve pas l’historique des saisies.",
+  });
+  const whole = page.getByRole("dialog", {
+    name: "Pourquoi annuler et rétablir sont indisponibles",
+  });
+  await expect(reason).toHaveAttribute("aria-haspopup", "dialog");
+  await reason.focus();
+  await page.keyboard.press("Enter");
+  await expect(whole).toBeVisible();
+  // Un contrôle automatisé de contraste ne relève aucun écart au niveau AA: on the reason open.
+  expect(await axeViolations(page, '[role="dialog"]')).toEqual([]);
+  // It holds nothing to reach: the focus stays on its button, and Tab goes on from there, closing
+  // it — nothing is trapped.
+  await expect(reason).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(whole).toHaveCount(0);
+  await expect(reason).not.toBeFocused();
+  // Opened again, Escape closes it, the focus on its button, the ring of the charter drawn around it.
+  await reason.focus();
+  await page.keyboard.press("Enter");
+  await expect(whole).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(whole).toHaveCount(0);
+  await expect(reason).toBeFocused();
+  // The ring of the charter, read from the token as computed in the page, not written here.
+  const ring = await page.evaluate(() => {
+    const probe = document.createElement("span");
+    probe.style.color = "var(--ring)";
+    document.body.append(probe);
+    const colour = getComputedStyle(probe).color;
+    probe.remove();
+    return colour;
+  });
+  await expect(reason).toHaveCSS("box-shadow", new RegExp(ring.replaceAll(/[()]/g, "\\$&")));
 });
 
 test("closes the menu of a cell opened from the keyboard by Escape, its tooltip first, however long the focus has rested on its first item since it opened (#1541)", async ({

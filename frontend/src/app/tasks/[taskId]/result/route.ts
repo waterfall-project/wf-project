@@ -16,13 +16,20 @@
  * ready), the API out of reach, an answer that names no file, or a media type the contract does
  * not declare, which breaks it — sends the browser back to that screen (`from`), by a relative
  * address, with the refusal in its address, which the tracker tells by the entry of the task, or
- * by a notice of its panel when the task cannot be read again (`result-refusal.ts`). An address
- * that names no task asks the API nothing.
+ * by a notice of its panel when the task cannot be read again (`result-refusal.ts`). A hidden frame,
+ * which downloads an export by itself (`Sec-Fetch-Dest: iframe`), is sent instead to a page with
+ * nothing in it (`app/tasks/[taskId]/refused`) that carries the same parameters. An address that
+ * names no task asks the API nothing.
  */
 import { attachmentName } from "@/api/disposition";
 import { BAD_GATEWAY, handedOn, mediaType, readFile, sentBack } from "@/api/relay";
 import { serverClient } from "@/api/server";
-import { FROM, refusedHref, type ResultRefusal } from "@/components/tasks/result-refusal";
+import {
+  FROM,
+  refusedFrameHref,
+  refusedHref,
+  type ResultRefusal,
+} from "@/components/tasks/result-refusal";
 import { isIdentifier } from "@/navigation/context";
 
 /** The media types the contract declares for the result of a task, by the kind of its export. */
@@ -42,7 +49,12 @@ export async function GET(
     return new Response(null, { status: 404 });
   }
   const from = new URL(request.url).searchParams.get(FROM);
-  const back = (refusal: ResultRefusal) => sentBack(refusedHref(from, taskId, refusal));
+  // A hidden frame (`Sec-Fetch-Dest: iframe`, the download of an export by itself) reads the
+  // refusal from an address alone: it is sent to a page with nothing in it, not to the screen,
+  // whose whole render — and its reads of the API — would be made to read one address.
+  const framed = request.headers.get("sec-fetch-dest") === "iframe";
+  const back = (refusal: ResultRefusal) =>
+    sentBack(framed ? refusedFrameHref(taskId, refusal) : refusedHref(from, taskId, refusal));
   const { outcome, headers } = await readFile(() =>
     serverClient().GET("/tasks/{task_id}/result", {
       params: { path: { task_id: taskId } },

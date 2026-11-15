@@ -96,7 +96,7 @@ describe("the floor of the frame of a grid (#1041, #1033)", () => {
   });
 });
 
-describe("the bar of a grid follows the width of its table (#1042)", () => {
+describe("the bar of a grid follows the width of its table (#1042, #3075)", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -111,24 +111,16 @@ describe("the bar of a grid follows the width of its table (#1042)", () => {
       } satisfies GridPreferences,
     ],
   ])(
-    "is as wide as the table and its two borders until the frame is laid out, %s",
+    "takes, as the frame does, the width of what holds them, measured by no script, %s",
     (_, preferences) => {
       renderGrid(2, preferences);
-      const table = screen.getByRole("treegrid", { name: "Grille de devis" });
-      const width = Number.parseInt(table.style.width, 10);
-      expect(width).toBeGreaterThan(0);
-      expect(Number.parseInt(bar().style.width, 10)).toBe(width + 2);
+      expect(bar().style.width).toBe("100%");
+      expect(frame().scroller).toHaveClass("w-full");
+      expect(frame().scroller).not.toHaveClass("w-fit");
       // The « Colonnes » menu is in the bar, so at the edge of the table.
       expect(bar()).toContainElement(screen.getByRole("button", { name: "Colonnes" }));
     },
   );
-
-  it("is as wide as the frame once the browser has laid it out, the scroll bars it draws in", () => {
-    // A frame 17 points wider than its table and borders: a bar of a system that takes a place.
-    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1017);
-    renderGrid(2);
-    expect(bar().style.width).toBe("1017px");
-  });
 
   it("keeps on one line what the bar holds: it wraps nothing and does not go below its content", () => {
     renderGrid(2);

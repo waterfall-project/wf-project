@@ -12,11 +12,11 @@
  * dates): each is tagged `@serial`, so that the project `shared-serial` plays them alone, after the
  * others, and no worker reads the installation as one of them restores it (US-1330, US-1890).
  */
-import { expect, type Locator } from "@playwright/test";
+import { expect, type Locator, type Request } from "@playwright/test";
 
 import { sortUntilAddress, WORKING } from "./hydration";
 import { inService, test } from "./mode";
-import { isServerAction } from "./server-action";
+import { answerOf, isDeactivation, isReactivation, pressOnce } from "./server-action";
 
 /** A suffix no other run of the service has used, for the code and the label of a role created. */
 const STAMP = Date.now().toString(36);
@@ -55,19 +55,22 @@ test("sorts and searches each list of the settings of the resources by the serve
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/role_sort_by=code.*&org_search=BE$/, { timeout: WORKING });
 
-  // The deactivated objects asked of the server, each offered to be reactivated.
-  await page.getByRole("link", { name: "Afficher aussi les désactivés" }).click();
-  await expect(page).toHaveURL(/include_inactive=true/, { timeout: WORKING });
-  await expect(page.getByRole("link", { name: "Masquer les désactivés" })).toBeVisible();
+  // Every role asked of the server, the chip of their state lifted — the active ones alone by
+  // default (US-2090) —, each deactivated one offered to be reactivated.
+  await page
+    .getByRole("region", { name: "Rôles de ressources" })
+    .getByRole("button", { name: "Retirer le filtre État : Actifs (par défaut)" })
+    .click();
+  await expect(page).toHaveURL(/role_is_active=all/, { timeout: WORKING });
   try {
-    // The reactivation is a server action: its answer awaited, from before the click. The payload
-    // of an action is opaque (Next serialises its arguments), so no identifier or code can tell
-    // this one from another; but the page is idle here — the only steps before were links, awaited
-    // by their address — and the row below shows the reactivation itself, so no other action can
-    // pass for it.
-    const reactivated = page.waitForResponse((response) => isServerAction(response.request()));
-    await roles.getByRole("button", { name: "Réactiver «\u00a0Automaticien\u00a0»" }).click();
-    expect((await reactivated).status()).toBe(200);
+    // The reactivation is a server action, told from the others — the settings of the grids kept
+    // as the address changes — by its body (`isReactivation`), and pressed once (#3135).
+    const reactivated = await pressOnce(
+      page,
+      roles.getByRole("button", { name: "Réactiver «\u00a0Automaticien\u00a0»" }),
+      isReactivation,
+    );
+    expect((await answerOf(reactivated)).status()).toBe(200);
     // The row shows what the server answers: active again, offering its deactivation (EP-02/L43b).
     await expect(
       roles.getByRole("button", { name: "Désactiver «\u00a0Automaticien\u00a0»" }),
@@ -82,9 +85,8 @@ test("sorts and searches each list of the settings of the resources by the serve
       });
       // Nothing to undo when the reactivation itself failed.
       if (await deactivate.isVisible()) {
-        const deactivated = page.waitForResponse((response) => isServerAction(response.request()));
-        await deactivate.click();
-        expect((await deactivated).status()).toBe(200);
+        const deactivated = await pressOnce(page, deactivate, isDeactivation);
+        expect((await answerOf(deactivated)).status()).toBe(200);
         await expect(
           roles.getByRole("button", { name: "Réactiver «\u00a0Automaticien\u00a0»" }),
         ).toBeVisible({ timeout: WORKING });
@@ -168,7 +170,7 @@ test("creates a role in its form, moves a node under an active one, and designat
     );
     if (inService) {
       // The service kept it: the list read anew shows the role.
-      await page.goto("/reference/resources?include_inactive=true");
+      await page.goto("/reference/resources?role_is_active=all");
       await expect(
         page.getByRole("grid", { name: "Rôles de ressources" }).getByRole("row", {
           name: new RegExp(code),
@@ -231,13 +233,17 @@ test("creates a role in its form, moves a node under an active one, and designat
           notRestored.push(error);
         }
       };
+      // A command pressed waits, `aria-disabled`, until its write answers (#2260), and Playwright
+      // waits for an enabled target: pressed again meanwhile, a click without a bound would wait
+      // until the command is gone, past the time of the retries. Each click is bounded, and the
+      // retry goes on.
       const deactivate = page
         .getByRole("grid", { name: "Rôles de ressources" })
         .getByRole("button", { name: `Désactiver «\u00a0${label}\u00a0»` });
       await restore(async () => {
         await expect(async () => {
           if (await deactivate.isVisible()) {
-            await deactivate.click();
+            await deactivate.click({ timeout: 1_000 });
           }
           await expect(deactivate).toBeHidden({ timeout: 1_000 });
         }).toPass({ timeout: WORKING });
@@ -249,7 +255,7 @@ test("creates a role in its form, moves a node under an active one, and designat
               await page
                 .getByRole("treegrid", { name: "Arbre d’organisation" })
                 .getByRole("button", { name: "Modifier «\u00a0Atelier de câblage\u00a0»" })
-                .click();
+                .click({ timeout: 1_000 });
             }
             await expect(nodeForm).toBeVisible({ timeout: 1_000 });
           }).toPass({ timeout: WORKING });
@@ -268,7 +274,7 @@ test("creates a role in its form, moves a node under an active one, and designat
       await restore(async () => {
         await expect(async () => {
           if (await standard.isVisible()) {
-            await standard.click();
+            await standard.click({ timeout: 1_000 });
           }
           await expect(calendarRow("Semaine standard")).toContainText("Calendrier par défaut", {
             timeout: 1_000,
@@ -328,16 +334,19 @@ test("modifies the units of duration from the settings of the resources, and say
   }
 });
 
-/** What a command to delete is called: the settings of the resources offer none (WF-REF-0010-A). */
-const DELETION = /supprim|effac|delete/i;
+/**
+ * What a command to delete is called: the settings of the resources offer none (WF-REF-0010-A).
+ * « Effacer les filtres », which the chips of the filters of a table bring, deletes nothing.
+ */
+const DELETION = /supprim|effac(?!er les filtres)|delete/i;
 
-test("shows the deactivated roles, calendars and nodes asked for, still named by the roles that employ them, offers no deletion, proposes only the active nodes and calendars to a role, and each again once reactivated (US-0880) @shared @serial [WF-REF-0010-A] [WF-REF-0150-A]", async ({
+test("shows the deactivated roles, calendars and nodes by the filter of the state of each table, still named by the roles that employ them, offers no deletion, proposes only the active nodes and calendars to a role, and each again once reactivated (US-0880) @shared @serial [WF-REF-0010-A] [WF-REF-0150-A]", async ({
   page,
 }) => {
   test.slow();
   // The witness holds, deactivated, a calendar, two nodes — the second under the first — and the
   // role of the automata programmer under it (the examples of the contract). The fake back ignores
-  // `include_inactive` and answers its examples whatever the address says: the roles alone hold a
+  // the state asked and answers its examples whatever the address says: the roles alone hold a
   // deactivated one, so what a read leaves out or brings is asserted in service alone.
   const calendarLabel = "Semaine de trente-neuf heures";
   const nodeLabel = "Bureau d'études automatismes";
@@ -367,19 +376,23 @@ test("shows the deactivated roles, calendars and nodes asked for, still named by
       await expect(form).toBeVisible({ timeout: 1_000 });
     }).toPass({ timeout: WORKING });
   };
-  /** A command of a row, pressed again until React answers it: the row then offers the opposite. */
-  const press = async (pressed: Locator, answered: Locator) => {
-    await expect(async () => {
-      if (!(await answered.isVisible())) {
-        await pressed.click();
-      }
-      await expect(answered).toBeVisible({ timeout: 1_000 });
-    }).toPass({ timeout: WORKING });
+  /**
+   * A command of a row, pressed until its action leaves and never after, a command occupied
+   * (`aria-busy`, `aria-disabled`) not pressed at all (`pressOnce`, #3396): the row then offers the
+   * opposite, awaited within `WORKING`.
+   */
+  const press = async (
+    pressed: Locator,
+    answered: Locator,
+    asked: (request: Request) => boolean,
+  ) => {
+    await pressOnce(page, pressed, asked);
+    await expect(answered).toBeVisible({ timeout: WORKING });
   };
 
   await page.goto("/reference/resources");
   if (inService) {
-    // Without the switch, the active objects alone.
+    // Each table opens on its active objects alone, the state by default (US-2090).
     await expect(roles.getByRole("row", { name: /Ingénieur électricien/ })).toHaveCount(1);
     await expect(calendars).toBeVisible();
     await expect(tree).toBeVisible();
@@ -388,10 +401,11 @@ test("shows the deactivated roles, calendars and nodes asked for, still named by
     await expect(roles.getByRole("row", { name: /Programmeur d'automates/ })).toHaveCount(0);
   }
 
-  // The deactivated asked of the server by the switch of the header, named deactivated and offered
-  // to be reactivated by the command their row lists.
-  await page.getByRole("link", { name: "Afficher aussi les désactivés" }).click();
-  await expect(page).toHaveURL(/include_inactive=true/, { timeout: WORKING });
+  // Every state of each table asked of the server, its chip lifted: the deactivated named
+  // deactivated and offered to be reactivated by the command their row lists.
+  await page.goto(
+    "/reference/resources?org_is_active=all&role_is_active=all&calendar_is_active=all",
+  );
   const programmer = roles.getByRole("row", { name: /Programmeur d'automates/ });
   await expect(programmer).toContainText("Désactivé", { timeout: WORKING });
   await expect(roles.getByRole("button", { name: /^Réactiver/ }).first()).toBeVisible();
@@ -410,7 +424,7 @@ test("shows the deactivated roles, calendars and nodes asked for, still named by
   await expect(page.getByRole("main").getByRole("link", { name: DELETION })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: DELETION })).toHaveCount(0);
 
-  // The choices of a role are the active objects alone, the switch notwithstanding.
+  // The choices of a role are the active objects alone, whatever the tables show.
   await openForm();
   await expect(form.getByRole("combobox", { name: "Nœud d’organisation" })).toBeVisible();
   await expect(nodeChoice).toHaveCount(0);
@@ -425,8 +439,13 @@ test("shows the deactivated roles, calendars and nodes asked for, still named by
       await press(
         command("Réactiver", calendars, calendarLabel),
         command("Désactiver", calendars, calendarLabel),
+        isReactivation,
       );
-      await press(command("Réactiver", tree, nodeLabel), command("Désactiver", tree, nodeLabel));
+      await press(
+        command("Réactiver", tree, nodeLabel),
+        command("Désactiver", tree, nodeLabel),
+        isReactivation,
+      );
       await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
       await page.goto("/reference/resources");
       await openForm();
@@ -437,8 +456,8 @@ test("shows the deactivated roles, calendars and nodes asked for, still named by
     } finally {
       // Leave what was found, even on a failure: the node and the calendar deactivated again. Only
       // the gestures are here, so that no check hides the error that brought us here.
-      // The deactivated asked for, so that a row stays on the page once deactivated.
-      await page.goto("/reference/resources?include_inactive=true");
+      // Every state asked for, so that a row stays on the page once deactivated.
+      await page.goto("/reference/resources?org_is_active=all&calendar_is_active=all");
       await expect(calendars).toBeVisible({ timeout: WORKING });
       await expect(tree).toBeVisible();
       for (const [grid, label] of [
@@ -446,12 +465,17 @@ test("shows the deactivated roles, calendars and nodes asked for, still named by
         [calendars, calendarLabel],
       ] as const) {
         if (await command("Désactiver", grid, label).isVisible()) {
-          await press(command("Désactiver", grid, label), command("Réactiver", grid, label));
+          await press(
+            command("Désactiver", grid, label),
+            command("Réactiver", grid, label),
+            isDeactivation,
+          );
         }
       }
     }
-    // Left as found: neither the calendar nor the node is among the active objects again.
-    await page.goto("/reference/resources");
+    // Left as found: neither the calendar nor the node is among the active objects again — asked
+    // so, whatever state the account keeps for their tables.
+    await page.goto("/reference/resources?org_is_active=true&calendar_is_active=true");
     await expect(calendars).toBeVisible({ timeout: WORKING });
     await expect(tree).toBeVisible();
     await expect(calendar).toHaveCount(0);

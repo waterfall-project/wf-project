@@ -23,7 +23,8 @@ import {
 } from "@/test/fixtures";
 
 import { updateReferenceSettings } from "@/api/actions/reference";
-import { CompanyName, CompanySettings, IndicatorSettings, RiskSettings } from "./settings-forms";
+import { InstallationFacts } from "./installation-facts";
+import { IndicatorSettings, InstallationSettings, RiskSettings } from "./settings-forms";
 
 type ReferenceSettings = components["schemas"]["ReferenceSettings"];
 
@@ -63,6 +64,7 @@ vi.mock("next/navigation", async (original) => ({
 
 const UPDATE = "PATCH /reference/settings";
 const witness = example("reference_settings") as ReferenceSettings;
+const installation = example("installation") as components["schemas"]["Installation"];
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers, timing: FakeTiming = {}): FakeClient {
@@ -339,12 +341,12 @@ describe("the form of the risk matrix", () => {
 describe("the form of the name of the company", () => {
   /** Open the form of the name, and give it back. */
   async function openCompany(): Promise<HTMLElement> {
-    render(inFrench(<CompanySettings settings={witness} />));
+    render(inFrench(<InstallationSettings settings={witness} installation={installation} />));
     await userEvent.click(screen.getByRole("button", { name: "Modifier le nom de l’entreprise" }));
     return screen.getByRole("dialog", { name: "Modifier le nom de l’entreprise" });
   }
 
-  it("reads the name, modifies it, sends it alone with the version read, and shows the answer in place of the reading", async () => {
+  it("reads the name, modifies it, sends it alone with the version read, and shows the answer in place of the reading [WF-EXP-0020-A]", async () => {
     const client = serve({ [UPDATE]: "reference_settings_company_updated" });
     const form = await openCompany();
     const name = within(form).getByRole("textbox", { name: /Nom de l’entreprise/ });
@@ -455,10 +457,20 @@ describe("the form of the name of the company", () => {
     expect(command).not.toHaveAttribute("aria-disabled");
   });
 
-  it("reads the name as a term and its description, one named by the other", () => {
-    render(inFrench(<CompanyName name="Delmas Automatismes" />));
-    expect(screen.getByRole("term")).toHaveTextContent("Nom de l’entreprise");
-    expect(screen.getByRole("definition")).toHaveTextContent("Delmas Automatismes");
+  it("reads the name, the currency, the default language and the time zone as terms and their descriptions", () => {
+    render(
+      inFrench(
+        <InstallationFacts name="Delmas Automatismes" currency="EUR" installation={installation} />,
+      ),
+    );
+    const terms = screen.getAllByRole("term").map((term) => term.textContent);
+    expect(terms).toEqual(["Nom de l’entreprise", "Devise", "Langue par défaut", "Fuseau horaire"]);
+    expect(screen.getAllByRole("definition").map((each) => each.textContent)).toEqual([
+      "Delmas Automatismes",
+      "EUR",
+      "Français",
+      "Europe/Paris",
+    ]);
   });
 });
 
@@ -514,6 +526,57 @@ describe("the form of the thresholds and the delay", () => {
     expect(field(form, COST, "Seuil d’alerte")).toHaveFocus();
     expect(client.calls).toEqual([]);
   });
+
+  it("judges no order between thresholds out of ]0, 1[: the request goes, and the refusal of range is said at the field the server designates [WF-REF-0170-A]", async () => {
+    const client = serve({
+      [UPDATE]: {
+        problem: example("reference_settings_out_of_range") as Problem & { status: 422 },
+      },
+    });
+    const form = await openIndicators();
+    await retype(field(form, COST, "Seuil de vigilance"), "1,2");
+    await retype(field(form, COST, "Seuil d’alerte"), "1,5");
+    await save(form);
+    await vi.waitFor(() => {
+      expect(field(form, COST, "Seuil de vigilance")).toHaveFocus();
+    });
+    expect(client.calls).toHaveLength(1);
+    expect(field(form, COST, "Seuil de vigilance")).toHaveAttribute("aria-invalid", "true");
+    // The alert threshold carries no refusal of order the server would not give.
+    expect(field(form, COST, "Seuil d’alerte")).not.toHaveAttribute("aria-invalid");
+    expect(field(form, COST, "Seuil d’alerte")).not.toHaveAccessibleDescription(
+      "Le seuil d’alerte doit être inférieur au seuil de vigilance.",
+    );
+  });
+
+  it.each([
+    ["watch 0,5, alert 0,7, both in ]0, 1[", "0,5", "0,7", true],
+    ["watch 0,2, alert 0,9, both in ]0, 1[", "0,2", "0,9", true],
+    ["watch 0, alert 0,5: the watch at 0 exactly", "0", "0,5", false],
+    ["watch 0,5, alert 1: the alert at 1 exactly", "0,5", "1", false],
+    ["watch 1, alert 1,5: the watch at 1 exactly", "1", "1,5", false],
+    ["watch -0,2, alert 0,5: the watch negative", "-0,2", "0,5", false],
+    ["watch 0,5, alert 1,5: only the alert out of range", "0,5", "1,5", false],
+    ["watch 1,5, alert 0,5: only the watch out of range", "1,5", "0,5", false],
+  ] as const)(
+    "judges the order of the thresholds only between two thresholds within ]0, 1[: %s [WF-REF-0170-A]",
+    async (_, watch, alert, refused) => {
+      const client = serve({ [UPDATE]: "reference_settings_thresholds_updated" });
+      const form = await openIndicators();
+      await retype(field(form, COST, "Seuil de vigilance"), watch);
+      await retype(field(form, COST, "Seuil d’alerte"), alert);
+      await save(form);
+      const order = "Le seuil d’alerte doit être inférieur au seuil de vigilance.";
+      if (refused) {
+        expect(field(form, COST, "Seuil d’alerte")).toHaveAccessibleDescription(order);
+        expect(client.calls).toEqual([]);
+      } else {
+        await vi.waitFor(() => {
+          expect(client.calls).toHaveLength(1);
+        });
+      }
+    },
+  );
 
   it("refuses at its field, before asking anything, a delay that is no whole number of weeks [WF-REF-0180-A]", async () => {
     // Le délai est saisissable en semaines : entières, comme le contrat les compte.

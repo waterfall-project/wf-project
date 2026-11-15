@@ -18,6 +18,9 @@
  * US-1500) and the comparison (`compareRevisions`, US-1530): the screen shows no note of the
  * mock-up, and reads the proposal as any other read, the tolerance of its 404 lifted (#2173).
  *
+ * The opening of the current revision is the principal command of the card of the history, filled
+ * (US-2130); the commands of the revision it reads in stay at the right of the title of the screen.
+ *
  * The report of the import the address names (`?import=`, which the screen of the project carries
  * here when no revision is readable) stands above the history, as on the screen of the project
  * (`readShownImport`, #1922); an address without it is read as before.
@@ -45,7 +48,11 @@ import {
   comparedRevisions,
   RevisionComparisonSection,
 } from "@/components/revisions/revision-comparison";
-import { ReferenceDesignation, RevisionHistory } from "@/components/revisions/revision-history";
+import {
+  ReferenceDesignation,
+  RevisionHistory,
+  revisionCreation,
+} from "@/components/revisions/revision-history";
 import { CostStructureList, RateUpdate } from "@/components/revisions/revision-parts";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
@@ -171,7 +178,11 @@ export default async function RevisionsPage(props: ProjectPageProps) {
             start={contextAddress(address.pathname, read.context)}
           />
         )}
-        <RevisionHistory revisions={revisions} context={read.context} />
+        <RevisionHistory
+          revisions={revisions}
+          context={read.context}
+          creation={revisionCreation(read.project)}
+        />
         <ReferenceDesignation
           revisions={revisions}
           projectId={address.projectId}

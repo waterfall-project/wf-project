@@ -6,7 +6,7 @@ The load of the projects of the perimeter, by resource role and by month, agains
 
 From top to bottom:
 
-- **Stacked load by role and by month**: a bar per month, divided by role, in hours, the total of the month at its top, and the capacity of the perimeter — the sum of the capacities of the roles retained — dotted.
+- **Stacked load by role and by month**: a bar per month, divided by role, in hours, the total of the month at its top, and the capacity of the perimeter — the sum of the capacities of the roles retained — dotted. The roles are told apart by their colour, and by a pattern when the **Series patterns** preference of “My account” asks for it, on the screen as in the exported image.
 - **Load by role and by month**: for each role, its monthly capacity, then, month by month, its load in hours and its load rate, ratio of the load to the capacity, with the signal of its zone.
 
 Without load over the perimeter and the horizon chosen, the screen says so.

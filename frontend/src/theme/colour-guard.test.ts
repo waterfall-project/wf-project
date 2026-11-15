@@ -96,6 +96,12 @@ const ALLOWED: readonly [string, string][] = [
   ['<p className="bg-primary text-primary-foreground">{VALUE}</p>', '""'],
   ['<p className="text-muted-foreground hover:bg-accent/90">{VALUE}</p>', '""'],
   ['<p className="border-input ring-ring md:grid-cols-[16rem_1fr]">{VALUE}</p>', '""'],
+  // The tokens of the charter of EP-25: the dot of « Actif », the bar and its tile (US-2070).
+  ['<span className="size-2 rounded-full bg-active-mark" />', '""'],
+  [
+    '<p className="bg-sidebar-primary text-sidebar-primary-foreground text-sidebar-muted-foreground">{VALUE}</p>',
+    '""',
+  ],
   ['<svg><path d="M0 0" fill="currentColor" /></svg>', '""'],
   ['<svg><path d="M0 0" fill="CurrentColor" /></svg>', '""'],
   ['<svg><path d="M0 0" fill={level > 2 ? "none" : "currentColor"} /></svg>', '""'],

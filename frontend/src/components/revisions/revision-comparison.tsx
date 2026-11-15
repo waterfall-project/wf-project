@@ -24,7 +24,7 @@ import type { ReactNode } from "react";
 import type { components } from "@/api/generated/schema";
 import { DifferencesOnly } from "@/components/grid/differences-only";
 import { DIFFERENCE_PARAMETER, type DifferenceValue } from "@/components/grid/difference-filter";
-import { CELL, ListSection, ListTable } from "@/components/projects/project-tables";
+import { CELL, ListCard, ListTable } from "@/components/projects/project-tables";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -254,7 +254,7 @@ export function RevisionComparisonSection({
   const t = useTranslations("revisionScreen.comparison");
   const marked = revisions.filter((revision) => revision.status === "marked");
   return (
-    <ListSection
+    <ListCard
       title={t("title")}
       icon={GitCompareArrows}
       empty={marked.length < 2 ? t("needsTwo") : undefined}
@@ -273,6 +273,6 @@ export function RevisionComparisonSection({
           preferences={preferences}
         />
       )}
-    </ListSection>
+    </ListCard>
   );
 }

@@ -27,6 +27,7 @@ import {
   GAP,
   planningInstant,
   timeAxis,
+  valueAxis as commonValueAxis,
 } from "@/components/chart/chart";
 import { ComputableValue } from "@/components/computable-value";
 import { useCurrency } from "@/currency/context";
@@ -76,7 +77,7 @@ function point(value: Computable): string {
 function valueAxis(palette: ChartPalette, locale: string, fromZero: boolean, currency?: string) {
   const tick = new Intl.NumberFormat(locale);
   return {
-    type: "value" as const,
+    ...commonValueAxis(palette, (value) => tick.format(value)),
     // An index is never negative, its axis starts at zero; an amount is signed, its axis reaches
     // down to the lowest value drawn.
     ...(fromZero ? { min: 0 } : {}),
@@ -84,9 +85,6 @@ function valueAxis(palette: ChartPalette, locale: string, fromZero: boolean, cur
     ...(currency === undefined
       ? {}
       : { name: currency, nameLocation: "end" as const, nameTextStyle: { color: palette.text } }),
-    axisLine: { show: true, lineStyle: { color: palette.axis } },
-    axisLabel: { color: palette.text, formatter: (value: number) => tick.format(value) },
-    splitLine: { lineStyle: { color: palette.grid } },
   };
 }
 

@@ -107,6 +107,8 @@ DATA = {
     "ImportReport.format_version": "a version of a format",
     "ImportSignal.label": "a label",
     "ImportWaterfallCalendar.label": "a label",
+    # The time zone of the installation, by its name in the IANA database (US-2200).
+    "Installation.time_zone": "a name of a time zone",
     # What the parameters of a refusal name, by the label and the code a person gave it: a role, a
     # project, a task, a line and its structure, a subproject, a risk, and the labels of a column of
     # the extraction of actual costs, as the mapping declares them (``ProblemParams``, #768; the

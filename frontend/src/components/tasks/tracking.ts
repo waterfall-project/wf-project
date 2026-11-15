@@ -11,8 +11,10 @@
  * is applied to the task it was asked for, never to the one a relaunch put in its place.
  *
  * Each end — a task succeeded, failed, or whose follow-up the API interrupted — adds a line to
- * a log, which the shell reads out: the ends add up, none replaces the one before. Signing out
- * forgets them all.
+ * a log, which the shell reads out: the ends add up, none replaces the one before. A success or a
+ * failure adds a card too, which the shell floats in the corner of the window until it is opened or
+ * closed (`end-cards.tsx`): the file of an export downloaded by itself, its card no longer offers it
+ * — served once (WF-DAT-0120) —; refused, its card tells why. Signing out forgets them all.
  *
  * A task is followed from the screen that started it, from what the tab kept of it across a
  * reload, or from the list of the tasks of its user the API gives — started from another tab or
@@ -103,7 +105,24 @@ export interface Launch {
   readonly subject?: string | undefined;
   /** The screen it was started from, which the history of the messages leads back to. */
   readonly from?: MessageScreen | undefined;
+  /**
+   * What the button that started it aims at, as `taskAim` composes it: the button mounted again —
+   * the tab reloaded, the screen left and come back to — finds the task by it (`useRunningTask`).
+   */
+  readonly aim?: string | undefined;
 }
+
+/**
+ * The key a button finds again the task it started by, once mounted anew (#3404): the kind of the
+ * task and what it aims at — the revision marked or exported, the project of an import, the
+ * installation for a backup —, which the contract does not say of a task (`BackgroundTaskRef`).
+ */
+export function taskAim(kind: TaskKind, ...object: readonly [string, ...string[]]): string {
+  return [kind, ...object].join("/");
+}
+
+/** What a task over the whole installation aims at — a backup, a reading of the accounts. */
+export const INSTALLATION = "installation";
 
 /** A refusal of the API, as the decoder classes it. */
 export type Refusal = Exclude<Outcome<unknown>, { kind: "done" } | { kind: "unreachable" }>;
@@ -118,6 +137,8 @@ export interface TrackedTask {
   readonly command: TaskCommand | undefined;
   /** The screen it was started from; none for a task found again, its screen unknown. */
   readonly from?: MessageScreen | undefined;
+  /** What the button that started it aims at (`taskAim`); none for a task the API listed. */
+  readonly aim?: string | undefined;
   /** The last relaunch refused, or the API out of reach at the last read: told as an alert. */
   readonly outcome: Outcome<unknown> | undefined;
   /** The refusal of the API to say where the task stands: its follow-up stops there. */
@@ -137,12 +158,22 @@ export interface TrackedTask {
 /** A line of the log of ends. */
 export interface EndLine {
   readonly id: number;
+  /** The key the task is followed under: its first identifier, which a relaunch keeps. */
+  readonly key: string;
   readonly end: EndKind;
   readonly task: BackgroundTask;
   readonly subject: string | undefined;
   readonly from?: MessageScreen | undefined;
   /** The motive of a failure, or the refusal that interrupted the follow-up. */
   readonly problem: Problem | undefined;
+}
+
+/** The card of an end: the line of the log, and what became of the file it offers. */
+export interface EndCardLine extends EndLine {
+  /** Whether the file was downloaded by itself: served once (WF-DAT-0120), the card no longer offers it. */
+  readonly delivered?: boolean | undefined;
+  /** What the route of the result refused when the file was to download by itself: the card tells it. */
+  readonly refusal?: ResultRefusal | undefined;
 }
 
 /** The tasks followed, and the log of their ends. */
@@ -161,6 +192,12 @@ export interface Tracking {
    * by the panel itself, no entry being there to tell it (#416).
    */
   readonly refusedResult?: ResultRefusal | undefined;
+  /**
+   * The ends the floating cards of the shell show — each success and failure, never a follow-up
+   * interrupted, which says nothing of the task —, the last first: each stays until it is opened or
+   * closed, whatever the log has kept since.
+   */
+  readonly cards: readonly EndCardLine[];
 }
 
 /** What changes what the tracker follows. */
@@ -183,10 +220,37 @@ export type TrackingEvent =
   | { readonly type: "clear" | "dismiss"; readonly key: string }
   | { readonly type: "forget" }
   | { readonly type: "result_refused"; readonly refusal: ResultRefusal }
-  | { readonly type: "result_refusal_cleared" };
+  | { readonly type: "result_refusal_cleared" }
+  /** The card of an end opened or closed, by the identifier of its line. */
+  | { readonly type: "card_closed"; readonly id: number }
+  /** The file of the card of an end downloaded by itself, by the identifier of its line. */
+  | { readonly type: "card_delivered"; readonly id: number }
+  /**
+   * The file of the card of an end refused when it was to download by itself, by the identifier of
+   * its line — and the task it ended, whose entry tells the refusal when the card is closed already.
+   */
+  | {
+      readonly type: "card_refused";
+      readonly id: number;
+      readonly key: string;
+      readonly taskId: string;
+      readonly refusal: ResultRefusal;
+    };
+
+/** The events that change the cards alone. */
+type CardEvent = Extract<
+  TrackingEvent,
+  { type: "card_closed" | "card_delivered" | "card_refused" }
+>;
 
 /** Nothing followed yet. */
-export const NOTHING_TRACKED: Tracking = { tasks: [], log: [], dismissed: [], restored: false };
+export const NOTHING_TRACKED: Tracking = {
+  tasks: [],
+  log: [],
+  dismissed: [],
+  restored: false,
+  cards: [],
+};
 
 /** How many ends the log keeps: the last ones, a reader has heard the others. */
 const LOG_LENGTH = 10;
@@ -199,15 +263,36 @@ export function isPolled({ task, interrupted }: TrackedTask): boolean {
   return RUNNING[task.status] && interrupted === undefined;
 }
 
-/** The log with one more end. */
+/** The project an address is of: the segment after `/projects/`, none outside a project. */
+function projectOf(path: string): string | undefined {
+  return /^\/projects\/([^/?#]+)/.exec(path)?.[1];
+}
+
+/**
+ * Whether the screen shown — its path — is read anew once a task has ended (#3103): a task that
+ * succeeded or failed, never a follow-up interrupted, which says nothing of the task; started from a
+ * screen of the same project — the revisions after a marking, the imports after an import —, or,
+ * outside a project, from the same screen — a backup. A task found again, its screen unknown, reads
+ * nothing anew.
+ */
+export function readsAnew({ end, from }: Pick<EndLine, "end" | "from">, shown: string): boolean {
+  if (end === "interrupted" || from === undefined) {
+    return false;
+  }
+  const started = from.href.split(/[?#]/, 1)[0] ?? "";
+  const project = projectOf(started);
+  return project === undefined ? started === shown : project === projectOf(shown);
+}
+
+/** The log with one more end, kept whole: `tracking` keeps its last lines once the cards are made. */
 function logged(
   log: readonly EndLine[],
   end: EndKind,
-  { task, subject, from }: Pick<TrackedTask, "task" | "subject" | "from">,
+  { key, task, subject, from }: Pick<TrackedTask, "key" | "task" | "subject" | "from">,
   problem: Problem | undefined,
 ): readonly EndLine[] {
   const id = (log.at(-1)?.id ?? 0) + 1;
-  return [...log, { id, end, task, subject, from, problem }].slice(-LOG_LENGTH);
+  return [...log, { id, key, end, task, subject, from, problem }];
 }
 
 /**
@@ -247,9 +332,9 @@ function refused(
   ) {
     // Out of reach again at a read: the same refusal, the one already told and noted in the
     // history — a read every few seconds while the API is out of reach notes it once, until a read
-    // is answered. The entry is a new one all the same, which asks again a while later; a relaunch
-    // the user presses is told anew.
-    return { ...entry };
+    // is answered: the entry stays as it was, and the follow-up asks again a while later all the
+    // same, as it does after any answer (`usePolling`); a relaunch the user presses is told anew.
+    return entry;
   }
   if (outcome.kind === "unreachable" || source === "download") {
     // Told in place, by the notice of the entry: the follow-up of the task is not interrupted —
@@ -301,6 +386,9 @@ function answer(state: Tracking, event: Extract<TrackingEvent, { type: "answer" 
           resultUnavailable: source === "download" && outcome.data.result_url == null,
         }
       : refused(entry, source, outcome);
+  if (next === entry) {
+    return state;
+  }
   const tasks = state.tasks.map((tracked) => (tracked === entry ? next : tracked));
   if (next.interrupted !== undefined && entry.interrupted === undefined) {
     return {
@@ -335,8 +423,65 @@ function found(state: Tracking, tasks: readonly BackgroundTask[]): Tracking {
   return added.length === 0 ? state : { ...state, tasks: [...state.tasks, ...added] };
 }
 
+/**
+ * The cards once the log has changed: one more, on top, for each success or failure logged since —
+ * a follow-up interrupted has none —, then the log cut to its last lines: ends logged at once beyond
+ * them each have their card all the same.
+ */
+function carded(before: Tracking, after: Tracking): Tracking {
+  if (after.log === before.log) {
+    return after;
+  }
+  const last = before.log.at(-1)?.id ?? 0;
+  const fresh = after.log.filter((line) => line.id > last && line.end !== "interrupted");
+  const log = after.log.length > LOG_LENGTH ? after.log.slice(-LOG_LENGTH) : after.log;
+  return {
+    ...after,
+    log,
+    cards: fresh.length === 0 ? after.cards : [...fresh.toReversed(), ...after.cards],
+  };
+}
+
+/** The cards once one of them is changed: closed, its file delivered or refused. */
+function cardChanged(state: Tracking, event: CardEvent): Tracking {
+  const card = state.cards.find((each) => each.id === event.id);
+  if (card === undefined) {
+    // Closed already: a refusal is told by the entry of the task, as a click's would be.
+    return event.type === "card_refused"
+      ? answer(state, {
+          type: "answer",
+          source: "download",
+          key: event.key,
+          taskId: event.taskId,
+          outcome: event.refusal,
+        })
+      : state;
+  }
+  if (event.type === "card_closed") {
+    return { ...state, cards: state.cards.filter((each) => each !== card) };
+  }
+  const changed: EndCardLine =
+    event.type === "card_delivered"
+      ? { ...card, delivered: true }
+      : // The file was not served: the card offers it again, as the panel does.
+        { ...card, delivered: false, refusal: event.refusal };
+  return { ...state, cards: state.cards.map((each) => (each === card ? changed : each)) };
+}
+
 /** Change what the tracker follows. */
 export function tracking(state: Tracking, event: TrackingEvent): Tracking {
+  if (
+    event.type === "card_closed" ||
+    event.type === "card_delivered" ||
+    event.type === "card_refused"
+  ) {
+    return cardChanged(state, event);
+  }
+  return carded(state, followed(state, event));
+}
+
+/** Change what the tracker follows, but its cards. */
+function followed(state: Tracking, event: Exclude<TrackingEvent, CardEvent>): Tracking {
   switch (event.type) {
     case "track": {
       const { task, launch } = event;
@@ -346,6 +491,7 @@ export function tracking(state: Tracking, event: TrackingEvent): Tracking {
         task,
         subject: launch.subject,
         from: launch.from,
+        aim: launch.aim,
         command: launch.command,
         outcome: undefined,
         interrupted: undefined,

@@ -6,8 +6,12 @@
  * totals at its edges, the identifying columns at its start — sticks to it; the container
  * takes its own classes and a reference, which the virtualizer of the rows reads. The borders
  * are drawn by the cells, the table keeping them apart: collapsed borders would not follow a
- * sticky cell. No hover colour, no transition. The header row of every table, a list or a dense
- * grid, is set on the muted background of the charter (#508).
+ * sticky cell. A simple table — the permissions of the roles, the bounds of a risk, the history of
+ * the revisions — takes the style of a dense grid (US-2080, #3088, #3090): the text of the grid,
+ * its header, a line under each row and none between the columns, the grid drawing one beside a
+ * column it pins alone. No hover colour here, no transition: the grid tints its rows itself. The
+ * header row of every table, a list or a dense grid, is set on the muted background of the
+ * charter (#508).
  */
 import type { ComponentProps } from "react";
 
@@ -63,7 +67,7 @@ export function Table({
     >
       <table
         data-slot="table"
-        className={cn("border-separate border-spacing-0 text-sm", className)}
+        className={cn("border-separate border-spacing-0 text-xs", className)}
         {...props}
       />
     </div>
@@ -100,7 +104,7 @@ export function TableHead({ className, ...props }: ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "border-b px-2 text-left align-middle font-medium whitespace-nowrap text-muted-foreground not-last:border-r in-[thead]:bg-muted",
+        "border-b px-2 text-left align-middle font-medium whitespace-nowrap text-muted-foreground in-[thead]:h-8 in-[thead]:bg-muted",
         className,
       )}
       {...props}
@@ -113,7 +117,7 @@ export function TableCell({ className, ...props }: ComponentProps<"td">) {
   return (
     <td
       data-slot="table-cell"
-      className={cn("border-b px-2 align-middle whitespace-nowrap not-last:border-r", className)}
+      className={cn("border-b px-2 align-middle whitespace-nowrap", className)}
       {...props}
     />
   );

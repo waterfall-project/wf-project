@@ -85,7 +85,7 @@ export function UserBulkCommands({
           size="sm"
           aria-busy={waiting}
           {...(waiting ? { "aria-disabled": true } : {})}
-          className={`${BAR_BUTTON} ${UNAVAILABLE}`}
+          className={BAR_BUTTON}
           onClick={(event) => {
             if (!waiting) {
               void writes.bulk(rows, { kind: "activation", active }, event.currentTarget);
@@ -101,9 +101,6 @@ export function UserBulkCommands({
 
 /** The look of a button of the bar. */
 const BAR_BUTTON = "h-6 text-xs text-background hover:bg-background/15 hover:text-background";
-
-/** A button that cannot be pressed now, as `aria-disabled` says (the same as the exit command). */
-const UNAVAILABLE = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
 
 /** The value of the choice « Aucun » of the attachment: no identifier of a node is written so. */
 const NO_NODE = "none";
@@ -151,7 +148,7 @@ function BulkChoice({
         aria-label={apply}
         aria-busy={waiting}
         {...(waiting || value === "" ? { "aria-disabled": true } : {})}
-        className={`${BAR_BUTTON} ${UNAVAILABLE}`}
+        className={BAR_BUTTON}
         onClick={(event) => {
           if (value !== "" && !waiting) {
             // The choice stays shown while its group is under way, and is cleared when it ends;

@@ -23,7 +23,7 @@ import { EstimateGrid } from "./estimate-grid";
 import type { NodeList, NodeSortColumn } from "./nodes";
 import { PlanningGrid } from "./planning-grid";
 import type { GridQuery } from "./query";
-import { CellMenu, type MenuCommands } from "./undo-commands";
+import { CellMenu, type MenuCommands, type UndoControl, UndoCommands } from "./undo-commands";
 
 // The server of Next, as far as the grid needs it, as for the other tests of the grid.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
@@ -187,6 +187,37 @@ describe("undo and redo, placed in the grids", () => {
     await expectAccessible(bar);
   });
 
+  it("opens the whole reason they wait for when it is pressed, by a touch as by a click, beside the bar (#3150) [WF-IHM-0060-A]", async () => {
+    render(unwiredGrid());
+    const reason = screen.getByRole("button", { name: REASON });
+    expect(reason).toHaveAttribute("aria-haspopup", "dialog");
+    // A touch gives no focus to the button on every browser, and opens no tooltip: the press does.
+    await userEvent.pointer({ keys: "[TouchA]", target: reason });
+    const whole = screen.getByRole("dialog", {
+      name: "Pourquoi annuler et rétablir sont indisponibles",
+    });
+    expect(whole).toHaveTextContent(REASON);
+    expect(within(whole).getByText(REASON)).not.toHaveClass("truncate");
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(reason).toHaveFocus();
+  });
+
+  it("leaves the focus on the button of the reason when it opens, so that Tab goes on from it and closes it (#3265) [WF-IHM-0100-A]", async () => {
+    render(unwiredGrid());
+    const reason = screen.getByRole("button", { name: REASON });
+    await userEvent.click(reason);
+    const whole = screen.getByRole("dialog", {
+      name: "Pourquoi annuler et rétablir sont indisponibles",
+    });
+    // The focus is not taken by the popover: it holds nothing to reach.
+    expect(reason).toHaveFocus();
+    expect(whole).not.toContainElement(document.activeElement as HTMLElement);
+    await userEvent.tab();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(reason).not.toHaveFocus();
+  });
+
   it("places them in the menu of a cell, opened by Shift+F10, with their shortcuts, unavailable and saying why", async () => {
     render(unwiredGrid());
     const cell = focusLabel();
@@ -198,6 +229,7 @@ describe("undo and redo, placed in the grids", () => {
     expect(redo).toHaveTextContent("Ctrl+Maj+Z");
     for (const item of [undo, redo]) {
       expect(item).toHaveAttribute("aria-disabled", "true");
+      expect(item).toHaveClass("aria-disabled:cursor-not-allowed", "aria-disabled:opacity-50");
       expect(item).toHaveAccessibleDescription(REASON);
     }
     // The menu open, the page beside it is hidden from a screen reader: the menu is what is read.
@@ -378,6 +410,36 @@ describe("undo and redo, placed in the grids", () => {
     expect(told()).toBe(
       "Redo is unavailable: the server does not keep the history of the entries yet.",
     );
+  });
+});
+
+describe("undo and redo while a write is under way (#3272)", () => {
+  /** A control of the commands, busy or not, whose presses are recorded. */
+  function control(busy: boolean): UndoControl {
+    return { press: vi.fn(), busy, outcome: undefined, done: undefined, clear: vi.fn() };
+  }
+
+  it("marks Undo and Redo inactive while a write is under way, and a press asks nothing [WF-IHM-0110-A]", async () => {
+    const busy = control(true);
+    render(inLanguage(<UndoCommands control={busy} />));
+    for (const name of ["Annuler", "Rétablir"]) {
+      const button = screen.getByRole("button", { name });
+      expect(button).toHaveAttribute("aria-disabled", "true");
+      await userEvent.click(button);
+    }
+    expect(busy.press).not.toHaveBeenCalled();
+  });
+
+  it("lets them be pressed once no write is under way [WF-IHM-0110-A]", async () => {
+    const idle = control(false);
+    render(inLanguage(<UndoCommands control={idle} />));
+    for (const name of ["Annuler", "Rétablir"]) {
+      const button = screen.getByRole("button", { name });
+      expect(button).not.toHaveAttribute("aria-disabled");
+      await userEvent.click(button);
+    }
+    expect(idle.press).toHaveBeenNthCalledWith(1, "undo");
+    expect(idle.press).toHaveBeenNthCalledWith(2, "redo");
   });
 });
 

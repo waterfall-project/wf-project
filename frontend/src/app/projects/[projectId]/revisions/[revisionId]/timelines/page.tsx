@@ -33,7 +33,7 @@ import {
   TimelineChoice,
   TimelineDeletions,
 } from "@/components/gantt/timeline-commands";
-import { FUNCTION_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
+import { LEAF_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { type PageSearchParams, searchQuery } from "@/navigation/context";
 import { requestSession } from "@/session/request";
@@ -124,12 +124,12 @@ function TimelinesScreen({
       );
   }
   return (
-    <Screen density={FUNCTION_DENSITY.planning}>
+    <Screen density={LEAF_DENSITY["FBS-4.3.1"]}>
       <TimelineDeletions>
         <PageHeader
           title={t("functions.timelines")}
           icon={LEAF_ICONS["FBS-4.3.1"]}
-          density={FUNCTION_DENSITY.planning}
+          density={LEAF_DENSITY["FBS-4.3.1"]}
           subtitle={t("timelines.summary")}
           actions={
             timelines.length === 0 && offer === undefined ? undefined : (

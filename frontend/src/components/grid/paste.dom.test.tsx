@@ -70,7 +70,8 @@ function amounts(rows: readonly number[]): string[] {
 /** The total amount at the year of reference, at the foot of the grid. */
 function totalAmount(): string | null | undefined {
   const row = screen.getByRole("treegrid", { hidden: true }).querySelector("tfoot tr");
-  return row?.querySelectorAll("td")[10]?.textContent;
+  // The caption spans the category, the role and the quantity, which have no total (#3072).
+  return row?.querySelectorAll("td")[7]?.textContent;
 }
 
 beforeEach(() => {

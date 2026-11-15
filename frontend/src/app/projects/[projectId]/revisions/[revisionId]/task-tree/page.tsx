@@ -17,7 +17,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { ContextBanner } from "@/components/context/context-banner";
-import { FUNCTION_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
+import { LEAF_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
 import { exportOffers } from "@/components/exchanges/offers";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import {
@@ -35,6 +35,7 @@ import { type PageSearchParams, searchQuery } from "@/navigation/context";
 import { screenMetadata } from "../../../../../title";
 import { gridAddress, readGridScreen } from "../grid-screen";
 import type { RevisionParams } from "../page";
+import { GridCard } from "@/components/shell/grid-card";
 
 /** Title the tab with the leaf, and with the project. */
 export async function generateMetadata({
@@ -100,11 +101,11 @@ function TaskTreeScreen({
 }) {
   const t = useTranslations();
   return (
-    <Screen density={FUNCTION_DENSITY.planning}>
+    <Screen density={LEAF_DENSITY["FBS-4.3.5"]} fill>
       <PageHeader
         title={t("functions.taskTree")}
         icon={LEAF_ICONS["FBS-4.3.5"]}
-        density={FUNCTION_DENSITY.planning}
+        density={LEAF_DENSITY["FBS-4.3.5"]}
         subtitle={t("taskTree.summary")}
         actions={
           <div className="flex flex-wrap items-start gap-2">
@@ -113,7 +114,9 @@ function TaskTreeScreen({
           </div>
         }
       />
-      <TaskTree name={t("taskTree.name")} project={project} nodes={nodes} />
+      <GridCard fill>
+        <TaskTree name={t("taskTree.name")} project={project} nodes={nodes} />
+      </GridCard>
       {levels === 0 ? (
         <p className="text-sm text-muted-foreground">{t("taskTree.noSummary")}</p>
       ) : null}

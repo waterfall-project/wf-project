@@ -28,7 +28,7 @@ Pendant une restauration, seul le téléchargement reste disponible. Aucune comm
 Au-dessus de la liste :
 
 - **Période des sauvegardes**, **Filtrer par déclenchement**, **Filtrer par vérification**, **Conservation** et, entre deux bornes, la taille en octets.
-- **Colonnes** choisit les colonnes montrées ; **Lignes par page**, **Page précédente** et **Page suivante** parcourent la liste.
+- **Colonnes** choisit les colonnes montrées ; **Lignes par page**, **Précédent** et **Suivant** parcourent la liste.
 
 ## Ses colonnes et ses valeurs calculées
 

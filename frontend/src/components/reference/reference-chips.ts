@@ -4,8 +4,9 @@
  * The filters of the lists of the reference data on, told as chips under the bar of their table
  * (WF-IHM-0130, #2916): the nodes of the organisation, the resource roles, the calendars, the
  * natures and the categories of cost, as the address of each screen says them — a code, an object
- * chosen, a state, a type, the bounds of a column of figures. An object chosen is told by its code
- * and its name as the screen offers it; one the screen does not offer, by its identifier.
+ * chosen, a state — the active objects by default —, a type, the bounds of a column of figures. An
+ * object chosen is told by its code and its name as the screen offers it; one the screen does not
+ * offer, by its identifier.
  */
 "use client";
 
@@ -15,6 +16,7 @@ import { type ChipKit, useChipKit } from "@/components/grid/chip-kit";
 import type { FilterChip } from "@/components/grid/filter-chips";
 import type { Bounds } from "@/components/grid/filters";
 
+import { EVERY_STATE } from "./address";
 import {
   CATEGORY_COST_TYPE,
   CATEGORY_STATE,
@@ -40,16 +42,23 @@ import {
   ROLE_STATE,
 } from "./resource-grids";
 
-/** The chip of the state a list is filtered on, if it is. */
+/**
+ * The chip of the state a list is filtered on, if it is (WF-REF-0150): the active objects said with
+ * the words « par défaut », the state by default, or the deactivated ones; lifted by naming every
+ * state (`EVERY_STATE`), an address that says nothing meaning the state kept or the default. None for
+ * every state, nor for a session that may not read the deactivated objects.
+ */
 function useStateChip(): (kit: ChipKit, key: string, state: boolean | undefined) => void {
-  const t = useTranslations();
+  const t = useTranslations("reference.stateFilter");
+  const named = useTranslations("grid.columns");
   return (kit, key, state) => {
     if (state !== undefined) {
       kit.add(
         key,
-        t("grid.columns.state"),
-        state ? t("reference.stateFilter.active") : t("reference.stateFilter.inactive"),
+        named("state"),
+        state ? t("defaultChip", { state: t("active") }) : t("inactive"),
         [key],
+        { [key]: EVERY_STATE },
       );
     }
   };

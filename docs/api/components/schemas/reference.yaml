@@ -754,12 +754,22 @@ HourlyRateWrite:
 
 Installation:
   type: object
-  required: [default_language, avatar_max_bytes, external_backup_max_bytes]
+  required: [default_language, time_zone, avatar_max_bytes, external_backup_max_bytes]
   description: >-
     Installation settings readable without a session: what the front must know before
     opening a session, or to set what it lets through.
   properties:
     default_language: { $ref: ../common.yaml#/Language }
+    time_zone:
+      type: string
+      minLength: 1
+      description: >-
+        The time zone of the installation, its name in the IANA database (`Europe/Paris`,
+        `UTC`), chosen at the bootstrap and unchanged afterwards (WF-EXP-0020); `UTC` for an
+        installation bootstrapped before it was kept. The current day is the day of this time
+        zone (WF-PLA-0130, WF-DAT-0100): the one the service writes by default — the state of a
+        task started or completed, the review date of an export — and the one the front
+        proposes, never the day of the device nor of universal time.
     avatar_max_bytes:
       type: integer
       minimum: 1
@@ -828,7 +838,7 @@ ReferenceSettingsWrite:
   required: [lock_version]
   description: >-
     What a write of the common settings carries: the lock version read, and what it writes —
-    the company name (`cost_settings.write`), the risk matrix
+    the company name (`installation.write`), the risk matrix
     (`risk_settings.write`), the index thresholds and the interval between two reviews
     (`indicator_settings.write`), each field under the permission of its function
     (WF-ADM-0100); an absent field stays as it is (WF-IHM-0110). A screen sends only
@@ -844,8 +854,8 @@ ReferenceSettingsWrite:
       maxLength: 200
       pattern: '\S'
       description: >-
-        The name of the user company (WF-EXP-0020), under `cost_settings.write`, next to
-        the currency. It can be neither empty nor blank; when absent, it stays as it is. An empty
+        The name of the user company (WF-EXP-0020), under `installation.write`, the function of
+        the installation (FBS-1.6). It can be neither empty nor blank; when absent, it stays as it is. An empty
         name is refused with 422 `VALIDATION_FAILED`, `fields` designating `/company_name` with
         `VALUE_REQUIRED`, and a name of more than 200 characters with `VALUE_TOO_LONG`; a name
         made only of blanks, like any label, with the field code `VALIDATION_FAILED` at the same

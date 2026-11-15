@@ -10,14 +10,14 @@ Un et un seul calendrier actif est désigné **Par défaut**, marqué dans sa co
 
 Ces commandes ne sont offertes qu’à qui peut modifier les paramètres de ressources :
 
-- **Nouveau calendrier** ouvre le formulaire : le libellé et les heures de chacun des sept jours, tous requis.
+- **Nouveau calendrier**, bouton plein à droite du titre de la carte des calendriers, ouvre le formulaire : le libellé et les heures de chacun des sept jours, tous requis.
 - **Modifier**, sur une ligne, ouvre le même formulaire sur le calendrier.
 - **Désigner**, dans la colonne **Par défaut**, fait du calendrier celui par défaut, à la place du précédent. Indisponible pour un calendrier désactivé (« calendrier actif »).
 - **Désactiver** et **Réactiver**, dans la colonne **État**, sans confirmation. Le calendrier par défaut ne se désactive qu’après qu’un autre a été désigné (« calendrier autre que celui par défaut »).
 
 Une commande indisponible reste présentée et dit la condition qui lui manque. Un libellé déjà porté est refusé à son champ, qui nomme le calendrier qui le porte.
 
-Au-dessus de la table, pour tous : un filtre d’état quand les désactivés sont affichés ; le champ de recherche, sur le libellé ; **Colonnes**, **Lignes par page**, **Page précédente** et **Page suivante**. Les heures d’un jour ne se filtrent pas.
+Au-dessus de la table, pour tous : le filtre **État** de sa barre — **Actifs** (par défaut), **Désactivés**, **Tous les états** —, offert à qui peut modifier les paramètres de ressources ; le champ de recherche, sur le libellé ; **Colonnes**, **Lignes par page**, **Précédent** et **Suivant**. Les heures d’un jour ne se filtrent pas.
 
 ## Ses colonnes et ses valeurs calculées
 

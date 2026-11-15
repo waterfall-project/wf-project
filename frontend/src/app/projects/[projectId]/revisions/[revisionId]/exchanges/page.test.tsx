@@ -55,6 +55,10 @@ vi.mock("@/components/tasks/task-tracker", () => ({
   useTrackTask: () => () => undefined,
   useWhenTaskSucceeds: () => undefined,
   useWhenTaskFails: () => undefined,
+  useReadAnewWhenTaskEnds: () => undefined,
+  useTaskRunning: () => false,
+  useRunningTask: () => undefined,
+  useDownloadWhenTaskSucceeds: () => undefined,
 }));
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
@@ -129,6 +133,18 @@ beforeEach(() => {
 });
 
 describe("the screen of the imports and exports", () => {
+  it("sets each section in a card — the report of the import shown, the import, the list of the imports, the export —, in the order of the screen [WF-IHM-0100-A]", async () => {
+    const markup = await exchangesAt({ import: IMPORT });
+    const cards = [...markup.matchAll(/<section aria-label="([^"]*)" data-slot="section-card"/g)];
+    expect(cards.map((card) => card[1])).toEqual([
+      expect.stringContaining("Report of the import"),
+      "Import a file",
+      "Imports of the project",
+      "Request an export",
+    ]);
+    expect(markup).not.toContain("rounded-md border p-3");
+  });
+
   it("shows to a costing engineer who does not read the planning, the project listing them the imports, guarded by the commands it exercises (#521)", async () => {
     // A session without `planning.read`, the import of an estimate listed to it.
     server.answers = { ...server.answers, "GET /me": "me_estimator" };

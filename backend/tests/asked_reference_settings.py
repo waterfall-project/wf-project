@@ -16,7 +16,8 @@ INACTIVE: dict[str, str] = {}
 # The permission each field of a writing asks for, in the order they are judged (WF-ADM-0100).
 BY_FIELD: dict[str, dict[str, str]] = {
     "updateReferenceSettings": {
-        "company_name": "cost_settings.write",
+        # The function of the installation, no longer the cost settings (US-2120, #3245).
+        "company_name": "installation.write",
         "risk_matrix": "risk_settings.write",
         "index_thresholds": "indicator_settings.write",
         "max_weeks_between_reviews": "indicator_settings.write",

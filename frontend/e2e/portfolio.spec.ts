@@ -5,7 +5,7 @@ import { type Download, expect, type Locator, test } from "@playwright/test";
 import { menuButton, pick } from "./check-menu";
 import { compile } from "./compile";
 import { sortUntilAddress, WORKING } from "./hydration";
-import { withinBox } from "./scroll";
+import { scrollPageToGrid, withinBox } from "./scroll";
 
 // The fake back serves the first example of each read of the portfolio — the three hundred projects
 // of §4.6.2 at 3 June 2026, the witness project first, and the views summed from them —, whatever
@@ -33,6 +33,12 @@ test("reads the portfolio of three hundred projects: its value, its perimeter, t
   // The sort, given the time to hydrate and to read the grid anew, then the filter: more than the
   // thirty seconds of a test.
   test.slow();
+  // The list of the portfolio is a screen of consultation, airy (EP-25, « Deux familles d'écrans »):
+  // its margins and its gaps (`py-8`, `gap-7`) are taller than those of a screen of work (`py-3`,
+  // `gap-3`), and the grid at its floor no longer fits the 720 points of the default window, the
+  // page scrolling then. The totals are read in view in a window of 800 points: a margin over
+  // what the screen needs, not a floor measured (#3273).
+  await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto(PROJECTS);
   await expect(page).toHaveTitle("Portefeuille de projets — Waterfall");
   await expect(page.getByRole("main")).toContainText(
@@ -63,8 +69,11 @@ test("reads the portfolio of three hundred projects: its value, its perimeter, t
   const witness = grid.getByRole("row", { name: /Modernisation du poste de commande/ });
   await expect(witness.getByRole("img", { name: "Nominal" })).toHaveCount(1);
   await expect(witness.getByRole("img", { name: "Vigilance" })).toHaveCount(1);
-  // The grid holds in the window: its totals, the number of projects the server retained, in view.
-  // Its cells stick to the foot of the grid, their row keeping its place in the table.
+  // The list lies in a card under the perimeter and the value, which the 800 points of the window
+  // no longer leave the grid at its floor: the page scrolls to the grid (`scrollPageToGrid`), whose
+  // totals, the number of projects the server retained, are then in view. Its cells stick to the
+  // foot of the grid, their row keeping its place in the table.
+  await scrollPageToGrid(grid);
   const total = grid.getByRole("gridcell", { name: "300 projets retenus" });
   await expect(total).toHaveCount(1);
   expect(await withinBox(grid, total)).toBe(true);
@@ -181,23 +190,23 @@ test("draws the aggregated workload in stacked bars with the dashed capacity of 
   // itself in its label.
   const drawing = figure.getByRole("img", { name: /^Barres empilées de la charge/ });
   await expect(drawing.locator("text", { hasText: /^Capacité : .* h par mois$/ })).toBeVisible();
-  // The plot is the span of its tallest vertical lines (its axis and its grid); the capacity is the
-  // one dashed horizontal line across it, wider than half the drawing, and it lies within the plot.
+  // The plot is the span of the light dashed horizontal lines of its grid, one per value of the axis;
+  // the capacity is the one dashed horizontal line across it, wider than half the drawing, drawn in
+  // the colour of its label, and it lies within the plot.
   const { capacity, plot } = await drawing.evaluate((element) => {
     const width = element.getBoundingClientRect().width;
-    const boxes = [...element.querySelectorAll("path")].map((path) => ({
-      dashed: path.hasAttribute("stroke-dasharray"),
-      box: path.getBoundingClientRect(),
-    }));
-    const tallest = Math.max(
-      ...boxes.filter(({ box }) => box.width <= 1).map(({ box }) => box.height),
+    const label = [...element.querySelectorAll("text")].find((text) =>
+      /^Capacité : .* h par mois$/.test(text.textContent),
     );
-    const grid = boxes.filter(({ box }) => box.width <= 1 && box.height === tallest);
+    const mark = label?.getAttribute("fill");
+    const lines = [...element.querySelectorAll("path")]
+      .filter((path) => path.hasAttribute("stroke-dasharray"))
+      .map((path) => ({ stroke: path.getAttribute("stroke"), box: path.getBoundingClientRect() }))
+      .filter(({ box }) => box.height <= 1 && box.width > width / 2);
+    const tops = lines.map(({ box }) => box.top);
     return {
-      plot: { top: grid[0]?.box.top ?? Number.NaN, height: tallest },
-      capacity: boxes
-        .filter(({ dashed, box }) => dashed && box.height <= 1 && box.width > width / 2)
-        .map(({ box }) => box.top),
+      plot: { top: Math.min(...tops), height: Math.max(...tops) - Math.min(...tops) },
+      capacity: lines.filter(({ stroke }) => stroke === mark).map(({ box }) => box.top),
     };
   });
   expect(capacity).toHaveLength(1);

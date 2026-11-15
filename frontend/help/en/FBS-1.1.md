@@ -4,18 +4,18 @@
 
 The accounts of the installation, outside any project: each account with its origin, the organisation node it is attached to, its access roles and its state. A deactivated account stays listed and can be reactivated; no screen deletes an account. The roles give the permissions, and the permission only says what an account may do: it is the list of the contributors of a project that says on which projects.
 
-At the top, the report of the last reading of the accounts of the identity provider that succeeded, or the indication that none has succeeded yet: the accounts created — without a role —, updated, deactivated, the identities of local accounts restored in the provider, the local accounts that were removed from it, and what was left as it was, with its reason, under **Details of the last reading**.
+The table of the accounts, in its card, which the server sorts, searches, filters and pages; its footer says how many accounts it keeps.
+
+Under the table, in a card of its own, the reading of the accounts of the identity provider: its title, the **Read the accounts** command at its right, outlined, and in its body the report of the last reading of the accounts of the identity provider that succeeded, or the indication that none has succeeded yet: the accounts created — without a role —, updated, deactivated, the identities of local accounts restored in the provider, the local accounts that were removed from it, and what was left as it was, with its reason, under **Details of the last reading**.
 
 Under this report, the **Reading periodicity**: the platform reads the accounts of the identity provider by itself, every day by default, at the hour and, for a weekly reading, on the day set; the screen says whether the scheduled reading is active or suspended, its frequency, its day and its hour in universal time (UTC).
-
-Then the table of the accounts, which the server sorts, searches, filters and pages; its footer says how many accounts it keeps.
 
 ## Its commands
 
 These commands are offered only to whoever may modify the accounts; to the others, the screen is read only.
 
 - **Read the accounts** asks for a new reading of the accounts of the identity provider. It runs as a background task: the panel of the tasks follows it and offers, at its end, to read the screen again, where its report appears.
-- **Create a local account** opens the form: last name, first name and email address, all three required. The account is born without a role nor a means to sign in: its holder receives by email the link that has them set their password. When no invitation could be sent, the form says so and offers **Hand over the link**.
+- **Create a local account**, a filled button at the right of the title of the card of the accounts, opens the form: last name, first name and email address, all three required. The account is born without a role nor a means to sign in: its holder receives by email the link that has them set their password. When no invitation could be sent, the form says so and offers **Hand over the link**.
 - **Modify the periodicity** opens the form of the reading periodicity: active or suspended, daily or weekly, the day for a weekly reading only, and the hour in universal time (UTC), with the local hour of this workstation it stands for. The periodicity is saved whole; a reading in progress is not interrupted, the setting holds from the next one.
 - In the table, the last name and the first name of an account created in Waterfall are entered in their cell; those of an account of the directory or of the identity provider are their own, and are not entered.
 - **State**: the switch activates or deactivates the account. Deactivation is unavailable for the last active account that holds the administration permissions (“another active account holding the administration permissions”), and the reactivation of an anonymised account always is.
@@ -31,7 +31,7 @@ Above the table, for all:
 
 - **Filter by origin**, the node of attachment, **Filter by role** — an account that holds one of the roles chosen — and **Account state**; for the creation and the last modification, a period and an author. An author is chosen among those of the page; **Find** finds others among the accounts.
 - The search field keeps the accounts whose last name, first name or address contains the text entered.
-- **Columns** chooses the columns shown; **Rows per page**, **Previous page** and **Next page** go through the list.
+- **Columns** chooses the columns shown; **Rows per page**, **Previous** and **Next** go through the list.
 
 The search and the filters are kept with the settings of the grid: coming back to the screen without asking anything finds them again.
 

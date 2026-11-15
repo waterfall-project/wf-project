@@ -15,10 +15,11 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
-import { DesignateCommand } from "@/components/commands/revision-commands";
-import { findOffer } from "@/components/commands/offer";
+import { type CommandOffer, findOffer } from "@/components/commands/offer";
+import { CreateRevisionCommand, DesignateCommand } from "@/components/commands/revision-commands";
+import type { Project } from "@/components/context/reading";
 import { LocalTime } from "@/components/local-time";
-import { CELL, ICON, ListSection, ListTable } from "@/components/projects/project-tables";
+import { CELL, ICON, ListCard, ListTable } from "@/components/projects/project-tables";
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatPercent } from "@/i18n/format";
@@ -62,6 +63,26 @@ export interface RevisionHistoryProps {
   readonly revisions: readonly HistoryRevision[];
   /** The context of the screen: the revision it shows, and the filters its links carry on. */
   readonly context: ProjectContext;
+  /**
+   * The opening of the current revision, as the project lists it, which the card offers as its
+   * principal command; none, and the card offers none (the caller may not exercise it).
+   */
+  readonly creation?: RevisionCreation | undefined;
+}
+
+/** What opening the current revision takes: the offer of the project, and its name. */
+export interface RevisionCreation {
+  readonly offer: CommandOffer;
+  readonly project: Pick<Project, "project_id" | "label">;
+}
+
+/**
+ * The opening of the current revision of a project, when the project lists it — available, or
+ * naming what it lacks (WF-IHM-0090) —; `undefined` when the caller may not exercise it.
+ */
+export function revisionCreation(project: Project): RevisionCreation | undefined {
+  const offer = findOffer(project.available_commands, "create_revision");
+  return offer === undefined ? undefined : { offer, project };
 }
 
 /** The addresses a revision of the history leads to: shown on this screen, or opened. */
@@ -167,7 +188,7 @@ export function ReferenceDesignation({
     return null;
   }
   return (
-    <ListSection title={t("title")} icon={Star} empty={undefined}>
+    <ListCard title={t("title")} icon={Star} empty={undefined}>
       <ul className="space-y-2">
         {designable.map(({ revision, offer }) => {
           const named = name(revision);
@@ -188,18 +209,33 @@ export function ReferenceDesignation({
           );
         })}
       </ul>
-    </ListSection>
+    </ListCard>
   );
 }
 
 /** Render the history of the revisions of a project, or that it has none. */
-export function RevisionHistory({ revisions, context }: RevisionHistoryProps) {
+export function RevisionHistory({ revisions, context, creation }: RevisionHistoryProps) {
   const t = useTranslations("revisionScreen.history");
   return (
-    <ListSection
+    <ListCard
       title={t("title")}
       icon={GitBranch}
       empty={revisions.length === 0 ? t("none") : undefined}
+      principal={
+        creation === undefined
+          ? undefined
+          : {
+              does: "create",
+              command: (variant) => (
+                <CreateRevisionCommand
+                  offer={creation.offer}
+                  projectId={creation.project.project_id}
+                  names={{ [creation.project.project_id]: creation.project.label }}
+                  variant={variant}
+                />
+              ),
+            }
+      }
     >
       <ListTable
         label={t("title")}
@@ -219,6 +255,6 @@ export function RevisionHistory({ revisions, context }: RevisionHistoryProps) {
           <HistoryRow key={revision.revision_id} revision={revision} context={context} />
         ))}
       </ListTable>
-    </ListSection>
+    </ListCard>
   );
 }

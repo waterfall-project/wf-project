@@ -552,7 +552,9 @@ valeur de l'API ne prenne un sens pour Next (`NEXT_REDIRECT;…`), et qu'il affi
 le préfixe (`failure.ts`). Sans enveloppe, ou sans `correlation_id`, la référence affichée est le
 digest que Next calcule, celui de ses propres journaux. Un écran ne dit jamais « vide » sur une
 réponse qu'il n'a pas lue. Quand la session est illisible, la navigation garde l'écran d'état
-(WF-ADM-0130). Chaque segment qui lit l'API a son `loading.tsx`, le squelette `ScreenSkeleton`, qui
+(WF-ADM-0130). Chaque segment qui lit l'API a son `loading.tsx`, le squelette `ScreenSkeleton`, à la
+densité de ses écrans, que le `loading.tsx` lit dans la table des densités — un écran d'une autre
+famille que son segment a le sien, et l'écran aéré ne saute pas à son arrivée (#3269) —, qui
 porte un `role="status"` nommé — un lecteur d'écran ne l'annonce pas toujours ; la réponse est alors
 diffusée, et « introuvable » répond 200 et non 404 — un 404 doux, que Next marque `noindex` : le
 statut part avec le squelette, avant que la page sache l'objet introuvable. Il est le même pour
@@ -563,32 +565,40 @@ référentiel incomplet — se montre sur un exemple nommé du contrat (`empty`,
 
 L'accueil, `/`, est la liste des projets (`frontend/src/app/(home)/`, un groupe de routes pour qu'il
 ait son squelette sans en donner un à toutes les pages) : filtrée par défaut sur les projets dont
-l'utilisateur est contributeur, par le filtre du contrat (`is_contributor`), que l'écran montre et
-qu'un lien lève — `?is_contributor=false`, sous le nom du contrat
-(`frontend/src/navigation/home.ts`) — : un filtre, jamais une restriction de lecture (WF-PRJ-0060).
-Le lien qui le lève n'est offert qu'à une session qui porte `all_projects_read` (WF-ADM-0110) : levé
-pour un autre, le filtre rendrait la même liste, et le lien promettrait ce qu'il ne fait pas
-(WF-IHM-0090, #522) ; sans cette permission, l'accueil reste filtré quoi que dise l'adresse —
-`?is_contributor=false` compris, la page demandant `is_contributor=true` —, le badge « Mes projets »
-affiché sans aucun lien, et le choix du projet mène à l'accueil plutôt qu'à la liste levée. La barre
+l'utilisateur est contributeur, par le filtre du contrat (`is_contributor`) : un filtre, jamais une
+restriction de lecture (WF-PRJ-0060). L'écran est aéré (`PageHeader` en densité `airy`) et sa table
+tient dans une carte, `SectionCard` « Liste des projets », dont « Créer un projet » est la commande
+principale, pleine, à la droite du titre — pour la session qui porte la permission de créer un
+projet, aucune autre n'en a l'offre. Le filtre est une pastille « Mes projets (par défaut) » sous la
+barre de la table, que l'on ôte, et un champ « Projets » du panneau des filtres ; l'ôter écrit
+`?is_contributor=false`, sous le nom du contrat (`frontend/src/navigation/home.ts`), et une adresse
+qui ne dit rien vaut le filtre. Il n'est jamais gardé, ni dans l'adresse ni dans les préférences de
+la grille : à la connexion, l'utilisateur voit ses projets (WF-IHM-0120). La pastille et le champ ne
+sont offerts qu'à une session qui porte `all_projects_read` (WF-ADM-0110) : levé pour un autre, le
+filtre rendrait la même liste, et la pastille promettrait ce qu'elle ne fait pas (WF-IHM-0090,
+#522) ; sans cette permission, l'accueil reste filtré quoi que dise l'adresse —
+`?is_contributor=false` compris, la page demandant `is_contributor=true` —, sans pastille ni champ,
+et la description de la carte dit seule que la liste tient les projets dont la session est
+contributeur ; le choix du projet mène alors à l'accueil plutôt qu'à la liste levée. La barre
 latérale et le fil d'Ariane mènent à la liste filtrée, le choix du projet à la liste levée, « Tous
 les projets » ; `/projects`, l'ancienne adresse, renvoie à l'accueil. Les projets sont une
 configuration de plus de la grille dense (`project-list-grid.tsx`, préférences sous la clé
 `projects`) : le libellé, lien qui ouvre le projet, le code, l'état par sa pastille et la date de
 modification, chaque colonne triée par le serveur (`sort_by`), cherchée par lui sur le libellé et le
-code (`search`), filtrée par état — des boutons pressés qui n'écrivent que l'adresse (`states`) — et
+code (`search`), filtrée par état — un champ du panneau qui n'écrit que l'adresse (`states`) — et
 par période sur la dernière modification (`from`, `to`, EP-02/L42e) : deux jours saisis dans l'heure
 locale du lecteur, envoyés comme les instants du début du premier et du début du lendemain du
-dernier, la fin exclue. Une adresse qui ne nomme aucun état demande les six, l'accueil montrant tout
-ce que l'utilisateur peut ouvrir, là où le contrat, sans `states`, ne rendrait que les projets en
-cours (WF-PTF-0010) ; les boutons pressés sont les états que l'adresse nomme, « Tous les états »
-quand elle n'en nomme aucun : l'adresse fait foi. Une période que le serveur refuse — une fin qui
-précède le début, 422 `VALUE_OUT_OF_RANGE` sur `/query/to`, `params.minimum` le début donné — est
-dite à son champ, le début nommé par son jour local, qui prend le focus chaque fois que la liste
-revient refusée, comme une borne d'une colonne de nombres (`range-filter.tsx`) ; la liste n'est pas
-lue, et une phrase tient la place de la grille. Sa ligne de totaux dit combien de projets le serveur
-retient, et elle mène aux autres pages par `ListPages` ; une page demandée au-delà de sa fin le dit,
-et ramène à sa dernière page : seule une liste qui ne tient aucun projet, sans état, période ni
+dernier, la fin exclue. Les états se disent comme le filtre des projets, par des pastilles : une
+adresse qui ne nomme aucun état demande ceux que le compte a gardés, à défaut les états par défaut,
+Créé, Chiffrage et En cours, dits « (par défaut) » ; `states=all` les lève et demande les six,
+là où le contrat, sans `states`, ne rendrait que les projets en cours (WF-PTF-0010) : l'adresse fait
+foi. Une période que le serveur refuse — une fin qui précède le début, 422 `VALUE_OUT_OF_RANGE` sur
+`/query/to`, `params.minimum` le début donné — est dite à son champ, le début nommé par son jour
+local, qui prend le focus chaque fois que la liste revient refusée, comme une borne d'une colonne de
+nombres (`range-filter.tsx`) ; la liste n'est pas lue, et une phrase tient la place de la grille. Sa
+ligne de totaux dit combien de projets le serveur retient, et elle mène aux autres pages par
+`ListPages` ; une page demandée au-delà de sa fin le dit, et ramène à sa dernière page : seule une
+liste qui ne tient aucun projet, sans état, période ni
 recherche, se dit vide. Les écrans du projet lui-même — le projet, ses paramètres avec ses
 sous-projets et ses contributeurs, son cycle de vie — exercent la sortie du cycle de vie
 (`ExitCommand`), irréversible, confirmée dans la page avant que son action serveur ne la demande, la
@@ -724,7 +734,12 @@ qu'aucune commande ne mène à Chiffrage ni à En cours (WF-CYC-0020) ; le décl
 deux faits que le contrat énumère (`LifecycleTrigger`), dit par son catalogue
 (`enums.LifecycleTrigger`). Un projet qu'aucun fait ne mène plus loin — le serveur répond sans
 prochain état ni déclencheur — le dit : en cours, seules ses sorties restent ; terminal — un état où
-mène une sortie (`EXIT_STATES`) —, il est clos, et aucun état ne le suit (WF-CYC-0080).
+mène une sortie (`EXIT_STATES`) —, il est clos, et aucun état ne le suit (WF-CYC-0080). Le prochain
+état et l'historique des états sont chacun une carte de section, dans la colonne aérée (US-2130) ;
+les sorties restent à droite du titre de l'écran, à contour. L'écran des révisions suit la même
+présentation sans changer de structure (EP-27 la refond) : une carte par section, « Ouvrir une
+révision en cours » — la commande pleine, que `RevisionHistory` reçoit par `creation` — à droite du
+titre de la carte de l'historique, les commandes de la révision lue à droite du titre de l'écran.
 
 ### Les périodes d'une liste
 
@@ -774,14 +789,14 @@ l'alternative textuelle (WF-IHM-0100). Le composant client propre à la courbe (
 `milestone-chart.tsx`, `curve-series-chart.tsx`, `workload-chart.tsx`) lui remet son option,
 construite dans une palette : ECharts écrit ses couleurs dans les attributs de son SVG, où une
 variable CSS n'atteint pas, et les jetons `--chart-1` à `--chart-4`, `--muted-foreground`,
-`--foreground`, `--input`, `--border` et `--background` y arrivent par des sondes cachées que le
+`--foreground`, `--input`, `--border`, `--background` et `--card` y arrivent par des sondes cachées que le
 navigateur peint dans le mode affiché ; un changement de mode, du poste ou forcé par le compte
 (`data-theme`), redessine la courbe. Elle se dessine d'un coup, sans animation, et une légende y est
 inerte : un clic, à la souris seule, ne cache aucune série. `curve` nomme chaque courbe à son
 dernier point tracé, quel que soit leur nombre — pas de légende, qu'une entrée par sous-projet
 ferait déborder sur le tracé —, les noms qui se chevaucheraient écartés, et la distingue aussi par
-sa couleur, son symbole et son trait ; un plan de charge est un histogramme empilé (`stackedRoles`
-de `workload/stacked-load.ts` : une barre par mois, divisée par rôle, les motifs gardés), dont
+sa couleur et son trait, et par son symbole quand le compte demande les motifs ; un plan de charge est un histogramme empilé (`stackedRoles`
+de `workload/stacked-load.ts` : une barre par mois, divisée par rôle), dont
 l'infobulle d'un mois liste les rôles et leurs heures (`monthTooltip`, libellés échappés) ; celui du
 projet n'a pas de droite de capacité (#375) mais porte au sommet de chaque barre le total du mois
 que le serveur rend (`monthly_totals`, `monthTotals`), comme celui du portefeuille qui porte aussi,
@@ -792,8 +807,8 @@ et de leurs signaux étant sous le graphique ; les liens vers le plan de charge 
 le lien du reste à engager vers ce plan est une icône seule (`aria-label`, `title`), le titre de
 l'écran et les totaux de sa grille ne tenant dans la fenêtre de 1280 points qu'à ce prix
 (`remaining.spec.ts`) ; une courbe sans point tracé n'a pas de nom sur le dessin, son tableau la
-nomme ; une série de barres (`bars`) se distingue aussi par le motif du symbole de son rang, que la
-légende montre ; `timeAxis` gradue un axe de temps au premier de chaque mois que `monthTicks` tire
+nomme ; une série de barres (`bars`) porte le motif du symbole de son rang, que la légende montre, quand
+le compte le demande ; `timeAxis` gradue un axe de temps au premier de chaque mois que `monthTicks` tire
 des instants qu'il montre — tous les deux, trois, six mois ou chaque année sur une longue plage,
 l'année seule alors, ou tous les deux, cinq, dix ans, sur les années multiples du pas (#415) —,
 écrits dans la langue du poste, dans son fuseau ou en UTC pour un axe de dates de planning, que
@@ -830,6 +845,22 @@ figure descendue de la hauteur de leurs lignes, sur le fond de la charte, puis l
 choix qui change ce qu'une courbe lit — les délais de paiement, la base et le nœud d'organisation du
 plan de charge — est un paramètre de l'adresse, que le serveur envoie à l'API : le front ne filtre
 ni ne décale rien.
+
+**La présentation commune** (US-2160, #3097) : couleurs pleines ; barres minces (`bars` : la moitié
+de la place du mois, 28 points au plus), chaque part arrondie et séparée des voisines par un filet
+de la couleur de la page ; axe des valeurs sans trait ni graduation, lu par une grille horizontale
+en tirets clairs (`valueAxis`), aucune ligne verticale (`timeAxis`) ; légende en haut à gauche, une
+pastille de la couleur de chaque série ; infobulle en carte (le jeton `--card`, la bordure et
+l'ombre au ton de `--border`) ; la série sous le pointeur ressort, les autres s'estompent. `Chart`
+pose la légende et l'infobulle (`presented`), à l'écran comme dans l'image exportée ; les axes et
+les séries viennent des fonctions communes que chaque graphique appelle. L'échelle ne se rompt ni
+ne se zoome : l'infobulle et la table donnent les valeurs qu'un mois très chargé tasse. **Les
+motifs** — ceux des barres, les symboles des points, et la légende qui les montre — ne se dessinent
+que si le compte les demande (`chart_series_patterns` de `DisplayPreferences`, réglé sur « Mon
+compte », désactivé par défaut) : la mise en page racine lit la préférence avec le compte et la
+passe par `ChartPatternsProvider` (`chart/patterns.tsx`) ; `Chart` la lit seul et la met dans la
+palette (`ChartPalette.patterns`) que reçoit l'option, ce qui fait suivre l'export à la préférence
+de qui exporte. Le Gantt et les chronologies gardent leurs marques (`readPalette` sans préférence).
 
 Le plan de charge du projet (`…/workload`, FBS-4.4.4) est branché sur le service (EP-07, US-1520) :
 la page ne porte plus la note de la maquette (`MockupNotice`), `getProjectWorkload` rend la charge,
@@ -999,11 +1030,28 @@ contenu sous l'enveloppe de sa grille, hors de la chaîne qui la contient — f�
 fenêtre étroite, où le contenu voisin se range dessous (les coûts réels, les risques) —, ne remplit
 pas la fenêtre là où il l'a dessous (`fillWide`, `lg:min-h-0`), de même que `/admin/backups` et le
 référentiel des ressources et des coûts, qui empilent leurs grilles, ne la remplissent pas : la
-grille déborderait sur lui (#1033). `frontend/e2e/grid-frame.spec.ts` le mesure sur les neuf écrans
+grille déborderait sur lui (#1033). `frontend/e2e/grid-frame.spec.ts` le mesure sur les huit écrans
 qui remplissent la fenêtre, dans une fenêtre basse, aux deux largeurs du harnais : le cadre ne
-chevauche rien. La barre et le bouton « Colonnes » ont la largeur du cadre de la table, telle que le
-navigateur la pose (barres de défilement comprises, `frame-width.ts`), sans la dépasser, et jamais
-moins que ce que la barre tient sur une ligne (`min-w-min`, la recherche rétrécissant avant que rien
+chevauche rien. La largeur d'une table est du CSS, sans mesure en script (`table-width.ts`, US-2080,
+#3075) : le cadre a la largeur de sa carte, la table la plus grande de la carte et de la somme de ses
+colonnes, et la colonne du libellé (`label`) — à défaut, la dernière avant une colonne figée à la
+fin — prend ce que les autres laissent, la largeur choisie pour elle devenant son minimum : sa
+poignée et ses flèches règlent ce minimum, sans que la colonne rétrécisse sous ce que la carte lui
+donne ; un pas qui ne change rien à l'écran n'écrit rien, si bien que, tant que la carte est large,
+ce minimum ne peut que monter (#3280). Elle n'est plus large que sa largeur que quand la table ne
+défile pas de côté : les décalages des colonnes figées, tirés des largeurs choisies, restent justes.
+Aucun trait entre les colonnes, sauf à côté d'une colonne figée ; les cellules du corps prennent le
+fond de la carte qui porte la table (`CELL_BACKGROUND`, `bg-card`, #3277), opaque pour les colonnes
+figées, et la ligne sous le pointeur est teinte d'un jeton (`--row-hover`, `ROW_HOVER`), qu'une
+cellule calculée, une ligne choisie ou marquée d'un différentiel gardent sous leur propre teinte. Les
+commandes d'une ligne (variante `row` de `Button`) ont un bord à elles, `--row-command-border`, à
+3:1 sur la carte, le survol et la ligne choisie ; `--border`, qui ne fait que séparer, reste clair
+(#3332). Dans la ligne de total, le libellé du nombre s'étend sur les colonnes sans
+chiffre qui le suivent (`colSpan`) au lieu de se tronquer ; figé, il ne reste collé que sur les
+colonnes figées, ses mots au début de sa colonne (#3072). Les tables simples (`ui/table.tsx`) ont
+le texte, l'en-tête et l'absence de traits des grilles. La barre et le bouton « Colonnes » ont la
+largeur du cadre, celle de ce qui les tient, sans la dépasser, et jamais moins que ce que la barre
+tient sur une ligne (`min-w-min`, la recherche rétrécissant avant que rien
 ne s'enroule, hors la liste de commandes d'un écran, qui s'enroule d'elle-même) ; les avis — refus,
 collage appliqué, colonnes non montrées, problème de saisie — gardent toute la largeur (#1042).
 Colonnes masquées, largeurs et tri sont une préférence d'affichage (`settings.ts`, WF-IHM-0060) :
@@ -1035,6 +1083,21 @@ au-dessus de sa grille les taux horaires qui manquent à son calcul, avec le che
 pour qui le lit, et ses indicateurs, avec leur date de calcul, ou qu'ils sont indisponibles quand
 l'API ne les trouve pas ou les refuse faute de taux horaire (`HOURLY_RATE_MISSING`, #159) — ces deux
 cas ne font pas tomber l'écran ; toute autre réponse suit la règle des lectures (`EstimateSummary`).
+
+La barre de toute grille suit un seul ordre (`GridToolbar`, US-2080, décision de l'auteur du
+2026-11-14) : les commandes de l'écran, la recherche, « Filtres » — les menus d'une grille
+arborescente, ou le bouton du panneau d'une table plate —, « Colonnes », « Arbre » pour une grille
+arborescente, puis, à la fin, l'annulation et le rétablissement. Elle ne dit aucun nombre de lignes :
+la ligne de total le dit seule, ce qu'un filtre retient compris (#3072). La raison pour laquelle
+l'annulation attend, coupée à la place que laisse la barre, s'ouvre en entier quand on la presse — au
+clic, au toucher ou au clavier —, dans un Popover (#3150). Chaque filtre actif d'une table plate est
+une pastille dans la teinte de la couleur primaire (`bg-accent`, son texte en `text-primary`, la
+paire mesurée par `contrast.test.ts`), avec son libellé et sa croix (#3077). Les pages d'une liste
+(`ListPages`) sont à droite sous la table, au texte de la table, atténué : « Lignes par page »,
+l'intervalle des lignes montrées (« 1–50 sur 150 »), « Précédent », « Page n sur m » et « Suivant »,
+ces deux liens à place fixe, inertes en bout de liste (`aria-disabled`, sans adresse) ; tout se lit
+d'`offset`, `limit` et `meta.total` (`pageSpan`), sans saut de page ni première ou dernière page, et
+la navigation porte le nom de sa liste (#3073).
 
 Une grille qui lit un différentiel (`CostStructure.kind` = `amendment`) est un diff avec la
 structure principale, que le serveur calcule (`Node.difference`, rendu sur chaque nœud, avec les
@@ -1515,15 +1578,21 @@ tables simples, sans tri ni filtre (décision de l'auteur du 2026-10-08, #508). 
 nomme par le libellé que le serveur résout à la lecture, actif ou désactivé — jamais en rapprochant
 des listes dans le front ; une section se nomme par `aria-label` (#251).
 
-Les listes du référentiel ne lisent que les objets actifs, et les désactivés aussi quand l'adresse
-le demande (`include_inactive`, WF-REF-0150, #300), sous le nom du contrat, que l'en-tête de l'écran
-écrit ou lève par un lien (`InactiveSwitch`), qui ramène chaque liste paginée à sa première page — à
-une session seulement qui porte la permission d'écriture de leur partie du référentiel, sans
-laquelle le contrat le refuse (403, `inactiveQuery` d'`address.ts` ; décision #2084, option A,
-`docs/api/DECISIONS.md`), comme les listes du devis (#351). Le filtre par état (`is_active`,
-`StateFilter`) prime sur lui : tous les états, les actifs seuls, ou les désactivés seuls, offert à
-la même session seulement (`stateOf`). Un objet désactivé s'y dit par une marque et un mot, et s'y
-réactive comme le serveur liste sa commande
+Chaque liste du référentiel dit ce qu'elle montre des objets désactivés par son propre filtre
+d'état (`is_active` sous le préfixe de sa grille, `StateFilter`, WF-REF-0150, US-2090), un filtre
+par défaut de la grille comme les états de la liste des projets (#1747) : absent de l'adresse et des
+réglages du compte, il vaut « Actifs », dit par la pastille « État : Actifs (par défaut) » ;
+« Désactivés » les montre seuls ; la pastille ôtée les montre tous, l'adresse écrivant alors `all`
+pour que ni le compte ni le défaut ne reprennent la place (`stateOf`, `EVERY_STATE` d'`address.ts`).
+Le front envoie `is_active=true`, `is_active=false`, ou `include_inactive=true` sans `is_active`
+(`stateQuery`). Le choix se garde avec les réglages de la grille, par compte, dès qu'il diffère du
+défaut (`keptState`, `GridConfig.defaulted`, `kept-filters.ts`). L'écran n'a plus d'interrupteur
+« Afficher aussi les désactivés », et `include_inactive` dans son adresse n'est plus lu (#3076). Le
+filtre n'est offert qu'à une session qui porte la permission d'écriture de leur partie du
+référentiel, sans laquelle le contrat refuse les désactivés (403 ; décision #2084, option A,
+`docs/api/DECISIONS.md`) : une autre ne lit que les actifs, comme les listes du devis (#351). Les
+listes de choix des formulaires n'offrent que les actifs, quoi que montrent les tables. Un objet
+désactivé s'y dit par une marque et un mot, et s'y réactive comme le serveur liste sa commande
 (`available_commands`, #532, WF-IHM-0090) — le serveur ne la liste qu'à qui peut modifier cette
 partie, et le front n'en déduit rien : disponible, par la commande d'activation de sa nature
 (`setActivation`, une action serveur, depuis la version lue), puis la page relit ses listes ;
@@ -1826,7 +1895,7 @@ filtre se dit dans l'adresse, la recherche écrite vide (`search=`, `spokenHref`
 `PendingAddress` d'un écran qui nomme ce que garde sa grille), comme un tri levé écrit `sort_by`
 vide : la préférence se vide, et la page ne retrouve pas les filtres gardés (#836). L'écran des
 rôles est branché sur le service (US-0380/L2, #380) : à une session qui porte `access_roles.write`,
-la table crée un rôle en ligne, par son seul libellé (`role-commands.tsx`), le renomme dans sa
+la table crée un rôle par son seul libellé, dans le dialogue que « Nouveau rôle » ouvre — le bouton plein, à droite du titre de la carte (`role-commands.tsx`, `role-creation.tsx`) —, le renomme dans sa
 cellule — la saisie de la grille, écrite par `updateAccessRole` avec les permissions du rôle — et le
 supprime depuis sa ligne, après une confirmation qui nomme le rôle et dit la suppression définitive
 (`AlertDialog`, hors de la grille, Échap l'abandonnant) — une suppression logique (#456), que rien
@@ -1886,8 +1955,8 @@ comptes » ; un refus de l'interrupteur, des rôles ou de l'anonymisation, au-de
 la lecture d'où il est parti (`Reactivations`), celui d'un nom, à sa cellule. La recherche et les
 filtres se gardent avec les réglages de la grille et se retrouvent quand l'adresse ne dit rien de la
 table (`USER_KEPT`), comme pour les rôles. Sans la permission, rien ne s'écrit et aucune commande ne
-se présente. Au-dessus de la table, la lecture des comptes du fournisseur d'identité (US-0370,
-WF-ADM-0070, `identity-sync.tsx`) montre le compte rendu de la dernière lecture achevée
+se présente. Dans une carte sous la table, à droite de son titre une commande à contour, « Lire les comptes », et son état en corps, la lecture des comptes du fournisseur d'identité (US-0370,
+WF-ADM-0070, US-2100, `identity-sync.tsx`) montre le compte rendu de la dernière lecture achevée
 (`getLatestIdentitySync`), ou dit qu'aucune n'a encore abouti (404) : ses comptes créés, mis à jour,
 désactivés, ceux dont elle a rétabli l'identité dans le fournisseur, les comptes locaux qu'elle en
 retire, et, à la demande, ce qu'elle a laissé tel quel, chacun avec le motif du catalogue — un
@@ -2511,13 +2580,25 @@ appartiennent aux formulaires de leur domaine, sa modification à celui de ses p
 et ses conditions — une révision marquée les liste indisponibles, faute d'être en cours
 d'élaboration —, ses exports laissés à l'écran des imports et exports, qui les offre (`ExportForm`),
 ses saisies (`edit_*`) à leurs grilles et le squelette à la grille de planning vide (EP-14/L44d) ;
-`findOffer` en tire une seule, et `UnmetConditions` nomme ce qui manque à l'offre d'un formulaire
-qui n'est pas un `Command`. Hors projet — comptes, rôles, référentiel, sauvegarde —, `platformOffer`
+`findOffer` en tire une seule, et les formulaires disent ce qui leur manque comme les autres
+commandes, par `CommandTooltip` et, pressées, `PressRefusal` ; `UnmetConditions` ne reste que pour
+les commandes des chronologies (#3290). Hors projet — comptes, rôles, référentiel, sauvegarde —, `platformOffer`
 suit la permission de modification d'une fonction de portée `platform` (`PlatformFunction`) dans
 `Session.permissions`, ou `project_create` pour la création d'un projet, qu'aucun projet ne liste ;
 les commandes d'une sauvegarde sont celles qu'elle liste (`Backup.available_commands`, EP-14/L43f),
 le téléchargement et la restauration comprises. Griser n'est qu'une commodité : une commande
-disponible lance son action serveur, et le refus du serveur est dit par `OutcomeNotice`.
+disponible lance son action serveur, et le refus du serveur est dit par `OutcomeNotice`. Pressée,
+elle attend ce qu'elle a lancé — sa requête, écriture lente faite dans la requête comprise
+(l'ouverture d'une révision), ou la tâche de fond qu'elle a remise au suivi, jusqu'à sa fin
+(`useTaskRunning`) — de la même façon partout (`waiting.tsx`, #3103) : inerte (`aria-disabled`,
+une seconde pression ne relance rien), `aria-busy`, une roue à la place de son icône, à côté de son
+libellé, qui reste ; une réponse, un échec compris, la rend. L'attente se retrouve au remontage, dans
+l'onglet : le bouton remet sa tâche au suivi avec ce qu'il vise (`aim`, composé par `taskAim` de sa
+nature et de son objet — la révision marquée ou exportée, le projet d'un import, l'installation pour
+une sauvegarde ou une lecture des comptes), que le suivi garde avec elle dans la session de l'onglet
+(`storage.ts`) ; remonté — l'onglet rechargé, l'écran quitté puis retrouvé —, il attend sur la tâche
+qu'il vient de lancer ou, à défaut, sur celle qui court pour ce qu'il vise (`useRunningTask`, #3404).
+Une tâche lancée d'un autre onglet ou d'un autre poste n'a pas d'objet : aucun bouton ne l'attend.
 
 ### Les infobulles des commandes
 
@@ -2548,8 +2629,11 @@ Un article de menu s'écrit par `MenuCommand` (`menu-command.tsx`), qui prend l'
 et `onSelect` : le nom est à la fois le texte de l'article et celui de l'infobulle, et les touches
 sont posées sur l'article, montrées à sa fin et dans l'infobulle, d'une seule saisie. Un article qui
 mène ailleurs prend `href` au lieu d'`onSelect` — l'un ou l'autre, jamais les deux —, et s'y rend en
-lien ; `detail` est un texte que l'article dit sous son nom, la condition qui manque à un geste du
-Kanban (#1435).
+lien. Un article indisponible suit la règle de `Command` (#3430) : la condition qui lui manque
+(`unavailable`) se lit dans son infobulle, au pointeur comme au clavier, et le décrit, sans s'écrire
+sous son nom ; pressé, il ne lance rien, et l'écran qui tient le menu dit ce qui manque dans sa
+région des refus, depuis son `onSelect` — la carte du Kanban, par l'alerte de la carte, le menu
+refermé.
 
 L'infobulle suit WCAG 1.4.13 : elle s'ouvre au survol, après un court repos, et au focus du clavier,
 aussitôt — dans un menu, après le même repos, pour qu'Échap pressé aussitôt ferme le menu (`inMenu`,
@@ -2659,19 +2743,46 @@ catalogue, et l'écran remet la référence au suivi de la coquille par `useTrac
 (`frontend/src/components/tasks/`), avec la commande qui l'a lancée et, s'il y en a un, le nom que
 l'utilisateur lui a donné (WF-IHM-0080). Le suivi est commun aux neuf genres de tâche : il relit la
 tâche toutes les deux secondes tant qu'elle court, par l'action serveur `readBackgroundTask`, en
-montre l'avancement, ajoute sa fin à un journal (`role="log"`) lu quel que soit l'écran, offre de
-recharger l'écran quand elle a abouti — il ne recharge jamais de lui-même —, et rejoue la commande
-d'une tâche échouée. Son panneau est une feuille (`Sheet`) le long du bord droit de la fenêtre, qui
+montre l'avancement, ajoute sa fin à un journal (`role="log"`) lu quel que soit l'écran, relit de
+lui-même l'écran montré quand une tâche qui le concerne aboutit ou échoue — un écran du projet d'où
+elle est partie, ou, hors projet, cet écran même (`readsAnew`) —, offre de recharger l'écran quand
+elle a abouti, et rejoue la commande d'une tâche échouée. La lecture suivante part de la réponse de
+la précédente, non d'une entrée nouvelle : une lecture qui trouvait la tâche où elle en était laissait
+l'entrée telle quelle (#180), et le suivi s'arrêtait là — une tâche lue deux fois, aboutie, plus
+jamais lue (#3103). Son panneau est une feuille (`Sheet`) le long du bord droit de la fenêtre, qui
 porte aussi l'historique des messages (ci-dessous) : un dialogue modal titré « Tâches et messages »,
 qui garde le focus tant qu'il est ouvert et que ferment Échap, son bouton de fermeture, un clic hors
 du panneau ou « Recharger l'écran », le focus rendu au bouton de la barre. Le bouton de la barre
 (`TasksButton`) l'ouvre et dit, dans son nom et ses pastilles, le nombre des tâches suivies et celui
 des refus non lus. Rien ne l'ouvre de lui-même, sauf le refus d'un résultat au retour du navigateur,
-dont le téléchargement est parti du panneau. Une tâche remise ou finie se dit sous la barre, dans le
-flux de la page, sur l'écran où l'on est : la dernière, en une ligne courte qui reste jusqu'à la
-suivante — la confirmation sur place d'un succès que l'écran ne montre pas —, sans annonce, le
-journal parlant pour les fins ; son bouton la ferme, au clavier comme à la souris, et rend le focus
-au bouton de la barre, la tâche restant suivie (décision de l'auteur, #1179). Fermé, le panneau suit
+dont le téléchargement est parti du panneau. Une tâche remise se dit sous la barre, dans le flux de
+la page, sur l'écran où l'on est : la dernière, en une ligne courte qui reste jusqu'à la suivante,
+sans annonce ; son bouton la ferme, au clavier comme à la souris, et rend le focus au bouton de la
+barre, la tâche restant suivie (décision de l'auteur, #1179). La ligne ne dit pas une fin que porte
+une carte d'aboutissement — un succès, un échec — : la carte, qui reste et porte l'action, la dit
+seule, avec le journal des fins et le panneau, et la ligne de la tâche remise se ferme à son
+arrivée ; elle ne dit plus qu'un suivi interrompu, qui n'a pas de carte (décision de l'auteur du
+2026-11-14, #3292). Chaque succès et chaque échec se dit par une carte flottante au coin bas droit
+de la fenêtre (`EndCards`,
+`end-cards.tsx`, US-2170), montée par la coquille au-dessus de la page, qu'elle ne déplace pas : la
+phrase de la fin, le motif d'un échec, l'action qui suit — « Télécharger » le fichier d'un export, la
+tâche relue d'abord comme depuis le panneau, sinon « Ouvrir » l'écran d'où elle est partie — et sa
+croix. Elle reste jusqu'à ce qu'on l'ouvre — « Ouvrir » d'un clic simple, pas d'un clic qui ouvre
+un autre onglet — ou la ferme (`Tracking.cards`, faites avant que le journal soit tronqué) ;
+plusieurs s'empilent, la dernière en tête, dans une colonne bornée à la fenêtre, qui défile. Ce
+n'est pas une région vivante : le journal des fins l'annonce, sans prendre le focus, et l'inscrit à
+l'historique des messages, que le panneau garde. Un suivi interrompu n'a pas de carte ; une tâche
+retrouvée, son écran inconnu, n'a que sa croix. Fermée — par sa croix ou par son action — alors que
+le focus était dans la pile, le focus passe à la croix de la suivante, sinon de la précédente, sinon
+au bouton de la barre. Le fichier d'un export part de lui-même quand sa tâche aboutit et que l'écran
+qui l'a demandé est encore ouvert (`useDownloadWhenTaskSucceeds`, `ExportForm`, `TaskTreeExport`,
+#3103), la tâche relue d'abord ; l'écran quitté, la carte l'offre. Parti de lui-même, sans geste de
+l'utilisateur, il ne quitte ni ne recharge jamais l'écran : il passe par un cadre caché, sans
+scripts (`sandbox`), un refus de la route lu à l'adresse où elle renvoie le cadre et dit par la carte
+(`downloadWhenThere`, `result-download.tsx`) — pas par `fetch`, que la garde du réseau réserve au
+client de l'API et qui tiendrait le fichier en mémoire. Servi une fois (WF-DAT-0120), le fichier n'est
+plus offert par la carte, qui garde sa phrase et sa croix — ni quand la relecture avant un clic le
+dit parti. Fermé, le panneau suit
 encore ses tâches — la coquille les relit (`TaskPolling`), hors des entrées — et son journal parle
 toujours, hors du panneau, ou dedans tant qu'il est ouvert, où le focus est gardé. Une relance
 refusée comme périmée (412) perd sa commande, qui le serait encore, et une relecture refusée
@@ -3009,7 +3120,7 @@ commande.
 | `make check-<famille>`                                                  | une famille : `repo`, `spec`, `contract`, `back`, `front`, `front-image`, `roadmap`, `keycloak`, `service`, `production`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `make changes BASE=…`                                                   | les familles qu'une modification touche                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `make test-back TESTS=…`, `make test-front TESTS=…`, `make e2e TESTS=…` | un seul fichier de tests, pendant le développement ; sans `TESTS`, tous, comme dans la chaîne                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `make service-install`                                                  | amorce la plateforme de service démarrée, son royaume appliqué (`waterfall-api install`, US-0420) : applique les migrations sous le propriétaire des tables, crée l'installation, ses trois rôles prédéfinis et son administrateur local, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` par défaut), dans la langue `WATERFALL_DEFAULT_LANGUAGE` (`fr` par défaut), et son référentiel minimal (EP-05) : les paramètres communs, avec la devise `WATERFALL_CURRENCY` (`EUR` par défaut) et le nom de l'entreprise `WATERFALL_COMPANY_NAME` (`Delmas Automatismes` par défaut, ceux du témoin), les unités de durée, la correspondance des coûts réels, vide, le calendrier par défaut, la nature et la catégorie de provision pour risques ; écrit seul sur sa sortie le lien qui fixe son mot de passe, valable jusqu'à son emploi ; relancée, elle ne crée rien, dit ignorées une autre devise ou un autre nom, et écrit un nouveau lien, qui remplace le précédent, tant que l'administrateur n'a pas de mot de passe, aucun ensuite                                                                                                                                                                                              |
+| `make service-install`                                                  | amorce la plateforme de service démarrée, son royaume appliqué (`waterfall-api install`, US-0420) : applique les migrations sous le propriétaire des tables, crée l'installation, ses trois rôles prédéfinis et son administrateur local, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` par défaut), dans la langue `WATERFALL_DEFAULT_LANGUAGE` (`fr` par défaut), et son référentiel minimal (EP-05) : les paramètres communs, avec la devise `WATERFALL_CURRENCY` (`EUR` par défaut) et le nom de l'entreprise `WATERFALL_COMPANY_NAME` (`Delmas Automatismes` par défaut, ceux du témoin), et le fuseau horaire `WATERFALL_TIME_ZONE` (`UTC` si la variable est vide, à la première écriture seulement, un nom de la base IANA, refusé s'il est inconnu, dans lequel s'entend le jour courant, US-2200), les unités de durée, la correspondance des coûts réels, vide, le calendrier par défaut, la nature et la catégorie de provision pour risques ; écrit seul sur sa sortie le lien qui fixe son mot de passe, valable jusqu'à son emploi ; relancée, elle ne crée rien, dit ignorés une autre devise, un autre nom ou un autre fuseau — relancée sans fuseau, rien n'est dit —, et écrit un nouveau lien, qui remplace le précédent, tant que l'administrateur n'a pas de mot de passe, aucun ensuite                                                                                                                                                                                              |
 | `make service-witness`                                                  | charge le témoin sur la plateforme de service démarrée et amorcée (`waterfall-api load-witness`, service `witness`, EP-05) : les exemples du contrat, `fixtures/api/`, montés en lecture seule, écrits par le rôle du service ; relancée, elle n'écrit rien ; une tranche par objet, dans l'ordre des dépendances, en une transaction (« Le back et les frontières du noyau »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `make service-purge`                                                    | lance à la main la purge de ce qui a expiré sur la plateforme de service démarrée (`waterfall-worker purge`, dans le conteneur du service `scheduler`, qui l'appelle à l'intervalle de `WATERFALL_PURGE_INTERVAL`, 600 s par défaut) : comptes rendus d'import échus, dépôts échus, exports de plus de vingt-quatre heures, historique des sessions de plus de `WATERFALL_UNDO_RETENTION_HOURS` heures (12 par défaut), et les objets que plus aucune ligne ne désigne sous `uploads/` et `exports/` ; deux purges ne tournent jamais ensemble (verrou consultatif)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `make service-up`, `make service-down`                                  | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, le stockage objet Garage et ses compartiments, les migrations, l'API, le worker et le planificateur de ses tâches, le service de la restauration, Keycloak derrière son frontal HTTPS et son royaume, appliqué de nouveau à chaque démarrage par `keycloak-realm`, qui reste démarré pour le réappliquer après une restauration, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son stockage, son annuaire et l'autorité de son frontal ; `service-up` refuse un volume PostgreSQL d'une autre majeure que 18, en affichant le refus de `postgres-volume`, qui dit ce remède (US-1130)                                                                                                                                                                                                                                                                                                                                                                                                                                                |
@@ -4838,6 +4949,10 @@ d'US-0200 dans le fichier d'EP-14 le dit aussi) :
   jouent que sur la liste des révisions d'un projet, en clair et en sombre, aux deux largeurs
   (US-1220) ; un défaut propre à la coquille d'un autre écran — un en-tête que la page change — ne
   se verrait qu'à son audit d'axe et à son parcours au Tab, qui, eux, se jouent sur chaque écran ;
+- le panneau d'aide de chaque écran : il n'est ouvert et audité par axe que sur l'écran de
+  référence de la coquille, la liste des révisions, ses pages partageant leur rendu — un seul
+  composant, `ScreenHelp` de `help-panel.tsx`, une seule charte — ; le contenu de chaque page
+  d'aide se relit ailleurs (`help.test.ts`) (#1985, option 1, décision de l'auteur du 2026-11-14) ;
 - la liste ou le popover qu'un éditeur de cellule rendrait dans un portail hors de la cellule :
   l'audit d'un éditeur porte sur la cellule, et aucun éditeur d'aujourd'hui n'en rend un ;
 - le contenu d'un `details` fermé — le tableau des valeurs d'une courbe — et un état qu'un geste
@@ -5169,9 +5284,12 @@ deux catalogues, et nomme chaque clé qui manque et le catalogue qui la porte.
 La charte vit dans `frontend/src/theme/globals.css`, et nulle part ailleurs (hors les pages de connexion, ci-dessous) : les couleurs,
 la typographie, les espacements et les rayons y sont des jetons — des variables CSS que
 Tailwind et les composants de shadcn/ui lisent par le thème (`bg-primary`,
-`text-muted-foreground`, `rounded-md`). Les bleus viennent des logos de `docs/assets`
-(`#027dc6`, `#1195e1`), qui n'atteignent un composant que par des jetons mesurés, les
-neutres de shadcn/ui ; la police est Geist, celle du logo.
+`text-muted-foreground`, `rounded-md`). La charte est celle d'EP-25 (US-2070, d'après la maquette
+de l'auteur, #3079) : une barre latérale bleu nuit (`#0f1b2d`, l'entrée courante `#22324b`, son
+texte clair) dans les deux modes, une page gris pâle (`#f3f5f8`) sous des cartes blanches, la
+couleur primaire bleu nuit (`#14233b`) ; le mode sombre a les mêmes formes et ses propres valeurs.
+Les bleus des logos de `docs/assets` (`#027dc6`, `#1195e1`) ne servent plus qu'au logo et à
+l'anneau du focus ; la police est Geist, celle du logo.
 
 - **Clair et sombre par les mêmes jetons.** Chaque jeton de couleur porte ses deux valeurs,
   `light-dark(claire, sombre)`. Le document suit le poste (`color-scheme: light dark`) ; quand
@@ -5233,16 +5351,52 @@ neutres de shadcn/ui ; la police est Geist, celle du logo.
   du paquet `radix-ui`, un seul, examiné pour la garde réseau. Un composant qui en passe un
   autre à un composant client depuis un composant serveur lui passe un élément, jamais une
   fonction — une icône se remet dessinée (`commandIcon`).
-- **La mise en page** suit la maquette validée par l'utilisateur (EP-02, « Charte graphique ») : la
-  barre latérale est le Sidebar de shadcn/ui, repliable en rail d'icônes dont chaque entrée garde
-  son nom et le montre en infobulle ; la barre du haut porte le fil d'Ariane, la recherche, le
-  bouton du panneau des tâches et des messages et, à droite, le bouton de l'avatar qui déroule le
-  menu du compte (DropdownMenu). Un écran se construit sur le gabarit de
-  `frontend/src/components/shell/page-header.tsx` : `Screen`, son `<main>`, et `PageHeader`, le
-  titre et l'icône de sa fonction, une ligne dessous, ses commandes à droite.
-- **La densité** : les grilles et les listes sont denses — le plus d'informations sous les
-  yeux —, les écrans d'indicateurs aérés ; chaque fonction a la sienne, dans une table typée
-  (`FUNCTION_DENSITY`, `function-display.ts`), que `Screen` et `PageHeader` reçoivent.
+- **La mise en page** suit la maquette validée par l'auteur (EP-02, puis EP-25) : la barre
+  latérale est le Sidebar de shadcn/ui, sombre dans les deux modes, repliable en rail d'icônes dont
+  chaque entrée garde son nom et le montre en infobulle ; à l'intérieur, les jetons que nomment ses
+  entrées (`muted-foreground`, `primary`, `ring`…) prennent les valeurs de la barre
+  (`[data-sidebar="sidebar"]` de `globals.css`), et la tuile du choix du projet, pâle, y porte son
+  icône bleu nuit. La barre du haut, sans fond propre, est posée sur le gris de la page ; elle
+  porte le fil d'Ariane, la recherche, le bouton du panneau des tâches et des messages et, à
+  droite, le bouton de l'avatar qui déroule le menu du compte (DropdownMenu). Un écran se construit
+  sur le gabarit de `frontend/src/components/shell/page-header.tsx` : `Screen`, son `<main>`, et
+  `PageHeader`, le titre et l'icône de sa fonction, une ligne dessous, ses commandes à droite.
+- **Deux familles d'écrans, dites par `Screen`** (EP-25, #3075, #3090). Un écran de travail —
+  planning, devis, reste à engager, arbre des tâches, coûts réels, Kanban, chronologies, registre
+  des risques, journal d'audit — est serré (`dense`) et prend toute la largeur de la fenêtre, et sa
+  hauteur quand il porte une grille (`fill`) ; un écran de réglage ou de consultation — tous les
+  autres — est une colonne centrée, bornée à 96rem (`--container-column`), en densité aérée
+  (`airy`). Chaque fonction a sa famille, dans une table typée (`FUNCTION_DENSITY`, et
+  `LEAF_DENSITY` pour une feuille qui a son écran, `function-display.ts`), que `Screen` et
+  `PageHeader` reçoivent ; `function-display.test.ts` tient la liste des écrans de travail.
+  `Screen` n'a pas de densité par défaut, et l'écran d'une fonction ne l'écrit jamais en
+  littéral (`src/app/screen-density.test.ts`, qui nomme les écrans hors de la table : l'accueil,
+  l'écran d'un projet, le compte, une page introuvable… ; le compte et l'écran d'un projet restent
+  serrés jusqu'à leur recomposition, US-2130). Ce contrôle et la largeur de `main` mesurée sur un
+  écran de chaque famille dans une fenêtre large (`e2e/theme.spec.ts`) tiennent les deux familles.
+  Écartées : une largeur en pourcentage, et un plafond de 72rem.
+- **Une section d'écran est une carte**, `SectionCard`
+  (`frontend/src/components/shell/section-card.tsx`, sur la `Card` de shadcn/ui) : une région
+  nommée par son titre, un titre de
+  niveau 2, ses commandes à droite du titre, puis son corps. Ses commandes passent à la ligne sous
+  le titre plutôt que de déborder : à 150 % d'agrandissement, aucune ne devient inatteignable. Un
+  écran ne compose pas sa carte lui-même. La grille d'un écran de travail, qui n'a pas de titre de
+  section — celui de l'écran le dit —, et un graphique qui se nomme lui-même ont la carte de grille,
+  `GridCard` (`frontend/src/components/shell/grid-card.tsx`, #3421, #3446) : sans titre ni
+  commandes, elle remplit la place que l'écran lui laisse (`fill`) ; `SectionCard` garde son titre
+  exigé. Une section vide dit sa phrase à la place de son corps (`empty` de `ReferenceCard`).
+- **La règle des commandes** (#3088, règles 2 à 4) : une carte a au plus une commande principale,
+  la dernière à droite de son titre (`principal`), pleine quand elle crée ou déclenche, à contour
+  quand elle modifie — l'écran dit à la carte ce qu'elle fait (`does`) et lui donne la commande
+  comme une fonction de sa variante (`command: (variant) => …`), que la carte appelle avec la
+  variante de ce mot (`principalVariant`) : aucun écran ne la choisit. Une fonction ne passe pas
+  d'un composant serveur à un composant client (défaut n° 12 de `docs/dev/typescript.md`) : un
+  écran serveur rend la carte lui-même. Ses autres commandes sont à contour, comme les commandes
+  d'un écran à droite de son titre. Le plein est réservé à la commande principale : un choix
+  courant se dit autrement. `expectCommandRule` (`frontend/src/test/command-rule.ts`) la lit dans
+  ce qu'un test a rendu — un bouton est plein quand il porte les classes de la variante pleine de
+  `buttonVariants` que la variante à contour n'a pas, et le module refuse de se charger si elles
+  n'en ont aucune qui les distingue — ; un écran recomposé en cartes l'appelle dans ses tests.
 - **Une icône Lucide sur chaque entrée de navigation, chaque bouton et chaque nature de ligne.**
   Pour les fonctions, les blocs, les commandes, les pages du compte, les natures de ligne, les modes
   de planification et les états d'avancement, elle est tirée d'une table typée sur ce qu'elle
@@ -5253,13 +5407,15 @@ neutres de shadcn/ui ; la police est Geist, celle du logo.
   icône seule porte un nom — le bouton qui la porte, ou l'icône elle-même (`role="img"`), la nature
   d'une ligne dans sa cellule.
 - **La sobriété** : aucun ornement hors des icônes — ni dégradé, ni ombre décorative, ni transition,
-  ni animation, hors la pulsation du squelette de chargement, qui dit un état et s'arrête quand le
-  poste demande moins de mouvement ; une seule ombre, `shadow-md`, sur ce qui flotte au-dessus de la
+  ni animation, hors la pulsation du squelette de chargement et la roue d'un bouton qui attend
+  (`waiting.tsx`), qui disent un état et s'arrêtent quand le poste demande moins de mouvement ; une seule ombre, `shadow-md`, sur ce qui flotte au-dessus de la
   page (un menu), pour l'en détacher. `src/components/ui/sobriety.test.ts` le vérifie pour les
   composants copiés. Un état se dit en mots — un badge, une pastille —, jamais par la seule couleur.
 - **Le logo et le favicon** sont les fichiers de `docs/assets`, copiés à l'octet près dans
-  `frontend/public/` et `frontend/src/app/icon.svg` ; le logo prend sa variante sombre là où
-  le mode sombre s'applique.
+  `frontend/public/` et `frontend/src/app/icon.svg`. Sur la barre latérale, sombre dans les deux
+  modes, le logo est toujours dans sa variante pour fond sombre (`BarLogo`) ; posé sur la page —
+  la barre du haut, sans barre latérale —, il prend sa variante sombre là où le mode sombre
+  s'applique (`Logo`).
 
 _Contrôles_ : `make lint-front` — `no-restricted-syntax` (`COLOUR_SYNTAX` de
 `frontend/eslint.config.mjs`) refuse, dans toute chaîne du code, une classe de couleur de la
@@ -5281,8 +5437,9 @@ happy-dom, qui ne calcule pas les couleurs). Reste à la revue : une couleur bâ
 expressions ou par une fonction, et un `style` ou un attribut de SVG qui reçoit une variable plutôt
 qu'un objet ou un littéral écrit sur place ; et, pour la mise en page, qu'un bouton ou une entrée
 porte son icône hors des tables typées — un bouton écrit à la main —, qu'aucune ombre, aucun dégradé
-ni aucune animation n'orne un composant copié, qu'un écran prenne le gabarit et la densité de sa
-fonction, et qu'un composant copié n'entre qu'avec l'écran qui l'emploie.
+ni aucune animation n'orne un composant copié, qu'un écran prenne le gabarit et la famille de sa
+fonction, que ses sections soient des cartes et que ses tests appellent `expectCommandRule`, et
+qu'un composant copié n'entre qu'avec l'écran qui l'emploie.
 
 **Les pages de connexion.** Keycloak sert les siennes, et aucun fichier du front : le thème
 `waterfall` (`deploy/keycloak/themes/waterfall/login/`) les habille de la charte par sa propre

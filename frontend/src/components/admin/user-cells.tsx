@@ -43,6 +43,7 @@ import { useAccountNaming } from "@/components/account/account-name";
 import { useUnmet } from "@/components/commands/command";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { findOffer, UNAVAILABLE } from "@/components/commands/offer";
+import { byField } from "@/components/grid/cell-writes";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { CellCommand } from "@/components/reference/cell-command";
 import { useListReport } from "@/components/reference/reactivation";
@@ -351,8 +352,15 @@ export function AttachmentCell({
           writes.run(user, {
             target: `attachment ${user.user_id}`,
             asked: { org_node_id: node },
-            send: (shown) =>
-              updateUser(shown.user_id, { org_node_id: node, lock_version: shown.lock_version }),
+            // A refusal by field says its reason, the node deactivated between the reading and the
+            // choice (`INACTIVE_REFERENCE_OBJECT` of `/org_node_id`), not the generic sentence.
+            send: async (shown) =>
+              byField(
+                await updateUser(shown.user_id, {
+                  org_node_id: node,
+                  lock_version: shown.lock_version,
+                }),
+              ),
             said: (answered) => t("attached", { name: naming.person(answered) }),
             back: control.current,
           });

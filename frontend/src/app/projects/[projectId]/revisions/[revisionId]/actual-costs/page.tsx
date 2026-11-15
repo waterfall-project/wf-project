@@ -17,7 +17,8 @@
  * starts, a sub-project the project does not have — are said in place of the lines, the filters
  * kept to be changed, the end of a period refused said at its field with the start the API was
  * given (`params.minimum`); any other read the API refuses, or cannot answer, is thrown for the
- * pages of the shell to say.
+ * pages of the shell to say. The grid, with its bar and its pages, is a card of work
+ * (`GridCard`, EP-25, US-2140/L2) beside the journal of the imports, a card of its own.
  */
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -69,6 +70,7 @@ import { requestSession } from "@/session/request";
 import { screenMetadata } from "../../../../../title";
 import { type GridAddress, gridAddress } from "../grid-screen";
 import type { RevisionParams } from "../page";
+import { GridCard } from "@/components/shell/grid-card";
 
 /** The refusal of filters the server cannot apply (`listActualCosts`, 422). */
 const FILTERS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
@@ -177,23 +179,17 @@ const EXCHANGES = leafOf("FBS-4.3.4");
 const ExchangesIcon = LEAF_ICONS["FBS-4.3.4"];
 
 /**
- * The title of the screen, and how many lines the filters retain; and the link to the imports and
- * exports of the project, in the same context.
+ * The title of the screen, which says no count of lines — the total line of the grid says it is
+ * of the lines retained (EP-25, US-2140/L2) —; and the link to the imports and exports of the
+ * project, in the same context.
  */
-function CostsHeader({
-  count,
-  exchanges,
-}: {
-  readonly count: number | undefined;
-  readonly exchanges: string | undefined;
-}) {
+function CostsHeader({ exchanges }: { readonly exchanges: string | undefined }) {
   const t = useTranslations();
   return (
     <PageHeader
       title={t("functions.actualCosts")}
       icon={FUNCTION_ICONS.actual_costs}
       density={FUNCTION_DENSITY.actual_costs}
-      subtitle={count === undefined ? undefined : t("actualCosts.summary", { count })}
       actions={
         exchanges === undefined ? undefined : (
           <CommandTooltip label={t(EXCHANGES.label)} help={t("commands.exchanges.help")}>
@@ -278,40 +274,39 @@ export default async function ActualCostsPage({
       {/* The filters, the grid and the pages compose the changes they make to the address. */}
       <PendingAddress>
         <Screen density={FUNCTION_DENSITY.actual_costs} fillWide>
-          <CostsHeader
-            count={"refused" in costs ? undefined : costs.page.total}
-            exchanges={functionHref(EXCHANGES, at.context)}
-          />
+          <CostsHeader exchanges={functionHref(EXCHANGES, at.context)} />
           {"refused" in costs ? null : (
             <CostSummary totals={costs.costs.totals} lastImport={costs.lastImport} />
           )}
           <div className="flex flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row">
-            <div className="flex min-w-0 flex-col gap-2 lg:min-h-0 lg:flex-1">
-              {"refused" in costs ? (
-                <>
-                  {panel}
-                  <CostsRefused reason={costs.refused} />
-                </>
-              ) : (
-                <>
-                  <CostsGrid
-                    costs={costs.costs}
-                    query={query}
-                    preferences={preferences}
-                    linked={exclusion !== undefined}
-                    filters={filters}
-                    subproject={subproject}
-                    subprojects={subprojects}
-                    panel={panel}
-                  />
-                  <ListPages
-                    list={COSTS_LIST}
-                    texts="actualCosts.pages.costs"
-                    page={costs.page}
-                    shown={costs.costs.items.length}
-                  />
-                </>
-              )}
+            <div className="flex min-w-0 flex-col lg:min-h-0 lg:flex-1">
+              <GridCard fill>
+                {"refused" in costs ? (
+                  <>
+                    {panel}
+                    <CostsRefused reason={costs.refused} />
+                  </>
+                ) : (
+                  <>
+                    <CostsGrid
+                      costs={costs.costs}
+                      query={query}
+                      preferences={preferences}
+                      linked={exclusion !== undefined}
+                      filters={filters}
+                      subproject={subproject}
+                      subprojects={subprojects}
+                      panel={panel}
+                    />
+                    <ListPages
+                      list={COSTS_LIST}
+                      texts="actualCosts.pages.costs"
+                      page={costs.page}
+                      shown={costs.costs.items.length}
+                    />
+                  </>
+                )}
+              </GridCard>
             </div>
             <aside className="flex shrink-0 flex-col gap-4 lg:w-[28rem] lg:overflow-y-auto">
               {exclusion === undefined || line === undefined ? null : (

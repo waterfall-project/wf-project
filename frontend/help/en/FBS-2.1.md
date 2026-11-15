@@ -23,7 +23,7 @@ Above the list:
 
 - **Filter by zone of the indices** keeps the projects whose cost index or schedule index is in one of the zones chosen; **Every zone** lifts the filter. A project without an index is in no zone.
 - The search field keeps the projects whose label contains the text entered.
-- **Columns** chooses the columns shown; **Rows per page**, **Previous projects** and **Next projects** go through the list.
+- **Columns** chooses the columns shown; **Rows per page**, **Previous** and **Next** go through the list.
 
 The label of a project you may consult is a link that opens it.
 

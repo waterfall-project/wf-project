@@ -37,8 +37,8 @@ function AvatarScreen({
 }) {
   const t = useTranslations();
   return (
-    <Screen>
-      <PageHeader title={t("accountMenu.avatar")} icon={ACCOUNT_ICONS.avatar} />
+    <Screen density="airy">
+      <PageHeader title={t("accountMenu.avatar")} icon={ACCOUNT_ICONS.avatar} density="airy" />
       <Card className="max-w-3xl">
         <CardHeader>
           <CardTitle>{t("account.avatar.current")}</CardTitle>

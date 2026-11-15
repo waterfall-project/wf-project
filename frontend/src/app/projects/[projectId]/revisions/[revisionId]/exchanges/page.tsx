@@ -47,8 +47,7 @@ import { readMappingGap } from "@/components/exchanges/mapping-gap";
 import { readShownImport } from "@/components/exchanges/shown-import";
 import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridPreferences } from "@/components/grid/settings";
-import { ICON } from "@/components/projects/project-tables";
-import { LEAF_ICONS } from "@/components/shell/function-display";
+import { LEAF_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { contextQuery, type PageSearchParams } from "@/navigation/context";
 import { requestSession } from "@/session/request";
@@ -107,7 +106,7 @@ function ExportPart({
 }) {
   const t = useTranslations("exchanges.export");
   return (
-    <Part title={t("title")} icon={<FileDown aria-hidden="true" className={ICON} />}>
+    <Part title={t("title")} icon={FileDown}>
       <ExportForm projectId={revision.projectId} revisionId={revision.revisionId} offers={offers} />
     </Part>
   );
@@ -120,6 +119,7 @@ function ExchangesHeader() {
     <PageHeader
       title={t("functions.exchanges")}
       icon={LEAF_ICONS["FBS-4.3.4"]}
+      density={LEAF_DENSITY["FBS-4.3.4"]}
       subtitle={t("exchanges.subtitle")}
     />
   );
@@ -162,7 +162,7 @@ export default async function ExchangesPage({
   return (
     <>
       <ContextBanner reading={reading} />
-      <Screen>
+      <Screen density={LEAF_DENSITY["FBS-4.3.4"]}>
         <ExchangesHeader />
         {shown === undefined ? null : (
           <ImportReport key={shown.import_id} projectId={projectId} entry={shown} start={start} />

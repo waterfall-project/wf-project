@@ -37,12 +37,7 @@ import { ExitCommands } from "./exit-command";
 import { isExit } from "./exits";
 import { commandIcon, REVISION_COMMAND_ICONS } from "./icons";
 import { MarkCommand } from "./mark-command";
-import { findOffer } from "./offer";
-import {
-  AbandonCommand,
-  CreateRevisionCommand,
-  PrepareAmendmentCommand,
-} from "./revision-commands";
+import { AbandonCommand, PrepareAmendmentCommand } from "./revision-commands";
 
 type RevisionCommand = components["schemas"]["RevisionCommand"];
 
@@ -212,8 +207,8 @@ function RevisionCommandItem({
 
 /**
  * The commands of a revision the caller may exercise, its exports and those its screens offer left
- * out; and, on the screen of the revisions, which gives its project, the opening of the current
- * revision the project lists, first — the revision being none, it is the only one.
+ * out — and the opening of the current revision, which the card of the history of the revisions
+ * offers as its principal command (`RevisionHistory`, US-2130).
  */
 export function RevisionCommands({
   revision,
@@ -221,13 +216,12 @@ export function RevisionCommands({
   context,
 }: {
   readonly revision: Revision | undefined;
+  /** The project, whose label names it in the outcome of a command. */
   readonly project?: Project | undefined;
   /** The reading context, which the commands that lead to a screen of the revision keep. */
   readonly context: ProjectContext;
 }) {
   const t = useTranslations();
-  const create =
-    project === undefined ? undefined : findOffer(project.available_commands, "create_revision");
   const name = revision?.version_name ?? t("contextBanner.currentRevision");
   const names = {
     ...(project === undefined ? {} : { [project.project_id]: project.label }),
@@ -239,32 +233,19 @@ export function RevisionCommands({
     ) ?? [];
   return (
     <CommandList>
-      {[
-        ...(project === undefined || create === undefined
-          ? []
-          : [
-              <li key={`${project.project_id}:create_revision`}>
-                <CreateRevisionCommand
-                  offer={create}
-                  projectId={project.project_id}
-                  names={names}
-                />
-              </li>,
-            ]),
-        ...(revision === undefined
-          ? []
-          : commands.map((offer) => (
-              <li key={`${revision.revision_id}:${offer.command}`}>
-                <RevisionCommandItem
-                  offer={offer}
-                  revision={revision}
-                  name={name}
-                  names={names}
-                  context={context}
-                />
-              </li>
-            ))),
-      ]}
+      {revision === undefined
+        ? []
+        : commands.map((offer) => (
+            <li key={`${revision.revision_id}:${offer.command}`}>
+              <RevisionCommandItem
+                offer={offer}
+                revision={revision}
+                name={name}
+                names={names}
+                context={context}
+              />
+            </li>
+          ))}
     </CommandList>
   );
 }

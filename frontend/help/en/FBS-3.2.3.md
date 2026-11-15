@@ -10,14 +10,14 @@ One and only one active calendar is designated **Default**, marked in its column
 
 These commands are offered only to whoever may modify the resource settings:
 
-- **New calendar** opens the form: the label and the hours of each of the seven days, all required.
+- **New calendar**, a filled button at the right of the title of the calendars card, opens the form: the label and the hours of each of the seven days, all required.
 - **Modify**, on a row, opens the same form on the calendar.
 - **Designate**, in the column **Default**, makes the calendar the default one, in the place of the previous one. Unavailable for a deactivated calendar (“calendar active”).
 - **Deactivate** and **Reactivate**, in the column **State**, without confirmation. The default calendar is deactivated only after another one has been designated (“calendar other than the default one”).
 
 An unavailable command stays shown and says the condition it lacks. A label already borne is refused at its field, which names the calendar that bears it.
 
-Above the table, for all: a filter of state when the deactivated ones are shown; the search field, on the label; **Columns**, **Rows per page**, **Previous page** and **Next page**. The hours of a day are not filtered.
+Above the table, for all: the **State** filter of its bar — **Active** (by default), **Deactivated**, **Every state** —, offered to whoever may modify the resource settings; the search field, on the label; **Columns**, **Rows per page**, **Previous** and **Next**. The hours of a day are not filtered.
 
 ## Its columns and computed values
 

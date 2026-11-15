@@ -174,6 +174,32 @@ describe("the end of the analysis of an import, followed from the import the scr
     expect(router.refresh).toHaveBeenCalledTimes(3);
   });
 
+  it("waits, inert and busy with a wheel in place of its icon, while the file is sent and its analysis runs, then stays inert, taking no other file [WF-IHM-0080-A] [WF-ARC-0090-A] (#3279)", async () => {
+    serve({
+      [UPLOAD]: { example: "file_upload", status: 201 },
+      [OPEN]: { example: "import_analysing", status: 202 },
+      [TASK]: "task_import_succeeded",
+    });
+    render(shell(<FileDrop projectId={PROJECT} start={START} />));
+    const choose = screen.getByRole("button", { name: /^Choisir/ });
+    expect(choose).toHaveAttribute("aria-busy", "false");
+    fireEvent.drop(screen.getByRole("group"), {
+      dataTransfer: { files: [new File(["<Project/>"], "planning.xml", { type: "text/xml" })] },
+    });
+    await waitFor(() => {
+      expect(choose).toHaveAttribute("aria-busy", "true");
+    });
+    expect(choose).toHaveAttribute("aria-disabled", "true");
+    expect(choose.querySelector("[data-waiting]")).not.toBeNull();
+    await pollToItsEnd();
+    await waitFor(() => {
+      expect(choose).toHaveAttribute("aria-busy", "false");
+    });
+    // The file sent: no other is taken, the button marked all the same, without its wheel.
+    expect(choose).toHaveAttribute("aria-disabled", "true");
+    expect(choose.querySelector("[data-waiting]")).toBeNull();
+  });
+
   it("reads the screen anew at the end of the analysis of an import just opened, the zone gone meanwhile [WF-ARC-0090-A]", async () => {
     serve({
       [UPLOAD]: { example: "file_upload", status: 201 },

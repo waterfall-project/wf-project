@@ -15,8 +15,8 @@ An empty list says so; a search or a filter that keeps nothing keeps the table, 
 
 These commands are offered only to whoever may modify the cost settings:
 
-- **New cost type** opens the form of the cost type: code, unique, label and kind, all required.
-- **New category** opens that of the category: code and accounting code, both unique, label and cost type, all required.
+- **New cost type**, at the right of the title of the card of the cost types, opens the form of the cost type: code, unique, label and kind, all required.
+- **New category**, at the right of the title of the card of the categories, opens that of the category: code and accounting code, both unique, label and cost type, all required.
 - **Modify**, on a row, opens the same form on the object. The kind of a cost type is no longer modified once one of its categories is used by a line of estimate or of remaining to commit, bears an hourly rate or is attached to a resource role; the form says which of these conditions is lacking. A category is then attached only to a cost type of the same kind.
 - **Deactivate** and **Reactivate**, in the column **State**, change the state of the object, without confirmation. The reactivation of a category whose cost type is deactivated is unavailable (“cost type active”): the command stays shown and says the condition it lacks.
 
@@ -25,9 +25,9 @@ A code or a label already borne is refused at its field, which names the object 
 Above each table, for all:
 
 - **Kinds of cost type** keeps the cost types of the kinds chosen; **Cost type** keeps the categories of a cost type;
-- a filter of state — **Every state**, **Active**, **Deactivated** — when the deactivated ones are shown;
+- the **State** filter of its bar — **Active** (by default), **Deactivated**, **Every state** —, offered to whoever may modify the cost settings;
 - the search field keeps the objects whose code or label contains the text entered, and, for the categories, the accounting code;
-- **Columns**, **Rows per page**, **Previous page** and **Next page**.
+- **Columns**, **Rows per page**, **Previous** and **Next**.
 
 ## Its columns and computed values
 

@@ -15,8 +15,8 @@ Une liste vide le dit ; une recherche ou un filtre qui ne retient rien garde la 
 
 Ces commandes ne sont offertes qu’à qui peut modifier les paramètres de coûts :
 
-- **Nouvelle nature** ouvre le formulaire de la nature : code, unique, libellé et type, tous requis.
-- **Nouvelle catégorie** ouvre celui de la catégorie : code et code comptable, uniques l’un et l’autre, libellé et nature, tous requis.
+- **Nouvelle nature**, à droite du titre de la carte des natures, ouvre le formulaire de la nature : code, unique, libellé et type, tous requis.
+- **Nouvelle catégorie**, à droite du titre de la carte des catégories, ouvre celui de la catégorie : code et code comptable, uniques l’un et l’autre, libellé et nature, tous requis.
 - **Modifier**, sur une ligne, ouvre le même formulaire sur l’objet. Le type d’une nature ne se modifie plus dès qu’une de ses catégories est employée par une ligne de devis ou de reste à engager, porte un taux horaire ou est rattachée à un rôle de ressource ; le formulaire dit laquelle de ces conditions manque. Une catégorie ne se rattache alors qu’à une nature du même type.
 - **Désactiver** et **Réactiver**, dans la colonne **État**, changent l’état de l’objet, sans confirmation. La réactivation d’une catégorie dont la nature est désactivée est indisponible (« nature de coût active ») : la commande reste présentée et dit la condition qui lui manque.
 
@@ -25,9 +25,9 @@ Un code ou un libellé déjà porté est refusé à son champ, qui nomme l’obj
 Au-dessus de chaque table, pour tous :
 
 - **Types de nature** retient les natures des types choisis ; **Nature** retient les catégories d’une nature ;
-- un filtre d’état — **Tous les états**, **Actifs**, **Désactivés** — quand les désactivés sont affichés ;
+- le filtre **État** de sa barre — **Actifs** (par défaut), **Désactivés**, **Tous les états** —, offert à qui peut modifier les paramètres de coûts ;
 - le champ de recherche retient les objets dont le code ou le libellé contient le texte saisi, et, pour les catégories, le code comptable ;
-- **Colonnes**, **Lignes par page**, **Page précédente** et **Page suivante**.
+- **Colonnes**, **Lignes par page**, **Précédent** et **Suivant**.
 
 ## Ses colonnes et ses valeurs calculées
 

@@ -34,7 +34,12 @@ vi.mock("next/navigation", async (original) => ({
   usePathname: () => SCREEN,
   useSearchParams: () => new URLSearchParams(),
 }));
-vi.mock("@/components/tasks/task-tracker", () => ({ useTrackTask: () => () => undefined }));
+vi.mock("@/components/tasks/task-tracker", () => ({
+  useTrackTask: () => () => undefined,
+  useTaskRunning: () => false,
+  useRunningTask: () => undefined,
+  useDownloadWhenTaskSucceeds: () => undefined,
+}));
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
 }));

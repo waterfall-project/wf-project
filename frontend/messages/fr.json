@@ -59,7 +59,12 @@
     "email": "Adresse électronique",
     "origin": "Origine du compte",
     "preferences": "Préférences d’affichage",
-    "preferencesHelp": "Les mêmes que dans le menu du compte : elles s’appliquent sans reconnexion.",
+    "preferencesHelp": "La langue et le mode sont aussi dans le menu du compte. Tout s’applique sans reconnexion.",
+    "chartPatterns": {
+      "legend": "Graphiques",
+      "label": "Motifs des séries",
+      "help": "Distingue les séries d’un graphique par un motif ou un symbole en plus de leur couleur, à l’écran et dans l’image exportée."
+    },
     "save": "Enregistrer",
     "saved": "Vos préférences sont enregistrées.",
     "signIn": "Connexion",
@@ -94,6 +99,14 @@
     "pageSize": {
       "label": "Lignes par page",
       "named": "Lignes par page de « {list} »"
+    },
+    "pages": {
+      "range": "{from, number}–{to, number} sur {total, number}",
+      "page": "Page {page, number} sur {pages, number}",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "previousNamed": "Précédent, {list}",
+      "nextNamed": "Suivant, {list}"
     },
     "names": {
       "estimate": "Grille de devis",
@@ -274,6 +287,7 @@
       "redo": "Rétablir",
       "menu": "Menu de la cellule",
       "unavailable": "Indisponibles tant que le serveur ne conserve pas l’historique des saisies.",
+      "why": "Pourquoi annuler et rétablir sont indisponibles",
       "done": {
         "undo": "Modification annulée. {count, plural, =0 {Aucune autre modification à annuler.} one {# modification reste à annuler.} other {# modifications restent à annuler.}}",
         "redo": "Modification rétablie. {count, plural, =0 {Aucune autre modification à rétablir.} one {# modification reste à rétablir.} other {# modifications restent à rétablir.}}"
@@ -538,10 +552,9 @@
     "summary": "{risks, plural, =0 {aucun risque retenu} one {# risque retenu} other {# risques retenus}}",
     "generalTotal": "Total général",
     "pages": {
+      "title": "Risques",
       "label": "Pages des risques",
-      "beyond": "La page demandée est au-delà de la fin de la liste.",
-      "previous": "Risques précédents",
-      "next": "Risques suivants"
+      "beyond": "La page demandée est au-delà de la fin de la liste."
     },
     "filter": "Filtrer par état",
     "everyState": "Tous les états",
@@ -624,7 +637,6 @@
     }
   },
   "actualCosts": {
-    "summary": "{count, plural, =0 {aucune ligne retenue} one {# ligne retenue} other {# lignes retenues}}",
     "refused": {
       "period": "Les coûts réels ne se lisent pas sur cette période : sa fin précède son début.",
       "subproject": "Les coûts réels ne se lisent pas : le sous-projet demandé n’existe pas.",
@@ -661,22 +673,19 @@
     },
     "pages": {
       "costs": {
+        "title": "Coûts réels",
         "label": "Pages des coûts réels",
-        "beyond": "La page demandée est au-delà de la fin de la liste.",
-        "previous": "Lignes précédentes",
-        "next": "Lignes suivantes"
+        "beyond": "La page demandée est au-delà de la fin de la liste."
       },
       "imports": {
+        "title": "Journal des imports",
         "label": "Pages du journal des imports",
-        "beyond": "La page demandée est au-delà de la fin du journal.",
-        "previous": "Imports plus récents",
-        "next": "Imports plus anciens"
+        "beyond": "La page demandée est au-delà de la fin du journal."
       },
       "exchanges": {
+        "title": "Imports du projet",
         "label": "Pages des imports du projet",
-        "beyond": "La page demandée est au-delà de la fin de la liste.",
-        "previous": "Imports précédents",
-        "next": "Imports suivants"
+        "beyond": "La page demandée est au-delà de la fin de la liste."
       }
     },
     "imports": {
@@ -734,6 +743,7 @@
       "node": "Main-d’œuvre de {node} et de ses descendants"
     },
     "projects": {
+      "title": "Projets du portefeuille",
       "retained": "{count, plural, =0 {Aucun projet retenu} one {# projet retenu} other {# projets retenus}}",
       "reason": " — {reason}",
       "zoneChip": "Zone des indices",
@@ -741,10 +751,9 @@
       "everyZone": "Toutes les zones"
     },
     "pages": {
+      "title": "Projets",
       "label": "Pages des projets",
-      "beyond": "La page demandée est au-delà de la fin de la liste.",
-      "previous": "Projets précédents",
-      "next": "Projets suivants"
+      "beyond": "La page demandée est au-delà de la fin de la liste."
     },
     "value": {
       "title": "Valeur du portefeuille",
@@ -831,6 +840,7 @@
       }
     },
     "costCurve": {
+      "section": "Courbe en S",
       "chartTitle": "Coûts cumulés du portefeuille",
       "chartTitleDelayed": "Décaissements cumulés du portefeuille",
       "description": "Courbes cumulées, mois par mois, du budget de référence des projets du périmètre, de leur coût réel jusqu’à la date de calcul, puis de la projection de leurs chefs de projet : chaque point est la somme des points des projets, telle que le serveur la calcule.",
@@ -1234,11 +1244,23 @@
     "dismissNews": {
       "help": "Retire cette ligne ; la tâche reste suivie dans le panneau des tâches et messages."
     },
+    "downloadEnd": {
+      "help": "Télécharge le fichier que la tâche a produit, puis ferme la carte."
+    },
+    "openEnd": {
+      "help": "Ouvre l’écran d’où la tâche a été lancée, puis ferme la carte."
+    },
+    "closeEnd": {
+      "help": "Ferme la carte ; la fin de la tâche reste dans le panneau des tâches et messages."
+    },
     "startedOnly": {
       "help": "Montre ou masque les tâches qui n’ont pas démarré."
     },
     "timelines": {
       "help": "Ouvre les chronologies du projet, en frise."
+    },
+    "exportRequest": {
+      "help": "Demande le fichier du type choisi ; il se télécharge de lui-même une fois prêt."
     },
     "exchanges": {
       "help": "Ouvre les imports et exports de la révision."
@@ -1993,7 +2015,14 @@
     "panel": "Tâches et messages",
     "close": "Fermer les tâches et messages",
     "started": "Tâche lancée : {task}.",
-    "closeNews": "Fermer la ligne de la tâche"
+    "closeNews": "Fermer la ligne de la tâche",
+    "cards": {
+      "label": "Aboutissements des tâches",
+      "download": "Télécharger",
+      "open": "Ouvrir",
+      "openLabel": "Ouvrir : {task} — {screen}",
+      "close": "Fermer la carte : {task}"
+    }
   },
   "markRevision": {
     "versionName": "Nom de version",
@@ -2062,12 +2091,14 @@
     }
   },
   "projectList": {
+    "title": "Liste des projets",
     "count": "{count, plural, one {# projet} other {# projets}}",
     "filter": {
-      "label": "Filtre de la liste",
       "mine": "Projets dont vous êtes contributeur",
-      "lift": "Voir tous les projets",
-      "apply": "N’afficher que mes projets",
+      "projects": "Projets",
+      "mineChoice": "Mes projets",
+      "mineChip": "Mes projets (par défaut)",
+      "openable": "Tous ceux que vous pouvez ouvrir",
       "states": "Filtre par état",
       "everyState": "Tous les états",
       "defaultChip": "{states} (par défaut)",
@@ -2143,6 +2174,7 @@
     "reread": "Relire le compte rendu"
   },
   "projectForm": {
+    "card": "Projet",
     "create": "Créer un projet",
     "createHint": "Le projet naît à l’état Créé, et vous en êtes chef de projet. Le code projet peut attendre la commande.",
     "modifyTitle": "Modifier « {name} »",
@@ -2391,20 +2423,15 @@
       "designationUnavailable": "La désignation de « {name} » par défaut est indisponible. {unmet}",
       "rolesUnavailable": "L’attribution des rôles de « {name} » est indisponible. {unmet}"
     },
-    "inactive": {
-      "show": "Afficher aussi les désactivés",
-      "hide": "Masquer les désactivés"
-    },
     "stateFilter": {
       "of": "État des objets de « {list} »",
       "every": "Tous les états",
       "active": "Actifs",
-      "inactive": "Désactivés"
+      "inactive": "Désactivés",
+      "defaultChip": "{state} (par défaut)"
     },
     "pages": {
       "label": "Pages de « {list} »",
-      "previous": "Page précédente",
-      "next": "Page suivante",
       "beyond": "La page demandée est au-delà de la fin de la liste."
     },
     "codedChoice": "{code} · {label}",
@@ -2575,6 +2602,7 @@
       "required": "(exigée)",
       "optional": "(facultative)",
       "noLabel": "Aucun intitulé.",
+      "readColumns": "Colonnes lues",
       "kept": "Colonnes conservées",
       "keptHint": "Les colonnes de l’extraction que Waterfall conserve à titre d’information, restituées à la consultation des lignes importées. Une colonne lue ne se déclare pas aussi conservée.",
       "noKept": "Aucune colonne conservée.",
@@ -2587,6 +2615,8 @@
       "addKept": "Déclarer une colonne conservée",
       "keptFull": "Condition non remplie : moins de {max} colonnes conservées. Le maximum est atteint.",
       "keptTooMany": "La liste des colonnes conservées est trop longue : {max} colonnes au plus.",
+      "labelsFull": "Condition non remplie : moins de {max} intitulés pour « {column} ». Le maximum est atteint.",
+      "labelsTooMany": "La liste des intitulés de « {column} » est trop longue : {max} intitulés au plus.",
       "doubles": "Il double l’intitulé « {label} » de la colonne « {column} ».",
       "doublesKept": "Il double l’intitulé « {label} » d’une colonne conservée.",
       "save": "Enregistrer la correspondance",
@@ -2610,12 +2640,6 @@
     "boundsRefused": "La liste n’est pas lue : le serveur refuse les bornes demandées."
   },
   "admin": {
-    "pages": {
-      "label": "Pages de la liste",
-      "previous": "Page précédente",
-      "next": "Page suivante",
-      "beyond": "Cette page est au-delà de la fin de la liste."
-    },
     "commands": {
       "unmet": "{command} : {condition}"
     },
@@ -2685,10 +2709,14 @@
       "anonymizationTitle": "Anonymiser « {name} » ?",
       "anonymizationFinal": "L’anonymisation de « {name} » est irréversible : son nom, son prénom et son adresse sont effacés, de la table comme du journal d’audit, son avatar est retiré, un compte local est retiré du fournisseur d’identité, et le compte ne se réactive plus.",
       "keep": "Conserver",
-      "rowBusy": "Une écriture de « {name} » est en cours : rien n’a été écrit, renouvelez la demande une fois la réponse donnée."
+      "rowBusy": "Une écriture de « {name} » est en cours : rien n’a été écrit, renouvelez la demande une fois la réponse donnée.",
+      "pages": {
+        "title": "Comptes utilisateurs",
+        "label": "Pages des comptes utilisateurs",
+        "beyond": "Cette page est au-delà de la fin de la liste."
+      }
     },
     "identitySync": {
-      "menu": "Lecture des comptes du fournisseur d’identité : état et commandes",
       "title": "Lecture des comptes du fournisseur d’identité",
       "schedule": {
         "title": "Périodicité de la lecture",
@@ -2722,9 +2750,9 @@
       "composed": "Composé",
       "none": "Aucun rôle d’habilitation.",
       "count": "{count, plural, =0 {Aucun rôle} one {# rôle} other {# rôles}}",
-      "create": "Créer un rôle",
       "delete": "Supprimer",
       "creation": "Création d’un rôle",
+      "creationHint": "Le rôle naît sans permission : elles s’accordent ensuite dans la matrice des permissions.",
       "told": "Commandes des rôles d’habilitation",
       "newLabel": "Nouveau rôle",
       "created": "« {name} » créé.",
@@ -2831,7 +2859,12 @@
       "rotatingOnes": "Soumises à la rotation",
       "bounds": "Bornes des sauvegardes",
       "sizeBytes": "Taille (octets)",
-      "commands": "Commandes"
+      "commands": "Commandes",
+      "pages": {
+        "title": "Sauvegardes",
+        "label": "Pages des sauvegardes",
+        "beyond": "Cette page est au-delà de la fin de la liste."
+      }
     },
     "restore": {
       "title": "Restaurer la plateforme",
@@ -2947,6 +2980,11 @@
         "everyObjectKind": "Toutes les natures",
         "correlation": "Corrélation",
         "correlationForm": "Lettres, chiffres, « . », « _ », « - » ; 64 au plus."
+      },
+      "pages": {
+        "title": "Journal d’audit",
+        "label": "Pages du journal d’audit",
+        "beyond": "Cette page est au-delà de la fin du journal."
       }
     }
   },
@@ -2956,12 +2994,21 @@
     "applicationSettings": "Paramètres applicatifs",
     "projects": "Projets"
   },
+  "installation": {
+    "title": "Installation",
+    "name": "Nom de l’entreprise",
+    "currency": "Devise",
+    "defaultLanguage": "Langue par défaut",
+    "timeZone": "Fuseau horaire",
+    "fixed": "La devise, la langue par défaut et le fuseau horaire sont fixés à l’installation : aucun écran ne les modifie."
+  },
   "functions": {
     "users": "Gestion des utilisateurs",
     "accessRoles": "Gestion des rôles d’habilitation",
     "systemStatus": "Surveillance de l’état du système",
     "backups": "Sauvegarde et restauration",
     "auditLog": "Journal d’audit",
+    "installation": "Installation",
     "portfolioProjects": "Portefeuille de projets",
     "portfolioWorkload": "Plan de charge agrégé",
     "portfolioPerformance": "Performance du portefeuille",
@@ -3156,6 +3203,10 @@
     },
     "audit_log": {
       "read": "Consulter le journal d’audit"
+    },
+    "installation": {
+      "read": "Consulter l’installation",
+      "write": "Modifier l’installation"
     },
     "portfolio_projects": {
       "read": "Consulter le portefeuille de projets"

@@ -1,12 +1,17 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The bar above a dense grid: the search on the labels, asked of the server when entered — the
- * grid shows what it retains, and the totals of what it retains —, and the choice of the
- * columns shown, a menu whose entries stay open while several are set; for a grid that enters a
- * revision in progress, undo and redo, placed but not wired yet (`UndoCommands`); for a tree, the
- * menu that unfolds it whole, folds it whole, or folds it down to a level, as the « Afficher » of
- * Microsoft Project (`fold.tsx`); and, first, the commands its screen gives it (`RowCommands`).
+ * The bar above a dense grid, in one order for every grid (US-2080, decision of the author of
+ * 2026-11-14): first the commands its screen gives it (`RowCommands`); the search on the labels,
+ * asked of the server when entered — the grid shows what it retains, and the totals of what it
+ * retains —; « Filtres », the filters of a tree as compact menus or the button of the panel of a
+ * flat table; « Colonnes », the choice of the columns shown, a menu whose entries stay open while
+ * several are set; for a tree, « Arbre », the menu that unfolds it whole, folds it whole, or folds
+ * it down to a level, as the « Afficher » of Microsoft Project (`fold.tsx`); and, at the end, for a
+ * grid that enters a revision in progress, undo and redo (`UndoCommands`) — a screen may put a
+ * command of its own just before them, at the right edge (`ending`: the column of a year of the
+ * hourly rates, #3071). The bar says no number of rows: the totals row says it alone, what a
+ * filter retains included (WF-IHM-0130, #3072).
  */
 "use client";
 
@@ -128,9 +133,9 @@ export interface GridToolbarProps {
    */
   readonly grid?: string | undefined;
   /**
-   * The width of the bar, as a CSS length: that of the frame of the table under it, the search at
-   * its start and the menu of the columns at its end, never wider than what holds it but for what
-   * it needs on one line; none, the whole width.
+   * The width of the bar, as a CSS length: that of the frame of the table under it, undo and redo at
+   * its end, never wider than what holds it but for what it needs on one line; none, the whole
+   * width.
    */
   readonly width?: string | undefined;
   /**
@@ -154,8 +159,13 @@ export interface GridToolbarProps {
   readonly address?: GridAddress | undefined;
   /** The parameters of the address the table reads as its search and its filters. */
   readonly filterNames?: readonly string[] | undefined;
-  /** What the bar says at its end of how many rows the table holds, when its filters are folded. */
-  readonly count?: string | undefined;
+  /**
+   * What the screen puts at the end of the bar, at its right edge, before undo and redo: the column
+   * of a year of the grid of the hourly rates, with its messages (US-2080, #3071). It takes the rest
+   * of the line and wraps on itself; the bar wraps it whole under the rest when the line is too
+   * short for it, rather than push the bar wider than its frame.
+   */
+  readonly ending?: ReactNode;
 }
 
 /**
@@ -229,7 +239,7 @@ function OutlineMenu({ outline }: { readonly outline: GridOutline }) {
           </Button>
         </DropdownMenuTrigger>
       </CommandTooltip>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="start">
         <DropdownMenuLabel>{t("title")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <MenuCommand
@@ -282,7 +292,7 @@ export function GridToolbar({
   onOpen,
   address,
   filterNames,
-  count,
+  ending,
 }: GridToolbarProps) {
   const filters = barFilters(
     filtering,
@@ -301,7 +311,10 @@ export function GridToolbar({
       data-grid-toolbar=""
       inert={covered}
       className={cn(
-        folded ? "flex w-full shrink-0 items-center gap-2" : barClass(treeFilters !== undefined),
+        folded
+          ? "-my-0.5 flex w-full shrink-0 items-center gap-2 overflow-x-auto py-0.5"
+          : barClass(treeFilters !== undefined),
+        ending === undefined ? null : "flex-wrap",
         covered ? "invisible" : null,
       )}
       style={folded ? undefined : sized}
@@ -320,9 +333,6 @@ export function GridToolbar({
           onOpen={filters.onOpen}
         />
       )}
-      <div className="flex-1" />
-      {undoable === true ? <UndoCommands control={undo} /> : null}
-      {outline === undefined ? null : <OutlineMenu outline={outline} />}
       <DropdownMenu>
         <CommandTooltip label={t("open")} help={said("columns.help")}>
           <DropdownMenuTrigger asChild>
@@ -338,7 +348,7 @@ export function GridToolbar({
             </Button>
           </DropdownMenuTrigger>
         </CommandTooltip>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="start">
           <DropdownMenuLabel>{t("title")}</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {columns.map((column) => (
@@ -355,16 +365,28 @@ export function GridToolbar({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
-      {filters === undefined || count === undefined ? null : (
-        <span className="text-xs whitespace-nowrap text-muted-foreground">{count}</span>
+      {outline === undefined ? null : <OutlineMenu outline={outline} />}
+      {/* What the screen puts at the end takes the rest of the line, its content at the right
+          edge; the bar wraps it whole under the rest when the line is too short for its widest
+          piece, rather than crush the search or overflow the frame. */}
+      {ending === undefined ? (
+        <div className="flex-1" />
+      ) : (
+        <div
+          data-slot="bar-ending"
+          className="flex flex-1 flex-wrap items-center justify-end gap-2"
+        >
+          {ending}
+        </div>
       )}
+      {undoable === true ? <UndoCommands control={undo} /> : null}
     </div>
   );
   if (filters === undefined) {
     return bar;
   }
   return (
-    <div className="flex min-w-min max-w-full flex-col gap-2" style={sized} data-folded="">
+    <div className="flex min-w-0 max-w-full flex-col gap-2" style={sized} data-folded="">
       {bar}
       <FilterPanel id={panel} open={filters.open}>
         {filters.panel}

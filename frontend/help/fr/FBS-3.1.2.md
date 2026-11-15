@@ -13,15 +13,15 @@ Un taux sert au chiffrage des lignes de main-d’œuvre des projets. Sa modifica
 Ces commandes ne sont offertes qu’à qui peut modifier les paramètres de coûts :
 
 - Une cellule se saisit : la saisie enregistre le taux de cette catégorie pour cette année, seul, et le service le garde : la grille relue le montre. Un taux ne se vide pas, et il est strictement positif. Une catégorie ne porte qu’un taux par année : saisir un taux là où l’année en a déjà un, sans l’avoir relu, est refusé, et rien n’est écrit. Dès qu’une catégorie porte un taux, son type et celui de sa nature ne se changent plus.
-- **Ajouter une année à la grille** : l’**Année**, puis **Ajouter la colonne**. Aucune colonne ne se crée d’elle-même : la colonne ajoutée est vide, les taux des autres années inchangés, et elle n’entre dans la grille du serveur qu’avec son premier taux saisi. Une année que la grille a déjà, ou hors de 2000 à 2100, est refusée.
-- **Retirer la colonne**, pour une année ajoutée dont aucun taux n’est encore saisi.
+- **Ajouter une année à la grille**, à la fin de la barre de la grille : l’**Année**, puis **Ajouter la colonne**. Aucune colonne ne se crée d’elle-même : la colonne ajoutée est vide, les taux des autres années inchangés, et elle n’entre dans la grille du serveur qu’avec son premier taux saisi. Une année que la grille a déjà, ou hors de 2000 à 2100, est refusée.
+- **Retirer la colonne**, avant l’**Année** dans la barre, pour une année ajoutée dont aucun taux n’est encore saisi.
 
 Au-dessus de la grille, pour tous :
 
-- un filtre d’état des catégories, quand les désactivées sont affichées ; elles se réactivent dans la liste des [catégories](FBS-3.1.1.md) ;
+- le filtre **État** de sa barre — **Actifs** (par défaut), **Désactivés**, **Tous les états** —, qui porte sur les catégories et qu’offre le droit de modifier les paramètres de coûts ; les catégories désactivées se réactivent dans la liste des [catégories](FBS-3.1.1.md) ;
 - **Bornes de « Grille des taux horaires »** : l’**Année du taux**, la dernière par défaut, et les bornes du **Taux horaire** de cette année. Une borne supérieure sous la borne inférieure est refusée à son champ, et la grille n’est pas lue ;
 - le champ de recherche retient les catégories dont le code ou le libellé contient le texte saisi ;
-- **Colonnes**, **Lignes par page**, **Page précédente** et **Page suivante**.
+- **Colonnes**, **Lignes par page**, **Précédent** et **Suivant**.
 
 ## Ses colonnes et ses valeurs calculées
 

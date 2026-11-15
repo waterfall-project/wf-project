@@ -169,7 +169,7 @@ beforeEach(() => {
   router.refresh.mockReset();
   reading.start = undefined;
   vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(new Date(2026, 5, 3, 10, 0, 0));
+  vi.setSystemTime(new Date(Date.UTC(2026, 5, 3, 10, 0, 0)));
 });
 
 afterEach(() => {
@@ -390,7 +390,7 @@ describe("the gestures of a card, commands of a menu", () => {
     expect(await screen.findByRole("tooltip")).toHaveTextContent(helps.startTask.help);
     await user.keyboard("{ArrowDown}");
     expect(await screen.findByRole("tooltip", { name: helps.completeTask.help })).toBeVisible();
-    // Unavailable, it is described by the conditions it lacks, said under its name.
+    // Unavailable, it is described by the conditions it lacks, said in its tooltip.
     expect(within(menu).getByRole("menuitem", { name: /^Terminer/ })).toHaveAccessibleDescription(
       /^Conditions non remplies/,
     );

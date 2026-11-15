@@ -13,15 +13,15 @@ A rate serves the costing of the labour lines of the projects. Its modification 
 These commands are offered only to whoever may modify the cost settings:
 
 - A cell is entered: the entry saves the rate of this category for this year, alone, and the service keeps it: the grid read anew shows it. A rate is not emptied, and it is strictly positive. A category bears one rate per year: entering a rate where the year already has one, without having read it, is refused and nothing is written. As soon as a category bears a rate, its type and that of its nature can no longer be changed.
-- **Add a year to the grid**: the **Year**, then **Add the column**. No column is created by itself: the column added is empty, the rates of the other years unchanged, and it enters the grid of the server only with its first rate entered. A year the grid already has, or outside 2000 to 2100, is refused.
-- **Remove the column**, for a year added none of whose rates is entered yet.
+- **Add a year to the grid**, at the end of the bar of the grid: the **Year**, then **Add the column**. No column is created by itself: the column added is empty, the rates of the other years unchanged, and it enters the grid of the server only with its first rate entered. A year the grid already has, or outside 2000 to 2100, is refused.
+- **Remove the column**, before the **Year** in the bar, for a year added none of whose rates is entered yet.
 
 Above the grid, for all:
 
-- a filter of state of the categories, when the deactivated ones are shown; they are reactivated in the list of the [categories](FBS-3.1.1.md);
+- the **State** filter of its bar — **Active** (by default), **Deactivated**, **Every state** —, on the categories, offered to whoever may modify the cost settings; the deactivated categories are reactivated in the list of the [categories](FBS-3.1.1.md);
 - **Bounds of “Hourly rate grid”**: the **Year of the rate**, the last one by default, and the bounds of the **Hourly rate** of that year. An upper bound under the lower bound is refused at its field, and the grid is not read;
 - the search field keeps the categories whose code or label contains the text entered;
-- **Columns**, **Rows per page**, **Previous page** and **Next page**.
+- **Columns**, **Rows per page**, **Previous** and **Next**.
 
 ## Its columns and computed values
 

@@ -14,14 +14,14 @@ A search or a filter keeps nodes, and the tree shows them with their ancestors.
 
 These commands are offered only to whoever may modify the resource settings:
 
-- **New node** opens the form: code, unique, label, and **Parent** — **None — root** for a root. A node takes its place only under an active node.
+- **New node**, a filled button at the right of the title of the tree card, opens the form: code, unique, label, and **Parent** — **None — root** for a root. A node takes its place only under an active node.
 - **Modify**, on a row, opens the same form on the node. Moved under another parent, it takes its descendants and its roles with it; never under itself nor under one of its descendants. Its deactivated parent is kept.
 - **Deactivate** and **Reactivate**, in the column **State**, without confirmation. The reactivation of a node whose parent is deactivated is unavailable (“parent node active”): the command stays shown and says the condition it lacks.
 
 Above the tree, for all:
 
 - **Code of the node** keeps the nodes whose code contains the text entered; **Level** keeps a level; **Bounds of “Organisation tree”**, a minimum and maximum level;
-- a filter of state when the deactivated ones are shown;
+- the **State** filter of its bar — **Active** (by default), **Deactivated**, **Every state** —, offered to whoever may modify the resource settings;
 - the search field keeps the nodes whose code or label contains the text entered;
 - **Columns**; **Tree** folds everything, unfolds everything, or folds down to a level; the button of a label folds or unfolds its row.
 

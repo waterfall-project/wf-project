@@ -82,7 +82,7 @@ export function Shell({
               <ShellFrame
                 navigation={
                   permissions === undefined ? null : (
-                    <Navigation permissions={permissions} remembered={remembered} theme={theme} />
+                    <Navigation permissions={permissions} remembered={remembered} />
                   )
                 }
                 bar={

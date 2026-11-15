@@ -6,7 +6,8 @@
  * as the server lists it — absent when the caller may not exercise it, unavailable with the
  * conditions it lacks. The API gives the hand back at once with a background task (WF-ARC-0090),
  * handed to the tracker of the shell with the request, which runs it again if it fails; the image,
- * drawn by the worker and not kept, is downloaded from the tracker once the task has succeeded. An
+ * drawn by the worker and not kept, is downloaded by itself once the task has succeeded, if the
+ * tree still shows — from the card of its end, or from the tracker, otherwise (#3103). An
  * image beyond one hundred million pixels fails the task, and the tracker tells it
  * (`TASK_TREE_IMAGE_TOO_LARGE`): the user then chooses a shallower level. A refusal of the request
  * is told under the command (`OutcomeNotice`).
@@ -14,12 +15,19 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 import { type ExportRequest, requestFileExport } from "@/api/actions/exchanges";
 import { Command } from "@/components/commands/command";
 import { commandIcon, REVISION_COMMAND_ICONS } from "@/components/commands/icons";
 import type { CommandOffer } from "@/components/commands/offer";
-import { useTrackTask } from "@/components/tasks/task-tracker";
+import {
+  useDownloadWhenTaskSucceeds,
+  useRunningTask,
+  useTaskRunning,
+  useTrackTask,
+} from "@/components/tasks/task-tracker";
+import { taskAim } from "@/components/tasks/tracking";
 
 /** What the export reads: the project, the revision, the level shown and the offer of the command. */
 export interface TaskTreeExportProps {
@@ -34,6 +42,14 @@ export interface TaskTreeExportProps {
 export function TaskTreeExport({ projectId, revisionId, depth, offer }: TaskTreeExportProps) {
   const t = useTranslations();
   const track = useTrackTask();
+  // The task started, which the button waits for (WF-IHM-0080, #3103) — else, mounted anew, the image
+  // of the revision that is still drawn (#3404).
+  const aim = taskAim("export", revisionId, "task_tree_image");
+  const [taskId, setTaskId] = useState<string>();
+  const found = useRunningTask(aim);
+  const running = useTaskRunning(taskId ?? found);
+  // The image leaves by itself once drawn, while the tree still shows (#3103).
+  useDownloadWhenTaskSucceeds(taskId);
   const subject = t("enums.ExportKind.task_tree_image");
   const action = async () => {
     const request: ExportRequest = {
@@ -44,7 +60,8 @@ export function TaskTreeExport({ projectId, revisionId, depth, offer }: TaskTree
     const command = () => requestFileExport(projectId, request);
     const result = await command();
     if (result.kind === "done") {
-      track(result.data, { command, subject });
+      setTaskId(result.data.task_id);
+      track(result.data, { command, subject, aim });
     }
     return result;
   };
@@ -56,6 +73,7 @@ export function TaskTreeExport({ projectId, revisionId, depth, offer }: TaskTree
       icon={commandIcon(REVISION_COMMAND_ICONS.export_task_tree_image)}
       action={action}
       subject={subject}
+      running={running}
     />
   );
 }

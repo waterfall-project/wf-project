@@ -23,7 +23,7 @@ import { findOffer } from "@/components/commands/offer";
 import { ICON } from "@/components/projects/project-tables";
 
 import { CellCommand, UnavailableCellCommand } from "./cell-command";
-import { useRowCommand } from "./commands";
+import { useRowCommand, waitingFor } from "./commands";
 import { useListReport } from "./reactivation";
 import type { Calendar } from "./resource-grids";
 
@@ -32,6 +32,7 @@ function DesignateCommand({ calendar }: { readonly calendar: Calendar }) {
   const t = useTranslations("reference");
   const said = useTranslations("commands");
   const [pending, run] = useRowCommand(
+    calendar.calendar_id,
     `designate calendar ${calendar.calendar_id}`,
     {},
     calendar.label,
@@ -40,7 +41,7 @@ function DesignateCommand({ calendar }: { readonly calendar: Calendar }) {
     <CellCommand
       label={t("calendars.designate", { name: calendar.label })}
       help={said("designateCalendar.help")}
-      aria-busy={pending}
+      {...waitingFor(pending, t("form.writing"))}
       onClick={() => {
         run(
           async () => {

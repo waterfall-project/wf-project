@@ -59,7 +59,12 @@
     "email": "Email address",
     "origin": "Origin of the account",
     "preferences": "Display preferences",
-    "preferencesHelp": "The same as in the menu of the account: they apply without signing in again.",
+    "preferencesHelp": "The language and the mode are also in the account menu. All apply without signing in again.",
+    "chartPatterns": {
+      "legend": "Charts",
+      "label": "Series patterns",
+      "help": "Tells the series of a chart apart by a pattern or a symbol besides their colour, on the screen and in the exported image."
+    },
     "save": "Save",
     "saved": "Your preferences are saved.",
     "signIn": "Sign-in",
@@ -94,6 +99,14 @@
     "pageSize": {
       "label": "Rows per page",
       "named": "Rows per page of “{list}”"
+    },
+    "pages": {
+      "range": "{from, number}–{to, number} of {total, number}",
+      "page": "Page {page, number} of {pages, number}",
+      "previous": "Previous",
+      "next": "Next",
+      "previousNamed": "Previous, {list}",
+      "nextNamed": "Next, {list}"
     },
     "names": {
       "estimate": "Estimate grid",
@@ -274,6 +287,7 @@
       "redo": "Redo",
       "menu": "Cell menu",
       "unavailable": "Unavailable until the server keeps the history of the entries.",
+      "why": "Why undo and redo are unavailable",
       "done": {
         "undo": "Change undone. {count, plural, =0 {No more changes to undo.} one {# change left to undo.} other {# changes left to undo.}}",
         "redo": "Change redone. {count, plural, =0 {No more changes to redo.} one {# change left to redo.} other {# changes left to redo.}}"
@@ -538,10 +552,9 @@
     "summary": "{risks, plural, =0 {no risk retained} one {# risk retained} other {# risks retained}}",
     "generalTotal": "General total",
     "pages": {
+      "title": "Risks",
       "label": "Pages of the risks",
-      "beyond": "The page asked is beyond the end of the list.",
-      "previous": "Previous risks",
-      "next": "Next risks"
+      "beyond": "The page asked is beyond the end of the list."
     },
     "filter": "Filter by state",
     "everyState": "Every state",
@@ -624,7 +637,6 @@
     }
   },
   "actualCosts": {
-    "summary": "{count, plural, =0 {no line retained} one {# line retained} other {# lines retained}}",
     "refused": {
       "period": "The actual costs cannot be read over this period: its end precedes its start.",
       "subproject": "The actual costs cannot be read: the sub-project asked for does not exist.",
@@ -661,22 +673,19 @@
     },
     "pages": {
       "costs": {
+        "title": "Actual costs",
         "label": "Pages of the actual costs",
-        "beyond": "The page asked is beyond the end of the list.",
-        "previous": "Previous lines",
-        "next": "Next lines"
+        "beyond": "The page asked is beyond the end of the list."
       },
       "imports": {
+        "title": "Journal of the imports",
         "label": "Pages of the journal of the imports",
-        "beyond": "The page asked is beyond the end of the journal.",
-        "previous": "More recent imports",
-        "next": "Older imports"
+        "beyond": "The page asked is beyond the end of the journal."
       },
       "exchanges": {
+        "title": "Imports of the project",
         "label": "Pages of the imports of the project",
-        "beyond": "The page asked is beyond the end of the list.",
-        "previous": "Previous imports",
-        "next": "Next imports"
+        "beyond": "The page asked is beyond the end of the list."
       }
     },
     "imports": {
@@ -734,6 +743,7 @@
       "node": "Labour of {node} and of its descendants"
     },
     "projects": {
+      "title": "Projects of the portfolio",
       "retained": "{count, plural, =0 {No project retained} one {# project retained} other {# projects retained}}",
       "reason": " — {reason}",
       "zoneChip": "Index zone",
@@ -741,10 +751,9 @@
       "everyZone": "Every zone"
     },
     "pages": {
+      "title": "Projects",
       "label": "Pages of the projects",
-      "beyond": "The page asked is beyond the end of the list.",
-      "previous": "Previous projects",
-      "next": "Next projects"
+      "beyond": "The page asked is beyond the end of the list."
     },
     "value": {
       "title": "Portfolio value",
@@ -831,6 +840,7 @@
       }
     },
     "costCurve": {
+      "section": "S-curve",
       "chartTitle": "Cumulative costs of the portfolio",
       "chartTitleDelayed": "Cumulative cash-out of the portfolio",
       "description": "Cumulative curves, month by month, of the reference budget of the projects of the perimeter, of their actual cost up to the calculation date, then of their project managers’ projection: each point is the sum of the points of the projects, as the server computes it.",
@@ -1234,11 +1244,23 @@
     "dismissNews": {
       "help": "Removes this line; the task stays followed in the panel of the tasks and messages."
     },
+    "downloadEnd": {
+      "help": "Downloads the file the task made, then closes the card."
+    },
+    "openEnd": {
+      "help": "Opens the screen the task was started from, then closes the card."
+    },
+    "closeEnd": {
+      "help": "Closes the card; the end of the task stays in the panel of the tasks and messages."
+    },
     "startedOnly": {
       "help": "Shows or hides the tasks not started."
     },
     "timelines": {
       "help": "Opens the timelines of the project, as a frieze."
+    },
+    "exportRequest": {
+      "help": "Asks for the file of the chosen kind; it downloads by itself once it is ready."
     },
     "exchanges": {
       "help": "Opens the imports and exports of the revision."
@@ -1993,7 +2015,14 @@
     "panel": "Tasks and messages",
     "close": "Close the tasks and messages",
     "started": "Task started: {task}.",
-    "closeNews": "Close the line of the task"
+    "closeNews": "Close the line of the task",
+    "cards": {
+      "label": "Ends of the tasks",
+      "download": "Download",
+      "open": "Open",
+      "openLabel": "Open: {task} — {screen}",
+      "close": "Close the card: {task}"
+    }
   },
   "markRevision": {
     "versionName": "Version name",
@@ -2062,12 +2091,14 @@
     }
   },
   "projectList": {
+    "title": "List of projects",
     "count": "{count, plural, one {# project} other {# projects}}",
     "filter": {
-      "label": "Filter of the list",
       "mine": "Projects you contribute to",
-      "lift": "Show all projects",
-      "apply": "Show only my projects",
+      "projects": "Projects",
+      "mineChoice": "My projects",
+      "mineChip": "My projects (by default)",
+      "openable": "All those you may open",
       "states": "Filter by state",
       "everyState": "Every state",
       "defaultChip": "{states} (by default)",
@@ -2143,6 +2174,7 @@
     "reread": "Read the report again"
   },
   "projectForm": {
+    "card": "Project",
     "create": "Create a project",
     "createHint": "The project is born in the Created state, and you are its project manager. The project code may wait for the order.",
     "modifyTitle": "Modify “{name}”",
@@ -2391,20 +2423,15 @@
       "designationUnavailable": "Designating “{name}” by default is unavailable. {unmet}",
       "rolesUnavailable": "Attributing the roles of “{name}” is unavailable. {unmet}"
     },
-    "inactive": {
-      "show": "Show the deactivated ones too",
-      "hide": "Hide the deactivated ones"
-    },
     "stateFilter": {
       "of": "State of the objects of “{list}”",
       "every": "Every state",
       "active": "Active",
-      "inactive": "Deactivated"
+      "inactive": "Deactivated",
+      "defaultChip": "{state} (by default)"
     },
     "pages": {
       "label": "Pages of “{list}”",
-      "previous": "Previous page",
-      "next": "Next page",
       "beyond": "The page asked for is beyond the end of the list."
     },
     "codedChoice": "{code} · {label}",
@@ -2575,6 +2602,7 @@
       "required": "(required)",
       "optional": "(optional)",
       "noLabel": "No label.",
+      "readColumns": "Columns read",
       "kept": "Kept columns",
       "keptHint": "The columns of the extraction that Waterfall keeps for information, given back when the imported lines are consulted. A column read is not also declared kept.",
       "noKept": "No kept column.",
@@ -2587,6 +2615,8 @@
       "addKept": "Declare a kept column",
       "keptFull": "Condition not met: fewer than {max} kept columns. The maximum is reached.",
       "keptTooMany": "The list of kept columns is too long: {max} columns at most.",
+      "labelsFull": "Condition not met: fewer than {max} labels for “{column}”. The maximum is reached.",
+      "labelsTooMany": "The list of labels of “{column}” is too long: {max} labels at most.",
       "doubles": "It doubles the label “{label}” of column “{column}”.",
       "doublesKept": "It doubles the label “{label}” of a kept column.",
       "save": "Save the mapping",
@@ -2610,12 +2640,6 @@
     "boundsRefused": "The list is not read: the server refuses the bounds asked."
   },
   "admin": {
-    "pages": {
-      "label": "Pages of the list",
-      "previous": "Previous page",
-      "next": "Next page",
-      "beyond": "This page is beyond the end of the list."
-    },
     "commands": {
       "unmet": "{command}: {condition}"
     },
@@ -2685,10 +2709,14 @@
       "anonymizationTitle": "Anonymise “{name}”?",
       "anonymizationFinal": "The anonymisation of “{name}” is irreversible: its last name, first name and address are erased, from the table as from the audit log, its avatar is removed, a local account is removed from the identity provider, and the account is never reactivated.",
       "keep": "Keep",
-      "rowBusy": "A write of “{name}” is under way: nothing was written, ask again once it is answered."
+      "rowBusy": "A write of “{name}” is under way: nothing was written, ask again once it is answered.",
+      "pages": {
+        "title": "User accounts",
+        "label": "Pages of the user accounts",
+        "beyond": "This page is beyond the end of the list."
+      }
     },
     "identitySync": {
-      "menu": "Reading of the accounts of the identity provider: state and commands",
       "title": "Reading of the identity provider accounts",
       "schedule": {
         "title": "Reading periodicity",
@@ -2722,9 +2750,9 @@
       "composed": "Composed",
       "none": "No access role.",
       "count": "{count, plural, =0 {No role} one {# role} other {# roles}}",
-      "create": "Create a role",
       "delete": "Delete",
       "creation": "Creation of a role",
+      "creationHint": "The role starts with no permission: they are granted afterwards in the matrix of the permissions.",
       "told": "Commands of the access roles",
       "newLabel": "New role",
       "created": "“{name}” created.",
@@ -2831,7 +2859,12 @@
       "rotatingOnes": "Subject to rotation",
       "bounds": "Bounds of the backups",
       "sizeBytes": "Size (bytes)",
-      "commands": "Commands"
+      "commands": "Commands",
+      "pages": {
+        "title": "Backups",
+        "label": "Pages of the backups",
+        "beyond": "This page is beyond the end of the list."
+      }
     },
     "restore": {
       "title": "Restore the platform",
@@ -2947,6 +2980,11 @@
         "everyObjectKind": "Every kind",
         "correlation": "Correlation",
         "correlationForm": "Letters, digits, “.”, “_”, “-”; 64 at most."
+      },
+      "pages": {
+        "title": "Audit log",
+        "label": "Pages of the audit log",
+        "beyond": "This page is beyond the end of the log."
       }
     }
   },
@@ -2956,12 +2994,21 @@
     "applicationSettings": "Application settings",
     "projects": "Projects"
   },
+  "installation": {
+    "title": "Installation",
+    "name": "Company name",
+    "currency": "Currency",
+    "defaultLanguage": "Default language",
+    "timeZone": "Time zone",
+    "fixed": "The currency, the default language and the time zone are fixed at installation: no screen modifies them."
+  },
   "functions": {
     "users": "User management",
     "accessRoles": "Access role management",
     "systemStatus": "System status monitoring",
     "backups": "Backup and restore",
     "auditLog": "Audit log",
+    "installation": "Installation",
     "portfolioProjects": "Project portfolio",
     "portfolioWorkload": "Aggregated workload",
     "portfolioPerformance": "Portfolio performance",
@@ -3156,6 +3203,10 @@
     },
     "audit_log": {
       "read": "View the audit log"
+    },
+    "installation": {
+      "read": "View the installation",
+      "write": "Edit the installation"
     },
     "portfolio_projects": {
       "read": "View the project portfolio"

@@ -18,6 +18,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
+import type { components } from "@/api/generated/schema";
 import { serverClient } from "@/api/server";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { PAYMENT_DELAYS } from "@/components/indicators/indicator-sections";
@@ -30,6 +31,8 @@ import {
 import { PerimeterBar } from "@/components/portfolio/perimeter";
 import { CashOutChart, PortfolioCurveChart } from "@/components/portfolio/portfolio-charts";
 import { PortfolioHeader, portfolioLabel } from "@/components/portfolio/portfolio-header";
+import { ViewSection } from "@/components/portfolio/portfolio-value";
+import { GridCard } from "@/components/shell/grid-card";
 import { FUNCTION_DENSITY } from "@/components/shell/function-display";
 import { Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
@@ -37,6 +40,8 @@ import { type PageSearchParams, pageSearch } from "@/navigation/context";
 
 import { screenMetadata } from "../../title";
 import { readView, RefusedView } from "../refused";
+
+type Schemas = components["schemas"];
 
 /** The S-curve takes a period (WF-PTF-0010), not a node of organisation. */
 const TAKES = { period: true, node: false } as const;
@@ -82,6 +87,28 @@ function PaymentDelaysToggle({
       <Banknote aria-hidden="true" />
       {shifted ? t("undelay") : t("delay")}
     </Link>
+  );
+}
+
+/**
+ * The card of the S-curve: the command that reads it as cash-out, outlined, at the right of the
+ * title of the card, and the chart, which names itself and holds its own commands.
+ */
+function CurveSection({
+  curves,
+  query,
+}: {
+  readonly curves: Schemas["PortfolioCostCurve"];
+  readonly query: URLSearchParams;
+}) {
+  const t = useTranslations("portfolio.costCurve");
+  return (
+    <ViewSection
+      title={t("section")}
+      commands={<PaymentDelaysToggle shifted={curves.payment_delays} query={query} />}
+    >
+      <PortfolioCurveChart curves={curves} scope={curves.scope} />
+    </ViewSection>
   );
 }
 
@@ -131,10 +158,11 @@ export default async function PortfolioCostCurvePage({
           takes={TAKES}
           view={{ horizon }}
         />
-        <PaymentDelaysToggle shifted={answer.payment_delays} query={queryOf(asked)} />
-        <PortfolioCurveChart curves={answer} scope={answer.scope} />
+        <CurveSection curves={answer} query={queryOf(asked)} />
         {answer.cash_out_by_month === null ? null : (
-          <CashOutChart months={answer.cash_out_by_month} scope={answer.scope} />
+          <GridCard>
+            <CashOutChart months={answer.cash_out_by_month} scope={answer.scope} />
+          </GridCard>
         )}
       </Screen>
     </PendingAddress>

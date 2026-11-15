@@ -136,16 +136,15 @@ describe("the accounts", () => {
     expect((await usersMetadata()).title).toBe("Gestion des utilisateurs — Waterfall");
   });
 
-  it("put the reading of the accounts of the identity provider behind a menu « ⋯ » beside « Créer un compte local », its report read for it (the popover is closed)", async () => {
+  it("put the reading of the accounts of the identity provider in a card under the table, its report read for it, its command at the right of its title [WF-IHM-0100-A]", async () => {
     const page = rendered(await UsersPage(searched()));
-    const menu = page.indexOf(
-      'aria-label="Lecture des comptes du fournisseur d’identité : état et commandes"',
-    );
-    expect(menu).toBeGreaterThan(-1);
+    const card = page.indexOf('aria-label="Lecture des comptes du fournisseur d’identité"');
+    expect(card).toBeGreaterThan(-1);
     expect(buttons(page)).toContain("Créer un compte local");
-    expect(page.indexOf("Créer un compte local")).toBeLessThan(menu);
-    // Out of the way of the table until the menu is opened.
-    expect(text(page)).not.toContain("Lire les comptes");
+    expect(buttons(page)).toContain("Lire les comptes");
+    // The table of the accounts first, its card then.
+    expect(page.indexOf("Créer un compte local")).toBeLessThan(card);
+    expect(text(page)).toContain("Dernière lecture achevée le");
     expect(queriesOf("GET /identity-syncs/latest")).toEqual([{}]);
   });
 
@@ -154,7 +153,7 @@ describe("the accounts", () => {
     expect(queriesOf("GET /identity-sync-schedule")).toEqual([{}]);
   });
 
-  it("offer no command to create an account to a session that may not modify them, the menu of the reading still there", async () => {
+  it("offer no command to create an account nor to read the accounts of the provider to a session that may not modify them, the card of the reading still there", async () => {
     server.answers = {
       ...server.answers,
       "GET /me": "me_estimator",
@@ -162,9 +161,9 @@ describe("the accounts", () => {
     };
     const page = rendered(await UsersPage(searched()));
     expect(buttons(page)).not.toContain("Créer un compte local");
-    expect(page).toContain(
-      'aria-label="Lecture des comptes du fournisseur d’identité : état et commandes"',
-    );
+    expect(buttons(page)).not.toContain("Lire les comptes");
+    expect(page).toContain('aria-label="Lecture des comptes du fournisseur d’identité"');
+    expect(text(page)).toContain("Aucune lecture des comptes n’a encore abouti.");
   });
 
   it("present each account with its origin, its roles and its node as the server names them, deactivated ones listed, on a grid sorted by each of its columns [WF-IHM-0060-A]", async () => {
@@ -460,24 +459,18 @@ describe("the accounts", () => {
     expect(page).not.toMatch(/aria-label="(Rôles de|Lien de fixation)/);
   });
 
-  it("ask the deactivated accounts too, and read an address that hid them as the active ones alone, which the choice says", async () => {
+  it("ask the deactivated accounts too, and ignore `include_inactive` in the address, which hid them before: the state is the filter's alone [WF-ADM-0060-A] (#3076)", async () => {
     const page = rendered(await UsersPage(searched({ include_inactive: "false", offset: "2" })));
-    expect(queriesOf("GET /users")).toEqual([
-      { include_inactive: "true", offset: "2", is_active: "true" },
-    ]);
-    expect(text(page)).toContain("État du compte : Actif");
+    expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true", offset: "2" }]);
+    expect(text(page)).not.toContain("État du compte : Actif");
     expect(page).not.toContain("les désactivés</a>");
-    server.clients = [];
-    await UsersPage(searched({ include_inactive: "maybe" }));
-    expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true" }]);
   });
 
-  it("read an address that says `include_inactive=false` alone as a filter of the table, never replaced by the filters the account keeps [WF-IHM-0060-A, #2916]", async () => {
+  it("find again the filters the account keeps for an address that says `include_inactive` alone, which says nothing of the table [WF-IHM-0060-A] (#3076)", async () => {
     server.answers = { ...server.answers, "GET /me": "me_grid_settings" };
-    await UsersPage(searched({ include_inactive: "false" }));
-    expect(queriesOf("GET /users")).toEqual([
-      { include_inactive: "true", is_active: "true", limit: "25" },
-    ]);
+    await expect(UsersPage(searched({ include_inactive: "false" }))).rejects.toMatchObject({
+      digest: expect.stringContaining(";/admin/users?origins=local&is_active=true;") as unknown,
+    });
   });
 
   it("ask the page the address names, and lead back to the one before it", async () => {
@@ -715,13 +708,13 @@ describe("the access roles", () => {
     expect(rows(page, "Permissions par fonction")[0]).toBe("Fonction Permission");
   });
 
-  it("offer to a session that may modify the roles to create one in line, to delete each, and to write their permissions in the matrix", async () => {
+  it("offer to a session that may modify the roles to create one by « Nouveau rôle », which opens a dialog and leaves no field in line, to delete each, and to write their permissions in the matrix", async () => {
     const page = rendered(await AccessRolesPage(searched()));
     expect(rows(page, "Rôles d’habilitation")[0]).toBe(
       "Libellé Nature Comptes porteurs Créé le Créé par Modifié le Modifié par Supprimer",
     );
-    expect(buttons(page)).toContain("Créer un rôle");
-    expect(page).toContain('aria-label="Création d’un rôle"');
+    expect(buttons(page)).toContain("Nouveau rôle");
+    expect(page).not.toContain('aria-label="Création d’un rôle"');
     expect(page).toContain('aria-label="Supprimer «\u00a0Chiffreur\u00a0»"');
     expect(page).toContain(
       'aria-label="«\u00a0Restaurer la plateforme\u00a0» pour «\u00a0Administrateur\u00a0»"',
@@ -732,8 +725,9 @@ describe("the access roles", () => {
     server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const matrix = rows(rendered(await AccessRolesPage(searched())), "Permissions par fonction");
     // A header, forty permissions of the functions — the functions in reading alone read only
-    // (#739) —, the consultation of the journal of audit, eight irreversible and two structuring.
-    expect(matrix).toHaveLength(52);
+    // (#739) —, the consultation of the journal of audit, the two of the installation (FBS-1.6), eight
+    // irreversible and two structuring.
+    expect(matrix).toHaveLength(54);
     // Named by the catalogue, never by a code of the FBS (#518).
     expect(matrix).toContain(
       "Journal d’audit Consulter le journal d’audit Accordée Accordée Non accordée Non accordée Accordée Non accordée Non accordée",
@@ -743,6 +737,12 @@ describe("the access roles", () => {
       "Gestion des utilisateurs Consulter les utilisateurs Accordée Non accordée Non accordée Non accordée Accordée Non accordée Non accordée",
       "Modifier les utilisateurs Accordée Non accordée Non accordée Non accordée Accordée Non accordée Non accordée",
     ]);
+    expect(matrix).toContain(
+      "Installation Consulter l’installation Accordée Non accordée Non accordée Non accordée Accordée Non accordée Non accordée",
+    );
+    expect(matrix).toContain(
+      "Modifier l’installation Accordée Non accordée Non accordée Non accordée Accordée Non accordée Non accordée",
+    );
     expect(matrix).toContain(
       "Paramètres de coûts Consulter les paramètres de coûts Non accordée Non accordée Accordée Accordée Accordée Accordée Accordée",
     );

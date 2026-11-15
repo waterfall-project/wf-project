@@ -16,7 +16,7 @@ De haut en bas :
 
 - **Imports et exports**, en tête de l’écran, mène là où les coûts réels s’importent, dans le même contexte.
 - **Périmètre** : **Toutes les lignes**, **Suivies** ou **Exclues** ; **Sous-projet**, un sous-projet du projet ou **Tous les sous-projets** ; **Période des pièces**, **Pièces du** et **Pièces jusqu’au**, puis **Filtrer**. Une période qui finit avant de commencer, ou un sous-projet que le projet n’a pas, est refusé à la place des lignes, les filtres gardés pour être changés.
-- **Colonnes** choisit les colonnes montrées ; **Lignes par page**, **Lignes précédentes** et **Lignes suivantes** parcourent la liste ; **Imports plus récents** et **Imports plus anciens** parcourent le journal.
+- **Colonnes** choisit les colonnes montrées ; **Lignes par page**, **Précédent** et **Suivant** parcourent la liste ; **Précédent** et **Suivant** sous le journal le parcourent.
 - Là où le projet offre **Exclure des lignes de coût**, le numéro de pièce d’une ligne est un lien qui l’ouvre : **Exclure du périmètre suivi**, avec un **Motif de l’exclusion** facultatif, ou **Réintégrer dans le périmètre suivi** ; **Fermer la ligne** la referme. Un projet terminal ne l’offre plus. L’exclusion se garde aux imports suivants, même quand une extraction rapporte la ligne. Elle s’écrit sans compteur : l’exclure à nouveau, ou réintégrer une ligne suivie, ne change rien. Le serveur l’inscrit au journal d’audit, et elle n’entre pas dans l’historique des modifications que l’on annule. Aussitôt écrite, elle déplace le montant de la ligne du périmètre suivi à l’exclu. Sur un projet terminal, les lignes et le journal se consultent, sans commande.
 
 ## Ses colonnes et ses valeurs calculées

@@ -113,6 +113,8 @@ const TEXTS: readonly [string, string][] = [
   ["muted-foreground", "accent"],
   ["destructive-foreground", "destructive"],
   ["primary", "background"],
+  // The words of the chip of a filter on, in the tint of the primary (#3077, US-2080).
+  ["primary", "accent"],
   ["destructive", "background"],
   ["destructive", "card"],
   // The banner of the reading context, on its muted strip, and the headings of the header row of
@@ -123,12 +125,15 @@ const TEXTS: readonly [string, string][] = [
   ["popover-foreground", "popover"],
   ["muted-foreground", "popover"],
   ["destructive", "popover"],
-  // The side bar: its entries, the labels of its groups, the current entry and the entry
-  // under the pointer, the project whose icon it shows.
+  // The side bar, dark in both modes: its entries, the labels of its groups, the current entry
+  // and the entry under the pointer, the project whose icon it shows, the icon of the project
+  // switcher on its tile. Inside it, the tokens a component names take these values (SIDEBAR).
   ["sidebar-foreground", "sidebar"],
-  ["muted-foreground", "sidebar"],
+  ["sidebar-foreground", "sidebar-accent"],
+  ["sidebar-muted-foreground", "sidebar"],
+  ["sidebar-muted-foreground", "sidebar-accent"],
   ["sidebar-accent-foreground", "sidebar-accent"],
-  ["muted-foreground", "sidebar-accent"],
+  ["sidebar-primary-foreground", "sidebar-primary"],
   // The name and the icon of a signal, wherever a screen sets one: a page, a card, a muted
   // row, a selected row.
   ...Object.values(SIGNALS).flatMap((signal) =>
@@ -139,6 +144,12 @@ const TEXTS: readonly [string, string][] = [
   ),
   // The word of the state of a project, on the fill of its badge (#523, WF-IHM-0100).
   ...Object.values(STATES).map((state): [string, string] => [`${state}-foreground`, state]),
+  // The text of a cell of a table, on the card its cells are set on (#3277).
+  ["foreground", "card"],
+  // The text of a row under the pointer: the label, the muted number, a signal (US-2080).
+  ["foreground", "row-hover"],
+  ["muted-foreground", "row-hover"],
+  ...Object.values(SIGNALS).map((signal): [string, string] => [signal, "row-hover"]),
   // The mark of a difference, and the text of the row it tints: the label, the muted number.
   ...DIFFERENCES.flatMap((tint): [string, string][] => [
     [`${tint}-mark`, tint],
@@ -168,6 +179,35 @@ const CONTROLS: readonly [string, string][] = [
   ["day-off-mark", "day-off"],
   ["sidebar-ring", "sidebar"],
   ["sidebar-ring", "sidebar-accent"],
+  // The tile of the project switcher, which shows where the switcher is on the dark bar.
+  ["sidebar-primary", "sidebar"],
+  // The border of a field on a muted control, a header row, a selected row or a secondary one.
+  ["input", "muted"],
+  ["input", "accent"],
+  ["input", "secondary"],
+  // The dot of the state « Actif » of a line, wherever a table sets it: a page, a card, a muted
+  // row, a selected row (#3079).
+  ...(["background", "card", "muted", "accent"] as const).map((background): [string, string] => [
+    "active-mark",
+    background,
+  ]),
+  // The dot « Actif », the focus of the active cell and the border of a field, on a row under the
+  // pointer (US-2080).
+  ["active-mark", "row-hover"],
+  ["ring", "row-hover"],
+  ["input", "row-hover"],
+  // The border of a command of a row (the variant `row` of `Button`), on the card the cells of a
+  // table are set on, on a row under the pointer and on a row selected (#3332, WCAG 1.4.11).
+  ["row-command-border", "card"],
+  ["row-command-border", "row-hover"],
+  ["row-command-border", "accent"],
+  // ... and on a computed cell (`bg-muted`) and on the tint of a row a differential marks.
+  ...(["muted", "diff-added", "diff-removed", "diff-modified"] as const).map(
+    (background): [string, string] => ["row-command-border", background],
+  ),
+  // The line under the current tab of a row of tabs (`Tabs`), on the page and on a card (US-2070).
+  ["primary", "background"],
+  ["primary", "card"],
 ];
 
 const MODES: readonly Mode[] = ["light", "dark"];
@@ -190,13 +230,112 @@ describe("the colour tokens of the charter", () => {
   });
 
   describe.each(MODES)("in %s mode", (mode) => {
-    it.each(TEXTS)("write %s on %s at 4.5:1 at least", (text, background) => {
+    it.each(TEXTS)("write %s on %s at 4.5:1 at least [WF-IHM-0100-A]", (text, background) => {
       expect(contrast(colour(text, mode), colour(background, mode))).toBeGreaterThanOrEqual(4.5);
     });
 
-    it.each(CONTROLS)("draw %s on %s at 3:1 at least", (control, background) => {
+    it.each(CONTROLS)("draw %s on %s at 3:1 at least [WF-IHM-0100-A]", (control, background) => {
       expect(contrast(colour(control, mode), colour(background, mode))).toBeGreaterThanOrEqual(3);
     });
+  });
+});
+
+/** The custom properties a block of rules other than `:root` declares, by name. */
+function rebound(selector: string): Map<string, string> {
+  const at = CSS.indexOf(`${selector} {`);
+  const body = at < 0 ? "" : CSS.slice(at, CSS.indexOf("}", at));
+  return new Map(
+    [...body.matchAll(/--([\w-]+):\s*([^;]+);/g)].map((m) => [m[1] ?? "", m[2] ?? ""]),
+  );
+}
+
+const SHELL = join(import.meta.dirname, "..", "components", "shell");
+
+// The tokens a component inside the side bar names, and the token of the bar each takes there.
+const SIDEBAR: Readonly<Record<string, string>> = {
+  foreground: "sidebar-foreground",
+  "muted-foreground": "sidebar-muted-foreground",
+  primary: "sidebar-primary",
+  "primary-foreground": "sidebar-primary-foreground",
+  accent: "sidebar-accent",
+  "accent-foreground": "sidebar-accent-foreground",
+  border: "sidebar-border",
+  ring: "sidebar-ring",
+};
+
+describe("the side bar", () => {
+  it("gives the tokens its entries name the values of the dark bar, measured above [WF-IHM-0100-A]", () => {
+    // A label in `text-muted-foreground` or the tile in `bg-primary` would otherwise take the
+    // value written for the page, dark on the dark bar; each token it takes is measured in TEXTS
+    // and CONTROLS.
+    const found = rebound('[data-sidebar="sidebar"]');
+    expect(Object.fromEntries(found)).toEqual(
+      Object.fromEntries(Object.entries(SIDEBAR).map(([name, bar]) => [name, `var(--${bar})`])),
+    );
+    for (const bar of Object.values(SIDEBAR)) {
+      expect(TOKENS.has(bar), bar).toBe(true);
+    }
+  });
+
+  it("leaves no token it renders to the value written for the page [WF-IHM-0100-A]", () => {
+    // The classes of colour the components of the bar render: a token named there that the bar
+    // does not redefine (`bg-secondary`, `border-input`, `text-destructive`...) would keep its
+    // light value on the dark bar, unmeasured.
+    const redefined = rebound('[data-sidebar="sidebar"]');
+    const named = new Set<string>();
+    for (const file of ["navigation.tsx", "project-switcher.tsx"]) {
+      const source = readFileSync(join(SHELL, file), "utf-8");
+      for (const word of source.split(/[\s"'`{}()]+/)) {
+        const bare = word.slice(word.lastIndexOf(":") + 1).replace(/\/\d+$/, "");
+        const token =
+          /^(?:bg|text|border|ring|outline|fill|stroke|divide|shadow|decoration)-(.+)$/.exec(
+            bare,
+          )?.[1];
+        if (token !== undefined && TOKENS.has(token)) {
+          named.add(token);
+        }
+      }
+    }
+    expect(named.size).toBeGreaterThan(0);
+    const unredefined = [...named].filter(
+      (token) => !token.startsWith("sidebar") && !redefined.has(token),
+    );
+    expect(unredefined).toEqual([]);
+  });
+
+  it.each(MODES)("is midnight blue, its text light, in %s mode", (mode) => {
+    // La barre latérale est sombre dans les deux modes (EP-25, « Décisions »): the same bar, its
+    // current entry a step lighter, beside a light page and a dark one.
+    expect(colour("sidebar", mode)).toBe("#0f1b2d");
+    expect(colour("sidebar-accent", mode)).toBe("#22324b");
+    expect(luminance(colour("sidebar-foreground", mode))).toBeGreaterThan(0.7);
+  });
+});
+
+describe("the colours of the charter of EP-25", () => {
+  it("paint the page, the cards and the primary in light mode as the mock-up does", () => {
+    // En mode clair, la page a un fond gris pâle (#f3f5f8) ; la couleur primaire est le bleu
+    // nuit (#14233b), le bleu du logo ne servant plus qu'au logo (#3079).
+    expect(colour("background", "light")).toBe("#f3f5f8");
+    expect(colour("card", "light")).toBe("#ffffff");
+    expect(colour("primary", "light")).toBe("#14233b");
+    // The rings of the focus, on the page and on the bar, are the blues of the logos, and nothing else.
+    for (const name of [...TOKENS.keys()].filter((token) => !token.endsWith("ring"))) {
+      expect(colour(name, "light"), name).not.toMatch(/^#(027dc6|1195e1|0270b3)$/);
+    }
+  });
+
+  it("set in dark mode a page under its cards, and a primary that stands out of both", () => {
+    // Le mode sombre a ses propres valeurs : the cards a step lighter than the page, as what rises
+    // over a dark page is, and a filled control the lightest surface, as it is the darkest in light
+    // mode; the bar dark and apart from the page.
+    const [page, card, primary] = (["background", "card", "primary"] as const).map((name) =>
+      luminance(colour(name, "dark")),
+    );
+    expect(card).toBeGreaterThan(page ?? 1);
+    expect(primary).toBeGreaterThan(0.7);
+    expect(luminance(colour("primary", "light"))).toBeLessThan(0.05);
+    expect(colour("sidebar", "dark")).not.toBe(colour("background", "dark"));
   });
 });
 
@@ -282,6 +421,21 @@ describe("the tokens of the signals", () => {
     }
   });
 
+  it("keep the colours EP-24 left them, whatever the charter around them [WF-IHM-0070-A]", () => {
+    // La même zone d'indice porte la même couleur dans la liste des projets, dans les indicateurs
+    // du projet et dans la performance du portefeuille : one token per zone, which the charter of
+    // EP-25 does not touch, so that their distances for a protanope and a deuteranope, measured
+    // below, stay those that were validated.
+    const values = Object.fromEntries(
+      Object.values(SIGNALS).map((token) => [token, MODES.map((mode) => colour(token, mode))]),
+    );
+    expect(values).toEqual({
+      "signal-nominal": ["#1f756c", "#07a1a3"],
+      "signal-watch": ["#923002", "#f89228"],
+      "signal-alert": ["#6b1d24", "#fdb299"],
+    });
+  });
+
   describe.each(MODES)("in %s mode", (mode) => {
     it("leave each signal identifiable in a grey copy, the alert standing out the most from the page [WF-IHM-0070-A]", () => {
       // Une copie d'écran en niveaux de gris laisse identifier chaque signalement : the shape
@@ -341,6 +495,23 @@ describe("the tokens of the states of a project", () => {
           expect(difference, `${state} and ${signal}`).toBeGreaterThanOrEqual(DISTINCT);
         }
       }
+    });
+  });
+});
+
+// The row under the pointer is told from the card it is set on and from the row selected by a
+// CIE76 difference of 2.3 — the smallest one noticed side by side, which DISTINCT is several times
+// — since the tint is a hint under the pointer, not a signal: the text and the controls it carries
+// are measured above.
+const NOTICED = 2.3;
+
+describe("the row of a table under the pointer", () => {
+  describe.each(MODES)("in %s mode", (mode) => {
+    it.each(["card", "accent"])("is told from the %s [WF-IHM-0100-A]", (other) => {
+      const a = lab(linear(colour("row-hover", mode)));
+      const b = lab(linear(colour(other, mode)));
+      const difference = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+      expect(difference, `row-hover and ${other}`).toBeGreaterThanOrEqual(NOTICED);
     });
   });
 });

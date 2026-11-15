@@ -29,6 +29,7 @@ import {
   GAP,
   curve,
   timeAxis,
+  valueAxis,
 } from "@/components/chart/chart";
 import { CalculationDate } from "@/components/context/indicator";
 import { LocalTime } from "@/components/local-time";
@@ -126,12 +127,9 @@ export function IndexChart({ kind, history }: IndexChartProps) {
           history.scopes.flatMap((scope) => scope.points.map((point) => point.at)),
         ),
         yAxis: {
-          type: "value",
+          ...valueAxis(palette, (value) => tick.format(value)),
           // An index is never negative: its axis starts at zero, drawn even when no point is.
           min: 0,
-          axisLine: { show: true, lineStyle: { color: palette.axis } },
-          axisLabel: { color: palette.text, formatter: (value: number) => tick.format(value) },
-          splitLine: { lineStyle: { color: palette.grid } },
         },
         series: [
           ...curves,

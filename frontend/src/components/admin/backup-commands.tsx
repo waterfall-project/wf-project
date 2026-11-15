@@ -55,14 +55,22 @@ import type { Outcome } from "@/api/problem";
 import { useHeldCommand } from "@/components/commands/held";
 import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { WaitingIcon, waitingAttributes } from "@/components/commands/waiting";
 import { LocalTime, useLocalTimestamp } from "@/components/local-time";
 import { useNoteMessage } from "@/components/notices/message-history";
 import { type Said, type Say, useSaid } from "@/components/notices/said";
 import { CellCommand, UnavailableCellCommand } from "@/components/reference/cell-command";
 import { ANOTHER_OBJECT, focusBack, WrittenRegion } from "@/components/reference/commands";
 import { useListReport } from "@/components/reference/reactivation";
+import { SectionCard, type PrincipalVariant } from "@/components/shell/section-card";
 import type { ResultRefusal } from "@/components/tasks/result-refusal";
-import { afterReveal, useTrackTask } from "@/components/tasks/task-tracker";
+import {
+  afterReveal,
+  useRunningTask,
+  useTaskRunning,
+  useTrackTask,
+} from "@/components/tasks/task-tracker";
+import { INSTALLATION, taskAim } from "@/components/tasks/tracking";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -162,8 +170,15 @@ export function useShownBackups(backups: readonly Backup[]): readonly Backup[] {
   return useContext(ListCommands)?.shown ?? backups;
 }
 
-/** The command that starts a backup now: the task goes to the tracker with it, to run it again. */
-function StartBackupButton() {
+/** What a backup aims at: the installation, by which its command finds it again (#3404). */
+const BACKUP_AIM = taskAim("backup", INSTALLATION);
+
+/**
+ * The command that starts a backup now, the principal one of the card of the list, drawn at the
+ * variant the card gives it — filled, it triggers (`SectionCard`): the task goes to the tracker
+ * with it, to run it again.
+ */
+export function StartBackupButton({ variant }: { readonly variant: PrincipalVariant }) {
   const t = useTranslations("admin.backups");
   const commands = useContext(ListCommands);
   const list = useListReport();
@@ -173,14 +188,20 @@ function StartBackupButton() {
   // Busy from the press to the answer, and lifted in the very update that tells it — not a transition,
   // whose end would wait for every other async action of the page (#1484).
   const [busy, setBusy] = useState(false);
+  // The task of the last backup asked — else, mounted anew, the backup that runs (#3404): the command
+  // waits while it runs (WF-IHM-0080, #3279).
+  const [started, setStarted] = useState<string>();
+  const found = useRunningTask(BACKUP_AIM);
+  const running = useTaskRunning(started ?? found);
+  const waiting = busy || running;
   return (
     <Button
       type="button"
-      variant="outline"
+      variant={variant}
       size="sm"
-      aria-busy={busy}
+      {...waitingAttributes(waiting)}
       onClick={() => {
-        if (busy) {
+        if (waiting) {
           return;
         }
         const generation = list?.generation ?? 0;
@@ -188,7 +209,8 @@ function StartBackupButton() {
         void held(startBackup()).then((outcome) => {
           setBusy(false);
           if (outcome.kind === "done") {
-            track(outcome.data, { command: startBackup });
+            track(outcome.data, { command: startBackup, aim: BACKUP_AIM });
+            setStarted(outcome.data.task_id);
             // The tracker notes the task handed over: the history has it once.
             commands?.say(t("started"), { noted: false });
           } else {
@@ -197,7 +219,7 @@ function StartBackupButton() {
         });
       }}
     >
-      <DatabaseBackup aria-hidden="true" />
+      <WaitingIcon waiting={waiting} icon={<DatabaseBackup aria-hidden="true" />} />
       {t("start")}
     </Button>
   );
@@ -205,16 +227,11 @@ function StartBackupButton() {
 
 /**
  * The head of the list, for a session that exercises a command: the region that says what the last
- * one did, and, for who may modify the backups, the command that starts one — on an empty list too.
+ * one did. The command that starts a backup is the principal one of the card (`StartBackupButton`).
  */
-export function BackupHead({ startable }: { readonly startable: boolean }) {
+export function BackupHead() {
   const said = useContext(ListCommands)?.said;
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <WrittenRegion said={said} />
-      {startable ? <StartBackupButton /> : null}
-    </div>
-  );
+  return <WrittenRegion said={said} />;
 }
 
 /**
@@ -612,74 +629,74 @@ export function BackupDeposit() {
         },
   );
   return (
-    <section aria-label={t("title")} className="shrink-0 space-y-2 text-sm">
-      <h2 className="text-base font-semibold">{t("title")}</h2>
-      <p className="text-muted-foreground">{t("explanation")}</p>
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="space-y-1">
-          <Label htmlFor={field}>{t("file")}</Label>
-          <Input
-            id={field}
-            type="file"
-            disabled={busy}
-            onChange={(event) => {
-              setFile(event.target.files?.[0]);
-              setUpload(undefined);
-            }}
-          />
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          aria-busy={busy}
-          disabled={file === undefined}
-          onClick={send}
-        >
-          <Upload aria-hidden="true" />
-          {t("send")}
-        </Button>
-      </div>
-      {sending === undefined ? null : <p role="status">{t("sending", { ...sending })}</p>}
-      <OutcomeNotice
-        outcome={outcome}
-        onClear={() => {
-          setOutcome(undefined);
-        }}
-      />
-      {upload === undefined || subject === undefined ? null : (
-        <div className="flex flex-wrap items-center gap-2">
-          <p role="status">
-            {t.rich("deposited", {
-              name: upload.filename,
-              time: () => <LocalTime value={subject.takenAt} />,
-            })}
-          </p>
+    <SectionCard title={t("title")} icon={ArchiveRestore} description={t("explanation")}>
+      <div className="flex min-w-0 flex-col gap-3 text-sm">
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="min-w-60 flex-1 space-y-1">
+            <Label htmlFor={field}>{t("file")}</Label>
+            <Input
+              id={field}
+              type="file"
+              disabled={busy}
+              onChange={(event) => {
+                setFile(event.target.files?.[0]);
+                setUpload(undefined);
+              }}
+            />
+          </div>
           <Button
-            ref={restore}
             type="button"
             size="sm"
             variant="outline"
-            onClick={() => {
-              setConfirming(true);
-            }}
+            aria-busy={busy}
+            disabled={file === undefined}
+            onClick={send}
           >
-            <History aria-hidden="true" />
-            {t("restore")}
+            <Upload aria-hidden="true" />
+            {t("send")}
           </Button>
         </div>
-      )}
-      {confirming && subject !== undefined ? (
-        <RestoreDialog
-          subject={subject}
-          onClose={() => {
-            setConfirming(false);
-          }}
-          onClosed={() => {
-            restore.current?.focus();
+        {sending === undefined ? null : <p role="status">{t("sending", { ...sending })}</p>}
+        <OutcomeNotice
+          outcome={outcome}
+          onClear={() => {
+            setOutcome(undefined);
           }}
         />
-      ) : null}
-    </section>
+        {upload === undefined || subject === undefined ? null : (
+          <div className="flex flex-wrap items-center gap-2">
+            <p role="status">
+              {t.rich("deposited", {
+                name: upload.filename,
+                time: () => <LocalTime value={subject.takenAt} />,
+              })}
+            </p>
+            <Button
+              ref={restore}
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setConfirming(true);
+              }}
+            >
+              <History aria-hidden="true" />
+              {t("restore")}
+            </Button>
+          </div>
+        )}
+        {confirming && subject !== undefined ? (
+          <RestoreDialog
+            subject={subject}
+            onClose={() => {
+              setConfirming(false);
+            }}
+            onClosed={() => {
+              restore.current?.focus();
+            }}
+          />
+        ) : null}
+      </div>
+    </SectionCard>
   );
 }

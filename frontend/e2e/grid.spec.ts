@@ -63,7 +63,20 @@ async function totalUnder(page: Page, column: string) {
   const names = await headers.allTextContents();
   const index = names.findIndex((name) => name.includes(column));
   expect(index).toBeGreaterThan(0);
-  return grid(page).getByRole("row").last().getByRole("gridcell").nth(index);
+  // The caption spans the columns after the first with no figure: a cell of the totals is not
+  // one column, so the cell under the header is found by the columns the cells before it span.
+  const cells = grid(page).getByRole("row").last().getByRole("gridcell");
+  const spans = await cells.evaluateAll((nodes) =>
+    nodes.map((node) => (node as HTMLTableCellElement).colSpan),
+  );
+  let covered = 0;
+  const position = spans.findIndex((span) => {
+    covered += span;
+    return covered > index;
+  });
+  // No cell covering the column would be -1, which `nth` reads as the last cell (#3287).
+  expect(position).toBeGreaterThanOrEqual(0);
+  return cells.nth(position);
 }
 
 /** The header of the labels, the caption of the totals, the first and the last rows. */
@@ -253,7 +266,11 @@ test.describe("on a narrow window", () => {
     const { totals } = edges(page);
     const box = scroller(grid(page));
     await expect(label).toBeInViewport({ ratio: 1 });
-    await expect(totals).toBeInViewport({ ratio: 1 });
+    // The caption spans the columns that have no figure, wider than the window: it is in view by
+    // its start, its words cut where the pinned columns end (US-2080, #3072) — and whole in height,
+    // in the box of the grid and in the window (#3286).
+    await expect(totals).toBeInViewport();
+    expect(await withinBox(grid(page), totals)).toBe(true);
 
     // The grid is wider than the window: it scrolls sideways, to its last column.
     await box.evaluate((element) => {
@@ -266,13 +283,25 @@ test.describe("on a narrow window", () => {
     // The label, its header and the caption of the totals stay at the start, beside the row
     // numbers, whatever is scrolled under them.
     const start = await box.boundingBox();
-    for (const pinned of [
-      label,
-      totals,
-      grid(page).getByRole("columnheader", { name: "Libellé" }),
-    ]) {
+    for (const pinned of [label, grid(page).getByRole("columnheader", { name: "Libellé" })]) {
       await expect(pinned).toBeInViewport({ ratio: 1 });
       expect((await pinned.boundingBox())?.x).toBeCloseTo((start?.x ?? 0) + 1 + 48, 0);
+    }
+    const words = totals.locator("span");
+    await expect(words).toBeInViewport();
+    expect((await words.boundingBox())?.x).toBeCloseTo((start?.x ?? 0) + 1 + 48, 0);
+    // Scrolled sideways, the row of the totals is still whole in height (#3286): what proves it
+    // fails on the row moved down by half its height, half under the box of the grid.
+    expect(await withinBox(grid(page), totals)).toBe(true);
+    await totals.evaluate((cell) => {
+      cell.style.transform = "translateY(50%)";
+    });
+    try {
+      expect(await withinBox(grid(page), totals)).toBe(false);
+    } finally {
+      await totals.evaluate((cell) => {
+        cell.style.transform = "";
+      });
     }
   });
 

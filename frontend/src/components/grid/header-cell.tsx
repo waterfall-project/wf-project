@@ -12,6 +12,12 @@
  * widest column between, where an active cell shows (`endMaxOf`). It
  * changes a display preference alone, never a task (WF-PLA-0090).
  *
+ * The column that takes the rest of the card (`table-width.ts`, #3075) shows wider than its width
+ * chosen when the others leave it more: its handle announces the width it shows, drags or steps from
+ * its visible edge, and goes no narrower than what the others leave it — its least there —, so that
+ * its edge follows the pointer and the width written is the one seen; a step that would change
+ * nothing seen writes nothing.
+ *
  * The header is a row of the grid, which its arrows move along (`useGridKeyboard`): the active one
  * is the one stop of the grid in the order of tabulation, its button and handle out of it
  * (WF-IHM-0100, #182). Enter or Space on it sorts its column, as its button does; Shift and the
@@ -79,6 +85,11 @@ export interface HeaderCellProps<Row extends RowData> {
    * shown are selected, some, or none, and the box that selects all of them or lifts the selection.
    */
   readonly selectAll?: SelectAll | undefined;
+  /**
+   * For the column that takes the rest of the card: what the other columns leave it, once the room
+   * of the frame is known (`restOf`); none for the others.
+   */
+  readonly rest?: number | undefined;
 }
 
 /** The box of the header of the handles: all the rows shown, some, or none, selected. */
@@ -127,13 +138,37 @@ function widestOf<Row extends RowData>(header: GridHeader<Row>): number {
   return header.column.columnDef.maxSize ?? MAX_WIDTH;
 }
 
-/** Give a column a width, within its bounds. */
+/** The width chosen for a column, the width it shows, and the narrowest its handle takes it to. */
+interface Span {
+  readonly chosen: number;
+  readonly shown: number;
+  readonly least: number;
+}
+
+/**
+ * The span of a column: its width chosen, at least `MIN_WIDTH`; for the column that takes the rest
+ * of the card, at least what the others leave it, which it shows when that is wider.
+ */
+function spanOf<Row extends RowData>(header: GridHeader<Row>, rest: number | undefined): Span {
+  const least = Math.max(MIN_WIDTH, rest ?? MIN_WIDTH);
+  const chosen = Math.max(header.getSize(), MIN_WIDTH);
+  return { chosen, shown: Math.max(chosen, least), least };
+}
+
+/**
+ * Give a column a width, within its bounds: never under its least, never over its widest; nothing
+ * when the width it would show is the one it shows.
+ */
 function sizeTo<Row extends RowData>(
   table: GridTable<Row>,
   header: GridHeader<Row>,
+  span: Span,
   width: number,
 ): void {
-  const bounded = Math.min(widestOf(header), Math.max(MIN_WIDTH, Math.round(width)));
+  const bounded = Math.min(widestOf(header), Math.max(span.least, Math.round(width)));
+  if (Math.max(bounded, span.least) === span.shown) {
+    return;
+  }
   table.setColumnSizing((sizing) => ({ ...sizing, [header.column.id]: bounded }));
 }
 
@@ -145,22 +180,29 @@ function sizeTo<Row extends RowData>(
 function resizeBy<Row extends RowData>(
   table: GridTable<Row>,
   header: GridHeader<Row>,
+  span: Span,
   key: string,
 ): boolean {
   const step = { ArrowLeft: -RESIZE_STEP, ArrowRight: RESIZE_STEP }[key];
   if (step === undefined) {
     return false;
   }
-  sizeTo(table, header, header.getSize() + (endPinned(header) ? -step : step));
+  sizeTo(table, header, span, span.shown + (endPinned(header) ? -step : step));
   return true;
 }
 
 /**
- * The drag of the handle of the column pinned at the end, on its left edge: the column widens by
- * as much as the pointer goes left of where it was pressed. The pointer is captured, so that the
- * drag goes on over the rows.
+ * The drag of a handle from the width its column shows: that of the column pinned at the end, on
+ * its left edge, widens it by as much as the pointer goes left of where it was pressed (`sign` -1);
+ * that of the column that takes the rest, by as much as it goes right (`sign` 1). The pointer is
+ * captured, so that the drag goes on over the rows.
  */
-function useSplitDrag<Row extends RowData>(table: GridTable<Row>, header: GridHeader<Row>) {
+function useHandleDrag<Row extends RowData>(
+  table: GridTable<Row>,
+  header: GridHeader<Row>,
+  span: Span,
+  sign: 1 | -1,
+) {
   const from = useRef<{ readonly x: number; readonly width: number } | undefined>(undefined);
   return {
     onPointerDown: (event: PointerEvent<HTMLElement>) => {
@@ -169,13 +211,13 @@ function useSplitDrag<Row extends RowData>(table: GridTable<Row>, header: GridHe
       }
       event.currentTarget.setPointerCapture(event.pointerId);
       event.currentTarget.focus({ preventScroll: true });
-      from.current = { x: event.clientX, width: header.getSize() };
+      from.current = { x: event.clientX, width: span.shown };
       event.preventDefault();
     },
     onPointerMove: (event: PointerEvent<HTMLElement>) => {
       const start = from.current;
       if (start !== undefined) {
-        sizeTo(table, header, start.width + start.x - event.clientX);
+        sizeTo(table, header, span, start.width + sign * (event.clientX - start.x));
       }
     },
     onPointerUp: () => {
@@ -196,18 +238,22 @@ function ResizeHandle<Row extends RowData>({
   table,
   header,
   label,
+  span,
+  stretched,
 }: {
   readonly table: GridTable<Row>;
   readonly header: GridHeader<Row>;
   readonly label: string;
+  readonly span: Span;
+  /** Whether its column takes the rest of the card. */
+  readonly stretched: boolean;
 }) {
   const t = useTranslations("grid");
-  const size = header.getSize();
   const start = header.getResizeHandler();
-  const split = useSplitDrag(table, header);
   const end = endPinned(header);
+  const drag = useHandleDrag(table, header, span, end ? -1 : 1);
   const resize = (event: KeyboardEvent) => {
-    if (resizeBy(table, header, event.key)) {
+    if (resizeBy(table, header, span, event.key)) {
       event.preventDefault();
     }
   };
@@ -216,11 +262,11 @@ function ResizeHandle<Row extends RowData>({
       role="separator"
       aria-orientation="vertical"
       aria-label={t("resize", { column: label })}
-      aria-valuenow={size}
-      aria-valuemin={MIN_WIDTH}
-      aria-valuemax={widestOf(header)}
+      aria-valuenow={span.shown}
+      aria-valuemin={span.least}
+      aria-valuemax={Math.max(widestOf(header), span.shown)}
       tabIndex={-1}
-      {...(end ? split : { onMouseDown: start, onTouchStart: start })}
+      {...(end || stretched ? drag : { onMouseDown: start, onTouchStart: start })}
       onKeyDown={resize}
       className={cn(
         "absolute top-0 h-full w-1.5 cursor-col-resize touch-none select-none",
@@ -248,7 +294,10 @@ function Heading({
   readonly label: string;
   /** Whether the label names the column to the readers of the screen alone: too narrow to write. */
   readonly named: boolean;
-  /** The width of the column, at which an axis draws. */
+  /**
+   * The width chosen for the column, at which an axis draws: never the width it shows, known only
+   * once the frame is measured, which would draw the axis anew after the loading (#3282).
+   */
   readonly width: number;
 }) {
   const t = useTranslations("grid");
@@ -377,6 +426,7 @@ export function HeaderCell<Row extends RowData>({
   position,
   active,
   selectAll,
+  rest,
 }: HeaderCellProps<Row>) {
   const t = useTranslations("grid");
   const numbers =
@@ -389,12 +439,13 @@ export function HeaderCell<Row extends RowData>({
   // handle it holds, which would be read with every cell of the column.
   const id = useId();
   const stateId = useId();
+  const span = spanOf(header, rest);
   const heading = (
     <Heading
       id={id}
       column={column}
       label={label}
-      width={header.getSize()}
+      width={span.chosen}
       named={header.column.id === DIFF_MARK_KEY}
     />
   );
@@ -408,7 +459,7 @@ export function HeaderCell<Row extends RowData>({
     if (sorts && (event.key === "Enter" || event.key === " ")) {
       header.column.getToggleSortingHandler()?.(event);
       event.preventDefault();
-    } else if (resizes && event.shiftKey && resizeBy(table, header, event.key)) {
+    } else if (resizes && event.shiftKey && resizeBy(table, header, span, event.key)) {
       event.preventDefault();
     }
   };
@@ -445,7 +496,15 @@ export function HeaderCell<Row extends RowData>({
         stateId={stateId}
       />
       {cornerOf(column)}
-      {resizes ? <ResizeHandle table={table} header={header} label={label} /> : null}
+      {resizes ? (
+        <ResizeHandle
+          table={table}
+          header={header}
+          label={label}
+          span={span}
+          stretched={rest !== undefined}
+        />
+      ) : null}
     </TableHead>
   );
   return (

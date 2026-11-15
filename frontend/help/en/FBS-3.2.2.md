@@ -12,7 +12,7 @@ The service keeps what is written. Active roles are read without any particular 
 
 These commands are offered only to whoever may modify the resource settings:
 
-- **New role** opens the form: code, unique, label, node, labour category, calendar, hours per month and headcount, all required.
+- **New role**, a filled button at the right of the title of the roles card, opens the form: code, unique, label, node, labour category, calendar, hours per month and headcount, all required.
 - **Modify**, on a row, opens the same form, without the node, which the form names.
 - **Deactivate** and **Reactivate**, in the column **State**, without confirmation. The reactivation of a role whose node is deactivated is unavailable (“organisation node active”): the command stays shown and says the condition it lacks.
 
@@ -20,10 +20,10 @@ A code already borne, among the active or the deactivated roles, is refused at i
 
 Above the table, for all:
 
-- **Role code**; **Organisation node**, which keeps the roles of the node and of its descendants; **Cost category**; **Calendar** — each with its choice “Every …” —; a filter of state when the deactivated ones are shown;
+- **Role code**; **Organisation node**, which keeps the roles of the node and of its descendants; **Cost category**; **Calendar** — each with its choice “Every …” —; the **State** filter of its bar — **Active** (by default), **Deactivated**, **Every state** —, offered to whoever may modify the resource settings;
 - **Bounds of “Resource roles”**: the hours per month and the headcount between two bounds. An upper bound under the lower bound is refused at its field, and the table is not read;
 - the search field keeps the roles whose code or label contains the text entered;
-- **Columns**, **Rows per page**, **Previous page** and **Next page**.
+- **Columns**, **Rows per page**, **Previous** and **Next**.
 
 ## Its columns and computed values
 

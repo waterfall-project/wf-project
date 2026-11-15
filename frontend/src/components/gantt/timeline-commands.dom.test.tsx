@@ -329,9 +329,13 @@ describe("the commands of the timelines of a project", () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 
-  it("presents its commands unavailable with the conditions they lack, and opens nothing", async () => {
+  it("presents its commands unavailable with the conditions they lack, said in the tooltip and, pressed, in the refusals, and opens nothing [WF-IHM-0090-A]", async () => {
     serve();
     render(choice({ is_available: false, missing_conditions: ["project_not_terminal"] }));
+    // Not written under the commands: the text that describes them is hidden, and nothing is shown.
+    for (const written of screen.queryAllByText(/Condition non remplie/)) {
+      expect(written).not.toBeVisible();
+    }
     for (const name of [
       "Nouvelle chronologie",
       `Supprimer la chronologie ${quoted("Comité de pilotage")}`,
@@ -339,11 +343,52 @@ describe("the commands of the timelines of a project", () => {
       const command = screen.getByRole("button", { name });
       expect(command).toHaveAttribute("aria-disabled", "true");
       expect(command).toHaveAccessibleDescription("Condition non remplie\u00a0: projet non clos.");
+      // The tooltip says it, which the focus opens.
+      command.focus();
+      await screen.findByRole("tooltip");
+      expect(document.querySelector("[data-slot=tooltip-content]")).toHaveTextContent(
+        /Condition non remplie.{1,2}: projet non clos\./,
+      );
       await userEvent.click(command);
       expect(screen.queryByRole("dialog")).toBeNull();
     }
+    // The condition is read in the tooltip and, pressed, in the region of the refusals: never
+    // written under the command (WF-IHM-0090-A, #3290).
+    expect(screen.getByRole("alert")).toHaveTextContent("Condition non remplie : projet non clos.");
     // Nothing was sent: the history notes nothing of the conditions said.
     expect(readMessages().messages).toEqual([]);
+  });
+
+  it("says no empty condition in the tooltip of a command unavailable that lacks none the server names [WF-IHM-0090-A]", async () => {
+    serve();
+    render(choice({ is_available: false, missing_conditions: [] }));
+    const command = screen.getByRole("button", { name: "Nouvelle chronologie" });
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    command.focus();
+    await screen.findByRole("tooltip");
+    expect(document.querySelector("[data-slot=tooltip-content]")).not.toHaveTextContent(
+      "Condition non remplie",
+    );
+  });
+
+  it("chooses the timeline by a row of tabs, the one shown current, and fills the creation alone [WF-IHM-0100-A]", () => {
+    serve();
+    render(choice(AVAILABLE));
+    const row = screen.getByRole("navigation", { name: "Chronologie affichée" });
+    expect(row).toHaveAttribute("data-slot", "tabs");
+    const [shown, other] = within(row).getAllByRole("link");
+    expect(shown).toHaveAttribute("aria-current", "true");
+    expect(other).not.toHaveAttribute("aria-current");
+    for (const link of [shown, other]) {
+      expect(link).toHaveClass("border-b-2");
+      expect(link).not.toHaveClass("bg-primary");
+    }
+    expect(screen.getByRole("button", { name: "Nouvelle chronologie" })).toHaveClass("bg-primary");
+    expect(
+      screen.getByRole("button", {
+        name: `Supprimer la chronologie ${quoted("Comité de pilotage")}`,
+      }),
+    ).not.toHaveClass("bg-primary");
   });
 
   it("offers nothing to a session the project lists no command to", () => {

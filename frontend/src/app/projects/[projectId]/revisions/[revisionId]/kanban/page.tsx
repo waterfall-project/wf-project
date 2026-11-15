@@ -27,7 +27,7 @@ import {
   type KanbanColumns,
   type KanbanStructure,
 } from "@/components/remaining/kanban-cards";
-import { FUNCTION_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
+import { LEAF_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import type { PageSearchParams } from "@/navigation/context";
 
@@ -62,11 +62,11 @@ function KanbanScreen({
 }) {
   const t = useTranslations();
   return (
-    <Screen density={FUNCTION_DENSITY.remaining}>
+    <Screen density={LEAF_DENSITY["FBS-4.5.3"]}>
       <PageHeader
         title={t("functions.kanban")}
         icon={LEAF_ICONS["FBS-4.5.3"]}
-        density={FUNCTION_DENSITY.remaining}
+        density={LEAF_DENSITY["FBS-4.5.3"]}
         subtitle={t("kanban.summary")}
       />
       {board === undefined ? (

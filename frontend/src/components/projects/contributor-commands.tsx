@@ -53,7 +53,7 @@ import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { useAccountNaming } from "@/components/account/account-name";
 import { KeptName } from "@/components/account/anonymized-name";
-import { UnmetConditions, useUnmet } from "@/components/commands/command";
+import { PressRefusal, useUnmet } from "@/components/commands/command";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
 import { OutcomeNotice, useNoteRefusal } from "@/components/commands/outcome-notice";
@@ -61,6 +61,7 @@ import { rejected } from "@/components/commands/rejection";
 import { WritingNote } from "@/components/commands/writing-note";
 import { type Said, type Say, useSaid } from "@/components/notices/said";
 import { ActiveState } from "@/components/reference/section";
+import type { PrincipalVariant } from "@/components/shell/section-card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -74,6 +75,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { formatLocale } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
 
+import { offersModification } from "./contributor-offer";
 import { type Contributor, KINDS } from "./settings-grids";
 
 type Schemas = components["schemas"];
@@ -223,42 +225,51 @@ export function ContributorCommands({
 function ModifyContributors({
   commands,
   from,
+  variant,
 }: {
   readonly commands: Commands;
   readonly from: ContributorReading | undefined;
+  readonly variant: PrincipalVariant;
 }) {
   const t = useTranslations("projectLists.contributors");
   const helps = useTranslations("commands");
   const unmetText = useUnmet();
   const id = useId();
+  // The presses of the command while it is unavailable: each says what it lacks.
+  const [presses, setPresses] = useState(0);
   const { offer } = commands.editing;
   // What the dialog starts from: the rows and the counter of the reading, whole.
   const reading =
     from?.lock_version == null ? undefined : { from: from.items, counter: from.lock_version };
-  if (offer === undefined || (offer.is_available && reading === undefined)) {
+  // Present as `offersModification` decides, which `ModifyContributorsCommand` has asked.
+  if (offer === undefined) {
     return null;
   }
   const unmet = unmetId(offer, id);
   const { writing } = commands;
   const why = `${id}-writing`;
   return (
-    <>
+    <div className="flex flex-wrap items-start gap-2">
       <CommandTooltip
         label={t("modify")}
         help={helps("project.manage_contributors.help")}
         unavailable={unmet === undefined ? undefined : unmetText(offer)}
-        describedBy={writing ? why : unmet}
+        describedBy={writing ? why : undefined}
       >
         <Button
           type="button"
-          variant="outline"
+          variant={variant}
           size="sm"
           aria-disabled={offer.is_available && !writing ? undefined : true}
           aria-busy={writing}
           aria-haspopup="dialog"
           className={UNAVAILABLE}
           onClick={(event: MouseEvent<HTMLElement>) => {
-            if (offer.is_available && !writing && reading !== undefined) {
+            if (!offer.is_available) {
+              setPresses((count) => count + 1);
+              return;
+            }
+            if (!writing && reading !== undefined) {
               commands.refuse(undefined);
               commands.open({ ...reading, trigger: event.currentTarget });
             }
@@ -268,15 +279,36 @@ function ModifyContributors({
           {t("modify")}
         </Button>
       </CommandTooltip>
-      <UnmetConditions id={unmet} offer={offer} />
+      <PressRefusal offer={offer} presses={presses} />
       <WritingNote id={why} writing={writing} />
-    </>
+    </div>
   );
 }
 
 /**
- * The head of the list: the region that says what the last write did, the command that modifies the
- * list, the accounts the server proposes, a refusal answered once the dialog is gone, and the dialog.
+ * The command that modifies the list of the contributors, the principal one of its card, at the right
+ * of its title as « Modifier le projet » is (US-2310/L2, #3417): outlined, as what it does is modify
+ * (`SectionCard`). It takes the commands of the list from the context of `ContributorCommands`.
+ */
+export function ModifyContributorsCommand({ variant }: { readonly variant: PrincipalVariant }) {
+  const commands = useContext(ContributorContext);
+  if (commands === undefined) {
+    return null;
+  }
+  const { editing } = commands;
+  // The one decision of the card, which reserved its place by it.
+  if (!offersModification(editing)) {
+    return null;
+  }
+  // A modification opens on the list read whole, whose counter it sends; the newer one answered
+  // after.
+  const from = editing.whole === undefined ? undefined : newer(editing.whole, commands.answered);
+  return <ModifyContributors commands={commands} from={from} variant={variant} />;
+}
+
+/**
+ * The head of the list: the region that says what the last write did, the accounts the server
+ * proposes, a refusal answered once the dialog is gone, and the dialog.
  */
 export function ContributorHead() {
   const t = useTranslations("projectLists.contributors");
@@ -288,18 +320,16 @@ export function ContributorHead() {
   }
   const { said, editing } = commands;
   const { suggestions } = editing;
-  // A modification opens on the list read whole, whose counter it sends; the newer one answered after.
+  // A modification opens on the list read whole, whose counter it sends; the newer one answered
+  // after.
   const from = editing.whole === undefined ? undefined : newer(editing.whole, commands.answered);
   // Proposed under the list: the accounts the list it opens on does not count — inscribed, no more.
   const proposed = proposedBesides(suggestions, from?.items);
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <p role="status" aria-live="polite" className="text-sm text-muted-foreground empty:sr-only">
-          {said === undefined ? null : <span key={said.count}>{said.text}</span>}
-        </p>
-        <ModifyContributors commands={commands} from={from} />
-      </div>
+      <p role="status" aria-live="polite" className="text-sm text-muted-foreground empty:sr-only">
+        {said === undefined ? null : <span key={said.count}>{said.text}</span>}
+      </p>
       {proposed.length === 0 ? null : (
         <p className="text-sm text-muted-foreground">
           {t("suggested", {

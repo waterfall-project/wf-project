@@ -28,7 +28,7 @@ During a restoration, only the download stays available. No command deletes a ba
 Above the list:
 
 - **Period of the backups**, **Filter by trigger**, **Filter by verification**, **Retention** and, between two bounds, the size in bytes.
-- **Columns** chooses the columns shown; **Rows per page**, **Previous page** and **Next page** go through the list.
+- **Columns** chooses the columns shown; **Rows per page**, **Previous** and **Next** go through the list.
 
 ## Its columns and computed values
 

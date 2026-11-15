@@ -528,6 +528,13 @@ class Language(StrEnum):
 
 class Installation(ContractModel):
     default_language: Language
+    time_zone: Annotated[
+        str,
+        Field(
+            description="The time zone of the installation, its name in the IANA database (`Europe/Paris`, `UTC`), chosen at the bootstrap and unchanged afterwards (WF-EXP-0020); `UTC` for an installation bootstrapped before it was kept. The current day is the day of this time zone (WF-PLA-0130, WF-DAT-0100): the one the service writes by default — the state of a task started or completed, the review date of an export — and the one the front proposes, never the day of the device nor of universal time.",
+            min_length=1,
+        ),
+    ]
     avatar_max_bytes: Annotated[
         int,
         Field(
@@ -868,6 +875,12 @@ class DisplayPreferences(ContractModel):
             description="The preference that visually distinguishes the tasks added after the reference revision and, in the remaining to commit, the lines whose budgeted amount is zero: a single preference for both (WF-ADM-0040, WF-RAE-0040). When absent, false."
         ),
     ] = None
+    chart_series_patterns: Annotated[
+        bool | None,
+        Field(
+            description="The preference that draws the series of every chart with a pattern or a symbol beside their colour — the bars, the points of the curves and the legend —, the image a chart exports included (WF-ADM-0040, WF-IHM-0070, WF-IHM-0130): one setting of the account, for all its charts. When absent, false. The Gantt and the timelines keep their marks."
+        ),
+    ] = None
     grids: Annotated[
         dict[Annotated[str, StringConstraints(max_length=64)], GridPreferences | None] | None,
         Field(max_length=100),
@@ -897,6 +910,8 @@ class PermissionCode(StrEnum):
     backups_read = "backups.read"
     backups_write = "backups.write"
     audit_log_read = "audit_log.read"
+    installation_read = "installation.read"
+    installation_write = "installation.write"
     portfolio_projects_read = "portfolio_projects.read"
     portfolio_workload_read = "portfolio_workload.read"
     portfolio_performance_read = "portfolio_performance.read"
@@ -1910,7 +1925,7 @@ class ReferenceSettingsWrite(ContractModel):
     company_name: Annotated[
         str | None,
         Field(
-            description="The name of the user company (WF-EXP-0020), under `cost_settings.write`, next to the currency. It can be neither empty nor blank; when absent, it stays as it is. An empty name is refused with 422 `VALIDATION_FAILED`, `fields` designating `/company_name` with `VALUE_REQUIRED`, and a name of more than 200 characters with `VALUE_TOO_LONG`; a name made only of blanks, like any label, with the field code `VALIDATION_FAILED` at the same pointer.",
+            description="The name of the user company (WF-EXP-0020), under `installation.write`, the function of the installation (FBS-1.6). It can be neither empty nor blank; when absent, it stays as it is. An empty name is refused with 422 `VALIDATION_FAILED`, `fields` designating `/company_name` with `VALUE_REQUIRED`, and a name of more than 200 characters with `VALUE_TOO_LONG`; a name made only of blanks, like any label, with the field code `VALIDATION_FAILED` at the same pointer.",
             max_length=200,
             min_length=1,
             pattern="\\S",

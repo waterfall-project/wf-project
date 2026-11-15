@@ -35,6 +35,8 @@ if TYPE_CHECKING:
 
 SETTINGS = "/api/v1/reference/settings"
 COSTS, RISKS, INDICATORS = "cost_settings.write", "risk_settings.write", "indicator_settings.write"
+# The name of the company is written under the function of the installation (FBS-1.6, #3245).
+INSTALLATION = "installation.write"
 # What a loading and a writing date and count as themselves.
 UNSHARED = {"audit", "lock_version"}
 
@@ -136,7 +138,7 @@ def test_settings_written_since_the_bootstrap_are_held_and_the_witness_does_not_
     api: ContractClient, installed: Database, session_of: Any
 ) -> None:
     sent = {"company_name": "Autre", "lock_version": 1}
-    assert api.patch(SETTINGS, headers=session_of(COSTS), json=sent).status_code == 200
+    assert api.patch(SETTINGS, headers=session_of(INSTALLATION), json=sent).status_code == 200
     with installed.transaction() as session:
         assert not witness_slice.load(session, Witness(WITNESS, Act(None, utc_now())))
     body = api.get(SETTINGS, headers=session_of()).json()
@@ -155,13 +157,15 @@ def test_the_witness_finds_no_settings_on_a_database_the_bootstrap_has_not_insta
 @pytest.mark.requirement("WF-EXP-0020-A")
 @pytest.mark.requirement("WF-REF-0140-A")
 @pytest.mark.usefixtures("witnessed")
-def test_the_name_is_written_under_the_permission_of_the_cost_settings_the_currency_never(
+def test_the_name_is_written_under_the_permission_of_the_installation_the_currency_never(
     api: ContractClient, session_of: Any
 ) -> None:
     # « Le nom de l'entreprise saisi à l'installation … ; modifié, il figure sur le suivant » : the
     # name is kept, the export is EP-07's. A currency sent is no field of the writing: it stays.
     sent = {"company_name": "Delmas Automatismes Industriels", "currency_code": "USD"}
-    written = api.patch(SETTINGS, headers=session_of(COSTS), json={**sent, "lock_version": 2})
+    written = api.patch(
+        SETTINGS, headers=session_of(INSTALLATION), json={**sent, "lock_version": 2}
+    )
     assert written.status_code == 200
     body = written.json()
     assert shared(body) == shared(example("reference_settings_company_updated"))
@@ -211,16 +215,23 @@ THRESHOLDS = example("reference_settings")["index_thresholds"]
     [
         # The example of the contract: the matrix by a session of the indicators alone.
         ((INDICATORS,), {"risk_matrix": MATRIX, "index_thresholds": THRESHOLDS}, RISKS),
-        ((RISKS, INDICATORS), {"company_name": "Autre", "risk_matrix": MATRIX}, COSTS),
-        ((COSTS, RISKS), {"company_name": "Autre", "max_weeks_between_reviews": 4}, INDICATORS),
+        # The name by a session of the cost settings, which wrote it before the function of the
+        # installation (#3245); the example of the contract is compared just below.
+        ((COSTS, RISKS, INDICATORS), {"company_name": "Autre"}, INSTALLATION),
+        ((RISKS, INDICATORS), {"company_name": "Autre", "risk_matrix": MATRIX}, INSTALLATION),
+        (
+            (INSTALLATION, RISKS),
+            {"company_name": "Autre", "max_weeks_between_reviews": 4},
+            INDICATORS,
+        ),
         ((COSTS,), {"index_thresholds": THRESHOLDS}, INDICATORS),
         # Without any permission, the first field of the contract's order is named.
-        ((), {"max_weeks_between_reviews": 4, "company_name": "Autre"}, COSTS),
+        ((), {"max_weeks_between_reviews": 4, "company_name": "Autre"}, INSTALLATION),
         # The permission is judged before the body: a malformed field is refused 403 all the same.
         ((COSTS,), {"risk_matrix": {"zones": []}}, RISKS),
-        ((COSTS,), {"company_name": "", "max_weeks_between_reviews": 0}, INDICATORS),
+        ((INSTALLATION,), {"company_name": "", "max_weeks_between_reviews": 0}, INDICATORS),
         # A field sent null is carried: it asks for its permission, its validation comes after.
-        ((COSTS, INDICATORS), {"company_name": "Autre", "risk_matrix": None}, RISKS),
+        ((INSTALLATION, INDICATORS), {"company_name": "Autre", "risk_matrix": None}, RISKS),
     ],
 )
 def test_a_field_whose_permission_the_session_lacks_is_refused_and_nothing_is_written(
@@ -234,6 +245,23 @@ def test_a_field_whose_permission_the_session_lacks_is_refused_and_nothing_is_wr
     refused = api.patch(SETTINGS, headers=session_of(*held), json={**sent, "lock_version": 1})
     assert refusal(refused)[:3] == (403, "PERMISSION_MISSING", {"missing_permission": missing})
     assert api.get(SETTINGS, headers=session_of()).json() == before
+
+
+@pytest.mark.requirement("WF-ADM-0100-A")
+def test_the_refusal_of_the_name_by_the_cost_settings_is_the_example_of_the_contract(
+    api: ContractClient, session_of: Any
+) -> None:
+    witness = example("reference_settings_company_permission_missing")
+    refused = api.patch(
+        SETTINGS,
+        headers=session_of(COSTS, RISKS, INDICATORS),
+        json={"company_name": "Autre", "lock_version": 1},
+    )
+    assert refused.status_code == witness["status"]
+    # The correlation identifier is that of the request, not of the example.
+    assert {k: v for k, v in refused.json().items() if k != "correlation_id"} == {
+        k: v for k, v in witness.items() if k != "correlation_id"
+    }
 
 
 NULL_FAULT = "VALIDATION_FAILED"
@@ -287,7 +315,7 @@ def test_a_field_sent_null_is_refused_as_the_contract_types_none_nullable(
     fields: list[dict[str, Any]],
 ) -> None:
     # Only a field absent stays as it is (``ReferenceSettingsWrite``): a null is a value in default.
-    everything = session_of(COSTS, RISKS, INDICATORS)
+    everything = session_of(INSTALLATION, RISKS, INDICATORS)
     refused = api.patch(SETTINGS, headers=everything, json={**sent, "lock_version": 1})
     assert refusal(refused) == (422, "VALIDATION_FAILED", {}, fields)
     assert version(installed) == 1
@@ -353,7 +381,7 @@ def test_a_name_empty_too_long_or_blank_is_refused_and_nothing_is_written(
     api: ContractClient, installed: Database, session_of: Any, name: str, field: dict[str, Any]
 ) -> None:
     sent = {"company_name": name, "lock_version": 1}
-    refused = api.patch(SETTINGS, headers=session_of(COSTS), json=sent)
+    refused = api.patch(SETTINGS, headers=session_of(INSTALLATION), json=sent)
     assert refusal(refused) == (422, "VALIDATION_FAILED", {}, [field])
     assert version(installed) == 1
 
@@ -361,7 +389,7 @@ def test_a_name_empty_too_long_or_blank_is_refused_and_nothing_is_written(
 @pytest.mark.requirement("WF-EXP-0020-A")
 def test_a_name_of_two_hundred_characters_is_written(api: ContractClient, session_of: Any) -> None:
     sent = {"company_name": "x" * 200, "lock_version": 1}
-    assert api.patch(SETTINGS, headers=session_of(COSTS), json=sent).status_code == 200
+    assert api.patch(SETTINGS, headers=session_of(INSTALLATION), json=sent).status_code == 200
 
 
 def matrix_with(probability: list[str], severity: list[str]) -> dict[str, Any]:
@@ -633,12 +661,13 @@ def test_settings_the_bootstrap_has_not_written_are_unavailable(
             insert(Installation).values(
                 id=THE_ROW,
                 default_language="fr",
+                time_zone="UTC",
                 avatar_max_bytes=1024,
                 external_backup_max_bytes=1024,
                 installed_at=utc_now(),
             )
         )
-    headers = holding(database, realm, COSTS)
+    headers = holding(database, realm, INSTALLATION)
     assert refusal(api.get(SETTINGS, headers=headers))[:2] == (503, "COMPONENT_UNAVAILABLE")
     sent = {"company_name": "Autre", "lock_version": 1}
     refused = api.patch(SETTINGS, headers=headers, json=sent)

@@ -35,6 +35,7 @@ import type { Outcome } from "@/api/problem";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { MenuCommand } from "@/components/commands/menu-command";
+import { UNAVAILABLE } from "@/components/commands/offer";
 import { Button } from "@/components/ui/button";
 import {
   ContextMenu,
@@ -44,7 +45,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { cn } from "@/components/ui/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import { type CellFolding, FoldMenuItems } from "./fold";
 import { type CellPosition, positionOf } from "./grid-keyboard";
@@ -61,8 +62,6 @@ const KEYS: Readonly<Record<UndoCommand, string>> = {
   undo: "Control+Z Meta+Z",
   redo: "Control+Shift+Z Meta+Shift+Z",
 };
-
-const UNAVAILABLE = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
 
 /** A command the server did: which, how many changes remain to undo or to redo, and how often. */
 export interface UndoneCommand {
@@ -220,9 +219,9 @@ export function UndoCommands({ control }: { readonly control?: UndoControl | und
             variant="outline"
             size="icon"
             aria-label={t(command)}
-            className={cn("size-7", (control === undefined || control.busy) && UNAVAILABLE)}
+            className="size-7"
             // A write under way: the button is marked inactive, as the inline confirmations are, and
-            // pressed does nothing (`useUndoRedo`).
+            // pressed does nothing (`useUndoRedo`); `buttonVariants` draws `aria-disabled` itself.
             {...(control?.busy === true ? { "aria-disabled": true } : {})}
             onClick={
               control === undefined || control.busy
@@ -236,12 +235,45 @@ export function UndoCommands({ control }: { readonly control?: UndoControl | und
           </Button>
         </CommandTooltip>
       ))}
-      {control === undefined ? (
-        <p id={reason} className="min-w-0 shrink basis-56 truncate text-xs text-muted-foreground">
-          {t("unavailable")}
-        </p>
-      ) : null}
+      {control === undefined ? <UnavailableReason id={reason} /> : null}
     </div>
+  );
+}
+
+/**
+ * Why the commands wait, beside them: cut to the room the one line of the bar leaves, and pressed —
+ * by a click, a touch or the keyboard — it opens the whole text beside it (#3150). The tooltip of a
+ * command opens on hover and on the focus, never on a touch, which does not always give the focus;
+ * the description of each command (`id`) reads the whole text to a screen reader. Opened, it leaves
+ * the focus on its button: it holds nothing to reach, and the focus given to it was kept there — Tab
+ * did nothing, the popover looping on itself, as a browser showed (#3265) —; Tab goes on from the
+ * button and closes it, Escape closes it, the focus on the button.
+ */
+function UnavailableReason({ id }: { readonly id: string }) {
+  const t = useTranslations("grid.undo");
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          id={id}
+          type="button"
+          data-reason=""
+          className="h-7 min-w-8 shrink basis-56 truncate rounded-sm text-left text-xs text-muted-foreground underline decoration-dotted underline-offset-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          {t("unavailable")}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        aria-label={t("why")}
+        className="w-64 text-xs"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+        }}
+      >
+        <p>{t("unavailable")}</p>
+      </PopoverContent>
+    </Popover>
   );
 }
 

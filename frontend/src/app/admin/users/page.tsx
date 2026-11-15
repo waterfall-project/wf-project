@@ -7,21 +7,21 @@
  * a dense grid (#514), sorted, searched — on the names and the address —, filtered by origin, by
  * node, by access role, by state and on its audit columns, and paged by the server, as the address
  * asks under the names of the contract (`sort_by`, `sort_order`, `search`, `origins`,
- * `org_node_id`, `access_role_ids`, `without_access_role`, `is_active`, `include_inactive`, the
+ * `org_node_id`, `access_role_ids`, `without_access_role`, `is_active`, the
  * periods and the authors of the creation and of the last modification — `created_at_from`,
  * `updated_by_user_id`… —, `offset`), any refusal of the API (422) standing for the list, filters
  * kept, a period said at its field, the authors offered those of the page, an account chosen as an
  * author that the page does not offer read by its names (`readChosenAuthors`); the nodes offered in
  * the order of the tree, the roles as `listAccessRoles` gives them — none to a session that may not
  * read them, to which « Sans rôle » is still offered —; the deactivated accounts listed unless the
- * address says `include_inactive=false`.
+ * filter of the state says otherwise, `include_inactive` in the address not read (#3076).
  * Every figure as the API gives it: the front sorts, filters and pages nothing. An address that
  * says nothing of the table — neither sort, nor search, nor filter — leads, before anything is
  * read, to the address of the search and the filters the account keeps for it, if it keeps any
  * (`restoredAddress`, WF-IHM-0060). No screen offers to delete an account (WF-ADM-0060); to a
  * session that may modify the accounts, the table is its own entry, « Créer un compte local » at
- * its head (US-0360, #379); to another, none. Behind a menu « ⋯ » beside it (`IdentityMenu`,
- * #2917), the report of the last reading of the accounts of the identity provider that ended
+ * the right of the title of its card, filled (US-0360, #379, US-2100); to another, none. In a card
+ * of its own under the table (`IdentitySync`, US-2100), the report of the last reading of the accounts of the identity provider that ended
  * (`getLatestIdentitySync`, US-0370, WF-ADM-0070) — the screen says none has yet when the API
  * finds none (404) — and, to a session that may modify the accounts, the command that asks a new
  * one; then its periodicity (`getIdentitySyncSchedule`, WF-ADM-0070), which that session sets
@@ -37,7 +37,7 @@ import { useTranslations } from "next-intl";
 import { readOrFail, readOrRefused, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { UserList } from "@/components/admin/account-lists";
-import { IdentityMenu } from "@/components/admin/identity-sync";
+import { IdentitySync } from "@/components/admin/identity-sync";
 import { USER_GRID_KEY, USER_SORTS } from "@/components/admin/admin-grids";
 import { authorsOf, readAuditFilters, refusedAudit } from "@/components/admin/audit-address";
 import {
@@ -183,7 +183,7 @@ export default async function UsersPage({
   const authors = authorsOf(users.items);
   const named = await readChosenAuthors(audit, authors);
   return (
-    <Screen density={FUNCTION_DENSITY.users} fill>
+    <Screen density={FUNCTION_DENSITY.users}>
       {/* The filters, the grid and the pages compose the changes they make to the address. */}
       <PendingAddress kept={USER_KEPT}>
         <UsersHeader />
@@ -201,9 +201,9 @@ export default async function UsersPage({
           active={active}
           audit={{ ...audit, refused, named }}
           authors={authors}
-          identity={<IdentityMenu report={report} schedule={schedule} startable={editable} />}
           editable={editable}
         />
+        <IdentitySync report={report} schedule={schedule} startable={editable} />
       </PendingAddress>
     </Screen>
   );

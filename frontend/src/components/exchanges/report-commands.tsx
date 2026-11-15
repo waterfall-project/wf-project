@@ -22,7 +22,14 @@ import { commandIcon } from "@/components/commands/icons";
 import type { CommandOffer } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
-import { useTrackTask, useWhenTaskSucceeds } from "@/components/tasks/task-tracker";
+import { WaitingIcon, waitingAttributes } from "@/components/commands/waiting";
+import {
+  useRunningTask,
+  useTaskRunning,
+  useTrackTask,
+  useWhenTaskSucceeds,
+} from "@/components/tasks/task-tracker";
+import { taskAim } from "@/components/tasks/tracking";
 import { Button } from "@/components/ui/button";
 
 import { shownImport } from "./offers";
@@ -44,6 +51,11 @@ export interface ReportCommandsProps {
    * import of a schedule fills, from the start of a project —; none, and the screen stays.
    */
   readonly then?: string | undefined;
+}
+
+/** What the application of an import aims at: the import, by which its command finds it again (#3404). */
+function applyAim(importId: string): string {
+  return taskAim("import_apply", importId);
 }
 
 /** The confirmation of the application, asked in the page before anything is applied. */
@@ -82,7 +94,7 @@ function ConfirmForm({
       .then((result) => {
         setBusy(false);
         if (result.kind === "done") {
-          track(result.data, { command, subject: filename });
+          track(result.data, { command, subject: filename, aim: applyAim(importId) });
           onClose();
           onApplied(result.data.task_id);
         } else {
@@ -100,8 +112,8 @@ function ConfirmForm({
     >
       <p>{t("confirmQuestion", { file: filename })}</p>
       <div className="flex gap-2">
-        <Button type="submit" size="sm" ref={confirm}>
-          <CheckCheck aria-hidden="true" />
+        <Button type="submit" size="sm" ref={confirm} {...waitingAttributes(busy)}>
+          <WaitingIcon waiting={busy} icon={<CheckCheck aria-hidden="true" />} />
           {t("confirm")}
         </Button>
         <Button type="button" variant="outline" size="sm" onClick={onClose}>
@@ -150,6 +162,10 @@ export function ReportCommands({
   const form = useId();
   const [open, setOpen] = useState(false);
   const [applying, setApplying] = useState<string>();
+  // The command waits while the import applies — mounted anew, while the application of the import
+  // it finds runs (#3404) —, and is given back if it fails.
+  const found = useRunningTask(applyAim(importId));
+  const applyRunning = useTaskRunning(applying ?? found);
   const button = useRef<HTMLButtonElement>(null);
   const close = () => {
     setOpen(false);
@@ -172,6 +188,7 @@ export function ReportCommands({
           label={t("apply")}
           help={helps("applyReport.help")}
           icon={commandIcon(FileCheck)}
+          running={applyRunning}
           disclosure={{
             expanded: open,
             controls: form,

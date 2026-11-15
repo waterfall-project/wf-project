@@ -24,11 +24,12 @@ interface UnavailableProps {
 function Unavailable({ href }: { readonly href: string }) {
   const t = useTranslations();
   return (
-    <Screen>
+    <Screen density="airy">
       <PageHeader
         title={t("failure.unreachable.title")}
         icon={CircleAlert}
         subtitle={t("failure.signInUnreachable")}
+        density="airy"
       />
       <a
         href={href}

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The commands of the table of the access roles (US-0380, #380), for a session that may modify them
- * (`access_roles.write`): a role created in line from its label alone — its permissions are written
- * in the matrix —, and deleted from its row once the deletion is confirmed — a logical deletion
+ * (`access_roles.write`): a role created from its label alone, in the dialog that « Nouveau rôle »
+ * opens (`role-creation.tsx`) — its permissions are written in the matrix —, and deleted from its row once the deletion is confirmed — a logical deletion
  * (#456), which nothing restores, a predefined role included: a role created again is never
  * predefined —, unavailable while an account holds it, as the server would refuse it
  * (`ACCESS_ROLE_IN_USE`, WF-ADM-0090); its renaming is the entry of its label (`admin-grids.tsx`).
@@ -16,30 +16,19 @@
 "use client";
 
 import { Plus, Trash2, X } from "lucide-react";
-import { useLocale, useMessages, useTranslations } from "next-intl";
-import {
-  createContext,
-  type ReactNode,
-  useCallback,
-  useContext,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useTranslations } from "next-intl";
+import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from "react";
 
-import { createAccessRole, deleteAccessRole } from "@/api/actions/access-roles";
+import { deleteAccessRole } from "@/api/actions/access-roles";
 import type { components } from "@/api/generated/schema";
 import { useHeldCommand } from "@/components/commands/held";
 import { UNAVAILABLE } from "@/components/commands/offer";
-import { useNoteRefusal } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
-import { useRaise } from "@/components/system/raise";
-import { parsedEntry } from "@/components/grid/cell-values";
-import { useSaid } from "@/components/notices/said";
+import { type Said, useSaid } from "@/components/notices/said";
 import { CellCommand } from "@/components/reference/cell-command";
 import { Reactivations, useListReport } from "@/components/reference/reactivation";
+import type { PrincipalVariant } from "@/components/shell/section-card";
+import { useRaise } from "@/components/system/raise";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,12 +40,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { problemMessage } from "@/i18n/problem";
 
-import { LABEL_LENGTH, ROLE_READS } from "./role-address";
+import { ROLE_READS } from "./role-address";
 import { RoleAnswers, useRoleAnswers } from "./role-answers";
+import { RoleCreation } from "./role-creation";
 
 type AccessRole = components["schemas"]["AccessRole"];
 
@@ -77,25 +64,77 @@ const DeletionsContext = createContext<Deletions | undefined>(undefined);
  * confirmation of a deletion, and the refusals told above the table.
  */
 export function RoleCommands({ children }: { readonly children: ReactNode }) {
-  const t = useTranslations("admin.accessRoles");
   // What the last write said, and the how-many-th it was, noted in the history of the messages.
   const [said, say] = useSaid();
   return (
     <RoleAnswers>
       <Reactivations reads={ROLE_READS}>
-        <p
-          role="status"
-          aria-live="polite"
-          aria-label={t("told")}
-          className="min-h-5 text-sm text-muted-foreground"
-        >
-          {said === undefined ? null : <span key={said.count}>{said.text}</span>}
-        </p>
         <Say value={say}>
-          <Deletion>{children}</Deletion>
+          <Creation said={said}>
+            <Deletion>{children}</Deletion>
+          </Creation>
         </Say>
       </Reactivations>
     </RoleAnswers>
+  );
+}
+
+/** The opening of the creation: the command that opened it, which takes the focus back. */
+interface Opening {
+  readonly trigger: HTMLElement;
+}
+
+/** What opens the creation of a role, and what the table last said. */
+interface Creations {
+  readonly open: (trigger: HTMLElement) => void;
+  readonly said: Said | undefined;
+}
+
+/** The creation of the table; none outside it. */
+const CreationsContext = createContext<Creations | undefined>(undefined);
+
+/** The dialog of the creation of a role, rendered while the command has opened it. */
+function Creation({
+  said,
+  children,
+}: {
+  readonly said: Said | undefined;
+  readonly children: ReactNode;
+}) {
+  const t = useTranslations("admin.accessRoles");
+  const say = useContext(Say);
+  const list = useListReport();
+  const [creating, setCreating] = useState<Opening>();
+  const creations = useMemo(
+    () => ({
+      open: (trigger: HTMLElement) => {
+        setCreating({ trigger });
+      },
+      said,
+    }),
+    [said],
+  );
+  return (
+    <CreationsContext value={creations}>
+      {children}
+      {creating === undefined ? null : (
+        <RoleCreation
+          onCreated={(role) => {
+            say?.(t("created", { name: role.label }));
+          }}
+          onClose={() => {
+            setCreating((current) => (current === creating ? undefined : current));
+          }}
+          onClosed={() => {
+            if (creating.trigger.isConnected) {
+              creating.trigger.focus();
+            } else {
+              list?.refocus();
+            }
+          }}
+        />
+      )}
+    </CreationsContext>
   );
 }
 
@@ -199,122 +238,38 @@ function Deletion({ children }: { readonly children: ReactNode }) {
 }
 
 /**
- * The creation of a role in line, at the head of the table: its label, which the contract bounds,
- * then the command. A label left blank is refused at its field as the entry of the grid refuses it
- * (`parsedEntry`), nothing asked; the label typed stays until the server answers; a role created
- * empties it, unless another was typed meanwhile. The label the server refuses (422, `/label`) is
- * said at its field, which takes the focus; any other refusal, above the table.
+ * The command that opens the creation of a role, at the right of the title of the card of the roles
+ * — the principal command of the card, which draws it at its variant —, after the region that says
+ * what the last write of the table did, rendered from the start so that a reader of the screen
+ * hears what is put in it, and taking no room while it says nothing.
  */
-export function CreateRole() {
+export function CreateRole({ variant = "outline" }: { readonly variant?: PrincipalVariant }) {
   const t = useTranslations("admin.accessRoles");
-  const locale = useLocale();
-  const messages = useMessages();
-  const say = useContext(Say);
-  const list = useListReport();
-  // The list holds the navigations while the creation answers, its refusal told above it or at the
-  // field (#688, #889).
-  const own = useHeldCommand();
-  const held = list?.held ?? own;
-  const [label, setLabel] = useState("");
-  const [refused, setRefused] = useState<string>();
-  const noteRefusal = useNoteRefusal();
-  // Busy from the press to the answer, and lifted in the very update that tells it — not a transition,
-  // whose end would wait for every other write of the table under way (#1484).
-  const [busy, setBusy] = useState(false);
-  // Asked anew at each refusal: the field takes the focus after the commit that says its refusal,
-  // described by it as it is heard (#1484).
-  const [focused, setFocused] = useState<object>();
-  const input = useRef<HTMLInputElement>(null);
-  const field = useId();
-  // Whether the field is still on the screen: gone, it tells nothing, and the bar must.
-  const mounted = useRef(true);
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-  useEffect(() => {
-    if (focused !== undefined) {
-      input.current?.focus();
-    }
-  }, [focused]);
+  const creations = useContext(CreationsContext);
+  const said = creations?.said;
   return (
-    <form
-      aria-label={t("creation")}
-      className="flex flex-wrap items-center gap-2"
-      noValidate
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (busy) {
-          return;
-        }
-        const parsed = parsedEntry({ type: "text", maxLength: LABEL_LENGTH }, label, locale);
-        if ("problem" in parsed) {
-          const code = parsed.problem === "required" ? "VALUE_REQUIRED" : "VALUE_TOO_LONG";
-          setRefused(problemMessage({ code }, { locale, messages }));
-          setFocused({});
-          return;
-        }
-        // The reading the role is created from: its refusal is told on it alone.
-        const generation = list?.generation ?? 0;
-        const asked = label;
-        setRefused(undefined);
-        setBusy(true);
-        // Whether the field tells the refusal: the list, read anew meanwhile, is not asked to tell it
-        // too, the bar of the shell neither — the field is on the form, whatever the list shows.
-        // `told` is read once the answer is in, after the `then` below has set it.
-        let atField = false;
-        void held(createAccessRole({ label: asked, permissions: [] }), () => atField).then(
-          (outcome) => {
-            setBusy(false);
-            if (outcome.kind === "done") {
-              setLabel((typed) => (typed === asked ? "" : typed));
-              say?.(t("created", { name: outcome.data.label }));
-              return;
-            }
-            const at = "problem" in outcome ? outcome.problem.fields : undefined;
-            const own = at?.find(({ pointer }) => pointer === "/label");
-            if (own === undefined) {
-              list?.report({ outcome, generation, names: {} });
-              return;
-            }
-            // Said at its field, out of a notice: noted in the history of the messages.
-            atField = mounted.current;
-            noteRefusal(outcome, { subject: asked });
-            setRefused(problemMessage(own, { locale, messages }));
-            setFocused({});
-          },
-        );
-      }}
-    >
-      <Label htmlFor={field} className="text-sm whitespace-nowrap">
-        {t("newLabel")}
-      </Label>
-      <Input
-        ref={input}
-        id={field}
-        value={label}
-        required
-        maxLength={LABEL_LENGTH}
-        autoComplete="off"
-        aria-invalid={refused === undefined ? undefined : true}
-        aria-describedby={refused === undefined ? undefined : `${field}-refused`}
-        className="h-8 w-60"
-        onChange={(event) => {
-          setLabel(event.target.value);
+    <div className="flex flex-wrap items-center gap-2">
+      <p
+        role="status"
+        aria-live="polite"
+        aria-label={t("told")}
+        className="text-sm text-muted-foreground empty:sr-only"
+      >
+        {said === undefined ? null : <span key={said.count}>{said.text}</span>}
+      </p>
+      <Button
+        type="button"
+        variant={variant}
+        size="sm"
+        aria-haspopup="dialog"
+        onClick={(event) => {
+          creations?.open(event.currentTarget);
         }}
-      />
-      <Button type="submit" variant="outline" size="sm" aria-busy={busy}>
+      >
         <Plus aria-hidden="true" />
-        {t("create")}
+        {t("newLabel")}
       </Button>
-      {refused === undefined ? null : (
-        <p id={`${field}-refused`} className="text-sm text-destructive">
-          {refused}
-        </p>
-      )}
-    </form>
+    </div>
   );
 }
 

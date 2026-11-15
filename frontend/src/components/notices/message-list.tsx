@@ -45,7 +45,7 @@ export function useMessageHistory() {
  * the project —, with the project it showed; a screen the breadcrumb does not name is the screen of
  * origin.
  */
-function useScreenName(): (screen: MessageScreen) => string {
+export function useScreenName(): (screen: MessageScreen) => string {
   const t = useTranslations();
   return ({ href, project }) => {
     const url = new URL(href, "http://screen.invalid");

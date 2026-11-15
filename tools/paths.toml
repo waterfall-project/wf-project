@@ -566,6 +566,7 @@ paths = [
     "fixtures/api/calendars_reader.json",
     "fixtures/api/cost_types_reader.json",
     "fixtures/api/org_node_reactivated.json",
+    "fixtures/api/org_node_deactivated_with_descendants.json",
     "fixtures/api/index_history_subproject.json",
     "fixtures/api/cost_curve_subproject.json",
     "fixtures/api/cost_curve_subproject_empty.json",

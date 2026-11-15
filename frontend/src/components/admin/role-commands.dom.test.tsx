@@ -8,12 +8,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
-import { SystemFailure } from "@/components/system/system-failure";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
+import { SystemFailure } from "@/components/system/system-failure";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { holdRoute, NO_AUDIT } from "@/test/accounts";
-import { atCommit, atFocus } from "@/test/committed";
+import { atFocus } from "@/test/committed";
 import {
   example,
   type FakeAnswers,
@@ -183,42 +183,48 @@ afterEach(() => {
   broken.report = false;
 });
 
-describe("the creation of a role in line", () => {
-  it("creates a role from its label alone, empties its field, says so and reads the page anew", async () => {
+/** Open the dialog of the creation by « Nouveau rôle », and give its field of the label. */
+async function opened(): Promise<HTMLElement> {
+  await userEvent.click(screen.getByRole("button", { name: "Nouveau rôle" }));
+  const dialog = await screen.findByRole("dialog", { name: "Création d’un rôle" });
+  return within(dialog).getByRole("textbox", { name: "Libellé" });
+}
+
+describe("the creation of a role in its dialog", () => {
+  it("opens from « Nouveau rôle », at the right of the title of the card, the one filled command of the card, and gives the focus back once closed [WF-IHM-0100-A]", async () => {
+    serve({});
+    render(inFrench(table()));
+    const card = screen.getByRole("region", { name: "Rôles d’habilitation" });
+    const command = within(card).getByRole("button", { name: "Nouveau rôle" });
+    expect(command.closest("[data-slot='section-card-principal']")).toHaveAttribute(
+      "data-does",
+      "create",
+    );
+    // No field in line: the label is asked in the dialog.
+    expect(screen.queryByRole("textbox", { name: "Nouveau rôle" })).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    const label = await opened();
+    expect(label).toHaveFocus();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    expect(command).toHaveFocus();
+  });
+
+  it("creates a role from its label alone, closes its dialog, says so and reads the page anew", async () => {
     const client = serve({ [CREATED]: { example: "access_role_created", status: 201 } });
     render(inFrench(table()));
-    const label = screen.getByRole("textbox", { name: "Nouveau rôle" });
-    // Whether the creation was still busy in the commit that told the role created: the request
-    // over, never while it holds a press (#1484).
-    const create = within(label.closest("form") ?? document.body).getByRole("button");
-    const busyWhenTold = atCommit(
-      document.body,
-      () => told().textContent !== "",
-      () => create.getAttribute("aria-busy"),
-    );
+    const label = await opened();
     await userEvent.type(label, "CG{Enter}");
     await waitFor(() => {
       expect(told().textContent).toBe("«\u00A0Contrôle de gestion\u00A0» créé.");
     });
-    expect(busyWhenTold.stop()).toEqual(["false"]);
-    expect(label).toHaveValue("");
+    expect(screen.queryByRole("dialog")).toBeNull();
     expect(client.calls.map(({ route, body }) => [route, body])).toEqual([
       [CREATED, { label: "CG", permissions: [] }],
     ]);
     expect(refresh).toHaveBeenCalledOnce();
-  });
-
-  it("keeps a label typed while the server answers the one sent", async () => {
-    const answer = held();
-    serve({ [CREATED]: { example: "access_role_created", status: 201 } }, answer.timing);
-    render(inFrench(table()));
-    const label = screen.getByRole("textbox", { name: "Nouveau rôle" });
-    await userEvent.type(label, "CG{Enter}D");
-    answer.release();
-    await waitFor(() => {
-      expect(told().textContent).toBe("«\u00A0Contrôle de gestion\u00A0» créé.");
-    });
-    expect(label).toHaveValue("CGD");
   });
 
   it("holds a link clicked while the creation answers, and does not follow it when the server refuses it: the refusal is told above the table (#688, #889)", async () => {
@@ -227,8 +233,10 @@ describe("the creation of a role in line", () => {
     render(inFrench(table()));
     const link = heldLink();
     try {
-      await userEvent.type(screen.getByRole("textbox", { name: "Nouveau rôle" }), "CG{Enter}");
+      await userEvent.type(await opened(), "CG{Enter}");
       link.click();
+      // Closed meanwhile: the refusal is the list's to tell.
+      await userEvent.keyboard("{Escape}");
       await act(async () => {
         answer.release();
         await new Promise((resolve) => setTimeout(resolve, 0));
@@ -246,7 +254,7 @@ describe("the creation of a role in line", () => {
   it("refuses at its field a label left blank, as the entry of the grid does, and asks nothing", async () => {
     const client = serve({});
     render(inFrench(table()));
-    const label = screen.getByRole("textbox", { name: "Nouveau rôle" });
+    const label = await opened();
     await userEvent.type(label, "  {Enter}");
     expect(label).toHaveAttribute("aria-invalid", "true");
     expect(label).toHaveAccessibleDescription(CATALOGUES.fr.errors.VALUE_REQUIRED);
@@ -256,7 +264,7 @@ describe("the creation of a role in line", () => {
     expect(readMessages().messages).toEqual([]);
   });
 
-  it("notes once, with the label sent, a label the server refuses at its field, which takes the focus described by its refusal", async () => {
+  it("notes once, with the label sent, a label the server refuses at its field, which takes the focus described by its refusal, the dialog staying open", async () => {
     serve({
       [CREATED]: {
         problem: {
@@ -267,16 +275,17 @@ describe("the creation of a role in line", () => {
       },
     });
     render(inFrench(table()));
-    const label = screen.getByRole("textbox", { name: "Nouveau rôle" });
+    const label = await opened();
     await userEvent.type(label, "CG");
     // Described by its refusal as it takes the focus, never before the commit that says it (#1484).
     const focusing = atFocus(label);
-    await userEvent.click(within(label.closest("form") ?? document.body).getByRole("button"));
+    await userEvent.click(screen.getByRole("button", { name: "Créer" }));
     await waitFor(() => {
       expect(label).toHaveFocus();
     });
     expect(focusing.stop()).toEqual([CATALOGUES.fr.errors.VALUE_TOO_LONG]);
     expect(label).toHaveAccessibleDescription(CATALOGUES.fr.errors.VALUE_TOO_LONG);
+    expect(screen.getByRole("dialog")).toBeVisible();
     expect(readMessages().messages).toEqual([
       expect.objectContaining({
         tone: "refusal",
@@ -303,7 +312,7 @@ describe("the creation of a role in line", () => {
       answer.timing,
     );
     const { rerender } = render(inFrench(table()));
-    const label = screen.getByRole("textbox", { name: "Nouveau rôle" });
+    const label = await opened();
     await userEvent.type(label, "CG{Enter}");
     // The list searched meanwhile: it tells nothing of the reading now shown.
     page.search = "search=Manager";
@@ -331,7 +340,7 @@ describe("the creation of a role in line", () => {
       answer.timing,
     );
     const { unmount } = render(inFrench(table()));
-    await userEvent.type(screen.getByRole("textbox", { name: "Nouveau rôle" }), "CG{Enter}");
+    await userEvent.type(await opened(), "CG{Enter}");
     // The form is unmounted while the write answers: no field is left to tell the refusal.
     unmount();
     await act(async () => {

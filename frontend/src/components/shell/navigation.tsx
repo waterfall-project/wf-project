@@ -58,10 +58,9 @@ import {
   type Scope,
 } from "@/navigation/functions";
 import { HOME } from "@/navigation/home";
-import type { ThemePreference } from "@/theme/theme";
 
 import { FUNCTION_ICONS, GROUP_ICONS, LEAF_ICONS } from "./function-display";
-import { Logo } from "./logo";
+import { BarLogo } from "./logo";
 import { ProjectSwitcher } from "./project-switcher";
 
 /** What the navigation offers, and where it leads back to. */
@@ -73,8 +72,6 @@ export interface NavigationProps {
   readonly permissions: readonly components["schemas"]["PermissionCode"][] | "unreadable";
   /** The address of the last project context, from the cookie of the request. */
   readonly remembered: string | undefined;
-  /** The display mode of the account, for the variant of the logo. */
-  readonly theme: ThemePreference | undefined;
 }
 
 /** An entry of the bar: where it leads, what it is called, its icon. */
@@ -352,7 +349,7 @@ function useLastContext(here: string | undefined, remembered: string | undefined
 }
 
 /** The groups of the bar: the platform, the project, the revision read. */
-function NavigationGroups({ permissions, remembered }: Omit<NavigationProps, "theme">) {
+function NavigationGroups({ permissions, remembered }: NavigationProps) {
   const t = useTranslations();
   const pathname = usePathname();
   const context = readContext(pathname, useSearchParams());
@@ -425,7 +422,7 @@ function FoldButton() {
 }
 
 /** Render the side bar: the logo, the project open, the functions the session may read. */
-export function Navigation({ permissions, remembered, theme }: NavigationProps) {
+export function Navigation({ permissions, remembered }: NavigationProps) {
   return (
     <Sidebar>
       <SidebarHeader>
@@ -434,7 +431,7 @@ export function Navigation({ permissions, remembered, theme }: NavigationProps) 
           data-rail-hidden=""
           className="rounded-md px-2 py-1 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:hidden"
         >
-          <Logo theme={theme} />
+          <BarLogo />
         </Link>
         {permissions === "unreadable" ? null : <ProjectSwitcher permissions={permissions} />}
       </SidebarHeader>

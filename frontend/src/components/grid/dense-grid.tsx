@@ -78,7 +78,14 @@ import {
   headingOf,
   ROW_NUMBER_KEY,
 } from "./columns";
-import { cellAttributes, cellKeys, cellStateOf, invalidRing } from "./cell-attributes";
+import {
+  BODY_ROW,
+  cellAttributes,
+  cellKeys,
+  cellStateOf,
+  invalidRing,
+  ROW_HOVER,
+} from "./cell-attributes";
 import { CellEditor, EntryProblemNotice } from "./cell-editor";
 import { useCellWrites } from "./cell-writes";
 import { ComputedCell, type ComputedColumn } from "./computed-cell";
@@ -93,8 +100,8 @@ import {
   useGridFold,
   useTreeRow,
 } from "./fold";
-import { useFrameWidth, useRoomBelow } from "./frame-width";
-import { barWidthOf, EDGE_REM, floorOf, ROW_REM, withBar } from "./grid-floor";
+import { useRoomBelow } from "./frame-width";
+import { EDGE_REM, floorOf, ROW_REM, withBar } from "./grid-floor";
 import {
   type CellDraft,
   type CellPosition,
@@ -117,6 +124,7 @@ import { alignClass, TotalsRow } from "./totals-row";
 import { PendingAddress, usePendingAddress } from "./pending-address";
 import { endPinnedWidth, pinnedWidth, pinningOf, useFrameRoom } from "./pinning";
 import { useRootFontSize, useRowWindow } from "./row-window";
+import { restOf, stretchedColumn, tableWidth } from "./table-width";
 import { type GridQuery, type GridSort, searchHref, sortHref } from "./query";
 import {
   HandleCell,
@@ -151,6 +159,12 @@ import {
   useUndoShortcut,
   writingOf,
 } from "./undo-commands";
+
+/**
+ * The width of the bars above the grid: that of what holds them, which the frame of the table takes
+ * too (`table-width.ts`), its scroll bars within it.
+ */
+const FULL = "100%";
 
 /** The rows rendered beyond those in view, at each end. */
 const OVERSCAN = 12;
@@ -234,6 +248,8 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
    * as before and the filters where the screen puts them.
    */
   readonly filtering?: Filtering | undefined;
+  /** What the screen puts at the end of the bar, at its right edge (`GridToolbar`, #3071). */
+  readonly ending?: ReactNode;
 }
 
 /** Whether the server computes the cell of a column in a row. */
@@ -341,7 +357,7 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
       className={cn(
         "overflow-hidden text-ellipsis outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
         pinning.className,
-        computed ? "bg-muted" : "bg-background",
+        computed ? "bg-muted" : ROW_HOVER,
         column === undefined || state.pending !== undefined ? "text-muted-foreground" : null,
         state.draft === undefined ? null : "py-0",
         invalidRing(state.invalid),
@@ -383,7 +399,12 @@ function BodyRow<Row extends RowData, Sort extends string, Totals>({
       aria-setsize={tree?.siblings}
       aria-expanded={tree?.expanded}
       {...selected}
-      className={cn("h-7", className, differenceTint(shared.config.difference?.(row.original)))}
+      className={cn(
+        BODY_ROW,
+        "h-7",
+        className,
+        differenceTint(shared.config.difference?.(row.original)),
+      )}
     >
       {row
         .getVisibleCells()
@@ -450,6 +471,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   stacked,
   selecting,
   filtering,
+  ending,
 }: DenseGridProps<Row, Sort, Totals>) {
   const t = useTranslations("grid");
   const { config, pick } = useSelectedConfig(given, selecting);
@@ -515,7 +537,6 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   );
   useKeptPageSize(config.address, keptSize, recordSize, config.paged === true);
   const scroller = useRef<HTMLDivElement>(null);
-  const frameWidth = useFrameWidth(scroller);
   const room = useFrameRoom(scroller);
   const roomBelow = useRoomBelow(scroller, stacked, panelLayout(filtering, filtersOpen));
   const rowHeight = ROW_REM * useRootFontSize();
@@ -617,6 +638,9 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   const model = table.getRowModel().rows;
   const edge = EDGE_REM * useRootFontSize();
   const columns = table.getVisibleLeafColumns();
+  const stretched = stretchedColumn(table, config);
+  // What the other columns leave the one that takes the rest, which its handle goes no narrower than.
+  const rest = restOf(table, stretched, room);
   const cursor = useCursor(config, model.length, columns);
   // The row of the active cell stays rendered however far the grid scrolls: it holds the focus.
   const { items, gaps, after, scrollToIndex } = useRowWindow({
@@ -750,7 +774,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     >
       <GridToolbar
         covered={barOpen}
-        width={barWidthOf(frameWidth, table.getTotalSize())}
+        width={FULL}
         search={query.search}
         onSearch={config.searched ? search : undefined}
         undoable={undoable}
@@ -763,7 +787,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         onOpen={openFilters}
         address={config.address}
         filterNames={config.filters}
-        count={totalsCaption(shownTotals)}
+        ending={ending}
         grid={sharedName(config, (name) => t(`names.${name}`))}
         columns={toggledColumns(table, config, (column) =>
           headingOf(column, (key) => t(`columns.${key}`)),
@@ -772,7 +796,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       <SelectionBar
         rows={selection.rows}
         options={selecting}
-        width={barWidthOf(frameWidth, table.getTotalSize())}
+        width={FULL}
         onClear={() => {
           selection.lift();
           keyboard.refocus();
@@ -846,9 +870,11 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         // stay a window's worth whatever holds it. The header and the totals stick to its edges,
         // the pinned columns to its start and to its end: a cell the focus brings into view comes out
         // from under them. A refusal whose row scrolls out of view closes.
+        // The frame takes the width of its card, and the table the wider of the frame and of its
+        // columns, one of which takes what the others leave (`table-width.ts`, #3075).
         container={{
           ref: scroller,
-          className: "w-fit max-w-full max-h-svh rounded-md border",
+          className: "w-full max-h-svh rounded-md border",
           style: {
             minHeight: floorOf(model.length),
             maxHeight: roomBelow,
@@ -859,11 +885,14 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
           onScroll: keyboard.followScroll,
         }}
         className="table-fixed text-xs tabular-nums"
-        style={{ width: table.getTotalSize() }}
+        style={{ width: tableWidth(table) }}
       >
         <colgroup>
           {columns.map((column) => (
-            <col key={column.id} style={{ width: column.getSize() }} />
+            <col
+              key={column.id}
+              style={column.id === stretched ? undefined : { width: column.getSize() }}
+            />
           ))}
         </colgroup>
         <TableHeader {...keyboard.header}>
@@ -881,6 +910,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
                   position={position}
                   active={samePosition(cursor.active, position)}
                   selectAll={selection.boxOf(header.column.id)}
+                  rest={header.column.id === stretched ? rest : undefined}
                 />
               );
             })}

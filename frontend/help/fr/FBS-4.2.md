@@ -15,9 +15,9 @@ Chaque liste tient sa propre recherche, ses filtres et son tri, que le serveur a
 
 ## Ses commandes
 
-Les paramètres du projet sont ceux de ses chefs de projet : chaque commande suit ce que le projet offre, disponible ou nommant la condition qui lui manque. Un projet terminal n’en offre aucune.
+Les paramètres du projet sont ceux de ses chefs de projet : chaque commande suit ce que le projet offre, disponible ou nommant la condition qui lui manque, dans son infobulle — au pointeur comme au clavier — et, pressée, dans la région des refus. Un projet terminal n’en offre aucune.
 
-- **Modifier le projet** ouvre le formulaire des paramètres : le libellé, le code projet, le client, la description, la date de réception de la commande, le taux d’inflation et la probabilité de gain, ces deux derniers en pourcentage. La probabilité de gain ne se modifie plus à partir de l’état En cours : le champ est alors montré figé, avec sa condition. Un code que porte un autre projet est refusé à son champ ; un taux hors de ses bornes aussi, avec la borne.
+- **Modifier le projet**, à droite du titre de la carte « Projet », ouvre le formulaire des paramètres : le libellé, le code projet, le client, la description, la date de réception de la commande, le taux d’inflation et la probabilité de gain, ces deux derniers en pourcentage. La probabilité de gain ne se modifie plus à partir de l’état En cours : le champ est alors montré figé, avec sa condition. Un code que porte un autre projet est refusé à son champ ; un taux hors de ses bornes aussi, avec la borne.
 - Les commandes du lotissement, des sous-projets et des contributeurs sont décrites dans l’aide de chaque liste.
 - **Engendrer le planning**, sous le lotissement, quand la structure principale de la révision en cours n’a encore aucune tâche : une récapitulative par lot et par poste, une tâche par livrable et leurs jalons de fin. Engendré, l’écran mène à la grille de planning.
 

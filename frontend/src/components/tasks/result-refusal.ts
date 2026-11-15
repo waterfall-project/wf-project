@@ -46,6 +46,25 @@ export function resultHref(taskId: string, from: string): string {
 }
 
 /**
+ * The address a hidden frame is sent back to (`app/tasks/[taskId]/refused`): a page of the front
+ * with nothing in it, which carries the same parameters of the refusal as the screen would —
+ * the task and the refusal —, so that the frame loads no screen of the application to say them.
+ */
+export function refusedFrameHref(taskId: string, refusal: ResultRefusal): string {
+  return refusedHref(`/tasks/${encodeURIComponent(taskId)}/refused`, taskId, refusal);
+}
+
+/**
+ * The refusal of a frame that came to the sign-in page: the session ended since the task was read,
+ * and the sign-in page carries nothing of the refusal the screen would have said.
+ */
+export const SESSION_ENDED: ResultRefusal = {
+  kind: "signed_out",
+  problem: { code: "SESSION_REQUIRED", status: 401 },
+  conflictingObjectId: null,
+};
+
+/**
  * The address of the screen the download left from — a path of the front, the home otherwise —,
  * with the object whose download was refused, under its parameter — the task of a result by
  * default, `refused_backup` for a backup (`backup-address.ts`) —, and the refusal.

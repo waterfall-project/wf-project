@@ -79,10 +79,11 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
 
   await page.goto("/admin/access-roles");
   const matrix = page.getByRole("table", { name: "Permissions par fonction" });
-  // A header, the forty-one permissions of the functions — the functions in reading alone, the
+  // A header, the forty-three permissions of the functions — the functions in reading alone, the
   // state of the system, the journal of audit and the views of the portfolio, have their
-  // consultation alone (#739) —, and the ten permissions of their own.
-  await expect(matrix.getByRole("row")).toHaveCount(52);
+  // consultation alone (#739), the installation its reading and its modification (WF-ADM-0100-A)
+  // —, and the ten permissions of their own.
+  await expect(matrix.getByRole("row")).toHaveCount(54);
   await expect(
     matrix.getByRole("rowheader", { name: "Journal d’audit", exact: true }),
   ).toBeVisible();
@@ -364,22 +365,18 @@ test("sorts, searches and filters the accounts by the server, under the names of
   await expect(toggle).toBeFocused();
 });
 
-test("keeps the reading of the accounts of the identity provider behind a menu « ⋯ » beside « Créer un compte local », out of the way of the table", async ({
+test("sets the reading of the accounts of the identity provider in a card under the table, its command at the right of its title, its state and its periodicity in its body [WF-IHM-0100-A]", async ({
   page,
 }) => {
   await page.goto("/admin/users");
-  const create = page.getByRole("button", { name: "Créer un compte local" });
-  const menu = page.getByRole("button", {
-    name: "Lecture des comptes du fournisseur d’identité : état et commandes",
-  });
-  await expect(create).toBeVisible();
-  await expect(page.getByRole("button", { name: "Lire les comptes" })).toHaveCount(0);
-  await setExpanded(menu, true);
-  const reading = page.getByRole("dialog", {
+  await expect(page.getByRole("button", { name: "Créer un compte local" })).toBeVisible();
+  const reading = page.getByRole("region", {
     name: "Lecture des comptes du fournisseur d’identité",
+    exact: true,
   });
   await expect(reading.getByRole("button", { name: "Lire les comptes" })).toBeVisible();
   await expect(reading.getByText("Périodicité de la lecture")).toBeVisible();
+  await expect(page.getByRole("button", { name: /état et commandes/ })).toHaveCount(0);
 });
 
 test("writes whether the panel of the filters of the accounts is open with the settings of the grid [WF-IHM-0060-A]", async ({
@@ -505,7 +502,7 @@ test("deletes an access role from its row once confirmed, its deletion unavailab
   await expect(page.getByRole("status", { name: "Commandes des rôles d’habilitation" })).toHaveText(
     "«\u00a0Administrateur\u00a0» supprimé.",
   );
-  await expect(page.getByRole("form", { name: "Création d’un rôle" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Nouveau rôle" })).toBeVisible();
   // A column of the matrix for each role the table retains, each cell a checkbox.
   const matrix = page.getByRole("table", { name: "Permissions par fonction" });
   await expect(matrix.getByRole("columnheader")).toHaveCount(9);

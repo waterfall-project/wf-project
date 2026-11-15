@@ -41,7 +41,11 @@ vi.mock("@/api/server", () => ({
 // The session of the contract, some of its permissions withdrawn for a test: no account of the
 // witness modifies the settings of the resources without reading those of the costs.
 // The sizes of pages the account keeps, set for a test.
-const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
+const kept = vi.hoisted(
+  (): {
+    grids: Record<string, { page_size?: number; filters?: Record<string, string> }>;
+  } => ({ grids: {} }),
+);
 const withdrawn = vi.hoisted(() => ({ permissions: [] as string[] }));
 vi.mock("@/session/request", async (original) => {
   const actual = await original<typeof import("@/session/request")>();
@@ -186,7 +190,10 @@ describe("the creation of a role", () => {
 describe("the roles", () => {
   it("are asked of the server filtered on the code the address names, under the name of their grid", async () => {
     const page = await resourcesAt({ role_code: "AUT" });
-    expect(queriesOf("GET /reference/resource-roles")[0]).toEqual({ code: "AUT" });
+    expect(queriesOf("GET /reference/resource-roles")[0]).toEqual({
+      code: "AUT",
+      is_active: "true",
+    });
     // The filter shows the code asked, to be changed.
     expect(page).toMatch(/<form aria-label="Code du rôle".*?<input[^>]*value="AUT"/);
   });
@@ -197,7 +204,8 @@ describe("the settings of the resources", () => {
     const page = text(await resourcesAt());
     expect(page).toMatch(/Nouveau nœud.*Nouveau rôle.*Nouveau calendrier.*Désigner/);
     expect(page).not.toContain("Maquette");
-    expect(page).not.toMatch(/Supprimer|Effacer/);
+    // « Effacer les filtres » lifts the filters of a grid, and deletes nothing.
+    expect(page).not.toMatch(/Supprimer|Effacer(?! les filtres)/);
     // The natures are not read: a category says if it is of labour (`cost_type_kind`).
     expect(queriesOf("GET /reference/cost-types")).toEqual([]);
     server.clients = [];
@@ -380,7 +388,7 @@ describe("the settings of the resources", () => {
 
   it("present the reactivation of a node under a deactivated parent unavailable, with its condition, and that of the parent available [WF-IHM-0090-A] [WF-REF-0080-A]", async () => {
     server.answers = { ...server.answers, "GET /reference/org-nodes": "org_nodes_with_inactive" };
-    const page = await resourcesAt({ include_inactive: "true" });
+    const page = await resourcesAt({ org_is_active: "all" });
     expect(rows(page, "Arbre d’organisation")).toEqual([
       "Libellé Code Niveau État Modifier",
       "Direction technique DT 1 Actif Désactiver Modifier",
@@ -395,7 +403,8 @@ describe("the settings of the resources", () => {
       new RegExp(`<button[^>]*aria-label="Réactiver «\u00a0${name}\u00a0»"[^>]*>`).exec(page)?.[0];
     expect(command("Cellule robotique")).toContain('aria-disabled="true"');
     expect(command("Bureau d&#x27;études automatismes")).toBeDefined();
-    expect(command("Bureau d&#x27;études automatismes")).not.toContain("aria-disabled");
+    // The attribute, not the look every button carries for it (`aria-disabled:opacity-50`, #3125).
+    expect(command("Bureau d&#x27;études automatismes")).not.toContain("aria-disabled=");
   });
 
   it("ask the roles between the bounds of their figures, and count in the totals those the server retains [WF-IHM-0130-A]", async () => {
@@ -404,7 +413,7 @@ describe("the settings of the resources", () => {
       "GET /reference/resource-roles": "resource_roles_bounded",
     };
     const page = await resourcesAt({
-      include_inactive: "true",
+      role_is_active: "all",
       role_monthly_hours_min: "485324.00",
     });
     expect(queriesOf("GET /reference/resource-roles")).toEqual([
@@ -430,7 +439,7 @@ describe("the settings of the resources", () => {
       role_monthly_hours_max: "500",
     });
     expect(queriesOf("GET /reference/resource-roles")).toEqual([
-      { monthly_hours_min: "1000", monthly_hours_max: "500" },
+      { monthly_hours_min: "1000", monthly_hours_max: "500", is_active: "true" },
     ]);
     expect(text(page)).toContain(
       "La borne supérieure ne peut précéder la borne inférieure, 1 000. Effectif",
@@ -447,7 +456,10 @@ describe("the settings of the resources", () => {
 
   it("ask the tree between the bounds of the depth, and say at its field the upper bound the server refuses", async () => {
     await resourcesAt({ org_level_min: "2", org_level_max: "3", org_level: "0" });
-    expect(queriesOf("GET /reference/org-nodes")).toEqual([{ level_min: "2", level_max: "3" }, {}]);
+    expect(queriesOf("GET /reference/org-nodes")).toEqual([
+      { level_min: "2", level_max: "3", is_active: "true" },
+      {},
+    ]);
     server.clients = [];
     // The tree narrowed refused; the whole tree, which the filters of the roles offer, read.
     server.answers = {
@@ -466,7 +478,10 @@ describe("the settings of the resources", () => {
       ],
     };
     const page = await resourcesAt({ org_level_min: "3", org_level_max: "2" });
-    expect(queriesOf("GET /reference/org-nodes")).toEqual([{ level_min: "3", level_max: "2" }, {}]);
+    expect(queriesOf("GET /reference/org-nodes")).toEqual([
+      { level_min: "3", level_max: "2", is_active: "true" },
+      {},
+    ]);
     expect(page).toMatch(/aria-label="Niveau, au"[^>]*aria-invalid="true"/);
     expect(text(page)).toContain("La borne supérieure ne peut précéder la borne inférieure, 3.");
     expect(page).not.toMatch(/<table[^>]*aria-label="Arbre d’organisation"/);
@@ -486,9 +501,10 @@ describe("the settings of the resources", () => {
       org_level_max: "1,5",
       org_code: "x".repeat(21),
     });
+    // The tree read once: its active nodes, the state by default, are the whole tree read.
     expect(queriesOf("GET /reference/org-nodes")).toEqual([{}]);
-    expect(queriesOf("GET /reference/resource-roles")).toEqual([{}]);
-    expect(queriesOf("GET /reference/calendars")).toEqual([{}, WHOLE]);
+    expect(queriesOf("GET /reference/resource-roles")).toEqual([{ is_active: "true" }]);
+    expect(queriesOf("GET /reference/calendars")).toEqual([{ is_active: "true" }, WHOLE]);
   });
 
   it("keep the grid of a list a search or a filter narrows to nothing, the search shown to be changed, and say empty a list nothing narrows", () => {
@@ -548,27 +564,53 @@ describe("the settings of the resources", () => {
     expect(rows(tree, "Arbre d’organisation")).toContain("Aucune ligne ne répond à la demande.");
   });
 
-  it("ask each list its active objects alone when the address does not ask for the deactivated ones, and offer to show them [WF-REF-0150-A]", async () => {
+  it("open each list on its active objects alone, said by the chip « Actifs (par défaut) », with no switch of the screen, the choices of the forms the active ones alone [WF-REF-0150-A]", async () => {
     const page = await resourcesAt();
-    // The roles of the grid without the deactivated ones, and no list reads them.
-    expect(queriesOf("GET /reference/resource-roles")[0]).not.toHaveProperty("include_inactive");
-    expect(LISTS.flatMap(queriesOf).filter((query) => "include_inactive" in query)).toEqual([]);
-    expect(page).toMatch(
-      /<a[^>]*href="\/reference\/resources\?include_inactive=true"[^>]*>.*?Afficher aussi les désactivés<\/a>/,
-    );
-    // The fake back answers its example whatever is asked: what the screen asks is proven.
+    // The tree read whole, its active nodes; the roles and the calendars, theirs.
+    expect(queriesOf("GET /reference/org-nodes")).toEqual([{}]);
+    expect(queriesOf("GET /reference/resource-roles")).toEqual([{ is_active: "true" }]);
+    expect(queriesOf("GET /reference/calendars")).toEqual([{ is_active: "true" }, WHOLE]);
+    expect(queriesOf("GET /reference/cost-categories")).toEqual([WHOLE]);
+    expect(text(page).match(/État\s:\sActifs \(par défaut\)/g)).toHaveLength(3);
+    expect(page).not.toContain("Afficher aussi les désactivés");
   });
 
-  it("ask the deactivated objects too when the address asks for them, each said deactivated and offered to be reactivated as the server lists it, and offer to hide them [WF-REF-0150-A]", async () => {
-    const page = await resourcesAt({ include_inactive: "true", role_offset: "50" });
-    for (const route of LISTS) {
-      expect(queriesOf(route).map((query) => query.include_inactive)).not.toContain(undefined);
-    }
+  it("ask a list its deactivated objects alone on « Désactivés », and every one once its chip is lifted, each deactivated said and offered to be reactivated as the server lists it, the choices of the forms still the active ones alone [WF-REF-0150-A]", async () => {
+    const page = await resourcesAt({
+      org_is_active: "false",
+      role_is_active: "all",
+      role_offset: "50",
+      calendar_is_active: "all",
+    });
+    expect(queriesOf("GET /reference/org-nodes")).toEqual([{ is_active: "false" }, {}]);
+    expect(queriesOf("GET /reference/resource-roles")).toEqual([
+      { include_inactive: "true", offset: "50" },
+    ]);
+    expect(queriesOf("GET /reference/calendars")).toEqual([{ include_inactive: "true" }, WHOLE]);
+    expect(queriesOf("GET /reference/cost-categories")).toEqual([WHOLE]);
     expect(page).toContain('aria-label="Réactiver «\u00a0Automaticien\u00a0»"');
-    // Hidden again back to the first page of the roles.
-    expect(page).toMatch(
-      /<a[^>]*href="\/reference\/resources"[^>]*>.*?Masquer les désactivés<\/a>/,
-    );
+    expect(text(page)).toContain("État : Désactivés");
+  });
+
+  it("ignore `include_inactive` in the address, the switch of the screen withdrawn: each list reads the state of its own filter [WF-REF-0150-A] (#3076)", async () => {
+    await resourcesAt({ include_inactive: "true" });
+    expect(LISTS.flatMap(queriesOf).filter((query) => "include_inactive" in query)).toEqual([]);
+    expect(queriesOf("GET /reference/resource-roles")).toEqual([{ is_active: "true" }]);
+  });
+
+  it("read the state each grid keeps when the address names none, the address prevailing [WF-REF-0150-A]", async () => {
+    kept.grids = {
+      resource_roles: { filters: { role_is_active: "false" } },
+      calendars: { filters: { calendar_is_active: "all" } },
+      org_nodes: { filters: { org_is_active: "all" } },
+    };
+    await resourcesAt();
+    expect(queriesOf("GET /reference/resource-roles")).toEqual([{ is_active: "false" }]);
+    expect(queriesOf("GET /reference/calendars")[0]).toEqual({ include_inactive: "true" });
+    expect(queriesOf("GET /reference/org-nodes")).toEqual([{ include_inactive: "true" }, {}]);
+    server.clients = [];
+    await resourcesAt({ role_is_active: "true" });
+    expect(queriesOf("GET /reference/resource-roles")).toEqual([{ is_active: "true" }]);
   });
 
   it("never ask the deactivated objects of a session that may not read the settings of the resources, which the contract refuses, nor offer to show them, to filter on them or to reactivate them [WF-IHM-0090-A]", async () => {

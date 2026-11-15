@@ -23,6 +23,7 @@ import {
   type ChartPalette,
   planningInstant,
   timeAxis,
+  valueAxis,
 } from "@/components/chart/chart";
 import { monthTooltip, monthTotals, stackedRoles } from "@/components/workload/stacked-load";
 import { formatDecimal, formatLocale, formatMonth } from "@/i18n/format";
@@ -47,11 +48,8 @@ export function PortfolioWorkloadChart({ workload }: { readonly workload: Portfo
         // Its axis of time is in UTC: its ticks too (`timeAxis`).
         useUTC: true,
         textStyle: { fontFamily: palette.font, color: palette.text },
-        legend: {
-          top: 0,
-          textStyle: { color: palette.text },
-          data: roles.map((role) => role.label),
-        },
+        // The legend names the roles, at the top left (`Chart`).
+        legend: { top: 0, data: roles.map((role) => role.label) },
         grid: { left: 56, right: 24, top: 48, bottom: 32 },
         xAxis: timeAxis(
           palette,
@@ -60,16 +58,15 @@ export function PortfolioWorkloadChart({ workload }: { readonly workload: Portfo
           true,
         ),
         yAxis: {
-          type: "value",
+          ...valueAxis(palette, (value) => tick.format(value)),
           // A load is never negative: its axis starts at zero. It reaches the capacity too, which
-          // ECharts does not do for a marked line: it would be cut when no month gets there.
+          // ECharts does not do for a marked line: it would be cut when no month gets there. The
+          // scale is not broken: a month far above the others crushes them, which the tooltip and
+          // the table give.
           min: 0,
           max: ({ max }: { readonly max: number }) => Math.max(max, Number(capacity)),
-          axisLine: { show: true, lineStyle: { color: palette.axis } },
-          axisLabel: { color: palette.text, formatter: (value: number) => tick.format(value) },
-          splitLine: { lineStyle: { color: palette.grid } },
         },
-        tooltip: monthTooltip(locale, (hours) => t("hours", { hours })),
+        tooltip: monthTooltip(palette, locale, (hours) => t("hours", { hours })),
         series: [
           ...stackedRoles(palette, roles),
           monthTotals(palette, totalSeries, totals, locale),

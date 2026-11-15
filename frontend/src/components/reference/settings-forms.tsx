@@ -7,14 +7,15 @@
  * that session may write: the risk matrix, its six bounds and its sixteen zones (FBS-3.3,
  * WF-REF-0160), under `risk_settings.write`; the thresholds of the indices and the delay between
  * two reviews (FBS-3.4, WF-REF-0170, WF-REF-0180), under `indicator_settings.write`; the name of
- * the company, which the exported files bear (WF-EXP-0020), under `cost_settings.write`, beside the
- * currency. Each form sends the part of its screen alone with the version read
- * (`updateReferenceSettings`), never a field of the other screen; neither the currency, which is
- * not modified (WF-REF-0140), nor the default language of the installation, which is EP-03's, is
- * offered.
+ * the company, which the exported files bear (WF-EXP-0020), in the card of the installation
+ * (FBS-1.6), under `installation.write` (WF-ADM-0100-A). Each form sends the part of its screen
+ * alone with the version read (`updateReferenceSettings`), never a field of the other screen;
+ * neither the currency, which is not modified (WF-REF-0140), nor the default language of the
+ * installation, nor its time zone, which the bootstrap fixes, is offered.
  *
  * The form checks before asking that the bounds of each axis rise strictly and that the alert
- * threshold of each index stays below its watch threshold, each broken rule said at the field the
+ * threshold of each index stays below its watch threshold (judged only between two thresholds
+ * within ]0, 1[, the range itself being the server's), each broken rule said at the field the
  * server would point at — the bound of the rank that breaks the order, the alert —; the server
  * judges the rest, a refusal by field said at its field, any other under the form, the version
  * stale (412) with the offer to read the page anew. The answer takes the place of the settings read
@@ -26,7 +27,7 @@
  */
 "use client";
 
-import { Pencil } from "lucide-react";
+import { Building2, Pencil, Timer, type LucideIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { type ComponentType, type ReactNode, useId, useRef, useState } from "react";
 
@@ -34,11 +35,14 @@ import { setDurationUnits, updateReferenceSettings } from "@/api/actions/referen
 import type { components } from "@/api/generated/schema";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { WritingNote } from "@/components/commands/writing-note";
+import { SectionCard } from "@/components/shell/section-card";
 import { useSaid } from "@/components/notices/said";
 import { Button } from "@/components/ui/button";
 import { compareDecimals, editableDecimal, editablePercent, percentRatio } from "@/i18n/format";
 
 import { Reactivations } from "./reactivation";
+import { InstallationFacts } from "./installation-facts";
+import { SettingsHeader, type SettingsScreen } from "./settings-header";
 import { type Draft, type FormField, ReferenceForm, required } from "./reference-form";
 import {
   DurationUnitFigures,
@@ -51,6 +55,7 @@ import {
 } from "./setting-tables";
 
 type ReferenceSettings = components["schemas"]["ReferenceSettings"];
+type Installation = components["schemas"]["Installation"];
 type DurationUnits = components["schemas"]["DurationUnits"];
 type AlertZone = components["schemas"]["AlertZone"];
 type FieldProblem = components["schemas"]["FieldProblem"];
@@ -105,8 +110,8 @@ function above(value: string | undefined, other: string | undefined): boolean | 
 
 /**
  * The bounds of the matrix that break their order, as the server would refuse them (WF-REF-0160):
- * on each axis, every bound not strictly above the one before it, at its own rank — a bound refused,
- * or the one before it, left unjudged.
+ * on each axis, every bound not strictly above the one before it, at its own rank — a bound
+ * refused, or the one before it, left unjudged.
  */
 function unorderedBounds(values: Draft): ReadonlyMap<string, FieldProblem> {
   const axes: readonly Axis[] = ["probability_bounds", "severity_bounds"];
@@ -122,14 +127,24 @@ function unorderedBounds(values: Draft): ReadonlyMap<string, FieldProblem> {
   );
 }
 
+/** Whether a threshold lies strictly between 0 and 1, the range the server takes (WF-REF-0170). */
+function withinRange(value: string | undefined): boolean {
+  return value !== undefined && compareDecimals(value, "0") > 0 && compareDecimals(value, "1") < 0;
+}
+
 /**
  * The thresholds as the server would refuse them: each alert threshold not strictly below the watch
- * threshold of its index (WF-REF-0170) — either refused, left unjudged.
+ * threshold of its index (WF-REF-0170) — judged only between two thresholds within ]0, 1[, as the
+ * server does: a threshold out of that range is refused for its range, said by the server at its
+ * field, and its order is left unjudged, as is a threshold refused.
  */
 function brokenThresholds(values: Draft): ReadonlyMap<string, FieldProblem> {
   const field = (name: string) => `index_thresholds/${name}`;
   const alerts = INDICES.filter(
-    ([, watch, alert]) => above(values[field(watch)], values[field(alert)]) === false,
+    ([, watch, alert]) =>
+      withinRange(values[field(watch)]) &&
+      withinRange(values[field(alert)]) &&
+      above(values[field(watch)], values[field(alert)]) === false,
   ).map(([, , alert]) => refusal(field(alert), "THRESHOLD_NOT_BELOW_WATCH"));
   return new Map(alerts);
 }
@@ -329,8 +344,8 @@ const UNITS = [
 
 /**
  * The form of the three constants of the units of duration, entered as decimals in the language of
- * the reader; the server refuses a constant that is not strictly positive (422), at its field. Under
- * the fields, what the change does to the schedules (WF-PLA-0160, WF-REF-0130).
+ * the reader; the server refuses a constant that is not strictly positive (422), at its field.
+ * Under the fields, what the change does to the schedules (WF-PLA-0160, WF-REF-0130).
  */
 function DurationUnitsForm({ settings, ...handlers }: SettingsFormProps<DurationUnits>) {
   const t = useTranslations("reference");
@@ -371,20 +386,30 @@ function DurationUnitsForm({ settings, ...handlers }: SettingsFormProps<Duration
 /**
  * The settings of a screen with the command that modifies them and its form: the answer of the
  * server shown while it is newer than the settings read, what the last write did said beside the
- * command, a refusal answered once the dialog is gone told above the settings (`Reactivations`). The
- * command waits, inactive and saying why, while a write is under way (#661).
+ * command, a refusal answered once the dialog is gone told above the settings
+ * (`Reactivations`). The command waits, inactive and saying why, while a write is under way (#661).
  */
 function SettingsWriter<Settings extends Versioned>({
   settings,
   command,
   saved,
   form: Form,
+  place,
   children,
 }: {
   readonly settings: Settings;
   readonly command: string;
   readonly saved: string;
   readonly form: ComponentType<SettingsFormProps<Settings>>;
+  /**
+   * Where the settings stand, one place or the other: in a card, its command at the right of its
+   * title, outlined — it modifies (`SectionCard`); or the screen itself, its header, whose command
+   * stands at the right of the title of the function, outlined (`SettingsHeader`); none for
+   * settings that stand bare, the command above them.
+   */
+  readonly place?:
+    | { readonly kind: "card"; readonly title: string; readonly icon: LucideIcon }
+    | { readonly kind: "screen"; readonly screen: SettingsScreen };
   readonly children: (shown: Settings) => ReactNode;
 }) {
   const [answered, setAnswered] = useState<Settings>();
@@ -401,35 +426,51 @@ function SettingsWriter<Settings extends Versioned>({
   const why = useId();
   const shown =
     answered !== undefined && answered.lock_version > settings.lock_version ? answered : settings;
-  return (
-    <Reactivations reads={[]}>
-      <div className="flex flex-wrap items-start gap-2">
-        <Button
-          ref={trigger}
-          aria-haspopup="dialog"
-          type="button"
-          variant="outline"
-          size="sm"
-          aria-disabled={writing ? true : undefined}
-          aria-busy={writing}
-          aria-describedby={writing ? why : undefined}
-          className={UNAVAILABLE}
-          onClick={() => {
-            if (writing) {
-              return;
-            }
-            openings.current += 1;
-            setEditing({ settings: shown, opening: openings.current });
-          }}
-        >
-          <Pencil aria-hidden="true" />
-          {command}
-        </Button>
-        <WritingNote id={why} writing={writing} />
-        <p role="status" aria-live="polite" className="text-sm text-muted-foreground empty:sr-only">
-          {said === undefined ? null : <span key={said.count}>{said.text}</span>}
-        </p>
-      </div>
+  const modify = (variant: "default" | "outline") => (
+    <Button
+      ref={trigger}
+      aria-haspopup="dialog"
+      type="button"
+      variant={variant}
+      size="sm"
+      aria-disabled={writing ? true : undefined}
+      aria-busy={writing}
+      aria-describedby={writing ? why : undefined}
+      className={UNAVAILABLE}
+      onClick={() => {
+        if (writing) {
+          return;
+        }
+        openings.current += 1;
+        setEditing({ settings: shown, opening: openings.current });
+      }}
+    >
+      <Pencil aria-hidden="true" />
+      {command}
+    </Button>
+  );
+  // What the last write did, said beside the command, and the wait that holds it.
+  const note = (
+    <>
+      <WritingNote id={why} writing={writing} />
+      <p role="status" aria-live="polite" className="text-sm text-muted-foreground empty:sr-only">
+        {said === undefined ? null : <span key={said.count}>{said.text}</span>}
+      </p>
+    </>
+  );
+  const body = (
+    <>
+      {place === undefined ? (
+        <div className="flex flex-wrap items-start gap-2">
+          {modify("outline")}
+          {note}
+        </div>
+      ) : (
+        // In its card, or in the header of its screen, the command is in the header: the note
+        // stands alone, and takes no room
+        // (no empty row, no gap above the figures) until it has something to say.
+        note
+      )}
       {children(shown)}
       {editing === undefined ? null : (
         <Form
@@ -452,7 +493,27 @@ function SettingsWriter<Settings extends Versioned>({
           onClosed={() => trigger.current?.focus()}
         />
       )}
-    </Reactivations>
+    </>
+  );
+  const refusals = <Reactivations reads={[]}>{body}</Reactivations>;
+  if (place?.kind === "screen") {
+    return (
+      <>
+        <SettingsHeader screen={place.screen} actions={modify("outline")} />
+        {refusals}
+      </>
+    );
+  }
+  return place === undefined ? (
+    refusals
+  ) : (
+    <SectionCard
+      title={place.title}
+      icon={place.icon}
+      principal={{ does: "modify", command: modify }}
+    >
+      <div className="flex min-w-0 flex-col gap-2">{refusals}</div>
+    </SectionCard>
   );
 }
 
@@ -460,7 +521,13 @@ function SettingsWriter<Settings extends Versioned>({
 export function RiskSettings({ settings }: { readonly settings: ReferenceSettings }) {
   const t = useTranslations("reference.riskForm");
   return (
-    <SettingsWriter settings={settings} command={t("modify")} saved={t("saved")} form={RiskForm}>
+    <SettingsWriter
+      settings={settings}
+      command={t("modify")}
+      saved={t("saved")}
+      form={RiskForm}
+      place={{ kind: "screen", screen: "risk_settings" }}
+    >
       {(shown) => (
         <>
           <RiskBoundsTable matrix={shown.risk_matrix} />
@@ -472,8 +539,8 @@ export function RiskSettings({ settings }: { readonly settings: ReferenceSetting
 }
 
 /**
- * The thresholds of the indices and the delay between two reviews, and their form, for a session that
- * may modify the indicator settings.
+ * The thresholds of the indices and the delay between two reviews, and their form, for a session
+ * that may modify the indicator settings.
  */
 export function IndicatorSettings({ settings }: { readonly settings: ReferenceSettings }) {
   const t = useTranslations("reference.indicatorForm");
@@ -483,6 +550,7 @@ export function IndicatorSettings({ settings }: { readonly settings: ReferenceSe
       command={t("modify")}
       saved={t("saved")}
       form={IndicatorForm}
+      place={{ kind: "screen", screen: "indicator_settings" }}
     >
       {(shown) => (
         <>
@@ -500,12 +568,14 @@ export function IndicatorSettings({ settings }: { readonly settings: ReferenceSe
  */
 export function DurationUnitSettings({ units }: { readonly units: DurationUnits }) {
   const t = useTranslations("reference.durationUnitsForm");
+  const title = useTranslations("reference.durationUnits")("title");
   return (
     <SettingsWriter
       settings={units}
       command={t("modify")}
       saved={t("saved")}
       form={DurationUnitsForm}
+      place={{ kind: "card", title, icon: Timer }}
     >
       {(shown) => <DurationUnitFigures units={shown} />}
     </SettingsWriter>
@@ -513,25 +583,53 @@ export function DurationUnitSettings({ units }: { readonly units: DurationUnits 
 }
 
 /**
- * The name of the company beside the currency, and its form, for a session that may modify the cost
- * settings (WF-EXP-0020).
+ * The card of the installation, for a session that may modify it: the name of the company, with its
+ * command, and what the bootstrap fixed (WF-EXP-0020, WF-ADM-0100-A).
  */
-export function CompanySettings({ settings }: { readonly settings: ReferenceSettings }) {
+export function InstallationSettings({
+  settings,
+  installation,
+}: {
+  readonly settings: ReferenceSettings;
+  readonly installation: Installation;
+}) {
   const t = useTranslations("reference.companyForm");
+  const title = useTranslations("installation")("title");
   return (
-    <SettingsWriter settings={settings} command={t("modify")} saved={t("saved")} form={CompanyForm}>
-      {(shown) => <CompanyName name={shown.company_name} />}
+    <SettingsWriter
+      settings={settings}
+      command={t("modify")}
+      saved={t("saved")}
+      form={CompanyForm}
+      place={{ kind: "card", title, icon: Building2 }}
+    >
+      {(shown) => (
+        <InstallationFacts
+          name={shown.company_name}
+          currency={shown.currency_code}
+          installation={installation}
+        />
+      )}
     </SettingsWriter>
   );
 }
 
-/** The name of the company, read: what a session that may not modify it sees. */
-export function CompanyName({ name }: { readonly name: string }) {
-  const t = useTranslations("reference.companyForm");
+/** The card of the installation, read: what a session that may not modify it sees. */
+export function InstallationCard({
+  settings,
+  installation,
+}: {
+  readonly settings: ReferenceSettings;
+  readonly installation: Installation;
+}) {
+  const title = useTranslations("installation")("title");
   return (
-    <dl className="text-sm">
-      <dt className="inline text-muted-foreground">{t("name")}</dt>{" "}
-      <dd className="inline font-semibold">{name}</dd>
-    </dl>
+    <SectionCard title={title} icon={Building2}>
+      <InstallationFacts
+        name={settings.company_name}
+        currency={settings.currency_code}
+        installation={installation}
+      />
+    </SectionCard>
   );
 }

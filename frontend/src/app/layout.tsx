@@ -3,7 +3,8 @@
 /**
  * Root layout of the application: the HTML document every page renders into, in the
  * language of the request (WF-INTF-0160) and in the mode the account asks for — none forced
- * when it follows the workstation —, inside the shell, its side bar as the user left it.
+ * when it follows the workstation —, inside the shell, its side bar as the user left it; its
+ * charts drawn with the patterns of their series when the account asks for them (WF-IHM-0070).
  */
 import "@/theme/globals.css";
 
@@ -15,12 +16,15 @@ import type { ReactNode } from "react";
 
 import { listRunningTasks } from "@/api/actions/tasks";
 import type { BackgroundTask } from "@/api/problem";
+import { ChartPatternsProvider } from "@/components/chart/patterns";
 import { Shell, type ShellProps } from "@/components/shell/shell";
 import { SIDEBAR_COOKIE, sidebarOpen } from "@/components/ui/sidebar-state";
 import { CurrencyProvider } from "@/currency/context";
 import { requestCurrency } from "@/currency/request";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { requestLanguage } from "@/i18n/request";
+import { requestInstallation } from "@/installation/request";
+import { TimeZoneProvider } from "@/installation/time-zone";
 import { LAST_CONTEXT_COOKIE, rememberedAddress } from "@/navigation/context";
 import { requestSessionState, type SessionState } from "@/session/request";
 import { forcedTheme, themePreference } from "@/theme/theme";
@@ -68,11 +72,12 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // soon as the session is known and while the language and the cookies are read.
   // The one promise (`requestSessionState` is cached by request), named once and read twice.
   const session = requestSessionState();
-  const [state, { locale, preference }, jar, currency] = await Promise.all([
+  const [state, { locale, preference }, jar, currency, installation] = await Promise.all([
     session,
     requestLanguage(),
     cookies(),
     session.then((opened) => (opened.kind === "open" ? requestCurrency() : undefined)),
+    requestInstallation(),
   ]);
   const account = state.kind === "open" ? state.account : undefined;
   const theme = themePreference(account);
@@ -80,18 +85,24 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <html lang={locale} data-theme={forcedTheme(theme)} className={GeistSans.variable}>
       <body>
         <CurrencyProvider currency={currency}>
-          <Shell
-            locale={locale}
-            account={account}
-            preference={preference}
-            theme={theme}
-            permissions={offered(state)}
-            remembered={rememberedAddress(jar.get(LAST_CONTEXT_COOKIE)?.value)}
-            sidebarOpen={sidebarOpen(jar.get(SIDEBAR_COOKIE)?.value)}
-            running={account === undefined ? undefined : running()}
-          >
-            {children}
-          </Shell>
+          <TimeZoneProvider timeZone={installation?.time_zone}>
+            <ChartPatternsProvider
+              patterns={account?.display_preferences?.chart_series_patterns === true}
+            >
+              <Shell
+                locale={locale}
+                account={account}
+                preference={preference}
+                theme={theme}
+                permissions={offered(state)}
+                remembered={rememberedAddress(jar.get(LAST_CONTEXT_COOKIE)?.value)}
+                sidebarOpen={sidebarOpen(jar.get(SIDEBAR_COOKIE)?.value)}
+                running={account === undefined ? undefined : running()}
+              >
+                {children}
+              </Shell>
+            </ChartPatternsProvider>
+          </TimeZoneProvider>
         </CurrencyProvider>
       </body>
     </html>

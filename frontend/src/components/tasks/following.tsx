@@ -4,11 +4,11 @@
  * The follow-up of a task a command handed to the worker (WF-ARC-0090, WF-IHM-0080): the command
  * mounts it with the reference the API gave, and the tracker of the shell follows the task. It is
  * mounted by the confirmation alone, so that a screen that offers the command needs the tracker only
- * to follow a task. Once the task has succeeded the screen is read again, and told.
+ * to follow a task. Once the task has succeeded the screen is told, and read again by the tracker,
+ * which reads anew the screen a task concerns (`readsAnew`).
  */
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 import type { BackgroundTask } from "@/api/problem";
@@ -34,7 +34,6 @@ export function Following({
   readonly command?: TaskCommand | undefined;
   readonly onSucceeded: () => void;
 }) {
-  const router = useRouter();
   const track = useTrackTask();
   const handed = useRef(false);
   useEffect(() => {
@@ -43,9 +42,6 @@ export function Following({
       track(task, { command, subject });
     }
   }, [track, task, command, subject]);
-  useWhenTaskSucceeds(task.task_id, () => {
-    onSucceeded();
-    router.refresh();
-  });
+  useWhenTaskSucceeds(task.task_id, onSucceeded);
   return null;
 }

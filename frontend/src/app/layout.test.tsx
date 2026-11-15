@@ -5,14 +5,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createApiClient } from "@/api/client";
 import type { BackgroundTask } from "@/api/problem";
+import { useChartPatterns } from "@/components/chart/patterns";
 import type { ShellProps } from "@/components/shell/shell";
 import { SIDEBAR_COOKIE } from "@/components/ui/sidebar-state";
 import { useCurrency } from "@/currency/context";
+import { useInstallationTimeZone } from "@/installation/time-zone";
 import { LAST_CONTEXT_COOKIE } from "@/navigation/context";
 import {
   type FakeAnswers,
   type FakeClient,
   type FakeTiming,
+  example,
   fakeClient,
   held,
 } from "@/test/fixtures";
@@ -78,6 +81,8 @@ vi.mock("next/cache", () => ({ refresh: vi.fn() }));
 // The home page: the address the navigation reads, as the router of Next would give it.
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
+  // The router of Next, whose refresh the tracker of the shell calls at the end of a task (#3103).
+  useRouter: () => ({ refresh: () => undefined }),
   usePathname: () => "/",
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -105,6 +110,22 @@ function request(acceptLanguage: string, answers: FakeAnswers = {}, timing: Fake
 /** What a page below the layout reads as the currency of the amounts. */
 function Currency() {
   return <p>{`currency:${useCurrency() ?? "none"}`}</p>;
+}
+
+/** What a page below the layout reads as the preference of the patterns of its charts. */
+function Patterns() {
+  return <p>{`patterns:${String(useChartPatterns())}`}</p>;
+}
+
+/** Whether the charts of a page below the layout draw the patterns of their series. */
+async function patternsOfPage(): Promise<string | undefined> {
+  const html = renderToStaticMarkup(await RootLayout({ children: <Patterns /> }));
+  return /patterns:([^<]*)/.exec(html)?.[1];
+}
+
+/** What a page below the layout reads as the time zone of the current day. */
+function Zone() {
+  return <p>{`zone:${useInstallationTimeZone()}`}</p>;
 }
 
 /** The document the layout renders around a page. */
@@ -148,16 +169,17 @@ describe("RootLayout", () => {
     request("fr");
     const html = await page();
     expect(html).not.toContain("data-theme");
-    expect(html).toContain(
-      '<source srcSet="/waterfall_logo-dark.svg" media="(prefers-color-scheme: dark)"/>',
-    );
+    // The logo of the side bar, dark in both modes, is the one for a dark ground, whatever the mode
+    // (US-2070): no source for the browser to pick.
+    expect(html).toContain('<img src="/waterfall_logo-dark.svg"');
+    expect(html).not.toContain("<source");
   });
 
   it("forces the mode the account chose on the whole document", async () => {
     request("fr", { "GET /me": "me_dark" });
     const html = await page();
     expect(html).toMatch(/^<html lang="fr" data-theme="dark"/);
-    expect(html).toContain('<source srcSet="/waterfall_logo-dark.svg" media="all"/>');
+    expect(html).toContain('<img src="/waterfall_logo-dark.svg"');
   });
 
   it("offers the functions of the session, and leads back to the project the cookie kept", async () => {
@@ -298,6 +320,17 @@ describe("RootLayout", () => {
     expect(await currencyOfPage()).toBe("none");
   });
 
+  it("hands every chart the preference of the patterns of the account, off when the account never asked for it [WF-ADM-0040-A]", async () => {
+    request("fr", { "GET /me": "me_chart_series_patterns" });
+    expect(await patternsOfPage()).toBe("true");
+    server.cached.clear();
+    request("fr");
+    expect(await patternsOfPage()).toBe("false");
+    server.cached.clear();
+    request("fr", { "GET /me": UNAUTHORIZED });
+    expect(await patternsOfPage()).toBe("false");
+  });
+
   it("asks the installation once for a request whose browser leaves it the language", async () => {
     request("*");
     await page();
@@ -311,6 +344,21 @@ describe("RootLayout", () => {
       "GET /reference/settings",
       "GET /tasks",
     ]);
+  });
+
+  it("hands every page the time zone of the installation, read with the one reading of the installation [WF-PLA-0130-A]", async () => {
+    request("*");
+    const html = renderToStaticMarkup(await RootLayout({ children: <Zone /> }));
+    const { time_zone: zone } = example("installation") as { time_zone: string };
+    expect(/zone:([^<]*)/.exec(html)?.[1]).toBe(zone);
+    const reads = server.client?.calls.filter((call) => call.route === "GET /installation");
+    expect(reads).toHaveLength(1);
+  });
+
+  it("falls back to universal time when the installation cannot be read [WF-PLA-0130-A]", async () => {
+    request("fr", { "GET /installation": UNAVAILABLE });
+    const html = renderToStaticMarkup(await RootLayout({ children: <Zone /> }));
+    expect(/zone:([^<]*)/.exec(html)?.[1]).toBe("UTC");
   });
 
   it("titles the document with the product, from the catalogue", async () => {

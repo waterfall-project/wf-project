@@ -31,7 +31,7 @@ const IN_PROJECT = `/projects/${PROJECT}/revisions/${REVISION}`;
 const CONTEXT = `?subproject_id=${SUBPROJECT}&as_of=2026-05-31`;
 
 /** The functions of the platform scope, and the leaf of the costs, which the navigation lists. */
-const PLATFORM_FUNCTIONS = 16;
+const PLATFORM_FUNCTIONS = 17;
 const SETTINGS_FUNCTIONS = 4;
 const COST_LEAVES = 1;
 
@@ -57,7 +57,6 @@ function navigation(
         <Navigation
           permissions={typeof session === "string" ? permissions(session) : session}
           remembered={remembered}
-          theme="default"
         />
       </SidebarProvider>
     </NextIntlClientProvider>
@@ -123,7 +122,7 @@ describe("the navigation", () => {
     const { container } = render(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
         <SidebarProvider>
-          <Navigation permissions="unreadable" remembered={undefined} theme={undefined} />
+          <Navigation permissions="unreadable" remembered={undefined} />
         </SidebarProvider>
       </NextIntlClientProvider>,
     );
@@ -155,7 +154,7 @@ describe("the navigation", () => {
     ).toEqual(["Projets"]);
     await openBlocks();
     expect(within(nav).getAllByRole("link")).toHaveLength(
-      5 + 7 + (SETTINGS_FUNCTIONS + COST_LEAVES) + 1,
+      6 + 7 + (SETTINGS_FUNCTIONS + COST_LEAVES) + 1,
     );
     for (const block of ["Administration", "Portefeuille", "Paramètres applicatifs"]) {
       expect(within(nav).getByRole("button", { name: block })).toHaveAttribute(
@@ -201,11 +200,28 @@ describe("the navigation", () => {
     }
   });
 
+  it("shows the logo in its variant for a dark ground, the bar being midnight blue in both modes", () => {
+    // US-2070: la barre latérale porte toujours le logo pour fond sombre — no source for the
+    // browser to pick by the mode of the workstation, and no mode handed to the bar.
+    render(navigation());
+    const logo = screen.getByRole("img", { name: "Waterfall" });
+    expect(logo).toHaveAttribute("src", "/waterfall_logo-dark.svg");
+    expect(logo.closest("picture")?.querySelector("source")).toBeNull();
+    expect(screen.getByRole("link", { name: "Waterfall" })).toHaveAttribute("href", "/");
+  });
+
   it("offers no function whose read permission the session lacks", async () => {
     render(navigation("me_without_administration"));
     expect(await openBlocks()).toEqual(["Portefeuille", "Paramètres applicatifs"]);
     expect(screen.queryByRole("link", { name: "Surveillance de l’état du système" })).toBeNull();
     expect(screen.getByRole("link", { name: "Portefeuille de projets" })).toBeInTheDocument();
+  });
+
+  it("hides the entry « Installation » from a session that reads another function of the administration but not the installation", async () => {
+    render(navigation("me_auditor"));
+    await openBlocks();
+    expect(screen.getByRole("link", { name: "Journal d’audit" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Installation" })).toBeNull();
   });
 
   it("carries the revision, the sub-project and the calculation date from one function of a project to the others", async () => {

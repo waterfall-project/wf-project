@@ -1,11 +1,13 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The template of a screen (charter, guide « Charte graphique »): its `<main>`, dense for the
- * grids and the lists — the most information under the eyes — or airy for the indicators; and
- * its header, the title with the icon of the function and the button of the help of the screen
- * beside it (`HelpPanel`, US-0580), a line under it, and its commands at the right, each with its
- * icon.
+ * The template of a screen (charter, guide « Charte graphique »): its `<main>`, in one of the two
+ * families of screens (EP-25, « Deux familles d'écrans, dites par Screen ») — a screen of work,
+ * dense, the window filled; a screen of settings or of consultation, an airy column centred and
+ * bounded —; and its header, the title with the icon of the function and the button of the help of
+ * the screen beside it (`HelpPanel`, US-0580), a line under it, and its commands at the right, each
+ * with its icon, outlined: the filled button is for the principal command of a card alone
+ * (`SectionCard`).
  */
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -14,13 +16,23 @@ import { cn } from "@/components/ui/utils";
 
 import { HelpPanel } from "./help-panel";
 
-/** How much a screen holds: dense for a grid or a list, airy for indicators. */
+/**
+ * The family of a screen, by its density: `dense`, a screen of work — the planning, the estimate,
+ * the remaining to commit, the task tree, the actual costs, the Kanban, the timelines, the register
+ * of the risks, the audit log —, tight, as wide as the window; `airy`, a screen of settings or of
+ * consultation, a column centred in the window and never wider than 96rem (`--container-column`).
+ * Each function has its own, in `FUNCTION_DENSITY` and `LEAF_DENSITY`.
+ */
 export type Density = "dense" | "airy";
 
-/** The classes of the `<main>` of a screen, by density: what its skeleton takes too. */
+/**
+ * The classes of the `<main>` of a screen, by density: what its skeleton takes too, at the density
+ * its segment passes it. The airy screen takes the margin of the dense one under 1024 points (the
+ * breakpoint `lg`), where a zoom of 150 % leaves a grid bar 40 points less than it needs.
+ */
 export const SCREEN: Readonly<Record<Density, string>> = {
   dense: "flex min-w-0 flex-1 flex-col gap-3 px-5 py-3",
-  airy: "flex min-w-0 flex-1 flex-col gap-7 px-10 py-8",
+  airy: "mx-auto flex w-full max-w-column min-w-0 flex-1 flex-col gap-7 px-5 py-8 lg:px-10",
 };
 
 const TITLE: Readonly<Record<Density, string>> = {
@@ -37,12 +49,13 @@ const TITLE: Readonly<Record<Density, string>> = {
  * scrolls.
  */
 export function Screen({
-  density = "dense",
+  density,
   fill = false,
   fillWide = false,
   children,
 }: {
-  readonly density?: Density;
+  /** Its family: every screen says it, a function by its table (`FUNCTION_DENSITY`). */
+  readonly density: Density;
   readonly fill?: boolean;
   /**
    * Whether the screen fills the window from the large breakpoint only: a screen that sets its
@@ -70,7 +83,7 @@ export interface PageHeaderProps {
   readonly title: string;
   readonly icon?: LucideIcon | undefined;
   readonly subtitle?: ReactNode;
-  /** The commands of the screen, at the right of its title. */
+  /** The commands of the screen, at the right of its title, outlined (`expectCommandRule`). */
   readonly actions?: ReactNode;
   readonly density?: Density;
   /**
@@ -124,7 +137,9 @@ export function PageHeader({
         )}
       </div>
       {actions === undefined ? null : (
-        <div className="flex flex-wrap items-start gap-2">{actions}</div>
+        <div data-slot="screen-commands" className="flex flex-wrap items-start gap-2">
+          {actions}
+        </div>
       )}
     </div>
   );

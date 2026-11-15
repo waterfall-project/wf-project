@@ -5,7 +5,10 @@
  * the hand back at once (WF-ARC-0090), and the screen that started it hands its reference to
  * the tracker, with the command that started it. The tracker asks where each task stands while
  * it runs, shows how far it has gone, and announces its end — success, or failure with its
- * motive, which the same command can run again — whatever screen the user went to meanwhile.
+ * motive, which the same command can run again — whatever screen the user went to meanwhile. Once a
+ * task has ended, the screen shown is read anew if the task concerns it — of the same project, or the
+ * screen it was started from (#3103) —; the button that started it waits until then
+ * (`useTaskRunning`), mounted anew too, finding it by what it aims at (`useRunningTask`, #3404).
  *
  * One tracker for every kind of task, in the root layout: a navigation within the application
  * keeps it, and nothing of it blocks the screen while its panel is closed — no control disabled;
@@ -37,6 +40,7 @@
 "use client";
 
 import { CircleAlert, ListChecks, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   createContext,
@@ -67,14 +71,18 @@ import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/comp
 
 import { listRunningTasks, readBackgroundTask } from "@/api/actions/tasks";
 
+import { downloadWhenThere } from "./result-download";
 import { readRefusal, withoutRefusal } from "./result-refusal";
 import { isOwner, keepOwner, wipeStores } from "./session-end";
 import { restoreTasks, saveTasks } from "./storage";
 import { EndLog, TaskEntry, taskName, TaskPolling, useTaskNaming } from "./task-entry";
 import {
+  type EndCardLine,
   type EndLine,
+  isPolled,
   type Launch,
   NOTHING_TRACKED,
+  readsAnew,
   type Tracking,
   tracking,
   type TrackingEvent,
@@ -116,23 +124,35 @@ interface TrackerStore {
   readonly show: (shown: boolean) => void;
   /** Say a news under the bar — none, and the line is closed. */
   readonly tell: (news: TaskNews | undefined) => void;
+  /**
+   * Read the screen anew for an end, once: the shell and a screen that waits for the end of its task
+   * both read it anew, and the page is read once (`ReadAnew`, `useReadAnewWhenTaskEnds`).
+   */
+  readonly readAnew: (line: EndLine, refresh: () => void) => void;
 }
 
-/** The news once an event has changed what the tracker follows: an end logged is the last. */
+/**
+ * The news once an event has changed what the tracker follows: an end logged is the last. A success
+ * or a failure has its floating card (`EndCards`), which stays and carries what follows: the line
+ * under the bar does not say it a second time, and says nothing more of the task handed over before
+ * it (#3292). A follow-up interrupted, which has no card, is said by the line.
+ */
 function newsAfter(before: Held, after: Tracking, event: TrackingEvent): TaskNews | undefined {
   if (event.type === "forget") {
     return undefined;
   }
   const ended = after.log.at(-1);
-  return ended !== undefined && ended !== before.tracking.log.at(-1)
-    ? { kind: "ended", line: ended }
-    : before.news;
+  if (ended === undefined || ended === before.tracking.log.at(-1)) {
+    return before.news;
+  }
+  return ended.end === "interrupted" ? { kind: "ended", line: ended } : undefined;
 }
 
 /** A store of the tracker, holding nothing yet; a change that changes nothing tells no one. */
 function trackerStore(): TrackerStore {
   let held = NOTHING_HELD;
   const listeners = new Set<() => void>();
+  const readAnew = new WeakSet<EndLine>();
   const hold = (next: Held) => {
     if (next.tracking === held.tracking && next.shown === held.shown && next.news === held.news) {
       return;
@@ -159,6 +179,12 @@ function trackerStore(): TrackerStore {
     },
     tell: (news) => {
       hold({ ...held, news });
+    },
+    readAnew: (line, refresh) => {
+      if (!readAnew.has(line)) {
+        readAnew.add(line);
+        refresh();
+      }
     },
   };
 }
@@ -248,7 +274,7 @@ export function useTrackTask(): TrackTask {
 function useWhenTaskEnded(
   taskId: string | undefined,
   way: "succeeded" | "unsuccessful",
-  then: () => void,
+  then: (line: EndLine) => void,
 ): void {
   const { log, tasks } = useTracker();
   const done = useRef<string>(undefined);
@@ -256,17 +282,18 @@ function useWhenTaskEnded(
   // of the task named is the end of the one now in its place too.
   const current = tasks.find((tracked) => tracked.key === taskId)?.task.task_id;
   const ended =
-    taskId !== undefined &&
-    log.some(
-      // Any end but a success — a failure, an interrupted follow-up — is the unsuccessful way.
-      (line) =>
-        (line.task.task_id === taskId || line.task.task_id === current) &&
-        (line.end === "succeeded") === (way === "succeeded"),
-    );
+    taskId === undefined
+      ? undefined
+      : log.find(
+          // Any end but a success — a failure, an interrupted follow-up — is the unsuccessful way.
+          (line) =>
+            (line.task.task_id === taskId || line.task.task_id === current) &&
+            (line.end === "succeeded") === (way === "succeeded"),
+        );
   useEffect(() => {
-    if (ended && done.current !== taskId) {
+    if (ended !== undefined && done.current !== taskId) {
       done.current = taskId;
-      then();
+      then(ended);
     }
   }, [ended, taskId, then]);
 }
@@ -277,7 +304,10 @@ function useWhenTaskEnded(
  * task that ends while the user is elsewhere leads nowhere. `task_id` is none until a task was
  * started.
  */
-export function useWhenTaskSucceeds(taskId: string | undefined, then: () => void): void {
+export function useWhenTaskSucceeds(
+  taskId: string | undefined,
+  then: (line: EndLine) => void,
+): void {
   useWhenTaskEnded(taskId, "succeeded", then);
 }
 
@@ -287,6 +317,132 @@ export function useWhenTaskSucceeds(taskId: string | undefined, then: () => void
  */
 export function useWhenTaskFails(taskId: string | undefined, then: () => void): void {
   useWhenTaskEnded(taskId, "unsuccessful", then);
+}
+
+/**
+ * Whether the task named still runs in the tracker — the task as it was handed over, or the one a
+ * relaunch put in its place —: the button that started it waits until then (WF-IHM-0080, #3103).
+ * Ended, failed, its follow-up interrupted, or dismissed from the tracker, it no longer runs, and the
+ * button is given back. `task_id` is none until a task was started. Read from the store of the
+ * tracker, the button is rendered again only when the answer changes (#180); a command rendered
+ * outside the tracker has started none.
+ */
+export function useTaskRunning(taskId: string | undefined): boolean {
+  // Outside the tracker no task was ever handed over (`useTrackTask` would have thrown): none runs.
+  const store = useContext(StateContext)?.store;
+  return useSyncExternalStore(
+    store?.subscribe ?? subscribeToNothing,
+    () => {
+      const entry = store?.read().tracking.tasks.find((tracked) => tracked.key === taskId);
+      return entry !== undefined && isPolled(entry);
+    },
+    () => false,
+  );
+}
+
+/**
+ * The task that runs for what a button aims at (`taskAim`), by the key it is followed under — the
+ * last one handed over, when several were —; none when none runs. The button that started a task
+ * forgets it once mounted anew — the tab reloaded, the screen left and come back to —: it waits on
+ * the task it has just started or, failing it, on the one it finds so, and is given back at its end
+ * as at the end of its own (#3404). Only in the tab: a task started from another tab or another
+ * workstation comes without its aim (`listBackgroundTasks`), and no button finds it.
+ */
+export function useRunningTask(aim: string): string | undefined {
+  const store = useContext(StateContext)?.store;
+  return useSyncExternalStore(
+    store?.subscribe ?? subscribeToNothing,
+    () =>
+      store?.read().tracking.tasks.findLast((tracked) => tracked.aim === aim && isPolled(tracked))
+        ?.key,
+    () => undefined,
+  );
+}
+
+/** A subscription to nothing: nothing ever changes. */
+function subscribeToNothing(): () => void {
+  return () => undefined;
+}
+
+/**
+ * Read the screen anew once the task named has ended, whichever way — the task as it was handed over,
+ * or the one a relaunch put in its place —, even when the tracker does not know the screen it was
+ * started from: found again after a reload, or read by the screen from its object (an import
+ * analysing). An end the shell has read the screen anew for already reads nothing more. `task_id`
+ * is none until a task was started.
+ */
+export function useReadAnewWhenTaskEnds(taskId: string | undefined): void {
+  const { store } = inTracker(useContext(StateContext));
+  const router = useRouter();
+  // Only the line of this task: the screen is not rendered again for the rest of the tracker (#180).
+  const line = useSyncExternalStore(
+    store.subscribe,
+    () => {
+      const { log, tasks } = store.read().tracking;
+      const current = tasks.find((tracked) => tracked.key === taskId)?.task.task_id;
+      return taskId === undefined
+        ? undefined
+        : log.findLast(
+            (end) =>
+              end.end !== "interrupted" &&
+              (end.task.task_id === taskId || end.task.task_id === current),
+          );
+    },
+    () => undefined,
+  );
+  useEffect(() => {
+    if (line !== undefined) {
+      store.readAnew(line, () => {
+        router.refresh();
+      });
+    }
+  }, [line, store, router]);
+}
+
+/**
+ * Download the result of the export named once its task has succeeded — a relaunch of it included
+ * —, while the screen that asked for it still shows (#3103): once, for the task named, read anew
+ * first, and left only if the screen is still there once the read has answered. `task_id` is none
+ * until an export was asked.
+ */
+export function useDownloadWhenTaskSucceeds(taskId: string | undefined): void {
+  const { dispatch } = inTracker(useContext(StateContext)).store;
+  const shown = useRef(true);
+  useEffect(() => {
+    shown.current = true;
+    return () => {
+      shown.current = false;
+    };
+  }, []);
+  const download = useCallback(
+    (line: EndLine) => {
+      downloadWhenThere(line, dispatch, () => shown.current);
+    },
+    [dispatch],
+  );
+  useWhenTaskSucceeds(taskId, download);
+}
+
+/** The function that changes what the tracker follows: an answer to a task, a card closed. */
+export function useTrackerDispatch(): Dispatch<TrackingEvent> {
+  return inTracker(useContext(StateContext)).store.dispatch;
+}
+
+/**
+ * The cards of the ends the shell shows, the last first, and the button of the bar, which the focus
+ * goes to once the last card is closed (`EndCards`).
+ */
+export function useEndCards(): {
+  readonly cards: readonly EndCardLine[];
+  readonly button: RefObject<HTMLButtonElement | null>;
+} {
+  const { store, button } = inTracker(useContext(StateContext));
+  const cards = useSyncExternalStore(
+    store.subscribe,
+    () => store.read().tracking.cards,
+    () => NOTHING_TRACKED.cards,
+  );
+  return { cards, button };
 }
 
 /**
@@ -359,6 +515,45 @@ export function afterReveal(change: () => void): () => void {
     window.removeEventListener("load", loaded);
     clearTimeout(timer);
   };
+}
+
+/**
+ * Read the screen shown anew once a task that concerns it ends (`readsAnew`, #3103): its project
+ * — the list of the revisions after a marking, the imports after an import —, whatever the screen
+ * of the project the user went to meanwhile. The page is read again under what the screen holds —
+ * the router keeps the state of its components, what the user is typing included. The ends already
+ * logged when it mounts read nothing anew.
+ */
+function ReadAnew({ store }: { readonly store: TrackerStore }) {
+  const router = useRouter();
+  // The last end the render saw: an end logged between the render and the effect is read anew too.
+  const [seen] = useState(() => store.read().tracking.log.at(-1));
+  useEffect(() => {
+    let last = seen;
+    const check = () => {
+      const { log } = store.read().tracking;
+      if (log.at(-1) === last) {
+        return;
+      }
+      // The ends logged since the last one seen: all of them when it is gone from the log — out of
+      // its last lines, or forgotten on signing out.
+      const fresh = log.slice(last === undefined ? 0 : log.indexOf(last) + 1);
+      last = log.at(-1);
+      const concerned = fresh.filter((line) => readsAnew(line, window.location.pathname));
+      // One read for all the ends of a same notification.
+      const asked: EndLine[] = [];
+      for (const line of concerned) {
+        store.readAnew(line, () => asked.push(line));
+      }
+      if (asked.length > 0) {
+        router.refresh();
+      }
+    };
+    const unsubscribe = store.subscribe(check);
+    check();
+    return unsubscribe;
+  }, [store, router, seen]);
+  return null;
 }
 
 /** Follow the background tasks the screens within it start, and those of its user that run. */
@@ -491,6 +686,7 @@ export function TaskTracker({ signedIn = false, accountId, running, children }: 
       <StateContext value={value}>
         {children}
         {streamed}
+        <ReadAnew store={store} />
       </StateContext>
     </TrackContext>
   );
@@ -540,10 +736,11 @@ const END_SENTENCE = {
 } as const;
 
 /**
- * The last task handed over or ended, under the bar, in the flow of the page: a short line that
- * stays until the next, not announced — the log of the ends speaks, and a task handed over follows
- * a command the user just gave —, or until it is closed (#1179), by its button, reached by the
- * keyboard; the focus goes then to the button of the bar, where the task is still followed.
+ * The last task handed over, or whose follow-up was interrupted, under the bar, in the flow of the
+ * page: a short line that stays until the next, not announced — the log of the ends speaks, and a
+ * task handed over follows a command the user just gave —, or until it is closed (#1179), by its
+ * button, reached by the keyboard; the focus goes then to the button of the bar, where the task is
+ * still followed. A success or a failure is said by its card alone, which closes the line (#3292).
  */
 function News({
   news,
