@@ -16,9 +16,12 @@ mode, duration, dates, attachment — being the planning's to write (``planning.
 The parameters of a reading are judged here, every bound at once (``NUMBER_INVALID``,
 ``DATE_INVALID``, ``VALUE_OUT_OF_RANGE``, WF-IHM-0130), those of the line too, which retain lines
 (``LineFilters``); ``fields`` names what is returned of each node, an unknown property refused
-(``FIELD_NOT_ACCEPTED``). A line is created from ``EstimateLineWrite``, refused without it.
+(``FIELD_NOT_ACCEPTED``). A line is created from ``EstimateLineWrite``, refused without it. A
+structure of a marked revision read whole, projected or not, is read from its reading kept, made and
+kept at its first whole reading, its inscriptions joined (``whole_nodes``, EP-26, US-2270).
 """
 
+import json
 import re
 from dataclasses import replace
 from datetime import date
@@ -28,7 +31,7 @@ from typing import TYPE_CHECKING, Annotated, Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from waterfall.api.authentication import Caller, Transaction
@@ -76,10 +79,13 @@ from waterfall.core.planning.interface import (
     StructureTotals,
     TaskEntry,
     TaskRecord,
+    TrackingView,
     Writer,
     computed_value_dependencies,
     create_node,
     delete_node,
+    keep_reading,
+    kept_reading,
     list_records,
     move_nodes,
     record_of,
@@ -98,6 +104,8 @@ from waterfall.platform.errors import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from sqlalchemy.orm import Session
 
 router = APIRouter(tags=["revisions"])
 
@@ -145,6 +153,10 @@ FACETS = {"task": TaskFacet, "estimate_line": EstimateLineFacet}
 ALWAYS = ("node_id", "row_number", "level", "lock_version")
 # The kind of a node that is a task, which its record does not repeat.
 TASK = NodeKind.task.value
+# The format of the body of a structure read whole, as this code writes it: a reading kept of
+# another is ignored and made again (US-2270). A field added to a node, or a value written
+# otherwise, changes it: ``FORMAT_SHAPE`` of the tests fails until it does.
+FORMAT = 1
 
 
 class Unassigned(StrEnum):
@@ -395,14 +407,17 @@ def _task(record: TaskRecord) -> dict[str, Any]:
         "base_amount": _money(amounts.base),
         "budgeted_amount": _money(amounts.budgeted),
         "reestimated_amount": _money(amounts.reestimated),
-        "tracking": [
-            {"kind": entry.kind, "timeline_id": _id(entry.timeline_id)} for entry in record.tracking
-        ],
+        "tracking": tracking_body(record.tracking),
         "order_item_id": _id(record.order_item_id),
         "work_package_id": _id(record.work_package_id),
         "work_breakdown_label": record.work_breakdown_label,
         "external_id": record.external_id,
     }
+
+
+def tracking_body(tracking: tuple[TrackingView, ...]) -> list[dict[str, Any]]:
+    """Write the inscriptions of a task as the contract does: their kind, and their timeline."""
+    return [{"kind": entry.kind, "timeline_id": _id(entry.timeline_id)} for entry in tracking]
 
 
 def _optional(value: Decimal | None, write: Callable[[Decimal], str]) -> str | None:
@@ -489,8 +504,11 @@ def _whole(record: NodeRecord) -> dict[str, Any]:
 def record_body(record: NodeRecord, fields: frozenset[str] | None = None) -> dict[str, Any]:
     """Write a node as the contract does, from its record: whole, or what ``fields`` names."""
     whole = _whole(record)
-    if fields is None:
-        return whole
+    return whole if fields is None else projected(whole, fields)
+
+
+def projected(whole: dict[str, Any], fields: frozenset[str]) -> dict[str, Any]:
+    """Keep of a node written whole what ``fields`` names, and what every node returns."""
     chosen = {name: whole[name] for name in ALWAYS}
     for name in sorted(fields):
         facet, _, held = name.partition(".")
@@ -520,6 +538,38 @@ def nodes_body(read: NodeRecords, fields: frozenset[str] | None = None) -> dict[
         "totals": totals_body(read.task_count, read.totals),
         "meta": meta.model_dump(mode="json"),
     }
+
+
+def whole_nodes(session: Session, place: Place, fields: frozenset[str] | None) -> Response:
+    """Give a structure read whole, projected by ``fields`` or not (``listNodes``, US-2270).
+
+    The reading kept of a structure of a marked revision, made and kept in this transaction if it
+    is not, its inscriptions joined; the reading of the rows for a structure of a revision not
+    marked. The body is the same, to the byte.
+    """
+    kept = kept_reading(session, place, FORMAT)
+    if kept is None:
+        return read_body(nodes_body(list_records(session, place, NodeFilters()), fields))
+    document = kept.document
+    if document is None:
+        body = nodes_body(list_records(session, place, NodeFilters()))
+        # The inscriptions do not enter the document: they still change, and are joined below.
+        for item in body["items"]:
+            if item["task"] is not None:
+                item["task"]["tracking"] = []
+        document = bytes(read_body(body).body)
+        keep_reading(session, place, FORMAT, kept.settings_digest, document)
+    if fields is None and not kept.inscriptions:
+        return Response(document, media_type=JSONResponse.media_type)
+    inscriptions = {str(lineage): held for lineage, held in kept.inscriptions.items()}
+    read = json.loads(document)
+    for item in read["items"]:
+        held = inscriptions.get(item["lineage_id"])
+        if held is not None and item["task"] is not None:
+            item["task"]["tracking"] = tracking_body(held)
+    if fields is not None:
+        read["items"] = [projected(item, fields) for item in read["items"]]
+    return read_body(read)
 
 
 def totals_body(task_count: int, totals: StructureTotals | None) -> dict[str, Any]:
@@ -686,9 +736,11 @@ def get_nodes(
     place: Placed,
     asked: Annotated[tuple[NodeFilters, frozenset[str] | None], Depends(node_reading)],
     session: Transaction,
-) -> JSONResponse:
+) -> Response:
     """Give the nodes of a structure retained, depth first, their totals and its meta."""
     filters, fields = asked
+    if filters == NodeFilters():
+        return whole_nodes(session, place, fields)
     return read_body(nodes_body(list_records(session, place, filters), fields))
 
 

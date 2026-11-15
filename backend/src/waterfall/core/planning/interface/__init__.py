@@ -97,6 +97,17 @@ from waterfall.core.planning.interface.facets import (
     register_facet as register_facet,
 )
 
+# ``kept_readings`` (US-2270/L1): the reading of a structure of a marked revision, kept.
+from waterfall.core.planning.interface.kept_readings import (
+    KeptReading as KeptReading,
+)
+from waterfall.core.planning.interface.kept_readings import (
+    keep_reading as keep_reading,
+)
+from waterfall.core.planning.interface.kept_readings import (
+    kept_reading as kept_reading,
+)
+
 # ``lines`` (US-1380/L1; US-1490/L3, L4; US-1550/L3): the lines of a task, their place, their
 # writes, where they stand, their counters, the write of an import, for EP-07.
 from waterfall.core.planning.interface.lines import (

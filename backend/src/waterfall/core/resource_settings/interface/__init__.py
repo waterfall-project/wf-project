@@ -8,7 +8,8 @@ that two stories filling two files write two places of this one. Another module 
 from here, never from the file.
 """
 
-# ``calendars`` (US-0860): the calendars, one of them the default.
+# ``calendars`` (US-0860; US-2270/L1): the calendars, one of them the default; what the hours of a
+# task follow, which a reading kept depends on.
 from waterfall.core.resource_settings.interface.calendars import (
     DAYS as DAYS,
 )
@@ -44,6 +45,9 @@ from waterfall.core.resource_settings.interface.calendars import (
 )
 from waterfall.core.resource_settings.interface.calendars import (
     calendar_commands as calendar_commands,
+)
+from waterfall.core.resource_settings.interface.calendars import (
+    calendar_settings as calendar_settings,
 )
 from waterfall.core.resource_settings.interface.calendars import (
     calendars_present as calendars_present,

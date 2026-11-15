@@ -50,7 +50,14 @@ from waterfall.core.estimate.tables import (
 )
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.history.tables import PastePlan, UndoEntry
-from waterfall.core.planning.tables import Node, Task, TaskLink, Timeline, TrackingEntry
+from waterfall.core.planning.tables import (
+    Node,
+    StructureReading,
+    Task,
+    TaskLink,
+    Timeline,
+    TrackingEntry,
+)
 from waterfall.core.projects.tables import (
     Contributor,
     Deliverable,
@@ -289,6 +296,7 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         TaskLink.__tablename__,
         Timeline.__tablename__,
         TrackingEntry.__tablename__,
+        StructureReading.__tablename__,
         ImportReport.__tablename__,
         UndoEntry.__tablename__,
         PastePlan.__tablename__,
@@ -423,6 +431,9 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     "import_report": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "undo_entry": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "paste_plan": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    # The reading kept of a structure of a marked revision (EP-26, US-2270): inserted at its first
+    # reading, replaced when its format or its settings change, deleted with its structure.
+    "structure_reading": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     # The estimate (EP-07): a line and a rate of a current revision are changed and deleted with it,
     # a marked one's the database refuses to change (migration 0025); an image is written once, at
     # the marking, and never changed nor deleted, its revision marked for good.
@@ -517,7 +528,7 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
 
 
 # The revised tables of the revisions and the planning (EP-04, EP-06), and of the estimate (EP-07).
-PLANNING_REVISED = ("cost_structure", "node", "task", "task_link")
+PLANNING_REVISED = ("cost_structure", "node", "structure_reading", "task", "task_link")
 ESTIMATE_REVISED = (
     "estimate_line",
     "revision_rate",
@@ -614,14 +625,15 @@ def test_a_partition_attached_is_one_created_by_the_function_of_0025_but_for_its
 ) -> None:
     # The function of 0026 creates a partition alone, then attaches it: its columns, constraints,
     # keys, indexes and triggers are those ``PARTITION OF`` gave by the function of 0025. The
-    # descent puts that function back, as it was.
+    # descent puts that function back, as it was. Compared at 0026: a revised table a later
+    # migration adds gives its partition to the projects that exist, which ``created`` is not.
     upgrade(empty_engine, "0025")
     created, attached = uuid4(), uuid4()
     definition = text("SELECT pg_get_functiondef('create_project_partitions(uuid)'::regprocedure)")
     with empty_engine.begin() as connection:
         former = connection.scalar(definition)
         connection.execute(select(func.create_project_partitions(created)))
-    upgrade(empty_engine)
+    upgrade(empty_engine, "0026")
     with empty_engine.begin() as connection:
         assert connection.scalar(definition) != former
         connection.execute(select(func.create_project_partitions(attached)))
