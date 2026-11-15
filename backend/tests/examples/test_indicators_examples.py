@@ -62,12 +62,12 @@ def test_a_project_of_budget_1000_earned_400_cost_500_remaining_550_projects_110
         _decimal(data, "actual_cost"),
         _decimal(data, "remaining"),
     )
-    assert shown.at_budget.value == _decimal(data, "at_budget")
-    assert shown.project_manager.value == _decimal(data, "project_manager")
+    assert shown.at_budget == _decimal(data, "at_budget")
+    assert shown.project_manager == _decimal(data, "project_manager")
     assert shown.at_observed_rate.value == _decimal(data, "at_observed_rate")
-    assert shown.variance_at_budget.value == _decimal(data, "variance_at_budget")
-    assert shown.variance_project_manager.value == _decimal(data, "variance_project_manager")
-    assert shown.variance_at_observed_rate.value == _decimal(data, "variance_at_observed_rate")
+    assert shown.variance_at_budget == _decimal(data, "variance_at_budget")
+    assert shown.variance_project_manager == _decimal(data, "variance_project_manager")
+    assert shown.variance_at_observed_rate == _decimal(data, "variance_at_observed_rate")
 
 
 @pytest.mark.requirement("WF-IND-0060-A")
