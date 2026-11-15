@@ -18,7 +18,9 @@ from test_witness_projects import PRJ_001, REVISION_100, REVISION_101, REVISION_
 from test_witness_tasks import structure_of
 
 from waterfall.core.planning.interface.facets import calendars_of
-from waterfall.core.planning.reading import reading_of
+from waterfall.core.planning.filters import NodeFilters
+from waterfall.core.planning.interface.nodes import list_nodes
+from waterfall.core.planning.reading import list_records, reading_of
 from waterfall.core.planning.tree import read_links, read_rows, read_tree
 from waterfall.core.planning.views import (
     FacetRecord,
@@ -109,3 +111,18 @@ def test_the_records_of_a_reading_are_the_views_of_the_objects_made_records(
     assert any(each.predecessors for each in tasks)
     assert all(each.facet is not None for each in records if isinstance(each, FacetRecord))
     assert records == [record_of(view) for view in views]
+
+
+@pytest.mark.parametrize("filters", [NodeFilters(), NodeFilters(kinds=("task",))])
+def test_list_nodes_and_list_records_read_the_same_nodes(
+    witness: Database, filters: NodeFilters
+) -> None:
+    with witness.transaction() as session:
+        place = Place(PRJ_001, REVISION_102, structure_of(session, REVISION_102))
+        read = list_nodes(session, place, filters)
+        records = list_records(session, place, filters)
+    assert len(read.items) > 100
+    assert [record_of(view) for view in read.items] == list(records.items)
+    assert (read.task_count, read.summary_depth) == (records.task_count, records.summary_depth)
+    assert (read.scheduled_at, read.totals) == (records.scheduled_at, records.totals)
+

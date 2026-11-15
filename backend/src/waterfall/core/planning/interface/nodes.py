@@ -44,10 +44,10 @@ from waterfall.core.planning.entries import (
     judged_change,
     judged_creation,
 )
-from waterfall.core.planning.filters import NodeFilters, retained
+from waterfall.core.planning.filters import NodeFilters
 from waterfall.core.planning.interface.facets import calendar_of, facets
 from waterfall.core.planning.interface.lines import create_line_node
-from waterfall.core.planning.reading import reading_of
+from waterfall.core.planning.reading import retained_reading
 from waterfall.core.planning.scheduling import Move, WorkInstant
 from waterfall.core.planning.shaping import (
     Placing,
@@ -64,7 +64,7 @@ from waterfall.core.planning.shaping import (
 )
 from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tables import Node, Task, TaskLink
-from waterfall.core.planning.tree import TASK, Tree, read_rows, read_tree
+from waterfall.core.planning.tree import TASK, Tree, read_tree
 from waterfall.core.planning.views import COMPLETED, NOT_STARTED, NodeView, state_of
 from waterfall.core.planning.writing import (
     NodesWritten,
@@ -328,17 +328,13 @@ def list_nodes(session: Session, place: Place, filters: NodeFilters) -> NodeList
     are the structure's, whatever the filters (WF-PLA-0080, WF-PLA-0110). Refused if the project,
     the revision or the structure is unknown (404).
     """
-    facts = facts_of(session, place, lock=False)
-    tree = read_rows(session, place.project_id, place.structure_id)
-    reading = reading_of(session, place, tree, (facts.scheduled_at, facts.is_main))
-    structure = (place.project_id, place.structure_id)
-    found = retained(session, structure, reading, filters, constants_of(session))
+    reading, found, scheduled_at = retained_reading(session, place, filters)
     reading.prefetch(found.order)
     return NodeList(
         tuple(reading.node(each) for each in found.order),
         found.task_count,
         reading.summary_depth(),
-        facts.scheduled_at,
+        scheduled_at,
         StructureTotals(len(found.lines), reading.totals(found.lines)),
     )
 

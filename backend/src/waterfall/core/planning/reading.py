@@ -87,7 +87,7 @@ def reading_of(
     return RowsReading(session, structure, tree, links, calendars)
 
 
-def _retained_reading(
+def retained_reading(
     session: Session, place: Place, filters: NodeFilters
 ) -> tuple[RowsReading, Retained, datetime]:
     """Read a structure as rows, and what the filters retain of it; or refuse (404).
@@ -108,7 +108,7 @@ def list_records(session: Session, place: Place, filters: NodeFilters) -> NodeRe
     The same nodes, numbers, meta and totals, each node a record rather than a view: the API
     writes the body from them.
     """
-    reading, found, scheduled_at = _retained_reading(session, place, filters)
+    reading, found, scheduled_at = retained_reading(session, place, filters)
     return NodeRecords(
         reading.records(found.order),
         found.task_count,
@@ -120,7 +120,7 @@ def list_records(session: Session, place: Place, filters: NodeFilters) -> NodeRe
 
 def read_structure(session: Session, place: Place, filters: NodeFilters) -> StructureRead:
     """Read a structure whole, and what the filters retain of it; or refuse (404)."""
-    reading, found, scheduled_at = _retained_reading(
+    reading, found, scheduled_at = retained_reading(
         session, place, replace(filters, kinds=None, sort=None)
     )
     tree = reading.tree
