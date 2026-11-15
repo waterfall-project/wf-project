@@ -84,7 +84,7 @@ describe("query", () => {
 });
 
 describe("the entries of the load", () => {
-  it("write the label of the task, then its duration, seven or eight days in turn [WF-QUA-0060-A]", () => {
+  it("write the label of the task, then its duration, seven or eight days in turn", () => {
     const task = { node: "n", label: "Câblage" };
     expect(ENTRIES.map(({ name }) => name)).toEqual(["label", "duration"]);
     expect(ENTRIES[0]?.body(task, 3)).toEqual({ label: "Câblage · 3" });

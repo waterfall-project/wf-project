@@ -28,6 +28,7 @@ import type { Place } from "../../bench/screens";
 import type { components, operations } from "../../src/api/generated/schema";
 import { frontTokens, type Person } from "../service/realm";
 import type { Caller } from "./background";
+import { type LoadSummary, type Volumes, volumeFailures } from "./load-check";
 
 type Schemas = components["schemas"];
 type NodeList = operations["listNodes"]["responses"][200]["content"]["application/json"];
@@ -59,6 +60,7 @@ interface LoadTask {
 /** The fields of the nodes the choice of the tasks reads. */
 const CHOSEN_BY = [
   "node_id",
+  "kind",
   "lock_version",
   "task.label",
   "task.is_summary",
@@ -69,15 +71,16 @@ const CHOSEN_BY = [
 ];
 
 /**
- * Where the load reads, and the tasks its users write, one each: read on the main structure of the
- * revision, as the first user of the measure, outside the measure.
+ * Where the load reads, the tasks its users write, one each, and the volumes of the revision: read
+ * on the main structure of the revision, as the first user of the measure, outside the measure.
+ * The data must be those of §4.6.2 (`volumeFailures`): a thousand tasks, five lines each.
  */
 export async function placeAndTasks(
   api: Caller,
   project: string,
   revision: string,
   count: number,
-): Promise<{ place: Place; tasks: LoadTask[] }> {
+): Promise<{ place: Place; tasks: LoadTask[]; volumes: Volumes }> {
   const structures = await api.get<Schemas["CostStructure"][]>(
     `/projects/${project}/revisions/${revision}/structures`,
   );
@@ -86,9 +89,17 @@ export async function placeAndTasks(
     throw new Error("the revision of PRJ-001 has no main structure");
   }
   const fields = `fields=${CHOSEN_BY.join(",")}`;
-  const { items } = await api.get<NodeList>(
-    `/projects/${project}/revisions/${revision}/structures/${main.structure_id}/nodes?kinds=task&${fields}`,
+  const { items: nodes } = await api.get<NodeList>(
+    `/projects/${project}/revisions/${revision}/structures/${main.structure_id}/nodes?${fields}`,
   );
+  const items = nodes.filter((node) => node.kind === "task");
+  const volumes = { tasks: items.length, estimate_lines: nodes.length - items.length };
+  const volumeRefused = volumeFailures(volumes);
+  if (volumeRefused.length > 0) {
+    throw new Error(
+      `PRJ-001 does not have the volumes of §4.6.2 (${volumeRefused.join("; ")}): the witness is not loaded`,
+    );
+  }
   const workPackage = items.find((node) => node.task?.work_package_id != null)?.task
     ?.work_package_id;
   const writable = items
@@ -118,6 +129,7 @@ export async function placeAndTasks(
   return {
     place: { project, revision, structure: main.structure_id, workPackage },
     tasks,
+    volumes,
   };
 }
 
@@ -144,15 +156,13 @@ export async function prepareLoad(
   writeFileSync(FILE, JSON.stringify({ seed: SEED, place, users: prepared }), { mode: 0o600 });
 }
 
-/** The container of the load, named after the platform of the slot. */
+/** The container of the load, as `make measure-version` names it (it stops it too). */
 function container(): string {
-  const project = process.env.WATERFALL_SERVICE_PROJECT;
-  if (project === undefined || project === "") {
-    throw new Error(
-      "WATERFALL_SERVICE_PROJECT names the service platform: run make measure-version",
-    );
+  const name = process.env.WATERFALL_LOAD_CONTAINER;
+  if (name === undefined || name === "") {
+    throw new Error("WATERFALL_LOAD_CONTAINER names the load: run make measure-version");
   }
-  return `${project}-load`;
+  return name;
 }
 
 /** Run docker, failing on a refusal with what it said. */
@@ -167,6 +177,7 @@ function docker(arguments_: readonly string[]): string {
 /** Start the load: k6 in its container, on the platform of the slot, the file prepared. */
 export function startLoad(): void {
   const project = process.env.WATERFALL_SERVICE_PROJECT ?? "";
+  const name = container();
   docker([
     "compose",
     "--file",
@@ -180,13 +191,10 @@ export function startLoad(): void {
     "--rm",
     "--no-deps",
     "--name",
-    container(),
+    name,
     "load",
   ]);
 }
-
-/** What k6 says of the load once stopped (`handleSummary` of `bench/load.ts`). */
-export type LoadSummary = Readonly<Record<string, number>>;
 
 /**
  * Stop the load, give k6 the time to end its users and write its summary, and delete the file of

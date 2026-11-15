@@ -3194,7 +3194,7 @@ revision, opened again (`createRevision`, outside the measure) before each pass 
 each read at its background task (`getBackgroundTask`), from its submission to its end. The marking
 comes last: it freezes the revision the load writes, whose entries are refused from then on. The
 report (`frontend/e2e/measure/version.ts`) has the form `make check-measures` confronts, with
-`taken_at` and `conditions` besides, the summary of the load among them (gestures, refusals);
+`taken_at` and `conditions` besides, the volumes read at the preparation (tasks, estimate lines) and the summary of the load among them (gestures, readings and entries refused, duration, gestures expected);
 opening a grid gathers the four openings of the journey, filtering, sorting or searching the three
 gestures on the estimate, recomputing the duration entered (the label recomputes nothing); the
 median and the worst duration are those of every measure, the dispersion the standard deviation (n -
@@ -3202,9 +3202,18 @@ median and the worst duration are those of every measure, the dispersion the sta
 (`frontend/.e2e/measures/<version>.json`, the version of `frontend/package.json` unless
 `MEASURE_VERSION`), never by itself under `docs/measures/`, where the lot of the version versions
 it, with the `note` of its overruns. The measure fails on no duration: only on an account it cannot
-make, a step the browser does not reach the end of, a background task that fails, a load without a
-summary or one of whose users was refused for want of a token. The container of the load stops
-whatever the measure ends on. The same secrets as `make service-up`, and the browser of `make
+make, volumes below those of §4.6.2 (a thousand tasks, five estimate lines a task on average, less the witness's rounding: 4.9 at least), a step the
+browser does not reach the end of, a background task that fails, or a load that did not run as asked
+(`load-check.ts`): without a summary, a user refused for want of a token, more than one percent of
+readings or entries refused — the entries the marking refuses (`409`), the only ones expected,
+apart —, fewer than half the gestures the pauses promise (users × duration ÷ 10 s). The passes of
+the import are not at a constant volume: the second imports its eighteen thousand lines beside the
+eighteen thousand of the first, the third beside thirty-six thousand, as a project that receives
+costs would, and the report says so. The container of the load stops at the end of the measure,
+successful or not; after an interruption, `make e2e-down` or `make service-down` stops it.
+`E2E_LOAD_USERS` (fifty) is reserved for trials — `make measure-version exclusive=
+E2E_LOAD_USERS=3 MEASURE_PASSES=2 MEASURE_TASK_PASSES=2` —, and a report of a version is taken at
+fifty: the report records `users`. The same secrets as `make service-up`, and the browser of `make
 e2e-browsers`; the Playwright project `measure-version`, which `E2E_PART=measure-version` sets, is
 played by no goal of the chain.
 
@@ -3616,7 +3625,7 @@ the « Merge when ready » button, or through the `enqueuePullRequest` mutation 
 repository. A branch without a merge queue runs the full tier by hand on the
 branch of a lot, before merging it: `gh workflow run chain --ref <branche>`.
 
-The third-party images of Docker Hub — PostgreSQL, Redis, Caddy, Mailpit, Garage, curl, Node,
+The third-party images of Docker Hub — PostgreSQL, Redis, Caddy, Mailpit, Garage, curl, k6, Node,
 Python, Debian, Maven, Keycloak and its `keycloak-config-cli` — stay named, in the Compose files and
 the `Dockerfile`s, as on Docker Hub, by their digest: the workstation, production and the demonstration
 are unchanged. Only the chain pulls them from a mirror, `ghcr.io/waterfall-project/mirror/`:

@@ -193,6 +193,11 @@ function grid(
   };
 }
 
+/** What the browser of the measure types in the search of the estimate (`e2e/measure/steps.ts`). */
+export const ESTIMATE_SEARCH = "revue";
+/** The column the browser of the measure sorts the estimate by, ascending at the first click. */
+export const ESTIMATE_SORT = "base_amount";
+
 /** The readings a user of the load chooses among, each as likely. */
 export const READINGS: readonly Reading[] = [
   grid("planning", () => ({ fields: fieldNames(PLANNING), kinds: PLANNING_KINDS })),
@@ -203,10 +208,10 @@ export const READINGS: readonly Reading[] = [
   })),
   grid("estimate.sort", () => ({
     fields: fieldNames(ESTIMATE),
-    sort_by: "base_amount",
+    sort_by: ESTIMATE_SORT,
     sort_order: "asc",
   })),
-  grid("estimate.search", () => ({ fields: fieldNames(ESTIMATE), search: "revue" })),
+  grid("estimate.search", () => ({ fields: fieldNames(ESTIMATE), search: ESTIMATE_SEARCH })),
   grid("remaining", () => ({ fields: fieldNames(REMAINING), progress: REMAINING_PROGRESS })),
   {
     name: "workload",

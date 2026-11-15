@@ -527,7 +527,7 @@ services:
   # Receives every mail Keycloak sends; read at http://127.0.0.1:8025.
   mailpit:
     image: ${WATERFALL_MIRROR:-}axllent/mailpit:v1.33.0@sha256:9b3a463be15354c0f0eba91697d80e3e0d8a5623ef0e627cacc836bc17fd5231
-    user: "1000:1000"
+    user: "${WATERFALL_UID:-1000}:${WATERFALL_GID:-1000}"
     ports:
       - "127.0.0.1:${WATERFALL_MAILPIT_PORT:-8025}:8025"
 
@@ -573,7 +573,7 @@ services:
       - ../../frontend/bench/contract-proxy.ts:/bench/contract-proxy.ts:ro
       # npx keeps Prism in the npm cache, in a named volume: downloaded once, not at every start.
       - contract-proxy-npm:/home/node
-    user: "1000:1000"
+    user: "${WATERFALL_UID:-1000}:${WATERFALL_GID:-1000}"
     environment:
       npm_config_cache: /home/node/.npm
     depends_on:
@@ -600,7 +600,7 @@ services:
     profiles: [load]
     image: ${WATERFALL_MIRROR:-}grafana/k6:2.4.0@sha256:d41bb79cd8de5a7ad619b53570e3712633e8bff0937010a5c6c57a4747e7a276
     command: ["run", "--quiet", "--no-color", "/bench/load.ts"]
-    user: "1000:1000"
+    user: "${WATERFALL_UID:-1000}:${WATERFALL_GID:-1000}"
     environment:
       WATERFALL_LOAD_FILE: /load/load.json
       WATERFALL_LOAD_API: http://api:8000/api/v1

@@ -21,8 +21,8 @@
  * The measure fails on no duration: an operation past its objective is the report's to document,
  * once versioned (US-2300/L3). Only a measure that did not happen fails it: an account it cannot
  * make, a step of the journey the browser does not reach the end of — the browser is the only user
- * that measures —, a background task that fails, a load without a summary, or whose users were
- * refused for want of a valid token. Not a path: it plays alone, in its project `measure-version`
+ * that measures —, a background task that fails, data below the volumes of §4.6.2, or a load that
+ * did not run as asked (`load-check.ts`: no summary, readings refused, too few gestures). Not a path: it plays alone, in its project `measure-version`
  * (`playwright.config.ts`), which no goal of the chain plays.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -34,7 +34,8 @@ import { frontToken, type LocalPerson, resetGridPreferences } from "../service/r
 import { settle } from "../usable";
 import { administratorReady, contributorsOf, measureUsers } from "./accounts";
 import { type Caller, caller, exportPlanning, importCosts, markRevision } from "./background";
-import { type LoadSummary, placeAndTasks, prepareLoad, startLoad, stopLoad } from "./load-users";
+import { gesturesExpected, type LoadSummary, loadFailures, type Volumes } from "./load-check";
+import { placeAndTasks, prepareLoad, startLoad, stopLoad } from "./load-users";
 import type { Interval } from "./report";
 import {
   journey,
@@ -59,7 +60,11 @@ function whole(variable: string, own: number): number {
   return chosen;
 }
 
-/** The users of the load, beside the browser: the fifty users active of §4.6.2. */
+/**
+ * The users of the load, beside the browser: the fifty users active of §4.6.2. Another number is for
+ * a trial of the measure (the guide, "Commandes"): a report of a version is taken at fifty, and
+ * says its `users` in its conditions.
+ */
 const USERS = whole("E2E_LOAD_USERS", 50);
 /** The measured passes of the operations of a screen, and of the background tasks. */
 const PASSES = whole("E2E_MEASURE_PASSES", 5);
@@ -125,7 +130,7 @@ async function prepared(
   browser: Browser,
   calls: APIRequestContext,
   origin: string,
-): Promise<{ measurer: Measurer; users: number }> {
+): Promise<{ measurer: Measurer; users: number; volumes: Volumes }> {
   await administratorReady(browser);
   const { users } = await measureUsers(browser, calls, USERS + 1);
   await contributorsOf(browser, calls, PROJECT, users);
@@ -134,7 +139,7 @@ async function prepared(
     throw new Error("no user for the browser");
   }
   const api = caller(calls, renewedToken(browser, person));
-  const { place, tasks } = await placeAndTasks(api, PROJECT, REVISION, loaders.length);
+  const { place, tasks, volumes } = await placeAndTasks(api, PROJECT, REVISION, loaders.length);
   const [player] = await signedIn(browser, [person], origin);
   const [target] = player === undefined ? [] : await targets(player, 1);
   if (player === undefined || target === undefined) {
@@ -144,7 +149,7 @@ async function prepared(
   console.log(
     `Prepared: ${String(loaders.length)} users of the load, the browser at ${String(target.position)}`,
   );
-  return { measurer: { person, player, target, api }, users: loaders.length };
+  return { measurer: { person, player, target, api }, users: loaders.length, volumes };
 }
 
 /**
@@ -216,32 +221,43 @@ test("measures each operation of table 15 the service serves under the load of f
   const origin = new URL(String(testInfo.project.use.baseURL)).origin;
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   try {
-    const { measurer, users } = await prepared(browser, calls, origin);
-    startLoad();
+    const { measurer, users, volumes } = await prepared(browser, calls, origin);
     let summary: LoadSummary | undefined;
     let measured: Awaited<ReturnType<typeof screens>>;
     let tasks: Measured[];
+    const started = Date.now();
+    let durationSeconds = 0;
     try {
+      startLoad();
       measured = await screens(browser, calls, measurer);
       tasks = await backgroundTasks(measurer, version);
+      durationSeconds = (Date.now() - started) / 1000;
     } finally {
       summary = stopLoad();
     }
-    console.log(`The load: ${JSON.stringify(summary)}`);
+    console.log(`The load: ${JSON.stringify(summary)}, ${durationSeconds.toFixed(0)} s`);
     if (measured.unreached.size > 0) {
       const steps = [...measured.unreached].join(", ");
       throw new Error(`The journey no longer works: the browser did not reach the end of ${steps}`);
     }
-    if (summary?.unauthorised !== 0 || (summary.gestures ?? 0) === 0) {
-      throw new Error("The load did not run as asked: no summary, no gesture, or users refused");
+    // The marking, last of the background tasks, has frozen the revision by now.
+    const failures = loadFailures(summary, { users, duration_s: durationSeconds, marked: true });
+    if (summary === undefined || failures.length > 0) {
+      throw new Error(`The load did not run as asked: ${failures.join("; ")}`);
     }
     const conditions = {
       project: PROJECT,
       revision: REVISION,
       users,
+      tasks: volumes.tasks,
+      estimate_lines: volumes.estimate_lines,
       passes: PASSES,
       task_passes: TASK_PASSES,
-      load: summary,
+      load: {
+        ...summary,
+        duration_s: Math.round(durationSeconds),
+        gestures_expected: Math.round(gesturesExpected(users, durationSeconds)),
+      },
     };
     written(
       report,

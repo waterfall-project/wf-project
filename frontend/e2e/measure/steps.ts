@@ -23,6 +23,7 @@
  */
 import { type Browser, expect, type Locator, type Page, type Request } from "@playwright/test";
 
+import { ESTIMATE_SEARCH, ESTIMATE_SORT } from "../../bench/screens";
 import { pick } from "../check-menu";
 import { columnsOf } from "../columns";
 import { scrollToPosition } from "../scroll";
@@ -521,7 +522,7 @@ export async function journey(player: Player, target: Target, tag: string): Prom
     [
       "estimate.sort",
       () =>
-        inPlace(page, { grid: ESTIMATE.grid, query: "sort_by=base_amount" }, CLICKED, () =>
+        inPlace(page, { grid: ESTIMATE.grid, query: `sort_by=${ESTIMATE_SORT}` }, CLICKED, () =>
           estimate
             .getByRole("columnheader", { name: "Calculé Montant (année de réf.)" })
             .getByRole("button")
@@ -531,9 +532,12 @@ export async function journey(player: Player, target: Target, tag: string): Prom
     [
       "estimate.search",
       async () => {
-        await page.getByRole("searchbox", { name: "Rechercher un libellé" }).fill("revue");
-        return inPlace(page, { grid: ESTIMATE.grid, query: "search=revue" }, KEYED, () =>
-          page.keyboard.press("Enter"),
+        await page.getByRole("searchbox", { name: "Rechercher un libellé" }).fill(ESTIMATE_SEARCH);
+        return inPlace(
+          page,
+          { grid: ESTIMATE.grid, query: `search=${ESTIMATE_SEARCH}` },
+          KEYED,
+          () => page.keyboard.press("Enter"),
         );
       },
     ],

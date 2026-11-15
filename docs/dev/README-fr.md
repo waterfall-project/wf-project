@@ -3210,16 +3210,26 @@ de coût réel, aux pièces propres à chaque passage, et le marquage de la rév
 fond (`getBackgroundTask`), de sa soumission à sa fin. Le marquage vient en dernier : il fige la
 révision que la charge écrit, dont les saisies sont dès lors refusées. Le rapport
 (`frontend/e2e/measure/version.ts`) a la forme que `make check-measures` confronte, plus `taken_at`
-et `conditions`, dont le résumé de la charge (gestes, refus) ; ouvrir une grille regroupe les quatre
+et `conditions`, dont les volumes lus à la préparation (tâches, lignes de devis) et le résumé de la charge (gestes, lectures et saisies refusées, durée, gestes attendus) ; ouvrir une grille regroupe les quatre
 ouvertures du parcours, filtrer, trier ou chercher les trois gestes sur le devis, recalculer la
 durée saisie (le libellé ne recalcule rien) ; la médiane et la pire durée sont celles de toutes les
 mesures, la dispersion l'écart-type (n − 1) des médianes des passages. Il s'écrit dans
 `MEASURE_VERSION_REPORT` (`frontend/.e2e/measures/<version>.json`, la version de
 `frontend/package.json` sauf `MEASURE_VERSION`), jamais de lui-même sous `docs/measures/`, où le
 versionne le lot de la version, avec les `note` de ses dépassements. La mesure n'échoue sur aucune
-durée : seulement sur un compte qu'elle ne peut créer, une étape que le navigateur ne mène pas à sa
-fin, une tâche de fond qui échoue, une charge sans résumé ou dont un utilisateur a été refusé faute
-de jeton. Le conteneur de la charge s'arrête quoi que la mesure finisse. Mêmes secrets que `make
+durée : seulement sur un compte qu'elle ne peut créer, des volumes inférieurs à ceux du §4.6.2 (mille
+tâches, cinq lignes de devis par tâche en moyenne, à l'arrondi près du témoin : 4,9 au moins), une étape que le navigateur ne mène pas à sa fin, une tâche
+de fond qui échoue, ou une charge qui n'a pas tourné comme demandé (`load-check.ts`) : sans résumé,
+un utilisateur refusé faute de jeton, plus d'un pour cent de lectures ou de saisies refusées — les
+saisies refusées par le marquage (`409`), seules attendues, mises à part —, moins de la moitié des
+gestes que promettent les pauses (utilisateurs × durée ÷ 10 s). Les passages d'import ne sont pas à
+volume constant : le deuxième importe ses dix-huit mille lignes à côté des dix-huit mille du
+premier, le troisième à côté de trente-six mille, comme le ferait un projet qui reçoit des coûts, et
+le rapport le dit. Le conteneur de la charge s'arrête à la fin de la mesure, réussie ou non ; après
+une interruption, `make e2e-down` ou `make service-down` l'arrête. `E2E_LOAD_USERS` (cinquante) est
+réservé aux essais — `make measure-version exclusive= E2E_LOAD_USERS=3 MEASURE_PASSES=2
+MEASURE_TASK_PASSES=2` —, et un rapport de version se prend à cinquante : le rapport consigne
+`users`. Mêmes secrets que `make
 service-up`, et le navigateur de `make e2e-browsers` ; le projet Playwright `measure-version`, que
 pose `E2E_PART=measure-version`, n'est joué par aucune cible de la chaîne.
 
@@ -3642,7 +3652,7 @@ le bouton « Merge when ready », ou par la mutation `enqueuePullRequest` de l'A
 dépôt. Une branche sans file de fusion fait tourner le palier complet à la main sur la
 branche d'un lot, avant de le fusionner : `gh workflow run chain --ref <branche>`.
 
-Les images tierces de Docker Hub — PostgreSQL, Redis, Caddy, Mailpit, Garage, curl, Node, Python,
+Les images tierces de Docker Hub — PostgreSQL, Redis, Caddy, Mailpit, Garage, curl, k6, Node, Python,
 Debian, Maven, Keycloak et son `keycloak-config-cli` — restent nommées, dans les fichiers Compose et
 les `Dockerfile`, comme sur Docker Hub, par leur empreinte : le poste, la production et la démonstration
 n'en changent pas. Seule la chaîne les tire d'un miroir, `ghcr.io/waterfall-project/mirror/` :

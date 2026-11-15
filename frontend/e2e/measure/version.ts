@@ -80,10 +80,13 @@ export interface Conditions {
   readonly revision: string;
   /** The users of the load, beside the browser that measures. */
   readonly users: number;
+  /** The tasks and the estimate lines of the revision, read at the preparation (§4.6.2). */
+  readonly tasks: number;
+  readonly estimate_lines: number;
   /** The passes of the operations of a screen, and of the background tasks. */
   readonly passes: number;
   readonly task_passes: number;
-  /** The summary of the load, as k6 wrote it (`bench/load.ts`). */
+  /** The summary of the load, as k6 wrote it (`bench/load.ts`), with its duration and the gestures expected of it. */
   readonly load: Readonly<Record<string, number>>;
 }
 

@@ -17,10 +17,11 @@
  * at the identity provider, on the back channel, a minute before it expires — five minutes is the
  * lifetime of a token, shorter than a measure —, as the session of a user of the front does.
  *
- * The load ends when the measure stops its container: k6 then writes its summary, beside the
- * file it read (`summary.json`): the gestures made, those refused — an entry on a revision the
- * measure has marked is refused, which is the marking's doing —, and those refused for want of a
- * valid token, which say that the load did not run as asked.
+ * The load ends when the measure stops its container (or after five hours): k6 then writes its summary, beside the
+ * file it read (`summary.json`): the gestures made, the readings refused, the entries refused —
+ * apart those on a revision the measure has marked, which is the marking's doing (409) —, and
+ * those refused for want of a valid token. `e2e/measure/load-check.ts` decides from them whether the
+ * load ran as asked.
  */
 import { sleep } from "k6";
 import http from "k6/http";
@@ -73,8 +74,9 @@ export const options: Options = {
     users: {
       executor: "constant-vus",
       vus: preparation.users.length,
-      // Past any measure: the measure stops the load itself.
-      duration: "24h",
+      // Past any measure (its own bound is three hours at most): the measure stops the load itself,
+      // and a container left behind by an interruption ends here at the latest.
+      duration: "5h",
     },
   },
   // The load measures nothing: its summary counts, it does not time.
@@ -82,7 +84,11 @@ export const options: Options = {
 };
 
 const made = new Counter("gestures");
-const refused = new Counter("gestures_refused");
+const reads = new Counter("gestures_read");
+const readsRefused = new Counter("gestures_read_refused");
+const writes = new Counter("gestures_write");
+const writesFrozen = new Counter("gestures_write_frozen");
+const writesRefused = new Counter("gestures_write_refused");
 const unauthorised = new Counter("gestures_unauthorised");
 
 /** What a virtual user keeps from one gesture to the next. */
@@ -144,15 +150,29 @@ function headers(playing: User): Record<string, string> {
   return { Authorization: `Bearer ${playing.token}`, "Content-Type": "application/json" };
 }
 
-/** Count a gesture, and how it was answered. */
+/** The status of an entry on a revision the measure has marked (`revision_draft`). */
+const FROZEN = 409;
+
+/** Count a gesture, and how it was answered: a reading refused, an entry refused by the marking or not. */
 function counted(kind: string, name: string, status: number): void {
   const tags = { kind, name };
+  const accepted = status >= 200 && status < 300;
   made.add(1, tags);
   if (status === 401 || status === 403) {
     unauthorised.add(1, tags);
   }
-  if (status < 200 || status >= 300) {
-    refused.add(1, { ...tags, status: String(status) });
+  if (kind === "read") {
+    reads.add(1, tags);
+    if (!accepted) {
+      readsRefused.add(1, { ...tags, status: String(status) });
+    }
+    return;
+  }
+  writes.add(1, tags);
+  if (status === FROZEN) {
+    writesFrozen.add(1, tags);
+  } else if (!accepted) {
+    writesRefused.add(1, { ...tags, status: String(status) });
   }
 }
 
@@ -235,7 +255,11 @@ export function handleSummary(data: Summary): Record<string, string> {
     users: preparation.users.length,
     seed: preparation.seed,
     gestures: count("gestures"),
-    refused: count("gestures_refused"),
+    reads: count("gestures_read"),
+    reads_refused: count("gestures_read_refused"),
+    writes: count("gestures_write"),
+    writes_frozen: count("gestures_write_frozen"),
+    writes_refused: count("gestures_write_refused"),
     unauthorised: count("gestures_unauthorised"),
     requests: count("http_reqs"),
   };

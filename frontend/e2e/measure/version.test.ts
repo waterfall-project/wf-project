@@ -17,9 +17,11 @@ const CONDITIONS: Conditions = {
   project: "01926f3a-7c00-7000-8000-000000000001",
   revision: "01926f3a-7c00-7000-8000-000000000102",
   users: 50,
+  tasks: 1000,
+  estimate_lines: 5000,
   passes: 2,
   task_passes: 2,
-  load: { gestures: 600, refused: 0, unauthorised: 0 },
+  load: { gestures: 600, reads_refused: 0, unauthorised: 0, duration_s: 600 },
 };
 
 /** A duration of an operation in a pass. */

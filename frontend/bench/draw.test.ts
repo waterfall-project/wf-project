@@ -44,7 +44,7 @@ describe("gestures", () => {
     expect(mean).toBeLessThan(10.2);
   });
 
-  it("draws the same gestures again from the same seed and user, others for another user [WF-QUA-0060-A]", () => {
+  it("draws the same gestures again from the same seed and user, others for another user", () => {
     expect(first(2300, 7, 100)).toEqual(first(2300, 7, 100));
     expect(first(2300, 8, 100)).not.toEqual(first(2300, 7, 100));
     expect(first(2301, 7, 100)).not.toEqual(first(2300, 7, 100));

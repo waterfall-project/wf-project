@@ -12,7 +12,10 @@
  * An extraction is a workbook of the mapping of the witness (`in-progress.ts`), its lines spread
  * over the subprojects of the project, each pass's documents its own: a pass imports eighteen
  * thousand new lines, never lines an earlier pass imported, which the analysis would find
- * unchanged. A marking freezes the revision it marks: the passes after the first open the current
+ * unchanged. The volume is therefore not constant from one pass to the next: the second pass
+ * imports its eighteen thousand lines beside the eighteen thousand of the first, the third beside
+ * thirty-six thousand, and the report says it as it is — each pass is a project that has received
+ * more costs, as a project does. A marking freezes the revision it marks: the passes after the first open the current
  * revision again (`createRevision`, outside the measure), and mark it.
  */
 import { type APIRequestContext, expect } from "@playwright/test";
