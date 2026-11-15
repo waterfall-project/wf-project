@@ -15,9 +15,7 @@ from waterfall.core.indicators.formulas.computable import (
     NO_REFERENCE_BUDGET,
     Computable,
 )
-from waterfall.core.indicators.formulas.rounding import round_ratio
-
-NOUGHT = Decimal(0)
+from waterfall.core.indicators.formulas.rounding import NOUGHT, round_ratio
 
 
 def _ratio(numerator: Decimal, denominator: Decimal, reason: str) -> Computable:

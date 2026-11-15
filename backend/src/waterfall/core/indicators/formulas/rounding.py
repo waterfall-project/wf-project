@@ -9,6 +9,7 @@ decimals, half to even.
 
 from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal
 
+NOUGHT = Decimal(0)
 CENT = Decimal("0.01")
 RATIO_STEP = Decimal("0.0001")
 

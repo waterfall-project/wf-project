@@ -7,10 +7,7 @@ infinity. The reasons are the codes of ``NotComputableReason`` of the contract.
 """
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from decimal import Decimal
+from decimal import Decimal
 
 NO_ACTUAL_COST = "no_actual_cost"
 NO_EARNED_VALUE = "no_earned_value"
@@ -26,6 +23,12 @@ class Computable:
 
     value: Decimal | None = None
     reason: str | None = None
+
+    def __post_init__(self) -> None:
+        """Refuse a figure with both a value and a reason, or with neither."""
+        if (self.value is None) == (self.reason is None):
+            message = "A figure has a value or a reason, exactly one of the two."
+            raise ValueError(message)
 
     @property
     def is_computable(self) -> bool:

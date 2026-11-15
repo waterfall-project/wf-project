@@ -12,6 +12,7 @@ from waterfall.core.indicators.formulas import (
     NO_EARNED_VALUE,
     NO_PLANNED_VALUE,
     NO_REFERENCE_BUDGET,
+    NOUGHT,
     Amounts,
     Computable,
     Thresholds,
@@ -26,7 +27,6 @@ from waterfall.core.indicators.formulas import (
     schedule_index,
 )
 
-NOUGHT = Decimal(0)
 THRESHOLDS = Thresholds(
     cost_watch=Decimal("0.9"),
     cost_alert=Decimal("0.8"),
@@ -90,17 +90,17 @@ def test_before_any_actual_cost_the_observed_rate_is_not_computable_and_the_othe
 ):
     shown = projections(_d("1000"), NOUGHT, NOUGHT, _d("900"))
     assert shown.at_observed_rate == Computable.not_computable(NO_ACTUAL_COST)
-    assert shown.variance_at_observed_rate == Computable.not_computable(NO_ACTUAL_COST)
-    assert shown.at_budget == Computable.of(_d("1000.00"))
-    assert shown.project_manager == Computable.of(_d("900.00"))
-    assert shown.variance_project_manager == Computable.of(_d("-100.00"))
+    assert shown.variance_at_observed_rate is None
+    assert shown.at_budget == _d("1000.00")
+    assert shown.project_manager == _d("900.00")
+    assert shown.variance_project_manager == _d("-100.00")
 
 
 @pytest.mark.requirement("WF-IND-0050-A")
 def test_with_an_actual_cost_and_no_earned_value_the_observed_rate_has_no_earned_value() -> None:
     shown = projections(_d("1000"), NOUGHT, _d("100"), _d("900"))
     assert shown.at_observed_rate == Computable.not_computable(NO_EARNED_VALUE)
-    assert shown.variance_at_observed_rate == Computable.not_computable(NO_EARNED_VALUE)
+    assert shown.variance_at_observed_rate is None
 
 
 @pytest.mark.requirement("WF-IND-0050-A")
@@ -144,17 +144,52 @@ def test_the_zone_is_classed_on_the_index_rounded_to_four_decimals() -> None:
     assert (shown.value.value, shown.zone) == (_d("0.9000"), "nominal")
 
 
+_SET = Amounts(_d("1000"), _d("500"), _d("400"), _d("500"), _d("550"))
+
+
+@pytest.mark.requirement("WF-IND-0040-A")
+def test_the_financial_progress_of_a_set_is_given_rounded_once() -> None:
+    assert indicators_of(_SET, THRESHOLDS).financial_progress.value == _d("0.4762")
+
+
+@pytest.mark.requirement("WF-IND-0060-A")
+def test_the_physical_progress_of_a_set_is_given_rounded_once() -> None:
+    assert indicators_of(_SET, THRESHOLDS).physical_progress.value == _d("0.4000")
+
+
 @pytest.mark.requirement("WF-IND-0070-A")
-def test_every_amount_and_ratio_of_a_set_is_given_rounded_once() -> None:
-    shown = indicators_of(
-        Amounts(_d("1000"), _d("500"), _d("400"), _d("500"), _d("550")), THRESHOLDS
-    )
+def test_the_cost_index_and_variance_of_a_set_are_given_rounded_once() -> None:
+    shown = indicators_of(_SET, THRESHOLDS)
     assert (shown.cost_index.value.value, shown.cost_index.zone) == (_d("0.8000"), "watch")
+    assert shown.cost_variance == _d("-100.00")
+
+
+@pytest.mark.requirement("WF-IND-0080-A")
+def test_the_schedule_index_and_variance_of_a_set_are_given_rounded_once() -> None:
+    shown = indicators_of(_SET, THRESHOLDS)
     assert shown.schedule_index.value.value == _d("0.8000")
-    assert (shown.cost_variance, shown.schedule_variance) == (_d("-100.00"), _d("-100.00"))
-    assert shown.financial_progress.value == _d("0.4762")
-    assert shown.physical_progress.value == _d("0.4000")
-    assert shown.projections.at_observed_rate.value == _d("1250.00")
+    assert shown.schedule_variance == _d("-100.00")
+
+
+@pytest.mark.requirement("WF-IND-0050-A")
+def test_the_projection_at_the_observed_rate_of_a_set_is_given_rounded_once() -> None:
+    assert indicators_of(_SET, THRESHOLDS).projections.at_observed_rate.value == _d("1250.00")
+
+
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_a_variance_is_taken_on_the_exact_projection_and_rounded_once() -> None:
+    # The projection 100.0051 is shown 100.01, where the variance to a budget of 100.004 is 0.00.
+    shown = projections(_d("100.004"), NOUGHT, _d("10"), _d("90.0051"))
+    assert shown.project_manager == _d("100.01")
+    assert shown.variance_project_manager == _d("0.00")
+
+
+@pytest.mark.requirement("WF-IND-0010-A")
+def test_a_figure_with_both_a_value_and_a_reason_or_neither_is_refused() -> None:
+    with pytest.raises(ValueError, match="exactly one"):
+        Computable(value=NOUGHT, reason=NO_ACTUAL_COST)
+    with pytest.raises(ValueError, match="exactly one"):
+        Computable()
 
 
 @pytest.mark.requirement("WF-IND-0070-A")
