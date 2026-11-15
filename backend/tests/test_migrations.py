@@ -222,14 +222,16 @@ def test_each_migration_is_undone_by_its_mirror_and_applied_again(empty_engine: 
 def describe_schema(engine: Engine) -> dict[str, list[tuple[object, ...]]]:
     """Read what the catalogue says of the tables: constraints, indexes and columns.
 
-    A constraint trigger (``contype`` ``t``) is a trigger, which the migrations alone write, as
-    every other trigger: the tables of the code declare none (``revision_indicator``, 0031).
+    The constraint trigger of ``revision_indicator`` (``contype`` ``t``) is a trigger, which the
+    migrations alone write, as every other trigger: the tables of the code declare none. It is left
+    out by its name alone, so that any other constraint trigger shows in the comparison.
     """
     queries = {
         "constraints": (
             "SELECT conrelid::regclass::text, conname, pg_get_constraintdef(oid) "
             "FROM pg_constraint WHERE connamespace = 'public'::regnamespace "
-            "AND conrelid::regclass::text <> 'alembic_version' AND contype <> 't'"
+            "AND conrelid::regclass::text <> 'alembic_version' "
+            "AND NOT (contype = 't' AND conname = 'revision_indicator_refuse_outside_marking')"
         ),
         "indexes": (
             "SELECT indexname, indexdef FROM pg_indexes "
@@ -507,7 +509,8 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
         guards = connection.execute(
             text(
                 "SELECT proname, prosecdef, proconfig FROM pg_proc "
-                "WHERE proname LIKE '%refuse_marked_change' ORDER BY proname"
+                "WHERE (proname LIKE '%refuse_marked_change' "
+                "OR proname = 'revision_indicator_refuse_outside_marking') ORDER BY proname"
             )
         ).all()
     own = ["search_path=pg_catalog, pg_temp"]
@@ -518,6 +521,7 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
         ("revision_calendar_refuse_marked_change", False, own),
         ("revision_category_refuse_marked_change", False, own),
         ("revision_indicator_refuse_marked_change", False, own),
+        ("revision_indicator_refuse_outside_marking", False, own),
         ("revision_rate_refuse_marked_change", False, own),
         ("revision_refuse_marked_change", False, own),
         ("revision_role_refuse_marked_change", False, own),
