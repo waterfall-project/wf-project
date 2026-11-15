@@ -553,7 +553,7 @@ dépassement est documenté (US-2300) et devient une issue à trancher.
 
 ## US-2250 — Une saisie qui ne déplace rien ne rejoue pas le moteur, et une écriture ne lit l'arbre qu'une fois
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre — le gain se lit dans le rapport de WF-QUA-0060 (US-2300)
 - **opérations** : `updateTaskFacet`, `updateEstimateLine`, `setLineRemaining`, `setTaskProgress`,
   `setNodeTracking`, `setPredecessors`
@@ -580,7 +580,19 @@ entière de la structure, **afin de** saisir plusieurs cellules de suite sans at
 **Notes de réalisation.** Tous les chemins passent aujourd'hui par `Write`, `replayed` et
 `redated_structure` : la cellule d'une tâche, une ligne de devis, l'avancement, le suivi, les
 prédécesseurs, le collage (#3169). Le front s'adosse au compteur de la structure à chaque écriture
-(`structure-version.ts`).
+(`structure-version.ts`). Colonnes inertes retenues : la tâche, son libellé, sa description, son
+poste, son lot et ses inscriptions (`INERT_TASK_FIELDS`, `setNodeTracking` toujours par le chemin
+court) ; la ligne, son libellé, son délai de paiement et son sous-projet (`FacetHooks.inert`). Les
+autres restent dans le chemin entier : le mode, la durée et les dates (le moteur), l'avancement (il
+déplace l'instant où les fins dépassées se jugent), les prédécesseurs, la catégorie, le rôle (le
+calendrier de la tâche), la quantité, les heures et le déboursé (le prix). Le chemin court relit le
+nœud écrit et ses ancêtres de l'arbre déjà lu, sur les calendriers de leurs seules tâches ; les
+écritures qui ne créent, ne suppriment ni ne déplacent aucun nœud rejouent l'arbre lu sous le
+verrou (`Holding.tree`). Mesure du 2026-11-15 (`make measure-core ONLY=write`, médianes de 5
+passages, dispersion entre parenthèses) : un libellé, 348 ms (49) avant, 131 ms (65) après ; une
+durée qui redate 957 tâches, 815 ms (32) avant, 724 ms (53) après. Ce qui reste d'un libellé est
+surtout la lecture de l'arbre en objets de session, deux tiers du chemin court ; d'une durée, le
+moteur et la réévaluation des lignes des tâches redatées.
 
 **Hors périmètre.** Le collage qui crée (US-2260) ; les valeurs dérivées stockées (US-2280).
 
