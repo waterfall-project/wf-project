@@ -880,3 +880,47 @@ def test_an_installation_bootstrapped_before_its_time_zone_is_given_universal_ti
             )
         )
         assert "time_zone" not in set(columns)
+
+
+@pytest.mark.requirement("WF-DAT-0050-A")
+def test_the_projects_that_exist_receive_their_partition_of_the_readings_kept(
+    empty_engine: Engine,
+) -> None:
+    # US-2270: 0030 gives a project that exists its partition of ``structure_reading``, as the
+    # function gives one to a project created after it — bound, triggers, keys —; a reading is kept
+    # in it, and neither the table nor the partition is truncated. The descent drops them again.
+    upgrade(empty_engine, "0029")
+    existing, created, revision_id, structure_id = uuid4(), uuid4(), uuid4(), uuid4()
+    with empty_engine.begin() as connection:
+        connection.execute(insert_project(id=existing))
+        connection.execute(select(func.create_project_partitions(existing)))
+        connection.execute(insert_revision(existing, id=revision_id))
+        connection.execute(insert_structure(existing, revision_id, id=structure_id))
+    upgrade(empty_engine, "0030")
+    with empty_engine.begin() as connection:
+        connection.execute(insert_project(id=created))
+        connection.execute(select(func.create_project_partitions(created)))
+        connection.execute(
+            insert(StructureReading).values(
+                project_id=existing,
+                structure_id=structure_id,
+                revision_id=revision_id,
+                format=1,
+                settings_digest=bytes(32),
+                document=b"{}",
+                kept_at=datetime(2026, 11, 15, 8, 0, tzinfo=UTC),
+            )
+        )
+    partition = f"structure_reading_p_{existing.hex}"
+    with empty_engine.connect() as connection:
+        assert partition_parts(connection, existing) == partition_parts(connection, created)
+        kept_in = text("SELECT tableoid::regclass::text FROM structure_reading")
+        assert connection.scalars(kept_in).all() == [partition]
+    for truncated in ("structure_reading", partition):
+        with pytest.raises(DBAPIError, match="never truncated"), empty_engine.begin() as connection:
+            connection.execute(text(f'TRUNCATE TABLE "{truncated}" CASCADE'))
+    downgrade(empty_engine, "0029")
+    with empty_engine.connect() as connection:
+        assert connection.scalar(text("SELECT to_regclass(:name)"), {"name": partition}) is None
+        procedure = text("SELECT to_regprocedure('structure_reading_refuse_truncate()')")
+        assert connection.scalar(procedure) is None
