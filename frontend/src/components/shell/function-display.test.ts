@@ -29,8 +29,10 @@ const WORK = [
 describe("the families of the screens", () => {
   it("set every function of the navigation and every leaf with its own screen in one", () => {
     const functions = FUNCTION_GROUPS.flatMap((group) => group.functions);
+    // The installation (FBS-1.6) has its permissions and its tables here; its entry in the
+    // navigation comes with its screen (EP-25, US-2120/L2).
     expect(Object.keys(FUNCTION_DENSITY).sort()).toEqual(
-      functions.map((fn) => fn.permission).sort(),
+      [...functions.map((fn) => fn.permission), "installation"].sort(),
     );
     expect(Object.keys(LEAF_DENSITY).sort()).toEqual(
       functions.flatMap((fn) => (fn.leaves ?? []).map((leaf) => leaf.code)).sort(),

@@ -159,15 +159,26 @@ describe("the matrix of the permissions", () => {
       "Non accordée",
       "Non accordée",
     ]);
-    // Each of the twenty-five functions heads its group by its name alone: no code of the FBS is
+    // Each of the twenty-six functions heads its group by its name alone: no code of the FBS is
     // shown to the user (decision of the author on #515) — the journal of audit, FBS-1.5, too.
     expect(within(matrix).getByRole("rowheader", { name: "Journal d’audit" })).toBeInTheDocument();
     expect(
       within(matrix).getByRole("rowheader", { name: "Gestion des rôles d’habilitation" }),
     ).toHaveAttribute("rowspan", "2");
-    // Twenty-five functions, the journal of audit among them, and the irreversible and the
-    // structuring actions.
-    expect(matrix.querySelectorAll('th[scope="rowgroup"]')).toHaveLength(27);
+    // Twenty-six functions, the journal of audit and the installation (FBS-1.6) among them, and
+    // the irreversible and the structuring actions.
+    const groups = matrix.querySelectorAll('th[scope="rowgroup"]');
+    expect(groups).toHaveLength(28);
+    // The installation comes right after the journal of audit, as the catalogue orders them, with
+    // its two permissions under one function.
+    const rows = within(matrix)
+      .getAllByRole("rowheader")
+      .map((each) => each.textContent);
+    const audit = rows.indexOf("Consulter le journal d’audit");
+    expect(rows.slice(audit + 1, audit + 4)).toContain("Consulter l’installation");
+    expect(rows.indexOf("Modifier l’installation")).toBe(
+      rows.indexOf("Consulter l’installation") + 1,
+    );
     expect(matrix.textContent).not.toContain("FBS-");
     // Read only: nothing to check.
     expect(screen.queryByRole("checkbox")).toBeNull();
