@@ -710,7 +710,7 @@ une lecture lente.
 
 ## US-2300 — Le rapport de mesures d'une version : chaque opération du tableau 15, à cinquante utilisateurs, comparée à la version précédente
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-QUA-0060-A`
 - **opérations** : `listNodes`, `updateTaskFacet`, `updateEstimateLine`, `getProjectWorkload`,
   `markRevision`, `openImport`, `applyImport`, `requestExport`, `getBackgroundTask`
