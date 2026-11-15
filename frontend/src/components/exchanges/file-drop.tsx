@@ -8,7 +8,10 @@
  * file, and so is the size, past the largest an import takes (§4.6.2). A file that passes goes the
  * way the form of the screen of the imports and exports sends it (`useOpenImport`): the deposit, the
  * analysis in the tracker of the shell, then the report of the import on the screen, to be applied or
- * abandoned; a refusal is told under the zone (`OutcomeNotice`). The zone says that it is sending, says a file dropped meanwhile is not taken, and takes no other once one is sent — unless the task that analyses it fails, which frees the zone for another file. The API judges the content.
+ * abandoned; a refusal is told under the zone (`OutcomeNotice`). The zone says that it is sending,
+ * says a file dropped meanwhile is not taken, and takes no other once one is sent — unless the task
+ * that analyses it fails, which frees the zone for another file —, nor while the analysis of a file
+ * of the project it finds, mounted anew, runs (#3404). The API judges the content.
  *
  * The zone is lit while a file is dragged over it, over its children too: the entries and the exits
  * of the drag are counted, as `relatedTarget` of a leave is null in Firefox.
@@ -22,11 +25,11 @@ import { type DragEvent, useCallback, useId, useRef, useState } from "react";
 import type { Outcome } from "@/api/problem";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { WaitingIcon, waitingAttributes } from "@/components/commands/waiting";
-import { useTaskRunning, useWhenTaskFails } from "@/components/tasks/task-tracker";
+import { useRunningTask, useTaskRunning, useWhenTaskFails } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
 
 import { IMPORT_MAX_BYTES, MEBIBYTE } from "./offers";
-import { useOpenImport } from "./open-import";
+import { analysisAim, useOpenImport } from "./open-import";
 
 /** The extension of the file of an MS Project schedule. */
 const EXTENSION = ".xml";
@@ -68,8 +71,10 @@ export function FileDrop({
   const [sent, setSent] = useState<string>();
   // The task that analyses the file sent: its failure frees the zone.
   const [analysis, setAnalysis] = useState<string>();
-  // The button waits while the file is sent and while its analysis runs (WF-IHM-0080, #3279).
-  const analysing = useTaskRunning(analysis);
+  // The button waits while the file is sent and while its analysis runs (WF-IHM-0080, #3279) — mounted
+  // anew, while an analysis of the project runs (#3404).
+  const found = useRunningTask(analysisAim(projectId));
+  const analysing = useTaskRunning(analysis ?? found);
   const waiting = busy || analysing;
   // The drags that entered the zone or one of its children and did not leave yet.
   const depth = useRef(0);
@@ -84,7 +89,8 @@ export function FileDrop({
   );
 
   const receive = (file: File | undefined) => {
-    if (file === undefined || sent !== undefined) {
+    // A file sent, or an analysis of the project found running once mounted anew: no other is taken.
+    if (file === undefined || sent !== undefined || analysing) {
       return;
     }
     if (busy) {
@@ -169,7 +175,7 @@ export function FileDrop({
         {...(sent !== undefined ? { "aria-disabled": true } : {})}
         aria-describedby={problem === undefined ? undefined : `${id}-problem`}
         onClick={() => {
-          if (!busy && sent === undefined) {
+          if (!waiting && sent === undefined) {
             input.current?.click();
           }
         }}

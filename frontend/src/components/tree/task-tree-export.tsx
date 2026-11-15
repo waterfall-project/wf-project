@@ -23,9 +23,11 @@ import { commandIcon, REVISION_COMMAND_ICONS } from "@/components/commands/icons
 import type { CommandOffer } from "@/components/commands/offer";
 import {
   useDownloadWhenTaskSucceeds,
+  useRunningTask,
   useTaskRunning,
   useTrackTask,
 } from "@/components/tasks/task-tracker";
+import { taskAim } from "@/components/tasks/tracking";
 
 /** What the export reads: the project, the revision, the level shown and the offer of the command. */
 export interface TaskTreeExportProps {
@@ -40,9 +42,12 @@ export interface TaskTreeExportProps {
 export function TaskTreeExport({ projectId, revisionId, depth, offer }: TaskTreeExportProps) {
   const t = useTranslations();
   const track = useTrackTask();
-  // The task started, which the button waits for (WF-IHM-0080, #3103).
+  // The task started, which the button waits for (WF-IHM-0080, #3103) — else, mounted anew, the image
+  // of the revision that is still drawn (#3404).
+  const aim = taskAim("export", revisionId, "task_tree_image");
   const [taskId, setTaskId] = useState<string>();
-  const running = useTaskRunning(taskId);
+  const found = useRunningTask(aim);
+  const running = useTaskRunning(taskId ?? found);
   // The image leaves by itself once drawn, while the tree still shows (#3103).
   useDownloadWhenTaskSucceeds(taskId);
   const subject = t("enums.ExportKind.task_tree_image");
@@ -56,7 +61,7 @@ export function TaskTreeExport({ projectId, revisionId, depth, offer }: TaskTree
     const result = await command();
     if (result.kind === "done") {
       setTaskId(result.data.task_id);
-      track(result.data, { command, subject });
+      track(result.data, { command, subject, aim });
     }
     return result;
   };

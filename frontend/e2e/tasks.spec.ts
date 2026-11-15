@@ -27,6 +27,8 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 // The task of the marking queued (`task_mark_queued`), which the tracker reads by its id.
 const TASK = "01926f3a-7c00-7000-8000-000000000931";
+// The task of the backup queued (`task_backup_queued`), which the tracker reads by its id.
+const BACKUP = "01926f3a-7c00-7000-8000-000000000936";
 
 /**
  * The line under the bar that says the last task handed over or ended, apart from the log of the
@@ -176,6 +178,47 @@ test("marking a revision gives the hand back, shows its progress, and tells on a
   await back.click();
   await expect(panel).toHaveCount(0);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Gestion des révisions");
+});
+
+test("keeps the command of a backup waiting across a reload of the tab while the backup runs, found again by the tracker of the shell [WF-IHM-0080-A]", async ({
+  page,
+}) => {
+  // Le marquage d'une révision de dix mille objets laisse l'écran utilisable et présente son
+  // avancement : the button that started a task stays inert while it runs, after a reload too
+  // (#3404). The reads of the backup are held until the test lets them come: the fake back would
+  // answer them with its first example, ended. A reload is no navigation of the router: no server
+  // action held holds it (defect 15 of `docs/dev/typescript.md`).
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/admin/backups*", async (route: Route) => {
+    if (route.request().postData()?.includes(BACKUP) === true) {
+      await released;
+    }
+    await route.fallback();
+  });
+  await page.goto("/admin/backups");
+  // A command names its backup by its date once the browser has written it: the page is hydrated.
+  await expect(
+    page.getByRole("button", { name: /^Conserver la sauvegarde du \d/ }).first(),
+  ).toBeVisible();
+  const start = page.getByRole("button", { name: "Sauvegarder maintenant" });
+  await start.click();
+  await expect(start).toHaveAttribute("aria-busy", "true");
+
+  await page.reload();
+  // The shell has read back the task the tab kept: its button counts it, and the command waits.
+  await expect(
+    page.getByRole("button", { name: /^Tâches et messages\s: 1 tâche suivie/ }),
+  ).toBeVisible();
+  await expect(start).toHaveAttribute("aria-busy", "true");
+  await expect(start).toHaveAttribute("aria-disabled", "true");
+
+  // The read comes, the backup ended: the command is given back.
+  release();
+  await expect(start).toHaveAttribute("aria-busy", "false", { timeout: WORKING });
+  await expect(start).not.toHaveAttribute("aria-disabled");
 });
 
 test("tells, by the entry of its task, the refusal of a result the browser came back with from its route, and takes it away from the address (#416) @shared", async ({

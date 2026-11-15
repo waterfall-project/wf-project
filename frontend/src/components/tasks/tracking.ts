@@ -105,7 +105,24 @@ export interface Launch {
   readonly subject?: string | undefined;
   /** The screen it was started from, which the history of the messages leads back to. */
   readonly from?: MessageScreen | undefined;
+  /**
+   * What the button that started it aims at, as `taskAim` composes it: the button mounted again —
+   * the tab reloaded, the screen left and come back to — finds the task by it (`useRunningTask`).
+   */
+  readonly aim?: string | undefined;
 }
+
+/**
+ * The key a button finds again the task it started by, once mounted anew (#3404): the kind of the
+ * task and what it aims at — the revision marked or exported, the project of an import, the
+ * installation for a backup —, which the contract does not say of a task (`BackgroundTaskRef`).
+ */
+export function taskAim(kind: TaskKind, ...object: readonly [string, ...string[]]): string {
+  return [kind, ...object].join("/");
+}
+
+/** What a task over the whole installation aims at — a backup, a reading of the accounts. */
+export const INSTALLATION = "installation";
 
 /** A refusal of the API, as the decoder classes it. */
 export type Refusal = Exclude<Outcome<unknown>, { kind: "done" } | { kind: "unreachable" }>;
@@ -120,6 +137,8 @@ export interface TrackedTask {
   readonly command: TaskCommand | undefined;
   /** The screen it was started from; none for a task found again, its screen unknown. */
   readonly from?: MessageScreen | undefined;
+  /** What the button that started it aims at (`taskAim`); none for a task the API listed. */
+  readonly aim?: string | undefined;
   /** The last relaunch refused, or the API out of reach at the last read: told as an alert. */
   readonly outcome: Outcome<unknown> | undefined;
   /** The refusal of the API to say where the task stands: its follow-up stops there. */
@@ -472,6 +491,7 @@ function followed(state: Tracking, event: Exclude<TrackingEvent, CardEvent>): Tr
         task,
         subject: launch.subject,
         from: launch.from,
+        aim: launch.aim,
         command: launch.command,
         outcome: undefined,
         interrupted: undefined,
