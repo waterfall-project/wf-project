@@ -10,23 +10,24 @@ the total (WF-DAT-0100).
 """
 
 from dataclasses import dataclass
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from waterfall.core.estimate.interface import round_to_cent
 from waterfall.core.indicators.series.months import (
     end_of,
     month_before,
     month_of,
     months_between,
 )
+from waterfall.core.indicators.series.shares import events_by_month
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterable, Mapping
     from datetime import date
 
     from waterfall.core.estimate.interface import Month
 
-CENT = Decimal("0.01")
 ZERO = Decimal("0.00")
 
 
@@ -39,8 +40,8 @@ class Point:
 
 
 def to_cent(amount: Decimal) -> Decimal:
-    """Round an amount to the cent, a half going away from zero."""
-    return amount.quantize(CENT, rounding=ROUND_HALF_UP)
+    """Round an amount to the cent, a half going away from zero: that of the estimate."""
+    return round_to_cent(amount)
 
 
 def cumulative(shares: Mapping[Month, Decimal], *, through: date | None = None) -> list[Point]:
@@ -64,17 +65,18 @@ def cumulative(shares: Mapping[Month, Decimal], *, through: date | None = None) 
 
 
 def cumulative_until(
-    shares: Mapping[Month, Decimal], as_of: date, *, from_month: Month | None = None
+    events: Iterable[tuple[date, Decimal]], as_of: date, *, from_month: Month | None = None
 ) -> list[Point]:
-    """Return the cumulative series that stops at the date of calculation, a point of its own.
+    """Return the cumulative series of dated amounts, which stops at the date of calculation.
 
-    The month-ends before ``as_of`` are followed by ``as_of`` carrying every part up to it; the
-    parts of later months are left out. ``from_month`` makes a series without a part start at
-    zero, as a line without a document is drawn at zero (WF-IND-0100-A).
+    The month-ends before ``as_of`` are followed by ``as_of`` carrying every amount dated up to
+    it, that day included; those of a later day, in its month or after, are left out here, once and
+    for all. ``from_month`` makes a series without an amount start at zero, as a line without a
+    document is drawn at zero (WF-IND-0100-A), at the month of ``as_of`` when it starts later.
     """
+    kept = events_by_month(events, until=as_of)
     cut = month_of(as_of)
-    kept = {month: part for month, part in shares.items() if month <= cut}
-    starts = [*kept, *([from_month] if from_month is not None else [])]
+    starts = [*kept, *([min(from_month, cut)] if from_month is not None else [])]
     if not starts:
         return []
     first = min(starts)

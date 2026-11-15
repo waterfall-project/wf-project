@@ -341,6 +341,11 @@ from waterfall.core.estimate.loading import (
     LineLoad as LineLoad,
 )
 
+# ``pricing`` (US-1690/L1): the rounding to the cent, the only one of an amount, which EP-10 reads.
+from waterfall.core.estimate.pricing import (
+    round_to_cent as round_to_cent,
+)
+
 # ``reading`` (US-1490/L3): the lines as ``listNodes`` reads them, and what it filters.
 from waterfall.core.estimate.reading import (
     LineFilters as LineFilters,

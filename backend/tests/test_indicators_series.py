@@ -7,7 +7,7 @@ working days, March and April 22 each: a task from 2 February to 30 April works 
 is spread 2 000, 2 200 and 2 200.
 """
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
@@ -25,13 +25,13 @@ from waterfall.core.indicators.series import (
     month_before,
     month_end,
     month_ends,
-    shifted,
     spread_lines,
 )
 from waterfall.core.planning.interface import WorkInstant, weekly_calendar
 
 EIGHT = Decimal(8)
 ZERO = Decimal(0)
+WORKING_DAYS_A_WEEK = 5
 WEEK = weekly_calendar((EIGHT, EIGHT, EIGHT, EIGHT, EIGHT, ZERO, ZERO))
 FEBRUARY, MARCH, APRIL, MAY = (Month(2026, number) for number in range(2, 6))
 
@@ -107,7 +107,7 @@ def test_a_series_without_a_part_has_no_point() -> None:
     # « une maille sans ligne dans la référence ni dans la révision calculée […] a des séries sans
     # point »
     assert cumulative({}) == []
-    assert cumulative_until({}, date(2026, 3, 16)) == []
+    assert cumulative_until([], date(2026, 3, 16)) == []
 
 
 @pytest.mark.requirement("WF-IND-0100-A")
@@ -120,7 +120,7 @@ def test_the_actual_cost_stops_at_the_date_of_calculation_with_a_point_of_its_ow
         (date(2026, 4, 2), Decimal(999)),
     ]
     as_of = date(2026, 3, 16)
-    points = cumulative_until(events_by_month(pieces, until=as_of), as_of)
+    points = cumulative_until(pieces, as_of)
     assert points == [
         Point(date(2026, 1, 31), Decimal(0)),
         Point(date(2026, 2, 28), Decimal(1000)),
@@ -131,7 +131,7 @@ def test_the_actual_cost_stops_at_the_date_of_calculation_with_a_point_of_its_ow
 @pytest.mark.requirement("WF-IND-0100-A")
 def test_a_scope_with_lines_and_no_document_draws_the_actual_cost_at_zero() -> None:
     # « le coût réel d'une maille qui a des lignes et aucune pièce est tracé nul »
-    points = cumulative_until({}, date(2026, 3, 16), from_month=FEBRUARY)
+    points = cumulative_until([], date(2026, 3, 16), from_month=FEBRUARY)
     assert points == [
         Point(date(2026, 1, 31), Decimal(0)),
         Point(date(2026, 2, 28), Decimal(0)),
@@ -191,7 +191,7 @@ def test_a_terminated_task_makes_a_step_at_the_month_of_its_termination() -> Non
     # terminaison. »
     budgeted = [(date(2026, 3, 12), Decimal(2500)), (date(2026, 2, 9), Decimal(1000))]
     as_of = date(2026, 4, 15)
-    points = cumulative_until(events_by_month(budgeted, until=as_of), as_of)
+    points = cumulative_until(budgeted, as_of)
     assert points == [
         Point(date(2026, 1, 31), Decimal(0)),
         Point(date(2026, 2, 28), Decimal(1000)),
@@ -205,32 +205,59 @@ def test_at_the_date_of_calculation_the_gap_of_the_two_curves_is_the_cost_varian
     # « À la date de calcul, l’écart vertical entre la courbe de valeur acquise et celle du coût
     # réel égale la différence des deux grandeurs. »
     as_of = date(2026, 3, 16)
-    earned = cumulative_until(events_by_month([(date(2026, 3, 2), Decimal("2800.25"))]), as_of)
-    actual = cumulative_until(events_by_month([(date(2026, 2, 9), Decimal("1500.10"))]), as_of)
+    earned = cumulative_until([(date(2026, 3, 2), Decimal("2800.25"))], as_of)
+    actual = cumulative_until([(date(2026, 2, 9), Decimal("1500.10"))], as_of)
     assert earned[-1].day == actual[-1].day == as_of
     assert earned[-1].amount - actual[-1].amount == Decimal("1300.15")
 
 
+def spent_by(day: date) -> Decimal:
+    """Return what the line of 6 400 has spent by the end of a day: 100 a working day of 64."""
+    worked = sum(
+        1
+        for offset in range((min(day, date(2026, 4, 30)) - date(2026, 2, 2)).days + 1)
+        if (date(2026, 2, 2) + timedelta(days=offset)).weekday() < WORKING_DAYS_A_WEEK
+    )
+    return Decimal(100 * worked) if day >= date(2026, 2, 2) else Decimal(0)
+
+
 @pytest.mark.requirement("WF-IND-0100-A")
-def test_a_delay_of_sixty_days_translates_the_curve_by_two_months_here() -> None:
-    # « la courbe du budget de référence décalée est la courbe non décalée translatée de 60 jours »
-    plain = cumulative(spread_lines([line("6400")]))
-    delayed = cumulative(spread_lines([line("6400", 60)], delayed=True))
-    assert shifted({FEBRUARY: Decimal(2000)}, 60) == {APRIL: Decimal(2000)}
-    assert days(delayed)[0] == date(2026, 3, 31)
-    assert amounts(delayed) == amounts(plain)
-    assert days(delayed) == [
-        date(2026, 3, 31),
-        date(2026, 4, 30),
-        date(2026, 5, 31),
-        date(2026, 6, 30),
-    ]
+@pytest.mark.parametrize("delay", [31, 45, 60])
+def test_a_delayed_curve_is_the_other_translated_by_the_delay_in_days(delay: int) -> None:
+    # « la courbe du budget de référence décalée est la courbe non décalée translatée de 60 jours »:
+    # at each month-end, the value of the other at that day less the delay, not a month moved.
+    delayed = cumulative(spread_lines([line("6400", delay)], delayed=True))
+    assert delayed[0].amount == Decimal(0)
+    for point in delayed:
+        assert point.amount == spent_by(point.day - timedelta(days=delay))
+    assert delayed[-1].amount == Decimal(6400)
+    assert len({point.day for point in delayed}) == len(delayed)
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_two_months_of_a_task_do_not_fall_in_one_by_a_delay_of_31_days() -> None:
+    # March and April, which a month-end plus 31 days both carry to May, stay two parts.
+    delayed = line_shares(line("6400", 31), delayed=True)
+    assert len([part for part in delayed.values() if part]) >= len(
+        line_shares(line("6400")).values()
+    )
+    assert sum(delayed.values()) == Decimal(6400)
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_a_delay_translates_the_part_after_the_date_of_calculation() -> None:
+    as_of = date(2026, 3, 16)
+    delayed = spread_lines([line("6400", 45)], as_of=as_of, delayed=True)
+    # The part left is 6400 less what is spent by 15 March (30 working days of 100): 3 400.
+    assert sum(delayed.values()) == Decimal(6400)
+    assert min(delayed) == Month(2026, 4)
+    past = SpreadLine(Decimal(6400), task(date(2026, 2, 2), date(2026, 3, 13)), 45)
+    assert spread_lines([past], as_of=as_of, delayed=True) == {Month(2026, 4): Decimal(6400)}
 
 
 @pytest.mark.requirement("WF-IND-0100-A")
 def test_no_delay_leaves_the_parts_where_they_are() -> None:
-    shares = {FEBRUARY: Decimal(1), MARCH: Decimal(2)}
-    assert shifted(shares, 0) == shares
+    assert line_shares(line("6400", 0), delayed=True) == line_shares(line("6400"))
 
 
 @pytest.mark.requirement("WF-IND-0100-A")
