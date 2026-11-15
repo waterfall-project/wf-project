@@ -378,7 +378,7 @@ Prises par l'auteur le 2026-11-14, au cadrage, sauf mention.
 
 ## US-2210 — La mesure de référence des grilles : dans le processus, puis du clic à l'affichage contre le service, à un, quatre et huit utilisateurs
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre — l'outil de WF-QUA-0060, que clôt US-2300
 - **opérations** : `listNodes`, `updateTaskFacet`, `updateEstimateLine`, `createRevision`, `getMe`
 - **issue** : #3304
