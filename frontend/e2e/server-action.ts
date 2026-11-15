@@ -11,7 +11,8 @@
  * answer awaited is the answer of that request, not of any action of the page (`answerOf`). A
  * command pressed again each second until its row answered asked its write twice when the answer
  * came past the second, or pressed the opposite command the answer had just put in its place
- * (#3135, #3191). The window left: a request that leaves past the wait of the try after a click
+ * (#3135, #3191). A command that says it is occupied — `aria-busy="true"` or `aria-disabled="true"`
+ * — is not pressed again at all: its request is awaited only (#3448). The window left: a request that leaves past the wait of the try after a click
  * Playwright did accept (`TAKEN`) still comes after a second press.
  */
 import { expect, type Locator, type Page, type Request, type Response } from "@playwright/test";
@@ -56,8 +57,11 @@ export async function pressOnce(
       }
       let wait = REFUSED;
       try {
-        await command.click({ timeout: 1_000 });
-        wait = TAKEN;
+        // A command occupied is not pressed: the action it waits for is awaited, nothing more.
+        if (!(await occupied(command))) {
+          await command.click({ timeout: 1_000 });
+          wait = TAKEN;
+        }
       } catch (error) {
         // Refused by Playwright: no action can have left from this press, the next try presses again.
         if (error instanceof Error) {
@@ -75,6 +79,24 @@ export async function pressOnce(
     throw new Error(failedPress(refused));
   }
   return sent;
+}
+
+/**
+ * Whether a command waits for its own answer, `aria-busy="true"` or `aria-disabled="true"`: its
+ * action has left, or is leaving, and a click would ask nothing — or, where an answer put the
+ * opposite command in its place, press that one (#3448, #3396). A command absent reads as not
+ * occupied: the click then fails, and the next try looks again.
+ */
+async function occupied(command: Locator): Promise<boolean> {
+  try {
+    const [busy, disabled] = await Promise.all([
+      command.getAttribute("aria-busy", { timeout: 500 }),
+      command.getAttribute("aria-disabled", { timeout: 500 }),
+    ]);
+    return busy === "true" || disabled === "true";
+  } catch {
+    return false;
+  }
 }
 
 /**

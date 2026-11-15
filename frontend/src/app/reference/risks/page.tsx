@@ -43,11 +43,11 @@ export default async function RiskSettingsPage() {
   const writes = platformOffer(session?.permissions, "risk_settings") !== undefined;
   return (
     <Screen density={FUNCTION_DENSITY.risk_settings}>
-      <RisksHeader />
       {writes ? (
         <RiskSettings settings={settings} />
       ) : (
         <>
+          <RisksHeader />
           <RiskBoundsTable matrix={settings.risk_matrix} />
           <RiskZonesTable matrix={settings.risk_matrix} />
         </>

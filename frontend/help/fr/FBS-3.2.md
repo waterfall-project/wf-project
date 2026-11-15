@@ -13,7 +13,7 @@ Chaque table est cherchée et filtrée par le serveur, et tient sa propre hauteu
 
 ## Ses commandes
 
-En tête de l’écran, **Afficher aussi les désactivés** ajoute aux trois tables les objets désactivés, et leur ajoute un filtre d’état ; **Masquer les désactivés** y revient. Offerte à qui peut modifier les paramètres de ressources : le contrat réserve les objets désactivés à cette permission, et l’écran ne les demande pas à qui peut seulement les lire.
+Dans la barre de chacune des trois tables, le filtre **État** choisit les objets montrés : **Actifs** (par défaut, dit par la pastille « Actifs (par défaut) »), **Désactivés** ou **Tous les états**. Offert à qui peut modifier les paramètres de ressources : le contrat réserve les objets désactivés à cette permission, et l’écran ne les demande pas à qui peut seulement les lire.
 
 Les commandes qui écrivent ne sont offertes qu’à qui peut modifier les paramètres de ressources ; aux autres, l’écran se lit :
 

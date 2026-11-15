@@ -2602,6 +2602,7 @@
       "required": "(required)",
       "optional": "(optional)",
       "noLabel": "No label.",
+      "readColumns": "Columns read",
       "kept": "Kept columns",
       "keptHint": "The columns of the extraction that Waterfall keeps for information, given back when the imported lines are consulted. A column read is not also declared kept.",
       "noKept": "No kept column.",
@@ -2623,6 +2624,7 @@
       "saved": "Mapping saved."
     },
     "companyForm": {
+      "title": "Company",
       "modify": "Modify the company name",
       "hint": "The company name appears on the exported files; it is required, of 200 characters at most.",
       "name": "Company name",

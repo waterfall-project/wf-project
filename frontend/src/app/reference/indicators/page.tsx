@@ -44,11 +44,11 @@ export default async function IndicatorSettingsPage() {
   const writes = platformOffer(session?.permissions, "indicator_settings") !== undefined;
   return (
     <Screen density={FUNCTION_DENSITY.indicator_settings}>
-      <IndicatorsHeader />
       {writes ? (
         <IndicatorSettings settings={settings} />
       ) : (
         <>
+          <IndicatorsHeader />
           <IndexThresholdTable thresholds={settings.index_thresholds} />
           <ReviewDelay weeks={settings.max_weeks_between_reviews} />
         </>
