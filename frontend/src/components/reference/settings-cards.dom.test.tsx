@@ -107,12 +107,13 @@ describe("the name of the company of the cost settings", () => {
     await expectAccessible(container);
   });
 
-  it("stands in its card with no command for a session that only reads [WF-IHM-0100-A]", () => {
+  it("stands in its card with no command for a session that only reads [WF-IHM-0100-A]", async () => {
     const { container } = render(inFrench(<CompanyCard name={settings.company_name} />));
     const card = screen.getByRole("region", { name: "Entreprise" });
     expect(within(card).getByText(settings.company_name)).toBeVisible();
     expect(within(card).queryByRole("button")).toBeNull();
     expectCommandRule(container);
+    await expectAccessible(container);
   });
 });
 
@@ -123,7 +124,7 @@ describe("the correspondence of the actual costs in cards", () => {
     return render(inFrench(<ActualCostMapping mapping={mapping} writes={writes} />));
   }
 
-  it("shows a card of the columns read and a card of the columns kept, the five columns in the first [WF-REF-0190-A]", () => {
+  it("shows a card of the columns read and a card of the columns kept, the five columns in the first [WF-IHM-0100-A]", () => {
     shown(true);
     const read = screen.getByRole("region", { name: "Colonnes lues" });
     const kept = screen.getByRole("region", { name: "Colonnes conservées" });

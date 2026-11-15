@@ -9,7 +9,7 @@ From top to bottom, each part under its title:
 - [the cost types and categories](FBS-3.1.1.md): two tables, the **Cost types** then the **Cost categories**;
 - the [hourly rates](FBS-3.1.2.md): a row per labour category, a column per year.
 
-Each table is sorted, searched, filtered and paged by the server, and keeps its own height. The lists show only the active objects, unless the deactivated ones are asked for too: nothing is deleted in the reference data, an object is deactivated and can be reactivated. A deactivated object is no longer offered for entry, and stays readable wherever it is used.
+Each table is sorted, searched, filtered and paged by the server, and keeps its own height. The lists show only the active objects by default; the “State” filter also shows the deactivated ones: nothing is deleted in the reference data, an object is deactivated and can be reactivated. A deactivated object is no longer offered for entry, and stays readable wherever it is used.
 
 ## Its commands
 

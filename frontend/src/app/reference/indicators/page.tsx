@@ -9,13 +9,13 @@
  * of the shell to say.
  */
 import type { Metadata } from "next";
-import { useTranslations } from "next-intl";
 
 import { platformOffer } from "@/components/commands/offer";
 import { IndexThresholdTable, ReviewDelay } from "@/components/reference/setting-tables";
 import { IndicatorSettings } from "@/components/reference/settings-forms";
-import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
-import { PageHeader, Screen } from "@/components/shell/page-header";
+import { SettingsHeader } from "@/components/reference/settings-header";
+import { FUNCTION_DENSITY } from "@/components/shell/function-display";
+import { Screen } from "@/components/shell/page-header";
 import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../title";
@@ -24,18 +24,6 @@ import { readReferenceSettings } from "../settings";
 /** Title the tab with the function. */
 export async function generateMetadata(): Promise<Metadata> {
   return screenMetadata("functions.indicatorSettings");
-}
-
-/** The title of the screen. */
-function IndicatorsHeader() {
-  const t = useTranslations("functions");
-  return (
-    <PageHeader
-      title={t("indicatorSettings")}
-      icon={FUNCTION_ICONS.indicator_settings}
-      density={FUNCTION_DENSITY.indicator_settings}
-    />
-  );
 }
 
 /** Render the settings of the indicators. */
@@ -48,7 +36,7 @@ export default async function IndicatorSettingsPage() {
         <IndicatorSettings settings={settings} />
       ) : (
         <>
-          <IndicatorsHeader />
+          <SettingsHeader screen="indicator_settings" />
           <IndexThresholdTable thresholds={settings.index_thresholds} />
           <ReviewDelay weeks={settings.max_weeks_between_reviews} />
         </>

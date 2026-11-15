@@ -8,13 +8,13 @@
  * thrown for the pages of the shell to say.
  */
 import type { Metadata } from "next";
-import { useTranslations } from "next-intl";
 
 import { platformOffer } from "@/components/commands/offer";
 import { RiskBoundsTable, RiskZonesTable } from "@/components/reference/setting-tables";
 import { RiskSettings } from "@/components/reference/settings-forms";
-import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
-import { PageHeader, Screen } from "@/components/shell/page-header";
+import { SettingsHeader } from "@/components/reference/settings-header";
+import { FUNCTION_DENSITY } from "@/components/shell/function-display";
+import { Screen } from "@/components/shell/page-header";
 import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../title";
@@ -23,18 +23,6 @@ import { readReferenceSettings } from "../settings";
 /** Title the tab with the function. */
 export async function generateMetadata(): Promise<Metadata> {
   return screenMetadata("functions.riskSettings");
-}
-
-/** The title of the screen. */
-function RisksHeader() {
-  const t = useTranslations("functions");
-  return (
-    <PageHeader
-      title={t("riskSettings")}
-      icon={FUNCTION_ICONS.risk_settings}
-      density={FUNCTION_DENSITY.risk_settings}
-    />
-  );
 }
 
 /** Render the settings of the risks. */
@@ -47,7 +35,7 @@ export default async function RiskSettingsPage() {
         <RiskSettings settings={settings} />
       ) : (
         <>
-          <RisksHeader />
+          <SettingsHeader screen="risk_settings" />
           <RiskBoundsTable matrix={settings.risk_matrix} />
           <RiskZonesTable matrix={settings.risk_matrix} />
         </>

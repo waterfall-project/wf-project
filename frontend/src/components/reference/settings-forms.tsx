@@ -35,14 +35,13 @@ import { setDurationUnits, updateReferenceSettings } from "@/api/actions/referen
 import type { components } from "@/api/generated/schema";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { WritingNote } from "@/components/commands/writing-note";
-import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
-import { PageHeader } from "@/components/shell/page-header";
 import { SectionCard } from "@/components/shell/section-card";
 import { useSaid } from "@/components/notices/said";
 import { Button } from "@/components/ui/button";
 import { compareDecimals, editableDecimal, editablePercent, percentRatio } from "@/i18n/format";
 
 import { Reactivations } from "./reactivation";
+import { SettingsHeader, type SettingsScreen } from "./settings-header";
 import { type Draft, type FormField, ReferenceForm, required } from "./reference-form";
 import {
   DurationUnitFigures,
@@ -393,8 +392,7 @@ function SettingsWriter<Settings extends Versioned>({
   command,
   saved,
   form: Form,
-  card,
-  screen,
+  place,
   children,
 }: {
   readonly settings: Settings;
@@ -402,18 +400,14 @@ function SettingsWriter<Settings extends Versioned>({
   readonly saved: string;
   readonly form: ComponentType<SettingsFormProps<Settings>>;
   /**
-   * The card the settings stand in, its command at the right of its title, outlined — it modifies
-   * (`SectionCard`); none for settings that stand bare, the command above them.
+   * Where the settings stand, one place or the other: in a card, its command at the right of its
+   * title, outlined — it modifies (`SectionCard`); or the screen itself, its header, whose command
+   * stands at the right of the title of the function, outlined (`SettingsHeader`); none for
+   * settings that stand bare, the command above them.
    */
-  readonly card?: { readonly title: string; readonly icon: LucideIcon };
-  /**
-   * The settings are the screen itself: its header, whose command stands at the right of its
-   * title, outlined — it modifies (`PageHeader`), the title being the function's.
-   */
-  readonly screen?: {
-    readonly function: "risk_settings" | "indicator_settings";
-    readonly title: string;
-  };
+  readonly place?:
+    | { readonly kind: "card"; readonly title: string; readonly icon: LucideIcon }
+    | { readonly kind: "screen"; readonly screen: SettingsScreen };
   readonly children: (shown: Settings) => ReactNode;
 }) {
   const [answered, setAnswered] = useState<Settings>();
@@ -464,7 +458,7 @@ function SettingsWriter<Settings extends Versioned>({
   );
   const body = (
     <>
-      {card === undefined && screen === undefined ? (
+      {place === undefined ? (
         <div className="flex flex-wrap items-start gap-2">
           {modify("outline")}
           {note}
@@ -500,25 +494,20 @@ function SettingsWriter<Settings extends Versioned>({
     </>
   );
   const refusals = <Reactivations reads={[]}>{body}</Reactivations>;
-  if (screen !== undefined) {
+  if (place?.kind === "screen") {
     return (
       <>
-        <PageHeader
-          title={screen.title}
-          icon={FUNCTION_ICONS[screen.function]}
-          density={FUNCTION_DENSITY[screen.function]}
-          actions={modify("outline")}
-        />
+        <SettingsHeader screen={place.screen} actions={modify("outline")} />
         {refusals}
       </>
     );
   }
-  return card === undefined ? (
+  return place === undefined ? (
     refusals
   ) : (
     <SectionCard
-      title={card.title}
-      icon={card.icon}
+      title={place.title}
+      icon={place.icon}
       principal={{ does: "modify", command: modify }}
     >
       <div className="flex min-w-0 flex-col gap-2">{refusals}</div>
@@ -529,14 +518,13 @@ function SettingsWriter<Settings extends Versioned>({
 /** The risk matrix, and its form, for a session that may modify the risk settings. */
 export function RiskSettings({ settings }: { readonly settings: ReferenceSettings }) {
   const t = useTranslations("reference.riskForm");
-  const title = useTranslations("functions")("riskSettings");
   return (
     <SettingsWriter
       settings={settings}
       command={t("modify")}
       saved={t("saved")}
       form={RiskForm}
-      screen={{ function: "risk_settings", title }}
+      place={{ kind: "screen", screen: "risk_settings" }}
     >
       {(shown) => (
         <>
@@ -554,14 +542,13 @@ export function RiskSettings({ settings }: { readonly settings: ReferenceSetting
  */
 export function IndicatorSettings({ settings }: { readonly settings: ReferenceSettings }) {
   const t = useTranslations("reference.indicatorForm");
-  const title = useTranslations("functions")("indicatorSettings");
   return (
     <SettingsWriter
       settings={settings}
       command={t("modify")}
       saved={t("saved")}
       form={IndicatorForm}
-      screen={{ function: "indicator_settings", title }}
+      place={{ kind: "screen", screen: "indicator_settings" }}
     >
       {(shown) => (
         <>
@@ -586,7 +573,7 @@ export function DurationUnitSettings({ units }: { readonly units: DurationUnits 
       command={t("modify")}
       saved={t("saved")}
       form={DurationUnitsForm}
-      card={{ title, icon: Timer }}
+      place={{ kind: "card", title, icon: Timer }}
     >
       {(shown) => <DurationUnitFigures units={shown} />}
     </SettingsWriter>
@@ -605,7 +592,7 @@ export function CompanySettings({ settings }: { readonly settings: ReferenceSett
       command={t("modify")}
       saved={t("saved")}
       form={CompanyForm}
-      card={{ title: t("title"), icon: Building2 }}
+      place={{ kind: "card", title: t("title"), icon: Building2 }}
     >
       {(shown) => <CompanyName name={shown.company_name} />}
     </SettingsWriter>

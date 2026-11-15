@@ -9,7 +9,7 @@ De haut en bas, chaque partie sous son titre :
 - [les natures et les catégories de coûts](FBS-3.1.1.md) : deux tables, les **Natures de coût** puis les **Catégories de coût** ;
 - les [taux horaires](FBS-3.1.2.md) : une ligne par catégorie de main-d’œuvre, une colonne par année.
 
-Chaque table est triée, cherchée, filtrée et paginée par le serveur, et tient sa propre hauteur. Les listes ne montrent que les objets actifs, à moins de demander aussi les désactivés : rien ne se supprime dans le référentiel, un objet se désactive et peut être réactivé. Un objet désactivé n’est plus proposé à la saisie, et reste lisible partout où il est employé.
+Chaque table est triée, cherchée, filtrée et paginée par le serveur, et tient sa propre hauteur. Les listes ne montrent que les objets actifs par défaut ; le filtre « État » montre aussi les désactivés : rien ne se supprime dans le référentiel, un objet se désactive et peut être réactivé. Un objet désactivé n’est plus proposé à la saisie, et reste lisible partout où il est employé.
 
 ## Ses commandes
 

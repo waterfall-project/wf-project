@@ -54,7 +54,13 @@ for (const size of WINDOWS) {
       const button = page.getByRole("main").getByRole("button", { name: command });
       const title = await box(page.getByRole("heading", { level: 1 }));
       const measured = await box(button);
-      expect(measured.x, "after the title").toBeGreaterThan(title.x);
+      if (size.width >= 1366) {
+        expect(measured.x, "after the end of the title").toBeGreaterThanOrEqual(
+          title.x + title.width,
+        );
+        const gap = Math.abs(measured.y + measured.height / 2 - (title.y + title.height / 2));
+        expect(gap, "on the line of the title").toBeLessThanOrEqual(title.height);
+      }
       expect(measured.right, "inside the window").toBeLessThanOrEqual(size.width);
       const style = await button.evaluate((element) => getComputedStyle(element).borderTopWidth);
       expect(style, "outlined: a border").not.toBe("0px");
