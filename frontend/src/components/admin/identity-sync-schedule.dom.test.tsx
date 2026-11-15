@@ -20,6 +20,7 @@ import {
 } from "@/test/fixtures";
 
 import { IdentitySyncScheduleSection } from "./identity-sync-schedule";
+import { browserOffline } from "@/test/offline";
 
 type Schedule = components["schemas"]["IdentitySyncSchedule"];
 
@@ -93,6 +94,8 @@ afterEach(() => {
   router.refresh.mockClear();
   failing.until = undefined;
 });
+
+beforeEach(browserOffline);
 
 describe("the periodicity of the reading of the accounts", () => {
   it("states the periodicity read, daily by default, its time in universal time [WF-ADM-0070-A]", async () => {

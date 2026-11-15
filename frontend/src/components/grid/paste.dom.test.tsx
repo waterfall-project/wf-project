@@ -39,6 +39,7 @@ import {
 
 import { ROW_NUMBER_KEY } from "./columns";
 import type { NodeList } from "./nodes";
+import { browserOffline } from "@/test/offline";
 
 // The server of Next, as far as the grid needs it, as for the other tests of the grid.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
@@ -130,6 +131,8 @@ async function expectRefused(client: FakeClient, target: HTMLElement, text: stri
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(bodies(client, PREVIEW)).toEqual([]);
 }
+
+beforeEach(browserOffline);
 
 describe("a block pasted from a spreadsheet", () => {
   it("of three rows and four columns produces a report before writing, then the three rows expected once confirmed [WF-IHM-0050-A]", async () => {

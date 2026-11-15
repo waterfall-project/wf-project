@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   ACCOUNT_DEACTIVATED_DIGEST,
@@ -36,7 +36,17 @@ function unexpected(reference?: string) {
 }
 
 describe("a server action whose promise rejected", () => {
-  it("is the API out of reach when the browser could not reach the server: fetch rejected", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("is a write that may have been done when the link of the browser to the server was lost: fetch rejected, read anew before it is offered again [WF-REV-0010-A]", () => {
+    vi.stubGlobal("navigator", { onLine: true });
+    expect(rejected(new TypeError("Failed to fetch"))).toEqual({ kind: "unreachable", sent: true });
+  });
+
+  it("is the API out of reach, to try again in a moment, when the browser knew itself offline [WF-REV-0010-A]", () => {
+    vi.stubGlobal("navigator", { onLine: false });
     expect(rejected(new TypeError("Failed to fetch"))).toEqual({ kind: "unreachable" });
   });
 

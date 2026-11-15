@@ -24,6 +24,7 @@ import {
 
 import type { ContributorReading, Suggestion } from "./contributor-commands";
 import { ContributorList } from "./settings-lists";
+import { browserOffline } from "@/test/offline";
 
 // The server of Next, as far as the list needs it: the fake back, the page read anew once the list
 // is written, the address it reads.
@@ -134,6 +135,8 @@ afterEach(() => {
   refresh.mockClear();
   router.refresh.mockClear();
 });
+
+beforeEach(browserOffline);
 
 describe("the modification of the contributors of a project", () => {
   it("writes the whole list with its counter, a capacity changed, and shows the list the server answered", async () => {

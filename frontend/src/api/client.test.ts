@@ -289,6 +289,8 @@ describe("a write whose connection is lost once it has left (US-2240)", () => {
     "EAI_AGAIN",
     "ENETUNREACH",
     "EHOSTUNREACH",
+    "ENETDOWN",
+    "EHOSTDOWN",
     "UND_ERR_CONNECT_TIMEOUT",
   ])(
     "marks a write that did not leave, refused by %s, as the API out of reach, not as dropped",
@@ -328,6 +330,15 @@ describe("a write whose connection is lost once it has left (US-2240)", () => {
       name: "Dropped",
       digest: UNREACHABLE_DIGEST,
     });
+  });
+
+  it("leaves a TypeError thrown before the request leaves, with no cause, as it is: a defect, not a write lost (WF-REV-0010-A)", async () => {
+    const defect = new TypeError("Invalid URL");
+    const down = createApiClient({
+      address: "http://localhost:4010",
+      fetch: () => Promise.reject(defect),
+    });
+    await expect(down.POST("/projects", { body: { label: "Poste" } })).rejects.toBe(defect);
   });
 
   it("marks a read rejected without a code as the API out of reach, not as dropped", async () => {

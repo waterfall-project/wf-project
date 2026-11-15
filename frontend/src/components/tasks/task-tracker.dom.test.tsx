@@ -27,6 +27,7 @@ import { STORAGE_KEY } from "./storage";
 import { POLL_INTERVAL } from "./task-entry";
 import { TaskPanel, TasksButton, TaskTracker, useTrackTask } from "./task-tracker";
 import type { Launch } from "./tracking";
+import { browserOffline } from "@/test/offline";
 
 // The server of Next, as far as the tracker needs it: the fake back behind serverClient, which
 // a test may swap for another between two reads.
@@ -192,6 +193,8 @@ afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
+
+beforeEach(browserOffline);
 
 describe("the tracker of background tasks", () => {
   it("informs a user who changed screens during an import of its end [WF-IHM-0080-A]", async () => {

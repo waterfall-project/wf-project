@@ -27,6 +27,7 @@ import {
 import { CommandedList, useAnswered, useRowCommand } from "./commands";
 import { type Calendar, type OrgNode } from "./resource-grids";
 import { CalendarList, type NodeOffered, OrgNodeList } from "./resource-lists";
+import { browserOffline } from "@/test/offline";
 
 // The server of Next, as far as the lists need it: the fake back, the page rendered again once an
 // object is written, the address they read and the navigations they ask.
@@ -172,6 +173,8 @@ afterEach(() => {
   failing.until = undefined;
   refresh.mockClear();
 });
+
+beforeEach(browserOffline);
 
 describe("a row of the reference data being written", () => {
   it.each([

@@ -16,6 +16,7 @@ import {
 } from "@/test/fixtures";
 
 import { Shell } from "./shell";
+import { browserOffline } from "@/test/offline";
 
 // The server of Next, as far as the shell needs it: the fake back behind serverClient, the
 // Accept-Language of the browser, and the refresh a server action asks for, which renders
@@ -116,6 +117,8 @@ beforeEach(() => {
   server.down = false;
   server.refresh = () => undefined;
 });
+
+beforeEach(browserOffline);
 
 describe("the language in the menu of the account", () => {
   it("offers the browser's language, French and English, in the language of the page", async () => {

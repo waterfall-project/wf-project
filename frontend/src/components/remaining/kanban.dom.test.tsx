@@ -19,6 +19,7 @@ import {
 
 import { Kanban } from "./kanban";
 import { columnsOf, type KanbanColumns, type StartableTasks } from "./kanban-cards";
+import { browserOffline } from "@/test/offline";
 
 // The gestures of the cards: the cards are those the contract lists (`startable_tasks`), the answers
 // of the gestures its examples, and the fake back keeps nothing — it answers the example whatever
@@ -173,6 +174,8 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
 });
+
+beforeEach(browserOffline);
 
 describe("the gestures of the cards of the Kanban", () => {
   it("completes a milestone without a line from the card, at the date entered, the day's being proposed, and the answer replaces the card in its column [WF-RAE-0030-A]", async () => {

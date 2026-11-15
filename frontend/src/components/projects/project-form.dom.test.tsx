@@ -4,7 +4,7 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
@@ -23,6 +23,7 @@ import {
 } from "@/test/fixtures";
 
 import { CreateProject, ProjectIdentity } from "./project-form";
+import { browserOffline } from "@/test/offline";
 
 // The server of Next, as far as the forms need it: the fake back, the page rendered again once the
 // project is modified, and the navigations they ask.
@@ -112,6 +113,8 @@ afterEach(() => {
   router.push.mockClear();
   router.refresh.mockClear();
 });
+
+beforeEach(browserOffline);
 
 describe("the creation of a project", () => {
   it("refuses a project without a label before asking anything, the label taking the focus [WF-PRJ-0080-A]", async () => {

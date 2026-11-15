@@ -24,6 +24,7 @@ import {
 
 import type { Subproject } from "./settings-grids";
 import { SubprojectList } from "./settings-lists";
+import { browserOffline } from "@/test/offline";
 
 // The server of Next, as far as the list needs it: the fake back, the page read anew once a write is
 // answered, the address it reads.
@@ -143,6 +144,8 @@ afterEach(() => {
   refresh.mockClear();
   router.refresh.mockClear();
 });
+
+beforeEach(browserOffline);
 
 describe("the creation and the modification of a sub-project", () => {
   it("creates a sub-project from a project that has none, its code and its label required before anything is asked [WF-PRJ-0050-A]", async () => {

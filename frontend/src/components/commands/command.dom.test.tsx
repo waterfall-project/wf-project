@@ -21,6 +21,7 @@ import { Command } from "./command";
 import { commandIcon, PROJECT_COMMAND_ICONS, REVISION_COMMAND_ICONS } from "./icons";
 import { LifecycleCommands, RevisionCommands } from "./object-commands";
 import { findOffer } from "./offer";
+import { browserOffline } from "@/test/offline";
 
 // The router of Next, as far as a command needs it: the address it shows, and the refresh
 // that reads the screen anew.
@@ -105,6 +106,8 @@ beforeEach(() => {
   // Reset, not cleared: a test makes it read the page anew (US-2240).
   router.refresh.mockReset();
 });
+
+beforeEach(browserOffline);
 
 describe("a command of a screen", () => {
   it("on a project in pricing, presents completion unavailable, naming the condition it lacks, which its tooltip opens on the focus of the keyboard [WF-IHM-0090-A]", async () => {

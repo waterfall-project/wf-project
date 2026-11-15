@@ -20,6 +20,7 @@ import { holdReading, Reading, releaseReading } from "@/test/held-reading";
 import { AvatarForm } from "./avatar-form";
 import { AvatarPicture } from "./avatar-picture";
 import { PreferencesForm } from "./preferences-form";
+import { browserOffline } from "@/test/offline";
 
 // The server of Next, as far as the forms need it: the fake back behind serverClient, and the
 // refresh a server action asks for, which renders the page again.
@@ -88,6 +89,8 @@ beforeEach(() => {
   refresh.mockReset();
   forgetMessages();
 });
+
+beforeEach(browserOffline);
 
 describe("the preferences on the screen of the account", () => {
   it("records the language and the mode chosen, the same fields the menu of the account writes", async () => {

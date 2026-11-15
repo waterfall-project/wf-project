@@ -19,6 +19,7 @@ import { example, type Problem } from "@/test/fixtures";
 
 import { OutcomeNotice } from "./outcome-notice";
 import { rejected } from "./rejection";
+import { browserOffline } from "@/test/offline";
 
 // The router of the application, as the notice reads it: a router that would take over the links of
 // the page is one a link of the router calls.
@@ -111,6 +112,8 @@ beforeEach(() => {
   forgetMessages();
   vi.clearAllMocks();
 });
+
+beforeEach(browserOffline);
 
 describe("the notice of an outcome", () => {
   it("tells what it is said to inside the alert, before the sentence, and notes the same sentence with or without it", () => {
@@ -250,10 +253,11 @@ describe("the notice of an outcome", () => {
     // here, the region it says it in, present while the outcome is told.
     const { container } = render(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-        <OutcomeNotice outcome={await lostWrite("UND_ERR_SOCKET")} onClear={vi.fn()} />
+        <OutcomeNotice outcome={await lostWrite("UND_ERR_SOCKET")} onClear={vi.fn()} reading />
       </NextIntlClientProvider>,
     );
-    expect(screen.getByRole("status")).toBeInTheDocument();
+    // A screen being read anew, as its command says it: the status says so.
+    expect(screen.getByRole("status")).toHaveTextContent("Relecture de l’écran…");
     expect(within(screen.getByRole("alert")).queryByRole("status")).toBeNull();
     await expectAccessible(container);
   });

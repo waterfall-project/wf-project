@@ -27,6 +27,7 @@ import { EstimateGrid } from "./estimate-grid";
 import type { NodeList, NodeSortColumn } from "./nodes";
 import { PlanningGrid } from "./planning-grid";
 import type { GridQuery } from "./query";
+import { browserOffline } from "@/test/offline";
 
 // The server of Next, as far as the grid needs it, as for the other tests of the grid.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
@@ -195,6 +196,8 @@ const START = 5;
 const FINISH = 6;
 const PROGRESS = 7;
 const FLOAT = 9;
+
+beforeEach(browserOffline);
 
 describe("a value of a grid the server computes", () => {
   it("is not entered in a line of labour, does not look like its effort in hours, and is refused naming what it depends on [WF-IHM-0030-A]", async () => {

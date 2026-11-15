@@ -27,6 +27,7 @@ import { cookieJar } from "@/test/session";
 import { tasksRegion } from "@/test/task-panel";
 
 import { Shell } from "./shell";
+import { browserOffline } from "@/test/offline";
 
 // The server of Next, as far as signing out needs it: the fake back behind serverClient, which
 // grants its own session (`WATERFALL_AUTH=mock`).
@@ -134,6 +135,8 @@ beforeEach(() => {
   window.sessionStorage.clear();
   document.cookie = `${LAST_CONTEXT_COOKIE}=${encodeURIComponent(SCREEN)}; path=/`;
 });
+
+beforeEach(browserOffline);
 
 describe("signing out from the menu of the account", () => {
   it("closes the session, forgets the last project, the tasks and the messages of the tab, and loads the sign-in page", async () => {

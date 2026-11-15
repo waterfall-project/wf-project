@@ -5,9 +5,13 @@
  * (#330). One rule for every screen that calls one — the cells of a grid, a paste, the import of a
  * file, the follow-up of a task —, the rule of the screen of failure itself (`failureOf`):
  *
- * - a `TypeError` is the API out of reach: what the `fetch` of the browser throws when it cannot
- *   reach the server of Next. The browser does not tell it from a `TypeError` thrown elsewhere,
- *   which passes for out of reach too — the one limit of the rule;
+ * - a `TypeError` is what the `fetch` of the browser throws when it loses its link with the server
+ *   of Next. The browser does not say whether the request left: the write may have been done, and
+ *   the outcome says so (`sent`), as for the link of Next to the API (US-2240), the screen reading
+ *   its state anew before it offers to do it again. Only a browser that knows itself offline
+ *   (`navigator.onLine` false) tells nothing left: the API out of reach, to try again in a moment.
+ *   The browser does not tell it from a `TypeError` thrown elsewhere, which passes for lost too —
+ *   the one limit of the rule;
  * - any other rejection is classed by its `digest`, the one thing of an error thrown on the server
  *   Next forwards: the API out of reach (`UNREACHABLE_DIGEST`), a session lost
  *   (`SESSION_LOST_DIGEST`, `SESSION_REQUIRED_DIGEST`) or closed (`SESSION_REVOKED_DIGEST`), which
@@ -84,7 +88,10 @@ function outcomeOfLoss(failure: Exclude<Failure, { kind: "unexpected" }>): Outco
 /** The outcome a rejected server action stands for. */
 export function rejected(error: unknown): Outcome<never> {
   if (error instanceof TypeError) {
-    return { kind: "unreachable" };
+    // The rejection comes at once, so the browser is read offline as it was when the request left.
+    return typeof navigator !== "undefined" && !navigator.onLine
+      ? { kind: "unreachable" }
+      : { kind: "unreachable", sent: true };
   }
   const failure = failureOf(asBoundaryError(error));
   if (failure.kind !== "unexpected") {
