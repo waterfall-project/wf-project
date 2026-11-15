@@ -421,6 +421,9 @@ def test_the_comparison_and_the_structure_render_bodies_of_json_values_alone(
     latest = Tree(api, stage, third)
     nodes = by_label(latest.items())
     set_progress(stage, nodes["Conception"]["node_id"], "completed", date(2026, 11, 3))
+    # The first comparison of the pair makes the readings kept of its two structures, each body
+    # rendered too (US-2270): made before, only the bodies of the answers are rendered below.
+    comparison(api, stage, revisions(pair))
     bodies.clear()
     named = "&fields=task.label,estimate_line.label"
     answers = [

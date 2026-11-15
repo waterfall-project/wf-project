@@ -52,6 +52,17 @@ from waterfall.core.estimate.comparing import (
     ComparisonAsked as ComparisonAsked,
 )
 
+# ``comparing`` (US-2270): a comparison no filter restricts, of two readings kept.
+from waterfall.core.estimate.comparing import (
+    UnitedComparison as UnitedComparison,
+)
+from waterfall.core.estimate.comparing import (
+    compare_united as compare_united,
+)
+from waterfall.core.estimate.comparing import (
+    compared_places as compared_places,
+)
+
 # ``calendars`` (US-1490/L1; US-1500): the calendars of the roles, which a change must not idle.
 # ``entries`` (US-1490/L3): what a write sends of a line.
 from waterfall.core.estimate.entries import (
@@ -354,6 +365,26 @@ from waterfall.core.estimate.repricing import (
 # ``spreading`` (US-1520/L1): the line the planned value is computed on, which EP-10 reads.
 from waterfall.core.estimate.spreading import (
     PlannedLine as PlannedLine,
+)
+
+# ``uniting`` (US-2270): what the union of a comparison reads of a node, and gives of it.
+from waterfall.core.estimate.uniting import (
+    Compared as Compared,
+)
+from waterfall.core.estimate.uniting import (
+    LineAmounts as LineAmounts,
+)
+from waterfall.core.estimate.uniting import (
+    PlacedNode as PlacedNode,
+)
+from waterfall.core.estimate.uniting import (
+    UnitedNode as UnitedNode,
+)
+from waterfall.core.estimate.uniting import (
+    line_compared as line_compared,
+)
+from waterfall.core.estimate.uniting import (
+    task_compared as task_compared,
 )
 
 # ``workloading`` (US-1520): what a plan of workload is asked and gives.

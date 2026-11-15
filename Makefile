@@ -331,7 +331,7 @@ $(call slot-export,measure-secrets,$(SLOT_SERVICE))
 measure-secrets:
 	@$(COMPOSE_SERVICE) --profile install --profile witness config --quiet
 
-measure-core: measure-secrets ## Measure the core in process, the workstation for itself alone, on a witness freshly loaded of the service platform (needs the secrets of service-up): whole reads of PRJ-001, profile, threads and processes, a cell entered, a revision opened, a marked revision read as kept and the marking (US-2270); RUNS, ONLY="read profile parallel write revision kept", JSON=<file>
+measure-core: measure-secrets ## Measure the core in process, the workstation for itself alone, on a witness freshly loaded of the service platform (needs the secrets of service-up): whole reads of PRJ-001, profile, threads and processes, a cell entered, a revision opened, a marked revision read as kept, the marking, the comparison of two marked ones and the filtered readings against the document (US-2270); RUNS, ONLY="read profile parallel write revision kept", JSON=<file>
 	@$(exclusive) $(MAKE) --no-print-directory measure-core-run
 
 $(call slot-export,measure-core-run,$(SLOT_SERVICE))

@@ -616,7 +616,7 @@ soient corrigés, **afin que** l'EPIC ne laisse pas derrière lui la dette qu'il
 
 ## US-2270 — La lecture d'une structure marquée est calculée une fois et gardée
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre — le gain se lit dans le rapport de WF-QUA-0060 (US-2300)
 - **opérations** : `listNodes`, `compareRevisions`, `markRevision`
 - **issue** : #3320
@@ -647,7 +647,13 @@ comparaison sans attendre.
 **Notes de réalisation.** La base d'une comparaison sera toujours marquée (#3176) : cette lecture
 gardée est la moitié stable de toute comparaison d'EP-27, dont elle est le préalable. Rapports de
 la session cloud, à refaire : relire un document gardé coûte un dixième d'une lecture depuis les
-lignes ; il pèse 7,8 Mo, 0,46 Mo compressé.
+lignes ; il pèse 7,8 Mo, 0,46 Mo compressé. US-2270/L2 : l'union lit des deux documents ce qu'elle
+unit et marque, leurs identifiants laissés en texte, et applique à chaque nœud du document sa place,
+ses prédécesseurs renommés et sa marque — un seul algorithme d'union pour les lignes et les
+documents. Les inscriptions s'écrivent dans le document gardé sans le relire (#3481). La lecture
+filtrée garde le chemin des lignes : le moins que coûterait un filtre du document (le lire, un test
+par nœud, l'écrire, sans ancêtres, totaux ni tri) dépasse déjà le tiers de la lecture filtrée
+depuis les lignes pour chaque filtre mesuré (`make measure-core ONLY=kept`).
 
 **Hors périmètre.** « Écarts seulement », que la spécification 1.0.6 change en repli des branches
 sans écart — EP-27 ; les options 2 et 3 de #3168.

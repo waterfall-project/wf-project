@@ -67,6 +67,7 @@ from waterfall.core.planning.interface import (
     ConflictView,
     Duration,
     InstantSent,
+    KeptReading,
     LineSort,
     NodeCreation,
     NodeFilters,
@@ -103,7 +104,7 @@ from waterfall.platform.errors import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
 
     from sqlalchemy.orm import Session
 
@@ -540,36 +541,101 @@ def nodes_body(read: NodeRecords, fields: frozenset[str] | None = None) -> dict[
     }
 
 
-def whole_nodes(session: Session, place: Place, fields: frozenset[str] | None) -> Response:
-    """Give a structure read whole, projected by ``fields`` or not (``listNodes``, US-2270).
+def kept_document(session: Session, place: Place) -> tuple[bytes, KeptReading] | None:
+    """Give the reading kept of a structure of a marked revision, its inscriptions not joined.
 
-    The reading kept of a structure of a marked revision, made and kept in this transaction if it
-    is not, its inscriptions joined; the reading of the rows for a structure of a revision not
-    marked. The body is the same, to the byte.
+    Made and kept in this transaction if it is not (US-2270); none for a revision not marked. The
+    document writes the inscriptions of each task empty (``"tracking":[]``): they still change, and
+    are joined at each reading (``kept_body``, ``joined``).
     """
     kept = kept_reading(session, place, FORMAT)
     if kept is None:
-        return read_body(nodes_body(list_records(session, place, NodeFilters()), fields))
+        return None
     document = kept.document
     if document is None:
         body = nodes_body(list_records(session, place, NodeFilters()))
-        # The inscriptions do not enter the document: they still change, and are joined below.
         for item in body["items"]:
             if item["task"] is not None:
                 item["task"]["tracking"] = []
         document = bytes(read_body(body).body)
         keep_reading(session, place, FORMAT, kept, document)
-    if fields is None and not kept.inscriptions:
-        return Response(document, media_type=JSONResponse.media_type)
-    inscriptions = {str(lineage): held for lineage, held in kept.inscriptions.items()}
+    return document, kept
+
+
+def kept_body(session: Session, place: Place) -> dict[str, Any] | None:
+    """Give the reading kept of a structure of a marked revision read, its inscriptions joined.
+
+    What ``listNodes`` gives of the structure read whole, as JSON values; none for a revision not
+    marked.
+    """
+    found = kept_document(session, place)
+    if found is None:
+        return None
+    document, kept = found
     read = json.loads(document)
+    inscriptions = {str(lineage): held for lineage, held in kept.inscriptions.items()}
     for item in read["items"]:
         held = inscriptions.get(item["lineage_id"])
         if held is not None and item["task"] is not None:
             item["task"]["tracking"] = tracking_body(held)
+    return read
+
+
+# The lineage of a node, and the inscriptions of a task, as a document kept writes them
+# (``read_body``): their keys can be nowhere else, a quote in a text being written ``\"``.
+_LINEAGE = re.compile(rb'"lineage_id":"([0-9a-f-]{36})"')
+_UNINSCRIBED = b'"tracking":[]'
+_NODE = b'"node_id":'
+
+
+def joined(document: bytes, inscriptions: Mapping[UUID, tuple[TrackingView, ...]]) -> bytes:
+    """Join the inscriptions of the tasks to a document kept, written in it, without reading it.
+
+    The document is not read again (#3481): each task inscribed has its inscriptions written in
+    place of its empty ones, found after its lineage and before the next node; the bytes are those
+    of the document read and written again (``kept_body``), as the test of the lot proves.
+    """
+    if not inscriptions:
+        return document
+    written = {
+        str(lineage).encode(): bytes(read_body({"tracking": tracking_body(held)}).body)[1:-1]
+        for lineage, held in inscriptions.items()
+    }
+    parts: list[bytes] = []
+    start = 0
+    for match in _LINEAGE.finditer(document):
+        inscribed = written.get(match.group(1))
+        if inscribed is None:
+            continue
+        at = document.find(_UNINSCRIBED, match.end())
+        following = document.find(_NODE, match.end())
+        if at < 0 or 0 <= following < at:
+            continue
+        parts += (document[start:at], inscribed)
+        start = at + len(_UNINSCRIBED)
+    parts.append(document[start:])
+    return b"".join(parts)
+
+
+def whole_nodes(session: Session, place: Place, fields: frozenset[str] | None) -> Response:
+    """Give a structure read whole, projected by ``fields`` or not (``listNodes``, US-2270).
+
+    The reading kept of a structure of a marked revision, made and kept in this transaction if it
+    is not, its inscriptions joined: in the document as it is kept, read whole; in the document
+    read, projected. The reading of the rows for a structure of a revision not marked. The body is
+    the same, to the byte.
+    """
     if fields is not None:
+        read = kept_body(session, place)
+        if read is None:
+            return read_body(nodes_body(list_records(session, place, NodeFilters()), fields))
         read["items"] = [projected(item, fields) for item in read["items"]]
-    return read_body(read)
+        return read_body(read)
+    found = kept_document(session, place)
+    if found is None:
+        return read_body(nodes_body(list_records(session, place, NodeFilters())))
+    document, kept = found
+    return Response(joined(document, kept.inscriptions), media_type=JSONResponse.media_type)
 
 
 def totals_body(task_count: int, totals: StructureTotals | None) -> dict[str, Any]:
