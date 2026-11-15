@@ -57,6 +57,7 @@ export function OccurredCost({ coverage }: { readonly coverage: RiskCoverageTota
           {/* The bullet closes the line of the cost: a broken line never opens on it. */}
           <span
             aria-hidden="true"
+            data-slot="occurred-bullet"
             className="text-xs font-normal text-muted-foreground before:content-['·']"
           />
         </span>

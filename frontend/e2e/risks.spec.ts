@@ -60,8 +60,10 @@ test("reads the risks of a revision: the register and its totals, the detail of 
   // The bullet that closes the line of the cost is drawn by the style (jsdom does not draw it).
   const bullet = page
     .getByRole("region", { name: "Couverture des risques" })
-    .locator("span[aria-hidden='true'][class*='before:content']");
-  expect(await bullet.evaluate((el) => getComputedStyle(el, "::before").content)).toContain("·");
+    .locator("[data-slot='occurred-bullet']");
+  await expect
+    .poll(() => bullet.evaluate((el) => getComputedStyle(el, "::before").content))
+    .toContain("·");
 
   // The detail of a risk, from its label: its notes, its provision line, its reviews.
   await grid.getByRole("link", { name: "Risque de reprise du câblage" }).click();
@@ -112,7 +114,9 @@ test("draws the matrix over the whole width between the cards and the grid, the 
   const registerBox = await boxOf(grid);
   expect(unfolded.y).toBeGreaterThan(cardsBox.y + cardsBox.height - 1);
   expect(unfolded.y + unfolded.height).toBeLessThan(registerBox.y + 1);
-  expect(unfolded.width).toBeGreaterThan(registerBox.width - 1);
+  // Its card, not the figure inside the padding of the card, is as wide as the register.
+  const matrixCard = await boxOf(page.getByRole("region", { name: "Matrice des risques" }));
+  expect(matrixCard.width).toBeGreaterThan(registerBox.width - 1);
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await expect(drawing).toHaveCount(0);
@@ -121,7 +125,9 @@ test("draws the matrix over the whole width between the cards and the grid, the 
   const register = await boxOf(grid);
   expect(frame.y).toBeGreaterThan(cards.y + cards.height - 1);
   expect(frame.y).toBeLessThan(register.y);
-  expect(frame.width).toBeGreaterThan(register.width - 1);
+  expect(
+    (await boxOf(page.getByRole("region", { name: "Matrice des risques" }))).width,
+  ).toBeGreaterThan(register.width - 1);
   await figure.getByText("Valeurs du graphique").click();
   const matrix = figure.getByRole("table", {
     name: "Décompte des risques identifiés par case de la matrice",
