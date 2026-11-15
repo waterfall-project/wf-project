@@ -4,7 +4,9 @@
 
 ``reading_of`` reads what a reading of a structure derives once for all its nodes — its links, its
 calendars, its states — from the tree read as rows, which ``listNodes`` uses: a reading writes
-nothing, and the objects of the session are left to the writes (US-2220).
+nothing, and the objects of the session are left to the writes (US-2220). ``list_records`` reads
+what ``list_nodes`` reads, each node a flat record rather than a view, from which the API writes
+the body of ``listNodes``: the core does not know the form of a response (US-2220/L2).
 ``read_structure`` reads a structure whole and what the filters of a reading retain of it, without
 the ancestors a reading adds and whatever its kinds and its sort: what the comparison of two
 revisions reads of each (``compareRevisions``, US-1530), which numbers and orders their union
@@ -27,10 +29,25 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-    from waterfall.core.planning.filters import NodeFilters
+    from waterfall.core.planning.filters import NodeFilters, Retained
     from waterfall.core.planning.tree import NodeRow, TaskRow, Tree
-    from waterfall.core.planning.views import NodeView
+    from waterfall.core.planning.views import NodeRecord, NodeView
     from waterfall.core.planning.writing import Place
+
+
+@dataclass(frozen=True, slots=True)
+class NodeRecords:
+    """A reading of a structure as ``listNodes`` returns it, its nodes as records (US-2220).
+
+    What ``list_nodes`` gives — its nodes, its tasks counted, its meta, its totals —, each node a
+    flat record (``TaskRecord``, ``FacetRecord``) rather than a view: the API writes the body.
+    """
+
+    items: list[NodeRecord]
+    task_count: int
+    summary_depth: int
+    scheduled_at: datetime
+    totals: StructureTotals
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,14 +87,43 @@ def reading_of(
     return RowsReading(session, structure, tree, links, calendars)
 
 
-def read_structure(session: Session, place: Place, filters: NodeFilters) -> StructureRead:
-    """Read a structure whole, and what the filters retain of it; or refuse (404)."""
+def _retained_reading(
+    session: Session, place: Place, filters: NodeFilters
+) -> tuple[RowsReading, Retained, datetime]:
+    """Read a structure as rows, and what the filters retain of it; or refuse (404).
+
+    The reading, what it retains, and the instant of the dates of the structure.
+    """
     facts = facts_of(session, place, lock=False)
     tree = read_rows(session, place.project_id, place.structure_id)
     reading = reading_of(session, place, tree, (facts.scheduled_at, facts.is_main))
     structure = (place.project_id, place.structure_id)
-    asked = replace(filters, kinds=None, sort=None)
-    found = retained(session, structure, reading, asked, constants_of(session))
+    found = retained(session, structure, reading, filters, constants_of(session))
+    return reading, found, facts.scheduled_at
+
+
+def list_records(session: Session, place: Place, filters: NodeFilters) -> NodeRecords:
+    """Read the nodes of a structure as ``list_nodes`` does, as records (``listNodes``, US-2220).
+
+    The same nodes, numbers, meta and totals, each node a record rather than a view: the API
+    writes the body from them.
+    """
+    reading, found, scheduled_at = _retained_reading(session, place, filters)
+    return NodeRecords(
+        reading.records(found.order),
+        found.task_count,
+        reading.summary_depth(),
+        scheduled_at,
+        StructureTotals(len(found.lines), reading.totals(found.lines)),
+    )
+
+
+def read_structure(session: Session, place: Place, filters: NodeFilters) -> StructureRead:
+    """Read a structure whole, and what the filters retain of it; or refuse (404)."""
+    reading, found, scheduled_at = _retained_reading(
+        session, place, replace(filters, kinds=None, sort=None)
+    )
+    tree = reading.tree
     reading.prefetch(tree.order)
     return StructureRead(
         tuple(reading.node(each) for each in tree.order),
@@ -85,6 +131,6 @@ def read_structure(session: Session, place: Place, filters: NodeFilters) -> Stru
         found.lines,
         found.task_count,
         reading.summary_depth(),
-        facts.scheduled_at,
+        scheduled_at,
         StructureTotals(len(found.lines), reading.totals(found.lines)),
     )

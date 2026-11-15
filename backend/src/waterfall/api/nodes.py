@@ -68,18 +68,21 @@ from waterfall.core.planning.interface import (
     NodeCreation,
     NodeFilters,
     NodeMoving,
+    NodeRecord,
+    NodeRecords,
     NodesWritten,
     NodeView,
     Place,
     StructureTotals,
     TaskEntry,
-    TaskView,
+    TaskRecord,
     Writer,
     computed_value_dependencies,
     create_node,
     delete_node,
-    list_nodes,
+    list_records,
     move_nodes,
+    record_of,
     resolve_row_number,
     update_task_facet,
 )
@@ -140,6 +143,8 @@ PERIODS = ("start", "finish", "started_on", "completed_on")
 FACETS = {"task": TaskFacet, "estimate_line": EstimateLineFacet}
 # What every node returns, whatever ``fields`` names.
 ALWAYS = ("node_id", "row_number", "level", "lock_version")
+# The kind of a node that is a task, which its record does not repeat.
+TASK = NodeKind.task.value
 
 
 class Unassigned(StrEnum):
@@ -325,8 +330,12 @@ def _money(value: Decimal) -> str:
     return format(value.quantize(CENT), "f")
 
 
+def _day_and_hours(day: date, hours: Decimal) -> dict[str, Any]:
+    return {"date": day.isoformat(), "hours": _text(hours)}
+
+
 def _instant(instant: Instant) -> dict[str, Any]:
-    return {"date": instant.day.isoformat(), "hours": _text(instant.hours)}
+    return _day_and_hours(instant.day, instant.hours)
 
 
 def _conflicts(conflicts: tuple[ConflictView, ...]) -> list[dict[str, Any]]:
@@ -352,46 +361,47 @@ def _day(value: date | None) -> str | None:
     return None if value is None else value.isoformat()
 
 
-def _task(view: TaskView) -> dict[str, Any]:
+def _task(record: TaskRecord) -> dict[str, Any]:
     """Write a facet task as the contract does; its amounts, those of its lines and subordinates."""
     # A summary's physical progress follows the budgets of its subtree, none without a line.
     progress = (
         {"is_computable": False, "value": None, "reason": "no_budgeted_amount"}
-        if view.is_summary
+        if record.is_summary
         else None
     )
+    amounts = record.amounts
     return {
-        "label": view.label,
-        "description": view.description,
-        "scheduling_mode": view.scheduling_mode,
-        "duration": {"value": _text(view.duration_value), "unit": view.duration_unit},
-        "start": _instant(view.start),
-        "finish": _instant(view.finish),
-        "progress": view.progress,
-        "finish_overdue": view.finish_overdue,
-        "awaiting_own_lines": view.awaiting_own_lines,
-        "started_on": _day(view.started_on),
-        "completed_on": _day(view.completed_on),
-        "is_summary": view.is_summary,
-        "is_milestone": view.is_milestone,
-        "calendar_id": _id(view.calendar_id),
+        "label": record.label,
+        "description": record.description,
+        "scheduling_mode": record.scheduling_mode,
+        "duration": {"value": _text(record.duration_value), "unit": record.duration_unit},
+        "start": _day_and_hours(record.start_date, record.start_hours),
+        "finish": _day_and_hours(record.finish_date, record.finish_hours),
+        "progress": record.progress,
+        "finish_overdue": record.finish_overdue,
+        "awaiting_own_lines": record.awaiting_own_lines,
+        "started_on": _day(record.started_on),
+        "completed_on": _day(record.completed_on),
+        "is_summary": record.is_summary,
+        "is_milestone": record.is_milestone,
+        "calendar_id": _id(record.calendar_id),
         "calendar_hours": {
-            day: _text(hours) for day, hours in zip(DAYS, view.calendar_hours, strict=True)
+            day: _text(hours) for day, hours in zip(DAYS, record.calendar_hours, strict=True)
         },
-        "total_float": _float(view.total_float),
-        "is_critical": view.is_critical,
-        "link_conflicts": _conflicts(view.link_conflicts),
+        "total_float": _float(record.total_float),
+        "is_critical": record.is_critical,
+        "link_conflicts": _conflicts(record.link_conflicts),
         "physical_progress": progress,
-        "base_amount": _money(view.amounts.base),
-        "budgeted_amount": _money(view.amounts.budgeted),
-        "reestimated_amount": _money(view.amounts.reestimated),
+        "base_amount": _money(amounts.base),
+        "budgeted_amount": _money(amounts.budgeted),
+        "reestimated_amount": _money(amounts.reestimated),
         "tracking": [
-            {"kind": entry.kind, "timeline_id": _id(entry.timeline_id)} for entry in view.tracking
+            {"kind": entry.kind, "timeline_id": _id(entry.timeline_id)} for entry in record.tracking
         ],
-        "order_item_id": _id(view.order_item_id),
-        "work_package_id": _id(view.work_package_id),
-        "work_breakdown_label": view.work_breakdown_label,
-        "external_id": view.external_id,
+        "order_item_id": _id(record.order_item_id),
+        "work_package_id": _id(record.work_package_id),
+        "work_breakdown_label": record.work_breakdown_label,
+        "external_id": record.external_id,
     }
 
 
@@ -431,37 +441,37 @@ def _line(view: LineView) -> dict[str, Any]:
     }
 
 
-def _facet(view: NodeView) -> dict[str, Any] | None:
-    """Write the facet of a node of another kind than the task: an estimate line's."""
-    facet = None if view.facet is None else view.facet.view
-    return _line(facet) if isinstance(facet, LineView) else None
-
-
 def read_body(body: dict[str, Any]) -> JSONResponse:
     """Give a body written of JSON values alone as the response, rendered as FastAPI renders it.
 
     A dict a route returns, FastAPI encodes again value by value (``jsonable_encoder``) before
     rendering it: for the some 6,000 nodes of a whole structure, a sixth of a second of the one
-    process of the API, for nothing — ``node_body`` writes texts, numbers, booleans, lists and
+    process of the API, for nothing — ``record_body`` writes texts, numbers, booleans, lists and
     dicts alone —, under every other request it serves meanwhile (#3048).
     """
     return JSONResponse(body)
 
 
-def node_body(view: NodeView, fields: frozenset[str] | None = None) -> dict[str, Any]:
-    """Write a node as the contract does: whole, or what ``fields`` names and the four."""
-    whole: dict[str, Any] = {
-        "node_id": str(view.node_id),
-        "lineage_id": str(view.lineage_id),
-        "kind": view.kind,
-        "parent_id": _id(view.parent_id),
-        "position": view.position,
-        "row_number": view.row_number,
-        "level": view.level,
-        "origin_risk_id": _id(view.origin_risk_id),
-        "lock_version": view.lock_version,
-        "task": None if view.task is None else _task(view.task),
-        "estimate_line": _facet(view),
+def _whole(record: NodeRecord) -> dict[str, Any]:
+    """Write a node whole as the contract does, from its record: a task, or a node of a facet."""
+    if isinstance(record, TaskRecord):
+        kind, task, line = TASK, _task(record), None
+    else:
+        view = None if record.facet is None else record.facet.view
+        kind, task = record.kind, None
+        line = _line(view) if isinstance(view, LineView) else None
+    return {
+        "node_id": str(record.node_id),
+        "lineage_id": str(record.lineage_id),
+        "kind": kind,
+        "parent_id": _id(record.parent_id),
+        "position": record.position,
+        "row_number": record.row_number,
+        "level": record.level,
+        "origin_risk_id": _id(record.origin_risk_id),
+        "lock_version": record.lock_version,
+        "task": task,
+        "estimate_line": line,
         "predecessors": [
             {
                 "predecessor_node_id": str(each.predecessor_id),
@@ -469,11 +479,16 @@ def node_body(view: NodeView, fields: frozenset[str] | None = None) -> dict[str,
                 "link_type": each.link_type,
                 "lag": {"value": _text(each.lag_value), "unit": each.lag_unit},
             }
-            for each in view.predecessors
+            for each in record.predecessors
         ],
-        "computed_fields": list(view.computed_fields),
-        "editable_fields": list(view.editable_fields),
+        "computed_fields": list(record.computed_fields),
+        "editable_fields": list(record.editable_fields),
     }
+
+
+def record_body(record: NodeRecord, fields: frozenset[str] | None = None) -> dict[str, Any]:
+    """Write a node as the contract does, from its record: whole, or what ``fields`` names."""
+    whole = _whole(record)
     if fields is None:
         return whole
     chosen = {name: whole[name] for name in ALWAYS}
@@ -485,6 +500,26 @@ def node_body(view: NodeView, fields: frozenset[str] | None = None) -> dict[str,
         elif isinstance(whole.get(facet), dict) and held in whole[facet]:
             chosen.setdefault(facet, {})[held] = whole[facet][held]
     return chosen
+
+
+def node_body(view: NodeView, fields: frozenset[str] | None = None) -> dict[str, Any]:
+    """Write a node as it is read, whole, as the contract does: as its record (``record_of``).
+
+    What a write of the tree gives back, and what a comparison reads of each side.
+    """
+    return record_body(record_of(view), fields)
+
+
+def nodes_body(read: NodeRecords, fields: frozenset[str] | None = None) -> dict[str, Any]:
+    """Write a reading of a structure (``listNodes``): its nodes, their totals, its meta."""
+    meta = NodeListMeta.model_validate(
+        {"summary_depth": read.summary_depth, "scheduled_at": read.scheduled_at}
+    )
+    return {
+        "items": [record_body(each, fields) for each in read.items],
+        "totals": totals_body(read.task_count, read.totals),
+        "meta": meta.model_dump(mode="json"),
+    }
 
 
 def totals_body(task_count: int, totals: StructureTotals | None) -> dict[str, Any]:
@@ -654,17 +689,7 @@ def get_nodes(
 ) -> JSONResponse:
     """Give the nodes of a structure retained, depth first, their totals and its meta."""
     filters, fields = asked
-    read = list_nodes(session, place, filters)
-    meta = NodeListMeta.model_validate(
-        {"summary_depth": read.summary_depth, "scheduled_at": read.scheduled_at}
-    )
-    return read_body(
-        {
-            "items": [node_body(each, fields) for each in read.items],
-            "totals": totals_body(read.task_count, read.totals),
-            "meta": meta.model_dump(mode="json"),
-        }
-    )
+    return read_body(nodes_body(list_records(session, place, filters), fields))
 
 
 @router.post(
