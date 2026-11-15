@@ -741,7 +741,7 @@ l'amorçage (WF-REF-0140, WF-EXP-0020).
 
 ## US-2130 — L'accueil, les écrans de réglage et de consultation d'un projet, et le compte, en cartes
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`, `WF-IHM-0120-A`, `WF-IHM-0090-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
 - **issue** : #3221

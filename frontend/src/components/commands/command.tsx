@@ -152,7 +152,7 @@ function UnmetRefusal({
   unmet,
 }: {
   readonly offer: CommandOffer;
-  /** The count of the presses of the command, unavailable or not. */
+  /** The presses of the command while unavailable. */
   readonly presses: number;
   /** The identifier of the conditions it lacks (`unmetId`): none when it lacks none. */
   readonly unmet: string | undefined;
@@ -167,6 +167,28 @@ function UnmetRefusal({
       <CircleAlert aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
       <p>{text(offer)}</p>
     </div>
+  );
+}
+
+/**
+ * The refusal of the presses of a command a screen draws itself, unavailable: what it lacks, said
+ * in the region of the refusals each time it is pressed (#3289). The screen counts the presses
+ * while the command is unavailable (`presses`); the refusal forgets them when the command changes.
+ */
+export function PressRefusal({
+  offer,
+  presses,
+}: {
+  readonly offer: CommandOffer;
+  readonly presses: number;
+}) {
+  return (
+    <UnmetRefusal
+      key={String(offer.is_available)}
+      offer={offer}
+      presses={presses}
+      unmet={unmetId(offer, "press")}
+    />
   );
 }
 
@@ -267,12 +289,7 @@ export function Command({
         </Button>
       </CommandTooltip>
       <HiddenUnmet id={unmet} offer={offer} />
-      <UnmetRefusal
-        key={String(offer.is_available)}
-        offer={offer}
-        presses={presses}
-        unmet={unmet}
-      />
+      <PressRefusal offer={offer} presses={presses} />
       <WritingNote id={why} writing={writing} />
       <OutcomeNotice
         outcome={outcome}

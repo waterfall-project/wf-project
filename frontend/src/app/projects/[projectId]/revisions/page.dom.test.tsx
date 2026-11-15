@@ -35,6 +35,7 @@ vi.mock("next/headers", () => ({
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const DRAFT = "01926f3a-7c00-7000-8000-000000000102";
+const IMPORT = "01926f3a-7c00-7000-8000-000000000a11";
 
 beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
@@ -108,6 +109,20 @@ describe("the screen of the revisions, rendered", () => {
     }
     const update = screen.getByRole("region", { name: "Mise à jour des taux proposée" });
     expect(within(update).getByRole("button", { name: /Appliquer/ })).toBeInTheDocument();
+    expectCommandRule(container);
+  });
+
+  it("sets the report of the import its address names in a card of a section, above the history, as the screen of the imports and exports does [WF-IHM-0100-A] #3410", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/imports/{import_id}": "import_analysed",
+    };
+    const { container } = await renderRevisions({ import: IMPORT });
+    const report = screen.getByRole("region", { name: /^Compte rendu de l’import/ });
+    expect(report).toHaveAttribute("data-slot", "section-card");
+    expect(report.className).not.toContain("rounded-md border p-3");
+    const history = screen.getByRole("region", { name: "Historique des révisions" });
+    expect(report.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expectCommandRule(container);
   });
 });

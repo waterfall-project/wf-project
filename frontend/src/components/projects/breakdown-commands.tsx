@@ -48,7 +48,7 @@ import {
 import { setWorkBreakdown } from "@/api/actions/projects";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
-import { UnmetConditions, useUnmet } from "@/components/commands/command";
+import { PressRefusal, useUnmet } from "@/components/commands/command";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
 import { OutcomeNotice, useNoteRefusal } from "@/components/commands/outcome-notice";
@@ -327,6 +327,8 @@ export function useBreakdownCommands(): RowCommands<BreakdownRow> | undefined {
   const commands = useContext(BreakdownContext);
   const on = useRowCommands();
   const id = useId();
+  // The presses of a command while the work breakdown is unavailable: each says what it lacks.
+  const [presses, setPresses] = useState(0);
   const offer = commands?.editing.offer;
   if (commands === undefined || offer === undefined) {
     return undefined;
@@ -346,7 +348,7 @@ export function useBreakdownCommands(): RowCommands<BreakdownRow> | undefined {
             label={command.name}
             help={command.help}
             unavailable={writing || offer.is_available ? undefined : unmet(offer)}
-            describedBy={why}
+            describedBy={writing ? why : undefined}
           >
             <Button
               type="button"
@@ -358,6 +360,10 @@ export function useBreakdownCommands(): RowCommands<BreakdownRow> | undefined {
               aria-busy={writing}
               className={`h-7 text-xs ${UNAVAILABLE}`}
               onClick={(event: MouseEvent<HTMLElement>) => {
+                if (!offer.is_available && !writing) {
+                  setPresses((count) => count + 1);
+                  return;
+                }
                 if (!waiting) {
                   commands.open(command.gesture, event.currentTarget);
                 }
@@ -368,7 +374,7 @@ export function useBreakdownCommands(): RowCommands<BreakdownRow> | undefined {
             </Button>
           </CommandTooltip>
         ))}
-        {writing ? null : <UnmetConditions id={why} offer={offer} />}
+        {writing ? null : <PressRefusal offer={offer} presses={presses} />}
         <WritingNote id={`${id}-writing`} writing={writing} />
       </div>
     ),

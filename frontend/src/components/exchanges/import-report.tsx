@@ -27,7 +27,8 @@ import { LocalTime } from "@/components/local-time";
 import { DiffMark } from "@/components/grid/diff-mark";
 import type { RowDifference } from "@/components/grid/columns";
 import { NODE_COLUMNS, type NodeColumn } from "@/components/grid/nodes";
-import { CELL, ICON, ListTable } from "@/components/projects/project-tables";
+import { SectionCard } from "@/components/shell/section-card";
+import { CELL, ListTable } from "@/components/projects/project-tables";
 import { TableCell, TableRow } from "@/components/ui/table";
 import type { Catalogue } from "@/i18n/catalogues";
 import { formatDecimal, formatPlanningDate } from "@/i18n/format";
@@ -437,74 +438,72 @@ export function ImportReport({ projectId, entry, start, then }: ImportReportProp
   const t = useTranslations();
   const title = t("exchanges.report.title", { file: entry.filename });
   return (
-    <section aria-label={title} className="space-y-3 rounded-md border p-3">
-      <h2 className="flex items-center gap-2 text-base font-semibold">
-        <FileSpreadsheet aria-hidden="true" className={ICON} />
-        {title}
-      </h2>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-        <dt className="text-muted-foreground">{t("exchanges.report.kind")}</dt>
-        <dd>{t(`enums.ExchangeKind.${entry.kind}`)}</dd>
-        <dt className="text-muted-foreground">{t("exchanges.report.status")}</dt>
-        <dd>{t(`enums.Import.status.${entry.status}`)}</dd>
-        <dt className="text-muted-foreground">{t("exchanges.report.openedAt")}</dt>
-        <dd>
-          <LocalTime value={entry.created_at} />
-        </dd>
-        {entry.expires_at === null ? null : (
-          <>
-            <dt className="text-muted-foreground">{t("exchanges.report.expiresAt")}</dt>
-            <dd>
-              <LocalTime value={entry.expires_at} />
-            </dd>
-          </>
-        )}
-        {entry.report?.format_version == null ? null : (
-          <>
-            <dt className="text-muted-foreground">{t("exchanges.report.formatVersion")}</dt>
-            <dd>{entry.report.format_version}</dd>
-          </>
-        )}
-      </dl>
-      {entry.status === "refused" ? (
-        <p role="note" className={MUTED}>
-          {t("exchanges.refused")}
-        </p>
-      ) : null}
-      {entry.report == null ? (
-        <p className={MUTED}>
-          {t(
-            entry.status === "analysing"
-              ? "exchanges.report.analysing"
-              : entry.status === "failed"
-                ? "exchanges.report.failed"
-                : "exchanges.report.none",
+    <SectionCard title={title} icon={FileSpreadsheet}>
+      <div className="flex min-w-0 flex-col gap-3">
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+          <dt className="text-muted-foreground">{t("exchanges.report.kind")}</dt>
+          <dd>{t(`enums.ExchangeKind.${entry.kind}`)}</dd>
+          <dt className="text-muted-foreground">{t("exchanges.report.status")}</dt>
+          <dd>{t(`enums.Import.status.${entry.status}`)}</dd>
+          <dt className="text-muted-foreground">{t("exchanges.report.openedAt")}</dt>
+          <dd>
+            <LocalTime value={entry.created_at} />
+          </dd>
+          {entry.expires_at === null ? null : (
+            <>
+              <dt className="text-muted-foreground">{t("exchanges.report.expiresAt")}</dt>
+              <dd>
+                <LocalTime value={entry.expires_at} />
+              </dd>
+            </>
           )}
-        </p>
-      ) : (
-        <Findings report={entry.report} />
-      )}
-      <DurationRule
-        key={`rule-${entry.import_id}`}
-        projectId={projectId}
-        importId={entry.import_id}
-        filename={entry.filename}
-        rule={entry.report?.calendar_gap?.duration_rule}
-        awaiting={entry.status === "analysed"}
-        task={entry.status === "analysing" ? entry.task.task_id : undefined}
-      />
-      {/* Its own commands, as the import lists them: an outcome or an open
+          {entry.report?.format_version == null ? null : (
+            <>
+              <dt className="text-muted-foreground">{t("exchanges.report.formatVersion")}</dt>
+              <dd>{entry.report.format_version}</dd>
+            </>
+          )}
+        </dl>
+        {entry.status === "refused" ? (
+          <p role="note" className={MUTED}>
+            {t("exchanges.refused")}
+          </p>
+        ) : null}
+        {entry.report == null ? (
+          <p className={MUTED}>
+            {t(
+              entry.status === "analysing"
+                ? "exchanges.report.analysing"
+                : entry.status === "failed"
+                  ? "exchanges.report.failed"
+                  : "exchanges.report.none",
+            )}
+          </p>
+        ) : (
+          <Findings report={entry.report} />
+        )}
+        <DurationRule
+          key={`rule-${entry.import_id}`}
+          projectId={projectId}
+          importId={entry.import_id}
+          filename={entry.filename}
+          rule={entry.report?.calendar_gap?.duration_rule}
+          awaiting={entry.status === "analysed"}
+          task={entry.status === "analysing" ? entry.task.task_id : undefined}
+        />
+        {/* Its own commands, as the import lists them: an outcome or an open
           confirmation stays with its import. */}
-      <ReportCommands
-        key={entry.import_id}
-        projectId={projectId}
-        importId={entry.import_id}
-        filename={entry.filename}
-        apply={findOffer(entry.available_commands, "apply")}
-        abandon={findOffer(entry.available_commands, "abandon")}
-        start={start}
-        then={then}
-      />
-    </section>
+        <ReportCommands
+          key={entry.import_id}
+          projectId={projectId}
+          importId={entry.import_id}
+          filename={entry.filename}
+          apply={findOffer(entry.available_commands, "apply")}
+          abandon={findOffer(entry.available_commands, "abandon")}
+          start={start}
+          then={then}
+        />
+      </div>
+    </SectionCard>
   );
 }

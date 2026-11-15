@@ -23,9 +23,10 @@ import { type SubmitEvent, useId, useState } from "react";
 
 import { type ExportRequest, requestFileExport } from "@/api/actions/exchanges";
 import type { Outcome } from "@/api/problem";
-import { UnmetConditions } from "@/components/commands/command";
+import { PressRefusal, useUnmet } from "@/components/commands/command";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { useHeldCommand } from "@/components/commands/held";
-import { UNAVAILABLE, unmetId } from "@/components/commands/offer";
+import { UNAVAILABLE } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { WaitingIcon, waitingAttributes } from "@/components/commands/waiting";
 import {
@@ -90,7 +91,9 @@ function OfferedExports({
   // The kind chosen while the revision still offers it; the first it offers otherwise.
   const kind = chosen !== undefined && offered.includes(chosen) ? chosen : offered[0];
   const offer = offers[kind];
-  const unmet = offer === undefined ? undefined : unmetId(offer, field);
+  const unmet = useUnmet();
+  // The presses of the request while the kind is unavailable: each says what it lacks.
+  const [presses, setPresses] = useState(0);
   const [depth, setDepth] = useState("");
   const [reviewDate, setReviewDate] = useState("");
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
@@ -107,6 +110,10 @@ function OfferedExports({
   const held = useHeldCommand();
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (offer?.is_available === false) {
+      setPresses((count) => count + 1);
+      return;
+    }
     if (waiting || offer?.is_available !== true) {
       return;
     }
@@ -192,20 +199,25 @@ function OfferedExports({
             />
           </label>
         ) : null}
-        <Button
-          type="submit"
-          size="sm"
-          variant="outline"
-          {...waitingAttributes(waiting)}
-          {...(offer?.is_available === true ? {} : { "aria-disabled": true })}
-          aria-describedby={unmet}
-          className={UNAVAILABLE}
+        <CommandTooltip
+          label={t("exchanges.export.request")}
+          help={t("commands.exportRequest.help")}
+          unavailable={offer === undefined || offer.is_available ? undefined : unmet(offer)}
         >
-          <WaitingIcon waiting={waiting} icon={<FileDown aria-hidden="true" />} />
-          {t("exchanges.export.request")}
-        </Button>
+          <Button
+            type="submit"
+            size="sm"
+            variant="outline"
+            {...waitingAttributes(waiting)}
+            {...(offer?.is_available === true ? {} : { "aria-disabled": true })}
+            className={UNAVAILABLE}
+          >
+            <WaitingIcon waiting={waiting} icon={<FileDown aria-hidden="true" />} />
+            {t("exchanges.export.request")}
+          </Button>
+        </CommandTooltip>
       </div>
-      {offer === undefined ? null : <UnmetConditions id={unmet} offer={offer} />}
+      {offer === undefined ? null : <PressRefusal offer={offer} presses={presses} />}
       <OutcomeNotice
         outcome={outcome}
         onClear={() => {

@@ -14,7 +14,8 @@ import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
 import { LocalTime } from "@/components/local-time";
-import { CELL, ICON, ListTable } from "@/components/projects/project-tables";
+import { SectionCard } from "@/components/shell/section-card";
+import { CELL, ListTable } from "@/components/projects/project-tables";
 import { TableCell, TableRow } from "@/components/ui/table";
 
 import { importHref } from "./offers";
@@ -38,51 +39,49 @@ export function ImportList({ imports, total, current, start, children }: ImportL
   const t = useTranslations();
   const title = t("exchanges.list.title");
   return (
-    <section aria-label={title} className="space-y-2">
-      <h2 className="flex items-center gap-2 text-base font-semibold">
-        <History aria-hidden="true" className={ICON} />
-        {title}
-      </h2>
-      {total === 0 ? (
-        <p className="text-sm text-muted-foreground">{t("exchanges.list.none")}</p>
-      ) : (
-        <ListTable
-          label={title}
-          columns={[
-            t("exchanges.list.file"),
-            t("exchanges.list.kind"),
-            t("exchanges.list.status"),
-            t("exchanges.list.openedAt"),
-          ]}
-        >
-          {imports.map((entry) => (
-            <TableRow key={entry.import_id}>
-              <TableCell className={CELL}>
-                <Link
-                  href={importHref(start, entry.import_id)}
-                  aria-current={entry.import_id === current ? "page" : undefined}
-                  className="font-medium underline-offset-4 hover:underline aria-[current=page]:underline"
-                >
-                  {entry.filename}
-                </Link>
-              </TableCell>
-              <TableCell className={CELL}>{t(`enums.ExchangeKind.${entry.kind}`)}</TableCell>
-              <TableCell className={CELL}>
-                {t(`enums.Import.status.${entry.status}`)}
-                {entry.status === "refused" ? (
-                  <span className="block text-xs text-muted-foreground">
-                    {t("exchanges.refused")}
-                  </span>
-                ) : null}
-              </TableCell>
-              <TableCell className={CELL}>
-                <LocalTime value={entry.created_at} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </ListTable>
-      )}
-      {children}
-    </section>
+    <SectionCard title={title} icon={History}>
+      <div className="flex min-w-0 flex-col gap-2">
+        {total === 0 ? (
+          <p className="text-sm text-muted-foreground">{t("exchanges.list.none")}</p>
+        ) : (
+          <ListTable
+            label={title}
+            columns={[
+              t("exchanges.list.file"),
+              t("exchanges.list.kind"),
+              t("exchanges.list.status"),
+              t("exchanges.list.openedAt"),
+            ]}
+          >
+            {imports.map((entry) => (
+              <TableRow key={entry.import_id}>
+                <TableCell className={CELL}>
+                  <Link
+                    href={importHref(start, entry.import_id)}
+                    aria-current={entry.import_id === current ? "page" : undefined}
+                    className="font-medium underline-offset-4 hover:underline aria-[current=page]:underline"
+                  >
+                    {entry.filename}
+                  </Link>
+                </TableCell>
+                <TableCell className={CELL}>{t(`enums.ExchangeKind.${entry.kind}`)}</TableCell>
+                <TableCell className={CELL}>
+                  {t(`enums.Import.status.${entry.status}`)}
+                  {entry.status === "refused" ? (
+                    <span className="block text-xs text-muted-foreground">
+                      {t("exchanges.refused")}
+                    </span>
+                  ) : null}
+                </TableCell>
+                <TableCell className={CELL}>
+                  <LocalTime value={entry.created_at} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </ListTable>
+        )}
+        {children}
+      </div>
+    </SectionCard>
   );
 }
