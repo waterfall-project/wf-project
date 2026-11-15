@@ -608,7 +608,7 @@ soient corrigés, **afin que** l'EPIC ne laisse pas derrière lui la dette qu'il
 
 ## US-2270 — La lecture d'une structure marquée est calculée une fois et gardée
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre — le gain se lit dans le rapport de WF-QUA-0060 (US-2300)
 - **opérations** : `listNodes`, `compareRevisions`, `markRevision`
 - **issue** : #3320

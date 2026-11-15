@@ -170,6 +170,9 @@ def test_a_node_its_facet_does_not_read_names_no_field(
         reading = reading_of(session, place, tree, (facts.scheduled_at, facts.is_main))
         line = next(each for each in tree.order if each not in tree.tasks)
         (record,) = reading.records([line])
+        # The node is among no facet read, ``records`` included (#3436): its record is then the
+        # case of the facet missing, not one whose facet the test only left unread.
+        assert reading.node(line).facet is None
     assert isinstance(record, FacetRecord)
     assert record.computed_fields == ()
     assert record.editable_fields == ()
@@ -251,8 +254,9 @@ def alone_as_whole(session: Session, place: Place, filters: NodeFilters) -> None
 def test_a_reading_that_asks_of_the_lines_is_read_whole(
     witness: Database, filters: NodeFilters
 ) -> None:
-    # A reading that returns the lines, or filters them, is none of the tasks alone: it reads
-    # them whole, and answers what the whole reading answers.
+    # A reading that returns the lines, or filters them, is none of the tasks alone: it is read
+    # whole, by the reading of the rows the whole reading takes; the one that returns the lines
+    # answers besides what the whole reading answers.
     with witness.transaction() as session:
         place = Place(PRJ_001, REVISION_102, structure_of(session, REVISION_102))
         read, _, _ = retained_reading(session, place, filters)
@@ -323,7 +327,7 @@ def second_kind(task_id: UUID, calendar: UUID, *, own: bool, held_open: bool) ->
 SECOND = Amounts(Decimal(1), Decimal("2.00"), Decimal("3.00"), Decimal("4.00"))
 
 
-@pytest.mark.parametrize("flags", [(False, False), (True, True)])
+@pytest.mark.parametrize("flags", [(False, False), (True, False), (False, True), (True, True)])
 def test_the_tallies_of_several_kinds_under_a_task_are_added(
     witness: Database, flags: tuple[bool, bool]
 ) -> None:
