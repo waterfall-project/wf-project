@@ -587,6 +587,34 @@ services:
       timeout: 3s
       retries: 90
 
+  # The load of fifty users under which the report of a version is taken (US-2300, EP-26): k6, which
+  # annex C names for the tests of load, at the version and the digest pinned, playing the scenario
+  # of the front (frontend/bench/load.ts, its draw and its requests beside it), whose types it strips.
+  # Its users speak to the API and renew their tokens at Keycloak on the back channel, inside the
+  # network of the platform, as the server of Next does; their accounts, their tokens and their tasks
+  # are in the file the measure prepares (frontend/.e2e/load/, ignored by git), where k6 writes its
+  # summary once stopped. Started and stopped by `make measure-version` alone, by its measure
+  # (frontend/e2e/measure/load-users.ts), in a container of its own; as the user that owns the file,
+  # which holds tokens and only its owner reads.
+  load:
+    profiles: [load]
+    image: ${WATERFALL_MIRROR:-}grafana/k6:2.4.0@sha256:d41bb79cd8de5a7ad619b53570e3712633e8bff0937010a5c6c57a4747e7a276
+    command: ["run", "--quiet", "--no-color", "/bench/load.ts"]
+    user: "1000:1000"
+    environment:
+      WATERFALL_LOAD_FILE: /load/load.json
+      WATERFALL_LOAD_API: http://api:8000/api/v1
+      WATERFALL_LOAD_KEYCLOAK: http://keycloak:8080/auth
+      WATERFALL_FRONT_CLIENT_SECRET: ${WATERFALL_FRONT_CLIENT_SECRET:?export WATERFALL_FRONT_CLIENT_SECRET}
+    volumes:
+      - ../../frontend/bench:/bench:ro
+      - ../../frontend/.e2e/load:/load
+    depends_on:
+      api:
+        condition: service_healthy
+    # The time k6 is given, once asked to stop, to end its users and write its summary.
+    stop_grace_period: 60s
+
 volumes:
   postgres-data:
   storage-data:

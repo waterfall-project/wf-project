@@ -64,6 +64,9 @@
  * other projects leave `e2e/measure/` aside. It plays against the API `WATERFALL_API_ADDRESS` names
  * directly, with no proxy of the contract, on one front built for production that listens on every
  * interface, as against the service, and holds its connections to the API as the users' front does.
+ * `measure-version` plays the report of a version so, under the load of fifty users (`make
+ * measure-version`, US-2300), in its project of the same name: its file alone,
+ * `e2e/measure/version.measure.ts`.
  */
 import { randomBytes } from "node:crypto";
 import { availableParallelism } from "node:os";
@@ -188,7 +191,7 @@ const FRONT_ENV = {
 // What the front of the measure against the service is told: the users' front, whose connections
 // to the API are kept alive, as in production — no proxy closes them there (US-2210).
 const USERS_FRONT_ENV = { WATERFALL_API_ADDRESS: API, ...AUTHENTICATION };
-const PARTS = ["paths", "measure", "service", "measure-service"] as const;
+const PARTS = ["paths", "measure", "service", "measure-service", "measure-version"] as const;
 type Part = (typeof PARTS)[number];
 
 /** The part of the harness the environment names, or the whole of it; anything else refused. */
@@ -206,10 +209,12 @@ function part(): Part | undefined {
 
 const PART = part();
 const PLAYS_SERVICE = PART === "service";
-// The measure of the journey of the grids against the service (`make measure`, US-2210).
-const MEASURES_SERVICE = PART === "measure-service";
+// The measure of the journey of the grids against the service (`make measure`, US-2210), and the
+// report of a version under the load of fifty users (`make measure-version`, US-2300): the same
+// harness, each its file.
+const MEASURES_SERVICE = PART === "measure-service" || PART === "measure-version";
 if (MEASURES_SERVICE && NAMED_API === undefined) {
-  throw new Error("E2E_PART=measure-service measures against the API WATERFALL_API_ADDRESS names");
+  throw new Error(`E2E_PART=${PART} measures against the API WATERFALL_API_ADDRESS names`);
 }
 const PLAYS_PATHS = PART === undefined || PART === "paths";
 // The measure never plays against the development server: the whole harness asked of it leaves the
@@ -433,7 +438,8 @@ function fronts(): WebServer[] {
 }
 
 /**
- * The measure of the journey of the grids against the service, alone (`make measure`, US-2210): one
+ * The measure of the journey of the grids against the service, alone (`make measure`, US-2210), or
+ * the report of a version (`make measure-version`, US-2300), each in its project, of its file: one
  * worker, which plays every user of the measure in a browser context of its own, and no trace.
  */
 function serviceMeasureProjects(): Project[] {
@@ -442,8 +448,11 @@ function serviceMeasureProjects(): Project[] {
   }
   return [
     {
-      name: "measure-service",
-      testMatch: /e2e\/measure\/.+\.measure\.ts$/,
+      name: PART,
+      testMatch:
+        PART === "measure-version"
+          ? /e2e\/measure\/version\.measure\.ts$/
+          : /e2e\/measure\/grids\.measure\.ts$/,
       workers: 1,
       use: {
         ...devices["Desktop Chrome"],

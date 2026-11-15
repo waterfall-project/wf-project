@@ -793,6 +793,45 @@ measure: install-front $(call e2e-build) ## Measure the journey of the grids aga
 		export E2E_INSTALLATION_LINK E2E_SERVICE_API WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
 		$(PNPM_HEAVY) exec playwright test
 
+# The report of the measures of a version (US-2300, frontend/e2e/measure/version.measure.ts): on a
+# platform whose data are dropped and whose witness is loaded afresh, started as for make measure,
+# the browser measures each operation of table 15 the service serves under the load of fifty users
+# that k6 plays in its service of the platform (frontend/bench/load.ts), then the background tasks:
+# the export of the planning, the import of eighteen thousand lines of actual costs, the marking.
+# The measure takes the workstation for itself alone ($(exclusive)), and the report, in the form
+# make check-measures confronts, is written where MEASURE_VERSION_REPORT says — never under
+# docs/measures/ by itself. The container of the load is stopped whatever the measure ends on.
+MEASURE_VERSION ?= $(shell sed -n 's/^  "version": "\([^"]*\)".*/\1/p' $(FRONT)/package.json)
+MEASURE_VERSION_REPORT ?= $(FRONT)/.e2e/measures/$(MEASURE_VERSION).json
+MEASURE_TASK_PASSES ?= 3
+.PHONY: measure-version
+$(call slot-export,measure-version,$(SLOT_SERVICE) $(SLOT_PATHS))
+measure-version: export WATERFALL_FRONT_ADDRESS = http://127.0.0.1:$(E2E_FRONT_PORT)
+measure-version: export WATERFALL_FRONT_BACKCHANNEL = http://host.docker.internal:$(E2E_FRONT_PORT)
+measure-version: export E2E_PART = measure-version
+measure-version: export E2E_BUILT = 1
+measure-version: export WATERFALL_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
+measure-version: export E2E_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
+measure-version: export E2E_MEASURE_PASSES = $(MEASURE_PASSES)
+measure-version: export E2E_MEASURE_TASK_PASSES = $(MEASURE_TASK_PASSES)
+measure-version: export E2E_MEASURE_VERSION = $(MEASURE_VERSION)
+measure-version: export E2E_MEASURE_VERSION_REPORT = $(abspath $(MEASURE_VERSION_REPORT))
+measure-version: export PRISM_VERSION := $(PRISM_VERSION)
+measure-version: install-front $(call e2e-build) ## The report of the measures of a version (US-2300): on the witness loaded afresh, each operation of table 15 the service serves, measured by a browser under the load of fifty users played by k6, then the export, the import of 18,000 lines of actual costs and the marking, read at their tasks; takes the workstation alone; MEASURE_VERSION (that of frontend/package.json), MEASURE_PASSES=5, MEASURE_TASK_PASSES=3, MEASURE_VERSION_REPORT=<file> (frontend/.e2e/measures/<version>.json); needs the secrets of service-up and a browser
+	@$(MAKE) --no-print-directory service-down WATERFALL_RESET_DATA=yes
+	@$(MAKE) --no-print-directory service-up
+	@$(COMPOSE_SERVICE) build --quiet install witness
+	@$(COMPOSE_SERVICE) --profile load pull --quiet load
+	@E2E_INSTALLATION_LINK=$$($(COMPOSE_SERVICE) run --rm --no-TTY install) && \
+		$(COMPOSE_SERVICE) run --rm --no-TTY witness && \
+		WATERFALL_API_ADDRESS=http://127.0.0.1:$${WATERFALL_API_PORT:-8000} && \
+		WATERFALL_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) && \
+		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 && \
+		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
+		export E2E_INSTALLATION_LINK WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
+		{ ( cd $(FRONT) && $(exclusive) $(PNPM_ENV) pnpm exec playwright test ); status=$$?; \
+		docker stop --time 60 $(WATERFALL_SERVICE_PROJECT)-load > /dev/null 2>&1; exit $$status; }
+
 # The slot of the worktree, among the N of WATERFALL_SLOTS, in the register of the workstation
 # ($XDG_RUNTIME_DIR/waterfall-slots, /tmp/waterfall-slots without it), whatever the repository.
 slot: ## Take a slot of 1 to N for this worktree of a lot — its ports and its names —, or say the one it holds; fails, naming the holders, when all are taken

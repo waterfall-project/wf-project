@@ -22,7 +22,7 @@ type Schemas = components["schemas"];
 type Headers = Readonly<Record<string, string>>;
 
 /** The headers of an extraction, as the mapping of the installation declares them (WF-REF-0190). */
-const HEADERS = [
+export const HEADERS = [
   "Elément d'OTP",
   "Nº pièce référence",
   "Poste",

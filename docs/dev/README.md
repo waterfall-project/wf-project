@@ -3147,16 +3147,66 @@ overrun makes nothing fail (README of the roadmap, section « Lots »).
 `make check-measures` confronts the measure reports of the versions (`docs/measures/<version>.json`,
 WF-QUA-0060-A): the chain does not measure, the durations of a runner varying from simple to double,
 it reads what a workstation measured and the repository versions. A report names each of the eleven
-operations of table 15 with its objective, its median, its worst duration, its dispersion (the sample
-standard deviation, n - 1, of the identical passes, in seconds; only the median is confronted) and, if
-it exceeds its objective or degrades, a `note` that documents it; an operation the service does not yet
-serve carries `unserved`, the epic that will measure it, and no duration. The command compares the two
-last reports (`reference.json`, taken before any correction, is not one) and prints, for each served
-operation, its median and the previous version's, read in the previous report and not copied: an
-objective exceeded, a median more than a quarter above the previous version's or an operation served
-by the previous report and no longer by the latest is a warning of the chain (`::warning::`), and a
-failure when the report does not document it. Without a previous report only the objectives count;
-without any report it passes. Family `measures` of the chain, in `make check-all`.
+operations of table 15 with its objective, its median, its worst duration, its dispersion (the
+sample standard deviation, n - 1, of the identical passes, in seconds; only the median is
+confronted) and, if it exceeds its objective or degrades, a `note` that documents it; an operation
+the service does not yet serve carries `unserved`, the epic that will measure it, and no duration.
+The command compares the two last reports (`reference.json`, taken before any correction, is not
+one) and prints, for each served operation, its median and the previous version's, read in the
+previous report and not copied: an objective exceeded, a median more than a quarter above the
+previous version's or an operation served by the previous report and no longer by the latest is a
+warning of the chain (`::warning::`), and a failure when the report does not document it. Without a
+previous report only the objectives count; without any report it passes. Family `measures` of the
+chain, in `make check-all`.
+
+`make measure-version` takes the measure report of a version (US-2300,
+`frontend/e2e/measure/version.measure.ts`), on a workstation, the workstation for itself alone
+(`$(exclusive)`, "The workstation for a measure alone"): it drops the data of the service platform
+of the slot (`make service-down WATERFALL_RESET_DATA=yes`), starts it, bootstraps it and loads the
+witness as `make measure` does, then measures on PRJ-001, under the load of fifty users, each screen
+operation of table 15 the service serves. The preparation, outside the measure, makes fifty-one
+accounts through the operations of the contract (`accounts.ts`) — fifty for the load, one for the
+browser —, registers them on PRJ-001, takes the tokens of the users of the load from the identity
+provider, by the flow of the front (`frontTokens`), and chooses the task each writes — in automatic
+mode, not started, neither a summary nor a milestone, spread over the second half of the planning,
+away from the browser's —; it writes all of it in `frontend/.e2e/load/load.json`, readable by its
+owner alone, deleted once the load is stopped. The load is k6, in the service `load` of the platform
+(profile `load`, image pinned by its digest), which plays `frontend/bench/load.ts`: a TypeScript
+file of the front, typed and analysed with it (`@types/k6`), whose draw (`bench/draw.ts`) and
+requests (`bench/screens.ts`) have their unit tests. Each virtual user makes a gesture every ten
+seconds on average, after a pause drawn between five and fifteen, and one entry in each run of ten
+gestures, at a place drawn: nine readings for one entry, exactly; the draw starts from a fixed seed
+and the number of the user, the same from one measure to the next. A reading asks the API what
+carries a screen of the journey of the grids — the structures and the nodes of the grid of the
+planning, of the estimate or of the remaining to commit, with the fields, the kinds and the default
+filters its page asks (the test holds them to `nodeFieldNames`), the estimate filtered by a lot,
+sorted, searched, the workload —; an entry writes the label of its task, or a duration that redates
+it, at the counter read, taken from the `412` refusal when another entry made it stale. The requests
+the server of Next makes beside them for each screen (session, project, navigation) are not
+replayed. k6 speaks to the API and renews each token by its refresh token, a minute before it
+expires, on the back channel of Keycloak, inside the network of the platform. Under this load, the
+browser plays the journey of the grids of `make measure` (`steps.ts`), then opens the workload by
+the navigation (`workload.ts`, usable once its section is hydrated and its chart drawn, its top
+within the window), one pass unmeasured then `MEASURE_PASSES` (five); then, `MEASURE_TASK_PASSES`
+times (three), the export of the planning, the analysis and the application of an import of eighteen
+thousand lines of actual costs, with documents of each pass's own, and the marking of the current
+revision, opened again (`createRevision`, outside the measure) before each pass after the first,
+each read at its background task (`getBackgroundTask`), from its submission to its end. The marking
+comes last: it freezes the revision the load writes, whose entries are refused from then on. The
+report (`frontend/e2e/measure/version.ts`) has the form `make check-measures` confronts, with
+`taken_at` and `conditions` besides, the summary of the load among them (gestures, refusals);
+opening a grid gathers the four openings of the journey, filtering, sorting or searching the three
+gestures on the estimate, recomputing the duration entered (the label recomputes nothing); the
+median and the worst duration are those of every measure, the dispersion the standard deviation (n -
+1) of the medians of the passes. It is written in `MEASURE_VERSION_REPORT`
+(`frontend/.e2e/measures/<version>.json`, the version of `frontend/package.json` unless
+`MEASURE_VERSION`), never by itself under `docs/measures/`, where the lot of the version versions
+it, with the `note` of its overruns. The measure fails on no duration: only on an account it cannot
+make, a step the browser does not reach the end of, a background task that fails, a load without a
+summary or one of whose users was refused for want of a token. The container of the load stops
+whatever the measure ends on. The same secrets as `make service-up`, and the browser of `make
+e2e-browsers`; the Playwright project `measure-version`, which `E2E_PART=measure-version` sets, is
+played by no goal of the chain.
 
 `make tracking ISSUE=<n>` changes one line of the tracking table in the body of the epic's issue,
 through `gh`, and touches nothing else: `LOT=<identifier>` (`US-1080` for a story of one lot,
