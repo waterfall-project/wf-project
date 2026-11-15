@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.planning.calendars import Applicable
-    from waterfall.core.planning.interface.facets import FacetColumns, FacetRead
+    from waterfall.core.planning.interface.facets import FacetColumns, FacetRead, Tally
     from waterfall.core.planning.tables import Node, Task
     from waterfall.core.planning.tree import LinkColumns, NodeColumns, TaskColumns, Tree
 
@@ -453,18 +453,27 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
             if below:
                 self.summaries.add(node_id)
                 states = [self.states[child] for child in below]
-                self.states[node_id] = _derived(states, own_lines(tree, node_id))
+                self.states[node_id] = _derived(states, self._own_lines(node_id))
                 if awaits(tree, node_id, states):
                     self.awaiting.add(node_id)
             else:
                 task = tree.tasks[node_id]
                 self.states[node_id] = State(task.progress, task.started_on, task.completed_on)
-            total = Amounts()
-            for each in tree.lines(node_id):
-                total += self.figures.get(each, Amounts())
+            total = self._lines_total(node_id)
             for each in below:
                 total += self.sums[each]
             self.sums[node_id] = total
+
+    def _own_lines(self, node_id: UUID) -> tuple[bool, date | None]:
+        """Tell what the own lines of a summary tell its state (``own_lines``)."""
+        return own_lines(self.tree, node_id)
+
+    def _lines_total(self, node_id: UUID) -> Amounts:
+        """Give the sum of the figures of the lines a task bears, read once (``figures``)."""
+        total = Amounts()
+        for each in self.tree.lines(node_id):
+            total += self.figures.get(each, Amounts())
+        return total
 
     def bearer(self, task_id: UUID) -> BearingTask:
         """Give a task as the facet of a node it bears is told of it."""
@@ -769,3 +778,48 @@ class RowsReading(Reading[NodeRow, TaskRow]):
     """
 
     read_only = True
+
+
+class TasksReading(RowsReading):
+    """What a reading of the tasks alone derives, none of the nodes they bear read (US-2280).
+
+    ``listNodes`` with ``kinds=task``: the tree holds the tasks alone, numbered from how many nodes
+    each bears (``numbered``); what the reading derives of their lines — the sums, whether an own
+    line holds a summary open or dated its completion — comes from what the hooks of each kind
+    count under each task (``Tally``, ``FacetHooks.tally``; EP-26, "L'agrégat d'abord").
+    """
+
+    def __init__(
+        self,
+        session: Session,
+        structure: tuple[UUID, datetime, bool],
+        read: tuple[Tree[NodeRow, TaskRow], Sequence[LinkColumns], Mapping[UUID, Tally]],
+        calendars: dict[UUID, Applicable],
+    ) -> None:
+        """Derive the states and the sums of the tasks from the tallies of what they bear."""
+        tree, links, tallies = read
+        self.tallies = tallies
+        super().__init__(session, structure, tree, links, calendars)
+
+    def _own_lines(self, node_id: UUID) -> tuple[bool, date | None]:
+        """Tell what the own lines of a summary tell its state, from its tallies."""
+        tally = self.tallies.get(node_id)
+        task = self.tree.tasks[node_id]
+        own = tally is not None and tally.own
+        closed = task.completed_on if own and task.progress == COMPLETED else None
+        return node_id in self.tree.held, closed
+
+    def _lines_total(self, node_id: UUID) -> Amounts:
+        """Give the sum of the figures of the lines a task bears, as its tallies counted them."""
+        tally = self.tallies.get(node_id)
+        return Amounts() if tally is None else Amounts() + tally.amounts
+
+    def borne(self, task_ids: Collection[UUID]) -> tuple[int, Amounts]:
+        """Give how many nodes the tasks named bear, and the sum of their figures."""
+        count, total = 0, Amounts()
+        for each in task_ids:
+            tally = self.tallies.get(each)
+            if tally is not None:
+                count += tally.count
+                total += tally.amounts
+        return count, total

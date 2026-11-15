@@ -46,7 +46,7 @@ from waterfall.core.planning.entries import (
 )
 from waterfall.core.planning.interface.facets import calendar_of, facets
 from waterfall.core.planning.interface.lines import create_line_node
-from waterfall.core.planning.reading import retained_reading
+from waterfall.core.planning.reading import retained_reading, structure_totals
 from waterfall.core.planning.scheduling import Move, WorkInstant
 from waterfall.core.planning.shaping import (
     Placing,
@@ -335,7 +335,7 @@ def list_nodes(session: Session, place: Place, filters: NodeFilters) -> NodeList
         found.task_count,
         reading.summary_depth(),
         scheduled_at,
-        StructureTotals(len(found.lines), reading.totals(found.lines)),
+        structure_totals(reading, found),
     )
 
 
