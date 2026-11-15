@@ -14,7 +14,7 @@ A search or a filter keeps nodes, and the tree shows them with their ancestors.
 
 These commands are offered only to whoever may modify the resource settings:
 
-- **New node** opens the form: code, unique, label, and **Parent** — **None — root** for a root. A node takes its place only under an active node.
+- **New node**, a filled button at the right of the title of the tree card, opens the form: code, unique, label, and **Parent** — **None — root** for a root. A node takes its place only under an active node.
 - **Modify**, on a row, opens the same form on the node. Moved under another parent, it takes its descendants and its roles with it; never under itself nor under one of its descendants. Its deactivated parent is kept.
 - **Deactivate** and **Reactivate**, in the column **State**, without confirmation. The reactivation of a node whose parent is deactivated is unavailable (“parent node active”): the command stays shown and says the condition it lacks.
 

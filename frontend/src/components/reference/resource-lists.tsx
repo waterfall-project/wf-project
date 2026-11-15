@@ -73,7 +73,7 @@ import {
   type ResourceRole,
   type ResourceRoleSort,
 } from "./resource-grids";
-import { ListBody, ReferenceSection } from "./section";
+import { ListBody, ReferenceCard } from "./section";
 import { DurationUnitFigures } from "./setting-tables";
 import { DurationUnitSettings } from "./settings-forms";
 
@@ -189,10 +189,14 @@ export function OrgNodeList({
   );
   return (
     <CommandedList kind="org_node">
-      <ReferenceSection
+      <ReferenceCard
         title={t("orgNodes.title")}
         icon={Network}
-        commands={editable ? <CreateCommand label={t("orgNodes.create")} /> : undefined}
+        creation={
+          editable
+            ? (variant) => <CreateCommand label={t("orgNodes.create")} variant={variant} />
+            : undefined
+        }
       >
         <ListBody
           empty={
@@ -223,7 +227,7 @@ export function OrgNodeList({
             />
           }
         />
-      </ReferenceSection>
+      </ReferenceCard>
     </CommandedList>
   );
 }
@@ -368,13 +372,13 @@ export function ResourceRoleList({
   );
   return (
     <CommandedList kind="resource_role">
-      <ReferenceSection
+      <ReferenceCard
         title={title}
         icon={Users}
-        commands={
-          editable && labour !== undefined ? (
-            <CreateCommand label={t("resourceRoles.create")} />
-          ) : undefined
+        creation={
+          editable && labour !== undefined
+            ? (variant) => <CreateCommand label={t("resourceRoles.create")} variant={variant} />
+            : undefined
         }
       >
         <ListBody
@@ -419,7 +423,7 @@ export function ResourceRoleList({
             />
           }
         />
-      </ReferenceSection>
+      </ReferenceCard>
     </CommandedList>
   );
 }
@@ -461,10 +465,14 @@ export function CalendarList({
     ) : undefined;
   return (
     <CommandedList kind="calendar">
-      <ReferenceSection
+      <ReferenceCard
         title={title}
         icon={CalendarDays}
-        commands={editable ? <CreateCommand label={t("calendars.create")} /> : undefined}
+        creation={
+          editable
+            ? (variant) => <CreateCommand label={t("calendars.create")} variant={variant} />
+            : undefined
+        }
       >
         <ListBody
           empty={page.total === 0 && !narrowed ? t("calendars.none") : undefined}
@@ -501,7 +509,7 @@ export function CalendarList({
             />
           }
         />
-      </ReferenceSection>
+      </ReferenceCard>
     </CommandedList>
   );
 }
@@ -520,9 +528,11 @@ export function DurationUnitFacts({
   readonly editable: boolean;
 }) {
   const t = useTranslations("reference.durationUnits");
-  return (
-    <ReferenceSection title={t("title")} icon={Timer}>
-      {editable ? <DurationUnitSettings units={units} /> : <DurationUnitFigures units={units} />}
-    </ReferenceSection>
+  return editable ? (
+    <DurationUnitSettings units={units} />
+  ) : (
+    <ReferenceCard title={t("title")} icon={Timer}>
+      <DurationUnitFigures units={units} />
+    </ReferenceCard>
   );
 }
