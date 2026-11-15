@@ -260,8 +260,8 @@ US-2270 le garde pour une révision marquée.
 
 ### Plusieurs processus
 
-- **`workers` d'uvicorn.** `WATERFALL_API_PROCESSES`, un par défaut : les tests et le poste de
-  développement ne changent pas. L'application se construit par une fabrique, une fois par
+- **`workers` d'uvicorn.** `WATERFALL_API_PROCESSES` : la plateforme de service tourne désormais sur quatre
+  processus, le back de développement et ses tests restent à un. L'application se construit par une fabrique, une fois par
   processus, qui ouvre et ferme ses propres services — la base, Keycloak, Redis.
 - **Le nombre.** La mesure à un, deux et quatre processus fixe celui de la plateforme de service
   et celui que `production.env.example` conseille : autant que de cœurs, tant que la mémoire et
@@ -378,7 +378,7 @@ Prises par l'auteur le 2026-11-14, au cadrage, sauf mention.
 
 ## US-2210 — La mesure de référence des grilles : dans le processus, puis du clic à l'affichage contre le service, à un, quatre et huit utilisateurs
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre — l'outil de WF-QUA-0060, que clôt US-2300
 - **opérations** : `listNodes`, `updateTaskFacet`, `updateEstimateLine`, `createRevision`, `getMe`
 - **issue** : #3304
@@ -426,7 +426,7 @@ comparaison (EP-27).
 
 ## US-2220 — Une structure se lit en colonnes, sans objet ORM ni vue intermédiaire par nœud
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre — le gain se lit dans le rapport de WF-QUA-0060 (US-2300)
 - **opérations** : `listNodes`, `compareRevisions`
 - **issue** : #3315
@@ -461,7 +461,7 @@ révision marquée (US-2270).
 
 ## US-2230 — L'API tourne sur plusieurs processus
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-ARC-0080-A`
 - **opérations** : toutes celles que le service sert ; `getMe` pour la mesure
 - **issue** : #3309
@@ -500,7 +500,7 @@ lectures simultanées durent chacune six fois une lecture seule.
 
 ## US-2240 — Ouvrir une révision d'un projet de mille tâches en deux secondes, sans que le front la dise injoignable
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-REV-0010-A`
 - **opérations** : `createRevision`, `listRevisions`
 - **issue** : #3312
@@ -710,7 +710,7 @@ une lecture lente.
 
 ## US-2300 — Le rapport de mesures d'une version : chaque opération du tableau 15, à cinquante utilisateurs, comparée à la version précédente
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-QUA-0060-A`
 - **opérations** : `listNodes`, `updateTaskFacet`, `updateEstimateLine`, `getProjectWorkload`,
   `markRevision`, `openImport`, `applyImport`, `requestExport`, `getBackgroundTask`

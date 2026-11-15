@@ -57,6 +57,16 @@
  * the restoration, after the installation, without `service` and `shared`, which the other parts
  * play on theirs and which they then no longer wait for. Those parts play a test list of `service`
  * and `shared` alone (`wftools.e2eparts`).
+ *
+ * `measure-service` plays the measure of the journey of the grids against the service alone
+ * (`make measure`, US-2210), in its project of the same name, which no other part and no goal of
+ * the chain plays: its file, `e2e/measure/grids.measure.ts`, is no path (`*.measure.ts`), and the
+ * other projects leave `e2e/measure/` aside. It plays against the API `WATERFALL_API_ADDRESS` names
+ * directly, with no proxy of the contract, on one front built for production that listens on every
+ * interface, as against the service, and holds its connections to the API as the users' front does.
+ * `measure-version` plays the report of a version so, under the load of fifty users (`make
+ * measure-version`, US-2300), in its project of the same name: its file alone,
+ * `e2e/measure/version.measure.ts`.
  */
 import { randomBytes } from "node:crypto";
 import { availableParallelism } from "node:os";
@@ -178,7 +188,10 @@ const FRONT_ENV = {
   WATERFALL_E2E: "1",
   ...AUTHENTICATION,
 };
-const PARTS = ["paths", "measure", "service"] as const;
+// What the front of the measure against the service is told: the users' front, whose connections
+// to the API are kept alive, as in production — no proxy closes them there (US-2210).
+const USERS_FRONT_ENV = { WATERFALL_API_ADDRESS: API, ...AUTHENTICATION };
+const PARTS = ["paths", "measure", "service", "measure-service", "measure-version"] as const;
 type Part = (typeof PARTS)[number];
 
 /** The part of the harness the environment names, or the whole of it; anything else refused. */
@@ -196,10 +209,17 @@ function part(): Part | undefined {
 
 const PART = part();
 const PLAYS_SERVICE = PART === "service";
+// The measure of the journey of the grids against the service (`make measure`, US-2210), and the
+// report of a version under the load of fifty users (`make measure-version`, US-2300): the same
+// harness, each its file.
+const MEASURES_SERVICE = PART === "measure-service" || PART === "measure-version";
+if (MEASURES_SERVICE && NAMED_API === undefined) {
+  throw new Error(`E2E_PART=${PART} measures against the API WATERFALL_API_ADDRESS names`);
+}
 const PLAYS_PATHS = PART === undefined || PART === "paths";
 // The measure never plays against the development server: the whole harness asked of it leaves the
 // measure out, and the measure asked alone plays against the built front.
-const DEVELOPMENT = DEVELOPMENT_ASKED && PART !== "measure";
+const DEVELOPMENT = DEVELOPMENT_ASKED && PART !== "measure" && !MEASURES_SERVICE;
 const PLAYS_MEASURE = (PART === undefined && !DEVELOPMENT) || PART === "measure";
 if (PLAYS_SERVICE && NAMED_API === undefined) {
   throw new Error("E2E_PART=service plays against the service WATERFALL_API_ADDRESS names");
@@ -226,6 +246,8 @@ const FRONT = frontAt(Number(process.env.TEST_PARALLEL_INDEX ?? "0") % FRONTS);
 // From the root of the repository, where `make -C ..` runs; ignored by git.
 const MOCK_SPEC = "frontend/.e2e/waterfall.mock.json";
 const MEASURES = /(opening|departure)\.spec\.ts$/;
+// The measure against the service and the unit tests of its arithmetic, which no path project plays.
+const SERVICE_MEASURE = /e2e\/measure\//;
 // The paths against the real service, which need its platform: `make e2e-service` alone plays them.
 const SERVICE_PATHS = /e2e\/service\/.+\.spec\.ts$/;
 // The paths that change a setting of the realm for the time they run — a lifetime —, which every
@@ -247,6 +269,12 @@ const PLATFORM_WIDE = /@platform-wide/;
 // by a worker, which loads this file again.
 if (PLAYS_SERVICE) {
   process.env.E2E_SERVICE_STARTED ??= lastLogged();
+}
+
+// Where the fake back is, for the measure that asks it directly (`opening.spec.ts`); kept by a
+// worker, which loads this file again.
+if (NAMED_API === undefined) {
+  process.env.E2E_FAKE_BACK ??= API;
 }
 
 /** The fake back, started on the port of the harness — unless the environment names an API. */
@@ -274,7 +302,7 @@ function pathProjects(): Project[] {
   return [
     {
       name: "chromium",
-      testIgnore: [MEASURES, SERVICE_PATHS],
+      testIgnore: [MEASURES, SERVICE_PATHS, SERVICE_MEASURE],
       use: { ...devices["Desktop Chrome"], locale: "fr-FR" },
     },
   ];
@@ -314,7 +342,7 @@ function serviceProjects(): Project[] {
       // (`e2e/mode.ts`): chosen by their tag in any file, the measure's and `e2e/service/`'s
       // left out (`service` plays those), beside the paths.
       name: "shared",
-      testIgnore: [MEASURES, SERVICE_PATHS],
+      testIgnore: [MEASURES, SERVICE_PATHS, SERVICE_MEASURE],
       grep: SHARED,
       grepInvert: [SERIAL],
       dependencies: ["installation"],
@@ -324,7 +352,7 @@ function serviceProjects(): Project[] {
       // The shared paths that write an object unique to the installation: one at a time, once the
       // others are done, so that no worker reads it as it changes (US-1330).
       name: "shared-serial",
-      testIgnore: [MEASURES, SERVICE_PATHS],
+      testIgnore: [MEASURES, SERVICE_PATHS, SERVICE_MEASURE],
       grep: SERIAL,
       // Waits for `shared` alone, not for `service`: the graph the full part has always drawn.
       dependencies: ["installation", ...beside("shared")],
@@ -392,7 +420,7 @@ function fronts(): WebServer[] {
   return Array.from({ length: FRONTS }, (_, index) => {
     // Against the service, on every interface: Keycloak posts to the back channel of the front
     // from its container, through the address of the workstation (`host.docker.internal`).
-    const listening = `--hostname ${PLAYS_SERVICE ? "0.0.0.0" : "127.0.0.1"} --port ${String(FRONT_PORT + index)}`;
+    const listening = `--hostname ${PLAYS_SERVICE || MEASURES_SERVICE ? "0.0.0.0" : "127.0.0.1"} --port ${String(FRONT_PORT + index)}`;
     // Built as `make build-front` builds it: with no API to reach, which the address of the API
     // given to the server is not while it builds (#131). The build writes `.next`, the development
     // server `.next/dev`: the two live side by side.
@@ -400,13 +428,44 @@ function fronts(): WebServer[] {
     return {
       command: DEVELOPMENT ? `pnpm dev ${listening}` : `${build}pnpm start ${listening}`,
       url: frontAt(index),
-      env: FRONT_ENV,
+      env: MEASURES_SERVICE ? USERS_FRONT_ENV : FRONT_ENV,
       reuseExistingServer: false,
       timeout: DEVELOPMENT || build === "" ? 120_000 : 300_000,
       // Signal the whole process group: make and pnpm start the servers as children.
       gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
     };
   });
+}
+
+/**
+ * The measure of the journey of the grids against the service, alone (`make measure`, US-2210), or
+ * the report of a version (`make measure-version`, US-2300), each in its project, of its file: one
+ * worker, which plays every user of the measure in a browser context of its own, and no trace.
+ */
+function serviceMeasureProjects(): Project[] {
+  if (!MEASURES_SERVICE) {
+    return [];
+  }
+  return [
+    {
+      name: PART,
+      testMatch:
+        PART === "measure-version"
+          ? /e2e\/measure\/version\.measure\.ts$/
+          : /e2e\/measure\/grids\.measure\.ts$/,
+      workers: 1,
+      use: {
+        ...devices["Desktop Chrome"],
+        locale: "fr-FR",
+        ignoreHTTPSErrors: true,
+        trace: "off",
+        // A gesture that cannot be made fails its step, which the report counts unfinished, rather
+        // than wait for the end of the test.
+        actionTimeout: 15_000,
+        navigationTimeout: 30_000,
+      },
+    },
+  ];
 }
 
 export default defineConfig({
@@ -426,6 +485,11 @@ export default defineConfig({
   // it changes, and does not copy the configuration.
   // A French browser by default, the language of the reference catalogue: a path that needs
   // another language sets its own (`test.use({ locale })`).
-  projects: [...pathProjects(), ...serviceProjects(), ...measureProjects()],
+  projects: [
+    ...pathProjects(),
+    ...serviceProjects(),
+    ...measureProjects(),
+    ...serviceMeasureProjects(),
+  ],
   webServer: [...fakeBack(), ...fronts()],
 });

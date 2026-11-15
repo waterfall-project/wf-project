@@ -54,12 +54,13 @@ import {
 import type { Outcome } from "@/api/problem";
 import { useHeldCommand } from "@/components/commands/held";
 import { type CommandOffer, findOffer } from "@/components/commands/offer";
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
 import { LocalTime, useLocalTimestamp } from "@/components/local-time";
 import { useNoteMessage } from "@/components/notices/message-history";
 import { type Said, type Say, useSaid } from "@/components/notices/said";
 import { CellCommand, UnavailableCellCommand } from "@/components/reference/cell-command";
 import { ANOTHER_OBJECT, focusBack, WrittenRegion } from "@/components/reference/commands";
+import { useListReading } from "@/components/reference/list-reading";
 import { useListReport } from "@/components/reference/reactivation";
 import type { ResultRefusal } from "@/components/tasks/result-refusal";
 import { afterReveal, useTrackTask } from "@/components/tasks/task-tracker";
@@ -173,14 +174,17 @@ function StartBackupButton() {
   // Busy from the press to the answer, and lifted in the very update that tells it — not a transition,
   // whose end would wait for every other async action of the page (#1484).
   const [busy, setBusy] = useState(false);
+  // A write of the list lost once sent: the list is read anew, and this waits until it is back (US-2240).
+  const reading = useListReading();
   return (
     <Button
       type="button"
       variant="outline"
       size="sm"
-      aria-busy={busy}
+      aria-busy={busy || reading}
+      aria-disabled={reading ? true : undefined}
       onClick={() => {
-        if (busy) {
+        if (busy || reading) {
           return;
         }
         const generation = list?.generation ?? 0;
@@ -579,8 +583,11 @@ export function BackupDeposit() {
   // transition: a long deposit would hold the answer of every other async action of the page, a
   // dialog's among them, until its end (#1484). The progress alone is told while it runs.
   const [busy, setBusy] = useState(false);
+  // A deposit lost once sent: it waits until the screen has been read anew (US-2240).
+  const reading = useReadAnew(outcome);
+  const waiting = busy || reading;
   const send = () => {
-    if (busy || file === undefined) {
+    if (waiting || file === undefined) {
       return;
     }
     setUpload(undefined);
@@ -632,8 +639,8 @@ export function BackupDeposit() {
           type="button"
           size="sm"
           variant="outline"
-          aria-busy={busy}
-          disabled={file === undefined}
+          aria-busy={waiting}
+          disabled={file === undefined || reading}
           onClick={send}
         >
           <Upload aria-hidden="true" />
@@ -643,6 +650,7 @@ export function BackupDeposit() {
       {sending === undefined ? null : <p role="status">{t("sending", { ...sending })}</p>}
       <OutcomeNotice
         outcome={outcome}
+        reading={reading}
         onClear={() => {
           setOutcome(undefined);
         }}

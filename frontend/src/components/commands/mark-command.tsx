@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Command } from "./command";
 import { commandIcon, REVISION_COMMAND_ICONS } from "./icons";
 import type { CommandOffer } from "./offer";
-import { type ObjectNames, OutcomeNotice } from "./outcome-notice";
+import { type ObjectNames, OutcomeNotice, useReadAnew } from "./outcome-notice";
 import { rejected } from "./rejection";
 import { WaitingIcon, waitingAttributes } from "./waiting";
 
@@ -46,6 +46,11 @@ interface MarkFormProps {
   readonly onClose: () => void;
   /** The marking is accepted: its task, which the command waits for, is followed. */
   readonly onMarking: (taskId: string) => void;
+  /** What the API answered of a marking it did not accept, told under the form. */
+  readonly outcome: Outcome<unknown> | undefined;
+  readonly onOutcome: (outcome: Outcome<unknown> | undefined) => void;
+  /** Whether the screen is read anew after a marking lost once sent (US-2240, `useReadAnew`). */
+  readonly reading: boolean;
 }
 
 const FIELD = "w-full max-w-sm rounded-md border border-input bg-background px-2 text-foreground";
@@ -55,17 +60,26 @@ const LABEL = "block text-sm font-medium";
  * Ask the version name of the marking — and, if the user wishes, a description of the
  * revision —, mark, and hand the task over to the tracker.
  */
-function MarkForm({ id, revision, names, onClose, onMarking }: MarkFormProps) {
+function MarkForm({
+  id,
+  revision,
+  names,
+  onClose,
+  onMarking,
+  outcome,
+  onOutcome: setOutcome,
+  reading,
+}: MarkFormProps) {
   const t = useTranslations();
   const track = useTrackTask();
   const field = useId();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [missing, setMissing] = useState(false);
-  const [outcome, setOutcome] = useState<Outcome<unknown>>();
   // Busy from the press to the answer, and lifted in the very update that tells it — not a
   // transition, whose end would wait for every other async action of the page (#1484).
   const [busy, setBusy] = useState(false);
+  const waiting = busy || reading;
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
     input.current?.focus();
@@ -75,7 +89,7 @@ function MarkForm({ id, revision, names, onClose, onMarking }: MarkFormProps) {
   // the language of the interface, and the field keeps the focus.
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (busy) {
+    if (waiting) {
       return;
     }
     if (name.trim() === "") {
@@ -148,8 +162,8 @@ function MarkForm({ id, revision, names, onClose, onMarking }: MarkFormProps) {
         className={`py-1 ${FIELD}`}
       />
       <div className="flex gap-2">
-        <Button type="submit" size="sm" {...waitingAttributes(busy)}>
-          <WaitingIcon waiting={busy} icon={<Stamp aria-hidden="true" />} />
+        <Button type="submit" size="sm" {...waitingAttributes(waiting)}>
+          <WaitingIcon waiting={waiting} icon={<Stamp aria-hidden="true" />} />
           {t("markRevision.submit")}
         </Button>
         <Button type="button" variant="outline" size="sm" onClick={onClose}>
@@ -161,6 +175,7 @@ function MarkForm({ id, revision, names, onClose, onMarking }: MarkFormProps) {
         outcome={outcome}
         names={names}
         subject={names[revision.revision_id]}
+        reading={reading}
         onClear={() => {
           setOutcome(undefined);
         }}
@@ -178,6 +193,10 @@ export function MarkCommand({ offer, revision, names }: MarkCommandProps) {
   // The task of the last marking: the command waits while it runs, and is given back at its end.
   const [marking, setMarking] = useState<string>();
   const running = useTaskRunning(marking);
+  const [outcome, setOutcome] = useState<Outcome<unknown>>();
+  // A marking lost once sent: the screen is read anew before it can be asked again (US-2240) — read
+  // here, where it stays mounted, so that the form closed and opened again waits as long.
+  const reading = useReadAnew(outcome);
   const button = useRef<HTMLButtonElement>(null);
   const close = () => {
     setOpen(false);
@@ -192,10 +211,15 @@ export function MarkCommand({ offer, revision, names }: MarkCommandProps) {
         icon={commandIcon(REVISION_COMMAND_ICONS.mark)}
         names={names}
         running={running}
+        writing={reading}
         disclosure={{
           expanded: open,
           controls: form,
           toggle: () => {
+            // Opened again, the form starts without the refusal told before, as a form mounted anew.
+            if (!open) {
+              setOutcome(undefined);
+            }
             setOpen(!open);
           },
           ref: button,
@@ -208,6 +232,9 @@ export function MarkCommand({ offer, revision, names }: MarkCommandProps) {
           names={names}
           onClose={close}
           onMarking={setMarking}
+          outcome={outcome}
+          onOutcome={setOutcome}
+          reading={reading}
         />
       ) : null}
     </div>

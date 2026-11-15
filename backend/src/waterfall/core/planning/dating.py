@@ -51,7 +51,7 @@ if TYPE_CHECKING:
         ScheduledTask,
     )
     from waterfall.core.planning.tables import Task, TaskLink
-    from waterfall.core.planning.tree import Tree
+    from waterfall.core.planning.tree import TaskColumns, Tree
 
 AUTOMATIC = "automatic"
 MANUAL = "manual"
@@ -75,12 +75,12 @@ def in_days(hours: Decimal | Fraction, constants: UnitConstants) -> Decimal:
     return decimal_of(Fraction(hours) / Fraction(constants.hours_per_day))
 
 
-def days_of(task: Task, constants: UnitConstants) -> Decimal:
+def days_of(task: TaskColumns, constants: UnitConstants) -> Decimal:
     """Give the duration of a task in days of work of the installation, elapsed units included."""
     return in_days(duration_of(task).hours(constants), constants)
 
 
-def duration_of(task: Task) -> Duration:
+def duration_of(task: TaskColumns) -> Duration:
     """Give the duration of a facet as the engine reads it, in the unit of its entry."""
     return Duration(task.duration_value, cast("DurationUnit", task.duration_unit))
 

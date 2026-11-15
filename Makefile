@@ -78,7 +78,7 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 	check-contract check-back check-back-static check-back-tests coverage-back-merge lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
-	coverage-back coverage-front roadmap check-roadmap e2e e2e-durations e2e-measure e2e-browsers e2e-image mirror lot-size tracking merge-queue merge-queue-check queue-report \
+	coverage-back coverage-front roadmap check-roadmap check-measures e2e e2e-durations e2e-measure e2e-browsers e2e-image mirror lot-size measure-reference tracking merge-queue merge-queue-check queue-report \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -165,7 +165,7 @@ SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_OPE
 SLOT_PATHS := E2E_API_PORT E2E_FRONT_PORT
 $(call slot-export,service-up service-install service-witness service-purge keycloak-authority service-logs service-down \
 	test-keycloak e2e-service,$(SLOT_SERVICE))
-$(call slot-export,measure-core,WATERFALL_POSTGRES_PORT)
+$(call slot-export,e2e-down,WATERFALL_SERVICE_PROJECT)
 $(call slot-export,build-keycloak,WATERFALL_KEYCLOAK_IMAGE)
 $(call slot-export,test-services test-services-down,WATERFALL_TEST_PROJECT \
 	WATERFALL_TEST_POSTGRES_PORT WATERFALL_TEST_REDIS_PORT WATERFALL_TEST_STORAGE_PORT)
@@ -315,15 +315,40 @@ service-purge: ## Purge what expired on the service platform, started: imports, 
 	@$(COMPOSE_SERVICE) exec --no-TTY scheduler waterfall-worker purge
 
 # The measure of the core in process (US-2210, EP-26, "La mesure"): backend/measure/, which calls the
-# core as the API does, on the database of the service platform of the slot, started and the witness
-# loaded, without HTTP or Keycloak; every write it makes is rolled back. It never fails on a duration
-# and the chain does not run it. RUNS identical runs of the whole read, the cell entered and the
-# revision opened (5; the profile and the waves of reads make one pass), ONLY=<part> one of read,
-# profile, parallel, write, revision (several by repeating: ONLY="read write"), JSON=<file> the report
-# also written as JSON.
-measure-core: ## Measure the core in process on the witness of the service platform, started: whole reads of PRJ-001, profile, threads and processes, a cell entered, a revision opened; RUNS, ONLY="read profile parallel write revision", JSON=<file>
+# core as the API does, on the database of the service platform of the slot, without HTTP or Keycloak;
+# every write it makes is rolled back. It takes the workstation for itself alone (the exclusive turn,
+# US-2210/L2) and starts from a witness freshly loaded: the platform is stopped and its data dropped,
+# started again, bootstrapped and the witness loaded (measure-fresh-witness), so that a measure
+# changes nothing of the next. It never fails on a duration and the chain does not run it. RUNS
+# identical runs of the whole read, the cell entered and the revision opened (5; the profile and the
+# waves of reads make one pass), ONLY=<part> one of read, profile, parallel, write, revision (several
+# by repeating: ONLY="read write"), JSON=<file> the report also written as JSON. A lot that corrects
+# the back measures before and after it in one pass: ONLY and RUNS the same, two commands in one.
+.PHONY: measure-core measure-core-run measure-fresh-witness measure-secrets
+# The secrets of service-up, asked before the workstation is taken: the Compose file refuses to
+# render without them and names the one missing (the same check as lint-compose).
+$(call slot-export,measure-secrets,$(SLOT_SERVICE))
+measure-secrets:
+	@$(COMPOSE_SERVICE) --profile install --profile witness config --quiet
+
+measure-core: measure-secrets ## Measure the core in process, the workstation for itself alone, on a witness freshly loaded of the service platform (needs the secrets of service-up): whole reads of PRJ-001, profile, threads and processes, a cell entered, a revision opened; RUNS, ONLY="read profile parallel write revision", JSON=<file>
+	@$(exclusive) $(MAKE) --no-print-directory measure-core-run
+
+$(call slot-export,measure-core-run,$(SLOT_SERVICE))
+measure-core-run: measure-fresh-witness
 	@cd $(BACK) && PYTHONDONTWRITEBYTECODE=1 uv run --frozen python -m measure $(if $(RUNS),--runs $(RUNS)) \
 		$(foreach part,$(ONLY),--only $(part)) $(if $(JSON),--json $(abspath $(JSON)))
+
+# The witness freshly loaded, for a measure: the platform of the slot stopped and its data dropped,
+# started again, bootstrapped (its link discarded) and the witness loaded.
+$(call slot-export,measure-fresh-witness,$(SLOT_SERVICE))
+measure-fresh-witness:
+	@echo 'The data of the service platform of this slot are dropped (service-down WATERFALL_RESET_DATA=yes).'
+	@$(MAKE) --no-print-directory service-down WATERFALL_RESET_DATA=yes
+	@$(MAKE) --no-print-directory service-up
+	@$(COMPOSE_SERVICE) build --quiet install witness
+	@$(COMPOSE_SERVICE) run --rm --no-TTY install > /dev/null
+	@$(COMPOSE_SERVICE) run --rm --no-TTY witness
 
 keycloak-authority: ## Copy out of the service platform the root of the authority of Keycloak's front end (KEYCLOAK_AUTHORITY)
 	@mkdir -p $(dir $(KEYCLOAK_AUTHORITY))
@@ -333,8 +358,8 @@ keycloak-authority: ## Copy out of the service platform the root of the authorit
 service-logs: ## Print the logs of the services of the platform (SERVICES, all of them by default)
 	@$(COMPOSE_SERVICE) logs --no-color $(SERVICES)
 
-service-down: ## Stop the service platform, the proxy of e2e-service included; WATERFALL_RESET_DATA=yes also drops its databases, its directory and its authority
-	@$(COMPOSE_SERVICE) --profile e2e --profile install --profile witness down $(if $(filter yes,$(WATERFALL_RESET_DATA)),--volumes)
+service-down: ## Stop the service platform, the proxy of e2e-service and the load of make measure-version included; WATERFALL_RESET_DATA=yes also drops its databases, its directory and its authority
+	@$(COMPOSE_SERVICE) --profile e2e --profile install --profile witness --profile load down $(if $(filter yes,$(WATERFALL_RESET_DATA)),--volumes)
 
 migrate: ## Apply the migrations to the database WATERFALL_DATABASE_URL designates (the guide, "Migrations")
 	@cd $(BACK) && uv run --frozen waterfall-migrate
@@ -435,7 +460,7 @@ check: ## Run the checks of what the change touches (BASE=origin/main by default
 		echo "== $$target"; $(MAKE) --no-print-directory $$target || exit 1; \
 	done
 
-check-all: check-repo check-repo-tools check-spec check-contract check-back check-front check-front-image check-roadmap check-keycloak check-service check-production ## Run every family of checks
+check-all: check-repo check-repo-tools check-spec check-contract check-back check-front check-front-image check-roadmap check-measures check-keycloak check-service check-production ## Run every family of checks
 
 check-repo: reuse lint-workflows lint-shell lint-docker lint-compose sources check-fixtures \
 	requirements screens readmes ## Checks that run on any change
@@ -599,6 +624,9 @@ coverage-front-merge: install-front ## The code coverage of the front from the p
 
 check-roadmap: roadmap ## The roadmap and the requirements agree (US-0070)
 
+check-measures: ## The measure reports of the versions held to the objectives and to the previous version (US-2300)
+	@$(WFTOOLS).measures
+
 check-keycloak: build-keycloak test-keycloak test-openldap ## The image of Keycloak builds, its realm applies and its extension answers (US-0350); the entrypoint of the directory seeds its volumes
 
 # The production image of the front, which the chain publishes after a merge alone (images.yml),
@@ -756,6 +784,91 @@ e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end pat
 		part= && $(e2e-service-part) \
 		cd $(FRONT) && { $(e2e-browser) $(PNPM_ENV) pnpm exec playwright test $$part $(TESTS); }
 
+# The measure of the journey of the grids against the service (US-2210, frontend/e2e/measure/): the
+# platform started as e2e-service starts it — its realm told the address of the front of the
+# harness —, bootstrapped and its witness loaded, but no proxy of the contract: the front, built for
+# production, reaches the API directly (WATERFALL_API_ADDRESS), and the measure reads the log of the
+# API (E2E_SERVICE_API) for its part of each step. One, four and eight users (MEASURE_USERS), five
+# passes (MEASURE_PASSES); the report, a JSON, where MEASURE_REPORT says. It takes the workstation for
+# itself alone (the exclusive turn, US-2210/L2), once the front is built, and starts from a witness
+# freshly loaded: the platform stopped and its data dropped, then started again. It fails on no
+# duration, and no goal of the chain plays it (E2E_PART).
+MEASURE_USERS ?= 1 4 8
+MEASURE_PASSES ?= 5
+MEASURE_REPORT ?= $(FRONT)/.e2e/measure.json
+.PHONY: measure measure-run
+$(call slot-export,measure measure-run,$(SLOT_SERVICE) $(SLOT_PATHS))
+measure: export WATERFALL_FRONT_ADDRESS = http://127.0.0.1:$(E2E_FRONT_PORT)
+measure: export WATERFALL_FRONT_BACKCHANNEL = http://host.docker.internal:$(E2E_FRONT_PORT)
+measure: export E2E_PART = measure-service
+measure: export E2E_BUILT = 1
+measure: export WATERFALL_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
+measure: export E2E_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
+measure: export E2E_MEASURE_USERS = $(MEASURE_USERS)
+measure: export E2E_MEASURE_PASSES = $(MEASURE_PASSES)
+measure: export E2E_MEASURE_REPORT = $(abspath $(MEASURE_REPORT))
+measure: measure-secrets install-front $(call e2e-build) ## Measure the journey of the grids against the service, the front built for production and no proxy of the contract, at one, four and eight users, five passes, in three parts: the API, Next, the browser (US-2210); MEASURE_USERS="1 4 8", MEASURE_PASSES=5, MEASURE_REPORT=<file of the JSON> (frontend/.e2e/measure.json); the workstation for itself alone, on a witness freshly loaded; needs the secrets of service-up and a browser
+	@$(exclusive) $(MAKE) --no-print-directory measure-run
+
+measure-run:
+	@echo 'The data of the service platform of this slot are dropped (service-down WATERFALL_RESET_DATA=yes).'
+	@$(MAKE) --no-print-directory service-down WATERFALL_RESET_DATA=yes
+	@$(MAKE) --no-print-directory service-up
+	@$(COMPOSE_SERVICE) build --quiet install witness
+	@E2E_INSTALLATION_LINK=$$($(COMPOSE_SERVICE) run --rm --no-TTY install) && \
+		$(COMPOSE_SERVICE) run --rm --no-TTY witness && \
+		E2E_SERVICE_API=$$($(COMPOSE_SERVICE) ps --quiet api) && \
+		WATERFALL_API_ADDRESS=http://127.0.0.1:$${WATERFALL_API_PORT:-8000} && \
+		WATERFALL_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) && \
+		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 && \
+		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
+		export E2E_INSTALLATION_LINK E2E_SERVICE_API WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
+		$(PNPM) exec playwright test
+
+# The report of the measures of a version (US-2300, frontend/e2e/measure/version.measure.ts): on a
+# platform whose data are dropped and whose witness is loaded afresh, started as for make measure,
+# the browser measures each operation of table 15 the service serves under the load of fifty users
+# that k6 plays in its service of the platform (frontend/bench/load.ts), then the background tasks:
+# the export of the planning, the import of eighteen thousand lines of actual costs, the marking.
+# The measure takes the workstation for itself alone ($(exclusive)), and the report, in the form
+# make check-measures confronts, is written where MEASURE_VERSION_REPORT says — never under
+# docs/measures/ by itself. The container of the load (LOAD_CONTAINER) is stopped at the end of the
+# measure, successful or not; after an interruption, make e2e-down or make service-down stops it.
+LOAD_CONTAINER = $(WATERFALL_SERVICE_PROJECT)-load
+MEASURE_VERSION ?= $(shell sed -n 's/^  "version": "\([^"]*\)".*/\1/p' $(FRONT)/package.json)
+MEASURE_VERSION_REPORT ?= $(FRONT)/.e2e/measures/$(MEASURE_VERSION).json
+MEASURE_TASK_PASSES ?= 3
+.PHONY: measure-version
+$(call slot-export,measure-version,$(SLOT_SERVICE) $(SLOT_PATHS))
+measure-version: export WATERFALL_FRONT_ADDRESS = http://127.0.0.1:$(E2E_FRONT_PORT)
+measure-version: export WATERFALL_FRONT_BACKCHANNEL = http://host.docker.internal:$(E2E_FRONT_PORT)
+measure-version: export WATERFALL_LOAD_CONTAINER = $(LOAD_CONTAINER)
+measure-version: export WATERFALL_UID = $(shell id -u)
+measure-version: export WATERFALL_GID = $(shell id -g)
+measure-version: export E2E_PART = measure-version
+measure-version: export E2E_BUILT = 1
+measure-version: export WATERFALL_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
+measure-version: export E2E_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
+measure-version: export E2E_MEASURE_PASSES = $(MEASURE_PASSES)
+measure-version: export E2E_MEASURE_TASK_PASSES = $(MEASURE_TASK_PASSES)
+measure-version: export E2E_MEASURE_VERSION = $(MEASURE_VERSION)
+measure-version: export E2E_MEASURE_VERSION_REPORT = $(abspath $(MEASURE_VERSION_REPORT))
+measure-version: export PRISM_VERSION := $(PRISM_VERSION)
+measure-version: measure-secrets install-front $(call e2e-build) ## The report of the measures of a version (US-2300): on the witness loaded afresh, each operation of table 15 the service serves, measured by a browser under the load of fifty users played by k6, then the export, the import of 18,000 lines of actual costs and the marking, read at their tasks; takes the workstation alone; MEASURE_VERSION (that of frontend/package.json), MEASURE_PASSES=5, MEASURE_TASK_PASSES=3, MEASURE_VERSION_REPORT=<file> (frontend/.e2e/measures/<version>.json); needs the secrets of service-up and a browser
+	@$(MAKE) --no-print-directory service-down WATERFALL_RESET_DATA=yes
+	@$(MAKE) --no-print-directory service-up
+	@$(COMPOSE_SERVICE) build --quiet install witness
+	@$(COMPOSE_SERVICE) --profile load pull --quiet load
+	@E2E_INSTALLATION_LINK=$$($(COMPOSE_SERVICE) run --rm --no-TTY install) && \
+		$(COMPOSE_SERVICE) run --rm --no-TTY witness && \
+		WATERFALL_API_ADDRESS=http://127.0.0.1:$${WATERFALL_API_PORT:-8000} && \
+		WATERFALL_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) && \
+		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 && \
+		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
+		export E2E_INSTALLATION_LINK WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
+		{ ( cd $(FRONT) && $(exclusive) $(PNPM_ENV) pnpm exec playwright test ); status=$$?; \
+		docker stop --time 60 $(LOAD_CONTAINER) > /dev/null 2>&1; exit $$status; }
+
 # The slot of the worktree, among the N of WATERFALL_SLOTS, in the register of the workstation
 # ($XDG_RUNTIME_DIR/waterfall-slots, /tmp/waterfall-slots without it), whatever the repository.
 slot: ## Take a slot of 1 to N for this worktree of a lot — its ports and its names —, or say the one it holds; fails, naming the holders, when all are taken
@@ -764,8 +877,9 @@ slot: ## Take a slot of 1 to N for this worktree of a lot — its ports and its 
 slot-release: ## Stop the servers of the e2e paths, remove the containers and volumes of the slot of this worktree — the service platform, the services of the tests —, then free it
 	@$(SLOTS) release
 
-e2e-down: ## Stop the servers of the end-to-end paths of the slot of this worktree — the fake back, the fronts —, found by their ports and stopped by PID; after an interrupted e2e, e2e-service or check-front (US-1300)
+e2e-down: ## Stop the servers of the end-to-end paths of the slot of this worktree — the fake back, the fronts —, found by their ports and stopped by PID, and the load of make measure-version; after an interrupted e2e, e2e-service or check-front (US-1300)
 	@$(SLOTS) stop-servers
+	@docker stop --time 60 $(LOAD_CONTAINER) > /dev/null 2>&1 || true
 
 slots: ## Print N, then the slots taken on the workstation and their worktrees
 	@$(SLOTS) list
@@ -778,6 +892,14 @@ test-services: ## Start, for the slot of this worktree, the services the tests r
 
 test-services-down: ## Remove the services of the tests of the slot of this worktree, their volumes included
 	@$(COMPOSE_TEST) down --volumes
+
+# The reference of the measures of the grids, before any correction (US-2210/L4): the reports of
+# make measure-core (CORE) and make measure (JOURNEY), as written, and the target of the API for
+# opening a grid, in docs/measures/reference.json. Not the report of a version.
+measure-reference: ## Assemble docs/measures/reference.json from the JSON of measure-core (CORE=<file>) and of measure (JOURNEY=<file>)
+	$(if $(and $(CORE),$(JOURNEY)),,$(error measure-reference needs CORE=<JSON of make measure-core> and JOURNEY=<JSON of make measure>))
+	@$(WFTOOLS).measurereference "$(CORE)" "$(JOURNEY)" docs/measures/reference.json \
+		--commit "$(or $(MEASURED_COMMIT),$$(git merge-base origin/epic/EP-26 HEAD))"
 
 lot-size: ## The real size of a lot, against its epic (BASE=origin/epic/EP-nn); never fails
 	@$(WFTOOLS).lotsize "$(BASE)" $(HEAD)

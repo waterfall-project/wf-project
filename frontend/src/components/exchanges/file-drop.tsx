@@ -20,7 +20,7 @@ import { useTranslations } from "next-intl";
 import { type DragEvent, useCallback, useId, useRef, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
 import { useWhenTaskFails } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
 
@@ -70,6 +70,8 @@ export function FileDrop({
   // The drags that entered the zone or one of its children and did not leave yet.
   const depth = useRef(0);
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
+  // A file lost once sent: the zone takes no other until the screen has been read anew (US-2240).
+  const reading = useReadAnew(outcome);
 
   useWhenTaskFails(
     analysis,
@@ -83,7 +85,7 @@ export function FileDrop({
     if (file === undefined || sent !== undefined) {
       return;
     }
-    if (busy) {
+    if (busy || reading) {
       setProblem("busy");
       return;
     }
@@ -117,7 +119,7 @@ export function FileDrop({
       role="group"
       aria-labelledby={`${id}-title`}
       aria-describedby={`${id}-hint`}
-      aria-busy={busy}
+      aria-busy={busy || reading}
       onDragEnter={() => {
         depth.current += 1;
         setOver(true);
@@ -160,10 +162,10 @@ export function FileDrop({
         type="button"
         variant="outline"
         size="sm"
-        aria-disabled={busy || sent !== undefined ? true : undefined}
+        aria-disabled={busy || reading || sent !== undefined ? true : undefined}
         aria-describedby={problem === undefined ? undefined : `${id}-problem`}
         onClick={() => {
-          if (!busy && sent === undefined) {
+          if (!busy && !reading && sent === undefined) {
             input.current?.click();
           }
         }}
@@ -192,6 +194,7 @@ export function FileDrop({
       )}
       <OutcomeNotice
         outcome={outcome}
+        reading={reading}
         onClear={() => {
           setOutcome(undefined);
         }}

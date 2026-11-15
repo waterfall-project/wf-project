@@ -58,6 +58,9 @@ from waterfall.core.planning.interface.facets import (
     CellsPasted as CellsPasted,
 )
 from waterfall.core.planning.interface.facets import (
+    FacetColumns as FacetColumns,
+)
+from waterfall.core.planning.interface.facets import (
     FacetCreation as FacetCreation,
 )
 from waterfall.core.planning.interface.facets import (
@@ -470,9 +473,17 @@ from waterfall.core.planning.interface.work_breakdown import (
     work_package_lines as work_package_lines,
 )
 
-# Beside the interface (US-1530): a structure read whole, and what a reading's filters retain of it.
+# Beside the interface (US-1530; US-2220/L2): a structure read whole, and what a reading's filters
+# retain of it; a reading of a structure, its nodes as flat records, which the API writes the body
+# of ``listNodes`` from, and a node as it is read made a record (``record_of``, with the views).
+from waterfall.core.planning.reading import (
+    NodeRecords as NodeRecords,
+)
 from waterfall.core.planning.reading import (
     StructureRead as StructureRead,
+)
+from waterfall.core.planning.reading import (
+    list_records as list_records,
 )
 from waterfall.core.planning.reading import (
     read_structure as read_structure,
@@ -501,6 +512,12 @@ from waterfall.core.planning.views import (
     ConflictView as ConflictView,
 )
 from waterfall.core.planning.views import (
+    FacetRecord as FacetRecord,
+)
+from waterfall.core.planning.views import (
+    NodeRecord as NodeRecord,
+)
+from waterfall.core.planning.views import (
     NodeView as NodeView,
 )
 from waterfall.core.planning.views import (
@@ -510,10 +527,16 @@ from waterfall.core.planning.views import (
     ScheduleView as ScheduleView,
 )
 from waterfall.core.planning.views import (
+    TaskRecord as TaskRecord,
+)
+from waterfall.core.planning.views import (
     TaskView as TaskView,
 )
 from waterfall.core.planning.views import (
     TrackingView as TrackingView,
+)
+from waterfall.core.planning.views import (
+    record_of as record_of,
 )
 from waterfall.core.planning.writing import (
     InflationView as InflationView,

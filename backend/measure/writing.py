@@ -20,6 +20,7 @@ from waterfall.core.planning.interface import (
     TaskEntry,
     Writer,
     list_nodes,
+    list_records,
     update_task_facet,
 )
 from waterfall.core.projects.interface import Viewer
@@ -130,7 +131,7 @@ def _read_median(database: Database, place: Place, runs: int) -> float:
     for _ in range(runs):
         started = perf_counter()
         with database.transaction() as session:
-            list_nodes(session, place, NodeFilters())
+            list_records(session, place, NodeFilters())
         durations.append(perf_counter() - started)
     return median(durations)
 

@@ -247,6 +247,11 @@ export interface GridKeyboardOptions<Row extends RowData, Sort extends string, T
   /** Whether the row at an index is in view, clear of the header and the totals. */
   readonly inView: (index: number) => boolean;
   readonly writes: CellWrites<Row, Totals>;
+  /**
+   * Whether the grid is read anew after a write of a cell lost once sent (US-2240): no entry starts,
+   * and one under way is kept, not sent, until the reading is back.
+   */
+  readonly reading?: boolean | undefined;
   readonly locale: Locale;
   /** The currency of the amounts it shows, when it is known. */
   readonly currency: string | undefined;
@@ -290,6 +295,7 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
   page,
   inView,
   writes,
+  reading = false,
   locale,
   currency,
 }: GridKeyboardOptions<Row, Sort, Totals>) {
@@ -426,7 +432,7 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
       return true;
     }
     const cell = cellAt(at);
-    if (cell?.entry === undefined) {
+    if (cell?.entry === undefined || reading) {
       return false;
     }
     const { kind, value } = cell.entry;
@@ -498,9 +504,15 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
       setDraft({ ...draft, text, problem: parsed.problem, asking: false });
       return false;
     }
+    const changed = parsed.value !== (entry.value(cell.row) ?? null);
+    if (reading && changed) {
+      // A write lost once sent, the grid read anew: the entry stays, to be sent once it is back.
+      setDraft({ ...draft, text, problem: undefined, asking: false });
+      return false;
+    }
     closed.current = draft;
     setDraft(undefined);
-    if (parsed.value !== (entry.value(cell.row) ?? null)) {
+    if (changed) {
       const shown = shownEntry(entry.kind, parsed.value, locale, currency);
       writes.write({ row: cell.row, column: at.column, entry, value: parsed.value, shown });
     }

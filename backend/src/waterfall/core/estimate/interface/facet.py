@@ -12,7 +12,9 @@ the tasks redated (``reinflate_lines``), their figures for the totals (``line_to
 filters and their sort (``line_filters``, ``line_sort``), what a computed value of a line depends
 on (``line_dependencies``), and the lines a move gives another task, whose roles must leave it an
 hour (``judge_moved_lines``, WF-PLA-0010; US-1490/L4), and the cells a paste gives a line, judged
-and written (``judge_line_cell``, ``write_line_cell``, ``pasting``; US-1560/L1).
+and written (``judge_line_cell``, ``write_line_cell``, ``pasting``; US-1560/L1), and the lines of
+a reading that writes nothing read once as rows, their figures and their facets (``line_columns``;
+US-2220/L1).
 
 The copy of a line keeps its figures and its amounts, and takes for its budgeted amount that of the
 line of the same lineage in the reference revision, nought without one; null on a project without a
@@ -34,6 +36,7 @@ from waterfall.core.estimate.pricing import Amount, dependencies_of
 from waterfall.core.estimate.reading import (
     budgeted_of,
     filter_lines,
+    line_columns,
     read_lines,
     rows_of,
     sort_lines,
@@ -299,4 +302,5 @@ LINE_FACET = FacetHooks(
     judge_cell=judge_line_cell,
     write_cell=write_line_cell,
     before_lock=share_natures,
+    columns=line_columns,
 )
