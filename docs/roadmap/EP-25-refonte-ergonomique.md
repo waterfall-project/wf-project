@@ -357,7 +357,11 @@ décision de l'auteur du 2026-11-15) : l'outil n'ajoute un lot qu'après un lot 
 - **La carte de grille** (#3421) — `components/shell` : une carte sans titre ni commandes, qui porte
   la grille d'un écran de travail et remplit la place que l'écran lui laisse ; le titre est celui de
   l'en-tête de l'écran. Elle remplace `JournalCard` (`app/admin/audit-log/page.tsx`) et `WorkCard`
-  (`work-card.tsx`, et les écrans de travail d'un projet qui l'importent).
+  (`work-card.tsx`, et les écrans de travail d'un projet qui l'importent). Un graphique qui se
+  nomme lui-même prend la même forme, sans en-tête, et la carte de section du référentiel
+  (`reference/section.tsx`) reçoit un corps vide : `ChartCard` (`portfolio/portfolio-value.tsx`) et
+  `StatusCard` (`admin/platform-lists.tsx`), composées par US-2150/L2, s'y replient (#3446) ; le
+  lot attend la fusion d'US-2150/L2, qui les écrit.
 - **La condition d'un item de menu** (#3430) — `commands/menu-command.tsx`,
   `remaining/kanban-card.tsx` : un item indisponible suit la règle de `Command` — la condition dans
   son infobulle, et dans la région des refus quand il est pressé ; le champ `detail` de
@@ -374,10 +378,16 @@ décision de l'auteur du 2026-11-15) : l'outil n'ajoute un lot qu'après un lot 
   `projects/project-list.dom.test.tsx`, `docs/dev/README-fr.md` et sa traduction.
 
 Revérifiés au cadrage, soldés par US-2080/L4 et laissés fermés : #3259, #3265, #3266, #3272, #3273,
-#3286, #3287, #3293, #3298. #3266 échoue encore dans la file d'`epic/EP-26`, tirée d'`epic/EP-25`
-avant L4 : la synchronisation d'`epic/EP-26` le règle (décision de l'auteur du 2026-11-15). Hors du
+#3286, #3287, #3293, #3298. L'enquête d'EP-26 sur #3266 a établi ensuite sa cause réelle (#3448) :
+l'aide du parcours reclique une commande d'activation occupée, et le second clic part sur la
+commande opposée quand le même nœud s'inverse. Le test se corrige — `pressOnce`
+(`e2e/server-action.ts`) ne reclique pas une commande occupée, le parcours attend la réponse de
+l'action avant d'affirmer la ligne —, non le produit (pas de `key` sur `ActivationButton`), par
+US-2110/L2 par exception, qui refait l'écran des coûts et touche son parcours ; #3396, le même
+défaut sur `reference-resources.spec.ts`, revient d'EP-28 dans ce lot (décisions de l'auteur du
+2026-11-15). Hors du
 complément : #3416, corrigé par US-2110/L1 par exception, la barre étant celle de toutes les
-grilles ; #3431, reporté → EP-28 avec #3396 ; #3432, abandonné.
+grilles ; #3431, reporté → EP-28 ; #3432, abandonné.
 
 Tranchés par l'auteur le 2026-11-15, avec les options écartées :
 
@@ -1180,7 +1190,9 @@ même façon sur chaque écran, **afin de** ne pas relancer un traitement qui co
 - propre à l'US : une carte de grille commune, sans titre, à côté de la carte de section, porte la
   grille d'un écran de travail qui remplit sa fenêtre ; elle remplace les cartes que les écrans
   composaient eux-mêmes — celle du journal d'audit et celle des écrans de travail d'un projet ; la
-  carte de section garde son titre exigé (#3421, décision de l'auteur du 2026-11-15) ;
+  carte de section garde son titre exigé (#3421, décision de l'auteur du 2026-11-15) ; de même, un
+  graphique qui se nomme lui-même et une section vide ont leur forme commune, et le portefeuille
+  et l'état du système n'en composent plus de locale (#3446, décision de l'auteur du 2026-11-15) ;
 - propre à l'US : un écran aéré l'est jusqu'à son en-tête : un test refuse un fichier qui écrit un
   écran aéré et laisse son en-tête à la densité serrée (#3397) ;
 - propre à l'US : paramètres de projets — « Modifier les contributeurs » est à droite du titre de sa
