@@ -5,7 +5,9 @@
  * système »): filtered by default on the projects the user contributes to — the filter of the
  * contract, `is_contributor` —, a filter the user sees and lifts, never a restriction of what
  * they may read (WF-PRJ-0060). The address says whether it is lifted, under the name of the
- * contract: `is_contributor=false`; and the states it retains, `states`, its values separated by
+ * contract: `is_contributor=false`, an address that says nothing meaning the default, as for the
+ * states, never kept with the settings of the grid — at sign-in, the user sees their projects
+ * (WF-IHM-0120); and the states it retains, `states`, its values separated by
  * commas (`explode: false`). An address that names none asks the states by default, created,
  * pricing and in progress, unless the account kept others (WF-IHM-0060); every state has its own
  * expression, `states=all`, which the server reads without filter.
@@ -30,8 +32,11 @@ export const CONTRIBUTOR_PARAMETER = "is_contributor";
 /** The parameter of the address that retains states, as the contract names it. */
 export const STATES_PARAMETER = "states";
 
+/** The value of `is_contributor` that lifts the filter by default of the home. */
+export const LIFTED_CONTRIBUTOR_VALUE = "false";
+
 /** The address of the home with its filter lifted: all the projects the user may read. */
-export const ALL_PROJECTS = `${HOME}?${CONTRIBUTOR_PARAMETER}=false`;
+export const ALL_PROJECTS = `${HOME}?${CONTRIBUTOR_PARAMETER}=${LIFTED_CONTRIBUTOR_VALUE}`;
 
 /**
  * Every state of the contract, in its order: a record, so that a state added to the contract
@@ -60,7 +65,7 @@ export function mayLiftContributorFilter(permissions: readonly PermissionCode[])
 
 /** Whether the home is filtered on the projects the user contributes to: unless lifted. */
 export function isContributorFiltered(search: SearchParameters): boolean {
-  return search.get(CONTRIBUTOR_PARAMETER) !== "false";
+  return search.get(CONTRIBUTOR_PARAMETER) !== LIFTED_CONTRIBUTOR_VALUE;
 }
 
 /** The states the home retains when neither its address nor the account's preferences name any. */

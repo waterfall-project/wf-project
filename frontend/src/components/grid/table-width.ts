@@ -14,7 +14,15 @@
  * The handle of the column that takes the rest reads the room of the frame the grid already keeps
  * (`useFrameRoom`), the layout never: it announces the width the column shows, starts a drag or an
  * arrow from its visible edge, and goes no narrower than what the other columns leave it
- * (`restOf`), so that its edge follows the pointer and the width it writes is the one seen.
+ * (`restOf`), so that its edge follows the pointer and the width it writes is the one seen. A step
+ * that changes nothing on the screen writes nothing (#3280): the label chosen at 300 on a card that
+ * leaves it 500 shows 500, and narrowing it to 350 shows 500 still, so the width chosen stays 300; a
+ * step wider writes 516. While the card is wide, the least chosen for the column can therefore only
+ * rise; it is felt again on a narrower screen, where the card leaves the column less than it.
+ *
+ * The header of the column that takes the rest draws its axis, if it has one, at the width chosen,
+ * not at the width it shows: that one is known only once the frame is measured, and the axis would
+ * draw anew after the loading (#3282).
  */
 import type { RowData } from "@tanstack/react-table";
 
@@ -26,10 +34,11 @@ export const LABEL_KEY = "label";
 
 /**
  * The column that takes what the card leaves: the label, when the grid shows one; else the last
- * column shown before any pinned at the end whose content is not aligned at the end — the room left
- * would open before its figures —, else the last one; so that every other column keeps the width
- * chosen for it and the room left lies at the end of the rows. Never the marks of a difference nor
- * the row numbers, which keep their width; none for a table that shows nothing else.
+ * column shown before any pinned at the end whose content is not known to be aligned at the end —
+ * the room left would open before its figures; a column the configuration does not hold stays a
+ * candidate (#3281) —, else the last one; so that every other column keeps the width chosen for it
+ * and the room left lies at the end of the rows. Never the marks of a difference nor the row
+ * numbers, which keep their width; none for a table that shows nothing else.
  */
 export function stretchedColumn<Row extends RowData, Sort extends string, Totals>(
   table: GridTable<Row>,
@@ -45,7 +54,7 @@ export function stretchedColumn<Row extends RowData, Sort extends string, Totals
     );
   const atStart = shown.filter((column) => {
     const configured = config.columns.find((each) => each.key === column.id);
-    return configured !== undefined && alignment(configured) !== "end";
+    return configured === undefined || alignment(configured) !== "end";
   });
   return (shown.find((column) => column.id === LABEL_KEY) ?? atStart.at(-1) ?? shown.at(-1))?.id;
 }

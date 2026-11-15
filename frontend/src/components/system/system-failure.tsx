@@ -20,6 +20,10 @@
  * every user signed out until it ends — in place of the failure, then the way to sign in again once
  * it is done. The sign-in a lost session leads to waits for the answer of the probe.
  *
+ * A screen out of any function, in the airy column, its title at the size of the airy ones, the
+ * offer to try again an outlined command of the screen: the filled button is for the principal
+ * command of a card alone (US-2130).
+ *
  * A client component, as every error boundary of Next is: it receives the error as Next
  * forwards it (`failure.ts`), and the texts of the provider around it.
  */
@@ -30,6 +34,7 @@ import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 
 import { SignIn, useSignInHref } from "@/components/commands/outcome-notice";
+import { Screen } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { loadDocument } from "@/navigation/document";
 import { REALM_SIGN_OUT_ROUTE } from "@/navigation/login";
@@ -102,15 +107,15 @@ export function SystemFailure({ error, retry }: SystemFailureProps) {
     failure.kind === "component_unavailable" ? components(failure.component) : undefined;
   if (phase.kind === "maintenance" || phase.kind === "done") {
     return (
-      <main className="px-5 py-4">
+      <Screen density="airy">
         <RestorationNotice phase={phase} />
-      </main>
+      </Screen>
     );
   }
   return (
-    <main className="space-y-4 px-5 py-4">
+    <Screen density="airy">
       <div role="alert" className="space-y-2">
-        <h1 className="flex items-center gap-2 text-lg font-semibold">
+        <h1 className="flex items-center gap-2 text-2xl font-semibold">
           <CircleAlert aria-hidden="true" className="size-5 shrink-0 text-destructive" />
           {t(`${FAILURE_TEXTS[failure.kind]}.title`)}
         </h1>
@@ -123,10 +128,10 @@ export function SystemFailure({ error, retry }: SystemFailureProps) {
           <FailureWayOut kind={failure.kind} />
         )}
       </div>
-      <Button type="button" size="sm" onClick={retry}>
+      <Button type="button" variant="outline" size="sm" className="w-fit" onClick={retry}>
         <RotateCcw aria-hidden="true" />
         {t("retry")}
       </Button>
-    </main>
+    </Screen>
   );
 }

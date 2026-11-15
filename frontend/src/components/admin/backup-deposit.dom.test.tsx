@@ -17,6 +17,7 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { formatTimestamp } from "@/i18n/format";
 import { expectAccessible } from "@/test/axe";
 import { atCommit } from "@/test/committed";
+import { expectCommandRule } from "@/test/command-rule";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { BackupDeposit } from "./backup-commands";
@@ -87,6 +88,19 @@ const DEPOSITED: FakeAnswers = {
 };
 
 describe("the deposit of a backup of another installation", () => {
+  it("stands in a card of its own, « Déposer » at the right of the field of the archive, outlined, none filled [WF-IHM-0100-A]", () => {
+    serve({});
+    const region = deposit();
+    expect(region).toHaveAttribute("data-slot", "section-card");
+    const field = within(region).getByLabelText("Archive de la sauvegarde");
+    const send = within(region).getByRole("button", { name: "Déposer" });
+    // The button follows the field in the row they share, which wraps only where the card is narrow.
+    const row = send.parentElement;
+    expect(row).toContainElement(field);
+    expect(field.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expectCommandRule(region);
+  });
+
   it("sends the archive in the parts the server cuts it into, then restores it at the date its manifest says, its identifier typed [WF-ADM-0160-A]", async () => {
     const client = serve({
       ...DEPOSITED,

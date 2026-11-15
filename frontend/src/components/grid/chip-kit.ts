@@ -36,8 +36,17 @@ export const PENDING_DAY = "…";
 export interface ChipKit {
   /** The chips added so far. */
   readonly chips: FilterChip[];
-  /** A chip told in full. */
-  readonly add: (key: string, name: string, value: string, params: readonly string[]) => void;
+  /**
+   * A chip told in full; `instead`, what lifting it writes in the place of its parameters — a filter
+   * applied by default (`FilterChip.instead`).
+   */
+  readonly add: (
+    key: string,
+    name: string,
+    value: string,
+    params: readonly string[],
+    instead?: Readonly<Record<string, string>>,
+  ) => void;
   /** A list of values chosen, told by their texts; nothing for an empty list. */
   readonly values: (
     key: string,
@@ -75,8 +84,10 @@ export function useChipKit(): ChipKit {
   const currency = useCurrency();
   const hydrated = useHydrated();
   const chips: FilterChip[] = [];
-  const add: ChipKit["add"] = (key, name, value, params) => {
-    chips.push({ key, name, value, params });
+  const add: ChipKit["add"] = (key, name, value, params, instead) => {
+    chips.push(
+      instead === undefined ? { key, name, value, params } : { key, name, value, params, instead },
+    );
   };
   const day = (kind: PeriodKind, side: "from" | "to", bound: string) => {
     // No local day before the browser: the local day of an instant is not the server's.

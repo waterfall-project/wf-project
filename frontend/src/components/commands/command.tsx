@@ -27,6 +27,7 @@ import { CircleAlert } from "lucide-react";
 import { type ReactElement, type Ref, useId, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
+import type { PrincipalVariant } from "@/components/shell/section-card";
 import { Button } from "@/components/ui/button";
 import { formatLocale } from "@/i18n/format";
 
@@ -73,6 +74,20 @@ export interface CommandProps {
    * until it ends, and a failure gives it back, to run the same treatment again (WF-IHM-0080).
    */
   readonly running?: boolean | undefined;
+  /**
+   * The variant of its button: outlined, unless the command is the principal one of a card, which
+   * gives it the variant of what it does (`SectionCard`, `principalVariant`).
+   */
+  readonly variant?: PrincipalVariant | undefined;
+}
+
+/**
+ * The variant of the button of a command: outlined, unless its card gives it another. Kept out of
+ * `Command`: a default (`variant = "outline"`, or `??`) there would bring its complexity over the
+ * limit (15 for 14).
+ */
+function outlinedUnless(variant: PrincipalVariant | undefined): PrincipalVariant {
+  return variant ?? "outline";
 }
 
 /** A command that opens what it asks before it runs. */
@@ -138,7 +153,7 @@ function UnmetRefusal({
   unmet,
 }: {
   readonly offer: CommandOffer;
-  /** The count of the presses of the command, unavailable or not. */
+  /** The presses of the command while unavailable. */
   readonly presses: number;
   /** The identifier of the conditions it lacks (`unmetId`): none when it lacks none. */
   readonly unmet: string | undefined;
@@ -153,6 +168,28 @@ function UnmetRefusal({
       <CircleAlert aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
       <p>{text(offer)}</p>
     </div>
+  );
+}
+
+/**
+ * The refusal of the presses of a command a screen draws itself, unavailable: what it lacks, said
+ * in the region of the refusals each time it is pressed (#3289). The screen counts the presses
+ * while the command is unavailable (`presses`); the refusal forgets them when the command changes.
+ */
+export function PressRefusal({
+  offer,
+  presses,
+}: {
+  readonly offer: CommandOffer;
+  readonly presses: number;
+}) {
+  return (
+    <UnmetRefusal
+      key={String(offer.is_available)}
+      offer={offer}
+      presses={presses}
+      unmet={unmetId(offer, "press")}
+    />
   );
 }
 
@@ -199,6 +236,7 @@ export function Command({
   subject,
   writing = false,
   running = false,
+  variant,
 }: CommandProps) {
   const id = useId();
   const unmetText = useUnmet();
@@ -249,7 +287,7 @@ export function Command({
       >
         <Button
           type="button"
-          variant="outline"
+          variant={outlinedUnless(variant)}
           size="sm"
           {...waitingAttributes(waiting)}
           // Unavailable with no condition to name: marked all the same, the tooltip saying none.
@@ -265,12 +303,7 @@ export function Command({
         </Button>
       </CommandTooltip>
       <HiddenUnmet id={unmet} offer={offer} />
-      <UnmetRefusal
-        key={String(offer.is_available)}
-        offer={offer}
-        presses={presses}
-        unmet={unmet}
-      />
+      <PressRefusal offer={offer} presses={presses} />
       <WritingNote id={why} writing={writing} />
       <OutcomeNotice
         outcome={outcome}

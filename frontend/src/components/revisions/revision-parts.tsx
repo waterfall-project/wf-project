@@ -17,7 +17,7 @@ import { BadgeCheck, Coins, FileDiff, Layers, type LucideIcon, ShieldAlert } fro
 import { useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
-import { CELL, ICON, ListSection, ListTable } from "@/components/projects/project-tables";
+import { CELL, ICON, ListCard, ListTable } from "@/components/projects/project-tables";
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Amount } from "@/components/amount";
@@ -48,7 +48,7 @@ export function CostStructureList({
   const t = useTranslations("revisionScreen.structures");
   const kind = useTranslations("enums.StructureKind");
   return (
-    <ListSection
+    <ListCard
       title={t("title")}
       icon={Layers}
       empty={structures.length === 0 ? t("none") : undefined}
@@ -77,7 +77,7 @@ export function CostStructureList({
           );
         })}
       </ListTable>
-    </ListSection>
+    </ListCard>
   );
 }
 
@@ -98,46 +98,46 @@ export function RateUpdate({
   const banner = useTranslations("contextBanner");
   const { categories } = proposal;
   return (
-    <div className="space-y-2">
-      <ListSection
-        title={t("title")}
-        icon={Coins}
-        empty={categories.length === 0 ? t("none") : undefined}
+    // The command is in the card, under the list, not in it: once applied, the card says no update
+    // is proposed, and the command is not in the way, but what it told stays.
+    <ListCard
+      title={t("title")}
+      icon={Coins}
+      empty={categories.length === 0 ? t("none") : undefined}
+      footer={
+        apply === undefined ? null : (
+          <ApplyRateUpdateCommand
+            key={apply.revisionId}
+            {...apply}
+            name={banner("currentRevision")}
+            categories={categories}
+          />
+        )
+      }
+    >
+      <div className="space-y-1 text-sm text-muted-foreground">
+        {proposal.target_year === undefined ? null : (
+          <p>{t("year", { year: proposal.target_year.toString() })}</p>
+        )}
+        <p>{t("notImposed")}</p>
+      </div>
+      <ListTable
+        label={t("title")}
+        columns={[t("category"), t("previous"), t("proposed"), t("source")]}
       >
-        <div className="space-y-1 text-sm text-muted-foreground">
-          {proposal.target_year === undefined ? null : (
-            <p>{t("year", { year: proposal.target_year.toString() })}</p>
-          )}
-          <p>{t("notImposed")}</p>
-        </div>
-        <ListTable
-          label={t("title")}
-          columns={[t("category"), t("previous"), t("proposed"), t("source")]}
-        >
-          {categories.map((category) => (
-            <TableRow key={category.cost_category_id}>
-              <TableCell className={CELL}>{category.label}</TableCell>
-              <TableCell className={AMOUNT}>
-                <Amount value={category.previous_amount} />
-              </TableCell>
-              <TableCell className={AMOUNT}>
-                <Amount value={category.proposed_amount} />
-              </TableCell>
-              <TableCell className={CELL}>{source(category.source)}</TableCell>
-            </TableRow>
-          ))}
-        </ListTable>
-      </ListSection>
-      {/* Beside the section, not in it: once applied, the section says no update is proposed, and the
-          command is not in the way, but what it told stays. */}
-      {apply === undefined ? null : (
-        <ApplyRateUpdateCommand
-          key={apply.revisionId}
-          {...apply}
-          name={banner("currentRevision")}
-          categories={categories}
-        />
-      )}
-    </div>
+        {categories.map((category) => (
+          <TableRow key={category.cost_category_id}>
+            <TableCell className={CELL}>{category.label}</TableCell>
+            <TableCell className={AMOUNT}>
+              <Amount value={category.previous_amount} />
+            </TableCell>
+            <TableCell className={AMOUNT}>
+              <Amount value={category.proposed_amount} />
+            </TableCell>
+            <TableCell className={CELL}>{source(category.source)}</TableCell>
+          </TableRow>
+        ))}
+      </ListTable>
+    </ListCard>
   );
 }

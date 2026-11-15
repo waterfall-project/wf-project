@@ -39,7 +39,7 @@
  */
 "use client";
 
-import { Plus } from "lucide-react";
+import { FolderOpen, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
@@ -63,6 +63,7 @@ import {
   ReferenceForm,
   required,
 } from "@/components/reference/reference-form";
+import { type PrincipalVariant, SectionCard } from "@/components/shell/section-card";
 import { Button } from "@/components/ui/button";
 import { editablePercent, percentRatio } from "@/i18n/format";
 
@@ -94,9 +95,16 @@ function useIdentityFields(): FormField[] {
 
 /**
  * The command that creates a project, and its form, on the home; unavailable, and saying why, while
- * the minimum reference data is incomplete.
+ * the minimum reference data is incomplete. The principal command of the card of the list, drawn at
+ * the variant the card gives it (`SectionCard`, US-2130).
  */
-export function CreateProject({ ready }: { readonly ready: boolean }) {
+export function CreateProject({
+  ready,
+  variant,
+}: {
+  readonly ready: boolean;
+  readonly variant: PrincipalVariant;
+}) {
   const t = useTranslations("projectForm");
   const form = useTranslations("reference.form");
   const errors = useTranslations("errors");
@@ -119,7 +127,7 @@ export function CreateProject({ ready }: { readonly ready: boolean }) {
         ref={trigger}
         aria-haspopup="dialog"
         type="button"
-        variant="outline"
+        variant={variant}
         size="sm"
         aria-disabled={ready ? undefined : true}
         aria-describedby={ready ? undefined : why}
@@ -316,48 +324,69 @@ export function ProjectIdentity({ project }: { readonly project: Project }) {
   const icon = commandIcon(PROJECT_COMMAND_ICONS.update);
   return (
     <Reactivations reads={[]}>
-      <div className="flex flex-wrap items-start gap-2">
-        <p role="status" aria-live="polite" className="text-sm text-muted-foreground empty:sr-only">
-          {said === undefined ? null : <span key={said.count}>{said.text}</span>}
-        </p>
-        {offer?.is_available === true ? (
-          <CommandTooltip
-            label={command("update")}
-            help={helps("project.update.help")}
-            describedBy={writing ? why : undefined}
+      <SectionCard
+        title={t("card")}
+        icon={FolderOpen}
+        principal={
+          offer === undefined
+            ? undefined
+            : {
+                does: "modify",
+                command: (variant) => (
+                  <div className="flex flex-wrap items-start gap-2">
+                    {offer.is_available ? (
+                      <CommandTooltip
+                        label={command("update")}
+                        help={helps("project.update.help")}
+                        describedBy={writing ? why : undefined}
+                      >
+                        <Button
+                          ref={trigger}
+                          aria-haspopup="dialog"
+                          type="button"
+                          variant={variant}
+                          size="sm"
+                          aria-disabled={writing ? true : undefined}
+                          aria-busy={writing}
+                          className={UNAVAILABLE}
+                          onClick={() => {
+                            if (writing) {
+                              return;
+                            }
+                            openings.current += 1;
+                            setEditing({ project: shown, opening: openings.current });
+                          }}
+                        >
+                          {icon}
+                          {command("update")}
+                        </Button>
+                      </CommandTooltip>
+                    ) : (
+                      <Command
+                        offer={offer}
+                        label={command("update")}
+                        help={helps("project.update.help")}
+                        icon={icon}
+                        variant={variant}
+                      />
+                    )}
+                    <WritingNote id={why} writing={writing} />
+                  </div>
+                ),
+              }
+        }
+      >
+        <div className="flex min-w-0 flex-col gap-3">
+          <p
+            role="status"
+            aria-live="polite"
+            className="text-sm text-muted-foreground empty:sr-only"
           >
-            <Button
-              ref={trigger}
-              aria-haspopup="dialog"
-              type="button"
-              variant="outline"
-              size="sm"
-              aria-disabled={writing ? true : undefined}
-              aria-busy={writing}
-              className={UNAVAILABLE}
-              onClick={() => {
-                if (writing) {
-                  return;
-                }
-                openings.current += 1;
-                setEditing({ project: shown, opening: openings.current });
-              }}
-            >
-              {icon}
-              {command("update")}
-            </Button>
-          </CommandTooltip>
-        ) : (
-          <Command
-            offer={offer}
-            label={command("update")}
-            help={helps("project.update.help")}
-            icon={icon}
-          />
-        )}
-        <WritingNote id={why} writing={writing} />
-      </div>
-      <SettingsFacts project={shown} />
+            {said === undefined ? null : <span key={said.count}>{said.text}</span>}
+          </p>
+          <SettingsFacts project={shown} />
+        </div>
+      </SectionCard>
       {editing === undefined ? null : (
         <UpdateForm
           key={editing.opening}

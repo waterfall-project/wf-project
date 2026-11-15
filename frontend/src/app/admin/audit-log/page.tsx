@@ -10,7 +10,8 @@
  * `to`, `user_id`, `actor_kind`, `actions`, `project_id`, `object_kind`, `object_id`,
  * `correlation_id`, `search`, `sort_by`, `sort_order`, `offset`). The journal of a project
  * terminated long ago is read by the same filter as that of a project in progress. Nothing modifies
- * nor deletes an inscription: the screen offers no command.
+ * nor deletes an inscription: the screen offers no command. The screen is tight and fills the
+ * window; the table and its pages stand in a card without a title of section (EP-25, US-2100).
  *
  * The screen is the consultation of the journal (`audit_log.read`): a session without it finds it
  * not found, as an address that leads nowhere (WF-ADM-0110). The authors and the projects are
@@ -63,6 +64,7 @@ import { CONTRACT_ADDRESS, type GridQuery, readGridQuery } from "@/components/gr
 import type { GridPreferences } from "@/components/grid/settings";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
+import { Card, CardContent } from "@/components/ui/card";
 import { type PageSearchParams, pageSearch } from "@/navigation/context";
 import { problemMessage } from "@/i18n/problem";
 import { OFFSET_PARAMETER, offsetOf } from "@/navigation/pages";
@@ -78,16 +80,33 @@ export async function generateMetadata(): Promise<Metadata> {
   return screenMetadata("functions.auditLog");
 }
 
-/** The title of the screen, and how many inscriptions the filters retain. */
-function AuditHeader({ count }: { readonly count: number | undefined }) {
-  const t = useTranslations();
+/**
+ * The title of the screen. The number of inscriptions the filters retain is not told under it: the
+ * totals row of the grid says it (`meta.total`).
+ */
+function AuditHeader() {
+  const t = useTranslations("functions");
   return (
     <PageHeader
-      title={t("functions.auditLog")}
+      title={t("auditLog")}
       icon={FUNCTION_ICONS.audit_log}
       density={FUNCTION_DENSITY.audit_log}
-      subtitle={count === undefined ? undefined : t("admin.auditLog.count", { count })}
     />
+  );
+}
+
+/**
+ * The card of the journal, bare of any title of section — the title of the screen says it —, which
+ * fills what the screen leaves it: its content shrinks to it, the grid down to its floor, the pages
+ * under it (`Screen fill`), never a height computed by hand.
+ */
+function JournalCard({ children }: { readonly children: ReactNode }) {
+  return (
+    <Card className="min-h-0 flex-1 gap-0 py-3">
+      <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 px-3">
+        {children}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -236,7 +255,7 @@ function Inscriptions({
       />
       <ListPages
         list={AUDIT_LIST}
-        texts="admin.pages"
+        texts="admin.auditLog.pages"
         page={journal.meta}
         shown={journal.items.length}
       />
@@ -298,24 +317,26 @@ export default async function AuditLogPage({
     <Screen density={FUNCTION_DENSITY.audit_log} fill>
       {/* The filters, the grid and the pages compose the changes they make to the address. */}
       <PendingAddress>
-        <AuditHeader count={journal?.meta.total} />
-        {"refused" in read ? (
-          <>
-            {panel}
-            <Refused problem={read.refused} />
-          </>
-        ) : (
-          <Inscriptions
-            journal={read.journal}
-            narrowed={narrows(filters, query.search)}
-            query={query}
-            preferences={preferences}
-            reach={auditReach(permissions)}
-            filters={filters}
-            names={names}
-            panel={panel}
-          />
-        )}
+        <AuditHeader />
+        <JournalCard>
+          {"refused" in read ? (
+            <>
+              {panel}
+              <Refused problem={read.refused} />
+            </>
+          ) : (
+            <Inscriptions
+              journal={read.journal}
+              narrowed={narrows(filters, query.search)}
+              query={query}
+              preferences={preferences}
+              reach={auditReach(permissions)}
+              filters={filters}
+              names={names}
+              panel={panel}
+            />
+          )}
+        </JournalCard>
       </PendingAddress>
     </Screen>
   );

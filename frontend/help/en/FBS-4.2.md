@@ -15,9 +15,9 @@ Each list keeps its own search, its filters and its sort, which the server appli
 
 ## Its commands
 
-The settings of the project are those of its project managers: each command follows what the project offers, available or naming the condition it lacks. A terminal project offers none.
+The settings of the project are those of its project managers: each command follows what the project offers, available or naming the condition it lacks, in its tooltip — by pointer and by keyboard — and, when pressed, in the region of the refusals. A terminal project offers none.
 
-- **Edit the project** opens the form of the settings: the label, the project code, the client, the description, the date of receipt of the order, the inflation rate and the probability of winning, these last two in percent. The probability of winning is no longer modified from the state In progress on: the field is then shown frozen, with its condition. A code another project bears is refused at its field; a rate outside its bounds too, with the bound.
+- **Edit the project**, at the right of the title of the “Project” card, opens the form of the settings: the label, the project code, the client, the description, the date of receipt of the order, the inflation rate and the probability of winning, these last two in percent. The probability of winning is no longer modified from the state In progress on: the field is then shown frozen, with its condition. A code another project bears is refused at its field; a rate outside its bounds too, with the bound.
 - The commands of the work breakdown, of the subprojects and of the contributors are described in the help of each list.
 - **Generate the planning**, under the work breakdown, when the main structure of the current revision has no task yet: a summary task per work package and per order item, a task per deliverable and their end milestones. Generated, the screen leads to the planning grid.
 

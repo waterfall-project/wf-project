@@ -34,7 +34,8 @@ import { RangeFilter } from "@/components/grid/range-filter";
 import { type FilterValue, ValuesFilter } from "@/components/grid/values-filter";
 import { CELL, ICON } from "@/components/projects/project-tables";
 import { type NodeChoice, OrgNodeFilter } from "@/components/reference/reference-filters";
-import { BoundsRefused, ReferenceSection } from "@/components/reference/section";
+import { BoundsRefused } from "@/components/reference/section";
+import { SectionCard } from "@/components/shell/section-card";
 import {
   Table,
   TableBody,
@@ -43,6 +44,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/components/ui/utils";
 import { functionAt } from "@/navigation/functions";
 
 import { AccessRoleGrid, UserGrid } from "./admin-grid";
@@ -54,7 +56,6 @@ import { HOLDER_COUNT, PREDEFINED, rolesNarrowed } from "./role-address";
 import { CreateRole, RoleCommands } from "./role-commands";
 import {
   ACCESS_ROLES,
-  INCLUDE_INACTIVE,
   IS_ACTIVE,
   ORG_NODE,
   ORIGINS,
@@ -137,8 +138,6 @@ function UserFilterPanel({
         ]}
         chosen={active === undefined ? [] : [active ? "true" : "false"]}
         page={OFFSET}
-        lifts={[INCLUDE_INACTIVE]}
-        said={{ name: INCLUDE_INACTIVE, value: "false", reads: "true" }}
       />
       <OrgNodeFilter name={ORG_NODE} nodes={nodes} chosen={orgNode} page={OFFSET} />
       <AuditFilterBar filters={audit} authors={authors} searchable page={OFFSET} />
@@ -153,10 +152,10 @@ function UserFilterPanel({
  * their creation and of their last modification (`AuditFilterBar`), a period the API refused said
  * at its field, the list unread; or that the installation has none — only when the list holds none
  * at all and nothing narrows it: a page asked beyond its end is no empty list; its pages say where
- * it stands (`ListPages`). At the head of the section, « Créer un compte local » for a session
- * that may modify the accounts (`UserCommands`) — offered on an empty list too — and the menu
- * « ⋯ » of the reading of the identity provider (`identity`); for that session too, the region
- * that says what a write did, the refusals told above it, and the grid its own entry.
+ * it stands (`ListPages`). In its card (`SectionCard`), « Créer un compte local » at the right of the
+ * title, filled, the one filled command of the card, for a session that may modify the accounts
+ * (`UserCommands`) — offered on an empty list too; for that session too, the region that says what
+ * a write did, the refusals told above the card, and the grid its own entry.
  */
 export function UserList({
   users,
@@ -172,7 +171,6 @@ export function UserList({
   active,
   audit,
   authors,
-  identity,
   editable,
 }: {
   readonly users: readonly User[];
@@ -200,11 +198,6 @@ export function UserList({
   readonly audit: AuditFilters;
   /** The accounts offered as authors: those of the page shown. */
   readonly authors: readonly AuthorChoice[];
-  /**
-   * The menu « ⋯ » of the reading of the accounts of the identity provider, beside the creation of
-   * a local account at the head of the section; none, none shown.
-   */
-  readonly identity?: ReactNode;
   /** Whether the session may modify the accounts (`platformOffer`). */
   readonly editable: boolean;
 }) {
@@ -256,26 +249,22 @@ export function UserList({
           filters={asked}
           panel={filters}
         />
-        <ListPages list={USERS_LIST} texts="admin.pages" page={page} shown={users.length} />
+        <ListPages list={USERS_LIST} texts="admin.users.pages" page={page} shown={users.length} />
       </>
     );
   }
   const section = (
-    <ReferenceSection
+    <SectionCard
       title={t("title")}
       icon={Users}
-      fill
-      commands={
-        editable || identity !== undefined ? (
-          <div className="flex items-center gap-2">
-            {editable ? <CreateUser /> : null}
-            {identity}
-          </div>
-        ) : undefined
+      principal={
+        editable
+          ? { does: "create", command: (variant) => <CreateUser variant={variant} /> }
+          : undefined
       }
     >
-      {list}
-    </ReferenceSection>
+      <div className="flex min-w-0 flex-col gap-2">{list}</div>
+    </SectionCard>
   );
   return editable ? <UserCommands>{section}</UserCommands> : section;
 }
@@ -331,8 +320,9 @@ function RoleFilterPanel({ filters }: { readonly filters: RoleFilters }) {
 
 /**
  * The access roles, each predefined or composed, with how many accounts hold it, filtered by kind,
- * between bounds of their holders and on their audit columns; for a session that may modify them, its creation in line, its
- * label entered in its cell and its deletion. Bounds or a period the API refuses (422) leave the
+ * between bounds of their holders and on their audit columns, in a card; for a session that may
+ * modify them, « Nouveau rôle » at the right of its title, which opens the dialog of the creation,
+ * its label entered in its cell and its deletion. Bounds or a period the API refuses (422) leave the
  * list unread, the side said at its field, a sentence standing for the grid.
  */
 export function AccessRoleList({
@@ -376,19 +366,36 @@ export function AccessRoleList({
       />
     );
   }
-  return (
-    <ReferenceSection title={t("title")} icon={ShieldCheck}>
-      {editable ? (
-        <RoleCommands>
-          <CreateRole />
-          {shown}
-        </RoleCommands>
-      ) : (
-        shown
-      )}
-    </ReferenceSection>
+  const section = (
+    <SectionCard
+      title={t("title")}
+      icon={ShieldCheck}
+      principal={
+        editable
+          ? { does: "create", command: (variant) => <CreateRole variant={variant} /> }
+          : undefined
+      }
+    >
+      <div className="flex min-w-0 flex-col gap-2">{shown}</div>
+    </SectionCard>
   );
+  return editable ? <RoleCommands>{section}</RoleCommands> : section;
 }
+
+/**
+ * The frame of the matrix: the box that scrolls, bounded to the window so that its header — and, at
+ * the side, the column of the functions — stay in view as the matrix scrolls (#3088, the author's
+ * decision of 2026-11-13); it takes the width of its card, the roles beyond it scrolling sideways.
+ * What the focus brings into view comes out from under the header and the column of the functions,
+ * which keep the width the scroll padding leaves them (12rem).
+ */
+const MATRIX_FRAME = "max-h-[min(70svh,48rem)] scroll-pt-10 scroll-pl-48 rounded-md border";
+
+/** The header row sticks to the top of the frame, over the rows that scroll under it. */
+const HEAD = "sticky top-0 z-20";
+
+/** The column of the functions sticks to the start of the frame, a line at its end. */
+const FUNCTION_COLUMN = "sticky left-0 w-48 max-w-48 min-w-48 border-r whitespace-normal";
 
 /**
  * The permissions of the catalogue, in its order, gathered into runs of those that cover the same
@@ -460,14 +467,21 @@ export function PermissionMatrix({
   // What each role holds, as the server lists it.
   const holds = roles.map((role) => ({ role, codes: new Set<string>(role.permissions) }));
   return (
-    <ReferenceSection title={title} icon={KeyRound}>
-      <Table aria-label={title} list={title} className="w-full">
+    <SectionCard title={title} icon={KeyRound}>
+      <Table
+        aria-label={title}
+        list={title}
+        className="w-full"
+        container={{ className: MATRIX_FRAME }}
+      >
         <TableHeader>
           <TableRow>
-            <TableHead className={CELL}>{t("admin.permissions.function")}</TableHead>
-            <TableHead className={CELL}>{t("admin.permissions.permission")}</TableHead>
+            <TableHead className={cn(CELL, HEAD, FUNCTION_COLUMN, "z-30")}>
+              {t("admin.permissions.function")}
+            </TableHead>
+            <TableHead className={cn(CELL, HEAD)}>{t("admin.permissions.permission")}</TableHead>
             {roles.map((role) => (
-              <TableHead key={role.access_role_id} className={`${CELL} text-center`}>
+              <TableHead key={role.access_role_id} className={cn(CELL, HEAD, "text-center")}>
                 <RoleLabel role={role} />
               </TableHead>
             ))}
@@ -478,7 +492,11 @@ export function PermissionMatrix({
             {run.map((permission, at) => (
               <TableRow key={permission.code}>
                 {at === 0 ? (
-                  <TableHead scope="rowgroup" rowSpan={run.length} className={`${CELL} align-top`}>
+                  <TableHead
+                    scope="rowgroup"
+                    rowSpan={run.length}
+                    className={cn(CELL, FUNCTION_COLUMN, "z-10 bg-card align-top")}
+                  >
                     <RunHeading head={permission} />
                   </TableHead>
                 ) : null}
@@ -503,6 +521,6 @@ export function PermissionMatrix({
           </TableBody>
         ))}
       </Table>
-    </ReferenceSection>
+    </SectionCard>
   );
 }

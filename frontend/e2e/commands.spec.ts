@@ -23,13 +23,15 @@ test("a command the project cannot take now is shown unavailable, naming the con
   await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const commands = page.getByRole("main").getByRole("region", { name: "Commandes" });
 
-  const lose = commands.getByRole("button", { name: "Ouvrir une révision en cours" });
+  // The opening is the principal command of the card of the history (US-2130).
+  const history = page.getByRole("main").getByRole("region", { name: "Historique des révisions" });
+  const lose = history.getByRole("button", { name: "Ouvrir une révision en cours" });
   await expect(lose).toHaveAttribute("aria-disabled", "true");
   // Named in a text shown beside it, which describes it to a screen reader too.
   const unmet = /^Condition non remplie\s: aucune révision en cours d’élaboration\.$/;
   await expect(lose).toHaveAccessibleDescription(unmet);
   // Not written under the button: its tooltip says it, to the keyboard as to the pointer.
-  await expect(commands.getByText(unmet)).toBeHidden();
+  await expect(history.getByText(unmet)).toBeHidden();
   await lose.focus();
   await expect(page.locator("[data-slot=tooltip-content]")).toContainText(
     "aucune révision en cours d’élaboration",
@@ -38,7 +40,7 @@ test("a command the project cannot take now is shown unavailable, naming the con
   // It stays in the order of the keyboard, and pressed, it runs nothing: it tells what it lacks.
   await page.keyboard.press("Enter");
   await expect(lose).toBeFocused();
-  await expect(commands.getByRole("alert")).toContainText("aucune révision en cours d’élaboration");
+  await expect(history.getByRole("alert")).toContainText("aucune révision en cours d’élaboration");
 
   // The command the revision can take now is offered.
   await expect(commands.getByRole("button", { name: "Marquer la révision" })).not.toHaveAttribute(

@@ -3,6 +3,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { axeViolations } from "./axe";
+import { holdRoute, setExpanded, untilHydrated, WORKING } from "./hydration";
 import { path } from "./routes";
 
 // The account of the fake back follows the workstation (`theme: default`): the mode the
@@ -200,6 +201,48 @@ test.describe("the two families of screens, in a window of 2560 points", () => {
     expect(shown.page).toBeGreaterThan(1536);
     expect(shown.width).toBeCloseTo(1536, 0);
     expect(Math.abs(shown.left - shown.right)).toBeLessThanOrEqual(1);
+  });
+
+  // A screen of settings reached by a click shows the skeleton of its segment first, held here by
+  // its payload: the skeleton takes the template of the screen — the airy column, not the dense
+  // width of the home it leaves —, and the screen replaces it without a jump (#3269).
+  test("lays the skeleton of a screen of settings where the screen comes", async ({ page }) => {
+    await page.goto("/");
+    await untilHydrated(page);
+    const nav = page.getByRole("navigation", { name: "Fonctions" });
+    // The skeleton shows at the click only once the router has prefetched it, with the link.
+    const prefetched = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/reference/costs" &&
+        response.request().headers()["next-router-prefetch"] === "1",
+    );
+    await setExpanded(
+      nav.getByRole("button", { name: "Paramètres applicatifs", exact: true }),
+      true,
+    );
+    await prefetched;
+    const held = await holdRoute(page, "**/reference/costs?**", async (route, released) => {
+      const headers = route.request().headers();
+      if (headers.rsc === "1" && headers["next-router-prefetch"] !== "1") {
+        await released;
+      }
+    });
+    let skeleton: { x: number; width: number } | null;
+    try {
+      await nav.getByRole("link", { name: "Paramètres de coûts" }).click();
+      const loading = page.getByRole("main", { name: "Chargement de l’écran" });
+      await expect(loading).toBeVisible({ timeout: WORKING });
+      skeleton = await loading.boundingBox();
+    } finally {
+      await held.release();
+    }
+    const shown = await placed(page);
+    expect(skeleton).not.toBeNull();
+    // The column of 1536 points, centred: the skeleton, then the screen in its very place.
+    expect(skeleton?.width).toBeCloseTo(1536, 0);
+    expect(skeleton?.width).toBeCloseTo(shown.width, 0);
+    const box = await shown.main.boundingBox();
+    expect(skeleton?.x).toBeCloseTo(box?.x ?? Number.NaN, 0);
   });
 
   test("lets a screen of work fill the width the side bar leaves", async ({ page }) => {

@@ -35,6 +35,7 @@ import type { components, operations } from "@/api/generated/schema";
 import { type GridColumn, type GridConfig, sortColumns } from "@/components/grid/columns";
 import { prefixedAddress } from "@/components/grid/query";
 
+import { keptState } from "./address";
 import { commandColumns } from "./command-columns";
 import { DefaultCalendarCell } from "./calendar-default";
 
@@ -82,6 +83,11 @@ export const ORG_CODE = "org_code";
 export const ORG_LEVEL = "org_level";
 export const ORG_STATE = "org_is_active";
 
+/** What each grid keeps of its filters for a session offered them: its state (WF-REF-0150). */
+const KEPT_ORG_STATE = keptState(ORG_STATE);
+const KEPT_ROLE_STATE = keptState(ROLE_STATE);
+const KEPT_CALENDAR_STATE = keptState(CALENDAR_STATE);
+
 /**
  * The columns of figures each grid bounds, as the address names them after its prefix: their bounds
  * are `<column>_min` and `<column>_max` (`boundNames`).
@@ -120,6 +126,7 @@ export function orgNodeGrid(editable = false): GridConfig<OrgNode, never, null> 
     address: ORG_NODE_ADDRESS,
     sorts: false,
     searched: true,
+    ...(editable ? KEPT_ORG_STATE : {}),
     rowKey: (node) => node.org_node_id,
     tree: {
       level: (node) => node.level,
@@ -186,6 +193,7 @@ export function resourceRoleGrid(
     address: RESOURCE_ROLE_ADDRESS,
     searched: true,
     paged: true,
+    ...(editable ? KEPT_ROLE_STATE : {}),
     rowKey: (role) => role.resource_role_id,
     columns: [
       {
@@ -283,6 +291,7 @@ export function calendarGrid(editable = false): GridConfig<Calendar, CalendarSor
     address: CALENDAR_ADDRESS,
     searched: true,
     paged: true,
+    ...(editable ? KEPT_CALENDAR_STATE : {}),
     rowKey: (calendar) => calendar.calendar_id,
     columns: [
       {

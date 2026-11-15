@@ -217,6 +217,8 @@ describe("the risk matrix as a bubble chart", () => {
     });
     expect(grid).toMatchObject({ silent: true, data: [] });
     const gridZ = (grid?.markLine as { z: number }).z;
+    // Bubbles to compare with: an empty list would let the loop check nothing (#3293).
+    expect(bubbles.length).toBeGreaterThan(0);
     for (const bubble of bubbles) expect(gridZ).toBeLessThan((bubble as { z: number }).z);
   });
 

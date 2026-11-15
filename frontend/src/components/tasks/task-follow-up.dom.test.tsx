@@ -3,6 +3,7 @@
 import { act, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
+import { Profiler, type ReactNode, useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
@@ -12,7 +13,13 @@ import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/f
 import { tasksButton, tasksRegion } from "@/test/task-panel";
 
 import { POLL_INTERVAL } from "./task-entry";
-import { TaskPanel, TasksButton, TaskTracker, useTrackTask } from "./task-tracker";
+import {
+  TaskPanel,
+  TasksButton,
+  TaskTracker,
+  useReadAnewWhenTaskEnds,
+  useTrackTask,
+} from "./task-tracker";
 
 // The follow-up of a task until it has ended, and the screen read anew at its end (#3103); the rest
 // of the tracker is in `task-tracker.dom.test.tsx`. The server of Next, as far as the tracker needs
@@ -181,5 +188,105 @@ describe("the follow-up of a task, and the screen read anew at its end", () => {
     await tick(2);
     expect(ends()).toEqual([["Tâche terminée\u00A0: Marquage d’une révision."]]);
     expect(router.refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe("the screen read once for the ends learnt together, and never for a follow-up interrupted (#3284)", () => {
+  /** The shell, as far as the tracker goes, around a screen. */
+  function shell(page: ReactNode) {
+    return render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <TaskTracker>
+          <header>
+            <TasksButton />
+          </header>
+          <TaskPanel />
+          {page}
+        </TaskTracker>
+      </NextIntlClientProvider>,
+    );
+  }
+
+  /**
+   * A screen that hands tasks already ended over as it mounts: its effect runs once the shell has
+   * rendered its reading anew, and before the effect of that reading, which finds them logged.
+   */
+  function HandingOver({ given }: { readonly given: readonly BackgroundTask[] }) {
+    const track = useTrackTask();
+    useEffect(() => {
+      for (const ended of given) {
+        track(ended);
+      }
+    }, [given, track]);
+    return null;
+  }
+
+  /** A screen that hands an export already made over, by its button. */
+  function Exporting() {
+    const track = useTrackTask();
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          track(task("task_export_succeeded"));
+        }}
+      >
+        Exporter
+      </button>
+    );
+  }
+
+  beforeEach(() => {
+    window.history.replaceState(null, "", `/projects/${PROJECT}/revisions`);
+  });
+
+  it("reads the screen anew once for two ends logged at once [WF-IHM-0080-A]", () => {
+    serve({});
+    shell(<HandingOver given={[task("task_succeeded"), task("task_export_succeeded")]} />);
+    expect(ends()).toHaveLength(2);
+    expect(router.refresh).toHaveBeenCalledOnce();
+  });
+
+  it("reads the screen anew for an end logged before its reading anew has mounted [WF-IHM-0080-A]", () => {
+    serve({});
+    shell(<HandingOver given={[task("task_succeeded")]} />);
+    expect(ends()).toHaveLength(1);
+    expect(router.refresh).toHaveBeenCalledOnce();
+  });
+
+  it("reads nothing anew for a follow-up interrupted, nor renders again a screen waiting for another task [WF-IHM-0080-A]", async () => {
+    const renders = { count: 0 };
+    /** A screen that waits for the end of the task it started. */
+    function Waiting() {
+      useReadAnewWhenTaskEnds(task("task_running").task_id);
+      return null;
+    }
+    serve({ [TASK]: { problem: { code: "NOT_FOUND", status: 404 } } });
+    shell(
+      <>
+        <Profiler
+          id="waiting"
+          onRender={() => {
+            renders.count += 1;
+          }}
+        >
+          <Waiting />
+        </Profiler>
+        <Starting given={task("task_running")} />
+        <Exporting />
+      </>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Lancer" }));
+    await tick();
+    expect(ends()[0]?.[0]).toMatch(/^Suivi interrompu/);
+    await tick(2);
+    expect(router.refresh).not.toHaveBeenCalled();
+    const rendered = renders.count;
+    // Another task ends: the screen is read anew for it, and the screen waiting for the first is
+    // not rendered again.
+    await userEvent.click(screen.getByRole("button", { name: "Exporter" }));
+    expect(ends()).toHaveLength(2);
+    expect(router.refresh).toHaveBeenCalledOnce();
+    expect(renders.count).toBe(rendered);
   });
 });

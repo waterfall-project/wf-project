@@ -558,7 +558,9 @@ without the prefix (`failure.ts`). Without an envelope, or without a `correlatio
 displayed is the digest Next computes, that of its own logs. A screen never says « empty » on a
 response it has not read. When the session is unreadable, the navigation keeps the status screen
 (WF-ADM-0130). Each segment that reads the API has its `loading.tsx`, the `ScreenSkeleton` skeleton,
-which carries a named `role="status"` — a screen reader does not always announce it; the response is
+at the density of its screens, which the `loading.tsx` reads in the table of the densities — a
+screen of another family than its segment has its own, and the airy screen does not jump when it
+comes (#3269) —, which carries a named `role="status"` — a screen reader does not always announce it; the response is
 then streamed, and « not found » answers 200 and not 404 — a soft 404, which Next marks `noindex`:
 the status leaves with the skeleton, before the page knows the object is not found. It is the same
 for every address not found, which is what counts here. Each empty state — no project, project
@@ -569,27 +571,35 @@ without a revision, incomplete reference data — is shown on a named example of
 
 The home page, `/`, is the list of projects (`frontend/src/app/(home)/`, a route group so that it
 has its skeleton without giving one to every page): filtered by default on the projects of which
-the user is a contributor, by the filter of the contract (`is_contributor`), which the screen shows
-and which a link lifts — `?is_contributor=false`, under the name of the contract
-(`frontend/src/navigation/home.ts`) —: a filter, never a restriction of reading (WF-PRJ-0060).
-The link that lifts it is offered only to a session that carries `all_projects_read` (WF-ADM-0110):
-lifted for another, the filter would render the same list, and the link would promise what it does
-not do (WF-IHM-0090, #522); without this permission, the home page stays filtered whatever the
-address says — `?is_contributor=false` included, the page asking for `is_contributor=true` —, the
-« My projects » badge displayed without any link, and the choice of the project leads to the home
-page rather than to the lifted list. The sidebar and the breadcrumb lead to the filtered list, the
-choice of the project to the lifted list, « All projects »; `/projects`, the former address,
-redirects to the home page. The projects are one more configuration of the dense grid
-(`project-list-grid.tsx`, preferences under the `projects` key): the label, a link that opens the
-project, the code, the state by its badge and the date of modification, each column sorted by the
-server (`sort_by`), searched by it on the label and the code (`search`), filtered by state —
-pressed buttons that write only the address (`states`) — and by period on the last modification
-(`from`, `to`, EP-02/L42e): two days entered in the local time of the reader, sent as the instants
-of the start of the first and of the start of the day after the last, the end excluded. An address
-that names no state asks for all six, the home page showing everything the user may open, where
-the contract, without `states`, would render only the projects in progress (WF-PTF-0010); the
-pressed buttons are the states the address names, « Every state » when it names none: the address
-is authoritative. A period the server refuses — an end before the start, 422 `VALUE_OUT_OF_RANGE`
+the user is a contributor, by the filter of the contract (`is_contributor`): a filter, never a
+restriction of reading (WF-PRJ-0060). The screen is airy (`PageHeader` in `airy` density) and its
+table sits in a card, `SectionCard` « Liste des projets », of which « Create a project » is the
+principal command, filled, at the right of the title — for a session that carries the permission to
+create a project, no other is offered it. The filter is an « My projects (by default) » chip under
+the bar of the table, which one removes, and a « Projects » field of the panel of the filters;
+removing it writes `?is_contributor=false`, under the name of the contract
+(`frontend/src/navigation/home.ts`), and an address that says nothing means the filter. It is never
+kept, neither in the address nor in the preferences of the grid: at sign-in, the user sees their
+projects (WF-IHM-0120). The chip and the field are offered only to a session that carries
+`all_projects_read` (WF-ADM-0110): lifted for another, the filter would render the same list, and
+the chip would promise what it does not do (WF-IHM-0090, #522); without this permission, the home
+page stays filtered whatever the address says — `?is_contributor=false` included, the page asking
+for `is_contributor=true` —, with neither chip nor field, and the description of the card alone says
+that the list holds the projects the session contributes to; the choice of the project then leads
+to the home page rather than to the lifted list. The sidebar and the breadcrumb lead to the
+filtered list, the choice of the project to the lifted list, « All projects »; `/projects`, the
+former address, redirects to the home page. The projects are one more configuration of the dense
+grid (`project-list-grid.tsx`, preferences under the `projects` key): the label, a link that opens
+the project, the code, the state by its badge and the date of modification, each column sorted by
+the server (`sort_by`), searched by it on the label and the code (`search`), filtered by state — a
+field of the panel that writes only the address (`states`) — and by period on the last
+modification (`from`, `to`, EP-02/L42e): two days entered in the local time of the reader, sent as
+the instants of the start of the first and of the start of the day after the last, the end
+excluded. The states are told as the filter of the projects is, by chips: an address that names no
+state asks those the account kept, else the states by default, Created, Pricing and In progress,
+told « (by default) »; `states=all` lifts them and asks all six, where the contract, without
+`states`, would render only the projects in progress (WF-PTF-0010): the address is authoritative.
+A period the server refuses — an end before the start, 422 `VALUE_OUT_OF_RANGE`
 on `/query/to`, `params.minimum` the start given — is said at its field, the start named by its
 local day, which takes the focus each time the list comes back refused, like a bound of a column
 of numbers (`range-filter.tsx`); the list is not read, and a sentence holds the place of the grid.
@@ -733,7 +743,12 @@ project, its trigger and the conditions it still lacks, one by one (`getProjectN
 trigger is one of the two facts the contract enumerates (`LifecycleTrigger`), said by its
 catalogue (`enums.LifecycleTrigger`). A project that no fact leads any further — the server
 answers without a next state or a trigger — says so: in progress, only its exits remain; terminal
-— a state an exit leads to (`EXIT_STATES`) —, it is closed, and no state follows it (WF-CYC-0080).
+— a state an exit leads to (`EXIT_STATES`) —, it is closed, and no state follows it (WF-CYC-0080). The next state and the history of the states are
+each a section card, in the airy column (US-2130); the exits stay at the right of the title of the
+screen, outlined. The screen of the revisions follows the same presentation without changing its
+structure (EP-27 recasts it): a card per section, « Open a current revision » — the filled command,
+which `RevisionHistory` receives as `creation` — at the right of the title of the history card, the
+commands of the revision read at the right of the title of the screen.
 
 ### The periods of a list
 
@@ -1022,17 +1037,22 @@ grid, outside the chain that contains it — were it only in a narrow window, wh
 content lines up below (the actual costs, the risks) —, does not fill the window where it has it
 below (`fillWide`, `lg:min-h-0`), just as `/admin/backups` and the reference data of resources and
 costs, which stack their grids, do not fill it: the grid would overflow onto it (#1033).
-`frontend/e2e/grid-frame.spec.ts` measures it on the nine screens that fill the window, in a low
+`frontend/e2e/grid-frame.spec.ts` measures it on the eight screens that fill the window, in a low
 window, at the two widths of the harness: the frame overlaps nothing. The width of a table is CSS,
 measured by no script (`table-width.ts`, US-2080, #3075): the frame has the width of its card, the
 table the larger of the card and of the sum of its columns, and the label column (`label`) — failing
 one, the last column before any pinned at the end — takes what the others leave, the width chosen
 for it becoming its minimum: its handle and its arrows set that minimum, the column never shrinking
-below what the card gives it. It is wider than its width only when the table does not scroll
-sideways: the offsets of the pinned columns, drawn from the chosen widths, stay right. No line
-between the columns, except beside a pinned column; the row under the pointer is tinted by a token
-(`--row-hover`, `ROW_HOVER`), which a computed cell, a selected row or one marked by a differential
-keep under their own tint. In the totals row, the caption of the count spans the columns without a
+below what the card gives it; a step that changes nothing on the screen writes nothing, so that,
+while the card is wide, that minimum can only rise (#3280). It is wider than its width only when the
+table does not scroll sideways: the offsets of the pinned columns, drawn from the chosen widths, stay
+right. No line between the columns, except beside a pinned column; the cells of the body take the
+background of the card that holds the table (`CELL_BACKGROUND`, `bg-card`, #3277), opaque for the
+pinned columns, and the row under the pointer is tinted by a token (`--row-hover`, `ROW_HOVER`),
+which a computed cell, a selected row or one marked by a differential keep under their own tint. The
+commands of a row (variant `row` of `Button`) have a border of their own, `--row-command-border`, at
+3:1 on the card, the hover and the selected row; `--border`, which only separates, stays light
+(#3332). In the totals row, the caption of the count spans the columns without a
 figure that follow it (`colSpan`) instead of being truncated; pinned, it stays stuck over the pinned
 columns alone, its words at the start of its column (#3072). The simple tables (`ui/table.tsx`) have
 the text, the header and the absence of lines of the grids. The bar and the « Columns » button have
@@ -1556,15 +1576,22 @@ simple tables, without sort or filter (decision of the author of 2026-10-08, #50
 object is named by the label the server resolves at reading time, active or deactivated — never
 by matching lists in the front; a section is named by `aria-label` (#251).
 
-The lists of the reference data read only the active objects, and the deactivated ones too when the
-address asks for it (`include_inactive`, WF-REF-0150, #300), under the name of the contract, which
-the header of the screen writes or lifts by a link (`InactiveSwitch`), which brings each paginated
-list back to its first page — only for a session that carries the write permission of their part of
-the reference data, without which the contract refuses it (403, `inactiveQuery` of `address.ts`;
-decision #2084, option A, `docs/api/DECISIONS.md`), like the lists of the estimate (#351). The
-filter by state (`is_active`, `StateFilter`) prevails over it: all states, the active only, or the
-deactivated only, offered to the same session only (`stateOf`). A deactivated object is said there
-by a mark and a word, and is reactivated there as
+Each list of the reference data says what it shows of the deactivated objects by its own filter of
+the state (`is_active` under the prefix of its grid, `StateFilter`, WF-REF-0150, US-2090), a filter
+by default of the grid like the states of the list of projects (#1747): absent from the address and
+from the settings of the account, it is « Actifs », said by the chip « État : Actifs (par défaut) »;
+« Désactivés » shows them alone; the chip lifted shows them all, the address then writing `all` so
+that neither the account nor the default takes its place (`stateOf`, `EVERY_STATE` of
+`address.ts`). The front sends `is_active=true`, `is_active=false`, or `include_inactive=true`
+without `is_active` (`stateQuery`). The choice is kept with the settings of the grid, per account,
+once it differs from the default (`keptState`, `GridConfig.defaulted`, `kept-filters.ts`). The
+screen no longer has a switch « Afficher aussi les désactivés », and `include_inactive` in its
+address is no longer read (#3076). The filter is offered only to a session that carries the write
+permission of their part of the reference data, without which the contract refuses the deactivated
+objects (403; decision #2084, option A, `docs/api/DECISIONS.md`): another reads the active ones
+alone, like the lists of the estimate (#351). The lists of choices of the forms offer the active
+ones alone, whatever the tables show. A deactivated object is said there by a mark and a word, and
+is reactivated there as
 the server lists its command (`available_commands`, #532, WF-IHM-0090) — the server lists it only
 for whoever can modify that part, and the front deduces nothing from it: available, through the
 activation command of its nature (`setActivation`, a server action, from the version read), then the
@@ -1869,7 +1896,7 @@ Lifting the last filter is said in the address, the search written empty (`searc
 which the `PendingAddress` of a screen that names what its grid keeps sets), as a lifted sort
 writes `sort_by` empty: the preference empties, and the page does not find the kept filters again
 (#836). The roles screen is wired to the service (US-0380/L2, #380): to a session that carries
-`access_roles.write`, the table creates a role inline, by its label alone (`role-commands.tsx`),
+`access_roles.write`, the table creates a role by its label alone, in the dialog that « New role » opens — the filled button at the right of the title of the card (`role-commands.tsx`, `role-creation.tsx`) —,
 renames it in its cell — the grid's input, written by `updateAccessRole` with the permissions of
 the role — and deletes it from its row, after a confirmation that names the role and says the
 deletion is definitive (`AlertDialog`, outside the grid, Escape abandoning it) — a logical deletion
@@ -1929,8 +1956,8 @@ requested reactivation has not answered. What a write does — a rename included
 above the table, on the loading it started from (`Reactivations`), that of a name, at its cell. The
 search and the filters are kept with the settings of the grid and found again when the address says
 nothing of the table (`USER_KEPT`), as for the roles. Without the permission, nothing is written
-and no command is presented. Above the table, the reading of the accounts of the identity provider
-(US-0370, WF-ADM-0070, `identity-sync.tsx`) shows the report of the last completed reading
+and no command is presented. In a card under the table, an outlined command « Read the accounts » at the right of its title and its state in its body, the reading of the accounts of the identity provider
+(US-0370, WF-ADM-0070, US-2100, `identity-sync.tsx`) shows the report of the last completed reading
 (`getLatestIdentitySync`), or says that none has succeeded yet (404): its accounts created,
 updated, deactivated, those whose identity it restored in the provider, the local accounts it
 removes from it, and, on request, what it left as is, each with the reason from the catalogue — an
@@ -2545,8 +2572,9 @@ project belong to the forms of their domain, its modification to the one of its 
 `is_available` and its conditions — a marked revision lists them unavailable, for lack of being
 under elaboration —, its exports left to the imports and exports screen, which offers them
 (`ExportForm`), its inputs (`edit_*`) to their grids and the skeleton to the empty planning grid
-(EP-14/L44d); `findOffer` draws a single one from it, and `UnmetConditions` names what the offer of
-a form that is not a `Command` lacks. Outside the project — accounts, roles, reference data,
+(EP-14/L44d); `findOffer` draws a single one from it, and forms say what they lack as the other
+commands do, by `CommandTooltip` and, when pressed, `PressRefusal`; `UnmetConditions` remains only
+for the commands of the timelines (#3290). Outside the project — accounts, roles, reference data,
 backup —, `platformOffer` follows the permission to change of a function of `platform` scope
 (`PlatformFunction`) in `Session.permissions`, or `project_create` for the creation of a project,
 which no project lists; the commands of a backup are those it lists (`Backup.available_commands`,
@@ -2709,12 +2737,33 @@ messages », which holds the focus as long as it is open and which Escape, its c
 outside the panel or « Reload the screen » close, the focus given back to the button of the bar.
 The button of the bar (`TasksButton`) opens it and says, in its name and its badges, the number of
 tracked tasks and that of the unread refusals. Nothing opens it on its own, except the refusal of a
-result on the browser's return, whose download left from the panel. A handed-over or finished task
-is said under the bar, in the flow of the page, on the screen where one is: the last one, in a
-short line that stays until the next — the confirmation in place of a success the screen does not
-show —, without an announcement, the log speaking for the ends; its button closes it, by keyboard
-as by mouse, and gives the focus back to the button of the bar, the task staying tracked (author's
-decision, #1179).
+result on the browser's return, whose download left from the panel. A handed-over task is said
+under the bar, in the flow of the page, on the screen where one is: the last one, in a short line
+that stays until the next, without an announcement; its button closes it, by keyboard as by mouse,
+and gives the focus back to the button of the bar, the task staying tracked (author's decision,
+#1179). The line does not tell an end that an end card carries — a success, a failure —: the card,
+which stays and carries the action, tells it alone, with the log of the ends and the panel, and the
+line of the handed-over task closes when it comes; the line only tells an interrupted follow-up,
+which has no card (author's decision of 2026-11-14, #3292). Each success and each failure is told
+by a floating card in the bottom right corner of the window (`EndCards`, `end-cards.tsx`, US-2170), mounted by the shell over the page,
+which it does not move: the sentence of the end, the reason of a failure, the action that follows —
+« Download » the file of an export, the task read anew first as from the panel, otherwise « Open »
+the screen it was launched from — and its cross. It stays until it is opened — « Open » by a plain
+click, not one that opens another tab — or closed (`Tracking.cards`, made before the log is
+truncated); several stack up, the last on top, in a column bounded by the window, which scrolls. It
+is not a live region: the log of the ends announces it, without taking the focus, and notes it in
+the message history, which the panel keeps. An interrupted tracking has no card; a task found
+again, its screen unknown, has only its cross. Closed — by its cross or by its action — while the
+focus was in the stack, the focus goes to the cross of the next card, otherwise of the previous one,
+otherwise to the button of the bar. The file of an export leaves on its own when its task succeeds
+and the screen that asked for it is still open (`useDownloadWhenTaskSucceeds`, `ExportForm`,
+`TaskTreeExport`, #3103), the task read anew first; the screen left, the card offers it. Downloaded
+on its own, with no gesture of the user, it never leaves nor reloads the screen: it goes by a hidden
+frame, sandboxed without scripts, a refusal of the route read from the address it sends the frame
+back to and told by the card (`downloadWhenThere`, `result-download.tsx`) — not by `fetch`, which
+the network guard keeps to the client of the API and which would hold the file in memory. Served once
+(WF-DAT-0120), the file is then no longer offered by the card, which keeps its sentence and its
+cross — nor once a read before a click finds it gone.
 Closed, the panel still follows its tasks — the shell reloads them (`TaskPolling`), outside the
 entries — and its log still speaks, outside the panel, or inside as long as it is open, where the
 focus is held. A relaunch refused as stale (412) loses its command, which would still be, and a

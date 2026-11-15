@@ -163,27 +163,6 @@ describe("the panel of the filters of the table of the accounts", () => {
     expect(lastAddress()).toBe("/admin/users?search=");
   });
 
-  it("tells an address that hid the deactivated accounts as the active ones alone, kept with the settings of the grid, and lifted by its chip or by « Effacer les filtres » [WF-IHM-0060-A, #2916]", async () => {
-    page.search = "include_inactive=false";
-    render(list({ filters: { include_inactive: "false" } }));
-    const chips = screen.getByRole("list", { name: "Filtres actifs" });
-    expect(within(chips).getByText("État du compte : Actif")).toBeVisible();
-    await userEvent.click(
-      screen.getByRole("button", { name: "Retirer le filtre État du compte : Actif" }),
-    );
-    expect(lastAddress()).toBe("/admin/users?search=");
-    await userEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
-    expect(lastAddress()).toBe("/admin/users?search=");
-  });
-
-  it("records `include_inactive=false` with the filters of the grid, a filter the page reads [WF-IHM-0060-A, #2916]", async () => {
-    page.search = "include_inactive=false";
-    render(list());
-    await waitFor(() => {
-      expect(recorded().at(-1)).toMatchObject({ filters: { include_inactive: "false" } });
-    });
-  });
-
   it("offers no chip, and no way to clear, while no filter is on, and breaks no rule of accessibility", async () => {
     const { container } = render(list());
     expect(screen.queryByRole("list", { name: "Filtres actifs" })).toBeNull();
