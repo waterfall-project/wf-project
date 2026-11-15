@@ -323,6 +323,31 @@ describe("the abandon of the current revision", () => {
     expect(confirm).not.toHaveAttribute("aria-disabled");
     expect(router.replace).not.toHaveBeenCalled();
   });
+  it("holds its command too, until the page has been read anew after an abandonment whose connection was lost once sent, so that the confirmation closed cannot open again before (US-2240)", async () => {
+    const lost = new TypeError("fetch failed", {
+      cause: Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" }),
+    });
+    const send = vi.fn(() => Promise.reject(lost));
+    server.client = createApiClient({ address: "http://localhost:4010", fetch: send });
+    holdReading(router.refresh);
+    show(<Reading>{commands()}</Reading>);
+    const command = screen.getByRole("button", { name: "Abandonner la révision en cours" });
+    await userEvent.click(command);
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer l’abandon" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("l’opération a pu aboutir");
+
+    // The command waits as the confirmation does: pressed, it neither closes nor opens anything.
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(command);
+    expect(command).toHaveAttribute("aria-expanded", "true");
+
+    await act(async () => {
+      releaseReading();
+      await Promise.resolve();
+    });
+    expect(command).not.toHaveAttribute("aria-disabled");
+    expect(send).toHaveBeenCalledOnce();
+  });
 });
 
 describe("the designation of the reference", () => {

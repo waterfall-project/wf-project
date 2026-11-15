@@ -152,7 +152,8 @@ export function ConfirmedCommand<T>({
           icon={icon}
           names={names}
           subject={subject}
-          writing={busy}
+          // Closed while the screen is read anew, the confirmation does not open again before it is.
+          writing={waiting}
           disclosure={{
             expanded: shown,
             controls: form,
