@@ -738,6 +738,12 @@ describe("the access roles", () => {
       "Modifier les utilisateurs Accordée Non accordée Non accordée Non accordée Accordée Non accordée Non accordée",
     ]);
     expect(matrix).toContain(
+      "Consultation d’une fonction Consulter l’installation Accordée Non accordée Non accordée Non accordée Accordée Non accordée Non accordée",
+    );
+    expect(matrix).toContain(
+      "Modifier l’installation Accordée Non accordée Non accordée Non accordée Accordée Non accordée Non accordée",
+    );
+    expect(matrix).toContain(
       "Paramètres de coûts Consulter les paramètres de coûts Non accordée Non accordée Accordée Accordée Accordée Accordée Accordée",
     );
     expect(matrix.slice(-11)).toEqual([

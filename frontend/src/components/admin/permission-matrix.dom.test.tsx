@@ -175,10 +175,11 @@ describe("the matrix of the permissions", () => {
       .getAllByRole("rowheader")
       .map((each) => each.textContent);
     const audit = rows.indexOf("Consulter le journal d’audit");
-    expect(rows.slice(audit + 1, audit + 4)).toContain("Consulter l’installation");
-    expect(rows.indexOf("Modifier l’installation")).toBe(
-      rows.indexOf("Consulter l’installation") + 1,
-    );
+    // audit + 1 heads the run of the installation: its function is not in the navigation until
+    // EP-25 US-2120/L2 (#3241), so it bears the kind of its actions for now.
+    expect(rows[audit + 1]).toBe("Consultation d’une fonction");
+    expect(rows[audit + 2]).toBe("Consulter l’installation");
+    expect(rows[audit + 3]).toBe("Modifier l’installation");
     expect(matrix.textContent).not.toContain("FBS-");
     // Read only: nothing to check.
     expect(screen.queryByRole("checkbox")).toBeNull();

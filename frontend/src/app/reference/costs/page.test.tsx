@@ -224,10 +224,17 @@ describe("the leaf of the correspondence of the actual costs", () => {
 });
 
 describe("the name of the company beside the currency", () => {
-  it("is read with the command that modifies it by a session that holds cost_settings.write", async () => {
+  it("is read with the command that modifies it by a session that holds installation.write [WF-ADM-0100-A]", async () => {
     const page = await costsAt();
     expect(page).toContain("Delmas Automatismes");
     expect(page).toContain("Modifier le nom de l’entreprise");
+  });
+
+  it("is offered no command to modify it under cost_settings.write alone, which the service would refuse [WF-ADM-0100-A]", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_manager" };
+    const page = await costsAt();
+    expect(page).toContain("Delmas Automatismes");
+    expect(page).not.toContain("Modifier le nom de l’entreprise");
   });
 
   it("is placed right after the currency, and the page shows no mock-up notice", async () => {
