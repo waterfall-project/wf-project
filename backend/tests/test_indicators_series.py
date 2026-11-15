@@ -324,7 +324,7 @@ def test_a_cash_out_without_amount_has_no_month() -> None:
     assert cash_out_by_month({}, {}) == []
 
 
-@pytest.mark.requirement("WF-DAT-0100")
+@pytest.mark.requirement("WF-IND-0100-A")
 def test_a_negative_part_lowers_the_cumulative_and_is_rounded_by_difference() -> None:
     shares = {FEBRUARY: Decimal("100.005"), MARCH: Decimal("-30.004"), APRIL: Decimal("0.001")}
     assert amounts(cumulative(shares)) == [
