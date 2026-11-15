@@ -224,9 +224,15 @@ describe("the screen of the revisions of a project", () => {
       "GET /projects/{project_id}/revisions": "revisions_empty",
     };
     const page = html(await RevisionsPage(at()));
-    expect(text(page)).toContain("Ce projet n’a aucune révision.");
-    expect(text(page)).toContain(
+    const words = text(page);
+    expect(words).toContain("Ce projet n’a aucune révision.");
+    expect(words).toContain(
       "Comparaison de deux révisions La comparaison demande deux révisions marquées.",
+    );
+    // The history comes before the comparison.
+    expect(words.indexOf("Historique des révisions")).toBeGreaterThanOrEqual(0);
+    expect(words.indexOf("Historique des révisions")).toBeLessThan(
+      words.indexOf("Comparaison de deux révisions"),
     );
     expect(page).not.toContain("<form");
   });

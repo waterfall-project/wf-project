@@ -67,7 +67,11 @@ describe("the screen of the revisions, rendered", () => {
   it("sets each section in a card, « Ouvrir une révision en cours » filled in the card of the history, the one filled command of the screen [WF-IHM-0090-A]", async () => {
     const { container } = await renderRevisions();
     expect(screen.getByRole("main")).toHaveClass(...SCREEN.airy.split(" "));
-    for (const title of ["Historique des révisions", "Comparaison de deux révisions"]) {
+    for (const title of [
+      "Historique des révisions",
+      "Désignation de la référence",
+      "Comparaison de deux révisions",
+    ]) {
       expect(screen.getByRole("region", { name: title })).toHaveAttribute(
         "data-slot",
         "section-card",
@@ -85,7 +89,11 @@ describe("the screen of the revisions, rendered", () => {
   });
 
   it("keeps the commands of the revision it reads in at the right of the title, outlined, and the structures and the rate update in their cards [WF-IHM-0090-A]", async () => {
-    server.answers = { ...server.answers, "GET /projects/{project_id}": "project" };
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project",
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_rate_update_offered",
+    };
     const { container } = await renderRevisions({ revision_id: DRAFT });
     const header = container.querySelector('[data-slot="screen-commands"]');
     expect(header).not.toBeNull();
@@ -98,6 +106,8 @@ describe("the screen of the revisions, rendered", () => {
         "section-card",
       );
     }
+    const update = screen.getByRole("region", { name: "Mise à jour des taux proposée" });
+    expect(within(update).getByRole("button", { name: /Appliquer/ })).toBeInTheDocument();
     expectCommandRule(container);
   });
 });
