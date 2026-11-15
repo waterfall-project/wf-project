@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import PageError from "@/app/error";
 import type { components } from "@/api/generated/schema";
+import { buttonVariants } from "@/components/ui/button";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
@@ -91,6 +92,15 @@ describe("the screen of failure", () => {
     await userEvent.click(screen.getByRole("button", { name: "Réessayer" }));
     expect(retry).toHaveBeenCalledOnce();
     await expectAccessible(container);
+  });
+
+  it("is set in the airy column, its title at the size of the airy ones, « Réessayer » an outlined command of the screen (US-2130)", () => {
+    inLanguage(<SystemFailure error={forwarded(UNREACHABLE_DIGEST)} retry={vi.fn()} />);
+    expect(screen.getByRole("main")).toHaveClass(...SCREEN.airy.split(" "));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveClass("text-2xl");
+    const retry = screen.getByRole("button", { name: "Réessayer" });
+    expect(retry).toHaveClass(...buttonVariants({ variant: "outline", size: "sm" }).split(" "));
+    expect(retry).not.toHaveClass("bg-primary");
   });
 
   it("tells an unexpected error apart, with the reference that finds it in the logs", async () => {
@@ -270,9 +280,9 @@ describe("the skeleton of a screen that loads", () => {
   // Each segment passes the density of the screens it loads, from the table of the densities: a
   // screen of settings is not preceded by a dense skeleton, which it would jump from (#3269).
   it.each([
-    ["an address no screen answers", "dense", () => import("@/app/[...path]/loading")],
-    ["the home, the list of projects", "dense", () => import("@/app/(home)/loading")],
-    ["the account", "dense", () => import("@/app/account/loading")],
+    ["an address no screen answers", "airy", () => import("@/app/[...path]/loading")],
+    ["the home, the cards of the projects", "airy", () => import("@/app/(home)/loading")],
+    ["the account", "airy", () => import("@/app/account/loading")],
     ["the portfolio", "airy", () => import("@/app/portfolio/loading")],
     ["the state of the system", "airy", () => import("@/app/system/loading")],
     ["the administration", "airy", () => import("@/app/admin/loading")],

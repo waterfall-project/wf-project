@@ -571,27 +571,35 @@ without a revision, incomplete reference data — is shown on a named example of
 
 The home page, `/`, is the list of projects (`frontend/src/app/(home)/`, a route group so that it
 has its skeleton without giving one to every page): filtered by default on the projects of which
-the user is a contributor, by the filter of the contract (`is_contributor`), which the screen shows
-and which a link lifts — `?is_contributor=false`, under the name of the contract
-(`frontend/src/navigation/home.ts`) —: a filter, never a restriction of reading (WF-PRJ-0060).
-The link that lifts it is offered only to a session that carries `all_projects_read` (WF-ADM-0110):
-lifted for another, the filter would render the same list, and the link would promise what it does
-not do (WF-IHM-0090, #522); without this permission, the home page stays filtered whatever the
-address says — `?is_contributor=false` included, the page asking for `is_contributor=true` —, the
-« My projects » badge displayed without any link, and the choice of the project leads to the home
-page rather than to the lifted list. The sidebar and the breadcrumb lead to the filtered list, the
-choice of the project to the lifted list, « All projects »; `/projects`, the former address,
-redirects to the home page. The projects are one more configuration of the dense grid
-(`project-list-grid.tsx`, preferences under the `projects` key): the label, a link that opens the
-project, the code, the state by its badge and the date of modification, each column sorted by the
-server (`sort_by`), searched by it on the label and the code (`search`), filtered by state —
-pressed buttons that write only the address (`states`) — and by period on the last modification
-(`from`, `to`, EP-02/L42e): two days entered in the local time of the reader, sent as the instants
-of the start of the first and of the start of the day after the last, the end excluded. An address
-that names no state asks for all six, the home page showing everything the user may open, where
-the contract, without `states`, would render only the projects in progress (WF-PTF-0010); the
-pressed buttons are the states the address names, « Every state » when it names none: the address
-is authoritative. A period the server refuses — an end before the start, 422 `VALUE_OUT_OF_RANGE`
+the user is a contributor, by the filter of the contract (`is_contributor`): a filter, never a
+restriction of reading (WF-PRJ-0060). The screen is airy (`PageHeader` in `airy` density) and its
+table sits in a card, `SectionCard` « Liste des projets », of which « Create a project » is the
+principal command, filled, at the right of the title — for a session that carries the permission to
+create a project, no other is offered it. The filter is an « My projects (by default) » chip under
+the bar of the table, which one removes, and a « Projects » field of the panel of the filters;
+removing it writes `?is_contributor=false`, under the name of the contract
+(`frontend/src/navigation/home.ts`), and an address that says nothing means the filter. It is never
+kept, neither in the address nor in the preferences of the grid: at sign-in, the user sees their
+projects (WF-IHM-0120). The chip and the field are offered only to a session that carries
+`all_projects_read` (WF-ADM-0110): lifted for another, the filter would render the same list, and
+the chip would promise what it does not do (WF-IHM-0090, #522); without this permission, the home
+page stays filtered whatever the address says — `?is_contributor=false` included, the page asking
+for `is_contributor=true` —, with neither chip nor field, and the description of the card alone says
+that the list holds the projects the session contributes to; the choice of the project then leads
+to the home page rather than to the lifted list. The sidebar and the breadcrumb lead to the
+filtered list, the choice of the project to the lifted list, « All projects »; `/projects`, the
+former address, redirects to the home page. The projects are one more configuration of the dense
+grid (`project-list-grid.tsx`, preferences under the `projects` key): the label, a link that opens
+the project, the code, the state by its badge and the date of modification, each column sorted by
+the server (`sort_by`), searched by it on the label and the code (`search`), filtered by state — a
+field of the panel that writes only the address (`states`) — and by period on the last
+modification (`from`, `to`, EP-02/L42e): two days entered in the local time of the reader, sent as
+the instants of the start of the first and of the start of the day after the last, the end
+excluded. The states are told as the filter of the projects is, by chips: an address that names no
+state asks those the account kept, else the states by default, Created, Pricing and In progress,
+told « (by default) »; `states=all` lifts them and asks all six, where the contract, without
+`states`, would render only the projects in progress (WF-PTF-0010): the address is authoritative.
+A period the server refuses — an end before the start, 422 `VALUE_OUT_OF_RANGE`
 on `/query/to`, `params.minimum` the start given — is said at its field, the start named by its
 local day, which takes the focus each time the list comes back refused, like a bound of a column
 of numbers (`range-filter.tsx`); the list is not read, and a sentence holds the place of the grid.

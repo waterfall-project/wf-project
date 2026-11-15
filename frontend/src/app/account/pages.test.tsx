@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SignedOut } from "@/api/problem";
+import { SCREEN } from "@/components/shell/page-header";
 import { SESSION_REQUIRED_DIGEST } from "@/components/system/failure";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
@@ -124,6 +125,25 @@ describe("the screen of the account", () => {
     await expect(failure).rejects.toBeInstanceOf(SignedOut);
     await expect(failure).rejects.toMatchObject({ digest: SESSION_REQUIRED_DIGEST });
   });
+});
+
+describe("the screens of the account, in the charter (US-2130)", () => {
+  it.each([
+    ["the account", () => AccountPage(), true],
+    ["its avatar", () => AvatarPage(), false],
+  ])(
+    "sets %s in the airy column, its title at the size of the airy ones, its commands outlined",
+    async (_, open, hasCommands) => {
+      const page = html(await open());
+      expect(page.startsWith(`<main class="${SCREEN.airy}">`)).toBe(true);
+      // Whatever the order of the classes of the title.
+      expect(/<div class="([^"]*)"><h1/.exec(page)?.[1]?.split(" ")).toContain("text-2xl");
+      // The avatar has no command beside its title: the slot is there for the account alone.
+      const commands = /data-slot="screen-commands"[^>]*>(.*?)<\/div>/.exec(page)?.[1];
+      expect(commands !== undefined).toBe(hasCommands);
+      expect(commands ?? "").not.toContain("bg-primary");
+    },
+  );
 });
 
 describe("the avatar of the account", () => {
