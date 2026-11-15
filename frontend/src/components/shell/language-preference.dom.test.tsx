@@ -14,6 +14,7 @@ import {
   fakeClient,
   refusedConnection,
 } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import { Shell } from "./shell";
 
@@ -116,6 +117,8 @@ beforeEach(() => {
   server.down = false;
   server.refresh = () => undefined;
 });
+
+beforeEach(browserOffline);
 
 describe("the language in the menu of the account", () => {
   it("offers the browser's language, French and English, in the language of the page", async () => {

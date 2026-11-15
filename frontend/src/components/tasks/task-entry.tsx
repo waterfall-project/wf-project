@@ -40,7 +40,7 @@ import {
 } from "@/components/commands/outcome-notice";
 import { useHeldCommand } from "@/components/commands/held";
 import { useNoteMessage } from "@/components/notices/message-history";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedRead } from "@/components/commands/rejection";
 import { Button } from "@/components/ui/button";
 import { problemMessage } from "@/i18n/problem";
 import { asksIdentifiers } from "@/navigation/login";
@@ -235,7 +235,7 @@ function usePolling(entry: TrackedTask, dispatch: Dispatch<TrackingEvent>) {
     const ask = () => {
       timer = setTimeout(() => {
         void readBackgroundTask(taskId).then(answered, (error: unknown) => {
-          answered(rejected(error));
+          answered(rejectedRead(error));
         });
       }, POLL_INTERVAL);
     };

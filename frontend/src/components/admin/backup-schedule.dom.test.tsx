@@ -20,6 +20,7 @@ import {
   held,
   type Problem,
 } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import { BackupScheduleSection } from "./backup-schedule";
 
@@ -150,6 +151,8 @@ afterEach(() => {
   settled.tests = 0;
   failing.until = undefined;
 });
+
+beforeEach(browserOffline);
 
 describe("the schedule of the backups", () => {
   it("offers no form to a session that may not modify the backups: the schedule is read alone", () => {

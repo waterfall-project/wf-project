@@ -41,6 +41,7 @@ from waterfall.core.planning.dating import constants_of
 from waterfall.core.planning.entries import (
     AUTOMATIC,
     MANUAL,
+    dating_pointers,
     judged_change,
     judged_creation,
 )
@@ -663,7 +664,7 @@ def update_task_facet(
     Under the lock of the structure: refused if the node is no task of it (404), at another
     version (412), or for what it computes or does not accept (422, ``entries``), its attachment
     to the work breakdown with it (``attachments``, WF-PLA-0170). Beyond fifteen years, refused
-    naming the task (WF-PLA-0150); nothing is written.
+    naming the task (WF-PLA-0150), an amount past its column at the fields that date it (#3094).
     """
     with writing(session, place, writer, ("cell", (node_id,))) as write:
         tree = write.tree
@@ -678,7 +679,7 @@ def update_task_facet(
         judged = judge_cell(ground, node_id, entry)
         write.before((node_id,))
         write_cell(ground, node_id, entry, judged, writer.act)
-        redated = write.redate((node_id, task.label))
+        redated = write.redate((node_id, task.label), entered=dating_pointers(entry))
         write.after((node_id,))
         return redated.written((node_id,))
 

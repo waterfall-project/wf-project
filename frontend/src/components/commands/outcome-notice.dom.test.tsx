@@ -18,7 +18,7 @@ import { expectAccessible } from "@/test/axe";
 import { example, type Problem } from "@/test/fixtures";
 
 import { OutcomeNotice } from "./outcome-notice";
-import { rejected } from "./rejection";
+import { rejectedRead } from "./rejection";
 
 // The router of the application, as the notice reads it: a router that would take over the links of
 // the page is one a link of the router calls.
@@ -142,7 +142,7 @@ describe("the notice of an outcome", () => {
     const thrown = Object.assign(new Error("Server Components render"), { digest: "3141592653" });
     const { rerender } = render(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-        <OutcomeNotice outcome={rejected(thrown)} onClear={vi.fn()} />
+        <OutcomeNotice outcome={rejectedRead(thrown)} onClear={vi.fn()} />
       </NextIntlClientProvider>,
     );
     expect(screen.getByRole("alert")).toHaveTextContent(
@@ -189,7 +189,7 @@ describe("the notice of an outcome", () => {
   it("says the API out of reach for a server action the browser could not reach", () => {
     render(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-        <OutcomeNotice outcome={rejected(new TypeError("Failed to fetch"))} onClear={vi.fn()} />
+        <OutcomeNotice outcome={rejectedRead(new TypeError("Failed to fetch"))} onClear={vi.fn()} />
       </NextIntlClientProvider>,
     );
     expect(screen.getByRole("alert")).toHaveTextContent("Le service est injoignable");
@@ -250,10 +250,11 @@ describe("the notice of an outcome", () => {
     // here, the region it says it in, present while the outcome is told.
     const { container } = render(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-        <OutcomeNotice outcome={await lostWrite("UND_ERR_SOCKET")} onClear={vi.fn()} />
+        <OutcomeNotice outcome={await lostWrite("UND_ERR_SOCKET")} onClear={vi.fn()} reading />
       </NextIntlClientProvider>,
     );
-    expect(screen.getByRole("status")).toBeInTheDocument();
+    // A screen being read anew, as its command says it: the status says so.
+    expect(screen.getByRole("status")).toHaveTextContent("Relecture de l’écran…");
     expect(within(screen.getByRole("alert")).queryByRole("status")).toBeNull();
     await expectAccessible(container);
   });
@@ -358,7 +359,7 @@ describe("the notice of an outcome", () => {
     });
     render(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-        <OutcomeNotice outcome={rejected(lost)} onClear={vi.fn()} />
+        <OutcomeNotice outcome={rejectedRead(lost)} onClear={vi.fn()} />
       </NextIntlClientProvider>,
     );
     const link = screen.getByRole("link", { name: "Se connecter" });
@@ -409,7 +410,7 @@ describe("the notice of an outcome", () => {
     });
     const notice = (error: Error) => (
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-        <OutcomeNotice outcome={rejected(error)} onClear={vi.fn()} />
+        <OutcomeNotice outcome={rejectedRead(error)} onClear={vi.fn()} />
       </NextIntlClientProvider>
     );
     // A session lost leads to the sign-in page: the control of the absence below.

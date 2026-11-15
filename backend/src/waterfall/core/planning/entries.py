@@ -53,6 +53,16 @@ AUTOMATIC = "automatic"
 MANUAL = "manual"
 # A task created without a duration lasts a day (WF-DEV-0050, WF-RAE-0040).
 ONE_DAY = Duration(Decimal(1), "d")
+# The fields of a modification of a task that date it, in the order of ``TaskFacetUpdate``.
+DATING = ("scheduling_mode", "duration", "start", "finish")
+
+
+def dating_pointers(entry: TaskEntry) -> tuple[str, ...]:
+    """Give the pointers of the fields a modification sends that date the task, in their order.
+
+    Those an amount its redating carries past its column is refused at (``Write.redate``, #3094).
+    """
+    return tuple(f"/{name}" for name in DATING if name in entry.sent)
 
 
 def decimal_text(value: Decimal) -> str:

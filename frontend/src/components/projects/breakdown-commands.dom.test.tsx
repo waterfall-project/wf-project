@@ -21,6 +21,7 @@ import {
   type FakeTiming,
   held,
 } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import type { BreakdownKind, WorkBreakdown } from "./settings-grids";
 import { WorkBreakdownList } from "./settings-lists";
@@ -188,6 +189,8 @@ afterEach(() => {
   router.refresh.mockClear();
   router.push.mockClear();
 });
+
+beforeEach(browserOffline);
 
 describe("the work breakdown edited in its grid", () => {
   it("adds an order item without a deliverable beside one that has none, and sends the work breakdown whole with both, the new one without an identifier [WF-PRJ-0020-A]", async () => {

@@ -16,6 +16,7 @@ import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/
 import { atCommit } from "@/test/committed";
 import { heldLink } from "@/test/held-link";
 import { holdReading, Reading, releaseReading } from "@/test/held-reading";
+import { browserOffline } from "@/test/offline";
 
 import { AvatarForm } from "./avatar-form";
 import { AvatarPicture } from "./avatar-picture";
@@ -88,6 +89,8 @@ beforeEach(() => {
   refresh.mockReset();
   forgetMessages();
 });
+
+beforeEach(browserOffline);
 
 describe("the preferences on the screen of the account", () => {
   it("records the language and the mode chosen, the same fields the menu of the account writes", async () => {

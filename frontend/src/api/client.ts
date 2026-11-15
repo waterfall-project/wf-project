@@ -145,8 +145,10 @@ const DROPPED: ReadonlySet<string> = new Set(["UND_ERR_SOCKET", "ECONNRESET", "E
 /**
  * What the rejection of `fetch` carries when a request did not leave: the connection refused
  * (`ECONNREFUSED`), the name of the API unknown or not resolved in time (`ENOTFOUND`, `EAI_AGAIN`),
- * no route to its network or its host (`ENETUNREACH`, `EHOSTUNREACH`), or the connection not opened
- * within undici's delay (`UND_ERR_CONNECT_TIMEOUT`). Nothing was sent, and nothing was done. Any
+ * no route to its network or its host (`ENETUNREACH`, `EHOSTUNREACH`), its network or its host down
+ * (`ENETDOWN`, `EHOSTDOWN`), or the connection not opened within undici's delay
+ * (`UND_ERR_CONNECT_TIMEOUT`). Nothing was sent, and nothing was done. `ETIMEDOUT` is not of them:
+ * the system gives it as well to a connection lost once opened, a write that left. Any
  * other rejection of a write — the connection dropped, reset, closed, destroyed or aborted, an
  * answer awaited past undici's delay, a code this list does not name, or none — is a write that may
  * have left (`Dropped`): telling it to be done again, when it may have been done, is the error this
@@ -158,6 +160,8 @@ const NOT_SENT: ReadonlySet<string> = new Set([
   "EAI_AGAIN",
   "ENETUNREACH",
   "EHOSTUNREACH",
+  "ENETDOWN",
+  "EHOSTDOWN",
   "UND_ERR_CONNECT_TIMEOUT",
 ]);
 
@@ -177,11 +181,15 @@ function failedWith(error: unknown, codes: ReadonlySet<string>): boolean {
 }
 
 /**
- * The rejection of `fetch` — a `TypeError` — marked as `Unreachable`, or as `Dropped` for a write
- * that may have left (`NOT_SENT`); any other error as it is.
+ * The rejection of `fetch` — a `TypeError` that carries a `cause`, or says "fetch failed", as
+ * undici's does — marked as `Unreachable`, or as `Dropped` for a write that may have left
+ * (`NOT_SENT`); any other error as it is, a `TypeError` thrown before the request leaves included.
  */
 function marked(error: unknown, read: boolean): unknown {
-  if (!(error instanceof TypeError)) {
+  if (
+    !(error instanceof TypeError) ||
+    (error.cause === undefined && error.message !== "fetch failed")
+  ) {
     return error;
   }
   return read || failedWith(error, NOT_SENT) ? new Unreachable(error) : new Dropped(error);

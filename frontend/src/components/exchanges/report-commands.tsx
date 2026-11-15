@@ -21,7 +21,7 @@ import { Command } from "@/components/commands/command";
 import { commandIcon } from "@/components/commands/icons";
 import type { CommandOffer } from "@/components/commands/offer";
 import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedWrite } from "@/components/commands/rejection";
 import { WaitingIcon, waitingAttributes } from "@/components/commands/waiting";
 import { useTaskRunning, useTrackTask, useWhenTaskSucceeds } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
@@ -82,7 +82,7 @@ function ConfirmForm({
     const command = () => applyFileImport(projectId, importId);
     setBusy(true);
     void command()
-      .catch(rejected)
+      .catch(rejectedWrite())
       .then((result) => {
         setBusy(false);
         if (result.kind === "done") {

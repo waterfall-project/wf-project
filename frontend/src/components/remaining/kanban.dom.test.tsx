@@ -16,6 +16,7 @@ import {
   held,
   type Problem,
 } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import { Kanban } from "./kanban";
 import { columnsOf, type KanbanColumns, type StartableTasks } from "./kanban-cards";
@@ -173,6 +174,8 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
 });
+
+beforeEach(browserOffline);
 
 describe("the gestures of the cards of the Kanban", () => {
   it("completes a milestone without a line from the card, at the date entered, the day's being proposed, and the answer replaces the card in its column [WF-RAE-0030-A]", async () => {

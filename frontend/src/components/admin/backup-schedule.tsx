@@ -37,7 +37,7 @@ import type { Outcome } from "@/api/problem";
 import { nextWeekday, WEEKDAYS } from "@/components/admin/schedule-days";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedRead } from "@/components/commands/rejection";
 import { WritingNote } from "@/components/commands/writing-note";
 import { useLocalTimestamp } from "@/components/local-time";
 import { useNoteMessage } from "@/components/notices/message-history";
@@ -300,7 +300,7 @@ function LocationTest({ location, path }: { readonly location: string; readonly 
       const outcome = await testExternalBackupLocation(
         location,
         folder === "" ? undefined : folder,
-      ).catch(rejected);
+      ).catch(rejectedRead);
       if (count === asked.current) {
         setTested({ outcome: toldOf(outcome), folder, count });
       }
