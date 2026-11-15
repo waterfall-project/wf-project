@@ -74,17 +74,18 @@ def labelled(item: dict[str, Any]) -> str:
     return (item["estimate_line"] if item["kind"] == "estimate_line" else item["task"])["label"]
 
 
-def order(tree: Tree) -> list[str]:
-    """Read the labels of the nodes of the structure, lines and tasks, in the order read."""
-    return [labelled(item) for item in tree.items()]
-
-
 def positions_hold(tree: Tree) -> bool:
     """Tell whether the positions read are, under each parent, those of the order read, from one."""
     under: dict[str | None, list[int]] = {}
     for item in tree.items():
         under.setdefault(item["parent_id"], []).append(item["position"])
     return all(each == list(range(1, len(each) + 1)) for each in under.values())
+
+
+def order(tree: Tree) -> list[str]:
+    """Read the labels of the nodes of the structure in the order read, the positions holding."""
+    assert positions_hold(tree)
+    return [labelled(item) for item in tree.items()]
 
 
 def move(tree: Tree, nodes: list[dict[str, Any]], parent: dict[str, Any], **body: Any) -> list[str]:
@@ -122,7 +123,6 @@ def bearing(tree: Tree, lines: Lines, costs: Costing) -> dict[str, dict[str, Any
     return held
 
 
-@pytest.mark.requirement("WF-DEV-0050-A")
 def test_a_task_created_after_a_line_heads_the_subtasks_and_after_a_subtask_follows_it(
     tree: Tree, lines: Lines, costs: Costing
 ) -> None:
@@ -139,10 +139,8 @@ def test_a_task_created_after_a_line_heads_the_subtasks_and_after_a_subtask_foll
     assert order(tree) == ["P", "L1", "L2", "X2", "X1", "S1", "X3", "S2"]
     tree.made("X4", parent_id=parent)
     assert order(tree) == ["P", "L1", "L2", "X2", "X1", "S1", "X3", "S2", "X4"]
-    assert positions_hold(tree)
 
 
-@pytest.mark.requirement("WF-DEV-0050-A")
 def test_a_task_created_after_a_line_of_a_task_without_subtask_is_the_first_of_them(
     tree: Tree, lines: Lines, costs: Costing
 ) -> None:
@@ -154,10 +152,8 @@ def test_a_task_created_after_a_line_of_a_task_without_subtask_is_the_first_of_t
     tree.made("X", parent_id=task["node_id"], after_node_id=first["node_id"])
     tree.made("R")
     assert order(tree) == ["P", "L1", "L2", "X", "R"]
-    assert positions_hold(tree)
 
 
-@pytest.mark.requirement("WF-PLA-0040-A")
 def test_a_task_moved_after_a_line_heads_the_subtasks_of_the_parent_it_joins(
     tree: Tree, lines: Lines, costs: Costing
 ) -> None:
@@ -172,10 +168,8 @@ def test_a_task_moved_after_a_line_heads_the_subtasks_of_the_parent_it_joins(
     assert move(tree, read_all(tree, "S2"), held["P"], after_node_id=after) == [
         *("P", "L1", "L2", "S2", "Z", "S1")
     ]
-    assert positions_hold(tree)
 
 
-@pytest.mark.requirement("WF-PLA-0040-A")
 def test_a_line_moved_after_a_subtask_ends_the_lines_before_the_subtasks(
     tree: Tree, lines: Lines, costs: Costing
 ) -> None:
@@ -191,7 +185,6 @@ def test_a_line_moved_after_a_subtask_ends_the_lines_before_the_subtasks(
     assert move(tree, read_all(tree, "L1"), held["P"], after_node_id=after) == [
         *("P", "L2", "L3", "L1", "S1", "S2", "Q")
     ]
-    assert positions_hold(tree)
 
 
 @pytest.mark.requirement("WF-PLA-0040-A")
@@ -225,10 +218,25 @@ def test_a_mixed_selection_is_placed_each_kind_by_its_own_rank_in_the_order_sent
     placed = move(tree, read_all(tree, "T2", "B"), held["P"], after_node_id=None)
     # Each kind at the head of its own.
     assert placed == ["P", "B", "L1", "L2", "A", "T2", "S1", "T1", "S2", "Q"]
-    assert positions_hold(tree)
 
 
-@pytest.mark.requirement("WF-DEV-0060-A")
+@pytest.mark.requirement("WF-PLA-0040-A")
+def test_a_selection_of_a_summary_task_and_one_of_its_subtasks_moves_the_group_whole(
+    tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # « Le déplacement d'une sélection qui contient une récapitulative et l'une de ses
+    # subordonnées laisse la subordonnée sous la récapitulative » : the group is moved entire, not
+    # flattened, its lines and its other subtask with it.
+    held = bearing(tree, lines, costs)
+    target = tree.made("D")
+    placed = move(tree, [held["P"], held["S1"]], target)
+    assert placed == ["D", "P", "L1", "L2", "S1", "S2"]
+    parents = {labelled(item): item["parent_id"] for item in tree.items()}
+    assert parents["S1"] == parents["S2"] == held["P"]["node_id"]
+    assert parents["P"] == target["node_id"]
+
+
+@pytest.mark.requirement("WF-DAT-0100-A")
 def test_the_total_of_a_revision_is_the_same_with_its_lines_read_in_the_reverse_order(
     stage: Scene,
     tree: Tree,
@@ -236,9 +244,12 @@ def test_the_total_of_a_revision_is_the_same_with_its_lines_read_in_the_reverse_
     costs: Costing,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # « La somme des totaux par nature égale le total général » : the total of the indicators, on
-    # the path of the service (``estimate_indicators_of``, which sums by its own ``_amount``, not by
-    # ``sum_amounts``), is the sum of the amounts the lines keep whichever order it reads them in.
+    # « La somme des montants budgétés d'une révision est identique quel que soit l'ordre de
+    # sommation » : without a reference revision, budgeted and reestimated amounts are the same, so
+    # the total of the indicators stands for the budgeted sum. The sum in ``Decimal`` is exact to 28
+    # digits, so this test characterises the path of the service (``estimate_indicators_of``, which
+    # sums by its own ``_amount``, not by ``sum_amounts``) and would pass on the original code: it
+    # proves no defect, it guards the property against a sum that would turn inexact.
     amounts = (
         *("999999999999.99", "0.01", "19.99", "123456789.10"),
         *("0.07", "7.07", "999999999999.98"),
@@ -274,6 +285,7 @@ def test_the_total_of_a_revision_is_the_same_with_its_lines_read_in_the_reverse_
     assert len(seen[0]) == len(amounts)
     assert forward.total.value == expected
     assert backward.total.value == expected
-    assert [each.amount.value for each in backward.by_cost_type] == [
-        each.amount.value for each in forward.by_cost_type
-    ]
+    for grouping in ("by_cost_type", "by_subproject", "by_work_package"):
+        assert [each.amount.value for each in getattr(backward, grouping)] == [
+            each.amount.value for each in getattr(forward, grouping)
+        ], grouping
