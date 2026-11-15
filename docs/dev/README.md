@@ -3147,14 +3147,16 @@ overrun makes nothing fail (README of the roadmap, section « Lots »).
 `make check-measures` confronts the measure reports of the versions (`docs/measures/<version>.json`,
 WF-QUA-0060-A): the chain does not measure, the durations of a runner varying from simple to double,
 it reads what a workstation measured and the repository versions. A report names each of the eleven
-operations of table 15 with its objective, its median, its worst duration, its dispersion and, if it
-exceeds its objective or degrades, a `note` that documents it; an operation the service does not yet
-serve carries `unserved`, the epic that will measure it, and no duration. The command compares the
-two last reports (`reference.json`, taken before any correction, is not one): an objective exceeded
-or a median more than a quarter above the previous version's is a warning of the chain
-(`::warning::`), and a failure when the report does not document it. Without a previous report only
-the objectives count; without any report it passes. Family `measures` of the chain, in
-`make check-all`.
+operations of table 15 with its objective, its median, its worst duration, its dispersion (the sample
+standard deviation, n - 1, of the identical passes, in seconds; only the median is confronted) and, if
+it exceeds its objective or degrades, a `note` that documents it; an operation the service does not yet
+serve carries `unserved`, the epic that will measure it, and no duration. The command compares the two
+last reports (`reference.json`, taken before any correction, is not one) and prints, for each served
+operation, its median and the previous version's, read in the previous report and not copied: an
+objective exceeded, a median more than a quarter above the previous version's or an operation served
+by the previous report and no longer by the latest is a warning of the chain (`::warning::`), and a
+failure when the report does not document it. Without a previous report only the objectives count;
+without any report it passes. Family `measures` of the chain, in `make check-all`.
 
 `make tracking ISSUE=<n>` changes one line of the tracking table in the body of the epic's issue,
 through `gh`, and touches nothing else: `LOT=<identifier>` (`US-1080` for a story of one lot,

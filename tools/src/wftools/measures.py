@@ -16,8 +16,9 @@ The report names every operation of the table of response times (table 15 of §4
 
 An operation the service does not yet serve carries ``unserved``, the epic that will measure it,
 and no duration. The durations are in seconds, taken over identical passes: ``median_s`` is their
-median, ``worst_s`` the longest and ``dispersion_s`` their standard deviation. Only the median is
-confronted; the worst duration and the dispersion say what a difference must exceed to be a gain.
+median, ``worst_s`` the longest and ``dispersion_s`` their sample standard deviation (n - 1).
+Only the median is confronted; the worst duration and the dispersion say what a difference must
+exceed to be a gain.
 
 The previous version's duration is read in the previous report, not copied into the latest. The two
 last reports are confronted: the command prints, for each served operation, its median and the
@@ -27,14 +28,24 @@ and no longer by the latest, is a warning of the chain, and a failure when the l
 no ``note`` for it. Without a previous report only the objectives are held; without any report the
 check passes.
 
-The identifiers of the table, with the line of table 15 and the operations of the contract that
-carry them (EP-26, US-2300): ``open-grid`` and ``filter-sort-search``, ``listNodes`` ;
-``recompute-after-entry``, ``updateTaskFacet`` and ``updateEstimateLine`` ;
-``workload-or-projection``, ``getProjectWorkload`` (the projection of expenses is EP-10) ;
-``mark-revision``, ``markRevision`` ;
-``import-costs``, ``openImport``, ``applyImport`` and ``getBackgroundTask`` ; ``export-planning``,
-``requestExport`` and ``getBackgroundTask``. ``indicators`` (EP-10), ``portfolio-view`` (EP-11),
-``open-compared-grid`` and ``recompute-compared`` (EP-27) have no operation yet: they are unserved.
+The identifiers of the table, each with the row of table 15 it names and the operations of the
+contract that carry it (EP-26, US-2300):
+
+- ``open-grid``: open a grid of a thousand tasks, ``listNodes``;
+- ``recompute-after-entry``: recompute after an entry in a grid, ``updateTaskFacet`` and
+  ``updateEstimateLine``;
+- ``filter-sort-search``: filter, sort or search in such a grid, ``listNodes``;
+- ``workload-or-projection``: show the workload or the projection of expenses,
+  ``getProjectWorkload`` (the projection of expenses is EP-10);
+- ``mark-revision``: mark a revision of ten thousand objects, ``markRevision``;
+- ``import-costs``: analyse then apply an import of eighteen thousand cost lines, ``openImport``,
+  ``applyImport`` and ``getBackgroundTask``;
+- ``export-planning``: generate the export of a planning of a thousand tasks, ``requestExport`` and
+  ``getBackgroundTask``.
+
+``indicators`` (indicators of the current revision, EP-10), ``portfolio-view`` (EP-11),
+``open-compared-grid`` and ``recompute-compared`` (the compared grid, EP-27) have no operation yet:
+they are unserved.
 """
 
 import json
