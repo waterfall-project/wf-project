@@ -1,7 +1,7 @@
 ---
 id: EP-25
 titre: Lire et saisir dans des écrans aérés, sobres et cohérents
-statut: en cours
+statut: livré
 depend_de: EP-24
 famille: front, back
 issue: 3195
