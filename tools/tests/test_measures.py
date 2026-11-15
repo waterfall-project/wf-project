@@ -164,6 +164,7 @@ def test_without_a_report_of_a_version_the_check_passes(
 ) -> None:
     assert run(tmp_path / "absent", capsys)[0] == 0
     (tmp_path / "reference.json").write_text("not even read", "utf-8")
+    (tmp_path / "processes.json").write_text("not even read", "utf-8")
     assert run(tmp_path, capsys)[0] == 0
 
 
@@ -288,3 +289,22 @@ def test_a_report_not_named_for_a_version_fails_the_check(
     code, out = run(tmp_path, capsys)
     assert code == 1
     assert "named for its version" in out
+
+
+@pytest.mark.requirement("WF-ARC-0080-A")
+def test_the_processes_report_keeps_the_shape_the_defaults_are_read_from() -> None:
+    # The report of the journey at one, two and four processes (US-2230/L2) is not a version's: it
+    # is kept beside them, and the defaults of the deployment are checked against its choice.
+    assert "processes" in measures.NOT_VERSIONS
+    found = json.loads((measures.MEASURES / "processes.json").read_text(encoding="utf-8"))
+    chosen = found["chosen"]
+    assert {"processes", "service_platform", "production_example"} <= set(chosen)
+    assert [run["processes"] for run in found["runs"]] == [1, 2, 4]
+    for run in found["runs"]:
+        assert [level["users"] for level in run["levels"]] == [1, 4, 8]
+        assert run["max_connections"] == 15 * run["processes"] + 200
+        for level in run["levels"]:
+            assert level["steps"]
+            for step in level["steps"].values():
+                assert {"usable_ms", "api_ms", "worst_usable_ms", "spread_ms"} <= set(step)
+    assert chosen["processes"] in {run["processes"] for run in found["runs"]}

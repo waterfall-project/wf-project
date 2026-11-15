@@ -120,6 +120,23 @@ def test_the_platform_is_complete_on_one_machine_its_data_in_named_volumes() -> 
         assert any(re.fullmatch(rf"[\w-]+:{kept}", mount) for mount in mounts), name
 
 
+def processes_chosen() -> dict[str, int]:
+    """Return what the measure of the processes of the API chose (docs/measures/processes.json)."""
+    report = json.loads((REPOSITORY / "docs" / "measures" / "processes.json").read_text("utf-8"))
+    return dict(report["chosen"])
+
+
+@pytest.mark.requirement("WF-ARC-0080-A")
+def test_the_example_of_settings_advises_the_number_the_measure_chose() -> None:
+    line = re.search(
+        r"^WATERFALL_API_PROCESSES=(\d+)$",
+        (COMPOSE / "production.env.example").read_text("utf-8"),
+        re.MULTILINE,
+    )
+    assert line is not None
+    assert int(line[1]) == processes_chosen()["production_example"]
+
+
 @pytest.mark.parametrize("path", [PRODUCTION, SERVICE])
 @pytest.mark.parametrize("processes", [1, 2, 4])
 def test_postgresql_carries_fifteen_connections_for_each_process_of_the_api(
@@ -128,7 +145,10 @@ def test_postgresql_carries_fifteen_connections_for_each_process_of_the_api(
     # Proper to US-2230: « les connexions à PostgreSQL de tous les processus tiennent sous
     # max_connections », computed from the very setting the API serves on.
     found = compose(path)["services"]
-    setting = "${WATERFALL_API_PROCESSES:-1}"
+    # The service platform serves on four unless told otherwise (the measure of US-2230/L2),
+    # production on one: its example of settings advises the number.
+    default = processes_chosen()["service_platform"] if path == SERVICE else 1
+    setting = f"${{WATERFALL_API_PROCESSES:-{default}}}"
     assert found["api"]["environment"]["WATERFALL_API_PROCESSES"] == setting
     server = found["postgres"]
     assert server["environment"]["WATERFALL_API_PROCESSES"] == setting
