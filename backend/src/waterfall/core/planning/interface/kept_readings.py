@@ -66,7 +66,7 @@ class KeptReading:
     inscriptions: Mapping[UUID, tuple[TrackingView, ...]]
 
 
-def settings_digest(session: Session, project_id: UUID) -> bytes:
+def _settings_digest(session: Session, project_id: UUID) -> bytes:
     """Give the digest of what a reading of a structure of a project reads outside its revision.
 
     The calendars and the calendar of each role, the work packages and the order items of the
@@ -85,7 +85,7 @@ def settings_digest(session: Session, project_id: UUID) -> bytes:
     return hashlib.sha256(settings.encode()).digest()
 
 
-def inscriptions_of(session: Session, project_id: UUID) -> dict[UUID, tuple[TrackingView, ...]]:
+def _inscriptions_of(session: Session, project_id: UUID) -> dict[UUID, tuple[TrackingView, ...]]:
     """Read the inscriptions of the tasks of a project, by lineage, the time/time tracking first.
 
     In the order a reading gives the inscriptions of a task (``tracking_of``).
@@ -110,7 +110,7 @@ def kept_reading(session: Session, place: Place, form: int) -> KeptReading | Non
     """
     if revision_marked_at(session, place.revision_id) is None:
         return None
-    digest = settings_digest(session, place.project_id)
+    digest = _settings_digest(session, place.project_id)
     row = session.execute(
         select(
             StructureReading.format, StructureReading.settings_digest, StructureReading.document
@@ -125,7 +125,7 @@ def kept_reading(session: Session, place: Place, form: int) -> KeptReading | Non
         if row is not None and row.format == form and row.settings_digest == digest
         else None
     )
-    return KeptReading(document, digest, inscriptions_of(session, place.project_id))
+    return KeptReading(document, digest, _inscriptions_of(session, place.project_id))
 
 
 def keep_reading(session: Session, place: Place, form: int, digest: bytes, document: bytes) -> None:

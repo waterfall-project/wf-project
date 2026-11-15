@@ -155,7 +155,7 @@ ALWAYS = ("node_id", "row_number", "level", "lock_version")
 TASK = NodeKind.task.value
 # The format of the body of a structure read whole, as this code writes it: a reading kept of
 # another is ignored and made again (US-2270). A field added to a node, or a value written
-# otherwise, changes it: ``FORMAT_SHAPE`` of the tests fails until it does.
+# otherwise, changes it: ``FORMAT_SHAPES`` of the tests fails until it does.
 FORMAT = 1
 
 

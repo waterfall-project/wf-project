@@ -115,6 +115,7 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
     "planning": {
         "closing",
         "facets",
+        "kept_readings",
         "lines",
         "loading",
         "msproject",
