@@ -91,3 +91,29 @@ describe("the shares of the portfolio, never « 0 % » when they are not nil (#6
     );
   });
 });
+
+describe("the sections of the views of the portfolio in cards (EP-25, US-2150)", () => {
+  /** The cards of section of a view, by their name, in English. */
+  function cards(view: ReactNode): string[] {
+    const markup = renderToStaticMarkup(
+      <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
+        {view}
+      </NextIntlClientProvider>,
+    );
+    return [...markup.matchAll(/<section aria-label="([^"]+)" data-slot="section-card"/g)].map(
+      (found) => found[1] ?? "",
+    );
+  }
+
+  it("sets each table of the cost structure in a card named by its title [WF-IHM-0100-A]", () => {
+    const structure = example(
+      "volume/portfolio_cost_structure",
+    ) as Schemas["PortfolioCostStructure"];
+    expect(cards(<CostStructureView structure={structure} />)).toHaveLength(3);
+  });
+
+  it("sets the value of the portfolio in a card named by its title [WF-IHM-0100-A]", () => {
+    const value = example("volume/portfolio_value") as Schemas["PortfolioValue"];
+    expect(cards(<PortfolioValueView value={value} />)).toEqual(["Portfolio value"]);
+  });
+});
