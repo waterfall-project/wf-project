@@ -25,9 +25,9 @@ import { TEST_SETTINGS } from "@/test/identity-provider";
 import { cookieJar } from "@/test/session";
 
 import { tasksRegion } from "@/test/task-panel";
+import { browserOffline } from "@/test/offline";
 
 import { Shell } from "./shell";
-import { browserOffline } from "@/test/offline";
 
 // The server of Next, as far as signing out needs it: the fake back behind serverClient, which
 // grants its own session (`WATERFALL_AUTH=mock`).

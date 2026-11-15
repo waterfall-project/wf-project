@@ -26,7 +26,7 @@ import { useId, useState } from "react";
 import { type ImportDurationRule, setFileImportDurationRule } from "@/api/actions/exchanges";
 import type { Outcome } from "@/api/problem";
 import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedWrite } from "@/components/commands/rejection";
 import { useReadAnewWhenTaskEnds, useTrackTask } from "@/components/tasks/task-tracker";
 
 const RULES: readonly ImportDurationRule[] = ["keep_durations", "keep_dates"];
@@ -124,7 +124,7 @@ function Choice({
     setBusy(true);
     onOutcome(undefined);
     void setFileImportDurationRule(projectId, importId, asked)
-      .catch(rejected)
+      .catch(rejectedWrite())
       .then((result) => {
         setBusy(false);
         if (result.kind === "done") {

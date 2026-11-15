@@ -16,10 +16,10 @@ import {
   held,
   type Problem,
 } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import { Kanban } from "./kanban";
 import { columnsOf, type KanbanColumns, type StartableTasks } from "./kanban-cards";
-import { browserOffline } from "@/test/offline";
 
 // The gestures of the cards: the cards are those the contract lists (`startable_tasks`), the answers
 // of the gestures its examples, and the fake back keeps nothing — it answers the example whatever

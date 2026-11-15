@@ -20,11 +20,11 @@ import {
   held,
   type Problem,
 } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import type { ProvisionOptions } from "./provision-choices";
 import { IdentifyRisk, RiskCommands } from "./risk-commands";
 import { type Risk, RiskDetail } from "./risk-detail";
-import { browserOffline } from "@/test/offline";
 
 // The server of Next, as far as the commands need it: the fake back, the page read anew once a write
 // is answered, the address it reads and the router it leads by.

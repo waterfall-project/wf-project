@@ -36,10 +36,10 @@ import {
   ROW,
   UNKNOWN,
 } from "@/test/paste-grid";
+import { browserOffline } from "@/test/offline";
 
 import { ROW_NUMBER_KEY } from "./columns";
 import type { NodeList } from "./nodes";
-import { browserOffline } from "@/test/offline";
 
 // The server of Next, as far as the grid needs it, as for the other tests of the grid.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));

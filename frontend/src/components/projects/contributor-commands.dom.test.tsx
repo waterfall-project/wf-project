@@ -21,10 +21,10 @@ import {
   type FakeTiming,
   held,
 } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import type { ContributorReading, Suggestion } from "./contributor-commands";
 import { ContributorList } from "./settings-lists";
-import { browserOffline } from "@/test/offline";
 
 // The server of Next, as far as the list needs it: the fake back, the page read anew once the list
 // is written, the address it reads.

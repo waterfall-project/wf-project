@@ -48,7 +48,7 @@ import { type RefObject, useEffect, useRef, useState } from "react";
 import type { Outcome } from "@/api/problem";
 import { useHeldCommand } from "@/components/commands/held";
 import { useReadAnew } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedRead } from "@/components/commands/rejection";
 
 import type { CellWrites } from "./cell-writes";
 import type {
@@ -427,7 +427,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
     setPasting({ block, width: widest(block), target, plan: undefined, applying: false });
     void asking
       .preview(row, named, block)
-      .catch(rejected)
+      .catch(rejectedRead)
       .then((answer) => {
         if (current.current !== asked) {
           return;

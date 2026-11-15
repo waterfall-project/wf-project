@@ -23,7 +23,7 @@ import { deleteAccessRole } from "@/api/actions/access-roles";
 import type { components } from "@/api/generated/schema";
 import { useHeldCommand } from "@/components/commands/held";
 import { UNAVAILABLE } from "@/components/commands/offer";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedWrite } from "@/components/commands/rejection";
 import { type Said, useSaid } from "@/components/notices/said";
 import { CellCommand } from "@/components/reference/cell-command";
 import { useListReading } from "@/components/reference/list-reading";
@@ -179,7 +179,7 @@ function Deletion({ children }: { readonly children: ReactNode }) {
     // commands tell a rejected action; and what the telling itself throws is raised to the screen
     // of failure, never left unhandled (#3111).
     void held(deleteAccessRole(id, role.lock_version))
-      .catch(rejected)
+      .catch(rejectedWrite())
       .then((outcome) => {
         if (outcome.kind === "done") {
           say?.(t("deleted", { name: role.label }));

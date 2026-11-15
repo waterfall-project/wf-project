@@ -18,9 +18,9 @@ import {
   held,
   type Problem,
 } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import { IdentitySyncScheduleSection } from "./identity-sync-schedule";
-import { browserOffline } from "@/test/offline";
 
 type Schedule = components["schemas"]["IdentitySyncSchedule"];
 

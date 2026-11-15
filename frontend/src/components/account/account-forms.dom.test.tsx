@@ -16,11 +16,11 @@ import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/
 import { atCommit } from "@/test/committed";
 import { heldLink } from "@/test/held-link";
 import { holdReading, Reading, releaseReading } from "@/test/held-reading";
+import { browserOffline } from "@/test/offline";
 
 import { AvatarForm } from "./avatar-form";
 import { AvatarPicture } from "./avatar-picture";
 import { PreferencesForm } from "./preferences-form";
-import { browserOffline } from "@/test/offline";
 
 // The server of Next, as far as the forms need it: the fake back behind serverClient, and the
 // refresh a server action asks for, which renders the page again.

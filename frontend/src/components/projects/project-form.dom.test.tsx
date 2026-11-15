@@ -21,9 +21,9 @@ import {
   type FakeTiming,
   held,
 } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import { CreateProject, ProjectIdentity } from "./project-form";
-import { browserOffline } from "@/test/offline";
 
 // The server of Next, as far as the forms need it: the fake back, the page rendered again once the
 // project is modified, and the navigations they ask.

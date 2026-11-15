@@ -293,7 +293,7 @@ describe("a write whose connection is lost once it has left (US-2240)", () => {
     "EHOSTDOWN",
     "UND_ERR_CONNECT_TIMEOUT",
   ])(
-    "marks a write that did not leave, refused by %s, as the API out of reach, not as dropped",
+    "marks a write that did not leave, refused by %s, as the API out of reach, not as dropped [WF-REV-0010-A]",
     async (code) => {
       const { send } = failing(rejection(code));
       const client = createApiClient({ address: "http://localhost:4010", fetch: send });
@@ -347,6 +347,15 @@ describe("a write whose connection is lost once it has left (US-2240)", () => {
       fetch: () => Promise.reject(new TypeError("fetch failed")),
     });
     await expect(down.GET("/health")).rejects.not.toBeInstanceOf(Dropped);
+  });
+
+  it('leaves a TypeError of a read, with no cause and not saying "fetch failed", as it is: a defect, not the API out of reach (WF-REV-0010-A)', async () => {
+    const defect = new TypeError("Invalid URL");
+    const down = createApiClient({
+      address: "http://localhost:4010",
+      fetch: () => Promise.reject(defect),
+    });
+    await expect(down.GET("/health")).rejects.toBe(defect);
   });
 
   it("never marks a read as dropped: dropped twice, it is the API out of reach", async () => {

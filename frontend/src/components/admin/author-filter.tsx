@@ -27,7 +27,7 @@ import { useCallback, useOptimistic, useRef, useState, useTransition } from "rea
 import { findAccounts } from "@/api/actions/users";
 import type { Outcome } from "@/api/problem";
 import { useAccountNaming } from "@/components/account/account-name";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedRead } from "@/components/commands/rejection";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { CheckMenu } from "@/components/grid/check-menu";
 import { filterHref } from "@/components/grid/filters";
@@ -109,7 +109,7 @@ export function AuthorFilter({
         return;
       }
       void findAccounts(text)
-        .catch(rejected)
+        .catch(rejectedRead)
         .then((outcome) => {
           if (latest.current !== text) {
             return;

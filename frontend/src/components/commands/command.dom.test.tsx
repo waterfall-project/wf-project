@@ -16,12 +16,12 @@ import { expectAccessible } from "@/test/axe";
 import { holdReading, Reading, releaseReading } from "@/test/held-reading";
 import { atCommit } from "@/test/committed";
 import { example, fakeClient, held, type Problem } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import { Command } from "./command";
 import { commandIcon, PROJECT_COMMAND_ICONS, REVISION_COMMAND_ICONS } from "./icons";
 import { LifecycleCommands, RevisionCommands } from "./object-commands";
 import { findOffer } from "./offer";
-import { browserOffline } from "@/test/offline";
 
 // The router of Next, as far as a command needs it: the address it shows, and the refresh
 // that reads the screen anew.
@@ -527,6 +527,29 @@ describe("the outcome of a command", () => {
     await userEvent.click(screen.getByRole("button", { name: "Terminer le projet" }));
 
     expect((await screen.findByRole("alert")).textContent).toBe(CATALOGUES.fr.outcome.unreachable);
+  });
+
+  it("says the write may have been done, and holds the command until the screen is read anew, when the browser lost its server action while online [WF-REV-0010-A]", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    holdReading(router.refresh);
+    const action = vi.fn(() => Promise.reject(new TypeError("Failed to fetch")));
+    french(<Reading>{available(action)}</Reading>);
+    const command = screen.getByRole("button", { name: "Terminer le projet" });
+    await userEvent.click(command);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("a pu aboutir");
+    expect(alert).not.toHaveTextContent("injoignable");
+    expect(router.refresh).toHaveBeenCalledOnce();
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(command);
+    expect(action).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      releaseReading();
+      await Promise.resolve();
+    });
+    expect(command).not.toHaveAttribute("aria-disabled");
   });
 
   it("explains a conflict, naming the object in conflict", async () => {

@@ -21,10 +21,10 @@ import {
   type FakeTiming,
   held,
 } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import type { Subproject } from "./settings-grids";
 import { SubprojectList } from "./settings-lists";
-import { browserOffline } from "@/test/offline";
 
 // The server of Next, as far as the list needs it: the fake back, the page read anew once a write is
 // answered, the address it reads.

@@ -5,9 +5,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { updateGridPreferences } from "@/api/actions/preferences";
 import { fakeClient } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import { useKeptWriter } from "./settings";
-import { browserOffline } from "@/test/offline";
 
 // The server of Next as far as the action needs it: the API out of reach for the first call
 // (the fetch rejects), the fake back behind serverClient for the next ones.

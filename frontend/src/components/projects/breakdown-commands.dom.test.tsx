@@ -21,10 +21,10 @@ import {
   type FakeTiming,
   held,
 } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import type { BreakdownKind, WorkBreakdown } from "./settings-grids";
 import { WorkBreakdownList } from "./settings-lists";
-import { browserOffline } from "@/test/offline";
 
 // The server of Next, as far as the grid needs it: the fake back, the page read anew once the work
 // breakdown is written, the address it reads.

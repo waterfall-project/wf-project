@@ -14,9 +14,9 @@ import {
   fakeClient,
   refusedConnection,
 } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import { Shell } from "./shell";
-import { browserOffline } from "@/test/offline";
 
 // The server of Next, as far as the shell needs it: the fake back behind serverClient, the
 // Accept-Language of the browser, and the refresh a server action asks for, which renders

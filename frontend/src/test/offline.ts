@@ -3,10 +3,14 @@
 import { vi } from "vitest";
 
 /**
- * The browser knows itself offline (`navigator.onLine` false), as when a server action cannot be
- * reached: a rejection of `fetch` is then the API out of reach, nothing having left (`rejected`,
- * US-2240), not a write that may have been done. Called by `beforeEach`.
+ * The browser knows itself offline (`navigator.onLine` false) as a write is sent: a rejection of
+ * `fetch` is then the API out of reach, nothing having left (`rejectedWrite`, US-2240), not a write
+ * that may have been done. Called by `beforeEach` of a test that wants it, which runs the
+ * restoration it returns once the test is over.
  */
-export function browserOffline(): void {
-  vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
+export function browserOffline(): () => void {
+  const spy = vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
+  return () => {
+    spy.mockRestore();
+  };
 }

@@ -23,8 +23,8 @@ import {
 } from "@/test/fixtures";
 
 import { updateReferenceSettings } from "@/api/actions/reference";
-import { CompanyName, CompanySettings, IndicatorSettings, RiskSettings } from "./settings-forms";
 import { browserOffline } from "@/test/offline";
+import { CompanyName, CompanySettings, IndicatorSettings, RiskSettings } from "./settings-forms";
 
 type ReferenceSettings = components["schemas"]["ReferenceSettings"];
 

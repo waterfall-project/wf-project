@@ -20,9 +20,9 @@ import {
   held,
   type Problem,
 } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import { BackupScheduleSection } from "./backup-schedule";
-import { browserOffline } from "@/test/offline";
 
 type Schemas = components["schemas"];
 
