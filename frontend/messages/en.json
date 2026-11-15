@@ -3192,6 +3192,10 @@
     "audit_log": {
       "read": "View the audit log"
     },
+    "installation": {
+      "read": "View the installation",
+      "write": "Edit the installation"
+    },
     "portfolio_projects": {
       "read": "View the project portfolio"
     },

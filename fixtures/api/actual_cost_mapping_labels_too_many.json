@@ -1,0 +1,17 @@
+{
+  "summary": "La correspondance du témoin envoyée aujourd'hui avec vingt et un intitulés pour la colonne lue de l'élément d'OTP, un de plus que les vingt admis : refusée, le refus désignant la liste des intitulés de cette colonne (/columns/0/labels), et non l'un d'eux. Rien n'est écrit (WF-REF-0190 ; #3270).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/columns/0/labels",
+        "code": "VALUE_TOO_LONG",
+        "params": {
+          "max_length": 20
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000003270"
+  }
+}

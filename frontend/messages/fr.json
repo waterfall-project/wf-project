@@ -3192,6 +3192,10 @@
     "audit_log": {
       "read": "Consulter le journal d’audit"
     },
+    "installation": {
+      "read": "Consulter l’installation",
+      "write": "Modifier l’installation"
+    },
     "portfolio_projects": {
       "read": "Consulter le portefeuille de projets"
     },
