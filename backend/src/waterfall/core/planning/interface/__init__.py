@@ -40,6 +40,12 @@ from waterfall.core.planning.interface.closing import (
     delete_nodes as delete_nodes,
 )
 
+# ``copying`` (US-1380/L2; moved out of ``nodes`` and written as one statement a table by
+# US-2240/L2): the copy of the nodes of a revision opened from a marked one.
+from waterfall.core.planning.interface.copying import (
+    copy_nodes as copy_nodes,
+)
+
 # ``facets`` (US-1380/L1; read by US-1380/L2; completed by US-1490/L3, US-2260/L3, US-2280/L1): the
 # facets of a node other than the task (EP-07).
 from waterfall.core.planning.interface.facets import (
@@ -248,9 +254,6 @@ from waterfall.core.planning.interface.nodes import (
 )
 from waterfall.core.planning.interface.nodes import (
     computed_value_dependencies as computed_value_dependencies,
-)
-from waterfall.core.planning.interface.nodes import (
-    copy_nodes as copy_nodes,
 )
 from waterfall.core.planning.interface.nodes import (
     create_node as create_node,

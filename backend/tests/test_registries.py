@@ -185,7 +185,7 @@ PLANNING = "waterfall.core.planning.interface"
 REGISTERED = {
     "revisions.copy": [
         "waterfall.core.revisions.interface.structures.copy_structures",
-        f"{PLANNING}.nodes.copy_nodes",
+        f"{PLANNING}.copying.copy_nodes",
         f"{PLANNING}.reference.redate_copy",
     ],
     "revisions.tasks_and_lines": [f"tasks:{PLANNING}.nodes.revision_has_tasks"],
@@ -214,7 +214,7 @@ CORE = "waterfall.core.estimate"
 # The hooks of the facet of the lines, in the order of ``FacetHooks`` (US-1490/L3).
 LINE_HOOKS = (
     f"{CORE}.reading.read_lines",
-    f"{ESTIMATE}.facet.copy_lines",
+    f"{CORE}.copying.copy_lines",
     f"{ESTIMATE}.facet.delete_lines",
     f"{ESTIMATE}.facet.line_calendars",
     f"{CORE}.writing.create_line",
@@ -265,14 +265,13 @@ REGISTERED_BY_EP07 = {
     "revisions.designation": [f"{ESTIMATE}.rates.refresh_budgeted"],
 }
 COSTS = "waterfall.core.costs.interface"
-# What the socle of EP-09 registers without effect (US-1580/L1), each in the order it acts: the copy
-# of the remaining to commit of the review before, after the lines and the rates; the formats and
+# What the socle of EP-09 registers without effect (US-1580/L1), each in the order it acts: the
+# formats and
 # the exporter of the remaining to commit and of the actual costs, by their kind; and what the
 # actual costs answer the projects of a subproject (US-1610/L3), in the order of ``CostFacts``; and
 # the own lines that hold a summary task open, which the estimate tells the planning (US-1590/L1),
 # and when they were set to nought (US-1650/L2, #2803).
 REGISTERED_BY_EP09 = {
-    "revisions.copy": [f"{ESTIMATE}.remaining.copy_previous"],
     "projects.cost_facts": [
         (
             f"CostFacts({COSTS}.subprojects.subproject_has_actual_costs, "
@@ -358,13 +357,14 @@ def test_every_registry_holds_what_the_socle_of_ep09_registers_after_the_estimat
     everything: dict[str, list[str]],
 ) -> None:
     # The extensions of the remaining to commit and of the actual costs, beside those of EP-06 and
-    # EP-07; the copy of the remaining of the review before comes last, after the lines and the
-    # rates it reads. Nothing answers the coverage of the risks before EP-08.
+    # EP-07; the remaining of the review before is no copy of its own: the copy of the lines writes
+    # it (US-2240/L2), and the copy of the rates comes last. Nothing answers the coverage of the
+    # risks before EP-08.
     others = before(REGISTERED, REGISTERED_BY_EP07)
     for name, entries in REGISTERED_BY_EP09.items():
         held = [entry for entry in everything[name] if entry not in others.get(name, set())]
         assert held == entries, name
-    assert everything["revisions.copy"][-1] == f"{ESTIMATE}.remaining.copy_previous"
+    assert everything["revisions.copy"][-1] == f"{CORE}.keeping.copy_rates"
     assert everything["estimate.coverage"] == []
 
 

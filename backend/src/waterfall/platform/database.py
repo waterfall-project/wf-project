@@ -23,10 +23,12 @@ from sqlalchemy import (
     Engine,
     MetaData,
     SQLColumnExpression,
+    Table,
     Text,
     Uuid,
     any_,
     bindparam,
+    column,
     create_engine,
     func,
     literal,
@@ -36,10 +38,11 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.types import TypeDecorator
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Iterable
+    from collections.abc import Generator, Iterable, Mapping
     from uuid import UUID
 
     from sqlalchemy.exc import IntegrityError
+    from sqlalchemy.sql.selectable import TableValuedAlias
 
 # The name of every constraint and index, declared once: a migration that writes none gets
 # these, and the tables the code declares get them too, so the two cannot drift apart.
@@ -82,6 +85,35 @@ def among(column: SQLColumnExpression[UUID | None], values: Iterable[UUID]) -> C
     times over (#3048).
     """
     return column == any_(bindparam(None, list(values), type_=ARRAY(Uuid())))
+
+
+def copies(mapping: Mapping[UUID, UUID], name: str) -> TableValuedAlias:
+    """Give identifiers and those of their copies as a table named ``name``: ``source``, ``copy``.
+
+    Two array parameters, unnested side by side: a copy of thousands of rows is then one
+    ``INSERT … SELECT`` that joins it, the rows never leaving the database, where sending them one
+    by one cost the opening of a revision most of its ten seconds (US-2240, #3102).
+    """
+    return (
+        func.unnest(
+            bindparam(None, list(mapping), type_=ARRAY(Uuid())),
+            bindparam(None, list(mapping.values()), type_=ARRAY(Uuid())),
+        )
+        .table_valued(column("source", Uuid()), column("copy", Uuid()))
+        .render_derived(name=name)
+    )
+
+
+def copied_columns(
+    table: Table, replaced: Mapping[str, ColumnElement[Any]]
+) -> tuple[list[str], list[ColumnElement[Any]]]:
+    """Give the columns of a table, and what a copy of its rows writes in each, for ``from_select``.
+
+    Each column as it is, but those ``replaced`` names: a column added to the table later is copied
+    too, without a word here.
+    """
+    names = [each.name for each in table.columns]
+    return names, [replaced.get(name, table.c[name]) for name in names]
 
 
 def unique_violated(error: IntegrityError) -> str | None:
