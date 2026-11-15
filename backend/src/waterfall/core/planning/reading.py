@@ -43,7 +43,7 @@ class NodeRecords:
     flat record (``TaskRecord``, ``FacetRecord``) rather than a view: the API writes the body.
     """
 
-    items: list[NodeRecord]
+    items: tuple[NodeRecord, ...]
     task_count: int
     summary_depth: int
     scheduled_at: datetime
@@ -110,7 +110,7 @@ def list_records(session: Session, place: Place, filters: NodeFilters) -> NodeRe
     """
     reading, found, scheduled_at = retained_reading(session, place, filters)
     return NodeRecords(
-        reading.records(found.order),
+        tuple(reading.records(found.order)),
         found.task_count,
         reading.summary_depth(),
         scheduled_at,

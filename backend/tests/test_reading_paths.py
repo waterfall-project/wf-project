@@ -122,7 +122,7 @@ def test_list_nodes_and_list_records_read_the_same_nodes(
         read = list_nodes(session, place, filters)
         records = list_records(session, place, filters)
     assert len(read.items) > 100
-    assert [record_of(view) for view in read.items] == list(records.items)
+    assert tuple(record_of(view) for view in read.items) == records.items
     assert (read.task_count, read.summary_depth) == (records.task_count, records.summary_depth)
     assert (read.scheduled_at, read.totals) == (records.scheduled_at, records.totals)
 
