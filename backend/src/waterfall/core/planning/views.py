@@ -237,44 +237,44 @@ def record_of(view: NodeView) -> NodeRecord:
             view.facet,
         )
     return TaskRecord(
-        view.node_id,
-        view.lineage_id,
-        view.parent_id,
-        view.position,
-        view.row_number,
-        view.level,
-        view.origin_risk_id,
-        view.lock_version,
-        view.predecessors,
-        view.computed_fields,
-        view.editable_fields,
-        task.label,
-        task.description,
-        task.scheduling_mode,
-        task.duration_value,
-        task.duration_unit,
-        task.start.day,
-        task.start.hours,
-        task.finish.day,
-        task.finish.hours,
-        task.progress,
-        task.started_on,
-        task.completed_on,
-        task.finish_overdue,
-        task.awaiting_own_lines,
-        task.is_summary,
-        task.is_milestone,
-        task.calendar_id,
-        task.calendar_hours,
-        task.total_float,
-        task.is_critical,
-        task.link_conflicts,
-        task.tracking,
-        task.order_item_id,
-        task.work_package_id,
-        task.work_breakdown_label,
-        task.external_id,
-        task.amounts,
+        node_id=view.node_id,
+        lineage_id=view.lineage_id,
+        parent_id=view.parent_id,
+        position=view.position,
+        row_number=view.row_number,
+        level=view.level,
+        origin_risk_id=view.origin_risk_id,
+        lock_version=view.lock_version,
+        predecessors=view.predecessors,
+        computed_fields=view.computed_fields,
+        editable_fields=view.editable_fields,
+        label=task.label,
+        description=task.description,
+        scheduling_mode=task.scheduling_mode,
+        duration_value=task.duration_value,
+        duration_unit=task.duration_unit,
+        start_date=task.start.day,
+        start_hours=task.start.hours,
+        finish_date=task.finish.day,
+        finish_hours=task.finish.hours,
+        progress=task.progress,
+        started_on=task.started_on,
+        completed_on=task.completed_on,
+        finish_overdue=task.finish_overdue,
+        awaiting_own_lines=task.awaiting_own_lines,
+        is_summary=task.is_summary,
+        is_milestone=task.is_milestone,
+        calendar_id=task.calendar_id,
+        calendar_hours=task.calendar_hours,
+        total_float=task.total_float,
+        is_critical=task.is_critical,
+        link_conflicts=task.link_conflicts,
+        tracking=task.tracking,
+        order_item_id=task.order_item_id,
+        work_package_id=task.work_package_id,
+        work_breakdown_label=task.work_breakdown_label,
+        external_id=task.external_id,
+        amounts=task.amounts,
     )
 
 
@@ -700,7 +700,11 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
         )
 
     def _task_record(self, node_id: UUID, node: N, task: T) -> TaskRecord:
-        """Give a task as a record: its columns, and what the reading derives of it once."""
+        """Give a task as a record: its columns, and what the reading derives of it once.
+
+        The fields are given in the order of ``TaskRecord``, by position: by name, the 38 of them
+        cost three times as much to build (1.0 against 0.3 us), six thousand times a reading.
+        """
         tree = self.tree
         summary = node_id in self.summaries
         milestone = not summary and task.duration_value == 0
