@@ -14,8 +14,8 @@ import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
 import { LocalTime } from "@/components/local-time";
-import { SectionCard } from "@/components/shell/section-card";
 import { CELL, ListTable } from "@/components/projects/project-tables";
+import { SectionCard } from "@/components/shell/section-card";
 import { TableCell, TableRow } from "@/components/ui/table";
 
 import { importHref } from "./offers";

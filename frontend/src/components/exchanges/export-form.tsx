@@ -160,6 +160,8 @@ function OfferedExports({
             onChange={(event) => {
               if (isExportKind(event.target.value)) {
                 setKind(event.target.value);
+                // The presses were told of the kind left: the next kind starts without a refusal.
+                setPresses(0);
               }
             }}
           >

@@ -57,12 +57,12 @@ import {
 
 import { deleteSubproject, writeSubproject } from "@/api/actions/projects";
 import { PressRefusal, useUnmet } from "@/components/commands/command";
-import type { PrincipalVariant } from "@/components/shell/section-card";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { useHeldCommand } from "@/components/commands/held";
 import { type CommandOffer, findOffer, UNAVAILABLE } from "@/components/commands/offer";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { type Said, type Say, useSaid } from "@/components/notices/said";
+import type { PrincipalVariant } from "@/components/shell/section-card";
 import { CellCommand, UnavailableCellCommand } from "@/components/reference/cell-command";
 import { ANOTHER_OBJECT } from "@/components/reference/commands";
 import { useListReport } from "@/components/reference/reactivation";

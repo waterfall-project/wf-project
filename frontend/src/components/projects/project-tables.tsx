@@ -38,30 +38,6 @@ export const CELL = "py-1.5";
 /** An icon before a text of a list, hidden from a screen reader by whoever draws it. */
 export const ICON = "size-4 shrink-0 text-muted-foreground";
 
-/** A list of a project under its title, with its icon; the sentence that says it is empty. */
-export function ListSection({
-  title,
-  icon: Icon,
-  empty,
-  children,
-}: {
-  readonly title: string;
-  readonly icon: LucideIcon;
-  /** What the section says when the list is empty; `undefined` when it is not. */
-  readonly empty: string | undefined;
-  readonly children: ReactNode;
-}) {
-  return (
-    <section aria-label={title} className="space-y-2">
-      <h2 className="flex items-center gap-2 text-base font-semibold">
-        <Icon aria-hidden="true" className={ICON} />
-        {title}
-      </h2>
-      {empty === undefined ? children : <p className="text-sm text-muted-foreground">{empty}</p>}
-    </section>
-  );
-}
-
 /**
  * A list of a project in the card of its section (`SectionCard`, US-2130): under its title with its
  * icon, its commands at the right of the title, and the sentence that says it is empty. A server

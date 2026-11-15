@@ -23,12 +23,12 @@ import { useFormatter, useLocale, useMessages, useTranslations } from "next-intl
 
 import type { components } from "@/api/generated/schema";
 import { findOffer } from "@/components/commands/offer";
-import { LocalTime } from "@/components/local-time";
-import { DiffMark } from "@/components/grid/diff-mark";
 import type { RowDifference } from "@/components/grid/columns";
+import { DiffMark } from "@/components/grid/diff-mark";
 import { NODE_COLUMNS, type NodeColumn } from "@/components/grid/nodes";
-import { SectionCard } from "@/components/shell/section-card";
+import { LocalTime } from "@/components/local-time";
 import { CELL, ListTable } from "@/components/projects/project-tables";
+import { SectionCard } from "@/components/shell/section-card";
 import { TableCell, TableRow } from "@/components/ui/table";
 import type { Catalogue } from "@/i18n/catalogues";
 import { formatDecimal, formatPlanningDate } from "@/i18n/format";

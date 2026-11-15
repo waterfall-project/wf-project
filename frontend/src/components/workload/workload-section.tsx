@@ -13,8 +13,9 @@
  * budget with a reference revision, the remaining of a marked revision when the project has one, the
  * revision under way always. A basis the API refuses all the same is said unavailable, and why.
  *
- * The section is the card of the screen (`SectionCard`), the choice in it, and is named by `aria-label`, and each field by an identifier of its own: an identifier
- * of `useId` in a server component may meet one of a client component of the shell (#251).
+ * The section is the card of the screen (`SectionCard`), the choice in it. The card is named by
+ * `aria-label`, and each field by an identifier of its own: an identifier of `useId` in a server
+ * component may meet one of a client component of the shell (#251).
  */
 import { ChartColumnStacked, ListFilter } from "lucide-react";
 import Form from "next/form";
