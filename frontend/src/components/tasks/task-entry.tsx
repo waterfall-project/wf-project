@@ -39,7 +39,13 @@ import {
 
 import { readBackgroundTask } from "@/api/actions/tasks";
 import type { BackgroundTask, Outcome, Problem } from "@/api/problem";
-import { OutcomeNotice, SignIn, useNoteRefusal } from "@/components/commands/outcome-notice";
+import { heldAttributes } from "@/components/commands/held-attributes";
+import {
+  OutcomeNotice,
+  SignIn,
+  useNoteRefusal,
+  useReadAnew,
+} from "@/components/commands/outcome-notice";
 import { useHeldCommand } from "@/components/commands/held";
 import { useNoteMessage } from "@/components/notices/message-history";
 import { rejected } from "@/components/commands/rejection";
@@ -385,8 +391,10 @@ export function TaskEntry({
     [key, dismissRef],
   );
   const name = useTaskName(entry);
+  // A relaunch lost once sent: the button waits until the screen has been read anew (US-2240).
+  const reading = useReadAnew(entry.outcome);
   const relaunch = () => {
-    if (command === undefined || pending) {
+    if (command === undefined || pending || reading) {
       return;
     }
     startTransition(async () => {
@@ -447,7 +455,7 @@ export function TaskEntry({
           variant="outline"
           size="sm"
           aria-label={t("tasks.relaunchLabel", { task: name })}
-          aria-busy={pending}
+          {...heldAttributes(pending, reading)}
           onClick={relaunch}
         >
           <RotateCcw aria-hidden="true" />
@@ -459,6 +467,7 @@ export function TaskEntry({
       ) : null}
       <OutcomeNotice
         outcome={entry.outcome}
+        reading={reading}
         onClear={() => {
           dispatch({ type: "clear", key });
         }}

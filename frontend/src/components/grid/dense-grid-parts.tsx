@@ -23,8 +23,9 @@ export function gridBusy(
   reading: boolean,
   commands: { readonly busy: boolean },
   undo: UndoControl | undefined,
+  lost = false,
 ): boolean {
-  return reading || commands.busy || undo?.busy === true;
+  return reading || lost || commands.busy || undo?.busy === true;
 }
 
 /**

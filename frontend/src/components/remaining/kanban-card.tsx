@@ -29,7 +29,7 @@ import { useUnmet } from "@/components/commands/command";
 import { type CommandHelp, CommandTooltip } from "@/components/commands/command-tooltip";
 import { MenuCommand } from "@/components/commands/menu-command";
 import { UNAVAILABLE } from "@/components/commands/offer";
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -456,10 +456,13 @@ function CardReading({
 function CardAsks({
   card,
   actions,
+  lost,
   state: { asking, notice, reading },
 }: {
   readonly card: KanbanCard;
   readonly actions: CardActions;
+  /** Whether the screen is read anew after a gesture of the card lost once sent (US-2240). */
+  readonly lost: boolean;
   readonly state: CardState;
 }) {
   return (
@@ -491,6 +494,7 @@ function CardAsks({
         <OutcomeNotice
           outcome={notice.outcome}
           subject={card.label}
+          reading={lost}
           dismissible
           onClear={() => {
             actions.forget(card.node_id);
@@ -502,9 +506,17 @@ function CardAsks({
 }
 
 /** Whether a card is dragged: it lists a gesture that sends a state, and nothing is under way. */
-function isDraggable(card: KanbanCard, writing: string | undefined, asked: boolean): boolean {
+function isDraggable(
+  card: KanbanCard,
+  writing: string | undefined,
+  asked: boolean,
+  lost: boolean,
+): boolean {
   return (
-    writing === undefined && !asked && card.commands.some((gesture) => gesture.progress !== null)
+    writing === undefined &&
+    !asked &&
+    !lost &&
+    card.commands.some((gesture) => gesture.progress !== null)
   );
 }
 
@@ -522,6 +534,8 @@ export function Card({
   const isSelected = selected === card.node_id;
   const [menuOpen, setMenuOpen] = useState(false);
   const item = useRef<HTMLLIElement | null>(null);
+  // A gesture of the card lost once sent: its gestures wait until the screen has been read anew (US-2240).
+  const lost = useReadAnew(state.notice?.kind === "outcome" ? state.notice.outcome : undefined);
   return (
     <li
       ref={(element) => {
@@ -532,7 +546,7 @@ export function Card({
       aria-current={isSelected ? "true" : undefined}
       aria-describedby={actions.hint}
       aria-busy={writing === card.node_id}
-      draggable={isDraggable(card, writing, state.asking !== undefined)}
+      draggable={isDraggable(card, writing, state.asking !== undefined, lost)}
       onFocus={(event) => {
         if (event.target === event.currentTarget) {
           actions.choose(card.node_id);
@@ -585,7 +599,7 @@ export function Card({
           <CardMenu
             card={card}
             remaining={actions.remaining}
-            busy={writing !== undefined}
+            busy={writing !== undefined || lost}
             open={menuOpen}
             onOpenChange={setMenuOpen}
             onDismiss={() => {
@@ -597,7 +611,7 @@ export function Card({
           />
         </div>
       ) : null}
-      <CardAsks card={card} actions={actions} state={state} />
+      <CardAsks card={card} actions={actions} lost={lost} state={state} />
     </li>
   );
 }
