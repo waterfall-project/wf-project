@@ -56,7 +56,11 @@ import {
   useTransition,
 } from "react";
 
-import { OutcomeNotice, refusalDescription } from "@/components/commands/outcome-notice";
+import {
+  OutcomeNotice,
+  refusalDescription,
+  useReadAnew,
+} from "@/components/commands/outcome-notice";
 import {
   Table,
   TableBody,
@@ -602,6 +606,10 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   // Each write a cell or a paste sends is one the commands of the screen wait for (#1224).
   const writing = writingOf(commands);
   const writes = useCellWrites<Row, Totals>({ address, rows, totals }, config, writing);
+  // A write of a cell lost once sent: the grid is read anew, and takes no entry until it is back
+  // (US-2240). The settings written are read anew too, which no entry waits for.
+  const readingCells = useReadAnew(writes.outcome);
+  const readingSettings = useReadAnew(writer.outcome);
   // The totals the writes last answered, or those of the answer.
   const shownTotals = writes.totals ?? totals;
   // The rows the tree leaves unfolded, which the grid renders and moves through.
@@ -666,6 +674,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       return top + rowHeight > edge && top < (element?.offsetHeight ?? 0) - edge;
     },
     writes,
+    reading: readingCells,
     locale,
     currency,
   });
@@ -679,7 +688,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     narrowed: isNarrowed(narrowing),
     writing,
     // The confirmation waits for any other write of the screen, as its gestures do (#1224).
-    busy: busyOf(commands),
+    busy: busyOf(commands, readingCells),
   });
   const undo = useUndoShortcut(undoable, undoControl);
   const foldReach = useFoldReach();
@@ -812,6 +821,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       />
       <OutcomeNotice
         outcome={writer.outcome}
+        reading={readingSettings}
         onClear={writer.clear}
         onDismissed={keyboard.refocus}
         dismissible
@@ -819,12 +829,14 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       <OutcomeNotice
         id={refusalId}
         outcome={writes.outcome}
+        reading={readingCells}
         onClear={writes.clear}
         onDismissed={keyboard.refocus}
         dismissible
       />
       <OutcomeNotice
         outcome={paste.outcome}
+        reading={paste.reading}
         onClear={paste.clear}
         onDismissed={keyboard.refocus}
         dismissible
@@ -860,7 +872,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         aria-rowcount={bodyRows + 2}
         aria-colcount={columns.length}
         aria-multiselectable={selection.multiselectable}
-        aria-busy={gridBusy(pending, screenCommands, undoControl)}
+        aria-busy={gridBusy(pending, screenCommands, undoControl, readingCells)}
         // The grid takes the height its screen leaves it (`Screen`, `fill`), shrinking from that
         // of its rows down to a floor; never taller than the window, so that the rows in view
         // stay a window's worth whatever holds it. The header and the totals stick to its edges,

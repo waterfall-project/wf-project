@@ -1963,6 +1963,8 @@
   },
   "outcome": {
     "unreachable": "The service cannot be reached; try again in a moment.",
+    "dropped": "The connection to the service was lost once the request had left: the operation may have gone through. The screen is read anew; check it before doing it again.",
+    "readingAnew": "Reading the screen anew…",
     "conflictingObject": "Conflicting object: {name}.",
     "reload": "Reload",
     "signIn": "Sign in",
