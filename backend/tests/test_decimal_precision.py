@@ -10,8 +10,9 @@ the durations and the lags of the planning, the unit disbursement and the quanti
 hours of a labour line (#2997), and the product of a disbursement and a quantity, at the quantity
 (#2996); the recalculation at a constant at its maximum is tried (#2998); the product of a labour
 line (#3035) and its re-estimated amount, projected by the inflation (#3039), refused at the
-quantity, or at the field that carries the rate a change would reproject written lines with. The
-scenario of the finding is replayed on the test database.
+quantity, or at the field that carries the rate a change would reproject written lines with; and
+the redating of a task that carries a written line past its column, at the fields sent that date it
+(#3094, US-2260/L3). The scenario of the finding is replayed on the test database.
 """
 
 from datetime import date, timedelta
@@ -354,10 +355,15 @@ def inflated(api: ContractClient, stage: Scene, rate: str) -> Any:
 
 def in_two_years(tree: Tree) -> dict[str, Any]:
     """Make a task consumed two years after the year of reference."""
-    start = date(YEAR + 2, 3, 1)
+    return in_years(tree, 2)
+
+
+def in_years(tree: Tree, years: int, label: str = "Exploitation") -> dict[str, Any]:
+    """Make a manual task of two days, consumed some years after the year of reference."""
+    start = date(YEAR + years, 3, 1)
     start += timedelta(days=-start.weekday() % 7)
     return tree.made(
-        "Exploitation",
+        label,
         task={
             "scheduling_mode": "manual",
             "start": {"date": start.isoformat()},
@@ -488,3 +494,108 @@ def test_a_rate_that_carries_only_the_reestimated_amount_beyond_its_column_is_re
     assert [each["amount"] for each in kept if each["year"] == YEAR] == ["65.00"]
     line = tree.items("?kinds=estimate_line")[0]["estimate_line"]
     assert line["base_amount"] == "65000.00"
+
+
+def at_its_limit(lines: Lines, costs: Costing, task: dict[str, Any]) -> None:
+    """Give a task a line of material at its most, consumed in the year of reference."""
+    held = {"cost_category_id": str(costs.material), "unit_disbursement": "999999999999.99"}
+    line = lines.made(task, quantity="1", **held)["nodes"][0]
+    assert line["estimate_line"]["reestimated_amount"] == "999999999999.99"
+
+
+def kept_line(tree: Tree) -> tuple[str, str, int]:
+    """Read the amounts and the year of the only line of the structure."""
+    line = tree.items("?kinds=estimate_line")[0]["estimate_line"]
+    return line["base_amount"], line["reestimated_amount"], line["consumption_year"]
+
+
+@pytest.mark.requirement("WF-DEV-0040-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_a_duration_that_carries_a_written_line_beyond_its_column_is_refused_at_the_duration(
+    api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # #3094: the task of the line, a day of this year, lengthened to five hundred days, is consumed
+    # over three years at 3 %: the shares of the next two, projected, carry the re-estimated amount
+    # past its twelve digits. The refusal is at the duration, the field that redates it.
+    assert inflated(api, stage, "0.03").status_code == 200
+    task = tree.made("Câblage")
+    at_its_limit(lines, costs, task)
+    before = kept_line(tree)
+    read = tree.node(task["node_id"])
+    refused = tree.change(read, duration={"value": "500", "unit": "d"})
+    assert faults(refused) == [("/duration", PRECISION, {})]
+    assert kept_line(tree) == before
+    assert tree.node(task["node_id"])["task"] == read["task"]
+
+
+@pytest.mark.requirement("WF-DEV-0040-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_a_mode_sent_with_a_duration_that_carries_a_line_beyond_its_column_is_named_in_dating_order(
+    api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # #3303: the mode and the duration both redate the task: each is named, in the order of DATING
+    # (scheduling_mode, duration); nothing is written.
+    assert inflated(api, stage, "0.03").status_code == 200
+    task = tree.made("Câblage")
+    at_its_limit(lines, costs, task)
+    before = kept_line(tree)
+    read = tree.node(task["node_id"])
+    refused = tree.change(read, scheduling_mode="automatic", duration={"value": "500", "unit": "d"})
+    assert faults(refused) == [
+        ("/scheduling_mode", PRECISION, {}),
+        ("/duration", PRECISION, {}),
+    ]
+    assert kept_line(tree) == before
+    assert tree.node(task["node_id"])["task"] == read["task"]
+
+
+@pytest.mark.requirement("WF-DEV-0040-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_dates_that_carry_a_written_line_beyond_its_column_are_refused_at_each_date_sent(
+    api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # #3094: a manual task of this year moved two years on at 3 %: 1.0609 times the amount at its
+    # limit. Both dates sent redate the task: each is named; nothing is written.
+    assert inflated(api, stage, "0.03").status_code == 200
+    task = in_years(tree, 0)
+    at_its_limit(lines, costs, task)
+    before = kept_line(tree)
+    read = tree.node(task["node_id"])
+    later = in_years(tree, 2, "Plus tard")["task"]
+    start, finish = ({"date": later[end]["date"]} for end in ("start", "finish"))
+    refused = tree.change(read, start=start, finish=finish)
+    assert faults(refused) == [("/start", PRECISION, {}), ("/finish", PRECISION, {})]
+    assert kept_line(tree) == before
+    assert tree.node(task["node_id"])["task"]["start"] == read["task"]["start"]
+    renamed = tree.change(read, label="Câblage")
+    assert renamed.status_code == 200, renamed.text
+
+
+@pytest.mark.requirement("WF-DEV-0040-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_predecessors_that_carry_a_written_line_beyond_its_column_are_refused_at_the_predecessors(
+    api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # #3094: the automatic task of the line, made to follow a task two years on, starts after it:
+    # its amount, at its limit, is projected two years at 3 %.
+    assert inflated(api, stage, "0.03").status_code == 200
+    task = tree.made("Câblage")
+    at_its_limit(lines, costs, task)
+    before = kept_line(tree)
+    first = in_years(tree, 2, "Plus tard")
+    read = tree.node(task["node_id"])
+    sent = {
+        "predecessors": [
+            {
+                "predecessor_node_id": first["node_id"],
+                "link_type": "finish_to_start",
+                "lag": {"value": "0", "unit": "d"},
+            }
+        ],
+        "lock_version": read["lock_version"],
+    }
+    path = f"{tree.path}/nodes/{task['node_id']}/predecessors"
+    refused = api.put(path, headers=stage.manager.headers, json=sent)
+    assert faults(refused) == [("/predecessors", PRECISION, {})]
+    assert kept_line(tree) == before
+    assert tree.node(task["node_id"])["task"] == read["task"]

@@ -35,6 +35,7 @@ from waterfall.core.planning.calendars import (
     applicable_of,
     default_calendar,
 )
+from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.registry import Registry
 
 if TYPE_CHECKING:
@@ -219,6 +220,16 @@ class LineSort:
     descending: bool
 
 
+class RepricedBeyondColumnError(UnprocessableError):
+    """A node of a kind, priced again on the dates of its task, crosses a column (``reinflate``).
+
+    The hook raises it without a field: it knows the task redated, not the request. The write
+    whose entry redated the task names the fields that carry the entry (``Write.redate``,
+    ``entered``); a write that sends none leaves it without (``docs/api/DECISIONS.md``, #3093,
+    #3094).
+    """
+
+
 @dataclass(frozen=True, slots=True)
 class FacetHooks:
     """What the planning asks of the facet of a kind of node, each hook given its session.
@@ -229,10 +240,11 @@ class FacetHooks:
     of the nodes of the kind under each task named; ``create`` writes the facet of a node created;
     ``snapshot`` gives the facets as the history keeps them, ``restore`` writes them back;
     ``reinflate`` prices again the nodes on the dates of their tasks and gives those whose amounts
-    or year moved; ``totals`` gives the figures of each node named; ``filters`` keeps, of the
-    nodes named, those a filter asked of the kind retains; ``sort`` orders them, or gives none for a
-    column it does not sort; ``dependencies`` names what a computed value of a node depends on,
-    none for a field it does not compute; ``moved`` judges the nodes a move gives another task,
+    or year moved, refusing one carried past a column (``RepricedBeyondColumnError``); ``totals``
+    gives the figures of each node named; ``filters`` keeps, of the nodes named, those a filter
+    asked of the kind retains; ``sort`` orders them, or gives none for a column it does not sort;
+    ``dependencies`` names what a computed value of a node depends on, none for a field it does
+    not compute; ``moved`` judges the nodes a move gives another task,
     placed under it already, in the order of the plan, and refuses what it does not accept (422);
     ``judge_cell`` judges the cells a paste gives a node, by the very functions of the entry of a
     cell, naming every refusal at once; ``write_cell`` writes the entry it judged; ``before_lock``

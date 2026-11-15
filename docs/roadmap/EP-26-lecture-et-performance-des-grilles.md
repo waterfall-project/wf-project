@@ -578,7 +578,7 @@ prédécesseurs, le collage (#3169). Le front s'adosse au compteur de la structu
 
 ## US-2260 — Les constats reçus du back des grilles sont soldés
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par EP-06 et EP-07
 - **opérations** : `createNode`, `moveNodes`, `previewPaste`, `applyPaste`, `updateTaskFacet`,
   `createRevision`

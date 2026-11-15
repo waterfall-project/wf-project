@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING
 from waterfall.core.history import interface as history
 from waterfall.core.history.interface import RecordedChange, Recording, UndoStack
 from waterfall.core.planning.dating import conflicts_of
-from waterfall.core.planning.interface.facets import facets
+from waterfall.core.planning.interface.facets import RepricedBeyondColumnError, facets
 from waterfall.core.planning.rescheduling import Blamed, Holding, replayed
 from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tree import read_links, read_tree
@@ -51,6 +51,7 @@ from waterfall.platform.errors import (
     NOT_FOUND,
     STATE_FORBIDS_OPERATION,
     ConflictError,
+    FieldError,
     NotFoundError,
 )
 
@@ -208,6 +209,7 @@ class Write:
         blamed: tuple[UUID | None, str] | None,
         origin: Origin = None,
         repriced: Collection[UUID] = (),
+        entered: tuple[str, ...] = (),
     ) -> Redated:
         """Replay the engine on the structure written, keep what it computes, advance it.
 
@@ -217,12 +219,20 @@ class Write:
         ``origin`` (422 ``LINK_CYCLE``). Nothing is written. The facts of the structure read under
         its lock are handed to the replay, not read again (#2492). The nodes of the other kinds the
         tasks ``repriced`` bear are priced again with those of the tasks redated, and those of the
-        nodes it touches (``before``): a task written, or the task a line written is under.
+        nodes it touches (``before``): a task written, or the task a line written is under. A node
+        priced again beyond its column is refused at ``entered``, the pointers of the fields of the
+        request that redate (``RepricedBeyondColumnError``, #3094); without them, without a field.
         """
         named = None if blamed is None else Blamed(*blamed, origin)
         held = (self.facts, named, self.conflicts)
         priced = (*repriced, *self.touched)
-        return redated_structure(self.session, self.place, self.writer.act, held, priced)
+        try:
+            return redated_structure(self.session, self.place, self.writer.act, held, priced)
+        except RepricedBeyondColumnError as refused:
+            if refused.fields or not entered:
+                raise
+            fields = tuple(FieldError(pointer, refused.code) for pointer in entered)
+            raise RepricedBeyondColumnError(refused.code, refused.params, fields) from None
 
     def after(self, node_ids: Collection[UUID]) -> None:
         """Hand the history the nodes the write touched, as they are after it, redated."""
