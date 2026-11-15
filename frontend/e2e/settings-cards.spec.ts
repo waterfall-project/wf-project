@@ -41,7 +41,7 @@ async function open(page: Page, address: string, size: { width: number; height: 
 }
 
 for (const size of WINDOWS) {
-  const at = `at ${String(size.width)} points [WF-IHM-0100-A]`;
+  const at = `at ${String(size.width)} points`;
 
   for (const [address, command] of [
     ["/reference/risks", "Modifier la matrice de risques"],
@@ -55,7 +55,7 @@ for (const size of WINDOWS) {
       const title = await box(page.getByRole("heading", { level: 1 }));
       const measured = await box(button);
       // At 911 points the command may wrap under the title; it never stands before it.
-      expect(measured.x, "after the start of the title").toBeGreaterThan(title.x);
+      expect(measured.x, "after the start of the title").toBeGreaterThanOrEqual(title.x);
       if (size.width >= 1366) {
         expect(measured.x, "after the end of the title").toBeGreaterThanOrEqual(
           title.x + title.width,

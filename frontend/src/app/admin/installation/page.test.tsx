@@ -81,14 +81,14 @@ describe("the installation", () => {
     expect(page).toContain("Modifier le nom de l’entreprise");
   });
 
-  it("offers the command that modifies the name only under installation.write [WF-ADM-0100-A]", async () => {
+  it("offers the command that modifies the name only under installation.write", async () => {
     withdrawn.permissions = ["installation.write"];
     const page = rendered(await InstallationPage());
     expect(page).toContain("Delmas Automatismes");
     expect(page).not.toContain("Modifier le nom de l’entreprise");
   });
 
-  it("is not found by a session without installation.read, as an address that leads nowhere [WF-ADM-0100-A]", async () => {
+  it("is not found by a session without installation.read, as an address that leads nowhere", async () => {
     withdrawn.permissions = ["installation.read", "installation.write"];
     await expect(InstallationPage()).rejects.toMatchObject({
       digest: "NEXT_HTTP_ERROR_FALLBACK;404",

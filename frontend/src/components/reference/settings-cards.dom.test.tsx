@@ -69,7 +69,7 @@ describe.each([
   ["risks", "Paramètres de risques", "Modifier la matrice de risques", RiskSettings],
   ["indicators", "Paramètres d’indicateurs", "Modifier les seuils et le délai", IndicatorSettings],
 ] as const)("the command that modifies the %s", (_name, title, command, Settings) => {
-  it("is outlined at the right of the title of the screen, in its header and in no card [WF-IHM-0100-A]", async () => {
+  it("is outlined at the right of the title of the screen, in its header and in no card", async () => {
     server.client = fakeClient({});
     const { container } = render(inFrench(<Settings settings={settings} />));
     const heading = screen.getByRole("heading", { level: 1, name: title });
@@ -150,7 +150,7 @@ describe("the correspondence of the actual costs in cards", () => {
     expect(read.compareDocumentPosition(kept) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("bounds each field of a label to a reading width, whatever the width of its card [WF-IHM-0100-A]", () => {
+  it("bounds each field of a label to a reading width, whatever the width of its card", () => {
     shown(true);
     const fields = screen.getAllByRole("textbox");
     expect(fields.length).toBeGreaterThan(0);
@@ -159,7 +159,7 @@ describe("the correspondence of the actual costs in cards", () => {
     }
   });
 
-  it("sets « Enregistrer la correspondance » filled at the foot, after both cards and in neither [WF-IHM-0100-A]", () => {
+  it("sets « Enregistrer la correspondance » filled at the foot, after both cards and in neither", () => {
     const { container } = shown(true);
     const save = screen.getByRole("button", { name: "Enregistrer la correspondance" });
     expect(filled(save)).toBe(true);
@@ -169,7 +169,7 @@ describe("the correspondence of the actual costs in cards", () => {
     expectCommandRule(container);
   });
 
-  it("reads in the same two cards, with no command, for a session that only reads [WF-IHM-0100-A]", async () => {
+  it("reads in the same two cards, with no command, for a session that only reads", async () => {
     const { container } = shown(false);
     expect(screen.getByRole("region", { name: "Colonnes lues" })).toBeVisible();
     expect(screen.getByRole("region", { name: "Colonnes conservées" })).toBeVisible();

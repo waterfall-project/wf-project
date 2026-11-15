@@ -16,7 +16,7 @@ import { untilHydrated, WORKING } from "./hydration";
 
 test.slow();
 
-test("shows the card of the installation, the name modifiable, the three facts read only [WF-ADM-0100-A]", async ({
+test("shows the card of the installation, the name modifiable, the three facts read only", async ({
   page,
 }) => {
   await compile(page.request, "/admin/installation");
