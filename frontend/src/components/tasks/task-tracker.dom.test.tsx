@@ -5,7 +5,7 @@ import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { type ReactNode, Suspense } from "react";
 import { hydrateRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { markRevision } from "@/api/actions/revisions";
 import type { ApiClient } from "@/api/client";
@@ -21,6 +21,7 @@ import {
   type Problem,
   unreachable,
 } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 import { closeTasks, tasksButton, tasksRegion } from "@/test/task-panel";
 
 import { STORAGE_KEY } from "./storage";
@@ -518,7 +519,8 @@ describe("the tracker of background tasks", () => {
     expect(within(entries()).getByText("Échouée")).toBeVisible();
   });
 
-  it("says the API is out of reach when the relaunch does not answer at all", async () => {
+  it("says the API is out of reach when the relaunch does not answer at all, the browser being offline when it sent it", async () => {
+    onTestFinished(browserOffline());
     serve({ [TASK]: "task_failed" });
     const command = () => Promise.reject(new TypeError("Failed to fetch"));
     await started(task("task_mark_queued"), { command });

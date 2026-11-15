@@ -57,7 +57,7 @@ import { PressRefusal, useUnmet } from "@/components/commands/command";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
 import { OutcomeNotice, useNoteRefusal, useReadAnew } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedWrite } from "@/components/commands/rejection";
 import { WritingNote } from "@/components/commands/writing-note";
 import { type Said, type Say, useSaid } from "@/components/notices/said";
 import { ActiveState } from "@/components/reference/section";
@@ -447,7 +447,7 @@ function ContributorEditor({
         const answer = await setContributors(commands.editing.project, {
           contributors: sent.map(({ user_id, kind }) => ({ user_id, kind })),
           lock_version: opened.counter,
-        }).catch(rejected);
+        }).catch(rejectedWrite());
         take(answer, sent);
       } finally {
         commands.write(false);

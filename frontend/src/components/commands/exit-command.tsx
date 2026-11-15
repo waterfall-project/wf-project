@@ -46,7 +46,7 @@ import { heldAttributes } from "./held-attributes";
 import { commandIcon, PROJECT_COMMAND_ICONS } from "./icons";
 import type { CommandOffer } from "./offer";
 import { type ObjectNames, OutcomeNotice, useReadAnew } from "./outcome-notice";
-import { rejected } from "./rejection";
+import { rejectedWrite } from "./rejection";
 
 /** An exit the project lists, and what it offers of it. */
 export interface ExitOffer {
@@ -253,7 +253,7 @@ function ExitForm({
     const command = () => exitProject(projectId, exit);
     setBusy(true);
     void command()
-      .catch(rejected)
+      .catch(rejectedWrite())
       .then((result) => {
         setBusy(false);
         if (result.kind !== "done") {

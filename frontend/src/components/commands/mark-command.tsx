@@ -30,7 +30,7 @@ import { Command } from "./command";
 import { commandIcon, REVISION_COMMAND_ICONS } from "./icons";
 import type { CommandOffer } from "./offer";
 import { type ObjectNames, OutcomeNotice, useReadAnew } from "./outcome-notice";
-import { rejected } from "./rejection";
+import { rejectedWrite } from "./rejection";
 import { WaitingIcon, waitingAttributes } from "./waiting";
 
 /** The marking the revision offers, the revision, and the names that name a conflict. */
@@ -107,7 +107,7 @@ function MarkForm({
     const command = () => markRevision(revision.project_id, revision.revision_id, mark);
     setBusy(true);
     void command()
-      .catch(rejected)
+      .catch(rejectedWrite())
       .then((result) => {
         setBusy(false);
         if (result.kind === "done") {

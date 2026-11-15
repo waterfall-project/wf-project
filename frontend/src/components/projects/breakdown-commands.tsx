@@ -53,7 +53,7 @@ import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
 import { heldAttributes } from "@/components/commands/held-attributes";
 import { OutcomeNotice, useNoteRefusal, useReadAnew } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedWrite } from "@/components/commands/rejection";
 import { WritingNote } from "@/components/commands/writing-note";
 import type { RowCommands } from "@/components/grid/undo-commands";
 import { type Said, type Say, useSaid } from "@/components/notices/said";
@@ -543,7 +543,9 @@ function useSend(commands: Commands, opened: Opened) {
     commands.write(true);
     startTransition(async () => {
       try {
-        const answer = await setWorkBreakdown(commands.editing.project, sent).catch(rejected);
+        const answer = await setWorkBreakdown(commands.editing.project, sent).catch(
+          rejectedWrite(),
+        );
         if (answer.kind === "done") {
           commands.answer(answer.data);
           const done = { add: "added", rename: "renamed", delete: "deleted" } as const;

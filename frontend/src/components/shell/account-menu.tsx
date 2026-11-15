@@ -34,7 +34,7 @@ import type { Outcome } from "@/api/problem";
 import { useAccountNaming } from "@/components/account/account-name";
 import { initials } from "@/components/account/initials";
 import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedWrite } from "@/components/commands/rejection";
 import { useForgetTasks } from "@/components/tasks/task-tracker";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -206,7 +206,7 @@ export function AccountMenu({ account, language, theme }: AccountMenuProps) {
       return;
     }
     startTransition(async () => {
-      setOutcome(await apply().catch(rejected));
+      setOutcome(await apply().catch(rejectedWrite()));
     });
   };
   const leave = () => {
@@ -214,7 +214,7 @@ export function AccountMenu({ account, language, theme }: AccountMenuProps) {
       return;
     }
     startTransition(async () => {
-      const closed = await signOut().catch(rejected);
+      const closed = await signOut().catch(rejectedWrite());
       if (closed.kind !== "left") {
         setOutcome(closed);
         return;

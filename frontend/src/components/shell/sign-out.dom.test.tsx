@@ -25,6 +25,7 @@ import { TEST_SETTINGS } from "@/test/identity-provider";
 import { cookieJar } from "@/test/session";
 
 import { tasksRegion } from "@/test/task-panel";
+import { browserOffline } from "@/test/offline";
 
 import { Shell } from "./shell";
 
@@ -134,6 +135,8 @@ beforeEach(() => {
   window.sessionStorage.clear();
   document.cookie = `${LAST_CONTEXT_COOKIE}=${encodeURIComponent(SCREEN)}; path=/`;
 });
+
+beforeEach(browserOffline);
 
 describe("signing out from the menu of the account", () => {
   it("closes the session, forgets the last project, the tasks and the messages of the tab, and loads the sign-in page", async () => {
