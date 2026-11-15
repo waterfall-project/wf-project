@@ -592,14 +592,13 @@ dernier, la fin exclue. Les états se disent comme le filtre des projets, par de
 adresse qui ne nomme aucun état demande ceux que le compte a gardés, à défaut les états par défaut,
 Créé, Chiffrage et En cours, dits « (par défaut) » ; `states=all` les lève et demande les six,
 là où le contrat, sans `states`, ne rendrait que les projets en cours (WF-PTF-0010) : l'adresse fait
-foi.
-Une période que le serveur refuse — une fin qui
-précède le début, 422 `VALUE_OUT_OF_RANGE` sur `/query/to`, `params.minimum` le début donné — est
-dite à son champ, le début nommé par son jour local, qui prend le focus chaque fois que la liste
-revient refusée, comme une borne d'une colonne de nombres (`range-filter.tsx`) ; la liste n'est pas
-lue, et une phrase tient la place de la grille. Sa ligne de totaux dit combien de projets le serveur
-retient, et elle mène aux autres pages par `ListPages` ; une page demandée au-delà de sa fin le dit,
-et ramène à sa dernière page : seule une liste qui ne tient aucun projet, sans état, période ni
+foi. Une période que le serveur refuse — une fin qui précède le début, 422 `VALUE_OUT_OF_RANGE` sur
+`/query/to`, `params.minimum` le début donné — est dite à son champ, le début nommé par son jour
+local, qui prend le focus chaque fois que la liste revient refusée, comme une borne d'une colonne de
+nombres (`range-filter.tsx`) ; la liste n'est pas lue, et une phrase tient la place de la grille. Sa
+ligne de totaux dit combien de projets le serveur retient, et elle mène aux autres pages par
+`ListPages` ; une page demandée au-delà de sa fin le dit, et ramène à sa dernière page : seule une
+liste qui ne tient aucun projet, sans état, période ni
 recherche, se dit vide. Les écrans du projet lui-même — le projet, ses paramètres avec ses
 sous-projets et ses contributeurs, son cycle de vie — exercent la sortie du cycle de vie
 (`ExitCommand`), irréversible, confirmée dans la page avant que son action serveur ne la demande, la
@@ -2630,8 +2629,11 @@ Un article de menu s'écrit par `MenuCommand` (`menu-command.tsx`), qui prend l'
 et `onSelect` : le nom est à la fois le texte de l'article et celui de l'infobulle, et les touches
 sont posées sur l'article, montrées à sa fin et dans l'infobulle, d'une seule saisie. Un article qui
 mène ailleurs prend `href` au lieu d'`onSelect` — l'un ou l'autre, jamais les deux —, et s'y rend en
-lien ; `detail` est un texte que l'article dit sous son nom, la condition qui manque à un geste du
-Kanban (#1435).
+lien. Un article indisponible suit la règle de `Command` (#3430) : la condition qui lui manque
+(`unavailable`) se lit dans son infobulle, au pointeur comme au clavier, et le décrit, sans s'écrire
+sous son nom ; pressé, il ne lance rien, et l'écran qui tient le menu dit ce qui manque dans sa
+région des refus, depuis son `onSelect` — la carte du Kanban, par l'alerte de la carte, le menu
+refermé.
 
 L'infobulle suit WCAG 1.4.13 : elle s'ouvre au survol, après un court repos, et au focus du clavier,
 aussitôt — dans un menu, après le même repos, pour qu'Échap pressé aussitôt ferme le menu (`inMenu`,
@@ -5378,7 +5380,11 @@ l'anneau du focus ; la police est Geist, celle du logo.
   nommée par son titre, un titre de
   niveau 2, ses commandes à droite du titre, puis son corps. Ses commandes passent à la ligne sous
   le titre plutôt que de déborder : à 150 % d'agrandissement, aucune ne devient inatteignable. Un
-  écran ne compose pas sa carte lui-même.
+  écran ne compose pas sa carte lui-même. La grille d'un écran de travail, qui n'a pas de titre de
+  section — celui de l'écran le dit —, et un graphique qui se nomme lui-même ont la carte de grille,
+  `GridCard` (`frontend/src/components/shell/grid-card.tsx`, #3421, #3446) : sans titre ni
+  commandes, elle remplit la place que l'écran lui laisse (`fill`) ; `SectionCard` garde son titre
+  exigé. Une section vide dit sa phrase à la place de son corps (`empty` de `ReferenceCard`).
 - **La règle des commandes** (#3088, règles 2 à 4) : une carte a au plus une commande principale,
   la dernière à droite de son titre (`principal`), pleine quand elle crée ou déclenche, à contour
   quand elle modifie — l'écran dit à la carte ce qu'elle fait (`does`) et lui donne la commande

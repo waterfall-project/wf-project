@@ -598,13 +598,13 @@ the instants of the start of the first and of the start of the day after the las
 excluded. The states are told as the filter of the projects is, by chips: an address that names no
 state asks those the account kept, else the states by default, Created, Pricing and In progress,
 told « (by default) »; `states=all` lifts them and asks all six, where the contract, without
-`states`, would render only the projects in progress (WF-PTF-0010): the address is authoritative.
-A period the server refuses — an end before the start, 422 `VALUE_OUT_OF_RANGE`
-on `/query/to`, `params.minimum` the start given — is said at its field, the start named by its
-local day, which takes the focus each time the list comes back refused, like a bound of a column
-of numbers (`range-filter.tsx`); the list is not read, and a sentence holds the place of the grid.
-Its totals row says how many projects the server retains, and it leads to the other pages by
-`ListPages`; a page asked for beyond its end says so, and brings back to its last page: only a
+`states`, would render only the projects in progress (WF-PTF-0010): the address is authoritative. A
+period the server refuses — an end before the start, 422 `VALUE_OUT_OF_RANGE` on `/query/to`,
+`params.minimum` the start given — is said at its field, the start named by its local day, which
+takes the focus each time the list comes back refused, like a bound of a column of numbers
+(`range-filter.tsx`); the list is not read, and a sentence holds the place of the grid. Its totals
+row says how many projects the server retains, and it leads to the other pages by `ListPages`; a
+page asked for beyond its end says so, and brings back to its last page: only a
 list that holds no project, without state, period or search, says it is empty. The screens of the
 project itself — the project, its settings with its subprojects and its contributors, its
 lifecycle — exercise the exit from the lifecycle (`ExitCommand`), irreversible, confirmed in the
@@ -2622,8 +2622,11 @@ A menu item is written by `MenuCommand` (`menu-command.tsx`), which takes the it
 icon and `onSelect`: the name is both the text of the item and that of the tooltip, and the keys
 are set on the item, shown at its end and in the tooltip, from a single input. An item that leads
 elsewhere takes `href` instead of `onSelect` — one or the other, never both —, and is rendered as a
-link; `detail` is a text the item says under its name, the condition a gesture of the Kanban lacks
-(#1435).
+link. An unavailable item follows the rule of `Command` (#3430): the condition it lacks
+(`unavailable`) is read in its tooltip, by pointer as by keyboard, and describes it, without being
+written under its name; pressed, it runs nothing, and the screen that holds the menu says what is
+missing in its region of the refusals, from its `onSelect` — the card of the Kanban, by the alert of
+the card, the menu closed.
 
 The tooltip follows WCAG 1.4.13: it opens on hover, after a short rest, and on keyboard focus, at
 once — in a menu, after the same rest, so that Escape pressed at once closes the menu (`inMenu`,
@@ -5263,7 +5266,11 @@ that of the logo.
   its title, a level 2 heading,
   its commands to the right of the title, then its body. Its commands wrap under the title rather
   than overflow: at a zoom of 150 %, none becomes unreachable. A screen does not compose its card
-  itself.
+  itself. The grid of a screen of work, which has no title of section — the title of the screen says
+  it —, and a chart that names itself take the card of the grid, `GridCard`
+  (`frontend/src/components/shell/grid-card.tsx`, #3421, #3446): without title or commands, it fills
+  the room its screen leaves it (`fill`); `SectionCard` keeps its required title. An empty section
+  says its sentence in place of its body (`empty` of `ReferenceCard`).
 - **The rule of the commands** (#3088, rules 2 to 4): a card has at most one principal command, the
   last to the right of its title (`principal`), filled when it creates or triggers, outlined when
   it modifies — the screen tells the card what it does (`does`) and gives it the command as a

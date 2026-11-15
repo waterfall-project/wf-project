@@ -58,7 +58,7 @@ for (const { width, height } of [
     const create = card.getByRole("button", { name: "Créer un projet" });
     await expect(create).toBeInViewport({ ratio: 1 });
     // The totals row, in the window: the home is no longer a screen that fills it, and nothing may
-    // leave it below its bottom (typescript.md, defect 13). The fake back lists three projects, one
+    // leave it below its bottom (typescript.md, defect 13). The fake back lists two projects, one
     // page: the pages are not offered, and so not measured here.
     await expect.poll(() => withinBox(grid, grid.getByRole("row").last())).toBe(true);
     const button = await box(create);
@@ -78,7 +78,9 @@ for (const { width, height } of [
     expect(table.x).toBeGreaterThan(frame.x);
     expect(table.right).toBeLessThan(frame.right);
     expect(frame.width - table.width).toBeLessThanOrEqual(48);
-    expect(Math.abs(bar.width - table.width)).toBeLessThanOrEqual(4);
+    // The bar against the frame of the scroller of the table, to the pixel the layout rounds off: a gap of
+    // 2 px or more would show here.
+    expect(Math.abs(bar.width - table.width)).toBeLessThanOrEqual(1);
     // Filled: the background of the primary, never the background of the card.
     const background = (element: Locator) =>
       element.evaluate((node) => getComputedStyle(node).backgroundColor);

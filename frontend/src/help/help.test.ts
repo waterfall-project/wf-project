@@ -703,6 +703,22 @@ describe("the reading of the help", () => {
     }
   });
 
+  it.each([
+    ["fr", "Modifier les contributeurs", "à droite du titre de la carte « Contributeurs »"],
+    ["en", "Modify the contributors", "at the right of the title of the “Contributors” card"],
+  ] as const)(
+    "tells, in %s, that the modification of the contributors is at the right of the title of its card [WF-IHM-0140-A]",
+    async (language, command, place) => {
+      const page = await readHelpPage({ kind: "screen", code: "FBS-4.2.4" }, language);
+      expect(page.kind).toBe("written");
+      const text =
+        page.kind === "written"
+          ? [page.intro, ...page.sections.map((section) => section.body)].join("\n")
+          : "";
+      expect(text).toContain(`**${command}**, ${place}`);
+    },
+  );
+
   it("names each column of the screens of the reference data once, their state and modification shared by their lists [WF-IHM-0140-A]", async () => {
     const helps = async (code: string) => {
       const page = await readHelpPage({ kind: "screen", code }, "fr");
