@@ -3120,6 +3120,11 @@ la cellule « Dépend de » ; `ADD_LOT=<identifiant> AFTER=<lot> [DEPENDS=<liste
 (`US-0820b` pour la part détachée d'une US à lot unique, `US-1270/L3` pour une US à plusieurs ;
 cellules `#`, `US`, « Statut » vides, « Dépend de » et « Pas avec » la liste ou `—`, « État du lot »
 `à faire`) et refuse un lot déjà là ;
+`ADD_US=<US-nnnn> AFTER=<US-mmmm> [US_ISSUE=<n>] [FIRST_LOT=<Ln>] [LOT_ISSUE=<n>] [DEPENDS=<liste>]
+[NOT_WITH=<liste>] [MODEL=…]` insère la ligne de l'US nouvelle sous la dernière ligne d'`AFTER` (US
+et lots) : son rang est celui d'`AFTER` plus 1, les US suivantes sont renumérotées, sa cellule « Lot »
+vaut `lot unique` sans `FIRST_LOT` et `<Ln>` avec (`LOT_ISSUE`, l'issue de ce premier lot, ne va
+qu'avec `FIRST_LOT` : un `lot unique` n'a pas d'issue propre), et une US déjà là est refusée ;
 `REPLACE_DEPENDENCY='<ancien>=<nouveau>'` remplace la mention de l'ancien lot dans « Dépend de » de
 toutes les lignes où elle paraît, sauf celle du lot nouveau lui-même, retire avec elle le ` #n` qui
 la suit (l'issue de l'ancien lot ne reste jamais sur le nouveau), dit combien de lignes ont changé

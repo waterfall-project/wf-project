@@ -151,7 +151,7 @@ l'accorde. Un test des outils (`tools/tests/test_permissions.py`) l'éprouve.
   [DEPENDS=…] [NOT_WITH=…] [MODEL=…] [LOT_ISSUE=<n>]` (`LOT_ISSUE` est l'issue du lot inséré, le
   `#n` de sa ligne), `ADD_US=<US-nnnn> AFTER=<US-mmmm> [US_ISSUE=<n>] [FIRST_LOT=<Ln>]
   [LOT_ISSUE=<n>] [DEPENDS=…] [NOT_WITH=…] [MODEL=…]` (la ligne d'une US nouvelle, sous la dernière
-  de `AFTER`, son premier lot sur la même ligne, `lot unique` sans `FIRST_LOT`), `REPLACE_DEPENDENCY='<ancien>=<nouveau>'`, `US=<identifiant> STATUS=…` ou
+  de `AFTER`, son premier lot sur la même ligne, `lot unique` sans `FIRST_LOT` ; `LOT_ISSUE` ne va qu'avec `FIRST_LOT`), `REPLACE_DEPENDENCY='<ancien>=<nouveau>'`, `US=<identifiant> STATUS=…` ou
   `FINDING=<n> ATTACHED=… DECISION=…`, qui relit le corps sous un verrou du poste juste avant
   de l'écrire et ne change que la ligne demandée (guide, « Commandes »). Le cadreur, qui écrit le
   tableau pour la première fois, l'écrit lui-même ; ensuite, `make tracking`.
