@@ -45,10 +45,9 @@ import {
 import { createTimeline, deleteTimeline } from "@/api/actions/projects";
 import type { components } from "@/api/generated/schema";
 import { PressRefusal, useUnmet } from "@/components/commands/command";
-import { unmetId } from "@/components/commands/offer";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { useHeldCommand } from "@/components/commands/held";
-import { type CommandOffer, UNAVAILABLE } from "@/components/commands/offer";
+import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
 import { useSaid } from "@/components/notices/said";
 import { Reactivations, useListReport } from "@/components/reference/reactivation";
 import { ReferenceForm, required } from "@/components/reference/reference-form";
