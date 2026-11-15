@@ -17,10 +17,16 @@ The check fails, naming the leaf or the route:
   reason, as having no screen yet; and on a declaration that no longer holds;
 - on a code of the table that is not a function of the FBS, or a leaf or a section that is not a
   leaf under its function;
+- on the function declared below as pending in the specification, once the projection has it;
 - on a route of the table that no page of ``frontend/src/app`` answers — the page that catches
   every other address, ``[...path]``, says « not found », and answers none;
 - on a leaf with a screen of its own that the page of its function does not name by
   ``leafOf("FBS-…")``, the one way the front finds a leaf it links to, and so cannot lead to.
+
+One function is accepted before the specification draws it: ``PENDING_IN_THE_SPECIFICATION``,
+FBS-1.6, decided by #3197 and realised by US-2120 ahead of the revision. The check takes it for a
+function of FBS-1 and no other unknown code; it fails as soon as the projection has it, for the
+declaration to be removed.
 
 The navigation is drawn from the table, and offers each of its functions; that every route is
 indeed reached by a link is proven in a browser, by ``frontend/e2e/screens.spec.ts``.
@@ -33,12 +39,11 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
 from wftools import REPOSITORY, projection
+from wftools.projection import Function
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from pathlib import Path
-
-    from wftools.projection import Function
 
 TABLE = REPOSITORY / "frontend" / "src" / "navigation" / "functions.json"
 """The table of the functions of the front, which the navigation is drawn from."""
@@ -48,6 +53,11 @@ APP = REPOSITORY / "frontend" / "src" / "app"
 WITHOUT_SCREEN: dict[str, str] = {}
 """The leaves of the FBS that no screen addresses yet, each with its reason and the issue that
 follows it."""
+
+PENDING_IN_THE_SPECIFICATION = "FBS-1.6"
+"""Provisional exception: a function of FBS-1, decided by #3197 and not yet in the tree of the
+specification. The revision of the specification adds it there and removes this constant, and the
+check fails until then to say so."""
 
 _PAGE = "page.tsx"
 # A segment in brackets names a group of routes, which adds nothing to the address.
@@ -112,10 +122,20 @@ def confront(
     table: dict[str, object],
     app: dict[str, str],
     without_screen: dict[str, str],
+    pending: str | None = None,
 ) -> list[str]:
-    """Return what the table and the pages of the application miss of the FBS, one line each."""
+    """Return what the table and the pages of the application miss of the FBS, one line each.
+
+    ``pending`` is a function the specification does not draw yet: it is taken for a leaf of its
+    parent, FBS-1 for FBS-1.6, so long as the parent is in the tree and it is not.
+    """
     findings: list[str] = []
     named = {fn.code: fn for fn in tree}
+    if pending is not None:
+        if pending in named:
+            findings.append(f"{pending}: declared pending in the specification, but it has it")
+        elif pending.rpartition(".")[0] in named:
+            named[pending] = Function(pending, pending)
     leaves = {fn.code: fn for fn in projection.leaves(tree)}
     seen: set[str] = set()
     for address in addresses(table):
@@ -178,7 +198,7 @@ def main() -> int:
     tree = projection.read_functions()
     table = cast("dict[str, object]", json.loads(TABLE.read_text(encoding="utf-8")))
     app = pages(APP)
-    findings = confront(tree, table, app, WITHOUT_SCREEN)
+    findings = confront(tree, table, app, WITHOUT_SCREEN, PENDING_IN_THE_SPECIFICATION)
     for finding in findings:
         print(finding, file=sys.stderr)
     leaves = projection.leaves(tree)
