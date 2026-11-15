@@ -1,0 +1,9 @@
+{
+  "summary": "Un sous-projet de budget 100, de coût réel 70 et de reste à engager 70 : l'avancement financier vaut 50 % et la consommation du budget 70 % (WF-IND-0040).",
+  "examples": ["WF-IND-0040-A#2c0d13aef084"],
+  "budget": "100.00",
+  "actual_cost": "70.00",
+  "remaining": "70.00",
+  "financial_progress": "0.5000",
+  "budget_consumption": "0.7000"
+}

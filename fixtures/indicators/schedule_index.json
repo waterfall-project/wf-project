@@ -1,0 +1,8 @@
+{
+  "summary": "Une valeur acquise de 400 pour une valeur planifiée de 500 : l'indice de délai vaut 0,8 et l'écart de délai -100 (WF-IND-0080).",
+  "examples": ["WF-IND-0080-A#aa6a94ba94fd", "WF-IND-0080-A#9e5aed044b39"],
+  "earned_value": "400.00",
+  "planned_value": "500.00",
+  "schedule_index": "0.8000",
+  "schedule_variance": "-100.00"
+}
