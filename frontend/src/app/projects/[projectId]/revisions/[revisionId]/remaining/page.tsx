@@ -55,7 +55,7 @@ import { functionHref, leafOf } from "@/navigation/functions";
 import { screenMetadata } from "../../../../../title";
 import { type GridAddress, gridAddress, readGridScreen } from "../grid-screen";
 import type { RevisionParams } from "../page";
-import { WorkCard } from "../work-card";
+import { GridCard } from "@/components/shell/grid-card";
 
 /** Title the tab with the function, and with the project. */
 export async function generateMetadata({
@@ -285,7 +285,7 @@ export default async function RemainingPage({
         />
         <RemainingSummary indicators={indicators} currency={currency} />
         <PendingAddress>
-          <WorkCard fill>
+          <GridCard fill>
             <RemainingGrid
               nodes={screen.nodes}
               structure={screen.structure}
@@ -299,7 +299,7 @@ export default async function RemainingPage({
               preferences={screen.preferences}
               treeFilters={<TreeFilters breakdown={screen.breakdown} />}
             />
-          </WorkCard>
+          </GridCard>
         </PendingAddress>
       </Screen>
     </>

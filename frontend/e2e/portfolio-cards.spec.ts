@@ -143,7 +143,7 @@ for (const screen of SCREENS) {
         const figure = page.getByRole("figure", { name });
         await expect(figure, `the chart « ${name} »`).toHaveCount(1);
         await expect(
-          figure.locator("xpath=ancestor::*[@data-slot='card'][1]"),
+          figure.locator("xpath=ancestor::*[@data-slot='card' or @data-slot='grid-card'][1]"),
           `« ${name} » in a card`,
         ).toHaveCount(1);
       }

@@ -234,7 +234,7 @@ describe("the gestures of the cards of the Kanban", () => {
     // In the order of the API: start, complete, enter the remaining to commit; nothing it does not list.
     expect(entries.map((entry) => entry.textContent)).toEqual([
       "Démarrer",
-      "TerminerConditions non remplies\u00A0: la tâche est un jalon et tâche sans ligne hors provision.",
+      "Terminer",
       "Saisir le reste à engager",
     ]);
     expect(entries[0]).not.toHaveAttribute("aria-disabled");
@@ -770,22 +770,25 @@ describe("the gestures of the cards of the Kanban", () => {
     expect(labels("Terminées")).not.toContain("Réception usine");
   });
 
-  it("shows an unavailable gesture in the menu with the conditions it lacks, and does nothing when it is chosen [WF-IHM-0090-A]", async () => {
+  it("shows an unavailable gesture in the menu, its conditions in its tooltip and not under its name, and tells them on the card when it is pressed, writing nothing [WF-IHM-0090-A]", async () => {
     const client = serve({});
     board();
     const user = await openMenu("Montage des armoires sur site");
     const menu = screen.getByRole("menu", {
       name: "Gestes de la tâche Montage des armoires sur site",
     });
-    // The completion of this task cannot be made now: it is shown, with what is lacking.
+    // Unavailable: shown, what it lacks its description (its tooltip says it: kanban-reading).
     const completion = within(menu).getByRole("menuitem", { name: /^Terminer/ });
     expect(completion).toHaveAttribute("aria-disabled", "true");
-    expect(completion).toHaveTextContent(
-      "Conditions non remplies : la tâche est un jalon et tâche sans ligne hors provision.",
-    );
-    // Secondary: a gesture the card does not list is not in the menu at all.
+    expect(completion).toHaveTextContent(/^Terminer$/);
+    const conditions =
+      "Conditions non remplies\u00A0: la tâche est un jalon et tâche sans ligne hors provision.";
+    expect(completion).toHaveAccessibleDescription(conditions);
     expect(within(menu).queryByRole("menuitem", { name: /^Rouvrir/ })).toBeNull();
     await user.click(completion);
+    expect(within(card("Montage des armoires sur site")).getByRole("alert").textContent).toBe(
+      `«\u00A0Terminer\u00A0» est indisponible. ${conditions}`,
+    );
     expect(
       within(card("Montage des armoires sur site")).queryByLabelText("Date de l’événement"),
     ).toBeNull();

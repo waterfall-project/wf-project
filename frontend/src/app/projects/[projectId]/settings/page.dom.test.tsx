@@ -73,4 +73,26 @@ describe("the settings of a project, rendered", () => {
     expect(modify.closest('[data-slot="section-card-commands"]')).not.toBeNull();
     expectCommandRule(container);
   });
+
+  it("sets « Modify the contributors » in the commands of its card, at the right of its title, outlined as « Edit the project » is [WF-IHM-0100-A]", async () => {
+    const page = await SettingsPage({
+      params: Promise.resolve({ projectId: PROJECT }),
+      searchParams: Promise.resolve({}),
+    });
+    const { container } = render(
+      <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
+        {page}
+      </NextIntlClientProvider>,
+    );
+    const card = screen.getByRole("region", { name: "Contributors" });
+    const modify = within(card).getByRole("button", { name: "Modify the contributors" });
+    expect(modify.closest('[data-slot="section-card-commands"]')).not.toBeNull();
+    expect(modify.closest('[data-slot="section-card-principal"]')).toHaveAttribute(
+      "data-does",
+      "modify",
+    );
+    // Not in the body of the card, under its title any more.
+    expect(modify.closest('[data-slot="card-content"]')).toBeNull();
+    expectCommandRule(container);
+  });
 });

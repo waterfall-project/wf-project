@@ -281,6 +281,17 @@ export function Kanban({
     write(card, asked, undefined);
   };
 
+  /** Tell, on the card, what an unavailable gesture lacks: dropped on its column, or chosen in its menu. */
+  const refuse = (card: KanbanCard, refused: CardGesture) => {
+    say(card.node_id, {
+      kind: "said",
+      sentence: t("gestureUnavailable", {
+        command: commands(refused.command),
+        conditions: unmet(refused),
+      }),
+    });
+  };
+
   /** Carry a card to a column — dropped on it, or by the keys: the gesture it lists, or why not. */
   const carry = (card: KanbanCard, state: TaskProgress) => {
     if (card.state === state || writing !== undefined) {
@@ -292,13 +303,7 @@ export function Kanban({
       return;
     }
     if (!leading.is_available) {
-      say(card.node_id, {
-        kind: "said",
-        sentence: t("gestureUnavailable", {
-          command: commands(leading.command),
-          conditions: unmet(leading),
-        }),
-      });
+      refuse(card, leading);
       return;
     }
     say(card.node_id, undefined);
@@ -345,6 +350,7 @@ export function Kanban({
     },
     drag: setDragged,
     gesture,
+    refuse,
     date: write,
     cancel: (id) => {
       setAsking(undefined);
