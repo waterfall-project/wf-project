@@ -260,7 +260,7 @@ export function IdentitySync({
 }) {
   const t = useTranslations("admin.identitySync");
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
-  // Read here, where the menu stays mounted as its popover closes (US-2240).
+  // Read here because the card carries both the command and the notice (US-2240).
   const reading = useReadAnew(outcome);
   return (
     <SectionCard

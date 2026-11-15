@@ -644,7 +644,7 @@ export function BackupDeposit() {
             size="sm"
             variant="outline"
             {...waitingAttributes(waiting)}
-            disabled={file === undefined || reading}
+            disabled={file === undefined}
             onClick={send}
           >
             <Upload aria-hidden="true" />
