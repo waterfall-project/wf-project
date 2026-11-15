@@ -81,8 +81,9 @@ export interface CommandProps {
 }
 
 /**
- * The variant of the button of a command: outlined, unless its card gives it another. Apart from
- * `Command`, whose complexity a default (`variant = "outline"`, or `??`) would bring over the limit.
+ * The variant of the button of a command: outlined, unless its card gives it another. Kept out of
+ * `Command`: a default (`variant = "outline"`, or `??`) there would bring its complexity over the
+ * limit (15 for 14).
  */
 function outlinedUnless(variant: PrincipalVariant | undefined): PrincipalVariant {
   return variant ?? "outline";

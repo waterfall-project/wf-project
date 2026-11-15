@@ -230,10 +230,12 @@ describe("the screen of the revisions of a project", () => {
       "Comparaison de deux révisions La comparaison demande deux révisions marquées.",
     );
     // The history comes before the comparison.
-    expect(words.indexOf("Historique des révisions")).toBeGreaterThanOrEqual(0);
-    expect(words.indexOf("Historique des révisions")).toBeLessThan(
-      words.indexOf("Comparaison de deux révisions"),
+    const headings = [...page.matchAll(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/g)].map((match) =>
+      text(match[1] ?? ""),
     );
+    const history = headings.indexOf("Historique des révisions");
+    expect(history).toBeGreaterThanOrEqual(0);
+    expect(history).toBeLessThan(headings.indexOf("Comparaison de deux révisions"));
     expect(page).not.toContain("<form");
   });
 });
