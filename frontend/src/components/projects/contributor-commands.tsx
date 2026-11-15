@@ -75,6 +75,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { formatLocale } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
 
+import { offersModification } from "./contributor-offer";
 import { type Contributor, KINDS } from "./settings-grids";
 
 type Schemas = components["schemas"];
@@ -240,7 +241,8 @@ function ModifyContributors({
   // What the dialog starts from: the rows and the counter of the reading, whole.
   const reading =
     from?.lock_version == null ? undefined : { from: from.items, counter: from.lock_version };
-  if (offer === undefined || (offer.is_available && reading === undefined)) {
+  // Present as `offersModification` decides, which `ModifyContributorsCommand` has asked.
+  if (offer === undefined) {
     return null;
   }
   const unmet = unmetId(offer, id);
@@ -294,13 +296,19 @@ export function ModifyContributorsCommand({ variant }: { readonly variant: Princ
     return null;
   }
   const { editing } = commands;
-  // A modification opens on the list read whole, whose counter it sends; the newer one answered after.
+  // The one decision of the card, which reserved its place by it.
+  if (!offersModification(editing)) {
+    return null;
+  }
+  // A modification opens on the list read whole, whose counter it sends; the newer one answered
+  // after.
   const from = editing.whole === undefined ? undefined : newer(editing.whole, commands.answered);
   return <ModifyContributors commands={commands} from={from} variant={variant} />;
 }
 
 /**
- * The head of the list: the region that says what the last write did, the accounts the server proposes, a refusal answered once the dialog is gone, and the dialog.
+ * The head of the list: the region that says what the last write did, the accounts the server
+ * proposes, a refusal answered once the dialog is gone, and the dialog.
  */
 export function ContributorHead() {
   const t = useTranslations("projectLists.contributors");
@@ -312,7 +320,8 @@ export function ContributorHead() {
   }
   const { said, editing } = commands;
   const { suggestions } = editing;
-  // A modification opens on the list read whole, whose counter it sends; the newer one answered after.
+  // A modification opens on the list read whole, whose counter it sends; the newer one answered
+  // after.
   const from = editing.whole === undefined ? undefined : newer(editing.whole, commands.answered);
   // Proposed under the list: the accounts the list it opens on does not count — inscribed, no more.
   const proposed = proposedBesides(suggestions, from?.items);

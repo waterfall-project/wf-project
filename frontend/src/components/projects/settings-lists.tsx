@@ -37,6 +37,7 @@ import {
   ContributorHead,
   ModifyContributorsCommand,
 } from "./contributor-commands";
+import { offersModification } from "./contributor-offer";
 import { ListCard } from "./project-tables";
 import { SettingsGrid } from "./settings-grid";
 import {
@@ -245,17 +246,6 @@ export function SubprojectList({
       </ReferenceCard>
     </SubprojectCommands>
   );
-}
-
-/**
- * Whether the card of the contributors draws the command that modifies the list (#3417): the project
- * lists it, and it is unavailable — with the conditions it lacks — or the list is read whole, which
- * the dialog starts from. Written here, not in the module of the commands: a function of a module
- * `"use client"` would reach this server screen as a reference (typescript.md, defect 12).
- */
-function offersModification(editing: ContributorEditing | undefined): boolean {
-  const offer = editing?.offer;
-  return offer !== undefined && (!offer.is_available || editing?.whole?.lock_version != null);
 }
 
 /**

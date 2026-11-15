@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -21,6 +22,7 @@ vi.mock("next/navigation", async (original) => ({
   usePathname: () => `/projects/${PROJECT}/settings`,
   useSearchParams: () => new URLSearchParams(),
 }));
+vi.mock("next/cache", () => ({ refresh: () => undefined }));
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
 }));
@@ -94,5 +96,32 @@ describe("the settings of a project, rendered", () => {
     // Not in the body of the card, under its title any more.
     expect(modify.closest('[data-slot="card-content"]')).toBeNull();
     expectCommandRule(container);
+  });
+
+  it("keeps « Modify the contributors » in its place once a write has answered and the reading the page started from is stale [WF-IHM-0100-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "PUT /projects/{project_id}/contributors": "contributors_set",
+    };
+    const page = await SettingsPage({
+      params: Promise.resolve({ projectId: PROJECT }),
+      searchParams: Promise.resolve({}),
+    });
+    render(
+      <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
+        {page}
+      </NextIntlClientProvider>,
+    );
+    const card = screen.getByRole("region", { name: "Contributors" });
+    await userEvent.click(within(card).getByRole("button", { name: "Modify the contributors" }));
+    const dialog = screen.getByRole("dialog", { name: "Modify the contributors" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    // The card decided once, by the reading whole of the page: the answer neither takes the command
+    // out of its place nor leaves the place empty.
+    const modify = within(card).getByRole("button", { name: "Modify the contributors" });
+    expect(modify.closest('[data-slot="section-card-principal"]')).not.toBeNull();
   });
 });

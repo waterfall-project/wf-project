@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The settings of a project in cards (EP-25, US-2130/L4), measured rather than compared to an
- * image: at 1366 points, at 1100 and 1024 — where the commands of the work breakdown, which went out
- * of their card on one line below 1280 points, wrap (#3418) —, then at 911, what a zoom of 150 %
- * leaves of it, the grid of each list is as wide as the body of its card, its bar holds its commands
- * on one line from 1280 points, and none goes out of its card at any of them (WF-IHM-0100). That the screens are walked entirely by the keyboard, their contrast
- * measured in both modes and nothing lost at 911 points is proven by `accessibility.spec.ts`.
+ * image: at 1366 points and at 1280, the threshold of the one line, at 1100 and 1024 — where the
+ * commands of the work breakdown, which went out of their card on one line below 1280 points, wrap
+ * (#3418) —, then at 911, what a zoom of 150 % leaves of it, the grid of each list is as wide as
+ * the body of its card, its bar holds its commands on one line from 1280 points, and none goes out
+ * of its card at any of them (WF-IHM-0100). That
+ * the screens are walked entirely by the keyboard, their contrast measured in both modes and
+ * nothing lost at 911 points is proven by `accessibility.spec.ts`.
  */
 import { expect, type Page, test } from "@playwright/test";
 
@@ -19,6 +21,7 @@ test.slow();
 
 const WINDOWS = [
   { width: 1366, height: 900 },
+  { width: 1280, height: 900 },
   { width: 1100, height: 900 },
   { width: 1024, height: 900 },
   { width: 911, height: 900 },

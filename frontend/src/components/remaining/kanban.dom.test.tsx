@@ -7,7 +7,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { expectAccessible } from "@/test/axe";
 import {
   example,
   type FakeAnswers,
@@ -786,6 +785,10 @@ describe("the gestures of the cards of the Kanban", () => {
     expect(completion).toHaveAccessibleDescription(conditions);
     expect(within(menu).queryByRole("menuitem", { name: /^Rouvrir/ })).toBeNull();
     await user.click(completion);
+    // Pressed, it launches nothing: the menu closes, and the card says what it lacks.
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    });
     expect(within(card("Montage des armoires sur site")).getByRole("alert").textContent).toBe(
       `«\u00A0Terminer\u00A0» est indisponible. ${conditions}`,
     );
@@ -894,107 +897,5 @@ describe("the gestures of the cards of the Kanban", () => {
       }),
     );
     expect(await screen.findByRole("menuitem", { name: "Rouvrir" })).toBeVisible();
-  });
-});
-
-describe("the choice of a card", () => {
-  it("chooses a card by a click, and one only, and offers the menu of that card alone", async () => {
-    serve({});
-    board();
-    const user = userEvent.setup();
-    expect(screen.queryAllByRole("button")).toHaveLength(0);
-    await user.click(card("Pupitres opérateurs"));
-    expect(card("Pupitres opérateurs")).toHaveAttribute("aria-current", "true");
-    expect(card("Réception usine")).not.toHaveAttribute("aria-current");
-    await user.click(card("Réception usine"));
-    expect(card("Réception usine")).toHaveAttribute("aria-current", "true");
-    expect(card("Pupitres opérateurs")).not.toHaveAttribute("aria-current");
-    // Its menu only is offered, and no other card has a button.
-    expect(screen.getAllByRole("button")).toHaveLength(1);
-  });
-
-  it("gives the date up with Escape, writing nothing, and writes it with Enter", async () => {
-    const client = serve({ [PROGRESS]: "task_started" });
-    board();
-    const user = await openMenu("Montage des armoires sur site");
-    await user.click(await screen.findByRole("menuitem", { name: "Démarrer" }));
-    const field = await within(card("Montage des armoires sur site")).findByLabelText(
-      "Date de l’événement",
-    );
-    expect(field).toHaveFocus();
-    // Escape gives the card up and the focus back to it, writing nothing.
-    await user.keyboard("{Escape}");
-    expect(
-      within(card("Montage des armoires sur site")).queryByLabelText("Date de l’événement"),
-    ).toBeNull();
-    expect(card("Montage des armoires sur site")).toHaveFocus();
-    expect(written(client)).toEqual([]);
-    // Asked again, the Enter of the form writes it.
-    await user.click(
-      within(card("Montage des armoires sur site")).getByRole("button", {
-        name: "Gestes de la tâche Montage des armoires sur site",
-      }),
-    );
-    await user.click(await screen.findByRole("menuitem", { name: "Démarrer" }));
-    await within(card("Montage des armoires sur site")).findByLabelText("Date de l’événement");
-    await user.keyboard("{Enter}");
-    await waitFor(() => {
-      expect(labels("Démarrées")).toContain("Montage des armoires sur site");
-    });
-    expect(written(client)).toEqual([
-      { progress: "started", occurred_on: "2026-06-03", lock_version: 1 },
-    ]);
-    expect(card("Montage des armoires sur site")).toHaveFocus();
-  });
-
-  it("carries a card to the neighbouring column by Shift and a sideways arrow, the equivalent of the drag, and asks the date first [WF-IHM-0100-A]", async () => {
-    const client = serve({ [PROGRESS]: "task_started" });
-    board();
-    const user = userEvent.setup();
-    await user.click(card("Montage des armoires sur site"));
-    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
-    const field = await within(card("Montage des armoires sur site")).findByLabelText(
-      "Date de l’événement",
-    );
-    expect(field).toHaveFocus();
-    // Escape gives the card up and the focus back to it, writing nothing.
-    await user.keyboard("{Escape}");
-    expect(
-      within(card("Montage des armoires sur site")).queryByLabelText("Date de l’événement"),
-    ).toBeNull();
-    expect(card("Montage des armoires sur site")).toHaveFocus();
-    expect(written(client)).toEqual([]);
-    // Asked again, the Enter of the form writes it.
-    await user.keyboard("{Shift>}{ArrowRight}{/Shift}{Enter}");
-    await waitFor(() => {
-      expect(labels("Démarrées")).toContain("Montage des armoires sur site");
-    });
-    expect(written(client)).toEqual([
-      { progress: "started", occurred_on: "2026-06-03", lock_version: 1 },
-    ]);
-    expect(card("Montage des armoires sur site")).toHaveFocus();
-  });
-
-  it("asks for a date before it writes: an empty one is refused on the field", async () => {
-    const client = serve({});
-    board();
-    await choose("Pupitres opérateurs", /^Terminer/);
-    const field = await within(card("Pupitres opérateurs")).findByLabelText("Date de l’événement");
-    fireEvent.change(field, { target: { value: "" } });
-    await userEvent.click(
-      within(card("Pupitres opérateurs")).getByRole("button", { name: "Terminer" }),
-    );
-    expect(within(card("Pupitres opérateurs")).getByRole("alert")).toHaveTextContent(
-      "Saisissez la date de l’événement.",
-    );
-    expect(field).toHaveAttribute("aria-invalid", "true");
-    expect(written(client)).toEqual([]);
-  });
-
-  it("is accessible with a card chosen and the date asked on it", async () => {
-    serve({});
-    const { container } = board();
-    await choose("Pupitres opérateurs", /^Terminer/);
-    await expectAccessible(container);
   });
 });

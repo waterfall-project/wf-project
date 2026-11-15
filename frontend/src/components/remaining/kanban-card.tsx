@@ -108,8 +108,10 @@ function CardDate({ card }: { readonly card: KanbanCard }) {
 
 /**
  * A gesture of the menu of a card, with its tooltip (`MenuCommand`, #1435): its name, what it does
- * (`commands.<gesture>.help`), and, unavailable, the conditions it lacks, said under X — chosen, it does nothing, the menu left open on why; the entry of the remaining to
- * commit a link to the grid on the task. While a gesture is written, the others wait, and say so.
+ * (`commands.<gesture>.help`), and, unavailable, the conditions it lacks, said in the tooltip and
+ * the description of the item. Chosen unavailable, it launches nothing: the menu closes and the
+ * card says what it lacks. The entry of the remaining to commit is a link to the grid on the task.
+ * While a gesture is written, the others wait, and say so.
  */
 function GestureItem({
   card,
