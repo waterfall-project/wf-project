@@ -2,7 +2,7 @@
 
 ## Ce que montre l’écran
 
-Les paramètres de coûts de l’installation, hors de tout projet, que chaque projet emploie. Sous le titre, la devise unique de l’installation, dans laquelle s’expriment tous les montants : elle se choisit à l’installation, ne se modifie pas, et Waterfall ne convertit aucun montant. Puis le nom de l’entreprise, que portent les fichiers exportés.
+Les paramètres de coûts de l’installation, hors de tout projet, que chaque projet emploie. Sous le titre, la devise unique de l’installation, dans laquelle s’expriment tous les montants : elle se choisit à l’installation, ne se modifie pas, et Waterfall ne convertit aucun montant. Le nom de l’entreprise ne s’y trouve plus : il se lit et se modifie dans l’écran [Installation](FBS-1.6.md).
 
 De haut en bas, chaque partie sous son titre :
 
@@ -17,9 +17,8 @@ En tête de l’écran :
 
 - Dans la barre de chacune des trois tables, le filtre **État** choisit les objets montrés : **Actifs** (par défaut, dit par la pastille « Actifs (par défaut) »), **Désactivés** ou **Tous les états**. Offert à qui peut modifier les paramètres de coûts : le contrat réserve les objets désactivés à cette permission, et l’écran ne les demande pas à qui peut seulement les lire.
 - **Correspondance des coûts réels** mène à la [correspondance de l’extraction des coûts réels](FBS-3.1.3.md).
-- **Modifier le nom de l’entreprise** ouvre son formulaire : le nom est obligatoire, de 200 caractères au plus.
 
-Les commandes qui écrivent — le nom de l’entreprise, la création, la modification, la désactivation et la réactivation d’une nature ou d’une catégorie, la saisie d’un taux, l’ajout d’une année — ne sont offertes qu’à qui peut modifier les paramètres de coûts ; aux autres, l’écran se lit. Le service garde ce qu’elles écrivent : une table relue montre l’objet tel qu’il l’a gardé, et un refus laisse tout comme il était. Leur détail est dans l’aide de chaque partie.
+Les commandes qui écrivent — la création, la modification, la désactivation et la réactivation d’une nature ou d’une catégorie, la saisie d’un taux, l’ajout d’une année — ne sont offertes qu’à qui peut modifier les paramètres de coûts ; aux autres, l’écran se lit. Le service garde ce qu’elles écrivent : une table relue montre l’objet tel qu’il l’a gardé, et un refus laisse tout comme il était. Leur détail est dans l’aide de chaque partie.
 
 Une modification du référentiel ne touche aucune révision marquée, qui garde les valeurs employées à son marquage.
 

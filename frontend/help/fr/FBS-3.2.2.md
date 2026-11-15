@@ -20,7 +20,7 @@ Un code déjà porté, parmi les rôles actifs ou désactivés, est refusé à s
 
 Au-dessus de la table, pour tous :
 
-- **Code du rôle** ; **Nœud d’organisation**, qui retient les rôles du nœud et de ses descendants ; **Catégorie de coût** ; **Calendrier** — chacun avec son choix « Tous » — ; un filtre d’état quand les désactivés sont affichés ;
+- **Code du rôle** ; **Nœud d’organisation**, qui retient les rôles du nœud et de ses descendants ; **Catégorie de coût** ; **Calendrier** — chacun avec son choix « Tous » — ; le filtre **État** de sa barre — **Actifs** (par défaut), **Désactivés**, **Tous les états** —, offert à qui peut modifier les paramètres de ressources ;
 - **Bornes de « Rôles de ressources »** : les heures par mois et l’effectif entre deux bornes. Une borne supérieure sous la borne inférieure est refusée à son champ, et la table n’est pas lue ;
 - le champ de recherche retient les rôles dont le code ou le libellé contient le texte saisi ;
 - **Colonnes**, **Lignes par page**, **Précédent** et **Suivant**.

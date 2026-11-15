@@ -2,7 +2,7 @@
 
 ## What the screen shows
 
-The cost settings of the installation, outside any project, which each project uses. Under the title, the single currency of the installation, in which all the amounts are expressed: it is chosen at installation, is not modified, and Waterfall converts no amount. Then the name of the company, which the exported files bear.
+The cost settings of the installation, outside any project, which each project uses. Under the title, the single currency of the installation, in which all the amounts are expressed: it is chosen at installation, is not modified, and Waterfall converts no amount. The name of the company is no longer here: it is read and modified on the [Installation](FBS-1.6.md) screen.
 
 From top to bottom, each part under its title:
 
@@ -17,9 +17,8 @@ At the top of the screen:
 
 - In the bar of each of the three tables, the **State** filter chooses the objects shown: **Active** (by default, said by the chip “Active (by default)”), **Deactivated** or **Every state**. Offered to whoever may modify the cost settings: the contract keeps the deactivated objects for that permission, and the screen does not ask them of whoever may only read.
 - **Actual cost mapping** leads to the [actual cost extraction mapping](FBS-3.1.3.md).
-- **Modify the company name** opens its form: the name is required, of 200 characters at most.
 
-The commands that write — the name of the company, the creation, the modification, the deactivation and the reactivation of a cost type or of a category, the entry of a rate, the addition of a year — are offered only to whoever may modify the cost settings; to the others, the screen is read only. The service keeps what they write: a table read anew shows the object as it kept it, and a refusal leaves everything as it was. Their detail is in the help of each part.
+The commands that write — the creation, the modification, the deactivation and the reactivation of a cost type or of a category, the entry of a rate, the addition of a year — are offered only to whoever may modify the cost settings; to the others, the screen is read only. The service keeps what they write: a table read anew shows the object as it kept it, and a refusal leaves everything as it was. Their detail is in the help of each part.
 
 A modification of the reference data touches no marked revision, which keeps the values used at its marking.
 

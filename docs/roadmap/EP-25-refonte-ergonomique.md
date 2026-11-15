@@ -746,7 +746,7 @@ de référence, **afin de** régler le référentiel sans chercher une commande 
 
 ## US-2120 — L'écran « Installation » : le nom de l'entreprise, modifiable, et ce que l'amorçage a fixé
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-EXP-0020-A`, `WF-ADM-0100-A`
 - **opérations** : `getInstallation`, `getReferenceSettings`, `updateReferenceSettings`,
   `listPermissions`, `getMe`

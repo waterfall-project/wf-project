@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The settings of the costs (FBS-3.1, US-0250), outside any project: the currency of the
- * installation, every amount expressed in it (WF-REF-0140), and beside it the name of the company
- * the exported files bear (WF-EXP-0020), modified where the session may modify the cost settings;
- * then, stacked one under the other in a page that scrolls, as the settings of the resources are
+ * installation, every amount expressed in it (WF-REF-0140); the name of the company is not here: it
+ * stands in the card of the installation (FBS-1.6, US-2120); then, stacked one under the other in a page that scrolls, as the settings of the resources are
  * (US-0570, #1044), the natures and the categories of cost (FBS-3.1.1), two dense grids searched,
  * filtered, sorted and paged by the server, as the address asks under the names of each grid
  * (#510), and the grid of the hourly rates (FBS-3.1.2), a row for each category of labour and a
@@ -98,7 +97,6 @@ import {
   yearOf,
 } from "@/components/reference/rate-columns";
 import { type HourlyRateGrid, RateGrid } from "@/components/reference/rate-grid";
-import { CompanyCard, CompanySettings } from "@/components/reference/settings-forms";
 import { BoundsRefused, ReferenceCard } from "@/components/reference/section";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
@@ -273,48 +271,28 @@ async function readCosts(queries: CostQueries) {
  * The title of the screen, the currency every amount of it is expressed in, and the link to the
  * correspondence of the actual costs.
  */
-function CostsHeader({
-  settings,
-  renames,
-}: {
-  readonly settings: ReferenceSettings;
-  /**
-   * Whether the session may modify the name of the company: the service asks for
-   * `installation.write` (WF-ADM-0100-A), not `cost_settings.write`.
-   */
-  readonly renames: boolean;
-}) {
+function CostsHeader({ settings }: { readonly settings: ReferenceSettings }) {
   const t = useTranslations();
   return (
-    <>
-      <PageHeader
-        title={t("functions.costSettings")}
-        icon={FUNCTION_ICONS.cost_settings}
-        density={FUNCTION_DENSITY.cost_settings}
-        subtitle={t("reference.currency", { currency: settings.currency_code })}
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <CommandTooltip
-              label={t(MAPPING.label)}
-              help={t("commands.openActualCostMapping.help")}
+    <PageHeader
+      title={t("functions.costSettings")}
+      icon={FUNCTION_ICONS.cost_settings}
+      density={FUNCTION_DENSITY.cost_settings}
+      subtitle={t("reference.currency", { currency: settings.currency_code })}
+      actions={
+        <div className="flex flex-wrap items-center gap-2">
+          <CommandTooltip label={t(MAPPING.label)} help={t("commands.openActualCostMapping.help")}>
+            <Link
+              href={MAPPING.route}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
             >
-              <Link
-                href={MAPPING.route}
-                className={buttonVariants({ variant: "outline", size: "sm" })}
-              >
-                <MappingIcon aria-hidden="true" />
-                {t(MAPPING.label)}
-              </Link>
-            </CommandTooltip>
-          </div>
-        }
-      />
-      {renames ? (
-        <CompanySettings settings={settings} />
-      ) : (
-        <CompanyCard name={settings.company_name} />
-      )}
-    </>
+              <MappingIcon aria-hidden="true" />
+              {t(MAPPING.label)}
+            </Link>
+          </CommandTooltip>
+        </div>
+      }
+    />
   );
 }
 
@@ -385,7 +363,7 @@ export default async function CostSettingsPage({
   return (
     <Screen density={FUNCTION_DENSITY.cost_settings}>
       <PendingAddress>
-        <CostsHeader settings={settings} renames={permissions.includes("installation.write")} />
+        <CostsHeader settings={settings} />
         <CostTypeList
           rows={types.items}
           page={types.meta}

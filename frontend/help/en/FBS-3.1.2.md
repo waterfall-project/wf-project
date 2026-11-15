@@ -18,7 +18,7 @@ These commands are offered only to whoever may modify the cost settings:
 
 Above the grid, for all:
 
-- a filter of state of the categories, when the deactivated ones are shown; they are reactivated in the list of the [categories](FBS-3.1.1.md);
+- the **State** filter of its bar — **Active** (by default), **Deactivated**, **Every state** —, on the categories, offered to whoever may modify the cost settings; the deactivated categories are reactivated in the list of the [categories](FBS-3.1.1.md);
 - **Bounds of “Hourly rate grid”**: the **Year of the rate**, the last one by default, and the bounds of the **Hourly rate** of that year. An upper bound under the lower bound is refused at its field, and the grid is not read;
 - the search field keeps the categories whose code or label contains the text entered;
 - **Columns**, **Rows per page**, **Previous** and **Next**.

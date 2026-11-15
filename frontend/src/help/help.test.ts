@@ -576,6 +576,7 @@ describe("the reading of the help", () => {
     ["/system", "FBS-1.3", "Surveillance de l’état du système"],
     ["/admin/backups", "FBS-1.4", "Sauvegarde et restauration"],
     ["/admin/audit-log", "FBS-1.5", "Journal d’audit"],
+    ["/admin/installation", "FBS-1.6", "Installation"],
     ["/portfolio/projects", "FBS-2.1", "Portefeuille de projets"],
     ["/portfolio/workload", "FBS-2.2", "Plan de charge agrégé"],
     ["/portfolio/performance", "FBS-2.3", "Performance du portefeuille"],

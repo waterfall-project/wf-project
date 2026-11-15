@@ -31,7 +31,7 @@ const IN_PROJECT = `/projects/${PROJECT}/revisions/${REVISION}`;
 const CONTEXT = `?subproject_id=${SUBPROJECT}&as_of=2026-05-31`;
 
 /** The functions of the platform scope, and the leaf of the costs, which the navigation lists. */
-const PLATFORM_FUNCTIONS = 16;
+const PLATFORM_FUNCTIONS = 17;
 const SETTINGS_FUNCTIONS = 4;
 const COST_LEAVES = 1;
 
@@ -154,7 +154,7 @@ describe("the navigation", () => {
     ).toEqual(["Projets"]);
     await openBlocks();
     expect(within(nav).getAllByRole("link")).toHaveLength(
-      5 + 7 + (SETTINGS_FUNCTIONS + COST_LEAVES) + 1,
+      6 + 7 + (SETTINGS_FUNCTIONS + COST_LEAVES) + 1,
     );
     for (const block of ["Administration", "Portefeuille", "Paramètres applicatifs"]) {
       expect(within(nav).getByRole("button", { name: block })).toHaveAttribute(

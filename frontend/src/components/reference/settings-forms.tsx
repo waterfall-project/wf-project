@@ -7,11 +7,11 @@
  * that session may write: the risk matrix, its six bounds and its sixteen zones (FBS-3.3,
  * WF-REF-0160), under `risk_settings.write`; the thresholds of the indices and the delay between
  * two reviews (FBS-3.4, WF-REF-0170, WF-REF-0180), under `indicator_settings.write`; the name of
- * the company, which the exported files bear (WF-EXP-0020), under `installation.write`
- * (WF-ADM-0100-A), beside the currency. Each form sends the part of its screen alone with the version read
- * (`updateReferenceSettings`), never a field of the other screen; neither the currency, which is
- * not modified (WF-REF-0140), nor the default language of the installation, which is EP-03's, is
- * offered.
+ * the company, which the exported files bear (WF-EXP-0020), in the card of the installation
+ * (FBS-1.6), under `installation.write` (WF-ADM-0100-A). Each form sends the part of its screen
+ * alone with the version read (`updateReferenceSettings`), never a field of the other screen;
+ * neither the currency, which is not modified (WF-REF-0140), nor the default language of the
+ * installation, nor its time zone, which the bootstrap fixes, is offered.
  *
  * The form checks before asking that the bounds of each axis rise strictly and that the alert
  * threshold of each index stays below its watch threshold (judged only between two thresholds
@@ -41,6 +41,7 @@ import { Button } from "@/components/ui/button";
 import { compareDecimals, editableDecimal, editablePercent, percentRatio } from "@/i18n/format";
 
 import { Reactivations } from "./reactivation";
+import { InstallationFacts } from "./installation-facts";
 import { SettingsHeader, type SettingsScreen } from "./settings-header";
 import { type Draft, type FormField, ReferenceForm, required } from "./reference-form";
 import {
@@ -54,6 +55,7 @@ import {
 } from "./setting-tables";
 
 type ReferenceSettings = components["schemas"]["ReferenceSettings"];
+type Installation = components["schemas"]["Installation"];
 type DurationUnits = components["schemas"]["DurationUnits"];
 type AlertZone = components["schemas"]["AlertZone"];
 type FieldProblem = components["schemas"]["FieldProblem"];
@@ -581,41 +583,53 @@ export function DurationUnitSettings({ units }: { readonly units: DurationUnits 
 }
 
 /**
- * The name of the company beside the currency, and its form, for a session that may modify the cost
- * settings (WF-EXP-0020).
+ * The card of the installation, for a session that may modify it: the name of the company, with its
+ * command, and what the bootstrap fixed (WF-EXP-0020, WF-ADM-0100-A).
  */
-export function CompanySettings({ settings }: { readonly settings: ReferenceSettings }) {
+export function InstallationSettings({
+  settings,
+  installation,
+}: {
+  readonly settings: ReferenceSettings;
+  readonly installation: Installation;
+}) {
   const t = useTranslations("reference.companyForm");
+  const title = useTranslations("installation")("title");
   return (
     <SettingsWriter
       settings={settings}
       command={t("modify")}
       saved={t("saved")}
       form={CompanyForm}
-      place={{ kind: "card", title: t("title"), icon: Building2 }}
+      place={{ kind: "card", title, icon: Building2 }}
     >
-      {(shown) => <CompanyName name={shown.company_name} />}
+      {(shown) => (
+        <InstallationFacts
+          name={shown.company_name}
+          currency={shown.currency_code}
+          installation={installation}
+        />
+      )}
     </SettingsWriter>
   );
 }
 
-/** The name of the company, read: what a session that may not modify it sees. */
-export function CompanyName({ name }: { readonly name: string }) {
-  const t = useTranslations("reference.companyForm");
+/** The card of the installation, read: what a session that may not modify it sees. */
+export function InstallationCard({
+  settings,
+  installation,
+}: {
+  readonly settings: ReferenceSettings;
+  readonly installation: Installation;
+}) {
+  const title = useTranslations("installation")("title");
   return (
-    <dl className="text-sm">
-      <dt className="inline text-muted-foreground">{t("name")}</dt>{" "}
-      <dd className="inline font-semibold">{name}</dd>
-    </dl>
-  );
-}
-
-/** The name of the company in its card, read: what a session that may not modify it sees. */
-export function CompanyCard({ name }: { readonly name: string }) {
-  const t = useTranslations("reference.companyForm");
-  return (
-    <SectionCard title={t("title")} icon={Building2}>
-      <CompanyName name={name} />
+    <SectionCard title={title} icon={Building2}>
+      <InstallationFacts
+        name={settings.company_name}
+        currency={settings.currency_code}
+        installation={installation}
+      />
     </SectionCard>
   );
 }

@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The settings of the risks and of the indicators, the correspondence of the actual costs and the
- * name of the company of the cost settings, in the layout of EP-25 (US-2110/L2): the command that
+ * card of the installation, in the layout of EP-25 (US-2110/L2, US-2120/L2): the command that
  * modifies the risks or the indicators outlined at the right of the title of the screen; the
  * correspondence in a card of the columns read and a card of the columns kept, its fields bounded to
- * a reading width, its save filled at the foot; the name of the company, and its command, in a card.
+ * a reading width, its save filled at the foot; the name of the company, and its command, in the
+ * card of the installation, with the currency, the default language and the time zone read only.
  */
 import { render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
@@ -21,7 +22,12 @@ import { expectCommandRule } from "@/test/command-rule";
 import { example, fakeClient } from "@/test/fixtures";
 
 import { ActualCostMapping } from "./actual-cost-mapping";
-import { CompanyCard, CompanySettings, IndicatorSettings, RiskSettings } from "./settings-forms";
+import {
+  IndicatorSettings,
+  InstallationCard,
+  InstallationSettings,
+  RiskSettings,
+} from "./settings-forms";
 
 type ReferenceSettings = components["schemas"]["ReferenceSettings"];
 type Mapping = components["schemas"]["ActualCostMapping"];
@@ -39,6 +45,7 @@ vi.mock("next/navigation", async (original) => ({
 
 const settings = example("reference_settings") as ReferenceSettings;
 const mapping = example("actual_cost_mapping") as Mapping;
+const installation = example("installation") as components["schemas"]["Installation"];
 
 /** A part of the screen, in French. */
 function inFrench(children: ReactNode) {
@@ -90,11 +97,13 @@ describe.each([
   });
 });
 
-describe("the name of the company of the cost settings", () => {
-  it("stands in a card, its command outlined at the right of the title, the principal one that modifies [WF-IHM-0100-A]", async () => {
+describe("the card of the installation", () => {
+  it("stands in a card, its command outlined at the right of the title, the principal one that modifies, with the three facts the bootstrap fixed read only", async () => {
     server.client = fakeClient({});
-    const { container } = render(inFrench(<CompanySettings settings={settings} />));
-    const card = screen.getByRole("region", { name: "Entreprise" });
+    const { container } = render(
+      inFrench(<InstallationSettings settings={settings} installation={installation} />),
+    );
+    const card = screen.getByRole("region", { name: "Installation" });
     const button = within(card).getByRole("button", { name: "Modifier le nom de l’entreprise" });
     expect(filled(button)).toBe(false);
     expect(card.querySelector('[data-slot="card-header"]')?.contains(button)).toBe(true);
@@ -103,14 +112,19 @@ describe("the name of the company of the cost settings", () => {
       "modify",
     );
     expect(within(card).getByText(settings.company_name)).toBeVisible();
+    expect(within(card).getByText("Europe/Paris")).toBeVisible();
+    expect(within(card).getAllByRole("button")).toHaveLength(1);
     expectCommandRule(container);
     await expectAccessible(container);
   });
 
-  it("stands in its card with no command for a session that only reads [WF-IHM-0100-A]", async () => {
-    const { container } = render(inFrench(<CompanyCard name={settings.company_name} />));
-    const card = screen.getByRole("region", { name: "Entreprise" });
+  it("stands in its card with no command for a session that only reads", async () => {
+    const { container } = render(
+      inFrench(<InstallationCard settings={settings} installation={installation} />),
+    );
+    const card = screen.getByRole("region", { name: "Installation" });
     expect(within(card).getByText(settings.company_name)).toBeVisible();
+    expect(within(card).getByText("Français")).toBeVisible();
     expect(within(card).queryByRole("button")).toBeNull();
     expectCommandRule(container);
     await expectAccessible(container);
@@ -124,7 +138,7 @@ describe("the correspondence of the actual costs in cards", () => {
     return render(inFrench(<ActualCostMapping mapping={mapping} writes={writes} />));
   }
 
-  it("shows a card of the columns read and a card of the columns kept, the five columns in the first [WF-IHM-0100-A]", () => {
+  it("shows a card of the columns read and a card of the columns kept, the five columns in the first", () => {
     shown(true);
     const read = screen.getByRole("region", { name: "Colonnes lues" });
     const kept = screen.getByRole("region", { name: "Colonnes conservées" });
