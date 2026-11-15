@@ -2,9 +2,24 @@
  * SPDX-FileCopyrightText: 2026 waterfall-project
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * The login pages in the charter of the front (frontend/src/theme/globals.css): its tokens, copied,
- * as Keycloak serves no file of the front; its font, Geist; its logo, light and dark. Over the
- * PatternFly of keycloak.v2, which sets pf-v5-theme-dark on <html> when the workstation is dark.
+ * The login pages in the charter of the front (EP-25, US-2070): its tokens, copied by hand, as Keycloak
+ * serves no file of the front and the theme reads none. The only copy of the charter outside the
+ * front: a token changed in frontend/src/theme/globals.css is carried here. Each value below names
+ * its token; "globals" is frontend/src/theme/globals.css, whose `light-dark(light, dark)` gives
+ * the two values copied here, side by side. Its font, Geist; its logo, light and dark. Over the
+ * PatternFly of keycloak.v2, which sets pf-v5-theme-dark on <html> when the workstation is dark
+ * (prefers-color-scheme), the mechanism kept.
+ *
+ * The blue of the logos serves the logo, the banner and the ring of the focus alone: the one
+ * exception, copied from the front, whose token `--ring` is the one blue that reaches a component
+ * (the focus is seen on any background); the primary is the midnight blue.
+ *
+ * Contrast (WCAG AA, computed on these values, light / dark): text on the page 16.3 / 17.1, text
+ * on the card 17.9 / 15.5, muted text on the card 5.4 / 6.9 and on the page 5.0 / 7.6, text of
+ * the primary button on its fill 15.8 / 11.8 (hovered 11.4 / 13.7), text on the accent of a
+ * hovered button 15.7 / 13.4, error text on the card 6.5 / 6.2, border of a field, of the language,
+ * of a secondary button and of the external provider on the card (`--input`, as the outline
+ * buttons of the front) 3.5 / 4.0 (3:1 asked; `--border` serves the separators alone), ring on the card 4.4 / 5.2 (3:1 asked).
  */
 
 @font-face {
@@ -16,34 +31,49 @@
 }
 
 :root {
-  --wf-background: #f5f7fa;
-  --wf-foreground: #0a0a0a;
+  /* globals: --background */
+  --wf-background: #f3f5f8;
+  /* --foreground */
+  --wf-foreground: #0f172a;
+  /* --card */
   --wf-card: #ffffff;
-  --wf-muted-foreground: #6b6b6b;
-  --wf-primary: #0270b3;
+  /* --muted-foreground */
+  --wf-muted-foreground: #5b6b82;
+  /* --primary, the midnight blue; --primary-foreground; --primary-hover */
+  --wf-primary: #14233b;
   --wf-primary-foreground: #ffffff;
-  --wf-primary-hover: #02609a;
-  --wf-accent: #e6f3fb;
-  --wf-border: #e5e5e5;
-  --wf-input: #8c8c8c;
+  --wf-primary-hover: #253a5c;
+  /* --accent */
+  --wf-accent: #ecf1f7;
+  /* --border */
+  --wf-border: #e2e8f0;
+  /* --input, the border of a field */
+  --wf-input: #7d8ba0;
+  /* --ring, the blue of the logo, for the focus alone */
   --wf-ring: #027dc6;
+  /* --destructive */
   --wf-destructive: #b91c1c;
+  /* --radius (0.5rem): the card is --radius-xl, --radius + 4px; buttons and fields are pills
+     (`rounded-full` of components/ui/button.tsx and input.tsx) */
   --wf-radius: 0.5rem;
+  --wf-radius-card: calc(var(--wf-radius) + 4px);
+  --wf-radius-pill: 9999px;
   --wf-logo: url("../img/waterfall_logo.svg");
-  --wf-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px rgb(2 112 179 / 0.08);
+  --wf-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px rgb(20 35 59 / 0.08);
 }
 
+/* The dark halves of the same tokens. */
 :root.pf-v5-theme-dark {
-  --wf-background: #0a0a0a;
-  --wf-foreground: #fafafa;
-  --wf-card: #171717;
-  --wf-muted-foreground: #a3a3a3;
-  --wf-primary: #1195e1;
-  --wf-primary-foreground: #0a0a0a;
-  --wf-primary-hover: #3aa9ea;
-  --wf-accent: #0c2c40;
-  --wf-border: #2e2e2e;
-  --wf-input: #737373;
+  --wf-background: #0b111b;
+  --wf-foreground: #f1f4f8;
+  --wf-card: #141c28;
+  --wf-muted-foreground: #9aa5b5;
+  --wf-primary: #d6e0ee;
+  --wf-primary-foreground: #14233b;
+  --wf-primary-hover: #eaf0f7;
+  --wf-accent: #1b2840;
+  --wf-border: #273244;
+  --wf-input: #6e7b8f;
   --wf-ring: #1195e1;
   --wf-destructive: #f87171;
   --wf-logo: url("../img/waterfall_logo-dark.svg");
@@ -69,7 +99,6 @@
 /* The page: the background of the front, no image of Keycloak. */
 .login-pf body,
 body#keycloak-bg {
-  background: var(--wf-background);
   color: var(--wf-foreground);
   font-family: var(--pf-v5-global--FontFamily--text);
   -webkit-font-smoothing: antialiased;
@@ -99,7 +128,7 @@ body#keycloak-bg {
 .pf-v5-c-login__main {
   background: var(--wf-card);
   border: 1px solid var(--wf-border);
-  border-radius: calc(var(--wf-radius) * 1.5);
+  border-radius: var(--wf-radius-card);
   box-shadow: var(--wf-shadow);
 }
 
@@ -124,7 +153,8 @@ body#keycloak-bg {
   --pf-v5-c-form-control--before--BorderLeftColor: transparent;
   --pf-v5-c-form-control--after--BorderBottomColor: transparent;
   border: 1px solid var(--wf-input);
-  border-radius: var(--wf-radius);
+  border-radius: var(--wf-radius-pill);
+  padding-inline: 0.5rem;
   background: var(--wf-card);
 }
 
@@ -141,7 +171,7 @@ body#keycloak-bg {
 .pf-v5-c-input-group .pf-v5-c-button.pf-m-control {
   border: 1px solid var(--wf-input);
   border-inline-start: none;
-  border-radius: 0 var(--wf-radius) var(--wf-radius) 0;
+  border-radius: 0 var(--wf-radius-pill) var(--wf-radius-pill) 0;
 }
 
 .pf-v5-c-button.pf-m-control::after {
@@ -154,7 +184,7 @@ body#keycloak-bg {
 
 /* The buttons. */
 .pf-v5-c-button {
-  border-radius: var(--wf-radius);
+  border-radius: var(--wf-radius-pill);
   font-weight: 500;
 }
 
@@ -164,6 +194,12 @@ body#keycloak-bg {
   min-height: 2.5rem;
 }
 
+.pf-v5-c-button.pf-m-primary:disabled,
+.pf-v5-c-button.pf-m-primary.pf-m-disabled {
+  background: var(--pf-v5-global--disabled-color--200);
+  color: var(--pf-v5-global--disabled-color--100);
+}
+
 .pf-v5-c-button.pf-m-primary:hover,
 .pf-v5-c-button.pf-m-primary:focus {
   background: var(--wf-primary-hover);
@@ -171,7 +207,7 @@ body#keycloak-bg {
 }
 
 .pf-v5-c-button.pf-m-secondary {
-  border: 1px solid var(--wf-border);
+  border: 1px solid var(--wf-input);
   color: var(--wf-foreground);
   background: var(--wf-card);
 }
@@ -189,9 +225,32 @@ body#keycloak-bg {
   outline-offset: 2px;
 }
 
-/* The alerts: rounded like the rest. */
+/* The alerts: rounded like the rest, on the card, their text at the contrast of the page. */
 .pf-v5-c-alert {
   border-radius: var(--wf-radius);
+  background: var(--wf-card);
+  color: var(--wf-foreground);
+  --pf-v5-c-alert__title--Color: var(--wf-foreground);
+}
+
+.pf-v5-c-alert.pf-m-danger {
+  --pf-v5-c-alert--m-danger__icon--Color: var(--wf-destructive);
+  --pf-v5-c-alert--m-danger--BorderTopColor: var(--wf-destructive);
+}
+
+.pf-v5-c-form__helper-text,
+.pf-v5-c-helper-text__item.pf-m-error {
+  color: var(--wf-destructive);
+}
+
+/* A link tells itself from the text by more than its colour: the primary is nearly the text's. */
+.pf-v5-c-login__main a:not(.pf-v5-c-button) {
+  text-decoration: underline;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--wf-primary);
 }
 
 /* The band of the footer: the external provider, the links. */
@@ -222,7 +281,7 @@ body#keycloak-bg {
 
 .pf-v5-c-login__main-header-utilities .pf-v5-c-form-control {
   width: auto;
-  border-color: var(--wf-border);
+  border-color: var(--wf-input);
 }
 
 .pf-v5-c-login__main-header-utilities select {
@@ -239,8 +298,8 @@ body#keycloak-bg {
   width: 100%;
   white-space: normal;
   gap: 0.75rem;
-  border: 1px solid var(--wf-border);
-  border-radius: var(--wf-radius);
+  border: 1px solid var(--wf-input);
+  border-radius: var(--wf-radius-pill);
   color: var(--wf-foreground);
   min-height: 2.5rem;
 }
@@ -269,7 +328,7 @@ body#keycloak-bg {
 }
 
 :root.pf-v5-theme-dark {
-  --wf-banner-veil: rgb(10 10 10 / 0.22);
+  --wf-banner-veil: rgb(11 17 27 / 0.22);
 }
 
 .login-pf body,

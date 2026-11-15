@@ -998,7 +998,7 @@ qui le lit.
 
 ## US-2190 — La page de connexion à la charte nouvelle
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #3238
