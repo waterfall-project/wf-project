@@ -291,18 +291,22 @@ def test_a_summary_of_risk_lines_and_a_line_without_a_facet_count_as_the_whole_r
         place = Place(PRJ_001, REVISION_102, structure_of(session, REVISION_102))
         tree = read_rows(session, place.project_id, place.structure_id)
         borne = [each for each in tree.order if each in tree.tasks and tree.lines(each)]
-        summary = next(each for each in borne if tree.subtasks(each))
-        other = next(each for each in borne if each != summary)
+        summary = next(each for each in tree.order if tree.is_summary(each))
+        donor, other = borne[0], borne[1]
+        assert summary not in (donor, other)
         bare = tree.lines(other)[0]
+        moved = tree.lines(donor)
+        # The witness has no summary bearing a line: the lines of a task pass under one, as a
+        # risk's provisions.
         session.execute(
-            update(Node).where(Node.id.in_(tree.lines(summary))).values(origin_risk_id=uuid4())
+            update(Node).where(Node.id.in_(moved)).values(parent_id=summary, origin_risk_id=uuid4())
         )
         session.execute(delete(EstimateLine).where(EstimateLine.node_id == bare))
         session.flush()
         tallies = tallies_of(session, place)
         alone_as_whole(session, place, NodeFilters(kinds=("task",)))
     assert tallies[summary].own is False
-    assert tallies[summary].count == len(tree.lines(summary))
+    assert tallies[summary].count == len(moved)
     assert tallies[other].count == len(tree.lines(other))
 
 
