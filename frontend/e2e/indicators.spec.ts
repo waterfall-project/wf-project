@@ -53,7 +53,7 @@ test("draws the evolution of an index in SVG, an image described in a sentence, 
   await expect(figure.getByText(/^Calculé le/)).toBeVisible();
 });
 
-test("paints its series with the tokens of the charter, drawn again when the account forces the dark mode @shared [WF-IHM-0100-A]", async ({
+test("paints its series with the tokens of the charter, drawn again when the account forces the dark mode @shared", async ({
   page,
 }) => {
   await openHydrated(page, SCREEN);
@@ -67,7 +67,7 @@ test("paints its series with the tokens of the charter, drawn again when the acc
   await expect(cost.locator(`path[stroke="${SERIES_LIGHT}"]`)).toHaveCount(0);
 });
 
-test("names each curve at its end, two names ending close together drawn apart, their letters never overlapping @shared [WF-IHM-0100-A]", async ({
+test("names each curve at its end, two names ending close together drawn apart, their letters never overlapping @shared", async ({
   page,
 }) => {
   await openHydrated(page, SCREEN);
@@ -112,7 +112,7 @@ test("exports a curve, at the keyboard, as a PNG image drawn on a canvas, named 
   await expect(page.locator("canvas")).toHaveCount(0);
 });
 
-test("draws the cumulative costs, and shifts them by the payment delays at the server's @shared [WF-IND-0100-A]", async ({
+test("draws the cumulative costs, and shifts them by the payment delays at the server's @shared", async ({
   page,
 }) => {
   await openHydrated(page, SCREEN);
@@ -174,7 +174,7 @@ function chartCommands(): { shown: number; hydrated: number } {
   };
 }
 
-test("opens the screen hydrated, though the shell has written its cookie before the screen hydrated @shared [WF-IHM-0100-A]", async ({
+test("opens the screen hydrated, though the shell has written its cookie before the screen hydrated @shared", async ({
   page,
 }) => {
   // The shell writes its cookie from an effect, once it has hydrated; the screen hydrates in the
