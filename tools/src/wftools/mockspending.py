@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject, JsonValue
 
 
-def _amounts(
+def amounts_of(
     reading: Reading, line: mockcore.Row, basis: str, *, delays: bool
 ) -> dict[str, Decimal]:
     """Return the amount of a line by month, on the basis asked, its parts rounded to the cent."""
@@ -74,7 +74,7 @@ def spending(
     for line in reading.lines:
         if mockhistory.is_provision(line) or not reading.in_scope(line, scope):
             continue
-        months = _amounts(reading, line, basis, delays=delays)
+        months = amounts_of(reading, line, basis, delays=delays)
         if not months:
             continue
         facet = reading.facet(line)

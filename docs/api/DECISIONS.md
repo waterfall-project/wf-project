@@ -11927,20 +11927,21 @@ dépenses ») :
   ou une catégorie de la projection : un mois sans charge est absent, non rendu à zéro ;
   `monthly_totals` porte, lui, chaque mois de l'horizon sans trou, l'axe du graphique. La
   description de `getProjectWorkload` et celles des `months` le disent ; l'exemple `workload` le
-  montre, le monteur câbleur chargé sur 8 des 39 mois du plan. Écarté : tous les mois de l'horizon, à
-  zéro.
+  montre, le monteur câbleur chargé sur 8 des 39 mois du plan. Écarté : tous les mois de
+  l'horizon, à zéro.
 - **Les parts d'une ligne s'arrondissent de façon que leur somme soit son total** : chaque part est
   la différence de deux arrondis du cumul de la ligne à la fin de son mois et à la fin du mois
   d'avant, le cumul du dernier mois étant la ligne entière : une part n'est jamais négative, et la
   somme des parts est le total de la ligne arrondi. Le mode d'arrondi est celui de chaque grandeur
   dans le noyau : les heures au centième, la moitié vers le pair le plus proche
-  (`ROUND_HALF_EVEN`, comme `workloading.rounded`) ; les montants (`Money`) au centime, la moitié
-  loin de zéro (`ROUND_HALF_UP`, comme `pricing.amounts` et `keeping`). Le service d'US-2040/L2
-  écrit la règle à l'identique, mode compris. Tout total — d'un mois, d'une tâche, d'un rôle, d'une catégorie, d'une
-  nature, de la projection — est la somme de parts déjà arrondies, ce qui tient au centième les
-  égalités des Vérif de WF-DEV-0090 et de WF-DEV-0100. Le plan de charge existant passe par là : ses mois bougent d'un
-  centième, et ses exemples, réengendrés, avec eux le plan de charge agrégé du portefeuille, qui
-  somme celui du témoin.
+  (`ROUND_HALF_EVEN`, comme le plan de charge, `parting.HOURS`) ; les montants (`Money`) au
+  centime, la moitié loin de zéro (`ROUND_HALF_UP`, comme `pricing.amounts` et `keeping`,
+  `parting.MONEY`). Le service d'US-2040/L2 écrit la règle à l'identique, mode compris
+  (`core/estimate/parting.py`). Tout total — d'un mois, d'une tâche, d'un rôle, d'une catégorie,
+  d'une nature, de la projection — est la somme de parts déjà arrondies, ce qui tient au centième
+  les égalités des Vérif de WF-DEV-0090 et de WF-DEV-0100. Le plan de charge existant passe par
+  là : ses mois bougent d'un centième, et ses exemples, réengendrés, avec eux le plan de charge
+  agrégé du portefeuille, qui somme celui du témoin.
 - **`getProjectSpending`, opération nouvelle**, `GET /projects/{project_id}/spending`, sous
   `estimate.read`, sur le modèle de `getProjectWorkload` : la base (`WorkloadBasis`, dont la
   description s'étend aux montants) et `revision_id`, avec ses refus — 409
@@ -11949,8 +11950,8 @@ dépenses ») :
   compris), refusé comme le filtre des coûts réels, 422 `UNKNOWN_SUBPROJECT` sur
   `/query/subproject_id`. Sa réponse, `SpendingProjection` : le contexte de calcul
   (`context.is_stored` toujours faux, `context.scope` le périmètre), la base, `payment_delays`, le
-  total, le total de chaque mois (`monthly_totals`, sans trou), et les natures de coût qui portent un
-  montant (`SpendingCostType`), chacune avec son total, ses mois et ses catégories
+  total, le total de chaque mois (`monthly_totals`, sans trou), et les natures de coût qui portent
+  un montant (`SpendingCostType`), chacune avec son total, ses mois et ses catégories
   (`SpendingCategory`), dans l'ordre du référentiel — celui de `listCostTypes` et de
   `listCostCategories` sans tri, le code, puis l'identifiant —, jamais la nature des provisions,
   dont les lignes n'entrent pas. Cet ordre, par code, diffère de celui de
@@ -11958,9 +11959,9 @@ dépenses ») :
   identifiant : les natures de la projection suivent le référentiel que l'écran affiche, ces
   ventilations sont celles d'indicateurs déjà publiés, qu'on ne reclasse pas. L'écran n'attribue
   donc pas une couleur de nature par rang, mais par identifiant de nature. Les montants sont les
-  montants enregistrés des lignes, comme ceux de la courbe de coûts cumulés : une `Money`, sans enveloppe `Computable`. Le front n'y somme rien
-  (WF-ARC-0020). Écartés : les natures et les catégories sans montant, à zéro ; le total de la
-  projection laissé au front.
+  montants enregistrés des lignes, comme ceux de la courbe de coûts cumulés : une `Money`, sans
+  enveloppe `Computable`. Le front n'y somme rien (WF-ARC-0020). Écartés : les natures et les
+  catégories sans montant, à zéro ; le total de la projection laissé au front.
 - **Les exemples sont engendrés sur le témoin** (`wftools.mockcurves`, `wftools.mockspending`) :
   ceux du plan de charge, réengendrés avec leurs tâches — un rôle porte jusqu'à 800 tâches, une par
   ligne du fichier, `make mock-data` disposant désormais sur plusieurs lignes l'élément d'une liste

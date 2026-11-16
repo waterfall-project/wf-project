@@ -10,12 +10,12 @@ the months they load (#3096), the tasks are in the order of their start, then of
 import json
 from dataclasses import replace
 from datetime import date
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 from typing import Any
 
 import pytest
 
-from wftools import mockcurves, mockdata, mockindicators, mocktoday
+from wftools import mockcurves, mockdata, mockindicators, mockspending, mocktoday
 from wftools.mockcalendar import Calendar, Instant
 from wftools.mockids import universe
 from wftools.mockindicators import Flow
@@ -178,14 +178,18 @@ def _at_once(amount: str) -> Flow:
 
 
 def test_the_hours_round_an_exact_half_to_the_even_hundredth() -> None:
-    # Hours: half to the nearest even, as the workload of the core (`workloading.rounded`).
+    # Hours: half to the nearest even, as the workload of the core (`parting.HOURS`).
     assert mockcurves.parts(_at_once("0.005")) == {}
     assert mockcurves.parts(_at_once("0.015")) == {"2026-06": Decimal("0.02")}
     assert mockcurves.parts(_at_once("0.025")) == {"2026-06": Decimal("0.02")}
 
 
 def test_the_amounts_round_an_exact_half_away_from_zero() -> None:
-    # Amounts: half away from zero, as the pricing of the core (`pricing.amounts`).
-    for amount, cents in (("0.005", "0.01"), ("0.015", "0.02"), ("0.025", "0.03")):
-        parts = mockcurves.parts(_at_once(amount), rounding=ROUND_HALF_UP)
-        assert parts == {"2026-06": Decimal(cents)}
+    # Amounts: half away from zero, as the pricing of the core (`parting.MONEY`). The mode is the
+    # one the projection of spending chooses (`mockspending.amounts_of`): a line of half a cent,
+    # budgeted, spreads a cent in all, where the hours would round it to nought.
+    witness = mockindicators.today()
+    line = next(line for line in witness.lines if line.amounts.budgeted)
+    half = replace(line, amounts=replace(line.amounts, budgeted=Decimal("0.005")))
+    parts = mockspending.amounts_of(witness, half, "reference_budget", delays=False)
+    assert list(parts.values()) == [Decimal("0.01")]
