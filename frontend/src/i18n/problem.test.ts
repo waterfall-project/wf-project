@@ -809,7 +809,7 @@ describe("the sentence of a refusal", () => {
       params: { task: { node_id: null, label: "Garantie de parfait achèvement", row: 2 } },
     });
     expect(say(refusal, "fr")).toBe(
-      "La durée du projet dépasserait quinze ans. Tâche en cause : « Garantie de parfait achèvement », ligne 3 du bloc collé.",
+      "La durée du projet dépasserait quinze ans. Tâche en cause\u00A0: «\u00A0Garantie de parfait achèvement\u00A0», ligne 3 du bloc collé.",
     );
     expect(say(refusal, "en")).toBe(
       "The duration of the project would exceed fifteen years. Task concerned: “Garantie de parfait achèvement”, row 3 of the pasted block.",
