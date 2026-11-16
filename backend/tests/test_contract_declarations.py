@@ -578,6 +578,15 @@ CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
     ("listActualCosts", "query", "subproject_id"): (
         "declared nothing, contract either=(enum={'unassigned'} | nothing)"
     ),
+    # The subproject asked of the nodes, as that of the actual costs: read as text and judged by the
+    # route, strictly, whose refusal the contract names in 422, on the parameter
+    # (``UNKNOWN_SUBPROJECT``, ``listNodes``, ``compareRevisions``, US-2430/L2).
+    ("listNodes", "query", "subproject_id"): (
+        "declared nothing, contract either=(enum={'unassigned'} | nothing)"
+    ),
+    ("compareRevisions", "query", "subproject_id"): (
+        "declared nothing, contract either=(enum={'unassigned'} | nothing)"
+    ),
     # The sort of the actual costs is ``Text``, which refuses the NUL character: the schema no
     # longer shows its pattern (a column, or ``passthrough.`` and a name), which the route judges
     # all the same (#2891).

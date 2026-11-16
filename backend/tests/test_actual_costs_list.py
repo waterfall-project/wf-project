@@ -473,3 +473,17 @@ def test_the_lines_are_read_by_a_reader_and_unknown_to_an_outsider(
     assert refusal(unseen)[:2] == (404, "NOT_FOUND")
     unknown = api.get(f"{PROJECTS}/{uuid4()}/actual-costs", headers=stage.manager.headers)
     assert refusal(unknown)[:2] == (404, "NOT_FOUND")
+
+
+@pytest.mark.requirement("WF-CRE-0040-A")
+def test_the_filter_of_the_subproject_is_read_as_the_hyphenated_identifier_only(
+    api: ContractClient, stage: Scene
+) -> None:
+    # US-2430/L2: ``format: uuid`` (``SubprojectFilter``), as ``getProjectIndicators`` reads its
+    # scope: the hyphenated identifier is read; braces, ``urn:uuid:`` and no hyphen name no
+    # subproject, ``UNKNOWN_SUBPROJECT`` on ``/query/subproject_id``.
+    key = made(api, stage, "SP-1", "Câblage")["subproject_id"]
+    assert read(api, stage, subproject_id=key)["items"] == []
+    for text in (key.replace("-", ""), "{" + key + "}", "urn:uuid:" + key):
+        answer = api.get(path(stage), headers=stage.manager.headers, params={"subproject_id": text})
+        assert faults(answer) == [("/query/subproject_id", "UNKNOWN_SUBPROJECT", {})], text
