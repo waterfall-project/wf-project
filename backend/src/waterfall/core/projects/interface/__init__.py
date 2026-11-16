@@ -25,6 +25,7 @@ from waterfall.core.projects.commands import (
 from waterfall.core.projects.interface.attachments import (
     Attachments,
     detach_item,
+    hold_items,
     item_cited,
     register_attachments,
 )
@@ -242,6 +243,7 @@ __all__ = [
     "detach_item",
     "exit_project",
     "first_project",
+    "hold_items",
     "item_cited",
     "judge_exit_unlocked",
     "list_contributor_suggestions",

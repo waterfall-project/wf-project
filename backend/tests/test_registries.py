@@ -64,6 +64,7 @@ from waterfall.core.planning.interface import (
 from waterfall.core.projects.interface import (
     Attachments,
     detach_item,
+    hold_items,
     item_cited,
     register_attachments,
 )
@@ -194,7 +195,8 @@ REGISTERED = {
     "projects.attachments": [
         (
             f"Attachments({PLANNING}.work_breakdown.work_breakdown_item_cited, "
-            f"{PLANNING}.work_breakdown.detach_work_breakdown_item)"
+            f"{PLANNING}.work_breakdown.detach_work_breakdown_item, "
+            f"{PLANNING}.work_breakdown.hold_work_breakdown_items)"
         )
     ],
     "projects.opening": [f"{PLANNING}.skeleton.opening_with_tasks"],
@@ -627,10 +629,11 @@ def test_a_recalculation_registered_runs_once_what_dates_the_plannings_is_writte
         assert ran == ["redated"] * 3
 
 
-def test_the_attachments_registered_tell_and_detach_an_element_of_the_work_breakdown(
+def test_the_attachments_registered_tell_hold_and_detach_an_element_of_the_work_breakdown(
     session: Session,
 ) -> None:
     detached: list[tuple[UUID, UUID]] = []
+    held: list[tuple[UUID, tuple[UUID, ...]]] = []
     project_id, item_id = uuid4(), uuid4()
     assert not item_cited(session, item_id)
     with ExitStack() as registered:
@@ -639,11 +642,14 @@ def test_the_attachments_registered_tell_and_detach_an_element_of_the_work_break
                 Attachments(
                     lambda _session, item: item == item_id,
                     lambda _session, project, item: detached.append((project, item)),
+                    lambda _session, project, items: held.append((project, tuple(items))),
                 )
             )
         )
         assert (item_cited(session, item_id), item_cited(session, uuid4())) == (True, False)
+        hold_items(session, project_id, [item_id])
         detach_item(session, project_id, item_id)
+    assert held == [(project_id, (item_id,))]
     assert detached == [(project_id, item_id)]
 
 
