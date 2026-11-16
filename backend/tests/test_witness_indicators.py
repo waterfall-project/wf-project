@@ -20,6 +20,9 @@ if TYPE_CHECKING:
     from waterfall.platform.database import Database
 
 
+CURVES = {"cost_curve", "cost_curve_payment_delays", "earned_value_curves"}
+
+
 def kinds_of(database: Database, revision_id: UUID) -> set[str]:
     """Give the kinds of document a revision of the witness kept."""
     with database.transaction() as session:
@@ -34,6 +37,6 @@ def test_the_witness_loaded_keeps_the_indicators_of_its_marked_revisions(witness
     # ``load_marking`` marks each revision of the witness by the transaction of the worker, so that
     # ``compute_indicators`` keeps its documents: the offer 100, marked in pricing, its estimate and
     # its remaining; the amendment 101, marked In progress, those two and its project indicators.
-    # The three curves are US-1690/L3's, which adds their kinds here; no slice is kept.
+    # The three curves of each scope are kept with the project indicators (US-1690/L3); no slice is.
     assert kinds_of(witness, REVISION_100) == {"estimate", "remaining"}
-    assert kinds_of(witness, REVISION_101) == {"estimate", "remaining", "project"}
+    assert kinds_of(witness, REVISION_101) == {"estimate", "remaining", "project", *CURVES}

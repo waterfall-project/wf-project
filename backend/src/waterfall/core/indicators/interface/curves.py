@@ -19,7 +19,9 @@ from waterfall.core.indicators.curving import (
     read_curves,
 )
 from waterfall.core.indicators.interface.project_indicators import day_reading
+from waterfall.core.indicators.interface.stored_documents import kept_revision, stored_document
 from waterfall.core.projects.interface import current_day
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -27,15 +29,24 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.indicators.curving import CurveReading
-    from waterfall.core.indicators.interface.documents import Document
+    from waterfall.core.indicators.interface.documents import Document, IndicatorKind
     from waterfall.core.indicators.interface.reading import IndicatorsReading
     from waterfall.core.indicators.shaping import Context
 
 
-def _kept_curves(session: Session, project_id: UUID, asked: IndicatorsReading) -> Document:
-    """Give the curves a marking kept, of the marked revision named or of the date asked."""
-    msg = "_kept_curves is filled by US-1690/L3"
-    raise NotImplementedError(msg)
+def _kept_curves(
+    session: Session, project_id: UUID, asked: IndicatorsReading, kind: IndicatorKind
+) -> Document:
+    """Give the curves a marking kept, of the marked revision named or of the date asked.
+
+    As the marking wrote them, ``is_stored`` true; the 409 ``STATE_FORBIDS_OPERATION`` when the
+    revision kept none — marked before In progress, or before the subproject existed.
+    """
+    revision_id = kept_revision(session, project_id, asked.revision_id, asked.as_of)
+    found = stored_document(session, revision_id, kind, asked.scope)
+    if found is None:
+        raise ConflictError(STATE_FORBIDS_OPERATION)
+    return found
 
 
 def _read(
@@ -43,7 +54,7 @@ def _read(
 ) -> tuple[Context, CurveReading] | None:
     """Refuse as ``getProjectIndicators`` does, then read what the curves of the day are drawn from.
 
-    None when the reading asks a marked revision or a date, which a marking kept (US-1690/L3).
+    None when the reading asks a marked revision or a date, which a marking kept.
     """
     found = day_reading(session, project_id, asked)
     if found is None:
@@ -63,7 +74,8 @@ def cost_curve(
     """
     read = _read(session, project_id, asked)
     if read is None:
-        return _kept_curves(session, project_id, asked)
+        kind = "cost_curve_payment_delays" if payment_delays else "cost_curve"
+        return _kept_curves(session, project_id, asked, kind)
     return cost_curve_document(read[1], read[0], payment_delays=payment_delays)
 
 
@@ -75,5 +87,5 @@ def earned_value_curves(session: Session, project_id: UUID, asked: IndicatorsRea
     """
     read = _read(session, project_id, asked)
     if read is None:
-        return _kept_curves(session, project_id, asked)
+        return _kept_curves(session, project_id, asked, "earned_value_curves")
     return earned_value_curves_document(read[1], read[0])
