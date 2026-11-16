@@ -157,6 +157,27 @@ def test_a_milestone_completed_has_no_point_after_its_completion_and_ends_on_the
     assert points(other)[-1][0] == at_nine(months(START, 3))
 
 
+@pytest.mark.requirement("WF-IND-0090-A")
+def test_a_review_marked_the_eve_of_the_completion_gives_a_point_and_the_day_itself_none(
+    project: Project,
+) -> None:
+    # « Un jalon terminé n’a plus de point après sa terminaison » : the boundary is the completion
+    # at midnight, universal time. A marking of the eve (clock at nine) is before it and is drawn;
+    # one of the very day of the completion (nine, after midnight) is after it and is not, the
+    # last point being the completion on the diagonal.
+    eve = START
+    done = eve + timedelta(days=1)
+    review_at(project, eve, JUNE_30, "v1")
+    project.clock(done)
+    project.progress(STUDIES, "completed", done)
+    review_at(project, done, JUNE_30, "v2")
+    found = milestone(project.diagram(done + timedelta(days=3)), STUDIES)
+    assert points(found) == [
+        (at_nine(eve), "2027-06-30"),
+        (f"{done.isoformat()}T00:00:00Z", done.isoformat()),
+    ]
+
+
 @pytest.mark.requirement("WF-RAE-0030-A")
 def test_a_milestone_reopened_receives_the_point_of_the_day_again_and_has_no_completion(
     project: Project,
