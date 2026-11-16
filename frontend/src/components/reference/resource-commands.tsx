@@ -325,10 +325,9 @@ export function ResourceRoleDialog({
     label: values.label ?? "",
     cost_category_id: values.cost_category_id ?? "",
     calendar_id: values.calendar_id ?? "",
-    capacity: {
-      monthly_hours: values["capacity/monthly_hours"] ?? "",
-      headcount: values["capacity/headcount"] ?? "",
-    },
+    // The headcount alone is written, the hours per month being calculated (WF-REF-0100); the
+    // field of the hours leaves the form with US-2410/L3.
+    capacity: { headcount: values["capacity/headcount"] ?? "" },
   });
   return (
     <ReferenceForm

@@ -196,7 +196,10 @@ def test_the_codes_the_catalogue_named_without_an_example_are_carried_by_their_o
         "getMe": ("401", ["account_deactivated", "account_not_admitted"]),
         "putMyAvatar": ("400", ["avatar_malformed"]),
         "listAccessRoles": ("422", ["access_roles_number_invalid", "access_roles_date_invalid"]),
-        "createResourceRole": ("422", ["resource_role_calendar_unknown"]),
+        "createResourceRole": (
+            "422",
+            ["resource_role_calendar_unknown", "resource_role_hours_refused"],
+        ),
     }
     for operation, (status, names) in carried.items():
         assert set(names) <= set(_cited(operation, status)), operation

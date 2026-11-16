@@ -277,7 +277,7 @@ def test_the_bounded_roles_are_those_whose_monthly_hours_reach_the_bound(
 ) -> None:
     roles = fixture("resource_roles")["items"]
     # The bound is the technician's own hours: the role is retained, the bound included.
-    bound = Decimal("485324.00")
+    bound = Decimal("485333.33")
     expected = [role for role in roles if Decimal(role["capacity"]["monthly_hours"]) >= bound]
     assert {role["label"] for role in expected} == {
         "Ingénieur électricien",

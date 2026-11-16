@@ -1688,7 +1688,7 @@ rien n'introduit ; l'équivalent au portefeuille (décisions de l'auteur du 2026
 
 ## US-2410 — La capacité d'un rôle se déduit de son effectif et de son calendrier
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-REF-0100-A`
 - **opérations** : `createResourceRole`, `updateResourceRole`, `listResourceRoles`,
   `getProjectWorkload`

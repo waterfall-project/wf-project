@@ -714,7 +714,7 @@ describe("the resource roles", () => {
           org_node_id: nodeOf("BE-ELEC").org_node_id,
           cost_category_id: category?.id,
           calendar_id: "01926f3a-7c00-7000-8000-000000000481",
-          capacity: { monthly_hours: "1520.5", headcount: "3" },
+          capacity: { headcount: "3" },
         },
       },
     ]);
@@ -876,7 +876,7 @@ describe("the resource roles", () => {
         label: "Technicien de mise en service",
         cost_category_id: technician?.cost_category_id,
         calendar_id: technician?.calendar_id,
-        capacity: { monthly_hours: "485324.00", headcount: "2800" },
+        capacity: { headcount: "2800" },
         lock_version: 1,
       },
     });

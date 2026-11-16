@@ -544,7 +544,7 @@ test("a role that holds all of « Manager » but the modification of the resourc
         org_node_id: WITNESS.node,
         cost_category_id: WITNESS.category,
         calendar_id: WITNESS.calendar,
-        capacity: { monthly_hours: "520.00", headcount: "3" },
+        capacity: { headcount: "3" },
       },
     });
     expect(created.status(), "POST /reference/resource-roles").toBe(403);

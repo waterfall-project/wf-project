@@ -606,7 +606,7 @@ def test_a_role_given_a_calendar_that_meets_no_other_of_its_task_is_refused(
             "code": role.code,
             "label": role.label,
             "cost_category_id": str(role.cost_category_id),
-            "capacity": {"monthly_hours": "140.00", "headcount": "1"},
+            "capacity": {"headcount": "1"},
             "lock_version": role.lock_version,
         }
     path = f"{REFERENCE}/resource-roles/{offer.role}"

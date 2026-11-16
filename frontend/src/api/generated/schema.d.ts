@@ -862,13 +862,13 @@ export interface paths {
         };
         /**
          * Resource roles
-         * @description The resource roles, their attachments and their capacity, deactivated ones included (WF-REF-0090, WF-REF-0100, WF-REF-0150). The active roles are readable by any open session, without the reference data permission: whoever consults a project names and chooses the role of an estimate line (WF-DEV-0020; #1745). The deactivated roles (`include_inactive`, `is_active` false) and any write fall under the permission to modify the resource settings (`resource_settings.write`, WF-ADM-0100): without it, both are refused with 403. A flat table, sorted, filtered and paginated by the server (WF-IHM-0060, WF-IHM-0130): the search (`search`) covers the label and the code of the role (WF-REF-0090), like that of the nodes; the code, the node, the category, the calendar and the state are filtered, the monthly hours and the headcount of the capacity are bounded (`<column>_min`, `<column>_max`, inclusive), and `meta.total` counts the roles retained. Each role carries the command that changes its state, available or not (`available_commands`, WF-IHM-0090): reactivating a role whose node is deactivated is unavailable (WF-REF-0080).
+         * @description The resource roles, their attachments and their capacity, deactivated ones included (WF-REF-0090, WF-REF-0100, WF-REF-0150). The active roles are readable by any open session, without the reference data permission: whoever consults a project names and chooses the role of an estimate line (WF-DEV-0020; #1745). The deactivated roles (`include_inactive`, `is_active` false) and any write fall under the permission to modify the resource settings (`resource_settings.write`, WF-ADM-0100): without it, both are refused with 403. A flat table, sorted, filtered and paginated by the server (WF-IHM-0060, WF-IHM-0130): the search (`search`) covers the label and the code of the role (WF-REF-0090), like that of the nodes; the code, the node, the category, the calendar and the state are filtered, the monthly hours and the headcount of the capacity are bounded (`<column>_min`, `<column>_max`, inclusive), the hours being those calculated from the headcount and the role's calendar (`RoleCapacity.monthly_hours`, WF-REF-0100), and `meta.total` counts the roles retained. Each role carries the command that changes its state, available or not (`available_commands`, WF-IHM-0090): reactivating a role whose node is deactivated is unavailable (WF-REF-0080).
          */
         get: operations["listResourceRoles"];
         put?: never;
         /**
          * Create a resource role
-         * @description Code, label, attachments within the organisation and capacity of the role (WF-REF-0090, WF-REF-0100). Its code is unique: a code already held by another role, active or deactivated, is refused with 409, `ALREADY_EXISTS`, `fields` designating `/code`. The node is set at creation: a role does not move from one node to another, it is recreated under the new one (§3.4.4.2.1). Created active, it is not born under a deactivated node (WF-REF-0080). Once the role is attached, its category no longer leaves labour and that category's cost type no longer changes type (WF-REF-0030, WF-REF-0040): the creation changes the commands of the category and of its cost type, which the response does not carry, and the client re-reads their lists.
+         * @description Code, label, attachments within the organisation and capacity of the role (WF-REF-0090, WF-REF-0100): its headcount alone, the hours per month the response carries being calculated from it and from the role's calendar, never sent (`RoleCapacityWrite`). Its code is unique: a code already held by another role, active or deactivated, is refused with 409, `ALREADY_EXISTS`, `fields` designating `/code`. The node is set at creation: a role does not move from one node to another, it is recreated under the new one (§3.4.4.2.1). Created active, it is not born under a deactivated node (WF-REF-0080). Once the role is attached, its category no longer leaves labour and that category's cost type no longer changes type (WF-REF-0030, WF-REF-0040): the creation changes the commands of the category and of its cost type, which the response does not carry, and the client re-reads their lists.
          */
         post: operations["createResourceRole"];
         delete?: never;
@@ -892,7 +892,7 @@ export interface paths {
         head?: never;
         /**
          * Modify a resource role
-         * @description Without retroactive effect on the marked revisions (WF-REF-0090, WF-REF-0130). A code already held by another role is refused with 409, `ALREADY_EXISTS`, `fields` designating `/code`. The role's node cannot be modified: a role does not move from one node to another, a reorganisation recreates it under the new one (§3.4.4.2.1, WF-REF-0080). Its category and its calendar can be changed to active objects, the category being a labour one (WF-REF-0090). A change of category changes the commands of the old and of the new category and of their cost types (WF-REF-0030, WF-REF-0040), which the response does not carry: the client re-reads their lists.
+         * @description Without retroactive effect on the marked revisions (WF-REF-0090, WF-REF-0130). A code already held by another role is refused with 409, `ALREADY_EXISTS`, `fields` designating `/code`. The role's node cannot be modified: a role does not move from one node to another, a reorganisation recreates it under the new one (§3.4.4.2.1, WF-REF-0080). Its category and its calendar can be changed to active objects, the category being a labour one (WF-REF-0090). Its capacity is its headcount alone, as on creation: the hours per month follow from it and from the calendar, changed with either (WF-REF-0100). A change of category changes the commands of the old and of the new category and of their cost types (WF-REF-0030, WF-REF-0040), which the response does not carry: the client re-reads their lists.
          */
         patch: operations["updateResourceRole"];
         trace?: never;
@@ -3691,8 +3691,9 @@ export interface components {
         };
         /** @description Number of hours, exact decimal. The hours, durations and floats the server computes — the instants the engine places a task at, a duration drawn from dates, a total float — are rendered at ten decimals at most, a half to the even, then stored so: a ten-billionth of an hour, finer than any entry, so that an hour read and sent back as the date of a manual task is the one the engine placed (#2460, #2506). An entry keeps the decimals it was sent with. */
         Hours: components["schemas"]["Decimal"];
-        /** @description Single capacity, with no validity date (WF-REF-0100): hours per month and a headcount, never negative. On write, a negative value is refused with 422, `VALUE_OUT_OF_RANGE` on `/capacity/monthly_hours` or `/capacity/headcount`, `fields[].params.minimum` at `0`. */
+        /** @description Single capacity, with no validity date (WF-REF-0100): the headcount of the role, possibly fractional, entered (`RoleCapacityWrite`), and the hours per month it gives, calculated, never entered. Neither is negative. */
         RoleCapacity: {
+            /** @description Calculated, never entered: the headcount multiplied by the weekly hours of the role's calendar — the sum of its seven days —, by 52, divided by 12, rounded to the hundredth, a half to the even (WF-REF-0100). Two people on a calendar of 35 hours a week have 2 × 35 × 52 / 12, about 303.33 hours a month; a headcount of 0.5 on the same calendar, 75.83. They follow the calendar the role carries: changing its calendar, or the weekly hours of that calendar, changes them at the next read. The image of the role a marked revision keeps (`EmployedReference`) keeps the hours of its marking (WF-REF-0130). */
             monthly_hours: components["schemas"]["Hours"];
             headcount: components["schemas"]["Decimal"];
         };
@@ -3722,6 +3723,10 @@ export interface components {
         };
         /** @description Resource role as the reference data reads it today: its image, and its commands (`available_commands`, WF-IHM-0090). */
         ResourceRole: components["schemas"]["ResourceRoleImage"] & components["schemas"]["ReferenceObjectCommands"];
+        /** @description The capacity a write of a role carries: its headcount alone, possibly fractional, the hours per month being calculated from it and from the role's calendar (`RoleCapacity`, WF-REF-0100). Closed: `monthly_hours` sent, like any property the capacity does not declare, is refused with 422 `VALIDATION_FAILED`, `fields` designating it, `/capacity/monthly_hours`, with `VALIDATION_FAILED`. A negative headcount is refused with 422, `VALUE_OUT_OF_RANGE` on `/capacity/headcount`, `fields[].params.minimum` at `0`. */
+        RoleCapacityWrite: {
+            headcount: components["schemas"]["Decimal"];
+        };
         ResourceRoleWrite: {
             code: string;
             label: string;
@@ -3731,9 +3736,9 @@ export interface components {
             cost_category_id: components["schemas"]["Uuid"];
             /** @description An active calendar (WF-REF-0090): refused with 422 on `/calendar_id`, unknown, `UNKNOWN_CALENDAR`, deactivated, `INACTIVE_REFERENCE_OBJECT`. */
             calendar_id: components["schemas"]["Uuid"];
-            capacity: components["schemas"]["RoleCapacity"];
+            capacity: components["schemas"]["RoleCapacityWrite"];
         };
-        /** @description Modification of a resource role: what its creation writes, except its node — its code included, which stays unique —, and the lock version read, which a creation does not have. A role does not move from one node to another: a reorganisation recreates it under the new node (§3.4.4.2.1, WF-REF-0080). Its category and its calendar can be changed to active objects, and to a labour category (WF-REF-0090), refused as on creation; a role that keeps its own, deactivated since, can be modified. */
+        /** @description Modification of a resource role: what its creation writes, except its node — its code included, which stays unique —, and the lock version read, which a creation does not have. A role does not move from one node to another: a reorganisation recreates it under the new node (§3.4.4.2.1, WF-REF-0080). Its category and its calendar can be changed to active objects, and to a labour category (WF-REF-0090), refused as on creation; a role that keeps its own, deactivated since, can be modified. Its capacity is its headcount alone, as on creation: the hours per month of the role read are calculated, and a form that sends back the role it read leaves them out (`RoleCapacityWrite`, WF-REF-0100). */
         ResourceRoleUpdate: {
             code: string;
             label: string;
@@ -3741,7 +3746,7 @@ export interface components {
             org_node_id?: components["schemas"]["Uuid"];
             cost_category_id: components["schemas"]["Uuid"];
             calendar_id: components["schemas"]["Uuid"];
-            capacity: components["schemas"]["RoleCapacity"];
+            capacity: components["schemas"]["RoleCapacityWrite"];
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description The three installation constants by which working days, weeks and months are converted into hours (WF-PLA-0160): with the default values, "2 d" is worth sixteen hours, "1 wk" forty and "1 mo" one hundred and sixty. Common to all projects, as the currency is to amounts. */
@@ -5272,6 +5277,7 @@ export interface components {
                 resource_role_id: components["schemas"]["Uuid"];
                 label: string;
                 org_node_id: components["schemas"]["Uuid"];
+                /** @description The hours per month of the role as the reference data reads them today, calculated from its headcount and its calendar (`RoleCapacity.monthly_hours`, WF-REF-0100), to which the plan compares the load of each month. */
                 capacity_monthly_hours: components["schemas"]["Hours"];
                 /** @description Only the months in which the role is loaded, ascending: a month without load is absent, not returned at zero, so that a role loaded on fewer months than the others has fewer entries; the axis of the plan is `monthly_totals` (#3096). Each month the sum of the parts of its lines, rounded as `tasks` says: the hours of the tasks of the role that month sum to it exactly (WF-DEV-0090). */
                 months: {
@@ -8690,7 +8696,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description `VALIDATION_FAILED`, `fields` locating each refusal: an empty code or label, `/code` or `/label` with `VALUE_REQUIRED`, or longer than the schema allows, with `VALUE_TOO_LONG`; an absent or null attachment, `/org_node_id`, `/cost_category_id` or `/calendar_id` with `VALUE_REQUIRED` — all three are mandatory (WF-REF-0090) —; an attachment that the reference data does not have, with `UNKNOWN_ORG_NODE`, `UNKNOWN_COST_CATEGORY` or `UNKNOWN_CALENDAR`; a category outside labour, `/cost_category_id` with `LABOUR_CATEGORY_REQUIRED`; a deactivated attachment, with `INACTIVE_REFERENCE_OBJECT` (WF-REF-0080, WF-REF-0090); a negative capacity, `/capacity/monthly_hours` or `/capacity/headcount` with `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` at `0`. A field carries only one reason: a category that is both deactivated and outside labour is reported as outside labour, which its reactivation would not lift. Nothing is written. */
+            /** @description `VALIDATION_FAILED`, `fields` locating each refusal: an empty code or label, `/code` or `/label` with `VALUE_REQUIRED`, or longer than the schema allows, with `VALUE_TOO_LONG`; an absent or null attachment, `/org_node_id`, `/cost_category_id` or `/calendar_id` with `VALUE_REQUIRED` — all three are mandatory (WF-REF-0090) —; an attachment that the reference data does not have, with `UNKNOWN_ORG_NODE`, `UNKNOWN_COST_CATEGORY` or `UNKNOWN_CALENDAR`; a category outside labour, `/cost_category_id` with `LABOUR_CATEGORY_REQUIRED`; a deactivated attachment, with `INACTIVE_REFERENCE_OBJECT` (WF-REF-0080, WF-REF-0090); a negative headcount, `/capacity/headcount` with `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` at `0`; hours per month sent, which are calculated (WF-REF-0100), `/capacity/monthly_hours` with `VALIDATION_FAILED`, like any property the capacity does not declare (`RoleCapacityWrite`). A field carries only one reason: a category that is both deactivated and outside labour is reported as outside labour, which its reactivation would not lift. Nothing is written. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -8749,7 +8755,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description `VALIDATION_FAILED`, `fields` locating each refusal, as on creation: `/code` or `/label` empty or too long; a node sent other than the role's, `/org_node_id` with `FIELD_READ_ONLY` — sent back unchanged, it is not refused (WF-REF-0090); `/cost_category_id` or `/calendar_id` absent or null, with `VALUE_REQUIRED`, unknown, with `UNKNOWN_COST_CATEGORY` or `UNKNOWN_CALENDAR`; a category outside labour, with `LABOUR_CATEGORY_REQUIRED` — the category a role keeps never is, no category to which a role is attached leaving labour (WF-REF-0040, `cost_category_without_role`) —; a negative capacity, with `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` at `0`; and, when the modification changes the category or the calendar of the role, a deactivated object, with `INACTIVE_REFERENCE_OBJECT` (WF-REF-0090) — a role that keeps its own, deactivated since, can be modified. Or else the calendar given to the role would leave a task of an ongoing revision without any working hour in the week: it never overlaps that of another role of its labour lines, or, on a task of which this role is the only one, it has no hour in the week (EP-14/L42s): `TASK_WITHOUT_WORKING_HOURS`, `params.resource_roles` naming the roles concerned, by their identifier, their code and their label (#1684), and `params.projects` each project concerned, by its label and its code (`project_label`, `project_code`), without identifier or task: the caller may not be allowed to consult it (WF-PLA-0010, WF-ADM-0110). Nothing is written. */
+            /** @description `VALIDATION_FAILED`, `fields` locating each refusal, as on creation: `/code` or `/label` empty or too long; a node sent other than the role's, `/org_node_id` with `FIELD_READ_ONLY` — sent back unchanged, it is not refused (WF-REF-0090); `/cost_category_id` or `/calendar_id` absent or null, with `VALUE_REQUIRED`, unknown, with `UNKNOWN_COST_CATEGORY` or `UNKNOWN_CALENDAR`; a category outside labour, with `LABOUR_CATEGORY_REQUIRED` — the category a role keeps never is, no category to which a role is attached leaving labour (WF-REF-0040, `cost_category_without_role`) —; a negative headcount, `/capacity/headcount` with `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` at `0`; hours per month sent, `/capacity/monthly_hours` with `VALIDATION_FAILED`, as on creation; and, when the modification changes the category or the calendar of the role, a deactivated object, with `INACTIVE_REFERENCE_OBJECT` (WF-REF-0090) — a role that keeps its own, deactivated since, can be modified. Or else the calendar given to the role would leave a task of an ongoing revision without any working hour in the week: it never overlaps that of another role of its labour lines, or, on a task of which this role is the only one, it has no hour in the week (EP-14/L42s): `TASK_WITHOUT_WORKING_HOURS`, `params.resource_roles` naming the roles concerned, by their identifier, their code and their label (#1684), and `params.projects` each project concerned, by its label and its code (`project_label`, `project_code`), without identifier or task: the caller may not be allowed to consult it (WF-PLA-0010, WF-ADM-0110). Nothing is written. */
             422: {
                 headers: {
                     [name: string]: unknown;

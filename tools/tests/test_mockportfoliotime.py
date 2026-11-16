@@ -161,13 +161,13 @@ def test_the_workload_gives_the_capacity_of_its_roles_and_the_total_of_each_mont
 def test_the_capacity_of_the_cable_fitter_alone_is_that_of_his_workshop(rows: list[Node]) -> None:
     workshop = workload(rows, universe(472))
     [fitter] = cast("list[Node]", workshop["roles"])
-    assert workshop["capacity_monthly_hours"] == fitter["capacity_monthly_hours"] == "216662.5"
+    assert workshop["capacity_monthly_hours"] == fitter["capacity_monthly_hours"] == "216666.67"
     assert {month["hours"] for month in workshop["monthly_totals"]} == {"0"}
 
 
 def test_the_examples_give_the_capacity_of_the_whole_portfolio() -> None:
     plan = mockwitness.fixture("portfolio_workload")
-    assert plan["capacity_monthly_hours"] == "1360640.5"
+    assert plan["capacity_monthly_hours"] == "1360666.67"
     filtered = mockwitness.fixture("portfolio_workload_org_node")
     assert filtered["capacity_monthly_hours"] == plan["capacity_monthly_hours"]
     assert filtered["monthly_totals"] == plan["monthly_totals"]

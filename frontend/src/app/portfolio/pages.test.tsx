@@ -290,7 +290,7 @@ describe("the screens of the portfolio", () => {
       under_load_threshold: "0.5",
     });
     expect(markup).toMatch(/733,321\.92 h.*?aria-label="Alert".*?111\.34%/);
-    expect(text(markup)).toContain("Ingénieur électricien 658,654 h");
+    expect(text(markup)).toContain("Ingénieur électricien 658,666.67 h");
   });
 
   it("leads an address that names none of the horizon, the threshold and the node to those the account kept, the perimeter carried over [WF-PTF-0060-A]", async () => {

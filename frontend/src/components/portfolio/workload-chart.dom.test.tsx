@@ -144,19 +144,19 @@ describe("the aggregated workload in a stack of bars", () => {
     expect(capacity.markLine?.data).toEqual([
       {
         yAxis: WORKLOAD.capacity_monthly_hours,
-        name: "Capacity: 1,360,640.5 h per month",
-        label: { formatter: "Capacity: 1,360,640.5 h per month" },
+        name: "Capacity: 1,360,666.67 h per month",
+        label: { formatter: "Capacity: 1,360,666.67 h per month" },
         lineStyle: { color: PALETTE.mark, type: "dashed" },
       },
     ]);
-    expect(screen.getByText("Capacity of the perimeter: 1,360,640.5 h per month.")).toBeVisible();
+    expect(screen.getByText("Capacity of the perimeter: 1,360,666.67 h per month.")).toBeVisible();
   });
 
   it("extends the axis to the capacity, which ECharts would cut off, and to the tallest bar when it is higher [WF-PTF-0060-A]", () => {
     aggregated();
     const { option } = drawn();
     const { max } = option?.yAxis as { max: (range: { max: number }) => number };
-    // The tallest total of the example, 1,135,130.22 h, is under the capacity, 1,360,640.5 h.
+    // The tallest total of the example, 1,135,130.22 h, is under the capacity, 1,360,666.67 h.
     expect(max({ max: 1_135_130.19 })).toBe(Number(WORKLOAD.capacity_monthly_hours));
     expect(max({ max: 2_000_000 })).toBe(2_000_000);
   });
@@ -240,7 +240,7 @@ describe("the aggregated workload in a stack of bars", () => {
     const cells = within(screen.getByRole("row", { name: /Ingénieur électricien/ })).getAllByRole(
       "cell",
     );
-    expect(cells[1]).toHaveTextContent("658,654 h");
+    expect(cells[1]).toHaveTextContent("658,666.67 h");
     expect(cells[2]).toHaveTextContent("636,241.09 h");
     expect(cells[2]).toHaveTextContent("120%");
     // The zone the server classes the month in, by the one signal.
