@@ -117,7 +117,11 @@ def test_the_paste_beyond_the_horizon_names_the_task_created_by_its_row_in_the_b
     refused = fixture("paste_apply_horizon_exceeded")
     assert refused["code"] == "PROJECT_HORIZON_EXCEEDED"
     assert refused["params"] == {
-        "task": {"node_id": None, "label": mockundoable.BEYOND_LABEL, "row": 2}
+        "task": {
+            "node_id": None,
+            "label": mockundoable.BEYOND_LABEL,
+            "row": mockundoable.BEYOND_ROW,
+        }
     }
     assert "fields" not in refused
 

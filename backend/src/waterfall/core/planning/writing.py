@@ -289,6 +289,9 @@ class Write:
         finds it beyond the horizon — a paste, the row of its block (#3624) —, a task none of them
         as the tree has it (a successor pushed); ``among`` given, ``blamed`` is none.
         """
+        if among is not None and blamed is not None:
+            msg = "a write names one task or several, not both"
+            raise ValueError(msg)
         named = (
             Blamed(among, origin)
             if among is not None

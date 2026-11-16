@@ -12,9 +12,12 @@ from typing import TYPE_CHECKING
 
 import paste_support
 import pytest
+from estimate_support import Lines, costing
 from history_support import counter
 from nodes_support import Tree, refusal
-from paste_support import apply, labels_of, planned
+from paste_support import apply, planned
+
+from waterfall.core.planning.writing import Write
 
 if TYPE_CHECKING:
     from projects_support import Person
@@ -40,7 +43,7 @@ def test_a_paste_that_creates_a_task_beyond_the_horizon_names_the_row_that_creat
         "PROJECT_HORIZON_EXCEEDED",
         {"task": {"node_id": None, "label": "Interminable", "row": 2}},
     )
-    assert labels_of(tree) == ["Étude"]
+    assert tree.labels() == ["Étude"]
     assert counter(tree) == before
 
 
@@ -112,5 +115,35 @@ def test_two_tasks_created_with_one_label_are_told_apart_by_their_row_in_the_ref
         "PROJECT_HORIZON_EXCEEDED",
         {"task": {"node_id": None, "label": "Essai", "row": 1}},
     )
-    assert labels_of(tree) == ["Étude"]
+    assert tree.labels() == ["Étude"]
     assert counter(tree) == before
+
+
+@pytest.mark.requirement("WF-PLA-0150-A")
+def test_a_write_that_names_one_task_and_several_is_refused_before_it_replays() -> None:
+    # #3624 : `among` donné, `blamed` est nul ; les deux ensemble ne se taisent pas.
+    write = object.__new__(Write)
+    with pytest.raises(ValueError, match="one task or several"):
+        write.redate((None, "Étude"), among={})
+
+
+@pytest.mark.requirement("WF-PLA-0150-A")
+def test_a_task_named_by_two_rows_of_a_paste_is_named_by_the_first_of_them(
+    tree: Tree, who: Person
+) -> None:
+    # #3624 : « le refus nomme celle qui dépasse par son rang dans le bloc » — la première ligne du
+    # bloc qui nomme la tâche, y compris une ligne de devis qu'elle porte : ici la tâche (rang 0)
+    # puis sa ligne (rang 1) la nomment, et le refus garde le rang 0.
+    task = tree.made("Étude", who=who)
+    material = costing(tree.stage.database).material
+    sent = {"quantity": "1", "cost_category_id": str(material), "unit_disbursement": "350.00"}
+    Lines(tree).made(task, who, label="Câble", **sent)
+    block = [["Étude", "", "", "9000"], ["Câble 5 m"]]
+    plan = planned(tree, task, "label", block, who)
+    assert (plan["accepted"], plan["created"], plan["rejected"]) == (2, 0, [])
+    answer = apply(tree, plan, who)
+    assert refusal(answer) == (
+        422,
+        "PROJECT_HORIZON_EXCEEDED",
+        {"task": {"node_id": task["node_id"], "label": "Étude", "row": 0}},
+    )

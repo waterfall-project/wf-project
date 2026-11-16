@@ -86,8 +86,3 @@ def applied(tree: Tree, plan: dict[str, Any], who: Person | None = None) -> dict
     answer = apply(tree, plan, who)
     assert answer.status_code == 200, answer.text
     return answer.json()
-
-
-def labels_of(tree: Tree) -> list[str]:
-    """Read the labels of the tasks, in the order of the plan."""
-    return tree.labels()
