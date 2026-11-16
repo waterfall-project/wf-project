@@ -1,0 +1,14 @@
+{
+  "summary": "Un projet de budget 1 000, de valeur acquise 400, de coût réel 500 et de reste à engager 550 : les projections valent 1 100 au budget, 1 050 pour le chef de projet et 1 250 au rythme constaté, soit 100, 50 et 250 au-dessus du budget (WF-IND-0050).",
+  "examples": ["WF-IND-0050-A#c6404fb0a5fe"],
+  "budget": "1000.00",
+  "earned_value": "400.00",
+  "actual_cost": "500.00",
+  "remaining": "550.00",
+  "at_budget": "1100.00",
+  "project_manager": "1050.00",
+  "at_observed_rate": "1250.00",
+  "variance_at_budget": "100.00",
+  "variance_project_manager": "50.00",
+  "variance_at_observed_rate": "250.00"
+}
