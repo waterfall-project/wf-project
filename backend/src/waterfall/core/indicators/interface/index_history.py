@@ -89,9 +89,9 @@ def _point(
 
 
 def _kept_documents(
-    session: Session, project_id: UUID, revision_ids: list[UUID]
+    session: Session, project_id: UUID, revision_ids: list[UUID], scopes: list[CostScope]
 ) -> dict[tuple[UUID, str], Document]:
-    """Read, in one statement, the document ``project`` each revision kept for each scope."""
+    """Read, in one statement, the document ``project`` each revision kept for the scopes drawn."""
     if not revision_ids:
         return {}
     rows = session.execute(
@@ -100,6 +100,7 @@ def _kept_documents(
         ).where(
             RevisionIndicator.project_id == project_id,
             RevisionIndicator.kind == "project",
+            RevisionIndicator.scope.in_([str(each) for each in scopes]),
             RevisionIndicator.revision_id.in_(revision_ids),
         )
     )
@@ -113,7 +114,7 @@ def _stored_points(
     kept = kept_revisions(session, project_id)
     ids = [each for each, _ in kept]
     names = revision_version_names(session, ids)
-    documents = _kept_documents(session, project_id, ids)
+    documents = _kept_documents(session, project_id, ids, scopes)
     points: dict[CostScope, list[dict[str, Any]]] = {scope: [] for scope in scopes}
     for revision_id, marked_at in kept:
         for scope in scopes:
