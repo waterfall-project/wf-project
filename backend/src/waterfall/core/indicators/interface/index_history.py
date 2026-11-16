@@ -6,11 +6,43 @@ For each scope, or the one asked for, a point by revision that kept the indicato
 at its marking, by its marking, then the point of the current day; the thresholds of the day
 (WF-IND-0130, WF-REF-0170). A project before In progress is refused (409).
 
+The points a marking kept are read as it kept them — the two indices of its document ``project``,
+the zone classified at the reading on the thresholds of the day (WF-REF-0130) —, an index it could
+not compute left as not computable, never omitted (#1777). A revision marked before In progress kept
+no such document and gives no point (WF-DAT-0040); nor does it for a subproject created after the
+marking. The point of the day is the computation of ``getProjectIndicators`` (US-1660), on the
+current revision or, without one, the last marked, its ``version_name`` null; the ``context``
+is its.
+The refusals are those of ``getProjectIndicators``: the state, then the scope.
+
 Declared by US-1660/L1, the socle of EP-10; ``scope`` none gives every scope, ``at`` is the instant
 of the computation, read by the caller.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
+
+from sqlalchemy import select
+
+from waterfall.core.cost_settings.interface import read_reference_settings
+from waterfall.core.costs.interface import PROJECT, UNASSIGNED
+from waterfall.core.indicators.computing import day_documents
+from waterfall.core.indicators.interface.project_indicators import day_reading
+from waterfall.core.indicators.interface.reading import IndicatorsReading
+from waterfall.core.indicators.interface.stored_documents import kept_revisions
+from waterfall.core.indicators.interface.storing import NOBODY
+from waterfall.core.indicators.shaping import (
+    classified,
+    context_document,
+    instant,
+    thresholds_document,
+)
+from waterfall.core.indicators.tables import RevisionIndicator
+from waterfall.core.projects.interface import (
+    SubprojectFilters,
+    SubprojectSort,
+    list_subprojects,
+)
+from waterfall.core.revisions.interface import revision_version_names
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -18,13 +50,109 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.cost_settings.interface import IndexThresholds
     from waterfall.core.costs.interface import CostScope
     from waterfall.core.indicators.interface.documents import Document
+    from waterfall.core.indicators.interface.project_indicators import DayReading
+
+
+def _labelled_scopes(
+    session: Session, project_id: UUID, scope: CostScope | None
+) -> list[tuple[CostScope, str | None]]:
+    """Give the scopes to draw, each with its label: all of them, or the one asked for.
+
+    The project, the subprojects in the order of ``listSubprojects``, then what is in none.
+    """
+    views = list_subprojects(session, project_id, NOBODY, SubprojectFilters(), SubprojectSort())
+    everything: list[tuple[CostScope, str | None]] = [
+        (PROJECT, None),
+        *((view.subproject_id, view.label) for view in views),
+        (UNASSIGNED, None),
+    ]
+    if scope is None:
+        return everything
+    return [each for each in everything if each[0] == scope]
+
+
+def _point(
+    at: str, revision_id: UUID, version_name: str | None, document: Document
+) -> dict[str, Any]:
+    return {
+        "at": at,
+        "revision_id": str(revision_id),
+        "version_name": version_name,
+        "cost_index": document["cost_index"],
+        "schedule_index": document["schedule_index"],
+    }
+
+
+def _kept_documents(
+    session: Session, project_id: UUID, revision_ids: list[UUID]
+) -> dict[tuple[UUID, str], Document]:
+    """Read, in one statement, the document ``project`` each revision kept for each scope."""
+    if not revision_ids:
+        return {}
+    rows = session.execute(
+        select(
+            RevisionIndicator.revision_id, RevisionIndicator.scope, RevisionIndicator.document
+        ).where(
+            RevisionIndicator.project_id == project_id,
+            RevisionIndicator.kind == "project",
+            RevisionIndicator.revision_id.in_(revision_ids),
+        )
+    )
+    return {(revision_id, scope): document for revision_id, scope, document in rows}
+
+
+def _stored_points(
+    session: Session, project_id: UUID, scopes: list[CostScope], thresholds: IndexThresholds
+) -> dict[CostScope, list[dict[str, Any]]]:
+    """Give, for each scope, the points the markings kept, earliest first."""
+    kept = kept_revisions(session, project_id)
+    ids = [each for each, _ in kept]
+    names = revision_version_names(session, ids)
+    documents = _kept_documents(session, project_id, ids)
+    points: dict[CostScope, list[dict[str, Any]]] = {scope: [] for scope in scopes}
+    for revision_id, marked_at in kept:
+        for scope in scopes:
+            found = documents.get((revision_id, str(scope)))
+            if found is not None:
+                points[scope].append(
+                    _point(
+                        instant(marked_at),
+                        revision_id,
+                        names.get(revision_id),
+                        classified(found, thresholds),
+                    )
+                )
+    return points
 
 
 def index_history(
     session: Session, project_id: UUID, scope: CostScope | None, at: datetime
 ) -> Document:
     """Give the evolution of the cost and schedule indices of a project, by scope."""
-    msg = "index_history is filled by US-1700"
-    raise NotImplementedError(msg)
+    # No revision and no date is named: the reading is of the current day, which is never none.
+    asked = IndicatorsReading(scope or PROJECT, at)
+    reading = cast("DayReading", day_reading(session, project_id, asked))
+    labelled = _labelled_scopes(session, project_id, scope)
+    scopes: list[CostScope] = [each for each, _ in labelled]
+    thresholds = read_reference_settings(session).index_thresholds
+    stored = _stored_points(session, project_id, scopes, thresholds)
+    today = day_documents(session, reading.basis, reading.context, scopes)
+    revision_id = reading.basis.revision_id
+    return {
+        "context": context_document(reading.context),
+        "thresholds": thresholds_document(thresholds),
+        "scopes": [
+            {
+                "scope": str(each),
+                "label": label,
+                "points": [
+                    *stored[each],
+                    _point(instant(at), revision_id, None, classified(today[each], thresholds)),
+                ],
+            }
+            for each, label in labelled
+        ],
+    }
