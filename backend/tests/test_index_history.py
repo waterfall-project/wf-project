@@ -363,7 +363,7 @@ def test_the_history_and_the_settings_write_the_thresholds_alike(
         write_reference_settings(
             session, SettingsChange(index_thresholds=held), counter, Act(None, utc_now())
         )
-    settings = api.get("/reference/settings", headers=stage.manager.headers)
+    settings = api.get("/api/v1/reference/settings", headers=stage.manager.headers)
     assert settings.status_code == 200, settings.text
     assert history(api, stage)["thresholds"] == settings.json()["index_thresholds"]
     assert settings.json()["index_thresholds"]["cost_alert"] == "0.875"
