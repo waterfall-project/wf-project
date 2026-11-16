@@ -547,8 +547,10 @@ importe l'interface (US-1670/L1).
 - `store_indicators(session, revision_id, act)` lit l'état du projet (verrouillé par `run_marking`
   avant `mark_revision` ; le chargeur, en une transaction, le lit sans verrou) et la référence, puis
   écrit, pour le projet, chaque sous-projet et `unassigned` : `estimate` (le document
-  d'`estimate_indicators` d'EP-07 pour la révision et la maille), `remaining` (celui de
-  `remaining_indicators` d'EP-09, la couverture à zéro jusqu'à EP-08), et, si le projet est
+  d'`estimate_indicators` d'EP-07 pour la révision et la maille), et, une seule fois, sur la maille
+  `project`, `remaining` (celui de `remaining_indicators` d'EP-09, la couverture à zéro jusqu'à
+  EP-08 ; son document porte déjà le solde de chaque sous-projet et de « hors sous-projet », et
+  `getRemainingIndicators` n'a pas de `scope`), et, si le projet est
   `in_progress`, `project` (le calcul ci-dessus à la date du marquage) et les trois natures de
   courbes (« Les courbes ») ; `context` de chaque document porte `revision_status` `marked`,
   `computed_at` = `act.at`, `is_stored` vrai ; `created_by` l'auteur de l'`Act`.
