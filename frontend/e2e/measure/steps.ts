@@ -233,6 +233,7 @@ export async function player(page: Page, origin: string): Promise<Player> {
     }
     const { startTime: start, responseEnd } = request.timing();
     const prefetch = request.headers()["next-router-prefetch"] !== undefined;
+    const path = new URL(request.url()).pathname;
     // The sizes of an answer the browser no longer reads — a prefetch a navigation left behind —
     // never come, or are refused once its page is gone: its time is kept all the same, and its
     // bytes counted for none.
@@ -247,7 +248,7 @@ export async function player(page: Page, origin: string): Promise<Player> {
     );
     reading.push(
       Promise.race([sized, unsized]).then((bytes) => {
-        front.push({ start, end: start + responseEnd, bytes, prefetch });
+        front.push({ start, end: start + responseEnd, bytes, path, prefetch });
       }),
     );
   });
@@ -256,8 +257,15 @@ export async function player(page: Page, origin: string): Promise<Player> {
   page.on("requestfailed", (request) => {
     if (rendered(request, origin)) {
       const prefetch = request.headers()["next-router-prefetch"] !== undefined;
+      const { pathname } = new URL(request.url());
       front.push(
-        failedRequest(request.timing().startTime, asked.get(request), Date.now(), prefetch),
+        failedRequest(
+          request.timing().startTime,
+          asked.get(request),
+          Date.now(),
+          prefetch,
+          pathname,
+        ),
       );
     }
   });
@@ -493,10 +501,14 @@ async function bounded<T>(step: Step, play: () => Promise<T>): Promise<T> {
   }
 }
 
-/** A step of the journey: its name, and its span, if the user reached its end. */
+/**
+ * A step of the journey: its name, its span if the user reached its end, and the path of the screen
+ * it ended on, which the parts of the step take for its destination (`partsOf`).
+ */
 export interface Timed {
   readonly step: Step;
   readonly span: Interval | undefined;
+  readonly destination: string;
 }
 
 /**
@@ -576,7 +588,7 @@ export async function journey(player: Player, target: Target, tag: string): Prom
   let reached = true;
   for (const [step, play] of plays) {
     if (!reached) {
-      timed.push({ step, span: undefined });
+      timed.push({ step, span: undefined, destination: "" });
       continue;
     }
     try {
@@ -585,12 +597,12 @@ export async function journey(player: Player, target: Target, tag: string): Prom
         await settle(requests, LOADED);
         return played;
       });
-      timed.push({ step, span });
+      timed.push({ step, span, destination: new URL(page.url()).pathname });
     } catch (error) {
       const [why = ""] = (error instanceof Error ? error.message : String(error)).split("\n");
       console.log(`${step}: not reached at ${page.url()}, ${await gridsShown(page)} (${why})`);
       reached = false;
-      timed.push({ step, span: undefined });
+      timed.push({ step, span: undefined, destination: "" });
     }
   }
   return timed;

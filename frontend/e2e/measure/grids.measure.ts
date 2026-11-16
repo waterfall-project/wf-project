@@ -262,11 +262,14 @@ test("measures the journey of the grids against the service, at one, four and ei
         await Promise.all(playing.map(({ player: one }) => one.drained()));
         const answered = apiAnswered(from, to, offset);
         playing.forEach(({ person, player: one }, index) => {
-          for (const { step, span } of timed[index] ?? []) {
+          for (const { step, span, destination } of timed[index] ?? []) {
             samples.push({
               step,
               pass,
-              parts: span === undefined ? undefined : partsOf(span, one.front, answered, person.id),
+              parts:
+                span === undefined
+                  ? undefined
+                  : partsOf(span, one.front, answered, person.id, destination),
             });
           }
         });

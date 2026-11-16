@@ -29,6 +29,11 @@ function record(fields: Record<string, unknown>): string {
 const USER = "01926f3a-7c00-7000-8000-000000000901";
 const PROBE = "01926f3a-7c00-7000-8000-000000000999";
 
+/** The paths of three screens of the journey. */
+const PLANNING = "/projects/p/revisions/r/planning";
+const ESTIMATE = "/projects/p/revisions/r/estimate";
+const REMAINING = "/projects/p/revisions/r/remaining";
+
 /** A request the API answered for an account, from its start to its end. */
 function answered(start: number, end: number, actor = USER, path = "/api/v1/projects") {
   return { start, end, actor, method: "GET", path, status: 200 };
@@ -55,10 +60,10 @@ describe("partsOf", () => {
   it("splits a step into the API, Next by difference and the browser, and sums the bytes of Next", () => {
     const step = { start: 1_000, end: 2_000 };
     const front = [
-      { start: 1_010, end: 1_400, bytes: 30_000, prefetch: false },
-      { start: 1_500, end: 1_600, bytes: 2_000, prefetch: false },
+      { start: 1_010, end: 1_400, bytes: 30_000, path: PLANNING, prefetch: false },
+      { start: 1_500, end: 1_600, bytes: 2_000, path: PLANNING, prefetch: false },
       // Outside the step: neither its time nor its bytes count.
-      { start: 2_100, end: 2_200, bytes: 9_999, prefetch: false },
+      { start: 2_100, end: 2_200, bytes: 9_999, path: PLANNING, prefetch: false },
     ];
     const api = [answered(1_050, 1_250), answered(1_100, 1_300)];
     expect(partsOf(step, front, api, USER)).toEqual({
@@ -74,9 +79,9 @@ describe("partsOf", () => {
   it("counts the time and the bytes of a prefetch the step waits for, of none it started itself", () => {
     const front = [
       // Asked as a menu opened, before the gesture, and still under way: the step waits for it.
-      { start: 900, end: 1_300, bytes: 8_000, prefetch: true },
+      { start: 900, end: 1_300, bytes: 8_000, path: ESTIMATE, prefetch: true },
       // The links of the grid hydrated, prefetching the screens they lead to: for a step to come.
-      { start: 1_900, end: 2_050, bytes: 50_000, prefetch: true },
+      { start: 1_900, end: 2_050, bytes: 50_000, path: REMAINING, prefetch: true },
     ];
     expect(partsOf({ start: 1_000, end: 2_000 }, front, [], USER)).toMatchObject({
       next: 300,
@@ -85,15 +90,37 @@ describe("partsOf", () => {
     });
   });
 
-  it("counts a request of the API that Next made outside any answer to the browser in the server's part", () => {
+  it("counts the time and the bytes of a prefetch the step started for the screen it ends on", () => {
+    // The entry of the prefetch cache gone stale, the router asks the screen again, as a
+    // prefetch, and the click waits for it: its bytes (none, once) and its time are the step's.
+    const asked = { start: 1_050, end: 1_900, bytes: 49_795, path: PLANNING, prefetch: true };
+    const links = { start: 1_100, end: 1_950, bytes: 50_000, path: ESTIMATE, prefetch: true };
+    const parts = partsOf({ start: 1_000, end: 2_000 }, [asked, links], [], USER, PLANNING);
+    expect(parts).toMatchObject({ next: 850, browser: 150, bytes: 49_795 });
+    expect(partsOf({ start: 1_000, end: 2_000 }, [asked], [], USER).bytes).toBe(0);
+  });
+
+  it("counts a request of the API only while a request of Next the step waits for is under way", () => {
+    // The links of the grid prefetch the screens to come: under the load of several users their
+    // requests of the API, queued, ran to the end of the step, and left it no browser at all.
+    const document = { start: 0, end: 800, bytes: 100, path: PLANNING, prefetch: false };
+    const links = { start: 300, end: 1_000, bytes: 9, path: ESTIMATE, prefetch: true };
+    const api = [answered(100, 600), answered(350, 1_000), answered(900, 1_000)];
+    const parts = partsOf({ start: 0, end: 1_000 }, [document, links], api, USER, PLANNING);
+    expect(parts).toMatchObject({ usable: 1_000, api: 700, next: 100, browser: 200 });
+    expect(parts.apiRequests).toBe(2);
+  });
+
+  it("leaves a request of the API under way while no request of Next is awaited to the browser", () => {
     const parts = partsOf({ start: 0, end: 100 }, [], [answered(10, 40)], USER);
-    expect(parts).toMatchObject({ api: 30, next: 0, browser: 70 });
+    expect(parts).toMatchObject({ api: 0, next: 0, browser: 100, apiRequests: 0 });
   });
 
   it("leaves out the requests of another account, the client of getMe's among them", () => {
     const api = [answered(10, 40), answered(20, 90, PROBE, "/api/v1/me")];
-    const parts = partsOf({ start: 0, end: 100 }, [], api, USER);
-    expect(parts).toMatchObject({ api: 30, next: 0, browser: 70, apiRequests: 1 });
+    const document = { start: 0, end: 90, bytes: 1, path: PLANNING, prefetch: false };
+    const parts = partsOf({ start: 0, end: 100 }, [document], api, USER);
+    expect(parts).toMatchObject({ api: 30, next: 60, browser: 10, apiRequests: 1 });
     const reports = stepReports(["open"], [{ step: "open", pass: 0, parts }], 1);
     expect(reports.open).toMatchObject({ api_ms: { median: 30 }, api_requests: { median: 1 } });
   });
@@ -101,23 +128,27 @@ describe("partsOf", () => {
 
 describe("failedRequest", () => {
   it("spans a request given up after its answer began from the start its timing gives", () => {
-    expect(failedRequest(1_200, 1_190, 1_500, false)).toEqual({
+    expect(failedRequest(1_200, 1_190, 1_500, false, PLANNING)).toEqual({
       start: 1_200,
       end: 1_500,
       bytes: 0,
+      path: PLANNING,
       prefetch: false,
     });
   });
 
   it("spans a request that failed before any answer from the moment the page asked it, not from 0", () => {
-    const failed = failedRequest(0, 1_190, 1_500, true);
-    expect(failed).toEqual({ start: 1_190, end: 1_500, bytes: 0, prefetch: true });
+    const failed = failedRequest(0, 1_190, 1_500, true, ESTIMATE);
+    expect(failed).toEqual({ start: 1_190, end: 1_500, bytes: 0, path: ESTIMATE, prefetch: true });
     // Within a step after it, a prefetch given up before its headers costs that step nothing.
     expect(partsOf({ start: 1_000, end: 1_100 }, [failed], [], USER).next).toBe(0);
   });
 
   it("covers nothing for a request failed before any answer whose asking was not kept", () => {
-    expect(failedRequest(0, undefined, 1_500, false)).toMatchObject({ start: 1_500, end: 1_500 });
+    expect(failedRequest(0, undefined, 1_500, false, PLANNING)).toMatchObject({
+      start: 1_500,
+      end: 1_500,
+    });
   });
 });
 
