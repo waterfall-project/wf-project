@@ -23,7 +23,8 @@ what it holds of a node and of a task (``NodeColumns``, ``TaskColumns``), the ob
 a test holds the two paths to the same reading on the witness. A write reads its tree once, under
 the lock: the replay that follows it is handed that tree brought to what the write made of it, the
 place and the counter of each node read as rows, the nodes written past their objects read again
-(``reshaped``, US-2250).
+(``reshaped``, US-2250). A write whose columns are all inert reads its structure as rows, the nodes
+it writes alone as objects (``read_inert``, US-2250/L2).
 """
 
 from dataclasses import dataclass, field
@@ -314,12 +315,10 @@ def _held_place(node: Node) -> tuple[object, object, object]:
     return held.get("parent_id", _EXPIRED), held.get("rank"), held.get("lock_version")
 
 
-def read_rows(session: Session, project_id: UUID, structure_id: UUID) -> Tree[NodeRow, TaskRow]:
-    """Read the nodes of a structure and their facet task as rows, for a reading alone.
-
-    The columns ``read_tree`` reads, in one statement as it does, but as rows, not as objects of
-    the session: what a reading of six thousand nodes spent most in building (#3174).
-    """
+def _columns_of(
+    session: Session, project_id: UUID, structure_id: UUID
+) -> tuple[dict[UUID, NodeRow], dict[UUID, TaskRow]]:
+    """Read the nodes of a structure and their facet task as rows, in one statement."""
     rows = session.execute(
         select(*_NODE_COLUMNS, *_TASK_COLUMNS)
         .outerjoin(Task, and_(Task.project_id == Node.project_id, Task.node_id == Node.id))
@@ -333,9 +332,65 @@ def read_rows(session: Session, project_id: UUID, structure_id: UUID) -> Tree[No
         nodes[node.id] = node
         if node.kind == TASK:
             tasks[node.id] = TaskRow._make(row[split:])
-    tree = Tree(nodes, tasks)
+    return nodes, tasks
+
+
+def read_rows(session: Session, project_id: UUID, structure_id: UUID) -> Tree[NodeRow, TaskRow]:
+    """Read the nodes of a structure and their facet task as rows, for a reading alone.
+
+    The columns ``read_tree`` reads, in one statement as it does, but as rows, not as objects of
+    the session: what a reading of six thousand nodes spent most in building (#3174).
+    """
+    tree = Tree(*_columns_of(session, project_id, structure_id))
     tree.held = held_open(session, project_id, _closing(tree))
     return tree
+
+
+@dataclass(frozen=True, slots=True)
+class InertTree:
+    """The tree a write whose columns are all inert holds (``read_inert``, US-2250/L2, #3540).
+
+    ``tree`` the structure, its nodes as rows but those the write names, which are the objects of
+    the session ``nodes`` and ``tasks`` hold, through which it writes.
+    """
+
+    tree: Tree[NodeColumns, TaskColumns]
+    nodes: dict[UUID, Node]
+    tasks: dict[UUID, Task]
+
+
+def read_inert(
+    session: Session, project_id: UUID, structure_id: UUID, node_ids: Collection[UUID]
+) -> InertTree:
+    """Read a structure for a write whose columns are all inert: as rows, but the nodes it names.
+
+    Those it writes are read as objects of the session, with their facet task, as ``read_tree``
+    reads them; the others as rows, as ``read_rows`` does, a fraction of an object each: the whole
+    structure as objects was two thirds of a label entered (#3540). The write locks its structure
+    before, so the two statements are one snapshot: no other write changes a node between them.
+    The structure is still read whole: what the write gives back — the rows of the plan, the sums
+    and the states of the summaries above the node, the totals of the structure — is computed on it.
+    """
+    found = session.execute(
+        select(Node, Task)
+        .outerjoin(Task, and_(Task.project_id == Node.project_id, Task.node_id == Node.id))
+        .where(
+            Node.project_id == project_id,
+            Node.structure_id == structure_id,
+            among(Node.id, node_ids),
+        )
+        .execution_options(populate_existing=True)
+    ).all()
+    rows, row_tasks = _columns_of(session, project_id, structure_id)
+    nodes: dict[UUID, NodeColumns] = {**rows}
+    tasks: dict[UUID, TaskColumns] = {**row_tasks}
+    objects = {node.id: node for node, _ in found}
+    facets = {node.id: task for node, task in found if node.kind == TASK}
+    nodes.update(objects)
+    tasks.update(facets)
+    tree = Tree(nodes, tasks)
+    tree.held = held_open(session, project_id, _closing(tree))
+    return InertTree(tree, objects, facets)
 
 
 def read_task_rows(

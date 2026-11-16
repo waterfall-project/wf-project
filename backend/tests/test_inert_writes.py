@@ -13,11 +13,12 @@ of PRJ-001 (#3169):
 - the inert ones, and they alone, take the short path: the engine not replayed, the instant of the
   structure's dates left as it is, its counter advanced; their answer is the one the whole path
   gives, and their entry of the history is undone as any;
-- every write, short or whole, reads the tree once — one that creates, deletes or moves nodes, a
+- every write of the whole path reads the tree once — one that creates, deletes or moves nodes, a
   write of the structure itself, an undoing and a redoing included: the replay is handed the tree
   read under the lock, brought to what the write made of it (``reshaped``), and gives back what it
   gave reading the tree a second time, the structure as stored the same, the nodes it read again
-  only those a statement wrote past their objects;
+  only those a statement wrote past their objects; the short path reads none as objects of the
+  session, its structure read as rows but the nodes it writes (``read_inert``, US-2250/L2, #3540);
 - what ``reshaped`` rests on holds on every write: a statement that writes a node advances its
   counter, and no statement writes a facet task, which only the objects of the session write.
 """
@@ -552,8 +553,9 @@ def test_a_column_entered_on_the_witness_takes_the_short_path_only_when_inert(
 ) -> None:
     write, moves = COLUMNS[field]
     read, done = write_counted(witness, monkeypatch, write)
-    # Every write reads the tree once (#3169): under the lock, never again for the replay.
-    assert done.trees_read == 1
+    # Every write of the whole path reads the tree once (#3169): under the lock, never again for
+    # the replay; the short path none as objects, its structure as rows (US-2250/L2, #3540).
+    assert done.trees_read == (0 if field in INERT else 1)
     assert done.lock_version == done.written.structure_lock_version
     if field in INERT:
         # Neither a task redated nor an amount moved; no engine, the instant of the dates kept.

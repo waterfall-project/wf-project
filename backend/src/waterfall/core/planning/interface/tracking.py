@@ -21,7 +21,8 @@ as a failure. No lock is taken on the timelines read, the deletion of one holdin
 that the key of every inscription waits for. The node counts the write (its version advances), as
 a field of the facet does; the history keeps it as a ``tracking`` change. An inscription moves no
 date and changes no amount (``task.tracking`` is inert): the write takes the short path, the
-engine not replayed, the counter of the structure advanced (``Write.count``, US-2250).
+engine not replayed, the counter of the structure advanced (``Write.count``, US-2250), its structure
+read as rows but the task written (``read_inert``, US-2250/L2).
 
 ``load_tracking`` writes those of a task of the witness, by the rules of the write but the state.
 """
@@ -183,11 +184,13 @@ def set_node_tracking(
     written. The task and its ancestors are given back as they now are, the version of the task
     one more.
     """
-    with writing(session, place, writer, ("tracking", (node_id,))) as write:
-        tree = write.tree
+    with writing(session, place, writer, ("tracking", (node_id,)), (node_id,)) as write:
+        # Its structure read as rows, the task written alone as objects (US-2250/L2).
+        held = write.inert
+        tree = write.tree if held is None else held.tree
         if node_id not in tree.tasks:
             raise NotFoundError(NOT_FOUND)
-        node = tree.nodes[node_id]
+        node = (write.tree.nodes if held is None else held.nodes)[node_id]
         if node.lock_version != change.lock_version:
             raise PreconditionFailedError(
                 STALE_LOCK_VERSION, {"expected_lock_version": node.lock_version}

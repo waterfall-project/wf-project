@@ -90,7 +90,7 @@ from waterfall.platform.errors import (
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
     from datetime import date, datetime
     from decimal import Decimal
     from uuid import UUID
@@ -100,6 +100,7 @@ if TYPE_CHECKING:
     from waterfall.core.planning.entries import Facet
     from waterfall.core.planning.filters import NodeFilters
     from waterfall.core.planning.scheduling import Duration
+    from waterfall.core.planning.tree import NodeColumns, TaskColumns
     from waterfall.core.planning.writing import Write
     from waterfall.platform.audit import Act
 
@@ -273,15 +274,17 @@ def _judge_parent(tree: Tree, parent: UUID | None) -> None:
 
 
 @dataclass(frozen=True, slots=True)
-class Ground:
+class Ground[N: NodeColumns = Node, T: TaskColumns = Task]:
     """What a cell is judged on: the tree of its structure as read, under its lock or not.
 
-    ``is_main`` tells whether the structure is the main one, the only to bear an attachment.
+    ``is_main`` tells whether the structure is the main one, the only to bear an attachment. Its
+    tree holds objects of the session, or rows for an entry whose columns are all inert
+    (``read_inert``).
     """
 
     session: Session
     project_id: UUID
-    tree: Tree
+    tree: Tree[N, T]
     is_main: bool
 
 
@@ -468,7 +471,9 @@ def create_node(
         return redated.written((node_id,))
 
 
-def judge_cell(ground: Ground, node_id: UUID, entry: TaskEntry) -> tuple[Facet, Attached]:
+def judge_cell[N: NodeColumns, T: TaskColumns](
+    ground: Ground[N, T], node_id: UUID, entry: TaskEntry
+) -> tuple[Facet, Attached]:
     """Judge what is sent of the facet of a task, and of its attachment, all refusals at once.
 
     The rules of the entry of a cell, which the paste of a block applies to each of its rows
@@ -482,7 +487,7 @@ def judge_cell(ground: Ground, node_id: UUID, entry: TaskEntry) -> tuple[Facet, 
     held = (ground.project_id, tree, ground.is_main)
     attached = judged_attachment(session, held, bearer, entry.attachment(creation=False), "")
     facet = _together(
-        lambda: judged_change(tree, task, entry, applicable, constants_of(session)), attached
+        lambda: judged_change(tree, node_id, entry, applicable, constants_of(session)), attached
     )
     return facet, attached
 
@@ -562,29 +567,52 @@ def update_task_facet(
     to the work breakdown with it (``attachments``, WF-PLA-0170). Beyond fifteen years, refused
     naming the task (WF-PLA-0150), an amount past its column at the fields that date it (#3094).
     A write whose fields are all inert takes the short path, the engine not replayed
-    (``INERT_TASK_FIELDS``, ``Write.count``, US-2250).
+    (``INERT_TASK_FIELDS``, ``Write.count``, US-2250), its structure read as rows but the task
+    written (``read_inert``, US-2250/L2).
     """
     inert = {f"{TASK}.{name}" for name in entry.sent} <= INERT_TASK_FIELDS
-    with writing(session, place, writer, ("cell", (node_id,))) as write:
-        tree = write.tree
-        if node_id not in tree.tasks:
-            raise NotFoundError(NOT_FOUND)
-        node, task = tree.nodes[node_id], tree.tasks[node_id]
-        if node.lock_version != entry.lock_version:
-            raise PreconditionFailedError(
-                STALE_LOCK_VERSION, {"expected_lock_version": node.lock_version}
-            )
-        ground = Ground(session, place.project_id, tree, write.facts.is_main)
-        judged = judge_cell(ground, node_id, entry)
-        write.before((node_id,))
-        write_cell(ground, node_id, entry, judged, writer.act)
-        redated = (
-            write.count()
-            if inert
-            else write.redate((node_id, task.label), entered=dating_pointers(entry))
+    written = (node_id,) if inert else ()
+    with writing(session, place, writer, ("cell", (node_id,)), written) as write:
+        held, is_main = write.inert, write.facts.is_main
+        if held is None:
+            tree = write.tree
+            ground = Ground(session, place.project_id, tree, is_main)
+            return _cell(write, ground, (tree.nodes, tree.tasks), node_id, entry)
+        ground = Ground(session, place.project_id, held.tree, is_main)
+        return _cell(write, ground, (held.nodes, held.tasks), node_id, entry)
+
+
+def _cell[N: NodeColumns, T: TaskColumns](
+    write: Write,
+    ground: Ground[N, T],
+    written: tuple[Mapping[UUID, Node], Mapping[UUID, Task]],
+    node_id: UUID,
+    entry: TaskEntry,
+) -> NodesWritten:
+    """Write the cell of a task on the ground its write holds, through the objects ``written``.
+
+    The objects of the session of the node and of its task, which the ground holds too — whole, or
+    those of a write whose fields are all inert, the others rows (``updateTaskFacet``).
+    """
+    if node_id not in ground.tree.tasks:
+        raise NotFoundError(NOT_FOUND)
+    nodes, tasks = written
+    node, task = nodes[node_id], tasks[node_id]
+    if node.lock_version != entry.lock_version:
+        raise PreconditionFailedError(
+            STALE_LOCK_VERSION, {"expected_lock_version": node.lock_version}
         )
-        write.after((node_id,))
-        return redated.written((node_id,))
+    judged = judge_cell(ground, node_id, entry)
+    write.before((node_id,))
+    apply_cell(task, entry, judged)
+    stamp(node, write.writer.act)
+    redated = (
+        write.count()
+        if write.inert is not None
+        else write.redate((node_id, task.label), entered=dating_pointers(entry))
+    )
+    write.after((node_id,))
+    return redated.written((node_id,))
 
 
 # The rule a computed field of a summary follows (WF-IHM-0030, WF-PLA-0040, WF-PLA-0100): a field
