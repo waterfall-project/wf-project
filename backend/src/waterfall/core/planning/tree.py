@@ -259,6 +259,14 @@ def reshaped(session: Session, project_id: UUID, structure_id: UUID, tree: Tree)
     node written past its object read again. The order of the plan is computed again on what the
     tree then holds — a move through the objects changes it without any node read again —, and the
     summaries an own line holds open read again (``reheld``). Called once the write is flushed.
+
+    It rests on two facts about what a write does, which ``test_inert_writes.py`` holds by
+    listening to the statements of every write: a statement that writes a node (a rank moved down,
+    a node deleted) advances its counter in the same statement, and none writes a facet task — the
+    task is written through its object alone, which the tree holds. The structure is locked
+    (``structure_facts``) since the write read its tree, so the rows read here and the nodes read
+    again after them are one snapshot: no other write advances a counter between the two reads.
+    A statement that wrote a node without its counter, or a task, would leave it kept stale.
     """
     shape = session.execute(
         select(Node.id, Node.parent_id, Node.rank, Node.lock_version).where(

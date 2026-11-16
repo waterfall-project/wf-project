@@ -16,7 +16,10 @@ of PRJ-001 (#3169):
 - every write, short or whole, reads the tree once — one that creates, deletes or moves nodes, a
   write of the structure itself, an undoing and a redoing included: the replay is handed the tree
   read under the lock, brought to what the write made of it (``reshaped``), and gives back what it
-  gave reading the tree a second time.
+  gave reading the tree a second time, the structure as stored the same, the nodes it read again
+  only those a statement wrote past their objects;
+- what ``reshaped`` rests on holds on every write: a statement that writes a node advances its
+  counter, and no statement writes a facet task, which only the objects of the session write.
 """
 
 from dataclasses import dataclass, replace
@@ -27,7 +30,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import event, select
 from sqlalchemy.orm import Session
 from test_witness_projects import PRJ_001, REVISION_102
 from test_witness_tasks import structure_of
@@ -42,11 +45,13 @@ from waterfall.core.estimate.interface import (
 )
 from waterfall.core.estimate.interface.facet import LINE_INERT
 from waterfall.core.planning import rescheduling, restoring, writing
+from waterfall.core.planning import tree as trees
 from waterfall.core.planning.entries import INERT_TASK_FIELDS
 from waterfall.core.planning.interface import (
     ENTRIES,
     Duration,
     InstantSent,
+    LinesWrite,
     NodeCreation,
     NodeFilters,
     NodeMoving,
@@ -69,10 +74,12 @@ from waterfall.core.planning.interface import (
     undo_last_change,
     update_cost_structure,
     update_task_facet,
+    write_lines,
 )
 from waterfall.core.planning.interface import lines as line_writes
 from waterfall.core.planning.interface import nodes as node_writes
 from waterfall.core.planning.interface.facets import facets
+from waterfall.core.planning.tables import Node, Task
 from waterfall.core.planning.writing import Write
 from waterfall.core.projects.interface import work_breakdown_items
 from waterfall.core.revisions.interface import structure_facts
@@ -347,14 +354,29 @@ def read_of(witness: Database) -> Read:
 
 
 @dataclass(frozen=True, slots=True)
+class Statement:
+    """A statement a write sent to the base, and whether the flush of the session sent it."""
+
+    text: str
+    flushed: bool
+
+
+@dataclass(frozen=True, slots=True)
 class Done:
-    """What a write gave back, the structure after it, and what it read and ran."""
+    """What a write gave back, the structure after it, what it read and ran, and what it stored.
+
+    ``reread`` the nodes the replay read again past their objects (``reshaped``), ``stored`` the
+    rows of the nodes and of the tasks of the structure once the write is flushed, by key.
+    """
 
     written: NodesWritten
     scheduled_at: datetime
     lock_version: int
     trees_read: int
     engines_run: int
+    reread: int = 0
+    statements: tuple[Statement, ...] = ()
+    stored: tuple[dict[UUID, tuple[Any, ...]], dict[UUID, tuple[Any, ...]]] = ({}, {})
 
 
 @dataclass(slots=True)
@@ -392,34 +414,80 @@ def trees_read(monkeypatch: pytest.MonkeyPatch) -> Counted:
     return counting(monkeypatch, (writing, rescheduling, restoring), "read_tree")
 
 
+def stored(session: Session, place: Place) -> tuple[dict[UUID, tuple[Any, ...]], ...]:
+    """Give the rows of the nodes and of the tasks of a structure, by key, as stored."""
+    session.flush()
+    in_structure = select(Node.id).where(
+        Node.project_id == place.project_id, Node.structure_id == place.structure_id
+    )
+    nodes = session.execute(select(Node.__table__).where(Node.id.in_(in_structure))).all()
+    tasks = session.execute(select(Task.__table__).where(Task.node_id.in_(in_structure))).all()
+    return {each.id: tuple(each) for each in nodes}, {each.node_id: tuple(each) for each in tasks}
+
+
 def write_counted(
     witness: Database,
     monkeypatch: pytest.MonkeyPatch,
     write: Writing,
     writer: Writer | None = None,
 ) -> tuple[Read, Done]:
-    """Write on the witness, counting the trees read and the engines run; roll it back."""
+    """Write on the witness, counting what it reads and runs and listening to its statements.
+
+    The trees read, the engines run, the nodes the replay reads again, every statement sent to the
+    base and the rows stored once flushed are kept; then it is rolled back.
+    """
     read = read_of(witness)
-    trees = trees_read(monkeypatch)
+    trees_counted = trees_read(monkeypatch)
     engines = counting(monkeypatch, (rescheduling,), "dated")
+    reread: list[int] = []
+    real_among = trees.among
+
+    def among_counted(column: Any, values: Any) -> Any:
+        if column is Node.id:
+            reread.append(len(values))
+        return real_among(column, values)
+
+    monkeypatch.setattr(trees, "among", among_counted)
     # The nodes a write creates are named alike from one write to the next, to compare them.
     made = (UUID(int=(1 << 64) + each) for each in count())
     for module in (node_writes, line_writes):
         monkeypatch.setattr(module, "new_id", lambda: next(made))
     place = read.place
-    with Session(witness.engine) as session:
-        try:
-            held = writer or Writer(Act(None, read.listed.scheduled_at), None)
-            written = write(session, read, held)
-            facts = structure_facts(session, place.project_id, place.structure_id, lock=False)
-        finally:
-            session.rollback()
+    sent: list[Statement] = []
+    flushing = [False]
+
+    def flush_starts(*_: object) -> None:
+        flushing[0] = True
+
+    def flush_ends(*_: object) -> None:
+        flushing[0] = False
+
+    def executing(_conn: object, _cursor: object, statement: str, *_: object) -> None:
+        sent.append(Statement(statement, flushing[0]))
+
+    event.listen(witness.engine, "before_cursor_execute", executing)
+    try:
+        with Session(witness.engine) as session:
+            event.listen(session, "before_flush", flush_starts)
+            event.listen(session, "after_flush", flush_ends)
+            try:
+                held = writer or Writer(Act(None, read.listed.scheduled_at), None)
+                written = write(session, read, held)
+                facts = structure_facts(session, place.project_id, place.structure_id, lock=False)
+                stored_rows = stored(session, place)
+            finally:
+                session.rollback()
+    finally:
+        event.remove(witness.engine, "before_cursor_execute", executing)
     done = Done(
         written,
         facts.scheduled_at,
         facts.lock_version,
-        trees.count,
+        trees_counted.count,
         engines.count,
+        sum(reread),
+        tuple(sent),
+        (stored_rows[0], stored_rows[1]),
     )
     return read, done
 
@@ -587,10 +655,10 @@ def create_task(session: Session, read: Read, writer: Writer) -> NodesWritten:
     return create_node(session, read.place, creation, writer)
 
 
-def create_line(session: Session, read: Read, writer: Writer) -> NodesWritten:
-    # A line as the first one of a task not started, at the head of its lines, which move down.
+def _head_line(read: Read) -> NodeView:
+    """Give the first line of a task not started, at the head of the lines of the task."""
     below = _children(read)
-    node = read.first(
+    return read.first(
         lambda each: (
             each.kind == LINE
             and (task := read.first(lambda one: one.node_id == each.parent_id).task) is not None
@@ -598,6 +666,11 @@ def create_line(session: Session, read: Read, writer: Writer) -> NodesWritten:
             and below[each.parent_id][0].node_id == each.node_id
         )
     )
+
+
+def create_line(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # A line as the first one of a task not started, at the head of its lines, which move down.
+    node = _head_line(read)
     view = view_of(node)
     entry = LineEntry(
         label="Créée",
@@ -669,6 +742,89 @@ def undo_creation(session: Session, read: Read, writer: Writer) -> NodesWritten:
     return _undone(session, read, writer)
 
 
+def _leaf_tasks(read: Read, keep: Callable[[NodeView], bool]) -> list[NodeView]:
+    """Give the tasks not started and not summaries that ``keep`` retains, in plan order."""
+    return [
+        each
+        for each in read.nodes
+        if each.task is not None
+        and not each.task.is_summary
+        and each.task.progress == "not_started"
+        and keep(each)
+    ]
+
+
+def _not_a_milestone(node: NodeView) -> bool:
+    return node.task is not None and not node.task.is_milestone
+
+
+def move_between_parents(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # A task moved from its summary to the end of another one, with its lines and its links.
+    node = _leaf_tasks(read, _not_a_milestone)[0]
+    target = read.first(
+        lambda each: (
+            each.task is not None
+            and each.task.is_summary
+            and each.node_id not in (node.node_id, node.parent_id)
+            and _is_untouched(read, each)
+        )
+    )
+    counter = _facts(session, read).lock_version
+    moving = NodeMoving(
+        (node.node_id,), target.node_id, None, after_given=False, lock_version=counter
+    )
+    return move_nodes(session, read.place, moving, writer)
+
+
+def move_line(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # A line given to another task, by the write of the lines of an import (``write_lines``).
+    tasks = _leaf_tasks(read, lambda each: any(one.kind == LINE for one in _under(read, each)))
+    giver, receiver = tasks[0], tasks[1]
+    line = next(one for one in _under(read, giver) if one.kind == LINE)
+    lines = LinesWrite({receiver.node_id: (line.node_id,)}, {}, ())
+    return write_lines(session, read.place, lines, writer)
+
+
+def _under(read: Read, node: NodeView) -> list[NodeView]:
+    return _children(read).get(node.node_id, [])
+
+
+def _is_untouched(read: Read, node: NodeView) -> bool:
+    below = _children(read)
+
+    def not_started(one: NodeView) -> bool:
+        return (one.task is None or one.task.progress == "not_started") and all(
+            not_started(each) for each in below.get(one.node_id, [])
+        )
+
+    return not_started(node)
+
+
+def _made_summary(session: Session, read: Read, writer: Writer) -> tuple[NodeView, NodesWritten]:
+    """Make a leaf manual, then give it a subtask: it becomes an automatic summary."""
+    leaf = _leaf_tasks(read, _not_a_milestone)[0]
+    manual = TaskEntry(
+        scheduling_mode="manual",
+        sent=frozenset({"scheduling_mode"}),
+        lock_version=leaf.lock_version,
+    )
+    update_task_facet(session, read.place, leaf.node_id, manual, writer)
+    creation = NodeCreation(leaf.node_id, None, after_given=True, task=TaskEntry(label="Créée"))
+    return leaf, create_node(session, read.place, creation, writer)
+
+
+def create_under_leaf(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # A manual leaf receives a subtask and becomes an automatic summary.
+    return _made_summary(session, read, writer)[1]
+
+
+def delete_only_child(session: Session, read: Read, writer: Writer) -> NodesWritten:
+    # The only subtask of a summary deleted: the summary is a leaf again, with its own dates.
+    leaf, created = _made_summary(session, read, writer)
+    child = next(each for each in created.nodes if each.parent_id == leaf.node_id)
+    return delete_node(session, read.place, child.node_id, child.lock_version, writer)
+
+
 # The writes of the whole path, with how many writes each makes: each column that is not inert, a
 # line sent with an inert field and another, a re-estimate; then the writes that create, delete or
 # move nodes, a write of the structure itself, an undoing and a redoing (US-2250).
@@ -684,6 +840,46 @@ WHOLE: dict[str, tuple[Writing, int]] = {
     "undoLastChange deletion": (undo_deletion, 2),
     "redoLastUndo deletion": (redo_deletion, 3),
     "undoLastChange creation": (undo_creation, 2),
+    "moveNodes between two parents": (move_between_parents, 1),
+    "write_lines moving a line": (move_line, 1),
+    "deleteNode giving a leaf back": (delete_only_child, 3),
+    "createNode under a leaf": (create_under_leaf, 2),
+}
+
+
+def _shifted_by_task(read: Read) -> int:
+    """Count the subtasks a task created at the head of those of a summary moves down."""
+    return len(_children(read)[_untouched(read).node_id])
+
+
+def _shifted_by_line(read: Read) -> int:
+    """Count the lines a line created at the head of those of a task moves down."""
+    return len(_children(read)[_head_line(read).parent_id])
+
+
+def _subtree(read: Read) -> int:
+    """Count the nodes of the subtree of the summary a deletion takes, itself included."""
+    below = _children(read)
+
+    def size(node: UUID) -> int:
+        return 1 + sum(size(each.node_id) for each in below.get(node, []))
+
+    return size(_untouched(read).node_id)
+
+
+# The nodes ``reshaped`` reads again, where a write has nodes past its objects: the node it
+# creates, read with its facet, and the siblings it moves down by one in one statement; the nodes
+# an undoing creates again, the subtree a deletion took. The others read none: a duration, a
+# deletion, a move through the objects, a write of the lines; the redoing of a deletion is held
+# by the undoing it follows.
+REREAD: dict[str, Callable[[Read], int]] = {
+    "createNode task": lambda read: _shifted_by_task(read) + 1,
+    "createNode line": lambda read: _shifted_by_line(read) + 1,
+    "undoLastChange deletion": _subtree,
+    "redoLastUndo deletion": _subtree,
+    "undoLastChange creation": lambda read: _shifted_by_task(read) + 1,
+    "deleteNode giving a leaf back": lambda _: 1,
+    "createNode under a leaf": lambda _: 1,
 }
 
 
@@ -693,7 +889,7 @@ def test_the_whole_path_reads_the_tree_once_and_gives_back_what_it_did_reading_i
 ) -> None:
     write, writes = WHOLE[name]
     writer = stacked(witness, read_of(witness))
-    _, once = write_counted(witness, monkeypatch, write, writer)
+    read, once = write_counted(witness, monkeypatch, write, writer)
 
     def read_again(session: Session, project_id: UUID, structure_id: UUID, _: object) -> Tree:
         return rescheduling.read_tree(session, project_id, structure_id)
@@ -705,3 +901,61 @@ def test_the_whole_path_reads_the_tree_once_and_gives_back_what_it_did_reading_i
     assert once.trees_read == writes
     assert twice.trees_read == 2 * writes
     assert once.written == twice.written
+    # The structure as stored is the same: dates, ranks, parents, flags, counters.
+    assert once.stored[0] == twice.stored[0]
+    assert once.stored[1] == twice.stored[1]
+    # The nodes read again are those a statement wrote past their objects, and no others.
+    assert once.reread == REREAD.get(name, lambda _: 0)(read)
+
+
+# The statements of every write, short or whole, as the base received them.
+EVERY = {
+    **{field: write for field, (write, _) in COLUMNS.items()},
+    **{k: w for k, (w, _) in WHOLE.items()},
+}
+
+
+def _set_of(statement: str) -> str:
+    return statement.split(" WHERE", maxsplit=1)[0]
+
+
+def unkept(statements: tuple[Statement, ...]) -> list[str]:
+    """Give the statements that break what ``reshaped`` rests on.
+
+    A statement of an instruction that writes a node without advancing its counter, and one that
+    writes a facet task. The flush of the objects of the session is left out: a node it writes is
+    one whose object holds the counter, which ``reshaped`` compares with the row.
+    """
+    return [
+        each.text
+        for each in statements
+        if not each.flushed
+        and each.text.startswith(("UPDATE node ", "UPDATE task "))
+        and not (each.text.startswith("UPDATE node ") and "lock_version" in _set_of(each.text))
+    ]
+
+
+@pytest.mark.parametrize("name", list(EVERY))
+def test_no_statement_writes_a_node_without_advancing_its_counter_nor_a_task(
+    witness: Database, monkeypatch: pytest.MonkeyPatch, name: str
+) -> None:
+    writer = stacked(witness, read_of(witness))
+    _, done = write_counted(witness, monkeypatch, EVERY[name], writer)
+    assert any(each.text.startswith(("UPDATE", "INSERT", "DELETE")) for each in done.statements)
+    assert unkept(done.statements) == []
+
+
+def test_the_statements_that_break_what_reshaped_rests_on_are_told() -> None:
+    advancing = (
+        "UPDATE node SET rank=node.rank + %(rank_1)s, lock_version=node.lock_version + 1 "
+        "WHERE node.id IN (1)"
+    )
+    assert unkept((Statement(advancing, flushed=False),)) == []
+    forgetting = "UPDATE node SET rank=node.rank + %(rank_1)s WHERE node.id IN (1)"
+    assert unkept((Statement(forgetting, flushed=False),)) == [forgetting]
+    flushed = "UPDATE node SET rank=%(rank)s::INTEGER WHERE node.id = %(node_id)s::UUID"
+    assert unkept((Statement(flushed, flushed=True),)) == []
+    by_objects = "UPDATE task SET label=%(label)s WHERE task.node_id = %(task_node_id)s"
+    assert unkept((Statement(by_objects, flushed=True),)) == []
+    by_statement = "UPDATE task SET label=%(label)s WHERE task.node_id IN (1)"
+    assert unkept((Statement(by_statement, flushed=False),)) == [by_statement]
