@@ -208,11 +208,34 @@ describe("the screen of the spending projection of a project", () => {
     };
     const page = text(html(await SpendingPage(at({ basis: "reference_budget" }))));
     expect(page).toContain(
-      "The projection is not available on this basis: the project has no reference revision, and only the current revision is one.",
+      "The projection is not available on the basis of the budget of the reference revision: the project has no reference revision.",
     );
     expect(page).toContain("Modernisation du poste de commande");
     expect(page).not.toContain("Spending by cost type and by month");
     expect(page).not.toContain("Total of the projection");
+  });
+
+  it("says the current revision is what the project lacks when the basis asked is its remaining [WF-DEV-0100-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      [SPENDING_ROUTE]: { problem: example("spending_no_reference") as Problem & { status: 409 } },
+    };
+    const page = text(html(await SpendingPage(at({ basis: "current_remaining" }))));
+    expect(page).toContain(
+      "The projection is not available on the basis of the remaining of the current revision: the project has no current revision.",
+    );
+    expect(page).not.toContain("no reference revision");
+  });
+
+  it("says no reason it cannot know when a marked revision basis is refused with a 409 [WF-DEV-0100-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      [SPENDING_ROUTE]: { problem: example("spending_no_reference") as Problem & { status: 409 } },
+    };
+    const page = text(
+      html(await SpendingPage(at({ basis: "marked_remaining", spending_revision: REVISION }))),
+    );
+    expect(page).toContain("The projection is not available: the API refuses what is asked.");
   });
 
   it("says the projection unavailable on a marked revision the API refuses [WF-DEV-0100-A]", async () => {

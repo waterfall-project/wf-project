@@ -10,6 +10,7 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
 const SCREEN = `/projects/${PROJECT}/revisions/${REVISION}/spending`;
+const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
 
 test.use({ colorScheme: "light" });
 
@@ -53,6 +54,27 @@ test("asks the projection at the date of payment, the choice an address the cont
     timeout: WORKING,
   });
   await expect(region.getByText(/^Base : .*Date de paiement$/)).toBeVisible();
+});
+
+test("filters the projection by a subproject of the project, the choice an address the context keeps @shared [WF-DEV-0100-A]", async ({
+  page,
+}) => {
+  // A refusal of the projection (409, 422) is not played here: the screen offers only the bases
+  // the project admits, and a shared path is held to a contract that nothing refuses; the page
+  // test proves each refusal on the examples of the contract.
+  await openHydrated(page, `${SCREEN}?as_of=2026-03-16`);
+  const region = page.getByRole("region", { name: "Projection de dépenses", exact: true });
+  await expect(region.getByText(/^Base : /)).toBeVisible({ timeout: WORKING });
+  await region.getByLabel("Sous-projet", { exact: true }).selectOption(SUBPROJECT);
+  await region.getByRole("button", { name: "Afficher" }).click();
+  await expect(page).toHaveURL(new RegExp(`as_of=2026-03-16&.*subproject_id=${SUBPROJECT}`), {
+    timeout: WORKING,
+  });
+  await expect(region.getByText(/^Base : /)).toBeVisible();
+  await expect(region.getByLabel("Sous-projet", { exact: true })).toHaveValue(SUBPROJECT);
+  await expect(
+    region.getByRole("figure", { name: "Dépenses par nature de coût et par mois" }),
+  ).toBeVisible();
 });
 
 test("presents the grid of the projection under its chart, a tree from the cost type to the category with a column for each month, read only @shared [WF-DEV-0100-A]", async ({

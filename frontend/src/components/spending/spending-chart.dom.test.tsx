@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ChartOption } from "@/components/chart/chart";
 import { ChartPatternsProvider } from "@/components/chart/patterns";
+import { CurrencyProvider } from "@/currency/context";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { roomForCharts } from "@/test/chart-room";
@@ -28,12 +29,14 @@ const PROVENANCE = {
 };
 
 /** Render the projection in English, as the screen hands it over. */
-function spending(patterns = false) {
+function spending(patterns = false, currency?: string) {
   return render(
     <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">
-      <ChartPatternsProvider patterns={patterns}>
-        <SpendingChart spending={SPENDING} provenance={PROVENANCE} />
-      </ChartPatternsProvider>
+      <CurrencyProvider currency={currency}>
+        <ChartPatternsProvider patterns={patterns}>
+          <SpendingChart spending={SPENDING} provenance={PROVENANCE} />
+        </ChartPatternsProvider>
+      </CurrencyProvider>
     </NextIntlClientProvider>,
   );
 }
@@ -126,6 +129,26 @@ describe("the spending projection chart", () => {
         Number(SPENDING.monthly_totals.at(-1)?.amount),
       ),
     );
+  });
+
+  it("writes the top of a bar and the tooltip of a month as its table does, in money [WF-IHM-0130-A]", async () => {
+    spending(false, "EUR");
+    const option = await shownOption();
+    await userEvent.click(screen.getByText("Values of the chart"));
+    const written = within(screen.getByRole("table"))
+      .getAllByRole("row")
+      .map((row) => within(row).queryAllByRole("cell").at(-1)?.textContent);
+    const series = option.series as LineSeriesOption[];
+    const total = series.find((each) => each.type === "line");
+    const lastMonth = SPENDING.monthly_totals.at(-1);
+    const point = { value: [`${lastMonth?.month ?? ""}-01T00:00:00Z`, lastMonth?.amount] };
+    const top = (total?.label?.formatter as (point: { value: unknown }) => string)(point);
+    expect(top).toBe(written.at(-1));
+    expect(top).toMatch(/€/);
+    const tooltip = (
+      option.tooltip as unknown as { formatter: (params: unknown) => string }[]
+    )[0]?.formatter([{ ...point, seriesName: "Total", marker: "" }]);
+    expect(tooltip).toContain(`<b>${written.at(-1) ?? ""}</b>`);
   });
 
   it("is accessible, with its table folded out [WF-IHM-0130-A]", async () => {

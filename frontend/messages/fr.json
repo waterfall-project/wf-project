@@ -4307,7 +4307,6 @@
     "title": "Projection de dépenses",
     "chartTitle": "Dépenses par nature de coût et par mois",
     "description": "Barres empilées de la dépense de chaque nature de coût par mois ; les valeurs sont dans le tableau des valeurs, avec le total de chaque mois.",
-    "amountUnit": "{amount} {currency}",
     "totalSeries": "Total",
     "basis": "Base",
     "markedRevision": "Révision marquée",
@@ -4328,7 +4327,8 @@
     "amount": "Montant",
     "none": "Aucune nature de coût ne porte de montant sur cette base.",
     "refused": {
-      "noReference": "La projection n’est pas disponible sur cette base : le projet n’a pas de révision de référence, seule la révision en cours en est une.",
+      "noReference": "La projection n’est pas disponible sur la base du budget de référence : le projet n’a pas de révision de référence.",
+      "noCurrent": "La projection n’est pas disponible sur la base du reste à engager de la révision en cours : le projet n’a pas de révision en cours.",
       "markedRevision": "La projection n’est pas disponible sur cette base : la révision marquée demandée manque, ou n’est pas marquée.",
       "subproject": "La projection n’est pas disponible : le sous-projet demandé n’existe pas.",
       "invalid": "La projection n’est pas disponible : l’API refuse ce qui est demandé."

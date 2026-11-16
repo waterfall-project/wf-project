@@ -60,7 +60,7 @@ export const SPENDING_PARAMETERS = [
 
 /**
  * The refusals of what the projection is asked on, which the screen says unavailable, and why
- * (`refusalReason`): a project without a reference revision (409), a parameter the API does not
+ * (`refusalReason`): a project without the revision of the basis asked (409), a parameter the API does not
  * take or a labour category without an hourly rate (422).
  */
 export const SPENDING_REFUSED = [
@@ -83,17 +83,26 @@ const REFUSED_PARAMETERS: ReadonlyMap<string, "markedRevision" | "subproject"> =
 
 /** Why the screen says the projection unavailable: the key of its sentence in the catalogue. */
 export type RefusalReason =
-  "noReference" | "rateMissing" | "markedRevision" | "subproject" | "invalid";
+  "noReference" | "noCurrent" | "rateMissing" | "markedRevision" | "subproject" | "invalid";
 
 /**
- * Why the API refused the projection: a project without a reference revision (409); a labour
+ * Why the API refused the projection: the basis it lacks (409) — the reference revision of
+ * `reference_budget`, the current revision of `current_remaining`, each said by its own sentence;
+ * on the basis of a marked revision the contract gives no 409, so none is guessed; a labour
  * category without a rate (422, `HOURLY_RATE_MISSING`); otherwise the parameter the envelope points
  * at (`fields[].pointer`, whole), and a reason that names none when it points at none of them, or
  * at both.
  */
-export function refusalReason(refused: Extract<SpendingRead, { kind: "refused" }>): RefusalReason {
+export function refusalReason(
+  refused: Extract<SpendingRead, { kind: "refused" }>,
+  basis: SpendingBasis,
+): RefusalReason {
   if (refused.refusal.status === 409) {
-    return "noReference";
+    return basis === "reference_budget"
+      ? "noReference"
+      : basis === "current_remaining"
+        ? "noCurrent"
+        : "invalid";
   }
   if (refused.refusal.code === "HOURLY_RATE_MISSING") {
     return "rateMissing";
@@ -262,11 +271,17 @@ function Said({ children }: { readonly children: ReactNode }) {
 }
 
 /** Why the API refused the projection, in a sentence. */
-function Refused({ refused }: { readonly refused: Extract<SpendingRead, { kind: "refused" }> }) {
+function Refused({
+  refused,
+  basis,
+}: {
+  readonly refused: Extract<SpendingRead, { kind: "refused" }>;
+  readonly basis: SpendingBasis;
+}) {
   const t = useTranslations("spending");
   const locale = useLocale();
   const messages = useMessages();
-  const reason = refusalReason(refused);
+  const reason = refusalReason(refused, basis);
   return (
     <Said>
       {reason === "rateMissing"
@@ -340,7 +355,7 @@ export function SpendingSection(props: SpendingSectionProps) {
       <div className="flex min-w-0 flex-col gap-3">
         <SpendingChoices {...props} />
         {spending.kind === "refused" ? (
-          <Refused refused={spending} />
+          <Refused refused={spending} basis={asked.basis} />
         ) : (
           <ComputedSpending
             spending={spending.data}

@@ -4307,7 +4307,6 @@
     "title": "Spending projection",
     "chartTitle": "Spending by cost type and by month",
     "description": "Stacked bars of the spending of each cost type by month; the values are in the table of the values, with the total of each month.",
-    "amountUnit": "{amount} {currency}",
     "totalSeries": "Total",
     "basis": "Basis",
     "markedRevision": "Marked revision",
@@ -4328,7 +4327,8 @@
     "amount": "Amount",
     "none": "No cost type carries an amount on this basis.",
     "refused": {
-      "noReference": "The projection is not available on this basis: the project has no reference revision, and only the current revision is one.",
+      "noReference": "The projection is not available on the basis of the budget of the reference revision: the project has no reference revision.",
+      "noCurrent": "The projection is not available on the basis of the remaining of the current revision: the project has no current revision.",
       "markedRevision": "The projection is not available on this basis: the marked revision asked for is missing, or is not marked.",
       "subproject": "The projection is not available: the subproject asked for does not exist.",
       "invalid": "The projection is not available: the API refuses what is asked."

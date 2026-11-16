@@ -99,6 +99,7 @@ export function SpendingChart({ spending, provenance }: SpendingChartProps) {
 
   const option = useCallback(
     (palette: ChartPalette): ChartOption => {
+      const money = (value: string) => formatMoney(value, locale, currency);
       const tick = new Intl.NumberFormat(formatLocale(locale));
       const months = totals.map((each) => planningInstant(each.month));
       // The series of the stack read an amount where the roles of the workload read hours: the same
@@ -127,16 +128,15 @@ export function SpendingChart({ spending, provenance }: SpendingChartProps) {
                 nameTextStyle: { color: palette.text },
               }),
         },
-        tooltip: monthTooltip(palette, locale, (amount) =>
-          currency === undefined ? amount : t("spending.amountUnit", { amount, currency }),
-        ),
+        // The tooltip and the top of the bars write an amount as the table does, in money.
+        tooltip: monthTooltip(palette, locale, (shown) => shown, money),
         series: [
           ...stackedRoles(palette, stacked),
-          monthTotals(palette, totalSeries, monthly, locale),
+          monthTotals(palette, totalSeries, monthly, locale, money),
         ],
       };
     },
-    [types, totals, totalSeries, locale, currency, t],
+    [types, totals, totalSeries, locale, currency],
   );
 
   return (
