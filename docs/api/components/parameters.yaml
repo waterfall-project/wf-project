@@ -912,7 +912,9 @@ AsOf:
     revision, or, when the project has none, those of its last marked revision calculated with
     the actual cost of the day, `is_stored` false (WF-IND-0010); present, those of the last
     marked revision on or before it, as they were kept at its marking
-    (WF-IND-0010, WF-DAT-0040, WF-PTF-0010).
+    (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). A date that designates no revision marked In
+    progress — none marked on or before it, or none of them kept the indicators of the project —
+    is refused by 409 `STATE_FORBIDS_OPERATION` without `params`, as an offer is (#2449).
   schema: { $ref: common.yaml#/PlanningDate }
 
 Scope:

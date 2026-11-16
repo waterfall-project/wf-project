@@ -82,6 +82,9 @@ from waterfall.core.indicators.interface.project_indicators import (
 from waterfall.core.indicators.interface.reading import (
     IndicatorsReading as IndicatorsReading,
 )
+from waterfall.core.indicators.interface.stored_documents import (
+    kept_any as kept_any,
+)
 
 # ``stored_documents`` (US-1660/L1; US-1670/L1; US-1690/L3; US-1710): a document a marked
 # revision kept, the marked revision a reading of a marking reads, and those that kept the project.
@@ -90,6 +93,9 @@ from waterfall.core.indicators.interface.stored_documents import (
 )
 from waterfall.core.indicators.interface.stored_documents import (
     kept_revisions as kept_revisions,
+)
+from waterfall.core.indicators.interface.stored_documents import (
+    revisions_keeping_project as revisions_keeping_project,
 )
 from waterfall.core.indicators.interface.stored_documents import (
     stored_document as stored_document,

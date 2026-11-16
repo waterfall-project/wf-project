@@ -21,7 +21,8 @@ current revision, or, without one, on the last marked revision with the actual c
 (``current_day``, US-2200), the instant of the reading its ``computed_at``. The reference is the
 project's, read now. One pass reads what every scope needs (``day_documents``).
 
-Declared by US-1660/L1, the socle of EP-10; filled by US-1660/L3 for the current day.
+Declared by US-1660/L1, the socle of EP-10; filled by US-1660/L3 for the current day, by US-1670/L2
+for a marking kept.
 """
 
 from dataclasses import dataclass
@@ -32,6 +33,10 @@ from waterfall.core.cost_settings.interface import read_reference_settings
 from waterfall.core.costs.interface import PROJECT
 from waterfall.core.indicators.computing import Basis, day_documents
 from waterfall.core.indicators.interface.reading import IndicatorsReading
+from waterfall.core.indicators.interface.stored_documents import (
+    kept_revision,
+    stored_document,
+)
 from waterfall.core.indicators.shaping import Context, classified
 from waterfall.core.projects.interface import (
     list_state_transitions,
@@ -94,10 +99,30 @@ def _is_of_the_day(facts: ProjectFacts, asked: IndicatorsReading) -> bool:
     return asked.revision_id is None or asked.revision_id == facts.current_revision_id
 
 
+def _offer_refusal() -> ConflictError:
+    """Give the refusal of a revision that kept no indicators of the project: no ``params.state``.
+
+    The project may be In progress now: only the revision was marked before (#1779, G-02).
+    """
+    return ConflictError(STATE_FORBIDS_OPERATION)
+
+
 def _kept_indicators(session: Session, project_id: UUID, asked: IndicatorsReading) -> Document:
-    """Give the indicators a marking kept, of the marked revision named or of the date asked."""
-    msg = "_kept_indicators is filled by US-1670/L2"
-    raise NotImplementedError(msg)
+    """Give the indicators a marking kept, of the marked revision named or of the date asked.
+
+    The zones are not classified here: a document keeps the value of each index, never its zone.
+    Refused (409, no ``params``) when no document of the project was kept for the revision, the
+    scope or the date asked.
+    """
+    revision_id = asked.revision_id
+    if revision_id is None and asked.as_of is not None:
+        revision_id = kept_revision(session, project_id, None, asked.as_of)
+    if revision_id is None:
+        raise _offer_refusal()
+    kept = stored_document(session, revision_id, "project", asked.scope)
+    if kept is None:
+        raise _offer_refusal()
+    return kept
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,7 +144,7 @@ def day_reading(session: Session, project_id: UUID, asked: IndicatorsReading) ->
     facts = project_facts(session, project_id)
     _refuse_before_in_progress(session, project_id, facts.state)
     _refuse_parameters(session, project_id, asked)
-    named = None
+    named: RevisionRead | None = None
     if asked.revision_id is not None:
         named = read_revision_for(session, project_id, asked.revision_id)
     if not _is_of_the_day(facts, asked):
@@ -135,7 +160,7 @@ def _reading_of(
     named: RevisionRead | None,
 ) -> DayReading:
     """Say what the current day is computed on: the revision named, else the current or last."""
-    read = named or read_revision_for(session, project_id, None)
+    read = named if named is not None else read_revision_for(session, project_id, None)
     status = MARKED if read.marked else DRAFT
     context = Context(read.revision_id, status, asked.at, asked.scope, is_stored=False)
     return DayReading(Basis(project_id, read.revision_id, facts.reference_revision_id), context)
@@ -155,8 +180,8 @@ def project_indicators(session: Session, project_id: UUID, asked: IndicatorsRead
     """Give the indicators of a project on the scope and for the revision a reading asks."""
     reading = day_reading(session, project_id, asked)
     if reading is None:
-        return _kept_indicators(session, project_id, asked)
-    scope = asked.scope
-    documents = day_documents(session, reading.basis, reading.context, (scope,))
-    thresholds = read_reference_settings(session).index_thresholds
-    return classified(documents[scope], thresholds)
+        document = _kept_indicators(session, project_id, asked)
+    else:
+        scope = asked.scope
+        document = day_documents(session, reading.basis, reading.context, (scope,))[scope]
+    return classified(document, read_reference_settings(session).index_thresholds)

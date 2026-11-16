@@ -50,6 +50,40 @@ def stored_document(
     )
 
 
+def kept_any(session: Session, revision_id: UUID, kind: IndicatorKind) -> bool:
+    """Tell whether a revision kept a document of a kind, on whatever scope.
+
+    A revision that kept the kind but not a scope does not know that scope (a subproject created
+    since its marking); one that kept none of the kind was marked before the indicators were kept.
+    """
+    project_id = revision_project(session, revision_id)
+    return (
+        session.scalar(
+            select(RevisionIndicator.id)
+            .where(
+                RevisionIndicator.project_id == project_id,
+                RevisionIndicator.revision_id == revision_id,
+                RevisionIndicator.kind == kind,
+            )
+            .limit(1)
+        )
+        is not None
+    )
+
+
+def revisions_keeping_project(session: Session, project_id: UUID) -> set[UUID]:
+    """Give the revisions of a project that kept the indicators of the project, in one statement."""
+    return set(
+        session.scalars(
+            select(RevisionIndicator.revision_id).where(
+                RevisionIndicator.project_id == project_id,
+                RevisionIndicator.kind == "project",
+                RevisionIndicator.scope == str(PROJECT),
+            )
+        )
+    )
+
+
 def kept_revision(
     session: Session, project_id: UUID, revision_id: UUID | None, as_of: date | None
 ) -> UUID:
@@ -76,15 +110,7 @@ def kept_revisions(session: Session, project_id: UUID) -> list[tuple[UUID, datet
     markings of one instant are ordered by identifier.
     """
     marked = marked_revisions_at(session, project_id)
-    keeping = set(
-        session.scalars(
-            select(RevisionIndicator.revision_id).where(
-                RevisionIndicator.project_id == project_id,
-                RevisionIndicator.kind == "project",
-                RevisionIndicator.scope == str(PROJECT),
-            )
-        )
-    )
+    keeping = revisions_keeping_project(session, project_id)
     return [
         (each, marked[each])
         for each in sorted(marked, key=lambda each: (marked[each], each))

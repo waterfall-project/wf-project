@@ -10754,6 +10754,18 @@ Décision de l'auteur du 2026-11-01 : le contrat suit WF-IND-0010, WF-DAT-0040 e
 
 Le service le suit par #1779 (EP-10).
 
+### Un `as_of` qui ne désigne aucun indicateur projet conservé : le 409 de l'offre (US-1670/L2, #2449)
+
+Décision de l'auteur du 2026-11-15, constat « contrat » d'EP-10, dans la règle d'après le gel
+(« La règle d'après le gel ») : un `as_of` auquel aucune révision marquée En cours ne répond — aucune
+n'est marquée à cette date ou avant, ou aucune de celles-là n'a conservé les indicateurs du projet
+(marquées en Chiffrage) — est refusé par le même 409 `STATE_FORBIDS_OPERATION`, sans `params`, que
+`revision_id` d'une offre marquée. `getProjectIndicators`, `getCostCurve` et `getEarnedValueCurves`
+le disent dans la description de leur 409, et `AsOf` dans la sienne ; aucune forme ni exemple
+nouveau (`project_indicators_offer` sert). Écartés : un 422 sur `/query/as_of`, que le front
+traiterait comme une faute de saisie quand la date est valide ; un 200 sur le calcul du jour, qui
+répondrait à une autre date que celle demandée.
+
 ### Les champs toujours rendus sont exigés : le résidu (US-0704, #1735, G-03, #1780)
 
 Décision de l'auteur du 2026-11-01, qui étend la règle de G-02 du 2026-10-28 : un champ que
