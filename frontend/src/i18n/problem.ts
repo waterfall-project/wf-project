@@ -368,10 +368,8 @@ const DETAILS: readonly Reader[] = [
   },
   // The task a write or a merge that would carry the project past the fifteen years it may last is
   // refused for, by its label (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150, #788): the contract says
-  // only « the task concerned », which is not always the one that ends the project. A paste names
-  // it by its row in the block too (`row`, counted from zero), which tells apart two tasks it would
-  // create under the same label, neither with a node (#3624): the row is said from one, as the
-  // dialog of the paste says the row of a line it refuses.
+  // only « the task concerned », which is not always the one that ends the project. A paste adds its
+  // row in the block: the contract counts it from zero, the reader reads it from one.
   ({ task }, _label, _locale, say) => {
     if (!isLabelled(task)) {
       return undefined;
