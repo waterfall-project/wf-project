@@ -806,13 +806,14 @@ une lecture lente.
   cinquante passages.
 
 **Notes de réalisation.** `make queue-report BRANCH=epic/EP-26 LAST=50`, le 2026-11-16 : la
-branche ne compte que 36 passages, du 2026-11-14 au 2026-11-16 — 33 réussis, 2 échoués, 1 annulé, 0
-non terminé — et non cinquante : l'EPIC n'en a pas produit davantage, le critère « cinquante
-passages » se lit sur ces 36 (« 33 passages, non 50 »). Sur les 35 terminés, 0 est un échec sans
-régression (0 %, moins d'un sur dix) : aucun connu comme aléa, aucun d'infrastructure, 2 à classer,
-aucune régression. Les deux échecs sont le même test, `e2e/reference-costs.spec.ts:486` (étape
-`service / paths`), à classer. Temps des 19 passages complets réussis : médiane 14,1 min, 90e
-centile 17,5 min. #3411 : `make measure` rejoué le 2026-11-16, la part navigateur de
+branche ne compte que 36 passages, du 2026-11-14 au 2026-11-16 — 33 réussis, 2 échoués, 1 annulé,
+0 non terminé — et non cinquante : l'EPIC n'en a pas produit davantage, et le critère se lit sur
+ces 36 (36 passages, non 50). Sur les 35 terminés : 0 régression, 2 échecs classés aléas connus (#3448) sur
+35 terminés (5,7 %), aucun d'infrastructure, aucun à classer. Les deux échecs sont le même test,
+`e2e/reference-costs.spec.ts:486` (étape `service / paths`, `make e2e-service`), qui échoue à la
+ligne 659 (`toHaveCount(1)`, `Received: 0`) : c'est le reclic de `pressOnce` que #3448 décrit, et
+l'entrée est ajoutée à `tools/queue-known.toml`. Temps des 19 passages complets réussis :
+médiane 14,1 min, 90e centile 17,5 min. #3411 : `make measure` rejoué le 2026-11-16, la part navigateur de
 `planning.by-address` est de 159, 122 et 162 ms à 1, 4 et 8 utilisateurs (0,3 ms avant, à 8), le
 poids de `planning.from-remaining` d'environ 49,9 Ko à chaque niveau, les échantillons non pesés
 étant écartés (11 sur 20 à 4 utilisateurs, 18 sur 40 à 8).
@@ -887,7 +888,11 @@ mesuré, il est calculé, calcul validé par l'auteur : 76 octets par nœud × 5
 600 projets × 180 révisions ≈ 49 Go, soit environ 25 à 33 % des 150 à 200 Go du §4.6.2 (le chiffre
 de 82 Go avancé auparavant n'est pas retenu) ; hypothèses : 5 994 nœuds par révision, 180 révisions
 réellement gardées (toute révision marquée lue au moins une fois), sans compter la compression de
-PostgreSQL. La durée du marquage mesurée est citée dans `frontend/e2e/bounds.ts` (`MARKING`).
+PostgreSQL. État mesuré : le commit bae29e7de de la branche du lot, sur la base d'`epic/EP-26` à
+eeee85e82 ; US-2250/L3 (#3665, c9b57c00e : le compteur de structure au retrait d'un élément du
+découpage, et des pages de front rendues en flux) a été fusionné dans `epic/EP-26` après la mesure
+et n'y est pas. Les 66 gestes manquants sur 718 (91 %) sont le temps des gestes eux-mêmes et de la
+fin de la charge, que le décompte n'enlève pas. La durée du marquage mesurée est citée dans `frontend/e2e/bounds.ts` (`MARKING`).
 
 **Hors périmètre.** Rendre un objectif bloquant : WF-QUA-0060 demande qu'un dépassement soit
 signalé et documenté, non interdit.
