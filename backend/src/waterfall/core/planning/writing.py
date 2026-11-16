@@ -286,9 +286,10 @@ class Write:
         The tree read under the lock is handed to the replay, which brings it to what the write
         made of it rather than read it again (``reshaped``, US-2250); the write holds it after. A
         write of several tasks names ``among`` them, by task, what each is called when the engine
-        finds it beyond the horizon; ``blamed`` stands for any other.
+        finds it beyond the horizon, a task none of them as the tree has it (a successor pushed);
+        without ``among``, ``blamed`` is the name.
         """
-        named = None if blamed is None else Blamed(*blamed, origin, among or {})
+        named = None if blamed is None else Blamed(*blamed, origin, among)
         priced = (*repriced, *self.touched)
         held = Holding(self.facts, named, self.conflicts, priced, self.tree)
         try:

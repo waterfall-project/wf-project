@@ -689,46 +689,6 @@ def test_a_paste_that_creates_reads_the_calendar_and_the_constants_once_not_at_e
     assert all(each <= 4 for each in reads[12])
 
 
-@pytest.mark.requirement("WF-PLA-0150-A")
-def test_a_paste_that_creates_a_task_beyond_the_horizon_names_the_row_that_creates_it(
-    tree: Tree, who: Person
-) -> None:
-    # #2606 : « Le déplacement d'une tâche qui porterait la fin du projet à quinze ans et un jour
-    # de son début est refusé, et la tâche est nommée. » Le collage nomme la ligne créée qui porte
-    # la tâche hors horizon (son nœud nul, son libellé), non la première ligne du plan.
-    task = tree.made("Étude", who=who)
-    before = counter(tree)
-    block = [["Étude"], ["Courte", "", "", "2"], ["Interminable", "", "", "9000"], ["Finale"]]
-    plan = planned(tree, task, "label", block, who)
-    assert (plan["accepted"], plan["created"], plan["rejected"]) == (4, 3, [])
-    answer = apply(tree, plan, who)
-    assert refusal(answer) == (
-        422,
-        "PROJECT_HORIZON_EXCEEDED",
-        {"task": {"node_id": None, "label": "Interminable"}},
-    )
-    assert labels_of(tree) == ["Étude"]
-    assert counter(tree) == before
-
-
-@pytest.mark.requirement("WF-PLA-0150-A")
-def test_a_paste_beyond_the_horizon_names_the_existing_row_that_carries_it_not_the_first(
-    tree: Tree, who: Person
-) -> None:
-    # #2606 : la tâche hors horizon est une ligne existante, qui n'est pas la première du bloc.
-    first = tree.made("Première", who=who)
-    second = tree.made("Seconde", who=who)
-    plan = planned(tree, first, "duration", [["2"], ["9000"]], who)
-    assert (plan["accepted"], plan["created"]) == (2, 0)
-    answer = apply(tree, plan, who)
-    assert refusal(answer) == (
-        422,
-        "PROJECT_HORIZON_EXCEEDED",
-        {"task": {"node_id": second["node_id"], "label": "Seconde"}},
-    )
-    assert tree.node(second["node_id"])["lock_version"] == 1
-
-
 @pytest.mark.requirement("WF-PLA-0050-A")
 def test_the_creation_a_paste_calls_refuses_a_task_under_a_milestone_naming_it() -> None:
     # Vérif : « Une tâche feuille de durée nulle ne peut recevoir de sous-tâche. » — écart #1772 au

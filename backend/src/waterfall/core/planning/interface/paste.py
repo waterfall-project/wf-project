@@ -868,22 +868,27 @@ def _blamed(
 
     A task is named by its node and its label, the node null for a task created; a row of a line
     names the task that bears it. The engine finds the task that carries the structure beyond the
-    horizon: the refusal names that one when it is a task of the paste (#2606), the first row
-    otherwise — a task the paste moves, that is none of its rows.
+    horizon: the refusal names that one, a task of the paste (#2606) or the one the paste moves
+    that is none of its rows, a successor it pushes (WF-PLA-0150-A). The first row stands only
+    where a write names a task, never where the engine finds one.
     """
     every: dict[UUID, tuple[UUID | None, str]] = {}
+    first: tuple[UUID | None, str] | None = None
     for row, outcome in judged:
         bearer = _bearer_of(write, row, outcome)
         if bearer is not None:
-            every.setdefault(bearer, (bearer, write.tree.tasks[bearer].label))
+            key, name = bearer, (bearer, write.tree.tasks[bearer].label)
         elif outcome.creation is not None:
             task = outcome.creation.creation.task
-            every.setdefault(row.node_id, (None, "" if task is None else task.label or ""))
+            key, name = row.node_id, (None, "" if task is None else task.label or "")
         else:
-            every.setdefault(row.node_id, (row.node_id, write.tree.tasks[row.node_id].label))
-    row, outcome = judged[0]
-    bearer = _bearer_of(write, row, outcome)
-    return every[row.node_id if bearer is None else bearer], every
+            key, name = row.node_id, (row.node_id, write.tree.tasks[row.node_id].label)
+        every.setdefault(key, name)
+        first = first or every[key]
+    if first is None:
+        msg = "a paste to write has a row"
+        raise RuntimeError(msg)
+    return first, every
 
 
 def apply_paste(
