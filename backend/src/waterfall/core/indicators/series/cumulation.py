@@ -5,8 +5,10 @@
 Each point carries the cumulative total at the end of its month. The first, zero, sits at the end
 of the month that precedes the first amount; the date of calculation is one more point on the
 series that stop or start there. The parts of the lines come rounded to the cent (``shares``), the
-documents are cents: the cumulative total of each point is rounded once more, half away from zero
-as ``Money`` does, which leaves it as it is (WF-DAT-0100).
+documents are cents: the sum of cents is a cent, so the last rounding of each point, half away from
+zero as ``Money`` does, changes no value; it only gives the amount its two decimals, as the
+contract serves it (WF-DAT-0100). It is kept for that, so that a part that were not a cent would
+not leak into a point.
 """
 
 from dataclasses import dataclass

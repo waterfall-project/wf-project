@@ -42,6 +42,8 @@ if TYPE_CHECKING:
     from waterfall.platform.database import Database
 
 D = Decimal
+MONTH_ENDS = 3
+CENTS = [Planned("Études", "333.33", None, "30"), Planned("Câblage", "666.67", None, "60")]
 
 
 @pytest.fixture
@@ -76,6 +78,49 @@ def test_the_planned_value_reaches_the_budget_at_the_end_of_the_reference_and_st
     assert planned == series(curve(api, stage, COST_CURVE), "reference_budget")
     assert (body["payment_delays"], body["steps"], body["cash_out_by_month"]) == (False, [], None)
     assert body["context"]["is_stored"] is False
+
+
+def month_ends_read(
+    api: ContractClient, stage: Scene, clock: Clock, name: str, curve_name: str
+) -> list[tuple[str, str, str]]:
+    """Give, at each month-end of a curve read that day, its point and the planned value there."""
+    found: list[tuple[str, str, str]] = []
+    for day in (DAY + timedelta(days=28), DAY + timedelta(days=59), DAY + timedelta(days=90)):
+        clock(day)
+        planned = indicators(api, stage)["planned_value"]
+        found.extend(
+            (when, amount, planned)
+            for when, amount in series(curve(api, stage, curve_name), name)
+            if when == day.isoformat()
+        )
+    return found
+
+
+@pytest.mark.requirement("WF-IND-0110-A")
+def test_the_planned_value_of_the_curve_is_that_of_the_indicators_at_the_same_day(
+    api: ContractClient, stage: Scene, clock: Clock
+) -> None:
+    # « La courbe de valeur planifiée atteint le budget de référence à la fin de la référence. »
+    # Amounts that do not spread to the cent (333.33 and 666.67): at each month-end, the point of
+    # the curve, which sums the rounded parts of each line, is the planned value of the indicators
+    # read that day (``planned_value_at``), not a sum of the unrounded months.
+    priced(api, stage, CENTS)
+    found = month_ends_read(api, stage, clock, "planned_value", EARNED_VALUE_CURVES)
+    assert len(found) == MONTH_ENDS
+    assert all(amount == planned for _, amount, planned in found), found
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_the_reference_budget_of_the_cost_curve_is_the_planned_value_at_the_same_day(
+    api: ContractClient, stage: Scene, clock: Clock
+) -> None:
+    # « La courbe du budget de référence atteint le budget de référence à la date de fin de la
+    # référence. » Without a payment delay, each month-end of the reference budget is the planned
+    # value of the indicators that day, amounts not spreading to the cent included.
+    priced(api, stage, CENTS)
+    found = month_ends_read(api, stage, clock, "reference_budget", COST_CURVE)
+    assert len(found) == MONTH_ENDS
+    assert all(amount == planned for _, amount, planned in found), found
 
 
 @pytest.mark.requirement("WF-IND-0110-A")

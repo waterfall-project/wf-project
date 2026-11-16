@@ -2224,7 +2224,7 @@ export interface paths {
         };
         /**
          * Earned value curves
-         * @description Planned value, earned value according to the completion dates, and actual cost according to the document dates, up to the calculation date, at a monthly step (WF-IND-0110). For a named marked revision (`revision_id`), the curves that its marking kept with its indicators, on the actual cost lines known at its marking as they were then, `context.is_stored` true (WF-IND-0010, WF-DAT-0040).
+         * @description Planned value, earned value according to the completion dates, and actual cost according to the document dates, up to the calculation date, at a monthly step (WF-IND-0110). For a named marked revision (`revision_id`), the curves that its marking kept with its indicators, on the actual cost lines known at its marking as they were then, `context.is_stored` true (WF-IND-0010, WF-DAT-0040). The planned value sums, month by month, the parts rounded to the cent of each line, each the difference of two roundings of its cumulative amount, a half away from zero, as `getCostCurve` spreads its reference budget: at a month-end it is the planned value of `getProjectIndicators` at that day (WF-IND-0110).
          */
         get: operations["getEarnedValueCurves"];
         put?: never;

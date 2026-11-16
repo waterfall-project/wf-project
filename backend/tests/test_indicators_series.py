@@ -28,6 +28,7 @@ from waterfall.core.indicators.series import (
     shifted,
     spread_lines,
 )
+from waterfall.core.indicators.series.shares import spread_delayed
 from waterfall.core.planning.interface import WorkInstant, weekly_calendar
 
 EIGHT = Decimal(8)
@@ -435,3 +436,28 @@ def test_a_half_cent_of_a_part_goes_away_from_nought_as_money_does(
     # not to nought as the half to the even would; the second month then holds nothing.
     cent = across("0.01", date(2026, 3, 2), delay)
     assert line_shares(cent, delayed=True) == {month: Decimal("0.01")}
+
+
+MILESTONE = SpreadLine(Decimal("1000.01"), task(date(2026, 3, 18), date(2026, 3, 18)))
+TWO_WAYS = [
+    pytest.param(line("6400.07"), None, id="ordinary-task"),
+    pytest.param(line("6400.07"), date(2026, 3, 16), id="as-of-in-the-task"),
+    pytest.param(line("6400.07"), date(2026, 6, 1), id="as-of-after-the-end"),
+    pytest.param(line("6400.07"), date(2026, 4, 30), id="as-of-on-the-end"),
+    pytest.param(MILESTONE, None, id="milestone"),
+    pytest.param(MILESTONE, date(2026, 3, 10), id="milestone-after-as-of"),
+    pytest.param(MILESTONE, date(2026, 3, 18), id="milestone-on-as-of"),
+    pytest.param(MILESTONE, date(2026, 5, 4), id="milestone-before-as-of"),
+]
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+@pytest.mark.parametrize(("spread", "as_of"), TWO_WAYS)
+def test_the_path_of_a_delayed_line_with_no_delay_gives_the_parts_of_the_estimate(
+    spread: SpreadLine, as_of: date | None
+) -> None:
+    # « La courbe de décaissement est la courbe du budget translatée du délai de paiement » : a
+    # delay of nought leaves the curve where it is, so the two ways of spreading — the parts of
+    # the estimate, and the cumulated read at each month-end less the delay — agree.
+    assert spread.payment_delay_days == 0
+    assert spread_delayed(spread, as_of=as_of) == line_shares(spread, as_of=as_of)

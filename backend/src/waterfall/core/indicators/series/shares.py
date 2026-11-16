@@ -92,6 +92,15 @@ def shifted(line: SpreadLine, *, as_of: date | None = None) -> dict[Month, Decim
     """
     if line.payment_delay_days == 0:
         return _spread_after(line.placement, line.amount, as_of)
+    return spread_delayed(line, as_of=as_of)
+
+
+def spread_delayed(line: SpreadLine, *, as_of: date | None = None) -> dict[Month, Decimal]:
+    """Spread a line by the cumulated of its curve read at each month-end less its payment delay.
+
+    The path of a line with a delay; with a delay of nought it must give what ``_spread_after``
+    gives, which a test holds (WF-IND-0100-A).
+    """
     delay = timedelta(days=line.payment_delay_days)
     start, finish = line.placement.start.day, line.placement.finish.day
     if as_of is not None:
