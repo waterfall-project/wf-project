@@ -28,6 +28,7 @@ from waterfall.core.revisions.interface import (
     RevisionCopy,
     compute_indicators,
     mark_revision,
+    marking,
     register_copy,
     register_indicators,
     register_tasks_and_lines,
@@ -773,11 +774,14 @@ def test_a_revision_bears_tasks_and_lines_when_every_question_registered_says_so
 
 
 def test_the_indicators_of_a_marking_are_those_of_every_computation_registered(
-    database: Database,
+    database: Database, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # How EP-10 keeps its indicators (``register_indicators``), a detail of the realization which
     # reprises no Vérif: each computation registered, in its order, given the act of the marking;
-    # none once withdrawn.
+    # none once withdrawn. The registry is the test's own: the entry of the indicators, which the
+    # process imports, keeps the documents of a revision that exists (US-1670/L1).
+    own: Registry[Callable[[Session, UUID, Act], None]] = Registry()
+    monkeypatch.setattr(marking, "_INDICATORS", own)
     computed: list[tuple[str, UUID, Act]] = []
     revision_id = uuid4()
     act = Act(None, utc_now())

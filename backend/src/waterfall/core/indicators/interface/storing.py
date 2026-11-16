@@ -42,10 +42,9 @@ from waterfall.core.estimate.interface import IndicatorsAsked, estimate_indicato
 from waterfall.core.indicators.computing import Basis, day_documents
 from waterfall.core.indicators.interface.estimate_documents import (
     estimate_document,
-    instant,
     remaining_document,
 )
-from waterfall.core.indicators.shaping import Context
+from waterfall.core.indicators.shaping import Context, instant
 from waterfall.core.indicators.tables import RevisionIndicator
 from waterfall.core.projects.interface import (
     SubprojectFilters,

@@ -12,13 +12,12 @@ without its trailing zeros, as ``Decimal``; an instant in universal time. A docu
 Moved here from the routes of EP-07 and EP-09 by US-1670/L1, which keeps them.
 """
 
-from datetime import UTC
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:
-    from datetime import datetime
+from waterfall.core.indicators.shaping import instant
 
+if TYPE_CHECKING:
     from waterfall.core.estimate.interface import (
         AmountByKey,
         CalculationContext,
@@ -42,11 +41,6 @@ def _money(amount: Decimal) -> str:
 def _shown(share: Decimal) -> str:
     """Give a share as the contract writes a decimal: without trailing zeros, ``1`` for one."""
     return format(share.normalize(), "f")
-
-
-def instant(at: datetime) -> str:
-    """Give an instant as the contract writes it, in universal time."""
-    return at.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
 def missing_rate_document(missing: MissingRate) -> dict[str, Any]:
