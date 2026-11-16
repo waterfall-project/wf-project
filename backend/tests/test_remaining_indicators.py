@@ -563,6 +563,9 @@ def test_the_revision_named_is_read_else_the_current_one_else_the_last_one_marke
     marked = indicators(api, stage, review.tree.revision["revision_id"])
     assert (marked["total"], marked["context"]["revision_status"]) == ("600.00", "marked")
     assert marked["context"]["is_stored"] is True
+    # The review was marked after the reference was designated: it kept a difference that is not 0.
+    kept = (marked["delta_to_previous_revision"], marked["delta_to_reference"])
+    assert kept == (None, "-100.00")
     # The current revision is marked in its turn: no revision is current, the last marked is read,
     # with the review before it.
     review_marked(stage, reviewed.revision, "v3.0")
