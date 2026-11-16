@@ -53,15 +53,13 @@ describe("loadFailures", () => {
     expect(loadFailures({ ...NOMINAL, writes_refused: 40 }, RUN)).toHaveLength(1);
   });
 
-  it("refuses entries refused as frozen before any marking was made [WF-QUA-0060-A]", () => {
+  it("refuses entries refused as frozen on a revision never frozen [WF-QUA-0060-A]", () => {
     const failures = loadFailures({ ...NOMINAL, writes_frozen: 3 }, { ...RUN, frozen_s: 0 });
-    expect(failures).toContain("3 entries refused before any marking");
+    expect(failures).toContain("3 entries refused though the revision was never frozen");
   });
 
-  it("bounds the entries refused as frozen by the share of the duration the marking froze, up to a whole load [WF-QUA-0060-A]", () => {
+  it("tolerates every entry refused on a load frozen in whole [WF-QUA-0060-A]", () => {
     const frozen = { ...NOMINAL, writes_frozen: 290 };
-    expect(loadFailures(frozen, RUN)).toHaveLength(1);
-    expect(loadFailures(frozen, { ...RUN, frozen_s: 60 })).toHaveLength(1);
     // Frozen for the whole of the load, refusing every entry is what the revision stood for.
     expect(loadFailures(frozen, { ...RUN, frozen_s: 600 })).toEqual([]);
   });

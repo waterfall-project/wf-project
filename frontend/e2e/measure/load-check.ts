@@ -81,7 +81,9 @@ export function loadFailures(summary: LoadSummary | undefined, run: LoadRun): st
     );
   }
   if (summary.writes_frozen > 0 && run.frozen_s <= 0) {
-    failures.push(`${String(summary.writes_frozen)} entries refused before any marking`);
+    failures.push(
+      `${String(summary.writes_frozen)} entries refused though the revision was never frozen`,
+    );
   }
   const frozenShare = run.duration_s > 0 ? Math.min(1, run.frozen_s / run.duration_s) : 0;
   if (summary.writes_frozen > summary.writes * (frozenShare + FROZEN_SLACK)) {

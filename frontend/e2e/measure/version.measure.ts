@@ -257,7 +257,8 @@ test("measures each operation of table 15 the service serves under the load of f
       const steps = [...measured.unreached].join(", ");
       throw new Error(`The journey no longer works: the browser did not reach the end of ${steps}`);
     }
-    // The marking, last of the background tasks, froze the revision from the asking of its first pass.
+    // The marking, last of the background tasks, froze the revision
+    // from the asking of its first pass.
     const frozenSeconds = frozenAt === undefined ? 0 : (stopped - frozenAt) / 1000;
     const failures = loadFailures(summary, {
       users,
