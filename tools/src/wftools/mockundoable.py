@@ -8,6 +8,8 @@ same parent, ranked after it in the order of the block —, each with its label,
 one is refused for (`PastePreview`, decision of the user of 2026-11-08, #2559). The plan says how
 many rows create (`PastePlan.created`); the confirmation renders the tasks created among the nodes
 it writes. The fake back creates tasks alone: a line of the estimate created by a paste is EP-07's.
+A block that creates two tasks of one label, the second beyond the horizon, is refused at its
+confirmation, the task named by its row in the block (`PROJECT_HORIZON_EXCEEDED`, #3624).
 
 The undo of an entry, and its redo, answer what a write answers (`UndoResult`, WF-IHM-0110): here,
 the renaming of the wiring of the cabinets (``mockwrites.task_renamed``) undone, then redone, each
@@ -159,6 +161,33 @@ def paste_applied_creating() -> JsonObject:
     return {**applied, "rejected": creating_refusals()}
 
 
+BEYOND_LABEL = "Garantie de parfait achèvement"
+"""The label of the two tasks a block pasted on the anchor creates past it, one under the other."""
+
+BEYOND_MONTHS = (12, 200)
+"""Their durations, in months of work, in the order of the block: the second would end the project
+more than fifteen years after its start (WF-PLA-0150)."""
+
+BEYOND_ROW = 2
+"""The row of the block, counted from zero, of the task beyond the horizon: the anchor is row 0."""
+
+BEYOND_CORRELATION = universe(1033)
+
+
+def paste_apply_horizon_exceeded() -> JsonObject:
+    """Return what applyPaste answers to a block whose second task created ends beyond the horizon.
+
+    The two tasks created carry one label and no node: the refusal tells the one beyond the
+    horizon by its row in the block (`row`, `Problem.params`, #3624); nothing is written.
+    """
+    return {
+        "code": "PROJECT_HORIZON_EXCEEDED",
+        "status": 422,
+        "params": {"task": {"node_id": None, "label": BEYOND_LABEL, "row": BEYOND_ROW}},
+        "correlation_id": BEYOND_CORRELATION,
+    }
+
+
 # --- The undo and the redo ---------------------------------------------------------------------
 
 ONE_LEFT = 1
@@ -286,6 +315,17 @@ def examples() -> dict[str, JsonObject]:
             f"{applied['structure_lock_version']} ; la ligne sans libellé est redite refusée, et "
             f"rien n'est créé pour elle (WF-IHM-0050, WF-DEV-0050).",
             applied,
+        ),
+        "paste_apply_horizon_exceeded.json": mocktext.example(
+            f"Un bloc de trois lignes et quatre colonnes — libellé, description, mode, durée — "
+            f"collé sur le libellé du jalon « {last.label} », dernier nœud de la structure du "
+            f"témoin : la première ligne écrit le jalon, les deux suivantes créent deux tâches de "
+            f"même libellé, « {BEYOND_LABEL} », de {BEYOND_MONTHS[0]} puis {BEYOND_MONTHS[1]} "
+            f"mois de travail. La seconde finirait plus de quinze ans après le début du projet : "
+            f"la confirmation est refusée, la tâche nommée sans nœud, par son libellé et par sa "
+            f"ligne dans le bloc, comptée depuis zéro (row), qui la distingue de sa sœur de même "
+            f"libellé ; rien n'est écrit, ni créé (WF-PLA-0150, #3624).",
+            paste_apply_horizon_exceeded(),
         ),
         "undo_task_renamed.json": mocktext.example(
             f"La dernière modification de l'appelant sur la révision annulée, le renommage de la "

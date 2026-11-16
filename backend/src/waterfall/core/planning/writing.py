@@ -49,7 +49,7 @@ from waterfall.core.planning.interface.facets import (
     calendars_of,
     facets,
 )
-from waterfall.core.planning.rescheduling import Blamed, Holding, replayed
+from waterfall.core.planning.rescheduling import Blamed, Holding, Named, replayed
 from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tree import (
     read_inert,
@@ -270,7 +270,7 @@ class Write:
         origin: Origin = None,
         repriced: Collection[UUID] = (),
         entered: tuple[str, ...] = (),
-        among: Mapping[UUID, tuple[UUID | None, str]] | None = None,
+        among: Mapping[UUID, Named] | None = None,
     ) -> Redated:
         """Replay the engine on the structure written, keep what it computes, advance it.
 
@@ -286,10 +286,16 @@ class Write:
         The tree read under the lock is handed to the replay, which brings it to what the write
         made of it rather than read it again (``reshaped``, US-2250); the write holds it after. A
         write of several tasks names ``among`` them, by task, what each is called when the engine
-        finds it beyond the horizon, a task none of them as the tree has it (a successor pushed);
-        without ``among``, ``blamed`` is the name.
+        finds it beyond the horizon — a paste, the row of its block (#3624) —, a task none of them
+        as the tree has it (a successor pushed); ``among`` given, ``blamed`` is none.
         """
-        named = None if blamed is None else Blamed(*blamed, origin, among)
+        named = (
+            Blamed(among, origin)
+            if among is not None
+            else None
+            if blamed is None
+            else Blamed(Named(*blamed), origin)
+        )
         priced = (*repriced, *self.touched)
         held = Holding(self.facts, named, self.conflicts, priced, self.tree)
         try:

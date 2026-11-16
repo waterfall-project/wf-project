@@ -12033,6 +12033,35 @@ clé de catalogue pour un refus que `VALIDATION_FAILED` dit déjà ; laisser le 
 nombre de créations des lignes au-delà de la grille, qu'il ne connaît que par ce qu'il montre ; un
 champ `created` dans `PasteApplied`, que `nodes` dit déjà.
 
+### Le refus d'horizon d'un collage nomme la tâche par sa ligne dans le bloc (US-2260/L4, #3624)
+
+Depuis US-2260/L2 (#2606), le refus `PROJECT_HORIZON_EXCEEDED` d'un collage (`applyPaste`) nomme la
+tâche que le moteur trouve au-delà de l'horizon, par son nœud et son libellé (`params.task`). Une
+tâche que le collage crée n'a pas encore de nœud (`node_id` nul) : deux tâches créées de même
+libellé ne se distinguaient pas. Décision de l'auteur du 2026-11-16 (#3624) : le constat est corrigé
+dans EP-26, par US-2260/L4, qui en fixe la forme le même jour : **le refus d'un collage porte aussi
+la ligne du bloc**.
+
+- **`params.task.row`**, entier ≥ 0, la ligne du bloc collé comptée depuis zéro, comme
+  `PasteRejection.row` la compte : la même ligne que le dialogue du collage nomme déjà pour un refus
+  de ligne, sur laquelle le front n'a donc rien à recompter. C'est la première ligne du bloc qui
+  nomme la tâche : celle qui l'écrit ou la crée, ou celle d'une ligne de devis qu'elle porte.
+- **Absent, jamais nul**, hors d'un collage, et pour une tâche que le collage déplace sans l'écrire
+  — un successeur qu'il pousse, qu'aucune ligne du bloc ne nomme, désigné par son nœud seul :
+  les refus des autres opérations et leurs exemples ne changent pas, et la présence du champ dit
+  à elle seule qu'il s'agit d'une ligne du bloc.
+- **Un exemple** : `paste_apply_horizon_exceeded` (`applyPaste`, 422, `wftools.mockundoable`), deux
+  tâches « Garantie de parfait achèvement » créées au-delà du dernier nœud, la seconde, ligne `2`,
+  au-delà de l'horizon. Le 422 d'`applyPaste`, jusque-là la réponse commune, se décrit et porte cet
+  exemple.
+
+`ProblemParams` ne déclare pas `task` : ce paramètre reste ouvert, décrit par `Problem.params`,
+comme avant ; rien ne change sur le fil hors d'un collage, et `info.version` reste `1.0.0`.
+Écartés : une ligne comptée depuis un, qui aurait donné deux bases à deux champs `row` du même
+dialogue ; `row` nul hors d'un collage, qui l'aurait ajouté à tous les refus d'horizon et à leurs
+exemples pour ne rien dire ; nommer la tâche créée par un identifiant provisoire, qu'aucune lecture
+ne connaît.
+
 ## Organisation des fichiers
 
 **Les schémas sont groupés par famille**, un fichier par famille, et non un fichier par schéma —

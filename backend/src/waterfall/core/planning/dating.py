@@ -96,9 +96,20 @@ class Replay:
     planning_start: date
 
 
-def horizon_exceeded(node_id: UUID | None, label: str) -> UnprocessableError:
-    """Give the refusal of a project that would end beyond fifteen years, the task named."""
-    named = {"node_id": None if node_id is None else str(node_id), "label": label}
+def horizon_exceeded(
+    node_id: UUID | None, label: str, row: int | None = None
+) -> UnprocessableError:
+    """Give the refusal of a project that would end beyond fifteen years, the task named.
+
+    ``row`` the row of the block of a paste that writes the task, absent from the refusal of any
+    other write (``Problem.params``, #3624).
+    """
+    named: dict[str, object] = {
+        "node_id": None if node_id is None else str(node_id),
+        "label": label,
+    }
+    if row is not None:
+        named["row"] = row
     return UnprocessableError(PROJECT_HORIZON_EXCEEDED, {"task": named})
 
 

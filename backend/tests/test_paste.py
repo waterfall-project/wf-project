@@ -21,6 +21,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
+import paste_support
 import pytest
 from history_support import counter, plans, redone, undone
 from nodes_support import (
@@ -29,13 +30,12 @@ from nodes_support import (
     entries,
     instant,
     mark,
-    opened,
     refusal,
     signed_in,
     work_breakdown,
 )
+from paste_support import applied, apply, labels_of, planned, preview
 from planning_support import DAY, node_row
-from projects_support import scene as make_scene
 from sqlalchemy import insert, inspect, update
 from test_inert_writes import Statement, listened, trees_read, unkept
 
@@ -68,86 +68,17 @@ from waterfall.platform.errors import UnprocessableError
 if TYPE_CHECKING:
     from projects_support import Person, Scene
     from realm import TestRealm
-    from sqlalchemy import Engine
-    from support import ContractClient
 
-    from waterfall.platform.database import Database
 
 MILESTONE = {"duration": {"value": "0", "unit": "d"}}
 
 
-@pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
-    """Give a platform, its sessions, and the project its manager made."""
-    return make_scene(api, owner, database, realm)
-
-
-@pytest.fixture
-def tree(api: ContractClient, stage: Scene) -> Tree:
-    """Give the main structure of the revision the manager opened on the project of the stage."""
-    return Tree(api, stage, opened(api, stage))
-
-
-@pytest.fixture
-def who(stage: Scene, realm: TestRealm) -> Person:
-    """Give a contributor of the project whose token carries a session of sign-in."""
-    return signed_in(stage, realm)
-
-
-def preview(
-    tree: Tree,
-    target: dict[str, Any],
-    column: str,
-    rows: list[list[str]],
-    who: Person | None = None,
-) -> Any:
-    """Preview a block pasted on a cell of a task; give the answer."""
-    sent = {"target_node_id": target["node_id"], "target_column": column, "rows": rows}
-    headers = (who or tree.stage.manager).headers
-    return tree.api.post(f"{tree.path}/nodes/paste-preview", headers=headers, json=sent)
-
-
-def planned(
-    tree: Tree,
-    target: dict[str, Any],
-    column: str,
-    rows: list[list[str]],
-    who: Person | None = None,
-) -> dict[str, Any]:
-    """Preview a block that must be previewed; give the plan."""
-    answer = preview(tree, target, column, rows, who)
-    assert answer.status_code == 200, answer.text
-    return answer.json()
-
-
-def apply(
-    tree: Tree, plan: dict[str, Any], who: Person | None = None, lock_version: int | None = None
-) -> Any:
-    """Confirm a plan at the counter of the structure unless one is sent; give the answer."""
-    sent = {
-        "paste_id": plan["paste_id"],
-        "confirmed": True,
-        "lock_version": counter(tree) if lock_version is None else lock_version,
-    }
-    headers = (who or tree.stage.manager).headers
-    return tree.api.post(f"{tree.path}/nodes/paste", headers=headers, json=sent)
-
-
-def applied(tree: Tree, plan: dict[str, Any], who: Person | None = None) -> dict[str, Any]:
-    """Confirm a plan that must be confirmed; give what is answered."""
-    answer = apply(tree, plan, who)
-    assert answer.status_code == 200, answer.text
-    return answer.json()
+stage, tree, who = paste_support.stage, paste_support.tree, paste_support.who
 
 
 def reasons(plan: dict[str, Any]) -> list[tuple[int, str | None, str]]:
     """Give the refusals of a plan: the row, the column if there is one, the code."""
     return [(each["row"], each.get("column"), each["code"]) for each in plan["rejected"]]
-
-
-def labels_of(tree: Tree) -> list[str]:
-    """Read the labels of the tasks, in the order of the plan."""
-    return tree.labels()
 
 
 # --- The two steps of a paste -------------------------------------------------------------------

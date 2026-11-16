@@ -3,42 +3,23 @@
 """The paste of a block beyond the horizon of fifteen years (WF-PLA-0150-A, #2606).
 
 The refusal names the task the engine finds beyond the horizon: a row the paste creates, a row it
-writes that is not the first, or a successor linked that it pushes, none of its rows.
+writes that is not the first, or a successor linked that it pushes, none of its rows. A task of the
+paste is named with its row in the block, counted from zero, so that two tasks created with one
+label are told apart (#3624); a successor pushed, none of its rows, without one.
 """
 
 from typing import TYPE_CHECKING
 
+import paste_support
 import pytest
 from history_support import counter
-from nodes_support import Tree, opened, refusal, signed_in
-from projects_support import scene as make_scene
-from test_paste import apply, labels_of, planned
+from nodes_support import Tree, refusal
+from paste_support import apply, labels_of, planned
 
 if TYPE_CHECKING:
-    from projects_support import Person, Scene
-    from realm import TestRealm
-    from sqlalchemy import Engine
-    from support import ContractClient
+    from projects_support import Person
 
-    from waterfall.platform.database import Database
-
-
-@pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
-    """Give a platform, its sessions, and the project its manager made."""
-    return make_scene(api, owner, database, realm)
-
-
-@pytest.fixture
-def tree(api: ContractClient, stage: Scene) -> Tree:
-    """Give the main structure of the revision the manager opened on the project of the stage."""
-    return Tree(api, stage, opened(api, stage))
-
-
-@pytest.fixture
-def who(stage: Scene, realm: TestRealm) -> Person:
-    """Give a contributor of the project whose token carries a session of sign-in."""
-    return signed_in(stage, realm)
+stage, tree, who = paste_support.stage, paste_support.tree, paste_support.who
 
 
 @pytest.mark.requirement("WF-PLA-0150-A")
@@ -57,7 +38,7 @@ def test_a_paste_that_creates_a_task_beyond_the_horizon_names_the_row_that_creat
     assert refusal(answer) == (
         422,
         "PROJECT_HORIZON_EXCEEDED",
-        {"task": {"node_id": None, "label": "Interminable"}},
+        {"task": {"node_id": None, "label": "Interminable", "row": 2}},
     )
     assert labels_of(tree) == ["Étude"]
     assert counter(tree) == before
@@ -76,7 +57,7 @@ def test_a_paste_beyond_the_horizon_names_the_existing_row_that_carries_it_not_t
     assert refusal(answer) == (
         422,
         "PROJECT_HORIZON_EXCEEDED",
-        {"task": {"node_id": second["node_id"], "label": "Seconde"}},
+        {"task": {"node_id": second["node_id"], "label": "Seconde", "row": 1}},
     )
     assert tree.node(second["node_id"])["lock_version"] == 1
 
@@ -110,4 +91,26 @@ def test_a_paste_that_pushes_a_linked_successor_beyond_the_horizon_names_that_su
         "PROJECT_HORIZON_EXCEEDED",
         {"task": {"node_id": after["node_id"], "label": "Aval"}},
     )
+    assert counter(tree) == before
+
+
+@pytest.mark.requirement("WF-PLA-0150-A")
+def test_two_tasks_created_with_one_label_are_told_apart_by_their_row_in_the_refusal(
+    tree: Tree, who: Person
+) -> None:
+    # #3624 : « Le déplacement d'une tâche qui porterait la fin du projet à quinze ans et un jour
+    # de son début est refusé, et la tâche est nommée. » Deux lignes créées portent le même
+    # libellé, leur nœud nul : le refus nomme celle qui dépasse par son rang dans le bloc.
+    task = tree.made("Étude", who=who)
+    before = counter(tree)
+    block = [["Étude"], ["Essai", "", "", "9000"], ["Essai", "", "", "2"]]
+    plan = planned(tree, task, "label", block, who)
+    assert (plan["accepted"], plan["created"], plan["rejected"]) == (3, 2, [])
+    answer = apply(tree, plan, who)
+    assert refusal(answer) == (
+        422,
+        "PROJECT_HORIZON_EXCEEDED",
+        {"task": {"node_id": None, "label": "Essai", "row": 1}},
+    )
+    assert labels_of(tree) == ["Étude"]
     assert counter(tree) == before
