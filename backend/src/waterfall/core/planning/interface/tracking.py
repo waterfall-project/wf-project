@@ -28,7 +28,7 @@ read as rows but the task written (``read_inert``, US-2250/L2).
 """
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
@@ -52,6 +52,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.planning.tree import InertTree
     from waterfall.platform.audit import Act
 
 VALUE_REQUIRED = "VALUE_REQUIRED"
@@ -186,11 +187,11 @@ def set_node_tracking(
     """
     with writing(session, place, writer, ("tracking", (node_id,)), (node_id,)) as write:
         # Its structure read as rows, the task written alone as objects (US-2250/L2).
-        held = write.inert
-        tree = write.tree if held is None else held.tree
+        held = cast("InertTree", write.inert)  # a write that names its node reads it so
+        tree = held.tree
         if node_id not in tree.tasks:
             raise NotFoundError(NOT_FOUND)
-        node = (write.tree.nodes if held is None else held.nodes)[node_id]
+        node = held.nodes[node_id]
         if node.lock_version != change.lock_version:
             raise PreconditionFailedError(
                 STALE_LOCK_VERSION, {"expected_lock_version": node.lock_version}

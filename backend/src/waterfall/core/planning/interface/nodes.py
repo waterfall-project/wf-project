@@ -585,18 +585,18 @@ def update_task_facet(
 def _cell[N: NodeColumns, T: TaskColumns](
     write: Write,
     ground: Ground[N, T],
-    written: tuple[Mapping[UUID, Node], Mapping[UUID, Task]],
+    objects: tuple[Mapping[UUID, Node], Mapping[UUID, Task]],
     node_id: UUID,
     entry: TaskEntry,
 ) -> NodesWritten:
-    """Write the cell of a task on the ground its write holds, through the objects ``written``.
+    """Write the cell of a task on the ground its write holds, through the ``objects``.
 
     The objects of the session of the node and of its task, which the ground holds too — whole, or
     those of a write whose fields are all inert, the others rows (``updateTaskFacet``).
     """
     if node_id not in ground.tree.tasks:
         raise NotFoundError(NOT_FOUND)
-    nodes, tasks = written
+    nodes, tasks = objects
     node, task = nodes[node_id], tasks[node_id]
     if node.lock_version != entry.lock_version:
         raise PreconditionFailedError(

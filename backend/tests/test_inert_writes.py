@@ -370,6 +370,9 @@ def listened() -> Generator[list[Statement]]:
 
     Those of a route and of the worker too, which open their own: the guard of ``reshaped`` holds
     on the paste, the import of an estimate and the skeleton as on the writes here (#3563).
+    The flush flag is one for all the sessions: a statement sent by a session while another
+    flushes, in the same thread of the test or not, would be told flushed. The writes here open
+    one session at a time, and a route or a worker that runs alone.
     """
     sent: list[Statement] = []
     flushing = [False]
