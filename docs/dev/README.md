@@ -908,8 +908,13 @@ the account of the run (`e2e/indicator-answers.ts`), the operations the screen r
 revision in progress, the marked revision 101, a subproject, "out of any subproject", a date
 `as_of`, the payment delays — and compares each figure of the cards (amounts, shares, indices,
 zones, projections), the points of the tables of the evolution of the indices, of the cumulated
-costs, of the earned value and of the time/time diagram to the answer, written by
-`src/i18n/format.ts` without a sum or a rounding of the path. The offer 100 and a date before any
+costs and of the earned value to the answer, in each of those readings — the revision in progress
+(whole project, subproject, out of any subproject), the revision 101, the date `as_of` (the
+evolution of the indices is the project's whatever the date), the payment delays, whose cash-out by
+month must exist — and the points of the time/time diagram, of the whole project whatever the
+scope; each comparison first requires the answer to hold a point, so that an empty table against an
+empty answer never passes. The figures are written by `src/i18n/format.ts` without a sum or a
+rounding of the path. The offer 100 and a date before any
 marking, refused with 409, are said; the three PNG exports name the project. The fake back serves
 one example whatever the address: these paths do not play there (`inService`).
 

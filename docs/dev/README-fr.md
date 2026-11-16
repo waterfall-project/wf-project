@@ -898,8 +898,13 @@ l'écran à ce que l'API répond pour PRJ-001 : le parcours lit par l'API, sous 
 course (`e2e/indicator-answers.ts`), les opérations que l'écran lit — pour la révision en cours, la
 révision 101 marquée, un sous-projet, « hors sous-projet », une date `as_of`, les délais de paiement —
 et compare chaque chiffre des cartes (montants, parts, indices, zones, projections), les points des
-tableaux de l'évolution des indices, des coûts cumulés, de la valeur acquise et du temps/temps à la
-réponse, écrite par `src/i18n/format.ts` sans somme ni arrondi du parcours. L'offre 100 et une date
+tableaux de l'évolution des indices, des coûts cumulés et de la valeur acquise à la réponse, dans
+chacune de ces lectures — la révision en cours (projet entier, sous-projet, hors sous-projet), la
+révision 101, la date `as_of` (l'évolution des indices est celle du projet, quelle que soit la date),
+les délais de paiement, dont les décaissements par mois doivent exister — et ceux du temps/temps, du
+projet entier quel que soit le périmètre ; chaque comparaison exige d'abord que la réponse porte au
+moins un point, pour qu'un tableau vide face à une réponse vide ne passe jamais. Les chiffres sont
+écrits par `src/i18n/format.ts` sans somme ni arrondi du parcours. L'offre 100 et une date
 avant tout marquage, refusées 409, sont dites ; les trois exports PNG nomment le projet. Le faux
 back sert un exemple quelle que soit l'adresse : ces parcours n'y jouent pas (`inService`).
 
