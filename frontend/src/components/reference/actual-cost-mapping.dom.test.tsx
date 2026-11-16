@@ -390,6 +390,24 @@ describe("the correspondence of the extraction of the actual costs, written", ()
     expect(document.querySelector("[aria-invalid]")).toBeNull();
   });
 
+  it("says under the list of the labels of the column the server designates the refusal of the list itself, as the contract gives it (#2267, #3270) [WF-REF-0190-A]", async () => {
+    serve({
+      [SET]: {
+        problem: example("actual_cost_mapping_labels_too_many") as Problem & { status: 422 },
+      },
+    });
+    shown(witness, true);
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer la correspondance" }));
+    await screen.findByRole("alert");
+    // The pointer is /columns/0/labels: the list of the first column read says it, and it alone.
+    const said = screen.getAllByText(/La liste des intitulés de « .+ » est trop longue/);
+    expect(said).toHaveLength(1);
+    expect(said[0]).toHaveTextContent("20 intitulés au plus.");
+    expect(said[0]?.closest("fieldset")).toBe(document.querySelector("form fieldset"));
+    expect(document.querySelector("[aria-invalid]")).toBeNull();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
   it("tells the version stale under the form, and offers to read the page anew [WF-IHM-0110, WF-REF-0190-A]", async () => {
     serve({
       [SET]: { problem: example("actual_cost_mapping_stale") as Problem & { status: 412 } },

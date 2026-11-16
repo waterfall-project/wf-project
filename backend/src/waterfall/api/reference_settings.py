@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The settings the installation shares (FBS-3.1, FBS-3.3, FBS-3.4).
+"""The settings the installation shares (FBS-1.6, FBS-3.1, FBS-3.3, FBS-3.4).
 
 ``getReferenceSettings`` and ``updateReferenceSettings``. The settings are read by any session:
 the currency goes with every amount, the bounds, the thresholds and the delay qualify what every

@@ -7,11 +7,11 @@
  * that session may write: the risk matrix, its six bounds and its sixteen zones (FBS-3.3,
  * WF-REF-0160), under `risk_settings.write`; the thresholds of the indices and the delay between
  * two reviews (FBS-3.4, WF-REF-0170, WF-REF-0180), under `indicator_settings.write`; the name of
- * the company, which the exported files bear (WF-EXP-0020), under `cost_settings.write`, beside the
- * currency. Each form sends the part of its screen alone with the version read
- * (`updateReferenceSettings`), never a field of the other screen; neither the currency, which is
- * not modified (WF-REF-0140), nor the default language of the installation, which is EP-03's, is
- * offered.
+ * the company, which the exported files bear (WF-EXP-0020), in the card of the installation
+ * (FBS-1.6), under `installation.write` (WF-ADM-0100-A). Each form sends the part of its screen
+ * alone with the version read (`updateReferenceSettings`), never a field of the other screen;
+ * neither the currency, which is not modified (WF-REF-0140), nor the default language of the
+ * installation, nor its time zone, which the bootstrap fixes, is offered.
  *
  * The form checks before asking that the bounds of each axis rise strictly and that the alert
  * threshold of each index stays below its watch threshold (judged only between two thresholds
@@ -27,7 +27,7 @@
  */
 "use client";
 
-import { Pencil, Timer, type LucideIcon } from "lucide-react";
+import { Building2, Pencil, Timer, type LucideIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { type ComponentType, type ReactNode, useId, useRef, useState } from "react";
 
@@ -41,6 +41,8 @@ import { Button } from "@/components/ui/button";
 import { compareDecimals, editableDecimal, editablePercent, percentRatio } from "@/i18n/format";
 
 import { Reactivations } from "./reactivation";
+import { InstallationFacts } from "./installation-facts";
+import { SettingsHeader, type SettingsScreen } from "./settings-header";
 import { type Draft, type FormField, ReferenceForm, required } from "./reference-form";
 import {
   DurationUnitFigures,
@@ -53,6 +55,7 @@ import {
 } from "./setting-tables";
 
 type ReferenceSettings = components["schemas"]["ReferenceSettings"];
+type Installation = components["schemas"]["Installation"];
 type DurationUnits = components["schemas"]["DurationUnits"];
 type AlertZone = components["schemas"]["AlertZone"];
 type FieldProblem = components["schemas"]["FieldProblem"];
@@ -391,7 +394,7 @@ function SettingsWriter<Settings extends Versioned>({
   command,
   saved,
   form: Form,
-  card,
+  place,
   children,
 }: {
   readonly settings: Settings;
@@ -399,10 +402,14 @@ function SettingsWriter<Settings extends Versioned>({
   readonly saved: string;
   readonly form: ComponentType<SettingsFormProps<Settings>>;
   /**
-   * The card the settings stand in, its command at the right of its title, outlined — it modifies
-   * (`SectionCard`); none for settings that stand bare, the command above them.
+   * Where the settings stand, one place or the other: in a card, its command at the right of its
+   * title, outlined — it modifies (`SectionCard`); or the screen itself, its header, whose command
+   * stands at the right of the title of the function, outlined (`SettingsHeader`); none for
+   * settings that stand bare, the command above them.
    */
-  readonly card?: { readonly title: string; readonly icon: LucideIcon };
+  readonly place?:
+    | { readonly kind: "card"; readonly title: string; readonly icon: LucideIcon }
+    | { readonly kind: "screen"; readonly screen: SettingsScreen };
   readonly children: (shown: Settings) => ReactNode;
 }) {
   const [answered, setAnswered] = useState<Settings>();
@@ -453,13 +460,14 @@ function SettingsWriter<Settings extends Versioned>({
   );
   const body = (
     <>
-      {card === undefined ? (
+      {place === undefined ? (
         <div className="flex flex-wrap items-start gap-2">
           {modify("outline")}
           {note}
         </div>
       ) : (
-        // In its card the command is in the header: the note stands alone, and takes no room
+        // In its card, or in the header of its screen, the command is in the header: the note
+        // stands alone, and takes no room
         // (no empty row, no gap above the figures) until it has something to say.
         note
       )}
@@ -488,12 +496,20 @@ function SettingsWriter<Settings extends Versioned>({
     </>
   );
   const refusals = <Reactivations reads={[]}>{body}</Reactivations>;
-  return card === undefined ? (
+  if (place?.kind === "screen") {
+    return (
+      <>
+        <SettingsHeader screen={place.screen} actions={modify("outline")} />
+        {refusals}
+      </>
+    );
+  }
+  return place === undefined ? (
     refusals
   ) : (
     <SectionCard
-      title={card.title}
-      icon={card.icon}
+      title={place.title}
+      icon={place.icon}
       principal={{ does: "modify", command: modify }}
     >
       <div className="flex min-w-0 flex-col gap-2">{refusals}</div>
@@ -505,7 +521,13 @@ function SettingsWriter<Settings extends Versioned>({
 export function RiskSettings({ settings }: { readonly settings: ReferenceSettings }) {
   const t = useTranslations("reference.riskForm");
   return (
-    <SettingsWriter settings={settings} command={t("modify")} saved={t("saved")} form={RiskForm}>
+    <SettingsWriter
+      settings={settings}
+      command={t("modify")}
+      saved={t("saved")}
+      form={RiskForm}
+      place={{ kind: "screen", screen: "risk_settings" }}
+    >
       {(shown) => (
         <>
           <RiskBoundsTable matrix={shown.risk_matrix} />
@@ -528,6 +550,7 @@ export function IndicatorSettings({ settings }: { readonly settings: ReferenceSe
       command={t("modify")}
       saved={t("saved")}
       form={IndicatorForm}
+      place={{ kind: "screen", screen: "indicator_settings" }}
     >
       {(shown) => (
         <>
@@ -552,7 +575,7 @@ export function DurationUnitSettings({ units }: { readonly units: DurationUnits 
       command={t("modify")}
       saved={t("saved")}
       form={DurationUnitsForm}
-      card={{ title, icon: Timer }}
+      place={{ kind: "card", title, icon: Timer }}
     >
       {(shown) => <DurationUnitFigures units={shown} />}
     </SettingsWriter>
@@ -560,25 +583,53 @@ export function DurationUnitSettings({ units }: { readonly units: DurationUnits 
 }
 
 /**
- * The name of the company beside the currency, and its form, for a session that may modify the cost
- * settings (WF-EXP-0020).
+ * The card of the installation, for a session that may modify it: the name of the company, with its
+ * command, and what the bootstrap fixed (WF-EXP-0020, WF-ADM-0100-A).
  */
-export function CompanySettings({ settings }: { readonly settings: ReferenceSettings }) {
+export function InstallationSettings({
+  settings,
+  installation,
+}: {
+  readonly settings: ReferenceSettings;
+  readonly installation: Installation;
+}) {
   const t = useTranslations("reference.companyForm");
+  const title = useTranslations("installation")("title");
   return (
-    <SettingsWriter settings={settings} command={t("modify")} saved={t("saved")} form={CompanyForm}>
-      {(shown) => <CompanyName name={shown.company_name} />}
+    <SettingsWriter
+      settings={settings}
+      command={t("modify")}
+      saved={t("saved")}
+      form={CompanyForm}
+      place={{ kind: "card", title, icon: Building2 }}
+    >
+      {(shown) => (
+        <InstallationFacts
+          name={shown.company_name}
+          currency={shown.currency_code}
+          installation={installation}
+        />
+      )}
     </SettingsWriter>
   );
 }
 
-/** The name of the company, read: what a session that may not modify it sees. */
-export function CompanyName({ name }: { readonly name: string }) {
-  const t = useTranslations("reference.companyForm");
+/** The card of the installation, read: what a session that may not modify it sees. */
+export function InstallationCard({
+  settings,
+  installation,
+}: {
+  readonly settings: ReferenceSettings;
+  readonly installation: Installation;
+}) {
+  const title = useTranslations("installation")("title");
   return (
-    <dl className="text-sm">
-      <dt className="inline text-muted-foreground">{t("name")}</dt>{" "}
-      <dd className="inline font-semibold">{name}</dd>
-    </dl>
+    <SectionCard title={title} icon={Building2}>
+      <InstallationFacts
+        name={settings.company_name}
+        currency={settings.currency_code}
+        installation={installation}
+      />
+    </SectionCard>
   );
 }

@@ -5,8 +5,11 @@
  * written once, and is both the text of the item and the name its tooltip shows; the keys once, as
  * `aria-keyshortcuts` names them, set on the item, shown at its end and in its tooltip. The item is
  * that of a context menu or of a drop-down menu (`item`), each of shadcn/ui; a command that leads
- * elsewhere is a link the item renders (`href`), and one that says under its name the condition it
- * lacks carries it (`detail`, US-0670/L5, #1435).
+ * elsewhere is a link the item renders (`href`). An item unavailable follows the rule of `Command`
+ * (WF-IHM-0090, #3430): the condition it lacks (`unavailable`) is read in its tooltip, which opens on
+ * the pointer as on the focus of the keyboard, and described to a screen reader; it is not written
+ * under its name. Pressed, it runs nothing, and the screen that holds the menu tells what it lacks
+ * in its region of the refusals, from its `onSelect`.
  */
 "use client";
 
@@ -51,12 +54,8 @@ export type MenuCommandProps = MenuCommandAction & {
   readonly keys?: string | undefined;
   /** The condition it lacks, unavailable (`CommandTooltip`). */
   readonly unavailable?: string | undefined;
-  /** What describes it besides its tooltip: the condition said in the menu (`CommandTooltip`). */
-  readonly describedBy?: string | undefined;
   /** The icon before its name, drawn already. */
   readonly icon?: ReactNode;
-  /** What the item says under its name — the condition it lacks, said in the menu. */
-  readonly detail?: ReactNode;
   /** The side its tooltip opens on: right of the item by default. */
   readonly side?: "top" | "right" | "bottom" | "left";
   readonly className?: string;
@@ -69,9 +68,7 @@ export function MenuCommand({
   help,
   keys,
   unavailable,
-  describedBy,
   icon,
-  detail,
   side,
   className,
   onSelect,
@@ -80,14 +77,7 @@ export function MenuCommand({
   const content = (
     <>
       {icon}
-      {detail === undefined ? (
-        label
-      ) : (
-        <span>
-          {label}
-          {detail}
-        </span>
-      )}
+      {label}
       <Keys keys={keys} className={MENU_KEYS_CLASS} />
     </>
   );
@@ -98,7 +88,6 @@ export function MenuCommand({
       help={help}
       keys={keys}
       unavailable={unavailable}
-      describedBy={describedBy}
       inMenu
       {...(side === undefined ? {} : { side })}
     >

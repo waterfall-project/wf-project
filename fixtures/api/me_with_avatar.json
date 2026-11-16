@@ -45,6 +45,8 @@
       "backups.read",
       "backups.write",
       "audit_log.read",
+      "installation.read",
+      "installation.write",
       "portfolio_projects.read",
       "portfolio_workload.read",
       "portfolio_performance.read",

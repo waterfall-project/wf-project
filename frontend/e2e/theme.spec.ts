@@ -210,17 +210,23 @@ test.describe("the two families of screens, in a window of 2560 points", () => {
     await page.goto("/");
     await untilHydrated(page);
     const nav = page.getByRole("navigation", { name: "Fonctions" });
-    // The skeleton shows at the click only once the router has prefetched it, with the link.
-    const prefetched = page.waitForResponse(
-      (response) =>
+    // The skeleton shows at the click only once the router has prefetched it, with the link. The
+    // router asks first for the tree of the routes (`next-router-segment-prefetch: /_tree`), which
+    // answers well before the segment that holds the skeleton: that one is the prefetch awaited.
+    const prefetched = page.waitForResponse((response) => {
+      const headers = response.request().headers();
+      return (
         new URL(response.url()).pathname === "/reference/costs" &&
-        response.request().headers()["next-router-prefetch"] === "1",
-    );
+        headers["next-router-prefetch"] === "1" &&
+        headers["next-router-segment-prefetch"] === undefined
+      );
+    });
     await setExpanded(
       nav.getByRole("button", { name: "Paramètres applicatifs", exact: true }),
       true,
     );
     await prefetched;
+    await page.waitForLoadState("networkidle");
     const held = await holdRoute(page, "**/reference/costs?**", async (route, released) => {
       const headers = route.request().headers();
       if (headers.rsc === "1" && headers["next-router-prefetch"] !== "1") {

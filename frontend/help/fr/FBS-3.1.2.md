@@ -18,7 +18,7 @@ Ces commandes ne sont offertes qu’à qui peut modifier les paramètres de coû
 
 Au-dessus de la grille, pour tous :
 
-- un filtre d’état des catégories, quand les désactivées sont affichées ; elles se réactivent dans la liste des [catégories](FBS-3.1.1.md) ;
+- le filtre **État** de sa barre — **Actifs** (par défaut), **Désactivés**, **Tous les états** —, qui porte sur les catégories et qu’offre le droit de modifier les paramètres de coûts ; les catégories désactivées se réactivent dans la liste des [catégories](FBS-3.1.1.md) ;
 - **Bornes de « Grille des taux horaires »** : l’**Année du taux**, la dernière par défaut, et les bornes du **Taux horaire** de cette année. Une borne supérieure sous la borne inférieure est refusée à son champ, et la grille n’est pas lue ;
 - le champ de recherche retient les catégories dont le code ou le libellé contient le texte saisi ;
 - **Colonnes**, **Lignes par page**, **Précédent** et **Suivant**.

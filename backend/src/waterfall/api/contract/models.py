@@ -910,6 +910,8 @@ class PermissionCode(StrEnum):
     backups_read = "backups.read"
     backups_write = "backups.write"
     audit_log_read = "audit_log.read"
+    installation_read = "installation.read"
+    installation_write = "installation.write"
     portfolio_projects_read = "portfolio_projects.read"
     portfolio_workload_read = "portfolio_workload.read"
     portfolio_performance_read = "portfolio_performance.read"
@@ -1923,7 +1925,7 @@ class ReferenceSettingsWrite(ContractModel):
     company_name: Annotated[
         str | None,
         Field(
-            description="The name of the user company (WF-EXP-0020), under `cost_settings.write`, next to the currency. It can be neither empty nor blank; when absent, it stays as it is. An empty name is refused with 422 `VALIDATION_FAILED`, `fields` designating `/company_name` with `VALUE_REQUIRED`, and a name of more than 200 characters with `VALUE_TOO_LONG`; a name made only of blanks, like any label, with the field code `VALIDATION_FAILED` at the same pointer.",
+            description="The name of the user company (WF-EXP-0020), under `installation.write`, the function of the installation (FBS-1.6). It can be neither empty nor blank; when absent, it stays as it is. An empty name is refused with 422 `VALIDATION_FAILED`, `fields` designating `/company_name` with `VALUE_REQUIRED`, and a name of more than 200 characters with `VALUE_TOO_LONG`; a name made only of blanks, like any label, with the field code `VALIDATION_FAILED` at the same pointer.",
             max_length=200,
             min_length=1,
             pattern="\\S",

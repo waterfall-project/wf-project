@@ -9,11 +9,11 @@ Les paramètres de ressources de l’installation, hors de tout projet. Trois pa
 - les [calendriers](FBS-3.2.3.md) : les heures travaillées de chaque jour de la semaine, dont un par défaut ;
 - les **Unités de durée** : les heures par jour, les heures par semaine et les jours par mois, par lesquels une durée saisie en jours, en semaines ou en mois se convertit en heures.
 
-Chaque table est cherchée et filtrée par le serveur, et tient sa propre hauteur ; les rôles et les calendriers sont aussi triés et paginés par lui. Les listes ne montrent que les objets actifs, à moins de demander aussi les désactivés : rien ne se supprime dans le référentiel, un objet se désactive et peut être réactivé. Chaque objet nomme ceux auxquels il est rattaché, actifs ou non. Le service garde ce qui s’écrit. Désactiver un nœud désactive aussi ses descendants et les rôles rattachés à lui ou à l’un d’eux, que la liste relue montre ; la réactivation d’un nœud ou d’un rôle ne rend actif que cet objet, et elle est refusée tant que son nœud, ou le parent du nœud, est désactivé.
+Chaque table est cherchée et filtrée par le serveur, et tient sa propre hauteur ; les rôles et les calendriers sont aussi triés et paginés par lui. Les listes ne montrent que les objets actifs par défaut ; le filtre « État » montre aussi les désactivés : rien ne se supprime dans le référentiel, un objet se désactive et peut être réactivé. Chaque objet nomme ceux auxquels il est rattaché, actifs ou non. Le service garde ce qui s’écrit. Désactiver un nœud désactive aussi ses descendants et les rôles rattachés à lui ou à l’un d’eux, que la liste relue montre ; la réactivation d’un nœud ou d’un rôle ne rend actif que cet objet, et elle est refusée tant que son nœud, ou le parent du nœud, est désactivé.
 
 ## Ses commandes
 
-En tête de l’écran, **Afficher aussi les désactivés** ajoute aux trois tables les objets désactivés, et leur ajoute un filtre d’état ; **Masquer les désactivés** y revient. Offerte à qui peut modifier les paramètres de ressources : le contrat réserve les objets désactivés à cette permission, et l’écran ne les demande pas à qui peut seulement les lire.
+Dans la barre de chacune des trois tables, le filtre **État** choisit les objets montrés : **Actifs** (par défaut, dit par la pastille « Actifs (par défaut) »), **Désactivés** ou **Tous les états**. Offert à qui peut modifier les paramètres de ressources : le contrat réserve les objets désactivés à cette permission, et l’écran ne les demande pas à qui peut seulement les lire.
 
 Les commandes qui écrivent ne sont offertes qu’à qui peut modifier les paramètres de ressources ; aux autres, l’écran se lit :
 

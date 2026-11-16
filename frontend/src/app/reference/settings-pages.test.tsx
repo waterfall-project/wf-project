@@ -116,7 +116,9 @@ describe("the forms of the settings of the risks and of the indicators", () => {
     for (const page of [risks, indicators]) {
       expect(page).not.toMatch(MOCKUP);
     }
-    // The settings are shown all the same.
+    // The settings are shown all the same, under the header the page renders itself.
+    expect(risks).toContain("Paramètres de risques");
+    expect(indicators).toContain("Paramètres d’indicateurs");
     expect(risks).toContain('aria-label="Zones de la matrice de risques"');
     expect(indicators).toContain("8 semaines");
   });
