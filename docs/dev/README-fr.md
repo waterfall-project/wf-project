@@ -2985,9 +2985,10 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   que le témoin décrit et les factures de ses tâches tirées terminées — et le journal de leurs
   imports (`wftools.mockcosts`) ; et les vues du portefeuille dans le temps — plan de charge
   agrégé, courbe en S et sa variante au 31 décembre 2025, santé du pilotage —, qui somment le témoin
-  à ses propres lectures et les autres projets par des formules simples (`wftools.mockportfoliotime`) ; et le journal d'audit de
-  l'installation, tiré de la chronologie du témoin et des exemples qui datent ses comptes, ses rôles
-  et ses sauvegardes (`wftools.mockaudit`, tenu par `tools/tests/test_mockaudit.py`) ; et les
+  à ses propres lectures et les autres projets par des formules simples
+  (`wftools.mockportfoliotime`) ; et le journal d'audit de l'installation, tiré de la chronologie du
+  témoin et des exemples qui datent ses comptes, ses rôles et ses sauvegardes (`wftools.mockaudit`,
+  tenu par `tools/tests/test_mockaudit.py`) ; et les
   lectures des listes écrites à la main — les projets de l'accueil, les sous-projets et les
   contributeurs du témoin, les comptes et les rôles d'habilitation, les sauvegardes — et du
   lotissement du témoin, triées, cherchées et filtrées comme leurs écrans les demandent, avec la

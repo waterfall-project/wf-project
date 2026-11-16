@@ -168,11 +168,11 @@
       amount of a line is spread over the duration of its task in proportion to the hours worked
       (WF-DEV-0040). The amount of a line that is spread is, inflation included, at its consumption
       year (WF-DEV-0020), its budgeted amount on the reference budget and, on a basis of remaining
-      to commit, its remaining to commit (WF-RAE-0010), nothing for a line of a task completed;
-      the latter is spread over only the part of the duration of its task after the calculation date, and
-      carried to the month of that date when the finish of the task has passed (WF-IND-0100): no
-      month precedes that of the calculation date, and the total equals the remaining to commit
-      of the project without its provisions (WF-RAE-0010). On request (`payment_delays`), each
+      to commit, its remaining to commit (WF-RAE-0010), nothing for a line of a task completed.
+      The remaining to commit is spread over only the part of the duration of its task after the
+      calculation date, and carried to the month of that date when the finish of the task has
+      passed (WF-IND-0100): no month precedes that of the calculation date, and the total equals
+      the remaining to commit of the project without its provisions (WF-RAE-0010). On request (`payment_delays`), each
       amount is shifted by the payment delay of its line: the projection then presents the
       cash-out. Restricted to a subproject, or to what falls under none (`subproject_id`), the
       lines of that scope alone (WF-IND-0020). Computed when read, on a marked revision too, from

@@ -10,7 +10,7 @@ the months they load (#3096), the tasks are in the order of their start, then of
 import json
 from dataclasses import replace
 from datetime import date
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 import pytest
@@ -170,3 +170,22 @@ def test_the_parts_of_a_line_are_never_negative_and_sum_to_its_total() -> None:
     assert found == {"2026-06": Decimal("0.01")}
     assert all(part > 0 for part in found.values())
     assert sum(found.values(), Decimal(0)) == Decimal("0.011").quantize(Decimal("0.01"))
+
+
+def _at_once(amount: str) -> Flow:
+    day = Instant(date(2026, 6, 3), Decimal(8))
+    return Flow(Decimal(amount), WEEK, day, day)
+
+
+def test_the_hours_round_an_exact_half_to_the_even_hundredth() -> None:
+    # Hours: half to the nearest even, as the workload of the core (`workloading.rounded`).
+    assert mockcurves.parts(_at_once("0.005")) == {}
+    assert mockcurves.parts(_at_once("0.015")) == {"2026-06": Decimal("0.02")}
+    assert mockcurves.parts(_at_once("0.025")) == {"2026-06": Decimal("0.02")}
+
+
+def test_the_amounts_round_an_exact_half_away_from_zero() -> None:
+    # Amounts: half away from zero, as the pricing of the core (`pricing.amounts`).
+    for amount, cents in (("0.005", "0.01"), ("0.015", "0.02"), ("0.025", "0.03")):
+        parts = mockcurves.parts(_at_once(amount), rounding=ROUND_HALF_UP)
+        assert parts == {"2026-06": Decimal(cents)}

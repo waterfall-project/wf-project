@@ -11930,13 +11930,15 @@ dépenses ») :
   montre, le monteur câbleur chargé sur 8 des 39 mois du plan. Écarté : tous les mois de l'horizon, à
   zéro.
 - **Les parts d'une ligne s'arrondissent de façon que leur somme soit son total** : chaque part est
-  la différence de deux arrondis — au centième d'heure, ou au centime (`Money` ; la moitié
-  s'éloigne de zéro pour un montant) — du cumul de la ligne à la fin de son mois et à la fin du mois
+  la différence de deux arrondis du cumul de la ligne à la fin de son mois et à la fin du mois
   d'avant, le cumul du dernier mois étant la ligne entière : une part n'est jamais négative, et la
-  somme des parts est le total de la ligne arrondi (règle que le service d'US-2040/L2 écrit à
-  l'identique) ; tout total — d'un mois, d'une tâche, d'un rôle, d'une catégorie, d'une nature, de la
-  projection — est la somme de parts déjà arrondies, ce qui tient au centième les égalités des Vérif
-  de WF-DEV-0090 et de WF-DEV-0100. Le plan de charge existant passe par là : ses mois bougent d'un
+  somme des parts est le total de la ligne arrondi. Le mode d'arrondi est celui de chaque grandeur
+  dans le noyau : les heures au centième, la moitié vers le pair le plus proche
+  (`ROUND_HALF_EVEN`, comme `workloading.rounded`) ; les montants (`Money`) au centime, la moitié
+  loin de zéro (`ROUND_HALF_UP`, comme `pricing.amounts` et `keeping`). Le service d'US-2040/L2
+  écrit la règle à l'identique, mode compris. Tout total — d'un mois, d'une tâche, d'un rôle, d'une catégorie, d'une
+  nature, de la projection — est la somme de parts déjà arrondies, ce qui tient au centième les
+  égalités des Vérif de WF-DEV-0090 et de WF-DEV-0100. Le plan de charge existant passe par là : ses mois bougent d'un
   centième, et ses exemples, réengendrés, avec eux le plan de charge agrégé du portefeuille, qui
   somme celui du témoin.
 - **`getProjectSpending`, opération nouvelle**, `GET /projects/{project_id}/spending`, sous
@@ -11955,8 +11957,8 @@ dépenses ») :
   `EstimateIndicators.by_cost_type` et de `RemainingIndicators.by_cost_type`, rangés par
   identifiant : les natures de la projection suivent le référentiel que l'écran affiche, ces
   ventilations sont celles d'indicateurs déjà publiés, qu'on ne reclasse pas. L'écran n'attribue
-  donc pas une couleur de nature par rang, mais par identifiant de nature. Les montants sont les montants enregistrés des lignes, comme ceux de
-  la courbe de coûts cumulés : une `Money`, sans enveloppe `Computable`. Le front n'y somme rien
+  donc pas une couleur de nature par rang, mais par identifiant de nature. Les montants sont les
+  montants enregistrés des lignes, comme ceux de la courbe de coûts cumulés : une `Money`, sans enveloppe `Computable`. Le front n'y somme rien
   (WF-ARC-0020). Écartés : les natures et les catégories sans montant, à zéro ; le total de la
   projection laissé au front.
 - **Les exemples sont engendrés sur le témoin** (`wftools.mockcurves`, `wftools.mockspending`) :
