@@ -287,11 +287,11 @@ export function ResourceRoleDialog({
     required: true,
     choices,
   });
-  const number = (name: string, label: string): FormField => ({
+  const number = (name: string, label: string, required = true): FormField => ({
     name,
     label,
     control: "number",
-    required: true,
+    required,
   });
   const attachments = [
     choice(
@@ -317,7 +317,8 @@ export function ResourceRoleDialog({
         ),
       ),
     ),
-    number("capacity/monthly_hours", columns("monthlyHours")),
+    // Optional: the hours per month are calculated, what is typed there is not written.
+    number("capacity/monthly_hours", columns("monthlyHours"), false),
     number("capacity/headcount", columns("headcount")),
   ];
   const written = (values: Draft) => ({
@@ -325,8 +326,7 @@ export function ResourceRoleDialog({
     label: values.label ?? "",
     cost_category_id: values.cost_category_id ?? "",
     calendar_id: values.calendar_id ?? "",
-    // The headcount alone is written, the hours per month being calculated (WF-REF-0100); the
-    // field of the hours leaves the form with US-2410/L3.
+    // The headcount alone is written, the hours per month being calculated (WF-REF-0100).
     capacity: { headcount: values["capacity/headcount"] ?? "" },
   });
   return (

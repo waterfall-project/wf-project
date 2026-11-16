@@ -675,7 +675,7 @@ describe("the resource roles", () => {
     await expectAccessible(form);
   });
 
-  it("creates a role with its attachments and its single capacity, the numbers written as the contract writes them [WF-REF-0100-A]", async () => {
+  it("creates a role with its attachments and its single capacity, the headcount alone written whatever is typed in the hours per month, calculated [WF-REF-0100-A]", async () => {
     const client = serve();
     render(roleList());
     const form = await opened("Nouveau rôle", "Nouveau rôle de ressource");
