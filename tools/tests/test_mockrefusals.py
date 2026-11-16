@@ -172,6 +172,27 @@ def test_an_unknown_property_of_fields_is_refused_by_422_as_any_parameter_of_a_q
     assert "(400)" not in parameters["NodeFields"]["description"]
 
 
+@pytest.mark.requirement("WF-IND-0020-A")
+def test_the_filter_of_the_subproject_of_the_nodes_publishes_the_code_its_refusal_gives() -> None:
+    # #3597: since US-2430/L2, listNodes and compareRevisions refuse a subproject the project does
+    # not have, or an identifier not hyphenated, by UNKNOWN_SUBPROJECT on /query/subproject_id: the
+    # contract says it at their 422 and at SubprojectFilter, and shows it as for listActualCosts,
+    # by an example written by hand, of the same form.
+    refused = fixture("nodes_subproject_unknown")
+    assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
+    assert refused["fields"] == [{"pointer": "/query/subproject_id", "code": "UNKNOWN_SUBPROJECT"}]
+    costs = fixture("actual_costs_subproject_unknown")
+    assert {**refused, "correlation_id": None} == {**costs, "correlation_id": None}
+    assert refused["correlation_id"] != costs["correlation_id"]
+    named = "`/query/subproject_id` with `UNKNOWN_SUBPROJECT`"
+    for operation in ("listNodes", "compareRevisions"):
+        assert "nodes_subproject_unknown" in _cited(operation, "422"), operation
+        said = " ".join(_operations()[operation]["responses"]["422"]["description"].split())
+        assert named in said, operation
+    parameters = yaml.safe_load((API / "components" / "parameters.yaml").read_text("utf-8"))
+    assert named in " ".join(parameters["SubprojectFilter"]["description"].split())
+
+
 # --- The catalogue: every code rendered by an operation, with an example (J-03, J-06, J-11) ----
 
 

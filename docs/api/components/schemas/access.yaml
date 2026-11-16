@@ -344,11 +344,13 @@ DisplayPreferences:
     the state its screen gives it initially.
     The preferences are read again with the account on each request: their size is bounded
     (#874) — a hundred grids, a hundred timelines and a hundred charts at most, grid,
-    column, filter, timeline, task and chart names of 64 characters at most; per grid, 64
-    hidden, 64 known, 64 widened columns and 20 filters at most, a filter value of 500
-    characters at most; per timeline, 64 placed tasks at most. A preference that exceeds a
-    bound is refused with 422 `VALUE_TOO_LONG`, at the pointer of the faulty object, list or
-    text; a name that is too long, at the pointer of the object that carries it.
+    column, filter, timeline, task and chart names of 64 characters at most; per grid, 256
+    hidden, 256 known, 256 widened columns — a grid of a column per month, the detail of the
+    workload, has some 185 for a plan of fifteen years (#3589) — and 20 filters at most, a
+    filter value of 500 characters at most; per timeline, 64 placed tasks at most. A
+    preference that exceeds a bound is refused with 422 `VALUE_TOO_LONG`, at the pointer of the
+    faulty object, list or text; a name that is too long, at the pointer of the object that
+    carries it.
   properties:
     language:
       type: string
@@ -452,7 +454,7 @@ GridPreferences:
         `/grids/<grid>/page_size`, without a parameter: the admitted values are these.
     hidden_columns:
       type: array
-      maxItems: 64
+      maxItems: 256
       items: { type: string, maxLength: 64 }
       description: >-
         The keys of the columns the user has hidden. A column it names is hidden;
@@ -460,7 +462,7 @@ GridPreferences:
         (`known_columns`), and otherwise takes what the grid gives it by default.
     known_columns:
       type: array
-      maxItems: 64
+      maxItems: 256
       items: { type: string, maxLength: 64 }
       description: >-
         The keys of the columns the grid offered when its preferences were last
@@ -481,7 +483,7 @@ GridPreferences:
         refused with 422 on `/grids/<grid>/filters_open`.
     column_widths:
       type: object
-      maxProperties: 64
+      maxProperties: 256
       propertyNames: { maxLength: 64 }
       description: >-
         The width of each widened column, in points, by its key: at least twenty, a narrower

@@ -26,21 +26,16 @@ from day_indicators_support import (
     material,
     priced,
     reestimated,
+    subproject,
 )
 from estimate_support import Lines
-from indicators_support import COMPLETED_ON, TODAY, clock_setter, marked, under_way
+from indicators_support import COMPLETED_ON, TODAY, clock_setter, marked, thresholds, under_way
 from nodes_support import Tree, faults, opened, refusal
 from planning_support import DAY
 from projects_support import PROJECTS, Scene, create
 from projects_support import scene as make_scene
 
-from waterfall.core.cost_settings.interface import (
-    IndexThresholds,
-    SettingsChange,
-    read_reference_settings,
-    write_reference_settings,
-)
-from waterfall.platform.audit import Act
+from waterfall.core.projects.interface import current_day
 from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
@@ -107,15 +102,6 @@ def computable(value: str | None, reason: str | None = None) -> dict[str, Any]:
 def charged(stage: Scene, number: str, amount: str, day: date = DAY) -> None:
     """Import a line of cost of the project alone, of the amount said, dated Monday unless said."""
     load_import(stage, UUID(stage.project["project_id"]), [dated(number, None, amount, day)])
-
-
-def thresholds(stage: Scene, watch: str, alert: str) -> None:
-    """Set the watch and alert thresholds of both indices, as ``updateReferenceSettings`` does."""
-    held = IndexThresholds(D(watch), D(alert), D(watch), D(alert))
-    with stage.database.transaction() as session:
-        counter = read_reference_settings(session).lock_version
-        change = SettingsChange(index_thresholds=held)
-        write_reference_settings(session, change, counter, Act(None, utc_now()))
 
 
 @pytest.mark.requirement("WF-IND-0010-A")
@@ -242,6 +228,28 @@ def test_without_a_current_revision_the_last_marked_one_is_computed_with_the_cos
     again = indicators(api, stage)
     assert (again["actual_cost"], again["cost_index"]["value"]["value"]) == ("2000.00", "0.5")
     assert again["context"] == body["context"]
+
+
+@pytest.mark.requirement("WF-DAT-0040-A")
+def test_a_kept_reading_of_a_subproject_created_after_the_marking_is_refused_without_a_state(
+    api: ContractClient, stage: Scene, clock: Clock, project: UnderWay
+) -> None:
+    # Décision de l'auteur du 2026-11-16 (#3604) : a subproject created after the marking, which
+    # the project has today — no 422 —, has no document in the revision, named or designated by
+    # its date: 409 ``STATE_FORBIDS_OPERATION`` without ``params``, as a revision marked before
+    # In progress; nothing is computed in its place. The scope the marking kept is read as kept,
+    # and the day knows the subproject.
+    revision_id = project.tree.revision["revision_id"]
+    at = clock(utc_now().date() + ONE_DAY)
+    marked(stage, project.tree.revision, "Revue de novembre")
+    since = subproject(api, stage, "SP-9", "Essais")
+    as_of = current_day(at).isoformat()
+    for query in (f"?revision_id={revision_id}", f"?as_of={as_of}"):
+        assert indicators(api, stage, query)["context"]["is_stored"] is True, query
+        refused = indicators_answer(api, stage, f"{query}&scope={since}")
+        assert refusal(refused) == (*FORBIDDEN, {}), query
+    day = indicators(api, stage, f"?scope={since}")
+    assert (day["context"]["scope"], day["context"]["is_stored"]) == (since, False)
 
 
 @pytest.mark.requirement("WF-IND-0010-A")

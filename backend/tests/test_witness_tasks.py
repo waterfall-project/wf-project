@@ -31,15 +31,8 @@ from installed_reference import install
 from projects_support import PROJECTS
 from sqlalchemy import select
 from test_witness import load, wipe
-from test_witness_projects import (
-    PRJ_001,
-    REVISION_100,
-    REVISION_101,
-    REVISION_102,
-    example,
-    instant,
-    read,
-)
+from test_witness_projects import REVISION_100, REVISION_101, REVISION_102, instant
+from witness_support import PRJ_001, example, read
 
 from waterfall.core.planning.interface import (
     LinkLoad,

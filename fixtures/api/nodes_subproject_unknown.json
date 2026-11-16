@@ -1,0 +1,14 @@
+{
+  "summary": "La structure principale du témoin lue avec subproject_id nommant un sous-projet que le projet n'a pas, ou écrit autrement qu'à tirets (accolades, urn:uuid:, sans tirets) : le paramètre est refusé, désigné par /query/subproject_id, comme le filtre des coûts réels ; aucune liste vide n'en tient lieu, et la comparaison de deux révisions le refuse de même (WF-IND-0020, #3597).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/query/subproject_id",
+        "code": "UNKNOWN_SUBPROJECT"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001708"
+  }
+}

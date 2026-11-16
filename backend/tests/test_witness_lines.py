@@ -26,15 +26,9 @@ from installed_reference import install
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from test_witness import load, wipe
-from test_witness_projects import (
-    PRJ_001,
-    REVISION_100,
-    REVISION_101,
-    REVISION_102,
-    example,
-    instant,
-)
+from test_witness_projects import REVISION_100, REVISION_101, REVISION_102, instant
 from test_witness_tasks import REVISIONS, structure_of
+from witness_support import PRJ_001, example
 
 from waterfall.core.estimate.interface import LineEntry, LineLoad, load_lines
 from waterfall.core.estimate.recalling import recalled, remembering, remembers

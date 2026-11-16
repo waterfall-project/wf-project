@@ -361,7 +361,12 @@
           estimate indicators exist (WF-IND-0010, WF-DAT-0040).
           The same refusal, without `params`, for an `as_of` that designates no revision marked
           In progress: none is marked on or before the date, or none of them kept the indicators
-          of the project (#2449).
+          of the project (#2449). The same again, without `params`, for a kept reading — a
+          marked revision named by `revision_id` or designated by `as_of` — of a `scope` that
+          revision did not keep: a subproject created after its marking, which the project has
+          today and which is therefore not refused with 422; the revision kept the indicators of
+          the project, not those of that subproject, and nothing is computed in their place
+          (#3604).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -492,7 +497,10 @@
           exist (WF-IND-0010, WF-DAT-0040).
           The same refusal, without `params`, for an `as_of` that designates no revision marked
           In progress: none is marked on or before the date, or none of them kept the indicators
-          of the project (#2449).
+          of the project (#2449). The same again, without `params`, as for
+          `getProjectIndicators`, for a kept reading of a `scope` the revision did not keep: a
+          subproject created after its marking, which the project has today; the curves of that
+          subproject were never kept, and none is computed in their place (#3604).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -550,7 +558,10 @@
           exist (WF-IND-0010, WF-DAT-0040).
           The same refusal, without `params`, for an `as_of` that designates no revision marked
           In progress: none is marked on or before the date, or none of them kept the indicators
-          of the project (#2449).
+          of the project (#2449). The same again, without `params`, as for
+          `getProjectIndicators`, for a kept reading of a `scope` the revision did not keep: a
+          subproject created after its marking, which the project has today; the curves of that
+          subproject were never kept, and none is computed in their place (#3604).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

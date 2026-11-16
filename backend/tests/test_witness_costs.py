@@ -44,7 +44,6 @@ from support import WITNESS, captured_logs
 from test_witness import load, wipe
 from test_witness_lines import PROVISION, line_rows
 from test_witness_lines_reads import (
-    READ_AT,
     ROWS,
     by_role,
     deviations,
@@ -53,18 +52,16 @@ from test_witness_lines_reads import (
     tasks_are_their_nodes,
 )
 from test_witness_projects import (
-    PRJ_001,
     REVISION_100,
     REVISION_101,
     REVISION_102,
     UNREACHED,
     counts,
-    example,
     instant,
-    read,
     without,
 )
 from test_witness_tasks import difference, structure_of
+from witness_support import PRJ_001, READ_AT, example, read
 
 from waterfall.core.costs.tables import CostImport, CostLine
 from waterfall.core.exchanges.interface import ImportLoad, load_import
