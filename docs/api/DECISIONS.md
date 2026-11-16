@@ -11934,10 +11934,14 @@ dépenses ») :
   d'avant, le cumul du dernier mois étant la ligne entière : une part n'est jamais négative, et la
   somme des parts est le total de la ligne arrondi. Le mode d'arrondi est celui de chaque grandeur
   dans le noyau : les heures au centième, la moitié vers le pair le plus proche
-  (`ROUND_HALF_EVEN`, comme le plan de charge, `parting.HOURS`) ; les montants (`Money`) au
+  (`ROUND_HALF_EVEN`, comme le plan de charge, `spreading.HOURS`) ; les montants (`Money`) au
   centime, la moitié loin de zéro (`ROUND_HALF_UP`, comme `pricing.amounts` et `keeping`,
-  `parting.MONEY`). Le service d'US-2040/L2 écrit la règle à l'identique, mode compris
-  (`core/estimate/parting.py`). Tout total — d'un mois, d'une tâche, d'un rôle, d'une catégorie,
+  `spreading.MONEY`). Le service d'US-2040/L2 écrit la règle à l'identique, mode compris
+  (`core/estimate/parting.py`), sur le cumul exact de la ligne, arrondi une fois : celui d'un
+  montant à la fin d'un mois est la valeur planifiée de la ligne à ce jour, qu'EP-07
+  (`planned_value`) et les indicateurs d'EP-10 calculent désormais de la même façon, la part de
+  chaque ligne arrondie au centime, sur les calendriers que le marquage de la référence a
+  conservés (#3566). Tout total — d'un mois, d'une tâche, d'un rôle, d'une catégorie,
   d'une nature, de la projection — est la somme de parts déjà arrondies, ce qui tient au centième
   les égalités des Vérif de WF-DEV-0090 et de WF-DEV-0100. Le plan de charge existant passe par
   là : ses mois bougent d'un centième, et ses exemples, réengendrés, avec eux le plan de charge

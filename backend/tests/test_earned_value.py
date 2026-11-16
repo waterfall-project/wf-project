@@ -24,8 +24,10 @@ from planning_support import DAY
 from projects_support import Scene
 from projects_support import scene as make_scene
 from remaining_support import in_progress
+from sqlalchemy import select, update
 
 from waterfall.core.estimate.interface import planned_value
+from waterfall.core.resource_settings.tables import Calendar, ResourceRole
 
 if TYPE_CHECKING:
     from datetime import date
@@ -228,3 +230,48 @@ def test_the_planned_value_is_the_one_ep07_gives_of_the_reference_at_the_project
         body = indicators(api, stage)
         assert body["planned_value"] == str(oracle(stage, reference, day)), day
     assert body["planned_value"] == body["reference_budget"] == "1083.33"
+
+
+@pytest.mark.requirement("WF-IND-0020-A")
+def test_the_planned_value_of_ep07_is_the_sum_of_the_shares_of_the_lines_as_ep10_s(
+    api: ContractClient, stage: Scene, clock: Clock
+) -> None:
+    # « La somme des valeurs […] des sous-projets […] égale celle du projet, de même pour […] la
+    # valeur planifiée » holds because each line counts its share rounded to the cent; EP-07 counts
+    # it so too (#3566). Two lines of 100.00 on tasks of 3 days: at the end of the first day, 33.33
+    # each, 66.66 by both, not the 66.67 of one rounding of the exact sum.
+    tasks = [Planned("Câblage", "100", days="3"), Planned("Essais", "100", days="3")]
+    found = priced(api, stage, tasks)
+    clock(DAY)
+    assert indicators(api, stage)["planned_value"] == "66.66"
+    assert oracle(stage, found.reference_id, DAY) == D("66.66")
+
+
+@pytest.mark.requirement("WF-DEV-0080-A")
+def test_the_planned_value_of_ep07_reads_the_calendar_of_a_role_as_the_reference_kept_it(
+    api: ContractClient, stage: Scene, clock: Clock
+) -> None:
+    # « étalé sur la durée de leur tâche au prorata des heures travaillées — sur le calendrier de
+    # son rôle […] — telle que la révision de référence la date » : the calendar its marking kept,
+    # as the indicators read it (#3566). 10 hours at 65.00 over three days of eight hours: a third
+    # at the end of the Monday, 216.67, still once the calendar of the role works two hours on
+    # Monday, which would make it 650.00 x 2/18, 72.22.
+    costs = costing(stage.database)
+
+    def build(tree: Tree, lines: Lines) -> None:
+        studies = tree.made("Études", task={"duration": {"value": "3", "unit": "d"}})
+        lines.made(
+            studies, label="Ingénierie", quantity="1", resource_role_id=str(costs.role), hours="10"
+        )
+
+    reference = UUID(in_progress(api, stage, build).reference["revision_id"])
+    clock(DAY)
+    assert DAY.weekday() == 0
+    assert oracle(stage, reference, DAY) == D("216.67")
+    with stage.owner.begin() as connection:
+        calendar = connection.scalar(
+            select(ResourceRole.calendar_id).where(ResourceRole.id == costs.role)
+        )
+        connection.execute(update(Calendar).where(Calendar.id == calendar).values(monday=D(2)))
+    assert oracle(stage, reference, DAY) == D("216.67")
+    assert indicators(api, stage)["planned_value"] == "216.67"

@@ -8,7 +8,7 @@ the nearest even, the amounts a half away from nought. The tasks run on a calend
 from Monday to Friday; in 2026, February holds 20 working days, March and April 22 each.
 """
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
@@ -18,9 +18,11 @@ from waterfall.core.estimate.interface import (
     MONEY,
     Month,
     Placement,
+    PlannedLine,
     rounded_parts,
     summed_parts,
 )
+from waterfall.core.estimate.spreading import planned_value
 from waterfall.core.planning.interface import WorkInstant, weekly_calendar
 
 EIGHT = Decimal(8)
@@ -76,6 +78,25 @@ def test_on_a_remaining_the_line_falls_after_the_date_of_calculation() -> None:
     assert rounded_parts(SPRING, Decimal(64), HOURS, as_of=date(2026, 6, 10)) == {
         Month(2026, 6): Decimal(64)
     }
+
+
+@pytest.mark.requirement("WF-DEV-0080-A")
+def test_the_parts_of_an_amount_cumulate_to_its_planned_value_at_the_end_of_each_month() -> None:
+    # The cumulated is rounded once from its exact value, as the planned value of the line is
+    # (#3566). 0.05 from Monday 16 February to Friday 8 May 2026: 80, 176, 176 and 48 hours of 480.
+    # At the end of April, nine tenths of it, 0.045 exactly, round to 0.05; summed from shares of
+    # ten decimals, 0.0449999999, it would round to 0.04.
+    task = Placement(
+        EIGHT_HOURS, WorkInstant(date(2026, 2, 16)), WorkInstant(date(2026, 5, 8), EIGHT)
+    )
+    parts = rounded_parts(task, Decimal("0.05"), MONEY)
+    assert parts == {FEBRUARY: Decimal("0.01"), MARCH: Decimal("0.02"), APRIL: Decimal("0.02")}
+    line = [PlannedLine(Decimal("0.05"), task)]
+    cumulated = Decimal(0)
+    for month in (FEBRUARY, MARCH, APRIL, Month(2026, 5)):
+        cumulated += parts.get(month, Decimal(0))
+        last = date(month.year, month.month + 1, 1) - timedelta(days=1)
+        assert planned_value(line, last) == cumulated, month
 
 
 @pytest.mark.requirement("WF-DEV-0090-A")

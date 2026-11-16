@@ -34,9 +34,9 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.cost_settings.interface import category_label_of
 from waterfall.core.estimate.imaging import KeptReference, KeptRole, kept_reference
-from waterfall.core.estimate.parting import HOURS, rounded_parts, summed_parts
+from waterfall.core.estimate.parting import rounded_parts, summed_parts
 from waterfall.core.estimate.placing import Placed, placed_lines, placement_of, role_weeks
-from waterfall.core.estimate.spreading import Month, Placement
+from waterfall.core.estimate.spreading import HOURS, Month, Placement
 from waterfall.core.projects.interface import project_facts
 from waterfall.core.resource_settings.interface import (
     Capacity,

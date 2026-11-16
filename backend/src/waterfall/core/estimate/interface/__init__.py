@@ -362,15 +362,6 @@ from waterfall.core.estimate.loading import (
 # ``parting`` (US-2040/L2): the parts of a line by month, rounded to sum to its total, which the
 # plan of workload, its detail and the projection of spending (US-2050) sum.
 from waterfall.core.estimate.parting import (
-    HOURS as HOURS,
-)
-from waterfall.core.estimate.parting import (
-    MONEY as MONEY,
-)
-from waterfall.core.estimate.parting import (
-    Rounding as Rounding,
-)
-from waterfall.core.estimate.parting import (
     rounded_parts as rounded_parts,
 )
 from waterfall.core.estimate.parting import (
@@ -395,7 +386,14 @@ from waterfall.core.estimate.repricing import (
     reprice_after_rate as reprice_after_rate,
 )
 
-# ``spreading`` (US-1520/L1): the line the planned value is computed on, which EP-10 reads.
+# ``spreading`` (US-1520/L1; US-2040/L2): the line the planned value is computed on, which EP-10
+# reads; the rounding of the hours and of the amounts, once, from the exact value.
+from waterfall.core.estimate.spreading import (
+    HOURS as HOURS,
+)
+from waterfall.core.estimate.spreading import (
+    MONEY as MONEY,
+)
 from waterfall.core.estimate.spreading import (
     Month as Month,
 )
@@ -404,6 +402,9 @@ from waterfall.core.estimate.spreading import (
 )
 from waterfall.core.estimate.spreading import (
     PlannedLine as PlannedLine,
+)
+from waterfall.core.estimate.spreading import (
+    Rounding as Rounding,
 )
 from waterfall.core.estimate.spreading import (
     spread_by_month as spread_by_month,

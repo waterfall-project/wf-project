@@ -10,45 +10,27 @@ of a month, a task, a role, a category, a nature — is a sum of parts already r
 the hundredth the equalities of the Vérif of WF-DEV-0090 and WF-DEV-0100 (EP-10, recadrage of
 2026-11-15; ``docs/api/DECISIONS.md``, US-2040/L1). Each magnitude keeps its rounding: the hours to
 the hundredth, a half to the nearest even (``HOURS``); an amount to the cent, a half away from
-nought (``MONEY``). A month the rounding leaves at nought is not one the line loads (#3096).
+nought (``MONEY``). The cumulated is exact, rounded once (``spreading``): that of an amount at the
+end of a month is the planned value of the line then (``planned_value``, #3566). A month the
+rounding leaves at nought is not one the line loads (#3096).
 
 The plan of workload, its detail by task (US-2040) and the projection of spending (US-2050) share
 it, each summing the parts at its own level.
 """
 
-from dataclasses import dataclass
-from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal
+from decimal import Decimal
+from fractions import Fraction
 from typing import TYPE_CHECKING
 
-from waterfall.core.estimate.pricing import CENT
-from waterfall.core.estimate.spreading import spread_by_month
+from waterfall.core.estimate.spreading import exact_by_month
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
     from datetime import date
 
-    from waterfall.core.estimate.spreading import Month, Placement
+    from waterfall.core.estimate.spreading import Month, Placement, Rounding
 
 NOUGHT = Decimal(0)
-
-
-@dataclass(frozen=True, slots=True)
-class Rounding:
-    """How a magnitude is rounded: to a quantum, in a mode of ``decimal``."""
-
-    quantum: Decimal
-    mode: str
-
-    def of(self, value: Decimal) -> Decimal:
-        """Round a value to the quantum, in the mode."""
-        return value.quantize(self.quantum, rounding=self.mode)
-
-
-HOURS = Rounding(Decimal("0.01"), ROUND_HALF_EVEN)
-"""The hours: to the hundredth, a half to the nearest even, as the plan of workload rounds them."""
-
-MONEY = Rounding(CENT, ROUND_HALF_UP)
-"""An amount (``Money``): to the cent, a half away from nought, as ``pricing`` rounds it."""
 
 
 def rounded_parts(
@@ -60,13 +42,11 @@ def rounded_parts(
     its task after it, or falls whole in its month once the task is over (``spread_by_month``).
     """
     found: dict[Month, Decimal] = {}
-    exact = spread_by_month(placement, total, as_of=as_of)
-    cumulated, before = NOUGHT, NOUGHT
-    last = len(exact) - 1
-    for index, (month, share) in enumerate(exact.items()):
+    cumulated, before = Fraction(0), NOUGHT
+    for month, share in exact_by_month(placement, total, as_of=as_of).items():
+        # Exact, the cumulated of the last month is the whole line.
         cumulated += share
-        # The last month closes on the whole line, whatever the shares add up to before.
-        done = rounding.of(total if index == last else cumulated)
+        done = rounding.of(cumulated)
         if part := done - before:
             found[month] = part
         before = done

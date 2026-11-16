@@ -16,8 +16,16 @@ from waterfall.core.estimate.spreading.planned import (
 from waterfall.core.estimate.spreading.planned import (
     planned_value as planned_value,
 )
-from waterfall.core.estimate.spreading.planned import (
-    planned_value_by_line as planned_value_by_line,
+
+# ``rounding``: the rounding of the hours and of the amounts, once, from the exact value.
+from waterfall.core.estimate.spreading.rounding import (
+    HOURS as HOURS,
+)
+from waterfall.core.estimate.spreading.rounding import (
+    MONEY as MONEY,
+)
+from waterfall.core.estimate.spreading.rounding import (
+    Rounding as Rounding,
 )
 
 # ``spread``: the shares of a load or an amount by month and by year.
@@ -26,6 +34,9 @@ from waterfall.core.estimate.spreading.spread import (
 )
 from waterfall.core.estimate.spreading.spread import (
     Placement as Placement,
+)
+from waterfall.core.estimate.spreading.spread import (
+    exact_by_month as exact_by_month,
 )
 from waterfall.core.estimate.spreading.spread import (
     spread_by_month as spread_by_month,
