@@ -70,7 +70,7 @@ def _downstream(start: UUID, followers: dict[UUID, set[UUID]]) -> int:
     return len(reached)
 
 
-def _leaf(nodes: tuple[NodeView, ...]) -> NodeView:
+def entered_leaf(nodes: tuple[NodeView, ...]) -> NodeView:
     """Pick a task a cell can be entered in, which a duration redates: a leaf, scheduled, in days.
 
     The one with the most successors by the links, the first in the order of the structure among
@@ -143,7 +143,7 @@ def measure_writes(database: Database, place: Place, runs: int) -> tuple[Measure
     them: the ratio to a reading is what the grids pay for a cell (#3169).
     """
     with database.transaction() as session:
-        leaf = _leaf(list_nodes(session, place, NodeFilters(kinds=("task",))).items)
+        leaf = entered_leaf(list_nodes(session, place, NodeFilters(kinds=("task",))).items)
     write_once(database, place, leaf, "label")
     reading = _read_median(database, place, runs)
     measures: list[Measure] = []

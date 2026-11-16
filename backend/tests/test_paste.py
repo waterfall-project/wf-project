@@ -37,6 +37,7 @@ from nodes_support import (
 from planning_support import DAY, node_row
 from projects_support import scene as make_scene
 from sqlalchemy import insert, inspect, update
+from test_inert_writes import trees_read
 
 from waterfall.core.planning.attachments import Attached
 from waterfall.core.planning.entries import Facet
@@ -624,20 +625,24 @@ def test_the_plan_names_the_node_it_creates_and_the_cell_of_the_work_breakdown_i
 
 @pytest.mark.requirement("WF-IHM-0110-A")
 def test_a_paste_that_creates_is_undone_by_deleting_its_tasks_and_redone_by_creating_them(
-    tree: Tree, stage: Scene, who: Person
+    tree: Tree, stage: Scene, who: Person, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # Vérif : « Cinquante modifications successives s’annulent une par une, puis se rétablissent
     # dans l’ordre. » (WF-IHM-0110-A) : ici une seule entrée, celle du collage — critère d'US-1450 :
     # annuler le collage supprime les tâches qu'il a créées, le rétablir les recrée. As the undoing
     # of a creation, it names the nodes it deletes, and gives back none of them among the nodes
-    # written.
+    # written. Each of the three writes reads the tree once, a criterion of US-2250: the paste
+    # that creates, the undoing that deletes, the redoing that creates again.
     task = tree.made("Étude", who=who)
     plan = planned(tree, task, "label", [["Étude 2"], ["Plan", "", "", "2"], ["Recette"]], who)
+    read = trees_read(monkeypatch)
     body = applied(tree, plan, who)
+    assert read.count == 1
     made = [each["node_id"] for each in body["nodes"][1:]]
     assert len(made) == 2
 
     first = undone(tree, who)
+    assert read.count == 2
     assert first["undone"]["kind"] == "paste"
     assert sorted(first["undone"]["node_ids"]) == sorted([task["node_id"], *made])
     assert [each["node_id"] for each in first["written"]["nodes"]] == [task["node_id"]]
@@ -645,6 +650,7 @@ def test_a_paste_that_creates_is_undone_by_deleting_its_tasks_and_redone_by_crea
     assert labels_of(tree) == ["Étude"]
 
     again = redone(tree, who)
+    assert read.count == 3
     assert again["undone"]["kind"] == "paste"
     assert [each["node_id"] for each in again["written"]["nodes"]] == [task["node_id"], *made]
     assert again["written"]["totals"]["task_count"] == 3

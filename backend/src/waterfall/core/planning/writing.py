@@ -18,7 +18,17 @@ lock of the natures of cost, which a change of a nature takes before the structu
 Under the lock, the write hands the history the nodes it touches as they are (``snapshot``),
 writes, replays the engine on the whole structure and keeps what it computes (``dating``), moves
 the instant of the structure's dates on and advances its counter, hands the nodes as they now are,
-and gives back what it wrote (``NodesWritten``) before its transaction commits.
+and gives back what it wrote (``NodesWritten``) before its transaction commits. The tree is read
+once, under the lock: the write hands it to the replay, which brings it to what the write made of
+it — the nodes it created, deleted or moved — rather than read it again (``Write.redate``,
+``reshaped``, US-2250).
+
+A write that can move no date nor change an amount — every column it sends inert, as the facet of
+its kind declares them (``INERT_TASK_FIELDS``, ``FacetHooks.inert``) — takes the short path
+(``Write.count``, US-2250, #3169): no engine replayed, no tree read again, the instant of the
+structure's dates left as it is (the contract dates ``scheduled_at`` by the last write that
+redated the structure), its counter advanced, on which the front leans every write. It gives back
+what the whole path would, the nodes written and their ancestors read from the tree it holds.
 
 A writer whose token carries no session of sign-in (``sid``) has no stack: its write is made, and
 no entry kept (#2472).
@@ -31,7 +41,11 @@ from typing import TYPE_CHECKING
 from waterfall.core.history import interface as history
 from waterfall.core.history.interface import RecordedChange, Recording, UndoStack
 from waterfall.core.planning.dating import conflicts_of
-from waterfall.core.planning.interface.facets import RepricedBeyondColumnError, facets
+from waterfall.core.planning.interface.facets import (
+    RepricedBeyondColumnError,
+    calendars_of,
+    facets,
+)
 from waterfall.core.planning.rescheduling import Blamed, Holding, replayed
 from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tree import read_links, read_tree
@@ -45,6 +59,7 @@ from waterfall.core.projects.interface import (
 )
 from waterfall.core.revisions.interface import (
     revision_draft,
+    structure_counted,
     structure_facts,
 )
 from waterfall.platform.errors import (
@@ -65,6 +80,7 @@ if TYPE_CHECKING:
     from waterfall.core.history.interface import UndoneKind
     from waterfall.core.planning.interface.facets import Amounts
     from waterfall.core.planning.scheduling import Origin
+    from waterfall.core.planning.tables import TaskLink
     from waterfall.core.planning.tree import Tree
     from waterfall.core.revisions.interface import StructureFacts
     from waterfall.platform.audit import Act
@@ -181,10 +197,11 @@ class Write:
     """A write of the tree under the lock of its structure, the tree read under that lock."""
 
     def __init__(self, session: Session, place: Place, writer: Writer, frame: Recording) -> None:
-        """Lock the structure, then read it, its tree and its links in conflict under the lock.
+        """Lock the structure, then read it, its tree and its links under the lock.
 
-        The links in conflict are read before the write, so that the replay that follows judges
-        what moved against them, whatever links the write deletes (``kept``).
+        The links in conflict are taken before the write, so that the replay that follows judges
+        what moved against them, whatever links the write deletes (``kept``); the links themselves
+        are what the short path reads the nodes it gives back with (``count``).
         """
         self.session = session
         self.place = place
@@ -193,7 +210,8 @@ class Write:
         self.facts = facts_of(session, place, lock=True)
         self.tree = read_tree(session, place.project_id, place.structure_id)
         self.touched: set[UUID] = set()
-        self.conflicts = conflicts_of(read_links(session, place.project_id, place.structure_id))
+        self.links: list[TaskLink] = read_links(session, place.project_id, place.structure_id)
+        self.conflicts = conflicts_of(self.links)
 
     def name(self, node_ids: tuple[UUID, ...]) -> None:
         """Name the nodes of the entry when the write knows them only once its rows are judged."""
@@ -222,17 +240,39 @@ class Write:
         nodes it touches (``before``): a task written, or the task a line written is under. A node
         priced again beyond its column is refused at ``entered``, the pointers of the fields of the
         request that redate (``RepricedBeyondColumnError``, #3094); without them, without a field.
+        The tree read under the lock is handed to the replay, which brings it to what the write
+        made of it rather than read it again (``reshaped``, US-2250); the write holds it after.
         """
         named = None if blamed is None else Blamed(*blamed, origin)
-        held = (self.facts, named, self.conflicts)
         priced = (*repriced, *self.touched)
+        held = Holding(self.facts, named, self.conflicts, priced, self.tree)
         try:
-            return redated_structure(self.session, self.place, self.writer.act, held, priced)
+            redated = redated_structure(self.session, self.place, self.writer.act, held)
         except RepricedBeyondColumnError as refused:
             if refused.fields or not entered:
                 raise
             fields = tuple(FieldError(pointer, refused.code) for pointer in entered)
             raise RepricedBeyondColumnError(refused.code, refused.params, fields) from None
+        self.tree = redated.reading.tree
+        return redated
+
+    def count(self) -> Redated:
+        """Count a write that can move no date nor change an amount; give the structure it leaves.
+
+        The short path (US-2250): the engine is not replayed and the tree not read again; the
+        instant of the structure's dates stays, its counter advances (``structure_counted``). The
+        nodes it touched (``before``) and their ancestors are read from the tree it holds, on the
+        calendars of their tasks alone, as the whole path reads them: no task moved, no node priced
+        again.
+        """
+        session, place, tree = self.session, self.place, self.tree
+        session.flush()
+        counter = structure_counted(session, place.project_id, place.structure_id)
+        shown = {each for node_id in self.touched for each in (node_id, *tree.ancestors(node_id))}
+        calendars = calendars_of(session, place.project_id, shown & tree.tasks.keys())
+        structure = (place.project_id, self.facts.scheduled_at, self.facts.is_main)
+        reading = Reading(session, structure, tree, self.links, calendars)
+        return Redated(reading, frozenset(), counter)
 
     def after(self, node_ids: Collection[UUID]) -> None:
         """Hand the history the nodes the write touched, as they are after it, redated."""
@@ -243,22 +283,20 @@ def redated_structure(
     session: Session,
     place: Place,
     act: Act,
-    held: tuple[StructureFacts, Blamed | None, Collection[tuple[UUID, UUID]]],
-    repriced: Collection[UUID] = (),
+    held: Holding,
 ) -> Redated:
     """Replay the engine on a structure its caller holds the lock of; give it as it now stands.
 
     What a write of the tree does once it has written (``Write.redate``), and an undoing or a
-    redoing, whose frame holds the lock of the structure (``history.undo``). ``held`` is the facts
-    of the structure read under that lock, what the caller names if the engine refuses, and the
-    links in conflict read before the write; ``repriced`` the tasks whose nodes of the other kinds
-    are priced again, whether they moved or not.
+    redoing, whose frame holds the lock of the structure (``history.undo``). ``held`` is what the
+    caller read under that lock (``Holding``): the facts of the structure, what it names if the
+    engine refuses, the links in conflict read before the write, the tasks whose nodes of the other
+    kinds are priced again whether they moved or not, and the tree it read before it wrote, brought
+    to what it made of it rather than read again (``reshaped``, US-2250).
     """
-    facts, named, conflicts = held
-    holding = Holding(facts, named, conflicts, repriced)
-    done = replayed(session, place.project_id, place.structure_id, act.at, holding)
+    done = replayed(session, place.project_id, place.structure_id, act.at, held)
     reading = Reading(
-        session, (place.project_id, act.at, facts.is_main), done.tree, done.links, done.calendars
+        session, (place.project_id, act.at, done.is_main), done.tree, done.links, done.calendars
     )
     return Redated(reading, done.moved, done.counter, done.reinflated)
 

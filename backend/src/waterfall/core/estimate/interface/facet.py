@@ -15,7 +15,8 @@ hour (``judge_moved_lines``, WF-PLA-0010; US-1490/L4), and the cells a paste giv
 and written (``judge_line_cell``, ``write_line_cell``, ``pasting``; US-1560/L1), and the lines of
 a reading that writes nothing read once as rows, their figures and their facets (``line_columns``;
 US-2220/L1), and what the lines of each task count, read grouped, for a reading of the tasks alone
-(``line_tallies``, ``tallying``; US-2280/L1).
+(``line_tallies``, ``tallying``; US-2280/L1), and the fields of a line whose write can move no date
+nor change an amount (``LINE_INERT``; US-2250).
 
 The copy of a line keeps its figures and its amounts, and takes for its budgeted amount that of the
 line of the same lineage in the reference revision, nought without one; null on a project without a
@@ -241,6 +242,17 @@ line_filters = filter_lines
 line_sort = sort_lines
 line_totals = totals_of
 
+# The fields of a line whose write can move no date nor change an amount (US-2250), as its
+# ``editable_fields`` names them: the calendar of a task follows the roles of its lines
+# (``line_calendars``), and a line is priced on its quantity, its hours, its disbursement, the rate
+# of its category and the calendar of its role (``reprice``, ``costing.priced``); its label, its
+# payment delay and its subproject enter none of these.
+LINE_INERT = (
+    "estimate_line.label",
+    "estimate_line.payment_delay_days",
+    "estimate_line.subproject_id",
+)
+
 # The hooks of the kind ``estimate_line``, which the interface registers in the planning.
 LINE_FACET = FacetHooks(
     read=read_lines,
@@ -261,4 +273,5 @@ LINE_FACET = FacetHooks(
     before_lock=share_natures,
     columns=line_columns,
     tally=line_tallies,
+    inert=LINE_INERT,
 )
