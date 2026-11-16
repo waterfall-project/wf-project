@@ -115,6 +115,7 @@ from wftools import (
     mockservedrefusals,
     mocksnapshot,
     mocksort,
+    mockspendingrefusals,
     mocktext,
     mocktoday,
     mockwitness,
@@ -191,9 +192,7 @@ entry. The named examples of the witness are written beside it, file by file."""
 RATE_YEARS = range(2012, 2027)
 """Fifteen years of rates, up to the reference year of the witness estimate."""
 
-
 USER = "01926f3a-7c00-7000-8000-000000000301"
-
 
 _AUDIT: JsonObject = {
     "created_at": mockhistory.stamp(INSTALLED.instant),
@@ -359,6 +358,7 @@ def named() -> dict[str, JsonObject]:
         **mockreview.examples(),
         **mockrevisionminors.examples(),
         **mockservedrefusals.examples(),
+        **mockspendingrefusals.examples(),
         **mockchronology.examples(),
         **mockwitnesstasks.examples(),
         **mockwitnesslines.examples(),

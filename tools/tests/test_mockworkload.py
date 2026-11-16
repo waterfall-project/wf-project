@@ -208,6 +208,7 @@ def _rows_of(rows: list[mockcore.Row]) -> dict[str, int]:
     return {str(row.node["node_id"]): int(str(row.node["row_number"])) for row in rows}
 
 
+@pytest.mark.requirement("WF-DEV-0090-A")
 @pytest.mark.parametrize(
     ("name", "rows"),
     [
@@ -219,8 +220,11 @@ def _rows_of(rows: list[mockcore.Row]) -> dict[str, int]:
 def test_a_task_of_the_detail_has_the_row_of_its_node_in_the_revision_the_plan_reads(
     plans: dict[str, Node], name: str, rows: Any
 ) -> None:
-    # The plan of the 101 numbers its tasks as the 101 does, which lacks the rows the 102 added
-    # (a provision, the tasks of risks): not a shift, the contract says so (#3584).
+    """The tasks of the detail of a role, by task (WF-DEV-0090), carry the row of their node.
+
+    The plan of the 101 numbers its tasks as the 101 does, which lacks the rows the 102 added (a
+    provision, the tasks of risks): not a shift, the contract says so (#3584).
+    """
     held = _rows_of(rows())
     tasks = [task for role in plans[name]["roles"] for task in role["tasks"]]
     assert tasks
@@ -228,6 +232,7 @@ def test_a_task_of_the_detail_has_the_row_of_its_node_in_the_revision_the_plan_r
 
 
 def test_a_task_of_the_detail_of_the_102_has_its_row_in_the_planning_examples() -> None:
+    """A task of the detail of the workload by task (WF-DEV-0090) has the row of the planning."""
     found = mocktoday.examples()
     planned = {
         node["node_id"]: node["row_number"]

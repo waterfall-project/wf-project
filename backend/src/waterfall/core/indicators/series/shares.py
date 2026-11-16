@@ -18,8 +18,8 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import TYPE_CHECKING
 
-from waterfall.core.estimate.interface import MONEY, parts_of_cumulated, rounded_parts
-from waterfall.core.indicators.series.months import end_of, month_of, months_between
+from waterfall.core.estimate.interface import MONEY, amount_parts, parts_of_cumulated, rounded_parts
+from waterfall.core.indicators.series.months import month_of
 from waterfall.core.planning.interface import WorkInstant
 
 if TYPE_CHECKING:
@@ -39,28 +39,6 @@ class SpreadLine:
     amount: Decimal
     placement: Placement
     payment_delay_days: int = 0
-
-
-def _fraction_spent(line: SpreadLine, as_of: date | None, day: date) -> Fraction:
-    """Return the part of the amount a line has spent by the end of a day, in proportion to hours.
-
-    What ``_spread_after`` shares, read at any day: the hours of work of the task up to the end
-    of the day over its hours of work, those after the end of ``as_of`` alone when it is given;
-    spent whole at the day of the task's end — at ``as_of`` for a task past its end, where it
-    stands for a task without an hour of work.
-    """
-    start, finish = line.placement.start, line.placement.finish
-    if as_of is not None:
-        cut = WorkInstant(as_of + ONE_DAY)
-        if finish <= cut:
-            return Fraction(int(day >= as_of))
-        start = max(start, cut)
-    week = line.placement.week
-    total = week.worked(finish) - week.worked(start)
-    if total == 0:
-        return Fraction(int(day >= finish.day))
-    reached = min(max(WorkInstant(day + timedelta(days=1)), start), finish)
-    return (week.worked(reached) - week.worked(start)) / total
 
 
 def _spread_after(
@@ -98,20 +76,13 @@ def shifted(line: SpreadLine, *, as_of: date | None = None) -> dict[Month, Decim
 def spread_delayed(line: SpreadLine, *, as_of: date | None = None) -> dict[Month, Decimal]:
     """Spread a line by the cumulated of its curve read at each month-end less its payment delay.
 
-    The path of a line with a delay; with a delay of nought it must give what ``_spread_after``
-    gives, which a test holds (WF-IND-0100-A).
+    The path of a line with a delay is that of the estimate (``amount_parts``, which the
+    projection of spending reads too): one spreading, two readings. With a delay of nought it
+    gives what ``_spread_after`` gives, which a test holds (WF-IND-0100-A).
     """
-    delay = timedelta(days=line.payment_delay_days)
-    start, finish = line.placement.start.day, line.placement.finish.day
-    if as_of is not None:
-        start, finish = max(start, as_of), max(finish, as_of)
-    amount = Fraction(line.amount)
-    months = months_between(month_of(start + delay), month_of(finish + delay))
-    cumulated = [
-        (month, amount * _fraction_spent(line, as_of, end_of(month) - delay)) for month in months
-    ]
-    cumulated[-1] = (months[-1], amount)
-    return parts_of_cumulated(cumulated, MONEY)
+    return amount_parts(
+        line.placement, line.amount, as_of=as_of, delay_days=line.payment_delay_days
+    )
 
 
 def line_shares(

@@ -208,8 +208,9 @@ def test_a_task_of_no_hour_is_kept_in_the_detail_with_no_month_and_the_role_has_
     site: Site, clock: Clock
 ) -> None:
     # A line of no hour bears a task of the role, which the detail keeps, empty of months; a line of
-    # half a thousandth of an hour bears one too, which the rounding of the parts gives a hundredth:
-    # the months of a role are those of the tasks that load some.
+    # half a thousandth of an hour bears one too, which the column of its hours (two decimals)
+    # records as a hundredth, not the rounding of the parts, which would give it nought a half to
+    # the even (``test_parting``): the months of a role are those of the tasks that load some.
     clock(date(2026, 10, 15))
     other = add_role(site.stage.database, "ZER", WORKED_DAYS)
     site.labour(site.task("Vide"), "0", role=other)

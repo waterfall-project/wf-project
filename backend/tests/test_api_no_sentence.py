@@ -59,6 +59,10 @@ DATA = {
     # scope of a calculation (``project``, ``unassigned`` or the identifier of a subproject).
     "WorkloadPlan.roles.label": "a label",
     "WorkloadTask.label": "a label",
+    # What the projection of spending names: the label a person gave a nature and a category of
+    # cost, as the reference data read them (``getProjectSpending``, US-2050).
+    "SpendingCostType.label": "a label",
+    "SpendingCategory.label": "a label",
     # The label of a milestone the diagram of the time/time tracking draws.
     "MilestoneTracking.milestones.label": "a label",
     # What the evolution of the indices names: the scope of a curve, a subproject by its label, and

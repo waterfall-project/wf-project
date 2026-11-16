@@ -44,6 +44,7 @@ import asked_resource_roles
 import asked_revisions
 import asked_scheduling
 import asked_skeleton
+import asked_spending
 import asked_startable_tasks
 import asked_subprojects
 import asked_timelines
@@ -464,6 +465,7 @@ ESTIMATE = (
     asked_rate_update,
     asked_estimate_indicators,
     asked_workload,
+    asked_spending,
     asked_comparison,
 )
 # The operations of the remaining to commit and of the actual costs, router by router (EP-09).

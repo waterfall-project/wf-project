@@ -101,9 +101,11 @@ def test_the_planned_value_of_the_curve_is_that_of_the_indicators_at_the_same_da
     api: ContractClient, stage: Scene, clock: Clock
 ) -> None:
     # « La courbe de valeur planifiée atteint le budget de référence à la fin de la référence. »
-    # Amounts that do not spread to the cent (333.33 and 666.67): at each month-end, the point of
-    # the curve, which sums the rounded parts of each line, is the planned value of the indicators
-    # read that day (``planned_value_at``), not a sum of the unrounded months.
+    # The test holds the body of the requirement, the planned value of WF-DEV-0080, not that
+    # Vérif. Amounts that do not spread to the cent (333.33 and 666.67): at each month-end, the
+    # point of the curve, which sums the rounded parts of each line, is the planned value of the
+    # indicators read that day (``planned_value_at``), not a sum of the unrounded months. The
+    # month that tells the two apart is 30 November: 466.66 by line, 466.67 by the total.
     priced(api, stage, CENTS)
     found = month_ends_read(api, stage, clock, "planned_value", EARNED_VALUE_CURVES)
     assert len(found) == MONTH_ENDS
@@ -115,8 +117,11 @@ def test_the_reference_budget_of_the_cost_curve_is_the_planned_value_at_the_same
     api: ContractClient, stage: Scene, clock: Clock
 ) -> None:
     # « La courbe du budget de référence atteint le budget de référence à la date de fin de la
-    # référence. » Without a payment delay, each month-end of the reference budget is the planned
-    # value of the indicators that day, amounts not spreading to the cent included.
+    # référence. » The test holds the body of the requirement, the reference budget read by the
+    # rule of the planned value (WF-DEV-0080), not that Vérif. Without a payment delay, each
+    # month-end of the reference budget is the planned value of the indicators that day, amounts
+    # not spreading to the cent included; 30 November, 466.66 by line against 466.67 by the total,
+    # is the month that tells the roundings apart.
     priced(api, stage, CENTS)
     found = month_ends_read(api, stage, clock, "reference_budget", COST_CURVE)
     assert len(found) == MONTH_ENDS

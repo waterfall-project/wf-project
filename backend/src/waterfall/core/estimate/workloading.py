@@ -212,18 +212,22 @@ def month_after(month: Month) -> Month:
 
 def monthly_totals(
     months_by_role: Iterable[Mapping[Month, Decimal]],
+    nought: Decimal = NOUGHT,
 ) -> list[tuple[Month, Decimal]]:
-    """Add up the hours of each month, from the first month loaded to the last, none left out."""
+    """Add up the hours of each month, from the first month loaded to the last, none left out.
+
+    ``nought`` is the zero of a month that loads nothing, written as the amounts are (``0.00``).
+    """
     sums: dict[Month, Decimal] = {}
     for months in months_by_role:
         for month, hours in months.items():
-            sums[month] = sums.get(month, NOUGHT) + hours
+            sums[month] = sums.get(month, nought) + hours
     if not sums:
         return []
     found: list[tuple[Month, Decimal]] = []
     month, last = min(sums), max(sums)
     while month <= last:
-        found.append((month, sums.get(month, NOUGHT)))
+        found.append((month, sums.get(month, nought)))
         month = month_after(month)
     return found
 
