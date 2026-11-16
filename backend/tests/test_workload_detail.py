@@ -17,7 +17,15 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from estimate_support import add_role
 from nodes_support import set_progress
-from workload_support import NOVEMBER, WORKED_DAYS, Clock, Site, day_setter, make_site
+from workload_support import (
+    NOVEMBER,
+    WORKED_DAYS,
+    Clock,
+    Site,
+    day_setter,
+    make_below,
+    make_site,
+)
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -193,3 +201,64 @@ def test_the_detail_of_a_marked_revision_is_computed_when_read_on_its_own_tasks(
     assert months_of(read, site.worker) == [("2026-11", "168.00"), ("2026-12", "184.00")]
     (now,) = role_of(site.plan("current_remaining"), site.worker)["tasks"]
     assert (now["node_id"], now["start"]["date"]) == (moved["node_id"], "2027-01-04")
+
+
+@pytest.mark.requirement("WF-DEV-0090-A")
+def test_a_task_of_no_hour_is_kept_in_the_detail_with_no_month_and_the_role_has_none_for_it(
+    site: Site, clock: Clock
+) -> None:
+    # A line of no hour bears a task of the role, which the detail keeps, empty of months; a line of
+    # half a thousandth of an hour bears one too, which the rounding of the parts gives a hundredth:
+    # the months of a role are those of the tasks that load some.
+    clock(date(2026, 10, 15))
+    other = add_role(site.stage.database, "ZER", WORKED_DAYS)
+    site.labour(site.task("Vide"), "0", role=other)
+    site.labour(site.task("Infime"), "0.005")
+    site.referenced()
+    read = site.plan("reference_budget")
+    assert tasks_of(read, other) == [("Vide", "0", [])]
+    assert months_of(read, other) == []
+    assert tasks_of(read, site.worker) == [("Infime", "0.01", [("2026-12", "0.01")])]
+    assert months_of(read, site.worker) == [("2026-12", "0.01")]
+
+
+@pytest.mark.requirement("WF-DEV-0090-A")
+def test_the_detail_follows_the_filter_by_organisation_node_of_the_plan(
+    site: Site, clock: Clock
+) -> None:
+    # « sous les filtres du plan » : the roles the node leaves out have no detail, those it keeps
+    # have theirs whole.
+    clock(date(2026, 10, 15))
+    below = make_below(site)
+    task = site.task("Câblage")
+    site.labour(task, "168")
+    site.labour(task, "92", role=below.fitter)
+    site.referenced()
+    whole = site.plan("reference_budget")
+    assert len(tasks_of(whole, site.worker)) == len(tasks_of(whole, below.fitter)) == 1
+    kept = site.plan("reference_budget", org_node_id=below.child)
+    assert [each["resource_role_id"] for each in kept["roles"]] == [str(below.fitter)]
+    assert tasks_of(kept, below.fitter) == tasks_of(whole, below.fitter)
+    assert tasks_of(kept, below.fitter) == [
+        ("Câblage", "92.00", [("2026-11", "43.91"), ("2026-12", "48.09")])
+    ]
+    both = site.plan("reference_budget", org_node_id=below.parent)
+    assert tasks_of(both, site.worker) == tasks_of(whole, site.worker)
+
+
+@pytest.mark.requirement("WF-DEV-0090-A")
+def test_on_the_remaining_a_task_whose_end_is_past_falls_on_the_month_of_the_day_in_the_detail(
+    site: Site, clock: Clock
+) -> None:
+    # The load of a task whose finish is past falls on the month of the day (WF-DEV-0070): the
+    # detail of the task, not only the role's months, is there, on the reference as it was.
+    site.labour(site.task("Câblage"), "352")
+    site.referenced()
+    clock(date(2027, 2, 17))
+    read = site.plan("current_remaining")
+    assert tasks_of(read, site.worker) == [("Câblage", "352.00", [("2027-02", "352.00")])]
+    assert summed(read, site.worker) == months_of(read, site.worker)
+    whole = site.plan("reference_budget")
+    assert tasks_of(whole, site.worker) == [
+        ("Câblage", "352.00", [("2026-11", "168.00"), ("2026-12", "184.00")])
+    ]
