@@ -1306,7 +1306,7 @@ la conservation (US-1670). Le pas du mois et les points de la date de calcul sui
 
 ## US-1700 — L'évolution des indices
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IND-0130-A`
 - **opérations** : `getIndexHistory` ; `getReferenceSettings` (les seuils tracés)
 - **issue** : 2432

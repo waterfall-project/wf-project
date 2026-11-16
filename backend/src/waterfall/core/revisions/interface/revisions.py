@@ -458,6 +458,16 @@ def marked_revisions_at(session: Session, project_id: UUID) -> dict[UUID, dateti
     return {identifier: at for identifier, at in rows if at is not None}
 
 
+def revision_version_names(session: Session, revision_ids: Collection[UUID]) -> dict[UUID, str]:
+    """Give the version name of each of the revisions named that has one, in one statement."""
+    if not revision_ids:
+        return {}
+    rows = session.execute(
+        select(Revision.id, Revision.version_name).where(Revision.id.in_(revision_ids))
+    )
+    return {identifier: name for identifier, name in rows if name is not None}
+
+
 def last_marked_revisions(session: Session, project_ids: Collection[UUID]) -> dict[UUID, UUID]:
     """Give the last marked revision of each of the projects that has one, in one statement."""
     rows = session.execute(
