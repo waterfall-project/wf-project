@@ -13,7 +13,7 @@ line rounded to the cent, whichever reads it (#3566).
 from typing import TYPE_CHECKING
 
 from waterfall.core.estimate.entries import VALIDATION_FAILED
-from waterfall.core.estimate.interface.indicator_lines import lines_for_indicators, planned_value_at
+from waterfall.core.estimate.lining import lines_for_indicators, planned_value_at
 from waterfall.core.projects.interface import project_facts
 from waterfall.platform.errors import FieldError, UnprocessableError
 

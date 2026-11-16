@@ -328,6 +328,18 @@ def test_an_entry_and_a_marking_without_a_rate_are_refused_by_naming_the_categor
     assert {"estimate_line_rate_missing", "estimate_line_role_required"} <= set(cited)
 
 
+@pytest.mark.requirement("WF-DEV-0010-A")
+def test_the_projection_of_spending_without_a_rate_names_the_same_categories() -> None:
+    # Vérif : « Le refus énumère les catégories de coût sans taux horaire pour l'année de
+    # référence. » (#3565) `getProjectSpending` refuses as an entry does, on its own correlation.
+    refused = fixture("spending_rate_missing")
+    assert (refused["status"], refused["code"]) == (422, "HOURLY_RATE_MISSING")
+    assert refused["params"] == {"missing_rates": fixture("missing_rates")}
+    assert "fields" not in refused
+    assert refused["correlation_id"] != fixture("estimate_line_rate_missing")["correlation_id"]
+    assert "spending_rate_missing" in _cited("getProjectSpending", "422")
+
+
 # --- The refusals of the common tree declared without an example (F-17, #1648) ----------------
 
 

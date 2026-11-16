@@ -4,11 +4,11 @@
 
 Each point carries the cumulative total at the end of its month. The first, zero, sits at the end
 of the month that precedes the first amount; the date of calculation is one more point on the
-series that stop or start there. The parts of the lines come rounded to the cent (``shares``), the
-documents are cents: the sum of cents is a cent, so the last rounding of each point, half away from
-zero as ``Money`` does, changes no value; it only gives the amount its two decimals, as the
-contract serves it (WF-DAT-0100). It is kept for that, so that a part that were not a cent would
-not leak into a point.
+series that stops or starts there. The parts of the lines come rounded to the cent (``shares``)
+and the documents are cents: a sum of cents is a cent, so ``cumulative`` needs no rounding of its
+own to give a point its two decimals, as the contract serves them (WF-DAT-0100). The series of
+documents and of the actual cost, whose amounts come from outside the estimate, are rounded to the
+cent all the same.
 """
 
 from dataclasses import dataclass
@@ -62,7 +62,7 @@ def cumulative(shares: Mapping[Month, Decimal], *, through: date | None = None) 
     points = [Point(end_of(month_before(first)), ZERO)]
     for month in months_between(first, last):
         running += shares.get(month, Decimal(0))
-        points.append(Point(end_of(month), to_cent(running)))
+        points.append(Point(end_of(month), running))
     return points
 
 

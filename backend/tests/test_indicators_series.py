@@ -456,8 +456,8 @@ TWO_WAYS = [
 def test_the_path_of_a_delayed_line_with_no_delay_gives_the_parts_of_the_estimate(
     spread: SpreadLine, as_of: date | None
 ) -> None:
-    # « La courbe de décaissement est la courbe du budget translatée du délai de paiement » : a
-    # delay of nought leaves the curve where it is, so the two ways of spreading — the parts of
-    # the estimate, and the cumulated read at each month-end less the delay — agree.
+    # « la courbe du budget de référence décalée est la courbe non décalée translatée de 60
+    # jours » : a delay of nought leaves the curve where it is, so the two ways of spreading — the
+    # parts of the estimate, and the cumulated read at each month-end less the delay — agree.
     assert spread.payment_delay_days == 0
     assert spread_delayed(spread, as_of=as_of) == line_shares(spread, as_of=as_of)

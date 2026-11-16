@@ -5,9 +5,11 @@
 The planned value at a date is the part of the budget of the reference that should have been
 earned by then: each line counts its budgeted amount, spread over the task as the reference dates
 it in proportion to the hours worked, up to the end of the day of that date. A line of a milestone,
-or of a task that works no hour, counts whole at the end of the task. The lines are given:
-choosing them (the lines of the reference outside the provisions) and reading their budgeted
-amounts is the caller's.
+or of a task that works no hour, counts whole at the end of the task. The share of each line is
+rounded to the cent on its own (``MONEY``), the planned value being the sum of those, and the
+calendars the lines are worked on are those their marking kept. The lines are given: choosing them
+(the lines of the reference outside the provisions) and reading their budgeted amounts is the
+caller's.
 """
 
 from dataclasses import dataclass

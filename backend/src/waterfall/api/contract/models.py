@@ -5148,7 +5148,7 @@ class WorkloadTask(ContractModel):
     row_number: Annotated[
         int,
         Field(
-            description="The row of the task in the numbering of the whole structure, as `Node.row_number`, in the structure of the revision the plan reads (`context.revision_id`): the plan of a marked basis numbers its tasks as that marked revision does, which lacks the rows the revision in progress added since (a provision, the tasks a risk originates).",
+            description="The row of the task in the numbering of the whole structure, as `Node.row_number`, in the structure of the revision the plan reads (`context.revision_id`): the plan of a marked basis numbers its tasks as that marked revision does, not as the revision in progress, whose rows may differ.",
             ge=1,
         ),
     ]

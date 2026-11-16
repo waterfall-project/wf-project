@@ -155,33 +155,29 @@ def test_the_cash_out_of_the_witness_is_the_example_but_for_the_provision(
     assert read(api, witness, realm, url)["cash_out_by_month"] is None
 
 
-OCCURRENCE = D("200.00")
-"""The two lines the occurrence of a risk added to the witness (EP-08), whole at the day."""
-
-
-def by_month(rows: list[dict[str, Any]]) -> dict[str, D]:
-    """Give the months of a projection of spending that carry an amount, by month."""
-    return {row["month"]: D(row["amount"]) for row in rows if D(row["amount"])}
-
-
 @pytest.mark.requirement("WF-IND-0100-A")
 def test_the_cash_out_to_come_is_the_projection_of_spending_to_the_cent(
     api: ContractClient, witness: Database, realm: TestRealm, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # Propre à l'US : « la courbe de coûts passe, comme la projection de dépenses et le plan de
     # charge, par les parts arrondies communes de core/estimate : à chaque mois, ses décaissements
-    # sans les provisions et la projection de dépenses ne diffèrent pas d'un centime » (#3564). The
-    # witness read on 3 June 2026, which bears no provision (EP-08): month for month, the cash-out
-    # to come is the example of `getProjectSpending` on the remaining to commit with the payment
-    # delays, which leaves the provisions out — two cents apart in June before (US-1690/L4) —, but
-    # for the two lines the occurrence of a risk added (EP-08), 120 and 80, past their task and
-    # whole in June, that the witness does not bear either.
+    # sans les provisions et la projection de dépenses ne diffèrent pas d'un centime » (#3564,
+    # #3614). The witness read on 3 June 2026 by the two routes: month for month, the cash-out to
+    # come of `getCostCurve` is the total of `getProjectSpending` on the remaining to commit with
+    # the payment delays, to the cent; the provisions and the occurrence of a risk (EP-08) are
+    # left out of both, the witness bearing none.
     monkeypatch.setattr("waterfall.api.indicator_curves.utc_now", lambda: READ_AT)
-    url = f"{PROJECTS}/{PRJ_001}/indicators/{COST_CURVE}{DELAYED}"
-    body = read(api, witness, realm, url)
+    monkeypatch.setattr("waterfall.api.spending.utc_now", lambda: READ_AT)
+    body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/indicators/{COST_CURVE}{DELAYED}")
     forecast = {month: D(each) for month, _, each in months(body) if D(each)}
-    spending = by_month(example("spending_payment_delays")["monthly_totals"])
-    assert set(forecast) == set(spending)
-    assert {month: spending[month] - amount for month, amount in forecast.items()} == {
-        month: OCCURRENCE if month == "2026-06" else D(0) for month in spending
+    spent = read(
+        api,
+        witness,
+        realm,
+        f"{PROJECTS}/{PRJ_001}/spending?basis=current_remaining&payment_delays=true",
+    )
+    spending = {
+        row["month"]: D(row["amount"]) for row in spent["monthly_totals"] if D(row["amount"])
     }
+    assert spending
+    assert forecast == spending
