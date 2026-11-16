@@ -4,7 +4,7 @@
 
 import json
 import math
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
@@ -307,4 +307,49 @@ def test_the_processes_report_keeps_the_shape_the_defaults_are_read_from() -> No
             assert level["steps"]
             for step in level["steps"].values():
                 assert {"usable_ms", "api_ms", "worst_usable_ms", "spread_ms"} <= set(step)
-    assert chosen["processes"] in {run["processes"] for run in found["runs"]}
+    measured = {run["processes"] for run in found["runs"]}
+    assert chosen["processes"] in measured
+    assert chosen["service_platform"] in measured
+    assert chosen["production_example"] in measured
+
+
+@pytest.mark.requirement("WF-ARC-0080-A")
+def test_the_figures_of_the_compose_readme_are_the_ones_of_the_processes_report() -> None:
+    # The README of deploy/compose quotes the report of the processes (#3440): a drift of either
+    # would otherwise pass unseen.
+    found = json.loads((measures.MEASURES / "processes.json").read_text(encoding="utf-8"))
+    runs = {run["processes"]: run for run in found["runs"]}
+    readme = (measures.MEASURES.parents[1] / "deploy/compose/README.md").read_text("utf-8")
+    text = " ".join(readme.split())
+
+    def level(processes: int, users: int) -> dict[str, Any]:
+        return next(x for x in runs[processes]["levels"] if x["users"] == users)
+
+    def usable(processes: int, users: int, step: str) -> float:
+        return float(level(processes, users)["steps"][step]["usable_ms"])
+
+    def french(value: float, decimals: int, unit: str) -> str:  # 4222.6 ms -> "4,2 s"
+        return f"{value:.{decimals}f}".replace(".", ",") + f" {unit}"
+
+    def seconds(processes: int, users: int, step: str, decimals: int = 1) -> str:
+        return french(usable(processes, users, step) / 1000, decimals, "s")
+
+    def chain(step: str) -> str:
+        return (
+            f"de {seconds(1, 8, step)} à {seconds(2, 8, step)} puis {seconds(4, 8, step)}"
+        )
+
+    assert "l'ouverture du planning passe " + chain("planning.by-address") in text
+    assert "le devis " + chain("estimate.from-planning") in text
+    me = [round(level(n, 8)["get_me"]["api_ms"]) for n in (1, 2, 4)]
+    assert f"`getMe` de {me[0]} ms à {me[1]} ms puis {me[2]} ms" in text
+    assert f"de {seconds(2, 8, 'planning.label', 2)} (deux processus)" in text
+    assert f"à {seconds(4, 8, 'planning.label', 2)} (quatre)" in text
+    slower = f"({seconds(2, 4, 'planning.duration', 2)} contre {seconds(1, 4, 'planning.duration', 2)})"
+    assert slower in text
+    resident = [p["rss_mb"] / 1000 for p in runs[4]["memory"]["processes"]]
+    assert 0.6 <= round(min(resident), 1) and round(max(resident), 1) <= 0.7
+    assert f"quatre processus, {french(sum(resident), 1, 'Go')}" in text
+    assert f"({french(runs[1]['memory']['processes'][0]['rss_mb'] / 1000, 1, 'Go')} quand" in text
+    assert f"À un processus, le serveur accepte {runs[1]['max_connections']} connexions" in text
+    assert f"à quatre, {runs[4]['max_connections']}" in text
