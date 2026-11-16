@@ -4,9 +4,11 @@
 
 Each point carries the cumulative total at the end of its month. The first, zero, sits at the end
 of the month that precedes the first amount; the date of calculation is one more point on the
-series that stop or start there. Amounts are rounded to the cent once, on the cumulative total of
-each point, half away from zero as ``Money`` does, so that the parts rounded by difference add up to
-the total (WF-DAT-0100).
+series that stop or start there. The parts of the lines come rounded to the cent (``shares``), the
+documents are cents: the sum of cents is a cent, so the last rounding of each point, half away from
+zero as ``Money`` does, changes no value; it only gives the amount its two decimals, as the
+contract serves it (WF-DAT-0100). It is kept for that, so that a part that were not a cent would
+not leak into a point.
 """
 
 from dataclasses import dataclass
@@ -111,21 +113,3 @@ def cumulative_from(shares: Mapping[Month, Decimal], as_of: date, base: Decimal)
         else:
             points.append(point)
     return points
-
-
-def apportioned(shares: Mapping[Month, Decimal]) -> dict[Month, Decimal]:
-    """Round the parts to the cent by difference of the rounded cumulative totals.
-
-    The rounded parts add up to the rounded total, whatever the number of months.
-    """
-    if not shares:
-        return {}
-    rounded: dict[Month, Decimal] = {}
-    running = Decimal(0)
-    previous = ZERO
-    for month in months_between(min(shares), max(shares)):
-        running += shares.get(month, Decimal(0))
-        current = to_cent(running)
-        rounded[month] = current - previous
-        previous = current
-    return rounded

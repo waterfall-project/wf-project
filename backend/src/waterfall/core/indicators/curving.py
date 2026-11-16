@@ -4,9 +4,9 @@
 
 The tasks, the lines of the revision computed R and of the reference Ref, the remaining to commit
 of R are read once for all the scopes (``read_curve_sources``), the tracked lines of cost of each
-scope after (``curves_of_scope``); the series are
-then drawn from them without the database (``cost_curve_document``,
-``earned_value_curves_document``), at the pace of the month (WF-IND-0100, WF-IND-0110):
+scope after (``curves_of_scope``); the series are then drawn from them without the database
+(``cost_curve_document``, ``earned_value_curves_document``), at the pace of the month, each line by
+its parts rounded to the cent, as the estimate rounds them (WF-IND-0100, WF-IND-0110; US-1690/L4):
 
 - ``reference_budget`` and ``planned_value``, the budgeted amounts of the lines of Ref of the scope
   spread over their tasks as Ref dates them, cumulated by month-end;
@@ -87,7 +87,6 @@ class CurveSources:
     of the tasks completed in R: what does not depend on the scope.
     """
 
-    basis: Basis
     reference: tuple[IndicatorLine, ...]
     lines: tuple[IndicatorLine, ...]
     remaining: Mapping[UUID, Decimal]
@@ -103,15 +102,15 @@ def read_curve_sources(session: Session, basis: Basis) -> CurveSources:
         if task.progress == COMPLETED and task.completed_on is not None
     }
     remaining = remaining_of_revision(session, basis.project_id, basis.revision_id).by_line
-    return CurveSources(basis, tuple(reference), tuple(lines), remaining, completed)
+    return CurveSources(tuple(reference), tuple(lines), remaining, completed)
 
 
 def curves_of_scope(
-    session: Session, sources: CurveSources, day: date, scope: CostScope
+    session: Session, project_id: UUID, sources: CurveSources, day: date, scope: CostScope
 ) -> CurveReading:
     """Give what the curves of a scope are drawn from at a day: the sources, narrowed to it.
 
-    Only the tracked lines of cost of the scope are read here.
+    Only the tracked lines of cost of the scope, in the project, are read here.
     """
     budgeted = tuple(line for line in sources.reference if in_scope(scope, line.subproject_id))
     earned = [
@@ -129,13 +128,14 @@ def curves_of_scope(
             if in_scope(scope, line.subproject_id)
         ),
         earned,
-        actual_cost_dates(session, sources.basis.project_id, day, scope),
+        actual_cost_dates(session, project_id, day, scope),
     )
 
 
 def read_curves(session: Session, basis: Basis, day: date, scope: CostScope) -> CurveReading:
     """Read what the curves of a scope are drawn from, at a day, on the revisions of a basis."""
-    return curves_of_scope(session, read_curve_sources(session, basis), day, scope)
+    sources = read_curve_sources(session, basis)
+    return curves_of_scope(session, basis.project_id, sources, day, scope)
 
 
 def _budget(reading: CurveReading, *, delayed: bool) -> tuple[dict[Month, Decimal], list[Point]]:

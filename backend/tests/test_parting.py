@@ -10,6 +10,7 @@ from Monday to Friday; in 2026, February holds 20 working days, March and April 
 
 from datetime import date, timedelta
 from decimal import Decimal
+from fractions import Fraction
 
 import pytest
 
@@ -19,6 +20,7 @@ from waterfall.core.estimate.interface import (
     Month,
     Placement,
     PlannedLine,
+    parts_of_cumulated,
     rounded_parts,
     summed_parts,
 )
@@ -109,3 +111,30 @@ def test_parts_summed_keep_the_months_in_order_and_leave_out_a_month_at_nought()
     )
     assert summed == {FEBRUARY: Decimal("2.25"), MARCH: Decimal("1.50")}
     assert list(summed) == [FEBRUARY, MARCH]
+
+
+MAY = Month(2026, 5)
+CUMULATED = [
+    (FEBRUARY, Fraction(10005, 1000)),
+    (MARCH, Fraction(4004, 1000)),
+    (APRIL, Fraction(4004, 1000)),
+    (MAY, Fraction(20)),
+]
+
+
+@pytest.mark.requirement("WF-DEV-0090-A")
+def test_the_parts_of_a_cumulated_are_the_differences_of_its_roundings_in_the_order_given() -> None:
+    # A cumulated that falls back (10.005, then 4.004) gives a negative part, which is kept; a
+    # half goes away from nought as an amount (10.005 is 10.01) and to the even as hours (10.00);
+    # a month that rounds as the one before holds no part (April);
+    # the last month closes on the whole.
+    assert parts_of_cumulated(CUMULATED, MONEY) == {
+        FEBRUARY: Decimal("10.01"),
+        MARCH: Decimal("-6.01"),
+        MAY: Decimal("16.00"),
+    }
+    assert parts_of_cumulated(CUMULATED, HOURS) == {
+        FEBRUARY: Decimal("10.00"),
+        MARCH: Decimal("-6.00"),
+        MAY: Decimal("16.00"),
+    }

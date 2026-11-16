@@ -443,7 +443,7 @@ describe("the cumulative curves", () => {
       "March 20261,400.000.00",
       "April 2026101,600.000.00",
       "May 20261,182,933.730.00",
-      "June 2026127,036.47675,512.54",
+      "June 2026127,036.47675,512.56",
     ]);
     expect(data.cash_out_by_month).toHaveLength(43);
   });

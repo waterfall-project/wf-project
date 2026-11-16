@@ -561,7 +561,7 @@ def test_the_marks_the_review_journey_reads(today: dict[str, Any]) -> None:
         project["schedule_variance"],
         project["schedule_index"]["value"]["value"],
         project["cost_index"]["value"]["value"],
-    ) == ("67497090.97", "70316396.56", "1721585.56", "-228231.37", "0.8674", "1.0569")
+    ) == ("67497090.97", "70316396.56", "1721585.59", "-228231.40", "0.8674", "1.0569")
     assert (project["schedule_index"]["zone"], project["cost_index"]["zone"]) == (
         "watch",
         "nominal",
@@ -948,8 +948,8 @@ def test_a_scope_without_budget_draws_its_cost_and_its_projection(today: dict[st
 
 def test_the_spread_sums_the_flows_as_each_flow_spends() -> None:
     # The flows summed at once once spent whole, and read one by one while under way, give at
-    # every day what the sum of each flow gives: on two calendars, with and without a delay, from
-    # before the first flow begins to after the last is spent.
+    # every day the sum of each flow, rounded to the cent as a part (#3590): on two calendars, with
+    # and without a delay, from before the first flow begins to after the last is spent.
     standard = Calendar("standard", tuple(Decimal(h) for h in (8, 8, 8, 8, 8, 0, 0)))
     four_days = Calendar("four", tuple(Decimal(h) for h in (10, 10, 10, 10, 0, 0, 0)))
     flows = [
@@ -963,7 +963,7 @@ def test_the_spread_sums_the_flows_as_each_flow_spends() -> None:
     days = {flow.first - timedelta(days=1) for flow in flows} | {flow.last for flow in flows}
     days |= {_at(5, 1).day, _at(6, 15).day, _at(7, 31).day, _at(9, 30).day}
     for day in sorted(days):
-        expected = sum((flow.by(day) for flow in flows), Decimal(0)).quantize(Decimal("0.01"))
+        expected = sum((mockcurves.to_cent(flow.by(day)) for flow in flows), Decimal(0))
         assert spread.by(day) == expected, day
     assert spread.by(_at(9, 30).day) == sum((flow.amount for flow in flows), Decimal(0))
     # On the budget of the witness too, at the ends of a few months and at the day of today.
@@ -971,7 +971,7 @@ def test_the_spread_sums_the_flows_as_each_flow_spends() -> None:
     budget = mockcurves.budget_flows(base, delays=True)
     whole = mockcurves.Spread.of(budget)
     for day in (date(2026, 4, 30), date(2026, 6, 3), date(2027, 12, 31), date(2029, 9, 30)):
-        expected = sum((flow.by(day) for flow in budget), Decimal(0)).quantize(Decimal("0.01"))
+        expected = sum((mockcurves.to_cent(flow.by(day)) for flow in budget), Decimal(0))
         assert whole.by(day) == expected, day
 
 
