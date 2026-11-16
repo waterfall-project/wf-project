@@ -23,7 +23,10 @@ from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import select
 
-from waterfall.core.cost_settings.interface import read_reference_settings
+from waterfall.core.cost_settings.interface import (
+    read_reference_settings,
+    thresholds_document,
+)
 from waterfall.core.costs.interface import PROJECT, UNASSIGNED
 from waterfall.core.indicators.computing import day_documents
 from waterfall.core.indicators.interface.project_indicators import day_reading
@@ -34,7 +37,6 @@ from waterfall.core.indicators.shaping import (
     classified,
     context_document,
     instant,
-    thresholds_document,
 )
 from waterfall.core.indicators.tables import RevisionIndicator
 from waterfall.core.projects.interface import (

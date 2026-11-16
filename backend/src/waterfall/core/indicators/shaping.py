@@ -48,16 +48,6 @@ def _ratio(ratio: Decimal) -> str:
     return format(ratio.normalize(), "f")
 
 
-def thresholds_document(thresholds: IndexThresholds) -> dict[str, str]:
-    """Write the thresholds of the indices as the contract writes them (``IndexThresholds``)."""
-    return {
-        "cost_watch": _ratio(thresholds.cost_watch),
-        "cost_alert": _ratio(thresholds.cost_alert),
-        "schedule_watch": _ratio(thresholds.schedule_watch),
-        "schedule_alert": _ratio(thresholds.schedule_alert),
-    }
-
-
 def instant(at: datetime) -> str:
     """Give an instant as the contract writes it, in universal time."""
     return at.astimezone(UTC).isoformat().replace("+00:00", "Z")

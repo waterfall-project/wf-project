@@ -12,6 +12,7 @@ contract by the client of the tests.
 
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -25,6 +26,15 @@ from planning_support import DAY
 from projects_support import PROJECTS
 from projects_support import scene as make_scene
 from test_project_indicators import thresholds
+
+from waterfall.core.cost_settings.interface import (
+    IndexThresholds,
+    SettingsChange,
+    read_reference_settings,
+    write_reference_settings,
+)
+from waterfall.platform.audit import Act
+from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
     from indicators_support import Clock
@@ -334,3 +344,22 @@ def test_an_unknown_project_is_not_found(api: ContractClient, stage: Scene) -> N
         f"{PROJECTS}/{uuid4()}/indicators/index-history", headers=stage.manager.headers
     )
     assert answer.status_code == 404, answer.text
+
+
+@pytest.mark.requirement("WF-REF-0170-A")
+@pytest.mark.usefixtures("project")
+def test_the_history_and_the_settings_write_the_thresholds_alike(
+    api: ContractClient, stage: Scene
+) -> None:
+    # One writing of the four thresholds serves ``getReferenceSettings`` and ``getIndexHistory``:
+    # a value like 0.875 reads the same, without a useless zero.
+    held = IndexThresholds(Decimal("0.900"), Decimal("0.875"), Decimal("0.9500"), Decimal("0.8"))
+    with stage.database.transaction() as session:
+        counter = read_reference_settings(session).lock_version
+        write_reference_settings(
+            session, SettingsChange(index_thresholds=held), counter, Act(None, utc_now())
+        )
+    settings = api.get("/reference/settings", headers=stage.manager.headers)
+    assert settings.status_code == 200, settings.text
+    assert history(api, stage)["thresholds"] == settings.json()["index_thresholds"]
+    assert settings.json()["index_thresholds"]["cost_alert"] == "0.875"
