@@ -3274,10 +3274,12 @@ it, with the `note` of its overruns. The measure fails on no duration: only on a
 make, volumes below those of §4.6.2 (a thousand tasks, five estimate lines a task on average, less the witness's rounding: 4.9 at least), a step the
 browser does not reach the end of, a background task that fails, or a load that did not run as asked
 (`load-check.ts`): without a summary, a user refused for want of a token, more than one percent of
-readings or entries refused — the entries the marking refuses (`409`), the only ones expected,
-apart, and only after the first marking asked, within the share of the load during which the
-revision stood frozen, to ten percent: more `409` than that fail the load, a load frozen for its
-whole duration accepting them all; and fewer than half the gestures the pauses promise (users × duration ÷ 10 s). The passes of
+readings or entries refused — the gestures the marking refuses, apart: the `409`
+`STATE_FORBIDS_OPERATION`, the only one expected, not any `409` — an entry on the marked
+revision, the reading of the workload on the current revision of a project that has none left —,
+counted on their own (`reads_frozen`, `writes_frozen`) and only after the first marking asked,
+within the share of the load during which the revision stood frozen, to ten percent: more of
+them than that fail the load, a load frozen for its whole duration accepting them all; and fewer than half the gestures the pauses promise (users × duration ÷ 10 s). The passes of
 the import are not at a constant volume: the second imports its eighteen thousand lines beside the
 eighteen thousand of the first, the third beside thirty-six thousand, as a project that receives
 costs would, and the report says so. The container of the load stops at the end of the measure,

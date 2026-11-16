@@ -15,10 +15,15 @@ export interface LoadSummary {
   /** Every gesture, readings and entries. */
   readonly gestures: number;
   readonly reads: number;
-  /** The readings a screen did not get a full answer to. */
+  /**
+   * The readings the marking refuses (409 `STATE_FORBIDS_OPERATION`): the workload of a project left
+   * without a current revision once its revision is marked.
+   */
+  readonly reads_frozen: number;
+  /** The readings a screen did not get a full answer to, otherwise. */
   readonly reads_refused: number;
   readonly writes: number;
-  /** The entries refused on a revision the measure has marked (409): the marking's doing. */
+  /** The entries refused on a revision the measure has marked (409, the state's): the marking's doing. */
   readonly writes_frozen: number;
   /** The entries refused otherwise. */
   readonly writes_refused: number;
@@ -46,8 +51,8 @@ export interface LoadRun {
 /** The share of the readings, or of the entries, that may be refused before the load is void. */
 export const REFUSED_TOLERANCE = 0.01;
 /**
- * The share of the entries, beside the share of the duration the revision stood frozen, that may be
- * refused as frozen: the entries of a user fall at random in time.
+ * The share of the entries, and of the readings, beside the share of the duration the revision stood
+ * frozen, that may be refused as frozen: the gestures of a user fall at random in time.
  */
 export const FROZEN_SLACK = 0.1;
 /** The mean pause between two gestures of a user, in seconds (`bench/draw.ts`). */
@@ -80,17 +85,21 @@ export function loadFailures(summary: LoadSummary | undefined, run: LoadRun): st
       `${String(summary.writes_refused)} of ${String(summary.writes)} entries refused, ${tolerated}`,
     );
   }
-  if (summary.writes_frozen > 0 && run.frozen_s <= 0) {
-    failures.push(
-      `${String(summary.writes_frozen)} entries refused though the revision was never frozen`,
-    );
-  }
   const frozenShare = run.duration_s > 0 ? Math.min(1, run.frozen_s / run.duration_s) : 0;
-  if (summary.writes_frozen > summary.writes * (frozenShare + FROZEN_SLACK)) {
-    failures.push(
-      `${String(summary.writes_frozen)} of ${String(summary.writes)} entries refused as frozen, ` +
-        `the revision having stood frozen ${String(Math.round(frozenShare * 100))} % of the load`,
-    );
+  const shares = [
+    { gestures: "entries", frozen: summary.writes_frozen, of: summary.writes },
+    { gestures: "readings", frozen: summary.reads_frozen, of: summary.reads },
+  ];
+  for (const { gestures, frozen, of } of shares) {
+    if (frozen > 0 && run.frozen_s <= 0) {
+      failures.push(`${String(frozen)} ${gestures} refused though the revision was never frozen`);
+    }
+    if (frozen > of * (frozenShare + FROZEN_SLACK)) {
+      failures.push(
+        `${String(frozen)} of ${String(of)} ${gestures} refused as frozen, ` +
+          `the revision having stood frozen ${String(Math.round(frozenShare * 100))} % of the load`,
+      );
+    }
   }
   const expected = gesturesExpected(run.users, run.duration_s);
   if (summary.gestures < expected * GESTURES_LEAST_SHARE) {

@@ -16,6 +16,7 @@ import {
   PLANNING_KINDS as LOAD_PLANNING_KINDS,
   query,
   READINGS,
+  refusedByState,
   REMAINING,
   REMAINING_PROGRESS,
   taskPath,
@@ -80,6 +81,18 @@ describe("query", () => {
       "?fields=a,task.b&search=revue%20de%20projet",
     );
     expect(query({})).toBe("");
+  });
+});
+
+describe("refusedByState", () => {
+  it("tells the 409 of a state from any other refusal [WF-QUA-0060-A]", () => {
+    const state = { code: "STATE_FORBIDS_OPERATION", status: 409, params: { state: "pricing" } };
+    expect(refusedByState(409, state)).toBe(true);
+    expect(refusedByState(409, { ...state, code: "ALREADY_EXISTS" })).toBe(false);
+    expect(refusedByState(409, null)).toBe(false);
+    expect(refusedByState(409, "STATE_FORBIDS_OPERATION")).toBe(false);
+    expect(refusedByState(412, state)).toBe(false);
+    expect(refusedByState(500, state)).toBe(false);
   });
 });
 

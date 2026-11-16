@@ -3289,10 +3289,12 @@ durée : seulement sur un compte qu'elle ne peut créer, des volumes inférieurs
 tâches, cinq lignes de devis par tâche en moyenne, à l'arrondi près du témoin : 4,9 au moins), une étape que le navigateur ne mène pas à sa fin, une tâche
 de fond qui échoue, ou une charge qui n'a pas tourné comme demandé (`load-check.ts`) : sans résumé,
 un utilisateur refusé faute de jeton, plus d'un pour cent de lectures ou de saisies refusées, hors
-les saisies que le marquage refuse (`409`), seules attendues : celles-là ne comptent qu'après le
-premier marquage demandé, et que dans la part de la charge où la révision est restée gelée, à une
-marge de dix pour cent près (une charge gelée pendant toute sa durée les accepte toutes) ; ou moins
-de la moitié des
+les gestes que le marquage refuse — le `409` `STATE_FORBIDS_OPERATION`, seul attendu, et non tout
+`409` : une saisie sur la révision marquée, la lecture du plan de charge sur la révision en cours
+d'un projet qui n'en a plus —, comptés à part (`reads_frozen`, `writes_frozen`) : ceux-là ne
+comptent qu'après le premier marquage demandé, et que dans la part de la charge où la révision est
+restée gelée, à une marge de dix pour cent près (une charge gelée pendant toute sa durée les
+accepte toutes) ; ou moins de la moitié des
 gestes que promettent les pauses (utilisateurs × durée ÷ 10 s). Les passages d'import ne sont pas à
 volume constant : le deuxième importe ses dix-huit mille lignes à côté des dix-huit mille du
 premier, le troisième à côté de trente-six mille, comme le ferait un projet qui reçoit des coûts, et

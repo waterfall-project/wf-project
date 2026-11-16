@@ -19,9 +19,10 @@
  * does.
  *
  * The load ends when the measure stops its container (or after five hours): k6 then writes its
- * summary, beside the file it read (`summary.json`): the gestures made, the readings refused, the
- * entries refused — apart those on a revision the measure has marked, which is the marking's doing
- * (409) —, and those refused for want of a valid token. `e2e/measure/load-check.ts` decides from
+ * summary, beside the file it read (`summary.json`): the gestures made, the readings and the
+ * entries refused — apart those the marking of the revision refuses (409 `STATE_FORBIDS_OPERATION`:
+ * an entry on the revision marked, the workload of a project left without a current revision),
+ * which are counted on their own —, and those refused for want of a valid token. `e2e/measure/load-check.ts` decides from
  * them whether the load ran as asked.
  */
 import { sleep } from "k6";
@@ -30,7 +31,7 @@ import { Counter } from "k6/metrics";
 import type { Options } from "k6/options";
 
 import { type Gesture, gestures } from "./draw.ts";
-import { ENTRIES, type Place, READINGS, taskPath, type Written } from "./screens.ts";
+import { ENTRIES, type Place, READINGS, refusedByState, taskPath, type Written } from "./screens.ts";
 
 /** A user of the load, as the preparation hands it. */
 interface Prepared {
@@ -54,6 +55,13 @@ interface TokenAnswer {
   readonly refresh_token: string;
   readonly expires_in: number;
 }
+
+/**
+ * How many times an entry is sent again on a stale counter: the task of a user may be redated, so
+ * its counter moved, by the duration another user enters on a task it follows, between the
+ * refusal and the new entry.
+ */
+const STALE_RETRIES = 3;
 
 /** The answer of `updateTaskFacet` to a stale counter, and the nodes it wrote otherwise. */
 interface TaskAnswer {
@@ -86,7 +94,8 @@ export const options: Options = {
 
 const made = new Counter("gestures");
 const reads = new Counter("gestures_read");
-const readsRefused = new Counter("gestures_read_refused");
+const readsFrozen = new Counter("gestures_read_frozen");
+const readsRefused =new Counter("gestures_read_refused");
 const writes = new Counter("gestures_write");
 const writesFrozen = new Counter("gestures_write_frozen");
 const writesRefused = new Counter("gestures_write_refused");
@@ -151,32 +160,36 @@ function headers(playing: User): Record<string, string> {
   return { Authorization: `Bearer ${playing.token}`, "Content-Type": "application/json" };
 }
 
-/** The status of an entry on a revision the measure has marked (`revision_draft`). */
-const FROZEN = 409;
+/** Whether an answer is the refusal of a state, which the marking causes (`refusedByState`). */
+function frozen(answer: { readonly status: number; json(): unknown }): boolean {
+  if (answer.status !== 409) {
+    return false;
+  }
+  try {
+    return refusedByState(answer.status, answer.json());
+  } catch {
+    return false;
+  }
+}
 
 /**
- * Count a gesture, and how it was answered: a reading refused, an entry refused by the marking or
- * not.
+ * Count a gesture, and how it was answered: refused by the marking (`wasFrozen`), which is counted
+ * on its own, or refused otherwise, which the log of k6 names, the summary not detailing it.
  */
-function counted(kind: string, name: string, status: number): void {
+function counted(kind: string, name: string, status: number, wasFrozen: boolean): void {
   const tags = { kind, name };
   const accepted = status >= 200 && status < 300;
+  const read = kind === "read";
   made.add(1, tags);
   if (status === 401 || status === 403) {
     unauthorised.add(1, tags);
   }
-  if (kind === "read") {
-    reads.add(1, tags);
-    if (!accepted) {
-      readsRefused.add(1, { ...tags, status: String(status) });
-    }
-    return;
-  }
-  writes.add(1, tags);
-  if (status === FROZEN) {
-    writesFrozen.add(1, tags);
+  (read ? reads : writes).add(1, tags);
+  if (wasFrozen) {
+    (read ? readsFrozen : writesFrozen).add(1, tags);
   } else if (!accepted) {
-    writesRefused.add(1, { ...tags, status: String(status) });
+    (read ? readsRefused : writesRefused).add(1, { ...tags, status: String(status) });
+    console.warn(`refused ${kind} ${name}: ${String(status)}`);
   }
 }
 
@@ -187,6 +200,7 @@ function read(playing: User, choice: number): void {
     return;
   }
   let status = 200;
+  let wasFrozen = false;
   for (const asked of reading.asks(preparation.place)) {
     const answer = http.get(`${API}${asked.path}`, {
       headers: headers(playing),
@@ -194,10 +208,11 @@ function read(playing: User, choice: number): void {
     });
     if (answer.status !== 200) {
       status = answer.status;
+      wasFrozen = frozen(answer);
       break;
     }
   }
-  counted("read", reading.name, status);
+  counted("read", reading.name, status, wasFrozen);
 }
 
 /**
@@ -220,7 +235,7 @@ function write(playing: User, choice: number): void {
       { headers: headers(playing), tags: { name: "updateTaskFacet", gesture: entry.name } },
     );
   let answer = send();
-  if (answer.status === 412) {
+  for (let again = 0; again < STALE_RETRIES && answer.status === 412; again += 1) {
     const stale = answer.json() as unknown as TaskAnswer;
     playing.lockVersion = stale.params?.expected_lock_version ?? playing.lockVersion;
     answer = send();
@@ -230,7 +245,7 @@ function write(playing: User, choice: number): void {
     const node = written.nodes?.find((one) => one.node_id === playing.task.node);
     playing.lockVersion = node?.lock_version ?? playing.lockVersion;
   }
-  counted("write", entry.name, answer.status);
+  counted("write", entry.name, answer.status, frozen(answer));
 }
 
 /** One gesture of a virtual user: its pause, then a reading or an entry. */
@@ -260,6 +275,7 @@ export function handleSummary(data: Summary): Record<string, string> {
     seed: preparation.seed,
     gestures: count("gestures"),
     reads: count("gestures_read"),
+    reads_frozen: count("gestures_read_frozen"),
     reads_refused: count("gestures_read_refused"),
     writes: count("gestures_write"),
     writes_frozen: count("gestures_write_frozen"),

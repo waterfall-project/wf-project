@@ -19,6 +19,7 @@ const NOMINAL: LoadSummary = {
   seed: 2300,
   gestures: 2900,
   reads: 2610,
+  reads_frozen: 0,
   reads_refused: 0,
   writes: 290,
   writes_frozen: 0,
@@ -69,6 +70,25 @@ describe("loadFailures", () => {
     const run = { ...RUN, frozen_s: 60 };
     expect(loadFailures({ ...NOMINAL, writes_frozen: 55 }, run)).toEqual([]);
     expect(loadFailures({ ...NOMINAL, writes_frozen: 90 }, run)).toHaveLength(1);
+  });
+
+  it("tolerates the readings a marked revision refuses, and no other [WF-QUA-0060-A]", () => {
+    // The workload of a project left without a current revision, read after the marking.
+    const frozen = { ...NOMINAL, reads_frozen: 8 };
+    expect(loadFailures(frozen, RUN)).toEqual([]);
+    expect(loadFailures({ ...NOMINAL, reads_refused: 40 }, RUN)).toHaveLength(1);
+    expect(loadFailures({ ...NOMINAL, reads_frozen: 8, reads_refused: 40 }, RUN)).toHaveLength(1);
+  });
+
+  it("refuses readings refused as frozen on a revision never frozen [WF-QUA-0060-A]", () => {
+    const failures = loadFailures({ ...NOMINAL, reads_frozen: 8 }, { ...RUN, frozen_s: 0 });
+    expect(failures).toContain("8 readings refused though the revision was never frozen");
+  });
+
+  it("bounds the readings refused as frozen by the share of the load the revision stood frozen [WF-QUA-0060-A]", () => {
+    const run = { ...RUN, frozen_s: 60 };
+    expect(loadFailures({ ...NOMINAL, reads_frozen: 500 }, run)).toEqual([]);
+    expect(loadFailures({ ...NOMINAL, reads_frozen: 900 }, run)).toHaveLength(1);
   });
 
   it("refuses a load that made far fewer gestures than its pauses promise [WF-QUA-0060-A]", () => {
