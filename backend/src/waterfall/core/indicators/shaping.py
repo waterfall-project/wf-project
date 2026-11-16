@@ -48,7 +48,8 @@ def _ratio(ratio: Decimal) -> str:
     return format(ratio.normalize(), "f")
 
 
-def _instant(at: datetime) -> str:
+def instant(at: datetime) -> str:
+    """Give an instant as the contract writes it, in universal time."""
     return at.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
@@ -67,7 +68,7 @@ def context_document(context: Context) -> Document:
     return {
         "revision_id": str(context.revision_id),
         "revision_status": context.revision_status,
-        "computed_at": _instant(context.computed_at),
+        "computed_at": instant(context.computed_at),
         "scope": str(context.scope),
         "is_stored": context.is_stored,
     }

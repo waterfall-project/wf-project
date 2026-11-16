@@ -218,6 +218,9 @@ from waterfall.core.estimate.interface.indicators import (
 from waterfall.core.estimate.interface.indicators import (
     missing_rates as missing_rates,
 )
+from waterfall.core.estimate.interface.indicators import (
+    shown as shown,
+)
 
 # ``kanban`` (US-1580/L1; US-1590/L1, US-1590/L2): the lines that hold a task open, and the board
 # of the tasks, which ``remaining/kanban.py`` computes and this module re-exports.
