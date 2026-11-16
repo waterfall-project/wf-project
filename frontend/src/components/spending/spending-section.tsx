@@ -60,8 +60,8 @@ export const SPENDING_PARAMETERS = [
 
 /**
  * The refusals of what the projection is asked on, which the screen says unavailable, and why
- * (`refusalReason`): a project without the revision of the basis asked (409), a parameter the API does not
- * take or a labour category without an hourly rate (422).
+ * (`refusalReason`): a project without the revision of the basis asked (409), a parameter the
+ * API does not take or a labour category without an hourly rate (422).
  */
 export const SPENDING_REFUSED = [
   { status: 409, code: "STATE_FORBIDS_OPERATION" },
