@@ -31,6 +31,7 @@ from waterfall.core.planning.attachments import (
     stray_fault,
     strays,
 )
+from waterfall.core.planning.calendars import default_calendar
 from waterfall.core.planning.carrying import (
     judge_facets_moved,
     judge_lines_moved,
@@ -97,9 +98,10 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.planning.calendars import Applicable
     from waterfall.core.planning.entries import Facet
     from waterfall.core.planning.filters import NodeFilters
-    from waterfall.core.planning.scheduling import Duration
+    from waterfall.core.planning.scheduling import Duration, UnitConstants
     from waterfall.core.planning.tree import NodeColumns, TaskColumns
     from waterfall.core.planning.writing import Write
     from waterfall.platform.audit import Act
@@ -289,6 +291,22 @@ class Ground[N: NodeColumns = Node, T: TaskColumns = Task]:
 
 
 @dataclass(frozen=True, slots=True)
+class Defaults:
+    """What a judgment reads of the installation: its default calendar and its unit constants.
+
+    A paste reads them once for all its rows (#2605), not at each of them.
+    """
+
+    calendar: Applicable
+    constants: UnitConstants
+
+
+def read_defaults(session: Session) -> Defaults:
+    """Read the default calendar and the constants of the units, as a judgment of a task needs."""
+    return Defaults(default_calendar(session), constants_of(session))
+
+
+@dataclass(frozen=True, slots=True)
 class CreationJudged:
     """A task to create as judged on a tree: its node, its facet and attachment, its place.
 
@@ -340,22 +358,27 @@ def _entry(creation: NodeCreation) -> TaskEntry:
     return creation.task
 
 
-def judge_creation(ground: Ground, creation: NodeCreation, node_id: UUID) -> CreationJudged:
+def judge_creation(
+    ground: Ground, creation: NodeCreation, node_id: UUID, defaults: Defaults | None = None
+) -> CreationJudged:
     """Judge a task to create on the tree of a ground, as ``createNode`` does; nothing is written.
 
     Its parent (``MILESTONE_HAS_NO_SUBTASK``, WF-PLA-0050), its facet and attachment, all refusals
-    at once, then its place (``NODE_NOT_SIBLING``). A paste calls it for rows past the last node.
+    at once, then its place (``NODE_NOT_SIBLING``). A paste calls it for rows past the last node,
+    handing the ``defaults`` it read once: a task not yet created is on the default calendar, no
+    facet naming one under it.
     """
     session, tree = ground.session, ground.tree
     parent, entry = creation.parent_id, _entry(creation)
     _judge_parent(tree, parent)
-    applicable = calendar_of(session, ground.project_id, node_id).calendar
+    held_defaults = defaults or read_defaults(session)
+    applicable = held_defaults.calendar.calendar
     lineage = () if parent is None else (parent, *tree.ancestors(parent))
     bearer = Bearer(node_id, entry.label or "", lineage, created=True)
     held = (ground.project_id, tree, ground.is_main)
     sent = entry.attachment(creation=True)
     attached = judged_attachment(session, held, bearer, sent, "/task")
-    facet = _together(lambda: judged_creation(entry, applicable, constants_of(session)), attached)
+    facet = _together(lambda: judged_creation(entry, applicable, held_defaults.constants), attached)
     rank = _rank(tree, creation)
     shifted = tuple(each for each in tree.subtasks(parent) if tree.nodes[each].rank >= rank)
     made_summary = (
@@ -472,22 +495,34 @@ def create_node(
 
 
 def judge_cell[N: NodeColumns, T: TaskColumns](
-    ground: Ground[N, T], node_id: UUID, entry: TaskEntry
+    ground: Ground[N, T],
+    node_id: UUID,
+    entry: TaskEntry,
+    defaults: Defaults | None = None,
+    *,
+    created: bool = False,
 ) -> tuple[Facet, Attached]:
     """Judge what is sent of the facet of a task, and of its attachment, all refusals at once.
 
     The rules of the entry of a cell, which the paste of a block applies to each of its rows
-    (``UnprocessableError`` when the entry is refused); nothing is written.
+    (``UnprocessableError`` when the entry is refused); nothing is written. A paste hands the
+    ``defaults`` it read once, and says when the task is one it creates — on the default calendar,
+    no facet naming one under it —; a task written has the calendars its facets name read.
     """
     session, tree = ground.session, ground.tree
     task = tree.tasks[node_id]
-    applicable = calendar_of(session, ground.project_id, node_id).calendar
+    held_defaults = defaults or read_defaults(session)
+    if created:
+        applicable = held_defaults.calendar.calendar
+    else:
+        named = calendar_of(session, ground.project_id, node_id, default=held_defaults.calendar)
+        applicable = named.calendar
     carried = (task.work_package_id, task.order_item_id)
     bearer = Bearer(node_id, task.label, tuple(tree.ancestors(node_id)), carried)
     held = (ground.project_id, tree, ground.is_main)
     attached = judged_attachment(session, held, bearer, entry.attachment(creation=False), "")
     facet = _together(
-        lambda: judged_change(tree, node_id, entry, applicable, constants_of(session)), attached
+        lambda: judged_change(tree, node_id, entry, applicable, held_defaults.constants), attached
     )
     return facet, attached
 

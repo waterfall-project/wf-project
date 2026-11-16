@@ -19,8 +19,9 @@ Written by US-1380/L2 in ``interface.structures``, moved here by US-1390/L2; ``H
 US-1380/L3, its tree by US-2250.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 from waterfall.core.planning.dating import dated, horizon_exceeded, kept, replay_of
 from waterfall.core.planning.interface.facets import BearingTask, calendars_of, facets
@@ -30,9 +31,8 @@ from waterfall.core.planning.views import state_of
 from waterfall.core.revisions.interface import structure_facts, structure_rescheduled
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Mapping
     from datetime import datetime
-    from uuid import UUID
 
     from sqlalchemy.orm import Session
 
@@ -65,12 +65,18 @@ class Blamed:
     """What a write names when the engine refuses it: the task it writes, where a loop starts.
 
     ``node_id`` and ``label`` name the task beyond the horizon — the node null for a task created
-    —, ``origin`` the task whose predecessors are entered, a loop being named from it.
+    —, ``origin`` the task whose predecessors are entered, a loop being named from it. A write of
+    several tasks gives, by task, what each is named (``among``): the task the engine finds beyond
+    the horizon is named as it is there when it is one of them, ``node_id`` and ``label`` being the
+    name otherwise.
     """
 
     node_id: UUID | None
     label: str
     origin: Origin = None
+    among: Mapping[UUID, tuple[UUID | None, str]] = field(
+        default_factory=dict[UUID, tuple[UUID | None, str]]
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,7 +135,8 @@ def replayed(
     if beyond is not None:
         if blamed is None:
             raise horizon_exceeded(beyond, tree.tasks[beyond].label)
-        raise horizon_exceeded(blamed.node_id, blamed.label)
+        node_id, label = blamed.among.get(beyond, (blamed.node_id, blamed.label))
+        raise horizon_exceeded(node_id, label)
     moved = kept(replay, computed, held.conflicts)
     session.flush()
     counter = structure_rescheduled(session, project_id, structure_id, at)

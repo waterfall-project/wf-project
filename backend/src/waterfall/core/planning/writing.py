@@ -79,7 +79,7 @@ from waterfall.platform.errors import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Generator, Sequence
+    from collections.abc import Collection, Generator, Mapping, Sequence
     from decimal import Decimal
     from uuid import UUID
 
@@ -270,6 +270,7 @@ class Write:
         origin: Origin = None,
         repriced: Collection[UUID] = (),
         entered: tuple[str, ...] = (),
+        among: Mapping[UUID, tuple[UUID | None, str]] | None = None,
     ) -> Redated:
         """Replay the engine on the structure written, keep what it computes, advance it.
 
@@ -283,9 +284,11 @@ class Write:
         priced again beyond its column is refused at ``entered``, the pointers of the fields of the
         request that redate (``RepricedBeyondColumnError``, #3094); without them, without a field.
         The tree read under the lock is handed to the replay, which brings it to what the write
-        made of it rather than read it again (``reshaped``, US-2250); the write holds it after.
+        made of it rather than read it again (``reshaped``, US-2250); the write holds it after. A
+        write of several tasks names ``among`` them, by task, what each is called when the engine
+        finds it beyond the horizon; ``blamed`` stands for any other.
         """
-        named = None if blamed is None else Blamed(*blamed, origin)
+        named = None if blamed is None else Blamed(*blamed, origin, among or {})
         priced = (*repriced, *self.touched)
         held = Holding(self.facts, named, self.conflicts, priced, self.tree)
         try:

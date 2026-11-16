@@ -650,7 +650,7 @@ hors du flush dont le `SET` n'avance pas `lock_version`, ou un `UPDATE task` hor
 
 ## US-2260 — Les constats reçus du back des grilles sont soldés
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par EP-06 et EP-07
 - **opérations** : `createNode`, `moveNodes`, `previewPaste`, `applyPaste`, `updateTaskFacet`,
   `createRevision`
@@ -677,6 +677,14 @@ soient corrigés, **afin que** l'EPIC ne laisse pas derrière lui la dette qu'il
   par cause (#3094, décision de l'auteur du 2026-11-14).
 
 **Hors périmètre.** #3138, corrigé par US-2220, qui touche son fichier.
+
+**Notes de réalisation.** US-2260/L2 : le collage qui crée lit le calendrier par défaut et les
+constantes des unités une fois (`Defaults`, `read_defaults`, dans le `_Board`) ; une tâche créée n'a
+pas de calendrier propre, aucune facette n'en nomme sous elle. Un collage de 201 lignes qui créent,
+à la confirmation : 2 046 requêtes avant, 446 après (calendrier 804 → 4, constantes 402 → 2, nœuds
+407 → 7 ; le reste, les 401 insertions), 1,04 s avant, 0,45 s après ; l'aperçu, 0,68 s avant,
+0,15 s après. Le refus d'horizon nomme la tâche que le moteur trouve hors horizon quand c'en est une
+du collage (`Blamed.among`), sinon sa première ligne.
 
 ## US-2270 — La lecture d'une structure marquée est calculée une fois et gardée
 
