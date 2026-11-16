@@ -41,6 +41,8 @@ from waterfall.platform.logs import logging_context
 from waterfall.platform.registry import Registry
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from realm import TestRealm
     from sqlalchemy import Engine
     from support import ContractClient
@@ -774,20 +776,22 @@ def test_the_indicators_of_a_marking_are_those_of_every_computation_registered(
     database: Database,
 ) -> None:
     # How EP-10 keeps its indicators (``register_indicators``), a detail of the realization which
-    # reprises no Vérif: each computation registered, in its order; none once withdrawn.
-    computed: list[tuple[str, UUID]] = []
+    # reprises no Vérif: each computation registered, in its order, given the act of the marking;
+    # none once withdrawn.
+    computed: list[tuple[str, UUID, Act]] = []
     revision_id = uuid4()
+    act = Act(None, utc_now())
+
+    def kept(index: str) -> Callable[[Session, UUID, Act], None]:
+        return lambda _session, revision, given: computed.append((index, revision, given))
+
     with ExitStack() as registered, database.transaction() as session:
-        registered.callback(
-            register_indicators(lambda _session, revision: computed.append(("cpi", revision)))
-        )
-        registered.callback(
-            register_indicators(lambda _session, revision: computed.append(("spi", revision)))
-        )
-        compute_indicators(session, revision_id)
+        registered.callback(register_indicators(kept("cpi")))
+        registered.callback(register_indicators(kept("spi")))
+        compute_indicators(session, revision_id, act)
     with database.transaction() as session:
-        compute_indicators(session, revision_id)
-    assert computed == [("cpi", revision_id), ("spi", revision_id)]
+        compute_indicators(session, revision_id, act)
+    assert computed == [("cpi", revision_id, act), ("spi", revision_id, act)]
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")

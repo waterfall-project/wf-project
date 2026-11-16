@@ -26,10 +26,14 @@ import asked_exports
 import asked_history
 import asked_hourly_rates
 import asked_imports
+import asked_index_history
+import asked_indicator_curves
 import asked_lifecycle
+import asked_milestone_tracking
 import asked_nodes
 import asked_org_nodes
 import asked_progress
+import asked_project_indicators
 import asked_projects
 import asked_rate_update
 import asked_reference
@@ -470,6 +474,13 @@ COSTS = (
     asked_cost_imports,
     asked_actual_costs,
 )
+# The operations of the indicators, router by router (EP-10).
+INDICATORS = (
+    asked_project_indicators,
+    asked_indicator_curves,
+    asked_index_history,
+    asked_milestone_tracking,
+)
 # The permissions each served operation asks for, in the order they are evaluated.
 ASKED: dict[str, tuple[str, ...]] = {
     "getLiveness": (),
@@ -514,11 +525,12 @@ ASKED: dict[str, tuple[str, ...]] = {
     **{name: asked for router in PLANNING for name, asked in router.ASKED.items()},
     **{name: asked for router in ESTIMATE for name, asked in router.ASKED.items()},
     **{name: asked for router in COSTS for name, asked in router.ASKED.items()},
+    **{name: asked for router in INDICATORS for name, asked in router.ASKED.items()},
 }
 # Two files that declare the same operation would overwrite each other in the table above.
 DECLARED = [
     name
-    for router in (*REFERENCE, *PROJECTS, *PLANNING, *ESTIMATE, *COSTS)
+    for router in (*REFERENCE, *PROJECTS, *PLANNING, *ESTIMATE, *COSTS, *INDICATORS)
     for name in router.ASKED
 ]
 assert len(DECLARED) == len(set(DECLARED)), sorted(
@@ -527,7 +539,7 @@ assert len(DECLARED) == len(set(DECLARED)), sorted(
 # The quality on its project each operation of a project asks for, by ``RequiresProject``.
 ON_PROJECT: dict[str, str] = {
     name: quality
-    for router in (*PROJECTS, *PLANNING, *ESTIMATE, *COSTS)
+    for router in (*PROJECTS, *PLANNING, *ESTIMATE, *COSTS, *INDICATORS)
     for name, quality in router.ON_PROJECT.items()
 }
 # The permission each list of the reference asks for besides when it asks for deactivated objects.

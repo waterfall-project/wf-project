@@ -470,7 +470,7 @@ def test_a_marking_whose_computation_fails_writes_nothing_says_why_and_is_asked_
     # its parameters, the revision current and unwritten; a new ``markRevision`` marks it.
     revision = open_revision(api, stage)
 
-    def missing_rates(session: Session, revision_id: UUID) -> None:
+    def missing_rates(session: Session, revision_id: UUID, _act: Act) -> None:
         session.execute(
             update(Revision).where(Revision.id == revision_id).values(description="computed")
         )

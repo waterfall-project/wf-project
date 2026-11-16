@@ -50,6 +50,7 @@ from waterfall.core.estimate.tables import (
 )
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.history.tables import PastePlan, UndoEntry
+from waterfall.core.indicators.tables import RevisionIndicator
 from waterfall.core.planning.tables import Node, Task, TaskLink, Timeline, TrackingEntry
 from waterfall.core.projects.tables import (
     Contributor,
@@ -219,12 +220,18 @@ def test_each_migration_is_undone_by_its_mirror_and_applied_again(empty_engine: 
 
 
 def describe_schema(engine: Engine) -> dict[str, list[tuple[object, ...]]]:
-    """Read what the catalogue says of the tables: constraints, indexes and columns."""
+    """Read what the catalogue says of the tables: constraints, indexes and columns.
+
+    The constraint trigger of ``revision_indicator`` (``contype`` ``t``) is a trigger, which the
+    migrations alone write, as every other trigger: the tables of the code declare none. It is left
+    out by its name alone, so that any other constraint trigger shows in the comparison.
+    """
     queries = {
         "constraints": (
             "SELECT conrelid::regclass::text, conname, pg_get_constraintdef(oid) "
             "FROM pg_constraint WHERE connamespace = 'public'::regnamespace "
-            "AND conrelid::regclass::text <> 'alembic_version'"
+            "AND conrelid::regclass::text <> 'alembic_version' "
+            "AND NOT (contype = 't' AND conname = 'revision_indicator_refuse_outside_marking')"
         ),
         "indexes": (
             "SELECT indexname, indexdef FROM pg_indexes "
@@ -299,6 +306,7 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         RevisionCategory.__tablename__,
         CostLine.__tablename__,
         CostImport.__tablename__,
+        RevisionIndicator.__tablename__,
     }
     upgrade(empty_engine)
     with empty_engine.connect() as connection:
@@ -436,6 +444,9 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     # (migration 0027).
     "cost_line": {"SELECT", "INSERT", "UPDATE"},
     "cost_import": {"SELECT", "INSERT"},
+    # The indicators (EP-10): a document written once, by the marking of its revision, and never
+    # changed nor deleted, its revision marked for good (migration 0031).
+    "revision_indicator": {"SELECT", "INSERT"},
 }
 
 
@@ -498,7 +509,8 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
         guards = connection.execute(
             text(
                 "SELECT proname, prosecdef, proconfig FROM pg_proc "
-                "WHERE proname LIKE '%refuse_marked_change' ORDER BY proname"
+                "WHERE (proname LIKE '%refuse_marked_change' "
+                "OR proname = 'revision_indicator_refuse_outside_marking') ORDER BY proname"
             )
         ).all()
     own = ["search_path=pg_catalog, pg_temp"]
@@ -508,6 +520,8 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
         ("node_refuse_marked_change", False, own),
         ("revision_calendar_refuse_marked_change", False, own),
         ("revision_category_refuse_marked_change", False, own),
+        ("revision_indicator_refuse_marked_change", False, own),
+        ("revision_indicator_refuse_outside_marking", False, own),
         ("revision_rate_refuse_marked_change", False, own),
         ("revision_refuse_marked_change", False, own),
         ("revision_role_refuse_marked_change", False, own),
@@ -516,8 +530,10 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
     ]
 
 
-# The revised tables of the revisions and the planning (EP-04, EP-06), and of the estimate (EP-07).
+# The revised tables of the revisions and the planning (EP-04, EP-06), of the estimate (EP-07),
+# and of the indicators (EP-10).
 PLANNING_REVISED = ("cost_structure", "node", "task", "task_link")
+INDICATORS_REVISED = ("revision_indicator",)
 ESTIMATE_REVISED = (
     "estimate_line",
     "revision_rate",
@@ -553,7 +569,7 @@ def test_the_function_called_by_the_owner_creates_the_partition_of_the_project_a
             (parent, name, values, truncate) for parent, name, _, values, _, truncate in partitions
         ] == [
             (table, f"{table}_p_{project_id.hex}", bound, [f"{table}_refuse_truncate"])
-            for table in sorted((*PLANNING_REVISED, *ESTIMATE_REVISED))
+            for table in sorted((*PLANNING_REVISED, *ESTIMATE_REVISED, *INDICATORS_REVISED))
         ]
         assert partition_of(project_id) == f"cost_structure_p_{project_id.hex}"
         assert all(row[2] == row[4] for row in partitions)
@@ -620,6 +636,8 @@ def test_a_partition_attached_is_one_created_by_the_function_of_0025_but_for_its
     definition = text("SELECT pg_get_functiondef('create_project_partitions(uuid)'::regprocedure)")
     with empty_engine.begin() as connection:
         former = connection.scalar(definition)
+        # A project, whose partitions of the tables added since a migration attaches (0031).
+        connection.execute(insert_project(id=created))
         connection.execute(select(func.create_project_partitions(created)))
     upgrade(empty_engine)
     with empty_engine.begin() as connection:
@@ -627,7 +645,9 @@ def test_a_partition_attached_is_one_created_by_the_function_of_0025_but_for_its
         connection.execute(select(func.create_project_partitions(attached)))
     with empty_engine.connect() as connection:
         described = partition_parts(connection, created)
-        assert len({name for part, name, _ in described if part == "relation"}) == 9
+        # The nine tables of 0025, and the indicators the migration 0031 attaches to a project that
+        # exists as the function does.
+        assert len({name for part, name, _ in described if part == "relation"}) == 10
         assert partition_parts(connection, attached) == described
     downgrade(empty_engine, "0025")
     with empty_engine.connect() as connection:

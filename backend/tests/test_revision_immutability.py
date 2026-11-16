@@ -6,18 +6,22 @@ One table, one trigger: ``revision`` and ``cost_structure``, each guarded by a t
 module of the revisions (migration 0020); ``node``, ``task`` and ``task_link``, by a trigger of the
 module of the planning of the same form (migration 0022); what a review writes on a line of
 estimate (migration 0027), by the guard of the estimate (migration 0025), whose other writes
-``test_database_constraints_estimate.py`` tries. The rows are written around the service,
+``test_database_constraints_estimate.py`` tries; the documents of indicators a marking keeps, by a
+guard of the same form (migration 0031), whose refusal of a document written outside a marking
+``test_database_constraints_indicators.py`` tries. The rows are written around the service,
 by the owner of the tables, whom the triggers refuse as they refuse the service. A revision is
 opened through the service, and marked by the transaction of the worker (``mark_revision``).
 """
 
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import ExitStack
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
 from estimate_support import give_a_line
+from indicators_support import clock_setter, indicator_row, marked, under_way
 from planning_support import insert_link, insert_task, main_structure, node_row, task_row
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
@@ -28,8 +32,9 @@ from sqlalchemy.orm import Session
 from support import wait_for_a_lock
 
 from waterfall.core.estimate.tables import EstimateLine
+from waterfall.core.indicators.tables import RevisionIndicator
 from waterfall.core.planning.tables import Node, Task, TaskLink
-from waterfall.core.revisions.interface import mark_revision
+from waterfall.core.revisions.interface import mark_revision, register_indicators
 from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.audit import Act
 from waterfall.platform.database import Base, utc_now
@@ -473,3 +478,87 @@ def test_a_row_of_a_current_revision_never_names_the_structure_or_a_node_of_a_ma
         "fk_task_node_id_node",
     )
     assert rows_of(owner, marked) == before
+
+
+# --- The indicators a marking keeps (EP-10, migration 0031) --------------------------------------
+
+
+def keep_a_document(session: Session, revision_id: UUID, act: Act) -> None:
+    """Keep a document of the revision being marked, as the indicators will (US-1670/L1)."""
+    project_id = session.scalar(select(Revision.project_id).where(Revision.id == revision_id))
+    assert project_id is not None
+    kept = indicator_row(project_id, revision_id, computed_at=act.at, created_by=act.author)
+    session.execute(insert(RevisionIndicator).values(**kept))
+
+
+def documents_of(owner: Engine, revision_id: UUID) -> list[tuple[object, ...]]:
+    """Read the documents a revision kept, as the base holds them."""
+    with owner.connect() as connection:
+        rows = connection.execute(
+            select(
+                RevisionIndicator.kind,
+                RevisionIndicator.scope,
+                RevisionIndicator.computed_at,
+                RevisionIndicator.document,
+            )
+            .where(RevisionIndicator.revision_id == revision_id)
+            .order_by(RevisionIndicator.kind, RevisionIndicator.scope)
+        )
+        return [tuple(row) for row in rows]
+
+
+@pytest.mark.requirement("WF-DAT-0020-A")
+def test_the_indicators_a_marking_kept_are_never_written_again(
+    api: ContractClient, stage: Scene, owner: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # « La base de données refuse toute modification et toute suppression d'une ligne appartenant
+    # à une révision marquée, quel que soit le client qui la tente. » : a document the marking of a
+    # review kept is neither changed, deleted nor joined by another, its owner refused, nor
+    # truncated with its table or its partition.
+    project = under_way(api, stage, clock_setter(monkeypatch))
+    revision = project.tree.revision
+    with ExitStack() as registered:
+        registered.callback(register_indicators(keep_a_document))
+        at = marked(stage, revision, "Revue de novembre")
+    assert at == project.now
+    revision_id = UUID(revision["revision_id"])
+    before = documents_of(owner, revision_id)
+    assert [kept[:3] for kept in before] == [("estimate", "project", at)]
+    of_it = RevisionIndicator.revision_id == revision_id
+    changed = update(RevisionIndicator).where(of_it).values(document={"changed": True})
+    refused_by_owner(owner, changed, ROW_REFUSED)
+    refused_by_owner(owner, delete(RevisionIndicator).where(of_it), ROW_REFUSED)
+    another = indicator_row(project.project_id, revision_id, kind="project", computed_at=at)
+    refused_by_owner(owner, insert(RevisionIndicator).values(**another), ROW_REFUSED)
+    partition = f"revision_indicator_p_{project.project_id.hex}"
+    for table in ("revision_indicator", partition):
+        statement = text(f'TRUNCATE TABLE "{table}"')
+        with pytest.raises(DBAPIError, match="never truncated"), owner.begin() as connection:
+            connection.execute(statement)
+    assert documents_of(owner, revision_id) == before
+
+
+@pytest.mark.requirement("WF-DAT-0020-A")
+def test_a_document_written_during_the_marking_waits_for_it_and_is_refused(
+    api: ContractClient, stage: Scene, owner: Engine
+) -> None:
+    # The guard of the indicators locks the revision of the row ``FOR KEY SHARE`` (#2104), as the
+    # others do: a document written beside the marking, the owner its writer, waits for it, then
+    # reads the revision marked and is refused.
+    revision_id = open_revision(api, stage)
+    project_id = UUID(stage.project["project_id"])
+    stray = indicator_row(project_id, revision_id, computed_at=utc_now())
+
+    def writing() -> None:
+        with owner.begin() as connection:
+            connection.execute(insert(RevisionIndicator).values(**stray))
+
+    with ThreadPoolExecutor(1) as others, Session(stage.database.engine) as marking:
+        mark(marking, revision_id)
+        written = others.submit(writing)
+        wait_for_a_lock(stage.database)
+        assert not written.done()
+        marking.commit()
+        with pytest.raises(IntegrityError, match=ROW_REFUSED):
+            written.result(timeout=10)
+    assert documents_of(owner, revision_id) == []
