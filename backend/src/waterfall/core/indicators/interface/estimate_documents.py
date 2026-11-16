@@ -15,6 +15,7 @@ Moved here from the routes of EP-07 and EP-09 by US-1670/L1, which keeps them.
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
+from waterfall.core.estimate.interface import shown
 from waterfall.core.indicators.shaping import instant
 
 if TYPE_CHECKING:
@@ -38,11 +39,6 @@ def _money(amount: Decimal) -> str:
     return format(amount, "f")
 
 
-def _shown(share: Decimal) -> str:
-    """Give a share as the contract writes a decimal: without trailing zeros, ``1`` for one."""
-    return format(share.normalize(), "f")
-
-
 def missing_rate_document(missing: MissingRate) -> dict[str, Any]:
     """Give a category without a rate for its year as the contract writes it (``MissingRate``)."""
     return {
@@ -56,7 +52,7 @@ def _computable(figure: Figure, *, share: bool = False) -> dict[str, Any]:
     """Give a figure in the envelope of the contract: its value, or its reason and what it names."""
     value = None
     if figure.value is not None:
-        value = _shown(figure.value) if share else _money(figure.value)
+        value = shown(figure.value) if share else _money(figure.value)
     envelope: dict[str, Any] = {
         "is_computable": figure.value is not None,
         "value": value,
@@ -108,7 +104,7 @@ def _share(figure: Figure) -> dict[str, Any]:
     """Give a share in the envelope of the contract: its value, or the reason it has none."""
     return {
         "is_computable": figure.value is not None,
-        "value": None if figure.value is None else _shown(figure.value),
+        "value": None if figure.value is None else shown(figure.value),
         "reason": figure.reason,
     }
 
