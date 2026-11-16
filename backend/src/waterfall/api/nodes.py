@@ -56,6 +56,7 @@ from waterfall.api.contract.models import (
 )
 from waterfall.api.evaluation import Acting, RequiresProject
 from waterfall.api.queries import read_list, refuse_query
+from waterfall.api.wire import instant_of, text_of
 from waterfall.core.access_roles.interface import PERMISSION_MISSING
 from waterfall.core.estimate.interface import LineEntry, LineFilters, LineView
 from waterfall.core.planning.interface import (
@@ -83,7 +84,6 @@ from waterfall.core.planning.interface import (
     resolve_row_number,
     update_task_facet,
 )
-from waterfall.core.planning.interface import WorkInstant as Instant
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import (
@@ -315,18 +315,9 @@ def _line_filters(query: NodeQuery, bounds: dict[str, tuple[Any, Any]]) -> LineF
     return None if asked == LineFilters(previous=((None, None),) * 4) else asked
 
 
-def _text(value: Decimal) -> str:
-    """Give a decimal as the contract writes it: without exponent nor trailing zeros."""
-    return format(value.normalize(), "f")
-
-
 def _money(value: Decimal) -> str:
     """Give an amount as the contract writes it: to the cent."""
     return format(value.quantize(CENT), "f")
-
-
-def _instant(instant: Instant) -> dict[str, Any]:
-    return {"date": instant.day.isoformat(), "hours": _text(instant.hours)}
 
 
 def _conflicts(conflicts: tuple[ConflictView, ...]) -> list[dict[str, Any]]:
@@ -341,7 +332,7 @@ def _conflicts(conflicts: tuple[ConflictView, ...]) -> list[dict[str, Any]]:
 
 
 def _float(value: Decimal | None) -> dict[str, Any] | None:
-    return None if value is None else {"value": _text(value), "unit": "d"}
+    return None if value is None else {"value": text_of(value), "unit": "d"}
 
 
 def _id(value: UUID | None) -> str | None:
@@ -364,9 +355,9 @@ def _task(view: TaskView) -> dict[str, Any]:
         "label": view.label,
         "description": view.description,
         "scheduling_mode": view.scheduling_mode,
-        "duration": {"value": _text(view.duration_value), "unit": view.duration_unit},
-        "start": _instant(view.start),
-        "finish": _instant(view.finish),
+        "duration": {"value": text_of(view.duration_value), "unit": view.duration_unit},
+        "start": instant_of(view.start),
+        "finish": instant_of(view.finish),
         "progress": view.progress,
         "finish_overdue": view.finish_overdue,
         "awaiting_own_lines": view.awaiting_own_lines,
@@ -376,7 +367,7 @@ def _task(view: TaskView) -> dict[str, Any]:
         "is_milestone": view.is_milestone,
         "calendar_id": _id(view.calendar_id),
         "calendar_hours": {
-            day: _text(hours) for day, hours in zip(DAYS, view.calendar_hours, strict=True)
+            day: text_of(hours) for day, hours in zip(DAYS, view.calendar_hours, strict=True)
         },
         "total_float": _float(view.total_float),
         "is_critical": view.is_critical,
@@ -407,8 +398,8 @@ def _line(view: LineView) -> dict[str, Any]:
         "cost_category_label": view.cost_category_label,
         "resource_role_id": _id(view.resource_role_id),
         "resource_role_label": view.resource_role_label,
-        "quantity": _text(view.quantity),
-        "hours": _optional(view.hours, _text),
+        "quantity": text_of(view.quantity),
+        "hours": _optional(view.hours, text_of),
         "unit_disbursement": _optional(view.unit_disbursement, _money),
         "payment_delay_days": view.payment_delay_days,
         "subproject_id": _id(view.subproject_id),
@@ -416,8 +407,8 @@ def _line(view: LineView) -> dict[str, Any]:
         "base_amount": _money(view.base_amount),
         "budgeted_amount": _money(view.budgeted_amount),
         "reestimated_amount": _money(view.reestimated_amount),
-        "previous_quantity": _optional(view.previous_quantity, _text),
-        "previous_hours": _optional(view.previous_hours, _text),
+        "previous_quantity": _optional(view.previous_quantity, text_of),
+        "previous_hours": _optional(view.previous_hours, text_of),
         "previous_unit_disbursement": _optional(view.previous_unit_disbursement, _money),
         "previous_reestimated_amount": _optional(view.previous_reestimated_amount, _money),
         "remaining_reason": view.remaining_reason,
@@ -467,7 +458,7 @@ def node_body(view: NodeView, fields: frozenset[str] | None = None) -> dict[str,
                 "predecessor_node_id": str(each.predecessor_id),
                 "predecessor_row_number": each.row_number,
                 "link_type": each.link_type,
-                "lag": {"value": _text(each.lag_value), "unit": each.lag_unit},
+                "lag": {"value": text_of(each.lag_value), "unit": each.lag_unit},
             }
             for each in view.predecessors
         ],
@@ -493,7 +484,7 @@ def totals_body(task_count: int, totals: StructureTotals | None) -> dict[str, An
     return {
         "task_count": task_count,
         "estimate_line_count": 0 if totals is None else totals.line_count,
-        "hours": _text(amounts.hours),
+        "hours": text_of(amounts.hours),
         "base_amount": _money(amounts.base),
         "budgeted_amount": _money(amounts.budgeted),
         "reestimated_amount": _money(amounts.reestimated),
@@ -508,8 +499,8 @@ def written_of(result: NodesWritten) -> dict[str, Any]:
         "rescheduled": [
             {
                 "node_id": str(each.node_id),
-                "start": _instant(each.start),
-                "finish": _instant(each.finish),
+                "start": instant_of(each.start),
+                "finish": instant_of(each.finish),
                 "total_float": _float(each.total_float),
                 "is_critical": each.is_critical,
                 "link_conflicts": _conflicts(each.link_conflicts),

@@ -9,7 +9,7 @@ organisation node and its descendants. Read under ``estimate.read`` by the reade
 Each role details the tasks that bear its lines, their hours by month (WF-DEV-0090, US-2040).
 """
 
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from waterfall.api.authentication import Transaction
 from waterfall.api.contract.models import Basis, WorkloadPlan
 from waterfall.api.evaluation import Acting, RequiresProject
+from waterfall.api.wire import instant_of
 from waterfall.core.estimate.interface import (
     RoleLoad,
     TaskLoad,
@@ -29,24 +30,9 @@ from waterfall.core.estimate.interface import (
 from waterfall.core.projects.interface import Viewer
 from waterfall.platform.database import utc_now
 
-if TYPE_CHECKING:
-    from decimal import Decimal
-
-    from waterfall.core.planning.interface import WorkInstant
-
 router = APIRouter(tags=["estimate"])
 
 CONSULT = "estimate.read"
-
-
-def instant_of(instant: WorkInstant) -> dict[str, str]:
-    """Give a start or a finish as the contract writes it (``WorkInstant``)."""
-    return {"date": instant.day.isoformat(), "hours": text_of(instant.hours)}
-
-
-def text_of(value: Decimal) -> str:
-    """Give a decimal without exponent nor trailing zeros."""
-    return format(value.normalize(), "f")
 
 
 def task_of(task: TaskLoad) -> dict[str, Any]:
