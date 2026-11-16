@@ -19,7 +19,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from estimate_support import YEAR, Costing, Lines, costing
+from estimate_support import YEAR, Costing, Lines, costing, pin_year
 from installed_reference import holding
 from nodes_support import Tree, faults, opened
 from projects_support import PROJECTS, Scene
@@ -46,8 +46,15 @@ TOO_PRECISE = [OVERFLOWING, ELEVEN_DECIMALS, ELEVEN_DIGITS]
 
 
 @pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
+def stage(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Scene:
     """Give a platform, its sessions, and the project its manager made."""
+    pin_year(monkeypatch)
     return make_scene(api, owner, database, realm)
 
 

@@ -11,7 +11,9 @@ helper writes it in its own file.
 """
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from decimal import Decimal
+from importlib import import_module
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -34,6 +36,7 @@ from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
+    import pytest
     from nodes_support import Tree
     from projects_support import Person
     from sqlalchemy.engine import Connection
@@ -269,6 +272,21 @@ def category_image_row(
 
 # The year the revisions of the tests are priced at: that of their creation.
 YEAR = utc_now().year
+LAST_INSTANT = datetime(YEAR, 12, 31, 23, 59, 59, 999999, tzinfo=UTC)
+
+
+def pin_year(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the service that opens a revision in ``YEAR``, even when the run crosses New Year.
+
+    The year a revision is born with is the one its clock reads at the request (WF-REV-0100); the
+    rates of ``costing`` are for ``YEAR``, read once. The clock still runs, but stops at the last
+    instant of ``YEAR``. A test that sets that clock itself, as the tests of a later year do, keeps
+    its own: it is not replaced.
+    """
+    module = "waterfall.api.revisions"
+    if import_module(module).utc_now is not utc_now:
+        return
+    monkeypatch.setattr(f"{module}.utc_now", lambda: min(utc_now(), LAST_INSTANT))
 
 
 @dataclass(frozen=True)

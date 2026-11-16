@@ -17,7 +17,7 @@ from uuid import UUID
 import pytest
 from actual_costs_import_support import extraction, line, opening
 from costs_support import cost, load_import
-from estimate_support import Costing, Lines, costing
+from estimate_support import Costing, Lines, costing, pin_year
 from fastapi.testclient import TestClient
 from imports_trial import deposited, open_import
 from nodes_support import Tree, refusal
@@ -70,8 +70,15 @@ def api(contract: OpenAPI, import_services: Services) -> ContractClient:
 
 
 @pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
+def stage(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Scene:
     """Give a platform, its sessions, and the project its manager made."""
+    pin_year(monkeypatch)
     return make_scene(api, owner, database, realm)
 
 

@@ -699,7 +699,7 @@ qu'**une valeur fautive soit refusée partout de la même façon (#3104, #3108).
 
 ## US-2510 — Les tests du back et leurs supports
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3680

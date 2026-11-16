@@ -28,7 +28,7 @@ from estimate_import_support import (
     two_tasks,
     workbook,
 )
-from estimate_support import Costing, add_role, costing
+from estimate_support import Costing, add_role, costing, pin_year
 from fastapi.testclient import TestClient
 from imports_trial import (
     import_worker,
@@ -86,8 +86,15 @@ def api(contract: OpenAPI, import_services: Services) -> ContractClient:
 
 
 @pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
+def stage(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Scene:
     """Give a platform whose reference is complete, its sessions, and a project its manager made."""
+    pin_year(monkeypatch)
     return make_scene(api, owner, database, realm)
 
 

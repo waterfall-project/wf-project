@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
 import pytest
-from estimate_support import YEAR, Costing, Lines, costing
+from estimate_support import YEAR, Costing, Lines, costing, pin_year
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from nodes_support import Tree, opened, refusal, set_progress
@@ -63,8 +63,15 @@ LATER = datetime(YEAR + 1, 1, 12, 10, tzinfo=UTC)
 
 
 @pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
+def stage(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Scene:
     """Give a platform, its sessions, and the project its manager made."""
+    pin_year(monkeypatch)
     return make_scene(api, owner, database, realm)
 
 

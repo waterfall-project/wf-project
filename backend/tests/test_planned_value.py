@@ -153,9 +153,15 @@ def test_the_planned_value_keeps_the_two_decimals_of_the_cent() -> None:
 
 
 @pytest.fixture
-def site(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Site:
+def site(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Site:
     """Give a platform, a project its manager made, its revision opened, and a role to load."""
-    return make_site(api, owner, database, realm)
+    return make_site(api, owner, database, realm, monkeypatch)
 
 
 @pytest.mark.requirement("WF-DEV-0080-A")

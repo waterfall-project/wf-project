@@ -11,7 +11,7 @@ answer is checked against the contract.
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from estimate_support import Costing, Lines, costing
+from estimate_support import Costing, Lines, costing, pin_year
 from nodes_support import Tree, set_progress
 from planning_support import DAY
 from projects_support import PROJECTS, Scene
@@ -31,8 +31,15 @@ OPEN: dict[str, Any] = {"is_available": True, "missing_conditions": []}
 
 
 @pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
+def stage(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Scene:
     """Give a platform, its sessions, and the project its manager made."""
+    pin_year(monkeypatch)
     return make_scene(api, owner, database, realm)
 
 
