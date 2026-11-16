@@ -153,6 +153,7 @@ class CostLine(Base):
     updated_by: Mapped[UUID | None] = mapped_column(
         ForeignKey("user_account.id", ondelete="RESTRICT")
     )
-    # Advanced by every write of the line, under the lock of its project: the key of the cache of
-    # the indicators reads the sum of it (#3629).
+    # Advanced by every write of a value the indicators read, under the lock of its project: the key
+    # of the cache of the indicators reads the sum of it (#3629). A line an import finds unchanged
+    # only names that import: its counter stays, the key moves by the number of the imports.
     lock_version: Mapped[int] = mapped_column(Integer, server_default="0")

@@ -16,7 +16,7 @@ import time
 from annotationlib import Format
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any, Protocol, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, cast
 from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID
 
@@ -583,7 +583,13 @@ def test_every_write_the_indicators_of_the_day_depend_on_changes_the_key(
     changed()
 
 
-type Instants = tuple[tuple[object, ...], tuple[object, ...], tuple[object, ...], int]
+class Instants(NamedTuple):
+    """The counts and the last instants of the stamps of a project, the imports apart."""
+
+    content: tuple[object, ...]
+    lines: tuple[object, ...]
+    costs: tuple[object, ...]
+    imports: int
 
 
 def instants(stage: Scene) -> Instants:
@@ -599,7 +605,7 @@ def instants(stage: Scene) -> Instants:
         content = revision_content_stamp(session, project_id, revision_id)
         lines = lines_stamp(session, project_id, revision_id)
         costs = costs_stamp(session, project_id)
-        return (
+        return Instants(
             (content.nodes, content.tasks, content.links, content.updated_at),
             (lines.count, lines.updated_at),
             (costs.imported_at, costs.lines, costs.updated_at, costs.versions),
@@ -632,9 +638,9 @@ def test_a_write_that_started_before_the_last_one_committed_still_changes_the_ke
     after_state = key_of(stage)
     assert after_state not in {read_between, after_line}
     load_import(stage, project_id, [], at=AT - timedelta(days=1))
-    *unchanged, imports = instants(stage)
-    assert unchanged == list(held[:-1])
-    assert imports == held[-1] + 1
+    after_import = instants(stage)
+    assert after_import[:3] == held[:3]
+    assert after_import.imports == held.imports + 1
     assert key_of(stage) not in {read_between, after_line, after_state}
 
 
@@ -649,14 +655,18 @@ def line_id(api: ContractClient, stage: Scene, number: str) -> str:
 
 
 @pytest.mark.requirement("WF-DAT-0130-A")
-@pytest.mark.usefixtures("project")
+@pytest.mark.usefixtures("clock", "project")
 def test_two_exclusions_of_one_project_each_change_the_key_whatever_their_instants(
     api: ContractClient, stage: Scene, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # Propre à l'US (#3629) : l'exclusion d'une ligne de coût avance le compteur de la ligne sous le
     # verrou du projet, que la clé lit. Deux exclusions commencées avant la dernière écriture
     # validée portent un instant plus ancien que le maximum, qui ne bouge pas : seul le compteur
-    # change la clé, à chacune, et à la réintégration.
+    # change la clé, à chacune, et à la réintégration. « Concurrent » s'émule par une écriture dont
+    # l'instant est plus ancien que le dernier `updated_at` validé (le verrou du projet sérialise
+    # les transactions : deux écritures ne se chevauchent jamais). Après chacune, la lecture, dont
+    # l'entrée est déjà dans Redis avant l'exclusion, rend les coûts recalculés, non l'entrée
+    # précédente.
     project_id = UUID(stage.project["project_id"])
     # FA-3 stays tracked, at the last instant: the maximum is its, whatever the exclusions write.
     lines = [
@@ -667,21 +677,26 @@ def test_two_exclusions_of_one_project_each_change_the_key_whatever_their_instan
     load_import(stage, project_id, lines, at=MORNING)
     seen = [key_of(stage)]
     held = instants(stage)
+    costs = [indicators(api, stage)["actual_cost"]]
     monkeypatch.setattr("waterfall.api.actual_costs.utc_now", lambda: MORNING - timedelta(hours=1))
     for number in ("FA-1", "FA-2"):
         exclude(api, stage, number)
+        # The entry of the key before the exclusion is in Redis: it is not the one served.
+        costs.append(indicators(api, stage)["actual_cost"])
+        assert costs[-1] != costs[-2]
         key = key_of(stage)
         assert key not in seen
         seen.append(key)
         # Neither the counts nor the last instant moved: the counter alone did.
         now = instants(stage)
         assert now[:2] == held[:2]
-        assert now[2][:3] == held[2][:3]
-        assert now[2][3] == cast("int", held[2][3]) + len(seen) - 1
+        assert now.costs[:3] == held.costs[:3]
+        assert now.costs[3] == cast("int", held.costs[3]) + len(seen) - 1
     path = f"{project_path(stage)}/actual-costs/{line_id(api, stage, 'FA-1')}/tracked-scope"
     answer = api.put(path, headers=stage.manager.headers, json={"is_in_tracked_scope": True})
     assert answer.status_code == 200, answer.text
     assert key_of(stage) not in seen
+    assert indicators(api, stage)["actual_cost"] not in costs[1:]
 
 
 @pytest.mark.requirement("WF-DAT-0130-A")

@@ -101,7 +101,8 @@ def day_key(session: Session, basis: Basis, context: Context, subprojects: Seque
     # under its lock (``structure_rescheduled``) — the main one is the only structure until EP-08 —;
     # an import adds its entry; a change of state, a marking, an abandonment, a designation
     # advance the counter of the project; an exclusion, a reinstatement or an imputation advances
-    # the counter of the lines of cost, whose sum the key reads (``costs_stamp``).
+    # the counter of the lines of cost, whose sum the key reads (``costs_stamp``); a line an import
+    # finds unchanged leaves its counter, and the number of the imports moves the key.
     parts: list[tuple[str, tuple[object, ...]]] = [
         ("form", (FORM,)),
         ("project", (facts.state, facts.current_revision_id, facts.reference_revision_id)),
