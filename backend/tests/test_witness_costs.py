@@ -43,7 +43,7 @@ from sqlalchemy import func, select
 from support import WITNESS, captured_logs
 from test_witness import load, wipe
 from test_witness_lines import PROVISION, line_rows
-from test_witness_lines_reads import READ_AT, by_role, deviations, keyed
+from test_witness_lines_reads import READ_AT, ROWS, by_role, deviations, keyed, rows_in_order
 from test_witness_projects import (
     PRJ_001,
     REVISION_100,
@@ -450,13 +450,12 @@ def test_the_workload_of_the_marked_remaining_is_the_example_within_a_rounding_o
     url = f"{PROJECTS}/{PRJ_001}/workload?basis=marked_remaining&revision_id={REVISION_101}"
     body = read(api, witness, realm, url)
     expected = example("workload_marked_remaining")
-    # The detail by task is compared by US-2040/L2, which removes this exclusion.
-    # The examples already follow the shared rounded shares; US-2040/L2, which moves the service
-    # onto them, brings the tolerance back to 0.02.
-    found = deviations(
-        by_role(without(body, {"tasks"})), by_role(without(expected, {"tasks"})), Decimal("0.05")
-    )
-    assert found == set()
+    # The detail of each role too (WF-DEV-0090), but for the identifiers of the tasks, derived for a
+    # marked revision, and their rows (``rows_in_order``).
+    aside = {"node_id", *ROWS}
+    ours, theirs = by_role(without(body, aside)), by_role(without(expected, aside))
+    assert deviations(ours, theirs, Decimal("0.02")) == set()
+    assert rows_in_order(body, expected)
     assert body["context"] == {**expected["context"], "computed_at": body["context"]["computed_at"]}
     assert zulu(body["context"]["computed_at"]) == expected["context"]["computed_at"]
 

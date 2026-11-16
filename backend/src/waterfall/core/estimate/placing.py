@@ -39,10 +39,15 @@ TASK = "task"
 
 @dataclass(frozen=True, slots=True)
 class Placed:
-    """A line with its task: the dates and the progress of the task, the hours of its calendar."""
+    """A line with its task: the dates and the progress of the task, the hours of its calendar.
+
+    ``task_id`` is the node of the task, ``row_number`` its row in the whole structure.
+    """
 
     line: EstimateLine
     task: TaskView
+    task_id: UUID
+    row_number: int
 
     @property
     def is_completed(self) -> bool:
@@ -61,11 +66,12 @@ def placed_lines(session: Session, project_id: UUID, revision_id: UUID) -> list[
     place = Place(project_id, revision_id, structure)
     read = list_nodes(session, place, NodeFilters(kinds=(TASK,)))
     tasks = {item.node_id: item.task for item in read.items if item.task is not None}
+    numbers = {item.node_id: item.row_number for item in read.items}
     bearing = lines_of(session, project_id, list(tasks))
     nodes = [node for each in bearing.values() for node in each]
     rows = {row.node_id: row for row in rows_of(session, project_id, nodes)}
     return [
-        Placed(rows[node], tasks[task_id])
+        Placed(rows[node], tasks[task_id], task_id, numbers[task_id])
         for task_id, held in bearing.items()
         for node in held
         if node in rows

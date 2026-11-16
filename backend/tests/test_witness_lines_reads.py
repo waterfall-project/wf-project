@@ -338,6 +338,35 @@ def by_role(plan: dict[str, Any]) -> dict[str, Any]:
     return {**plan, "roles": sorted(plan["roles"], key=lambda each: each["resource_role_id"])}
 
 
+def summed_tasks(role: dict[str, Any]) -> dict[str, str]:
+    """Give the hours of the tasks of a role summed month by month, as the contract writes them."""
+    sums: dict[str, Decimal] = defaultdict(Decimal)
+    for task in role["tasks"]:
+        for month in task["months"]:
+            sums[month["month"]] += Decimal(month["hours"])
+    return {month: str(sums[month]) for month in sorted(sums)}
+
+
+# The rows of the tasks of the detail of a plan, which the line of provision and the tasks the risks
+# originate shift (EP-08): compared apart, by ``rows_in_order``.
+ROWS = {"row_number"}
+
+
+def rows_in_order(body: dict[str, Any], expected: dict[str, Any]) -> bool:
+    """Tell whether the rows of the tasks of a plan are the example's, less the nodes it lacks.
+
+    Each row at most the example's, and in the same order: the witness lacks some nodes, never
+    holds one more, and the tasks keep their places.
+    """
+    pairs = sorted(
+        (theirs["row_number"], ours["row_number"])
+        for mine, yours in zip(by_role(body)["roles"], by_role(expected)["roles"], strict=True)
+        for ours, theirs in zip(mine["tasks"], yours["tasks"], strict=True)
+    )
+    rows = [ours for _, ours in pairs]
+    return rows == sorted(rows) and all(ours <= theirs for theirs, ours in pairs)
+
+
 def test_the_workload_of_the_remaining_is_the_example_within_a_rounding_of_a_hundredth(
     api: ContractClient, witness: Database, realm: TestRealm, the_day: None
 ) -> None:
@@ -346,13 +375,10 @@ def test_the_workload_of_the_remaining_is_the_example_within_a_rounding_of_a_hun
     del the_day
     body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/workload?basis=current_remaining")
     expected = example("workload")
-    # The detail by task is compared by US-2040/L2, which removes this exclusion.
-    # The examples already follow the shared rounded shares; US-2040/L2, which moves the service
-    # onto them, brings the tolerance back to 0.02.
-    found = deviations(
-        by_role(without(body, {"tasks"})), by_role(without(expected, {"tasks"})), Decimal("0.05")
-    )
-    assert found == set()
+    # The detail of each role too, its tasks the same nodes in the same order (WF-DEV-0090).
+    ours, theirs = by_role(without(body, ROWS)), by_role(without(expected, ROWS))
+    assert deviations(ours, theirs, Decimal("0.02")) == set()
+    assert rows_in_order(body, expected)
     assert [each["resource_role_id"][-3:] for each in body["roles"]] != [
         each["resource_role_id"][-3:] for each in expected["roles"]
     ]
@@ -369,11 +395,14 @@ def test_the_workload_of_the_reference_budget_is_that_of_the_offer_where_the_exa
     expected = example("workload_reference_budget")
     assert body["context"]["revision_id"] == str(REVISION_100)
     assert expected["context"]["revision_id"] == str(REVISION_101)
-    # The detail by task is compared by US-2040/L2, which removes this exclusion.
+    # The tasks of the 100 are other nodes than those of the 101, a task fewer, their dates and
+    # their hours the offer's: the detail is not compared, but it sums to the plan (WF-DEV-0090).
     found = deviations(
         by_role(without(body, {"tasks"})), by_role(without(expected, {"tasks"})), Decimal("0.02")
     )
     assert found == {"/context/revision_id", "/monthly_totals[]/hours", "/roles[]/months[]/hours"}
+    for role in body["roles"]:
+        assert summed_tasks(role) == {each["month"]: each["hours"] for each in role["months"]}
 
 
 def test_the_contributors_the_lines_employ_are_proposed_as_the_example_does(
