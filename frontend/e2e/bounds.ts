@@ -48,11 +48,12 @@ export const WORKING = 15_000;
 /**
  * How long the worker is given to mark a revision: a task taken from the queue, one transaction.
  *
- * Measured: not yet. The duration of a marking comes from `make measure-version` (US-2300), which
- * reads each of its passes from the submission of the task to its end (`getBackgroundTask`); it is
- * to be quoted here, with the date and the version of the measure, once the measure has given it.
- * Until then this bound is one of working, a minute for a task taken from the queue, with no figure
- * behind it.
+ * Measured on 2026-11-16 by `make measure-version MEASURE_VERSION=0.4.0` (US-2300, fifty users of
+ * load, three passes), each pass read from the submission of the task to its end
+ * (`getBackgroundTask`): a median of 0.101 s and a worst of 0.240 s (`mark-revision` of
+ * `docs/measures/0.4.0.json`). The minute covers them with a wide margin, 250 times the worst:
+ * it is the room a task waiting in the queue is given to be taken by the worker, not a duration
+ * of the marking itself.
  */
 export const MARKING = 60_000;
 

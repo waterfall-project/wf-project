@@ -783,7 +783,7 @@ migration ni invariant à tenir.
 
 ## US-2290 — Les parcours lourds contre le service ont des bornes de temps mesurées, et le parcours en quarantaine est rejoué
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : `listNodes`
 - **issue** : #3323
@@ -805,11 +805,23 @@ une lecture lente.
 - propre à l'US : `make queue-report` sur `epic/EP-26` montre moins d'un échec sur dix sur
   cinquante passages.
 
+**Notes de réalisation.** `make queue-report BRANCH=epic/EP-26 LAST=50`, le 2026-11-16 : la
+branche ne compte que 36 passages, du 2026-11-14 au 2026-11-16 — 33 réussis, 2 échoués, 1 annulé, 0
+non terminé — et non cinquante : l'EPIC n'en a pas produit davantage, le critère « cinquante
+passages » se lit sur ces 36 (« 33 passages, non 50 »). Sur les 35 terminés, 0 est un échec sans
+régression (0 %, moins d'un sur dix) : aucun connu comme aléa, aucun d'infrastructure, 2 à classer,
+aucune régression. Les deux échecs sont le même test, `e2e/reference-costs.spec.ts:486` (étape
+`service / paths`), à classer. Temps des 19 passages complets réussis : médiane 14,1 min, 90e
+centile 17,5 min. #3411 : `make measure` rejoué le 2026-11-16, la part navigateur de
+`planning.by-address` est de 159, 122 et 162 ms à 1, 4 et 8 utilisateurs (0,3 ms avant, à 8), le
+poids de `planning.from-remaining` d'environ 49,9 Ko à chaque niveau, les échantillons non pesés
+étant écartés (11 sur 20 à 4 utilisateurs, 18 sur 40 à 8).
+
 **Hors périmètre.** Le parcours de la comparaison de PRJ-001, en quarantaine (#3192) — EP-27.
 
 ## US-2300 — Le rapport de mesures d'une version : chaque opération du tableau 15, à cinquante utilisateurs, comparée à la version précédente
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-QUA-0060-A`
 - **opérations** : `listNodes`, `updateTaskFacet`, `updateEstimateLine`, `getProjectWorkload`,
   `markRevision`, `openImport`, `applyImport`, `requestExport`, `getBackgroundTask`
@@ -855,6 +867,27 @@ glisse.
 **Notes de réalisation.** L'annexe C de la spécification nomme k6 pour les tests de charge. La
 mesure d'US-0110, contre le faux back, renvoyait la seconde tenue à EP-13 : c'est ici qu'elle se
 mesure contre le service.
+
+**Notes de réalisation (premier rapport).** Le rapport de la version 0.4.0, versionné dans
+`docs/measures/0.4.0.json`, a été pris le 2026-11-16 par `make measure-version
+MEASURE_VERSION=0.4.0` (cinquante utilisateurs, cinq passages, trois passages des chemins lourds ;
+8 min en tout, dont 3,3 min de mesure). Il est sans précédent : seuls les objectifs sont tenus, les
+durées de `reference.json` (avant corrections) y sont citées comme telles. Médianes : ouvrir une
+grille 0,952 s pour 1 s ; recalculer après une saisie 1,999 s pour 1 s — le seul objectif dépassé,
+documenté (la durée qui redate 957 tâches, gain d'US-2250 sous la dispersion, décisions du
+2026-11-16) ; filtrer, trier, chercher 0,833 s pour 2 s (#3171 tenu, la pire passe, 1,969 s, à 31 ms
+de l'objectif) ; plan de charge 0,574 s ; marquage 0,101 s (pire 0,240 s) pour 60 s ; import 3,411 s
+pour 300 s ; export 0,575 s pour 30 s. Non servies, avec leur EPIC : indicateurs et projection de
+dépenses (EP-10), portefeuille (EP-11), grille comparée et saisie comparée (EP-27) ; l'écart des
+trois cents projets et quinze ans (WF-QUA-0040) est à EP-13. La charge : 652 gestes sur 718
+attendus, aucun refus (`conditions.load.refusals` vide), 7 lectures et 7 saisies refusées par le
+marquage (`reads_frozen`, `writes_frozen`). L'écart de `createRevision` (2,35 s pour 2 s, #3314
+option B) est cité dans la note générale. Le volume des lectures gardées (US-2270) n'est pas
+mesuré, il est calculé, calcul validé par l'auteur : 76 octets par nœud × 5 994 nœuds (PRJ-001) ×
+600 projets × 180 révisions ≈ 49 Go, soit environ 25 à 33 % des 150 à 200 Go du §4.6.2 (le chiffre
+de 82 Go avancé auparavant n'est pas retenu) ; hypothèses : 5 994 nœuds par révision, 180 révisions
+réellement gardées (toute révision marquée lue au moins une fois), sans compter la compression de
+PostgreSQL. La durée du marquage mesurée est citée dans `frontend/e2e/bounds.ts` (`MARKING`).
 
 **Hors périmètre.** Rendre un objectif bloquant : WF-QUA-0060 demande qu'un dépassement soit
 signalé et documenté, non interdit.

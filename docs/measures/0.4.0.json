@@ -1,0 +1,112 @@
+{
+  "version": "0.4.0",
+  "taken_at": "2026-11-16T22:31:04.522Z",
+  "conditions": {
+    "project": "01926f3a-7c00-7000-8000-000000000001",
+    "revision": "01926f3a-7c00-7000-8000-000000000102",
+    "users": 50,
+    "tasks": 1000,
+    "estimate_lines": 4999,
+    "passes": 5,
+    "task_passes": 3,
+    "load": {
+      "users": 50,
+      "seed": 2300,
+      "gestures": 652,
+      "reads": 582,
+      "reads_frozen": 7,
+      "reads_refused": 0,
+      "writes": 70,
+      "writes_frozen": 7,
+      "writes_refused": 0,
+      "unauthorised": 0,
+      "requests": 1295,
+      "duration_s": 144,
+      "gestures_expected": 718,
+      "refusals": []
+    }
+  },
+  "operations": [
+    {
+      "id": "open-grid",
+      "objective_s": 1,
+      "median_s": 0.952,
+      "worst_s": 2.443,
+      "dispersion_s": 0.104,
+      "note": "Under its objective at the median (0.952 s for 1 s), with no margin: the worst of the passes, 2.443 s, is above it, and the dispersion, 0.104 s, is a tenth of the objective. First report of a version, no previous one: the reference taken before the corrections of EP-26 (reference.json, one user, no load) gave 0.9 s to the step planning.by-address; it is quoted as a reference, not as the previous version."
+    },
+    {
+      "id": "recompute-after-entry",
+      "objective_s": 1,
+      "median_s": 1.999,
+      "worst_s": 3.299,
+      "dispersion_s": 0.793,
+      "note": "Objective exceeded: 1.999 s for 1 s. The operation joins the two entries of the journey: a label, which recomputes nothing, and a duration, which redates 957 of the 1000 tasks. The cause of the duration is the engine and the re-evaluation of the lines of the redated tasks, which US-2250 does not touch: about 0.8 s at one user, a gain under the dispersion, accepted by the author on 2026-11-16 (US-2250, #3578 option 1), its reading coming back to this report. The worst, 3.299 s, and the dispersion, 0.793 s, are those of fifty users on one workstation."
+    },
+    {
+      "id": "indicators",
+      "objective_s": 1,
+      "unserved": "EP-10",
+      "note": "Not served: the indicators of the current revision are measured by EP-10, with this tool, at its delivery."
+    },
+    {
+      "id": "portfolio-view",
+      "objective_s": 2,
+      "unserved": "EP-11",
+      "note": "Not served: the views of the portfolio are measured by EP-11, with this tool, at its delivery."
+    },
+    {
+      "id": "open-compared-grid",
+      "objective_s": 2,
+      "unserved": "EP-27",
+      "note": "Not served: the compared grid is measured by EP-27, with this tool, at its delivery."
+    },
+    {
+      "id": "filter-sort-search",
+      "objective_s": 2,
+      "median_s": 0.833,
+      "worst_s": 1.969,
+      "dispersion_s": 0.212,
+      "note": "Held (#3171): 0.833 s at the median, 1.969 s the worst, for the two seconds of the objective; the worst pass is within 31 ms of it, with a dispersion of 0.212 s. Before the corrections (reference.json, one user, no load): 1.19 s to filter, 1.0 s to sort."
+    },
+    {
+      "id": "recompute-compared",
+      "objective_s": 2,
+      "unserved": "EP-27",
+      "note": "Not served: the entry in a compared grid is measured by EP-27, with this tool, at its delivery."
+    },
+    {
+      "id": "workload-or-projection",
+      "objective_s": 2,
+      "median_s": 0.574,
+      "worst_s": 0.818,
+      "dispersion_s": 0.198,
+      "note": "The workload only is measured (getProjectWorkload): 0.574 s for 2 s. The projection of expenses is not served: EP-10 measures it, with this tool, at its delivery."
+    },
+    {
+      "id": "mark-revision",
+      "objective_s": 60,
+      "median_s": 0.101,
+      "worst_s": 0.24,
+      "dispersion_s": 0.087,
+      "note": "Held, 0.101 s for 60 s: the marking of PRJ-001 (1000 tasks) is one transaction, read from the submission of the task to its end; the 60 s of MARKING (frontend/e2e/bounds.ts) are the room given to the queue."
+    },
+    {
+      "id": "import-costs",
+      "objective_s": 300,
+      "median_s": 3.411,
+      "worst_s": 3.454,
+      "dispersion_s": 0.142,
+      "note": "Held, 3.411 s for 300 s: the analysis then the application of 18000 lines of actual cost; the passes are not at constant volume (the second imports beside the 18000 lines of the first, the third beside 36000)."
+    },
+    {
+      "id": "export-planning",
+      "objective_s": 30,
+      "median_s": 0.575,
+      "worst_s": 0.587,
+      "dispersion_s": 0.116,
+      "note": "Held, 0.575 s for 30 s: the export of the planning of 1000 tasks, from the submission to the end of its background task."
+    }
+  ],
+  "note": "First report of a version, taken on 2026-11-16 with `make measure-version MEASURE_VERSION=0.4.0` on a workstation: PRJ-001 of the loaded witness (1000 tasks, 4999 lines of estimate), under fifty virtual users (k6), five passes and three passes of the heavy paths. No previous report, so only the objectives are held; the figures of reference.json, taken before the corrections of EP-26, are quoted as such, not as a previous version. The load: 652 gestures of the 718 expected, in 144 s; reads_refused 0, writes_refused 0, unauthorised 0, conditions.load.refusals empty (a lone refusal, max(floor(1 % of n), 1), would be tolerated and named there); 7 reads and 7 writes refused by the marking (409 STATE_FORBIDS_OPERATION), counted apart as reads_frozen and writes_frozen. Gaps already decided, outside the table: createRevision on PRJ-001 is 2.35 s for the 2 s asked (decision of 2026-11-15, #3314 option B, US-2240), not an operation of table 15; the duration that redates 957 tasks, about 0.8 s, gain under the dispersion (decisions of 2026-11-16, US-2250), is read in recompute-after-entry. Not served, with their epic: the indicators and the projection of expenses (EP-10), the portfolio (EP-11), the compared grid and the entry in a compared grid (EP-27). The three hundred projects and fifteen years of revisions of the reference set (WF-QUA-0040) are for EP-13, which replays this measure on it. The volume of the guarded reads (US-2270) is NOT measured by this report: it is a calculation validated by the author, not a measure. 76 bytes per node x 5994 nodes (PRJ-001) x 600 projects x 180 revisions = about 49 GB, that is 25 to 33 % of the 150 to 200 GB of 4.6.2 (the 82 GB put forward earlier is not retained). Hypotheses: 5994 nodes per revision, that of PRJ-001, for every project; 180 revisions guarded per project, every marked revision read at least once (a revision never read is not guarded); 76 bytes per node as stored, without the compression of PostgreSQL, which would lower it."
+}
