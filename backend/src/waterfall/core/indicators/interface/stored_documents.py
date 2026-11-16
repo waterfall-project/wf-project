@@ -22,7 +22,7 @@ from waterfall.core.revisions.interface import marked_revisions_at, revision_pro
 from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 
 if TYPE_CHECKING:
-    from datetime import date
+    from datetime import date, datetime
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -96,11 +96,23 @@ def kept_revision(
     """
     if revision_id is not None:
         return revision_id
-    marked = marked_revisions_at(session, project_id)
-    keeping = revisions_keeping_project(session, project_id)
-    for found in sorted(marked, key=lambda each: (marked[each], each), reverse=True):
-        if as_of is not None and current_day(marked[found]) > as_of:
-            continue
-        if found in keeping:
+    kept = kept_revisions(session, project_id)
+    for found, marked_at in reversed(kept):
+        if as_of is None or current_day(marked_at) <= as_of:
             return found
     raise ConflictError(STATE_FORBIDS_OPERATION)
+
+
+def kept_revisions(session: Session, project_id: UUID) -> list[tuple[UUID, datetime]]:
+    """Give the marked revisions of a project that kept its indicators, by marking, earliest first.
+
+    Those that kept a document ``project`` for the project as a whole: marked In progress. Two
+    markings of one instant are ordered by identifier.
+    """
+    marked = marked_revisions_at(session, project_id)
+    keeping = revisions_keeping_project(session, project_id)
+    return [
+        (each, marked[each])
+        for each in sorted(marked, key=lambda each: (marked[each], each))
+        if each in keeping
+    ]

@@ -63,9 +63,13 @@ from waterfall.core.indicators.interface.physical_progress import (
 )
 
 # ``project_indicators`` (US-1660/L1; US-1660/L3, US-1670/L2): the indicators of a project, and
-# what a reading of the current day computes on (``day_reading``, read by the curves, US-1690/L2).
+# what a reading of the current day computes on (``day_reading``, read by the curves, US-1690/L2;
+# ``current_day_reading``, by the time/time diagram, US-1710).
 from waterfall.core.indicators.interface.project_indicators import (
     DayReading as DayReading,
+)
+from waterfall.core.indicators.interface.project_indicators import (
+    current_day_reading as current_day_reading,
 )
 from waterfall.core.indicators.interface.project_indicators import (
     day_reading as day_reading,
@@ -82,10 +86,13 @@ from waterfall.core.indicators.interface.stored_documents import (
     kept_any as kept_any,
 )
 
-# ``stored_documents`` (US-1660/L1; US-1670/L1; US-1690/L3): a document a marked revision kept,
-# and the marked revision a reading of a marking reads.
+# ``stored_documents`` (US-1660/L1; US-1670/L1; US-1690/L3; US-1710): a document a marked
+# revision kept, the marked revision a reading of a marking reads, and those that kept the project.
 from waterfall.core.indicators.interface.stored_documents import (
     kept_revision as kept_revision,
+)
+from waterfall.core.indicators.interface.stored_documents import (
+    kept_revisions as kept_revisions,
 )
 from waterfall.core.indicators.interface.stored_documents import (
     revisions_keeping_project as revisions_keeping_project,

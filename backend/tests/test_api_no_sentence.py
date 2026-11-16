@@ -59,6 +59,8 @@ DATA = {
     # scope of a calculation (``project``, ``unassigned`` or the identifier of a subproject).
     "WorkloadPlan.roles.label": "a label",
     "WorkloadTask.label": "a label",
+    # The label of a milestone the diagram of the time/time tracking draws.
+    "MilestoneTracking.milestones.label": "a label",
     "WorkloadPlan.org_node_label": "a label",
     "CalculationContext.scope": "a scope",
     # The label a person gave an element of the work breakdown, and that of the task that bears it.

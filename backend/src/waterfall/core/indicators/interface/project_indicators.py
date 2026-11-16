@@ -30,19 +30,20 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from waterfall.core.cost_settings.interface import read_reference_settings
+from waterfall.core.costs.interface import PROJECT
 from waterfall.core.indicators.computing import Basis, day_documents
+from waterfall.core.indicators.interface.reading import IndicatorsReading
 from waterfall.core.indicators.interface.stored_documents import (
-    revisions_keeping_project,
+    kept_revision,
     stored_document,
 )
 from waterfall.core.indicators.shaping import Context, classified
 from waterfall.core.projects.interface import (
-    current_day,
     list_state_transitions,
     project_facts,
     subproject_labels,
 )
-from waterfall.core.revisions.interface import marked_revisions_at, read_revision_for
+from waterfall.core.revisions.interface import read_revision_for
 from waterfall.platform.errors import (
     STATE_FORBIDS_OPERATION,
     VALIDATION_FAILED,
@@ -52,12 +53,11 @@ from waterfall.platform.errors import (
 )
 
 if TYPE_CHECKING:
-    from datetime import date
+    from datetime import datetime
 
     from sqlalchemy.orm import Session
 
     from waterfall.core.indicators.interface.documents import Document
-    from waterfall.core.indicators.interface.reading import IndicatorsReading
     from waterfall.core.projects.interface import ProjectFacts
     from waterfall.core.revisions.interface import RevisionRead
 
@@ -107,20 +107,6 @@ def _offer_refusal() -> ConflictError:
     return ConflictError(STATE_FORBIDS_OPERATION)
 
 
-def _last_kept_before(session: Session, project_id: UUID, day: date) -> UUID | None:
-    """Give the last revision marked on or before a day that kept the indicators of the project.
-
-    The day is that of the time zone of the installation, as the day of a marking is; the latest
-    ``marked_at`` wins, the greatest identifier on a tie, as everywhere the last marked is read.
-    """
-    marked = marked_revisions_at(session, project_id)
-    keeping = revisions_keeping_project(session, project_id)
-    candidates = [
-        (at, each) for each, at in marked.items() if each in keeping and current_day(at) <= day
-    ]
-    return max(candidates)[1] if candidates else None
-
-
 def _kept_indicators(session: Session, project_id: UUID, asked: IndicatorsReading) -> Document:
     """Give the indicators a marking kept, of the marked revision named or of the date asked.
 
@@ -130,7 +116,7 @@ def _kept_indicators(session: Session, project_id: UUID, asked: IndicatorsReadin
     """
     revision_id = asked.revision_id
     if revision_id is None and asked.as_of is not None:
-        revision_id = _last_kept_before(session, project_id, asked.as_of)
+        revision_id = kept_revision(session, project_id, None, asked.as_of)
     if revision_id is None:
         raise _offer_refusal()
     kept = stored_document(session, revision_id, "project", asked.scope)
@@ -163,10 +149,31 @@ def day_reading(session: Session, project_id: UUID, asked: IndicatorsReading) ->
         named = read_revision_for(session, project_id, asked.revision_id)
     if not _is_of_the_day(facts, asked):
         return None
+    return _reading_of(session, project_id, facts, asked, named)
+
+
+def _reading_of(
+    session: Session,
+    project_id: UUID,
+    facts: ProjectFacts,
+    asked: IndicatorsReading,
+    named: RevisionRead | None,
+) -> DayReading:
+    """Say what the current day is computed on: the revision named, else the current or last."""
     read = named if named is not None else read_revision_for(session, project_id, None)
     status = MARKED if read.marked else DRAFT
     context = Context(read.revision_id, status, asked.at, asked.scope, is_stored=False)
     return DayReading(Basis(project_id, read.revision_id, facts.reference_revision_id), context)
+
+
+def current_day_reading(session: Session, project_id: UUID, at: datetime) -> DayReading:
+    """Refuse a project that never was In progress, then say what the current day computes on.
+
+    For the readings that have no revision to name and no scope to judge: the time/time diagram.
+    """
+    facts = project_facts(session, project_id)
+    _refuse_before_in_progress(session, project_id, facts.state)
+    return _reading_of(session, project_id, facts, IndicatorsReading(PROJECT, at), None)
 
 
 def project_indicators(session: Session, project_id: UUID, asked: IndicatorsReading) -> Document:
