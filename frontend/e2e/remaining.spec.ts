@@ -15,7 +15,7 @@ import { inService, test } from "./mode";
 import { bringInProgress } from "./in-progress";
 import { createOwnProject, openRevision } from "./own-project";
 import { seedPlanning, type Seeded } from "./planning-seed";
-import type { LocalPerson } from "./service/realm";
+import { API, type LocalPerson } from "./service/realm";
 import { scrollToPosition, withinBox } from "./scroll";
 import { isServerAction } from "./server-action";
 
@@ -542,9 +542,7 @@ const EXPENSE = "Sous-traitance";
 
 /**
  * What the screens say of the reference of a project in progress: its row of the history of the
- * revisions, and the revision it designates. The reference budget and the planned value are not
- * read: the service does not serve `getProjectIndicators` yet (EP-10), and the fake back answers
- * the same figures whatever is written.
+ * revisions, and the revision it designates.
  */
 async function referenceOf(page: Page, seeded: Seeded) {
   await openHydrated(page, `${seeded.own.path}/revisions`);
@@ -552,10 +550,22 @@ async function referenceOf(page: Page, seeded: Seeded) {
   // Case-sensitive: the header « Année de référence » is not the row of the reference.
   const row = history.getByRole("row").filter({ hasText: /Référence/ });
   await expect(row).toHaveCount(1, { timeout: WORKING });
-  const designated = await row.innerText();
   const href = (await row.getByRole("link").first().getAttribute("href")) ?? "";
   const reference = new URL(href, "http://localhost").searchParams.get("revision_id") ?? "";
-  return { reference, designated };
+  return { reference };
+}
+
+/**
+ * The reference budget and the planned value the service serves for the project in progress
+ * (`getProjectIndicators`, WF-IND-0010), read by the API under the token of its creator.
+ */
+async function figuresOf(calls: APIRequestContext, seeded: Seeded) {
+  const read = await calls.get(`${API}/projects/${seeded.ids.project}/indicators`, {
+    headers: seeded.headers,
+  });
+  expect(read.status()).toBe(200);
+  const body = (await read.json()) as { reference_budget: string; planned_value: string };
+  return { budget: body.reference_budget, planned: body.planned_value };
 }
 
 /**
@@ -612,6 +622,7 @@ test("adds a task from the remaining to commit of a project in progress the run 
       manager,
       "Reste ajouté",
     );
+    const before = await figuresOf(calls, seeded);
     await page.keyboard.press("Insert");
     const dialog = page.getByRole("dialog", { name: "Insérer au-dessous" });
     await dialog.getByRole("textbox", { name: "Libellé" }).fill("Reprise des borniers");
@@ -640,7 +651,8 @@ test("adds a task from the remaining to commit of a project in progress the run 
     // ... while the reference is the same revision, without the task.
     const kept = await referenceOf(page, seeded);
     expect(kept.reference).toBe(reference.reference);
-    expect(kept.designated).toMatch(/Référence/);
+    // ... and the reference budget and the planned value do not move (WF-RAE-0040-A).
+    expect(await figuresOf(calls, seeded)).toEqual(before);
     await openHydrated(page, `${seeded.own.path}/revisions/${reference.reference}/planning`);
     const referenced = page.getByRole("treegrid", { name: "Grille de planning" });
     await expect(referenced.getByRole("row", { name: /Mise en service/ })).toBeVisible({

@@ -1714,7 +1714,7 @@ de mesures, **afin de** savoir s'ils tiennent leurs objectifs avant de publier l
 
 ## US-2430 — Les constats reçus sont soldés
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par EP-07 et EP-09
 - **opérations** : `getProjectIndicators`
 - **issue** : #3509
