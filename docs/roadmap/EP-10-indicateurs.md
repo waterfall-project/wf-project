@@ -1488,7 +1488,7 @@ dernier lot à l'écrire.
 
 ## US-1730 — L'écran des indicateurs branché sur le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ARC-0070-A`
 - **opérations** : `getProjectIndicators`, `getIndexHistory`, `getMilestoneTracking`,
   `getCostCurve`, `getEarnedValueCurves` ; `getRevision`, `listSubprojects`, `listRevisions` que
@@ -1601,7 +1601,7 @@ marquées de plus et les trois cents projets (EP-13) ; le portefeuille (EP-11).
 
 ## US-2040 — Le détail du plan de charge par rôle et par tâche
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-DEV-0090-A`
 - **opérations** : `getProjectWorkload`
 - **issue** : #3506
