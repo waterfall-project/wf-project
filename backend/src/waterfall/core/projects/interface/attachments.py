@@ -4,11 +4,12 @@
 
 A registry of this module (EP-06, "Les points d'extension"), filled by the planning at the import of
 its interface: whether a task of a marked revision bears a work package or an order item
-(``work_breakdown_item_cited``), the lock of the rows that bear the elements removed, taken before
-the elements are (``hold_work_breakdown_items``, US-2250/L3), and the withdrawal of its attachment
-from the tasks of the current revision (``detach_work_breakdown_item``). ``set_work_breakdown`` asks
-the three of the elements it removes (US-1380/L3): it marks deleted an element a marked revision
-cites, deletes it otherwise, and detaches the tasks of the current revision from it (WF-PLA-0170).
+(``work_breakdown_item_cited``), the lock of what its rows are written under, taken before the
+elements removed are (``hold_work_breakdown_items``, US-2250/L3), and the withdrawal of its
+attachment from the tasks of the current revision (``detach_work_breakdown_item``).
+``set_work_breakdown`` asks the three of the elements it removes (US-1380/L3): it marks deleted an
+element a marked revision cites, deletes it otherwise, and detaches the tasks of the current
+revision from it (WF-PLA-0170).
 
 Declared by US-1380/L1, which registers nothing; US-1380/L3 fills it.
 """

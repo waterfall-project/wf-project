@@ -4,16 +4,21 @@
 
 Registered at the import of the interface in the registry of the projects
 (``register_attachments``): whether a task of a marked revision bears a work package or an order
-item, the lock of the structures whose tasks of the current revision bear the elements it removes,
-and the withdrawal of an element from those tasks, which ``set_work_breakdown`` asks of them.
+item, the lock of the structures of the current revision, taken before the elements it removes,
+and the withdrawal of an element from the tasks of that revision, which ``set_work_breakdown``
+asks of them.
 
 The withdrawal is a write of the planning: it writes the tasks of a structure under its lock and
-advances its counter, on which the front leans every write (US-2250/L3, #3600). The structures are
-locked before the elements, in the order of their identifier (``hold_work_breakdown_items``), as a
-write of the tree locks its structure before it shares the element it attaches a task to: the
-withdrawal locks them again, which costs nothing when held, and takes one that a task attached
-between the two reads has made bearing — the window of a transaction, where PostgreSQL would abort
-one of two writes as a deadlock, not closed here.
+advances its counter, on which the front leans every write (US-2250/L3, #3600). Every structure of
+the current revision is locked before the elements, in the order of their identifier
+(``hold_work_breakdown_items``), as a write of the tree locks its structure before it shares the
+element it attaches a task to: not only those whose tasks bear an element, which a read before the
+lock would give, and which a task attached between that read and the lock would leave short — the
+withdrawal would then wait for a structure another write holds while it waits for the element, a
+deadlock, and write that structure's tasks without its counter. The structures of a revision are
+fixed under the lock of the project, which ``set_work_breakdown`` holds, and which the opening and
+the marking of a revision take: the set locked is the set written. The withdrawal reads the
+structures it writes under that lock, and advances their counters alone.
 
 Declared by US-1380/L1, filled by US-1380/L3: a task of a revision other than the current one of
 its project is one of a marked revision — an abandoned revision leaves no task —; the tasks of the
@@ -28,6 +33,7 @@ from waterfall.core.planning.tables import Node, Task
 from waterfall.core.planning.tree import LINE
 from waterfall.core.revisions.interface import (
     current_revision,
+    revision_structures,
     structure_counted,
     structure_facts,
 )
@@ -92,38 +98,49 @@ def work_breakdown_item_cited(session: Session, item_id: UUID) -> bool:
     )
 
 
-def _bearing(
-    session: Session, project_id: UUID, current: UUID | None, item_ids: Collection[UUID]
-) -> list[UUID]:
-    """Give the structures whose tasks of the current revision bear the elements, in their order."""
-    if current is None or not item_ids:
-        return []
-    wanted = list(item_ids)
+def _bearing(session: Session, project_id: UUID, current: UUID, item_id: UUID) -> list[UUID]:
+    """Give the structures whose tasks of the current revision bear an element, in their order.
+
+    To be read under the lock of every structure of the revision (``_held``): no task can come to
+    bear the element after.
+    """
     found = session.scalars(
         select(Node.structure_id)
         .join(Task, (Task.project_id == Node.project_id) & (Task.node_id == Node.id))
         .where(
             Node.project_id == project_id,
             Node.revision_id == current,
-            or_(Task.work_package_id.in_(wanted), Task.order_item_id.in_(wanted)),
+            or_(Task.work_package_id == item_id, Task.order_item_id == item_id),
         )
         .distinct()
     )
     return sorted(found)
 
 
+def _held(session: Session, project_id: UUID, current: UUID) -> None:
+    """Lock every structure of the current revision, ``FOR UPDATE``, in the order of their ids.
+
+    As every write that locks several does (``reprice_revision``); a structure held already costs
+    nothing.
+    """
+    for structure_id in revision_structures(session, project_id, current):
+        structure_facts(session, project_id, structure_id, lock=True)
+
+
 def hold_work_breakdown_items(
     session: Session, project_id: UUID, item_ids: Collection[UUID]
 ) -> None:
-    """Lock the structures whose tasks of the current revision bear the elements, before them.
+    """Lock every structure of the current revision before the elements removed, when there are.
 
-    ``FOR UPDATE``, in the order of their identifier, as every write that locks several does
-    (``reprice_revision``): asked by ``set_work_breakdown`` under the lock of the project, before
-    it writes or locks an element it removes.
+    Asked by ``set_work_breakdown`` under the lock of the project, before it writes or locks an
+    element it removes: every structure, not those whose tasks bear one, which a read before the
+    lock would give and a task attached meanwhile would leave short (#3600).
     """
+    if not item_ids:
+        return
     current = current_revision(session, project_id)
-    for structure_id in _bearing(session, project_id, current, item_ids):
-        structure_facts(session, project_id, structure_id, lock=True)
+    if current is not None:
+        _held(session, project_id, current)
 
 
 def detach_work_breakdown_item(session: Session, project_id: UUID, item_id: UUID) -> None:
@@ -132,17 +149,19 @@ def detach_work_breakdown_item(session: Session, project_id: UUID, item_id: UUID
     The node of each task it writes counts the write, its counter advanced (``Node.lock_version``)
     in a statement of its own, before the tasks are written: a write of the tree that would read
     such a task again rests on that counter (``reshaped``, US-2250/L2, #3562), and an entry made
-    on the task as it was is refused at the counter it read (412). Each structure it writes is
-    locked first (``structure_facts``), held already when ``hold_work_breakdown_items`` took it,
-    and its counter advanced once its tasks are written (``structure_counted``, #3600): a write of
-    the tree reads none of them halfway, and the front knows its reading stale.
+    on the task as it was is refused at the counter it read (412). Every structure of the revision
+    is locked first, held already when ``hold_work_breakdown_items`` took them; those whose tasks
+    it writes, read under that lock, have their counter advanced once their tasks are written
+    (``structure_counted``, #3600): a write of the tree reads none of them halfway, and the front
+    knows its reading stale.
     """
     current = current_revision(session, project_id)
-    structures = _bearing(session, project_id, current, (item_id,))
+    if current is None:
+        return
+    _held(session, project_id, current)
+    structures = _bearing(session, project_id, current, item_id)
     if not structures:
         return
-    for structure_id in structures:
-        structure_facts(session, project_id, structure_id, lock=True)
     of_current = select(Node.id).where(Node.project_id == project_id, Node.revision_id == current)
     bearing = select(Task.node_id).where(
         Task.project_id == project_id,

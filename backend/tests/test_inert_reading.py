@@ -8,8 +8,13 @@ revision of PRJ-001 (#3540): an entry whose columns are all inert reads its stru
 node it writes alone as an object of the session; one that is not reads the tree whole as objects.
 And what ``reshaped`` rests on, out of a write: the withdrawal of an element of the work breakdown
 advances the counter of the nodes whose task it writes (#3562), and, through ``setWorkBreakdown``,
-waits for the lock of their structure before it locks the element, as a write of the tree takes
-them (US-2250/L3, #3600).
+waits for the lock of every structure of the current revision before it locks the element, as a
+write of the tree takes them (US-2250/L3, #3600).
+
+The tests through ``setWorkBreakdown`` prove the Vérif of WF-PLA-0170 they cite — the deletion of
+an order item a task of the current revision bears succeeds, and the task bears it no more —, under
+the locks a concurrent write holds; the others, on the witness, prove a detail of realisation, the
+counters, and cite none.
 """
 
 import re
@@ -19,8 +24,10 @@ from uuid import UUID
 
 import pytest
 from nodes_support import Tree, opened, work_breakdown
+from planning_support import insert_task
+from project_rows import delete_structure, lifted_kind_check, structure_row
 from projects_support import scene as make_scene
-from sqlalchemy import event, func, select, update
+from sqlalchemy import event, func, insert, select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import InstrumentedAttribute, Session
 from test_estimate_lines import blocked_by
@@ -186,6 +193,7 @@ def _item_free(stage: Scene, item: UUID) -> bool:
     return True
 
 
+@pytest.mark.requirement("WF-PLA-0170-A")
 def test_the_withdrawal_of_an_element_waits_for_the_lock_of_its_structure_then_counts_it(
     api: ContractClient, owner: Engine, database: Database, realm: TestRealm
 ) -> None:
@@ -212,6 +220,52 @@ def test_the_withdrawal_of_an_element_waits_for_the_lock_of_its_structure_then_c
     waiting.result(timeout=30)
     assert _counter(stage, structure_id) == before + 1
     assert attachment(tree.node(task["node_id"])) == (None, None, None)
+
+
+@pytest.mark.requirement("WF-PLA-0170-A")
+def test_the_withdrawal_of_an_element_holds_a_structure_its_tasks_did_not_bear_it_in(
+    api: ContractClient, owner: Engine, database: Database, realm: TestRealm
+) -> None:
+    # US-2250, its own (#3600): every structure of the current revision is held before the element,
+    # not only those whose tasks bore it when read. A second structure, which bears nothing, is held
+    # by a write of the tree: the withdrawal waits for it before it locks the element; the write
+    # attaches a task to the element meanwhile, then ends. The withdrawal succeeds, writes that
+    # task too, and advances the counter of that structure. Read before the lock, the second
+    # structure was left out: the withdrawal ended without waiting, and wrote its task uncounted.
+    stage = make_scene(api, owner, database, realm)
+    tree = Tree(api, stage, opened(api, stage))
+    _, item = work_breakdown(stage)
+    task = tree.made("Câblage", task={"order_item_id": str(item)})
+    project_id, revision_id = UUID(stage.project["project_id"]), UUID(tree.revision["revision_id"])
+    # No differential is written before EP-08, and the kind of a structure is checked: lifted for
+    # this test alone, and restored.
+    row = structure_row(project_id, revision_id, kind="differential", label="Alpha")
+    second = row["id"]
+    assert isinstance(second, UUID)
+    with lifted_kind_check(owner):
+        try:
+            with owner.begin() as connection:
+                connection.execute(insert(CostStructure).values(**row))
+            before = _counter(stage, second)
+            assert before is not None
+            with ThreadPoolExecutor(max_workers=1) as pool, stage.owner.begin() as connection:
+                connection.execute(
+                    select(CostStructure.id).where(CostStructure.id == second).with_for_update()
+                )
+                holder = connection.scalar(select(func.pg_backend_pid()))
+                waiting = pool.submit(without_item, api, stage, str(item))
+                assert blocked_by(stage, holder, waiting)
+                attached = insert_task(
+                    connection, project_id, revision_id, second, order_item_id=item
+                )
+            waiting.result(timeout=30)
+            assert _counter(stage, second) == before + 1
+            with stage.database.transaction() as session:
+                left = session.scalar(select(Task.order_item_id).where(Task.node_id == attached))
+            assert left is None
+            assert attachment(tree.node(task["node_id"])) == (None, None, None)
+        finally:
+            delete_structure(owner, second)
 
 
 def _structure_counter(session: Session, read: Read) -> int:
