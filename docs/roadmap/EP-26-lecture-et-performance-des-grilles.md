@@ -553,7 +553,7 @@ dépassement est documenté (US-2300) et devient une issue à trancher.
 
 ## US-2250 — Une saisie qui ne déplace rien ne rejoue pas le moteur, et une écriture ne lit l'arbre qu'une fois
 
-- **statut** : fini
+- **statut** : en cours
 - **exigences** : aucune en propre — le gain se lit dans le rapport de WF-QUA-0060 (US-2300)
 - **opérations** : `updateTaskFacet`, `updateEstimateLine`, `setLineRemaining`, `setTaskProgress`,
   `setNodeTracking`, `setPredecessors`
@@ -602,25 +602,29 @@ lecture par écriture, la même réponse et la même structure en base qu'en rel
 Mesure du 2026-11-16 (`make measure-core ONLY=write RUNS=15`, médianes de 15 passages, dispersion —
 l'écart du plus lent au plus rapide — entre parenthèses), l'état d'avant l'US (le commit de la
 branche d'EPIC d'où le lot est parti, `e6f4d1c38`) et l'état livré (`reshaped`) mesurés en
-alternance dans la même séance, tous les passages consignés : un libellé, avant 405 ms (132) et 408
-ms (120), après 177 ms (84), 161 ms (85) et 155 ms (79) ; une durée qui redate 957 tâches, avant 879
-ms (233) et 828 ms (131), après 838 ms (233), 777 ms (109) et 781 ms (136). Le gain du libellé, plus
-du double, dépasse la dispersion. Celui de la durée, une cinquantaine de millisecondes sur 850
-(6 %), ne la dépasse pas : les deux états se recouvrent, et le critère n'est pas tenu par la mesure
-pour ce chemin. Les mesures d'états que le code a quittés (l'arbre gardé sur la parole de
-l'appelant, `kept_places`) ne sont plus citées : elles ne disent rien de l'état livré. Ce qui reste
-d'un libellé est surtout la lecture de l'arbre en objets de session, deux tiers du chemin court. Une
-durée coûte, d'après ces passages et sans profil, la lecture entière d'une structure (environ 205 ms
-: 838 ms pour 4,07 fois la lecture) plus le moteur et la réévaluation des lignes des 957 tâches
-redatées, que l'US ne touche pas : la lecture de l'arbre qu'elle économise ne pèse qu'une petite
-part des 800 ms. `reshaped` coûte à une durée une lecture, en lignes `id, parent_id, rank,
-lock_version`, de toute la structure (5 999 nœuds sur le témoin), la reconstruction de `Tree` et la
-relecture des sommaires que tient une ligne propre : environ 39 ms sur le témoin, dont 3 pour ces
-sommaires, contre 83 ms pour `read_tree` sur des objets déjà chargés. Garder `tree.order` quand rien
-n'a bougé gagnerait au plus ces 39 ms, dans la dispersion : elle n'est pas faite. Un test tient ce
-que `reshaped` suppose : `test_inert_writes.py` écoute les instructions SQL de chaque écriture et
-refuse un `UPDATE node` hors du flush dont le `SET` n'avance pas `lock_version`, ou un `UPDATE task`
-hors du flush.
+alternance dans la même séance, toutes les séances consignées, la médiane et la dispersion de
+chacune : un libellé, avant 405 ms (132) et 408 ms (120), après 177 ms (84), 161 ms (85) et 155 ms
+(79) ; une durée qui redate 957 tâches, avant 879 ms (233) et 828 ms (131), après 838 ms (233), 777
+ms (109) et 781 ms (136). Le gain du libellé, plus du double, dépasse la dispersion. Celui de la
+durée, une cinquantaine de millisecondes sur 850 (6 %), ne la dépasse pas. Le critère est tenu pour
+le libellé ; pour la durée, l'écart est accepté par décision de l'auteur du 2026-11-16, sa cause
+étant le moteur et la réévaluation des lignes des 957 tâches redatées, que l'US ne touche pas, et sa
+lecture revient au rapport de WF-QUA-0060 (US-2300), à cinquante utilisateurs. Une séance du soir,
+sur un poste plus chargé, est écartée comme non comparable : une durée qui redate y a coûté 870 ms
+(158). Les mesures d'états que le code a quittés (l'arbre gardé sur la parole de l'appelant,
+`kept_places`) ne sont plus citées : elles ne disent rien de l'état livré. Ce qui reste d'un libellé
+est surtout la lecture de l'arbre en objets de session, deux tiers du chemin court ; cette lecture,
+celle de `Write.__init__`, est la suite confiée à US-2250/L2 (#3578). Une durée coûte,
+d'après ces passages et sans profil, la lecture entière d'une structure (environ 205 ms : 838 ms
+pour 4,07 fois la lecture) plus le moteur et la réévaluation des lignes des 957 tâches redatées, que
+l'US ne touche pas : la lecture de l'arbre qu'elle économise ne pèse qu'une petite part des 800 ms.
+`reshaped` coûte à une durée une lecture, en lignes `id, parent_id, rank, lock_version`, de toute la
+structure (5 999 nœuds sur le témoin), la reconstruction de `Tree` et la relecture des sommaires que
+tient une ligne propre : environ 39 ms sur le témoin, dont 3 pour ces sommaires, contre 83 ms pour
+`read_tree` sur des objets déjà chargés. Garder `tree.order` quand rien n'a bougé gagnerait au plus
+ces 39 ms, dans la dispersion : elle n'est pas faite. Un test tient ce que `reshaped` suppose :
+`test_inert_writes.py` écoute les instructions SQL de chaque écriture et refuse un `UPDATE node`
+hors du flush dont le `SET` n'avance pas `lock_version`, ou un `UPDATE task` hors du flush.
 
 **Hors périmètre.** Le collage qui crée (US-2260) ; les valeurs dérivées stockées (US-2280).
 

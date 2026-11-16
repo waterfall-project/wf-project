@@ -109,4 +109,6 @@ contre le service ;
 - #3401 — back : `applyRateUpdate` refuse un montant débordé sans `fields`, alors que
 `/cost_category_ids` en est l'origine — relevé pendant EP-26, reporté ici avec la famille des
 écritures encore sans `fields` que nomme `docs/api/DECISIONS.md` (décision de l'auteur du
-2026-11-15).
+2026-11-15) ;
+- #3532 — back : la lecture gardée projetée par `fields` relit encore le document entier (reporté
+→ EP-27, décision de l'auteur du 2026-11-15).
