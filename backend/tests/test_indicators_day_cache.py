@@ -30,20 +30,25 @@ from day_indicators_support import (
     subproject,
 )
 from fastapi.testclient import TestClient
-from indicators_support import marked
+from indicators_support import marked, progressed
 from planning_support import DAY
+from project_rows import AT
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
+from remaining_support import task_named
 from structlog.testing import capture_logs
 from support import ContractClient, nowhere
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
-from waterfall.core.costs.interface import PROJECT
+from waterfall.core.costs.interface import PROJECT, costs_stamp
+from waterfall.core.estimate.interface import lines_stamp
 from waterfall.core.indicators.caching import day_key
 from waterfall.core.indicators.interface import IndicatorsReading, day_reading
+from waterfall.core.planning.interface import revision_content_stamp
 from waterfall.core.projects.interface import current_day, subproject_ids
 from waterfall.platform.cache import PREFIX, IndicatorsCache, forget_reports
+from waterfall.platform.database import utc_now
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, WORKER_TIMEOUT, TaskQueue
 
@@ -508,6 +513,52 @@ def test_every_write_the_indicators_of_the_day_depend_on_changes_the_key(
     renamed = api.patch(path, headers=stage.manager.headers, json=sent)
     assert renamed.status_code == 200, renamed.text
     changed()
+
+
+def instants(stage: Scene) -> tuple[object, ...]:
+    """Give the counts and the last instants of the stamps of the project of the stage."""
+    project_id = UUID(stage.project["project_id"])
+    with stage.database.transaction() as session:
+        reading = day_reading(session, project_id, IndicatorsReading(PROJECT, MORNING))
+        assert reading is not None
+        revision_id = reading.basis.revision_id
+        content = revision_content_stamp(session, project_id, revision_id)
+        lines = lines_stamp(session, project_id, revision_id)
+        costs = costs_stamp(session, project_id)
+        return (
+            (content.nodes, content.tasks, content.links, content.updated_at),
+            (lines.count, lines.updated_at),
+            (costs.imported_at, costs.lines, costs.updated_at),
+        )
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+def test_a_write_that_started_before_the_last_one_committed_still_changes_the_key(
+    stage: Scene, project: Priced, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Propre à l'US : une écriture A commencée (t0) avant qu'une écriture B d'un autre nœud
+    # (t1 > t0) ne valide porte l'instant t0 ; le maximum des instants reste t1 et les comptes ne
+    # bougent pas, mais la clé lue après A n'est plus celle sous laquelle un lecteur a écrit
+    # l'entrée entre B et A : le compteur de la structure principale, que chaque écriture de
+    # l'arbre avance sous son verrou, et le nombre des imports avancent dans l'ordre des
+    # validations.
+    project_id = UUID(stage.project["project_id"])
+    started = utc_now() - timedelta(minutes=10)
+    project.tree.changed(task_named(project.tree, "Études"), label="Études préalables")
+    read_between = key_of(stage)
+    held = instants(stage)
+    monkeypatch.setattr("waterfall.api.nodes.utc_now", lambda: started)
+    reestimated(project.tree, "Câblage", "60")
+    assert instants(stage) == held
+    after_line = key_of(stage)
+    assert after_line != read_between
+    progressed(project.tree, task_named(project.tree, "Câblage"), "started", DAY)
+    assert instants(stage) == held
+    after_state = key_of(stage)
+    assert after_state not in {read_between, after_line}
+    load_import(stage, project_id, [], at=AT - timedelta(days=1))
+    assert instants(stage) == held
+    assert key_of(stage) not in {read_between, after_line, after_state}
 
 
 @pytest.mark.requirement("WF-DAT-0130-A")

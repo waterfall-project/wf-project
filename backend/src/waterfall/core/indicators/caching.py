@@ -6,13 +6,13 @@ The key of the entry of a project is the fingerprint of what its indicators of t
 read at each reading by the interfaces of the modules (EP-10, "Le cache"): the state, the current
 revision, the reference and the counter of the project; the revision computed and its reference;
 the counter and the instant of the dates of its main structure; the number of its nodes, of its
-tasks, of its links and of its lines, and the last instant one was written; the last import of the
-actual costs of the project, the number of its lines of cost and the last one written; its
-subprojects; the day, in the time zone of the installation. A write any entry depends on changes
-the key — an entry, a marking, an abandonment, a designation, an import, an exclusion, a
-subproject created, the next day —: an entry is never served for a key that is no longer the
-project's, and no write calls the cache. A change of the thresholds escapes it: the zones are
-classified at each reading.
+tasks, of its links and of its lines, and the last instant one was written; the number of the
+imports of the actual costs of the project and the last, the number of its lines of cost and the
+last one written; its subprojects; the day, in the time zone of the installation. A write any
+entry depends on changes the key — an entry, a marking, an abandonment, a designation, an import,
+an exclusion, a subproject created, the next day —: an entry is never served for a key that is no
+longer the project's, and no write calls the cache. A change of the thresholds escapes it: the
+zones are classified at each reading.
 
 The entry is one document by project and by key: for each scope — the project, each subproject,
 the lines of the project alone —, the indicators and the three curves, computed in one pass, the
@@ -90,6 +90,13 @@ def day_key(session: Session, basis: Basis, context: Context, subprojects: Seque
     content = revision_content_stamp(session, project_id, revision_id)
     lines = lines_stamp(session, project_id, revision_id)
     costs = costs_stamp(session, project_id)
+    # The instants are those of the start of each act, not of its commit: a write that started
+    # first and commits last leaves their maximum where it was. The key holds by the counters
+    # that grow in the transaction of each write, in the order of the commits: every write of the
+    # tree, a line and its remaining to commit included, advances the counter of its structure
+    # under its lock (``structure_rescheduled``) — the main one is the only structure until EP-08 —;
+    # an import adds its entry; a change of state, a marking, an abandonment, a designation
+    # advance the counter of the project. An exclusion or a reinstatement advances none.
     parts: list[tuple[str, tuple[object, ...]]] = [
         ("form", (FORM,)),
         ("project", (facts.state, facts.current_revision_id, facts.reference_revision_id)),
@@ -101,7 +108,7 @@ def day_key(session: Session, basis: Basis, context: Context, subprojects: Seque
         ),
         ("content", (content.nodes, content.tasks, content.links, content.updated_at)),
         ("lines", (lines.count, lines.updated_at)),
-        ("costs", (costs.imported_at, costs.lines, costs.updated_at)),
+        ("costs", (costs.imports, costs.imported_at, costs.lines, costs.updated_at)),
         ("subprojects", (len(subprojects), *sorted(str(each) for each in subprojects))),
         ("day", (current_day(context.computed_at),)),
     ]
