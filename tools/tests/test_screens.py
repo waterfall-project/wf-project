@@ -275,7 +275,7 @@ def test_another_unknown_code_is_still_refused_with_a_pending_function() -> None
     ]
 
 
-def with_spending(addressed: bool) -> dict[str, object]:
+def with_spending(*, addressed: bool) -> dict[str, object]:
     """Return the table, with the leaf FBS-4.4.5 of FBS-4.4 when it is addressed."""
     found = table()
     if addressed:
@@ -291,20 +291,20 @@ def test_the_leaf_pending_in_the_specification_is_accepted_under_its_function() 
     spending_app = {**app(), WORKLOAD + "/spending": ""}
     source = f'leafOf("FBS-4.4.4") leafOf("FBS-4.4.5") {app()[ESTIMATE]}'
     spending_app[ESTIMATE] = source
-    assert screens.confront(TREE, with_spending(True), spending_app, {}, SPENDING) == []
-    assert screens.confront(TREE, with_spending(True), spending_app, {}) == [
+    assert screens.confront(TREE, with_spending(addressed=True), spending_app, {}, SPENDING) == []
+    assert screens.confront(TREE, with_spending(addressed=True), spending_app, {}) == [
         "FBS-4.4.5: in the table, but not a function of the FBS"
     ]
 
 
 def test_the_leaf_pending_in_the_specification_needs_no_route_before_the_front_has_it() -> None:
-    assert screens.confront(TREE, with_spending(False), app(), {}, SPENDING) == []
-    assert screens.confront(TREE, with_spending(False), app(), {}) == []
+    assert screens.confront(TREE, with_spending(addressed=False), app(), {}, SPENDING) == []
+    assert screens.confront(TREE, with_spending(addressed=False), app(), {}) == []
 
 
 def test_a_leaf_the_specification_has_met_is_named() -> None:
     tree = (*TREE, Function("FBS-4.4.5", "Projection de dépenses du projet"))
-    assert screens.confront(tree, with_spending(True), app(), {}, SPENDING)[0] == (
+    assert screens.confront(tree, with_spending(addressed=True), app(), {}, SPENDING)[0] == (
         "FBS-4.4.5: declared pending in the specification, but it has it"
     )
 

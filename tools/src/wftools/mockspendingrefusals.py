@@ -8,10 +8,10 @@ read. It has meaning only complete: the refusal is that of an entry of a line, `
 naming the category without a field, on a correlation of its own (WF-DEV-0010, WF-DEV-0100).
 
 ``spending_no_reference.json``: the same projection on the reference budget of the project in
-pricing, which has no reference revision yet; ``spending_revision_refused.json``: on the re-estimated
-amounts of a marked revision named by ``revision_id`` when the one named is the current revision, in
-draft; ``spending_subproject_unknown.json``: filtered on a subproject the project does not have
-(WF-DEV-0100, WF-IND-0020; #3627).
+pricing, which has no reference revision yet; ``spending_revision_refused.json``: on the
+re-estimated amounts of a marked revision named by ``revision_id`` when the one named is the
+current revision, in draft; ``spending_subproject_unknown.json``: filtered on a subproject the
+project does not have (WF-DEV-0100, WF-IND-0020; #3627).
 
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """
