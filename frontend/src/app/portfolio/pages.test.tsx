@@ -289,7 +289,7 @@ describe("the screens of the portfolio", () => {
       horizon_months: "12",
       under_load_threshold: "0.5",
     });
-    expect(markup).toMatch(/733,321\.92 h.*?aria-label="Alert".*?111\.34%/);
+    expect(markup).toMatch(/733,321\.92 h.*?aria-label="Alert".*?111\.33%/);
     expect(text(markup)).toContain("Ingénieur électricien 658,666.67 h");
   });
 

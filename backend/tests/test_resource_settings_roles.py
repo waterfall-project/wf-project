@@ -122,7 +122,7 @@ def new_role(**changes: object) -> dict[str, object]:
 
 
 def change_of(read: dict[str, Any], **changes: object) -> dict[str, object]:
-    """Give the body that changes a role as it was read, with changes: its headcount, not its hours."""
+    """Give the body that changes a role as it was read, with changes: its headcount, no hours."""
     return {
         "code": read["code"],
         "label": read["label"],

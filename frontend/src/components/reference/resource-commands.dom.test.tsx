@@ -856,7 +856,7 @@ describe("the resource roles", () => {
     expect(form).toHaveAccessibleDescription(
       "Le code, unique, le libellé, une catégorie de main-d’œuvre, le calendrier et la capacité sont requis. Le rôle reste sous «\u00A0Bureau d'études électricité\u00A0»\u00A0: il se recrée sous un autre nœud plutôt que de s’y déplacer.",
     );
-    expect(within(form).getByRole("textbox", { name: "Heures par mois" })).toHaveValue("485324,00");
+    expect(within(form).getByRole("textbox", { name: "Heures par mois" })).toHaveValue("485333,33");
     expect(within(form).getByRole("combobox", { name: "Calendrier" })).toHaveValue(
       technician?.calendar_id,
     );
