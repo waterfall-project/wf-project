@@ -13,7 +13,7 @@ a line added, a line updated — leaves as it was. The readings of a marked revi
 US-1670/L2's: the documents are read here as the module keeps them (``stored_document``).
 """
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -33,7 +33,7 @@ from fastapi.testclient import TestClient
 from imports_trial import apply, import_worker, read, run
 from indicators_support import clock_setter
 from jsonschema_path import SchemaPath
-from nodes_support import refusal
+from nodes_support import opened, refusal
 from openapi_core.validation.schemas import oas31_schema_validators_factory
 from planning_support import DAY
 from projects_support import Scene
@@ -48,16 +48,16 @@ from waterfall.core.costs.interface import PROJECT, UNASSIGNED
 from waterfall.core.costs.tables import CostLine
 from waterfall.core.indicators.interface import stored_document
 from waterfall.core.indicators.tables import RevisionIndicator
+from waterfall.core.projects.interface import current_day
 from waterfall.core.revisions.interface import mark_revision
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
+from waterfall.platform.installation import TIME_ZONE
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from day_indicators_support import Priced
     from indicators_support import Clock
     from openapi_core import OpenAPI
@@ -155,14 +155,19 @@ def marked_now(stage: Scene, clock: Clock, revision: dict[str, Any]) -> datetime
     manager is the requester.
     """
     at = clock(utc_now().date() + ONE_DAY)
+    marked_at(stage, revision, at, "Revue")
+    return at
+
+
+def marked_at(stage: Scene, revision: dict[str, Any], at: datetime, version_name: str) -> None:
+    """Mark a revision by the transaction of the worker at an instant, the manager the requester."""
     with (
         logging_context(correlation_id="marking"),
         Session(stage.owner) as session,
         session.begin(),
     ):
         act = Act(stage.manager.user_id, at)
-        mark_revision(session, UUID(revision["revision_id"]), "Revue", None, act)
-    return at
+        mark_revision(session, UUID(revision["revision_id"]), version_name, None, act)
 
 
 def kept(database: Database, revision_id: str) -> dict[tuple[str, str], Any]:
@@ -365,7 +370,8 @@ def test_a_marked_revision_gives_the_curves_its_marking_kept_stored_at_its_insta
             assert body == rows[name, scope][0]
             assert body["context"]["is_stored"] is True
             assert body["context"]["computed_at"] == zulu(at)
-        assert read_curves(api, stage, f"?as_of={at.date().isoformat()}&scope={scope}") == by_name
+        as_of = current_day(at).isoformat()
+        assert read_curves(api, stage, f"?as_of={as_of}&scope={scope}") == by_name
     whole = read_curves(api, stage, f"?revision_id={revision_id}")
     assert whole["cost_curve"]["payment_delays"] is False
     assert whole["cost_curve_payment_delays"]["payment_delays"] is True
@@ -434,3 +440,48 @@ def test_a_revision_marked_before_in_progress_or_a_date_before_any_marking_is_re
         assert refusal(early) == FORBIDDEN
     kept_day = curve_answer(api, stage, COST_CURVE, f"?as_of={at.date().isoformat()}")
     assert kept_day.status_code == 200
+
+
+def curve_of_date(api: ContractClient, stage: Scene, day: Any) -> Any:
+    """Read the cost curve of the project of the stage as of a day."""
+    return curve_answer(api, stage, COST_CURVE, f"?as_of={day.isoformat()}")
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_a_date_reads_the_last_revision_marked_on_or_before_it_among_two_markings_in_progress(
+    api: ContractClient, stage: Scene, clock: Clock, project: Priced
+) -> None:
+    # « as_of → la dernière révision marquée dont marked_at ≤ la fin de la date, parmi celles qui
+    # ont un document project » : two revisions marked In progress, two days apart; a date between
+    # reads the first, the day of the second and after it reads the second.
+    first = project.tree.revision
+    at = marked_now(stage, clock, first)
+    later = at + 2 * ONE_DAY
+    second = opened(api, stage)
+    marked_at(stage, second, later, "Revue 2")
+    for day, expected in (
+        (current_day(at), first),
+        (current_day(at + ONE_DAY), first),
+        (current_day(later), second),
+        (current_day(later + ONE_DAY), second),
+    ):
+        answer = curve_of_date(api, stage, day)
+        assert answer.status_code == 200, answer.text
+        assert answer.json()["context"]["revision_id"] == expected["revision_id"]
+    assert curve_of_date(api, stage, current_day(at - ONE_DAY)).status_code == 409
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_the_day_of_a_marking_is_the_day_of_the_time_zone_of_the_installation(
+    api: ContractClient, stage: Scene, project: Priced
+) -> None:
+    # A marking at 23:30 universal time falls, in Paris, on the next day: the date asked is read
+    # in the time zone of the installation (`current_day`), as the marking of the day is.
+    TIME_ZONE.read_from(lambda: "Europe/Paris")
+    at = datetime.combine(utc_now().date() + ONE_DAY, datetime.min.time(), UTC).replace(
+        hour=23, minute=30
+    )
+    marked_at(stage, project.tree.revision, at, "Revue")
+    assert current_day(at) == at.date() + ONE_DAY
+    assert refusal(curve_of_date(api, stage, at.date())) == FORBIDDEN
+    assert curve_of_date(api, stage, current_day(at)).status_code == 200
