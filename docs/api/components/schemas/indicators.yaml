@@ -519,7 +519,12 @@ WorkloadPlan:
           resource_role_id: { $ref: ../common.yaml#/Uuid }
           label: { type: string }
           org_node_id: { $ref: ../common.yaml#/Uuid }
-          capacity_monthly_hours: { $ref: ../common.yaml#/Hours }
+          capacity_monthly_hours:
+            allOf: [{ $ref: ../common.yaml#/Hours }]
+            description: >-
+              The hours per month of the role as the reference data reads them today, calculated
+              from its headcount and its calendar (`RoleCapacity.monthly_hours`, WF-REF-0100),
+              to which the plan compares the load of each month.
           months:
             type: array
             description: >-

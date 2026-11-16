@@ -55,7 +55,7 @@ def test_a_role_with_all_of_the_manager_but_one_permission_reads_and_cannot_crea
         "org_node_id": BE_ELEC,
         "cost_category_id": INGENIERIE,
         "calendar_id": STANDARD,
-        "capacity": {"monthly_hours": "520.00", "headcount": "3"},
+        "capacity": {"headcount": "3"},
     }
     refused = api.post(ROLES, headers=headers, json=sent)
     body = refused.json()

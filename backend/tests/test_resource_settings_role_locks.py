@@ -337,8 +337,10 @@ def test_a_role_changed_without_its_category_does_not_wait_for_the_natures_but_a
     found = api.get(f"{roles}?include_inactive=true&code=TECH-MES", headers=headers)
     read = found.json()["items"][0]
     kept = {
-        key: read[key]
-        for key in ("code", "label", "cost_category_id", "calendar_id", "capacity", "lock_version")
+        **{key: read[key] for key in ("code", "label", "cost_category_id", "calendar_id")},
+        # The headcount alone is written, the hours per month being calculated (WF-REF-0100).
+        "capacity": {"headcount": read["capacity"]["headcount"]},
+        "lock_version": read["lock_version"],
     }
     url = f"{roles}/{read['resource_role_id']}"
     connection, transaction = hold_the_lock(witness, NATURES_LOCK)

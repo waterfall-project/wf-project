@@ -97,7 +97,7 @@ def make_role(api: ContractClient, world: World, tag: str) -> dict[str, Any]:
         "org_node_id": make_node(api, world, tag)["org_node_id"],
         "cost_category_id": make_category(api, world, tag)["cost_category_id"],
         "calendar_id": make_calendar(api, world, tag)["calendar_id"],
-        "capacity": {"monthly_hours": "520.00", "headcount": "3"},
+        "capacity": {"headcount": "3"},
     }
     response = api.post(ROLES, headers=world["resource_settings"].changing, json=sent)
     assert response.status_code == 201, response.text
@@ -506,7 +506,7 @@ def test_a_modification_writes_the_object_and_nothing_that_employs_it(
         "label": created["label"],
         "cost_category_id": other["cost_category_id"],
         "calendar_id": created["calendar_id"],
-        "capacity": created["capacity"],
+        "capacity": {"headcount": created["capacity"]["headcount"]},
         "lock_version": created["lock_version"],
     }
     moved = api.patch(f"{ROLES}/{created['resource_role_id']}", headers=resource, json=changed)

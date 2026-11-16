@@ -277,13 +277,13 @@ describe("the workload of a project", () => {
     const rows = screen.getAllByRole("row").slice(1);
     const listed = rows.map((row) => row.textContent);
     expect(listed.slice(0, 2)).toEqual([
-      "Ingénieur électricienJune 20261,465.75658,654Nominal",
-      "Ingénieur électricienJuly 20262,622.41658,654Nominal",
+      "Ingénieur électricienJune 20261,465.75658,666.67Nominal",
+      "Ingénieur électricienJuly 20262,622.41658,666.67Nominal",
     ]);
-    expect(listed).toContain("Technicien de mise en serviceDecember 20261,183.32485,324Nominal");
+    expect(listed).toContain("Technicien de mise en serviceDecember 20261,183.32485,333.33Nominal");
     expect(listed.slice(-2)).toEqual([
-      "Monteur câbleurMarch 2028560.98216,662.5Nominal",
-      "Monteur câbleurApril 20289.14216,662.5Nominal",
+      "Monteur câbleurMarch 2028560.98216,666.67Nominal",
+      "Monteur câbleurApril 20289.14216,666.67Nominal",
     ]);
     expect(listed.join("")).not.toContain("%");
     expect(listed).toHaveLength(38 + 38 + 8);

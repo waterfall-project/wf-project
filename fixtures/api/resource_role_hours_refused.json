@@ -1,0 +1,12 @@
+{
+  "summary": "Un rôle créé ou modifié avec ses heures par mois, que Waterfall calcule de son effectif et de son calendrier : refusées comme toute propriété que la capacité ne déclare pas, sur /capacity/monthly_hours ; rien n'est écrit (WF-REF-0100).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/capacity/monthly_hours","code":"VALIDATION_FAILED"}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001727"
+  }
+}
