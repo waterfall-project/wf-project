@@ -29,7 +29,9 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from waterfall.core.cost_settings.interface import read_reference_settings
+from waterfall.core.costs.interface import PROJECT
 from waterfall.core.indicators.computing import Basis, day_documents
+from waterfall.core.indicators.interface.reading import IndicatorsReading
 from waterfall.core.indicators.shaping import Context, classified
 from waterfall.core.projects.interface import (
     list_state_transitions,
@@ -46,11 +48,13 @@ from waterfall.platform.errors import (
 )
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from sqlalchemy.orm import Session
 
     from waterfall.core.indicators.interface.documents import Document
-    from waterfall.core.indicators.interface.reading import IndicatorsReading
     from waterfall.core.projects.interface import ProjectFacts
+    from waterfall.core.revisions.interface import RevisionRead
 
 IN_PROGRESS = "in_progress"
 # The states a project reaches only through In progress; ``abandoned`` may come before or after it.
@@ -120,10 +124,31 @@ def day_reading(session: Session, project_id: UUID, asked: IndicatorsReading) ->
         named = read_revision_for(session, project_id, asked.revision_id)
     if not _is_of_the_day(facts, asked):
         return None
+    return _reading_of(session, project_id, facts, asked, named)
+
+
+def _reading_of(
+    session: Session,
+    project_id: UUID,
+    facts: ProjectFacts,
+    asked: IndicatorsReading,
+    named: RevisionRead | None,
+) -> DayReading:
+    """Say what the current day is computed on: the revision named, else the current or last."""
     read = named or read_revision_for(session, project_id, None)
     status = MARKED if read.marked else DRAFT
     context = Context(read.revision_id, status, asked.at, asked.scope, is_stored=False)
     return DayReading(Basis(project_id, read.revision_id, facts.reference_revision_id), context)
+
+
+def current_day_reading(session: Session, project_id: UUID, at: datetime) -> DayReading:
+    """Refuse a project that never was In progress, then say what the current day computes on.
+
+    For the readings that have no revision to name and no scope to judge: the time/time diagram.
+    """
+    facts = project_facts(session, project_id)
+    _refuse_before_in_progress(session, project_id, facts.state)
+    return _reading_of(session, project_id, facts, IndicatorsReading(PROJECT, at), None)
 
 
 def project_indicators(session: Session, project_id: UUID, asked: IndicatorsReading) -> Document:
