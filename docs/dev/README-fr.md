@@ -4119,6 +4119,15 @@ plusieurs processus, chacun prend la base qui suit celle de la variable selon so
 sienne, `gw7` la septième après) : le flux de toute installation n'est jamais vidé sous les pieds
 d'un autre. Aucun test ne vide le serveur.
 
+Le cache des indicateurs du jour (US-1720) se teste de même, contre ce Redis. Il est dans la base de
+la file, sous le préfixe `waterfall:indicators:`, une entrée par projet sous une clé qui porte
+l'empreinte de ce dont les indicateurs dépendent (`core/indicators/caching.py`) : un test qui écrit
+change la clé, et ne vide rien. La fixture `cache` de `backend/tests/test_indicators_day_cache.py`
+supprime après le test les entrées du préfixe dans la base du processus. Le test du vidage complet,
+seul à lancer `FLUSHDB`, le fait sur une base propre à lui, la huitième après celle du processus,
+qu'aucun processus de tests ne prend (huit au plus, `--maxprocesses 8`) ; un Redis indisponible se
+simule par une adresse où rien n'écoute (`redis://127.0.0.1:1/0`), jamais en arrêtant le service.
+
 - **Dans la chaîne**, `front.yml` et `back.yml` démarrent Redis en service du travail et posent la
   variable.
 - **Sur un poste**, le Makefile démarre Redis comme PostgreSQL (« Un test contre PostgreSQL ») :

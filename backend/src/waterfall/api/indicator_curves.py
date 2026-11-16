@@ -5,7 +5,8 @@
 ``getCostCurve`` and ``getEarnedValueCurves`` (US-1690/L2: the current day; US-1690/L3: a marked
 revision), under ``project_indicators.read``. The instant of the computation is read here, once;
 the scope and the refusals are those of ``getProjectIndicators``, which this module reads the
-scope of (``scope_of``).
+scope of (``scope_of``); the curves of the current day are read in the cache of the process, as
+the indicators are (``Source``, US-1720/L2).
 """
 
 from datetime import date
@@ -15,9 +16,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
-from waterfall.api.authentication import Transaction
 from waterfall.api.evaluation import RequiresProject
-from waterfall.api.project_indicators import READ
+from waterfall.api.project_indicators import READ, Source
 from waterfall.api.scopes import scope_of
 from waterfall.core.costs.interface import PROJECT
 from waterfall.core.indicators.interface import IndicatorsReading, cost_curve, earned_value_curves
@@ -42,11 +42,12 @@ class CostCurveQuery(BaseModel):
     response_model=None,
 )
 def get_cost_curve(
-    project_id: UUID, session: Transaction, query: Annotated[CostCurveQuery, Query()]
+    project_id: UUID, source: Source, query: Annotated[CostCurveQuery, Query()]
 ) -> dict[str, Any]:
     """Give the cumulative costs of a project on a scope, on the current day."""
     asked = IndicatorsReading(scope_of(query.scope), utc_now(), query.revision_id, query.as_of)
-    return cost_curve(session, project_id, asked, payment_delays=query.payment_delays)
+    delays = query.payment_delays
+    return cost_curve(source.session, project_id, asked, payment_delays=delays, cache=source.cache)
 
 
 @router.get(
@@ -57,11 +58,11 @@ def get_cost_curve(
 )
 def get_earned_value_curves(
     project_id: UUID,
-    session: Transaction,
+    source: Source,
     revision_id: Annotated[UUID | None, Query()] = None,
     as_of: Annotated[date | None, Query()] = None,
     scope: Annotated[str, Query()] = PROJECT,
 ) -> dict[str, Any]:
     """Give the planned value, the earned value and the actual cost of a project on a scope."""
     asked = IndicatorsReading(scope_of(scope), utc_now(), revision_id, as_of)
-    return earned_value_curves(session, project_id, asked)
+    return earned_value_curves(source.session, project_id, asked, source.cache)

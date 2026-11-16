@@ -13,7 +13,8 @@ to the cent, so that the planned value of a scope is the sum of those of its lin
 ``planned_value`` of EP-07 is this one on the lines of the reference (#3566).
 
 ``lines_stamp``, the number of the lines of a revision and the last instant one was written, which
-the key of the cache of the indicators reads, is declared here and filled by US-1720/L2.
+the key of the cache of the indicators reads (EP-10, "Le cache"), is declared here and filled by
+US-1720/L2.
 
 Filled by US-1660/L3, the only lot of EP-10 that writes the ``__init__`` of the estimate.
 """
@@ -21,13 +22,22 @@ Filled by US-1660/L3, the only lot of EP-10 that writes the ``__init__`` of the 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from sqlalchemy import func, select
+
 from waterfall.core.estimate.imaging import kept_reference
 from waterfall.core.estimate.placing import role_weeks
 from waterfall.core.estimate.reading import budgeted_of, rows_of
 from waterfall.core.estimate.remaining.reviewing import provisions_of
 from waterfall.core.estimate.spreading import Placement, PlannedLine, planned_value
-from waterfall.core.planning.interface import lines_of, tasks_for_indicators, weekly_calendar
+from waterfall.core.estimate.tables import EstimateLine
+from waterfall.core.planning.interface import (
+    lines_of,
+    lines_of_revision,
+    tasks_for_indicators,
+    weekly_calendar,
+)
 from waterfall.core.revisions.interface import revision_marked_at
+from waterfall.platform.database import among
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -130,6 +140,17 @@ def planned_value_at(lines: Iterable[IndicatorLine], at: date) -> Decimal:
 
 
 def lines_stamp(session: Session, project_id: UUID, revision_id: UUID) -> LinesStamp:
-    """Give the number of the lines of a revision and the last instant one was written."""
-    msg = "lines_stamp is filled by US-1720/L2"
-    raise NotImplementedError(msg)
+    """Give the number of the lines of a revision and the last instant one was written.
+
+    The lines of every structure of the revision, whatever their kind: a re-estimate, a rate or an
+    inflation that prices a line again writes its ``updated_at`` without passing by a grid.
+    """
+    nodes = list(lines_of_revision(session, project_id, revision_id).values())
+    if not nodes:
+        return LinesStamp(0, None)
+    count, last = session.execute(
+        select(func.count(), func.max(EstimateLine.updated_at)).where(
+            EstimateLine.project_id == project_id, among(EstimateLine.node_id, nodes)
+        )
+    ).one()
+    return LinesStamp(count, last)

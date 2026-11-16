@@ -50,6 +50,7 @@ from waterfall.core.cost_settings.interface import (
 )
 from waterfall.core.costs.interface import PROJECT
 from waterfall.core.costs.tables import CostLine
+from waterfall.core.indicators.interface import KeptOfKind
 from waterfall.core.revisions.interface import mark_revision
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
@@ -381,18 +382,14 @@ def test_a_marked_revision_that_holds_no_document_at_all_is_computed_and_not_sto
 ) -> None:
     # A revision marked before the indicators were kept holds no row (migration 0031 takes none
     # up): neither refused nor recomputed as kept, it is read as the current one is, `is_stored`
-    # false. The absence of any document is simulated at the two readings the route makes.
+    # false. The absence of any document is simulated at the one reading the route makes.
     review = project.tree.revision["revision_id"]
     marked_on(stage, clock, project.tree.revision, 1)
 
-    def nothing(*_: object) -> None:
-        return None
+    def nothing(*_: object) -> KeptOfKind:
+        return KeptOfKind(None, kind_kept=False)
 
-    def never(*_: object) -> bool:
-        return False
-
-    monkeypatch.setattr("waterfall.api.scopes.stored_document", nothing)
-    monkeypatch.setattr("waterfall.api.scopes.kept_any", never)
+    monkeypatch.setattr("waterfall.api.scopes.kept_of_kind", nothing)
     base = project_path(stage)
     for path in ("estimate-indicators", "remaining-indicators"):
         found = api.get(f"{base}/{path}?revision_id={review}", headers=stage.manager.headers)
@@ -407,7 +404,8 @@ def test_the_day_of_a_date_is_that_of_the_time_zone_of_the_installation(
 ) -> None:
     # `as_of` is read on the day of the installation, as the day of a marking is: a marking at
     # 23:30 universal time is already on the next day in Paris. The day before is refused (409), the
-    # next day names the revision; in universal time the same marking falls on the first.
+    # next day names the revision; in universal time the same marking falls on the first. The
+    # time zone is the test's: ``installation_time_zone`` restores universal time when it ends.
     TIME_ZONE.read_from(lambda: "Europe/Paris")
     day = utc_now().date() + ONE_DAY
     at = datetime(day.year, day.month, day.day, 23, 30, tzinfo=UTC)
@@ -423,6 +421,7 @@ def test_the_day_of_a_date_is_that_of_the_time_zone_of_the_installation(
     next_day = day + ONE_DAY
     found = indicators(api, stage, f"?as_of={next_day.isoformat()}")
     assert found["context"]["revision_id"] == revision
+    # The same marking, read by an installation in universal time.
     TIME_ZONE.read_from(lambda: "UTC")
     assert indicators(api, stage, f"?as_of={day.isoformat()}")["context"]["revision_id"] == revision
 

@@ -41,6 +41,7 @@ from waterfall.core.users.interface import (
     add_account_of_provider,
     read_account_of_subject,
 )
+from waterfall.platform.cache import IndicatorsCache
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import UnauthenticatedError
 from waterfall.platform.keycloak import SESSION_REQUIRED, Bearer, Keycloak
@@ -82,8 +83,9 @@ def calling(account: Account, bearer: Bearer) -> CallingAccount:
 class Services:
     """What the routes of a process reach: its database, Keycloak and its administration API.
 
-    And the queue its tasks are deposited in, the bucket of the backups, and the maintenance of a
-    restoration — none for a process that is never held in maintenance.
+    And the queue its tasks are deposited in, the bucket of the backups, the maintenance of a
+    restoration — none for a process that is never held in maintenance —, and the cache of the
+    indicators of the day — none for a process that computes them at each reading (US-1720/L2).
     """
 
     database: Database
@@ -92,6 +94,7 @@ class Services:
     queue: TaskQueue
     backups: Bucket
     maintenance: Maintenance | None = None
+    indicators_cache: IndicatorsCache | None = None
 
 
 def services_of(request: Request) -> Services:
