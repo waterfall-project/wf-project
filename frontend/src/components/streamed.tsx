@@ -55,6 +55,9 @@ export function Streamed({ content }: { readonly content: Promise<ReactNode> }):
       current = false;
     };
   }, [content]);
+  // A second navigation that comes before the effect of the first has run finds `settled` still
+  // undefined: `First` then reads the content and suspends that transition until it is ready. A
+  // window of a few milliseconds after the first appearance, accepted.
   if (settled === undefined) {
     return <First content={content} />;
   }
