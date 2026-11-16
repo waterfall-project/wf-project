@@ -3170,6 +3170,7 @@
     "cycle": "Loop of links, in order: {tasks}.",
     "link": "Link concerned, the summary first: {tasks}.",
     "horizon_task": "Task concerned: {task}.",
+    "horizon_task_row": "Task concerned: {task}, row {row} of the pasted block.",
     "taskName": "“{label}”",
     "unknown_value": "Value read in the file: “{value}”.",
     "ambiguous_label": "Label read: “{label}”, shared by the tasks {tasks}.",
