@@ -675,51 +675,64 @@ describe("the resource roles", () => {
     await expectAccessible(form);
   });
 
-  it("creates a role with its attachments and its single capacity, the headcount alone written whatever is typed in the hours per month, calculated [WF-REF-0100-A]", async () => {
-    const client = serve();
-    render(roleList());
-    const form = await opened("Nouveau rôle", "Nouveau rôle de ressource");
-    await userEvent.type(within(form).getByRole("textbox", { name: "Code" }), "DESS-ELEC");
-    await userEvent.type(
-      within(form).getByRole("textbox", { name: "Libellé" }),
-      "Dessinateur électricien",
-    );
-    await userEvent.selectOptions(
-      within(form).getByRole("combobox", { name: "Nœud d’organisation" }),
-      "\u2003BE-ELEC · Bureau d'études électricité",
-    );
-    const [category] = LABOUR;
-    await userEvent.selectOptions(
-      within(form).getByRole("combobox", { name: "Catégorie de coût" }),
-      category?.id ?? "",
-    );
-    await userEvent.selectOptions(
-      within(form).getByRole("combobox", { name: "Calendrier" }),
-      "Semaine standard",
-    );
-    // Un rôle ne porte qu'une capacité, sans date de validité.
-    await userEvent.type(within(form).getByRole("textbox", { name: "Heures par mois" }), "1 520,5");
-    await userEvent.type(within(form).getByRole("textbox", { name: "Effectif" }), "3");
-    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
-    await vi.waitFor(() => {
-      expect(refresh).toHaveBeenCalledOnce();
-    });
-    expect(writes(client)).toEqual([
-      {
-        route: ROLES,
-        path: "/reference/resource-roles",
-        body: {
-          code: "DESS-ELEC",
-          label: "Dessinateur électricien",
-          org_node_id: nodeOf("BE-ELEC").org_node_id,
-          cost_category_id: category?.id,
-          calendar_id: "01926f3a-7c00-7000-8000-000000000481",
-          capacity: { headcount: "3" },
+  it.each([
+    [
+      "writes the headcount alone, the hours per month typed being ignored because calculated",
+      "1 520,5",
+    ],
+    ["writes the headcount alone, the hours per month left empty with no field in error", ""],
+  ])(
+    "creates a role with its attachments and its single capacity, and %s [WF-REF-0100-A]",
+    async (_case, hours) => {
+      const client = serve();
+      render(roleList());
+      const form = await opened("Nouveau rôle", "Nouveau rôle de ressource");
+      await userEvent.type(within(form).getByRole("textbox", { name: "Code" }), "DESS-ELEC");
+      await userEvent.type(
+        within(form).getByRole("textbox", { name: "Libellé" }),
+        "Dessinateur électricien",
+      );
+      await userEvent.selectOptions(
+        within(form).getByRole("combobox", { name: "Nœud d’organisation" }),
+        "\u2003BE-ELEC · Bureau d'études électricité",
+      );
+      const [category] = LABOUR;
+      await userEvent.selectOptions(
+        within(form).getByRole("combobox", { name: "Catégorie de coût" }),
+        category?.id ?? "",
+      );
+      await userEvent.selectOptions(
+        within(form).getByRole("combobox", { name: "Calendrier" }),
+        "Semaine standard",
+      );
+      // Un rôle ne porte qu'une capacité, sans date de validité.
+      const field = within(form).getByRole("textbox", { name: "Heures par mois" });
+      expect(field).not.toBeRequired();
+      if (hours) {
+        await userEvent.type(field, hours);
+      }
+      await userEvent.type(within(form).getByRole("textbox", { name: "Effectif" }), "3");
+      await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+      await vi.waitFor(() => {
+        expect(refresh).toHaveBeenCalledOnce();
+      });
+      expect(writes(client)).toEqual([
+        {
+          route: ROLES,
+          path: "/reference/resource-roles",
+          body: {
+            code: "DESS-ELEC",
+            label: "Dessinateur électricien",
+            org_node_id: nodeOf("BE-ELEC").org_node_id,
+            cost_category_id: category?.id,
+            calendar_id: "01926f3a-7c00-7000-8000-000000000481",
+            capacity: { headcount: "3" },
+          },
         },
-      },
-    ]);
-    expect(announced()).toContain("«\u00A0Dessinateur électricien\u00A0» créé.");
-  });
+      ]);
+      expect(announced()).toContain("«\u00A0Dessinateur électricien\u00A0» créé.");
+    },
+  );
 
   it("says at the code the refusal of a code another role holds, deactivated ones counted, naming it [WF-REF-0090-A]", async () => {
     serve({
