@@ -396,7 +396,8 @@ def test_the_differences_are_the_estimate_read_minus_the_reference_and_the_marke
     # « L'écart avec la révision de référence … » (WF-DEV-0060) : null without a reference and
     # without a marked revision before; then the estimate read minus theirs, positive when it
     # exceeds, the reference itself at nought; the revision named, else the current, else the last
-    # one marked, `is_stored` false and the status in the context.
+    # one marked, `is_stored` false and the status in the context; a marked revision is read as its
+    # marking kept it (US-1670/L2), the reference designated since not entering its differences.
     task = tree.made("Câblage")
     lines.made(task, **labour(costs))
     current = read(api, stage)
@@ -412,8 +413,8 @@ def test_the_differences_are_the_estimate_read_minus_the_reference_and_the_marke
     last = read(api, stage)
     assert last["context"]["revision_id"] == tree.revision["revision_id"]
     assert last["context"]["revision_status"] == "marked"
-    assert last["delta_to_reference"] == {"is_computable": True, "value": "0.00", "reason": None}
-    assert last["delta_to_previous_revision"] is None
+    assert last["context"]["is_stored"] is True
+    assert (last["delta_to_reference"], last["delta_to_previous_revision"]) == (None, None)
     following = Tree(api, stage, opened(api, stage))
     added = Lines(following)
     bearer = next(item for item in following.items() if item["kind"] == "task")
@@ -426,7 +427,7 @@ def test_the_differences_are_the_estimate_read_minus_the_reference_and_the_marke
     named = read(api, stage, f"?revision_id={tree.revision['revision_id']}")
     assert value(named["total"]) == "650.00"
     assert named["context"]["revision_id"] == tree.revision["revision_id"]
-    assert value(named["delta_to_reference"]) == "0.00"
+    assert named == last
 
 
 @pytest.mark.requirement("WF-IND-0020-A")

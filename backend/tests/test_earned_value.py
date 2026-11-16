@@ -196,6 +196,8 @@ def test_the_planned_value_is_the_one_ep07_gives_of_the_reference_at_the_project
     # calendar of its role and a line of material on that of its task, over three days, and a line
     # of a milestone, whole at its date; read each day, the planned value is ``planned_value`` of
     # EP-07.
+    # The equality may differ by a cent: EP-07 rounds the share of each line, EP-10 the share of
+    # each line over a common spreading, and the two roundings may fall differently (#3566).
     costs = costing(stage.database)
 
     def build(tree: Tree, lines: Lines) -> None:

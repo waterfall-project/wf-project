@@ -21,7 +21,8 @@ current revision, or, without one, on the last marked revision with the actual c
 (``current_day``, US-2200), the instant of the reading its ``computed_at``. The reference is the
 project's, read now. One pass reads what every scope needs (``day_documents``).
 
-Declared by US-1660/L1, the socle of EP-10; filled by US-1660/L3 for the current day.
+Declared by US-1660/L1, the socle of EP-10; filled by US-1660/L3 for the current day, by US-1670/L2
+for a marking kept.
 """
 
 from dataclasses import dataclass
@@ -29,14 +30,17 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from waterfall.core.cost_settings.interface import read_reference_settings
+from waterfall.core.costs.interface import PROJECT
 from waterfall.core.indicators.computing import Basis, day_documents
+from waterfall.core.indicators.interface.stored_documents import stored_document
 from waterfall.core.indicators.shaping import Context, classified
 from waterfall.core.projects.interface import (
+    current_day,
     list_state_transitions,
     project_facts,
     subproject_labels,
 )
-from waterfall.core.revisions.interface import read_revision_for
+from waterfall.core.revisions.interface import marked_revisions_at, read_revision_for
 from waterfall.platform.errors import (
     STATE_FORBIDS_OPERATION,
     VALIDATION_FAILED,
@@ -46,11 +50,14 @@ from waterfall.platform.errors import (
 )
 
 if TYPE_CHECKING:
+    from datetime import date
+
     from sqlalchemy.orm import Session
 
     from waterfall.core.indicators.interface.documents import Document
     from waterfall.core.indicators.interface.reading import IndicatorsReading
     from waterfall.core.projects.interface import ProjectFacts
+    from waterfall.core.revisions.interface import RevisionRead
 
 IN_PROGRESS = "in_progress"
 # The states a project reaches only through In progress; ``abandoned`` may come before or after it.
@@ -90,10 +97,44 @@ def _is_of_the_day(facts: ProjectFacts, asked: IndicatorsReading) -> bool:
     return asked.revision_id is None or asked.revision_id == facts.current_revision_id
 
 
+def _offer_refusal() -> ConflictError:
+    """Give the refusal of a revision that kept no indicators of the project: no ``params.state``.
+
+    The project may be In progress now: only the revision was marked before (#1779, G-02).
+    """
+    return ConflictError(STATE_FORBIDS_OPERATION)
+
+
+def _last_kept_before(session: Session, project_id: UUID, day: date) -> UUID | None:
+    """Give the last revision marked on or before a day that kept the indicators of the project.
+
+    The day is that of the time zone of the installation, as the day of a marking is; the latest
+    ``marked_at`` wins, the greatest identifier on a tie, as everywhere the last marked is read.
+    """
+    marked = marked_revisions_at(session, project_id)
+    candidates = [(at, each) for each, at in marked.items() if current_day(at) <= day]
+    for _, each in sorted(candidates, reverse=True):
+        if stored_document(session, each, "project", PROJECT) is not None:
+            return each
+    return None
+
+
 def _kept_indicators(session: Session, project_id: UUID, asked: IndicatorsReading) -> Document:
-    """Give the indicators a marking kept, of the marked revision named or of the date asked."""
-    msg = "_kept_indicators is filled by US-1670/L2"
-    raise NotImplementedError(msg)
+    """Give the indicators a marking kept, of the marked revision named or of the date asked.
+
+    The zones are not classified here: a document keeps the value of each index, never its zone.
+    Refused (409, no ``params``) when no document of the project was kept for the revision, the
+    scope or the date asked.
+    """
+    revision_id = asked.revision_id
+    if revision_id is None and asked.as_of is not None:
+        revision_id = _last_kept_before(session, project_id, asked.as_of)
+    if revision_id is None:
+        raise _offer_refusal()
+    kept = stored_document(session, revision_id, "project", asked.scope)
+    if kept is None:
+        raise _offer_refusal()
+    return kept
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,12 +156,12 @@ def day_reading(session: Session, project_id: UUID, asked: IndicatorsReading) ->
     facts = project_facts(session, project_id)
     _refuse_before_in_progress(session, project_id, facts.state)
     _refuse_parameters(session, project_id, asked)
-    named = None
+    named: RevisionRead | None = None
     if asked.revision_id is not None:
         named = read_revision_for(session, project_id, asked.revision_id)
     if not _is_of_the_day(facts, asked):
         return None
-    read = named or read_revision_for(session, project_id, None)
+    read = named if named is not None else read_revision_for(session, project_id, None)
     status = MARKED if read.marked else DRAFT
     context = Context(read.revision_id, status, asked.at, asked.scope, is_stored=False)
     return DayReading(Basis(project_id, read.revision_id, facts.reference_revision_id), context)
@@ -130,8 +171,8 @@ def project_indicators(session: Session, project_id: UUID, asked: IndicatorsRead
     """Give the indicators of a project on the scope and for the revision a reading asks."""
     reading = day_reading(session, project_id, asked)
     if reading is None:
-        return _kept_indicators(session, project_id, asked)
-    scope = asked.scope
-    documents = day_documents(session, reading.basis, reading.context, (scope,))
-    thresholds = read_reference_settings(session).index_thresholds
-    return classified(documents[scope], thresholds)
+        document = _kept_indicators(session, project_id, asked)
+    else:
+        scope = asked.scope
+        document = day_documents(session, reading.basis, reading.context, (scope,))[scope]
+    return classified(document, read_reference_settings(session).index_thresholds)

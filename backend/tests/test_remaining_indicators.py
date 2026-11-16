@@ -553,13 +553,16 @@ def test_the_revision_named_is_read_else_the_current_one_else_the_last_one_marke
 ) -> None:
     # « getRemainingIndicators lit la révision nommée, ou la révision en cours, ou la dernière
     # marquée sans elle. » The reference, marked in pricing, is read at its 1 000 with no review
-    # before; the review marked In progress at 600, with the margin of its time.
+    # before; the review marked In progress at 600. A marked revision is read as its marking kept it
+    # (US-1670/L2, ``is_stored``): the reference was designated after the marking of the first, and
+    # the review, marked at once, kept the margin of its time.
     named = indicators(api, stage, review.reference["revision_id"])
     assert (named["total"], named["context"]["revision_status"]) == ("1000.00", "marked")
-    assert (named["delta_to_previous_revision"], named["delta_to_reference"]) == (None, "-500.00")
+    assert named["context"]["is_stored"] is True
+    assert (named["delta_to_previous_revision"], named["delta_to_reference"]) == (None, None)
     marked = indicators(api, stage, review.tree.revision["revision_id"])
     assert (marked["total"], marked["context"]["revision_status"]) == ("600.00", "marked")
-    assert (marked["delta_to_previous_revision"], marked["delta_to_reference"]) == (None, "-100.00")
+    assert marked["context"]["is_stored"] is True
     # The current revision is marked in its turn: no revision is current, the last marked is read,
     # with the review before it.
     review_marked(stage, reviewed.revision, "v3.0")

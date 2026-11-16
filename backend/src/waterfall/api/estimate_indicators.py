@@ -3,10 +3,11 @@
 """The indicators of an estimate and the rates it lacks (WF-DEV-0060, WF-DEV-0010).
 
 ``getEstimateIndicators`` and ``getMissingRates`` (US-1510), read by whoever may consult the
-estimate (``estimate.read``): the revision named, else the current one, else the last one marked;
-the scope of the indicators, the project, a subproject or the set out of any subproject. An amount
-that a missing rate prevents from being computed is served in the envelope the contract reads
-(``ComputableMoney``, ``Computable``), the categories and the year named.
+estimate (``estimate.read``): the revision named, else the current one, else the last one marked —
+a marked one as its marking kept it (US-1670/L2); the scope of the indicators, the project, a
+subproject or the set out of any subproject. An amount that a missing rate prevents from being
+computed is served in the envelope the contract reads (``ComputableMoney``, ``Computable``), the
+categories and the year named.
 """
 
 from typing import Annotated, Any
@@ -16,8 +17,14 @@ from fastapi import APIRouter, Depends, Query
 
 from waterfall.api.authentication import Transaction
 from waterfall.api.evaluation import RequiresProject
+from waterfall.api.project_indicators import scope_of
 from waterfall.core.estimate.interface import IndicatorsAsked, estimate_indicators, missing_rates
-from waterfall.core.indicators.interface import estimate_document, missing_rate_document
+from waterfall.core.indicators.interface import (
+    estimate_document,
+    missing_rate_document,
+    stored_document,
+)
+from waterfall.core.revisions.interface import read_revision_for
 from waterfall.platform.database import utc_now
 
 router = APIRouter(tags=["estimate"])
@@ -38,7 +45,17 @@ def get_indicators(
     revision_id: Annotated[UUID | None, Query()] = None,
     scope: Annotated[str, Query()] = "project",
 ) -> dict[str, Any]:
-    """Give the total of an estimate, its ventilations and its differences, in one reading."""
+    """Give the total of an estimate, its ventilations and its differences, in one reading.
+
+    A marked revision answers the document its marking kept, ``is_stored`` true (WF-DAT-0040); the
+    current one is computed at the reading. A scope the marking did not keep — a subproject created
+    since, one the project does not have — is computed, and refused as such (422).
+    """
+    read = read_revision_for(session, project_id, revision_id)
+    if read.marked:
+        kept = stored_document(session, read.revision_id, "estimate", scope_of(scope))
+        if kept is not None:
+            return kept
     asked = IndicatorsAsked(revision_id, scope, utc_now())
     return estimate_document(estimate_indicators(session, project_id, asked))
 

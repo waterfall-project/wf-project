@@ -352,6 +352,9 @@
           the state of the project, and the project is in progress — the front tells this refusal
           from the first by the absence of `params.state` (#247). In both cases, only the
           estimate indicators exist (WF-IND-0010, WF-DAT-0040).
+          The same refusal, without `params`, for an `as_of` that designates no revision marked
+          In progress: none is marked on or before the date, or none of them kept the indicators
+          of the project (#2449).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -473,6 +476,9 @@
           `params.state_enum` as for `getProjectIndicators`, or a revision named by
           `revision_id` marked before it, without `params` (#247) — only the estimate indicators
           exist (WF-IND-0010, WF-DAT-0040).
+          The same refusal, without `params`, for an `as_of` that designates no revision marked
+          In progress: none is marked on or before the date, or none of them kept the indicators
+          of the project (#2449).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -524,6 +530,9 @@
           `params.state_enum` as for `getProjectIndicators`, or a revision named by
           `revision_id` marked before it, without `params` (#247) — only the estimate indicators
           exist (WF-IND-0010, WF-DAT-0040).
+          The same refusal, without `params`, for an `as_of` that designates no revision marked
+          In progress: none is marked on or before the date, or none of them kept the indicators
+          of the project (#2449).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

@@ -59,10 +59,15 @@ def indicator_row(project_id: UUID, revision_id: UUID, **overrides: object) -> d
 
 # --- The clock -----------------------------------------------------------------------------------
 
-# The routes of the indicators, which read the instant of their computation (``utc_now``) once
-# their story serves them: the clock is set in each, whether it reads it yet or not.
-ROUTES = (
+# The routes of the indicators that read the instant of their computation (``utc_now``): the clock
+# is set in each, and a route that stops reading it under that name fails the setting.
+READING_ROUTES = (
     "waterfall.api.project_indicators",
+    "waterfall.api.estimate_indicators",
+    "waterfall.api.remaining_indicators",
+)
+# Those a later story serves (US-1690, US-1700, US-1710): set whether they read it yet or not.
+ROUTES = (
     "waterfall.api.indicator_curves",
     "waterfall.api.index_history",
     "waterfall.api.milestone_tracking",
@@ -79,6 +84,8 @@ def clock_setter(monkeypatch: pytest.MonkeyPatch) -> Clock:
 
     def set_day(day: date) -> datetime:
         instant = datetime(day.year, day.month, day.day, 9, 0, tzinfo=UTC)
+        for route in READING_ROUTES:
+            monkeypatch.setattr(f"{route}.utc_now", lambda: instant)
         for route in ROUTES:
             monkeypatch.setattr(f"{route}.utc_now", lambda: instant, raising=False)
         monkeypatch.setattr(f"{__name__}.now", lambda: instant)
