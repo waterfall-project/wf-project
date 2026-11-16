@@ -208,6 +208,7 @@ def _rows_of(rows: list[mockcore.Row]) -> dict[str, int]:
     return {str(row.node["node_id"]): int(str(row.node["row_number"])) for row in rows}
 
 
+@pytest.mark.requirement("WF-DEV-0090-A")
 @pytest.mark.parametrize(
     ("name", "rows"),
     [

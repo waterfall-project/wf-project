@@ -11991,7 +11991,8 @@ dépenses ») :
   lot US-2050/L1). Une ligne de main-d'œuvre dont la catégorie n'a pas de taux pour l'année de
   référence de la révision lue rend 422 `HOURLY_RATE_MISSING`, sans `fields`, `params.missing_rates`
   nommant les catégories (`MissingRate`), comme le refus d'une saisie de ligne (J-06) ; exemple
-  `spending_rate_missing`, écrit à la main. Écartés : des montants `Computable` par catégorie et par
+  `spending_rate_missing`, engendré par `wftools.mockspendingrefusals` sur le témoin, comme
+  `estimate_line_rate_missing`. Écartés : des montants `Computable` par catégorie et par
   mois, trop lourds pour un histogramme ; la ligne sans taux omise avec un drapeau, qui rend une
   projection fausse sans qu'elle le soit visiblement (WF-DEV-0010).
 

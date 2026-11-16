@@ -630,6 +630,7 @@ paths = [
     "fixtures/api/task_progress_summary_refused.json",
     "fixtures/api/task_summary_date_refused.json",
     "fixtures/api/estimate_line_rate_missing.json",
+    "fixtures/api/spending_rate_missing.json",
     "fixtures/api/estimate_line_role_required.json",
     "fixtures/api/internal_error.json",
     "fixtures/api/nodes_fields_unknown.json",
