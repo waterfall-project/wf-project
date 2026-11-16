@@ -104,7 +104,7 @@ Le contrat cite **192 des 218 exigences** de la spécification.
 | PUT | `/reference/org-nodes/{org_node_id}/activation` | Deactivate or reactivate a node | WF-ADM-0100, WF-REF-0010, WF-REF-0080 |
 | GET | `/reference/resource-roles` | Resource roles | WF-ADM-0100, WF-DEV-0020, WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0080, WF-REF-0090, WF-REF-0100, WF-REF-0150 |
 | POST | `/reference/resource-roles` | Create a resource role | WF-REF-0030, WF-REF-0040, WF-REF-0080, WF-REF-0090, WF-REF-0100 |
-| PATCH | `/reference/resource-roles/{resource_role_id}` | Modify a resource role | WF-REF-0030, WF-REF-0040, WF-REF-0080, WF-REF-0090, WF-REF-0130 |
+| PATCH | `/reference/resource-roles/{resource_role_id}` | Modify a resource role | WF-REF-0030, WF-REF-0040, WF-REF-0080, WF-REF-0090, WF-REF-0100, WF-REF-0130 |
 | PUT | `/reference/resource-roles/{resource_role_id}/activation` | Deactivate or reactivate a resource role | WF-ADM-0100, WF-REF-0010, WF-REF-0020, WF-REF-0080 |
 | GET | `/reference/duration-units` | Conversion constants of the duration units | WF-PLA-0160 |
 | PUT | `/reference/duration-units` | Set the conversion constants of the duration units | WF-ADM-0100, WF-PLA-0160, WF-REF-0130 |

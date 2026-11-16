@@ -459,10 +459,11 @@
       by the server (WF-IHM-0060, WF-IHM-0130): the search (`search`) covers the label
       and the code of the role (WF-REF-0090), like that of the nodes; the code, the node, the
       category, the calendar and the state are filtered, the monthly hours and the headcount of the
-      capacity are bounded (`<column>_min`, `<column>_max`, inclusive), and `meta.total` counts
-      the roles retained. Each role carries the command that changes its state, available or not
-      (`available_commands`, WF-IHM-0090): reactivating a role whose node is deactivated
-      is unavailable (WF-REF-0080).
+      capacity are bounded (`<column>_min`, `<column>_max`, inclusive), the hours being those
+      calculated from the headcount and the role's calendar (`RoleCapacity.monthly_hours`,
+      WF-REF-0100), and `meta.total` counts the roles retained. Each role carries the command
+      that changes its state, available or not (`available_commands`, WF-IHM-0090):
+      reactivating a role whose node is deactivated is unavailable (WF-REF-0080).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -580,7 +581,9 @@
     summary: Create a resource role
     description: >-
       Code, label, attachments within the organisation and capacity of the role (WF-REF-0090,
-      WF-REF-0100). Its code is unique: a code already held by another role, active or
+      WF-REF-0100): its headcount alone, the hours per month the response carries being
+      calculated from it and from the role's calendar, never sent (`RoleCapacityWrite`). Its
+      code is unique: a code already held by another role, active or
       deactivated, is refused with 409, `ALREADY_EXISTS`, `fields` designating `/code`. The node is
       set at creation: a role does not move from one node to another, it is recreated under the
       new one (§3.4.4.2.1). Created active, it is not born under a deactivated node (WF-REF-0080). Once
@@ -625,8 +628,10 @@
           reference data does not have, with `UNKNOWN_ORG_NODE`, `UNKNOWN_COST_CATEGORY` or
           `UNKNOWN_CALENDAR`; a category outside labour, `/cost_category_id` with
           `LABOUR_CATEGORY_REQUIRED`; a deactivated attachment, with `INACTIVE_REFERENCE_OBJECT`
-          (WF-REF-0080, WF-REF-0090); a negative capacity, `/capacity/monthly_hours` or
-          `/capacity/headcount` with `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` at `0`. A
+          (WF-REF-0080, WF-REF-0090); a negative headcount, `/capacity/headcount` with
+          `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` at `0`; hours per month sent, which
+          are calculated (WF-REF-0100), `/capacity/monthly_hours` with `VALIDATION_FAILED`, like
+          any property the capacity does not declare (`RoleCapacityWrite`). A
           field carries only one reason: a category that is both deactivated and outside labour is
           reported as outside labour, which its reactivation would not lift. Nothing is written.
         content:
@@ -636,6 +641,7 @@
               node_inactive: { $ref: ../../../fixtures/api/resource_role_creation_refused.json }
               attachments: { $ref: ../../../fixtures/api/resource_role_attachments_refused.json }
               calendar_unknown: { $ref: ../../../fixtures/api/resource_role_calendar_unknown.json }
+              hours_sent: { $ref: ../../../fixtures/api/resource_role_hours_refused.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -649,6 +655,8 @@
       role's node cannot be modified: a role does not move from one node to another, a
       reorganisation recreates it under the new one (§3.4.4.2.1, WF-REF-0080). Its category and its
       calendar can be changed to active objects, the category being a labour one (WF-REF-0090).
+      Its capacity is its headcount alone, as on creation: the hours per month follow from it
+      and from the calendar, changed with either (WF-REF-0100).
       A change of category changes the commands of the old and of the new category and
       of their cost types (WF-REF-0030, WF-REF-0040), which the response does not carry: the client re-reads
       their lists.
@@ -702,10 +710,12 @@
           `UNKNOWN_COST_CATEGORY` or `UNKNOWN_CALENDAR`; a category outside labour, with
           `LABOUR_CATEGORY_REQUIRED` — the category a role keeps never is, no
           category to which a role is attached leaving labour (WF-REF-0040,
-          `cost_category_without_role`) —; a negative capacity, with `VALUE_OUT_OF_RANGE`,
-          `fields[].params.minimum` at `0`; and, when the modification changes the category or the
-          calendar of the role, a deactivated object, with `INACTIVE_REFERENCE_OBJECT` (WF-REF-0090) — a
-          role that keeps its own, deactivated since, can be modified. Or else the calendar given to the
+          `cost_category_without_role`) —; a negative headcount, `/capacity/headcount` with
+          `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` at `0`; hours per month sent,
+          `/capacity/monthly_hours` with `VALIDATION_FAILED`, as on creation; and, when the
+          modification changes the category or the calendar of the role, a deactivated object, with
+          `INACTIVE_REFERENCE_OBJECT` (WF-REF-0090) — a role that keeps its own, deactivated
+          since, can be modified. Or else the calendar given to the
           role would leave a task of an ongoing revision without any working hour in the
           week: it never overlaps that of another role of its labour lines, or,
           on a task of which this role is the only one, it has no hour in the week (EP-14/L42s):
@@ -718,6 +728,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               refused: { $ref: ../../../fixtures/api/resource_role_update_refused.json }
+              hours_sent: { $ref: ../../../fixtures/api/resource_role_hours_refused.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

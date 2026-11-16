@@ -437,6 +437,12 @@ rien à emporter.
   attachées comme la fonction le fait, avec la fonction `revision_indicator_refuse_truncate` que la
   fonction attend, les déclencheurs, les droits du rôle du service — `SELECT`, `INSERT` : rien ne se met à
   jour ni ne se supprime — déclarés dans `SERVICE_RIGHTS`. Aucune migration de données.
+- **Une migration pour le compteur des lignes de coût** (`0032_cost_line_lock_version`, US-1720/L3) :
+  elle ajoute `cost_line.lock_version`, entier non nul, zéro pour chaque ligne qui existe ; il avance
+  à chaque écriture d'une valeur que les indicateurs lisent, sous le verrou du projet, et
+  `costs_stamp` en rend la somme (décision de l'auteur du 2026-11-16, #3629). Une ligne qu'un
+  ré-import trouve inchangée ne reçoit que `last_import_id` : la clé change alors par le nombre des
+  imports.
 - **Une migration pour la capacité** (US-2410) : `resource_role.monthly_hours` et sa contrainte
   sont retirées, l'effectif gardé tel quel ; les heures d'un rôle se calculent à la lecture. Les
   images des révisions marquées ne sont pas touchées. Sa descente rend la colonne, remplie des
@@ -480,8 +486,10 @@ rien à emporter.
     de ses nœuds, tâches et liaisons ; `physical_progress.py`, `register_physical_progress`, le
     crochet (« Les points d'extension ») ;
   - `core/costs/interface/indicator_costs.py` (après US-1610/L2 #2404 et US-1610/L3 #2405) :
-    `costs_stamp(project_id)`, le dernier `imported_at` de `cost_import` et le dernier
-    `updated_at` de `cost_line` ; `actual_costs_until` et `actual_cost_by_subproject` (EP-09)
+    `costs_stamp(project_id)`, le dernier `imported_at` de `cost_import`, le dernier
+    `updated_at` de `cost_line` et la somme des `lock_version` de `cost_line` (le compteur, avancé à
+    chaque écriture d'une ligne sous le verrou du projet ; décision de l'auteur du 2026-11-16,
+    #3629) ; `actual_costs_until` et `actual_cost_by_subproject` (EP-09)
     servent tels quels ;
   - `core/revisions` et `core/projects` servent par leurs lectures existantes : `found_revision`,
     `current_revision`, `list_revisions`, `read_revision` (`marked_at`, `is_reference`, le statut) ;
@@ -647,7 +655,8 @@ Réécrite au recadrage du 2026-11-15 : EP-26 a refait la lecture d'une structur
 - **La clé** : `waterfall:indicators:<project_id>:<empreinte>`, l'empreinte étant le haché
   (SHA-256, tronqué) d'un texte canonique formé de : l'état, la révision en cours, la référence et le
   compteur du projet (`project_facts`, `read_project`, `stored_lock_version`) ; la révision calculée
-  R et sa référence Ref ; `revision_content_stamp(R)` et `lines_stamp(R)` ; `costs_stamp(project)` ;
+  R et sa référence Ref ; `revision_content_stamp(R)` et `lines_stamp(R)` ; `costs_stamp(project)`, qui rend aussi
+  la somme des `lock_version` de `cost_line` (décision de l'auteur du 2026-11-16, #3629) ;
   le compteur de la structure principale de R ; le nombre de sous-projets ; le jour D du fuseau de
   l'installation (recadrage du 2026-11-15). Toute écriture dont une entrée dépend
   change l'empreinte : une saisie de nœud, de ligne ou d'état (les `updated_at` et les comptes), un
@@ -1532,7 +1541,7 @@ et les autres parcours (US-1740).
 
 ## US-1740 — Le témoin : les indicateurs conservés et au jour courant de PRJ-001, et les parcours rejoués
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-QUA-0040-A`, `WF-INTF-0010-A`
 - **opérations** : aucune en propre ; les lectures de l'EPIC sur le témoin chargé
 - **issue** : 2436
@@ -1688,7 +1697,7 @@ rien n'introduit ; l'équivalent au portefeuille (décisions de l'auteur du 2026
 
 ## US-2410 — La capacité d'un rôle se déduit de son effectif et de son calendrier
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-REF-0100-A`
 - **opérations** : `createResourceRole`, `updateResourceRole`, `listResourceRoles`,
   `getProjectWorkload`

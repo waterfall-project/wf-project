@@ -29,8 +29,8 @@ registered (``register_revision_filler``, EP-06): the tasks (``witness.tasks``),
 describes of it, before its marking comes. The actual costs come after the lines, at the instants of
 their events (``witness.costs``, EP-09): the imports applied, the line excluded and the extraction
 expired, by the project manager, the account an import is requested by. A marking keeps the
-indicators of its revision as the worker's does (EP-10): the interface of the indicators is imported
-here.
+indicators of its revision as the worker's does (EP-10): the loader imports their interface
+(``loader.EXTENDING``).
 """
 
 from dataclasses import dataclass
@@ -40,7 +40,6 @@ from pydantic import BaseModel
 
 from waterfall.api.contract.models import ContributorList, Project, Revision
 from waterfall.core.estimate.interface import RateUpdate, apply_rate_update
-from waterfall.core.indicators import interface as indicators_interface
 from waterfall.core.projects.interface import (
     ProjectChange,
     Viewer,
@@ -99,9 +98,6 @@ PRICING = "pricing"
 IN_PROGRESS = "in_progress"
 
 logger = get_logger(__name__)
-# The indicators keep their part of each marking, filling ``register_indicators`` at the import of
-# their interface (#2180; EP-10, "Le chargeur du témoin"): imported here, where the witness marks.
-EXTENDING = (indicators_interface,)
 
 
 @dataclass(frozen=True, slots=True)

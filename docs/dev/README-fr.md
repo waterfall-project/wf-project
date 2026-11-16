@@ -4569,6 +4569,10 @@ chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son ent
   US-1730. Le parcours qui traverse le reste à engager puis les risques reste gardé par les
   risques. Le bandeau du planning (EP-06), du devis (US-1560, EP-07), des écrans d'un projet créé, de
   ses paramètres et de ses révisions se joue contre le service.
+- `review.spec.ts` — les chiffres des indicateurs (le reste à engager, le budget de référence, la
+  valeur planifiée, l'écart et les indices de délai et de coût, la date du calcul) sont ceux de la
+  révision 101 des exemples ; la référence du témoin chargé reste l'offre 100 ; gardés par
+  `inService` ; **EP-08** (fusion de l'avenant 1) retire la garde.
 - `planning.spec.ts`, `structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts` — les parcours
   qui écrivent sur le témoin de PRJ-001, dont le compte de la course n'est pas contributeur (#2193) :
   chacun a son jumeau contre le service sur un projet de la course (`planning-service.spec.ts`,

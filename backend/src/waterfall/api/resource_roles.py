@@ -32,7 +32,7 @@ from waterfall.api.contract.models import (
     ResourceRole,
     ResourceRoleUpdate,
     ResourceRoleWrite,
-    RoleCapacity,
+    RoleCapacityWrite,
     SortOrder,
 )
 from waterfall.api.evaluation import Acting, Requires, RequiresForInactive
@@ -53,6 +53,7 @@ from waterfall.core.resource_settings.interface import (
     RoleWindow,
     create_role,
     list_roles,
+    read_role,
     set_role_activation,
     update_role,
 )
@@ -130,9 +131,14 @@ def _plain(value: Decimal) -> str:
     return format(value, "f")
 
 
-def capacity_of(capacity: RoleCapacity) -> Capacity:
-    """Read the capacity a body sends, two decimals as the contract writes them."""
-    return Capacity(Decimal(capacity.monthly_hours.root.root), Decimal(capacity.headcount.root))
+def capacity_of(capacity: RoleCapacityWrite, monthly_hours: Decimal) -> Capacity:
+    """Read the capacity a body sends: its headcount, the hours given beside it.
+
+    The contract no longer sends the hours, which the service calculates (WF-REF-0100). Until
+    US-2410/L2 calculates them in ``core/resource_settings``, a creation writes none and a change
+    keeps those the role had.
+    """
+    return Capacity(monthly_hours, Decimal(capacity.headcount.root))
 
 
 def described(session: Session, views: Sequence[RoleView]) -> list[ResourceRole]:
@@ -325,7 +331,7 @@ def post_resource_role(body: CreationBody, account: Caller, session: Transaction
         category_id,
         category_admission(session, category_id),
         body.calendar_id.root,
-        capacity_of(body.capacity),
+        capacity_of(body.capacity, Decimal(0)),
     )
     created = create_role(session, draft, Act(account.user_id, utc_now()))
     return described(session, [created])[0]
@@ -352,7 +358,10 @@ def patch_resource_role(
             session, resource_role_id, category_id, body.lock_version.root
         ),
         body.calendar_id.root,
-        capacity_of(body.capacity),
+        capacity_of(
+            body.capacity,
+            read_role(session, resource_role_id, may_change=True).capacity.monthly_hours,
+        ),
     )
     act = Act(account.user_id, utc_now())
     changed = update_role(session, resource_role_id, change, body.lock_version.root, act)

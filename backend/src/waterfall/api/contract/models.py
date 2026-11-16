@@ -2041,7 +2041,12 @@ class Hours(RootModel[Decimal]):
 
 
 class RoleCapacity(ContractModel):
-    monthly_hours: Hours
+    monthly_hours: Annotated[
+        Hours,
+        Field(
+            description="Calculated, never entered: the headcount multiplied by the weekly hours of the role's calendar — the sum of its seven days —, by 52, divided by 12, rounded to the hundredth, a half to the even (WF-REF-0100). Two people on a calendar of 35 hours a week have 2 × 35 × 52 / 12, about 303.33 hours a month; a headcount of 0.5 on the same calendar, 75.83. They follow the calendar the role carries: changing its calendar, or the weekly hours of that calendar, changes them at the next read. The image of the role a marked revision keeps (`EmployedReference`) keeps the hours of its marking (WF-REF-0130)."
+        ),
+    ]
     headcount: Decimal
 
 
@@ -2098,6 +2103,13 @@ class ResourceRole(ResourceRoleImage, ReferenceObjectCommands):
     pass
 
 
+class RoleCapacityWrite(ContractModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    headcount: Decimal
+
+
 class ResourceRoleWrite(ContractModel):
     code: Annotated[str, Field(max_length=20, min_length=1, pattern="\\S")]
     label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
@@ -2119,7 +2131,7 @@ class ResourceRoleWrite(ContractModel):
             description="An active calendar (WF-REF-0090): refused with 422 on `/calendar_id`, unknown, `UNKNOWN_CALENDAR`, deactivated, `INACTIVE_REFERENCE_OBJECT`."
         ),
     ]
-    capacity: RoleCapacity
+    capacity: RoleCapacityWrite
 
 
 class ResourceRoleUpdate(ContractModel):
@@ -2133,7 +2145,7 @@ class ResourceRoleUpdate(ContractModel):
     ] = None
     cost_category_id: Uuid
     calendar_id: Uuid
-    capacity: RoleCapacity
+    capacity: RoleCapacityWrite
     lock_version: LockVersion
 
 
@@ -5186,7 +5198,12 @@ class Role(ContractModel):
     resource_role_id: Uuid
     label: str
     org_node_id: Uuid
-    capacity_monthly_hours: Hours
+    capacity_monthly_hours: Annotated[
+        Hours,
+        Field(
+            description="The hours per month of the role as the reference data reads them today, calculated from its headcount and its calendar (`RoleCapacity.monthly_hours`, WF-REF-0100), to which the plan compares the load of each month."
+        ),
+    ]
     months: Annotated[
         list[Month1],
         Field(

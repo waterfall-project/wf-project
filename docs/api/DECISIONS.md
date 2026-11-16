@@ -12016,6 +12016,55 @@ aussi, les parts de chaque ligne arrondies (#3590) : les exemples des courbes, d
 portefeuille qui en dépendent bougent de quelques centimes. Écarté : dire au contrat l'écart d'un
 centime possible, qui laissait deux lectures d'un même montant.
 
+### La capacité d'un rôle : l'effectif seul saisi, les heures calculées (US-2410/L1, #3516)
+
+La spécification 1.0.4 réécrit WF-REF-0100 (#2836) : un rôle porte une capacité unique, son
+effectif, éventuellement fractionnaire, d'où se déduisent ses heures disponibles par mois. Décision
+de l'auteur du 2026-11-15, au recadrage d'EP-10 (conception, « La capacité d'un rôle ») : le
+contrat change avant le code.
+
+- **La lecture ne change pas de forme.** `RoleCapacity` garde `monthly_hours` et `headcount`, que
+  rendent `listResourceRoles`, les réponses des écritures et l'image d'un rôle
+  (`ResourceRoleImage`) ; les bornes `monthly_hours_min`, `monthly_hours_max` et le tri
+  `monthly_hours` restent, sur les heures calculées. `monthly_hours` est l'effectif multiplié par
+  les heures hebdomadaires du calendrier du rôle — la somme de ses sept jours —, par 52, divisé par 12,
+  arrondi au centième, la moitié au pair comme les heures du plan de charge : 2 × 35 × 52 / 12,
+  environ 303,33 h ; 0,5 sur le même calendrier, 75,83. L'arrondi porte sur le produit entier, non
+  sur les heures d'une personne multipliées par l'effectif, comme le faisaient les exemples
+  (« L'univers témoin », plus haut) : l'ingénieur électricien passe de 658 654,00 à 658 666,67 h, le
+  technicien de mise en service de 485 324,00 à 485 333,33, le monteur câbleur de 216 662,50 à
+  216 666,67, le programmeur d'automates de 519,99 à 520,00 ; l'automaticien garde 338,00. Les
+  exemples des rôles écrits à la main portent ces heures, et `make mock-data` réengendre ceux qui
+  les lisent : les rôles lus par un lecteur et bornés, les nœuds désactivés, les images des
+  révisions marquées, les plans de charge du projet et du portefeuille. Le test d'invariants
+  (`tools/tests/test_mockuniverse.py`) tient chaque rôle à la règle. Les heures suivent le
+  calendrier : en changer, ou changer ses heures, change la capacité à la lecture suivante. Une
+  révision marquée garde, dans son image, les heures de son marquage (WF-REF-0130).
+- **L'écriture ne porte que l'effectif.** `createResourceRole` et `updateResourceRole` écrivent
+  `RoleCapacityWrite`, `headcount` seul. Le contrat ne refusait jusqu'ici aucune propriété inconnue
+  d'un corps : ses objets sont ouverts, et le service ignore ce qu'ils ne déclarent pas. Pour que
+  `monthly_hours` envoyé soit refusé, et non ignoré en silence — un formulaire qui renverrait le
+  rôle lu croirait avoir écrit des heures —, la capacité écrite est **fermée**
+  (`additionalProperties: false`, `extra="forbid"` dans les modèles du service) : toute propriété
+  qu'elle ne déclare pas, `monthly_hours` comme une autre, est refusée par 422
+  `VALIDATION_FAILED`, `fields` la désignant, `/capacity/monthly_hours`, avec
+  `VALIDATION_FAILED` — le code générique d'un champ refusé, le gestionnaire du service le donnant à
+  toute faute sans code propre. Un exemple le montre, engendré par `wftools.mockadminrefusals`
+  (`resource_role_hours_refused`). Un effectif négatif reste refusé par `VALUE_OUT_OF_RANGE` sur
+  `/capacity/headcount`, `params.minimum` à `0`.
+- **Le plan de charge ne change pas de forme** : `capacity_monthly_hours` est la capacité de la vue
+  du rôle, que sa description dit désormais calculée.
+
+Écartés : ouvrir la capacité écrite et ignorer `monthly_hours` envoyé — la conception veut un
+refus ; `COMPUTED_VALUE` — il dit une valeur calculée d'un nœud, que la saisie déclare et dont
+`getComputedValueDependencies` rend les dépendances, quand la capacité écrite ne déclare plus la
+propriété, comme la conception le veut (« refusé comme toute propriété inconnue ») ;
+`FIELD_READ_ONLY` — il dit une propriété déclarée qu'une modification ne change pas ; fermer tout
+le corps de l'écriture d'un rôle — hors du périmètre, et `org_node_id` y reste accepté renvoyé tel
+quel. Le calcul dans le service, la
+migration qui abandonne les heures saisies (US-2410/L2) et l'écran qui ne saisit plus que
+l'effectif (US-2410/L3) suivent.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
