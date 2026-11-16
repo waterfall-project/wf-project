@@ -34,7 +34,7 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.cost_settings.interface import category_label_of
 from waterfall.core.estimate.imaging import KeptReference, KeptRole, kept_reference
-from waterfall.core.estimate.parting import rounded_parts, summed_parts
+from waterfall.core.estimate.parting import remaining_parts, rounded_parts, summed_parts
 from waterfall.core.estimate.placing import Placed, placed_lines, placement_of, role_weeks
 from waterfall.core.estimate.spreading import HOURS, Month, Placement
 from waterfall.core.projects.interface import project_facts
@@ -179,6 +179,13 @@ class Reading:
     as_of: date | None
 
 
+def _parts_of(load: Load, as_of: date | None) -> dict[Month, Decimal]:
+    """Give the parts of a load: whole, or the remaining to commit after the day of calculation."""
+    if as_of is None:
+        return rounded_parts(load.placement, load.hours, HOURS)
+    return remaining_parts(load.placement, load.hours, HOURS, as_of=as_of)
+
+
 def spread_loads(
     loads: Iterable[Load], as_of: date | None
 ) -> dict[UUID, dict[UUID, dict[Month, Decimal]]]:
@@ -190,7 +197,7 @@ def spread_loads(
     found: dict[UUID, dict[UUID, list[dict[Month, Decimal]]]] = {}
     for load in loads:
         positive = load.hours > 0
-        parts = rounded_parts(load.placement, load.hours, HOURS, as_of=as_of) if positive else {}
+        parts = _parts_of(load, as_of) if positive else {}
         found.setdefault(load.role_id, {}).setdefault(load.task_id, []).append(parts)
     return {
         role_id: {task_id: summed_parts(each) for task_id, each in tasks.items()}

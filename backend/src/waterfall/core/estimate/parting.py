@@ -18,20 +18,23 @@ The plan of workload, its detail by task (US-2040), the projection of spending (
 curves of EP-10 (US-1690/L4, #3564) share it, each summing the parts at its own level.
 """
 
+from datetime import timedelta
 from decimal import Decimal
+from fractions import Fraction
 from itertools import accumulate
 from typing import TYPE_CHECKING
 
-from waterfall.core.estimate.spreading import exact_by_month
+from waterfall.core.estimate.spreading import Month, exact_by_month
+from waterfall.core.planning.interface import WorkInstant
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
     from datetime import date
-    from fractions import Fraction
 
-    from waterfall.core.estimate.spreading import Month, Placement, Rounding
+    from waterfall.core.estimate.spreading import Placement, Rounding
 
 NOUGHT = Decimal(0)
+ONE_DAY = timedelta(days=1)
 
 
 def rounded_parts(
@@ -44,6 +47,21 @@ def rounded_parts(
     """
     shares = exact_by_month(placement, total, as_of=as_of)
     return parts_of_cumulated(zip(shares, accumulate(shares.values()), strict=True), rounding)
+
+
+def remaining_parts(
+    placement: Placement, total: Decimal, rounding: Rounding, *, as_of: date
+) -> dict[Month, Decimal]:
+    """Give the parts of a remaining to commit, the part of its task after the end of ``as_of``.
+
+    The date of calculation belongs to the past, as the curves of cost and the projection of
+    spending read it (WF-IND-0100, WF-RAE-0040): the share starts at the first hour of the next
+    day, and a task that ends by then falls whole on the month of ``as_of``, not on that of the
+    next day (#3615).
+    """
+    if placement.finish <= WorkInstant(as_of + ONE_DAY):
+        return parts_of_cumulated([(Month(as_of.year, as_of.month), Fraction(total))], rounding)
+    return rounded_parts(placement, total, rounding, as_of=as_of + ONE_DAY)
 
 
 def parts_of_cumulated(
