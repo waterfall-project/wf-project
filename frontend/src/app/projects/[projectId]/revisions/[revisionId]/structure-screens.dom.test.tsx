@@ -31,6 +31,10 @@ const server = vi.hoisted((): { answers: FakeAnswers; clients: FakeClient[] } =>
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 const page = vi.hoisted(() => ({ pathname: "", search: "" }));
 
+// The indicators stream apart from the grid on the server, which a document of the client cannot
+// await: these tests are about what the grid and the banner share, `streamed.dom.test.tsx` about
+// the streaming.
+vi.mock("@/components/streamed", () => ({ Streamed: () => null }));
 vi.mock("@/api/server", () => ({
   serverClient: () => {
     const client = fakeClient(server.answers);
