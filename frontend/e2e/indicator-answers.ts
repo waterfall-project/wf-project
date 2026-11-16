@@ -148,11 +148,11 @@ export async function expectCards(main: Locator, indicators: Indicators, reader:
   const figures = names.figures;
   const amount = (value: string) => money(value, reader);
   const card = (title: string) => main.getByRole("region", { name: title, exact: true });
-  const names_ = catalogue.indicator.names;
+  const indices = catalogue.indicator.names;
   const { projections } = indicators;
   await expectFigures(card(names.financial.title), [
-    [names_.financialProgress, share(indicators.financial_progress)],
-    [names_.budgetConsumption, share(indicators.budget_consumption)],
+    [indices.financialProgress, share(indicators.financial_progress)],
+    [indices.budgetConsumption, share(indicators.budget_consumption)],
     [figures.actualCost, amount(indicators.actual_cost)],
     [figures.remaining, amount(indicators.remaining)],
     [figures.referenceBudget, amount(indicators.reference_budget)],
@@ -172,7 +172,7 @@ export async function expectCards(main: Locator, indicators: Indicators, reader:
     await expect(row(label).getByRole("cell")).toHaveText([optional(total), optional(variance)]);
   }
   await expectFigures(projection, [
-    [names_.projectionAtObservedRate, shown(projections.at_observed_rate, amount)],
+    [indices.projectionAtObservedRate, shown(projections.at_observed_rate, amount)],
   ]);
   if (projections.variance_at_observed_rate !== null) {
     await expect(projection).toContainText(
@@ -183,7 +183,7 @@ export async function expectCards(main: Locator, indicators: Indicators, reader:
     );
   }
   await expectFigures(card(names.physical.title), [
-    [names_.physicalProgress, share(indicators.physical_progress)],
+    [indices.physicalProgress, share(indicators.physical_progress)],
     [figures.earnedValue, amount(indicators.earned_value)],
     [figures.referenceBudget, amount(indicators.reference_budget)],
   ]);
@@ -191,7 +191,7 @@ export async function expectCards(main: Locator, indicators: Indicators, reader:
   for (const [title, kind, value, rest] of [
     [
       names.cost.title,
-      names_.costIndex,
+      indices.costIndex,
       indicators.cost_index,
       [
         [figures.costVariance, amount(indicators.cost_variance)],
@@ -201,7 +201,7 @@ export async function expectCards(main: Locator, indicators: Indicators, reader:
     ],
     [
       names.schedule.title,
-      names_.scheduleIndex,
+      indices.scheduleIndex,
       indicators.schedule_index,
       [
         [figures.scheduleVariance, amount(indicators.schedule_variance)],
@@ -211,15 +211,20 @@ export async function expectCards(main: Locator, indicators: Indicators, reader:
     ],
   ] as const) {
     await expectFigures(card(title), [[kind, shown(value.value, writeIndex)], ...rest]);
-    // The zone is the API's: written by its name, when it gives one.
-    if (value.zone !== null) {
-      await expect(card(title)).toContainText(zones[value.zone]);
+    // The zone is the API's: the signal beside the index, written by its name when the API gives
+    // one, and absent when it gives none.
+    const signal = definitionOf(card(title), kind).locator("xpath=../following-sibling::span");
+    if (value.zone === null) {
+      await expect(signal, `the zone of ${kind}`).toHaveCount(0);
+    } else {
+      await expect(signal, `the zone of ${kind}`).toHaveText(zones[value.zone]);
     }
   }
 }
 
 /** The text of each cell of each row of a table, under its header, as the screen holds it. */
 async function cellsOf(table: Locator): Promise<string[][]> {
+  await expect(table, "the table of the values is on the screen").toHaveCount(1);
   return table
     .locator("tbody tr")
     .evaluateAll((rows) =>
@@ -239,19 +244,28 @@ function valuesOf(figure: Locator, caption?: string): Locator {
 }
 
 /** Expect the table of the values of a curve figure to hold the points of the answer, in order. */
-export async function expectCurvePoints(figure: Locator, curves: CurveSeries, reader: Reader) {
+export async function expectCurvePoints(
+  figure: Locator,
+  curves: CurveSeries,
+  reader: Reader,
+  { cashOut = false }: { readonly cashOut?: boolean } = {},
+) {
   const wanted = curves.series.flatMap((series) =>
     series.points.map((point) => [
       formatPlanningDate(point.date, LOCALE),
       money(point.amount, reader),
     ]),
   );
+  expect(wanted.length, "the answer holds points to compare").toBeGreaterThan(0);
   const cells = await cellsOf(valuesOf(figure));
   expect(
     cells.map(([, date, amount]) => [date, amount]),
     "the points of the curves",
   ).toEqual(wanted);
   const months = curves.cash_out_by_month ?? [];
+  if (cashOut) {
+    expect(months.length, "the answer holds a cash-out to compare").toBeGreaterThan(0);
+  }
   if (months.length > 0) {
     const shifted = await cellsOf(valuesOf(figure, catalogue.projectIndicators.curves.cashOut));
     expect(
@@ -275,6 +289,7 @@ export async function expectIndexPoints(
       point[kind].zone === null ? "" : zones[point[kind].zone],
     ]),
   );
+  expect(wanted.length, "the answer holds points to compare").toBeGreaterThan(0);
   const cells = await cellsOf(valuesOf(figure));
   expect(
     cells.map(([, revision, , value, zone]) => [revision, value, zone]),
@@ -293,6 +308,7 @@ export async function expectMilestonePoints(figure: Locator, tracking: Milestone
         : formatPlanningDate(milestone.completed_on, LOCALE),
     ]),
   );
+  expect(wanted.length, "the answer holds points to compare").toBeGreaterThan(0);
   const cells = await cellsOf(valuesOf(figure));
   expect(
     cells.map(([label = "", , forecast = "", completed = ""]) => [label, forecast, completed]),

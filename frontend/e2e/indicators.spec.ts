@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import catalogue from "../messages/fr.json" with { type: "json" };
+import { formatPlanningDate } from "../src/i18n/format";
 import { pngSize } from "./download";
 import { holdScripts, openHydrated, WORKING } from "./hydration";
 import {
@@ -15,6 +16,7 @@ import {
   type Indicators,
   type MilestoneTracking,
   ok,
+  type Reader,
   readerOf,
 } from "./indicator-answers";
 import { inService, test } from "./mode";
@@ -51,7 +53,7 @@ test("draws the evolution of an index in SVG, an image described in a sentence, 
   await expect(figure.getByText(/^Calculé le/)).toBeVisible();
 });
 
-test("paints its series with the tokens of the charter, drawn again when the account forces the dark mode @shared", async ({
+test("paints its series with the tokens of the charter, drawn again when the account forces the dark mode @shared [WF-IHM-0100-A]", async ({
   page,
 }) => {
   await openHydrated(page, SCREEN);
@@ -65,7 +67,7 @@ test("paints its series with the tokens of the charter, drawn again when the acc
   await expect(cost.locator(`path[stroke="${SERIES_LIGHT}"]`)).toHaveCount(0);
 });
 
-test("names each curve at its end, two names ending close together drawn apart, their letters never overlapping @shared", async ({
+test("names each curve at its end, two names ending close together drawn apart, their letters never overlapping @shared [WF-IHM-0100-A]", async ({
   page,
 }) => {
   await openHydrated(page, SCREEN);
@@ -90,12 +92,12 @@ test("names each curve at its end, two names ending close together drawn apart, 
   expect(Math.abs(a.baseline - b.baseline)).toBeGreaterThanOrEqual(Math.max(a.size, b.size));
 });
 
-test("exports a curve, at the keyboard, as a PNG image drawn on a canvas, named after the project @shared", async ({
+test("exports a curve, at the keyboard, as a PNG image drawn on a canvas, named after the project @shared [WF-IHM-0100-A] [WF-IHM-0130-A]", async ({
   page,
 }) => {
   await openHydrated(page, SCREEN);
   const figure = page.getByRole("figure", { name: "Diagramme temps/temps" });
-  const command = figure.getByRole("button", { name: "Exporter en PNG" });
+  const command = figure.getByRole("button", { name: catalogue.chart.exportPng });
   await command.focus();
   await expect(command).toBeFocused();
   const [download] = await Promise.all([
@@ -110,7 +112,7 @@ test("exports a curve, at the keyboard, as a PNG image drawn on a canvas, named 
   await expect(page.locator("canvas")).toHaveCount(0);
 });
 
-test("draws the cumulative costs, and shifts them by the payment delays at the server's @shared", async ({
+test("draws the cumulative costs, and shifts them by the payment delays at the server's @shared [WF-IND-0100-A]", async ({
   page,
 }) => {
   await openHydrated(page, SCREEN);
@@ -172,7 +174,7 @@ function chartCommands(): { shown: number; hydrated: number } {
   };
 }
 
-test("opens the screen hydrated, though the shell has written its cookie before the screen hydrated @shared", async ({
+test("opens the screen hydrated, though the shell has written its cookie before the screen hydrated @shared [WF-IHM-0100-A]", async ({
   page,
 }) => {
   // The shell writes its cookie from an effect, once it has hydrated; the screen hydrates in the
@@ -263,6 +265,34 @@ const SCOPES = [
   },
 ] as const;
 
+/** The two curve figures of the screen — the cost curve, the earned value — held to their answers. */
+async function expectCurves(
+  main: Locator,
+  reader: Reader,
+  query: Record<string, string>,
+  { delayed = false }: { readonly delayed?: boolean } = {},
+) {
+  const costs = await ok<CurveSeries>(
+    reader,
+    COSTS,
+    delayed ? { ...query, payment_delays: "true" } : query,
+  );
+  const value = await ok<CurveSeries>(reader, VALUE, query);
+  await expectCurvePoints(
+    main.getByRole("figure", {
+      name: delayed ? NAMES.costCurve.chartTitleDelayed : NAMES.costCurve.chartTitle,
+    }),
+    costs,
+    reader,
+    { cashOut: delayed },
+  );
+  await expectCurvePoints(
+    main.getByRole("figure", { name: NAMES.earnedValue.chartTitle }),
+    value,
+    reader,
+  );
+}
+
 for (const { title, address, scope } of SCOPES) {
   test(`shows the cards of the revision in progress, and the evolution of its indices, as the service answers for ${title} @shared [WF-ARC-0070-A]`, async ({
     page,
@@ -290,10 +320,11 @@ for (const { title, address, scope } of SCOPES) {
       history,
       "schedule_index",
     );
+    await expectCurves(main, reader, query);
   });
 }
 
-test("shows the cost curves, the earned value and the time/time diagram as the service answers, the diagram of the whole project under a sub-project @shared [WF-ARC-0070-A]", async ({
+test("shows the time/time diagram as the service answers, the diagram of the whole project under a sub-project @shared [WF-ARC-0070-A]", async ({
   page,
   browser,
   request,
@@ -302,23 +333,10 @@ test("shows the cost curves, the earned value and the time/time diagram as the s
   test.skip(!inService || manager === undefined, ONLY_IN_SERVICE);
   test.slow();
   const reader = await readerOf(browser, request, manager);
-  const query = { revision_id: REVISION, scope: SUBPROJECT };
-  const costs = await ok<CurveSeries>(reader, COSTS, query);
-  const value = await ok<CurveSeries>(reader, VALUE, query);
   // The tracking of the milestones takes no scope: the project whole, whatever the address filters.
   const tracking = await ok<MilestoneTracking>(reader, TRACKING);
   await openHydrated(page, screenOf(REVISION, `subproject_id=${SUBPROJECT}`));
   const main = page.getByRole("main");
-  await expectCurvePoints(
-    main.getByRole("figure", { name: NAMES.costCurve.chartTitle }),
-    costs,
-    reader,
-  );
-  await expectCurvePoints(
-    main.getByRole("figure", { name: NAMES.earnedValue.chartTitle }),
-    value,
-    reader,
-  );
   await expectMilestonePoints(
     main.getByRole("figure", { name: NAMES.milestones.chartTitle }),
     tracking,
@@ -335,17 +353,11 @@ test("shifts the cumulative costs by the payment delays as the service answers, 
   test.skip(!inService || manager === undefined, ONLY_IN_SERVICE);
   test.slow();
   const reader = await readerOf(browser, request, manager);
-  const delayed = await ok<CurveSeries>(reader, COSTS, {
-    revision_id: REVISION,
-    payment_delays: "true",
-  });
+  const delays = { revision_id: REVISION, payment_delays: "true" };
+  const delayed = await ok<CurveSeries>(reader, COSTS, delays);
   expect(delayed.payment_delays).toBe(true);
   await openHydrated(page, screenOf(REVISION, "payment_delays=true"));
-  await expectCurvePoints(
-    page.getByRole("figure", { name: NAMES.costCurve.chartTitleDelayed }),
-    delayed,
-    reader,
-  );
+  await expectCurves(page.getByRole("main"), reader, { revision_id: REVISION }, { delayed: true });
 });
 
 test("reads the revision 101, marked, as its marking kept it, and says the evolution of the indices is computed on another revision @shared [WF-ARC-0070-A]", async ({
@@ -360,15 +372,10 @@ test("reads the revision 101, marked, as its marking kept it, and says the evolu
   const indicators = await ok<Indicators>(reader, INDICATORS, { revision_id: MARKED });
   expect(indicators.context.is_stored).toBe(true);
   expect(indicators.context.revision_id).toBe(MARKED);
-  const costs = await ok<CurveSeries>(reader, COSTS, { revision_id: MARKED });
   await openHydrated(page, screenOf(MARKED, ""));
   const main = page.getByRole("main");
   await expectCards(main, indicators, reader);
-  await expectCurvePoints(
-    main.getByRole("figure", { name: NAMES.costCurve.chartTitle }),
-    costs,
-    reader,
-  );
+  await expectCurves(main, reader, { revision_id: MARKED });
   await expect(main.getByText(NAMES.elsewhere.title)).toBeVisible();
 });
 
@@ -403,9 +410,23 @@ test("reads the indicators at a date as the service answers, the revision of the
   const indicators = await ok<Indicators>(reader, INDICATORS, { as_of: asOf });
   expect(indicators.context.is_stored).toBe(true);
   await openHydrated(page, screenOf(REVISION, `as_of=${asOf}`));
-  await expectCards(page.getByRole("main"), indicators, reader);
-  await expect(page.getByRole("region", { name: "Contexte de lecture" })).toContainText(
-    "Date de calcul : 31 mai 2026",
+  const main = page.getByRole("main");
+  await expectCards(main, indicators, reader);
+  // The curves are those of the date, the evolution of the indices that of the project, whatever the date.
+  await expectCurves(main, reader, { as_of: asOf });
+  const history = await ok<IndexHistory>(reader, HISTORY);
+  await expectIndexPoints(
+    main.getByRole("figure", { name: NAMES.history.costTitle }),
+    history,
+    "cost_index",
+  );
+  await expectIndexPoints(
+    main.getByRole("figure", { name: NAMES.history.scheduleTitle }),
+    history,
+    "schedule_index",
+  );
+  await expect(page.getByRole("region", { name: catalogue.contextBanner.label })).toContainText(
+    catalogue.contextBanner.asOf.replace("{date}", formatPlanningDate(asOf, "fr")),
   );
   // Before the first marking, no revision is designated: refused as an offer is.
   const before = "2026-01-15";
@@ -425,7 +446,7 @@ test("exports each curve of the screen as a PNG image named after its figure and
   ] as const) {
     const command = page
       .getByRole("figure", { name })
-      .getByRole("button", { name: "Exporter en PNG" });
+      .getByRole("button", { name: catalogue.chart.exportPng });
     const [download] = await Promise.all([page.waitForEvent("download"), command.click()]);
     expect(download.suggestedFilename()).toBe(`${file}-PRJ-001.png`);
     expect(await pngSize(download)).toEqual([2560, 1440]);
