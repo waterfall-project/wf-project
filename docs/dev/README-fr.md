@@ -893,6 +893,16 @@ zéro, et une série sans point parmi d'autres qui en ont le dit sous le graphiq
 référence d'une maille qu'aucune référence ne budgète — ; une courbe vide non décalée n'offre pas de
 la décaler, et, décalée, garde la commande qui retire le décalage.
 
+Contre le service (US-1730, WF-ARC-0070-A), `e2e/indicators.spec.ts`, étiqueté `@shared`, tient
+l'écran à ce que l'API répond pour PRJ-001 : le parcours lit par l'API, sous le jeton du compte de la
+course (`e2e/indicator-answers.ts`), les opérations que l'écran lit — pour la révision en cours, la
+révision 101 marquée, un sous-projet, « hors sous-projet », une date `as_of`, les délais de paiement —
+et compare chaque chiffre des cartes (montants, parts, indices, zones, projections), les points des
+tableaux de l'évolution des indices, des coûts cumulés, de la valeur acquise et du temps/temps à la
+réponse, écrite par `src/i18n/format.ts` sans somme ni arrondi du parcours. L'offre 100 et une date
+avant tout marquage, refusées 409, sont dites ; les trois exports PNG nomment le projet. Le faux
+back sert un exemple quelle que soit l'adresse : ces parcours n'y jouent pas (`inService`).
+
 ### Les chiffres clés en cartes
 
 Les chiffres clés d'un écran se présentent par `FiguresCard` (`src/components/figures-card.tsx`),
@@ -4548,10 +4558,10 @@ chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son ent
   `import_planning` (US-1430) et sert les structures et `generatePlanningSkeleton`. Le lotissement
   d'un projet créé, écrit puis relu, se joue dès US-0950 (parcours jumeau, `SERVICE_ONLY`), le fond
   mémoire ne gardant rien du lotissement qu'on lui donne (`FAKE_BACK_FORGETS`) (#2543).
-- `context.spec.ts` — le bandeau du contexte sur les risques, sur les indicateurs et sur une structure
-  différentielle (`BEFORE_THE_RISKS`, `BEFORE_THE_INDICATORS`, `BEFORE_THE_DIFFERENTIALS`) : levée
-  écran par écran par **EP-08** (les risques et les structures différentielles) et **EP-10** (les
-  indicateurs). Le parcours qui traverse le reste à engager puis les risques reste gardé par les
+- `context.spec.ts` — le bandeau du contexte sur les risques et sur une structure différentielle
+  (`BEFORE_THE_RISKS`, `BEFORE_THE_DIFFERENTIALS`) : levée par **EP-08** (les risques et les
+  structures différentielles) ; celle des indicateurs (`BEFORE_THE_INDICATORS`) l'est depuis
+  US-1730. Le parcours qui traverse le reste à engager puis les risques reste gardé par les
   risques. Le bandeau du planning (EP-06), du devis (US-1560, EP-07), des écrans d'un projet créé, de
   ses paramètres et de ses révisions se joue contre le service.
 - `planning.spec.ts`, `structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts` — les parcours
@@ -4666,8 +4676,7 @@ la garde et l'entrée ci-dessus :
   devis (`grid.spec.ts`), le bandeau sur les risques et sur une structure différentielle
   (`context.spec.ts`), les risques de `risks.spec.ts`, le retour au projet précédent de
   `navigation.spec.ts` ; le service ne charge ni provision ni risque, et sert à zéro ce qui en dépend.
-- **EP-10** — les indicateurs que filtre le bandeau (`BEFORE_THE_INDICATORS`) et ceux du projet ;
-  le lien d'une tâche du détail du plan de charge vers sa ligne dans la grille de planning
+- **EP-10** — le lien d'une tâche du détail du plan de charge vers sa ligne dans la grille de planning
   (`workload.spec.ts`, sans étiquette), que le service ne détaille pas avant US-2040/L2 (#3512) :
   la grille du détail, ses rôles seuls, se joue déjà des deux côtés.
 - **EP-11** — l'ouverture, depuis `/`, du portefeuille de `navigation.spec.ts`.

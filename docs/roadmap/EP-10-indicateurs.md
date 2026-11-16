@@ -1488,7 +1488,7 @@ dernier lot à l'écrire.
 
 ## US-1730 — L'écran des indicateurs branché sur le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ARC-0070-A`
 - **opérations** : `getProjectIndicators`, `getIndexHistory`, `getMilestoneTracking`,
   `getCostCurve`, `getEarnedValueCurves` ; `getRevision`, `listSubprojects`, `listRevisions` que

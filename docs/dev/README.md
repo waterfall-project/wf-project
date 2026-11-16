@@ -902,6 +902,17 @@ and a series without a point among others that have some says so under the chart
 budget of a mesh that no reference budgets —; an empty curve not shifted does not offer to shift
 it, and, shifted, keeps the command that removes the shift.
 
+Against the service (US-1730, WF-ARC-0070-A), `e2e/indicators.spec.ts`, tagged `@shared`, holds
+the screen to what the API answers for PRJ-001: the path reads through the API, under the token of
+the account of the run (`e2e/indicator-answers.ts`), the operations the screen reads — for the
+revision in progress, the marked revision 101, a subproject, "out of any subproject", a date
+`as_of`, the payment delays — and compares each figure of the cards (amounts, shares, indices,
+zones, projections), the points of the tables of the evolution of the indices, of the cumulated
+costs, of the earned value and of the time/time diagram to the answer, written by
+`src/i18n/format.ts` without a sum or a rounding of the path. The offer 100 and a date before any
+marking, refused with 409, are said; the three PNG exports name the project. The fake back serves
+one example whatever the address: these paths do not play there (`inService`).
+
 ### Key figures as cards
 
 The key figures of a screen are presented through `FiguresCard` (`src/components/figures-card.tsx`),
@@ -4504,10 +4515,10 @@ the epic that lifts it; that epic removes the guard and its entry:
   breakdown of a project created, written then read anew, plays since US-0950 (twin path,
   `SERVICE_ONLY`), the fake back keeping nothing of the work breakdown it is given
   (`FAKE_BACK_FORGETS`) (#2543).
-- `context.spec.ts` — the banner of the context on the risks, on the indicators and on a
-  differential structure (`BEFORE_THE_RISKS`, `BEFORE_THE_INDICATORS`,
-  `BEFORE_THE_DIFFERENTIALS`): lifted screen by screen by **EP-08** (the risks and the differential
-  structures) and **EP-10** (the indicators). The path that goes through the remaining to commit then
+- `context.spec.ts` — the banner of the context on the risks and on a differential structure
+  (`BEFORE_THE_RISKS`, `BEFORE_THE_DIFFERENTIALS`): lifted by **EP-08** (the risks and the
+  differential structures); the entry of the indicators (`BEFORE_THE_INDICATORS`) has been lifted
+  since US-1730. The path that goes through the remaining to commit then
   the risks stays guarded by the risks. The banner of the planning (EP-06), of the estimate (US-1560, EP-07), of the screens of a project created, of
   its settings and of its revisions plays against the service.
 - `planning.spec.ts`, `structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts` — the paths that
@@ -5509,8 +5520,7 @@ the guard and the entry above:
   (`context.spec.ts`), the risks of `risks.spec.ts`, the way back to the previous project of
   `navigation.spec.ts`; the service loads no provision and no risk, and serves at zero what depends
   on them.
-- **EP-10** — the indicators that the banner filters (`BEFORE_THE_INDICATORS`) and those of the
-  project; the link of a task of the detail of the workload to its row in the planning grid
+- **EP-10** — the link of a task of the detail of the workload to its row in the planning grid
   (`workload.spec.ts`, untagged), which the service does not detail before US-2040/L2 (#3512): the
   grid of the detail, its roles alone, is already played on both sides.
 - **EP-11** — the opening, from `/`, of the portfolio of `navigation.spec.ts`.
