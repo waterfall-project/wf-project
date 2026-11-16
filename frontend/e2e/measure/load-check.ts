@@ -51,6 +51,14 @@ export interface LoadRun {
 /** The share of the readings, or of the entries, that may be refused before the load is void. */
 export const REFUSED_TOLERANCE = 0.01;
 /**
+ * The readings, or the entries, that may be refused whatever their share: one. A hundredth of the
+ * seventy entries of a load tolerates none, and a single refusal at random would void a measure of
+ * twenty minutes; the one tolerated is named in the report (`conditions.load.refusals`).
+ */
+export const REFUSED_LEAST = 1;
+/** The most refusals the report names: a load that refused more has failed. */
+export const REFUSALS_REPORTED = 50;
+/**
  * The share of the entries, and of the readings, beside the share of the duration the revision
  * stood frozen, that may be refused as frozen: the gestures of a user fall at random in time.
  */
@@ -65,24 +73,48 @@ export function gesturesExpected(users: number, durationSeconds: number): number
   return (users * durationSeconds) / PAUSE_MEAN_S;
 }
 
+/** What the load refused otherwise than by the marking, as its log names it. */
+export interface Refusal {
+  readonly kind: string;
+  readonly name: string;
+  readonly status: number;
+}
+
+/**
+ * The refusals a log of k6 names, one `refused <kind> <name>: <status>` a line
+ * (`bench/load.ts`), the first of them up to what the report holds.
+ */
+export function refusalsOf(log: string): Refusal[] {
+  const refusals: Refusal[] = [];
+  for (const match of log.matchAll(/refused (\S+) (.+?): (\d+)/g)) {
+    refusals.push({ kind: match[1] ?? "", name: match[2] ?? "", status: Number(match[3]) });
+  }
+  return refusals.slice(0, REFUSALS_REPORTED);
+}
+
+/** The refusals tolerated of gestures: a hundredth of them, rounded down, one at least. */
+export function refusedTolerated(gestures: number): number {
+  return Math.max(Math.floor(gestures * REFUSED_TOLERANCE), REFUSED_LEAST);
+}
+
 /** The reasons the load did not run as asked; none when it did. */
 export function loadFailures(summary: LoadSummary | undefined, run: LoadRun): string[] {
   if (summary === undefined) {
     return ["the load wrote no summary"];
   }
   const failures: string[] = [];
-  const tolerated = `${String(REFUSED_TOLERANCE * 100)} % tolerated`;
+  const tolerated = (gestures: number) => `${String(refusedTolerated(gestures))} tolerated`;
   if (summary.unauthorised !== 0) {
     failures.push(`${String(summary.unauthorised)} gestures refused for want of a valid token`);
   }
-  if (summary.reads === 0 || summary.reads_refused > summary.reads * REFUSED_TOLERANCE) {
+  if (summary.reads === 0 || summary.reads_refused > refusedTolerated(summary.reads)) {
     failures.push(
-      `${String(summary.reads_refused)} of ${String(summary.reads)} readings refused, ${tolerated}`,
+      `${String(summary.reads_refused)} of ${String(summary.reads)} readings refused, ${tolerated(summary.reads)}`,
     );
   }
-  if (summary.writes_refused > summary.writes * REFUSED_TOLERANCE) {
+  if (summary.writes_refused > refusedTolerated(summary.writes)) {
     failures.push(
-      `${String(summary.writes_refused)} of ${String(summary.writes)} entries refused, ${tolerated}`,
+      `${String(summary.writes_refused)} of ${String(summary.writes)} entries refused, ${tolerated(summary.writes)}`,
     );
   }
   const frozenShare = run.duration_s > 0 ? Math.min(1, run.frozen_s / run.duration_s) : 0;

@@ -7,6 +7,8 @@ import {
   type LoadRun,
   type LoadSummary,
   loadFailures,
+  refusalsOf,
+  refusedTolerated,
   volumeFailures,
 } from "./load-check";
 
@@ -37,6 +39,29 @@ describe("loadFailures", () => {
   it("refuses a load whose every gesture was refused, as a whole [WF-QUA-0060-A]", () => {
     const failed = { ...NOMINAL, reads_refused: 2610, writes_refused: 290 };
     expect(loadFailures(failed, RUN)).toHaveLength(2);
+  });
+
+  it("tolerates one entry refused, and not two, on seventy [WF-QUA-0060-A]", () => {
+    const small = { ...NOMINAL, writes: 70 };
+    expect(loadFailures({ ...small, writes_refused: 1 }, RUN)).toEqual([]);
+    expect(loadFailures({ ...small, writes_refused: 2 }, RUN)).toEqual([
+      "2 of 70 entries refused, 1 tolerated",
+    ]);
+  });
+
+  it("rounds the tolerated readings down, one at least [WF-QUA-0060-A]", () => {
+    expect(refusedTolerated(70)).toBe(1);
+    expect(refusedTolerated(577)).toBe(5);
+    expect(refusedTolerated(2610)).toBe(26);
+    const reads = { ...NOMINAL, reads: 577 };
+    expect(loadFailures({ ...reads, reads_refused: 5 }, RUN)).toEqual([]);
+    expect(loadFailures({ ...reads, reads_refused: 6 }, RUN)).toHaveLength(1);
+  });
+
+  it("reads the refusals from the log of k6 [WF-QUA-0060-A]", () => {
+    const log = 'level=warning msg="refused write estimate-line: 500" source=console\nnoise\n';
+    expect(refusalsOf(log)).toEqual([{ kind: "write", name: "estimate-line", status: 500 }]);
+    expect(refusalsOf("refused read a: 1\n".repeat(80))).toHaveLength(50);
   });
 
   it("refuses a load that wrote no summary [WF-QUA-0060-A]", () => {

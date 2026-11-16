@@ -18,6 +18,7 @@
  * every sample, and the dispersion the standard deviation of the sample (n - 1) of the values of the
  * passes, which `measures.py` names so: what a difference must exceed to be a gain.
  */
+import type { Refusal } from "./load-check";
 import { median } from "./report";
 
 /** An operation of table 15: its identifier in the reports, its objective in seconds. */
@@ -86,8 +87,11 @@ export interface Conditions {
   /** The passes of the operations of a screen, and of the background tasks. */
   readonly passes: number;
   readonly task_passes: number;
-  /** The summary of the load, as k6 wrote it (`bench/load.ts`), with its duration and the gestures expected of it. */
-  readonly load: Readonly<Record<string, number>>;
+  /**
+   * The summary of the load, as k6 wrote it (`bench/load.ts`), with its duration, the gestures
+   * expected of it, and the refusals it names (`refusals`, the one tolerated among them).
+   */
+  readonly load: Readonly<Record<string, number | readonly Refusal[]>>;
 }
 
 /** The report of a version, as `measures.py` reads it, with what the measure was taken under. */

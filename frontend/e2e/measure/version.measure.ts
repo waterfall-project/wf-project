@@ -37,7 +37,13 @@ import { frontToken, type LocalPerson, resetGridPreferences } from "../service/r
 import { settle } from "../usable";
 import { administratorReady, contributorsOf, measureUsers } from "./accounts";
 import { type Caller, caller, exportPlanning, importCosts, markRevision } from "./background";
-import { gesturesExpected, type LoadSummary, loadFailures, type Volumes } from "./load-check";
+import {
+  gesturesExpected,
+  type LoadSummary,
+  loadFailures,
+  type Refusal,
+  type Volumes,
+} from "./load-check";
 import { placeAndTasks, prepareLoad, startLoad, stopLoad } from "./load-users";
 import type { Interval } from "./report";
 import {
@@ -237,6 +243,7 @@ test("measures each operation of table 15 the service serves under the load of f
   try {
     const { measurer, users, volumes } = await prepared(browser, calls, origin);
     let summary: LoadSummary | undefined;
+    let refusals: readonly Refusal[] = [];
     let measured: Awaited<ReturnType<typeof screens>>;
     let tasks: Measured[];
     let frozenAt: number | undefined;
@@ -250,7 +257,7 @@ test("measures each operation of table 15 the service serves under the load of f
       stopped = Date.now();
       durationSeconds = (stopped - started) / 1000;
     } finally {
-      summary = stopLoad();
+      ({ summary, refusals } = stopLoad());
     }
     console.log(`The load: ${JSON.stringify(summary)}, ${durationSeconds.toFixed(0)} s`);
     if (measured.unreached.size > 0) {
@@ -280,6 +287,7 @@ test("measures each operation of table 15 the service serves under the load of f
         ...summary,
         duration_s: Math.round(durationSeconds),
         gestures_expected: Math.round(gesturesExpected(users, durationSeconds)),
+        refusals,
       },
     };
     written(

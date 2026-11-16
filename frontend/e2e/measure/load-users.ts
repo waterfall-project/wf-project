@@ -28,7 +28,7 @@ import type { Place } from "../../bench/screens";
 import type { components, operations } from "../../src/api/generated/schema";
 import { frontTokens, type Person } from "../service/realm";
 import type { Caller } from "./background";
-import { type LoadSummary, type Volumes, volumeFailures } from "./load-check";
+import { type LoadSummary, type Refusal, refusalsOf, type Volumes, volumeFailures } from "./load-check";
 
 type Schemas = components["schemas"];
 type NodeList = operations["listNodes"]["responses"][200]["content"]["application/json"];
@@ -174,6 +174,18 @@ function docker(arguments_: readonly string[]): string {
   return run.stdout;
 }
 
+/** What the log of the load says, k6 writing it to its error output. */
+function logOf(name: string): string {
+  const run = spawnSync("docker", ["logs", name], { encoding: "utf8" });
+  return `${run.stdout}\n${run.stderr}`;
+}
+
+/** The load once stopped: its summary, if it wrote one, and the refusals its log names. */
+export interface StoppedLoad {
+  readonly summary: LoadSummary | undefined;
+  readonly refusals: readonly Refusal[];
+}
+
 /** Start the load: k6 in its container, on the platform of the slot, the file prepared. */
 export function startLoad(): void {
   const project = process.env.WATERFALL_SERVICE_PROJECT ?? "";
@@ -200,13 +212,20 @@ export function startLoad(): void {
  * Stop the load, give k6 the time to end its users and write its summary, and delete the file of
  * the tokens; the summary, or none if k6 wrote none.
  */
-export function stopLoad(): LoadSummary | undefined {
+export function stopLoad(): StoppedLoad {
+  let refusals: Refusal[] = [];
   try {
+    // The container is removed once stopped (`--rm`): its log is read before, what it refuses
+    // during the seconds of its stop is lost to it, which the summary still counts.
+    refusals = refusalsOf(logOf(container()));
+    for (const refusal of refusals) {
+      console.log(`The load refused ${refusal.kind} ${refusal.name}: ${String(refusal.status)}`);
+    }
     docker(["stop", "--time", "60", container()]);
-    return JSON.parse(readFileSync(SUMMARY, "utf8")) as LoadSummary;
+    return { summary: JSON.parse(readFileSync(SUMMARY, "utf8")) as LoadSummary, refusals };
   } catch (error) {
     console.log(`The load: ${error instanceof Error ? error.message : String(error)}`);
-    return undefined;
+    return { summary: undefined, refusals };
   } finally {
     rmSync(FILE, { force: true });
   }
