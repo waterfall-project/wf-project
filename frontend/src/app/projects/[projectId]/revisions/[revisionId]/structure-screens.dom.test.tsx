@@ -10,7 +10,14 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import { type ReactNode, startTransition } from "react";
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+  startTransition,
+} from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -84,6 +91,27 @@ const ESTIMATE: Screen = {
   nodes: "nodes",
 };
 
+/**
+ * The tree with the parts the server of Next awaits — the async components, which stream apart
+ * from the grid — replaced by what they render: a document of the client cannot await them, and
+ * these tests are about what the grid and the banner share, not about the streaming.
+ */
+async function awaited(node: ReactNode): Promise<ReactNode> {
+  if (!isValidElement<{ children?: ReactNode }>(node)) {
+    return node;
+  }
+  if (typeof node.type === "function" && node.type.constructor.name === "AsyncFunction") {
+    const render = node.type as (props: object) => Promise<ReactNode>;
+    return awaited(await render(node.props));
+  }
+  const { children } = node.props;
+  if (children === undefined) {
+    return node;
+  }
+  const settled = await Promise.all(Children.toArray(children).map(awaited));
+  return cloneElement(node as ReactElement<{ children?: ReactNode }>, undefined, ...settled);
+}
+
 /** The tree of a screen at the address `search` gives, read on the fake back, in French. */
 async function tree({ Page, route, nodes }: Screen, search: string): Promise<ReactNode> {
   page.pathname = `/projects/${PROJECT}/revisions/${REVISION}/${route}`;
@@ -95,7 +123,7 @@ async function tree({ Page, route, nodes }: Screen, search: string): Promise<Rea
   });
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-      {read}
+      {await awaited(read)}
     </NextIntlClientProvider>
   );
 }

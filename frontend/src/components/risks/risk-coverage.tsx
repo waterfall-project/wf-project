@@ -20,7 +20,7 @@ import { useTranslations } from "next-intl";
 import type { components } from "@/api/generated/schema";
 import type { CalculationContext } from "@/components/context/indicator";
 import { ComputedAmount, ComputedTotal } from "@/components/computed-amount";
-import { FigureTerm, FiguresCard, FiguresList } from "@/components/figures-card";
+import { FigureTerm, FiguresCard, FiguresList, FiguresLoading } from "@/components/figures-card";
 
 /** The coverage of the risks of a project, as the server computes it. */
 export type RiskCoverage = components["schemas"]["RiskCoverage"];
@@ -94,4 +94,10 @@ export function RiskCoverageSummary({
       </FiguresList>
     </FiguresCard>
   );
+}
+
+/** The card of the coverage while the API computes it, the grid below being shown already. */
+export function RiskCoverageLoading() {
+  const t = useTranslations("risks.coverage");
+  return <FiguresLoading title={t("title")} />;
 }

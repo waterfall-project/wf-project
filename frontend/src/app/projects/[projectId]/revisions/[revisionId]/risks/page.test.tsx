@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToReadableStream, renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
@@ -11,18 +11,24 @@ import { type Risk, RiskDetail, type RiskDetailProps } from "@/components/risks/
 import type { RisksGridProps } from "@/components/risks/risks-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 
 import RisksPage, { generateMetadata } from "./page";
 
-const server = vi.hoisted((): { answers: FakeAnswers; clients: FakeClient[] } => ({
-  answers: {},
-  clients: [],
-}));
+const server = vi.hoisted(
+  (): {
+    answers: FakeAnswers;
+    clients: FakeClient[];
+    hold?: (route: string) => Promise<unknown> | undefined;
+  } => ({
+    answers: {},
+    clients: [],
+  }),
+);
 
 vi.mock("@/api/server", () => ({
   serverClient: () => {
-    const client = fakeClient(server.answers);
+    const client = fakeClient(server.answers, { hold: (route) => server.hold?.(route) });
     server.clients.push(client);
     return client;
   },
@@ -138,11 +144,16 @@ async function risksAt(search: PageSearchParams = {}) {
     params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
     searchParams: Promise.resolve(search),
   });
-  return renderToStaticMarkup(
+  // The coverage and the matrix stream apart from the grid: the markup is read once every
+  // boundary is settled, each written in its place whatever its size.
+  const stream = await renderToReadableStream(
     <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
       {page as ReactNode}
     </NextIntlClientProvider>,
+    { progressiveChunkSize: Infinity },
   );
+  await stream.allReady;
+  return (await new Response(stream).text()).replace(/<!--.*?-->/g, "").replace(/&#x27;/g, "'");
 }
 
 /** The calls the page made to an operation. */
@@ -164,6 +175,7 @@ beforeEach(() => {
   details.props = [];
   matrices.props = [];
   server.clients = [];
+  delete server.hold;
   server.answers = {
     "GET /me": "me",
     "GET /projects/{project_id}": "project",
@@ -207,6 +219,21 @@ describe("the screen of the risks", () => {
     expect(text(page)).toContain("Risk management Help 3 risks retained");
     // The matrix is not in a column beside the grid: with no risk named, nothing is.
     expect(page).not.toContain("<aside");
+  });
+
+  it("hands the grid without waiting for the coverage and the matrix, which a filter of the grid does not change: the address of a filter arrives with the grid alone (US-2290, #3630)", async () => {
+    const answer = held();
+    server.hold = (route) => (route === COVERAGE || route === MATRIX ? answer.until : undefined);
+    try {
+      // Held, the coverage and the matrix are not waited for: the page resolves, the list read.
+      await RisksPage({
+        params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
+        searchParams: Promise.resolve({ states: "open" }),
+      });
+      expect(callsTo(LIST)).toHaveLength(1);
+    } finally {
+      answer.release();
+    }
   });
 
   it("draws the matrix over the whole width, between the cards and the grid, as a bubble chart [WF-RIS-0040-A]", async () => {

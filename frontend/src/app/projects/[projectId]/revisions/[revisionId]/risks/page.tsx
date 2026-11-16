@@ -18,7 +18,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 
 import type { components } from "@/api/generated/schema";
 import {
@@ -59,7 +59,7 @@ import {
 import { RiskFilterPanel } from "@/components/risks/risk-filters";
 import { FiguresGrid } from "@/components/figures-card";
 import { ProvisionSummary } from "@/components/risks/provision-totals";
-import { RiskCoverageSummary } from "@/components/risks/risk-coverage";
+import { RiskCoverageLoading, RiskCoverageSummary } from "@/components/risks/risk-coverage";
 import { readProvisionOptions } from "@/components/risks/provision-options";
 import { IdentifyRisk } from "@/components/risks/risk-commands";
 import { RiskDetail } from "@/components/risks/risk-detail";
@@ -340,6 +340,38 @@ function RiskMatrixSection({
 }
 
 /**
+ * The coverage of the risks, read on its own: the grid does not wait for it, nor the address of a
+ * filter of the grid, which it does not take (#3630).
+ */
+async function Coverage({ coverage }: { readonly coverage: ReturnType<typeof readCoverage> }) {
+  const read = await coverage;
+  return <RiskCoverageSummary coverage={read} context={read.context} />;
+}
+
+/** The matrix of the risks, which waits for the coverage it is read with, apart from the grid. */
+async function Matrix({
+  coverage,
+  reading,
+  matrix,
+  folded,
+}: {
+  readonly coverage: ReturnType<typeof readCoverage>;
+  readonly reading: ProjectReading;
+  readonly matrix: ReturnType<typeof readMatrix>;
+  readonly folded: boolean;
+}) {
+  const [read, drawn] = await Promise.all([coverage, matrix]);
+  return (
+    <RiskMatrixSection
+      reading={reading}
+      matrix={drawn}
+      computedAt={read.context.computed_at}
+      folded={folded}
+    />
+  );
+}
+
+/**
  * Render the risks of a revision: their totals and their coverage, their filter, their grid, their
  * matrix.
  */
@@ -372,6 +404,12 @@ export default async function RisksPage({
       : findOffer(read.revision.available_commands, "declare_risk"),
   );
   const shown = readDetail(at, readRisk(at.address));
+  // The coverage and the matrix are not waited for: they stream in their own boundaries. A read
+  // refused is thrown where they are shown, never left unobserved.
+  const coverage = readCoverage(at);
+  const matrix = readMatrix(at);
+  coverage.catch(() => undefined);
+  matrix.catch(() => undefined);
   const options = Promise.all([declare, shown]).then(([offer, read]) =>
     offer?.is_available === true ||
     (["update", "review"] as const).some(
@@ -380,12 +418,10 @@ export default async function RisksPage({
       ? readProvisionOptions(at.revision.projectId, at.revision.revisionId)
       : undefined,
   );
-  const [read, risks, coverage, matrix, detail, preferences, query, offer, choices, kept, marked] =
-    await Promise.all([
+  const [read, risks, detail, preferences, query, offer, choices, kept, marked] = await Promise.all(
+    [
       reading,
       readRisks(at, states, filters, asked),
-      readCoverage(at),
-      readMatrix(at),
       shown,
       settings,
       asked,
@@ -393,7 +429,8 @@ export default async function RisksPage({
       options,
       session,
       readLastMarkedOn(at),
-    ]);
+    ],
+  );
   if (read === "not_found") {
     notFound();
   }
@@ -419,15 +456,19 @@ export default async function RisksPage({
           <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
             <FiguresGrid className="min-w-0 grow basis-[40rem]">
               {risks.kind === "read" ? <ProvisionSummary totals={risks.totals} /> : null}
-              <RiskCoverageSummary coverage={coverage} context={coverage.context} />
+              <Suspense fallback={<RiskCoverageLoading />}>
+                <Coverage coverage={coverage} />
+              </Suspense>
             </FiguresGrid>
           </div>
-          <RiskMatrixSection
-            reading={read}
-            matrix={matrix}
-            computedAt={coverage.context.computed_at}
-            folded={kept?.display_preferences?.charts?.risk_matrix?.folded ?? true}
-          />
+          <Suspense>
+            <Matrix
+              coverage={coverage}
+              reading={read}
+              matrix={matrix}
+              folded={kept?.display_preferences?.charts?.risk_matrix?.folded ?? true}
+            />
+          </Suspense>
           {/* The detail of a risk, beside the grid, keeps the height to read it in: the window too
               low for the chart, the grid and the detail scrolls the page. */}
           <div
