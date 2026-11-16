@@ -3,11 +3,11 @@
 """The tasks of a revision as the indicators read them (EP-10, "Modules"; US-1660/L3).
 
 Each task of the main structure of a revision, summaries and milestones included: its node, its
-lineage — what a task of the reference is found by in the revision computed, the earned value
-counting a line of the reference when its task, by its lineage, is completed there (WF-IND-0030) —,
-its parent, its state and its two dates, its start and finish as the revision dates them, the hours
-of its applicable calendar, and the risk it comes from (EP-08). A marked revision is read as its
-marking froze it; a revision without a main structure has no task.
+label, its lineage — what a task of the reference is found by in the revision computed, the
+earned value counting a line of the reference when its task, by its lineage, is completed there
+(WF-IND-0030) —, its parent, its state and its two dates, its start and finish as the revision
+dates them, the hours of its applicable calendar, and the risk it comes from (EP-08). A marked
+revision is read as its marking froze it; a revision without a main structure has no task.
 """
 
 from dataclasses import dataclass
@@ -40,6 +40,7 @@ class IndicatorTask:
 
     node_id: UUID
     lineage_id: UUID
+    label: str
     parent_id: UUID | None
     is_summary: bool
     is_milestone: bool
@@ -65,6 +66,7 @@ def tasks_for_indicators(
         IndicatorTask(
             node_id=node.node_id,
             lineage_id=node.lineage_id,
+            label=task.label,
             parent_id=node.parent_id,
             is_summary=task.is_summary,
             is_milestone=task.is_milestone,
