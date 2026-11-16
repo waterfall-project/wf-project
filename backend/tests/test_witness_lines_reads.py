@@ -347,8 +347,8 @@ def summed_tasks(role: dict[str, Any]) -> dict[str, str]:
     return {month: str(sums[month]) for month in sorted(sums)}
 
 
-# The rows of the tasks of the detail of a plan, which the nodes the witness lacks shift (one at the 102,
-# three at the 101; EP-08, #3584): compared apart, by ``rows_in_order``.
+# The rows of the tasks of the detail of a plan, which the nodes the witness lacks shift (one at the
+# 102, three at the 101; EP-08, #3584): compared apart, by ``rows_in_order``.
 ROWS = {"row_number"}
 
 
