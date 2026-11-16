@@ -837,7 +837,7 @@ l'avancement physique (US-1680) et la mesure (US-2420), qui attendent EP-26 dans
 
 ## US-1660 — Les indicateurs de valeur acquise au jour courant : la date et le périmètre, les avancements, les indices et leurs zones, les projections
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IND-0010-A`, `WF-IND-0020-A`, `WF-IND-0030-A`, `WF-IND-0040-A`,
   `WF-IND-0050-A`, `WF-IND-0060-A`, `WF-IND-0070-A`, `WF-IND-0080-A`, `WF-RAE-0050-A`,
   `WF-REF-0170-A`

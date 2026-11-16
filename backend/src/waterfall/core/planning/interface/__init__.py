@@ -91,6 +91,22 @@ from waterfall.core.planning.interface.facets import (
     register_facet as register_facet,
 )
 
+# ``indicator_stamps`` (US-1660/L3; US-1720/L2): what the key of the cache of the indicators reads.
+from waterfall.core.planning.interface.indicator_stamps import (
+    ContentStamp as ContentStamp,
+)
+from waterfall.core.planning.interface.indicator_stamps import (
+    revision_content_stamp as revision_content_stamp,
+)
+
+# ``indicator_tasks`` (US-1660/L3): the tasks of a revision as the indicators read them.
+from waterfall.core.planning.interface.indicator_tasks import (
+    IndicatorTask as IndicatorTask,
+)
+from waterfall.core.planning.interface.indicator_tasks import (
+    tasks_for_indicators as tasks_for_indicators,
+)
+
 # ``lines`` (US-1380/L1; US-1490/L3, L4; US-1550/L3): the lines of a task, their place, their
 # writes, where they stand, their counters, the write of an import, for EP-07.
 from waterfall.core.planning.interface.lines import (
@@ -182,6 +198,14 @@ from waterfall.core.planning.interface.loading import (
 )
 from waterfall.core.planning.interface.loading import (
     load_tasks as load_tasks,
+)
+
+# ``milestone_dates`` (US-1660/L3; US-1710): the dates of the milestones in the revisions.
+from waterfall.core.planning.interface.milestone_dates import (
+    milestone_forecasts as milestone_forecasts,
+)
+from waterfall.core.planning.interface.milestone_dates import (
+    tracked_milestones as tracked_milestones,
 )
 
 # ``msproject`` (US-1380/L1; US-1430/L3, L4): the format and the exporter of MS Project.
@@ -314,6 +338,14 @@ from waterfall.core.planning.interface.paste import (
 )
 from waterfall.core.planning.interface.paste import (
     preview_paste as preview_paste,
+)
+
+# ``physical_progress`` (US-1660/L3; US-1680): the physical progress of the summary tasks.
+from waterfall.core.planning.interface.physical_progress import (
+    PhysicalProgress as PhysicalProgress,
+)
+from waterfall.core.planning.interface.physical_progress import (
+    register_physical_progress as register_physical_progress,
 )
 
 # ``predecessors`` (US-1380/L1; US-1390/L2): the predecessors of a task.

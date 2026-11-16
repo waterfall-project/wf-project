@@ -136,6 +136,13 @@ def test_an_index_that_is_not_computable_has_no_zone() -> None:
     )
 
 
+def test_without_thresholds_the_indices_are_computed_and_left_unclassified() -> None:
+    # A document of the day, kept or cached, carries no zone: a reading classifies it (US-1660/L3).
+    shown = indicators_of(Amounts(_d("1000"), _d("500"), _d("400"), _d("500"), NOUGHT), None)
+    assert (shown.cost_index.value.value, shown.cost_index.zone) == (_d("0.8000"), None)
+    assert (shown.schedule_index.value.value, shown.schedule_index.zone) == (_d("0.8000"), None)
+
+
 @pytest.mark.requirement("WF-REF-0170-A")
 def test_the_zone_is_classed_on_the_index_rounded_to_four_decimals() -> None:
     # 0.89996 is shown 0.9000, nominal at a threshold of 0.9.
