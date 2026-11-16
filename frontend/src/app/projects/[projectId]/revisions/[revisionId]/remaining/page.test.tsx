@@ -9,6 +9,7 @@ import { nodeFieldNames } from "@/components/grid/nodes";
 import { REMAINING_FIELDS } from "@/components/grid/remaining";
 import type { RemainingGridProps } from "@/components/grid/remaining-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { streamUntil } from "@/test/page-stream";
 import { filtersOf, menuText } from "@/test/filter-menu";
 import { type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 
@@ -188,28 +189,19 @@ describe("the screen of the remaining to commit", () => {
       params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
       searchParams: Promise.resolve({ work_package_id: LOT }),
     });
-    const stream = await renderToReadableStream(
+    const page = await streamUntil(
       <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">
         {rendered}
       </NextIntlClientProvider>,
+      'aria-label="Remaining to commit grid"',
     );
-    const reader = stream.getReader();
-    const decoder = new TextDecoder();
-    // The shell is written in chunks, to the grid at its end; the indicators, held, are not in it.
-    let shell = "";
-    while (!shell.includes('aria-label="Remaining to commit grid"')) {
-      shell += decoder.decode((await reader.read()).value as Uint8Array);
-    }
-    expect(shell).toContain('aria-label="Loading the screen"');
-    expect(shell).toContain('aria-label="Remaining to commit grid"');
-    expect(shell).not.toContain("Margin on the reference budget");
+    // The shell is written to the grid; the indicators, held, are not in it, their card is.
+    expect(page.shell).toContain("Remaining to commit grid");
+    expect(page.shell).not.toContain("Margin on the reference budget");
+    expect(page.shell).toContain("Remaining to commit indicators");
     // The figures follow once the API has given them.
     indicators.release();
-    let rest = "";
-    for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
-      rest += decoder.decode(chunk.value as Uint8Array);
-    }
-    expect(text(rest)).toContain("Margin on the reference budget");
+    expect(text(await page.rest())).toContain("Margin on the reference budget");
   });
 
   it("asks the tasks not started too when the address asks them, their lines then entered, and offers to show the started alone again [WF-RAE-0040-A]", async () => {

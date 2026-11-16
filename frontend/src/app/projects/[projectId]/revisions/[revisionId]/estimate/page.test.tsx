@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { renderToReadableStream } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { streamUntil } from "@/test/page-stream";
 import { estimateGrid } from "@/components/grid/estimate";
 import type { EstimateGridProps } from "@/components/grid/estimate-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -470,16 +471,23 @@ describe("the filter of the estimate on the rows a risk occurred merged", () => 
     server.answers = { ...server.answers, "GET /me": "me" };
     const answer = held();
     server.hold = (route) => (route.includes("/estimate-indicators") ? answer.until : undefined);
-    try {
-      // Held, the indicators and the rates are not waited for: the page resolves with the nodes read.
-      await EstimatePage({
-        params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
-        searchParams: Promise.resolve({ work_package_id: LOT }),
-      });
-      expect(queryOf("/nodes")).toBeDefined();
-    } finally {
-      answer.release();
-    }
+    const page = await EstimatePage({
+      params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
+      searchParams: Promise.resolve({ work_package_id: LOT }),
+    });
+    const streamed = await streamUntil(
+      <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
+        {page}
+      </NextIntlClientProvider>,
+      'data-slot="grid-card"',
+    );
+    // Held, the indicators are not in the shell the address waits for: their card is, loading, and
+    // the grid, which the test does not render, was handed its rows.
+    expect(grids.estimate).toHaveLength(1);
+    expect(streamed.shell).toContain("Estimate indicators");
+    expect(streamed.shell).not.toContain("Estimate total");
+    answer.release();
+    expect(await streamed.rest()).toContain("Estimate total");
   });
 
   it("reads the rows with the risks occurred, not after them, when the address names no risk [WF-RIS-0060-A]", async () => {

@@ -8,7 +8,6 @@
  * to the next line as the width asks. Nothing here computes or formats a figure (WF-ARC-0020):
  * the caller writes what the API gave.
  */
-import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import { CalculationDate, type CalculationContext } from "@/components/context/indicator";
@@ -125,21 +124,19 @@ export function FigureTerm({
 
 /**
  * One card of figures a screen shows while the API computes them, its grid shown already: the
- * loading is said to a screen reader, and the pulse of the shape stops when the workstation asks
- * for less motion.
+ * shape of three of its lines, which keeps most of the height the figures take so that they do not
+ * push what is below when they arrive, and stops pulsing when the workstation asks for less
+ * motion. The card is named by its title; the shape says nothing more, and is not announced
+ * apart: the screen reader reads the figures themselves when they arrive.
  */
 export function FiguresLoading({ title }: { readonly title: string }) {
-  const t = useTranslations("loading");
   return (
     <FiguresCard title={title}>
-      <p role="status" aria-label={t("label")} className="sr-only">
-        {t("label")}
-      </p>
-      <div
-        aria-hidden="true"
-        aria-busy="true"
-        className="h-5 w-2/3 rounded-md bg-muted motion-safe:animate-pulse"
-      />
+      <div aria-hidden="true" aria-busy="true" className="space-y-2">
+        {[0, 1, 2].map((line) => (
+          <div key={line} className="h-5 w-2/3 rounded-md bg-muted motion-safe:animate-pulse" />
+        ))}
+      </div>
     </FiguresCard>
   );
 }

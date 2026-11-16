@@ -77,6 +77,9 @@ import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-di
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { MockupNotice } from "@/components/shell/mockup-notice";
 import { Card, CardContent } from "@/components/ui/card";
+import { startReading } from "@/components/start-reading";
+import { Streamed } from "@/components/streamed";
+import { cn } from "@/components/ui/utils";
 import type { PageSearchParams } from "@/navigation/context";
 import { functionHref, functionOf } from "@/navigation/functions";
 import type { ListPage } from "@/navigation/pages";
@@ -340,16 +343,34 @@ function RiskMatrixSection({
 }
 
 /**
- * The coverage of the risks, read on its own: the grid does not wait for it, nor the address of a
- * filter of the grid, which it does not take (#3630).
+ * The coverage of the risks, rendered on its own: the grid does not wait for it, nor the address
+ * of a filter of the grid, which it does not take (#3630). `Streamed` shows it, so that the
+ * transition of a filter is not retained until it is read again.
  */
-async function Coverage({ coverage }: { readonly coverage: ReturnType<typeof readCoverage> }) {
+async function coverageOf(coverage: ReturnType<typeof readCoverage>): Promise<ReactNode> {
   const read = await coverage;
   return <RiskCoverageSummary coverage={read} context={read.context} />;
 }
 
+/** The card of the matrix while it is read, its place kept: the grid below does not move. */
+function RiskMatrixLoading({ folded }: { readonly folded: boolean }) {
+  return (
+    <Card>
+      <CardContent
+        aria-hidden="true"
+        aria-busy="true"
+        className={cn(
+          "rounded-md bg-muted motion-safe:animate-pulse",
+          // A folded chart is its caption and its table of values; shown, its drawing too.
+          folded ? "min-h-20" : "min-h-96",
+        )}
+      />
+    </Card>
+  );
+}
+
 /** The matrix of the risks, which waits for the coverage it is read with, apart from the grid. */
-async function Matrix({
+async function matrixOf({
   coverage,
   reading,
   matrix,
@@ -359,7 +380,7 @@ async function Matrix({
   readonly reading: ProjectReading;
   readonly matrix: ReturnType<typeof readMatrix>;
   readonly folded: boolean;
-}) {
+}): Promise<ReactNode> {
   const [read, drawn] = await Promise.all([coverage, matrix]);
   return (
     <RiskMatrixSection
@@ -406,10 +427,9 @@ export default async function RisksPage({
   const shown = readDetail(at, readRisk(at.address));
   // The coverage and the matrix are not waited for: they stream in their own boundaries. A read
   // refused is thrown where they are shown, never left unobserved.
-  const coverage = readCoverage(at);
-  const matrix = readMatrix(at);
-  coverage.catch(() => undefined);
-  matrix.catch(() => undefined);
+  const coverage = startReading(readCoverage(at));
+  const matrix = startReading(readMatrix(at));
+  const figures = startReading(coverageOf(coverage));
   const options = Promise.all([declare, shown]).then(([offer, read]) =>
     offer?.is_available === true ||
     (["update", "review"] as const).some(
@@ -435,6 +455,8 @@ export default async function RisksPage({
     notFound();
   }
   const { estimate, occurred: occurredGrid } = gridsOf(kept?.permissions, at);
+  const folded = kept?.display_preferences?.charts?.risk_matrix?.folded ?? true;
+  const drawing = startReading(matrixOf({ coverage, reading: read, matrix, folded }));
   return (
     <>
       <ContextBanner reading={read} />
@@ -457,17 +479,12 @@ export default async function RisksPage({
             <FiguresGrid className="min-w-0 grow basis-[40rem]">
               {risks.kind === "read" ? <ProvisionSummary totals={risks.totals} /> : null}
               <Suspense fallback={<RiskCoverageLoading />}>
-                <Coverage coverage={coverage} />
+                <Streamed content={figures} />
               </Suspense>
             </FiguresGrid>
           </div>
-          <Suspense>
-            <Matrix
-              coverage={coverage}
-              reading={read}
-              matrix={matrix}
-              folded={kept?.display_preferences?.charts?.risk_matrix?.folded ?? true}
-            />
+          <Suspense fallback={<RiskMatrixLoading folded={folded} />}>
+            <Streamed content={drawing} />
           </Suspense>
           {/* The detail of a risk, beside the grid, keeps the height to read it in: the window too
               low for the chart, the grid and the detail scrolls the page. */}

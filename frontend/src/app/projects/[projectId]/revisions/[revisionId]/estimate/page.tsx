@@ -36,6 +36,8 @@ import { serverClient } from "@/api/server";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { ContextBanner, type Restrictions } from "@/components/context/context-banner";
 import type { ProjectReading } from "@/components/context/reading";
+import { startReading } from "@/components/start-reading";
+import { Streamed } from "@/components/streamed";
 import { EstimateSummary, EstimateSummaryLoading } from "@/components/estimate/estimate-summary";
 import { ExchangesLink } from "@/components/exchanges/exchanges-link";
 import { breakdownChip } from "@/components/grid/breakdown-filter";
@@ -125,10 +127,12 @@ async function readEstimateFigures(at: GridAddress) {
 
 /**
  * What the screen says above its grid — the rates its calculation lacks, its indicators —, read
- * and shown on their own: the grid does not wait for them, nor the address of a filter that
- * leaves them as they are (#3630).
+ * and rendered on their own: the grid does not wait for them, nor the address of a filter that
+ * leaves them as they are (#3630). `Streamed` shows them, so that the transition of a filter is
+ * not retained until they are read again. `requestSession()` and `requestCurrency()` are those
+ * the page calls too: React's `cache()` answers them once per request.
  */
-async function Summary({ at }: { readonly at: GridAddress }) {
+async function summaryOf(at: GridAddress): Promise<ReactNode> {
   const [[indicators, missingRates], session, currency] = await Promise.all([
     readEstimateFigures(at),
     requestSession(),
@@ -299,6 +303,7 @@ export default async function EstimatePage({
 }) {
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "estimate");
+  const summary = startReading(summaryOf(at));
   const [screen, reference] = await Promise.all([
     readGridScreen(at, {
       key: ESTIMATE_GRID.key,
@@ -338,8 +343,13 @@ export default async function EstimatePage({
             <ExchangesLink project={screen.reading.project} kind="estimate" context={at.context} />
           }
         />
-        <Suspense fallback={<EstimateSummaryLoading />}>
-          <Summary at={at} />
+        {/* The indicators take the sub-project the address filters: another one is a new boundary,
+            which says them loading rather than keeping the figures of the other. */}
+        <Suspense
+          key={at.context.parameters.get("subproject_id") ?? ""}
+          fallback={<EstimateSummaryLoading />}
+        >
+          <Streamed content={summary} />
         </Suspense>
         <GridCard fill>
           <EstimateGrid

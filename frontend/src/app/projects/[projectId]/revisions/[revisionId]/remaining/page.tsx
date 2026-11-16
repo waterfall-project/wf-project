@@ -42,6 +42,8 @@ import {
   REMAINING_GRID,
   REMAINING_SORT_COLUMNS,
 } from "@/components/grid/remaining";
+import { startReading } from "@/components/start-reading";
+import { Streamed } from "@/components/streamed";
 import { RemainingGrid } from "@/components/grid/remaining-grid";
 import { progressHref, readProgress } from "@/components/remaining/address";
 import {
@@ -87,10 +89,13 @@ async function readIndicators({ revision }: GridAddress) {
 }
 
 /**
- * The indicators of the remaining to commit, read and shown on their own: the grid does not wait
- * for them, nor the address of a filter that changes the grid alone (#3630).
+ * The indicators of the remaining to commit, read and rendered on their own: the grid does not
+ * wait for them, nor the address of a filter that changes the grid alone (#3630). `Streamed` shows
+ * them: a boundary of suspense revealed would retain the transition of a filter until they were
+ * read again. A refusal other than not found is thrown where they are shown, under the boundary,
+ * after the shell is sent: the screen of failure says it, by the digest of the error.
  */
-async function Indicators({ at }: { readonly at: GridAddress }) {
+async function indicatorsOf(at: GridAddress): Promise<ReactNode> {
   const [indicators, currency] = await Promise.all([readIndicators(at), requestCurrency()]);
   return <RemainingSummary indicators={indicators} currency={currency} />;
 }
@@ -255,6 +260,7 @@ export default async function RemainingPage({
   // The categories are read where the grid is entered alone — it is where a line is created —, as
   // soon as the structure says so. The indicators are not waited for: they stream in their own
   // boundary, so that a filter of the grid, which they do not take, arrives with the grid alone.
+  const indicators = startReading(indicatorsOf(at));
   const grid = readGridScreen(at, {
     key: REMAINING_GRID.key,
     sortable: REMAINING_SORT_COLUMNS,
@@ -293,7 +299,7 @@ export default async function RemainingPage({
           }
         />
         <Suspense fallback={<RemainingSummaryLoading />}>
-          <Indicators at={at} />
+          <Streamed content={indicators} />
         </Suspense>
         <PendingAddress>
           <GridCard fill>

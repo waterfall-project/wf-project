@@ -11,6 +11,7 @@ import { type Risk, RiskDetail, type RiskDetailProps } from "@/components/risks/
 import type { RisksGridProps } from "@/components/risks/risks-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
+import { streamUntil } from "@/test/page-stream";
 import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 
 import RisksPage, { generateMetadata } from "./page";
@@ -224,15 +225,47 @@ describe("the screen of the risks", () => {
   it("hands the grid without waiting for the coverage and the matrix, which a filter of the grid does not change: the address of a filter arrives with the grid alone (US-2290, #3630)", async () => {
     const answer = held();
     server.hold = (route) => (route === COVERAGE || route === MATRIX ? answer.until : undefined);
+    const page = await RisksPage({
+      params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
+      searchParams: Promise.resolve({ states: "open" }),
+    });
+    const streamed = await streamUntil(
+      <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
+        {page as ReactNode}
+      </NextIntlClientProvider>,
+      'role="grid"',
+    );
+    // Held, the figures of the coverage and the matrix are not in the shell the address waits for.
+    expect(streamed.shell).toContain('role="grid"');
+    expect(streamed.shell).not.toContain("<figure aria-labelledby");
+    expect(streamed.shell).not.toContain("Export as PNG");
+    answer.release();
+    expect(await streamed.rest()).toContain("Export as PNG");
+  });
+
+  it("leaves no rejection unhandled when the page is not found while the coverage is refused: the coverage was started, never shown", async () => {
+    const unhandled: unknown[] = [];
+    const watch = (reason: unknown) => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", watch);
     try {
-      // Held, the coverage and the matrix are not waited for: the page resolves, the list read.
-      await RisksPage({
-        params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
-        searchParams: Promise.resolve({ states: "open" }),
-      });
-      expect(callsTo(LIST)).toHaveLength(1);
+      server.answers = {
+        ...server.answers,
+        "GET /projects/{project_id}": NOT_FOUND,
+        [COVERAGE]: { problem: { code: "INTERNAL_ERROR", status: 500 } } as const,
+      };
+      await expect(
+        RisksPage({
+          params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
+          searchParams: Promise.resolve({}),
+        }),
+      ).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+      // Let the rejections that nobody observes surface, if any.
+      await new Promise((done) => setTimeout(done, 20));
+      expect(unhandled).toEqual([]);
     } finally {
-      answer.release();
+      process.off("unhandledRejection", watch);
     }
   });
 

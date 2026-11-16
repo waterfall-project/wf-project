@@ -10,14 +10,7 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import {
-  Children,
-  cloneElement,
-  isValidElement,
-  type ReactElement,
-  type ReactNode,
-  startTransition,
-} from "react";
+import { type ReactNode, startTransition } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -38,6 +31,10 @@ const server = vi.hoisted((): { answers: FakeAnswers; clients: FakeClient[] } =>
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 const page = vi.hoisted(() => ({ pathname: "", search: "" }));
 
+// The indicators stream apart from the grid on the server, which a document of the client cannot
+// await: these tests are about what the grid and the banner share, `streamed.dom.test.tsx` about
+// the streaming.
+vi.mock("@/components/streamed", () => ({ Streamed: () => null }));
 vi.mock("@/api/server", () => ({
   serverClient: () => {
     const client = fakeClient(server.answers);
@@ -91,27 +88,6 @@ const ESTIMATE: Screen = {
   nodes: "nodes",
 };
 
-/**
- * The tree with the parts the server of Next awaits — the async components, which stream apart
- * from the grid — replaced by what they render: a document of the client cannot await them, and
- * these tests are about what the grid and the banner share, not about the streaming.
- */
-async function awaited(node: ReactNode): Promise<ReactNode> {
-  if (!isValidElement<{ children?: ReactNode }>(node)) {
-    return node;
-  }
-  if (typeof node.type === "function" && node.type.constructor.name === "AsyncFunction") {
-    const render = node.type as (props: object) => Promise<ReactNode>;
-    return awaited(await render(node.props));
-  }
-  const { children } = node.props;
-  if (children === undefined) {
-    return node;
-  }
-  const settled = await Promise.all(Children.toArray(children).map(awaited));
-  return cloneElement(node as ReactElement<{ children?: ReactNode }>, undefined, ...settled);
-}
-
 /** The tree of a screen at the address `search` gives, read on the fake back, in French. */
 async function tree({ Page, route, nodes }: Screen, search: string): Promise<ReactNode> {
   page.pathname = `/projects/${PROJECT}/revisions/${REVISION}/${route}`;
@@ -123,7 +99,7 @@ async function tree({ Page, route, nodes }: Screen, search: string): Promise<Rea
   });
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-      {await awaited(read)}
+      {read}
     </NextIntlClientProvider>
   );
 }
