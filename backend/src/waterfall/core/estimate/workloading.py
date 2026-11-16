@@ -189,9 +189,9 @@ def spread_loads(
     """
     found: dict[UUID, dict[UUID, list[dict[Month, Decimal]]]] = {}
     for load in loads:
-        parts = rounded_parts(load.placement, load.hours, HOURS, as_of=as_of)
-        tasks = found.setdefault(load.role_id, {})
-        tasks.setdefault(load.task_id, []).append(parts if load.hours > 0 else {})
+        positive = load.hours > 0
+        parts = rounded_parts(load.placement, load.hours, HOURS, as_of=as_of) if positive else {}
+        found.setdefault(load.role_id, {}).setdefault(load.task_id, []).append(parts)
     return {
         role_id: {task_id: summed_parts(each) for task_id, each in tasks.items()}
         for role_id, tasks in found.items()
