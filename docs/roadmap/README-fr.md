@@ -169,7 +169,7 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-11](EP-11-portefeuille.md) | Portefeuille | à planifier | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | abandonné : chaque aller-retour se valide dans son bloc fonctionnel | — |
 | [EP-13](EP-13-exploitation.md) | Exploitation et mise en production | à planifier | EP-04 |
-| [EP-28](EP-28-chaine-et-outillage.md) | Chaîne et outillage de développement | à planifier | rien |
+| [EP-28](EP-28-chaine-et-outillage.md) | Chaîne et outillage de développement | en cours | rien |
 
 La ventilation du 2026-11-14, à la livraison d'EP-24, a réparti le reste à faire par thème — celui du
 code touché — et non plus par date de report : EP-25 ne garde que la refonte ergonomique et passe en
