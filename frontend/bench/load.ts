@@ -13,15 +13,16 @@
  * where it reads. A user then plays the journey of the grids on PRJ-001 for as long as the load
  * lasts: a gesture every ten seconds on average, nine readings for one entry, drawn reproducibly
  * from the seed of the file (`draw.ts`). It speaks to the API directly, inside the network of the
- * platform, as the server of Next does, with its own token; it renews the token by its refresh token
- * at the identity provider, on the back channel, a minute before it expires — five minutes is the
- * lifetime of a token, shorter than a measure —, as the session of a user of the front does.
+ * platform, as the server of Next does, with its own token; it renews the token by its refresh
+ * token at the identity provider, on the back channel, a minute before it expires — five minutes
+ * is the lifetime of a token, shorter than a measure —, as the session of a user of the front
+ * does.
  *
- * The load ends when the measure stops its container (or after five hours): k6 then writes its summary, beside the
- * file it read (`summary.json`): the gestures made, the readings refused, the entries refused —
- * apart those on a revision the measure has marked, which is the marking's doing (409) —, and
- * those refused for want of a valid token. `e2e/measure/load-check.ts` decides from them whether the
- * load ran as asked.
+ * The load ends when the measure stops its container (or after five hours): k6 then writes its
+ * summary, beside the file it read (`summary.json`): the gestures made, the readings refused, the
+ * entries refused — apart those on a revision the measure has marked, which is the marking's doing
+ * (409) —, and those refused for want of a valid token. `e2e/measure/load-check.ts` decides from
+ * them whether the load ran as asked.
  */
 import { sleep } from "k6";
 import http from "k6/http";
@@ -153,7 +154,10 @@ function headers(playing: User): Record<string, string> {
 /** The status of an entry on a revision the measure has marked (`revision_draft`). */
 const FROZEN = 409;
 
-/** Count a gesture, and how it was answered: a reading refused, an entry refused by the marking or not. */
+/**
+ * Count a gesture, and how it was answered: a reading refused, an entry refused by the marking or
+ * not.
+ */
 function counted(kind: string, name: string, status: number): void {
   const tags = { kind, name };
   const accepted = status >= 200 && status < 300;
