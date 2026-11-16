@@ -129,7 +129,8 @@
       "remaining": "Remaining to commit grid",
       "comparison": "Compared nodes",
       "projects": "List of projects",
-      "backups": "Backups"
+      "backups": "Backups",
+      "workloadDetail": "Workload detail by role and by task"
     },
     "columns": {
       "rowNumber": "No.",
@@ -245,7 +246,8 @@
       "download": "Download",
       "restore": "Restoration",
       "resendInvitation": "Resend email",
-      "passwordLink": "Setup link"
+      "passwordLink": "Setup link",
+      "month": "Month"
     },
     "computed": "Computed",
     "entry": {
@@ -1140,7 +1142,9 @@
       "invalid": "The workload is not available: the API refuses what is asked."
     },
     "exportDetail": "Basis: {basis} · Organisation node and its descendants: {node}",
-    "file": "workload"
+    "file": "workload",
+    "detailTitle": "Detail by role and by task",
+    "detailTotals": "Total of the plan"
   },
   "commands": {
     "label": "Commands",
@@ -1962,6 +1966,26 @@
     "comparison": {
       "changes": {
         "help": "What changes of the node itself from one revision to the other, as the server names it: the dates, the duration, the progress or the parent of a task; the budgeted and re-estimated amounts, the payment delay or the parent of a line. Empty for a node added, removed or unchanged, and for a task modified by its content alone — a line or a subordinate that changes."
+      }
+    },
+    "workloadDetail": {
+      "label": {
+        "help": "The resource role, then, under it, each task bearing one of its labour lines, ordered by start date, then in the order of the planning. The label of a task leads to its row in the planning grid of the revision the basis reads."
+      },
+      "rowNumber": {
+        "help": "The number of the row of the task in the planning grid, in the numbering of the whole structure."
+      },
+      "start": {
+        "help": "The start date of the task."
+      },
+      "finish": {
+        "help": "The finish date of the task."
+      },
+      "hours": {
+        "help": "The load of the role on the task, in hours: the sum of its labour lines of that role, two lines under the same task counting as one, computed by the server on the basis chosen. Blank for a role."
+      },
+      "month": {
+        "help": "The part of the load the server spreads over the month, in hours, on the basis and under the filter of the plan: for a role, the load the chart presents; for a task, its part. Blank for a month without load. The total of the month, at the foot, is the plan's."
       }
     }
   },

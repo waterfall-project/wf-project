@@ -2563,7 +2563,13 @@ colonne masquée. Le menu « Arbre » de
 la barre plie tout, déplie tout, ou plie jusqu'à un niveau. Une recherche ou un filtre qui retient
 une ligne pliée déplie ses ancêtres, une fois pour cette recherche. L'état plié se garde dans le
 stockage de session de l'onglet (`sessionStorage`), par grille et par révision, sans rien envoyer
-au serveur : le serveur rend l'arbre déplié, que le navigateur replie une fois hydraté.
+au serveur : le serveur rend l'arbre déplié, que le navigateur replie une fois hydraté. Une adresse
+du planning qui nomme une tâche (`task`, son `node_id`, `planning-target.ts`) — là où mène une
+tâche du détail du plan de charge (US-2040) — déplie, une fois hydratée, les lignes au-dessus d'elle
+depuis les plis que garde la session, et y pose la cellule active et le focus, une fois pour la
+grille montée : un tri ou une relecture de la même adresse ne vise plus rien. Un paramètre de
+l'écran, comme `structure` ou `depth`, jamais envoyé à l'API ; une tâche que la lecture ne tient pas
+ne vise rien.
 
 ### Les commandes
 
@@ -4651,7 +4657,10 @@ la garde et l'entrée ci-dessus :
   devis (`grid.spec.ts`), le bandeau sur les risques et sur une structure différentielle
   (`context.spec.ts`), les risques de `risks.spec.ts`, le retour au projet précédent de
   `navigation.spec.ts` ; le service ne charge ni provision ni risque, et sert à zéro ce qui en dépend.
-- **EP-10** — les indicateurs que filtre le bandeau (`BEFORE_THE_INDICATORS`) et ceux du projet.
+- **EP-10** — les indicateurs que filtre le bandeau (`BEFORE_THE_INDICATORS`) et ceux du projet ;
+  le lien d'une tâche du détail du plan de charge vers sa ligne dans la grille de planning
+  (`workload.spec.ts`, sans étiquette), que le service ne détaille pas avant US-2040/L2 (#3512) :
+  la grille du détail, ses rôles seuls, se joue déjà des deux côtés.
 - **EP-11** — l'ouverture, depuis `/`, du portefeuille de `navigation.spec.ts`.
 - **EP-13** — les volumes : le projet de 5 999 nœuds et ses marques (`NO_VOLUME_IN_SERVICE` de
   `revisions.spec.ts` et de `remaining.spec.ts`, l'ouverture et le défilement de la grille, ses fenêtres
