@@ -15,7 +15,16 @@ from typing import Any
 
 import pytest
 
-from wftools import mockcurves, mockdata, mockindicators, mockspending, mocktoday
+from wftools import (
+    mockcore,
+    mockcurves,
+    mockdata,
+    mockhistory,
+    mockindicators,
+    mockspending,
+    mocktoday,
+    mockwitness,
+)
 from wftools.mockcalendar import Calendar, Instant
 from wftools.mockids import universe
 from wftools.mockindicators import Flow
@@ -193,3 +202,40 @@ def test_the_amounts_round_an_exact_half_away_from_zero() -> None:
     half = replace(line, amounts=replace(line.amounts, budgeted=Decimal("0.005")))
     parts = mockspending.amounts_of(witness, half, "reference_budget", delays=False)
     assert list(parts.values()) == [Decimal("0.01")]
+
+
+def _rows_of(rows: list[mockcore.Row]) -> dict[str, int]:
+    return {str(row.node["node_id"]): int(str(row.node["row_number"])) for row in rows}
+
+
+@pytest.mark.parametrize(
+    ("name", "rows"),
+    [
+        ("workload", mockcore.current),
+        ("workload_reference_budget", mockhistory.reference_rows),
+        ("workload_marked_remaining", mockhistory.reference_rows),
+    ],
+)
+def test_a_task_of_the_detail_has_the_row_of_its_node_in_the_revision_the_plan_reads(
+    plans: dict[str, Node], name: str, rows: Any
+) -> None:
+    # The plan of the 101 numbers its tasks as the 101 does, which lacks the rows the 102 added
+    # (a provision, the tasks of risks): not a shift, the contract says so (#3584).
+    held = _rows_of(rows())
+    tasks = [task for role in plans[name]["roles"] for task in role["tasks"]]
+    assert tasks
+    assert all(task["row_number"] == held[task["node_id"]] for task in tasks)
+
+
+def test_a_task_of_the_detail_of_the_102_has_its_row_in_the_planning_examples() -> None:
+    found = mocktoday.examples()
+    planned = {
+        node["node_id"]: node["row_number"]
+        for state in mockwitness.fixture("startable_tasks").values()
+        for node in state
+    }
+    detail = json.loads(mockdata.render(found["workload.json"]))["value"]
+    tasks = [task for role in detail["roles"] for task in role["tasks"]]
+    shared = [task for task in tasks if task["node_id"] in planned]
+    assert shared
+    assert all(task["row_number"] == planned[task["node_id"]] for task in shared)

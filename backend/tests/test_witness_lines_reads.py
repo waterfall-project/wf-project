@@ -347,16 +347,17 @@ def summed_tasks(role: dict[str, Any]) -> dict[str, str]:
     return {month: str(sums[month]) for month in sorted(sums)}
 
 
-# The rows of the tasks of the detail of a plan, which the line of provision and the tasks the risks
-# originate shift (EP-08): compared apart, by ``rows_in_order``.
+# The rows of the tasks of the detail of a plan, which the nodes the witness lacks shift (one at the 102,
+# three at the 101; EP-08, #3584): compared apart, by ``rows_in_order``.
 ROWS = {"row_number"}
 
 
-def rows_in_order(body: dict[str, Any], expected: dict[str, Any]) -> bool:
+def rows_in_order(body: dict[str, Any], expected: dict[str, Any], lacking: int = 1) -> bool:
     """Tell whether the rows of the tasks of a plan are the example's, less the nodes it lacks.
 
-    Each row at most the example's, and in the same order: the witness lacks some nodes, never
-    holds one more, and the tasks keep their places.
+    Each row the example's or at most ``lacking`` less, and in the same order: the witness lacks
+    that many nodes (one at the 102, three at the 101), never holds one more, and the tasks keep
+    their places.
     """
     pairs = sorted(
         (theirs["row_number"], ours["row_number"])
@@ -364,7 +365,7 @@ def rows_in_order(body: dict[str, Any], expected: dict[str, Any]) -> bool:
         for ours, theirs in zip(mine["tasks"], yours["tasks"], strict=True)
     )
     rows = [ours for _, ours in pairs]
-    return rows == sorted(rows) and all(ours <= theirs for theirs, ours in pairs)
+    return rows == sorted(rows) and all(0 <= theirs - ours <= lacking for theirs, ours in pairs)
 
 
 def tasks_are_their_nodes(

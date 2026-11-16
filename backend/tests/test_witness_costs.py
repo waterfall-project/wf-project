@@ -464,7 +464,7 @@ def test_the_workload_of_the_marked_remaining_is_the_example_within_a_rounding_o
     aside = {"node_id", *ROWS}
     ours, theirs = by_role(without(body, aside)), by_role(without(expected, aside))
     assert deviations(ours, theirs, Decimal("0.02")) == set()
-    assert rows_in_order(body, expected)
+    assert rows_in_order(body, expected, lacking=3)
     tasks_are_their_nodes(api, witness, realm, body, REVISION_101)
     assert body["context"] == {**expected["context"], "computed_at": body["context"]["computed_at"]}
     assert zulu(body["context"]["computed_at"]) == expected["context"]["computed_at"]
