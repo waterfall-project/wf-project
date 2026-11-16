@@ -4,9 +4,11 @@
 
 A revision created in 2027 from one that carried 2026 (WF-REV-0060-A): the rate kept projected by
 the inflation of the project, the rate of the reference beside it, and the line priced at one or
-the other, from the fixture under ``fixtures/pricing``, on the pure module ``pricing``. The
-presentation, the refusal and the acceptance of an update are those of the API, which
-``test_rate_update.py`` replays on a database.
+the other, from the fixture under ``fixtures/pricing``, on ``projected_rate`` of ``keeping`` and
+the pure module ``pricing``. The year a revision carries, the presentation, the refusal, the
+acceptance of an update, its offer until it is marked and the keeping of the projected rate of a
+category without a rate of reference are those of the API, which ``test_rate_update.py`` replays
+on a database; this file cannot replay them.
 """
 
 from decimal import Decimal
@@ -14,12 +16,8 @@ from typing import TYPE_CHECKING, cast
 
 import pytest
 
-from waterfall.core.estimate.pricing import (
-    Share,
-    inflation_factor,
-    projected_amount,
-    unrounded_labour_amount,
-)
+from waterfall.core.estimate.keeping import projected_rate
+from waterfall.core.estimate.pricing import Share, projected_amount, unrounded_labour_amount
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -33,12 +31,9 @@ def _categories(data: Example) -> list[Category]:
 
 
 def _projected_rate(data: Example, previous: str) -> Decimal:
-    """Project a rate of the previous year to the year of the revision, to the cent."""
-    year = cast("int", data["reference_year"])
-    share = Share(year, Decimal(previous))
-    return projected_amount(
-        (share,), cast("int", data["previous_year"]), Decimal(cast("str", data["inflation_rate"]))
-    )
+    """Project a rate of the previous year to the year of the revision, as the revision does."""
+    years = cast("int", data["previous_year"]), cast("int", data["reference_year"])
+    return projected_rate(Decimal(previous), Decimal(cast("str", data["inflation_rate"])), years)
 
 
 def _priced_projected(data: Example, category: Category) -> Decimal:
@@ -56,16 +51,18 @@ def _line_priced_at(data: Example, rate: str) -> Decimal:
 
 
 @pytest.mark.requirement("WF-REV-0060-A")
-def test_a_revision_of_2027_over_one_of_2026_projects_the_rates_by_one_year_of_inflation(
+def test_one_year_of_inflation_projects_the_rates_of_2026_to_2027(
     example: Callable[[str], Example],
 ) -> None:
-    # « Une révision créée en 2027 porte l'année de référence 2027. » : one year elapses between
-    # the year the previous revision carried, 2026, and that of the new one.
+    # « Une révision créée en 2027 porte l'année de référence 2027. » This test proves only the
+    # projection of one year that follows, 65,00 to 66,95 and 60,00 to 61,80; that a revision
+    # created in 2027 carries 2027 is the attribution of the year, which ``test_rate_update.py``
+    # carries on a database.
     data = example("WF-REV-0060-A#e0a3eb570e51")
-    years = cast("int", data["previous_year"]), cast("int", data["reference_year"])
-    assert years == (2026, 2027)
-    rate = Decimal(cast("str", data["inflation_rate"]))
-    assert inflation_factor(rate, *years) == 1 + rate
+    projected = [
+        _projected_rate(data, cast("str", each["previous_rate"])) for each in _categories(data)
+    ]
+    assert projected == [Decimal("66.95"), Decimal("61.80")]
 
 
 @pytest.mark.requirement("WF-REV-0060-A")
@@ -108,14 +105,20 @@ def test_an_import_projects_the_rates_one_year_and_accepting_a_category_prices_i
 ) -> None:
     # « Une révision créée en 2027 par un import de reste à engager porte les taux de 2026
     # projetés d'une année ; la mise à jour catégorie par catégorie reste proposée jusqu'à son
-    # marquage, et l'accepter pour une catégorie la rechiffre au taux de 2027. » : the engineering
-    # goes from 669,50 to 700,00, the commissioning, which has no rate of 2027, stays at 618,00.
+    # marquage, et l'accepter pour une catégorie la rechiffre au taux de 2027. » : the whole
+    # import, every category, before and after the update; the engineering goes from 669,50 to
+    # 700,00, the commissioning stays at 618,00. That a category without a rate of 2027 keeps its
+    # projected rate, and that the update stays offered until the marking, are rules of the
+    # database, carried by ``test_rate_update.py``; the ``amount_updated`` of the fixture is what
+    # they give, and what this test compares the pricing to.
     data = example("WF-REV-0060-A#c49cb122efe3")
-    priced = {}
-    for each in _categories(data):
-        before = _priced_projected(data, each)
-        after = _line_priced_at(data, each["reference_rate"]) if each["reference_rate"] else before
-        priced[each["label"]] = (before, after)
+    priced = {
+        each["label"]: (
+            _priced_projected(data, each),
+            _line_priced_at(data, cast("str", each["reference_rate"] or each["projected_rate"])),
+        )
+        for each in _categories(data)
+    }
     assert priced == {
         "Ingénierie": (Decimal("669.50"), Decimal("700.00")),
         "Mise en service": (Decimal("618.00"), Decimal("618.00")),
@@ -129,10 +132,13 @@ def test_an_update_refused_at_the_creation_then_accepted_reprices_the_line_at_th
     example: Callable[[str], Example],
 ) -> None:
     # « Une mise à jour refusée à la création d'une révision est acceptée ensuite depuis la
-    # révision en cours, qui est alors rechiffrée au taux de 2027 pour cette catégorie. »
+    # révision en cours, qui est alors rechiffrée au taux de 2027 pour cette catégorie. » : the
+    # one category with a rate, the engineering, alone; the order of the refusal and of the later
+    # acceptance, and the revision in progress they act on, are carried by ``test_rate_update.py``.
     data = example("WF-REV-0060-A#964cab0bdd82")
     engineering = _categories(data)[0]
     refused = _priced_projected(data, engineering)
     accepted = _line_priced_at(data, cast("str", engineering["reference_rate"]))
-    assert (refused, accepted) == (Decimal("669.50"), Decimal("700.00"))
+    assert refused == Decimal(cast("str", engineering["amount_projected"]))
     assert accepted == Decimal(cast("str", engineering["amount_updated"]))
+    assert accepted > refused
