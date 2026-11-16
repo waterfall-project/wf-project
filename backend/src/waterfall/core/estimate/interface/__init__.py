@@ -362,6 +362,15 @@ from waterfall.core.estimate.loading import (
     LineLoad as LineLoad,
 )
 
+# ``parting`` (US-2040/L2): the parts of a line by month, rounded to sum to its total, which the
+# plan of workload, its detail and the projection of spending (US-2050) sum.
+from waterfall.core.estimate.parting import (
+    rounded_parts as rounded_parts,
+)
+from waterfall.core.estimate.parting import (
+    summed_parts as summed_parts,
+)
+
 # ``pricing`` (US-1690/L1): the rounding to the cent, the only one of an amount, which EP-10 reads.
 from waterfall.core.estimate.pricing import (
     round_to_cent as round_to_cent,
@@ -380,7 +389,14 @@ from waterfall.core.estimate.repricing import (
     reprice_after_rate as reprice_after_rate,
 )
 
-# ``spreading`` (US-1520/L1): the line the planned value is computed on, which EP-10 reads.
+# ``spreading`` (US-1520/L1; US-2040/L2): the line the planned value is computed on, which EP-10
+# reads; the rounding of the hours and of the amounts, once, from the exact value.
+from waterfall.core.estimate.spreading import (
+    HOURS as HOURS,
+)
+from waterfall.core.estimate.spreading import (
+    MONEY as MONEY,
+)
 from waterfall.core.estimate.spreading import (
     Month as Month,
 )
@@ -391,15 +407,21 @@ from waterfall.core.estimate.spreading import (
     PlannedLine as PlannedLine,
 )
 from waterfall.core.estimate.spreading import (
+    Rounding as Rounding,
+)
+from waterfall.core.estimate.spreading import (
     spread_by_month as spread_by_month,
 )
 
-# ``workloading`` (US-1520): what a plan of workload is asked and gives.
+# ``workloading`` (US-1520; US-2040/L2): what a plan of workload is asked and gives, and its detail.
 from waterfall.core.estimate.workloading import (
     RoleLoad as RoleLoad,
 )
 from waterfall.core.estimate.workloading import (
     RoleMonth as RoleMonth,
+)
+from waterfall.core.estimate.workloading import (
+    TaskLoad as TaskLoad,
 )
 from waterfall.core.estimate.workloading import (
     WorkloadAsked as WorkloadAsked,

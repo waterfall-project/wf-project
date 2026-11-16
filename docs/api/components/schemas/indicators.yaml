@@ -565,7 +565,11 @@ WorkloadTask:
     row_number:
       type: integer
       minimum: 1
-      description: The row of the task in the numbering of the whole structure, as `Node.row_number`.
+      description: >-
+        The row of the task in the numbering of the whole structure, as `Node.row_number`, in
+        the structure of the revision the plan reads (`context.revision_id`): the plan of a
+        marked basis numbers its tasks as that marked revision does, which lacks the rows the
+        revision in progress added since (a provision, the tasks a risk originates).
     label: { type: string }
     start: { $ref: ../common.yaml#/WorkInstant }
     finish: { $ref: ../common.yaml#/WorkInstant }
@@ -602,8 +606,9 @@ SpendingProjection:
     is never negative and the parts sum to the amount of the line, rounded. Every amount of the
     projection — a category, a cost type, a month, the total — is a sum of parts already rounded,
     summed by the service, which the front does not sum (WF-ARC-0020): the total of each month
-    equals the sum of the cost types that month, that of each cost type the sum of its categories. Computed when read, never stored: `context.is_stored` is
-    false, on a marked revision too (#3182); `context.scope` names the scope (`subproject_id`).
+    equals the sum of the cost types that month, that of each cost type the sum of its categories.
+    Computed when read, never stored: `context.is_stored` is false, on a marked revision too
+    (#3182); `context.scope` names the scope (`subproject_id`).
   properties:
     context: { $ref: '#/CalculationContext' }
     basis:

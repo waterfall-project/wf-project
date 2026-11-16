@@ -64,6 +64,18 @@ def spread_by_month(
     return _spread(placement, amount, as_of, _month_of, _months)
 
 
+def exact_by_month(
+    placement: Placement, amount: Decimal, *, as_of: date | None = None
+) -> dict[Month, Fraction]:
+    """Share an amount among the months of a task, exactly, in the order of the months.
+
+    The fractions ``spread_by_month`` rounds to ten decimals, which add up to the amount exactly: a
+    caller that rounds a cumulated of them rounds it once (``parting``).
+    """
+    weights = _weights(placement, as_of, _month_of, _months)
+    return {month: Fraction(amount) * weight for month, weight in weights}
+
+
 def spread_by_year(
     placement: Placement, amount: Decimal, *, as_of: date | None = None
 ) -> dict[int, Decimal]:
@@ -105,22 +117,32 @@ def _spread[K](
     key: Callable[[date], K],
     starts: Callable[[date, date], Iterator[date]],
 ) -> dict[K, Decimal]:
+    return _shares(amount, _weights(placement, as_of, key, starts))
+
+
+def _weights[K](
+    placement: Placement,
+    as_of: date | None,
+    key: Callable[[date], K],
+    starts: Callable[[date, date], Iterator[date]],
+) -> list[tuple[K, Fraction]]:
+    """Give the periods a task works in, in their order, each with its share of the hours, exact."""
     start, finish = placement.start, placement.finish
     if as_of is not None:
         cut = WorkInstant(as_of)
         if finish <= cut:
-            return {key(as_of): amount}
+            return [(key(as_of), Fraction(1))]
         start = max(start, cut)
     week = placement.week
     total = week.worked(finish) - week.worked(start)
     if total == 0:
         # No hour worked: the whole falls where the task ends (a milestone: where it stands).
-        return {key(finish.day): amount}
+        return [(key(finish.day), Fraction(1))]
     firsts = list(starts(start.day, finish.day))
     edges = [week.worked(min(max(WorkInstant(first), start), finish)) for first in firsts]
     edges.append(week.worked(finish))
     hours = [(key(first), edges[i + 1] - edges[i]) for i, first in enumerate(firsts)]
-    return _shares(amount, total, [(period, worked) for period, worked in hours if worked > 0])
+    return [(period, worked / total) for period, worked in hours if worked > 0]
 
 
 DECIMALS = 10
@@ -135,16 +157,13 @@ def _rounded(share: Fraction) -> Decimal:
     return Decimal(quotient if share >= 0 else -quotient).scaleb(-DECIMALS)
 
 
-def _shares[K](
-    amount: Decimal, total: Fraction, hours: list[tuple[K, Fraction]]
-) -> dict[K, Decimal]:
+def _shares[K](amount: Decimal, weights: list[tuple[K, Fraction]]) -> dict[K, Decimal]:
     """Divide an amount in proportion to the hours; the last part is what the others leave."""
     parts: dict[K, Decimal] = {}
     left = amount
-    for period, worked in hours[:-1]:
-        share = Fraction(amount) * worked / total
-        part = _rounded(share)
+    for period, weight in weights[:-1]:
+        part = _rounded(Fraction(amount) * weight)
         parts[period] = part
         left = EXACT.subtract(left, part)
-    parts[hours[-1][0]] = left
+    parts[weights[-1][0]] = left
     return parts

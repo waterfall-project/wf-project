@@ -16,6 +16,7 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import TYPE_CHECKING
 
+from waterfall.core.estimate.spreading.rounding import MONEY
 from waterfall.core.planning.interface import WorkInstant
 
 if TYPE_CHECKING:
@@ -33,36 +34,17 @@ class PlannedLine:
 
 
 def planned_value(lines: Iterable[PlannedLine], at: date) -> Decimal:
-    """Return the planned value at the end of a day, rounded once to the cent."""
-    end = WorkInstant(at + timedelta(days=1))
-    total = Fraction(0)
-    for line in lines:
-        total += Fraction(line.amount) * _earned(line, end)
-    return _to_cent(total)
+    """Return the planned value at the end of a day: the sum of the shares of the lines.
 
-
-def planned_value_by_line(lines: Iterable[PlannedLine], at: date) -> Decimal:
-    """Return the planned value at the end of a day as the sum of the shares of the lines.
-
-    Each line is rounded to the cent on its own share, so that the planned value of any set of
-    lines is exactly the sum of those of its parts (WF-IND-0020-A): the scopes of a project sum to
-    the project. It may differ by a cent from ``planned_value``, which rounds the sum once.
+    The share of each line is rounded once to the cent from its exact value, a half away from nought
+    (``MONEY``), so that the planned value of any set of lines is exactly the sum of those of its
+    parts (WF-IND-0020-A), and that of a line at the end of a month the sum of its parts rounded up
+    to that month (``parting``). EP-07 and the indicators of EP-10 read it alike (#3566).
     """
     end = WorkInstant(at + timedelta(days=1))
     return sum(
-        (_to_cent(Fraction(line.amount) * _earned(line, end)) for line in lines), Decimal("0.00")
+        (MONEY.of(Fraction(line.amount) * _earned(line, end)) for line in lines), Decimal("0.00")
     )
-
-
-def _to_cent(total: Fraction) -> Decimal:
-    """Round an exact sum once to the cent, half away from zero, as ``Money`` does (#2773).
-
-    The rounding of ``pricing.round_to_cent`` (#2618), on the exact fraction rather than on a
-    decimal that would round it first; ``scaleb`` keeps the two decimals.
-    """
-    cents = abs(total) * 100
-    whole = (2 * cents.numerator + cents.denominator) // (2 * cents.denominator)
-    return Decimal(whole if total >= 0 else -whole).scaleb(-2)
 
 
 def _earned(line: PlannedLine, end: WorkInstant) -> Fraction:

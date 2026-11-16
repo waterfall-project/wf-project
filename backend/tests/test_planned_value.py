@@ -72,13 +72,15 @@ def test_a_line_of_a_milestone_counts_whole_on_its_date_and_not_before() -> None
 
 
 @pytest.mark.requirement("WF-DEV-0080-A")
-def test_the_lines_add_up_and_the_sum_is_rounded_once_to_the_cent() -> None:
-    # The planned value totals the budget exactly at the end (reason of the requirement).
+def test_the_lines_add_up_each_rounded_to_the_cent_and_total_the_budget_at_the_end() -> None:
+    # The planned value totals the budget exactly at the end (reason of the requirement); before,
+    # it is the sum of the shares of the lines, each rounded to the cent (#3566): three thirds of
+    # 10.00 make 9.99 at the end of the first day, not the 10.00 of one rounding of their sum.
     lines = [line(1, date(2026, 3, 2), date(2026, 3, 6))] * 3
     assert planned_value(lines, date(2026, 3, 4)) == Decimal("1.80")
-    assert planned_value(
-        [line(10, date(2026, 3, 2), date(2026, 3, 4))] * 3, date(2026, 3, 2)
-    ) == Decimal(10)
+    thirds = [line(10, date(2026, 3, 2), date(2026, 3, 4))] * 3
+    assert planned_value(thirds, date(2026, 3, 2)) == Decimal("9.99")
+    assert planned_value(thirds, date(2026, 3, 4)) == Decimal(30)
 
 
 @pytest.mark.requirement("WF-DEV-0080-A")
@@ -102,15 +104,15 @@ def test_without_lines_the_planned_value_is_nil() -> None:
 
 
 @pytest.mark.requirement("WF-DEV-0080-A")
-def test_the_sum_is_rounded_once_from_the_exact_total_not_from_a_quotient() -> None:
+def test_a_share_is_rounded_once_from_its_exact_value_not_from_a_quotient() -> None:
     # Just under a cent and a half, past the 28 digits of a quotient: rounded in two steps it would
-    # reach 0.015 and then the even 0.02; rounded once it is 0.01.
+    # reach 0.015 and then the even 0.02; rounded once it is 0.01. A third of 1.00 is 0.33.
     just_under = Decimal("0.014999999999999999999999999999999")
     day = WorkInstant(date(2026, 3, 2))
     lines = [PlannedLine(just_under, Placement(EIGHT_HOURS, day, day))]
     assert planned_value(lines, date(2026, 3, 2)) == Decimal("0.01")
     third = [line(1, date(2026, 3, 2), date(2026, 3, 4))] * 3
-    assert planned_value(third, date(2026, 3, 2)) == Decimal(1)
+    assert planned_value(third, date(2026, 3, 2)) == Decimal("0.99")
 
 
 @pytest.mark.requirement("WF-DEV-0080-A")

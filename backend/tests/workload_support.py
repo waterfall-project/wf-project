@@ -10,14 +10,17 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from estimate_support import Costing, Lines, add_role, costing
 from nodes_support import Tree, mark, opened
+from project_rows import STAMP
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
+from sqlalchemy import insert, select, update
 
 from waterfall.core.estimate.interface import planned_value
+from waterfall.core.resource_settings.tables import OrgNode, ResourceRole
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -123,3 +126,46 @@ def day_setter(monkeypatch: pytest.MonkeyPatch) -> Clock:
         monkeypatch.setattr("nodes_support.utc_now", lambda: now)
 
     return set_day
+
+
+@dataclass(frozen=True)
+class Below:
+    """The node of the roles of the scene, a node under it, and a role attached to that one."""
+
+    parent: UUID
+    child: UUID
+    fitter: UUID
+
+
+def make_below(site: Site) -> Below:
+    """Give a node under the one the roles of the scene belong to, and a role that belongs to it."""
+    child, fitter = uuid4(), uuid4()
+    with site.stage.owner.begin() as connection:
+        held = connection.execute(
+            select(
+                ResourceRole.org_node_id, ResourceRole.cost_category_id, ResourceRole.calendar_id
+            ).where(ResourceRole.code == "ING")
+        ).one()
+        connection.execute(
+            insert(OrgNode).values(
+                id=child, code="SUB", label="Atelier", parent_id=held[0], is_active=True, **STAMP
+            )
+        )
+        connection.execute(
+            insert(ResourceRole).values(
+                id=fitter,
+                code="SUB",
+                label="Monteur",
+                org_node_id=child,
+                cost_category_id=held[1],
+                calendar_id=held[2],
+                monthly_hours=Decimal(100),
+                headcount=Decimal(1),
+                is_active=True,
+                **STAMP,
+            )
+        )
+        connection.execute(
+            update(ResourceRole).where(ResourceRole.id == site.worker).values(org_node_id=held[0])
+        )
+    return Below(held[0], child, fitter)
