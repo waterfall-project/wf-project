@@ -3,7 +3,8 @@
 """The API process: it states its version, refuses to start without its secrets, and serves."""
 
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
+from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI
@@ -11,6 +12,10 @@ from fastapi import FastAPI
 import waterfall
 from waterfall import bootstrap
 from waterfall.api import main as api_main
+from waterfall.platform.cache import PREFIX, IndicatorsCache
+
+if TYPE_CHECKING:
+    from waterfall.api.authentication import Services
 
 
 def test_the_version_is_stated_without_starting_anything(
@@ -87,3 +92,55 @@ def test_the_bootstrap_without_its_settings_returns_failure_and_names_them(
     assert captured.out == ""
     for variable in missing:
         assert f"{variable}: is missing" in captured.err
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+@pytest.mark.usefixtures("platform_environment", "logs")
+def test_the_validity_the_environment_sets_is_that_of_an_entry_and_the_cache_closes_at_the_end(
+    monkeypatch: pytest.MonkeyPatch, redis_url: str
+) -> None:
+    # Propre à l'US : la durée de validité est `WATERFALL_INDICATORS_CACHE_TTL`, lue par les
+    # réglages de l'API : from the variable to the `ex` of the entry the cache of the process
+    # writes; its pool, its own, is released when the service stops (#3547).
+    monkeypatch.setenv("WATERFALL_REDIS_URL", redis_url)
+    monkeypatch.setenv("WATERFALL_INDICATORS_CACHE_TTL", "137")
+    key = f"{uuid4()}:{uuid4().hex}"
+    validity: list[int] = []
+    closed: list[IndicatorsCache] = []
+    close = IndicatorsCache.close
+
+    def closing(cache: IndicatorsCache) -> None:
+        closed.append(cache)
+        close(cache)
+
+    def serve(app: FastAPI, **_: Any) -> None:
+        cache = cast("Services", app.state.services).indicators_cache
+        assert cache is not None
+        cache.write(key, "{}")
+        validity.append(int(str(cache.client.ttl(PREFIX + key))))
+        cache.client.delete(PREFIX + key)
+
+    monkeypatch.setattr(api_main.uvicorn, "run", serve)
+    monkeypatch.setattr(IndicatorsCache, "close", closing)
+    assert api_main.main([]) == 0
+    (seconds,) = validity
+    assert 130 < seconds <= 137
+    assert len(closed) == 1
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+@pytest.mark.usefixtures("platform_environment")
+@pytest.mark.parametrize("value", ["0", "-5", "dix"])
+def test_a_validity_that_is_not_a_whole_number_above_zero_stops_the_start(
+    value: str, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The validity of an entry is a whole number of seconds above zero: anything else is refused
+    # at the start, the variable named, before anything is reached (#3547).
+    monkeypatch.setenv("WATERFALL_INDICATORS_CACHE_TTL", value)
+
+    def serve(*_: Any, **__: Any) -> None:
+        pytest.fail("the service started")
+
+    monkeypatch.setattr(api_main.uvicorn, "run", serve)
+    assert api_main.main([]) == 2
+    assert "WATERFALL_INDICATORS_CACHE_TTL" in capsys.readouterr().err

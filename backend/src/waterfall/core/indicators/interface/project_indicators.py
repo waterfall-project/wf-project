@@ -19,10 +19,13 @@ On the current day — no revision named, or the current one —, the indicators
 current revision, or, without one, on the last marked revision with the actual cost of the day
 (WF-IND-0010), ``is_stored`` false; the day is that of the time zone of the installation
 (``current_day``, US-2200), the instant of the reading its ``computed_at``. The reference is the
-project's, read now. One pass reads what every scope needs (``day_documents``).
+project's, read now. One pass reads what every scope needs (``day_documents``). Given the cache of
+the process, the indicators of the day are read in its entry for the key of the project, which
+one pass computes for every scope when it is not kept, its ``computed_at`` that of the reading
+that computed it (``caching``, US-1720/L2); a marked revision is read as its marking kept it.
 
 Declared by US-1660/L1, the socle of EP-10; filled by US-1660/L3 for the current day, by US-1670/L2
-for a marking kept.
+for a marking kept; the cache, by US-1720/L2.
 """
 
 from dataclasses import dataclass
@@ -31,6 +34,7 @@ from uuid import UUID
 
 from waterfall.core.cost_settings.interface import read_reference_settings
 from waterfall.core.costs.interface import PROJECT
+from waterfall.core.indicators.caching import cached_scopes
 from waterfall.core.indicators.computing import Basis, day_documents
 from waterfall.core.indicators.interface.reading import IndicatorsReading
 from waterfall.core.indicators.interface.stored_documents import (
@@ -53,13 +57,16 @@ from waterfall.platform.errors import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
     from datetime import datetime
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.costs.interface import CostScope
     from waterfall.core.indicators.interface.documents import Document
     from waterfall.core.projects.interface import ProjectFacts
     from waterfall.core.revisions.interface import RevisionRead
+    from waterfall.platform.cache import IndicatorsCache
 
 IN_PROGRESS = "in_progress"
 # The states a project reaches only through In progress; ``abandoned`` may come before or after it.
@@ -176,12 +183,37 @@ def current_day_reading(session: Session, project_id: UUID, at: datetime) -> Day
     return _reading_of(session, project_id, facts, IndicatorsReading(PROJECT, at), None)
 
 
-def project_indicators(session: Session, project_id: UUID, asked: IndicatorsReading) -> Document:
-    """Give the indicators of a project on the scope and for the revision a reading asks."""
+def day_indicators(
+    session: Session,
+    reading: DayReading,
+    scopes: Collection[CostScope],
+    cache: IndicatorsCache | None,
+) -> dict[CostScope, Document]:
+    """Give the indicators of the day of the scopes given, zones null: from the cache if given.
+
+    Without a cache, only the scopes given are computed (US-1720/L2).
+    """
+    basis, context = reading.basis, reading.context
+    if cache is None:
+        return day_documents(session, basis, context, scopes)
+    found = cached_scopes(session, basis, context, scopes, cache)
+    return {scope: entry["project"] for scope, entry in found.items()}
+
+
+def project_indicators(
+    session: Session,
+    project_id: UUID,
+    asked: IndicatorsReading,
+    cache: IndicatorsCache | None = None,
+) -> Document:
+    """Give the indicators of a project on the scope and for the revision a reading asks.
+
+    Those of the current day are read in ``cache`` when one is given; a marked revision never is.
+    """
     reading = day_reading(session, project_id, asked)
     if reading is None:
         document = _kept_indicators(session, project_id, asked)
     else:
         scope = asked.scope
-        document = day_documents(session, reading.basis, reading.context, (scope,))[scope]
+        document = day_indicators(session, reading, (scope,), cache)[scope]
     return classified(document, read_reference_settings(session).index_thresholds)

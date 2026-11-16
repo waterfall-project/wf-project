@@ -10,6 +10,7 @@ import uvicorn
 from waterfall import __version__
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.platform.cache import IndicatorsCache
 from waterfall.platform.database import Database, create_database_engine
 from waterfall.platform.installation import TIME_ZONE, stored_in
 from waterfall.platform.keycloak import Keycloak
@@ -58,7 +59,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=DEPOSIT_TIMEOUT)
     administration = KeycloakAdmin(keycloak, settings)
     backups = Bucket.of_backups(settings)
-    services = Services(database, keycloak, administration, queue, backups, Maintenance.of(queue))
+    # The cache of the indicators of the day, in the Redis of the queue, its entries valid for the
+    # time the settings read (WATERFALL_INDICATORS_CACHE_TTL); its pool is its own (US-1720/L2).
+    cache = IndicatorsCache.of(queue, settings.indicators_cache_ttl)
+    services = Services(
+        database, keycloak, administration, queue, backups, Maintenance.of(queue), cache
+    )
     try:
         uvicorn.run(
             create_app(services),
@@ -68,6 +74,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             access_log=False,
         )
     finally:
+        cache.close()
         queue.close()
         keycloak.close()
         database.dispose()

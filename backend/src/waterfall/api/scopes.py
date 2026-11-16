@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from waterfall.core.costs.interface import PROJECT, UNASSIGNED, CostScope
-from waterfall.core.indicators.interface import kept_any, stored_document
+from waterfall.core.indicators.interface import kept_of_kind
 from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 from waterfall.platform.identifiers import read_identifier
 
@@ -51,7 +51,7 @@ def kept_document(
     does not know that scope: refused (422), as a scope the project does not have. None when the
     revision kept nothing of the kind, marked before the indicators were kept: the caller decides.
     """
-    kept = stored_document(session, revision_id, kind, scope)
-    if kept is None and kept_any(session, revision_id, kind):
+    kept = kept_of_kind(session, revision_id, kind, scope)
+    if kept.document is None and kept.kind_kept:
         raise unknown_scope()
-    return kept
+    return kept.document

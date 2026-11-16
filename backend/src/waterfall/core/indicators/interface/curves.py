@@ -6,13 +6,15 @@ The cumulative costs — the reference budget, the actual cost, the projection o
 manager —, with or without the payment delays, which give the cash-out (WF-IND-0100); the planned
 value, the earned value and the actual cost (WF-IND-0110): one point by end of month, the date of
 the computation a point besides. Computed on the current day (US-1690/L2), or read as a marking
-kept them (US-1690/L3).
+kept them (US-1690/L3). Given the cache of the process, the curves of the day are read in its
+entry for the key of the project (US-1720/L2).
 
 Declared by US-1660/L1, the socle of EP-10; filled by US-1690/L2 for the current day.
 """
 
 from typing import TYPE_CHECKING
 
+from waterfall.core.indicators.caching import cached_scopes
 from waterfall.core.indicators.curving import (
     cost_curve_document,
     earned_value_curves_document,
@@ -28,10 +30,9 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-    from waterfall.core.indicators.curving import CurveReading
     from waterfall.core.indicators.interface.documents import Document, IndicatorKind
     from waterfall.core.indicators.interface.reading import IndicatorsReading
-    from waterfall.core.indicators.shaping import Context
+    from waterfall.platform.cache import IndicatorsCache
 
 
 def _kept_curves(
@@ -49,22 +50,38 @@ def _kept_curves(
     return found
 
 
-def _read(
-    session: Session, project_id: UUID, asked: IndicatorsReading
-) -> tuple[Context, CurveReading] | None:
-    """Refuse as ``getProjectIndicators`` does, then read what the curves of the day are drawn from.
+def _day_curve(
+    session: Session,
+    project_id: UUID,
+    asked: IndicatorsReading,
+    kind: IndicatorKind,
+    cache: IndicatorsCache | None,
+) -> Document:
+    """Give a curve of a kind on the scope a reading asks: of the day, or as a marking kept it.
 
-    None when the reading asks a marked revision or a date, which a marking kept.
+    The refusals are those of ``getProjectIndicators``. The curve of the day is read in ``cache``
+    when one is given (US-1720/L2), drawn on the current revision, or on the last marked one
+    without it; a marked revision named, or a date, reads what its marking kept.
     """
     found = day_reading(session, project_id, asked)
     if found is None:
-        return None
-    day = current_day(found.context.computed_at)
-    return found.context, read_curves(session, found.basis, day, asked.scope)
+        return _kept_curves(session, project_id, asked, kind)
+    basis, context, scope = found.basis, found.context, asked.scope
+    if cache is not None:
+        return cached_scopes(session, basis, context, (scope,), cache)[scope][kind]
+    reading = read_curves(session, basis, current_day(context.computed_at), scope)
+    if kind == "earned_value_curves":
+        return earned_value_curves_document(reading, context)
+    return cost_curve_document(reading, context, payment_delays=kind != "cost_curve")
 
 
 def cost_curve(
-    session: Session, project_id: UUID, asked: IndicatorsReading, *, payment_delays: bool
+    session: Session,
+    project_id: UUID,
+    asked: IndicatorsReading,
+    *,
+    payment_delays: bool,
+    cache: IndicatorsCache | None = None,
 ) -> Document:
     """Give the cumulative costs of a project on a scope, shifted by the payment delays or not.
 
@@ -72,20 +89,19 @@ def cost_curve(
     manager; computed on the current revision, or on the last marked one without it, the refusals
     those of ``project_indicators`` (WF-IND-0100).
     """
-    read = _read(session, project_id, asked)
-    if read is None:
-        kind = "cost_curve_payment_delays" if payment_delays else "cost_curve"
-        return _kept_curves(session, project_id, asked, kind)
-    return cost_curve_document(read[1], read[0], payment_delays=payment_delays)
+    kind: IndicatorKind = "cost_curve_payment_delays" if payment_delays else "cost_curve"
+    return _day_curve(session, project_id, asked, kind, cache)
 
 
-def earned_value_curves(session: Session, project_id: UUID, asked: IndicatorsReading) -> Document:
+def earned_value_curves(
+    session: Session,
+    project_id: UUID,
+    asked: IndicatorsReading,
+    cache: IndicatorsCache | None = None,
+) -> Document:
     """Give the planned value, the earned value and the actual cost of a project on a scope.
 
     Computed on the current revision, or on the last marked one without it, the refusals those of
     ``project_indicators`` (WF-IND-0110).
     """
-    read = _read(session, project_id, asked)
-    if read is None:
-        return _kept_curves(session, project_id, asked, "earned_value_curves")
-    return earned_value_curves_document(read[1], read[0])
+    return _day_curve(session, project_id, asked, "earned_value_curves", cache)

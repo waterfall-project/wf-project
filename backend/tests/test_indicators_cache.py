@@ -16,7 +16,7 @@ import redis
 from redis.exceptions import ResponseError
 from structlog.testing import capture_logs
 
-from waterfall.platform.cache import PREFIX, IndicatorsCache, forget_reports
+from waterfall.platform.cache import PREFIX, UNAVAILABLE, IndicatorsCache, forget_reports
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.settings import load_settings
 
@@ -136,6 +136,14 @@ def test_a_redis_that_answers_nowhere_reads_as_none_and_ignores_a_write(
 ) -> None:
     unreachable.write(key, "{}")
     assert unreachable.read(key) is None
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+def test_a_lookup_tells_an_entry_absent_from_a_redis_that_answers_nowhere(
+    unreachable: IndicatorsCache, indicators: IndicatorsCache, key: str
+) -> None:
+    assert unreachable.lookup(key) is UNAVAILABLE
+    assert indicators.lookup(key) is None
 
 
 @pytest.mark.requirement("WF-DAT-0130-A")
