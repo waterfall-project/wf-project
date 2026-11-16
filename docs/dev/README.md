@@ -4851,7 +4851,9 @@ beside an API that answered is not a download that never was: a step under load 
 request the router cut short (a prefetch a navigation takes over, which Playwright reports as
 failed) or whose sizes never came, and its bytes are unknown. Such a request is marked
 `weighed: false`, the step counts it (`unweighed`), the weight of its sample stays out of the
-statistic — its times stay —, and the log of the run says how many samples were left out; a step
+statistic — its times stay —, and the log of the run says how many samples were left out. The report of the step carries that number (`unweighed`)
+and gives `bytes` as `null` when no sample has a weight: neither a 0 read as a download that never
+was, nor silence. A step
 served from the router's cache, without a request, has no API time either. The
 journey is played by one,
 four and eight users at once (`MEASURE_USERS`, which always names `1`: only a user alone fails the measure), an account each, each in its own browser context,

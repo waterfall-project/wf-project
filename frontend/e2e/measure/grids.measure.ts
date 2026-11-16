@@ -176,12 +176,15 @@ interface Member {
 /** A line of the log of the run: a step at a level, its medians. */
 function logged(level: LevelReport): void {
   for (const [step, report] of Object.entries(level.steps)) {
-    const kib = Math.round(report.bytes.median / 1024).toString();
+    const kib =
+      report.bytes === null
+        ? "weight unknown"
+        : `${String(Math.round(report.bytes.median / 1024))} KiB`;
     console.log(
       `${String(level.users)} user(s), ${step}: usable ${String(report.usable_ms.median)} ms` +
         ` (worst ${String(report.usable_ms.worst)}, spread ${String(report.usable_ms.spread ?? "none")});` +
         ` API ${String(report.api_ms.median)}, Next ${String(report.next_ms.median)},` +
-        ` browser ${String(report.browser_ms.median)}; ${kib} KiB;` +
+        ` browser ${String(report.browser_ms.median)}; ${kib};` +
         ` ${String(report.incomplete)} incomplete`,
     );
   }

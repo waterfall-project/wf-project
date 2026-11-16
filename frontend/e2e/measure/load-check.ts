@@ -16,14 +16,14 @@ export interface LoadSummary {
   readonly gestures: number;
   readonly reads: number;
   /**
-   * The readings the marking refuses (409 `STATE_FORBIDS_OPERATION`): the workload of a project left
-   * without a current revision once its revision is marked.
+   * The readings the marking refuses (409 `STATE_FORBIDS_OPERATION`): the workload of a project
+   * left without a current revision once its revision is marked.
    */
   readonly reads_frozen: number;
   /** The readings a screen did not get a full answer to, otherwise. */
   readonly reads_refused: number;
   readonly writes: number;
-  /** The entries refused on a revision the measure has marked (409, the state's): the marking's doing. */
+  /** The entries refused on a revision the measure has marked (409, the state's): its doing. */
   readonly writes_frozen: number;
   /** The entries refused otherwise. */
   readonly writes_refused: number;
@@ -51,8 +51,8 @@ export interface LoadRun {
 /** The share of the readings, or of the entries, that may be refused before the load is void. */
 export const REFUSED_TOLERANCE = 0.01;
 /**
- * The share of the entries, and of the readings, beside the share of the duration the revision stood
- * frozen, that may be refused as frozen: the gestures of a user fall at random in time.
+ * The share of the entries, and of the readings, beside the share of the duration the revision
+ * stood frozen, that may be refused as frozen: the gestures of a user fall at random in time.
  */
 export const FROZEN_SLACK = 0.1;
 /** The mean pause between two gestures of a user, in seconds (`bench/draw.ts`). */

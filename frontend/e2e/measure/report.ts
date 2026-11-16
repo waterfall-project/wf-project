@@ -323,7 +323,16 @@ export interface StepReport {
   readonly api_ms: Statistic;
   readonly next_ms: Statistic;
   readonly browser_ms: Statistic;
-  readonly bytes: Statistic;
+  /**
+   * What Next sent, over the samples whose bytes are all known; `null` when none is, which says
+   * nothing of the weight and is not the 0 of a download that never was.
+   */
+  readonly bytes: Statistic | null;
+  /**
+   * How many samples of the step waited for a request whose bytes are unknown, and are left out of
+   * `bytes`: when any, `bytes` rests on fewer samples than `samples`, and may understate.
+   */
+  readonly unweighed: number;
   readonly api_requests: Statistic;
 }
 
@@ -369,7 +378,10 @@ export function stepReports(
         api_ms: statistic("api"),
         next_ms: statistic("next"),
         browser_ms: statistic("browser"),
-        bytes: statistic("bytes"),
+        bytes: own.some((sample) => sample.parts !== undefined && weighs(sample.parts, "bytes"))
+          ? statistic("bytes")
+          : null,
+        unweighed: own.filter((sample) => (sample.parts?.unweighed ?? 0) > 0).length,
         api_requests: statistic("apiRequests"),
       };
       return [step, report];

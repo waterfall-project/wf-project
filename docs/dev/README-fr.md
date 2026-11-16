@@ -4954,7 +4954,9 @@ charge, une étape attend une requête que le routeur a coupée (un préchargeme
 reprend, que Playwright dit échoué) ou dont les tailles ne sont jamais venues, et ses octets sont
 inconnus. Une telle requête est marquée `weighed: false`, l'étape la compte (`unweighed`), le poids
 de son échantillon reste hors de la statistique — ses temps restent — et le journal du passage dit
-combien d'échantillons ont été écartés ; une étape servie par le cache du routeur, sans requête,
+combien d'échantillons ont été écartés. Le rapport de l'étape porte ce nombre (`unweighed`) et
+rend `bytes` à `null` quand aucun échantillon n'a de poids : ni un 0 qui se lirait comme un
+téléchargement qui n'a pas eu lieu, ni un silence. Une étape servie par le cache du routeur, sans requête,
 n'a pas non plus de temps d'API. Le
 parcours se
 joue à un, quatre et huit utilisateurs à la fois (`MEASURE_USERS`, qui nomme toujours `1` : seul un utilisateur seul fait échouer la mesure), un compte chacun, chacun dans

@@ -323,6 +323,43 @@ describe("stepReports", () => {
   });
 });
 
+describe("stepReports, bytes unknown", () => {
+  const parts = (unweighed: number, bytes: number) => ({
+    usable: 100,
+    api: 50,
+    next: 25,
+    browser: 25,
+    bytes,
+    unweighed,
+    apiRequests: 1,
+  });
+
+  it("gives no weight, neither 0 nor silence, when every sample waited for unknown bytes", () => {
+    const { open } = stepReports(
+      ["open"],
+      [
+        { step: "open", pass: 0, parts: parts(1, 0) },
+        { step: "open", pass: 1, parts: parts(2, 300) },
+      ],
+      2,
+    );
+    expect(open).toMatchObject({ samples: 2, unweighed: 2, bytes: null });
+    expect(open?.usable_ms.median).toBe(100);
+  });
+
+  it("counts the samples left out of the weight of the others", () => {
+    const { open } = stepReports(
+      ["open"],
+      [
+        { step: "open", pass: 0, parts: parts(0, 1_000) },
+        { step: "open", pass: 1, parts: parts(1, 0) },
+      ],
+      2,
+    );
+    expect(open).toMatchObject({ samples: 2, unweighed: 1, bytes: { median: 1_000 } });
+  });
+});
+
 describe("brokenSteps", () => {
   /** A level whose users completed each step in the one pass but where `missed` says. */
   const level = (users: number, missed: readonly string[]): LevelReport => {

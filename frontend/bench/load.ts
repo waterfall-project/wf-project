@@ -22,8 +22,8 @@
  * summary, beside the file it read (`summary.json`): the gestures made, the readings and the
  * entries refused — apart those the marking of the revision refuses (409 `STATE_FORBIDS_OPERATION`:
  * an entry on the revision marked, the workload of a project left without a current revision),
- * which are counted on their own —, and those refused for want of a valid token. `e2e/measure/load-check.ts` decides from
- * them whether the load ran as asked.
+ * which are counted on their own —, and those refused for want of a valid token.
+ * `e2e/measure/load-check.ts` decides from them whether the load ran as asked.
  */
 import { sleep } from "k6";
 import http from "k6/http";
@@ -66,7 +66,9 @@ interface TokenAnswer {
 /**
  * How many times an entry is sent again on a stale counter: the task of a user may be redated, so
  * its counter moved, by the duration another user enters on a task it follows, between the
- * refusal and the new entry.
+ * refusal and the new entry. Three tries hide, they do not explain, the cause of the entry
+ * refused one time too many that this was added for: it is still not established, and is to be
+ * read in the log of k6 at the next measure.
  */
 const STALE_RETRIES = 3;
 
