@@ -62,7 +62,7 @@ import { type Permission, requestSession } from "@/session/request";
 import { screenMetadata } from "../../../../../title";
 import { type GridAddress, gridAddress, readGridScreen } from "../grid-screen";
 import type { RevisionParams } from "../page";
-import { WorkCard } from "../work-card";
+import { GridCard } from "@/components/shell/grid-card";
 
 /** Title the tab with the function, and with the project. */
 export async function generateMetadata({
@@ -326,7 +326,7 @@ export default async function EstimatePage({
           permissions={session?.permissions ?? []}
           currency={currency}
         />
-        <WorkCard fill>
+        <GridCard fill>
           <EstimateGrid
             key={screen.structure.structure_id}
             nodes={subprojectsEntered ? screen.nodes : withoutSubprojectIds(screen.nodes)}
@@ -350,7 +350,7 @@ export default async function EstimatePage({
             }
             inflation={inflationOf(screen.reading)}
           />
-        </WorkCard>
+        </GridCard>
       </Screen>
     </PendingAddress>
   );

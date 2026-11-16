@@ -35,7 +35,9 @@ import {
   ContributorCommands,
   type ContributorEditing,
   ContributorHead,
+  ModifyContributorsCommand,
 } from "./contributor-commands";
+import { offersModification } from "./contributor-offer";
 import { ListCard } from "./project-tables";
 import { SettingsGrid } from "./settings-grid";
 import {
@@ -298,7 +300,19 @@ export function ContributorList({
   );
   return (
     <ContributorCommands key={editing?.project} editing={editing}>
-      <ListCard title={t("title")} icon={Users} empty={empty ? t("none") : undefined}>
+      <ListCard
+        title={t("title")}
+        icon={Users}
+        empty={empty ? t("none") : undefined}
+        principal={
+          offersModification(editing)
+            ? {
+                does: "modify",
+                command: (variant) => <ModifyContributorsCommand variant={variant} />,
+              }
+            : undefined
+        }
+      >
         <ContributorHead />
         <SettingsGrid
           kind="contributors"

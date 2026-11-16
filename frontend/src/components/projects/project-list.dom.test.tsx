@@ -241,6 +241,14 @@ describe("the states of the list, those of the table of the specification", () =
   );
 });
 
+/** Every key of a body written, at any depth; the items of a list are no keys. */
+function keysOf(value: unknown): string[] {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return [];
+  }
+  return Object.entries(value).flatMap(([key, inner]) => [key, ...keysOf(inner)]);
+}
+
 describe("the filter of the list on the projects the user contributes to (US-2130)", () => {
   /** The grid of the list, its filter on the contributor as `mine` says, its panel holding it. */
   function filteredGrid(mine: boolean | undefined) {
@@ -301,9 +309,18 @@ describe("the filter of the list on the projects the user contributes to (US-213
     });
     const written = client.calls
       .filter((call) => call.route === "PATCH /me/preferences")
-      .map((call) => JSON.stringify(call.body));
-    expect(written.join("")).toContain("lost");
-    expect(written.join("")).not.toContain("is_contributor");
+      .map((call) => call.body);
+    expect(JSON.stringify(written)).toContain("lost");
+    // The body written holds the keys of the grid and nothing else: « mes projets » is among none.
+    expect([...new Set(written.flatMap(keysOf))].sort()).toEqual([
+      "column_widths",
+      "filters",
+      "grids",
+      "hidden_columns",
+      "known_columns",
+      "projects",
+      "states",
+    ]);
   });
 
   it("offers no chip of the filter to a session that may not lift it: its cross would change nothing (#522)", () => {

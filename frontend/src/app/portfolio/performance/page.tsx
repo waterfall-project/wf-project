@@ -18,7 +18,7 @@ import { PerimeterBar } from "@/components/portfolio/perimeter";
 import { QuarterlyChart } from "@/components/portfolio/portfolio-charts";
 import { PerformanceView } from "@/components/portfolio/portfolio-views";
 import { PortfolioHeader, portfolioLabel } from "@/components/portfolio/portfolio-header";
-import { ChartCard } from "@/components/portfolio/portfolio-value";
+import { GridCard } from "@/components/shell/grid-card";
 import { Screen } from "@/components/shell/page-header";
 import { FUNCTION_DENSITY } from "@/components/shell/function-display";
 import { type PageSearchParams, pageSearch } from "@/navigation/context";
@@ -65,9 +65,9 @@ export default async function PortfolioPerformancePage({
         <PortfolioHeader fn="portfolio_performance" scope={answer.data.scope} />
         <PerimeterBar perimeter={perimeter} retained={answer.data.scope.states} nodes={nodes} />
         <PerformanceView performance={answer.data} />
-        <ChartCard>
+        <GridCard>
           <QuarterlyChart quarters={answer.data.quarterly} scope={answer.data.scope} />
-        </ChartCard>
+        </GridCard>
       </Screen>
     </PendingAddress>
   );

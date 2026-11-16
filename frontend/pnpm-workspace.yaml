@@ -28,3 +28,11 @@ overrides:
   # configuration. They call only Minimatch, its match and pattern, and minimatch(), which 11
   # keeps; it drops makeRe, matchOne and AST, which none of them calls.
   "minimatch@>=10.0.0 <11.0.1": "^11.0.1"
+  # GHSA-xxjr-mmjv-4gpg, fixed in 4.17.23, and GHSA-r5fr-rjxr-66jc, fixed in 4.18.0; pulled by
+  # postman-collection, under Prism (the fake back), which pins 4.17.21 (4.18.1 in its last
+  # version). Caret: stays in the major version.
+  lodash: "^4.18.0"
+  # GHSA-w5hq-g745-h8pq, fixed in 11.1.1; pulled by postman-collection, under Prism, which pins
+  # 8.3.2 (in its last version too). Caret: stays in the major version, which keeps its CommonJS
+  # build.
+  uuid: "^11.1.1"

@@ -37,6 +37,7 @@ vi.mock("next/navigation", async (original) => ({
 vi.mock("@/components/tasks/task-tracker", () => ({
   useTrackTask: () => () => undefined,
   useTaskRunning: () => false,
+  useRunningTask: () => undefined,
   useDownloadWhenTaskSucceeds: () => undefined,
 }));
 vi.mock("next/headers", () => ({

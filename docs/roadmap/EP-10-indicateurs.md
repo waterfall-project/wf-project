@@ -2,7 +2,7 @@
 id: EP-10
 titre: Lire où en est un projet : avancement, indices, projections et courbes
 statut: en cours
-depend_de: EP-09
+depend_de: EP-25, EP-26
 famille: front, back
 issue: 2427
 ---
@@ -36,7 +36,15 @@ survenu, une fusion ou un avenant se closent en EP-08, qui dispose alors des ind
 - le cache des indicateurs de la révision en cours et son invalidation ;
 - le diagramme temps/temps sur l'identité de lignée des jalons inscrits ;
 - les courbes, rendues par Apache ECharts ;
-- les écrans des indicateurs de la maquette, branchés sur le service.
+- les écrans des indicateurs de la maquette, branchés sur le service ;
+- le détail du plan de charge par rôle et par tâche (WF-DEV-0090, #3181) : US-2040 ; la projection
+  de dépenses du projet (WF-DEV-0100, #3182) : US-2050 — les deux exigences que la spécification
+  1.0.6 ajoute, rattachées ici par la ventilation du 2026-11-14 ;
+- la capacité d'un rôle déduite de son effectif et de son calendrier (WF-REF-0100, #2978 ; décision
+  de l'auteur du 2026-11-12, au cadrage d'EP-24) : US-2410 ;
+- la mesure, par l'outil d'EP-26, des opérations du tableau 15 que cet EPIC sert — les indicateurs
+  de la révision en cours, le plan de charge, la projection de dépenses : US-2420 ;
+- les constats reçus qui ne tiennent à aucune de ces fonctions (#2893, #3056, #3060) : US-2430.
 
 ## Ce qui n'en fait pas partie
 
@@ -45,8 +53,11 @@ survenu, une fusion ou un avenant se closent en EP-08, qui dispose alors des ind
 - l'agrégation sur plusieurs projets — EP-11 ;
 - l'outil de mesure des temps de réponse aux volumes du §4.6.2 — EP-26 (WF-QUA-0060), qui l'écrit
   et clôt l'exigence ; les indicateurs de la révision en cours, le plan de charge et la projection
-  de dépenses se mesurent par lui à leur livraison, ce que la relecture de cet EPIC contre la base
-  livrée reprendra en critère (décision de l'auteur du 2026-11-14, au cadrage d'EP-26).
+  de dépenses se mesurent par lui à leur livraison (US-2420 ; décision de l'auteur du 2026-11-14,
+  au cadrage d'EP-26) ;
+- le plan de charge agrégé comparé à la capacité déduite, et la clôture de WF-REF-0100 — EP-11 ;
+- l'export du détail du plan de charge ou de la projection de dépenses : aucun flux nouveau
+  (décision de l'auteur du 2026-11-14, #3181).
 
 ## Exigences réalisées
 
@@ -65,6 +76,11 @@ les tests les nomment (même décision) : WF-QUA-0040 et WF-INTF-0010. Chaque US
 exigences dont une phrase de Vérif tient avec une référence, des tâches, des lignes, des coûts
 réels et un reste à engager ; les phrases qui demandent un risque, un avenant ou le portefeuille
 sont des écarts, qui nomment l'EPIC qui les clôt.
+
+Recadrage du 2026-11-15 (décisions de l'auteur) : WF-DEV-0090 et WF-DEV-0100, nouvelles en 1.0.6,
+sont entières ici. WF-REF-0100, commencée par EP-05 et close par EP-11, entre au tableau en portée
+« début » : EP-10 en réalise la phrase de la capacité déduite, que la 1.0.4 a réécrite (#2978), et
+EP-11 celle du plan de charge agrégé.
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
@@ -95,6 +111,7 @@ sont des écarts, qui nomment l'EPIC qui les clôt.
 | `WF-INTF-0010-A` | Usages du chef de projet | début — close en EP-08, amorcée aussi en EP-06, EP-07, EP-09 | US-1740 |
 | `WF-DEV-0090-A` | Détail du plan de charge par tâche | entière | US-2040 |
 | `WF-DEV-0100-A` | Projection de dépenses du projet | entière | US-2050 |
+| `WF-REF-0100-A` | Capacité d'un rôle | début — close en EP-11, amorcée aussi en EP-05 | US-2410 |
 
 ## Opérations du contrat
 
@@ -117,10 +134,21 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute :
 - `exchanges` : `applyImport` et `costs` : `setActualCostTrackedScope` (ce qu'un import de coûts et
   une exclusion changent au calcul du jour, et ne changent pas aux indicateurs conservés).
 
-Aucune opération ne manque au contrat, figé en 1.0.0 : un écart devient une « Interface contract
-issue » que l'auteur tranche. Le cadrage en relève un, « à trancher » : le refus de `as_of`
-antérieur à toute révision marquée à l'état En cours, que le contrat ne décrit pas (#2449 ; US-1670,
-« Notes de réalisation »).
+Aucune de ces opérations ne manque au contrat, figé en 1.0.0 : un écart devient une « Interface
+contract issue » que l'auteur tranche. Le cadrage en relevait un, tranché le 2026-11-15 (#2449) : le
+refus de `as_of` antérieur à toute révision marquée à l'état En cours est un 409
+`STATE_FORBIDS_OPERATION` sans `params.state`, comme l'offre ; la description du 409 des trois
+opérations et celle d'`AsOf` le disent, sans forme ni exemple nouveau (US-1670).
+
+Le recadrage du 2026-11-15 ajoute trois modifications du contrat, faites avant le code qui les
+consomme :
+
+- `getProjectWorkload` gagne le détail par tâche de chaque rôle (US-2040), et sa description dit
+  que `months` ne porte que les mois où le rôle est chargé, un exemple le montrant (#3096, décision
+  de l'auteur du 2026-11-15) ;
+- une opération nouvelle, `getProjectSpending`, la projection de dépenses (US-2050) ;
+- la capacité d'un rôle (`Capacity`, `createResourceRole`, `updateResourceRole`,
+  `listResourceRoles`) : l'effectif seul se saisit, `monthly_hours` est calculé (US-2410).
 
 ## Constats reçus
 
@@ -174,28 +202,50 @@ trous dans l'histogramme (WF-DEV-0070, WF-PTF-0060) ;
 et en grille (exigence nouvelle, WF-DEV) ;
 - #3186 — roadmap : US-2030 ne liste pas WF-ARC-0020-A, que cite un de ses tests.
 
+Recadrage du 2026-11-15 (décisions de l'auteur), sur les constats ci-dessus et ceux du tableau de
+suivi :
+
+- #2449 — tranché : le 409 de l'offre (« Opérations du contrat ») ; US-1670 le réalise ;
+- #2978 — la capacité déduite de l'effectif, l'effectif saisi faisant foi : US-2410 ;
+- #3096 — tranché : `months` ne porte que les mois chargés, le contrat le dit ; US-2040 ;
+- #3181, #3182 — closes par la spécification 1.0.6 ; US-2040, US-2050 ;
+- #3186 — fermé sans changement : US-2030 réalise WF-DEV-0070 et ne fait que respecter
+  WF-ARC-0020 ;
+- #2893, #3056 et #3060 — US-2430 ; #2907 — clos entre-temps ;
+- #2498 — US-1710, qui ne retient que les inscriptions des jalons.
+
+Décisions de l'auteur du 2026-11-16, sur deux constats des lots en cours (ils ajoutent deux lots,
+vingt-sept en tout) :
+
+- #3564 — la courbe de coûts adopte les parts arrondies communes de `docs/api/DECISIONS.md`, de
+  sorte qu'elle et la projection de dépenses ne diffèrent plus d'un centime par mois : US-1690/L4,
+  sur la fonction d'US-2040/L2 ;
+- #3567 — les coûts réels (`core/costs/reading.py`) et les nœuds (`api/nodes.py`) lisent le filtre
+  de sous-projet strictement, comme le contrat : US-2430/L2, hors du chemin critique.
+
 ## Préalables
 
-`epic/EP-10` se tire d'`epic/EP-09` dès la fusion de son lot pivot, **US-1580/L1 #2398** — le socle
-d'EP-09, qui pose `cost_line` et `cost_import`, les colonnes `previous_*` et `reestimated_at`
-d'`estimate_line`, la chaîne des migrations arrêtée à `0027`, et l'interface déclarée que les
-indicateurs liront : `actual_costs_until` et `actual_cost_by_subproject` de `core/costs`,
-`remaining_of_revision` et `startable_tasks` de `core/estimate` —, et non de `main` à la livraison
-d'EP-09 (décision de l'auteur du 2026-11-07, pour toute la série EP-06 → EP-07 → EP-09 → EP-10 →
-EP-08 ; l'exception du README, « Branches ») : elle reprend `epic/EP-09` à chaque lot que celui-ci
-fusionne — qui reprend elle-même `epic/EP-07`, qui reprend `epic/EP-06` — et se fusionne dans
-`main` après elle. Les lots d'EP-10 qui lisent des coûts attendent aussi US-1610/L2 #2404
-(l'application d'une extraction, le journal, `actual_costs_until`), ceux qui lisent un reste
-US-1580/L2 #2399 (la réestimation, `previous_*`, `remaining_of_revision`) — et non US-1600 #2392,
-qui lit `remaining_of_revision` sans l'écrire (décision de l'auteur du 2026-11-10, #2708) ;
-`CalculationContext`, le contexte de calcul du contrat, s'importe de l'interface d'`estimate`
-(`remaining_indicators.py`) —, ceux qui lisent l'avancement des tâches US-1410 #2324 d'EP-06, ceux
-qui lisent la valeur planifiée US-1520/L1 #2376 et L2 #2377 d'EP-07, ceux qui lisent les jalons
-inscrits US-1400/L2 #2340 d'EP-06, ceux qui remplissent le marquage US-1500/L2 #2375 d'EP-07
-(`register_marking`, avant `compute_indicators`) ; chaque lot nomme ceux qu'il attend par leur
-numéro (conception, « Ce qu'EP-09 écrit encore », « Ce qu'EP-07 écrit encore », « Ce qu'EP-06
-écrit encore »). La valeur acquise, les indices et les projections se calculent sur la
-référence, les coûts réels et le reste à engager.
+EP-25 livré : `epic/EP-10` se tire alors de `main`, sans attendre EP-26 (décision de l'auteur du
+2026-11-15, au recadrage). Elle y trouve le fuseau de l'installation (US-2200) et l'écran des
+indicateurs remis en page (US-2150, US-2160). Le cadrage du 2026-11-07 la tirait d'`epic/EP-09`
+pendant qu'EP-06, EP-07 et EP-09 se livraient : ils sont livrés.
+
+Deux lots attendent en outre qu'EP-26 soit livré dans `main` et qu'`epic/EP-10` l'ait reprise :
+US-1680, qui s'appuie sur la lecture en colonnes, l'agrégat par tâche et la lecture gardée d'une
+révision marquée (US-2220, US-2280, US-2270), et US-2420, qui mesure par son outil et complète son
+rapport de version (US-2210, US-2300). US-1740/L2, qui attend tous les lots, les attend donc aussi :
+EP-10 se livre après EP-26, mais ses vingt-deux autres lots avancent sans lui. Aucun autre lot
+n'attend un lot d'un autre EPIC.
+
+La migration du socle se chaîne sur la dernière de `main` à ce moment ; EP-26 en porte une, et le
+second des deux EPIC à entrer dans `main` rechaîne les siennes — EP-10, qui finit après. Les deux
+fichiers d'interface qu'US-1660/L3 complète (`core/planning/interface/__init__.py`,
+`core/estimate/interface/__init__.py`) sont aussi touchés par les lots d'EP-26 : le conflit se
+règle à la reprise de `main`.
+
+EP-27 n'est pas un préalable : il ne porte aucune migration, et ses fichiers — la comparaison, les
+grilles, le bandeau — ne sont pas ceux d'EP-10. Les deux EPIC se fusionnent dans `main` dans
+l'ordre où ils finissent ; EP-08 attend les deux.
 
 EP-16 livré, le contrat figé en 1.0.0 : un écart devient une « Interface contract issue » que
 l'auteur tranche.
@@ -224,12 +274,60 @@ tâches, leurs états et leurs dates (EP-06), les coûts réels et le reste à e
 module du noyau qui calcule, conserve au marquage et cache au jour courant ; il ajoute une table du
 Tableau 10, les routes de ses cinq opérations nouvelles, un crochet dans `core/planning` pour
 l'avancement physique, un module de cache sur Redis, et il branche sur le service l'écran des
-indicateurs. Il **ne modifie pas le contrat**, figé en 1.0.0 : un manque devient une « Interface
-contract issue » que l'auteur tranche — le cadrage en ouvre une, le refus d'`as_of`. Ce qui suit
-fixe ce que chaque lot devrait sinon décider seul. Il se livre pendant les lots d'EP-09, d'EP-07 et
-les derniers d'EP-06, sur une branche tirée de celle d'EP-09 : les sections « Ce qu'EP-09 écrit
-encore », « Ce qu'EP-07 écrit encore » et « Ce qu'EP-06 écrit encore » disent ce que les lots
-d'EP-10 n'écrivent pas avant le lot qui le possède.
+indicateurs. Il ne modifie pas le contrat de ses cinq opérations d'indicateurs, figé en 1.0.0 : un
+manque devient une « Interface contract issue » que l'auteur tranche. Ce qui suit fixe ce que
+chaque lot devrait sinon décider seul.
+
+La conception est du 2026-11-07, écrite pour un EPIC livré pendant EP-06, EP-07 et EP-09. Elle a
+été relue le 2026-11-15 contre la base livrée : la section qui suit dit ce que cette relecture
+change, et prime sur le texte d'origine là où ils diffèrent.
+
+### Ce que le recadrage du 2026-11-15 change
+
+Décisions de l'auteur du 2026-11-15, sauf mention « recadrage », qui sont du cadreur.
+
+- **`epic/EP-10` se tire de `main`, EP-25 livré, sans attendre EP-26** ; seuls US-1680 et US-2420
+  attendent EP-26 dans `main` (« Préalables »). Écartés : attendre EP-26, dont les lots restants
+  se suivent en série, pour deux lots sur vingt-cinq ; la tirer d'`epic/EP-26` à côté d'EP-27, ou
+  d'`epic/EP-27` à sa suite. Hors ces deux lots, aucun lot d'EP-10 n'attend un lot d'un autre EPIC :
+  les numéros de lots d'EP-06, d'EP-07 et d'EP-09 que cite la suite sont tous fusionnés, et se
+  lisent comme l'origine d'un fichier, non comme une attente.
+- **Les migrations ne portent plus de numéro dans ce fichier** (recadrage). `0028` est prise par
+  EP-24, `0029` et `0030` par EP-25, `0031` par EP-26. Le socle chaîne celle de `revision_indicator` sur la
+  dernière de `main` au moment où il se livre ; celle de la capacité (US-2410) se chaîne sur elle.
+  Partout où la suite dit `0028`, lire « la migration du socle ».
+- **Le jour courant est celui du fuseau de l'installation** (US-2200 d'EP-25) : la date de calcul
+  D et le jour de l'empreinte du cache se lisent par `current_day` de `core/projects`, et non en
+  temps universel. Le point d'un jalon terminé du temps/temps garde sa forme du contrat.
+- **Le refus d'`as_of` est le 409 de l'offre** (#2449). Écartés : 422 sur `/query/as_of` ; 200 sur
+  le calcul du jour.
+- **L'avancement physique suit les lectures d'EP-26** (recadrage ; « L'avancement physique »,
+  réécrite) : il se déduit de l'agrégat par tâche, entre dans la lecture gardée d'une révision
+  marquée, et le format de celle-ci avance.
+- **L'empreinte du cache gagne le compteur de la structure principale** (recadrage), qu'avance
+  toute écriture d'une grille depuis EP-26, chemin court compris ; les comptes et les derniers
+  `updated_at` restent, pour ce qui rechiffre des lignes sans passer par une grille — un taux, une
+  inflation. Écarté : le compteur seul, qu'un rechiffrement n'avance pas.
+- **Le contrat change sur trois points**, avant le code (« Opérations du contrat ») : le détail du
+  plan de charge, `getProjectSpending`, la capacité d'un rôle.
+- **Le détail par tâche est rendu par `getProjectWorkload`** (recadrage). Écartée : une opération
+  à part, qui étalerait deux fois les mêmes lignes et laisserait deux réponses s'écarter.
+- **Les parts d'une ligne s'arrondissent de façon que leur somme soit son total** (recadrage) : le
+  reliquat de l'arrondi va au dernier mois de la ligne, et tout total — d'un mois, d'une tâche,
+  d'un rôle, d'une catégorie, d'une nature — est la somme de parts déjà arrondies. C'est ce qui
+  tient les égalités des Vérif de WF-DEV-0090 et de WF-DEV-0100 au centième. Écarté : arrondir une
+  fois chaque total depuis la somme exacte, comme le plan de charge d'aujourd'hui, où la somme du
+  détail s'écarterait du total d'un centième.
+- **Le plan de charge détaillé et la projection de dépenses vivent dans `core/estimate`**
+  (recadrage), à côté du plan de charge, et non dans `core/indicators` : ils se lisent depuis le
+  devis, sous sa permission, et ne sont ni conservés ni cachés (décisions de l'auteur du
+  2026-11-14, #3181, #3182).
+- **L'effectif saisi d'un rôle fait foi** (#2978). Écartée : déduire l'effectif des heures
+  saisies, qui gardait chaque capacité et rendait les effectifs fractionnaires.
+- **Les mois rendus sont les seuls mois chargés** (#3096), pour un rôle, une tâche, une nature ou
+  une catégorie. Écarté : tous les mois de l'horizon, à zéro.
+- **L'écran des indicateurs est celui qu'EP-25 a remis en page** (US-2150, US-2160) : US-1730 le
+  branche tel quel.
 
 ### Ce que le cadrage décide
 
@@ -314,10 +412,9 @@ Décisions de l'auteur du 2026-11-07, sur les questions du cadrage, chacune avec
   `load_marking` ; ses lectures se comparent aux exemples à la référence près — l'offre 100 reste la
   référence jusqu'à EP-08 (US-1570 d'EP-07) —, les écarts listés. Écarté : désigner la 101 après
   coup, contre WF-REV-0040 et #1402.
-- **Une seule migration, `0028`, dans le socle**, chaînée sur `0027` (celle d'EP-09 ; EP-07 en a
-  ajouté une, `0026`, décision du 2026-11-09 sur #2603 et #2667), aucune donnée à reprendre ; aucune
-  migration d'EP-10 après le socle, EP-08 chaîne la sienne sur `0028`. Écarté : une migration par
-  US.
+- **Une migration dans le socle, pour `revision_indicator`**, sans donnée à reprendre ; le
+  recadrage en ajoute une seconde, celle de la capacité (US-2410), chaînée sur elle ; EP-08 chaîne
+  la sienne sur la dernière d'EP-10. Écarté : une migration par US.
 - **Les quatre routes nouvelles sont sous `project_indicators.read`** (le catalogue d'EP-03), un
   routeur par US, créés vides par le socle.
 
@@ -333,13 +430,17 @@ rien à emporter.
 |---|---|---|
 | `revision_indicator` | `project_id` (clé de partition), `id`, `revision_id`, `kind` (`estimate`, `remaining`, `project`, `cost_curve`, `cost_curve_payment_delays`, `earned_value_curves` ; EP-11 ajoute les siennes), `scope` (`project`, `unassigned`, ou l'identifiant du sous-projet en texte, comme le contrat l'écrit), `document` (`jsonb`, la réponse du contrat de cette nature pour cette maille, `context` compris, `zone` nulle sur chaque indice), `computed_at` (l'instant du marquage), `created_at`, `created_by` | clé primaire (`project_id`, `id`) ; unique (`project_id`, `revision_id`, `kind`, `scope`) ; clé composite (`project_id`, `revision_id`) vers `revision` en refus ; `kind` dans les six natures, `scope` de 1 à 36 non blanc ; `document` objet ; index sur (`project_id`, `revision_id`) ; déclencheur d'immuabilité comme `cost_structure`, et un déclencheur qui refuse l'écriture d'une ligne dont la révision n'est pas en cours de marquage — la révision verrouillée `FOR UPDATE` par le marquage, encore `draft` à l'instant de l'écriture |
 
-- **Une migration, `0028`, dans le socle** (US-1660/L1) : la table, sa partition
+- **Une migration dans le socle** (US-1660/L1) : la table, sa partition
   (`revision_indicator_p_<uuid>`) créée à chaque projet nouveau par `create_project_partitions`, qui
   lit dans le catalogue les tables partitionnées par `project_id` et que la migration ne remplace
   donc pas (EP-07, décision du 2026-11-09 sur #2603 et #2667), et celles des projets existants,
   attachées comme la fonction le fait, avec la fonction `revision_indicator_refuse_truncate` que la
   fonction attend, les déclencheurs, les droits du rôle du service — `SELECT`, `INSERT` : rien ne se met à
   jour ni ne se supprime — déclarés dans `SERVICE_RIGHTS`. Aucune migration de données.
+- **Une migration pour la capacité** (US-2410) : `resource_role.monthly_hours` et sa contrainte
+  sont retirées, l'effectif gardé tel quel ; les heures d'un rôle se calculent à la lecture. Les
+  images des révisions marquées ne sont pas touchées. Sa descente rend la colonne, remplie des
+  heures calculées.
 - **La nature `project` n'existe que pour une révision marquée à l'état En cours** : c'est ce que
   l'évolution des indices, le temps/temps et le 409 de l'offre lisent.
 - Les tests : `test_migrations.py` (schéma, droits, partition d'un projet créé ; la liste des
@@ -415,7 +516,8 @@ importe l'interface (US-1670/L1).
   → 422 sur `/query/revision_id` ; un projet antérieur à En cours → 409 avec `params.state` et
   `params.state_enum`, avant toute autre lecture. `scope` : `project`, `unassigned`, ou un identifiant
   parmi `subprojects_present` du projet, sinon 422 `UNKNOWN_SUBPROJECT` sur `/query/scope`.
-- **La date de calcul** D : le jour courant en temps universel pour le calcul du jour (`computed_at`
+- **La date de calcul** D : le jour courant du fuseau de l'installation (`current_day`, recadrage
+  du 2026-11-15) pour le calcul du jour (`computed_at`
   l'instant), le jour de `marked_at` pour le marquage ; la révision de référence Ref est celle du
   projet à l'instant du calcul (la lecture du projet, sous son verrou au marquage).
 - **Les grandeurs d'une maille S**, en `Decimal`, arrondies une fois (WF-DAT-0100) — les montants
@@ -474,15 +576,29 @@ importe l'interface (US-1670/L1).
 
 ### L'avancement physique
 
-- `physical_progress(session, revision_id, node_ids)` : les lignes de la révision hors provision
-  (`lines_for_indicators`), les tâches (`tasks_for_indicators`) ; pour chaque récapitulative
-  demandée, le total des budgétés de son sous-arbre, lignes propres comprises, et la part portée par
-  les tâches `completed` du sous-arbre — ses lignes propres acquises si elle est elle-même
-  `completed` — ; `Computable` à quatre décimales, `no_budgeted_amount` sur un total nul ; une
-  requête par lecture, jamais une par tâche.
-- `planning` l'appelle à la lecture de la facette pour les récapitulatives rendues, sur la révision
-  lue, en cours ou marquée ; le résultat n'est pas conservé : sur une révision marquée, lignes et
-  états sont immuables.
+Réécrite au recadrage du 2026-11-15 : EP-26 a refait la lecture d'une structure.
+
+- **Le calcul** : pour chaque récapitulative rendue, le total des budgétés de son sous-arbre,
+  lignes propres comprises, hors provision, et la part portée par les tâches `completed` du
+  sous-arbre — ses lignes propres acquises si elle est elle-même `completed` — ; `Computable` à
+  quatre décimales, `no_budgeted_amount` sur un total nul. `core/indicators` le calcule, `planning`
+  le rend par le registre `register_physical_progress`.
+- **Ce qu'il lit** : les tâches de la structure, que la lecture tient déjà, et le budgété de chaque
+  tâche par l'agrégat par tâche d'EP-26 (`tally` de `FacetHooks`, US-2280), en une requête groupée.
+  Il ne relit aucune ligne. Si l'agrégat ne porte pas le budgété hors provision, le lot le lui
+  ajoute. Écarté : `lines_for_indicators` pour ce calcul, qui rechargeait cinq mille lignes à
+  chaque ouverture du planning, ce qu'US-2280 vient de retirer.
+- **Où il s'appelle** : dans les trois chemins de lecture — les objets des écritures, les colonnes
+  de la lecture seule (US-2220), les tâches seules (US-2280) —, une fois par lecture ; le test qui
+  tient que les chemins rendent le même arbre le couvre. Le filtre de la colonne
+  (`physical_progress_min`, `_max`), qui juge aujourd'hui une valeur nulle, juge la valeur
+  calculée.
+- **La lecture gardée** : le corps gardé d'une révision marquée (US-2270) porte l'avancement
+  physique, calculé une fois — ses lignes et ses états sont immuables. Le format des lectures
+  gardées avance : celles d'avant le lot sont ignorées et refaites à la demande.
+- **Les corps figés** : le test des SHA-256 des corps de PRJ-001 (`test_reading_bodies.py`) reçoit
+  ses valeurs nouvelles dans le lot, qui dit dans sa pull request que seul `physical_progress` des
+  récapitulatives y change.
 
 ### Les courbes
 
@@ -530,7 +646,8 @@ importe l'interface (US-1670/L1).
   (SHA-256, tronqué) d'un texte canonique formé de : l'état, la révision en cours, la référence et le
   compteur du projet (`project_facts`, `read_project`, `stored_lock_version`) ; la révision calculée
   R et sa référence Ref ; `revision_content_stamp(R)` et `lines_stamp(R)` ; `costs_stamp(project)` ;
-  le nombre de sous-projets ; le jour D en temps universel. Toute écriture dont une entrée dépend
+  le compteur de la structure principale de R ; le nombre de sous-projets ; le jour D du fuseau de
+  l'installation (recadrage du 2026-11-15). Toute écriture dont une entrée dépend
   change l'empreinte : une saisie de nœud, de ligne ou d'état (les `updated_at` et les comptes), un
   marquage ou un abandon (la révision en cours), une désignation (la référence, le compteur), un
   import ou une exclusion de coût (`costs_stamp`), un sous-projet créé (le nombre ; les lignes
@@ -550,6 +667,62 @@ importe l'interface (US-1670/L1).
 - **Les tests** : contre Redis (guide, « Un test contre Redis »), sur une base propre au test : une
   entrée servie, une entrée ignorée après chaque écriture du Vérif, `FLUSHDB` puis l'identité, Redis
   pointé sur un port fermé.
+
+### Le plan de charge détaillé et la projection de dépenses
+
+Ajoutée au recadrage du 2026-11-15 (US-2040, US-2050).
+
+- **Le module** : `core/estimate`, à côté de `workloading.py`. Les deux vues étalent les lignes
+  d'une révision sur les mois de leur tâche par `spreading`, comme le plan de charge : une
+  fonction commune rend les parts arrondies de chaque ligne, que le plan de charge, son détail et
+  la projection somment chacun à sa maille. Le plan de charge existant passe par elle : ses totaux
+  peuvent bouger d'un centième, et ses exemples sont réengendrés. **La courbe de coûts cumulés passe
+  elle aussi par cette fonction** (US-1690/L4, décision de l'auteur du 2026-11-16, #3564) : sa série
+  lisait l'étalement sans arrondir (`series/shares.py` coupe à dix décimales), et ses décaissements
+  différaient de la projection de deux centimes sur le témoin (juin 2026). Écarté : documenter
+  l'écart au contrat, qui laisse deux lectures d'un même montant ; la conception d'US-2050 dit déjà
+  que la projection est la lecture par mois de la courbe. Le lot suit US-1690/L3, pour que les
+  courbes conservées au marquage ne soient écrites qu'une fois, et US-2040/L2, qui écrit la
+  fonction ; il réengendre les exemples `cost_curve_*.json`. Les provisions, que la courbe garde et
+  que la projection exclut, restent l'écart de 500 000 du témoin : le contrat de la courbe le dit.
+- **Le détail** : chaque rôle de `WorkloadPlan` gagne `tasks`, dans l'ordre du début puis du
+  planning ; chaque tâche rend son nœud, son numéro de ligne, son libellé, son début, sa fin, le
+  total de ses heures et `months`. Les lignes d'un même rôle sous une même tâche sont sommées. Sur
+  la base du reste à engager, une tâche terminée n'y est pas.
+- **La projection** : `getProjectSpending`, sous `estimate.read`, à l'adresse du projet comme
+  `getProjectWorkload`. Ses paramètres : la base (`WorkloadBasis`) et `revision_id`, avec les
+  refus du plan de charge ; `payment_delays`, comme `getCostCurve` ; `subproject_id`, `unassigned`
+  compris. Sa réponse : le contexte de calcul, les natures de coût dans l'ordre du référentiel,
+  chacune avec ses catégories, leurs montants par mois et leurs totaux, et le total de chaque
+  mois. Une ligne de provision n'y entre pas. Sur la base du reste à engager, le reste d'une ligne
+  s'étale sur la part de sa tâche postérieure à la date de calcul, et va entier au mois de cette
+  date quand la fin est dépassée.
+- **Une révision marquée** : les deux vues sont calculées à la lecture, sur ses images ; rien
+  n'est conservé ni caché. Si la mesure (US-2420) manque les deux secondes, le dépassement est
+  documenté et devient une issue à trancher.
+- **Les exemples** : engendrés par les outils du faux back, sur le témoin ; l'un rend un rôle
+  chargé sur moins de mois que les autres (#3096).
+- **Le front** : le détail est une grille dense arborescente, en lecture seule, sous
+  l'histogramme de l'écran du plan de charge ; une tâche y mène à la grille de planning de la
+  révision que la base lit, qui la montre et la vise — le paramètre d'adresse que la grille lit
+  pour cela est au lot. La projection est une feuille nouvelle de la navigation, sous le devis et
+  sous le reste à engager, à côté du plan de charge : un histogramme empilé par nature, à la
+  présentation des graphiques d'EP-25, sa table des valeurs, et une grille arborescente de la
+  nature à la catégorie.
+
+### La capacité d'un rôle
+
+Ajoutée au recadrage du 2026-11-15 (US-2410).
+
+- **Le contrat** : `Capacity` garde `monthly_hours` et `headcount` à la lecture ; l'écriture d'un
+  rôle ne porte plus que `headcount`, et `monthly_hours` envoyé est refusé comme toute propriété
+  inconnue. Les filtres et le tri de `listResourceRoles` sur les heures restent.
+- **Le calcul** : l'effectif multiplié par les heures hebdomadaires du calendrier du rôle, par 52,
+  divisé par 12, arrondi au centième ; `core/resource_settings` le rend dans la vue du rôle, et
+  filtre et trie dessus en SQL. Aucun autre module ne le recalcule.
+- **Les images** : une révision marquée garde les heures de son marquage (`KeptRole`) ; le
+  marquage y écrit désormais les heures calculées.
+- **Le plan de charge** ne change pas de forme : il lit la capacité de la vue du rôle.
 
 ### Le service d'API
 
@@ -607,6 +780,14 @@ guide qu'EP-08 lève ; les parcours qui marquent le font sur un projet que la co
 liste des entrées non rejouées n'est écrite que par le dernier lot d'US-1740, après US-1650/L3 #2416
 d'EP-09.
 
+### La mesure
+
+Ajoutée au recadrage du 2026-11-15 (US-2420). Le parcours de mesure d'EP-26
+(`frontend/e2e/measure/steps.ts`) gagne trois étapes sur PRJ-001 : ouvrir l'écran des indicateurs
+de la révision en cours, l'écran du plan de charge, celui de la projection de dépenses.
+`make measure-version` les porte au rapport de la version. La mesure prend le poste pour elle
+seule.
+
 ### Les tests du back
 
 Un fichier par objet et par règle — `test_indicators_formulas.py` (pur), `test_indicators_series.py`
@@ -622,69 +803,32 @@ dans `tests/indicators_support.py`, écrit par le socle, par les interfaces d'EP
 concurrence par règle d'ensemble : un marquage pendant une saisie, deux lectures d'une entrée de
 cache absente.
 
-### Ce qu'EP-09 écrit encore
+### Ce qu'EP-06, EP-07 et EP-09 écrivaient encore
 
-Les lots d'EP-10 se livrent pendant ceux d'EP-09, et `epic/EP-10` reprend `epic/EP-09` à chaque
-fusion. Un fichier qu'un lot d'EP-09 non fusionné possède, les lots d'EP-10 ne l'écrivent pas avant
-ce lot, ou en dépendent par son numéro :
+Le cadrage du 2026-11-07 tenait ici trois tableaux : les fichiers que des lots d'EP-06, d'EP-07 et
+d'EP-09 non fusionnés possédaient, et les lots d'EP-10 qui les attendaient. Les trois EPIC sont
+livrés ; les tableaux sont retirés au recadrage du 2026-11-15, et aucun lot d'EP-10 n'attend plus
+un lot d'un autre EPIC. Deux règles en restent : les catalogues `messages/*.json` reçoivent des
+clés de plusieurs lots, chacun n'y écrivant que les siennes ; `platform/settings.py` (le réglage du
+cache) et `platform/cache.py` sont écrits par US-1720.
 
-| Fichier | Lot d'EP-09 qui le possède | Lots d'EP-10 qui l'attendent |
-|---|---|---|
-| `core/estimate/remaining/` : `set_line_remaining`, `remaining_entry` et `previous_*`, `remaining_of_revision` | US-1580/L2 #2399 | US-1660 (le reste par ligne), US-1690 (la projection) |
-| `core/estimate/remaining/` : les indicateurs du reste, `api/remaining_indicators.py` | US-1600 #2392 | US-1670 (le document `remaining`, la route conservée) |
-| `core/estimate/remaining/excel/`, le format `remaining` | US-1630/L1 #2408 à L4 #2411 | aucun |
-| `core/planning/interface/__init__.py`, `register_open_lines`, `progress_commands`, la lecture de la facette (`awaiting_own_lines`) | US-1590/L1 #2401 | US-1660 (`indicator_tasks.py` réexporté), US-1680 (le crochet et son appel), US-1710 |
-| `core/costs` : l'en-tête et l'analyse d'une extraction | US-1610/L1 #2403 | aucun |
-| `core/costs` : l'application, `cost_import`, `actual_costs_until` servie ; `core/projects/commands.py` ; `worker/main.py` | US-1610/L2 #2404 | US-1660 (le coût réel), US-1670 (l'import dans le worker), US-1720 (`costs_stamp`) |
-| `core/costs` : `register_cost_facts`, `core/projects/interface/subprojects.py` | US-1610/L3 #2405 | US-1720 (`indicator_costs.py` réexporté) |
-| `core/costs` : la consultation, l'exclusion | US-1620/L1 #2406 | US-1720 (l'exclusion qui change la clé, en test) |
-| `core/revisions/commands.py` (`export_remaining`), `exchanges.spec.ts` | US-1630/L4 #2411 | aucun |
-| `remaining.spec.ts`, les aides FBS-4.5*, les grilles | US-1640/L1 #2412, L2 #2413 | aucun |
-| `wftools`, `make mock-data` | US-1650/L1 #2414 | aucun : EP-10 n'écrit pas d'outil |
-| `witness/costs.py`, `witness/revisions.py`, `witness/timeline.py`, `core/exchanges/interface` | US-1650/L2 #2415 | US-1740 (le témoin chargé coûts compris) |
-| le guide, la liste des entrées non rejouées | US-1650/L3 #2416 | US-1740 (la vérification d'ensemble) |
-| `app.py`, `core/estimate/interface/__init__.py`, `core/costs/interface/__init__.py`, `test_registries.py`, `chronology.py` | US-1580/L1 #2398, fusionné avant la branche | aucun |
+### Le filtre de sous-projet, lu strictement partout
 
-### Ce qu'EP-07 écrit encore
-
-| Fichier | Lot d'EP-07 qui le possède | Lots d'EP-10 qui l'attendent |
-|---|---|---|
-| `core/estimate` : les taux, le marquage (`register_marking` rempli), `api/revisions.py`, `worker/main.py` | US-1500/L1 #2374, US-1500/L2 #2375 | US-1670 (les images avant le calcul) |
-| `core/estimate` : `estimate_indicators`, `api/estimate_indicators.py` | US-1510 #2363 | US-1670 (le document `estimate`, la route conservée) |
-| `core/estimate` : `workload`, `planned_value`, `api/workload.py` | US-1520/L2 #2377 | US-1660 (l'oracle du test de la valeur planifiée) |
-| `core/estimate` : la comparaison, `revisions.spec.ts` | US-1530 #2365 | aucun |
-| `core/estimate` : le passage En cours, les contributeurs | US-1540 #2366 | aucun : la transition est d'EP-04, la désignation exige des lignes (#2373) |
-| `core/estimate/excel/`, le format `estimate`, `core/projects/commands.py`, `core/revisions/commands.py`, `exchanges.spec.ts` | US-1550/L1 #2378 à L4 #2381 | aucun |
-| `core/planning` : `FacetHooks.judge_cell` (`facets.py`), la grille de devis, `context.spec.ts` (le devis) | US-1560/L1 #2382, L2 #2383 | US-1680 (l'appel du crochet dans la lecture de la facette), US-1730 (`context.spec.ts`) |
-| `wftools`, `DECISIONS.md` (L-01) ; `witness/estimate_lines.py`, `witness/revisions.py`, `witness/timeline.py` ; le guide | US-1570/L1 #2384, L2 #2385, L3 #2386 | US-1740 (le témoin En cours, lignes comprises) |
-| `core/estimate/interface/__init__.py`, `pricing/`, `spreading/`, la facette lue et créée, `update_line`, la suppression, `core/projects` (`register_estimate_facts`), `core/revisions/interface/marking.py` (`register_marking` déclaré) | US-1490/L1 #2370 à L4 #2373, US-1520/L1 #2376, fusionnés avant la branche | aucun |
-
-### Ce qu'EP-06 écrit encore
-
-| Fichier | Lot d'EP-06 qui le possède | Lots d'EP-10 qui l'attendent |
-|---|---|---|
-| `core/planning` : la lecture et la création des nœuds (`interface/nodes.py`, `facets.py`) | US-1380/L2 #2335 | US-1660 (`tasks_for_indicators`), US-1680 (l'appel du crochet) |
-| `core/planning` : la suppression et le déplacement, `core/projects` (`register_attachments`) | US-1380/L3 #2338 | aucun |
-| `core/planning/interface/__init__.py`, le moteur, `setPredecessors`, `resource_settings` | US-1390/L1 #2329, L2 #2339 | US-1660, US-1680, US-1710 (le réexport d'`indicator_tasks.py`) |
-| `core/planning` : les chronologies, `core/projects/commands.py` ; les inscriptions (`tracking_entry`, `listNodes` avec `timeline_id`) | US-1400/L1 #2331, L2 #2340 | US-1710 (`tracked_milestones`) |
-| `core/planning` : l'état des tâches (`setTaskProgress`, `started_on`, `completed_on`) | US-1410 #2324 | US-1660 (la valeur acquise), US-1680, US-1690, US-1710 |
-| `core/exchanges` : la mécanique d'import, les formats ; la purge, `worker/main.py`, les Compose, `production.env.example`, le Makefile | US-1420/L1 #2332, L2 #2341 | US-1720 (`WATERFALL_INDICATORS_CACHE_TTL` dans `production.env.example`) |
-| `core/revisions/commands.py` (`export_*`), `api/tasks.py`, `api/exports.py` ; `core/planning` : le collage, `api/history.py` ; `REUSE.toml` | US-1430/L2 #2336, US-1440/L1 #2337, L2 #2343, US-1450/L2 #2344 | aucun |
-| la grille et le Gantt, `planning.spec.ts`, `context.spec.ts` (le planning) | US-1470 #2326 | US-1680 (la colonne lue contre le service), US-1730 (`context.spec.ts`) |
-| `wftools` ; `witness/tasks.py` ; le guide | US-1480/L1 #2330, L2 #2347, L3 #2348 | US-1740 |
-| `app.py`, `pyproject`, `tests/planning_support.py`, `test_registries.py`, `chronology.py`, `witness/revisions.py` (`register_revision_filler`) | US-1380/L1 #2328, fusionné avant la branche | aucun |
-
-Les catalogues `messages/*.json`, `conftest.py`, `support.py`, `api/queries.py`, `loader.py` et
-`mode.ts` ne s'écrivent dans aucun des quatre EPIC — sauf `support.py` par le lot d'outillage des
-tests d'EP-07, qui le possède (décision de l'auteur du 2026-11-10) — : une clé ou une fixture qui
-manque devient une issue. `platform/settings.py` (le réglage du cache) et `platform/cache.py` ne
-sont nommés par aucun lot des trois autres : EP-10 les écrit (US-1720).
+Décision de l'auteur du 2026-11-16 (#3567). `getProjectIndicators` lit `scope` en forme à tirets
+seulement, comme `SubprojectFilter` du contrat (`format: uuid`) ; `listActualCosts`
+(`core/costs/reading.py`, `UUID(asked)`) et `listNodes` (`api/nodes.py`, `Unassigned | UUID` lu par
+pydantic) acceptaient aussi les accolades, `urn:uuid:` et la forme sans tirets : le même identifiant
+était refusé par l'une et accepté par les autres. US-2430/L2 aligne les deux routes sur le contrat :
+toute autre forme que celle à tirets, ou un sous-projet inconnu, est refusée par `UNKNOWN_SUBPROJECT`,
+le code que `listActualCosts` et les indicateurs rendent déjà ; `listNodes` le rend à la place du
+422 de validation de pydantic. Le contrat ne change pas. Écarté : documenter l'écart, qui laisse une
+route plus permissive que ce qu'elle publie.
 
 ### Ce que le cadrage laisse à EP-08
 
 Le socle (US-1660/L1 #2437) est le **lot pivot d'EP-08** : `epic/EP-08` se tire d'`epic/EP-10` dès sa
-fusion. Il lui garantit `revision_indicator` et sa partition, la chaîne des migrations arrêtée à
-`0028`, le module `core/indicators` avec son interface déclarée — `project_indicators`,
+fusion. Il lui garantit `revision_indicator` et sa partition, la migration du socle — celle de la
+capacité (US-2410) s'y ajoute, et EP-08 chaîne la sienne sur la dernière d'EP-10 —, le module `core/indicators` avec son interface déclarée — `project_indicators`,
 `cost_curve`, `earned_value_curves`, `index_history`, `milestone_tracking`, `store_indicators`,
 `physical_progress` — et la signature du registre avec l'`Act`. Les lots d'EP-08 qui lisent les
 indicateurs devant un risque survenu, une fusion ou un avenant attendent par leur numéro le calcul
@@ -697,37 +841,26 @@ cache (les structures des risques, les risques eux-mêmes).
 
 ### L'ordre de construction
 
-Le socle d'abord, dès #2398 ; puis les modules purs et ce qui ne dépend que de lots déjà fusionnés,
-en largeur quatre ; le calcul du jour avant la conservation, la conservation avant les lectures
-historiques, les courbes conservées après les deux ; l'écran et le témoin après tout ce qui sert ; la
-vérification d'ensemble en dernier ; le plan de lots (étape 3) le détaille en vagues.
+Réécrit au recadrage du 2026-11-15 : l'ordre ne tient qu'aux lots d'EP-10 entre eux, hors
+l'avancement physique (US-1680) et la mesure (US-2420), qui attendent EP-26 dans `main`.
 
-1. **US-1660/L1**, le socle — dès la fusion d'US-1580/L1 #2398 : la migration `0028`, le module
-   `core/indicators` à vide avec son interface en paquet — hors les sous-paquets `formulas/` et
-   `series/`, que leurs lots possèdent entiers, comme `pricing/` et `spreading/` en EP-07 —,
-   l'enregistrement à vide dans `register_indicators` et la signature changée dans `marking.py`,
-   le contrat de couches, les quatre routeurs vides et leurs `asked_*`, `tests/indicators_support.py`,
-   les fichiers de tests, le test des points d'entrée étendu. **Lot pivot d'EP-08.** Ni
-   `core/planning`, ni `core/estimate`, ni `core/costs`, ni le worker. En parallèle, dès la
-   branche : **les formules** (US-1660, pur : les ratios, les indices, les projections, l'enveloppe
-   et l'arrondi, les exemples chiffrés sans base) et **les séries** (US-1690, pur : le pas du mois,
-   l'étalement par `spreading` d'EP-07 #2376, les décaissements).
-2. **Le calcul du jour** (US-1660 : `indicator_lines.py`, `indicator_tasks.py`, `getProjectIndicators`
-   sur la révision en cours ou la dernière marquée, les mailles, après #2324, #2339, #2399, #2401 et
-   #2404), **l'avancement physique** (US-1680 : le crochet et son appel, après #2335, #2382, #2401,
-   #2324), **le temps/temps** (US-1710 : `tracked_milestones`, `milestone_forecasts`,
-   `getMilestoneTracking`, après #2340, #2324, #2401 — la lecture des documents `project` conservés
-   attend la conservation : le lot livre sur les transitions d'état d'abord, et se branche sur les
-   documents par US-1670), puis **la conservation** (US-1670/L1 : `store_indicators`, l'import dans le
-   worker après #2375 et #2404, la politique d'erreur, les 409 de l'offre, après le calcul du jour).
-3. **Les courbes du jour** (US-1690 : `getCostCurve`, `getEarnedValueCurves`, après le calcul du
-   jour), **l'évolution des indices** (US-1700, après la conservation), **le cache** (US-1720, après
-   le calcul du jour, #2341, #2405 et #2406), **la lecture conservée** (US-1670/L2 : `revision_id`,
-   `as_of`, les routes d'EP-07 et d'EP-09, après la conservation, #2363 et #2392).
-4. **Les courbes conservées** (US-1690, après la conservation et les courbes du jour), **l'écran**
-   (US-1730, après toutes les lectures, #2326 et #2383), **le témoin comparé** (US-1740, après la
-   lecture conservée, les courbes conservées et #2415) ; puis **la vérification d'ensemble**
-   (US-1740, après #2416), seule.
+1. **Le socle, et ce qui ne l'attend pas**, en parallèle : le socle (US-1660 : la migration, le
+   module à vide, la signature du registre, les routeurs vides) ; les formules et les séries,
+   modules purs (US-1660, US-1690) ; le cache de la plateforme (US-1720) ; le contrat du détail du
+   plan de charge et de la projection (US-2040, US-2050) et celui de la capacité (US-2410) ; les
+   exemples chiffrés du harnais (US-2430).
+2. **Le calcul du jour** (US-1660), sur le socle et les formules ; à côté, **l'étalement commun,
+   le détail et la projection** dans `core/estimate` (US-2040, US-2050), et **la capacité** dans
+   `core/resource_settings` (US-2410), sa migration chaînée sur celle du socle.
+3. **Ce qui lit le calcul du jour** : l'avancement physique (US-1680), le temps/temps (US-1710),
+   les courbes du jour (US-1690), la conservation au marquage (US-1670).
+4. **Ce qui lit la conservation** : la lecture conservée (US-1670), l'évolution des indices
+   (US-1700), les courbes conservées (US-1690) ; et la clé du cache, branchée sur les lectures du
+   jour (US-1720).
+5. **Les écrans** : celui des indicateurs (US-1730), le détail sous le plan de charge (US-2040),
+   la projection de dépenses (US-2050), l'écran des ressources (US-2410).
+6. **Le témoin comparé** (US-1740), le jumeau du reste à engager (US-2430), **la mesure**
+   (US-2420), puis **la vérification d'ensemble** (US-1740), seule.
 
 ---
 
@@ -869,7 +1002,8 @@ grandeur manque —, **afin de** savoir où en est mon projet entre deux revues.
   ratios et les indices à quatre décimales (`ROUND_HALF_EVEN`) ; sous `project_indicators.read` ;
   chaque réponse est validée contre le contrat dans les tests du service, et
   `test_access_evaluation.py` reçoit l'opération avec ses deux termes ;
-- propre à l'US (lot technique) : la migration d'EP-10, `0028`, chaînée sur `0027` et seule de
+- propre à l'US (lot technique) : la migration de `revision_indicator`, chaînée sur la dernière de
+  `main` (recadrage du 2026-11-15 : `0028` est prise depuis), et seule de
   l'EPIC —
   la table `revision_indicator` du Tableau 10, régime révisionné, partitionnée par projet, son
   déclencheur d'immuabilité, sa partition créée par `create_project_partitions`, les droits du rôle
@@ -1006,8 +1140,8 @@ politique d'erreur est le point 2 de #2180, ouvert en constat de l'EPIC. L'état
 marquage se lit sous le verrou du projet, pris après celui de la révision (l'ordre d'EP-04). Les
 routes d'EP-07 (`api/estimate_indicators.py`, US-1510 #2363) et d'EP-09
 (`api/remaining_indicators.py`, US-1600 #2392) sont complétées après ces lots pour lire le document
-conservé d'une révision marquée. Le constat « contrat » du refus d'`as_of` s'ouvre avec les issues
-de l'EPIC, « à trancher » ; le lot suit la décision.
+conservé d'une révision marquée. Le refus d'`as_of` est tranché (#2449, décision de l'auteur du
+2026-11-15) : le 409 de l'offre, dont le lot écrit la phrase au contrat.
 
 **Hors périmètre.** Le calcul lui-même (US-1660) ; les courbes conservées (US-1690) ; l'évolution
 des indices (US-1700) ; la charge par rôle et par mois, les totaux par nœud d'organisation et les
@@ -1156,6 +1290,12 @@ tâche sinon), les dates des tâches celles d'EP-06, le reste par ligne celui d'
 la conservation (US-1670). Le pas du mois et les points de la date de calcul suivent
 `docs/api/DECISIONS.md`, « Les courbes au pas du mois, conservées au marquage » (G-01, M-02) et
 « Les décaissements… » (M-06).
+
+- propre à l'US : la courbe de coûts passe, comme la projection de dépenses et le plan de charge,
+  par les parts arrondies communes de `core/estimate` (US-2040/L2) : à chaque mois, ses
+  décaissements sans les provisions et la projection de dépenses (`getProjectSpending`) ne diffèrent
+  pas d'un centime (décision de l'auteur du 2026-11-16, #3564) ; ce critère est celui du lot
+  US-1690/L4.
 
 **Hors périmètre.** Les marches d'avenant et les lignes de provision dans les décaissements
 (EP-08) ; la courbe en S du portefeuille (EP-11) ; l'écran (US-1730).
@@ -1461,8 +1601,8 @@ marquées de plus et les trois cents projets (EP-13) ; le portefeuille (EP-11).
 
 - **statut** : à faire
 - **exigences** : `WF-DEV-0090-A`
-- **opérations** : à écrire au contrat (#3181)
-- **issue** :
+- **opérations** : `getProjectWorkload`
+- **issue** : #3506
 
 **En tant que** chef de projet, **je veux** lire, sous l'histogramme du plan de charge, les tâches
 qui reviennent à chaque rôle, leurs heures et leur étalement par mois, **afin de** savoir ce que
@@ -1471,27 +1611,39 @@ chaque équipe aura à faire, et quand, sans rapprocher à la main le devis et l
 **Critères d'acceptation.**
 
 - `WF-DEV-0090-A` — « Pour chaque rôle et chaque mois, la somme des charges des tâches du détail
-égale la charge que le plan présente. »
-- `WF-DEV-0090-A` — « Deux lignes d'un même rôle sous une même tâche y comptent pour une seule ligne
-du détail, de la somme de leurs charges. »
-- `WF-DEV-0090-A` — « Sur la base du reste à engager, une tâche terminée n'y figure pas. »
+  égale la charge que le plan présente. »
+- `WF-DEV-0090-A` — « Deux lignes d’un même rôle sous une même tâche y comptent pour une seule ligne
+  du détail, de la somme de leurs charges. »
+- `WF-DEV-0090-A` — « Sur la base du reste à engager, une tâche terminée n’y figure pas. »
 - `WF-DEV-0090-A` — « Sous un rôle, une tâche qui débute en mars précède une tâche qui débute en
-avril, quelle que soit leur place dans l'arbre du planning ; depuis une tâche du détail,
-l'utilisateur atteint cette tâche dans la grille de planning, la révision conservée. ».
+  avril, quelle que soit leur place dans l’arbre du planning ; depuis une tâche du détail,
+  l’utilisateur atteint cette tâche dans la grille de planning, la révision conservée. »
+- propre à l'US : le contrat change avant le code : chaque rôle de `getProjectWorkload` rend ses
+  tâches — pour chacune son libellé, son début, sa fin, le total de ses heures et sa part dans
+  chaque mois —, sur la base, par la répartition et sous les filtres du plan ; à égalité de début,
+  l'ordre du planning (décision de l'auteur du 2026-11-14, #3181) ;
+- propre à l'US : la description de `getProjectWorkload` dit que `months` ne porte, pour un rôle
+  comme pour une tâche, que les mois où il est chargé, et un exemple rend un rôle chargé sur moins
+  de mois que les autres (#3096, décision de l'auteur du 2026-11-15) ;
+- propre à l'US : l'écran du plan de charge présente ce détail sous l'histogramme, en grille
+  arborescente du rôle à la tâche, une colonne par mois, en lecture seule, sans réglage propre : la
+  base et le filtre par nœud d'organisation sont ceux de l'histogramme ; la grille ne somme rien ;
+- propre à l'US : pour une révision marquée, le détail est calculé à la lecture, non conservé au
+  marquage (décision de l'auteur du 2026-11-14, #3181).
 
-**Notes de réalisation.**
+**Notes de réalisation.** Le plan de charge est d'EP-07 (`core/estimate/workloading.py`, US-1520) :
+il étale déjà chaque ligne sur les mois de sa tâche, et n'en garde que la somme par rôle. L'écran
+est d'EP-02 ; EP-24 a corrigé l'empilement de son histogramme (US-2030).
 
-Exigence nouvelle de la spécification 1.0.6 (#3181), rattachée à EP-10 par la ventilation du
-2026-11-14 : l'US est à détailler, et son contrat à écrire, à la relecture d'EP-10 contre la base
-livrée par EP-24. Pour une révision marquée, la vue est recalculée à la lecture, non conservée au
-marquage (décision de l'auteur du 2026-11-14).
+**Hors périmètre.** L'export du détail ; le détail au plan de charge agrégé du portefeuille
+(décisions de l'auteur du 2026-11-14, #3181).
 
 ## US-2050 — La projection de dépenses du projet
 
 - **statut** : à faire
 - **exigences** : `WF-DEV-0100-A`
-- **opérations** : à écrire au contrat (#3182)
-- **issue** :
+- **opérations** : `getProjectSpending` (nouvelle), `listSubprojects`
+- **issue** : #3507
 
 **En tant que** chef de projet, **je veux** lire, mois par mois et par nature de coût, ce que le
 projet dépensera, en histogramme et en grille, à la date de consommation ou de paiement, **afin de**
@@ -1500,21 +1652,122 @@ prévoir la dépense des mois qui viennent, main-d'œuvre et débours totalisés
 **Critères d'acceptation.**
 
 - `WF-DEV-0100-A` — « Une ligne de 1 200 portée par une tâche qui couvre exactement deux mois civils
-apparaît sur ces deux mois, au prorata des heures travaillées de la tâche dans chacun. »
+  apparaît sur ces deux mois, au prorata des heures travaillées de la tâche dans chacun. »
 - `WF-DEV-0100-A` — « Avec un délai de paiement de trente jours, en mode décaissement, sa dépense
-est décalée d'autant. »
+  est décalée d’autant. »
 - `WF-DEV-0100-A` — « Sur la base du reste à engager, le total de la projection égale le reste à
-engager du projet hors provisions (WF-RAE-0010), et aucune colonne ne précède le mois de la date de
-calcul. »
-- `WF-DEV-0100-A` — « Sur la base de la révision de référence d'un projet en cours, la projection
-présente aussi les mois antérieurs à la date de calcul. »
-- `WF-DEV-0100-A` — « Une ligne de provision n'y figure sous aucune nature. »
+  engager du projet hors provisions (WF-RAE-0010), et aucune colonne ne précède le mois de la date
+  de calcul. »
+- `WF-DEV-0100-A` — « Sur la base de la révision de référence d’un projet en cours, la projection
+  présente aussi les mois antérieurs à la date de calcul. »
+- `WF-DEV-0100-A` — « Une ligne de provision n’y figure sous aucune nature. »
 - `WF-DEV-0100-A` — « Le total de chaque mois égale la somme des natures de ce mois, et celui de
-chaque nature la somme de ses catégories. ».
+  chaque nature la somme de ses catégories. »
+- propre à l'US : le contrat reçoit avant le code une opération nouvelle, `getProjectSpending`, sur
+  le modèle de `getProjectWorkload` : les trois mêmes bases et leurs refus, la date de consommation
+  ou, sur demande, de paiement, le filtre par sous-projet ; elle rend chaque nature de coût, ses
+  catégories, leurs montants par mois et leurs totaux, tous sommés par le service ;
+- propre à l'US : une page nouvelle, « Projection de dépenses », s'atteint depuis le devis et
+  depuis le reste à engager, comme le plan de charge, sous la même permission ; elle présente un
+  histogramme empilé par nature de coût et une grille arborescente de la nature à la catégorie, en
+  lecture seule ;
+- propre à l'US : les valeurs de l'histogramme se lisent en table, comme celles de tout graphique
+  (WF-IHM-0130), et ses séries suivent la présentation des graphiques d'EP-25 (US-2160) ;
+- propre à l'US : pour une révision marquée, la projection est calculée à la lecture, non
+  conservée au marquage (décision de l'auteur du 2026-11-14, #3182) ;
+- propre à l'US : la page a son aide en ligne, dans les deux langues.
 
-**Notes de réalisation.**
+**Notes de réalisation.** La courbe de coûts cumulés (US-1690, par son lot L4) étale le reste de
+chaque ligne de la même façon : la projection en est la lecture par mois et par nature, non cumulée, et n'en reprend
+ni les coûts réels ni les mois passés sur la base du reste à engager.
 
-Exigence nouvelle de la spécification 1.0.6 (#3182), rattachée à EP-10 par la ventilation du
-2026-11-14 : l'US est à détailler, et son contrat à écrire, à la relecture d'EP-10 contre la base
-livrée par EP-24. Pour une révision marquée, la vue est recalculée à la lecture, non conservée au
-marquage (décision de l'auteur du 2026-11-14).
+**Hors périmètre.** Les provisions, absentes de l'écran ; une commande passée et non facturée, que
+rien n'introduit ; l'équivalent au portefeuille (décisions de l'auteur du 2026-11-14, #3182).
+
+## US-2410 — La capacité d'un rôle se déduit de son effectif et de son calendrier
+
+- **statut** : à faire
+- **exigences** : `WF-REF-0100-A`
+- **opérations** : `createResourceRole`, `updateResourceRole`, `listResourceRoles`,
+  `getProjectWorkload`
+- **issue** : #3508
+
+**En tant que** manager, **je veux** ne saisir d'un rôle que son effectif, ses heures disponibles
+par mois s'en déduisant, **afin que** le plan de charge compare la charge à une capacité qui suit
+le calendrier du rôle.
+
+**Critères d'acceptation.**
+
+- écart : `WF-REF-0100-A` — « Un rôle ne porte qu’une capacité, sans date de validité. » : tenu
+  par US-0850 (EP-05), non touché ;
+- `WF-REF-0100-A` — « Un rôle de deux personnes sur un calendrier de 35 heures par semaine dispose
+  de 2 × 35 × 52 / 12, soit environ 303,33 heures par mois ; un effectif de 0,5 sur le même
+  calendrier en dispose de 75,83. »
+- écart : `WF-REF-0100-A` — « Le plan de charge agrégé compare la charge mensuelle de chaque rôle à
+  ces heures. » : le plan de charge agrégé est d'EP-11, qui clôt l'exigence ; ici, le plan de
+  charge du projet compare la charge de chaque rôle à ces heures ;
+- propre à l'US : le contrat change avant le code : seul l'effectif d'un rôle se saisit ;
+  `monthly_hours` reste rendu, filtré et trié, et devient une valeur calculée, qu'une écriture ne
+  porte plus ;
+- propre à l'US : l'effectif saisi des rôles existants fait foi, leurs heures saisies sont
+  abandonnées : la capacité d'un rôle peut changer à la migration (décision de l'auteur du
+  2026-11-15, au recadrage) ; les images des révisions marquées gardent leurs heures d'alors ;
+- propre à l'US : les heures d'un rôle suivent le calendrier qu'il porte : en changer, ou changer
+  ses heures hebdomadaires, change la capacité à la lecture suivante ;
+- propre à l'US : l'écran des ressources ne saisit que l'effectif, et présente les heures par mois
+  comme une valeur calculée (WF-IHM-0030).
+
+**Notes de réalisation.** La spécification 1.0.4 a réécrit WF-REF-0100 (#2836) ; le code suit
+encore la règle d'avant : `capacity` porte deux valeurs saisies (`core/resource_settings`), et le
+plan de charge compare la charge aux heures saisies (`core/estimate/workloading.py`). Le fichier
+d'EP-05 le note en écart d'US-0850.
+
+**Hors périmètre.** Le plan de charge agrégé (EP-11).
+
+## US-2420 — Les indicateurs, le plan de charge et la projection de dépenses sont mesurés
+
+- **statut** : à faire
+- **exigences** : aucune en propre — l'outil de WF-QUA-0060, que clôt US-2300 (EP-26)
+- **opérations** : `getProjectIndicators`, `getProjectWorkload`, `getProjectSpending`
+- **issue** : #3510
+
+**En tant qu'** exploitant, **je veux** les durées des écrans que cet EPIC livre dans le rapport
+de mesures, **afin de** savoir s'ils tiennent leurs objectifs avant de publier la version.
+
+**Critères d'acceptation.**
+
+- propre à l'US : `make measure` et `make measure-version` mesurent, sur PRJ-001 du témoin chargé,
+  les opérations du tableau 15 que cet EPIC sert : afficher les indicateurs de la révision en
+  cours d'un projet, contre une seconde ; afficher le plan de charge, puis la projection de
+  dépenses, d'un projet de mille tâches, contre deux secondes ;
+- propre à l'US : le rapport de mesures de la version les porte, à la place de la mention
+  « EP-10 » sans durée (US-2300 d'EP-26) ; `make check-measures` passe ;
+- propre à l'US : un objectif dépassé est documenté dans le rapport et devient une issue à
+  trancher, sans lot engagé d'avance.
+
+**Hors périmètre.** Rendre un objectif bloquant ; les vues de portefeuille (EP-11).
+
+## US-2430 — Les constats reçus sont soldés
+
+- **statut** : à faire
+- **exigences** : aucune en propre — les exigences de ces fonctions sont closes par EP-07 et EP-09
+- **opérations** : `getProjectIndicators` ; `listActualCosts`, `listNodes` (le filtre `subproject_id`, US-2430/L2)
+- **issue** : #3509
+
+**En tant que** développeur, **je veux** que les constats rattachés à cet EPIC soient corrigés,
+**afin qu'** il ne laisse pas derrière lui la dette qu'il a reçue.
+
+**Critères d'acceptation.**
+
+- propre à l'US : chaque clé de `fixtures/examples.json` du §3.4.5.4 et de WF-REV-0060 qui n'a pas
+  de test du harnais d'exemples en reçoit un, dont le 4,04 % de WF-DEV-0050 (#2893) ;
+- propre à l'US : le jumeau de l'ajout d'une tâche au reste à engager (`remaining.spec.ts`) lit,
+  contre le service, le budget de référence et la valeur planifiée avant et après l'ajout, et les
+  constate inchangés (#3056) ; son assertion tautologique sur la référence est retirée (#3060) ;
+- propre à l'US : `listActualCosts` et `listNodes` lisent le filtre de sous-projet strictement,
+  comme `getProjectIndicators` et comme le contrat (`SubprojectFilter`, `format: uuid`) : un
+  identifiant à accolades, `urn:uuid:` ou sans tirets est refusé, `UNKNOWN_SUBPROJECT`, sur chacune
+  des trois routes (décision de l'auteur du 2026-11-16, #3567) ; ce critère est celui du lot
+  US-2430/L2.
+
+**Hors périmètre.** #2498, que porte US-1710 ; #3096, que porte US-2040.

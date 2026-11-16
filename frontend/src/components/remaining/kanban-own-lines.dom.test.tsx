@@ -110,12 +110,14 @@ describe("the card of a task that awaits its own lines", () => {
     const menu = screen.getByRole("menu", { name: "Gestes de la tâche Études" });
     const entries = within(menu).getAllByRole("menuitem");
     expect(entries.map((entry) => entry.textContent)).toEqual([
-      expect.stringMatching(
-        /^TerminerCondition non remplie\u00A0: tâche sans ligne hors provision\./,
-      ),
+      "Terminer",
       "Saisir le reste à engager",
     ]);
     expect(entries[0]).toHaveAttribute("aria-disabled", "true");
+    // The condition is the description of the item, in its tooltip — not written under its name.
+    expect(entries[0]).toHaveAccessibleDescription(
+      /^Condition non remplie\u00A0: tâche sans ligne hors provision\./,
+    );
     expect(entries[1]).not.toHaveAttribute("aria-disabled");
     expect(entries[1]).toHaveAttribute("href", expect.stringContaining("/remaining?"));
   });

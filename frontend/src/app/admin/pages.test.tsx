@@ -725,8 +725,9 @@ describe("the access roles", () => {
     server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const matrix = rows(rendered(await AccessRolesPage(searched())), "Permissions par fonction");
     // A header, forty permissions of the functions — the functions in reading alone read only
-    // (#739) —, the consultation of the journal of audit, eight irreversible and two structuring.
-    expect(matrix).toHaveLength(52);
+    // (#739) —, the consultation of the journal of audit, the two of the installation (FBS-1.6), eight
+    // irreversible and two structuring.
+    expect(matrix).toHaveLength(54);
     // Named by the catalogue, never by a code of the FBS (#518).
     expect(matrix).toContain(
       "Journal d’audit Consulter le journal d’audit Accordée Accordée Non accordée Non accordée Accordée Non accordée Non accordée",
@@ -736,6 +737,12 @@ describe("the access roles", () => {
       "Gestion des utilisateurs Consulter les utilisateurs Accordée Non accordée Non accordée Non accordée Accordée Non accordée Non accordée",
       "Modifier les utilisateurs Accordée Non accordée Non accordée Non accordée Accordée Non accordée Non accordée",
     ]);
+    expect(matrix).toContain(
+      "Installation Consulter l’installation Accordée Non accordée Non accordée Non accordée Accordée Non accordée Non accordée",
+    );
+    expect(matrix).toContain(
+      "Modifier l’installation Accordée Non accordée Non accordée Non accordée Accordée Non accordée Non accordée",
+    );
     expect(matrix).toContain(
       "Paramètres de coûts Consulter les paramètres de coûts Non accordée Non accordée Accordée Accordée Accordée Accordée Accordée",
     );

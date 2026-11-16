@@ -31,7 +31,7 @@ const IN_PROJECT = `/projects/${PROJECT}/revisions/${REVISION}`;
 const CONTEXT = `?subproject_id=${SUBPROJECT}&as_of=2026-05-31`;
 
 /** The functions of the platform scope, and the leaf of the costs, which the navigation lists. */
-const PLATFORM_FUNCTIONS = 16;
+const PLATFORM_FUNCTIONS = 17;
 const SETTINGS_FUNCTIONS = 4;
 const COST_LEAVES = 1;
 
@@ -154,7 +154,7 @@ describe("the navigation", () => {
     ).toEqual(["Projets"]);
     await openBlocks();
     expect(within(nav).getAllByRole("link")).toHaveLength(
-      5 + 7 + (SETTINGS_FUNCTIONS + COST_LEAVES) + 1,
+      6 + 7 + (SETTINGS_FUNCTIONS + COST_LEAVES) + 1,
     );
     for (const block of ["Administration", "Portefeuille", "Paramètres applicatifs"]) {
       expect(within(nav).getByRole("button", { name: block })).toHaveAttribute(
@@ -215,6 +215,13 @@ describe("the navigation", () => {
     expect(await openBlocks()).toEqual(["Portefeuille", "Paramètres applicatifs"]);
     expect(screen.queryByRole("link", { name: "Surveillance de l’état du système" })).toBeNull();
     expect(screen.getByRole("link", { name: "Portefeuille de projets" })).toBeInTheDocument();
+  });
+
+  it("hides the entry « Installation » from a session that reads another function of the administration but not the installation", async () => {
+    render(navigation("me_auditor"));
+    await openBlocks();
+    expect(screen.getByRole("link", { name: "Journal d’audit" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Installation" })).toBeNull();
   });
 
   it("carries the revision, the sub-project and the calculation date from one function of a project to the others", async () => {

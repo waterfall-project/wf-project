@@ -532,7 +532,10 @@ PermissionCode:
     that a risk has occurred carries the merge it triggers and does not require
     `structure_merge` (WF-ADM-0100). Viewing the audit log
     (`audit_log.read`, WF-SEC-0030) is that of the function the specification gives it
-    under administration, FBS-1.5 "Audit log". The view permissions of the
+    under administration, FBS-1.5 "Audit log". The installation (`installation.read`,
+    `installation.write`) is the function FBS-1.6 "Installation" under administration (author's
+    decision of 2026-11-13, #3088, and of 2026-11-15, #3197): it views what the bootstrap set, and
+    modifies the company name (`updateReferenceSettings`). The view permissions of the
     application settings (FBS-3) open what every session does not already read: the active
     reference data objects — nodes, resource roles, calendars, cost types and categories — are
     read by any open session, as project vocabulary (FBS-4), and their deactivated objects as
@@ -554,6 +557,8 @@ PermissionCode:
     - backups.read
     - backups.write
     - audit_log.read
+    - installation.read
+    - installation.write
     # FBS-2 — Portfolio.
     - portfolio_projects.read
     - portfolio_workload.read

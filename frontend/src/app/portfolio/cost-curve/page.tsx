@@ -31,7 +31,8 @@ import {
 import { PerimeterBar } from "@/components/portfolio/perimeter";
 import { CashOutChart, PortfolioCurveChart } from "@/components/portfolio/portfolio-charts";
 import { PortfolioHeader, portfolioLabel } from "@/components/portfolio/portfolio-header";
-import { ChartCard, ViewSection } from "@/components/portfolio/portfolio-value";
+import { ViewSection } from "@/components/portfolio/portfolio-value";
+import { GridCard } from "@/components/shell/grid-card";
 import { FUNCTION_DENSITY } from "@/components/shell/function-display";
 import { Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
@@ -159,9 +160,9 @@ export default async function PortfolioCostCurvePage({
         />
         <CurveSection curves={answer} query={queryOf(asked)} />
         {answer.cash_out_by_month === null ? null : (
-          <ChartCard>
+          <GridCard>
             <CashOutChart months={answer.cash_out_by_month} scope={answer.scope} />
-          </ChartCard>
+          </GridCard>
         )}
       </Screen>
     </PendingAddress>

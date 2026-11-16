@@ -172,7 +172,15 @@ def test_the_predefined_roles_are_those_of_the_example_of_the_contract() -> None
     assert {entry.label: entry.permissions for entry in described} == delivered
     manager = next(entry for entry in described if entry.key == "manager").permissions
     assert {"risk_settings.write", "indicator_settings.write"} <= set(manager)
-    assert "audit_log.read" in next(e for e in described if e.key == "administrator").permissions
+    administrator = next(e for e in described if e.key == "administrator").permissions
+    assert "audit_log.read" in administrator
+    # And the function of the installation, whose name of the company it corrects (US-2120): the
+    # administrator alone of the three.
+    installation = {"installation.read", "installation.write"}
+    assert {entry.key for entry in described if installation <= set(entry.permissions)} == {
+        "administrator"
+    }
+    assert administrator.index("installation.read") == administrator.index("audit_log.read") + 1
     assert [entry.label for entry in predefined_roles("en")] == [
         "Administrator",
         "Project manager",

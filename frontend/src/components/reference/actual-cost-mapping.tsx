@@ -27,7 +27,7 @@
  */
 "use client";
 
-import { Plus, Save, Trash2 } from "lucide-react";
+import { Columns3, Plus, Save, Trash2, TableProperties } from "lucide-react";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 import { type SubmitEvent, useEffect, useId, useRef, useState } from "react";
 
@@ -37,6 +37,7 @@ import type { Outcome } from "@/api/problem";
 import { useHeldCommand } from "@/components/commands/held";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { OutcomeNotice, useNoteRefusal, useReadAnew } from "@/components/commands/outcome-notice";
+import { SectionCard } from "@/components/shell/section-card";
 import { useSaid } from "@/components/notices/said";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,12 @@ import { problemMessage } from "@/i18n/problem";
 type Mapping = components["schemas"]["ActualCostMapping"];
 type Source = components["schemas"]["ActualCostSourceColumn"];
 type FieldProblem = components["schemas"]["FieldProblem"];
+
+/**
+ * The width a field of a label is bounded to, so that a line stays readable in a card as wide as
+ * the screen (EP-25, US-2110): a label is a few words, never a paragraph.
+ */
+const READING_WIDTH = "max-w-xl";
 
 /** The longest label the contract takes. */
 const LABEL_LENGTH = 200;
@@ -217,23 +224,26 @@ function ReadMapping({ mapping }: { readonly mapping: Mapping }) {
   const t = useTranslations("reference.actualCostMapping");
   const column = useTranslations("enums.ActualCostSourceColumn");
   return (
-    <div className="grid gap-4">
-      {mapping.columns.map((each) => (
-        <section key={each.column} aria-label={column(each.column)} className="grid gap-1">
-          <h3 className="text-sm font-semibold">
-            {column(each.column)}{" "}
-            <span className="font-normal text-muted-foreground">
-              {each.required ? t("required") : t("optional")}
-            </span>
-          </h3>
-          <ReadList labels={each.labels} none={t("noLabel")} />
-        </section>
-      ))}
-      <section aria-label={t("kept")} className="grid gap-1">
-        <h3 className="text-sm font-semibold">{t("kept")}</h3>
+    <>
+      <SectionCard title={t("readColumns")} icon={Columns3}>
+        <div className="grid gap-4">
+          {mapping.columns.map((each) => (
+            <section key={each.column} aria-label={column(each.column)} className="grid gap-1">
+              <h3 className="text-sm font-semibold">
+                {column(each.column)}{" "}
+                <span className="font-normal text-muted-foreground">
+                  {each.required ? t("required") : t("optional")}
+                </span>
+              </h3>
+              <ReadList labels={each.labels} none={t("noLabel")} />
+            </section>
+          ))}
+        </div>
+      </SectionCard>
+      <SectionCard title={t("kept")} icon={TableProperties}>
         <ReadList labels={mapping.kept_columns} none={t("noKept")} />
-      </section>
-    </div>
+      </SectionCard>
+    </>
   );
 }
 
@@ -327,6 +337,7 @@ function LabelList({
               <div className="flex items-center gap-2">
                 <Input
                   id={own}
+                  className={READING_WIDTH}
                   ref={(element) => {
                     register(`row-${String(key)}`, element);
                   }}
@@ -641,36 +652,42 @@ function MappingForm({
       noValidate
       aria-busy={waiting}
       onSubmit={submit}
-      className="grid gap-5"
+      className="flex min-w-0 flex-col gap-7"
     >
-      {draft.columns.map(({ column: each, required, rows }, scope) => (
-        <fieldset key={each} disabled={waiting} className="grid gap-2">
-          <legend className="mb-1 text-sm font-semibold">
-            {column(each)}{" "}
-            <span className="font-normal text-muted-foreground">
-              {required ? t("required") : t("optional")}
-            </span>
-          </legend>
+      <SectionCard title={t("readColumns")} icon={Columns3}>
+        <div className="grid gap-5">
+          {draft.columns.map(({ column: each, required, rows }, scope) => (
+            <fieldset key={each} disabled={waiting} className="grid min-w-0 gap-2">
+              <legend className="mb-1 text-sm font-semibold">
+                {column(each)}{" "}
+                <span className="font-normal text-muted-foreground">
+                  {required ? t("required") : t("optional")}
+                </span>
+              </legend>
+              <LabelList
+                {...common}
+                scope={scope}
+                rows={rows}
+                name={column(each)}
+                listProblem={listProblems.get(scope)}
+              />
+            </fieldset>
+          ))}
+        </div>
+      </SectionCard>
+      <SectionCard title={t("kept")} icon={TableProperties}>
+        <fieldset disabled={waiting} className="grid min-w-0 gap-2">
+          <legend className="sr-only">{t("kept")}</legend>
+          <p className="text-sm text-muted-foreground">{t("keptHint")}</p>
           <LabelList
             {...common}
-            scope={scope}
-            rows={rows}
-            name={column(each)}
-            listProblem={listProblems.get(scope)}
+            scope="kept"
+            rows={draft.kept}
+            name={t("kept")}
+            listProblem={listProblems.get("kept")}
           />
         </fieldset>
-      ))}
-      <fieldset disabled={waiting} className="grid gap-2">
-        <legend className="mb-1 text-sm font-semibold">{t("kept")}</legend>
-        <p className="text-xs text-muted-foreground">{t("keptHint")}</p>
-        <LabelList
-          {...common}
-          scope="kept"
-          rows={draft.kept}
-          name={t("kept")}
-          listProblem={listProblems.get("kept")}
-        />
-      </fieldset>
+      </SectionCard>
       <OutcomeNotice
         outcome={outcome}
         reading={reading}

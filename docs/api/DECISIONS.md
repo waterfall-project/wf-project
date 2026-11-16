@@ -11870,6 +11870,43 @@ déjà désactivés, ne sont pas rendus. La direction se réactive ; ses descend
 `org_node_parent_active`, les rôles `org_node_active`. Le test du front qui le lit est d'US-2180.
 Aucune forme ne change.
 
+### La fonction « installation » : ses deux permissions, le nom de l'entreprise écrit sous elle (US-2120/L1, #3245)
+
+Le contrat rangeait le nom de l'entreprise (`company_name`) sous `cost_settings.write`, la fonction
+des paramètres de coûts, dont l'écran le montrait à côté de la devise ; le catalogue n'avait aucune
+permission pour l'installation. Décisions de l'auteur du 2026-11-13 (#3088) et du 2026-11-14
+(conception d'EP-25, modification 4) : le nom se corrige sur un écran « Installation » de
+l'administration, sous une fonction nouvelle, FBS-1.6 « Installation » (rédaction de #3197, que
+l'auteur a retenue le 2026-11-15 avant la révision de la spécification, qui suivra). **`PermissionCode`
+porte `installation.read` et `installation.write`**, juste après `audit_log.read`, leur `fbs_code`
+`FBS-1.6` ; **`updateReferenceSettings` écrit `company_name` sous `installation.write`**, et un
+champ que la session ne peut écrire est refusé comme avant (403 `PERMISSION_MISSING`,
+`params.missing_permission` à `installation.write`) ; les autres champs gardent leur permission, et
+`getReferenceSettings` se lit comme avant, par toute session. Le rôle prédéfini « administrateur »
+d'une installation neuve porte les deux ; une installation existante les donne, par une migration,
+à tout rôle non supprimé qui porte `users.write` et `access_roles.write` — c'est ainsi que le
+service reconnaît un administrateur (WF-ADM-0120) —, et à aucun autre. Les exemples suivent : le
+catalogue (`permissions`), les rôles (`access_roles` et ses variantes), où l'administrateur et
+« Direction de projet », tout le catalogue, portent les deux, les comptes de Camille Martin
+(`me` et ses variantes) et le journal qui les reprend ; un exemple du 403,
+`reference_settings_company_permission_missing`, le nom envoyé par une session des seuls
+paramètres de coûts. Aucune opération nouvelle ; `info.version` reste `1.0.0` : deux valeurs
+d'énumération de plus. Écartées : une opération `updateInstallation`, et la colonne déplacée dans
+`installation` — une migration de données sans gain, les exports lisant le nom où il est ; l'écran
+sous la permission des coûts, qu'un administrateur sans les paramètres de coûts ne verrait pas ;
+la fonction donnée aussi aux rôles qui portent `cost_settings.write`.
+
+### Le refus d'une colonne lue à plus de vingt intitulés, en exemple (US-2120/L1, #3270)
+
+`setActualCostMapping` décrit le refus d'une colonne lue qui porte plus de vingt intitulés
+(`VALUE_TOO_LONG` au pointeur de la liste), mais seul le refus des colonnes conservées avait son
+exemple (`actual_cost_mapping_kept_columns_too_many`, `/kept_columns`) : le front ne pouvait
+éprouver le cas `/columns/<rang>/labels` que sur une réponse écrite à la main, ce que la règle
+« aucun mock » interdit. Décision de l'auteur du 2026-11-14 : **un exemple
+`actual_cost_mapping_labels_too_many`**, la correspondance du témoin envoyée avec vingt et un
+intitulés pour l'élément d'OTP, refusée au pointeur `/columns/0/labels`, `params.max_length` 20.
+Aucune forme ne change ; le test du front qui le lit vient avec le formulaire.
+
 ### Un montant dérivé qui déborde sa colonne est refusé au champ qui le provoque (US-2260/L3, #3093, #3094)
 
 Les montants d'une ligne de devis, `base_amount` et `reestimated_amount`, sont calculés par le

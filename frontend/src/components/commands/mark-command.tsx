@@ -6,7 +6,8 @@
  * once with a background task (WF-ARC-0090), handed to the tracker of the shell with the command
  * itself, which runs it again if it fails (WF-IHM-0080); the form closes, and the screen stays
  * as it was, usable while the revision is marked. The command waits, saying so, until the task ends
- * (`useTaskRunning`): failed, it is given back.
+ * (`useTaskRunning`) — mounted anew, the tab reloaded or the screen left and come back to, it finds
+ * the marking of its revision that still runs (`useRunningTask`, #3404) —: failed, it is given back.
  *
  * The form is part of the page, not a dialog: nothing else of the screen is withheld while it
  * is open. A refusal — a version name already taken, the revision marked meanwhile or changed
@@ -21,7 +22,8 @@ import { type SubmitEvent, useEffect, useId, useRef, useState } from "react";
 import { markRevision } from "@/api/actions/revisions";
 import type { Outcome } from "@/api/problem";
 import type { Revision } from "@/components/context/read-only";
-import { useTaskRunning, useTrackTask } from "@/components/tasks/task-tracker";
+import { useRunningTask, useTaskRunning, useTrackTask } from "@/components/tasks/task-tracker";
+import { taskAim } from "@/components/tasks/tracking";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -56,7 +58,13 @@ interface MarkFormProps {
 }
 
 const FIELD = "max-w-sm";
+
 const LABEL = "block text-sm font-medium";
+
+/** What the marking aims at: its revision, by which the command finds it again (#3404). */
+function markAim(revision: Revision): string {
+  return taskAim("revision_mark", revision.revision_id);
+}
 
 /**
  * Ask the version name of the marking — and, if the user wishes, a description of the
@@ -111,7 +119,7 @@ function MarkForm({
       .then((result) => {
         setBusy(false);
         if (result.kind === "done") {
-          track(result.data, { command, subject: name });
+          track(result.data, { command, subject: name, aim: markAim(revision) });
           onMarking(result.data.task_id);
           onClose();
         } else {
@@ -192,9 +200,11 @@ export function MarkCommand({ offer, revision, names }: MarkCommandProps) {
   const helps = useTranslations("commands");
   const form = useId();
   const [open, setOpen] = useState(false);
-  // The task of the last marking: the command waits while it runs, and is given back at its end.
+  // The task of the last marking — else, mounted anew, the one of the revision that runs (#3404): the
+  // command waits while it runs, and is given back at its end.
   const [marking, setMarking] = useState<string>();
-  const running = useTaskRunning(marking);
+  const found = useRunningTask(markAim(revision));
+  const running = useTaskRunning(marking ?? found);
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   // A marking lost once sent: the screen is read anew before it can be asked again (US-2240) — read
   // here, where it stays mounted, so that the form closed and opened again waits as long.
