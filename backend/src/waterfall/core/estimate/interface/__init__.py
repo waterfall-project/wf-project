@@ -178,6 +178,24 @@ from waterfall.core.estimate.interface.facet import (
     write_line_cell as write_line_cell,
 )
 
+# ``indicator_lines`` (US-1660/L3; US-1720/L2): the lines of a revision as the indicators read them,
+# their planned value, and what the key of their cache reads.
+from waterfall.core.estimate.interface.indicator_lines import (
+    IndicatorLine as IndicatorLine,
+)
+from waterfall.core.estimate.interface.indicator_lines import (
+    LinesStamp as LinesStamp,
+)
+from waterfall.core.estimate.interface.indicator_lines import (
+    lines_for_indicators as lines_for_indicators,
+)
+from waterfall.core.estimate.interface.indicator_lines import (
+    lines_stamp as lines_stamp,
+)
+from waterfall.core.estimate.interface.indicator_lines import (
+    planned_value_at as planned_value_at,
+)
+
 # ``indicators`` (US-1490/L1; US-1510): the indicators of an estimate and the rates it lacks.
 from waterfall.core.estimate.interface.indicators import (
     AmountByKey as AmountByKey,

@@ -80,12 +80,21 @@ class Indicators:
     projections: Projections
 
 
-def indicators_of(amounts: Amounts, thresholds: Thresholds) -> Indicators:
-    """Compute the indicators of a set from its amounts, the zones on the thresholds given."""
+def indicators_of(amounts: Amounts, thresholds: Thresholds | None) -> Indicators:
+    """Compute the indicators of a set from its amounts, the zones on the thresholds given.
+
+    Without thresholds, the zones are none: a document of the day, kept or cached, carries none, a
+    reading classifying its indices on the thresholds of its own day (EP-10, "Ce que le cadrage
+    décide").
+    """
     budget, planned = amounts.reference_budget, amounts.planned_value
     earned, actual, remaining = amounts.earned_value, amounts.actual_cost, amounts.remaining
     cost = cost_index(earned, actual)
     schedule = schedule_index(earned, planned)
+    cost_zone = schedule_zone = None
+    if thresholds is not None:
+        cost_zone = zone_of(cost, thresholds.cost_watch, thresholds.cost_alert)
+        schedule_zone = zone_of(schedule, thresholds.schedule_watch, thresholds.schedule_alert)
     return Indicators(
         reference_budget=round_amount(budget),
         planned_value=round_amount(planned),
@@ -95,10 +104,8 @@ def indicators_of(amounts: Amounts, thresholds: Thresholds) -> Indicators:
         financial_progress=financial_progress(actual, remaining),
         budget_consumption=budget_consumption(actual, budget),
         physical_progress=physical_progress(earned, budget),
-        cost_index=Index(cost, zone_of(cost, thresholds.cost_watch, thresholds.cost_alert)),
-        schedule_index=Index(
-            schedule, zone_of(schedule, thresholds.schedule_watch, thresholds.schedule_alert)
-        ),
+        cost_index=Index(cost, cost_zone),
+        schedule_index=Index(schedule, schedule_zone),
         cost_variance=cost_variance(earned, actual),
         schedule_variance=schedule_variance(earned, planned),
         projections=projections(budget, earned, actual, remaining),

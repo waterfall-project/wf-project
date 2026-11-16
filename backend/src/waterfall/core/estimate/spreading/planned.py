@@ -41,6 +41,19 @@ def planned_value(lines: Iterable[PlannedLine], at: date) -> Decimal:
     return _to_cent(total)
 
 
+def planned_value_by_line(lines: Iterable[PlannedLine], at: date) -> Decimal:
+    """Return the planned value at the end of a day as the sum of the shares of the lines.
+
+    Each line is rounded to the cent on its own share, so that the planned value of any set of
+    lines is exactly the sum of those of its parts (WF-IND-0020-A): the scopes of a project sum to
+    the project. It may differ by a cent from ``planned_value``, which rounds the sum once.
+    """
+    end = WorkInstant(at + timedelta(days=1))
+    return sum(
+        (_to_cent(Fraction(line.amount) * _earned(line, end)) for line in lines), Decimal("0.00")
+    )
+
+
 def _to_cent(total: Fraction) -> Decimal:
     """Round an exact sum once to the cent, half away from zero, as ``Money`` does (#2773).
 

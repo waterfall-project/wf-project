@@ -558,6 +558,12 @@ CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
     ("getEstimateIndicators", "query", "scope"): (
         "declared nothing, contract either=(enum={'project', 'unassigned'} | nothing)"
     ),
+    # The scope of the indicators of a project, read and judged as that of an estimate, after the
+    # state of the project, as the contract orders the refusals (``getProjectIndicators``,
+    # US-1660/L3).
+    ("getProjectIndicators", "query", "scope"): (
+        "declared nothing, contract either=(enum={'project', 'unassigned'} | nothing)"
+    ),
     # The subproject asked of the actual costs: ``unassigned`` or an identifier, read as text and
     # judged by the route, whose refusal the contract names in 422, on the parameter
     # (``UNKNOWN_SUBPROJECT``, ``listActualCosts``, US-1620/L1).

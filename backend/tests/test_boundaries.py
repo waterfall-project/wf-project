@@ -116,12 +116,17 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
     "planning": {
         "closing",
         "facets",
+        # What the indicators read of the planning, laid by US-1660/L3 (EP-10, "Modules").
+        "indicator_stamps",
+        "indicator_tasks",
         "lines",
         "loading",
+        "milestone_dates",
         "msproject",
         "nodes",
         "open_lines",
         "paste",
+        "physical_progress",
         "predecessors",
         "progress",
         "reference",
