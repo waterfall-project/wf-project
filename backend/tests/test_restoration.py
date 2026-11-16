@@ -21,6 +21,7 @@ import pytest
 from access_rows import account, role
 from alembic.script import ScriptDirectory
 from fastapi.testclient import TestClient
+from indicators_support import indicator_row
 from installations import (
     Installation,
     Take,
@@ -33,8 +34,10 @@ from installations import (
     sha256,
     written_task,
 )
+from project_rows import AT, MARKED, insert_project, insert_revision
 from realm import KEY, TestRealm
-from sqlalchemy import func, select, text
+from sqlalchemy import func, insert, select, text, update
+from sqlalchemy.exc import DBAPIError
 from support import ContractClient, bearer, captured_logs
 from task_handlers import REQUEST
 
@@ -48,6 +51,8 @@ from waterfall.core.backups.interface import (
     write_back_after_restoration,
 )
 from waterfall.core.backups.tables import Backup
+from waterfall.core.indicators.tables import RevisionIndicator
+from waterfall.core.revisions.tables import Revision
 from waterfall.core.users.interface import anonymize_account
 from waterfall.core.users.tables import UserAccount
 from waterfall.migrations.runner import alembic_config, downgrade, upgrade
@@ -349,6 +354,47 @@ def test_a_backup_of_an_earlier_revision_is_migrated_before_the_role_of_the_serv
     listed = backups_api.get(BACKUPS, headers=bearer(realm.token(subject, KEY)))
     assert listed.status_code == 200
     assert listed.json()["meta"]["total"] == 1
+
+
+@pytest.mark.requirement("WF-ADM-0160-A")
+@pytest.mark.requirement("WF-DAT-0040-A")
+def test_a_marked_revision_and_the_indicators_it_kept_are_restored_and_still_guarded(
+    installation: Installation, take: Take, tmp_path: Path
+) -> None:
+    # #3558: the dump loads the rows before it makes the triggers again — the guard of a marked
+    # revision, and the one, deferred, that refuses a row outside a marking —, so that a revision
+    # marked with its documents comes back whole, and guarded: its document is never changed.
+    project_id, revision_id = uuid4(), uuid4()
+    owner = create_database_engine(installation.owner["waterfall"])
+    with owner.begin() as connection:
+        connection.execute(insert_project(id=project_id))
+        connection.execute(select(func.create_project_partitions(project_id)))
+        connection.execute(insert_revision(project_id, id=revision_id))
+    # The marking: the document written while the revision is current, then the revision marked at
+    # the instant the document was computed at, in one transaction.
+    with owner.begin() as connection:
+        connection.execute(
+            insert(RevisionIndicator).values(**indicator_row(project_id, revision_id))
+        )
+        connection.execute(update(Revision).where(Revision.id == revision_id).values(**MARKED))
+    owner.dispose()
+    backup_task = take()
+    restore(installation, backup_task, tmp_path)
+    owner = create_database_engine(installation.owner["waterfall"])
+    try:
+        with owner.connect() as connection:
+            status = connection.scalar(select(Revision.status).where(Revision.id == revision_id))
+            kept = connection.execute(
+                select(RevisionIndicator.kind, RevisionIndicator.computed_at).where(
+                    RevisionIndicator.revision_id == revision_id
+                )
+            ).all()
+        assert (status, [tuple(row) for row in kept]) == ("marked", [("estimate", AT)])
+        changed = update(RevisionIndicator).where(RevisionIndicator.revision_id == revision_id)
+        with pytest.raises(DBAPIError, match="never written"), owner.begin() as connection:
+            connection.execute(changed.values(document={}))
+    finally:
+        owner.dispose()
 
 
 @pytest.mark.requirement("WF-ARC-0090-A")

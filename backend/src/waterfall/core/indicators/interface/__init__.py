@@ -6,7 +6,7 @@ One file per object, each filled by the story that serves it and re-exported her
 file are imported in a statement of their own, below the comment that names the file, so that two
 stories filling two files write two places of this one. Every function the design names (EP-10,
 "Modules") is declared from US-1660/L1 on: it raises ``NotImplementedError`` naming the story that
-fills it, but for the entry the marking calls before, without effect until then. A name a story
+fills it. A name a story
 adds besides joins the import of its file, below the comment that names it. Another module imports
 them from here, never from the file; no module of the domain imports this one, which reads the
 interfaces of the estimate, the actual costs, the planning, the revisions, the projects and the
@@ -14,9 +14,9 @@ settings.
 
 The indicators fill, at the import of this interface, ``register_indicators`` of the revisions:
 ``store_indicators``, which keeps the indicators of a revision in the transaction of its marking
-(US-1670/L1). The entry points that mark a revision — the API, which imports it from US-1660/L1 on,
-the loader of the witness, which marks by ``load_marking``, and the worker, which imports it from
-US-1670/L1 on (EP-10, "Le worker") — import it (#2180).
+(US-1670/L1). The entry points that mark a revision — the API, the loader of the witness, which
+marks by ``load_marking``, and the worker, which imports it from US-1670/L1 on (EP-10, "Le
+worker") — import it (#2180).
 """
 
 # ``curves`` (US-1660/L1; US-1690/L2, US-1690/L3): the cumulative costs, the earned value curves.
@@ -33,6 +33,18 @@ from waterfall.core.indicators.interface.documents import (
 )
 from waterfall.core.indicators.interface.documents import (
     IndicatorKind as IndicatorKind,
+)
+
+# ``estimate_documents`` (US-1670/L1): the indicators of an estimate and of the remaining to commit
+# as the contract writes them, which the API answers and a marking keeps.
+from waterfall.core.indicators.interface.estimate_documents import (
+    estimate_document as estimate_document,
+)
+from waterfall.core.indicators.interface.estimate_documents import (
+    missing_rate_document as missing_rate_document,
+)
+from waterfall.core.indicators.interface.estimate_documents import (
+    remaining_document as remaining_document,
 )
 
 # ``index_history`` (US-1660/L1; US-1700): the evolution of the indices.
@@ -60,7 +72,7 @@ from waterfall.core.indicators.interface.reading import (
     IndicatorsReading as IndicatorsReading,
 )
 
-# ``stored_documents`` (US-1660/L1; US-1670/L2): a document a marked revision kept.
+# ``stored_documents`` (US-1660/L1; US-1670/L1): a document a marked revision kept.
 from waterfall.core.indicators.interface.stored_documents import (
     stored_document as stored_document,
 )

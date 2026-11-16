@@ -1004,7 +1004,7 @@ survenu et le budget devant un avenant (EP-08) ; le portefeuille (EP-11).
 
 ## US-1670 — Le calcul au marquage et la conservation des indicateurs d'une révision marquée
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-DAT-0040-A`, `WF-IND-0010-A`, `WF-CYC-0090-A`, `WF-REF-0130-A`
 - **opérations** : `markRevision`, `exitProject` (la transaction du marquage) ;
   `getProjectIndicators` (`revision_id`, `as_of`), `getEstimateIndicators`,

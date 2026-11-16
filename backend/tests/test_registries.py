@@ -8,9 +8,9 @@ designates a reference without asking for them, in silence. Each entry point —
 (``create_app``), the worker (``handlers``), the loader of the witness (``load_witness``) — is
 imported in a process of its own, and its registries compared with those of a process that imports
 every module of the core and of the witness: none lacks an extension that a module registers — the
-worker those of the estimate included, which it imports from US-1500/L2 on (EP-07, "Le worker"), and
-those of the actual costs, which it imports from US-1610/L2 on (EP-09, "Le worker"); but not those
-of the indicators, which it imports from US-1670/L1 on (EP-10, "Le worker"). What the socles of
+worker those of the estimate included, which it imports from US-1500/L2 on (EP-07, "Le worker"),
+those of the actual costs, which it imports from US-1610/L2 on (EP-09, "Le worker"), and those of
+the indicators, which it imports from US-1670/L1 on (EP-10, "Le worker"). What the socles of
 EP-06, EP-07, EP-09 and EP-10 register is named, so that the comparison is never between two empty
 lists.
 
@@ -287,12 +287,9 @@ REGISTERED_BY_EP09 = {
     "planning.zeroed_at": [f"{ESTIMATE}.kanban.zeroed_lines"],
 }
 INDICATORS = "waterfall.core.indicators.interface"
-# What the socle of EP-10 registers without effect (US-1660/L1): what a marking keeps of the
-# indicators, which US-1670/L1 fills.
+# What the socle of EP-10 registers (US-1660/L1): what a marking keeps of the indicators, which
+# US-1670/L1 fills.
 REGISTERED_BY_EP10 = {"revisions.indicators": [f"{INDICATORS}.storing.store_indicators"]}
-# The entry points that import the interface of the indicators from the socle on: the worker does
-# from US-1670/L1 on, which keeps the indicators at the marking (EP-10, "Le worker").
-INDICATORS_IMPORTED_BY = {"api", "loader"}
 
 
 def before(*socles: dict[str, list[str]]) -> dict[str, set[str]]:
@@ -385,35 +382,25 @@ def test_every_registry_holds_what_the_socle_of_ep10_registers_after_the_others(
         assert held == entries, name
 
 
-def without_indicators(registries: dict[str, list[str]]) -> dict[str, list[str]]:
-    """Give the registries without what the socle of EP-10 registers."""
-    return {
-        name: [entry for entry in entries if entry not in REGISTERED_BY_EP10.get(name, [])]
-        for name, entries in registries.items()
-    }
-
-
 @pytest.mark.parametrize("entry_point", sorted(ENTRY_POINTS))
 def test_each_entry_point_holds_every_extension_of_the_registries_it_reads(
     entry_point: str, everything: dict[str, list[str]]
 ) -> None:
     # The API and the worker read no registry of the witness; the loader reads them all. The worker
     # imports the interface of the estimate (US-1500/L2): nothing lacks, its marking keeps images;
-    # and that of the actual costs (US-1610/L2): it analyses and applies an extraction, and the
-    # import of an estimate it applies asks whether a subproject bears costs. The API and the loader
-    # import that of the indicators from the socle of EP-10 on, the worker from US-1670/L1 on:
-    # until then, its markings keep no indicator, as before EP-10.
+    # that of the actual costs (US-1610/L2): it analyses and applies an extraction, and the import
+    # of an estimate it applies asks whether a subproject bears costs; and that of the indicators
+    # (US-1670/L1): its markings keep the indicators, as the API's and the loader's.
     held = registered_in(ENTRY_POINTS[entry_point])
     read = {
         name: entries
         for name, entries in everything.items()
         if entry_point == "loader" or not name.startswith(WITNESS)
     }
-    if entry_point not in INDICATORS_IMPORTED_BY:
-        read = without_indicators(read)
     assert {name: held.get(name) for name in read} == read
     assert held["projects.cost_facts"] == REGISTERED_BY_EP09["projects.cost_facts"]
     assert f"actual_costs:{COSTS}.actual_costs.ActualCostsFormat" in held["exchanges.formats"]
+    assert held["revisions.indicators"] == REGISTERED_BY_EP10["revisions.indicators"]
 
 
 @pytest.fixture

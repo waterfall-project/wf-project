@@ -328,7 +328,15 @@ def compute_indicators(session: Session, revision_id: UUID, act: Act) -> None:
     """Compute and keep the indicators of a revision being marked, by each computation registered.
 
     Called by ``mark_revision`` with the act of the marking, before the revision is written; the
-    indicators register theirs (EP-10, US-1670/L1), the socle without effect.
+    indicators register theirs (EP-10, US-1670/L1): the documents the revision keeps.
+
+    Nothing is caught (WF-DAT-0040, #2180): a computation that raises — a refusal, a fault of the
+    data, any exception — stops the ones after it and rises to ``mark_revision``, which has written
+    nothing of the revision yet, then to the worker, which fails the task ``revision_mark`` with its
+    code (``BackgroundTask.problem``; the code of an internal error for an exception that bears
+    none) and rolls its transaction back, the documents written before it included. The revision
+    stays current; a new ``markRevision`` asks the marking again. No indicator is ever left out in
+    place of one that failed.
     """
     for compute in _INDICATORS.entries():
         compute(session, revision_id, act)
