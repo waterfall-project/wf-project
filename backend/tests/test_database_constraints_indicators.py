@@ -192,6 +192,7 @@ def test_the_kinds_the_interface_names_are_those_the_base_holds() -> None:
     assert get_args(IndicatorKind.__value__) == KINDS
 
 
+@pytest.mark.requirement("WF-DAT-0050-A")
 def test_a_stored_document_is_read_in_the_partition_of_its_project_alone(
     parents: Parents, owner: Engine, database: Database
 ) -> None:
