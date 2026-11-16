@@ -61,6 +61,7 @@ from waterfall.core.estimate.workloading import (
 from waterfall.core.projects.interface import subproject_labels
 from waterfall.core.revisions.interface import read_revision_for
 from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
+from waterfall.platform.identifiers import read_identifier
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Mapping
@@ -153,9 +154,8 @@ def _scope_of(session: Session, project_id: UUID, asked: str | None) -> UUID | s
         return PROJECT
     if asked == UNASSIGNED:
         return UNASSIGNED
-    try:
-        subproject_id = UUID(asked)
-    except ValueError:
+    subproject_id = read_identifier(asked)
+    if subproject_id is None:
         return None
     return subproject_id if subproject_labels(session, project_id, [subproject_id]) else None
 
@@ -193,7 +193,13 @@ def _named(
 
 
 def _type_codes(session: Session) -> dict[UUID, str]:
-    """Give the code of every nature of the reference, deactivated ones too."""
+    """Give the code of every nature of the reference as it is, deactivated ones too.
+
+    The order of the natures of a marked revision reads these codes too: the images of its marking
+    (``KeptCategory``) keep the identifier and the label of a nature, not its code, and the
+    interface of the cost settings reads no nature by identifier with its code. A code changed
+    since the marking can therefore reorder the natures; the amounts are unaffected.
+    """
     filters = CostTypeFilters(states=frozenset({True, False}))
     page = list_cost_types(session, filters, CostTypeSort(), EVERY_TYPE, may_change=False)
     return {each.cost_type_id: each.code for each in page.types}
@@ -285,7 +291,7 @@ def read_spending(session: Session, project_id: UUID, asked: SpendingAsked) -> S
     images = () if kept is None else kept.cost_categories
     named = _named(session, set(by_category), images)
     cost_types, by_month = _cost_types(by_category, named, _type_codes(session))
-    totals = monthly_totals(by_month)
+    totals = monthly_totals(by_month, ZERO)
     return SpendingView(
         reading.revision_id,
         reading.status,

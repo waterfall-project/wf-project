@@ -19,12 +19,13 @@ import pytest
 from day_indicators_support import subproject
 from estimate_support import YEAR
 from nodes_support import faults, refusal, set_progress
-from sqlalchemy import delete, select, update
+from project_rows import STAMP
+from sqlalchemy import delete, insert, select, update
 from workload_support import NOV_DEC, NOVEMBER, STATE_FORBIDS, Site, make_site
 
-from waterfall.core.cost_settings.tables import CostType, HourlyRate
+from waterfall.core.cost_settings.tables import CostCategory, CostType, HourlyRate
 from waterfall.core.estimate.interface import remaining_of_revision
-from waterfall.core.estimate.tables import EstimateLine
+from waterfall.core.estimate.tables import EstimateLine, RevisionRate
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -88,12 +89,18 @@ def referenced_with(site: Site) -> None:
 
 
 def unrate(site: Site) -> None:
-    """Withdraw the rate of the category of labour for this year from the reference."""
+    """Withdraw the rate of the category of labour for this year from the reference.
+
+    And from the rates a marking kept: a marked revision is read on those.
+    """
     with site.stage.owner.begin() as connection:
         connection.execute(
             delete(HourlyRate).where(
                 HourlyRate.cost_category_id == site.costs.labour, HourlyRate.year == YEAR
             )
+        )
+        connection.execute(
+            delete(RevisionRate).where(RevisionRate.cost_category_id == site.costs.labour)
         )
 
 
@@ -226,6 +233,66 @@ def test_on_the_reference_of_a_project_in_progress_the_months_before_the_day_are
 
 
 @pytest.mark.requirement("WF-DEV-0100-A")
+def test_a_month_between_two_loaded_months_is_in_the_total_at_nought_to_the_cent(
+    site: Site, clock: Clock
+) -> None:
+    # « Le total de chaque mois » runs from the first month loaded to the last, none left out: a
+    # December that no line loads, between a task of November and one of January, is at `0.00` as
+    # every amount is written, and is in no nature (#3096).
+    clock(date(2026, 10, 15))
+    site.material(site.task("Câblage", NOVEMBER), "600")
+    site.material(site.task("Essais", ("2027-01-04", "2027-01-29")), "400")
+    site.referenced()
+    body = projection(site, "reference_budget")
+    assert months(body["monthly_totals"]) == [
+        ("2026-11", "600.00"),
+        ("2026-12", "0.00"),
+        ("2027-01", "400.00"),
+    ]
+    (nature,) = body["cost_types"]
+    assert [month for month, _ in months(nature["months"])] == ["2026-11", "2027-01"]
+
+
+@pytest.mark.requirement("WF-DEV-0100-A")
+def test_the_categories_of_a_nature_are_in_the_order_of_their_code_not_of_their_creation(
+    site: Site, clock: Clock
+) -> None:
+    # « les catégories dans l'ordre du référentiel » : two categories of the nature of the material,
+    # created in the reverse order of their codes, are listed by code.
+    clock(date(2026, 10, 15))
+    with site.stage.owner.begin() as connection:
+        nature = connection.execute(
+            select(CostCategory.cost_type_id).where(CostCategory.id == site.costs.material)
+        ).scalar_one()
+    made: dict[str, UUID] = {}
+    for code in ("MAT-009", "MAT-002"):
+        made[code] = uuid4()
+        with site.stage.owner.begin() as connection:
+            connection.execute(
+                insert(CostCategory).values(
+                    id=made[code],
+                    code=code,
+                    label=f"Catégorie {code}",
+                    accounting_code=f"606{code[-3:]}",
+                    cost_type_id=nature,
+                    is_active=True,
+                    **STAMP,
+                )
+            )
+    task = site.task("Câblage", NOV_DEC)
+    site.material(task, "100", cost_category_id=str(made["MAT-009"]))
+    site.material(task, "200", cost_category_id=str(made["MAT-002"]))
+    site.material(task, "300")
+    site.referenced()
+    (nature_read,) = projection(site, "reference_budget")["cost_types"]
+    assert [each["label"] for each in nature_read["categories"]] == [
+        "Matériel électrique",
+        "Catégorie MAT-002",
+        "Catégorie MAT-009",
+    ]
+
+
+@pytest.mark.requirement("WF-DEV-0100-A")
 def test_a_provision_line_is_under_no_nature(site: Site, clock: Clock) -> None:
     # « Une ligne de provision n'y figure sous aucune nature. » The line of 250, of the category of
     # the provision, is neither in a nature nor in a total, on the reference as on the remaining.
@@ -340,7 +407,16 @@ def test_a_subproject_the_project_does_not_have_is_refused_on_its_parameter(site
     # « un sous-projet que le projet n'a pas, ou un identifiant mal formé » (contract): 422, the
     # parameter designated by `UNKNOWN_SUBPROJECT`.
     referenced_with(site)
-    for bad in (str(uuid4()), "not-an-identifier"):
+    # Only the hyphenated form is an identifier of the contract: `UUID` also reads the others.
+    known = str(subproject(site.api, site.stage, "SP-1", "Poste de commande"))
+    forms = (
+        known.replace("-", ""),
+        "{" + known + "}",
+        "urn:uuid:" + known,
+        str(uuid4()),
+        "not-an-identifier",
+    )
+    for bad in forms:
         answer = asked(site, "reference_budget", subproject_id=bad)
         assert faults(answer) == [("/query/subproject_id", "UNKNOWN_SUBPROJECT", {})], bad
         assert answer.status_code == 422

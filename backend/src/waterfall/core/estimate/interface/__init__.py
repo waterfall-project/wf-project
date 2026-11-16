@@ -355,9 +355,6 @@ from waterfall.core.estimate.interface.spending import (
 
 # ``workload`` (US-1490/L1; US-1520): the workload of an estimate, the planned value.
 from waterfall.core.estimate.interface.workload import (
-    lines_planned_value as lines_planned_value,
-)
-from waterfall.core.estimate.interface.workload import (
     planned_value as planned_value,
 )
 from waterfall.core.estimate.interface.workload import (
