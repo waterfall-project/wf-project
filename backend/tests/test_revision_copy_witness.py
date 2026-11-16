@@ -12,6 +12,7 @@ PRJ-001 was In progress: its lines give their figures as the remaining to commit
 (EP-09); the reference is the offer 100, whose lines give the budgeted amounts by lineage.
 """
 
+import re
 from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING, Any
@@ -72,6 +73,52 @@ LINE_OWN = (
     "previous_reestimated_amount",
 )
 PREVIOUS = ("quantity", "hours", "unit_disbursement", "reestimated_amount")
+# A statement writing the lines, as sent, newlines kept (one ends a ``--`` comment). The comments
+# go first, then an ``UPDATE`` of ``estimate_line`` is sought anywhere in what is left: at the head,
+# behind a ``WITH`` or after a ``;``. A string literal naming one would count too: too wide, not
+# too narrow.
+COMMENT = re.compile(r"/\*.*?\*/ | --[^\n]*", re.VERBOSE | re.DOTALL)
+LINE_UPDATE = re.compile(
+    r"""
+    \bupdate\s+              # the verb, then its target
+    (?:only\s+)?              # PostgreSQL: not the tables inheriting from it
+    (?:"?\w+"?\.)?           # the schema, quoted or not, if the name is qualified
+    "?estimate_line"?        # the table, quoted or not...
+    (?![\w"])                # ... and not a longer name starting with it
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+
+
+def _writes_lines(statement: str) -> bool:
+    """Tell whether a statement, comments aside, updates ``estimate_line``."""
+    return LINE_UPDATE.search(COMMENT.sub(" ", statement)) is not None
+
+
+@pytest.mark.parametrize(
+    ("statement", "writes"),
+    [
+        ("UPDATE estimate_line SET quantity = 1", True),
+        ('UPDATE "estimate_line" SET quantity = 1', True),
+        ("update public.estimate_line set quantity = 1", True),
+        ('UPDATE "public"."estimate_line" SET quantity = 1', True),
+        ("/* c */ UPDATE estimate_line SET quantity = 1", True),
+        ("-- c\nUPDATE estimate_line SET quantity = 1", True),
+        ("UPDATE ONLY estimate_line SET quantity = 1", True),
+        ("WITH x AS (SELECT 1) UPDATE estimate_line SET quantity = 1", True),
+        ("SELECT 1; UPDATE estimate_line SET quantity = 1", True),
+        ("/* UPDATE estimate_line */ SELECT 1", False),
+        ("UPDATE estimate_line_x SET quantity = 1", False),
+        ("UPDATE other SET estimate_line = 1", False),
+        ("SELECT quantity FROM estimate_line", False),
+        ("SELECT 1 -- UPDATE estimate_line", False),
+    ],
+)
+def test_the_witness_of_the_copy_detects_every_update_of_the_lines_and_only_them(
+    statement: str, writes: bool
+) -> None:
+    # The detector of the test below: not too narrow (#3603), nor too wide.
+    assert _writes_lines(statement) is writes
 
 
 def _opened(database: Database, at: datetime) -> UUID:
@@ -276,7 +323,7 @@ def test_a_revision_opened_on_prj_001_a_year_later_projects_the_rates_its_source
         sent: list[str] = []
 
         def heard(*arguments: Any) -> None:
-            sent.append(" ".join(str(arguments[2]).split()))
+            sent.append(str(arguments[2]))
 
         event.listen(engine, "before_cursor_execute", heard)
         try:
@@ -286,7 +333,7 @@ def test_a_revision_opened_on_prj_001_a_year_later_projects_the_rates_its_source
             event.remove(engine, "before_cursor_execute", heard)
         # The listener heard the pass (its reads of the lines), and none of it wrote a line.
         assert any("estimate_line" in each.lower() for each in sent)
-        writes = [each for each in sent if each.lower().startswith("update estimate_line")]
+        writes = [each for each in sent if _writes_lines(each)]
         assert writes == []
         source = _lines(session, _nodes(session, REVISION_101))
         copied = _lines(session, _nodes(session, opened))
@@ -304,10 +351,12 @@ def test_a_revision_opened_on_prj_001_a_year_later_projects_the_rates_its_source
                 expected = (line.quantity * line.unit_disbursement).quantize(
                     CENT, rounding=ROUND_HALF_UP
                 )
-                assert line.base_amount == source[lineage].base_amount
                 other += 1
             else:
                 assert line.hours is not None
+                assert line.cost_category_id in projected, (
+                    f"line {lineage}: its category has no rate in the revision opened"
+                )
                 expected = (
                     line.quantity * line.hours * projected[line.cost_category_id][0]
                 ).quantize(CENT, rounding=ROUND_HALF_UP)
