@@ -16,7 +16,8 @@ import { randomUUID } from "node:crypto";
 
 import { type APIRequestContext, expect, test } from "@playwright/test";
 
-import { openHydrated, WORKING } from "../hydration";
+import { WORKING } from "../bounds";
+import { openHydrated } from "../hydration";
 import { inscribe } from "../own-project";
 import { SEEDED, seedPlanning } from "../planning-seed";
 import { heldToTheContract } from "./contract";

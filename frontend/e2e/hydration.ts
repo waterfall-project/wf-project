@@ -9,23 +9,8 @@
  */
 import { type Locator, type Page, type Route, expect } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import { REACHABLE } from "./focus-probe";
-
-/**
- * The bound of a screen of grid, in milliseconds: a dense grid — of the estimate, the planning,
- * the remaining, the risks, the actual costs, the portfolio, the reference data — or a screen that
- * reads the structure of a thousand tasks (`listNodes`) — the Kanban, the tree, the timelines —,
- * to show, to hydrate, or to read anew after a click; the comparison of two revisions too, whose
- * nodes come in the dense grid of the structures, read with `fields` (US-0500/L4, #624, #729). A
- * bound of its working under load, not a measure (#315); the risks and the actual costs, read
- * anew, overran five seconds under load: measures in #500, which is still to be decided. The
- * settings of the costs, read anew for a nature chosen, took from two to seven seconds under six
- * workers on four processors — the read of the server and the commit of the page up to four each
- * (EP-02/L41g). The probe of `openHydrated` (`indicators.spec.ts`) gives it the same bound to wait
- * for three chart buttons rendered and none hydrated, and to hold its scripts. Any other screen
- * keeps the five seconds of an assertion; the helpers below give a page that long to hydrate.
- */
-export const WORKING = 15_000;
 
 /** The cookie the shell keeps the last project context in, from an effect alone. */
 const WITNESS = "wf_last_project";

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Page } from "@playwright/test";
 
+import { MARKING, WORKING } from "./bounds";
 import { columnsOf } from "./columns";
 import { idle, PHASE, seedEstimate } from "./estimate-seed";
-import { openHydrated, WORKING } from "./hydration";
-import { MARKING } from "./in-progress";
+import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
 import { rowAt } from "./scroll";
 

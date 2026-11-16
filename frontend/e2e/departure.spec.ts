@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { type CDPSession, expect, type Page, test } from "@playwright/test";
 
-import { openHydrated, WORKING } from "./hydration";
+import { WORKING } from "./bounds";
+import { openHydrated } from "./hydration";
 import { path, text } from "./routes";
 
 // What leaving a grid of a thousand tasks costs the browser (US-0800, #1230): the planning, opened

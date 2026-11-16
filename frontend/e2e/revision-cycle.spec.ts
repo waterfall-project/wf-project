@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect } from "@playwright/test";
 
-import { openHydrated, WORKING } from "./hydration";
-import { bringInProgress, MARKING } from "./in-progress";
+import { MARKING, WORKING } from "./bounds";
+import { openHydrated } from "./hydration";
+import { bringInProgress } from "./in-progress";
 import { inService, test } from "./mode";
 import { createOwnProject, openRevision } from "./own-project";
 import { seedPlanning } from "./planning-seed";

@@ -14,12 +14,13 @@ import {
 } from "@playwright/test";
 
 import catalogue from "../messages/fr.json" with { type: "json" };
+import { WORKING } from "./bounds";
 import type { components } from "../src/api/generated/schema";
 import type { Answer } from "./answer";
 import { compile } from "./compile";
 import { downloaded } from "./download";
 import { seedEstimate } from "./estimate-seed";
-import { openHydrated, WORKING } from "./hydration";
+import { openHydrated } from "./hydration";
 import { takeInProgress } from "./in-progress";
 import { inService, test } from "./mode";
 import { employRole, wiringService } from "./own-project";

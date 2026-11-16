@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Page } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import { compile } from "./compile";
-import { setExpanded, WORKING } from "./hydration";
+import { setExpanded } from "./hydration";
 import { inService, test } from "./mode";
 
 // The session of the fake back grants the whole catalogue of permissions: every function

@@ -14,7 +14,8 @@
  */
 import { expect, type Locator, type Request } from "@playwright/test";
 
-import { sortUntilAddress, WORKING } from "./hydration";
+import { WORKING } from "./bounds";
+import { sortUntilAddress } from "./hydration";
 import { inService, test } from "./mode";
 import { answerOf, isDeactivation, isReactivation, pressOnce } from "./server-action";
 

@@ -28,9 +28,10 @@ import { randomBytes } from "node:crypto";
 
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import { WORKING } from "../bounds";
 import { openFilters } from "../check-menu";
 import { compileAnswered } from "../compile";
-import { openMenu, WORKING } from "../hydration";
+import { openMenu } from "../hydration";
 import { answerOf, isDeactivation, pressOnce } from "../server-action";
 import type { components } from "../../src/api/generated/schema";
 import { heldToTheContract } from "./contract";

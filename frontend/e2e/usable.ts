@@ -22,7 +22,7 @@ import { expect, type Page, type Request } from "@playwright/test";
  * How long a measure waits for what it needs to go on — a grid usable, a page settled —, in
  * milliseconds: a bound of its working, far from what it measures, which measures nothing.
  */
-export const WORKING = 15_000;
+export const MEASURE_WAIT = 15_000;
 
 /** Where the start of a gesture by a click is kept: it survives a document replaced. */
 export const CLICKED = "wf_e2e_clicked";
@@ -118,9 +118,9 @@ export interface Usable {
 /**
  * When a grid, by its name, was first drawn and first hydrated in the page, on the clock of the
  * operating system, once it is both — the last time, should it have been more than once —, waited
- * for within a bound of working (`WORKING`, unless a measure under load gives a wider one).
+ * for within a bound of working (`MEASURE_WAIT`, unless a measure under load gives a wider one).
  */
-export async function usableAt(page: Page, grid: string, bound = WORKING): Promise<Usable> {
+export async function usableAt(page: Page, grid: string, bound = MEASURE_WAIT): Promise<Usable> {
   const read = () =>
     page.evaluate((name) => {
       const at = (state: string) => {
@@ -176,9 +176,9 @@ export function followRequests(page: Page): Requests {
  * and a navigation started before they are answered would cut them, while the server still
  * renders them — the first time, loading the modules of each route —, in the time of the gesture
  * measured next. Waited for between the gestures, never within one, within a bound of working
- * (`WORKING`, unless a measure under load gives a wider one).
+ * (`MEASURE_WAIT`, unless a measure under load gives a wider one).
  */
-export async function settle(requests: Requests, bound = WORKING): Promise<void> {
+export async function settle(requests: Requests, bound = MEASURE_WAIT): Promise<void> {
   await expect
     .poll(() => requests.underWay() === 0 && requests.quietFor() >= QUIET, {
       message: `the page settles: no request under way for ${QUIET.toString()} ms`,
