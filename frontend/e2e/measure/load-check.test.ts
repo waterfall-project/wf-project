@@ -10,7 +10,8 @@ import {
   volumeFailures,
 } from "./load-check";
 
-const RUN: LoadRun = { users: 50, duration_s: 600, marked: true };
+/** A load whose revision was marked at its half: frozen for the last 300 s of 600. */
+const RUN: LoadRun = { users: 50, duration_s: 600, frozen_s: 300 };
 
 /** A load that ran as asked: nearly three thousand gestures, nine readings in ten. */
 const NOMINAL: LoadSummary = {
@@ -48,8 +49,28 @@ describe("loadFailures", () => {
   it("tolerates the entries a marked revision refuses, and no other [WF-QUA-0060-A]", () => {
     const frozen = { ...NOMINAL, writes_frozen: 120 };
     expect(loadFailures(frozen, RUN)).toEqual([]);
-    expect(loadFailures(frozen, { ...RUN, marked: false })).toHaveLength(1);
+    expect(loadFailures(frozen, { ...RUN, frozen_s: 0 })).toHaveLength(2);
     expect(loadFailures({ ...NOMINAL, writes_refused: 40 }, RUN)).toHaveLength(1);
+  });
+
+  it("refuses entries refused as frozen before any marking was made [WF-QUA-0060-A]", () => {
+    const failures = loadFailures({ ...NOMINAL, writes_frozen: 3 }, { ...RUN, frozen_s: 0 });
+    expect(failures).toContain("3 entries refused before any marking");
+  });
+
+  it("refuses a load whose every entry was refused as frozen, marking or not [WF-QUA-0060-A]", () => {
+    const frozen = { ...NOMINAL, writes_frozen: 290 };
+    expect(loadFailures(frozen, RUN)).toHaveLength(1);
+    expect(loadFailures(frozen, { ...RUN, frozen_s: 60 })).toHaveLength(1);
+    // Frozen for the whole of the load, refusing every entry is what the revision stood for.
+    expect(loadFailures(frozen, { ...RUN, frozen_s: 600 })).toEqual([]);
+  });
+
+  it("bounds the entries refused as frozen by the share of the load the revision stood frozen [WF-QUA-0060-A]", () => {
+    // Frozen for a tenth of the load: a tenth of the entries, and the slack, may be refused.
+    const run = { ...RUN, frozen_s: 60 };
+    expect(loadFailures({ ...NOMINAL, writes_frozen: 55 }, run)).toEqual([]);
+    expect(loadFailures({ ...NOMINAL, writes_frozen: 90 }, run)).toHaveLength(1);
   });
 
   it("refuses a load that made far fewer gestures than its pauses promise [WF-QUA-0060-A]", () => {

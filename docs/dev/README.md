@@ -3275,7 +3275,8 @@ make, volumes below those of §4.6.2 (a thousand tasks, five estimate lines a ta
 browser does not reach the end of, a background task that fails, or a load that did not run as asked
 (`load-check.ts`): without a summary, a user refused for want of a token, more than one percent of
 readings or entries refused — the entries the marking refuses (`409`), the only ones expected,
-apart —, fewer than half the gestures the pauses promise (users × duration ÷ 10 s). The passes of
+apart, and only after the first marking actually made, within the share of the load during which the
+revision stood frozen, to ten percent: a load whose every entry gets a `409` fails —, fewer than half the gestures the pauses promise (users × duration ÷ 10 s). The passes of
 the import are not at a constant volume: the second imports its eighteen thousand lines beside the
 eighteen thousand of the first, the third beside thirty-six thousand, as a project that receives
 costs would, and the report says so. The container of the load stops at the end of the measure,
@@ -4835,9 +4836,12 @@ which the server of Next was answering the browser — document, component tree,
 prefetch asked before the step and that it waits for — or the API was answering Next, less the
 API's; the browser, the rest. The weight of the answer is what Next sent the browser for the step.
 The time of Next and the weight keep the same requests: not the prefetches the step starts itself
-for the screens to come, which it does not wait for — their time is the browser's, at work
-meanwhile. A limit: the requests of the API such a prefetch makes stay in the part of the API, the
-log tying a request to an account and a moment, not to the request of Next that made it. The
+for another screen, which it does not wait for — their time is the browser's, at work
+meanwhile; the one it starts for the screen it ends on, when the router asks it anew, it waits for,
+and it counts. The part of the API counts the requests of the account only while a request of Next
+the step waits for is under way: the requests of such a prefetch outside it count for none. A
+limit: those made within it stay, the log tying a request to an account and a moment, not to the
+request of Next that made it. The
 journey is played by one,
 four and eight users at once (`MEASURE_USERS`, which always names `1`: only a user alone fails the measure), an account each, each in its own browser context,
 and the duration of `getMe` is recorded meanwhile, in the log of the API and by a client that asks

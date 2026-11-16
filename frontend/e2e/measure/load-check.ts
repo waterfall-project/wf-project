@@ -33,12 +33,21 @@ export interface LoadRun {
   readonly users: number;
   /** How long the load lasted, in seconds, from its start to its stop. */
   readonly duration_s: number;
-  /** Whether the measure marked the revision under the load, which freezes it for the entries. */
-  readonly marked: boolean;
+  /**
+   * How long the revision stood marked under the load, in seconds, from the end of the first
+   * marking the measure made to the stop of the load — which freezes it for the entries; 0 when
+   * the measure marked nothing.
+   */
+  readonly frozen_s: number;
 }
 
 /** The share of the readings, or of the entries, that may be refused before the load is void. */
 export const REFUSED_TOLERANCE = 0.01;
+/**
+ * The share of the entries, beside the share of the duration the revision stood frozen, that may be
+ * refused as frozen: the entries of a user fall at random in time.
+ */
+export const FROZEN_SLACK = 0.1;
 /** The mean pause between two gestures of a user, in seconds (`bench/draw.ts`). */
 export const PAUSE_MEAN_S = 10;
 /** The share of the gestures its pauses promise below which the load did not run as asked. */
@@ -69,8 +78,15 @@ export function loadFailures(summary: LoadSummary | undefined, run: LoadRun): st
       `${String(summary.writes_refused)} of ${String(summary.writes)} entries refused, ${tolerated}`,
     );
   }
-  if (summary.writes_frozen > 0 && !run.marked) {
+  if (summary.writes_frozen > 0 && run.frozen_s <= 0) {
     failures.push(`${String(summary.writes_frozen)} entries refused before any marking`);
+  }
+  const frozenShare = run.duration_s > 0 ? Math.min(1, run.frozen_s / run.duration_s) : 0;
+  if (summary.writes_frozen > summary.writes * (frozenShare + FROZEN_SLACK)) {
+    failures.push(
+      `${String(summary.writes_frozen)} of ${String(summary.writes)} entries refused as frozen, ` +
+        `the revision having stood frozen ${String(Math.round(frozenShare * 100))} % of the load`,
+    );
   }
   const expected = gesturesExpected(run.users, run.duration_s);
   if (summary.gestures < expected * GESTURES_LEAST_SHARE) {
