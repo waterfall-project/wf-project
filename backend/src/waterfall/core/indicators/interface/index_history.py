@@ -11,8 +11,9 @@ the zone classified at the reading on the thresholds of the day (WF-REF-0130) â€
 not compute left as not computable, never omitted (#1777). A revision marked before In progress kept
 no such document and gives no point (WF-DAT-0040); nor does it for a subproject created after the
 marking. The point of the day is the computation of ``getProjectIndicators`` (US-1660), on the
-current revision or, without one, the last marked, its ``version_name`` null; the ``context``
-is its.
+current revision or, without one, the last marked, its ``version_name`` null, its instant the
+``computed_at`` of that computation, read in the cache of the indicators of the day when the
+process has one (US-1720/L2); the ``context`` is its.
 The refusals are those of ``getProjectIndicators``: the state, then the scope.
 
 Declared by US-1660/L1, the socle of EP-10; ``scope`` none gives every scope, ``at`` is the instant
@@ -28,16 +29,11 @@ from waterfall.core.cost_settings.interface import (
     thresholds_document,
 )
 from waterfall.core.costs.interface import PROJECT, UNASSIGNED
-from waterfall.core.indicators.computing import day_documents
-from waterfall.core.indicators.interface.project_indicators import day_reading
+from waterfall.core.indicators.interface.project_indicators import day_indicators, day_reading
 from waterfall.core.indicators.interface.reading import IndicatorsReading
 from waterfall.core.indicators.interface.stored_documents import kept_revisions
 from waterfall.core.indicators.interface.storing import NOBODY
-from waterfall.core.indicators.shaping import (
-    classified,
-    context_document,
-    instant,
-)
+from waterfall.core.indicators.shaping import classified, instant
 from waterfall.core.indicators.tables import RevisionIndicator
 from waterfall.core.projects.interface import (
     SubprojectFilters,
@@ -56,6 +52,7 @@ if TYPE_CHECKING:
     from waterfall.core.costs.interface import CostScope
     from waterfall.core.indicators.interface.documents import Document
     from waterfall.core.indicators.interface.project_indicators import DayReading
+    from waterfall.platform.cache import IndicatorsCache
 
 
 def _labelled_scopes(
@@ -132,9 +129,18 @@ def _stored_points(
 
 
 def index_history(
-    session: Session, project_id: UUID, scope: CostScope | None, at: datetime
+    session: Session,
+    project_id: UUID,
+    scope: CostScope | None,
+    at: datetime,
+    cache: IndicatorsCache | None = None,
 ) -> Document:
-    """Give the evolution of the cost and schedule indices of a project, by scope."""
+    """Give the evolution of the cost and schedule indices of a project, by scope.
+
+    The point of the day is the computation of ``getProjectIndicators``, read in ``cache`` when one
+    is given (US-1720/L2): its instant is the ``computed_at`` of that computation, and the
+    ``context`` its.
+    """
     # No revision and no date is named: the reading is of the current day, which is never none.
     asked = IndicatorsReading(scope or PROJECT, at)
     reading = cast("DayReading", day_reading(session, project_id, asked))
@@ -142,10 +148,11 @@ def index_history(
     scopes: list[CostScope] = [each for each, _ in labelled]
     thresholds = read_reference_settings(session).index_thresholds
     stored = _stored_points(session, project_id, scopes, thresholds)
-    today = day_documents(session, reading.basis, reading.context, scopes)
+    today = day_indicators(session, reading, scopes, cache)
     revision_id = reading.basis.revision_id
+    context = today[asked.scope]["context"]
     return {
-        "context": context_document(reading.context),
+        "context": context,
         "thresholds": thresholds_document(thresholds),
         "scopes": [
             {
@@ -153,7 +160,12 @@ def index_history(
                 "label": label,
                 "points": [
                     *stored[each],
-                    _point(instant(at), revision_id, None, classified(today[each], thresholds)),
+                    _point(
+                        context["computed_at"],
+                        revision_id,
+                        None,
+                        classified(today[each], thresholds),
+                    ),
                 ],
             }
             for each, label in labelled

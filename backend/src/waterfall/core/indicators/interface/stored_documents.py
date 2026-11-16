@@ -11,9 +11,10 @@ subproject created after the marking.
 Declared by US-1660/L1, the socle of EP-10; filled by US-1670/L1, which keeps the documents.
 """
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import case, select
 
 from waterfall.core.costs.interface import PROJECT
 from waterfall.core.indicators.tables import RevisionIndicator
@@ -50,25 +51,39 @@ def stored_document(
     )
 
 
-def kept_any(session: Session, revision_id: UUID, kind: IndicatorKind) -> bool:
-    """Tell whether a revision kept a document of a kind, on whatever scope.
+@dataclass(frozen=True, slots=True)
+class KeptOfKind:
+    """What a revision kept of a kind for a scope: the document, and whether it kept the kind."""
 
-    A revision that kept the kind but not a scope does not know that scope (a subproject created
-    since its marking); one that kept none of the kind was marked before the indicators were kept.
+    document: Document | None
+    kind_kept: bool
+
+
+def kept_of_kind(
+    session: Session, revision_id: UUID, kind: IndicatorKind, scope: CostScope
+) -> KeptOfKind:
+    """Give the document of a kind and a scope a revision kept, and whether it kept the kind.
+
+    One statement, after the project of the revision: the row of the scope if the marking kept
+    it, else one of another scope. A revision that kept the kind but not a scope does not know that
+    scope (a subproject created since its marking); one that kept none of the kind was marked
+    before the indicators were kept (#3613).
     """
     project_id = revision_project(session, revision_id)
-    return (
-        session.scalar(
-            select(RevisionIndicator.id)
-            .where(
-                RevisionIndicator.project_id == project_id,
-                RevisionIndicator.revision_id == revision_id,
-                RevisionIndicator.kind == kind,
-            )
-            .limit(1)
+    asked = RevisionIndicator.scope == str(scope)
+    row = session.execute(
+        select(case((asked, RevisionIndicator.document), else_=None))
+        .where(
+            RevisionIndicator.project_id == project_id,
+            RevisionIndicator.revision_id == revision_id,
+            RevisionIndicator.kind == kind,
         )
-        is not None
-    )
+        .order_by(asked.desc())
+        .limit(1)
+    ).first()
+    if row is None:
+        return KeptOfKind(None, kind_kept=False)
+    return KeptOfKind(row[0], kind_kept=True)
 
 
 def revisions_keeping_project(session: Session, project_id: UUID) -> set[UUID]:

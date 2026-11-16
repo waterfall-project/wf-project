@@ -38,7 +38,7 @@ from waterfall.core.planning.interface import tasks_for_indicators
 from waterfall.core.projects.interface import current_day
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterable
+    from collections.abc import Collection, Iterable, Mapping
     from datetime import date
     from decimal import Decimal
     from uuid import UUID
@@ -102,12 +102,40 @@ def amounts_by_scope(
     """
     project_id, revision_id = basis.project_id, basis.revision_id
     tasks, lines, reference = read_lines(session, basis)
-    earned = {
-        task.lineage_id
+    completed = {
+        task.lineage_id: task.completed_on
         for task in tasks
-        if task.progress == COMPLETED and task.completed_on is not None and task.completed_on <= day
+        if task.progress == COMPLETED and task.completed_on is not None
     }
     remaining = remaining_of_revision(session, project_id, revision_id).by_line
+    read = LinesRead(reference, lines, remaining, completed)
+    return amounts_from(session, project_id, read, day, scopes)
+
+
+@dataclass(frozen=True, slots=True)
+class LinesRead:
+    """What the amounts of every scope are drawn from, read once on a revision and the reference.
+
+    The lines of Ref and of R, the remaining to commit of each line of R, and the day each lineage
+    of task completed in R was completed on.
+    """
+
+    reference: tuple[IndicatorLine, ...]
+    lines: tuple[IndicatorLine, ...]
+    remaining: Mapping[UUID, Decimal]
+    completed: Mapping[UUID, date]
+
+
+def amounts_from(
+    session: Session, project_id: UUID, read: LinesRead, day: date, scopes: Collection[CostScope]
+) -> dict[CostScope, Amounts]:
+    """Give the five amounts of each scope asked, from the lines read, at a day.
+
+    Only the actual cost of each scope is read here; what the curves read once serves as well
+    (the cache of the indicators, US-1720/L2).
+    """
+    reference, lines, remaining = read.reference, read.lines, read.remaining
+    earned = {lineage for lineage, done in read.completed.items() if done <= day}
     subprojects = {line.node_id: line.subproject_id for line in lines}
     found: dict[CostScope, Amounts] = {}
     for scope in scopes:
