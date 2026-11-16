@@ -39,6 +39,7 @@ class Planned:
     amount: str
     subproject_id: str | None = None
     days: str = "1"
+    payment_delay_days: int = 0
 
 
 @dataclass(frozen=True)
@@ -59,9 +60,12 @@ class Priced:
         return UUID(self.review.reference["revision_id"])
 
 
-def material(costs: Costing, label: str, amount: str, subproject_id: str | None) -> dict[str, Any]:
+def material(
+    costs: Costing, label: str, amount: str, subproject_id: str | None, payment_delay_days: int = 0
+) -> dict[str, Any]:
     """Give a line of material at the amount said, borne by a subproject or by none."""
     return {
+        **({} if payment_delay_days == 0 else {"payment_delay_days": payment_delay_days}),
         "label": label,
         "quantity": "1",
         "cost_category_id": str(costs.material),
@@ -82,7 +86,9 @@ def priced(api: ContractClient, stage: Scene, tasks: Sequence[Planned]) -> Price
     def build(tree: Tree, lines: Lines) -> None:
         for each in tasks:
             task = tree.made(each.label, task={"duration": {"value": each.days, "unit": "d"}})
-            line = material(costs, line_of(each.label), each.amount, each.subproject_id)
+            line = material(
+                costs, line_of(each.label), each.amount, each.subproject_id, each.payment_delay_days
+            )
             lines.made(task, **line)
 
     return Priced(in_progress(api, stage, build), costs)

@@ -24,6 +24,7 @@ project's, read now. One pass reads what every scope needs (``day_documents``).
 Declared by US-1660/L1, the socle of EP-10; filled by US-1660/L3 for the current day.
 """
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -95,8 +96,22 @@ def _kept_indicators(session: Session, project_id: UUID, asked: IndicatorsReadin
     raise NotImplementedError(msg)
 
 
-def project_indicators(session: Session, project_id: UUID, asked: IndicatorsReading) -> Document:
-    """Give the indicators of a project on the scope and for the revision a reading asks."""
+@dataclass(frozen=True, slots=True)
+class DayReading:
+    """What a reading of the current day computes on: the revisions it reads, and its context."""
+
+    basis: Basis
+    context: Context
+
+
+def day_reading(session: Session, project_id: UUID, asked: IndicatorsReading) -> DayReading | None:
+    """Refuse what the contract refuses, then say what the current day is computed on.
+
+    The refusals come in the order of the contract (the module's docstring); none when the reading
+    asks a marked revision or a date, which a marking kept (``None``). A reading of the day is on
+    the current revision, or, without one, the last marked revision; the curves read it as the
+    indicators do (US-1690/L2).
+    """
     facts = project_facts(session, project_id)
     _refuse_before_in_progress(session, project_id, facts.state)
     _refuse_parameters(session, project_id, asked)
@@ -104,12 +119,19 @@ def project_indicators(session: Session, project_id: UUID, asked: IndicatorsRead
     if asked.revision_id is not None:
         named = read_revision_for(session, project_id, asked.revision_id)
     if not _is_of_the_day(facts, asked):
-        return _kept_indicators(session, project_id, asked)
+        return None
     read = named or read_revision_for(session, project_id, None)
     status = MARKED if read.marked else DRAFT
     context = Context(read.revision_id, status, asked.at, asked.scope, is_stored=False)
+    return DayReading(Basis(project_id, read.revision_id, facts.reference_revision_id), context)
+
+
+def project_indicators(session: Session, project_id: UUID, asked: IndicatorsReading) -> Document:
+    """Give the indicators of a project on the scope and for the revision a reading asks."""
+    reading = day_reading(session, project_id, asked)
+    if reading is None:
+        return _kept_indicators(session, project_id, asked)
     scope = asked.scope
-    basis = Basis(project_id, read.revision_id, facts.reference_revision_id)
-    documents = day_documents(session, basis, context, (scope,))
+    documents = day_documents(session, reading.basis, reading.context, (scope,))
     thresholds = read_reference_settings(session).index_thresholds
     return classified(documents[scope], thresholds)

@@ -35,9 +35,12 @@ from waterfall.core.indicators.series.cumulation import (
     to_cent as to_cent,
 )
 
-# ``months``: the month-ends.
+# ``months``: the month-ends, and the dated amounts that fall in them.
 from waterfall.core.indicators.series.months import (
     end_of as end_of,
+)
+from waterfall.core.indicators.series.months import (
+    events_by_month as events_by_month,
 )
 from waterfall.core.indicators.series.months import (
     month_before as month_before,
@@ -55,12 +58,9 @@ from waterfall.core.indicators.series.months import (
     months_between as months_between,
 )
 
-# ``shares``: the monthly parts of lines and of dated events.
+# ``shares``: the monthly parts of lines.
 from waterfall.core.indicators.series.shares import (
     SpreadLine as SpreadLine,
-)
-from waterfall.core.indicators.series.shares import (
-    events_by_month as events_by_month,
 )
 from waterfall.core.indicators.series.shares import (
     line_shares as line_shares,

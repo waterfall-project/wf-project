@@ -3,11 +3,18 @@
 """What the operations of ``api/indicator_curves.py`` ask for (EP-10).
 
 ``test_access_evaluation.py`` gathers them; US-1690/L2 declares each operation it serves, under
-``project_indicators.read``, with the quality on its project each asks for besides.
+``project_indicators.read``, with the quality on its project each asks for besides: whoever
+consults the project reads its curves.
 """
 
 # The permissions each operation asks for, in the order they are evaluated.
-ASKED: dict[str, tuple[str, ...]] = {}
+ASKED: dict[str, tuple[str, ...]] = {
+    "getCostCurve": ("project_indicators.read",),
+    "getEarnedValueCurves": ("project_indicators.read",),
+}
 # The quality on its project each operation that names one asks for, evaluated by
 # ``RequiresProject``: ``consultation``, ``contributor`` or ``project_manager`` (WF-ADM-0110).
-ON_PROJECT: dict[str, str] = {}
+ON_PROJECT: dict[str, str] = {
+    "getCostCurve": "consultation",
+    "getEarnedValueCurves": "consultation",
+}

@@ -16,11 +16,11 @@ from typing import TYPE_CHECKING
 from waterfall.core.estimate.interface import round_to_cent
 from waterfall.core.indicators.series.months import (
     end_of,
+    events_by_month,
     month_before,
     month_of,
     months_between,
 )
-from waterfall.core.indicators.series.shares import events_by_month
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -95,10 +95,13 @@ def cumulative_from(shares: Mapping[Month, Decimal], as_of: date, base: Decimal)
 
     The first point is ``as_of`` at the base — the actual cost there —; each month-end from the
     month of ``as_of`` adds its parts, a month-end that is ``as_of`` itself being that same point.
+    Without a part to come, nothing follows: the series is that one point.
     """
     first = month_of(as_of)
     kept = {month: part for month, part in shares.items() if month >= first}
     points = [Point(as_of, to_cent(base))]
+    if not kept:
+        return points
     running = base
     for month in months_between(first, max(kept, default=first)):
         running += kept.get(month, Decimal(0))

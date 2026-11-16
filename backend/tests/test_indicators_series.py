@@ -144,9 +144,22 @@ def test_a_scope_with_lines_and_no_document_draws_the_actual_cost_at_zero() -> N
 @pytest.mark.requirement("WF-IND-0100-A")
 def test_the_part_of_a_task_after_the_date_of_calculation_is_spread_on_the_hours_left() -> None:
     # « le reste à engager de chaque ligne étalé sur la part de la durée de sa tâche postérieure à
-    # la date de calcul » : 12 days left in March from the 16th, and the 22 of April.
-    shares = line_shares(line("3400"), as_of=date(2026, 3, 16))
-    assert shares == {MARCH: Decimal(1200), APRIL: Decimal(2200)}
+    # la date de calcul » : the 16th is spent (its documents count in the actual cost), so 11 days
+    # are left in March, from the 17th, and the 22 of April.
+    shares = line_shares(line("3300"), as_of=date(2026, 3, 16))
+    assert shares == {MARCH: Decimal(1100), APRIL: Decimal(2200)}
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_a_task_that_ends_on_the_date_of_calculation_is_carried_whole_to_its_month_end() -> None:
+    # The part to come is what follows the end of the day: a task that ends on 31 March, the date
+    # of calculation, has nothing after it and stays in March, not in April, the month of the next
+    # day (#3556).
+    last = SpreadLine(Decimal(900), task(date(2026, 3, 2), date(2026, 3, 31)))
+    assert line_shares(last, as_of=date(2026, 3, 31)) == {MARCH: Decimal(900)}
+    assert line_shares(last, as_of=date(2026, 3, 30)) == {MARCH: Decimal(900)}
+    assert line_shares(last, as_of=date(2026, 3, 29)) == {MARCH: Decimal(900)}
+    assert shifted(last, as_of=date(2026, 3, 31)) == {MARCH: Decimal(900)}
 
 
 @pytest.mark.requirement("WF-IND-0100-A")
@@ -159,15 +172,15 @@ def test_a_task_whose_end_is_past_is_carried_whole_to_the_month_of_the_date() ->
 @pytest.mark.requirement("WF-IND-0100-A")
 def test_the_projection_starts_at_the_actual_cost_and_reaches_it_plus_the_remaining() -> None:
     # « la projection part de ce point pour atteindre la projection du chef de projet » :
-    # 1 500,50 spent, 3 400 left on a task in progress and 750 on one that is over.
+    # 1 500,50 spent, 3 300 left on a task in progress and 750 on one that is over.
     as_of = date(2026, 3, 16)
     over = SpreadLine(Decimal(750), task(date(2026, 2, 2), date(2026, 2, 27)))
-    shares = spread_lines([line("3400"), over], as_of=as_of)
+    shares = spread_lines([line("3300"), over], as_of=as_of)
     points = cumulative_from(shares, as_of, Decimal("1500.50"))
     assert points == [
         Point(date(2026, 3, 16), Decimal("1500.50")),
-        Point(date(2026, 3, 31), Decimal("3450.50")),
-        Point(date(2026, 4, 30), Decimal("5650.50")),
+        Point(date(2026, 3, 31), Decimal("3350.50")),
+        Point(date(2026, 4, 30), Decimal("5550.50")),
     ]
 
 
@@ -180,10 +193,11 @@ def test_a_date_of_calculation_at_a_month_end_is_one_point_with_the_part_of_that
 
 
 @pytest.mark.requirement("WF-IND-0100-A")
-def test_a_projection_without_remaining_stays_at_the_actual_cost_to_month_end() -> None:
+def test_a_projection_without_remaining_is_the_actual_cost_at_the_date_alone() -> None:
+    # Nothing is left to spread: the projection is its starting point, as the contract's examples
+    # draw a scope whose lines have nothing left (``cost_curve_subproject_unbudgeted``).
     assert cumulative_from({}, date(2026, 3, 16), Decimal(40)) == [
         Point(date(2026, 3, 16), Decimal(40)),
-        Point(date(2026, 3, 31), Decimal(40)),
     ]
 
 
@@ -250,9 +264,10 @@ def test_two_months_of_a_task_do_not_fall_in_one_by_a_delay_of_31_days() -> None
 def test_a_delay_translates_the_part_after_the_date_of_calculation() -> None:
     as_of = date(2026, 3, 16)
     delayed = spread_lines([line("6400", 45)], as_of=as_of, delayed=True)
-    # The part left is 6400 less what is spent by 15 March (30 working days of 100): 3 400.
+    # The 6 400 left are spread from 17 March, the day after the date, and shifted by 45 days: the
+    # first part falls on 1 May.
     assert sum(delayed.values()) == Decimal(6400)
-    assert min(delayed) == Month(2026, 4)
+    assert min(delayed) == MAY
     past = SpreadLine(Decimal(6400), task(date(2026, 2, 2), date(2026, 3, 13)), 45)
     assert spread_lines([past], as_of=as_of, delayed=True) == {Month(2026, 4): Decimal(6400)}
 
@@ -296,13 +311,13 @@ def test_the_month_of_the_date_of_calculation_carries_the_past_and_the_forecast(
     past = events_by_month(
         [(date(2026, 1, 20), Decimal(400)), (date(2026, 3, 5), Decimal(600))], until=as_of
     )
-    forecast = spread_lines([line("3400")], as_of=as_of, delayed=True)
+    forecast = spread_lines([line("3300")], as_of=as_of, delayed=True)
     rows = cash_out_by_month(past, forecast)
     assert [row.month for row in rows] == [Month(2026, 1), FEBRUARY, MARCH, APRIL]
     assert [(row.past, row.forecast) for row in rows] == [
         (Decimal(400), Decimal(0)),
         (Decimal(0), Decimal(0)),
-        (Decimal(600), Decimal(1200)),
+        (Decimal(600), Decimal(1100)),
         (Decimal(0), Decimal(2200)),
     ]
 
@@ -334,7 +349,9 @@ def test_a_negative_part_lowers_the_cumulative_and_is_rounded_by_difference() ->
         Decimal("70.00"),
     ]
     parts = apportioned(shares)
-    assert parts[MARCH] < 0
+    # March: 70.00 less 100.01 rounded, by difference of the rounded cumulative totals — not the
+    # rounding of -30.004, which would be -30.00.
+    assert parts[MARCH] == Decimal("-30.01")
     assert sum(parts.values()) == Decimal("70.00")
 
 
@@ -375,3 +392,14 @@ def test_a_delayed_task_without_an_hour_of_work_is_spent_whole_at_its_end_shifte
 def test_a_delayed_task_whose_end_is_past_is_spent_whole_at_the_date_shifted() -> None:
     past = SpreadLine(Decimal(800), task(date(2026, 2, 2), date(2026, 2, 13)), 20)
     assert shifted(past, as_of=date(2026, 3, 16)) == {APRIL: Decimal(800)}
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_a_delay_at_the_end_of_a_month_drops_the_null_part_and_adds_no_month() -> None:
+    # The date of calculation is the 31 March, the task goes on to 30 April (22 working days, 100
+    # each of 2 200). The share starts on 1 April: a delay of 30 days puts the end of April at
+    # 30 March, before it, so April holds a null part, dropped, and May holds the whole; a delay
+    # of one day puts 21 days in April (to the 29th) and the last one in May, and no month beyond.
+    as_of = date(2026, 3, 31)
+    assert shifted(line("2200", 30), as_of=as_of) == {MAY: Decimal(2200)}
+    assert shifted(line("2200", 1), as_of=as_of) == {APRIL: Decimal(2100), MAY: Decimal(100)}

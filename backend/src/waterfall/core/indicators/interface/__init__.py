@@ -50,7 +50,14 @@ from waterfall.core.indicators.interface.physical_progress import (
     physical_progress as physical_progress,
 )
 
-# ``project_indicators`` (US-1660/L1; US-1660/L3, US-1670/L2): the indicators of a project.
+# ``project_indicators`` (US-1660/L1; US-1660/L3, US-1670/L2): the indicators of a project, and
+# what a reading of the current day computes on (``day_reading``, read by the curves, US-1690/L2).
+from waterfall.core.indicators.interface.project_indicators import (
+    DayReading as DayReading,
+)
+from waterfall.core.indicators.interface.project_indicators import (
+    day_reading as day_reading,
+)
 from waterfall.core.indicators.interface.project_indicators import (
     project_indicators as project_indicators,
 )

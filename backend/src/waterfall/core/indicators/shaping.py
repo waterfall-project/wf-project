@@ -39,7 +39,8 @@ class Context:
     is_stored: bool
 
 
-def _money(amount: Decimal) -> str:
+def money(amount: Decimal) -> str:
+    """Write an amount to the cent, as ``Money`` of the contract."""
     return format(amount, "f")
 
 
@@ -51,9 +52,9 @@ def _instant(at: datetime) -> str:
     return at.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
-def _computable(figure: Computable, *, money: bool = False) -> dict[str, Any]:
+def _computable(figure: Computable, *, in_cents: bool = False) -> dict[str, Any]:
     value = figure.value
-    shown = None if value is None else (_money(value) if money else _ratio(value))
+    shown = None if value is None else (money(value) if in_cents else _ratio(value))
     return {"is_computable": value is not None, "value": shown, "reason": figure.reason}
 
 
@@ -61,37 +62,42 @@ def _index(index: Index) -> dict[str, Any]:
     return {"value": _computable(index.value), "zone": index.zone}
 
 
+def context_document(context: Context) -> Document:
+    """Write a context as the contract writes it (``CalculationContext``)."""
+    return {
+        "revision_id": str(context.revision_id),
+        "revision_status": context.revision_status,
+        "computed_at": _instant(context.computed_at),
+        "scope": str(context.scope),
+        "is_stored": context.is_stored,
+    }
+
+
 def indicators_document(found: Indicators, context: Context) -> Document:
     """Write the indicators of a scope and their context as the contract writes them."""
     projections = found.projections
     observed = projections.variance_at_observed_rate
     return {
-        "context": {
-            "revision_id": str(context.revision_id),
-            "revision_status": context.revision_status,
-            "computed_at": _instant(context.computed_at),
-            "scope": str(context.scope),
-            "is_stored": context.is_stored,
-        },
-        "reference_budget": _money(found.reference_budget),
-        "planned_value": _money(found.planned_value),
-        "earned_value": _money(found.earned_value),
-        "actual_cost": _money(found.actual_cost),
-        "remaining": _money(found.remaining),
+        "context": context_document(context),
+        "reference_budget": money(found.reference_budget),
+        "planned_value": money(found.planned_value),
+        "earned_value": money(found.earned_value),
+        "actual_cost": money(found.actual_cost),
+        "remaining": money(found.remaining),
         "financial_progress": _computable(found.financial_progress),
         "budget_consumption": _computable(found.budget_consumption),
         "physical_progress": _computable(found.physical_progress),
         "cost_index": _index(found.cost_index),
         "schedule_index": _index(found.schedule_index),
-        "cost_variance": _money(found.cost_variance),
-        "schedule_variance": _money(found.schedule_variance),
+        "cost_variance": money(found.cost_variance),
+        "schedule_variance": money(found.schedule_variance),
         "projections": {
-            "at_budget": _money(projections.at_budget),
-            "project_manager": _money(projections.project_manager),
-            "at_observed_rate": _computable(projections.at_observed_rate, money=True),
-            "variance_at_budget": _money(projections.variance_at_budget),
-            "variance_project_manager": _money(projections.variance_project_manager),
-            "variance_at_observed_rate": None if observed is None else _money(observed),
+            "at_budget": money(projections.at_budget),
+            "project_manager": money(projections.project_manager),
+            "at_observed_rate": _computable(projections.at_observed_rate, in_cents=True),
+            "variance_at_budget": money(projections.variance_at_budget),
+            "variance_project_manager": money(projections.variance_project_manager),
+            "variance_at_observed_rate": None if observed is None else money(observed),
         },
     }
 
