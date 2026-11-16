@@ -480,20 +480,9 @@ def test_a_marked_revision_is_computed_when_read_on_its_own_tasks_at_its_marking
 # --- The rates ------------------------------------------------------------------------------------
 
 
-@pytest.mark.requirement("WF-DEV-0010-A")
-def test_a_labour_category_without_a_rate_refuses_the_projection_and_names_it(
-    site: Site, clock: Clock
-) -> None:
-    # « Le refus énumère les catégories de coût sans taux horaire pour l'année de référence. »
-    # (#3565) The projection has meaning only complete: the rate of the engineering withdrawn from
-    # the reference, the revision in progress, priced at the reference, has a line of labour
-    # without one: 422 `HOURLY_RATE_MISSING`, without field, the category and its year named.
-    clock(date(2026, 10, 15))
-    site.material(site.task("Câblage", NOV_DEC), "1200")
-    site.labour(site.task("Pose", NOV_DEC), "100")
-    assert projection(site, "current_remaining")["total"] == "7700.00"
-    unrate(site)
-    answer = asked(site, "current_remaining")
+def _refused_for_rates(site: Site, basis: str, **query: Any) -> None:
+    """Check the projection refused 422 `HOURLY_RATE_MISSING`, the labour category named once."""
+    answer = asked(site, basis, **query)
     assert answer.status_code == 422, answer.text
     problem = answer.json()
     assert problem["code"] == "HOURLY_RATE_MISSING"
@@ -501,6 +490,45 @@ def test_a_labour_category_without_a_rate_refuses_the_projection_and_names_it(
     (named,) = problem["params"]["missing_rates"]
     assert (named["cost_category_id"], named["year"]) == (str(site.costs.labour), YEAR)
     assert named["label"] == "Ingénierie"
+
+
+@pytest.mark.requirement("WF-DEV-0010-A")
+@pytest.mark.parametrize("basis", ["reference_budget", "marked_remaining", "current_remaining"])
+@pytest.mark.parametrize("case", ["plain", "outside_subproject", "nothing_left", "two_lines"])
+def test_a_labour_category_without_a_rate_refuses_the_projection_and_names_it(
+    site: Site, clock: Clock, basis: str, case: str
+) -> None:
+    # « Le refus énumère les catégories de coût sans taux horaire pour l'année de référence. »
+    # (#3565) The projection has meaning only complete, on any basis: the rate of the engineering
+    # withdrawn from the reference and from the marking, a line of labour without one is refused
+    # 422 `HOURLY_RATE_MISSING`, without field, the category and its year named once. Every line of
+    # the revision is looked at, those out of the subproject filter and those with nothing left too.
+    clock(date(2026, 10, 15))
+    query: dict[str, Any] = {}
+    if case == "outside_subproject":
+        named = subproject(site.api, site.stage, "SP-1", "Poste de commande")
+        site.material(site.task("Câblage", NOV_DEC), "1200", subproject_id=named)
+        site.labour(site.task("Pose", NOV_DEC), "100")
+        query["subproject_id"] = named
+    else:
+        site.material(site.task("Câblage", NOV_DEC), "1200")
+        site.labour(site.task("Pose", NOV_DEC), "100")
+    if case == "two_lines":
+        site.labour(site.task("Réglage", NOV_DEC), "50")
+    marked = site.tree.revision["revision_id"]
+    unrate(site)
+    current = site.referenced()
+    if basis == "marked_remaining":
+        query["revision_id"] = marked
+    if case == "nothing_left":
+        task = next(
+            each
+            for each in current.items()
+            if each["kind"] == "task" and each["task"]["label"] == "Pose"
+        )
+        set_progress(site.stage, task["node_id"], "completed", date(2026, 11, 10))
+        clock(date(2026, 11, 12))
+    _refused_for_rates(site, basis, **query)
 
 
 @pytest.mark.requirement("WF-DEV-0100-A")
