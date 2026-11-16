@@ -69,7 +69,7 @@ suivra les imitera. Les agents de l'US-0280 prennent le relais à partir d'EP-02
 |---|---|---|---|
 | `WF-ARC-0010-A` | Un noyau, un service, un worker | début — close en EP-11 | US-0010 |
 | `WF-ARC-0060-A` | Contrat OpenAPI | début — close en EP-03 | US-0020 |
-| `WF-QUA-0010-A` | Traçabilité des exigences par les tests | entière | US-0060 |
+| `WF-QUA-0010-A` | Traçabilité des exigences par les tests | début — close en EP-13 | US-0060 |
 | `WF-QUA-0020-A` | Les exemples chiffrés du document sont des cas de test | début — close en EP-11 | US-0040 |
 | `WF-QUA-0030-A` | Typage et analyse statique bloquants | entière | US-0050 |
 | `WF-QUA-0050-A` | Tests de bout en bout | début — close en EP-13 | US-0080 |
