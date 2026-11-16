@@ -43,6 +43,7 @@ from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.costs.interface import PROJECT, costs_stamp
 from waterfall.core.estimate.interface import lines_stamp
+from waterfall.core.indicators import caching
 from waterfall.core.indicators.caching import day_key
 from waterfall.core.indicators.interface import IndicatorsReading, day_reading
 from waterfall.core.planning.interface import revision_content_stamp
@@ -101,6 +102,8 @@ class Keyed(Protocol):
     def delete(self, *names: str) -> int: ...
 
     def flushdb(self) -> bool: ...
+
+    def set(self, name: str, value: str, *, ex: int) -> object: ...
 
 
 def keyed(queue: TaskQueue) -> Keyed:
@@ -376,13 +379,22 @@ def test_two_readings_of_an_entry_absent_compute_it_both_and_answer_the_same(
 
 
 @pytest.fixture
-def emptied_queue(redis_url: str) -> Iterator[TaskQueue]:
+def emptied_queue(redis_url: str, worker_id: str) -> Iterator[TaskQueue]:
     """Give a queue on a database of the Redis of the tests that no worker takes, emptied after.
 
     The workers take the databases that follow the one given, eight at most: the eighth after
     the worker's own is the test's, whichever worker it runs on, and ``FLUSHDB`` empties nothing
-    another test reads.
+    another test reads. That holds for eight processes at most, as the ``Makefile`` runs them
+    (``--maxprocesses``): beyond, the database emptied could be a worker's own, so the test fails
+    rather than empty it.
     """
+    rank = int(worker_id.removeprefix("gw")) if worker_id != "master" else 0
+    if rank >= WORKERS:
+        pytest.fail(
+            f"worker {worker_id} would empty the database of another worker: this test is for "
+            f"{WORKERS} processes at most (-n {WORKERS} or fewer)",
+            pytrace=False,
+        )
     parts = urlsplit(redis_url)
     index = (int(parts.path.strip("/") or 0) + WORKERS) % REDIS_DATABASES
     opened = TaskQueue.connect(urlunsplit(parts._replace(path=f"/{index}")), timeout=WORKER_TIMEOUT)
@@ -452,6 +464,56 @@ def test_a_redis_out_of_reach_lets_every_reading_and_an_entry_through(
     assert [r["cause"] for r in unavailable] == ["ConnectionError"]
 
 
+@pytest.mark.requirement("WF-DAT-0130-A")
+@pytest.mark.usefixtures("clock", "project")
+def test_a_reading_with_a_redis_out_of_reach_computes_the_scope_asked_alone(
+    serve: Serve,
+    stage: Scene,
+    lot: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Propre à l'US : un Redis en panne n'est pas un manque — l'entrée ne s'écrira pas —, la lecture
+    # ne calcule que la maille demandée, non toutes celles du projet et leurs trois courbes.
+    computed: list[int] = []
+    day_entry = caching.day_entry
+
+    def counting(*args: Any) -> Any:
+        computed.append(len(args[3]))
+        return day_entry(*args)
+
+    monkeypatch.setattr(caching, "day_entry", counting)
+    closed = TaskQueue.connect(CLOSED_PORT, timeout=WORKER_TIMEOUT)
+    unreachable = IndicatorsCache.of(closed, TTL)
+    try:
+        cut_off = serve(closed, unreachable)
+        for path in ("indicators", f"indicators?scope={lot}", "indicators/cost-curve"):
+            computed.clear()
+            assert read(cut_off, stage, path)
+            assert computed == [1], path
+    finally:
+        unreachable.close()
+        closed.close()
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+@pytest.mark.usefixtures("clock", "project")
+@pytest.mark.parametrize("damage", ["scope_without_project", "scope_not_a_document"])
+def test_an_entry_readable_but_incomplete_is_a_miss_computed_and_written_again(
+    api: ContractClient, stage: Scene, queue: TaskQueue, damage: str
+) -> None:
+    # Propre à l'US : une entrée lisible mais mal formée (une maille sans `project`, ou qui n'est
+    # pas un document) se traite comme un manque : 200, valeur recalculée, entrée réécrite.
+    first = indicators(api, stage)
+    (key,) = entries(queue, stage)
+    kept = entry(queue, stage)
+    scope = next(iter(kept["scopes"]))
+    kept["scopes"][scope] = {} if damage == "scope_without_project" else "broken"
+    keyed(queue).set(key, json.dumps(kept), ex=TTL)
+    assert indicators(api, stage) == first
+    assert entry(queue, stage) != kept
+    assert "project" in entry(queue, stage)["scopes"][scope]
+
+
 # --- The key ------------------------------------------------------------------------------------
 
 
@@ -506,7 +568,9 @@ def test_every_write_the_indicators_of_the_day_depend_on_changes_the_key(
     marked(stage, project.tree.revision, "Revue")
     changed()
     # A designation writes the reference and the counter of the project; In progress, the counter
-    # alone moves here, by a change of the project.
+    # alone moves here, by a change of the project. The designation of the reference itself is
+    # refused in the course of a project (409 `reference_correctable`) and advances this same
+    # counter: it is by the counter that « la désignation change la clé » is held.
     path = project_path(stage)
     counter = api.get(path, headers=stage.manager.headers).json()["lock_version"]
     sent = {"code": "PRJ-1720", "lock_version": counter}

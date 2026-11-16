@@ -10,16 +10,19 @@ tasks, of its links and of its lines, and the last instant one was written; the 
 imports of the actual costs of the project and the last, the number of its lines of cost and the
 last one written; its subprojects; the day, in the time zone of the installation. A write any
 entry depends on changes the key — an entry, a marking, an abandonment, a designation, an import,
-an exclusion, a subproject created, the next day —: an entry is never served for a key that is no
-longer the project's, and no write calls the cache. A change of the thresholds escapes it: the
-zones are classified at each reading.
+a subproject created, the next day —: an entry is never served for a key that is no longer the
+project's, and no write calls the cache. The exclusion of a line of cost is not of them: it
+advances no counter, and changes the key only by the last instant a line of cost was written,
+which a write that started earlier and commits later can leave where it was (open, #3629). A
+change of the thresholds escapes it: the zones are classified at each reading.
 
 The entry is one document by project and by key: for each scope — the project, each subproject,
 the lines of the project alone —, the indicators and the three curves, computed in one pass, the
 zones null. The key is read before the computation: a write that comes between them changes the
 key, and what was computed is kept under a key no reading asks for any longer. Two readings of an
 entry absent compute it both and write the same: no lock. A Redis that does not answer is a miss,
-and the computation is answered (``IndicatorsCache``).
+and the computation is answered (``IndicatorsCache``); the scopes asked alone are computed, for
+no entry is written.
 """
 
 import hashlib
@@ -46,6 +49,7 @@ from waterfall.core.projects.interface import (
     subproject_ids,
 )
 from waterfall.core.revisions.interface import aimed_structure, structure_facts
+from waterfall.platform.cache import Unavailable
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Sequence
@@ -144,7 +148,11 @@ def day_entry(
 
 
 def _read_entry(kept: str | None) -> dict[str, ScopeEntry] | None:
-    """Give the scopes of an entry kept, or none for an entry absent or that cannot be read."""
+    """Give the scopes of an entry kept, or none for an entry absent or that cannot be read.
+
+    An entry is unreadable when it is not JSON, holds no scopes, or a scope that lacks the
+    indicators of the project: it is a miss, and is written again.
+    """
     if kept is None:
         return None
     try:
@@ -154,7 +162,12 @@ def _read_entry(kept: str | None) -> dict[str, ScopeEntry] | None:
     if not isinstance(held, dict):
         return None
     scopes = cast("dict[str, object]", held).get("scopes")
-    return cast("dict[str, ScopeEntry]", scopes) if isinstance(scopes, dict) else None
+    if not isinstance(scopes, dict):
+        return None
+    for each in cast("dict[str, object]", scopes).values():
+        if not isinstance(each, dict) or "project" not in each:
+            return None
+    return cast("dict[str, ScopeEntry]", scopes)
 
 
 def cached_scopes(
@@ -167,12 +180,18 @@ def cached_scopes(
     """Give the documents of the day of the scopes asked, by kind, from the entry of the key.
 
     Served by the entry when it is kept; otherwise every scope of the project is computed, the
-    entry written, and the scopes asked taken from it. A scope the entry lacks — a subproject
+    entry written, and the scopes asked taken from it; when Redis does not answer, the scopes asked
+    alone are computed. A scope the entry lacks — a subproject
     created between the reading of the key and the refusal of the scope — is computed alone.
     """
     subprojects = subproject_ids(session, basis.project_id)
     key = day_key(session, basis, context, subprojects)
-    entry = _read_entry(cache.read(key))
+    found = cache.lookup(key)
+    if isinstance(found, Unavailable):
+        # Redis fails: the write would fail too, and the other scopes would be computed for nothing.
+        entry = day_entry(session, basis, context, scopes)
+        return {scope: entry[str(scope)] for scope in scopes}
+    entry = _read_entry(found)
     if entry is None:
         drawn: list[CostScope] = [PROJECT, *subprojects, UNASSIGNED]
         entry = day_entry(session, basis, context, drawn)

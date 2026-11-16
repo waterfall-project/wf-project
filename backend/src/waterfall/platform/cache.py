@@ -6,9 +6,9 @@ One document per project and per day, under a key that carries the fingerprint o
 indicators depend on: a write changes the key, so no entry is ever served for a state that is no
 longer the project's, and the validity period, set at the write, bounds what is kept. The cache
 holds a copy, never the only one: a Redis that does not answer — connection, delay, reply — is no
-reason to refuse a read or an entry. The read gives ``None``, the write is ignored, and the fault
-is logged once by process and by cause, the class of the error (``indicators.cache_unavailable``);
-the caller computes.
+reason to refuse a read or an entry. The read gives ``None`` (``lookup`` tells it from an entry
+absent: ``UNAVAILABLE``), the write is ignored, and the fault is logged once by process and by
+cause, the class of the error (``indicators.cache_unavailable``); the caller computes.
 """
 
 from typing import TYPE_CHECKING, Any, Self
@@ -35,6 +35,15 @@ _reported: set[str] = set()
 def forget_reports() -> None:
     """Forget the causes already logged, so that the next of each is logged again (tests)."""
     _reported.clear()
+
+
+class Unavailable:
+    """What ``lookup`` gives for a Redis that does not answer, as opposed to an entry absent."""
+
+    __slots__ = ()
+
+
+UNAVAILABLE = Unavailable()
 
 
 class IndicatorsCache:
@@ -67,16 +76,22 @@ class IndicatorsCache:
         self.client.connection_pool.disconnect()
 
     def read(self, key: str) -> str | None:
-        """Give the document kept under a key, or ``None`` if none is or Redis does not answer.
+        """Give the document kept under a key, or ``None`` if none is or Redis does not answer."""
+        found = self.lookup(key)
+        return None if isinstance(found, Unavailable) else found
+
+    def lookup(self, key: str) -> str | Unavailable | None:
+        """Give the document kept under a key, ``None`` if none is, ``UNAVAILABLE`` if Redis fails.
 
         A client that gives bytes, not decoded strings, is served all the same; an entry that is not
-        UTF-8 is unreadable, hence ``None``, and logged like the other causes.
+        UTF-8 is unreadable, hence ``None`` (the entry is written again), and logged like the other
+        causes.
         """
         try:
             document = self.client.get(PREFIX + key)
         except RedisError as error:
             _report(error)
-            return None
+            return UNAVAILABLE
         if isinstance(document, bytes):
             try:
                 return document.decode("utf-8")
