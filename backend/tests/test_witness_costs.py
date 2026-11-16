@@ -43,7 +43,15 @@ from sqlalchemy import func, select
 from support import WITNESS, captured_logs
 from test_witness import load, wipe
 from test_witness_lines import PROVISION, line_rows
-from test_witness_lines_reads import READ_AT, ROWS, by_role, deviations, keyed, rows_in_order
+from test_witness_lines_reads import (
+    READ_AT,
+    ROWS,
+    by_role,
+    deviations,
+    keyed,
+    rows_in_order,
+    tasks_are_their_nodes,
+)
 from test_witness_projects import (
     PRJ_001,
     REVISION_100,
@@ -441,6 +449,7 @@ def sorted_links(card: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
+@pytest.mark.requirement("WF-DEV-0090-A")
 def test_the_workload_of_the_marked_remaining_is_the_example_within_a_rounding_of_a_hundredth(
     api: ContractClient, witness: Database, realm: TestRealm, the_day: None
 ) -> None:
@@ -456,6 +465,7 @@ def test_the_workload_of_the_marked_remaining_is_the_example_within_a_rounding_o
     ours, theirs = by_role(without(body, aside)), by_role(without(expected, aside))
     assert deviations(ours, theirs, Decimal("0.02")) == set()
     assert rows_in_order(body, expected)
+    tasks_are_their_nodes(api, witness, realm, body, REVISION_101)
     assert body["context"] == {**expected["context"], "computed_at": body["context"]["computed_at"]}
     assert zulu(body["context"]["computed_at"]) == expected["context"]["computed_at"]
 
