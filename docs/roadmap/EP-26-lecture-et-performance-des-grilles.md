@@ -550,7 +550,9 @@ relecture de l'écran pour les traitements ; cette US en garde le message de la 
 US-2240/L6 (#3548, constat #3535) : la révision ouverte l'année suivant sa source rechiffre ses
 lignes par ensemble — le calcul reste ligne à ligne, en Python, les montants qui bougent s'écrivent
 par une `UPDATE … FROM (VALUES …)` par lot de 2 000 lignes — : 2 141 instructions, dont 2 076
-`UPDATE estimate_line`, puis 68 sur PRJ-001 (64 dans la même année).
+`UPDATE estimate_line`, puis, sur PRJ-001, moins de 200 (mesure du 2026-11-16, abandon de la 102 et
+ouverture : 129 instructions, dont 3 `UPDATE estimate_line`, l'année suivante ; 120, dont aucune, dans la
+même année).
 
 **Hors périmètre.** L'ouverture en tâche de fond, écartée au cadrage. Si la borne ne tient pas, le
 dépassement est documenté (US-2300) et devient une issue à trancher.

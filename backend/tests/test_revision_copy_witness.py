@@ -271,11 +271,12 @@ def test_a_revision_opened_on_prj_001_a_year_later_projects_the_rates_its_source
     # Its lines priced again at the rates projected, by set (#3535): each holds the amount the
     # pricing of a line computes — priced once more, none moves —, and the copy moved them on.
     with witness.transaction() as session:
+        session.expire_all()
         engine = session.get_bind()
         sent: list[str] = []
 
         def heard(*arguments: Any) -> None:
-            sent.append(str(arguments[2]))
+            sent.append(" ".join(str(arguments[2]).split()))
 
         event.listen(engine, "before_cursor_execute", heard)
         try:
@@ -283,10 +284,34 @@ def test_a_revision_opened_on_prj_001_a_year_later_projects_the_rates_its_source
             session.flush()
         finally:
             event.remove(engine, "before_cursor_execute", heard)
-        assert [each for each in sent if each.startswith("UPDATE estimate_line")] == []
+        # The listener heard the pass (its reads of the lines), and none of it wrote a line.
+        assert any("estimate_line" in each.lower() for each in sent)
+        writes = [each for each in sent if each.lower().startswith("update estimate_line")]
+        assert writes == []
         source = _lines(session, _nodes(session, REVISION_101))
         copied = _lines(session, _nodes(session, opened))
         assert copied.keys() == source.keys()
         assert sum(line.base_amount for line in copied.values()) > sum(
             line.base_amount for line in source.values()
         )
+        # Each amount computed apart: a labour line, its quantity x hours x the rate projected; any
+        # other, its quantity x unit disbursement, which no rate moves.
+        projected = _rates(session, opened)
+        labour = other = 0
+        for lineage, line in copied.items():
+            if line.resource_role_id is None:
+                assert line.unit_disbursement is not None
+                expected = (line.quantity * line.unit_disbursement).quantize(
+                    CENT, rounding=ROUND_HALF_UP
+                )
+                assert line.base_amount == source[lineage].base_amount
+                other += 1
+            else:
+                assert line.hours is not None
+                expected = (
+                    line.quantity * line.hours * projected[line.cost_category_id][0]
+                ).quantize(CENT, rounding=ROUND_HALF_UP)
+                labour += 1
+            assert line.base_amount == expected
+        assert labour > 0
+        assert other > 0
