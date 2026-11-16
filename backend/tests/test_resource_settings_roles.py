@@ -327,15 +327,12 @@ def test_a_role_is_created_with_its_three_attachments_and_its_single_capacity(
 ) -> None:
     created = api.post(ROLES, headers=sessions.changing, json=new_role())
     assert created.status_code == 201, created.text
-    # The example, but for the identifier the service gives and what the creation writes anew;
-    # and but for the hours per month, which the service calculates only from US-2410/L2.
+    # The example, but for the identifier the service gives and what the creation writes anew; its
+    # hours per month calculated (US-2410): 3 * 40 * 52 / 12, 520.00.
     (read,) = shape([created.json()])
     (expected,) = shape([example("resource_role_created")])
-    assert {**read, "resource_role_id": None, "capacity": read["capacity"]["headcount"]} == {
-        **expected,
-        "resource_role_id": None,
-        "capacity": expected["capacity"]["headcount"],
-    }
+    assert {**read, "resource_role_id": None} == {**expected, "resource_role_id": None}
+    assert created.json()["capacity"] == {"monthly_hours": "520.00", "headcount": "3"}
     # One capacity, without a date of validity.
     assert set(created.json()["capacity"]) == {"monthly_hours", "headcount"}
     assert created.json()["lock_version"] == 1

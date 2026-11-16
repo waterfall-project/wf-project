@@ -107,7 +107,6 @@ def complete_reference(database: Database) -> None:
                 org_node_id=node.node_id,
                 cost_category_id=category,
                 calendar_id=calendar_id,
-                monthly_hours=Decimal(140),
                 headcount=Decimal(2),
                 is_active=True,
                 created_at=act.at,

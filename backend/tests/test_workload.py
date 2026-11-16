@@ -159,24 +159,20 @@ def test_a_plan_without_a_labour_line_has_no_total(site: Site) -> None:
 @pytest.mark.requirement("WF-DEV-0070-A")
 def test_each_role_shows_its_capacity_and_a_month_over_it_is_in_alert(site: Site) -> None:
     # « La capacité de chaque rôle est affichée. » : the capacity of the reference, for the roles
-    # the lines employ and for the active roles they do not; a month is in alert past it.
+    # the lines employ and for the active roles they do not; a month is in alert past it. The
+    # capacity is the one the role's view calculates (US-2410): 1 * 40 * 52 / 12 for the worker,
+    # 2 * 40 * 52 / 12 for the engineer.
     site.labour(site.task("Câblage"), "352")
-    with site.stage.owner.begin() as connection:
-        connection.execute(
-            update(ResourceRole)
-            .where(ResourceRole.id == site.worker)
-            .values(monthly_hours=Decimal(175))
-        )
     site.referenced()
     read = site.plan("reference_budget")
     role = role_of(read, site.worker)
-    assert Decimal(role["capacity_monthly_hours"]) == Decimal(175)
+    assert Decimal(role["capacity_monthly_hours"]) == Decimal("173.33")
     assert [(each["month"], each["zone"]) for each in role["months"]] == [
         ("2026-11", "nominal"),
         ("2026-12", "alert"),
     ]
     idle = next(each for each in read["roles"] if each["label"] == "Ingénieur")
-    assert (Decimal(idle["capacity_monthly_hours"]), idle["months"]) == (Decimal(140), [])
+    assert (Decimal(idle["capacity_monthly_hours"]), idle["months"]) == (Decimal("346.67"), [])
 
 
 @pytest.mark.requirement("WF-DEV-0070-A")
@@ -196,7 +192,7 @@ def test_a_role_deactivated_appears_only_if_the_lines_employ_it(site: Site) -> N
     listed = {each["resource_role_id"] for each in read["roles"]}
     assert str(site.worker) in listed
     assert str(unused) not in listed
-    assert Decimal(role_of(read, site.worker)["capacity_monthly_hours"]) == Decimal(140)
+    assert Decimal(role_of(read, site.worker)["capacity_monthly_hours"]) == Decimal("173.33")
 
 
 # --- The filter by organisation node -------------------------------------------------------------
@@ -228,7 +224,7 @@ def test_the_filter_by_node_keeps_the_roles_of_the_node_and_of_its_descendants(
     assert from_child["org_node_label"] == "Atelier"
     assert [each["resource_role_id"] for each in from_child["roles"]] == [str(below.fitter)]
     assert hours_of(from_child) == Decimal(184)
-    assert Decimal(role_of(from_child, below.fitter)["capacity_monthly_hours"]) == Decimal(100)
+    assert Decimal(role_of(from_child, below.fitter)["capacity_monthly_hours"]) == Decimal("86.67")
 
 
 @pytest.mark.requirement("WF-DEV-0070-A")

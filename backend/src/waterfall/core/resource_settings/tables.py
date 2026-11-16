@@ -111,15 +111,14 @@ class Calendar(Audited):
 class ResourceRole(Audited):
     """A role of resources under a node, a category and a calendar, and its capacity.
 
-    Its capacity is single, without a date (WF-REF-0090, WF-REF-0100): hours a month and a
-    headcount, never negative.
+    Its capacity is single, without a date (WF-REF-0090, WF-REF-0100): a headcount, never
+    negative, from which its hours a month are calculated as it is read, never kept (US-2410).
     """
 
     __tablename__ = "resource_role"
     __table_args__ = (
         *bounded("code", CODE_LENGTH),
         *bounded("label", LABEL_LENGTH),
-        CheckConstraint("monthly_hours >= 0", name="monthly_hours_not_negative"),
         CheckConstraint("headcount >= 0", name="headcount_not_negative"),
         counted(),
     )
@@ -137,7 +136,6 @@ class ResourceRole(Audited):
     calendar_id: Mapped[UUID] = mapped_column(
         ForeignKey(Calendar.id, ondelete="RESTRICT"), index=True
     )
-    monthly_hours: Mapped[Decimal] = mapped_column(Numeric)
     headcount: Mapped[Decimal] = mapped_column(Numeric)
     is_active: Mapped[bool]
 

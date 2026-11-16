@@ -29,7 +29,6 @@ from waterfall.core.cost_settings.interface import (
 )
 from waterfall.core.cost_settings.records import NATURES_LOCK
 from waterfall.core.resource_settings.interface import (
-    Capacity,
     RoleDraft,
     category_has_roles,
     create_role,
@@ -204,7 +203,7 @@ def interim(session: Session, category_id: UUID, admission: CategoryAdmission | 
         category_id,
         admission,
         UUID(STANDARD),
-        Capacity(Decimal("140.00"), Decimal(1)),
+        Decimal(1),
     )
     return create_role(session, draft, Act(None, utc_now()))
 
