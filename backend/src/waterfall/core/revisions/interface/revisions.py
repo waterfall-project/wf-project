@@ -416,6 +416,18 @@ def last_marked_revision(session: Session, project_id: UUID) -> UUID | None:
     return _last_marked(session, project_id)
 
 
+def revision_project(session: Session, revision_id: UUID) -> UUID:
+    """Give the project of a revision; or 404 (US-1670/L1).
+
+    What the indicators read of a revision being marked, which their entry of
+    ``register_indicators`` receives alone (EP-10, "La conservation au marquage").
+    """
+    project_id = session.scalar(select(Revision.project_id).where(Revision.id == revision_id))
+    if project_id is None:
+        raise NotFoundError(NOT_FOUND)
+    return project_id
+
+
 def revision_marked_at(session: Session, revision_id: UUID) -> datetime | None:
     """Give the instant a revision was marked at, none for one not marked (US-1580/L2).
 

@@ -143,6 +143,7 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
     "indicators": {
         "curves",
         "documents",
+        "estimate_documents",
         "index_history",
         "milestone_tracking",
         "physical_progress",
@@ -548,8 +549,6 @@ SILENT = {
         "detach_work_breakdown_item",
     },
     "history": {"close_history"},
-    # What the marking calls before the story that keeps the indicators (US-1670/L1).
-    "indicators": {"store_indicators"},
 }
 
 

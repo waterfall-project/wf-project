@@ -186,7 +186,6 @@ def upgrade() -> None:
         sa.UniqueConstraint("project_id", "revision_id", "kind", "scope"),
         postgresql_partition_by="LIST (project_id)",
     )
-    op.create_index(None, "revision_indicator", ["project_id", "revision_id"])
     op.execute(GUARD)
     op.execute(MARKING_ONLY)
     op.execute(EXISTING)

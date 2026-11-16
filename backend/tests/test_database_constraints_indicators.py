@@ -10,9 +10,10 @@ Every row is written around the services of the modules, by the owner of the tab
 current revision.
 """
 
+import re
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, get_args
+from typing import TYPE_CHECKING, Any, get_args
 from uuid import UUID, uuid4
 
 import psycopg
@@ -20,10 +21,11 @@ import pytest
 from indicators_support import indicator_row
 from project_rows import AT, insert_revision
 from project_rows import projects_with_partitions as with_partitions
-from sqlalchemy import Engine, insert, text, update
+from sqlalchemy import Engine, event, insert, text, update
 from sqlalchemy.exc import DBAPIError, IntegrityError
+from sqlalchemy.orm import Session
 
-from waterfall.core.indicators.interface import IndicatorKind
+from waterfall.core.indicators.interface import IndicatorKind, stored_document
 from waterfall.core.indicators.tables import KINDS, RevisionIndicator
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.database import Database
@@ -188,3 +190,34 @@ def test_a_document_written_by_the_transaction_that_marks_its_revision_is_kept(
 def test_the_kinds_the_interface_names_are_those_the_base_holds() -> None:
     # The kinds a reading asks ``stored_document`` for are those the check of the table accepts.
     assert get_args(IndicatorKind.__value__) == KINDS
+
+
+@pytest.mark.requirement("WF-DAT-0050-A")
+def test_a_stored_document_is_read_in_the_partition_of_its_project_alone(
+    parents: Parents, owner: Engine, database: Database
+) -> None:
+    # The table is partitioned by project: the reading names the project of the revision, so that
+    # the plan of its query probes the partition of that project and no other.
+    written(owner, row(parents), marking(parents, AT))
+    seen: list[tuple[str, dict[str, object]]] = []
+
+    def capture(*call: Any) -> None:
+        _, _, statement, parameters = call[:4]
+        if "FROM revision_indicator" in statement:
+            seen.append((statement, dict(parameters)))
+
+    with database.transaction() as session:
+        event.listen(session.get_bind(), "before_cursor_execute", capture)
+        try:
+            found = stored_document(session, parents.revision_id, "estimate", "project")
+        finally:
+            event.remove(session.get_bind(), "before_cursor_execute", capture)
+    assert found is not None
+    assert len(seen) == 1
+    statement, parameters = seen[0]
+    with Session(owner) as session:
+        plan = session.connection().exec_driver_sql(f"EXPLAIN {statement}", parameters).all()
+    named = re.compile(r"revision_indicator_p_[0-9a-f]{32}\b")
+    probed = {name for (line,) in plan for name in named.findall(line)}
+    held = f"revision_indicator_p_{parents.project_id.hex}"
+    assert probed == {held}

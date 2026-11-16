@@ -428,7 +428,7 @@ rien à emporter.
 
 | Table | Contenu | Contraintes |
 |---|---|---|
-| `revision_indicator` | `project_id` (clé de partition), `id`, `revision_id`, `kind` (`estimate`, `remaining`, `project`, `cost_curve`, `cost_curve_payment_delays`, `earned_value_curves` ; EP-11 ajoute les siennes), `scope` (`project`, `unassigned`, ou l'identifiant du sous-projet en texte, comme le contrat l'écrit), `document` (`jsonb`, la réponse du contrat de cette nature pour cette maille, `context` compris, `zone` nulle sur chaque indice), `computed_at` (l'instant du marquage), `created_at`, `created_by` | clé primaire (`project_id`, `id`) ; unique (`project_id`, `revision_id`, `kind`, `scope`) ; clé composite (`project_id`, `revision_id`) vers `revision` en refus ; `kind` dans les six natures, `scope` de 1 à 36 non blanc ; `document` objet ; index sur (`project_id`, `revision_id`) ; déclencheur d'immuabilité comme `cost_structure`, et un déclencheur qui refuse l'écriture d'une ligne dont la révision n'est pas en cours de marquage — la révision verrouillée `FOR UPDATE` par le marquage, encore `draft` à l'instant de l'écriture |
+| `revision_indicator` | `project_id` (clé de partition), `id`, `revision_id`, `kind` (`estimate`, `remaining`, `project`, `cost_curve`, `cost_curve_payment_delays`, `earned_value_curves` ; EP-11 ajoute les siennes), `scope` (`project`, `unassigned`, ou l'identifiant du sous-projet en texte, comme le contrat l'écrit), `document` (`jsonb`, la réponse du contrat de cette nature pour cette maille, `context` compris, `zone` nulle sur chaque indice), `computed_at` (l'instant du marquage), `created_at`, `created_by` | clé primaire (`project_id`, `id`) ; unique (`project_id`, `revision_id`, `kind`, `scope`) ; clé composite (`project_id`, `revision_id`) vers `revision` en refus ; `kind` dans les six natures, `scope` de 1 à 36 non blanc ; `document` objet ; aucun index de plus : (`project_id`, `revision_id`) est le préfixe de l’unicité, qui sert la lecture, et un second index doublerait le coût d’écriture sans gain (décision de l’auteur du 2026-11-16, #3553) ; déclencheur d'immuabilité comme `cost_structure`, et un déclencheur qui refuse l'écriture d'une ligne dont la révision n'est pas en cours de marquage — la révision verrouillée `FOR UPDATE` par le marquage, encore `draft` à l'instant de l'écriture |
 
 - **Une migration dans le socle** (US-1660/L1) : la table, sa partition
   (`revision_indicator_p_<uuid>`) créée à chaque projet nouveau par `create_project_partitions`, qui
@@ -556,8 +556,10 @@ importe l'interface (US-1670/L1).
 - `store_indicators(session, revision_id, act)` lit l'état du projet (verrouillé par `run_marking`
   avant `mark_revision` ; le chargeur, en une transaction, le lit sans verrou) et la référence, puis
   écrit, pour le projet, chaque sous-projet et `unassigned` : `estimate` (le document
-  d'`estimate_indicators` d'EP-07 pour la révision et la maille), `remaining` (celui de
-  `remaining_indicators` d'EP-09, la couverture à zéro jusqu'à EP-08), et, si le projet est
+  d'`estimate_indicators` d'EP-07 pour la révision et la maille), et, une seule fois, sur la maille
+  `project`, `remaining` (celui de `remaining_indicators` d'EP-09, la couverture à zéro jusqu'à
+  EP-08 ; son document porte déjà le solde de chaque sous-projet et de « hors sous-projet », et
+  `getRemainingIndicators` n'a pas de `scope`), et, si le projet est
   `in_progress`, `project` (le calcul ci-dessus à la date du marquage) et les trois natures de
   courbes (« Les courbes ») ; `context` de chaque document porte `revision_status` `marked`,
   `computed_at` = `act.at`, `is_stored` vrai ; `created_by` l'auteur de l'`Act`.
@@ -1033,7 +1035,7 @@ survenu et le budget devant un avenant (EP-08) ; le portefeuille (EP-11).
 
 ## US-1670 — Le calcul au marquage et la conservation des indicateurs d'une révision marquée
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-DAT-0040-A`, `WF-IND-0010-A`, `WF-CYC-0090-A`, `WF-REF-0130-A`
 - **opérations** : `markRevision`, `exitProject` (la transaction du marquage) ;
   `getProjectIndicators` (`revision_id`, `as_of`), `getEstimateIndicators`,

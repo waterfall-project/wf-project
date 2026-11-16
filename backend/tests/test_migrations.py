@@ -503,13 +503,16 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
     database: Database, owner: Engine
 ) -> None:
     # A guard runs with the rights of its caller: its search path is its own, so that a temporary
-    # table of the caller's session never stands for a table the guard reads.
+    # table of the caller's session never stands for a table the guard reads. The functions are
+    # those of the schema of the tables alone (#3558): another schema of the server may name its
+    # own so.
     del database
     with owner.connect() as connection:
         guards = connection.execute(
             text(
                 "SELECT proname, prosecdef, proconfig FROM pg_proc "
-                "WHERE (proname LIKE '%refuse_marked_change' "
+                "JOIN pg_namespace ON pg_namespace.oid = pg_proc.pronamespace "
+                "WHERE nspname = 'public' AND (proname LIKE '%refuse_marked_change' "
                 "OR proname = 'revision_indicator_refuse_outside_marking') ORDER BY proname"
             )
         ).all()

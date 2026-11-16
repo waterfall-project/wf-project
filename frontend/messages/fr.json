@@ -129,7 +129,8 @@
       "remaining": "Grille de reste à engager",
       "comparison": "Nœuds comparés",
       "projects": "Liste des projets",
-      "backups": "Sauvegardes"
+      "backups": "Sauvegardes",
+      "workloadDetail": "Détail du plan de charge par rôle et par tâche"
     },
     "columns": {
       "rowNumber": "N°",
@@ -245,7 +246,8 @@
       "download": "Téléchargement",
       "restore": "Restauration",
       "resendInvitation": "Renvoi du courriel",
-      "passwordLink": "Lien de fixation"
+      "passwordLink": "Lien de fixation",
+      "month": "Mois"
     },
     "computed": "Calculé",
     "entry": {
@@ -1140,7 +1142,9 @@
       "invalid": "Le plan de charge n’est pas disponible : l’API refuse ce qui est demandé."
     },
     "exportDetail": "Base : {basis} · Nœud d’organisation et ses descendants : {node}",
-    "file": "plan-de-charge"
+    "file": "plan-de-charge",
+    "detailTitle": "Détail par rôle et par tâche",
+    "detailTotals": "Total du plan"
   },
   "commands": {
     "label": "Commandes",
@@ -1962,6 +1966,26 @@
     "comparison": {
       "changes": {
         "help": "Ce qui change du nœud lui-même d’une révision à l’autre, tel que le serveur le nomme : les dates, la durée, l’avancement ou le rattachement d’une tâche ; les montants budgété et réestimé, le délai de paiement ou le rattachement d’une ligne. Vide pour un nœud ajouté, retiré ou inchangé, et pour une tâche modifiée par son seul contenu — une ligne ou une subordonnée qui change."
+      }
+    },
+    "workloadDetail": {
+      "label": {
+        "help": "Le rôle de ressource, puis, sous lui, chacune des tâches qui portent une de ses lignes de main-d’œuvre, rangées par date de début, puis dans l’ordre du planning. Le libellé d’une tâche mène à sa ligne dans la grille de planning de la révision que la base lit."
+      },
+      "rowNumber": {
+        "help": "Le numéro de la ligne de la tâche dans la grille de planning, dans la numérotation de toute la structure."
+      },
+      "start": {
+        "help": "La date de début de la tâche."
+      },
+      "finish": {
+        "help": "La date de fin de la tâche."
+      },
+      "hours": {
+        "help": "La charge du rôle sur la tâche, en heures : la somme de ses lignes de main-d’œuvre de ce rôle, deux lignes sous la même tâche comptant pour une seule, calculée par le serveur sur la base choisie. Vide pour un rôle."
+      },
+      "month": {
+        "help": "La part de la charge que le serveur répartit sur le mois, en heures, sur la base et sous le filtre du plan : pour un rôle, la charge que l’histogramme présente ; pour une tâche, sa part. Vide pour un mois sans charge. Le total du mois, en pied, est celui du plan."
       }
     }
   },

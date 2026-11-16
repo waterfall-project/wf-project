@@ -10,7 +10,6 @@ calendars work 21 and 23 days, 168 and 184 hours; in March and April 2026, 22 da
 is set: the day of the service, and the day the worker marks on.
 """
 
-from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -19,8 +18,7 @@ from uuid import UUID, uuid4
 import pytest
 from estimate_support import add_role
 from nodes_support import faults, mark, refusal, set_progress
-from project_rows import STAMP
-from sqlalchemy import insert, select, update
+from sqlalchemy import update
 
 from waterfall.core.resource_settings.tables import OrgNode, ResourceRole
 
@@ -37,9 +35,11 @@ from workload_support import (
     STATE_FORBIDS,
     VALIDATION_FAILED,
     WORKED_DAYS,
+    Below,
     Clock,
     Site,
     day_setter,
+    make_below,
     make_site,
 )
 
@@ -54,6 +54,12 @@ def site(api: ContractClient, owner: Engine, database: Database, realm: TestReal
 def clock(monkeypatch: pytest.MonkeyPatch) -> Clock:
     """Give the means to set the day the service reads as today, and the worker marks on."""
     return day_setter(monkeypatch)
+
+
+@pytest.fixture
+def below(site: Site) -> Below:
+    """Give a node under the one the roles of the scene belong to, and a role that belongs to it."""
+    return make_below(site)
 
 
 def role_of(read: dict[str, Any], role_id: UUID) -> dict[str, Any]:
@@ -194,50 +200,6 @@ def test_a_role_deactivated_appears_only_if_the_lines_employ_it(site: Site) -> N
 
 
 # --- The filter by organisation node -------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class Below:
-    """The node of the roles of the scene, a node under it, and a role attached to that one."""
-
-    parent: UUID
-    child: UUID
-    fitter: UUID
-
-
-@pytest.fixture
-def below(site: Site) -> Below:
-    """Give a node under the one the roles of the scene belong to, and a role that belongs to it."""
-    child, fitter = uuid4(), uuid4()
-    with site.stage.owner.begin() as connection:
-        held = connection.execute(
-            select(
-                ResourceRole.org_node_id, ResourceRole.cost_category_id, ResourceRole.calendar_id
-            ).where(ResourceRole.code == "ING")
-        ).one()
-        connection.execute(
-            insert(OrgNode).values(
-                id=child, code="SUB", label="Atelier", parent_id=held[0], is_active=True, **STAMP
-            )
-        )
-        connection.execute(
-            insert(ResourceRole).values(
-                id=fitter,
-                code="SUB",
-                label="Monteur",
-                org_node_id=child,
-                cost_category_id=held[1],
-                calendar_id=held[2],
-                monthly_hours=Decimal(100),
-                headcount=Decimal(1),
-                is_active=True,
-                **STAMP,
-            )
-        )
-        connection.execute(
-            update(ResourceRole).where(ResourceRole.id == site.worker).values(org_node_id=held[0])
-        )
-    return Below(held[0], child, fitter)
 
 
 @pytest.mark.requirement("WF-DEV-0070-A")

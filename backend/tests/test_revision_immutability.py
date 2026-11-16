@@ -14,7 +14,6 @@ opened through the service, and marked by the transaction of the worker (``mark_
 """
 
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import ExitStack
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -34,7 +33,7 @@ from support import wait_for_a_lock
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.indicators.tables import RevisionIndicator
 from waterfall.core.planning.tables import Node, Task, TaskLink
-from waterfall.core.revisions.interface import mark_revision, register_indicators
+from waterfall.core.revisions.interface import mark_revision
 from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.audit import Act
 from waterfall.platform.database import Base, utc_now
@@ -483,14 +482,6 @@ def test_a_row_of_a_current_revision_never_names_the_structure_or_a_node_of_a_ma
 # --- The indicators a marking keeps (EP-10, migration 0031) --------------------------------------
 
 
-def keep_a_document(session: Session, revision_id: UUID, act: Act) -> None:
-    """Keep a document of the revision being marked, as the indicators will (US-1670/L1)."""
-    project_id = session.scalar(select(Revision.project_id).where(Revision.id == revision_id))
-    assert project_id is not None
-    kept = indicator_row(project_id, revision_id, computed_at=act.at, created_by=act.author)
-    session.execute(insert(RevisionIndicator).values(**kept))
-
-
 def documents_of(owner: Engine, revision_id: UUID) -> list[tuple[object, ...]]:
     """Read the documents a revision kept, as the base holds them."""
     with owner.connect() as connection:
@@ -514,21 +505,26 @@ def test_the_indicators_a_marking_kept_are_never_written_again(
     # « La base de données refuse toute modification et toute suppression d'une ligne appartenant
     # à une révision marquée, quel que soit le client qui la tente. » : a document the marking of a
     # review kept is neither changed, deleted nor joined by another, its owner refused, nor
-    # truncated with its table or its partition.
+    # truncated with its table or its partition. The documents are those the indicators keep
+    # (US-1670/L1); a curve, which none keeps before US-1690/L3, is refused as another would be.
     project = under_way(api, stage, clock_setter(monkeypatch))
     revision = project.tree.revision
-    with ExitStack() as registered:
-        registered.callback(register_indicators(keep_a_document))
-        at = marked(stage, revision, "Revue de novembre")
+    at = marked(stage, revision, "Revue de novembre")
     assert at == project.now
     revision_id = UUID(revision["revision_id"])
     before = documents_of(owner, revision_id)
-    assert [kept[:3] for kept in before] == [("estimate", "project", at)]
+    assert [kept[:3] for kept in before] == [
+        ("estimate", "project", at),
+        ("estimate", "unassigned", at),
+        ("project", "project", at),
+        ("project", "unassigned", at),
+        ("remaining", "project", at),
+    ]
     of_it = RevisionIndicator.revision_id == revision_id
     changed = update(RevisionIndicator).where(of_it).values(document={"changed": True})
     refused_by_owner(owner, changed, ROW_REFUSED)
     refused_by_owner(owner, delete(RevisionIndicator).where(of_it), ROW_REFUSED)
-    another = indicator_row(project.project_id, revision_id, kind="project", computed_at=at)
+    another = indicator_row(project.project_id, revision_id, kind="cost_curve", computed_at=at)
     refused_by_owner(owner, insert(RevisionIndicator).values(**another), ROW_REFUSED)
     partition = f"revision_indicator_p_{project.project_id.hex}"
     for table in ("revision_indicator", partition):
@@ -544,10 +540,11 @@ def test_a_document_written_during_the_marking_waits_for_it_and_is_refused(
 ) -> None:
     # The guard of the indicators locks the revision of the row ``FOR KEY SHARE`` (#2104), as the
     # others do: a document written beside the marking, the owner its writer, waits for it, then
-    # reads the revision marked and is refused.
+    # reads the revision marked and is refused; the revision keeps the documents of its marking
+    # alone. The stray is a curve, which no marking keeps before US-1690/L3.
     revision_id = open_revision(api, stage)
     project_id = UUID(stage.project["project_id"])
-    stray = indicator_row(project_id, revision_id, computed_at=utc_now())
+    stray = indicator_row(project_id, revision_id, kind="cost_curve", computed_at=utc_now())
 
     def writing() -> None:
         with owner.begin() as connection:
@@ -561,4 +558,8 @@ def test_a_document_written_during_the_marking_waits_for_it_and_is_refused(
         marking.commit()
         with pytest.raises(IntegrityError, match=ROW_REFUSED):
             written.result(timeout=10)
-    assert documents_of(owner, revision_id) == []
+    assert [kept[:2] for kept in documents_of(owner, revision_id)] == [
+        ("estimate", "project"),
+        ("estimate", "unassigned"),
+        ("remaining", "project"),
+    ]
