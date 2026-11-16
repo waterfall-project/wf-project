@@ -63,9 +63,18 @@ def kept_revision(
     if revision_id is not None:
         return revision_id
     marked = marked_revisions_at(session, project_id)
+    keeping = set(
+        session.scalars(
+            select(RevisionIndicator.revision_id).where(
+                RevisionIndicator.project_id == project_id,
+                RevisionIndicator.kind == "project",
+                RevisionIndicator.scope == str(PROJECT),
+            )
+        )
+    )
     for found in sorted(marked, key=lambda each: (marked[each], each), reverse=True):
         if as_of is not None and current_day(marked[found]) > as_of:
             continue
-        if stored_document(session, found, "project", PROJECT) is not None:
+        if found in keeping:
             return found
     raise ConflictError(STATE_FORBIDS_OPERATION)
