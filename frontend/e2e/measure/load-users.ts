@@ -28,7 +28,13 @@ import type { Place } from "../../bench/screens";
 import type { components, operations } from "../../src/api/generated/schema";
 import { frontTokens, type Person } from "../service/realm";
 import type { Caller } from "./background";
-import { type LoadSummary, type Refusal, refusalsOf, type Volumes, volumeFailures } from "./load-check";
+import {
+  type LoadSummary,
+  type Refusal,
+  refusalsOf,
+  type Volumes,
+  volumeFailures,
+} from "./load-check";
 
 type Schemas = components["schemas"];
 type NodeList = operations["listNodes"]["responses"][200]["content"]["application/json"];
