@@ -461,9 +461,9 @@
       category, the calendar and the state are filtered, the monthly hours and the headcount of the
       capacity are bounded (`<column>_min`, `<column>_max`, inclusive), the hours being those
       calculated from the headcount and the role's calendar (`RoleCapacity.monthly_hours`,
-      WF-REF-0100), and `meta.total` counts the roles retained. Each role carries the command that changes its state, available or not
-      (`available_commands`, WF-IHM-0090): reactivating a role whose node is deactivated
-      is unavailable (WF-REF-0080).
+      WF-REF-0100), and `meta.total` counts the roles retained. Each role carries the command
+      that changes its state, available or not (`available_commands`, WF-IHM-0090):
+      reactivating a role whose node is deactivated is unavailable (WF-REF-0080).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -712,9 +712,10 @@
           category to which a role is attached leaving labour (WF-REF-0040,
           `cost_category_without_role`) —; a negative headcount, `/capacity/headcount` with
           `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` at `0`; hours per month sent,
-          `/capacity/monthly_hours` with `VALIDATION_FAILED`, as on creation; and, when the modification changes the category or the
-          calendar of the role, a deactivated object, with `INACTIVE_REFERENCE_OBJECT` (WF-REF-0090) — a
-          role that keeps its own, deactivated since, can be modified. Or else the calendar given to the
+          `/capacity/monthly_hours` with `VALIDATION_FAILED`, as on creation; and, when the
+          modification changes the category or the calendar of the role, a deactivated object, with
+          `INACTIVE_REFERENCE_OBJECT` (WF-REF-0090) — a role that keeps its own, deactivated
+          since, can be modified. Or else the calendar given to the
           role would leave a task of an ongoing revision without any working hour in the
           week: it never overlaps that of another role of its labour lines, or,
           on a task of which this role is the only one, it has no hour in the week (EP-14/L42s):
@@ -727,6 +728,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               refused: { $ref: ../../../fixtures/api/resource_role_update_refused.json }
+              hours_sent: { $ref: ../../../fixtures/api/resource_role_hours_refused.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

@@ -9886,7 +9886,7 @@ Complétées, plus haut : « Le projet terminal n'a pas de révision en cours »
 La revue du contrat avant le gel (`2026-10-28-contrat-avant-gel.md`, D-05, J-01 à J-11, E-07, F-05)
 relevait deux formes pour un même refus et un catalogue qui porte des codes que rien ne rend. Le
 lot donne à chaque refus un statut, un code, ses paramètres et un exemple, ou retire le code ; les
-exemples nouveaux sont engendrés par `make mock-data` (`wftools.mockadminrefusals`). Les décisions
+exemples nouveaux sont engendrés par `make mock-data` (`wftools.mockrefusals`). Les décisions
 qu'il contredit sont réécrites à leur place, en citant la décision de l'auteur du 2026-10-28.
 
 - **La règle unique des refus d'état** (D-05, J-01, J-02 ; décision de l'auteur du 2026-10-28 ;
@@ -9914,7 +9914,7 @@ qu'il contredit sont réécrites à leur place, en citant la décision de l'aute
   dite par sa description et nommée par une opération, un schéma ou un exemple :
   `tools/tests/test_contract_catalogue.py` le tient, et tient aussi que chaque code est porté par un
   exemple, sans liste d'attente. Les onze codes rendus par une opération sans exemple — J-17 et les
-  deux motifs d'une ligne importée — ont le leur, engendré (`wftools.mockadminrefusals`), sous
+  deux motifs d'une ligne importée — ont le leur, engendré (`wftools.mockrefusals`), sous
   l'opération qui le déclare : `SESSION_REQUIRED` (réponse commune `Unauthorized`),
   `ACCOUNT_DEACTIVATED` et `ACCOUNT_NOT_ADMITTED` (`getMe`), `MALFORMED_REQUEST` et
   `FILE_TOO_LARGE` (`putMyAvatar`, qui déclare ses deux réponses), `NOT_CONTRIBUTOR`
