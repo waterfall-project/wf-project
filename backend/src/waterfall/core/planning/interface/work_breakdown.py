@@ -80,11 +80,28 @@ def work_breakdown_item_cited(session: Session, item_id: UUID) -> bool:
 
 
 def detach_work_breakdown_item(session: Session, project_id: UUID, item_id: UUID) -> None:
-    """Withdraw an element of the work breakdown from the tasks of the current revision."""
+    """Withdraw an element of the work breakdown from the tasks of the current revision.
+
+    The node of each task it writes counts the write, its counter advanced (``Node.lock_version``)
+    in a statement of its own, before the tasks are written: a write of the tree that would read
+    such a task again rests on that counter (``reshaped``, US-2250/L2, #3562), and an entry made
+    on the task as it was is refused at the counter it read (412).
+    """
     current = current_revision(session, project_id)
     if current is None:
         return
     of_current = select(Node.id).where(Node.project_id == project_id, Node.revision_id == current)
+    bearing = select(Task.node_id).where(
+        Task.project_id == project_id,
+        or_(Task.work_package_id == item_id, Task.order_item_id == item_id),
+        Task.node_id.in_(of_current),
+    )
+    session.execute(
+        update(Node)
+        .where(Node.project_id == project_id, Node.id.in_(bearing))
+        .values(lock_version=Node.lock_version + 1)
+        .execution_options(synchronize_session=False)
+    )
     for column in (Task.work_package_id, Task.order_item_id):
         session.execute(
             update(Task)

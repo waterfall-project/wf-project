@@ -267,6 +267,13 @@ def reshaped(session: Session, project_id: UUID, structure_id: UUID, tree: Tree)
     (``structure_facts``) since the write read its tree, so the rows read here and the nodes read
     again after them are one snapshot: no other write advances a counter between the two reads.
     A statement that wrote a node without its counter, or a task, would leave it kept stale.
+
+    The test holds the statements ``UPDATE`` alone, outside the flush of the objects — whose node
+    is one whose object holds the counter it compares — and asks of one that writes a node that its
+    ``SET`` advance the counter (``lock_version = node.lock_version + …``), naming it is not enough
+    (#3563). An ``INSERT`` and a ``DELETE`` are not held, and need not be: a node a statement
+    creates is one the tree does not hold, read whatever its counter, and one it deletes is no
+    longer among the rows, dropped. Neither can leave a node kept stale.
     """
     shape = session.execute(
         select(Node.id, Node.parent_id, Node.rank, Node.lock_version).where(

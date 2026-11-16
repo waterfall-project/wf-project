@@ -22,7 +22,7 @@ from projects_support import PROJECTS, Person, Scene, contribute, person, put_in
 from projects_support import scene as make_scene
 from sqlalchemy import select, update
 from support import WITNESS
-from test_inert_writes import trees_read
+from test_inert_writes import listened, trees_read, unkept
 
 from waterfall.core.planning.tables import Node, TaskLink
 from waterfall.core.projects.commands import Running, commands_of
@@ -275,8 +275,12 @@ def test_the_default_work_breakdown_gives_what_the_contract_example_says(
         each["lock_version"] for each in listed if each["structure_id"] == tree.structure_id
     )
     read = trees_read(monkeypatch)
-    written = generated(tree)
+    with listened() as sent:
+        written = generated(tree)
     assert read.count == 1
+    # What the replay rests on holds on the skeleton (``reshaped``, US-2250/L2, #3563).
+    assert any(each.text.startswith("INSERT INTO node ") for each in sent)
+    assert unkept(sent) == []
 
     def shape(body: dict[str, Any], label: str) -> list[dict[str, Any]]:
         """Give the nodes without their identifiers: their places, links and facets.

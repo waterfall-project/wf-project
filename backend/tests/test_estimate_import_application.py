@@ -43,7 +43,7 @@ from projects_support import PROJECTS, Scene, put_in_state
 from projects_support import scene as make_scene
 from sqlalchemy import select, update
 from support import ContractClient
-from test_inert_writes import trees_read
+from test_inert_writes import listened, trees_read, unkept
 from test_msproject_import import imported as planning_imported
 from test_msproject_import import planning, task
 
@@ -234,8 +234,12 @@ def test_lines_of_labour_and_of_material_are_written_under_their_tasks_and_absen
     ]
     import_id = analysed_import(api, stage, worker, workbook(rows, held["tasks"]))
     read = trees_read(monkeypatch)
-    applied_now(api, stage, worker, import_id)
+    with listened() as sent:
+        applied_now(api, stage, worker, import_id)
     assert read.count == 2
+    # What the replay rests on holds on the application (``reshaped``, US-2250/L2, #3563).
+    assert any(each.text.startswith("INSERT INTO node ") for each in sent)
+    assert unkept(sent) == []
     lines = estimate_lines(tree.items())
     first, second = held["first"]["lineage_id"], held["second"]["lineage_id"]
     task, kept = lines.pop(held["labour"]["lineage_id"])
