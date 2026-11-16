@@ -431,11 +431,7 @@ def test_the_hours_per_month_sent_with_a_role_are_refused_as_a_property_the_capa
     changed = api.patch(
         f"{ROLES}/{TECH_MES}", headers=headers, json=change_of(read, capacity=with_hours)
     )
-    assert refusal(changed) == (
-        422,
-        "VALIDATION_FAILED",
-        [("/capacity/monthly_hours", "VALIDATION_FAILED")],
-    )
+    assert without_correlation(changed) == without_correlation_of("resource_role_hours_refused")
     with database.transaction() as session:
         assert session.scalar(select(func.count()).where(ResourceRole.code == "DESS-ELEC")) == 0
         kept = session.get_one(ResourceRole, UUID(TECH_MES))

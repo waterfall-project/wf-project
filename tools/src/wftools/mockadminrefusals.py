@@ -112,9 +112,9 @@ def examples() -> dict[str, JsonObject]:
             unavailable("database", DATABASE_CORRELATION),
         ),
         "resource_role_hours_refused.json": mocktext.example(
-            "Un rôle créé avec ses heures par mois, que Waterfall calcule de son effectif et de "
-            "son calendrier : refusées comme toute propriété que la capacité ne déclare pas, sur "
-            "/capacity/monthly_hours ; rien n'est écrit (WF-REF-0100).",
+            "Un rôle créé ou modifié avec ses heures par mois, que Waterfall calcule de son "
+            "effectif et de son calendrier : refusées comme toute propriété que la capacité "
+            "ne déclare pas, sur /capacity/monthly_hours ; rien n'est écrit (WF-REF-0100).",
             field_refused("/capacity/monthly_hours", "VALIDATION_FAILED", HOURS_CORRELATION),
         ),
     }
