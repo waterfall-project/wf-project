@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from waterfall.core.indicators.tables import RevisionIndicator
+from waterfall.core.revisions.interface import revision_project
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -29,9 +30,15 @@ if TYPE_CHECKING:
 def stored_document(
     session: Session, revision_id: UUID, kind: IndicatorKind, scope: CostScope
 ) -> Document | None:
-    """Give the document of a kind and a scope a revision kept at its marking, or none."""
+    """Give the document of a kind and a scope a revision kept at its marking, or none.
+
+    The table is partitioned by project: the project of the revision is read first and named in the
+    filter, so that only its partition is probed (404 for a revision that does not exist).
+    """
+    project_id = revision_project(session, revision_id)
     return session.scalar(
         select(RevisionIndicator.document).where(
+            RevisionIndicator.project_id == project_id,
             RevisionIndicator.revision_id == revision_id,
             RevisionIndicator.kind == kind,
             RevisionIndicator.scope == str(scope),
