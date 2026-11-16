@@ -39,7 +39,7 @@ import {
   usableAt,
   watchGrids,
 } from "../usable";
-import { failedRequest, type FrontRequest, type Interval } from "./report";
+import { failedRequest, type FrontRequest, type Interval, screenOf } from "./report";
 
 export const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 export const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -233,7 +233,7 @@ export async function player(page: Page, origin: string): Promise<Player> {
     }
     const { startTime: start, responseEnd } = request.timing();
     const prefetch = request.headers()["next-router-prefetch"] !== undefined;
-    const path = new URL(request.url()).pathname;
+    const path = screenOf(request.url());
     // The sizes of an answer the browser no longer reads — a prefetch a navigation left behind —
     // never come, or are refused once its page is gone: its time is kept all the same, and its
     // bytes counted for none.
@@ -257,14 +257,13 @@ export async function player(page: Page, origin: string): Promise<Player> {
   page.on("requestfailed", (request) => {
     if (rendered(request, origin)) {
       const prefetch = request.headers()["next-router-prefetch"] !== undefined;
-      const { pathname } = new URL(request.url());
       front.push(
         failedRequest(
           request.timing().startTime,
           asked.get(request),
           Date.now(),
           prefetch,
-          pathname,
+          screenOf(request.url()),
         ),
       );
     }
@@ -502,8 +501,8 @@ async function bounded<T>(step: Step, play: () => Promise<T>): Promise<T> {
 }
 
 /**
- * A step of the journey: its name, its span if the user reached its end, and the path of the screen
- * it ended on, which the parts of the step take for its destination (`partsOf`).
+ * A step of the journey: its name, its span if the user reached its end, and the screen
+ * it ended on (`screenOf`), which the parts of the step take for its destination (`partsOf`).
  */
 export interface Timed {
   readonly step: Step;
@@ -597,7 +596,7 @@ export async function journey(player: Player, target: Target, tag: string): Prom
         await settle(requests, LOADED);
         return played;
       });
-      timed.push({ step, span, destination: new URL(page.url()).pathname });
+      timed.push({ step, span, destination: screenOf(page.url()) });
     } catch (error) {
       const [why = ""] = (error instanceof Error ? error.message : String(error)).split("\n");
       console.log(`${step}: not reached at ${page.url()}, ${await gridsShown(page)} (${why})`);

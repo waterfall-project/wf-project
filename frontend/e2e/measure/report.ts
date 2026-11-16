@@ -46,7 +46,7 @@ export interface Interval {
 /** A request the browser made of the server of Next, and the bytes of its answer. */
 export interface FrontRequest extends Interval {
   readonly bytes: number;
-  /** The path of its address, without the query: the screen it asks for. */
+  /** The screen it asks for, as `screenOf` writes it: the path and the query of the grid. */
   readonly path: string;
   /** Whether the router asked it ahead of a navigation (`Next-Router-Prefetch`). */
   readonly prefetch: boolean;
@@ -68,6 +68,19 @@ export function failedRequest(
 ): FrontRequest {
   const start = timedStart > 0 ? timedStart : (asked ?? failed);
   return { start, end: failed, bytes: 0, path, prefetch };
+}
+
+/**
+ * The screen an address asks for: its path, and its query without `_rsc`, the key the router adds
+ * to each request of Next, the other parameters sorted — those of the grid, its filter, sort and
+ * search. Two addresses of one path with other queries are two screens.
+ */
+export function screenOf(address: string): string {
+  const { pathname, searchParams } = new URL(address, "http://screen.invalid");
+  searchParams.delete("_rsc");
+  searchParams.sort();
+  const query = searchParams.toString();
+  return query === "" ? pathname : `${pathname}?${query}`;
 }
 
 /** A request the API answered, as its log writes it. */
@@ -133,8 +146,8 @@ function awaited(request: FrontRequest, step: Interval, destination: string): bo
  * during the requests of Next the step waits for and no other time: an API request that outlives
  * them, or runs while no such request does, is made for a prefetch of a screen to come — the links
  * of the grid prefetch the screens they lead to — and under the load of several users, queued, it
- * would cover the whole step and leave nothing to Next or the browser. `destination` is the path
- * of the screen the step ends on.
+ * would cover the whole step and leave nothing to Next or the browser. `destination` is the screen
+ * the step ends on, as `screenOf` writes it.
  */
 export function partsOf(
   step: Interval,

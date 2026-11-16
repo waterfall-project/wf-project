@@ -3288,10 +3288,11 @@ versionne le lot de la version, avec les `note` de ses dépassements. La mesure 
 durée : seulement sur un compte qu'elle ne peut créer, des volumes inférieurs à ceux du §4.6.2 (mille
 tâches, cinq lignes de devis par tâche en moyenne, à l'arrondi près du témoin : 4,9 au moins), une étape que le navigateur ne mène pas à sa fin, une tâche
 de fond qui échoue, ou une charge qui n'a pas tourné comme demandé (`load-check.ts`) : sans résumé,
-un utilisateur refusé faute de jeton, plus d'un pour cent de lectures ou de saisies refusées — les
-saisies refusées par le marquage (`409`), seules attendues, mises à part, et seulement après le
-premier marquage réellement fait, dans la part de la charge où la révision est restée gelée, à une
-marge de dix pour cent près : une charge dont toutes les saisies reçoivent un `409` échoue —, moins de la moitié des
+un utilisateur refusé faute de jeton, plus d'un pour cent de lectures ou de saisies refusées, hors
+les saisies que le marquage refuse (`409`), seules attendues : celles-là ne comptent qu'après le
+premier marquage demandé, et que dans la part de la charge où la révision est restée gelée, à une
+marge de dix pour cent près (une charge gelée pendant toute sa durée les accepte toutes) ; ou moins
+de la moitié des
 gestes que promettent les pauses (utilisateurs × durée ÷ 10 s). Les passages d'import ne sont pas à
 volume constant : le deuxième importe ses dix-huit mille lignes à côté des dix-huit mille du
 premier, le troisième à côté de trente-six mille, comme le ferait un projet qui reçoit des coûts, et
@@ -4938,11 +4939,15 @@ celui de l'API ; le navigateur, le reste. Le poids de la réponse est ce que Nex
 navigateur pour l'étape. Temps de Next et poids retiennent les mêmes requêtes : pas les
 préchargements que l'étape lance elle-même pour un autre écran, qu'elle n'attend pas — leur
 temps est celui du navigateur, qui travaille pendant ce temps — ; celui qu'elle lance pour l'écran
-où elle finit, quand le routeur le demande de nouveau, elle l'attend, et il compte. La part de
+où elle finit — même chemin et même requête (filtre, tri, recherche) —, quand le routeur le demande
+de nouveau, elle l'attend, et il compte ; un préchargement du même chemin sous une autre requête
+sert une étape à venir, et ne compte pas. La part de
 l'API ne compte les requêtes du compte que pendant une requête de Next que l'étape attend : celles
 d'un tel préchargement hors d'elle ne comptent pour rien. Limite : celles qui sont faites pendant
 elle restent, le journal rattachant une requête à un compte et à un instant, non à la requête de
-Next qui l'a faite. Le parcours se
+Next qui l'a faite. Le navigateur n'appelle jamais l'API lui-même (ses composants passent par
+des actions serveur) : une telle requête, hors de Next, tomberait dans la part du navigateur. Le
+parcours se
 joue à un, quatre et huit utilisateurs à la fois (`MEASURE_USERS`, qui nomme toujours `1` : seul un utilisateur seul fait échouer la mesure), un compte chacun, chacun dans
 son contexte de navigateur, et la durée de `getMe` est relevée pendant ce temps, dans le journal de
 l'API et par un client qui la demande chaque seconde, avec un compte à lui, sans rôle, qui ne joue

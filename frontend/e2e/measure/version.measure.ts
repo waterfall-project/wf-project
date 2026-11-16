@@ -185,7 +185,9 @@ async function screens(
 
 /**
  * The background tasks, each in its passes: the export, the import, the marking last; and when the
- * first marking ended, which froze the revision for the entries of the load (none if it never did).
+ * first marking was asked, which froze the revision for the entries of the load (none if it never
+ * did): the back refuses them from the submission of the task (409 `no_background_task_running`),
+ * then once the revision is marked.
  */
 async function backgroundTasks(
   { api }: Measurer,
@@ -195,9 +197,8 @@ async function backgroundTasks(
   const exported = await passes("export-planning", () => exportPlanning(api, PROJECT, REVISION));
   const imported = await passes("import-costs", (pass) => importCosts(api, PROJECT, pass));
   const marked = await passes("mark-revision", async (pass) => {
-    const seconds = await markRevision(api, PROJECT, version, pass);
     frozenAt ??= Date.now();
-    return seconds;
+    return markRevision(api, PROJECT, version, pass);
   });
   return { tasks: [...exported, ...imported, ...marked], frozenAt };
 }
@@ -256,7 +257,7 @@ test("measures each operation of table 15 the service serves under the load of f
       const steps = [...measured.unreached].join(", ");
       throw new Error(`The journey no longer works: the browser did not reach the end of ${steps}`);
     }
-    // The marking, last of the background tasks, froze the revision from the end of its first pass.
+    // The marking, last of the background tasks, froze the revision from the asking of its first pass.
     const frozenSeconds = frozenAt === undefined ? 0 : (stopped - frozenAt) / 1000;
     const failures = loadFailures(summary, {
       users,

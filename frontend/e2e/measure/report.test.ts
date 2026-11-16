@@ -16,6 +16,7 @@ import {
   type LevelReport,
   momentOf,
   partsOf,
+  screenOf,
   statisticOf,
   stepReports,
 } from "./report";
@@ -98,6 +99,30 @@ describe("partsOf", () => {
     const parts = partsOf({ start: 1_000, end: 2_000 }, [asked, links], [], USER, PLANNING);
     expect(parts).toMatchObject({ next: 850, browser: 150, bytes: 49_795 });
     expect(partsOf({ start: 1_000, end: 2_000 }, [asked], [], USER).bytes).toBe(0);
+  });
+
+  it("counts a prefetch of the destination, query included, and not one of the same path for a step to come", () => {
+    // Filter, sort and search stay on one path: the links of the grid prefetch it with the query
+    // of a step to come, which this step does not wait for.
+    const destination = screenOf(`http://x${ESTIMATE}?sort_by=x&_rsc=a1`);
+    const asked = {
+      start: 1_050,
+      end: 1_900,
+      bytes: 700,
+      path: screenOf(`${ESTIMATE}?_rsc=b2&sort_by=x`),
+      prefetch: true,
+    };
+    const later = {
+      start: 1_100,
+      end: 1_950,
+      bytes: 50_000,
+      path: screenOf(`${ESTIMATE}?search=y`),
+      prefetch: true,
+    };
+    const api = [answered(1_100, 1_800), answered(1_910, 1_950)];
+    const parts = partsOf({ start: 1_000, end: 2_000 }, [asked, later], api, USER, destination);
+    expect(destination).toBe(`${ESTIMATE}?sort_by=x`);
+    expect(parts).toMatchObject({ bytes: 700, api: 700, next: 150, browser: 150, apiRequests: 1 });
   });
 
   it("counts a request of the API only while a request of Next the step waits for is under way", () => {

@@ -58,7 +58,7 @@ describe("loadFailures", () => {
     expect(failures).toContain("3 entries refused before any marking");
   });
 
-  it("refuses a load whose every entry was refused as frozen, marking or not [WF-QUA-0060-A]", () => {
+  it("bounds the entries refused as frozen by the share of the duration the marking froze, up to a whole load [WF-QUA-0060-A]", () => {
     const frozen = { ...NOMINAL, writes_frozen: 290 };
     expect(loadFailures(frozen, RUN)).toHaveLength(1);
     expect(loadFailures(frozen, { ...RUN, frozen_s: 60 })).toHaveLength(1);

@@ -34,9 +34,11 @@ export interface LoadRun {
   /** How long the load lasted, in seconds, from its start to its stop. */
   readonly duration_s: number;
   /**
-   * How long the revision stood marked under the load, in seconds, from the end of the first
-   * marking the measure made to the stop of the load — which freezes it for the entries; 0 when
-   * the measure marked nothing.
+   * How long the revision stood frozen under the load, in seconds, from the asking of the first
+   * marking the measure made — the back refuses the entries from the submission of its task, while
+   * it is queued or runs, then once the revision is marked — to the stop of the load; 0 when the
+   * measure marked nothing. The passes after the first mark a revision opened again, in which the
+   * load, which writes in its own, never enters: they extend nothing.
    */
   readonly frozen_s: number;
 }
