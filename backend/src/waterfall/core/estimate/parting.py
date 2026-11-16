@@ -14,12 +14,12 @@ nought (``MONEY``). The cumulated is exact, rounded once (``spreading``): that o
 end of a month is the planned value of the line then (``planned_value``, #3566). A month the
 rounding leaves at nought is not one the line loads (#3096).
 
-The plan of workload, its detail by task (US-2040) and the projection of spending (US-2050) share
-it, each summing the parts at its own level.
+The plan of workload, its detail by task (US-2040), the projection of spending (US-2050) and the
+curves of EP-10 (US-1690/L4, #3564) share it, each summing the parts at its own level.
 """
 
 from decimal import Decimal
-from fractions import Fraction
+from itertools import accumulate
 from typing import TYPE_CHECKING
 
 from waterfall.core.estimate.spreading import exact_by_month
@@ -27,6 +27,7 @@ from waterfall.core.estimate.spreading import exact_by_month
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
     from datetime import date
+    from fractions import Fraction
 
     from waterfall.core.estimate.spreading import Month, Placement, Rounding
 
@@ -41,12 +42,24 @@ def rounded_parts(
     ``as_of`` is the date of calculation of a remaining: the line is then spread over the part of
     its task after it, or falls whole in its month once the task is over (``spread_by_month``).
     """
+    shares = exact_by_month(placement, total, as_of=as_of)
+    return parts_of_cumulated(zip(shares, accumulate(shares.values()), strict=True), rounding)
+
+
+def parts_of_cumulated(
+    cumulated: Iterable[tuple[Month, Fraction]], rounding: Rounding
+) -> dict[Month, Decimal]:
+    """Give the parts of a line from its exact cumulated at the end of each month, in their order.
+
+    The part of a month is the rounded cumulated at its end less that at the end of the month
+    before; the cumulated of the last month is the whole line. A spreading that is not that of
+    ``rounded_parts`` — the curve of the cash-out of EP-10, each month read at its end less the
+    payment delay of the line (US-1690/L4) — gives its cumulated here, and is rounded alike.
+    """
     found: dict[Month, Decimal] = {}
-    cumulated, before = Fraction(0), NOUGHT
-    for month, share in exact_by_month(placement, total, as_of=as_of).items():
-        # Exact, the cumulated of the last month is the whole line.
-        cumulated += share
-        done = rounding.of(cumulated)
+    before = NOUGHT
+    for month, exact in cumulated:
+        done = rounding.of(exact)
         if part := done - before:
             found[month] = part
         before = done

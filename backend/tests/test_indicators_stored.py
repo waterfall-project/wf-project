@@ -432,13 +432,13 @@ def test_a_revision_marked_before_in_progress_or_a_date_before_any_marking_is_re
     # reference, marked in pricing, keeps the estimate alone; a date before the marking of the
     # review has no revision that kept the indicators.
     reference = project.review.reference["revision_id"]
-    at = marked_now(stage, clock, project.tree.revision)
+    day = current_day(marked_now(stage, clock, project.tree.revision))
     for name in (COST_CURVE, EARNED_VALUE_CURVES):
         named = curve_answer(api, stage, name, f"?revision_id={reference}")
         assert refusal(named) == FORBIDDEN
-        early = curve_answer(api, stage, name, f"?as_of={(at.date() - 2 * ONE_DAY).isoformat()}")
+        early = curve_answer(api, stage, name, f"?as_of={(day - 2 * ONE_DAY).isoformat()}")
         assert refusal(early) == FORBIDDEN
-    kept_day = curve_answer(api, stage, COST_CURVE, f"?as_of={at.date().isoformat()}")
+    kept_day = curve_answer(api, stage, COST_CURVE, f"?as_of={day.isoformat()}")
     assert kept_day.status_code == 200
 
 

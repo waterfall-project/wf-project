@@ -20,9 +20,6 @@ from waterfall.core.indicators.series.cumulation import (
     Point as Point,
 )
 from waterfall.core.indicators.series.cumulation import (
-    apportioned as apportioned,
-)
-from waterfall.core.indicators.series.cumulation import (
     cumulative as cumulative,
 )
 from waterfall.core.indicators.series.cumulation import (

@@ -9,6 +9,7 @@ The project is the one of ``curves_support``. Every answer is checked against th
 """
 
 from decimal import Decimal
+from itertools import pairwise
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -198,9 +199,11 @@ def test_a_revision_named_with_a_date_is_refused_and_an_unknown_revision_is_not_
     assert curve_answer(api, stage, COST_CURVE, f"?revision_id={revision_id}").status_code == 200
 
 
-# The provision of the risk identified (EP-08) is among the remaining to commit of the example, 500
-# 200, that no line of the witness bears yet.
+# The provision of the risk identified, 500 000, and the two lines its occurrence added, 120 and 80,
+# all of EP-08, are among the remaining to commit of the example, that no line of the witness bears
+# yet: 500 200.
 PROVISION = D("500200.00")
+OCCURRENCE = D("200.00")
 
 
 def points_of(body: dict[str, Any], name: str) -> dict[str, D]:
@@ -232,4 +235,33 @@ def test_the_curve_of_the_witness_is_the_example_but_for_the_reference_and_the_p
     assert set(projection) == set(asked)
     assert {day: asked[day] - amount for day, amount in projection.items()} == {
         day: D(0) if day == "2026-06-03" else PROVISION for day in asked
+    }
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_the_projection_grows_each_month_by_the_projection_of_spending_to_the_cent(
+    api: ContractClient, witness: Database, realm: TestRealm, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Propre à l'US : « la courbe de coûts passe, comme la projection de dépenses et le plan de
+    # charge, par les parts arrondies communes de core/estimate » (US-1690/L4, #3564). The witness
+    # read on 3 June 2026: what the projection of the project manager gains in each month is the
+    # total of that month in the example of `getProjectSpending` on the remaining to commit, to the
+    # cent, but for the two lines the occurrence of a risk added (EP-08), whole in June, which the
+    # witness does not bear; nor does it bear the provision, which that projection leaves out.
+    monkeypatch.setattr("waterfall.api.indicator_curves.utc_now", lambda: READ_AT)
+    body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/indicators/{COST_CURVE}")
+    points = series(body, "project_manager_projection")
+    gained = {
+        day[:7]: D(amount) - D(before)
+        for (_, before), (day, amount) in pairwise(points)
+        if D(amount) != D(before)
+    }
+    spending = {
+        row["month"]: D(row["amount"])
+        for row in example("spending")["monthly_totals"]
+        if D(row["amount"])
+    }
+    assert set(gained) == set(spending)
+    assert {month: spending[month] - amount for month, amount in gained.items()} == {
+        month: OCCURRENCE if month == "2026-06" else D(0) for month in spending
     }

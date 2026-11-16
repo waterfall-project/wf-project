@@ -12,11 +12,10 @@ from decimal import Decimal
 
 import pytest
 
-from waterfall.core.estimate.interface import Month, Placement
+from waterfall.core.estimate.interface import MONEY, Month, Placement, rounded_parts
 from waterfall.core.indicators.series import (
     Point,
     SpreadLine,
-    apportioned,
     cash_out_by_month,
     cumulative,
     cumulative_from,
@@ -340,19 +339,14 @@ def test_a_cash_out_without_amount_has_no_month() -> None:
 
 
 @pytest.mark.requirement("WF-IND-0100-A")
-def test_a_negative_part_lowers_the_cumulative_and_is_rounded_by_difference() -> None:
-    shares = {FEBRUARY: Decimal("100.005"), MARCH: Decimal("-30.004"), APRIL: Decimal("0.001")}
+def test_a_negative_part_lowers_the_cumulative() -> None:
+    shares = {FEBRUARY: Decimal("100.01"), MARCH: Decimal("-30.01"), APRIL: Decimal(0)}
     assert amounts(cumulative(shares)) == [
         Decimal(0),
         Decimal("100.01"),
         Decimal("70.00"),
         Decimal("70.00"),
     ]
-    parts = apportioned(shares)
-    # March: 70.00 less 100.01 rounded, by difference of the rounded cumulative totals — not the
-    # rounding of -30.004, which would be -30.00.
-    assert parts[MARCH] == Decimal("-30.01")
-    assert sum(parts.values()) == Decimal("70.00")
 
 
 @pytest.mark.requirement("WF-IND-0100-A")
@@ -405,3 +399,39 @@ def test_a_delay_at_the_end_of_a_month_drops_the_null_part_and_adds_no_month() -
     assert shifted(line("2200", 30), as_of=as_of) == {MAY: Decimal(2200)}
     assert shifted(line("2200", 1), as_of=as_of) == {APRIL: Decimal(2100), MAY: Decimal(100)}
     assert shifted(line("2200", 0), as_of=as_of) == {APRIL: Decimal(2200)}
+
+
+def across(amount: str, finish: date, delay: int = 0) -> SpreadLine:
+    """Return a line of a task from Friday 27 February to a day of March."""
+    return SpreadLine(Decimal(amount), task(date(2026, 2, 27), finish), delay)
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+@pytest.mark.parametrize(("delay", "first", "second"), [(0, FEBRUARY, MARCH), (30, MARCH, APRIL)])
+def test_the_curve_sums_the_parts_of_each_line_rounded_as_the_estimate_rounds_them(
+    delay: int, first: Month, second: Month
+) -> None:
+    # Propre à l'US : « la courbe de coûts passe, comme la projection de dépenses et le plan de
+    # charge, par les parts arrondies communes de core/estimate » (US-1690/L4, #3564). A line of 1
+    # over three working days, one in February and two in March: 0.33 and 0.67, the difference of
+    # two roundings of its cumulated, those of ``rounded_parts``; two such lines put 0.66 in the
+    # first month, the sum of their parts, not 0.67, the rounding of their sum. With a delay of 30
+    # days, the same parts a month later, the cumulated rounded after the shift.
+    third = across("1.00", date(2026, 3, 3), delay)
+    assert line_shares(third, delayed=True) == {first: Decimal("0.33"), second: Decimal("0.67")}
+    if not delay:
+        assert line_shares(third) == rounded_parts(third.placement, third.amount, MONEY)
+    points = cumulative(spread_lines([third, third], delayed=True))
+    assert amounts(points) == [Decimal(0), Decimal("0.66"), Decimal("2.00")]
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+@pytest.mark.parametrize(("delay", "month"), [(0, FEBRUARY), (30, MARCH)])
+def test_a_half_cent_of_a_part_goes_away_from_nought_as_money_does(
+    delay: int, month: Month
+) -> None:
+    # 0.01 over two working days, 27 February and 2 March: half a cent in the first month, which
+    # rounds to a cent, a half away from nought (``MONEY``, ``docs/api/DECISIONS.md``, US-2040/L1),
+    # not to nought as the half to the even would; the second month then holds nothing.
+    cent = across("0.01", date(2026, 3, 2), delay)
+    assert line_shares(cent, delayed=True) == {month: Decimal("0.01")}

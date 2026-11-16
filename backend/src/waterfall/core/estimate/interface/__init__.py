@@ -362,8 +362,11 @@ from waterfall.core.estimate.loading import (
     LineLoad as LineLoad,
 )
 
-# ``parting`` (US-2040/L2): the parts of a line by month, rounded to sum to its total, which the
-# plan of workload, its detail and the projection of spending (US-2050) sum.
+# ``parting`` (US-2040/L2; US-1690/L4): the parts of a line by month, rounded to sum to its total,
+# which the plan of workload, its detail, the projection of spending (US-2050) and the curves sum.
+from waterfall.core.estimate.parting import (
+    parts_of_cumulated as parts_of_cumulated,
+)
 from waterfall.core.estimate.parting import (
     rounded_parts as rounded_parts,
 )

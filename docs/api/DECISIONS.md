@@ -11979,6 +11979,23 @@ dépenses ») :
 `info.version` reste `1.0.0` : une opération et des champs rendus de plus. Le service du détail est
 d'US-2040/L2, celui de la projection d'US-2050.
 
+### La courbe de coûts sur les parts arrondies communes (US-1690/L4, #3564)
+
+Décision de l'auteur du 2026-11-16 (#3564) : la courbe de coûts cumulés et les courbes de valeur
+acquise étalent leurs lignes en parts arrondies comme ci-dessus — chaque part la différence de deux
+arrondis au centime, la moitié loin de zéro, du cumul exact de la ligne —, avec et sans
+`payment_delays` ; le décalage d'une ligne s'applique à son cumul exact avant l'arrondi. Leur série
+lisait l'étalement sans l'arrondir, et ses décaissements à venir différaient de deux centimes de la
+projection de dépenses sur le témoin, en juin 2026. Désormais, mois par mois, la croissance de la
+projection du chef de projet et les décaissements à venir sont ceux de `getProjectSpending` sur le
+reste à engager, au centime, hormis les provisions des risques identifiés, que la courbe garde et
+que la projection de dépenses exclut : 675 512,56 en juin 2026 dans `cost_curve_payment_delays`,
+175 512,56 dans `spending_payment_delays`, les 500 000 d'une provision. La description de
+`getCostCurve` le dit. La valeur planifiée des indicateurs et des courbes du faux back somme, elle
+aussi, les parts de chaque ligne arrondies (#3590) : les exemples des courbes, des indicateurs et du
+portefeuille qui en dépendent bougent de quelques centimes. Écarté : dire au contrat l'écart d'un
+centime possible, qui laissait deux lectures d'un même montant.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

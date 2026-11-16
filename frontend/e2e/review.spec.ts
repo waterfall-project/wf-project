@@ -105,8 +105,8 @@ const FRENCH: Language = {
   figures: [
     ["Reste à engager", "67\u202f497\u202f090,97\u00a0€"],
     ["Budget de référence", "70\u202f316\u202f396,56\u00a0€"],
-    ["Valeur planifiée", "1\u202f721\u202f585,56\u00a0€"],
-    ["Écart de délai", "-228\u202f231,37\u00a0€"],
+    ["Valeur planifiée", "1\u202f721\u202f585,59\u00a0€"],
+    ["Écart de délai", "-228\u202f231,40\u00a0€"],
     ["Indice de délai", "0,8674"],
     ["Indice de coût", "1,0569"],
   ],
@@ -144,8 +144,8 @@ const ENGLISH: Language = {
   figures: [
     ["Remaining to commit", "€67,497,090.97"],
     ["Reference budget", "€70,316,396.56"],
-    ["Planned value", "€1,721,585.56"],
-    ["Schedule variance", "-€228,231.37"],
+    ["Planned value", "€1,721,585.59"],
+    ["Schedule variance", "-€228,231.40"],
     ["Schedule index", "0.8674"],
     ["Cost index", "1.0569"],
   ],
