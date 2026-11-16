@@ -6,6 +6,10 @@
 curve of costs, the projection of spending and the fake back cut it at the end of that day, so
 that the day of calculation was in the workload and not in the money. The tasks run on a calendar
 of eight hours from Monday to Friday.
+
+WF-DEV-0070-A, "half-way at the date of calculation": the first day is then over, as the remaining
+is cut at the end of the day of calculation (#3615), so the months hold what remains to work after
+it; "if they count as much" covers this case, and the tests below hold that cut.
 """
 
 from datetime import date

@@ -5,7 +5,7 @@
 A line is spread over the months of its task by ``spreading`` of the estimate, in proportion to
 the hours worked; an event — a termination, a document — falls in the month of its date. A part of
 the future is translated by the payment delay of its line, in days, for the cash-out. The parts of a
-line are those of the estimate (``rounded_parts``, ``parts_of_cumulated``): each the difference of
+line are those of the estimate (``rounded_parts``, ``remaining_parts``): each the difference of
 two roundings to the cent, a half away from nought, of the exact cumulated of the line, so that the
 curves, the projection of spending and the plan of workload sum the same parts (US-1690/L4, #3564;
 ``docs/api/DECISIONS.md``, US-2040/L1). Pure: no database, no clock (the date of calculation is an
@@ -13,23 +13,16 @@ argument).
 """
 
 from dataclasses import dataclass
-from datetime import timedelta
 from decimal import Decimal
-from fractions import Fraction
 from typing import TYPE_CHECKING
 
-from waterfall.core.estimate.interface import MONEY, amount_parts, parts_of_cumulated, rounded_parts
-from waterfall.core.indicators.series.months import month_of
-from waterfall.core.planning.interface import WorkInstant
+from waterfall.core.estimate.interface import MONEY, amount_parts, remaining_parts, rounded_parts
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from datetime import date
 
     from waterfall.core.estimate.interface import Month, Placement
-
-
-ONE_DAY = timedelta(days=1)
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,10 +46,7 @@ def _spread_after(
     """
     if as_of is None:
         return rounded_parts(placement, amount, MONEY)
-    after = as_of + ONE_DAY
-    if placement.finish <= WorkInstant(after):
-        return parts_of_cumulated([(month_of(as_of), Fraction(amount))], MONEY)
-    return rounded_parts(placement, amount, MONEY, as_of=after)
+    return remaining_parts(placement, amount, MONEY, as_of=as_of)
 
 
 def shifted(line: SpreadLine, *, as_of: date | None = None) -> dict[Month, Decimal]:
