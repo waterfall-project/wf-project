@@ -820,7 +820,10 @@ describe("the sentence of a refusal", () => {
     for (const row of [-1, 1.5, "2", null]) {
       expect(
         say(
-          { code: "PROJECT_HORIZON_EXCEEDED", params: { task: { node_id: null, label: "Lot", row } } },
+          {
+            code: "PROJECT_HORIZON_EXCEEDED",
+            params: { task: { node_id: null, label: "Lot", row } },
+          },
           "en",
         ),
       ).toBe("The duration of the project would exceed fifteen years. Task concerned: “Lot”.");

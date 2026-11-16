@@ -149,10 +149,7 @@ function isLabelled(value: unknown): value is { readonly label: string } {
  */
 function isPastedRow(value: object): value is { readonly row: number } {
   return (
-    "row" in value &&
-    typeof value.row === "number" &&
-    Number.isInteger(value.row) &&
-    value.row >= 0
+    "row" in value && typeof value.row === "number" && Number.isInteger(value.row) && value.row >= 0
   );
 }
 
