@@ -60,6 +60,14 @@ def kept(engine: Engine) -> list[tuple[str, Decimal, Decimal]]:
     return [(code, hours, headcount) for code, hours, headcount in rows]
 
 
+def served(engine: Engine) -> dict[str, Capacity]:
+    """Read the capacity of each role by its code, as the service calculates it."""
+    with Session(engine) as session:
+        identifiers = session.scalars(select(ResourceRole.id)).all()
+        roles = read_roles(session, identifiers, may_change=False)
+    return {each.code: each.capacity for each in roles}
+
+
 @pytest.mark.requirement("WF-REF-0100-A")
 def test_the_migration_keeps_the_headcount_and_drops_the_hours_and_the_descent_calculates_them(
     empty_engine: Engine,
@@ -82,6 +90,33 @@ def test_the_migration_keeps_the_headcount_and_drops_the_hours_and_the_descent_c
                 id=thin, label="Mince", is_default=False, is_active=True, **days, **STAMP
             )
         )
+        full = uuid4()
+        connection.execute(
+            insert(Calendar).values(
+                id=full,
+                label="Pleine",
+                is_default=False,
+                is_active=True,
+                **dict.fromkeys(("monday", "tuesday", "wednesday", "thursday", "friday"), 8),
+                **dict.fromkeys(("saturday", "sunday"), 0),
+                **STAMP,
+            )
+        )
+        # A headcount with decimals on 40 hours a week: a remainder under 6, and one over 6.
+        for code, headcount in (("BAS", "0.334"), ("HAUT", "0.335")):
+            connection.execute(
+                insert(ResourceRole).values(
+                    id=uuid4(),
+                    code=code,
+                    label=code,
+                    org_node_id=reference.org_node,
+                    cost_category_id=reference.category,
+                    calendar_id=full,
+                    headcount=Decimal(headcount),
+                    is_active=True,
+                    **STAMP,
+                )
+            )
         connection.execute(
             insert(ResourceRole).values(
                 id=uuid4(),
@@ -104,10 +139,15 @@ def test_the_migration_keeps_the_headcount_and_drops_the_hours_and_the_descent_c
         connection.execute(update(Revision).where(Revision.id == revision).values(**MARKED))
     image = [("ING", Decimal(140), Decimal(2))]
     assert kept(empty_engine) == image
+    calculated = served(empty_engine)
+    assert set(calculated) == {"ING", "DEMI", "BAS", "HAUT"}
     downgrade(empty_engine, "0032")
-    assert entered(empty_engine) == {
-        "ING": (Decimal("346.67"), Decimal(2)),
-        "DEMI": (Decimal("0.06"), Decimal("0.5")),
+    # What the descent fills is what the service calculated before it, role by role.
+    assert {code: hours for code, (hours, _) in entered(empty_engine).items()} == {
+        code: capacity.monthly_hours for code, capacity in calculated.items()
+    }
+    assert {code: head for code, (_, head) in entered(empty_engine).items()} == {
+        code: capacity.headcount for code, capacity in calculated.items()
     }
     with empty_engine.connect() as connection:
         assert tuple(connection.execute(text(HOURS)).one()) == ("numeric", "NO")
@@ -122,11 +162,5 @@ def test_the_migration_keeps_the_headcount_and_drops_the_hours_and_the_descent_c
     with empty_engine.connect() as connection:
         assert connection.execute(text(HOURS)).all() == []
         assert connection.execute(text(CONSTRAINT)).all() == []
-    with Session(empty_engine) as session:
-        identifiers = session.scalars(select(ResourceRole.id)).all()
-        roles = read_roles(session, identifiers, may_change=False)
-    assert {each.code: each.capacity for each in roles} == {
-        "ING": Capacity(Decimal("346.67"), Decimal(2)),
-        "DEMI": Capacity(Decimal("0.06"), Decimal("0.5")),
-    }
+    assert served(empty_engine) == calculated
     assert kept(empty_engine) == image

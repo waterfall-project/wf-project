@@ -96,6 +96,8 @@ CODE_INDEX = "uq_resource_role_code"
 # The first version of a role, as the examples of the contract have it.
 FIRST_VERSION = 1
 
+# ``monthly_hours`` stays a key of the sort, as the contract keeps it: it is no column any more, it
+# is calculated (``_monthly_hours``).
 type RoleColumn = Literal[
     "label",
     "code",
