@@ -4666,6 +4666,11 @@ la garde et l'entrée ci-dessus :
   devis (`grid.spec.ts`), le bandeau sur les risques et sur une structure différentielle
   (`context.spec.ts`), les risques de `risks.spec.ts`, le retour au projet précédent de
   `navigation.spec.ts` ; le service ne charge ni provision ni risque, et sert à zéro ce qui en dépend.
+  S'y ajoutent les chiffres des indicateurs de `review.spec.ts` (le reste à engager, le budget de
+  référence, la valeur planifiée, l'écart et les indices de délai et de coût, la date du calcul), qui
+  sont ceux de la révision 101 des exemples : la référence du témoin chargé reste l'offre 100 jusqu'à
+  la fusion de l'avenant 1, si bien que ces assertions sont gardées par `inService` ; le reste de la
+  revue se joue des deux côtés (US-1740/L1).
 - **EP-10** — les indicateurs que filtre le bandeau (`BEFORE_THE_INDICATORS`) et ceux du projet ;
   le lien d'une tâche du détail du plan de charge vers sa ligne dans la grille de planning
   (`workload.spec.ts`, sans étiquette), que le service ne détaille pas avant US-2040/L2 (#3512) :
