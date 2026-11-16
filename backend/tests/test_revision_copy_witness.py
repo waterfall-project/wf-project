@@ -6,19 +6,21 @@ The current revision 102 is abandoned, and a revision opened from the last marke
 thousand tasks and five thousand lines, copied each by one statement since US-2240/L2. The copy
 holds what the sentence of WF-REV-0010-A says: the same tasks and the same lines, row for row and
 table for table (WF-DAT-0010), under their lineage; and, its year moved on, the rate the 101 kept
-for each category projected by the rate of inflation of the project. The 101 was marked once
+for each category projected by the rate of inflation of the project, its lines priced again at it,
+each to the amount the pricing of a line computes (US-2240/L6, #3535). The 101 was marked once
 PRJ-001 was In progress: its lines give their figures as the remaining to commit before the review
 (EP-09); the reference is the offer 100, whose lines give the budgeted amounts by lineage.
 """
 
 from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from sqlalchemy import func, inspect, select
+from sqlalchemy import event, func, inspect, select
 from test_witness_projects import PRJ_001, REVISION_100, REVISION_101, REVISION_102
 
+from waterfall.core.estimate.keeping import reprice_revision
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
 from waterfall.core.planning.tables import Node, Task, TaskLink
 from waterfall.core.projects.interface import (
@@ -50,10 +52,12 @@ pytestmark = pytest.mark.requirement("WF-REV-0010-A")
 SAME_YEAR = datetime(2026, 6, 3, 14, 5, tzinfo=UTC)
 NEXT_YEAR = datetime(2027, 1, 11, 9, 0, tzinfo=UTC)
 CENT = Decimal("0.01")
-# What a copy does not take as it is, whatever the year: the keys (the node, the structure, which
-# are the copy's own), and, of a line, the lock version, the stamp and what the opening sets by
-# its own rule, each proved apart below.
+# What a copy does not take as it is, whatever the year. Of a task, its keys: the node and the
+# structure are the copy's own.
 TASK_OWN = ("node_id", "structure_id")
+# Of a line, its node; its stamps (``created_*``, ``updated_*``), not compared; and what the
+# opening sets by its own rule, proved apart below: the lock version, the budgeted amount, the
+# previous figures.
 LINE_OWN = (
     "node_id",
     "lock_version",
@@ -263,3 +267,26 @@ def test_a_revision_opened_on_prj_001_a_year_later_projects_the_rates_its_source
             )
             for entity in (Node, TaskLink)
         }
+
+    # Its lines priced again at the rates projected, by set (#3535): each holds the amount the
+    # pricing of a line computes — priced once more, none moves —, and the copy moved them on.
+    with witness.transaction() as session:
+        engine = session.get_bind()
+        sent: list[str] = []
+
+        def heard(*arguments: Any) -> None:
+            sent.append(str(arguments[2]))
+
+        event.listen(engine, "before_cursor_execute", heard)
+        try:
+            reprice_revision(session, (PRJ_001, opened), NEXT_YEAR)
+            session.flush()
+        finally:
+            event.remove(engine, "before_cursor_execute", heard)
+        assert [each for each in sent if each.startswith("UPDATE estimate_line")] == []
+        source = _lines(session, _nodes(session, REVISION_101))
+        copied = _lines(session, _nodes(session, opened))
+        assert copied.keys() == source.keys()
+        assert sum(line.base_amount for line in copied.values()) > sum(
+            line.base_amount for line in source.values()
+        )

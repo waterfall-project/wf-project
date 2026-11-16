@@ -505,7 +505,7 @@ lectures simultanées durent chacune six fois une lecture seule.
 
 ## US-2240 — Ouvrir une révision d'un projet de mille tâches en deux secondes, sans que le front la dise injoignable
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-REV-0010-A`
 - **opérations** : `createRevision`, `listRevisions`
 - **issue** : #3312
@@ -547,6 +547,10 @@ pas croire à un échec à chaque revue.
 **Notes de réalisation.** Une seule occurrence relevée, le 2026-11-13 : le `POST` a répondu 201 en
 9 599 ms, le front avait rendu la main à 4,9 s. US-2170 d'EP-25 reprend l'attente du bouton et la
 relecture de l'écran pour les traitements ; cette US en garde le message de la connexion perdue.
+US-2240/L6 (#3548, constat #3535) : la révision ouverte l'année suivant sa source rechiffre ses
+lignes par ensemble — le calcul reste ligne à ligne, en Python, les montants qui bougent s'écrivent
+par une `UPDATE … FROM (VALUES …)` par lot de 2 000 lignes — : 2 141 instructions, dont 2 076
+`UPDATE estimate_line`, puis 68 sur PRJ-001 (64 dans la même année).
 
 **Hors périmètre.** L'ouverture en tâche de fond, écartée au cadrage. Si la borne ne tient pas, le
 dépassement est documenté (US-2300) et devient une issue à trancher.
