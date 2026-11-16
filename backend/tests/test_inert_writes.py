@@ -20,7 +20,8 @@ of PRJ-001 (#3169):
   only those a statement wrote past their objects; the short path reads none as objects of the
   session, its structure read as rows but the nodes it writes (``read_inert``, US-2250/L2, #3540);
 - what ``reshaped`` rests on holds on every write: a statement that writes a node advances its
-  counter, and no statement writes a facet task, which only the objects of the session write.
+  counter, and no statement writes a facet task, which only the objects of the session write
+  (``unkept``; the withdrawal of an element of the work breakdown, ``test_inert_reading.py``).
 """
 
 import re

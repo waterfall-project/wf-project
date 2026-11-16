@@ -28,7 +28,7 @@ from waterfall.core.projects.commands import (
     PROJECT_NOT_TERMINAL,
     TERMINAL,
 )
-from waterfall.core.projects.interface.attachments import detach_item, item_cited
+from waterfall.core.projects.interface.attachments import detach_item, hold_items, item_cited
 from waterfall.core.projects.interface.contributors import require_project_manager
 from waterfall.core.projects.interface.lifecycle import no_background_task_running
 from waterfall.core.projects.tables import Deliverable, OrderItem, Project, WorkPackage
@@ -476,10 +476,15 @@ def _replace(
 
     A parent is written before what it holds, so that an element moved under a new parent finds
     it; an element left out is deleted after everything has left it — deliverables, order items,
-    then work packages — and its position was parked, so that nothing waits for its slot.
+    then work packages — and its position was parked, so that nothing waits for its slot. What the
+    tasks that bear an order item or a work package left out are written under is locked before
+    any element is written (``hold_items``): a write of the planning locks its structure before it
+    shares the element it attaches a task to (US-2250/L3).
     """
     packages, items, deliverables = _held(session, project.id)
     plan_packages, plan_items, plan_deliverables = _plan(entries)
+    leaving = [row.id for row in (*_leaving(items, plan_items), *_leaving(packages, plan_packages))]
+    hold_items(session, project.id, leaving)
     _park(session, packages, plan_packages)
     _park(session, items, plan_items)
     _park(session, deliverables, plan_deliverables)

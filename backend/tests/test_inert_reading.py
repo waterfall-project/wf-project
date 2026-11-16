@@ -7,25 +7,52 @@ in the report of WF-QUA-0060 (US-2300) —, on the witness, the main structure o
 revision of PRJ-001 (#3540): an entry whose columns are all inert reads its structure as rows, the
 node it writes alone as an object of the session; one that is not reads the tree whole as objects.
 And what ``reshaped`` rests on, out of a write: the withdrawal of an element of the work breakdown
-advances the counter of the nodes whose task it writes (#3562).
+advances the counter of the nodes whose task it writes (#3562), and, through ``setWorkBreakdown``,
+waits for the lock of their structure before it locks the element, as a write of the tree takes
+them (US-2250/L3, #3600).
 """
 
+import re
+from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import pytest
-from sqlalchemy import event, select, update
+from nodes_support import Tree, opened, work_breakdown
+from projects_support import scene as make_scene
+from sqlalchemy import event, func, select, update
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import InstrumentedAttribute, Session
-from test_inert_writes import COLUMNS, INERT, counting, listened, read_of, unkept
+from test_estimate_lines import blocked_by
+from test_inert_writes import (
+    COLUMNS,
+    INERT,
+    Read,
+    Statement,
+    counting,
+    listened,
+    read_of,
+    unkept,
+)
 from test_witness_projects import PRJ_001, REVISION_102
+from test_work_breakdown_attachments import attachment, without_item
 
 from waterfall.core.planning import writing
 from waterfall.core.planning.interface import Writer, detach_work_breakdown_item
 from waterfall.core.planning.tables import Node, Task
 from waterfall.core.projects.interface import work_breakdown_items
+from waterfall.core.projects.tables import OrderItem
+from waterfall.core.revisions.interface import structure_facts
+from waterfall.core.revisions.tables import CostStructure
 from waterfall.platform.audit import Act
 
 if TYPE_CHECKING:
-    from uuid import UUID
+    from collections.abc import Sequence
+
+    from projects_support import Scene
+    from realm import TestRealm
+    from sqlalchemy import Engine
+    from support import ContractClient
 
     from waterfall.platform.database import Database
 
@@ -138,3 +165,130 @@ def test_the_withdrawal_of_an_element_advances_the_counter_of_the_nodes_it_write
     told = unkept(sent)
     assert told
     assert all(each.startswith("UPDATE task ") for each in told)
+
+
+def _counter(stage: Scene, structure_id: UUID) -> int | None:
+    with stage.database.transaction() as session:
+        return session.scalar(
+            select(CostStructure.lock_version).where(CostStructure.id == structure_id)
+        )
+
+
+def _item_free(stage: Scene, item: UUID) -> bool:
+    """Tell whether an order item can be locked at once by another transaction (``NOWAIT``)."""
+    with stage.owner.begin() as trying:
+        try:
+            trying.execute(
+                select(OrderItem.id).where(OrderItem.id == item).with_for_update(nowait=True)
+            )
+        except OperationalError:
+            return False
+    return True
+
+
+def test_the_withdrawal_of_an_element_waits_for_the_lock_of_its_structure_then_counts_it(
+    api: ContractClient, owner: Engine, database: Database, realm: TestRealm
+) -> None:
+    # US-2250, its own: the withdrawal of an element of the work breakdown advances the counter of
+    # the structure under its lock (#3600). It waits for that lock before it writes or locks the
+    # element: a write of the tree holds its structure, then shares the element it attaches a task
+    # to, and the two would wait for each other the other way round.
+    stage = make_scene(api, owner, database, realm)
+    tree = Tree(api, stage, opened(api, stage))
+    _, item = work_breakdown(stage)
+    task = tree.made("Câblage", task={"order_item_id": str(item)})
+    structure_id = UUID(tree.structure_id)
+    before = _counter(stage, structure_id)
+    assert before is not None
+    with ThreadPoolExecutor(max_workers=1) as pool, stage.owner.begin() as connection:
+        connection.execute(
+            select(CostStructure.id).where(CostStructure.id == structure_id).with_for_update()
+        )
+        holder = connection.scalar(select(func.pg_backend_pid()))
+        waiting = pool.submit(without_item, api, stage, str(item))
+        assert blocked_by(stage, holder, waiting)
+        assert _item_free(stage, item)
+        assert not waiting.done()
+    waiting.result(timeout=30)
+    assert _counter(stage, structure_id) == before + 1
+    assert attachment(tree.node(task["node_id"])) == (None, None, None)
+
+
+def _structure_counter(session: Session, read: Read) -> int:
+    place = read.place
+    return structure_facts(session, place.project_id, place.structure_id, lock=False).lock_version
+
+
+# The lock of a structure (``structure_facts``) and the advance of its counter
+# (``structure_counted``), as SQLAlchemy writes them.
+_STRUCTURE_LOCKED = re.compile(r"^SELECT\b.*\bFROM cost_structure\b.*\bFOR UPDATE\b", re.DOTALL)
+_STRUCTURE_COUNTED = re.compile(
+    r"^UPDATE cost_structure SET lock_version\s*=\s*\(?\s*cost_structure\.lock_version\s*\+"
+)
+
+
+def withdrawn_unkept(statements: Sequence[Statement]) -> list[str]:
+    """Give the statements of a withdrawal of an element that break what ``reshaped`` rests on.
+
+    The withdrawal writes the tasks it detaches by statements, out of any write of the tree: they
+    keep what ``reshaped`` rests on when the lock of their structure is taken before them and its
+    counter advanced after them — no write of the tree reads them halfway, and the front knows its
+    reading stale (#3600) —, a node written advancing its own counter (``unkept``).
+    """
+    texts = [each.text for each in statements]
+    locked = [index for index, text in enumerate(texts) if _STRUCTURE_LOCKED.search(text)]
+    counted = [index for index, text in enumerate(texts) if _STRUCTURE_COUNTED.search(text)]
+    told: list[str] = []
+    for index, each in enumerate(statements):
+        if each.flushed or not each.text.startswith(("UPDATE node ", "UPDATE task ")):
+            continue
+        under = any(at < index for at in locked) and any(at > index for at in counted)
+        if not under or (each.text.startswith("UPDATE node ") and unkept((each,))):
+            told.append(each.text)
+    return told
+
+
+def test_the_withdrawal_of_an_element_writes_its_tasks_under_the_counted_lock_of_its_structure(
+    witness: Database,
+) -> None:
+    # US-2250, its own: the withdrawal of an element of the work breakdown advances the counter of
+    # the structure under its lock (#3600). The witness: a work package its tasks bear.
+    read = read_of(witness)
+    bearing = read.first(lambda each: each.task is not None and bool(each.task.work_package_id))
+    assert bearing.task is not None
+    item = bearing.task.work_package_id
+    assert item is not None
+    with listened() as sent, Session(witness.engine) as session:
+        try:
+            before = _structure_counter(session, read)
+            sent.clear()
+            detach_work_breakdown_item(session, PRJ_001, item)
+            statements = tuple(sent)
+            after = _structure_counter(session, read)
+        finally:
+            session.rollback()
+    assert after == before + 1
+    assert any(each.text.startswith("UPDATE task ") for each in statements)
+    assert withdrawn_unkept(statements) == []
+
+
+def test_the_statements_of_a_withdrawal_out_of_the_lock_of_its_structure_are_told() -> None:
+    lock = "SELECT cost_structure.id \nFROM cost_structure \nWHERE cost_structure.id = 1 FOR UPDATE"
+    count = (
+        "UPDATE cost_structure SET lock_version=(cost_structure.lock_version + %(lv_1)s::INTEGER) "
+        "WHERE true RETURNING cost_structure.lock_version"
+    )
+    node = "UPDATE node SET lock_version=(node.lock_version + %(lv_1)s::INTEGER) WHERE true"
+    task = "UPDATE task SET order_item_id=%(order_item_id)s::UUID WHERE task.node_id IN (1)"
+
+    def told(*texts: str) -> list[str]:
+        return withdrawn_unkept(tuple(Statement(text, flushed=False) for text in texts))
+
+    assert told(lock, node, task, count) == []
+    # Not locked, not counted, or counted before it wrote: told.
+    assert told(node, task, count) == [node, task]
+    assert told(lock, node, task) == [node, task]
+    assert told(lock, count, task) == [task]
+    # Under the lock, a node written without its counter is told still.
+    forgetting = "UPDATE node SET rank=node.rank + %(rank_1)s WHERE node.id IN (1)"
+    assert told(lock, forgetting, task, count) == [forgetting]
