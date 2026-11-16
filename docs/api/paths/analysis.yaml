@@ -437,7 +437,14 @@
       identified risks, which carry none, staying at the date of the task that carries them,
       and the actual cost is not shifted: the curve then presents the cash-out, past and
       to come, and also returns it by month (`cash_out_by_month`); the sum of the
-      cash-out to come equals the remaining to commit (WF-IND-0100). At a monthly step,
+      cash-out to come equals the remaining to commit (WF-IND-0100). Each line is spread in
+      parts rounded to the cent, each the difference of two roundings of its cumulative amount,
+      a half away from zero, as `getProjectSpending` and `getProjectWorkload` spread it: month
+      by month, the projection to come and the cash-out to come are those of
+      `getProjectSpending` on the remaining to commit, to the cent, but for the provisions of
+      the identified risks, which the curve keeps and the spending projection leaves out — on
+      the witness, in June 2026, 675,512.56 to come in `payment_delays` against 175,512.56 in
+      the example `spending_payment_delays`, the 500,000 of a provision. At a monthly step,
       each point carrying the cumulative total at the end of the month (`CurveSeries`,
       WF-IND-0100). For a named marked revision (`revision_id`), the curve that its marking
       kept with its indicators, on the actual cost lines known at its marking as they were
@@ -514,6 +521,10 @@
       (WF-IND-0110). For a named marked revision (`revision_id`), the curves that its marking
       kept with its indicators, on the actual cost lines known at its marking as they were
       then, `context.is_stored` true (WF-IND-0010, WF-DAT-0040).
+      The planned value sums, month by month, the parts rounded to the cent of each line, each the
+      difference of two roundings of its cumulative amount, a half away from zero, as
+      `getCostCurve` spreads its reference budget: at a month-end it is the planned value of
+      `getProjectIndicators` at that day (WF-IND-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/IndicatorsRevision

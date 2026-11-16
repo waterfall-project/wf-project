@@ -132,9 +132,11 @@ def test_the_cash_out_of_the_witness_is_the_example_but_for_the_provision(
 ) -> None:
     # « La somme des décaissements à venir égale le reste à engager, provisions des risques
     # identifiés comprises. » The witness read on 3 June 2026: the past is the example's, month for
-    # month, and the forecast too but for the provision (EP-08), 500 200, which the example puts in
-    # June, the month of the date; the sum of the forecast is the remaining of the witness, the
-    # projection of the project manager less the actual cost at the day, as the example's is.
+    # month, and the forecast too but for the provision (EP-08), 500 000, and the two lines the
+    # occurrence of a risk added, 200, which the example puts in June, the month of the date (the
+    # forecast is otherwise the same to the cent, #3564); the sum of the forecast is the remaining
+    # of the witness, the projection of the project manager less the actual cost at the day, as the
+    # example's is.
     monkeypatch.setattr("waterfall.api.indicator_curves.utc_now", lambda: READ_AT)
     url = f"{PROJECTS}/{PRJ_001}/indicators/{COST_CURVE}"
     body = read(api, witness, realm, f"{url}{DELAYED}")
@@ -151,3 +153,31 @@ def test_the_cash_out_of_the_witness_is_the_example_but_for_the_provision(
     assert forecast == D(sum((D(each) for _, _, each in wanted), D(0))) - provision
     assert body["cash_out_by_month"] is not None
     assert read(api, witness, realm, url)["cash_out_by_month"] is None
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_the_cash_out_to_come_is_the_projection_of_spending_to_the_cent(
+    api: ContractClient, witness: Database, realm: TestRealm, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Propre à l'US : « la courbe de coûts passe, comme la projection de dépenses et le plan de
+    # charge, par les parts arrondies communes de core/estimate : à chaque mois, ses décaissements
+    # sans les provisions et la projection de dépenses ne diffèrent pas d'un centime » (#3564,
+    # #3614). The witness read on 3 June 2026 by the two routes: month for month, the cash-out to
+    # come of `getCostCurve` is the total of `getProjectSpending` on the remaining to commit with
+    # the payment delays, to the cent; the provisions and the occurrence of a risk (EP-08) are
+    # left out of both, the witness bearing none.
+    monkeypatch.setattr("waterfall.api.indicator_curves.utc_now", lambda: READ_AT)
+    monkeypatch.setattr("waterfall.api.spending.utc_now", lambda: READ_AT)
+    body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/indicators/{COST_CURVE}{DELAYED}")
+    forecast = {month: D(each) for month, _, each in months(body) if D(each)}
+    spent = read(
+        api,
+        witness,
+        realm,
+        f"{PROJECTS}/{PRJ_001}/spending?basis=current_remaining&payment_delays=true",
+    )
+    spending = {
+        row["month"]: D(row["amount"]) for row in spent["monthly_totals"] if D(row["amount"])
+    }
+    assert spending
+    assert forecast == spending

@@ -16,7 +16,7 @@ to be replaced by the kernel of EP-08 to EP-11.
 from bisect import bisect_right
 from dataclasses import dataclass
 from datetime import date, timedelta
-from decimal import ROUND_HALF_EVEN, Decimal
+from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING, cast
 
 from wftools import mockhistory
@@ -124,6 +124,10 @@ class _Placed:
 class Spread:
     """Some flows summed at any day: what they have spent by the end of it, to the cent.
 
+    Each flow counts what it has spent rounded to the cent, a half away from nought, as each of its
+    parts is (``parts``): the curve at a month-end is the sum of the parts of its lines up to that
+    month, those the projection of spending sums by month (US-1690/L4, #3564, #3590).
+
     The flows in the order they begin and in the order they are spent whole, with the sum of the
     amounts spent whole by each of the latter: at a day, those spent whole are summed at once, and
     the few under way — the tasks of a structure of a thousand are a dozen at a time — are read one
@@ -153,7 +157,7 @@ class Spread:
         by_last = tuple(sorted(placed, key=lambda each: each.last))
         total, sums = Decimal(0), [Decimal(0)]
         for each in by_last:
-            total += each.flow.amount
+            total += to_cent(each.flow.amount)
             sums.append(total)
         return cls(
             by_first,
@@ -164,7 +168,7 @@ class Spread:
         )
 
     def by(self, day: date) -> Decimal:
-        """Return what the flows have spent by the end of a day, to the cent."""
+        """Return what the flows have spent by the end of a day, each rounded to the cent."""
         ended, begun = bisect_right(self.lasts, day), bisect_right(self.firsts, day)
         if begun <= len(self.by_last) - ended:
             under_way = [each for each in self.by_first[:begun] if each.last > day]
@@ -177,8 +181,13 @@ class Spread:
             if key not in elapsed:
                 shifted = Instant(day - timedelta(days=each.flow.delay), END_OF_DAY)
                 elapsed[key] = each.flow.calendar.elapsed(shifted)
-            total += each.by(elapsed[key])
-        return total.quantize(CENT)
+            total += to_cent(each.by(elapsed[key]))
+        return total
+
+
+def to_cent(amount: Decimal) -> Decimal:
+    """Round an amount to the cent, a half away from nought, as ``Money`` is (#2773)."""
+    return amount.quantize(CENT, rounding=ROUND_HALF_UP)
 
 
 def month_end(day: date) -> date:

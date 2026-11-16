@@ -113,7 +113,7 @@ def _curves(session: Session, basis: Basis, act: Act, scopes: list[CostScope]) -
     sources = read_curve_sources(session, basis)
     kept: list[Kept] = []
     for scope in scopes:
-        reading = curves_of_scope(session, sources, day, scope)
+        reading = curves_of_scope(session, basis.project_id, sources, day, scope)
         context = Context(basis.revision_id, MARKED, act.at, scope, is_stored=True)
         kept += [
             Kept("cost_curve", scope, cost_curve_document(reading, context, payment_delays=False)),

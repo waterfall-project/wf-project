@@ -4,9 +4,11 @@
 
 Each point carries the cumulative total at the end of its month. The first, zero, sits at the end
 of the month that precedes the first amount; the date of calculation is one more point on the
-series that stop or start there. Amounts are rounded to the cent once, on the cumulative total of
-each point, half away from zero as ``Money`` does, so that the parts rounded by difference add up to
-the total (WF-DAT-0100).
+series that stops or starts there. The parts of the lines come rounded to the cent (``shares``)
+and the documents are cents: a sum of cents is a cent, so ``cumulative`` needs no rounding of its
+own to give a point its two decimals, as the contract serves them (WF-DAT-0100). The series of
+documents and of the actual cost, whose amounts come from outside the estimate, are rounded to the
+cent all the same.
 """
 
 from dataclasses import dataclass
@@ -60,7 +62,7 @@ def cumulative(shares: Mapping[Month, Decimal], *, through: date | None = None) 
     points = [Point(end_of(month_before(first)), ZERO)]
     for month in months_between(first, last):
         running += shares.get(month, Decimal(0))
-        points.append(Point(end_of(month), to_cent(running)))
+        points.append(Point(end_of(month), running))
     return points
 
 
@@ -111,21 +113,3 @@ def cumulative_from(shares: Mapping[Month, Decimal], as_of: date, base: Decimal)
         else:
             points.append(point)
     return points
-
-
-def apportioned(shares: Mapping[Month, Decimal]) -> dict[Month, Decimal]:
-    """Round the parts to the cent by difference of the rounded cumulative totals.
-
-    The rounded parts add up to the rounded total, whatever the number of months.
-    """
-    if not shares:
-        return {}
-    rounded: dict[Month, Decimal] = {}
-    running = Decimal(0)
-    previous = ZERO
-    for month in months_between(min(shares), max(shares)):
-        running += shares.get(month, Decimal(0))
-        current = to_cent(running)
-        rounded[month] = current - previous
-        previous = current
-    return rounded
