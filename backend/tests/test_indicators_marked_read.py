@@ -35,7 +35,7 @@ from nodes_support import faults, refusal
 from planning_support import DAY
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
-from sqlalchemy import select
+from sqlalchemy import delete, select, text
 from sqlalchemy.orm import Session
 from support import ContractClient
 from test_indicators_stored import ELEMENT, ONE_DAY, document, imported, kept, zulu
@@ -50,6 +50,8 @@ from waterfall.core.cost_settings.interface import (
 )
 from waterfall.core.costs.interface import PROJECT
 from waterfall.core.costs.tables import CostLine
+from waterfall.core.indicators.interface import KeptOfKind, kept_of_kind
+from waterfall.core.indicators.tables import RevisionIndicator
 from waterfall.core.revisions.interface import mark_revision
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
@@ -373,26 +375,28 @@ def test_a_scope_the_marking_did_not_keep_is_unknown_to_the_revision_not_compute
 
 @pytest.mark.requirement("WF-DAT-0040-A")
 def test_a_marked_revision_that_holds_no_document_at_all_is_computed_and_not_stored(
-    api: ContractClient,
-    stage: Scene,
-    clock: Clock,
-    project: Priced,
-    monkeypatch: pytest.MonkeyPatch,
+    api: ContractClient, stage: Scene, clock: Clock, project: Priced
 ) -> None:
     # A revision marked before the indicators were kept holds no row (migration 0031 takes none
     # up): neither refused nor recomputed as kept, it is read as the current one is, `is_stored`
-    # false. The absence of any document is simulated at the two readings the route makes.
+    # false. The rows the marking kept are deleted, and the real query of ``kept_of_kind`` reads.
     review = project.tree.revision["revision_id"]
     marked_on(stage, clock, project.tree.revision, 1)
-
-    def nothing(*_: object) -> None:
-        return None
-
-    def never(*_: object) -> bool:
-        return False
-
-    monkeypatch.setattr("waterfall.api.scopes.stored_document", nothing)
-    monkeypatch.setattr("waterfall.api.scopes.kept_any", never)
+    with stage.database.transaction() as session:
+        present = kept_of_kind(session, UUID(review), "project", PROJECT)
+        assert present.kind_kept
+        assert present.document is not None
+    # The table refuses the deletion of a marked row (trigger): the owner lifts it for the test.
+    with Session(stage.owner) as session, session.begin():
+        session.execute(text("ALTER TABLE revision_indicator DISABLE TRIGGER USER"))
+        session.execute(
+            delete(RevisionIndicator).where(RevisionIndicator.revision_id == UUID(review))
+        )
+        session.execute(text("ALTER TABLE revision_indicator ENABLE TRIGGER USER"))
+    with stage.database.transaction() as session:
+        assert kept_of_kind(session, UUID(review), "project", PROJECT) == KeptOfKind(
+            None, kind_kept=False
+        )
     base = project_path(stage)
     for path in ("estimate-indicators", "remaining-indicators"):
         found = api.get(f"{base}/{path}?revision_id={review}", headers=stage.manager.headers)
@@ -407,7 +411,8 @@ def test_the_day_of_a_date_is_that_of_the_time_zone_of_the_installation(
 ) -> None:
     # `as_of` is read on the day of the installation, as the day of a marking is: a marking at
     # 23:30 universal time is already on the next day in Paris. The day before is refused (409), the
-    # next day names the revision; in universal time the same marking falls on the first.
+    # next day names the revision; in universal time the same marking falls on the first. The
+    # time zone is the test's: ``installation_time_zone`` restores universal time when it ends.
     TIME_ZONE.read_from(lambda: "Europe/Paris")
     day = utc_now().date() + ONE_DAY
     at = datetime(day.year, day.month, day.day, 23, 30, tzinfo=UTC)
@@ -423,6 +428,7 @@ def test_the_day_of_a_date_is_that_of_the_time_zone_of_the_installation(
     next_day = day + ONE_DAY
     found = indicators(api, stage, f"?as_of={next_day.isoformat()}")
     assert found["context"]["revision_id"] == revision
+    # The same marking, read by an installation in universal time.
     TIME_ZONE.read_from(lambda: "UTC")
     assert indicators(api, stage, f"?as_of={day.isoformat()}")["context"]["revision_id"] == revision
 

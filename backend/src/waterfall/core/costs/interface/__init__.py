@@ -59,6 +59,14 @@ from waterfall.core.costs.interface.cost_lines import (
     set_tracked_scope as set_tracked_scope,
 )
 
+# ``indicator_costs`` (US-1720/L2): what the key of the cache of the indicators reads.
+from waterfall.core.costs.interface.indicator_costs import (
+    CostsStamp as CostsStamp,
+)
+from waterfall.core.costs.interface.indicator_costs import (
+    costs_stamp as costs_stamp,
+)
+
 # ``subprojects`` (US-1580/L1; US-1610/L3): what the projects ask the actual costs of a subproject.
 from waterfall.core.costs.interface.subprojects import (
     impute_waiting_lines as impute_waiting_lines,

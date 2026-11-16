@@ -4083,6 +4083,16 @@ takes the database that follows the variable's according to its rank (`gw0` its 
 seventh after): the stream of the whole installation is never emptied from under another's feet. No
 test flushes the server.
 
+The cache of the indicators of the day (US-1720) is tested the same way, against that Redis. It is
+in the database of the queue, under the prefix `waterfall:indicators:`, one entry per project under
+a key that carries the fingerprint of what the indicators depend on (`core/indicators/caching.py`):
+a test that writes changes the key, and empties nothing. The `cache` fixture of
+`backend/tests/test_indicators_day_cache.py` deletes after the test the entries of the prefix in the
+database of the process. The test of the complete emptying, the only one to run `FLUSHDB`, does it
+on a database of its own, the eighth after the process's, which no test process takes (eight at
+most, `--maxprocesses 8`); a Redis out of reach is simulated by an address where nothing listens
+(`redis://127.0.0.1:1/0`), never by stopping the service.
+
 - **In the chain**, `front.yml` and `back.yml` start Redis as a service of the job and set the
   variable.
 - **On a workstation**, the Makefile starts Redis as it starts PostgreSQL (« A test against

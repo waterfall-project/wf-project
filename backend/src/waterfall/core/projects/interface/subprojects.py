@@ -562,6 +562,21 @@ def subproject_labels(
     return dict(session.execute(query).all())
 
 
+def subproject_ids(session: Session, project_id: UUID) -> tuple[UUID, ...]:
+    """Give the subprojects of a project, by their code: what the indicators of the day draw.
+
+    Without their commands, which ``list_subprojects`` reads: the key of the cache of the
+    indicators reads them at each reading (EP-10, "Le cache").
+    """
+    return tuple(
+        session.scalars(
+            select(Subproject.id)
+            .where(Subproject.project_id == project_id)
+            .order_by(Subproject.code, Subproject.id)
+        )
+    )
+
+
 def subprojects_named(
     session: Session, project_id: UUID, labels: Collection[str]
 ) -> dict[str, list[UUID]]:
