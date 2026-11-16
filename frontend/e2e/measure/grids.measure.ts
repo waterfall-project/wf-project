@@ -286,6 +286,17 @@ test("measures the journey of the grids against the service, at one, four and ei
         get_me: getMeReport(getMe),
       };
       logged(level);
+      for (const step of STEPS) {
+        const unknown = samples.filter(
+          (sample) => sample.step === step && (sample.parts?.unweighed ?? 0) > 0,
+        ).length;
+        if (unknown > 0) {
+          console.log(
+            `${String(count)} user(s), ${step}: ${String(unknown)} sample(s) waited for a request` +
+              ` whose bytes are unknown (cut by the router): left out of the weight`,
+          );
+        }
+      }
       levels.push(level);
     }
     const measured: MeasureReport = {

@@ -73,8 +73,37 @@ describe("partsOf", () => {
       next: 390 + 100 - 250,
       browser: 1_000 - 490,
       bytes: 32_000,
+      unweighed: 0,
       apiRequests: 2,
     });
+  });
+
+  it("counts the requests whose bytes are unknown, which a step waits for [WF-QUA-0060-A]", () => {
+    const known = { start: 1_000, end: 1_200, bytes: 700, path: PLANNING, prefetch: false };
+    const cut = failedRequest(0, 1_100, 1_500, true, PLANNING);
+    const parts = partsOf({ start: 1_200, end: 2_000 }, [known, cut], [answered(1_300, 1_400)], USER);
+    expect(parts).toMatchObject({ bytes: 0, unweighed: 1, apiRequests: 1 });
+  });
+
+  it("leaves the weight of a step that waited for a request of unknown bytes out of the statistic [WF-QUA-0060-A]", () => {
+    // An API that answered during the step says Next rendered it: a weight of 0 is no download
+    // that never was, but a request whose bytes the router cut short.
+    const whole = { start: 1_000, end: 1_400, bytes: 49_855, path: PLANNING, prefetch: false };
+    const cut = failedRequest(0, 900, 1_300, true, PLANNING);
+    const step = { start: 1_000, end: 2_000 };
+    const api = [answered(1_050, 1_250)];
+    const weighed = partsOf(step, [whole], api, USER);
+    const unknown = partsOf(step, [cut], api, USER);
+    const samples = [
+      { step: "open", pass: 0, parts: weighed },
+      { step: "open", pass: 0, parts: unknown },
+      { step: "open", pass: 0, parts: unknown },
+    ];
+    const reports = stepReports(["open"], samples, 1);
+    expect(reports.open?.bytes).toMatchObject({ median: 49_855, worst: 49_855 });
+    // Time stays: the step did wait for the cut request.
+    expect(reports.open?.api_ms.median).toBe(200);
+    expect(reports.open?.samples).toBe(3);
   });
 
   it("counts the time and the bytes of a prefetch the step waits for, of none it started itself", () => {
@@ -159,12 +188,20 @@ describe("failedRequest", () => {
       bytes: 0,
       path: PLANNING,
       prefetch: false,
+      weighed: false,
     });
   });
 
   it("spans a request that failed before any answer from the moment the page asked it, not from 0", () => {
     const failed = failedRequest(0, 1_190, 1_500, true, ESTIMATE);
-    expect(failed).toEqual({ start: 1_190, end: 1_500, bytes: 0, path: ESTIMATE, prefetch: true });
+    expect(failed).toEqual({
+      start: 1_190,
+      end: 1_500,
+      bytes: 0,
+      path: ESTIMATE,
+      prefetch: true,
+      weighed: false,
+    });
     // Within a step after it, a prefetch given up before its headers costs that step nothing.
     expect(partsOf({ start: 1_000, end: 1_100 }, [failed], [], USER).next).toBe(0);
   });
@@ -252,6 +289,7 @@ describe("stepReports", () => {
       next: usable / 4,
       browser: usable / 4,
       bytes: 1_000,
+      unweighed: 0,
       apiRequests: 3,
     });
     const reports = stepReports(
@@ -283,7 +321,10 @@ describe("stepReports", () => {
 describe("brokenSteps", () => {
   /** A level whose users completed each step in the one pass but where `missed` says. */
   const level = (users: number, missed: readonly string[]): LevelReport => {
-    const parts = { usable: 100, api: 0, next: 0, browser: 100, bytes: 0, apiRequests: 0 };
+    const parts = { usable: 100, api: 0, next: 0, browser: 100, bytes: 0,
+      unweighed: 0,
+      apiRequests: 0,
+    };
     const steps = ["open", "filter", "sort"];
     const samples = steps.map((step) => ({
       step,

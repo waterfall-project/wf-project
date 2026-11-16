@@ -4846,7 +4846,13 @@ another query serves a step to come, and does not. The part of the API counts th
 the step waits for is under way: the requests of such a prefetch outside it count for none. A
 limit: those made within it stay, the log tying a request to an account and a moment, not to the
 request of Next that made it. The browser never calls the API itself (its components go through
-server actions): such a request, outside Next, would fall in the browser's part. The
+server actions): such a request, outside Next, would fall in the browser's part. A weight of 0
+beside an API that answered is not a download that never was: a step under load waits for a
+request the router cut short (a prefetch a navigation takes over, which Playwright reports as
+failed) or whose sizes never came, and its bytes are unknown. Such a request is marked
+`weighed: false`, the step counts it (`unweighed`), the weight of its sample stays out of the
+statistic — its times stay —, and the log of the run says how many samples were left out; a step
+served from the router's cache, without a request, has no API time either. The
 journey is played by one,
 four and eight users at once (`MEASURE_USERS`, which always names `1`: only a user alone fails the measure), an account each, each in its own browser context,
 and the duration of `getMe` is recorded meanwhile, in the log of the API and by a client that asks

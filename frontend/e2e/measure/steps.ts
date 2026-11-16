@@ -236,19 +236,26 @@ export async function player(page: Page, origin: string): Promise<Player> {
     const path = screenOf(request.url());
     // The sizes of an answer the browser no longer reads — a prefetch a navigation left behind —
     // never come, or are refused once its page is gone: its time is kept all the same, and its
-    // bytes counted for none.
-    const unsized = new Promise<number>((resolve) => {
+    // bytes unknown (`weighed`).
+    const unsized = new Promise<undefined>((resolve) => {
       setTimeout(() => {
-        resolve(0);
+        resolve(undefined);
       }, SIZED);
     });
     const sized = request.sizes().then(
       ({ responseBodySize }) => responseBodySize,
-      () => 0,
+      () => undefined,
     );
     reading.push(
       Promise.race([sized, unsized]).then((bytes) => {
-        front.push({ start, end: start + responseEnd, bytes, path, prefetch });
+        front.push({
+          start,
+          end: start + responseEnd,
+          bytes: bytes ?? 0,
+          path,
+          prefetch,
+          ...(bytes === undefined ? { weighed: false } : {}),
+        });
       }),
     );
   });

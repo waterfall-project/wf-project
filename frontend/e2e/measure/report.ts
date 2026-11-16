@@ -50,6 +50,11 @@ export interface FrontRequest extends Interval {
   readonly path: string;
   /** Whether the router asked it ahead of a navigation (`Next-Router-Prefetch`). */
   readonly prefetch: boolean;
+  /**
+   * `false` when its bytes are not known: the router cut it short, or its sizes never came. Its
+   * `bytes` is then 0, which says nothing of what Next sent. Known unless said otherwise.
+   */
+  readonly weighed?: boolean;
 }
 
 /**
@@ -67,7 +72,7 @@ export function failedRequest(
   path: string,
 ): FrontRequest {
   const start = timedStart > 0 ? timedStart : (asked ?? failed);
-  return { start, end: failed, bytes: 0, path, prefetch };
+  return { start, end: failed, bytes: 0, path, prefetch, weighed: false };
 }
 
 /**
@@ -99,6 +104,11 @@ export interface StepParts {
   readonly next: number;
   readonly browser: number;
   readonly bytes: number;
+  /**
+   * How many of the requests the step waits for have no known bytes (`FrontRequest.weighed`): when
+   * any, `bytes` is a floor, not a weight, and the report leaves the sample out of its statistic.
+   */
+  readonly unweighed: number;
   /** How many requests of the account the API answered within the step. */
   readonly apiRequests: number;
 }
@@ -173,6 +183,7 @@ export function partsOf(
     next: served - apiPart,
     browser: usable - served,
     bytes: answered.reduce((sum, request) => sum + request.bytes, 0),
+    unweighed: answered.filter((request) => request.weighed === false).length,
     apiRequests: pieces.length,
   };
 }
@@ -316,6 +327,14 @@ export interface StepReport {
   readonly api_requests: Statistic;
 }
 
+/**
+ * Whether a step says what a part weighs: the bytes of a step that waited for a request whose
+ * bytes are unknown are a floor, and a median of floors reads as a download that never was.
+ */
+function weighs(parts: StepParts, part: keyof StepParts): boolean {
+  return part !== "bytes" || parts.unweighed === 0;
+}
+
 /** The statistic of one part of the samples of a step, by pass. */
 function partStatistic(
   samples: readonly Sample[],
@@ -325,7 +344,9 @@ function partStatistic(
   return statisticOf(
     Array.from({ length: passes }, (_, pass) =>
       samples.flatMap((sample) =>
-        sample.pass === pass && sample.parts !== undefined ? [sample.parts[part]] : [],
+        sample.pass === pass && sample.parts !== undefined && weighs(sample.parts, part)
+          ? [sample.parts[part]]
+          : [],
       ),
     ),
   );

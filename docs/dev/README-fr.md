@@ -4948,7 +4948,14 @@ l'API ne compte les requêtes du compte que pendant une requête de Next que l'�
 d'un tel préchargement hors d'elle ne comptent pour rien. Limite : celles qui sont faites pendant
 elle restent, le journal rattachant une requête à un compte et à un instant, non à la requête de
 Next qui l'a faite. Le navigateur n'appelle jamais l'API lui-même (ses composants passent par
-des actions serveur) : une telle requête, hors de Next, tomberait dans la part du navigateur. Le
+des actions serveur) : une telle requête, hors de Next, tomberait dans la part du navigateur. Un
+poids de 0 à côté d'une API qui a répondu n'est pas un téléchargement qui n'a pas eu lieu : sous
+charge, une étape attend une requête que le routeur a coupée (un préchargement qu'une navigation
+reprend, que Playwright dit échoué) ou dont les tailles ne sont jamais venues, et ses octets sont
+inconnus. Une telle requête est marquée `weighed: false`, l'étape la compte (`unweighed`), le poids
+de son échantillon reste hors de la statistique — ses temps restent — et le journal du passage dit
+combien d'échantillons ont été écartés ; une étape servie par le cache du routeur, sans requête,
+n'a pas non plus de temps d'API. Le
 parcours se
 joue à un, quatre et huit utilisateurs à la fois (`MEASURE_USERS`, qui nomme toujours `1` : seul un utilisateur seul fait échouer la mesure), un compte chacun, chacun dans
 son contexte de navigateur, et la durée de `getMe` est relevée pendant ce temps, dans le journal de
