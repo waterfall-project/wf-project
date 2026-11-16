@@ -215,6 +215,36 @@ describe("the columns a grid records as known", () => {
     expect(known[1]).toBe("shown_0");
   });
 
+  // aucune exigence : propre à l'US (US-2040, `hidden_columns` et `column_widths` bornés par le
+  // contrat à 64 ; le détail du plan de charge a une colonne par mois, 185 en tout).
+  it("records at most the bound of the contract of hidden columns and widths, the first set", () => {
+    const columns = Array.from({ length: 185 }, (_, at) => ({ key: `c_${at.toString()}` }));
+    const settings = {
+      visibility: Object.fromEntries(columns.slice(5, 125).map((c) => [c.key, false])),
+      sizing: Object.fromEntries(columns.slice(0, 100).map((c) => [c.key, 120])),
+    };
+    const recorded = recordedPreferences(
+      undefined,
+      settings,
+      undefined,
+      undefined,
+      undefined,
+      gridShape(columns),
+    );
+    expect(recorded.known_columns).toHaveLength(64);
+    expect(recorded.hidden_columns).toEqual(columns.slice(5, 69).map((c) => c.key));
+    expect(Object.keys(recorded.column_widths ?? {})).toEqual(
+      columns.slice(0, 64).map((c) => c.key),
+    );
+    // What the user finds on the next visit: the settings beyond the bound are gone, the others kept.
+    const back = initialSettings(recorded, columns);
+    expect(Object.keys(back.visibility)).toHaveLength(64);
+    expect(back.visibility.c_124).toBeUndefined();
+    expect(Object.keys(back.sizing)).toHaveLength(64);
+    expect(back.sizing.c_99).toBeUndefined();
+    expect(back.sizing.c_0).toBe(120);
+  });
+
   const grids = {
     estimate: ESTIMATE_GRID,
     planning: PLANNING_GRID,

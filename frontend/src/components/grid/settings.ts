@@ -109,7 +109,11 @@ export interface GridShape {
   readonly known: readonly string[];
 }
 
-/** The most columns the contract lets a grid record as known (`known_columns`, `maxItems`). */
+/**
+ * The most columns the contract lets a grid record in each of its lists: those known
+ * (`known_columns`, `maxItems`), those hidden (`hidden_columns`, `maxItems`) and those whose width
+ * is set (`column_widths`, `maxProperties`).
+ */
 export const KNOWN_BOUND = 64;
 
 /**
@@ -159,14 +163,18 @@ export function recordedPreferences(
   const recorded: GridPreferences = {
     ...preferences,
     ...(shape === undefined ? {} : { known_columns: [...shape.known] }),
+    // Past the bound of the contract — a grid of a month a column, US-2040 —, the first columns
+    // set stay, in the order the settings hold them, and the others are not recorded: a column
+    // hidden shows again, a column widened has its width by default, on the next visit. The
+    // session itself keeps all its settings.
     hidden_columns: Object.entries(settings.visibility)
       .filter(([, visible]) => !visible)
-      .map(([key]) => key),
+      .map(([key]) => key)
+      .slice(0, KNOWN_BOUND),
     column_widths: Object.fromEntries(
-      Object.entries(settings.sizing).map(([key, width]) => [
-        key,
-        bounded(width, ended.has(key) ? WIDEST : MAX_WIDTH),
-      ]),
+      Object.entries(settings.sizing)
+        .slice(0, KNOWN_BOUND)
+        .map(([key, width]) => [key, bounded(width, ended.has(key) ? WIDEST : MAX_WIDTH)]),
     ),
   };
   const sized = pageSizeOf(size);
