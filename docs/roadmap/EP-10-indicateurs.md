@@ -1541,7 +1541,7 @@ et les autres parcours (US-1740).
 
 ## US-1740 — Le témoin : les indicateurs conservés et au jour courant de PRJ-001, et les parcours rejoués
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-QUA-0040-A`, `WF-INTF-0010-A`
 - **opérations** : aucune en propre ; les lectures de l'EPIC sur le témoin chargé
 - **issue** : 2436
