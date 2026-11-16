@@ -1346,7 +1346,7 @@ US-1710.
 
 ## US-1710 — Le diagramme temps/temps
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IND-0090-A`, `WF-PLA-0060-A`, `WF-DAT-0030-A`, `WF-RAE-0030-A`
 - **opérations** : `getMilestoneTracking` ; `setNodeTracking`, `setTaskProgress` (ce qu'ils y
   changent)
