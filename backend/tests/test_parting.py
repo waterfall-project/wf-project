@@ -19,10 +19,10 @@ from waterfall.core.estimate.interface import (
     Month,
     Placement,
     PlannedLine,
+    lines_planned_value,
     rounded_parts,
     summed_parts,
 )
-from waterfall.core.estimate.spreading import planned_value
 from waterfall.core.planning.interface import WorkInstant, weekly_calendar
 
 EIGHT = Decimal(8)
@@ -33,6 +33,12 @@ FEBRUARY, MARCH, APRIL = Month(2026, 2), Month(2026, 3), Month(2026, 4)
 SPRING = Placement(
     EIGHT_HOURS, WorkInstant(date(2026, 2, 2)), WorkInstant(date(2026, 4, 30), EIGHT)
 )
+
+
+def month_end(month: Month) -> date:
+    """Give the last day of a month, December's included."""
+    following = Month(month.year + month.month // 12, month.month % 12 + 1)
+    return date(following.year, following.month, 1) - timedelta(days=1)
 
 
 @pytest.mark.requirement("WF-DEV-0090-A")
@@ -46,8 +52,10 @@ def test_each_part_is_the_difference_of_two_rounded_cumulated_hours_a_half_to_th
 
 
 @pytest.mark.requirement("WF-DEV-0090-A")
+@pytest.mark.requirement("WF-DEV-0080-A")
 def test_an_amount_rounds_its_cumulated_half_away_from_nought() -> None:
-    # The same line as an amount: 65.625 rounds to 65.63, March holds 34.38.
+    # The same line as an amount: 65.625 rounds to 65.63, March holds 34.38. The amount lane is
+    # that of the planned value (WF-DEV-0080), which rounds the same cumulated the same way.
     parts = rounded_parts(SPRING, Decimal(100), MONEY)
     assert parts == {FEBRUARY: Decimal("31.25"), MARCH: Decimal("34.38"), APRIL: Decimal("34.37")}
 
@@ -68,6 +76,9 @@ def test_a_month_the_rounding_leaves_at_nought_is_not_loaded() -> None:
     march = Placement(EIGHT_HOURS, WorkInstant(date(2026, 3, 2)), WorkInstant(date(2026, 3, 31)))
     assert rounded_parts(march, Decimal("0.005"), HOURS) == {}
     assert rounded_parts(march, Decimal("0.005"), MONEY) == {MARCH: Decimal("0.01")}
+    # A half between nought and a hundredth goes to nought, the even; one between a hundredth and
+    # two goes to two (#3591).
+    assert rounded_parts(march, Decimal("0.015"), HOURS) == {MARCH: Decimal("0.02")}
 
 
 @pytest.mark.requirement("WF-DEV-0090-A")
@@ -95,8 +106,14 @@ def test_the_parts_of_an_amount_cumulate_to_its_planned_value_at_the_end_of_each
     cumulated = Decimal(0)
     for month in (FEBRUARY, MARCH, APRIL, Month(2026, 5)):
         cumulated += parts.get(month, Decimal(0))
-        last = date(month.year, month.month + 1, 1) - timedelta(days=1)
-        assert planned_value(line, last) == cumulated, month
+        last = month_end(month)
+        assert lines_planned_value(line, last) == cumulated, month
+
+
+@pytest.mark.requirement("WF-DEV-0090-A")
+def test_the_last_day_of_a_month_is_found_in_december_too() -> None:
+    assert month_end(Month(2026, 12)) == date(2026, 12, 31)
+    assert month_end(Month(2026, 2)) == date(2026, 2, 28)
 
 
 @pytest.mark.requirement("WF-DEV-0090-A")

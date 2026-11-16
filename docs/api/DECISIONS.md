@@ -11987,6 +11987,13 @@ dépenses ») :
   refus `spending_no_reference`, `spending_revision_refused` et `spending_subproject_unknown`,
   écrits à la main comme ceux du plan de charge. Le catalogue du front reçoit les trois valeurs de
   `SpendingProjection.basis`.
+- **Le taux horaire manquant refuse la projection** (décision de l'auteur du 2026-11-16, #3565, au
+  lot US-2050/L1). Une ligne de main-d'œuvre dont la catégorie n'a pas de taux pour l'année de
+  référence de la révision lue rend 422 `HOURLY_RATE_MISSING`, sans `fields`, `params.missing_rates`
+  nommant les catégories (`MissingRate`), comme le refus d'une saisie de ligne (J-06) ; exemple
+  `spending_rate_missing`, écrit à la main. Écartés : des montants `Computable` par catégorie et par
+  mois, trop lourds pour un histogramme ; la ligne sans taux omise avec un drapeau, qui rend une
+  projection fausse sans qu'elle le soit visiblement (WF-DEV-0010).
 
 `info.version` reste `1.0.0` : une opération et des champs rendus de plus. Le service du détail est
 d'US-2040/L2, celui de la projection d'US-2050.

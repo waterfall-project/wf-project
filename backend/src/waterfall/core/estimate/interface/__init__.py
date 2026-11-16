@@ -331,8 +331,32 @@ from waterfall.core.estimate.interface.remaining_indicators import (
 from waterfall.core.estimate.interface.remaining_indicators import (
     risk_coverage as risk_coverage,
 )
+from waterfall.core.estimate.interface.spending import (
+    SpendingAsked as SpendingAsked,
+)
+from waterfall.core.estimate.interface.spending import (
+    SpendingCategory as SpendingCategory,
+)
+from waterfall.core.estimate.interface.spending import (
+    SpendingCostType as SpendingCostType,
+)
+from waterfall.core.estimate.interface.spending import (
+    SpendingView as SpendingView,
+)
+
+# ``spending`` (US-2050/L1): the projection of spending of a project, by nature, category and month,
+# and the parts of the amount of a line by month.
+from waterfall.core.estimate.interface.spending import (
+    amount_parts as amount_parts,
+)
+from waterfall.core.estimate.interface.spending import (
+    project_spending as project_spending,
+)
 
 # ``workload`` (US-1490/L1; US-1520): the workload of an estimate, the planned value.
+from waterfall.core.estimate.interface.workload import (
+    lines_planned_value as lines_planned_value,
+)
 from waterfall.core.estimate.interface.workload import (
     planned_value as planned_value,
 )

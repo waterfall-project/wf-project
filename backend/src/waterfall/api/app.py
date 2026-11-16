@@ -51,6 +51,7 @@ from waterfall.api import (
     revisions,
     scheduling,
     skeleton,
+    spending,
     startable_tasks,
     subprojects,
     system,
@@ -166,6 +167,7 @@ def create_app(services: Services) -> FastAPI:
         rate_update.router,
         estimate_indicators.router,
         workload.router,
+        spending.router,
     ):
         app.include_router(estimate_router, prefix=PREFIX)
     # The remaining to commit and the actual costs (EP-09): a router per story, each registered here

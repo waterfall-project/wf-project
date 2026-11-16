@@ -5237,7 +5237,7 @@ export interface components {
         /** @description A task of the detail of a role (WF-DEV-0090): its node in the main structure of the revision read, which the planning grid of that revision shows and targets, its row there, its label, its dates, and the hours of the role's labour lines it bears. Two lines of the same role under the task count as one, the sum of their hours. The hours of each line are spread over the months of its task: the part of a month is the difference of two roundings to the hundredth, half to the nearest even, of the cumulated hours of the line at the end of that month and at the end of the month before, the cumulated hours of the last month being the whole line. A part is never negative and the parts sum to the hours of the line, rounded; the task, the month of a role and every total sum parts already rounded (EP-10, recadrage of 2026-11-15). */
         WorkloadTask: {
             node_id: components["schemas"]["Uuid"];
-            /** @description The row of the task in the numbering of the whole structure, as `Node.row_number`, in the structure of the revision the plan reads (`context.revision_id`): the plan of a marked basis numbers its tasks as that marked revision does, which lacks the rows the revision in progress added since (a provision, the tasks a risk originates). */
+            /** @description The row of the task in the numbering of the whole structure, as `Node.row_number`, in the structure of the revision the plan reads (`context.revision_id`): the plan of a marked basis numbers its tasks as that marked revision does, not as the revision in progress, whose rows may differ. */
             row_number: number;
             label: string;
             start: components["schemas"]["WorkInstant"];
@@ -12511,7 +12511,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description `VALIDATION_FAILED`: `marked_remaining` without a marked revision — `revision_id` absent, unknown or not marked —, `fields` designating `/query/revision_id`; or a subproject that the project does not have, or a malformed identifier, in `subproject_id`, `fields` designating `/query/subproject_id` by `UNKNOWN_SUBPROJECT` (WF-IND-0020). No empty projection stands in for a refusal. */
+            /** @description `VALIDATION_FAILED`: `marked_remaining` without a marked revision — `revision_id` absent, unknown or not marked —, `fields` designating `/query/revision_id`; or a subproject that the project does not have, or a malformed identifier, in `subproject_id`, `fields` designating `/query/subproject_id` by `UNKNOWN_SUBPROJECT` (WF-IND-0020). No empty projection stands in for a refusal. Or, on any basis, `HOURLY_RATE_MISSING`, without `fields`, `params.missing_rates` naming the labour categories that the revision read employs without an hourly rate for its reference year, one by one (WF-DEV-0010): the projection has meaning only complete, and neither leaves out the line without a rate nor draws it at nought (#3565). */
             422: {
                 headers: {
                     [name: string]: unknown;

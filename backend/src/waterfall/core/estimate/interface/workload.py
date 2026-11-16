@@ -7,22 +7,26 @@ tasks, by role and by month, through the subpackage ``spreading``, and sets the 
 role beside them (``getProjectWorkload``, WF-DEV-0070): on the budgeted load of the reference, or
 on the remaining to commit of a marked revision or of the current one. ``planned_value`` gives the
 planned value of the reference at a date, from the lines of the reference revision outside the
-provisions (WF-DEV-0080): no operation of the contract serves it before EP-10, which reads it.
+provisions (WF-DEV-0080), the share of each line rounded to the cent on its own and the calendars
+those its marking kept: no operation of the contract serves it before EP-10, which reads it.
 Neither writes anything.
 """
 
 from typing import TYPE_CHECKING
 
+from waterfall.core.estimate.spreading import planned_value as spread_planned_value
 from waterfall.core.estimate.valuing import value_of_reference
 from waterfall.core.estimate.workloading import read_workload
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from datetime import date
     from decimal import Decimal
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.estimate.spreading import PlannedLine
     from waterfall.core.estimate.workloading import WorkloadAsked, WorkloadView
 
 
@@ -43,3 +47,12 @@ def planned_value(session: Session, project_id: UUID, reference: UUID, at: date)
     on a revision that is not the reference the project designates.
     """
     return value_of_reference(session, project_id, reference, at)
+
+
+def lines_planned_value(lines: Iterable[PlannedLine], at: date) -> Decimal:
+    """Give the planned value at the end of a day of lines given: the pure spreading, no database.
+
+    The share of each line rounded to the cent on its own; ``planned_value`` is this one on the
+    lines of the reference, which it reads.
+    """
+    return spread_planned_value(lines, at)

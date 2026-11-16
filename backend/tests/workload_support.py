@@ -71,9 +71,9 @@ class Site:
         held = {"quantity": "1", "resource_role_id": str(role or self.worker), "hours": hours}
         return self.lines.made(task, **{**held, **line})["nodes"][0]["node_id"]
 
-    def material(self, task: dict[str, Any], amount: str) -> str:
+    def material(self, task: dict[str, Any], amount: str, **line: Any) -> str:
         """Give a task a line of material for an amount; give its node."""
-        held = {"quantity": "1", "cost_category_id": str(self.costs.material)}
+        held = {"quantity": "1", "cost_category_id": str(self.costs.material), **line}
         return self.lines.made(task, **held, unit_disbursement=amount)["nodes"][0]["node_id"]
 
     def referenced(self) -> Tree:

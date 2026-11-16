@@ -578,6 +578,12 @@ CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
     ("listActualCosts", "query", "subproject_id"): (
         "declared nothing, contract either=(enum={'unassigned'} | nothing)"
     ),
+    # The subproject asked of the projection of spending, as that of the actual costs: read as text
+    # and judged by the route, whose refusal the contract names in 422, on the parameter
+    # (``UNKNOWN_SUBPROJECT``, ``getProjectSpending``, US-2050/L1).
+    ("getProjectSpending", "query", "subproject_id"): (
+        "declared nothing, contract either=(enum={'unassigned'} | nothing)"
+    ),
     # The subproject asked of the nodes, as that of the actual costs: read as text and judged by the
     # route, strictly, on the parameter (``UNKNOWN_SUBPROJECT``), as EP-10 designs it, « Le filtre
     # de sous-projet, lu strictement partout » (``listNodes``, ``compareRevisions``, US-2430/L2).

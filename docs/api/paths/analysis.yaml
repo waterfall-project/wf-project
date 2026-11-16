@@ -223,13 +223,18 @@
           absent, unknown or not marked —, `fields` designating `/query/revision_id`; or a
           subproject that the project does not have, or a malformed identifier, in
           `subproject_id`, `fields` designating `/query/subproject_id` by `UNKNOWN_SUBPROJECT`
-          (WF-IND-0020). No empty projection stands in for a refusal.
+          (WF-IND-0020). No empty projection stands in for a refusal. Or, on any basis,
+          `HOURLY_RATE_MISSING`, without `fields`, `params.missing_rates` naming the labour
+          categories that the revision read employs without an hourly rate for its reference
+          year, one by one (WF-DEV-0010): the projection has meaning only complete, and neither
+          leaves out the line without a rate nor draws it at nought (#3565).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               revision_refused: { $ref: ../../../fixtures/api/spending_revision_refused.json }
               subproject_unknown: { $ref: ../../../fixtures/api/spending_subproject_unknown.json }
+              rate_missing: { $ref: ../../../fixtures/api/spending_rate_missing.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
