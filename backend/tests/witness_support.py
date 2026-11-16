@@ -4,8 +4,8 @@
 
 PRJ-001, the instant at which the examples of the contract read it, an example read by its name,
 and a route read as a reader of every project. The slices of the witness (``test_witness_*``) and
-the readings of EP-10 that compare the witness with the examples read them here, never from another
-module of tests (#3619).
+the readings of EP-10 that compare the witness with the examples read them here: the module holds
+the helpers that tests outside the family of the witness read too (#3619).
 """
 
 import json
