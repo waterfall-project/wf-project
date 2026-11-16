@@ -131,8 +131,9 @@ def reviewed(api: ContractClient, stage: Scene, clock: Clock, *, reopen: bool = 
     review, and 100 imputed to ``SP-1`` before the third: the cost index of the project is 4,
     0.8889, 0.7273.
     """
-    named = subproject(api, stage, "SP-1", "Poste de commande")
+    # Created in the reverse order of their codes: ``listSubprojects`` sorts by code.
     empty = subproject(api, stage, "SP-2", "Essais")
+    named = subproject(api, stage, "SP-1", "Poste de commande")
     tree = over_three_months(api, stage, clock, subproject_id=named).tree
     costs = {
         SECOND: ("FA-2", None, "350.00", DAY + timedelta(days=62)),
@@ -180,8 +181,8 @@ def test_three_reviews_marked_in_progress_give_four_points_the_last_of_the_day(
     assert body["thresholds"] == THRESHOLDS
     for scope in project.scopes:
         found = scope_points(body, scope)
-        assert len(found) == 4
-        for point, review in zip(found, project.reviews, strict=False):
+        assert len(found) == len(project.reviews) + 1 == 4
+        for point, review in zip(found[:-1], project.reviews, strict=True):
             assert (point["at"], point["revision_id"], point["version_name"]) == (
                 text(review.at),
                 review.revision_id,
@@ -232,6 +233,9 @@ def test_the_zone_of_each_point_is_classified_on_the_thresholds_of_the_reading(
         each["cost_index"]["value"]["value"] for each in found
     ]
     assert {each["cost_index"]["zone"] for each in again} == {"nominal"}
+    # The schedule index, 0.47 to 0.42, is reclassified too: in alert at 0.8, in watch at 0.5.
+    assert {each["schedule_index"]["zone"] for each in found} == {"alert"}
+    assert {each["schedule_index"]["zone"] for each in again} == {"watch"}
 
 
 @pytest.mark.requirement("WF-IND-0130-A")
