@@ -4,7 +4,7 @@ import { act, fireEvent, render, renderHook, screen, within } from "@testing-lib
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { type ReactNode, useTransition } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { decode, type Outcome } from "@/api/problem";
 import type { Revision } from "@/components/context/read-only";
@@ -16,7 +16,7 @@ import { expectAccessible } from "@/test/axe";
 import { holdReading, Reading, releaseReading } from "@/test/held-reading";
 import { atCommit } from "@/test/committed";
 import { example, fakeClient, held, type Problem } from "@/test/fixtures";
-import { browserOffline } from "@/test/offline";
+import { browserOffline, browserOnline } from "@/test/offline";
 
 import { Command } from "./command";
 import { commandIcon, PROJECT_COMMAND_ICONS, REVISION_COMMAND_ICONS } from "./icons";
@@ -530,7 +530,7 @@ describe("the outcome of a command", () => {
   });
 
   it("says the write may have been done, and holds the command until the screen is read anew, when the browser lost its server action while online [WF-REV-0010-A]", async () => {
-    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    onTestFinished(browserOnline());
     holdReading(router.refresh);
     const action = vi.fn(() => Promise.reject(new TypeError("Failed to fetch")));
     french(<Reading>{available(action)}</Reading>);

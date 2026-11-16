@@ -111,9 +111,13 @@ export function useHeldWrites(
 
 /**
  * The outcome of the server action of a command, a rejection read as the outcome it stands for
- * (`rejectedWrite`, its link read as the command is handed over, in the turn of its sending), the navigations of the page held until it is known — released as `useHeldWrites`
- * releases them, `scope` changed among them, and its refusal once released told by the bar of the
- * shell unless `told` says that what asked it tells it still.
+ * (`rejectedWrite`), the navigations of the page held until it is known — released as
+ * `useHeldWrites` releases them, `scope` changed among them, and its refusal once released told by
+ * the bar of the shell unless `told` says that what asked it tells it still.
+ *
+ * Precondition: the state of the link (`navigator.onLine`) is read when the promise is handed
+ * over, not when the request leaves, so the caller starts the action in the very turn that calls
+ * `held(...)`: an action started in a later turn would have its link read too early or too late.
  */
 export function useHeldCommand(
   scope?: string,

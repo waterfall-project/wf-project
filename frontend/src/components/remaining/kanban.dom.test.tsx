@@ -3,7 +3,7 @@
 import { createEvent, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -15,7 +15,7 @@ import {
   held,
   type Problem,
 } from "@/test/fixtures";
-import { browserOffline } from "@/test/offline";
+import { browserOffline, browserOnline } from "@/test/offline";
 
 import { Kanban } from "./kanban";
 import { columnsOf, type KanbanColumns, type StartableTasks } from "./kanban-cards";
@@ -30,6 +30,20 @@ const router = vi.hoisted(() => ({ refresh: vi.fn() }));
 // A gesture whose server action rejects, the API out of reach as `fetch` rejects in the browser.
 const failing = vi.hoisted(() => ({ on: false }));
 
+// The reading anew of a write lost once sent, counted: it is made once by the board, not mounted by
+// each of its cards (#3442).
+const readAnew = vi.hoisted(() => ({ calls: 0 }));
+
+vi.mock("@/components/commands/outcome-notice", async (original) => {
+  const actual = await original<typeof import("@/components/commands/outcome-notice")>();
+  return {
+    ...actual,
+    useReadAnew: (...asked: Parameters<typeof actual.useReadAnew>) => {
+      readAnew.calls += 1;
+      return actual.useReadAnew(...asked);
+    },
+  };
+});
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("@/api/actions/nodes", async (original) => {
   const actual = await original<typeof import("@/api/actions/nodes")>();
@@ -732,6 +746,33 @@ describe("the gestures of the cards of the Kanban", () => {
     await choose("Études de détail", "Rouvrir");
     await within(card("Études de détail")).findByRole("alert");
     expect(router.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("mounts the reading anew of a write lost once sent once for the board, not in each card, and reads the tasks anew once per write lost, the card it was told on waiting (US-2240)", async () => {
+    onTestFinished(browserOnline());
+    failing.on = true;
+    serve({});
+    const columns = columnsOfExample("startable_tasks");
+    const cards = Object.values(columns).flat().length;
+    const { again } = board(columns);
+    expect(cards).toBeGreaterThan(3);
+    // One mount of the reading for the board, whatever the number of its cards.
+    readAnew.calls = 0;
+    again(columns);
+    expect(readAnew.calls).toBe(1);
+
+    await choose("Études de détail", "Rouvrir");
+    expect(await within(card("Études de détail")).findByRole("alert")).toHaveTextContent(
+      "a pu aboutir",
+    );
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+
+    // Another write lost, on another card: the tasks are read anew once more, not twice.
+    await choose("Réception usine", /^Terminer/);
+    fireEvent.click(within(card("Réception usine")).getByRole("button", { name: "Terminer" }));
+    await waitFor(() => {
+      expect(router.refresh).toHaveBeenCalledTimes(2);
+    });
   });
 
   it("reads the tasks anew when the API refuses a gesture for a version past, and tells it on the card [WF-IHM-0090-A]", async () => {

@@ -46,8 +46,10 @@ import {
 } from "react";
 
 import { setTaskProgress } from "@/api/actions/nodes";
+import type { Outcome } from "@/api/problem";
 import { useUnmet } from "@/components/commands/command";
 import { useHeldCommand } from "@/components/commands/held";
+import { useReadAnew } from "@/components/commands/outcome-notice";
 import { PROGRESS_ICONS } from "@/components/grid/planning-cells";
 
 import type { KanbanFilters, TaskProgress } from "./address";
@@ -69,6 +71,11 @@ import {
   replaced,
   TITLE,
 } from "./kanban-cards";
+
+/** The outcome a card tells, when it tells one rather than a sentence. */
+function toldOn(notice: Notice | undefined): Outcome<unknown> | undefined {
+  return notice?.kind === "outcome" ? notice.outcome : undefined;
+}
 
 /** The mark of a card: updating while the tasks are read anew, outdated if that reading failed. */
 function readingOf(answer: KanbanCard | undefined, failed: boolean): CardState["reading"] {
@@ -112,6 +119,11 @@ export function Kanban({
   const [writing, setWriting] = useState<string>();
   const [asking, setAsking] = useState<Asking>();
   const [notices, setNotices] = useState<Readonly<Record<string, Notice>>>({});
+  // The last outcome a gesture was refused with: if its write was lost once sent, the screen is read
+  // anew — once per outcome lost, here, not by every card (US-2240, #3442) — and the card it was told
+  // on waits for it.
+  const [refused, setRefused] = useState<Outcome<unknown>>();
+  const lostReading = useReadAnew(refused);
   // The sentence told, and how many were: the same sentence told again is a new node of the live
   // region, so that it is announced again.
   const [announced, setAnnounced] = useState({ text: "", count: 0 });
@@ -237,6 +249,7 @@ export function Kanban({
       }
       if (outcome.kind !== "done") {
         say(card.node_id, { kind: "outcome", outcome });
+        setRefused(outcome);
         // A task the API refuses for its state, or for a version past, is no more what the card
         // shows: the tasks are read anew.
         if (outcome.kind === "conflict" || outcome.kind === "stale") {
@@ -450,6 +463,7 @@ export function Kanban({
                         notice: notices[card.node_id],
                         asking: asking?.id === card.node_id ? asking : undefined,
                         reading: readingOf(answered[card.node_id], failed),
+                        lost: lostReading && toldOn(notices[card.node_id]) === refused,
                       }}
                     />
                   ))}
