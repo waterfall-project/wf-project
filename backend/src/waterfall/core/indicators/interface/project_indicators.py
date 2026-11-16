@@ -30,9 +30,11 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from waterfall.core.cost_settings.interface import read_reference_settings
-from waterfall.core.costs.interface import PROJECT
 from waterfall.core.indicators.computing import Basis, day_documents
-from waterfall.core.indicators.interface.stored_documents import stored_document
+from waterfall.core.indicators.interface.stored_documents import (
+    revisions_keeping_project,
+    stored_document,
+)
 from waterfall.core.indicators.shaping import Context, classified
 from waterfall.core.projects.interface import (
     current_day,
@@ -112,11 +114,11 @@ def _last_kept_before(session: Session, project_id: UUID, day: date) -> UUID | N
     ``marked_at`` wins, the greatest identifier on a tie, as everywhere the last marked is read.
     """
     marked = marked_revisions_at(session, project_id)
-    candidates = [(at, each) for each, at in marked.items() if current_day(at) <= day]
-    for _, each in sorted(candidates, reverse=True):
-        if stored_document(session, each, "project", PROJECT) is not None:
-            return each
-    return None
+    keeping = revisions_keeping_project(session, project_id)
+    candidates = [
+        (at, each) for each, at in marked.items() if each in keeping and current_day(at) <= day
+    ]
+    return max(candidates)[1] if candidates else None
 
 
 def _kept_indicators(session: Session, project_id: UUID, asked: IndicatorsReading) -> Document:
