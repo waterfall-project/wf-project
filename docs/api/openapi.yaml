@@ -277,6 +277,8 @@ paths:
     $ref: ./paths/analysis.yaml#/~1projects~1{project_id}~1estimate-indicators~1missing-rates
   /projects/{project_id}/workload:
     $ref: ./paths/analysis.yaml#/~1projects~1{project_id}~1workload
+  /projects/{project_id}/spending:
+    $ref: ./paths/analysis.yaml#/~1projects~1{project_id}~1spending
   /projects/{project_id}/remaining-indicators:
     $ref: ./paths/analysis.yaml#/~1projects~1{project_id}~1remaining-indicators
   /projects/{project_id}/remaining-indicators/startable-tasks:

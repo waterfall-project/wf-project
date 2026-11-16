@@ -8,8 +8,13 @@ last day of it. Pure: dates in, dates out.
 
 from calendar import monthrange
 from datetime import date
+from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from waterfall.core.estimate.interface import Month
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 MONTHS_PER_YEAR = 12
 
@@ -51,3 +56,16 @@ def months_between(first: Month, last: Month) -> list[Month]:
 def month_ends(first: date, last: date) -> list[date]:
     """Return the month-ends of the months from that of ``first`` to that of ``last``."""
     return [end_of(month) for month in months_between(month_of(first), month_of(last))]
+
+
+def events_by_month(
+    events: Iterable[tuple[date, Decimal]], *, until: date | None = None
+) -> dict[Month, Decimal]:
+    """Add up, by month of their date, dated amounts; those after ``until`` are left out."""
+    total: dict[Month, Decimal] = {}
+    for day, amount in events:
+        if until is not None and day > until:
+            continue
+        month = month_of(day)
+        total[month] = total.get(month, Decimal(0)) + amount
+    return total

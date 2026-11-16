@@ -935,9 +935,10 @@ WorkloadBasis:
   in: query
   required: true
   description: >-
-    Basis of the workload, where the effort of the labour lines is taken: the reference
-    revision, a marked revision for its re-estimated effort — named by `revision_id` —, or the
-    current revision (WF-DEV-0070). The last two are the basis of the remaining to commit.
+    Basis of the workload, where the effort of the labour lines is taken, and of the spending
+    projection, where the amounts of the lines are: the reference revision, a marked revision
+    for its re-estimated effort and amounts — named by `revision_id` —, or the current revision
+    (WF-DEV-0070, WF-DEV-0100). The last two are the basis of the remaining to commit.
   schema: { type: string, enum: [reference_budget, marked_remaining, current_remaining] }
 
 ProjectStates:

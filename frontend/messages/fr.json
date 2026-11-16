@@ -3878,6 +3878,13 @@
         "current_remaining": "Reste à engager de la révision en cours"
       }
     },
+    "SpendingProjection": {
+      "basis": {
+        "reference_budget": "Budget de la révision de référence",
+        "marked_remaining": "Reste à engager d’une révision marquée",
+        "current_remaining": "Reste à engager de la révision en cours"
+      }
+    },
     "WorkloadZone": {
       "nominal": "Nominal",
       "alert": "Alerte"

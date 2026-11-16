@@ -176,6 +176,9 @@ export interface Examples {
   "GET /projects/{project_id}/risks/{risk_id}/reviews": {
     200: "risk_reviews" | "risk_reviews_reviewed";
   };
+  "GET /projects/{project_id}/spending": {
+    200: "spending" | "spending_marked_remaining" | "spending_payment_delays" | "spending_reference_budget" | "spending_subproject";
+  };
   "GET /projects/{project_id}/state-transitions": {
     200: "state_transitions" | "state_transitions_exited";
   };

@@ -48,6 +48,7 @@ if TYPE_CHECKING:
     from waterfall.core.costs.interface import CostScope
     from waterfall.core.estimate.interface import IndicatorLine
     from waterfall.core.indicators.interface.documents import Document
+    from waterfall.core.planning.interface import IndicatorTask
 
 COMPLETED = "completed"
 
@@ -61,7 +62,7 @@ class Basis:
     reference_id: UUID | None
 
 
-def _in_scope(scope: CostScope, subproject_id: UUID | None) -> bool:
+def in_scope(scope: CostScope, subproject_id: UUID | None) -> bool:
     """Tell whether a line of this subproject, none for the project alone, is of the scope."""
     if scope == PROJECT:
         return True
@@ -74,12 +75,12 @@ def _summed(amounts: Iterable[Decimal]) -> Decimal:
     return sum(amounts, NOUGHT)
 
 
-def amounts_by_scope(
-    session: Session, basis: Basis, day: date, scopes: Collection[CostScope]
-) -> dict[CostScope, Amounts]:
-    """Give the five amounts of each scope asked, on a revision and the reference, at a day.
+def read_lines(
+    session: Session, basis: Basis
+) -> tuple[tuple[IndicatorTask, ...], tuple[IndicatorLine, ...], tuple[IndicatorLine, ...]]:
+    """Read the tasks of the revision computed, its lines, and those of the reference, once.
 
-    Without a reference, the budget, the planned value and the earned value are nought.
+    The reference is empty without one, and the lines of the revision when it is the reference.
     """
     project_id, revision_id, reference_id = basis.project_id, basis.revision_id, basis.reference_id
     tasks = tasks_for_indicators(session, project_id, revision_id)
@@ -89,6 +90,18 @@ def amounts_by_scope(
         reference = lines
     elif reference_id is not None:
         reference = lines_for_indicators(session, project_id, reference_id)
+    return tasks, lines, reference
+
+
+def amounts_by_scope(
+    session: Session, basis: Basis, day: date, scopes: Collection[CostScope]
+) -> dict[CostScope, Amounts]:
+    """Give the five amounts of each scope asked, on a revision and the reference, at a day.
+
+    Without a reference, the budget, the planned value and the earned value are nought.
+    """
+    project_id, revision_id = basis.project_id, basis.revision_id
+    tasks, lines, reference = read_lines(session, basis)
     earned = {
         task.lineage_id
         for task in tasks
@@ -98,7 +111,7 @@ def amounts_by_scope(
     subprojects = {line.node_id: line.subproject_id for line in lines}
     found: dict[CostScope, Amounts] = {}
     for scope in scopes:
-        budgeted = [line for line in reference if _in_scope(scope, line.subproject_id)]
+        budgeted = [line for line in reference if in_scope(scope, line.subproject_id)]
         found[scope] = Amounts(
             reference_budget=_summed(line.budgeted_amount for line in budgeted),
             planned_value=planned_value_at(budgeted, day),
@@ -111,7 +124,7 @@ def amounts_by_scope(
             remaining=_summed(
                 amount
                 for node_id, amount in remaining.items()
-                if _in_scope(scope, subprojects[node_id])
+                if in_scope(scope, subprojects[node_id])
             ),
         )
     return found

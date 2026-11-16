@@ -2084,9 +2084,29 @@ export interface paths {
         };
         /**
          * Project workload
-         * @description By role and by month, the effort of the labour lines taken, as chosen, from the reference revision, from a marked revision for its re-estimated effort, named by `revision_id`, or from the current revision, with each role's capacity alongside (WF-DEV-0070). On a project without a reference revision, the reference basis is absent: `reference_budget` is refused (409, `STATE_FORBIDS_OPERATION`), like `current_remaining` on a project without a current revision; a marked revision remains a basis, in pricing as in execution, and `marked_remaining` is refused only without `revision_id` or on a revision that is not marked (422, `VALIDATION_FAILED`) — on a project without any marked revision, only the current revision is therefore a basis. On a marked revision, the calculation date is its marking date (`context.computed_at`). The plan names the organisation node it retains (`org_node_id`, `org_node_label`).
+         * @description By role and by month, the effort of the labour lines taken, as chosen, from the reference revision, from a marked revision for its re-estimated effort, named by `revision_id`, or from the current revision, with each role's capacity alongside (WF-DEV-0070). On a project without a reference revision, the reference basis is absent: `reference_budget` is refused (409, `STATE_FORBIDS_OPERATION`), like `current_remaining` on a project without a current revision; a marked revision remains a basis, in pricing as in execution, and `marked_remaining` is refused only without `revision_id` or on a revision that is not marked (422, `VALIDATION_FAILED`) — on a project without any marked revision, only the current revision is therefore a basis. On a marked revision, the calculation date is its marking date (`context.computed_at`). The plan names the organisation node it retains (`org_node_id`, `org_node_label`). Each role details its effort by task (`roles[].tasks`, WF-DEV-0090): every task that bears a labour line of the role, on the same basis, by the same spreading and under the same filter, in the order of its start, then of the plan; computed when read, on a marked revision too, never stored by its marking. `months` carries, for a role as for a task, only the months in which it is loaded: a role loaded on fewer months than the others has fewer entries, and the months it lacks are read at zero (`monthly_totals` spans them all; #3096).
          */
         get: operations["getProjectWorkload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project_id}/spending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Project spending projection
+         * @description By cost type and by month, the amounts of the labour and non-labour lines, the provision lines excluded, taken, as for the workload, from the reference revision, from a marked revision for its re-estimated amounts, named by `revision_id`, or from the current revision (WF-DEV-0100): the same three bases, refused the same way as by `getProjectWorkload`. The amount of a line is spread over the duration of its task in proportion to the hours worked (WF-DEV-0040). The amount of a line that is spread is, inflation included, at its consumption year (WF-DEV-0020), its budgeted amount on the reference budget and, on a basis of remaining to commit, its remaining to commit (WF-RAE-0010), nothing for a line of a task completed. The remaining to commit is spread over only the part of the duration of its task after the calculation date, and carried to the month of that date when the finish of the task has passed (WF-IND-0100): no month precedes that of the calculation date, and the total equals the remaining to commit of the project without its provisions (WF-RAE-0010). On request (`payment_delays`), each amount is shifted by the payment delay of its line: the projection then presents the cash-out. Restricted to a subproject, or to what falls under none (`subproject_id`), the lines of that scope alone (WF-IND-0020). Computed when read, on a marked revision too, from what its marking froze: nothing is stored nor cached. Under the permission to read the estimate (`estimate.read`).
+         */
+        get: operations["getProjectSpending"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5214,6 +5234,22 @@ export interface components {
          * @enum {string}
          */
         WorkloadZone: "nominal" | "alert";
+        /** @description A task of the detail of a role (WF-DEV-0090): its node in the main structure of the revision read, which the planning grid of that revision shows and targets, its row there, its label, its dates, and the hours of the role's labour lines it bears. Two lines of the same role under the task count as one, the sum of their hours. The hours of each line are spread over the months of its task: the part of a month is the difference of two roundings to the hundredth, half to the nearest even, of the cumulated hours of the line at the end of that month and at the end of the month before, the cumulated hours of the last month being the whole line. A part is never negative and the parts sum to the hours of the line, rounded; the task, the month of a role and every total sum parts already rounded (EP-10, recadrage of 2026-11-15). */
+        WorkloadTask: {
+            node_id: components["schemas"]["Uuid"];
+            /** @description The row of the task in the numbering of the whole structure, as `Node.row_number`. */
+            row_number: number;
+            label: string;
+            start: components["schemas"]["WorkInstant"];
+            finish: components["schemas"]["WorkInstant"];
+            /** @description The hours of the task for the role, the sum of its `months`. */
+            hours: components["schemas"]["Hours"];
+            /** @description Only the months in which the task is loaded for the role, ascending, as for a role (#3096); empty when its hours are zero. */
+            months: {
+                month: string;
+                hours: components["schemas"]["Hours"];
+            }[];
+        };
         /** @description Workload by role and by month, in hours: the load of a line is spread over the duration of its task in proportion to the working hours of the calendar of its role. On a basis of remaining to commit — a marked revision for its re-estimated load (`marked_remaining`) or the current revision (`current_remaining`) —, the remaining load of each line of a task not completed is spread over only the part of the duration of its task after the computation date (`context.computed_at`, the marking date for a marked revision), and carried to the month of the computation date when the end of the task is past: a not started task whose start date is earlier than the computation date presents no load on the elapsed months; a completed task presents none (WF-DEV-0070, WF-IND-0010). On `marked_remaining`, the plan its marking stored, `context.computed_at` its marking date, `context.is_stored` true; on `reference_budget`, the budgeted load of the reference, read today, `context.is_stored` false (WF-DAT-0040). */
         WorkloadPlan: {
             context: components["schemas"]["CalculationContext"];
@@ -5237,12 +5273,54 @@ export interface components {
                 label: string;
                 org_node_id: components["schemas"]["Uuid"];
                 capacity_monthly_hours: components["schemas"]["Hours"];
+                /** @description Only the months in which the role is loaded, ascending: a month without load is absent, not returned at zero, so that a role loaded on fewer months than the others has fewer entries; the axis of the plan is `monthly_totals` (#3096). Each month the sum of the parts of its lines, rounded as `tasks` says: the hours of the tasks of the role that month sum to it exactly (WF-DEV-0090). */
                 months: {
                     month: string;
                     hours: components["schemas"]["Hours"];
                     zone: components["schemas"]["WorkloadZone"];
                 }[];
+                /** @description The detail of the role by task (WF-DEV-0090): each task that bears a labour line of the role, on the basis, by the spreading and under the filter of the plan — on a basis of remaining to commit, a completed task is absent —, in the order of its start (`start`, its date then its hours), then of the plan (`row_number`; the author's decision of 2026-11-14, #3181). Empty for a role with no labour line. Computed when read, on the revision read (`context.revision_id`): on `marked_remaining`, on what its marking froze, never stored by it (#3181). */
+                tasks: components["schemas"]["WorkloadTask"][];
             }[];
+        };
+        SpendingMonth: {
+            month: string;
+            amount: components["schemas"]["Money"];
+        };
+        /** @description A cost category of the projection: the sum of the parts of its lines, by month and in total (WF-DEV-0100). */
+        SpendingCategory: {
+            cost_category_id: components["schemas"]["Uuid"];
+            label: string;
+            total: components["schemas"]["Money"];
+            /** @description Only the months in which the category carries an amount, ascending (#3096). */
+            months: components["schemas"]["SpendingMonth"][];
+        };
+        /** @description A cost type of the projection: its total and its amount by month, the sums of its categories (WF-DEV-0100). */
+        SpendingCostType: {
+            cost_type_id: components["schemas"]["Uuid"];
+            label: string;
+            total: components["schemas"]["Money"];
+            /** @description Only the months in which the cost type carries an amount, ascending (#3096). */
+            months: components["schemas"]["SpendingMonth"][];
+            /** @description The categories of the cost type that carry an amount, in the order of the reference data — that of `listCostCategories` without a sort, by code, then by identifier. */
+            categories: components["schemas"]["SpendingCategory"][];
+        };
+        /** @description The spending projection of the project, by cost type and by month (WF-DEV-0100): the amount of each labour and non-labour line, the provision lines excluded, spread over the duration of its task in proportion to the hours worked (WF-DEV-0040). The amount spread is, inflation included, at the consumption year of the line (WF-DEV-0020), its budgeted amount on the reference budget and, on a basis of remaining to commit, its remaining to commit (WF-RAE-0010), nothing for a line of a task completed; the remaining to commit is spread over the part of its task after the calculation date (`context.computed_at`, the marking date for a marked revision), carried to the month of that date when the finish of the task has passed (WF-IND-0100). The part of a line in a month is the difference of two roundings to the cent, half away from zero, of the cumulated amount of the line at the end of that month and at the end of the month before, the cumulated amount of the last month being the whole line: a part is never negative and the parts sum to the amount of the line, rounded. Every amount of the projection — a category, a cost type, a month, the total — is a sum of parts already rounded, summed by the service, which the front does not sum (WF-ARC-0020): the total of each month equals the sum of the cost types that month, that of each cost type the sum of its categories. Computed when read, never stored: `context.is_stored` is false, on a marked revision too (#3182); `context.scope` names the scope (`subproject_id`). */
+        SpendingProjection: {
+            context: components["schemas"]["CalculationContext"];
+            /**
+             * @description The basis used: the budget of the reference revision, the re-estimated amounts of a marked revision, or those of the current revision (WF-DEV-0100). `context.revision_id` names the revision read.
+             * @enum {string}
+             */
+            basis: "reference_budget" | "marked_remaining" | "current_remaining";
+            /** @description True when each amount is shifted by the payment delay of its line: the cash-out (WF-DEV-0100). False otherwise. */
+            payment_delays: boolean;
+            /** @description The total of the projection, the sum of its cost types; on a basis of remaining to commit, the remaining to commit of the scope without its provisions (WF-RAE-0010). */
+            total: components["schemas"]["Money"];
+            /** @description The total of each month, the sum of the cost types that month: from the first to the last month that a cost type loads, ascending and without gaps, a month without amount included at zero, as `WorkloadPlan.monthly_totals`; empty when no line carries an amount. */
+            monthly_totals: components["schemas"]["SpendingMonth"][];
+            /** @description The cost types that carry an amount, in the order of the reference data — that of `listCostTypes` without a sort, by code, then by identifier —; never the provision type, whose lines are excluded (WF-DEV-0100). */
+            cost_types: components["schemas"]["SpendingCostType"][];
         };
         /** @description The four amounts of the risk coverage: the risk reserve, the sum of the provisions of the risks identified in the current revision, the sum of the costs at occurrence of the occurred risks, and the coverage variance, signed, reserve − (remaining_provisions + occurred_cost) (WF-RIS-0050). The completion or the re-estimation of the tasks that came from an occurred risk changes neither the cost of the occurred risks nor the coverage variance (WF-RIS-0050). Alongside the cost of the occurred risks, the current reestimated amount of the lines that came from them (`occurred_reestimated`), which shows their drift without entering into the variance (#1761). */
         RiskCoverageTotals: {
@@ -6422,7 +6500,7 @@ export interface components {
         NodeId: components["schemas"]["Uuid"];
         /** @description Calculation scope: the whole project, or a subproject, the "out of any subproject" set included (WF-IND-0020). A subproject that the project does not have, or a malformed identifier, is refused with 422 `VALIDATION_FAILED`, `fields[]` designating `/query/scope` with `UNKNOWN_SUBPROJECT`, like the subproject of the actual costs: no empty reading stands in for a refusal. */
         Scope: ("project" | "unassigned") | components["schemas"]["Uuid"];
-        /** @description Basis of the workload, where the effort of the labour lines is taken: the reference revision, a marked revision for its re-estimated effort — named by `revision_id` —, or the current revision (WF-DEV-0070). The last two are the basis of the remaining to commit. */
+        /** @description Basis of the workload, where the effort of the labour lines is taken, and of the spending projection, where the amounts of the lines are: the reference revision, a marked revision for its re-estimated effort and amounts — named by `revision_id` —, or the current revision (WF-DEV-0070, WF-DEV-0100). The last two are the basis of the remaining to commit. */
         WorkloadBasis: "reference_budget" | "marked_remaining" | "current_remaining";
         /** @description The revision of the calculation, for the project indicators as for the curves: absent, or the current revision, the calculation as of the current day — on the current revision, or, when the project has none, on its last marked revision with the actual cost of the day (WF-IND-0010), `CalculationContext.is_stored` false and `context.revision_id` naming the revision of the calculation; a marked revision, the calculation at the date of its marking: the indicators and curves that its marking kept (WF-DAT-0040), `is_stored` true, on the actual cost lines known at its marking, as they were then — a line imported afterwards does not enter it, whatever its document date, and a line updated or excluded afterwards remains in it as it was (WF-IND-0010). A revision marked before the In progress state kept only the total of its estimate, without any project indicator (WF-DAT-0040): refused with 409, `STATE_FORBIDS_OPERATION`. With `as_of`, which already chooses the revision by its date, refused with 422, `VALIDATION_FAILED`. */
         IndicatorsRevision: components["schemas"]["Uuid"];
@@ -12345,7 +12423,7 @@ export interface operations {
     getProjectWorkload: {
         parameters: {
             query: {
-                /** @description Basis of the workload, where the effort of the labour lines is taken: the reference revision, a marked revision for its re-estimated effort — named by `revision_id` —, or the current revision (WF-DEV-0070). The last two are the basis of the remaining to commit. */
+                /** @description Basis of the workload, where the effort of the labour lines is taken, and of the spending projection, where the amounts of the lines are: the reference revision, a marked revision for its re-estimated effort and amounts — named by `revision_id` —, or the current revision (WF-DEV-0070, WF-DEV-0100). The last two are the basis of the remaining to commit. */
                 basis: components["parameters"]["WorkloadBasis"];
                 /** @description The marked revision whose re-estimated amounts form the basis; required with `marked_remaining`, ignored otherwise. */
                 revision_id?: components["schemas"]["Uuid"];
@@ -12381,6 +12459,59 @@ export interface operations {
                 };
             };
             /** @description `VALIDATION_FAILED`: `marked_remaining` without a marked revision — `revision_id` absent, unknown or not marked —, or an unknown organisation node; `fields` designates the refused parameter, `/query/revision_id` or `/query/org_node_id`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            500: components["responses"]["InternalError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getProjectSpending: {
+        parameters: {
+            query: {
+                /** @description Basis of the workload, where the effort of the labour lines is taken, and of the spending projection, where the amounts of the lines are: the reference revision, a marked revision for its re-estimated effort and amounts — named by `revision_id` —, or the current revision (WF-DEV-0070, WF-DEV-0100). The last two are the basis of the remaining to commit. */
+                basis: components["parameters"]["WorkloadBasis"];
+                /** @description The marked revision whose re-estimated amounts form the basis; required with `marked_remaining`, ignored otherwise. */
+                revision_id?: components["schemas"]["Uuid"];
+                /** @description True, each amount is shifted by the payment delay of its line: that is the cash-out (WF-DEV-0100), as for `getCostCurve`. */
+                payment_delays?: boolean;
+                /** @description `unassigned` for what falls under no subproject (WF-IND-0020, WF-CRE-0020). */
+                subproject_id?: components["parameters"]["SubprojectFilter"];
+            };
+            header?: never;
+            path: {
+                project_id: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Spending projection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpendingProjection"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description `reference_budget` on a project without a reference revision, or `current_remaining` on a project without a current revision: the basis is absent (WF-DEV-0100, as WF-DEV-0070). `STATE_FORBIDS_OPERATION`, `params.state` the state of the project, `params.state_enum` set to `ProjectState`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `VALIDATION_FAILED`: `marked_remaining` without a marked revision — `revision_id` absent, unknown or not marked —, `fields` designating `/query/revision_id`; or a subproject that the project does not have, or a malformed identifier, in `subproject_id`, `fields` designating `/query/subproject_id` by `UNKNOWN_SUBPROJECT` (WF-IND-0020). No empty projection stands in for a refusal. */
             422: {
                 headers: {
                     [name: string]: unknown;

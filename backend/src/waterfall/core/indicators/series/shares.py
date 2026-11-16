@@ -29,10 +29,13 @@ if TYPE_CHECKING:
 # The parts of a delayed line are cut at ten places — far below the cent, so that the rounding of
 # the cumulative total at the cent never sees them — and the last part takes the rest, so that the
 # sum is the amount. The estimate exposes no such constant in its interface. 50 significant digits
-# hold the quotient of any amount (14 digits) by the hours of a task with ten places to spare, so
-# the context never rounds before ``quantize`` does.
+# hold the quotient of any amount by the hours of a task with ten places to spare, so the context
+# never rounds before ``quantize`` does: an amount has at most 14 digits, the precision of the
+# columns that hold the amounts (``AMOUNT_PRECISION`` of the tables of the estimate, ``Numeric(14,
+# 2)``; WF-DAT-0100), as ``Money`` of the contract.
 TEN_PLACES = Decimal("0.0000000001")
 PRECISION = 50
+ONE_DAY = timedelta(days=1)
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,14 +50,14 @@ class SpreadLine:
 def _fraction_spent(line: SpreadLine, as_of: date | None, day: date) -> Fraction:
     """Return the part of the amount a line has spent by the end of a day, in proportion to hours.
 
-    What ``spread_by_month`` shares, read at any day: the hours of work of the task up to the end
-    of the day over its hours of work, those after ``as_of`` alone when it is given; spent whole at
-    the day of the task's end — at ``as_of`` for a task past its end, where it stands for a task
-    without an hour of work.
+    What ``_spread_after`` shares, read at any day: the hours of work of the task up to the end
+    of the day over its hours of work, those after the end of ``as_of`` alone when it is given;
+    spent whole at the day of the task's end — at ``as_of`` for a task past its end, where it
+    stands for a task without an hour of work.
     """
     start, finish = line.placement.start, line.placement.finish
     if as_of is not None:
-        cut = WorkInstant(as_of)
+        cut = WorkInstant(as_of + ONE_DAY)
         if finish <= cut:
             return Fraction(int(day >= as_of))
         start = max(start, cut)
@@ -74,6 +77,24 @@ def _to_ten_places(share: Fraction) -> Decimal:
         )
 
 
+def _spread_after(
+    placement: Placement, amount: Decimal, as_of: date | None
+) -> dict[Month, Decimal]:
+    """Spread an amount over the months of a task, the part after the end of ``as_of`` alone.
+
+    The date of calculation belongs to the past — the actual cost counts the documents of its day,
+    the planned value is read at its end —, so what is to come is what follows it
+    (WF-IND-0100, WF-RAE-0040): the share starts at the first hour of the next day, and a task
+    that ends before falls whole on the month of ``as_of``, not on that of the next day.
+    """
+    if as_of is None:
+        return spread_by_month(placement, amount)
+    after = as_of + ONE_DAY
+    if placement.finish <= WorkInstant(after):
+        return {month_of(as_of): amount}
+    return spread_by_month(placement, amount, as_of=after)
+
+
 def shifted(line: SpreadLine, *, as_of: date | None = None) -> dict[Month, Decimal]:
     """Spread a line by month, its curve translated by the payment delay of the line.
 
@@ -84,7 +105,7 @@ def shifted(line: SpreadLine, *, as_of: date | None = None) -> dict[Month, Decim
     the last taking the rest, so that they add up to the amount.
     """
     if line.payment_delay_days == 0:
-        return spread_by_month(line.placement, line.amount, as_of=as_of)
+        return _spread_after(line.placement, line.amount, as_of)
     delay = timedelta(days=line.payment_delay_days)
     start, finish = line.placement.start.day, line.placement.finish.day
     if as_of is not None:
@@ -116,7 +137,7 @@ def line_shares(
     """
     if delayed:
         return shifted(line, as_of=as_of)
-    return spread_by_month(line.placement, line.amount, as_of=as_of)
+    return _spread_after(line.placement, line.amount, as_of)
 
 
 def spread_lines(
@@ -127,17 +148,4 @@ def spread_lines(
     for line in lines:
         for month, part in line_shares(line, as_of=as_of, delayed=delayed).items():
             total[month] = total.get(month, Decimal(0)) + part
-    return total
-
-
-def events_by_month(
-    events: Iterable[tuple[date, Decimal]], *, until: date | None = None
-) -> dict[Month, Decimal]:
-    """Add up, by month of their date, dated amounts; those after ``until`` are left out."""
-    total: dict[Month, Decimal] = {}
-    for day, amount in events:
-        if until is not None and day > until:
-            continue
-        month = month_of(day)
-        total[month] = total.get(month, Decimal(0)) + amount
     return total

@@ -2966,9 +2966,10 @@ of what it describes, and two generations write the same bytes:
   proposed (`wftools.mockcycle`), its marked revisions read with their snapshot
   (`wftools.mocksnapshot`), its compared revisions (`wftools.mockcomparisons`) and its risks, and
   the responses of the entries of a risk, with the own estimate of risk 751 and the preliminary
-  report of its occurrence (`wftools.mockriskwrites`); its indicators, its curves and its workload
-  today, over the whole structure of a thousand tasks (`wftools.mocktoday`,
-  `wftools.mockindicators`, `wftools.mockcurves`); its actual costs — those the witness describes
+  report of its occurrence (`wftools.mockriskwrites`); its indicators, its curves, its workload
+  detailed by task and its spending projection today, over the whole structure of a thousand
+  tasks, each line spread by its rounded parts (`wftools.mocktoday`, `wftools.mockindicators`,
+  `wftools.mockcurves`, `wftools.mockspending`); its actual costs — those the witness describes
   and the invoices of its drawn tasks that are completed — and the log of their imports
   (`wftools.mockcosts`); and the views of the portfolio over time — aggregated workload, S-curve and
   its variant at 31 December 2025, project control health —, which sum the witness at its own
