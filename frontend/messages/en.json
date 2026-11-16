@@ -130,7 +130,8 @@
       "comparison": "Compared nodes",
       "projects": "List of projects",
       "backups": "Backups",
-      "workloadDetail": "Workload detail by role and by task"
+      "workloadDetail": "Workload detail by role and by task",
+      "spendingDetail": "Spending projection by cost type and by category"
     },
     "columns": {
       "rowNumber": "No.",
@@ -247,7 +248,8 @@
       "restore": "Restoration",
       "resendInvitation": "Resend email",
       "passwordLink": "Setup link",
-      "month": "Month"
+      "month": "Month",
+      "total": "Total"
     },
     "computed": "Computed",
     "entry": {
@@ -1470,6 +1472,9 @@
     },
     "help": {
       "help": "Opens, beside the screen, the help that describes it: what it shows, its commands, its columns, its keyboard gestures and the notions of the method."
+    },
+    "spending": {
+      "help": "Opens the spending projection of the revision, by cost type and by month."
     }
   },
   "columns": {
@@ -1986,6 +1991,17 @@
       },
       "month": {
         "help": "The part of the load the server spreads over the month, in hours, on the basis and under the filter of the plan: for a role, the load the chart presents; for a task, its part. Blank for a month without load. The total of the month, at the foot, is the plan's."
+      }
+    },
+    "spendingDetail": {
+      "label": {
+        "help": "The cost type, then, under it, each of its categories that carries an amount, in the order of the reference data."
+      },
+      "total": {
+        "help": "The total of the row, in the currency of the installation, computed by the server over all the months of the projection. At the foot, the total of the projection."
+      },
+      "month": {
+        "help": "The part of the spending the server spreads over the month, on the basis and under the filter of the projection. Blank for a month without amount. The total of the month, at the foot, is the projection’s."
       }
     }
   },
@@ -3058,7 +3074,8 @@
     "exchanges": "Imports and exports",
     "kanban": "Kanban — task start",
     "timelines": "Timelines",
-    "taskTree": "Task tree"
+    "taskTree": "Task tree",
+    "spending": "Spending projection"
   },
   "errors": {
     "MALFORMED_REQUEST": "The request is malformed.",
@@ -4285,5 +4302,40 @@
     "object": "Object: {object}.",
     "screenInProject": "{screen} — {project}",
     "unknownScreen": "Screen of origin"
+  },
+  "spending": {
+    "title": "Spending projection",
+    "chartTitle": "Spending by cost type and by month",
+    "description": "Stacked bars of the spending of each cost type by month; the values are in the table of the values, with the total of each month.",
+    "amountUnit": "{amount} {currency}",
+    "totalSeries": "Total",
+    "basis": "Basis",
+    "markedRevision": "Marked revision",
+    "unnamedRevision": "Unnamed marked revision",
+    "date": "Date",
+    "consumption": "Date of consumption",
+    "payment": "Date of payment",
+    "subproject": "Subproject",
+    "allSubprojects": "Whole project",
+    "noSubproject": "Outside any subproject",
+    "subprojectChoice": "{code} · {label}",
+    "unknownSubproject": "unknown subproject",
+    "show": "Show",
+    "reading": "Basis: {basis} — revision “{revision}” — {date}",
+    "month": "Month",
+    "costType": "Cost type",
+    "costCategory": "Cost category",
+    "amount": "Amount",
+    "none": "No cost type carries an amount on this basis.",
+    "refused": {
+      "noReference": "The projection is not available on this basis: the project has no reference revision, and only the current revision is one.",
+      "markedRevision": "The projection is not available on this basis: the marked revision asked for is missing, or is not marked.",
+      "subproject": "The projection is not available: the subproject asked for does not exist.",
+      "invalid": "The projection is not available: the API refuses what is asked."
+    },
+    "exportDetail": "Basis: {basis} · {date} · Subproject: {subproject}",
+    "file": "spending-projection",
+    "gridTitle": "Spending by cost type and by category",
+    "gridTotals": "Total of the projection"
   }
 }

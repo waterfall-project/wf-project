@@ -43,6 +43,7 @@ import { RATE_HEADINGS } from "@/components/reference/rate-columns";
 import { calendarGrid, orgNodeGrid, resourceRoleGrid } from "@/components/reference/resource-grids";
 import { COMPARISON_GRID } from "@/components/revisions/comparison-columns";
 import { RISK_GRID } from "@/components/risks/risk-grid";
+import { spendingGrid } from "@/components/spending/spending-columns";
 import { detailGrid } from "@/components/workload/detail-columns";
 import { isLocale, LOCALES, type Locale } from "@/i18n/locale";
 
@@ -142,6 +143,8 @@ const COLUMNS: Readonly<Record<string, readonly HelpColumn[]>> = {
   ),
   // The detail of the workload, its columns of months defined once.
   "FBS-4.4.4": distinct(detailGrid(["2026-06", "2026-07"], (month) => month).columns),
+  // The grid of the spending projection, its columns of months defined once.
+  "FBS-4.4.5": distinct(spendingGrid(["2026-06", "2026-07"], (month) => month).columns),
   "FBS-4.5": defined(REMAINING_GRID.columns),
   "FBS-4.5.2": defined(REMAINING_GRID.columns),
   "FBS-4.6": defined(RISK_GRID.columns),

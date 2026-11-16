@@ -21,6 +21,7 @@ import { rateGrid } from "../reference/rate-grid";
 import { calendarGrid, orgNodeGrid, resourceRoleGrid } from "../reference/resource-grids";
 import { COMPARISON_GRID } from "../revisions/comparison-columns";
 import { RISK_GRID } from "../risks/risk-grid";
+import { spendingGrid } from "@/components/spending/spending-columns";
 import { detailGrid } from "../workload/detail-columns";
 import { MAX_WIDTH, MIN_WIDTH, WIDEST } from "./columns";
 import { ESTIMATE_GRID } from "./estimate";
@@ -275,6 +276,7 @@ describe("the columns a grid records as known", () => {
     comparison: COMPARISON_GRID,
     // A plan of fifteen years: a column for each of its 180 months.
     workloadDetail: detailGrid(FIFTEEN_YEARS, (month) => month),
+    spendingDetail: spendingGrid(FIFTEEN_YEARS, (month) => month),
   };
 
   // The grids declared by a wrapper of another, which show the same columns once the reading

@@ -15,6 +15,7 @@ At the top of the screen:
 - **Show the tasks not started too** adds to the grid the tasks that have not started; **Show the started tasks only** comes back to the default reading.
 - **Kanban — task start** leads to the Kanban, where the tasks are started and completed.
 - **Workload**, an icon alone, leads to the monthly breakdown of the loads, by role, on the remaining to commit of the revision under way.
+- **Spending projection**, an icon alone, leads to the spending of the revision under way, by month and by cost type, on its remaining to commit.
 - **Imports and exports**, when the project offers the import of a remaining to commit.
 
 Above the grid: **Work package or order item**, **Search a label**, **Columns**, **Tree**, and **Undo** (`Ctrl+Z`) and **Redo** (`Ctrl+Shift+Z`), unavailable as long as the server does not keep the history of the entries.

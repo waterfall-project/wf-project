@@ -193,7 +193,7 @@ describe("the navigation", () => {
       .map((h) => h.textContent);
     expect(headings).toEqual(["Plateforme", "Projet", "Révision en cours"]);
     const links = within(nav).getAllByRole("link");
-    expect(links).toHaveLength(PLATFORM_FUNCTIONS + COST_LEAVES + 1 + 3 + 6 + 5);
+    expect(links).toHaveLength(PLATFORM_FUNCTIONS + COST_LEAVES + 1 + 3 + 6 + 6);
     for (const link of [...links, ...within(nav).getAllByRole("button")]) {
       expect(link.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
       expect(link.textContent).not.toBe("");
@@ -246,7 +246,7 @@ describe("the navigation", () => {
     const nav = screen.getByRole("navigation", { name: "Fonctions" });
     const lists = [
       ["Planification", ["Chronologies", "Imports et exports", "Arborescence de tâches"]],
-      ["Chiffrage et devis", ["Plan de charge"]],
+      ["Chiffrage et devis", ["Plan de charge", "Projection de dépenses"]],
       ["Estimation du reste à engager", ["Kanban — démarrage des tâches"]],
     ] as const;
     for (const [parent, leaves] of lists) {
@@ -267,6 +267,7 @@ describe("the navigation", () => {
       "Arborescence de tâches",
       "Chiffrage et devis",
       "Plan de charge",
+      "Projection de dépenses",
       "Estimation du reste à engager",
       "Kanban — démarrage des tâches",
     ];
@@ -277,6 +278,7 @@ describe("the navigation", () => {
     const revision = names.indexOf("Planification");
     expect(names.slice(revision, revision + order.length)).toEqual(order);
     expect(href("Plan de charge")).toBe(`${IN_PROJECT}/workload${CONTEXT}`);
+    expect(href("Projection de dépenses")).toBe(`${IN_PROJECT}/spending${CONTEXT}`);
     expect(href("Chronologies")).toBe(`${IN_PROJECT}/timelines${CONTEXT}`);
     expect(href("Imports et exports")).toBe(`${IN_PROJECT}/exchanges${CONTEXT}`);
     expect(href("Arborescence de tâches")).toBe(`${IN_PROJECT}/task-tree${CONTEXT}`);

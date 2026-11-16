@@ -281,6 +281,14 @@ describe("the screen of the remaining to commit", () => {
     expect(page).toContain('aria-label="Workload"');
   });
 
+  it("leads to the spending projection of the project on the remaining of the revision under way, in the same context [WF-DEV-0100-A]", async () => {
+    const page = await remainingAt({ subproject_id: SUBPROJECT });
+    expect(page).toContain(
+      `href="/projects/${PROJECT}/revisions/${REVISION}/spending?subproject_id=${SUBPROJECT}&amp;basis=current_remaining"`,
+    );
+    expect(page).toContain('aria-label="Spending projection"');
+  });
+
   it("places undo and redo in the remaining to commit of a revision in progress, and none in that of a marked one, whose marking nothing undoes [WF-IHM-0110-A]", async () => {
     // Aucune commande n'annule un marquage : the grid of a marked revision enters nothing.
     const open = await remainingAt();
