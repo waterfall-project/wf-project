@@ -18,7 +18,6 @@ from sqlalchemy import (
     CheckConstraint,
     ForeignKey,
     ForeignKeyConstraint,
-    Index,
     Text,
     UniqueConstraint,
 )
@@ -66,7 +65,6 @@ class RevisionIndicator(Base):
         *bounded("scope", SCOPE_LENGTH),
         CheckConstraint("jsonb_typeof(document) = 'object'", name="document_object"),
         UniqueConstraint("project_id", "revision_id", "kind", "scope"),
-        Index(None, "project_id", "revision_id"),
         {"postgresql_partition_by": BY_PROJECT},
     )
 
