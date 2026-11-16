@@ -37,7 +37,7 @@ from nodes_support import (
 from planning_support import DAY, node_row
 from projects_support import scene as make_scene
 from sqlalchemy import insert, inspect, update
-from test_inert_writes import listened, trees_read, unkept
+from test_inert_writes import Statement, listened, trees_read, unkept
 
 from waterfall.core.planning.attachments import Attached
 from waterfall.core.planning.entries import Facet
@@ -661,6 +661,32 @@ def test_a_paste_that_creates_is_undone_by_deleting_its_tasks_and_redone_by_crea
     assert labels_of(tree) == ["Étude 2", "Plan", "Recette"]
     assert tree.node(made[0])["task"]["duration"] == {"value": "2", "unit": "d"}
     assert [each.undone for each in entries(stage)][-1] is False
+
+
+def _reads_of_the_defaults(sent: list[Statement]) -> int:
+    """Count the statements that read the calendars and the constants of the units."""
+    return sum(" FROM calendar" in each.text or " FROM duration_unit" in each.text for each in sent)
+
+
+@pytest.mark.requirement("WF-IHM-0050-A")
+def test_a_paste_that_creates_reads_the_calendar_and_the_constants_once_not_at_each_row(
+    tree: Tree, who: Person
+) -> None:
+    # #2605 : le collage qui crée relit, pour chaque ligne qui crée, le calendrier et les constantes
+    # des unités ; il les lit une fois par collage, à l'aperçu comme à la confirmation (qui rejuge
+    # sous le verrou). Le nombre de lectures ne dépend plus de la hauteur du bloc.
+    task = tree.made("Étude", who=who)
+    reads: dict[int, tuple[int, int]] = {}
+    for height in (2, 12):
+        block = [["Étude"], *([f"Ligne {height}-{at}", "", "", "2"] for at in range(height))]
+        with listened() as previewing:
+            plan = planned(tree, task, "label", block, who)
+        with listened() as confirming:
+            body = applied(tree, plan, who)
+        assert len(body["nodes"]) == height + 1
+        reads[height] = (_reads_of_the_defaults(previewing), _reads_of_the_defaults(confirming))
+    assert reads[2] == reads[12]
+    assert all(each <= 4 for each in reads[12])
 
 
 @pytest.mark.requirement("WF-PLA-0050-A")

@@ -83,6 +83,7 @@ from waterfall.core.planning.interface.lines import (
     write_line_node,
 )
 from waterfall.core.planning.interface.nodes import (
+    Defaults,
     Ground,
     InstantSent,
     NodeCreation,
@@ -90,6 +91,7 @@ from waterfall.core.planning.interface.nodes import (
     apply_cell,
     judge_cell,
     judge_creation,
+    read_defaults,
     traced,
     traced_creation,
     write_cell,
@@ -291,7 +293,8 @@ class _Board:
     The ground the rows accepted before leave (``traced``), the elements of the work breakdown by
     label, the structure, act and planning start a task is created at, and the node a row past the
     last node is created after: the anchor, then the task the row before created; and the node the
-    block is aimed at, whose kind is the kind of what the block creates.
+    block is aimed at, whose kind is the kind of what the block creates. ``defaults`` are the
+    default calendar and the constants of the units, read once for the whole block (#2605).
     """
 
     ground: Ground
@@ -299,6 +302,7 @@ class _Board:
     held: tuple[Place, Act, date]
     after: UUID
     target: UUID
+    defaults: Defaults
     lines: dict[UUID, dict[UUID, object]] = field(default_factory=dict[UUID, dict[UUID, object]])
 
 
@@ -543,7 +547,7 @@ def _judged(board: _Board, row: _Row) -> _Outcome:
     judged = None
     if entry is not None:
         try:
-            judged = judge_cell(ground, row.node_id, entry)
+            judged = judge_cell(ground, row.node_id, entry, board.defaults)
         except UnprocessableError as refused:
             refusals += _mapped(row.row, refused)
     refusals.sort(key=_order)
@@ -573,7 +577,7 @@ def _creating(board: _Board, row: _Row) -> _Outcome:
         parent_id=parent, after_node_id=board.after, after_given=True, task=TaskEntry(label=label)
     )
     try:
-        created = judge_creation(board.ground, creation, row.node_id)
+        created = judge_creation(board.ground, creation, row.node_id, board.defaults)
     except UnprocessableError as refused:
         refusals += _mapped(row.row, refused)
         return _Outcome(None, None, tuple(sorted(refusals, key=_order)))
@@ -582,7 +586,7 @@ def _creating(board: _Board, row: _Row) -> _Outcome:
     judged = None
     if entry is not None:
         try:
-            judged = judge_cell(ground, row.node_id, entry)
+            judged = judge_cell(ground, row.node_id, entry, board.defaults, created=True)
         except UnprocessableError as refused:
             refusals += _mapped(row.row, refused)
     if refusals:
@@ -730,7 +734,12 @@ def preview_paste(
     ground = traced(Ground(session, place.project_id, tree, facts.is_main))
     held = (place, writer.act, facts.planning_start_on)
     board = _Board(
-        ground, _items(session, place.project_id), held, tree.order[-1], block.target_node_id
+        ground,
+        _items(session, place.project_id),
+        held,
+        tree.order[-1],
+        block.target_node_id,
+        read_defaults(session),
     )
     start = tree.order.index(block.target_node_id)
     given_rows: list[_Row] = []
@@ -852,19 +861,34 @@ def _bearer_of(write: Write, row: _Row, outcome: _Outcome) -> UUID | None:
     return None
 
 
-def _blamed(write: Write, first: tuple[_Row, _Outcome]) -> tuple[UUID | None, str]:
-    """Name the task a paste beyond the horizon is refused for: its first row, null if created.
+def _blamed(
+    write: Write, judged: list[tuple[_Row, _Outcome]]
+) -> tuple[tuple[UUID | None, str], dict[UUID, tuple[UUID | None, str]]]:
+    """Name the tasks a paste beyond the horizon is refused for: its first row, then each by task.
 
-    A row of a line names the task that bears it.
+    A task is named by its node and its label, the node null for a task created; a row of a line
+    names the task that bears it. The engine finds the task that carries the structure beyond the
+    horizon: the refusal names that one, a task of the paste (#2606) or the one the paste moves
+    that is none of its rows, a successor it pushes (WF-PLA-0150-A). The first row stands only
+    where a write names a task, never where the engine finds one.
     """
-    row, outcome = first
-    bearer = _bearer_of(write, row, outcome)
-    if bearer is not None:
-        return bearer, write.tree.tasks[bearer].label
-    if outcome.creation is not None:
-        task = outcome.creation.creation.task
-        return None, "" if task is None else task.label or ""
-    return row.node_id, write.tree.tasks[row.node_id].label
+    every: dict[UUID, tuple[UUID | None, str]] = {}
+    first: tuple[UUID | None, str] | None = None
+    for row, outcome in judged:
+        bearer = _bearer_of(write, row, outcome)
+        if bearer is not None:
+            key, name = bearer, (bearer, write.tree.tasks[bearer].label)
+        elif outcome.creation is not None:
+            task = outcome.creation.creation.task
+            key, name = row.node_id, (None, "" if task is None else task.label or "")
+        else:
+            key, name = row.node_id, (row.node_id, write.tree.tasks[row.node_id].label)
+        every.setdefault(key, name)
+        first = first or every[key]
+    if first is None:
+        msg = "a paste to write has a row"
+        raise RuntimeError(msg)
+    return first, every
 
 
 def apply_paste(
@@ -904,8 +928,14 @@ def apply_paste(
             ground = Ground(session, place.project_id, write.tree, write.facts.is_main)
             held = (place, writer.act, write.facts.planning_start_on)
             items = _items(session, place.project_id)
+            defaults = read_defaults(session)
             board = _Board(
-                traced(ground), items, held, write.tree.order[-1], kept.plan.target_node_id
+                traced(ground),
+                items,
+                held,
+                write.tree.order[-1],
+                kept.plan.target_node_id,
+                defaults,
             )
             judged = _rejudged(board, rows, refused)
             _some(judged, refused)
@@ -922,7 +952,8 @@ def apply_paste(
                     if (bearer := _bearer_of(write, each, outcome)) is not None
                 )
             )
-            redated = write.redate(_blamed(write, judged[0]), None, bearers)
+            first, among = _blamed(write, judged)
+            redated = write.redate(first, None, bearers, among=among)
             write.after(touched)
             result = redated.written(list(node_ids))
     except _NothingToWriteError as nothing:
