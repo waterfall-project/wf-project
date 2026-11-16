@@ -35,6 +35,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type DragEvent,
+  useCallback,
   useEffect,
   useId,
   useLayoutEffect,
@@ -46,8 +47,10 @@ import {
 } from "react";
 
 import { setTaskProgress } from "@/api/actions/nodes";
+import type { Outcome } from "@/api/problem";
 import { useUnmet } from "@/components/commands/command";
 import { useHeldCommand } from "@/components/commands/held";
+import { useReadAnew } from "@/components/commands/outcome-notice";
 import { PROGRESS_ICONS } from "@/components/grid/planning-cells";
 
 import type { KanbanFilters, TaskProgress } from "./address";
@@ -69,6 +72,40 @@ import {
   replaced,
   TITLE,
 } from "./kanban-cards";
+
+/** The outcome a card tells, when it tells one rather than a sentence. */
+function toldOn(notice: Notice | undefined): Outcome<unknown> | undefined {
+  return notice?.kind === "outcome" ? notice.outcome : undefined;
+}
+
+/** A write lost once sent, whose reading anew the board makes. */
+interface LostWrite {
+  readonly id: number;
+  readonly outcome: Outcome<unknown>;
+}
+
+/** Whether the card is told a write lost whose reading anew has not ended: its gestures wait. */
+function lostOf(notice: Notice | undefined, lostOnes: readonly LostWrite[]): boolean {
+  const told = toldOn(notice);
+  return told !== undefined && lostOnes.some((each) => each.outcome === told);
+}
+
+/** The reading anew of one write lost, mounted for as long as it lasts: it says when it ends. */
+function ReadingAnew({
+  lost,
+  onEnd,
+}: {
+  readonly lost: LostWrite;
+  readonly onEnd: (id: number) => void;
+}) {
+  const reading = useReadAnew(lost.outcome);
+  useEffect(() => {
+    if (!reading) {
+      onEnd(lost.id);
+    }
+  }, [reading, lost.id, onEnd]);
+  return null;
+}
 
 /** The mark of a card: updating while the tasks are read anew, outdated if that reading failed. */
 function readingOf(answer: KanbanCard | undefined, failed: boolean): CardState["reading"] {
@@ -112,6 +149,14 @@ export function Kanban({
   const [writing, setWriting] = useState<string>();
   const [asking, setAsking] = useState<Asking>();
   const [notices, setNotices] = useState<Readonly<Record<string, Notice>>>({});
+  // The writes lost once sent whose reading anew has not ended: the screen is read anew once per
+  // write lost, by the board, not by every card (US-2240, #3442), and the card each was told on
+  // waits for its own reading, whatever is refused meanwhile.
+  const [lostOnes, setLostOnes] = useState<readonly LostWrite[]>([]);
+  const lostCount = useRef(0);
+  const readEnded = useCallback((ended: number) => {
+    setLostOnes((were) => were.filter((each) => each.id !== ended));
+  }, []);
   // The sentence told, and how many were: the same sentence told again is a new node of the live
   // region, so that it is announced again.
   const [announced, setAnnounced] = useState({ text: "", count: 0 });
@@ -237,6 +282,11 @@ export function Kanban({
       }
       if (outcome.kind !== "done") {
         say(card.node_id, { kind: "outcome", outcome });
+        if (outcome.kind === "unreachable" && outcome.sent === true) {
+          lostCount.current += 1;
+          const id = lostCount.current;
+          setLostOnes((were) => [...were, { id, outcome }]);
+        }
         // A task the API refuses for its state, or for a version past, is no more what the card
         // shows: the tasks are read anew.
         if (outcome.kind === "conflict" || outcome.kind === "stale") {
@@ -450,6 +500,7 @@ export function Kanban({
                         notice: notices[card.node_id],
                         asking: asking?.id === card.node_id ? asking : undefined,
                         reading: readingOf(answered[card.node_id], failed),
+                        lost: lostOf(notices[card.node_id], lostOnes),
                       }}
                     />
                   ))}
@@ -459,6 +510,9 @@ export function Kanban({
           );
         })}
       </div>
+      {lostOnes.map((each) => (
+        <ReadingAnew key={each.id} lost={each} onEnd={readEnded} />
+      ))}
     </div>
   );
 }

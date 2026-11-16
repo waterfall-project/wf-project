@@ -29,7 +29,7 @@ import { useUnmet } from "@/components/commands/command";
 import { type CommandHelp, CommandTooltip } from "@/components/commands/command-tooltip";
 import { MenuCommand } from "@/components/commands/menu-command";
 import { UNAVAILABLE } from "@/components/commands/offer";
-import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
+import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -367,6 +367,11 @@ export interface CardState {
   readonly notice: Notice | undefined;
   /** The card answered a gesture: being updated, or not up to date once the reading is over. */
   readonly reading: "updating" | "outdated" | undefined;
+  /**
+   * A gesture of the card lost once sent: its gestures wait until the screen has been read anew
+   * (US-2240) — read once by the board (`useReadAnew`), not by each card.
+   */
+  readonly lost: boolean;
 }
 
 /** The title of a card: its number, the mark of a milestone, its label, and when it ends. */
@@ -537,8 +542,7 @@ export function Card({
   const isSelected = selected === card.node_id;
   const [menuOpen, setMenuOpen] = useState(false);
   const item = useRef<HTMLLIElement | null>(null);
-  // A gesture of the card lost once sent: its gestures wait until the screen has been read anew (US-2240).
-  const lost = useReadAnew(state.notice?.kind === "outcome" ? state.notice.outcome : undefined);
+  const { lost } = state;
   return (
     <li
       ref={(element) => {

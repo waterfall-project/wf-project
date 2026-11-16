@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -386,13 +386,31 @@ describe("the marking of a revision", () => {
     await userEvent.click(markCommand());
     expect(markCommand()).toHaveAttribute("aria-expanded", "true");
 
+    // The entry closed by Cancel while the page is read anew: the command stays held, opens
+    // nothing, and the notice that the marking may have been done stays told (#3443).
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
+      await Promise.resolve();
+    });
+    expect(screen.queryByRole("form")).toBeNull();
+    expect(markCommand()).toHaveAttribute("aria-expanded", "false");
+    expect(markCommand()).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("alert")).toHaveTextContent("l’opération a pu aboutir");
+    await userEvent.click(markCommand());
+    expect(screen.queryByRole("form")).toBeNull();
+    expect(markCommand()).toHaveAttribute("aria-expanded", "false");
+
     await act(async () => {
       releaseReading();
       await Promise.resolve();
     });
     expect(markCommand()).not.toHaveAttribute("aria-disabled");
-    expect(submit).not.toHaveAttribute("aria-disabled");
+    expect(screen.queryByRole("alert")).toBeNull();
     expect(send).toHaveBeenCalledOnce();
+    // Given back, the command opens the entry again.
+    await userEvent.click(markCommand());
+    expect(markCommand()).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("form")).toBeVisible();
   });
 
   it("opens nothing on a marked revision, where the marking is unavailable", async () => {

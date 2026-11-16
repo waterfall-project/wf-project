@@ -248,6 +248,18 @@ export function MarkCommand({ offer, revision, names }: MarkCommandProps) {
           onOutcome={setOutcome}
           reading={reading}
         />
+      ) : reading ? (
+        // The form closed while the screen is read anew: the command stays unavailable, and the
+        // notice of the marking that may have been done stays told as long (#3443).
+        <OutcomeNotice
+          outcome={outcome}
+          names={names}
+          subject={names[revision.revision_id]}
+          reading={reading}
+          onClear={() => {
+            setOutcome(undefined);
+          }}
+        />
       ) : null}
     </div>
   );

@@ -14,3 +14,15 @@ export function browserOffline(): () => void {
     spy.mockRestore();
   };
 }
+
+/**
+ * The browser knows itself online (`navigator.onLine` true) as a write is sent: a rejection of
+ * `fetch` is then a write that may have been done (`sent`). The symmetrical of `browserOffline`:
+ * called as `onTestFinished(browserOnline())`, it restores the link at the end of the test.
+ */
+export function browserOnline(): () => void {
+  const spy = vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+  return () => {
+    spy.mockRestore();
+  };
+}
