@@ -7,10 +7,11 @@ date), under ``project_indicators.read``. The instant of the computation is read
 its day is that of the time zone of the installation; the server classifies the zone of each index
 on the thresholds of the reference data, the front deduces nothing.
 
-The scope is read as the contract writes it: ``project``, ``unassigned``, or the identifier of a
-subproject. A text that is none of them is read as the nil identifier, which no subproject bears:
-the indicators refuse it as unknown (``UNKNOWN_SUBPROJECT``), after the state of the project, in
-the order of the contract, as a subproject the project does not have.
+The scope is read (``waterfall.api.scopes``) as the contract writes it: ``project``,
+``unassigned``, or the identifier of a subproject. A text that is none of them is read as the nil
+identifier, which no subproject bears: the indicators refuse it as unknown
+(``UNKNOWN_SUBPROJECT``), after the state of the project, in the order of the contract, as a
+subproject the project does not have.
 """
 
 from datetime import date
@@ -21,29 +22,14 @@ from fastapi import APIRouter, Depends, Query
 
 from waterfall.api.authentication import Transaction
 from waterfall.api.evaluation import RequiresProject
-from waterfall.core.costs.interface import PROJECT, UNASSIGNED, CostScope
+from waterfall.api.scopes import scope_of
+from waterfall.core.costs.interface import PROJECT
 from waterfall.core.indicators.interface import IndicatorsReading, project_indicators
 from waterfall.platform.database import utc_now
 
 router = APIRouter(tags=["indicators"])
 
 READ = "project_indicators.read"
-# The identifier a malformed scope is read as: no subproject bears it.
-NO_SUBPROJECT = UUID(int=0)
-
-
-def scope_of(text: str) -> CostScope:
-    """Read the scope asked: the project, the project alone, or the identifier of a subproject."""
-    if text == PROJECT:
-        return PROJECT
-    if text == UNASSIGNED:
-        return UNASSIGNED
-    try:
-        found = UUID(text)
-    except ValueError:
-        return NO_SUBPROJECT
-    # ``format: uuid`` is the hyphenated form; ``UUID`` also reads braces, ``urn:uuid:``, no hyphen.
-    return found if str(found) == text.lower() else NO_SUBPROJECT
 
 
 @router.get(

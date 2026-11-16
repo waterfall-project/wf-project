@@ -81,6 +81,12 @@ from waterfall.core.indicators.interface.reading import (
 
 # ``stored_documents`` (US-1660/L1; US-1670/L1): a document a marked revision kept.
 from waterfall.core.indicators.interface.stored_documents import (
+    kept_any as kept_any,
+)
+from waterfall.core.indicators.interface.stored_documents import (
+    revisions_keeping_project as revisions_keeping_project,
+)
+from waterfall.core.indicators.interface.stored_documents import (
     stored_document as stored_document,
 )
 

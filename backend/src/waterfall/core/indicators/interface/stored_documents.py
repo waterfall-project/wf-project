@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
+from waterfall.core.costs.interface import PROJECT
 from waterfall.core.indicators.tables import RevisionIndicator
 from waterfall.core.revisions.interface import revision_project
 
@@ -42,5 +43,39 @@ def stored_document(
             RevisionIndicator.revision_id == revision_id,
             RevisionIndicator.kind == kind,
             RevisionIndicator.scope == str(scope),
+        )
+    )
+
+
+def kept_any(session: Session, revision_id: UUID, kind: IndicatorKind) -> bool:
+    """Tell whether a revision kept a document of a kind, on whatever scope.
+
+    A revision that kept the kind but not a scope does not know that scope (a subproject created
+    since its marking); one that kept none of the kind was marked before the indicators were kept.
+    """
+    project_id = revision_project(session, revision_id)
+    return (
+        session.scalar(
+            select(RevisionIndicator.id)
+            .where(
+                RevisionIndicator.project_id == project_id,
+                RevisionIndicator.revision_id == revision_id,
+                RevisionIndicator.kind == kind,
+            )
+            .limit(1)
+        )
+        is not None
+    )
+
+
+def revisions_keeping_project(session: Session, project_id: UUID) -> set[UUID]:
+    """Give the revisions of a project that kept the indicators of the project, in one statement."""
+    return set(
+        session.scalars(
+            select(RevisionIndicator.revision_id).where(
+                RevisionIndicator.project_id == project_id,
+                RevisionIndicator.kind == "project",
+                RevisionIndicator.scope == PROJECT,
+            )
         )
     )

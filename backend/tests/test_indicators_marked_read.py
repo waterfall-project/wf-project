@@ -11,7 +11,7 @@ remaining to commit of a marked revision are read as kept; the exit that marks i
 revision it marked. The project is the one of ``test_indicators_stored``, whose helpers are read.
 """
 
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -31,7 +31,7 @@ from day_indicators_support import (
 from fastapi.testclient import TestClient
 from imports_trial import import_worker
 from indicators_support import clock_setter
-from nodes_support import refusal
+from nodes_support import faults, refusal
 from planning_support import DAY
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
@@ -53,12 +53,11 @@ from waterfall.core.costs.tables import CostLine
 from waterfall.core.revisions.interface import mark_revision
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
+from waterfall.platform.installation import TIME_ZONE
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from day_indicators_support import Priced
     from indicators_support import Clock
     from openapi_core import OpenAPI
@@ -342,6 +341,90 @@ def test_the_estimate_and_the_remaining_of_a_marked_revision_are_read_as_kept(
     old = api.get(f"{base}/estimate-indicators?revision_id={project.reference_id}", headers=headers)
     assert old.json()["context"]["is_stored"] is True
     assert old.json()["total"]["value"] == "1000.00"
+
+
+@pytest.mark.requirement("WF-DAT-0040-A")
+def test_a_scope_the_marking_did_not_keep_is_unknown_to_the_revision_not_computed(
+    api: ContractClient, stage: Scene, clock: Clock, project: Priced, lot: str
+) -> None:
+    # « Les routes lisent `stored_document` pour une révision marquée » : a subproject created
+    # after the marking is none of that revision's, refused as a subproject the project does not
+    # have (422), the revision never computed again; the scopes it kept are read as kept.
+    review = project.tree.revision["revision_id"]
+    marked_on(stage, clock, project.tree.revision, 1)
+    since = subproject(api, stage, "10002", "Lot 10002")
+    base = project_path(stage)
+    headers = stage.manager.headers
+    unknown: list[tuple[str, str, dict[str, Any]]] = [("/query/scope", "UNKNOWN_SUBPROJECT", {})]
+    refused = api.get(f"{base}/estimate-indicators{named(review, since)}", headers=headers)
+    assert faults(refused) == unknown
+    # The current revision, opened after, knows it and computes it.
+    current = reopened(api, stage)["revision_id"]
+    found = api.get(f"{base}/estimate-indicators{named(current, since)}", headers=headers)
+    assert found.status_code == 200, found.text
+    assert found.json()["context"]["is_stored"] is False
+    kept_scope = api.get(
+        f"{base}/estimate-indicators{named(review, lot)}",
+        headers=headers,
+    )
+    assert kept_scope.status_code == 200, kept_scope.text
+    assert kept_scope.json()["context"]["is_stored"] is True
+
+
+@pytest.mark.requirement("WF-DAT-0040-A")
+def test_a_marked_revision_that_holds_no_document_at_all_is_computed_and_not_stored(
+    api: ContractClient,
+    stage: Scene,
+    clock: Clock,
+    project: Priced,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A revision marked before the indicators were kept holds no row (migration 0031 takes none
+    # up): neither refused nor recomputed as kept, it is read as the current one is, `is_stored`
+    # false. The absence of any document is simulated at the two readings the route makes.
+    review = project.tree.revision["revision_id"]
+    marked_on(stage, clock, project.tree.revision, 1)
+
+    def nothing(*_: object) -> None:
+        return None
+
+    def never(*_: object) -> bool:
+        return False
+
+    monkeypatch.setattr("waterfall.api.scopes.stored_document", nothing)
+    monkeypatch.setattr("waterfall.api.scopes.kept_any", never)
+    base = project_path(stage)
+    for path in ("estimate-indicators", "remaining-indicators"):
+        found = api.get(f"{base}/{path}?revision_id={review}", headers=stage.manager.headers)
+        assert found.status_code == 200, found.text
+        assert found.json()["context"]["is_stored"] is False
+        assert found.json()["context"]["revision_status"] == "marked"
+
+
+@pytest.mark.requirement("WF-IND-0010-A")
+def test_the_day_of_a_date_is_that_of_the_time_zone_of_the_installation(
+    api: ContractClient, stage: Scene, project: Priced
+) -> None:
+    # `as_of` is read on the day of the installation, as the day of a marking is: a marking at
+    # 23:30 universal time is already on the next day in Paris. The day before is refused (409), the
+    # next day names the revision; in universal time the same marking falls on the first.
+    TIME_ZONE.read_from(lambda: "Europe/Paris")
+    day = utc_now().date() + ONE_DAY
+    at = datetime(day.year, day.month, day.day, 23, 30, tzinfo=UTC)
+    with (
+        logging_context(correlation_id="marking"),
+        Session(stage.owner) as session,
+        session.begin(),
+    ):
+        act = Act(stage.manager.user_id, at)
+        mark_revision(session, UUID(project.tree.revision["revision_id"]), "Revue", None, act)
+    revision = project.tree.revision["revision_id"]
+    assert refusal(indicators_answer(api, stage, f"?as_of={day.isoformat()}")) == OFFER
+    next_day = day + ONE_DAY
+    found = indicators(api, stage, f"?as_of={next_day.isoformat()}")
+    assert found["context"]["revision_id"] == revision
+    TIME_ZONE.read_from(lambda: "UTC")
+    assert indicators(api, stage, f"?as_of={day.isoformat()}")["context"]["revision_id"] == revision
 
 
 @pytest.mark.requirement("WF-CYC-0090-A")

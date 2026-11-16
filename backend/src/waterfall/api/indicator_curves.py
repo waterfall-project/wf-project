@@ -17,7 +17,8 @@ from pydantic import BaseModel
 
 from waterfall.api.authentication import Transaction
 from waterfall.api.evaluation import RequiresProject
-from waterfall.api.project_indicators import READ, scope_of
+from waterfall.api.project_indicators import READ
+from waterfall.api.scopes import scope_of
 from waterfall.core.costs.interface import PROJECT
 from waterfall.core.indicators.interface import IndicatorsReading, cost_curve, earned_value_curves
 from waterfall.platform.database import utc_now

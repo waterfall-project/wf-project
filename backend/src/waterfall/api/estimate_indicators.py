@@ -17,13 +17,9 @@ from fastapi import APIRouter, Depends, Query
 
 from waterfall.api.authentication import Transaction
 from waterfall.api.evaluation import RequiresProject
-from waterfall.api.project_indicators import scope_of
+from waterfall.api.scopes import kept_document, scope_of
 from waterfall.core.estimate.interface import IndicatorsAsked, estimate_indicators, missing_rates
-from waterfall.core.indicators.interface import (
-    estimate_document,
-    missing_rate_document,
-    stored_document,
-)
+from waterfall.core.indicators.interface import estimate_document, missing_rate_document
 from waterfall.core.revisions.interface import read_revision_for
 from waterfall.platform.database import utc_now
 
@@ -47,13 +43,15 @@ def get_indicators(
 ) -> dict[str, Any]:
     """Give the total of an estimate, its ventilations and its differences, in one reading.
 
-    A marked revision answers the document its marking kept, ``is_stored`` true (WF-DAT-0040); the
-    current one is computed at the reading. A scope the marking did not keep — a subproject created
-    since, one the project does not have — is computed, and refused as such (422).
+    A marked revision answers the document its marking kept, ``is_stored`` true (WF-DAT-0040), never
+    computed again; the current one is computed at the reading. A scope the marking did not keep —
+    a subproject created since, one the project does not have — is unknown to the revision (422).
+    Only a revision marked before the indicators were kept, which holds no document at all, is
+    computed at the reading, ``is_stored`` false (EP-10, "La conservation au marquage").
     """
     read = read_revision_for(session, project_id, revision_id)
     if read.marked:
-        kept = stored_document(session, read.revision_id, "estimate", scope_of(scope))
+        kept = kept_document(session, read.revision_id, "estimate", scope_of(scope))
         if kept is not None:
             return kept
     asked = IndicatorsAsked(revision_id, scope, utc_now())
