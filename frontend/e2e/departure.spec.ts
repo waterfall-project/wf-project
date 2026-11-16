@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { type CDPSession, expect, type Page, test } from "@playwright/test";
 
-import { WORKING } from "./bounds";
+import { OPENING_PATH, WORKING } from "./bounds";
 import { openHydrated } from "./hydration";
 import { path, text } from "./routes";
 
@@ -138,7 +138,7 @@ function ms(value: number): string {
 test("leaves the planning of a thousand tasks for another screen within a second of the work of the browser, its processor slowed four times (US-0800)", async ({
   page,
 }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(OPENING_PATH);
   const session = await page.context().newCDPSession(page);
   await session.send("Performance.enable");
   await depart(page, session);

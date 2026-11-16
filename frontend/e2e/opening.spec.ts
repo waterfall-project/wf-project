@@ -4,6 +4,7 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 
 import { expect, type Page, test } from "@playwright/test";
 
+import { OPENING_PATH } from "./bounds";
 import {
   CLICKED,
   followRequests,
@@ -301,7 +302,7 @@ async function measuresTheSecond(page: Page, screen: GridScreen, from: GridScree
 }
 
 test.describe("the opening of a grid of a thousand tasks", () => {
-  test.describe.configure({ timeout: 180_000 });
+  test.describe.configure({ timeout: OPENING_PATH });
 
   test.beforeEach(async ({ page }) => {
     await watchGrids(page);

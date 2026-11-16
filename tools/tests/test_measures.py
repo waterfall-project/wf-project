@@ -335,9 +335,7 @@ def test_the_figures_of_the_compose_readme_are_the_ones_of_the_processes_report(
         return french(usable(processes, users, step) / 1000, decimals, "s")
 
     def chain(step: str) -> str:
-        return (
-            f"de {seconds(1, 8, step)} à {seconds(2, 8, step)} puis {seconds(4, 8, step)}"
-        )
+        return f"de {seconds(1, 8, step)} à {seconds(2, 8, step)} puis {seconds(4, 8, step)}"
 
     assert "l'ouverture du planning passe " + chain("planning.by-address") in text
     assert "le devis " + chain("estimate.from-planning") in text
@@ -345,10 +343,12 @@ def test_the_figures_of_the_compose_readme_are_the_ones_of_the_processes_report(
     assert f"`getMe` de {me[0]} ms à {me[1]} ms puis {me[2]} ms" in text
     assert f"de {seconds(2, 8, 'planning.label', 2)} (deux processus)" in text
     assert f"à {seconds(4, 8, 'planning.label', 2)} (quatre)" in text
-    slower = f"({seconds(2, 4, 'planning.duration', 2)} contre {seconds(1, 4, 'planning.duration', 2)})"
+    four = seconds(2, 4, "planning.duration", 2)
+    slower = f"({four} contre {seconds(1, 4, 'planning.duration', 2)})"
     assert slower in text
     resident = [p["rss_mb"] / 1000 for p in runs[4]["memory"]["processes"]]
-    assert 0.6 <= round(min(resident), 1) and round(max(resident), 1) <= 0.7
+    assert round(min(resident), 1) >= 0.6
+    assert round(max(resident), 1) <= 0.7
     assert f"quatre processus, {french(sum(resident), 1, 'Go')}" in text
     assert f"({french(runs[1]['memory']['processes'][0]['rss_mb'] / 1000, 1, 'Go')} quand" in text
     assert f"À un processus, le serveur accepte {runs[1]['max_connections']} connexions" in text

@@ -31,7 +31,14 @@ import { Counter } from "k6/metrics";
 import type { Options } from "k6/options";
 
 import { type Gesture, gestures } from "./draw.ts";
-import { ENTRIES, type Place, READINGS, refusedByState, taskPath, type Written } from "./screens.ts";
+import {
+  ENTRIES,
+  type Place,
+  READINGS,
+  refusedByState,
+  taskPath,
+  type Written,
+} from "./screens.ts";
 
 /** A user of the load, as the preparation hands it. */
 interface Prepared {
@@ -95,7 +102,7 @@ export const options: Options = {
 const made = new Counter("gestures");
 const reads = new Counter("gestures_read");
 const readsFrozen = new Counter("gestures_read_frozen");
-const readsRefused =new Counter("gestures_read_refused");
+const readsRefused = new Counter("gestures_read_refused");
 const writes = new Counter("gestures_write");
 const writesFrozen = new Counter("gestures_write_frozen");
 const writesRefused = new Counter("gestures_write_refused");

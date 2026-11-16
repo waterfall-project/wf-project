@@ -81,7 +81,12 @@ describe("partsOf", () => {
   it("counts the requests whose bytes are unknown, which a step waits for [WF-QUA-0060-A]", () => {
     const known = { start: 1_000, end: 1_200, bytes: 700, path: PLANNING, prefetch: false };
     const cut = failedRequest(0, 1_100, 1_500, true, PLANNING);
-    const parts = partsOf({ start: 1_200, end: 2_000 }, [known, cut], [answered(1_300, 1_400)], USER);
+    const parts = partsOf(
+      { start: 1_200, end: 2_000 },
+      [known, cut],
+      [answered(1_300, 1_400)],
+      USER,
+    );
     expect(parts).toMatchObject({ bytes: 0, unweighed: 1, apiRequests: 1 });
   });
 
@@ -321,7 +326,12 @@ describe("stepReports", () => {
 describe("brokenSteps", () => {
   /** A level whose users completed each step in the one pass but where `missed` says. */
   const level = (users: number, missed: readonly string[]): LevelReport => {
-    const parts = { usable: 100, api: 0, next: 0, browser: 100, bytes: 0,
+    const parts = {
+      usable: 100,
+      api: 0,
+      next: 0,
+      browser: 100,
+      bytes: 0,
       unweighed: 0,
       apiRequests: 0,
     };
