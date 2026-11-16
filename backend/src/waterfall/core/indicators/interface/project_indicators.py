@@ -11,7 +11,9 @@ before In progress is refused (409).
 
 The refusals come in the order of the contract: the project unknown (404), then a project that
 never was In progress (409, its state named); then the parameters (422) — a scope that is not a
-subproject of the project, ``revision_id`` and ``as_of`` together —, each named at once.
+subproject of the project, ``revision_id`` and ``as_of`` together —, each named at once; then a
+``revision_id`` that is not a revision of the project (404, as any object the project does not
+have).
 
 On the current day — no revision named, or the current one —, the indicators are computed on the
 current revision, or, without one, on the last marked revision with the actual cost of the day
@@ -98,9 +100,12 @@ def project_indicators(session: Session, project_id: UUID, asked: IndicatorsRead
     facts = project_facts(session, project_id)
     _refuse_before_in_progress(session, project_id, facts.state)
     _refuse_parameters(session, project_id, asked)
+    named = None
+    if asked.revision_id is not None:
+        named = read_revision_for(session, project_id, asked.revision_id)
     if not _is_of_the_day(facts, asked):
         return _kept_indicators(session, project_id, asked)
-    read = read_revision_for(session, project_id, None)
+    read = named or read_revision_for(session, project_id, None)
     status = MARKED if read.marked else DRAFT
     context = Context(read.revision_id, status, asked.at, asked.scope, is_stored=False)
     scope = asked.scope

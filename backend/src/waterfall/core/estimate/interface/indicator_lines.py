@@ -8,8 +8,8 @@ subproject in that revision, its budgeted and re-estimated amounts, its payment 
 as a spreading sees it, on the calendar it is worked on, its role's for a labour line, its task's
 otherwise. A marked revision is read on the images its marking kept of the calendars of the roles
 (``kept_reference``); its dates are those its marking froze. ``planned_value_at`` is the planned
-value of lines at the end of a day, by the pure spreading of EP-07, rounded once to the cent: what
-``planned_value`` gives of the reference, on the lines a caller chose.
+value of lines at the end of a day, by the pure spreading of EP-07, the share of each line rounded
+to the cent, so that the planned value of a scope is the sum of those of its lines.
 
 ``lines_stamp``, the number of the lines of a revision and the last instant one was written, which
 the key of the cache of the indicators reads, is declared here and filled by US-1720/L2.
@@ -24,7 +24,7 @@ from waterfall.core.estimate.imaging import kept_reference
 from waterfall.core.estimate.placing import role_weeks
 from waterfall.core.estimate.reading import budgeted_of, rows_of
 from waterfall.core.estimate.remaining.reviewing import provisions_of
-from waterfall.core.estimate.spreading import Placement, PlannedLine, planned_value
+from waterfall.core.estimate.spreading import Placement, PlannedLine, planned_value_by_line
 from waterfall.core.planning.interface import lines_of, tasks_for_indicators, weekly_calendar
 from waterfall.core.revisions.interface import revision_marked_at
 
@@ -121,9 +121,11 @@ def planned_value_at(lines: Iterable[IndicatorLine], at: date) -> Decimal:
     """Give the planned value of lines at the end of a day: their budgeted amounts spread.
 
     Each line is spread over its task in proportion to the hours worked, a line of a milestone
-    counting whole at its date (WF-DEV-0080); the sum is rounded once.
+    counting whole at its date (WF-DEV-0080); each share is rounded to the cent, and their sum is
+    the planned value, whatever the scope the lines are grouped by (WF-IND-0020-A).
     """
-    return planned_value((PlannedLine(each.budgeted_amount, each.placement) for each in lines), at)
+    planned = (PlannedLine(each.budgeted_amount, each.placement) for each in lines)
+    return planned_value_by_line(planned, at)
 
 
 def lines_stamp(session: Session, project_id: UUID, revision_id: UUID) -> LinesStamp:

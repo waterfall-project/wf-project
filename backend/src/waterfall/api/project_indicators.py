@@ -39,9 +39,11 @@ def scope_of(text: str) -> CostScope:
     if text == UNASSIGNED:
         return UNASSIGNED
     try:
-        return UUID(text)
+        found = UUID(text)
     except ValueError:
         return NO_SUBPROJECT
+    # ``format: uuid`` is the hyphenated form; ``UUID`` also reads braces, ``urn:uuid:``, no hyphen.
+    return found if str(found) == text.lower() else NO_SUBPROJECT
 
 
 @router.get(

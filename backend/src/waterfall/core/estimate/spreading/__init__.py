@@ -16,6 +16,9 @@ from waterfall.core.estimate.spreading.planned import (
 from waterfall.core.estimate.spreading.planned import (
     planned_value as planned_value,
 )
+from waterfall.core.estimate.spreading.planned import (
+    planned_value_by_line as planned_value_by_line,
+)
 
 # ``spread``: the shares of a load or an amount by month and by year.
 from waterfall.core.estimate.spreading.spread import (

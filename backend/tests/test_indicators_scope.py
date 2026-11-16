@@ -169,16 +169,52 @@ def test_a_subproject_without_actual_cost_nor_remaining_has_no_financial_progres
     assert body["context"]["scope"] == scopes["SP-4"]
 
 
+@pytest.mark.requirement("WF-IND-0020-A")
 @pytest.mark.usefixtures("split")
 def test_a_scope_that_names_no_subproject_of_the_project_is_refused_on_its_parameter(
     api: ContractClient, stage: Scene
 ) -> None:
-    # Propre à l'US: a subproject the project does not have — unknown, or another project's — or
+    # A subproject the project does not have — unknown, or another project's — or
     # a malformed identifier, 422 ``UNKNOWN_SUBPROJECT`` on ``/query/scope``; no empty reading.
     elsewhere = create(api, stage.manager, label="Extension de la ligne d'essais")
     theirs = subproject_of(api, stage, elsewhere["project_id"])
     for scope in (str(uuid4()), theirs, "câblage", ""):
         assert faults(indicators_answer(api, stage, f"?scope={scope}")) == SCOPE_UNKNOWN, scope
+
+
+@pytest.mark.requirement("WF-IND-0020-A")
+@pytest.mark.usefixtures("split")
+def test_a_scope_is_read_as_the_hyphenated_identifier_the_contract_writes(
+    api: ContractClient, stage: Scene, scopes: dict[str, str]
+) -> None:
+    # ``format: uuid``: the subproject by its hyphenated identifier, in either case; the forms
+    # ``UUID`` also reads — no hyphen, braces, ``urn:uuid:`` — name no subproject.
+    key = scopes["SP-1"]
+    assert indicators(api, stage, f"?scope={key.upper()}")["context"]["scope"] == key
+    for scope in (key.replace("-", ""), "{" + key + "}", "urn:uuid:" + key):
+        assert faults(indicators_answer(api, stage, f"?scope={scope}")) == SCOPE_UNKNOWN, scope
+
+
+@pytest.mark.requirement("WF-IND-0020-A")
+def test_the_planned_values_of_the_scopes_sum_to_the_project_s_to_the_cent(
+    api: ContractClient, stage: Scene, clock: Clock, scopes: dict[str, str]
+) -> None:
+    # Two lines of 100.00 on tasks of 3 days, one per subproject: at the end of the first day each
+    # has 33.33, and the project 66.66, not the 66.67 of one rounding of the exact sum.
+    priced(
+        api,
+        stage,
+        [
+            Planned("Câblage", "100", scopes["SP-1"], "3"),
+            Planned("Essais", "100", scopes["SP-2"], "3"),
+        ],
+    )
+    clock(DAY)
+    whole = indicators(api, stage)
+    parts = [indicators(api, stage, f"?scope={key}") for key in (scopes["SP-1"], scopes["SP-2"])]
+    assert [each["planned_value"] for each in parts] == ["33.33", "33.33"]
+    assert whole["planned_value"] == "66.66"
+    assert sum(D(each["planned_value"]) for each in parts) == D(whole["planned_value"])
 
 
 def subproject_of(api: ContractClient, stage: Scene, project_id: str) -> str:

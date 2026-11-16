@@ -13,7 +13,7 @@ answer is checked against the contract.
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from costs_support import cost, load_import
@@ -31,7 +31,7 @@ from estimate_support import Lines
 from indicators_support import COMPLETED_ON, TODAY, clock_setter, marked, under_way
 from nodes_support import Tree, faults, opened, refusal
 from planning_support import DAY
-from projects_support import Scene
+from projects_support import PROJECTS, Scene, create
 from projects_support import scene as make_scene
 
 from waterfall.core.cost_settings.interface import (
@@ -118,10 +118,11 @@ def thresholds(stage: Scene, watch: str, alert: str) -> None:
         write_reference_settings(session, change, counter, Act(None, utc_now()))
 
 
+@pytest.mark.requirement("WF-IND-0010-A")
 def test_the_indicators_of_the_day_are_those_of_the_current_revision_with_their_context(
     api: ContractClient, stage: Scene, project: UnderWay
 ) -> None:
-    # Propre à l'US: no revision named, or the current one, the indicators of the current day on
+    # no revision named, or the current one, the indicators of the current day on
     # the current revision, ``computed_at`` the instant of the computation, not kept; the amounts
     # to the cent, the ratios and the indices to four decimals, the zones of the thresholds of the
     # installation, 0.9 and 0.8.
@@ -180,10 +181,11 @@ def test_a_project_before_in_progress_has_no_project_indicator_and_its_state_is_
         )
 
 
+@pytest.mark.requirement("WF-IND-0010-A")
 def test_a_revision_named_with_a_date_is_refused_with_an_unknown_scope_at_once(
     api: ContractClient, stage: Scene, project: UnderWay
 ) -> None:
-    # Propre à l'US: ``revision_id`` and ``as_of`` both choose the revision, 422 on
+    # ``revision_id`` and ``as_of`` both choose the revision, 422 on
     # ``/query/revision_id``; with an unknown scope, both refusals at once, the scope first.
     revision_id = project.tree.revision["revision_id"]
     both = f"?revision_id={revision_id}&as_of={TODAY.isoformat()}"
@@ -194,6 +196,25 @@ def test_a_revision_named_with_a_date_is_refused_with_an_unknown_scope_at_once(
         ("/query/scope", "UNKNOWN_SUBPROJECT", {}),
         ("/query/revision_id", "VALIDATION_FAILED", {}),
     ]
+
+
+@pytest.mark.requirement("WF-IND-0010-A")
+def test_a_revision_that_is_not_one_of_the_project_is_refused_as_not_found(
+    api: ContractClient, stage: Scene, project: UnderWay
+) -> None:
+    # The contract refuses with 404 an object the project does not have: a revision unknown, or
+    # another project's, never an error outside the envelope; the dates and the marked revisions
+    # of the project wait for US-1670/L2.
+    elsewhere = create(api, stage.manager, label="Extension de la ligne d'essais")
+    opened_there = api.post(
+        f"{PROJECTS}/{elsewhere['project_id']}/revisions", headers=stage.manager.headers, json={}
+    )
+    assert opened_there.status_code == 201, opened_there.text
+    for revision_id in (uuid4(), opened_there.json()["revision_id"]):
+        answer = indicators_answer(api, stage, f"?revision_id={revision_id}")
+        assert answer.status_code == 404, answer.text
+    own = project.tree.revision["revision_id"]
+    assert indicators_answer(api, stage, f"?revision_id={own}").status_code == 200
 
 
 @pytest.mark.requirement("WF-IND-0010-A")

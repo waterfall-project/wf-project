@@ -18,8 +18,9 @@ cost of each by its own sum (WF-IND-0010 to WF-IND-0030, WF-IND-0020):
   is the scope: a line moved from a subproject to another since the reference earns in the first
   and counts its remaining in the second.
 
-Nothing is rounded here but the planned value, rounded once by the spreading; the formulas round
-the rest (WF-DAT-0100).
+Nothing is rounded here but the planned value, whose share of each line is rounded by the
+spreading, so that the scopes sum to the project (WF-IND-0020-A); the formulas round the rest
+(WF-DAT-0100).
 """
 
 from dataclasses import dataclass, replace
