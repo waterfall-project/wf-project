@@ -4510,6 +4510,10 @@ the epic that lifts it; that epic removes the guard and its entry:
   structures) and **EP-10** (the indicators). The path that goes through the remaining to commit then
   the risks stays guarded by the risks. The banner of the planning (EP-06), of the estimate (US-1560, EP-07), of the screens of a project created, of
   its settings and of its revisions plays against the service.
+- `review.spec.ts` — the figures of the indicators (the remaining to commit, the reference budget,
+  the planned value, the variance and the schedule and cost indices, the date of the calculation)
+  are those of revision 101 of the examples; the reference of the loaded witness stays offer 100;
+  guarded by `inService`; **EP-08** (merge of amendment 1) removes the guard.
 - `planning.spec.ts`, `structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts` — the paths that
   write to the witness of PRJ-001, whose account of the run is no contributor (#2193): each has its
   twin against the service on a project of the run (`planning-service.spec.ts`, `structure.spec.ts`,

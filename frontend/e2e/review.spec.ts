@@ -286,7 +286,7 @@ for (const language of [FRENCH, ENGLISH]) {
       // The amounts, the indices and the date of calculation are the API's, formatted in the
       // language, the date in the time zone of the workstation (WF-ARC-0020). They are those of
       // the reference 101 of the example, which the witness loaded in the service lacks while its
-      // reference stays the offer 100: kept by `inService` until EP-08 (amendment 1).
+      // reference stays the offer 100: kept by `inService`, as the guide lists it (« review.spec.ts »).
       if (!inService) {
         for (const [term, shown] of language.figures) {
           await expect(definitionOf(page, term).getByRole("definition").first()).toHaveText(shown);
