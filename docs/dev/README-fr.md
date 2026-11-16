@@ -4251,7 +4251,8 @@ perdent (#471). Un parcours ouvre donc un écran de projet par `openHydrated`
 que la coquille n'écrit que dans un effet. Hors projet, rien n'en témoigne : le geste se répète
 jusqu'à ce que React y réponde, sans défaire celui qu'il a déjà reçu (`setExpanded`, `openMenu`, et
 `sortUntilAddress` pour un tri, qui ne se presse jamais à l'aveugle). Un écran de grille s'attend à
-la borne des écrans de grille, quinze secondes (`WORKING`, #315, #419), qu'un clic l'atteigne ou le
+la borne des écrans de grille, quinze secondes (`WORKING`, #315, #419 ; elle et les autres bornes des parcours sont écrites, avec
+les mesures qui les justifient, dans `frontend/e2e/bounds.ts`, US-2290), qu'un clic l'atteigne ou le
 relise (un tri, un filtre, une recherche, le détail d'une ligne). Un écran de grille est une grille
 dense — devis, planning, reste à engager, risques, coûts réels, portefeuille —, ou un écran qui lit
 la structure de mille tâches : l'arborescence et les chronologies, par `listNodes`, et le Kanban,

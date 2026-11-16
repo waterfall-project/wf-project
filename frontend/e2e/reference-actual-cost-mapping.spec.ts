@@ -12,7 +12,7 @@
  */
 import { expect } from "@playwright/test";
 
-import { WORKING } from "./hydration";
+import { WORKING } from "./bounds";
 import { inService, test } from "./mode";
 
 const COLUMN = "Poste de la pièce";

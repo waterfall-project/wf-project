@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { type Download, expect, type Locator, test } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import { menuButton, pick } from "./check-menu";
 import { compile } from "./compile";
-import { sortUntilAddress, WORKING } from "./hydration";
+import { sortUntilAddress } from "./hydration";
 import { scrollPageToGrid, withinBox } from "./scroll";
 
 // The fake back serves the first example of each read of the portfolio — the three hundred projects

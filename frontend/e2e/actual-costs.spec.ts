@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import { closeMenu, menuButton, openFilters, openMenu, pick } from "./check-menu";
-import { openHydrated, WORKING } from "./hydration";
+import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
 import { bringInProgress, importActualCosts } from "./in-progress";
 import { createOwnProject, openRevision } from "./own-project";

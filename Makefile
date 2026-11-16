@@ -758,6 +758,12 @@ E2E_SERVICE_WORKERS = $(shell workers=$$(($(E2E_SERVICE_PROCESSORS) * 3 / 4)); e
 # the fast tier, which does not play the paths. The target-specific override below keeps an empty
 # E2E_WORKERS= of the command line, which would win with its empty value, from reaching Playwright.
 $(if $(or $(filter e2e-service,$(MAKECMDGOALS)),$(and $(filter full,$(TIER)),$(filter check-service check-all,$(MAKECMDGOALS)))),$(if $(E2E_SERVICE_PROCESSORS),))
+# The workers the paths against the service take here, written in the log of the chain beside the
+# processors of its runner (service.yml, US-2290): four processors give three workers, beside the
+# four processes of the API.
+.PHONY: e2e-service-workers
+e2e-service-workers: ## Print the number of workers make e2e-service gives Playwright here (E2E_SERVICE_WORKERS, or E2E_WORKERS given)
+	@echo $(or $(E2E_WORKERS_GIVEN),$(E2E_SERVICE_WORKERS))
 e2e-service: override export E2E_WORKERS = $(or $(E2E_WORKERS_GIVEN),$(E2E_SERVICE_WORKERS))
 e2e-service: export WATERFALL_FRONT_ADDRESS = http://127.0.0.1:$(E2E_FRONT_PORT)
 e2e-service: export WATERFALL_FRONT_BACKCHANNEL = http://host.docker.internal:$(E2E_FRONT_PORT)

@@ -783,7 +783,7 @@ migration ni invariant à tenir.
 
 ## US-2290 — Les parcours lourds contre le service ont des bornes de temps mesurées, et le parcours en quarantaine est rejoué
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : `listNodes`
 - **issue** : #3323

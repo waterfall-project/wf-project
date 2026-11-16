@@ -11,8 +11,9 @@
  */
 import { expect, test } from "@playwright/test";
 
+import { WORKING } from "../bounds";
 import { compileAnswered } from "../compile";
-import { openMenu, WORKING } from "../hydration";
+import { openMenu } from "../hydration";
 import { heldToTheContract } from "./contract";
 import type { components } from "../../src/api/generated/schema";
 import {

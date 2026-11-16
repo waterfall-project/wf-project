@@ -4216,7 +4216,8 @@ the witness of hydration: the cookie `wf_last_project`, which the shell writes o
 Outside a project, nothing witnesses it: the gesture is repeated until React answers it, without
 undoing the one it has already received (`setExpanded`, `openMenu`, and `sortUntilAddress` for a
 sort, which never hurries blindly). A grid screen is waited for up to the bound of grid screens,
-fifteen seconds (`WORKING`, #315, #419), whether a click reaches it or reloads it (a sort, a filter,
+fifteen seconds (`WORKING`, #315, #419; it and the other bounds of the paths are written, with the
+measures that justify them, in `frontend/e2e/bounds.ts`, US-2290), whether a click reaches it or reloads it (a sort, a filter,
 a search, the detail of a line). A grid screen is a dense grid — estimate, planning, remaining to
 commit, risks, actual costs, portfolio —, or a screen that reads the structure of a thousand tasks:
 the tree and the timelines, by `listNodes`, and the Kanban, by `listStartableTasks` — the

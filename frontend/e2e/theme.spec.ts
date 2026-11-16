@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import { axeViolations } from "./axe";
-import { holdRoute, setExpanded, untilHydrated, WORKING } from "./hydration";
+import { holdRoute, setExpanded, untilHydrated } from "./hydration";
 import { path } from "./routes";
 
 // The account of the fake back follows the workstation (`theme: default`): the mode the
