@@ -47,6 +47,8 @@ def role_of(role: RoleLoad) -> dict[str, Any]:
             }
             for each in role.months
         ],
+        # The detail by task comes with US-2040/L2; until then each role carries none.
+        "tasks": [],
     }
 
 

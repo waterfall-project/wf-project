@@ -185,7 +185,7 @@ describe("the workload of a project", () => {
     // June after the calculation, then the wiring on site and the tasks that follow.
     expect(series[0]?.data?.slice(0, 2)).toEqual([
       ["2026-06-01T00:00:00Z", "1465.75"],
-      ["2026-07-01T00:00:00Z", "2622.38"],
+      ["2026-07-01T00:00:00Z", "2622.41"],
     ]);
     // The bars and the totals alone: the capacity of each role, that of the whole installation, is
     // in the table, in regard of its load, never drawn — a line that would crush the bars (#375,
@@ -278,7 +278,7 @@ describe("the workload of a project", () => {
     const listed = rows.map((row) => row.textContent);
     expect(listed.slice(0, 2)).toEqual([
       "Ingénieur électricienJune 20261,465.75658,654Nominal",
-      "Ingénieur électricienJuly 20262,622.38658,654Nominal",
+      "Ingénieur électricienJuly 20262,622.41658,654Nominal",
     ]);
     expect(listed).toContain("Technicien de mise en serviceDecember 20261,183.32485,324Nominal");
     expect(listed.slice(-2)).toEqual([

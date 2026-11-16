@@ -3878,6 +3878,13 @@
         "current_remaining": "Remaining of the current revision"
       }
     },
+    "SpendingProjection": {
+      "basis": {
+        "reference_budget": "Budget of the reference revision",
+        "marked_remaining": "Remaining of a marked revision",
+        "current_remaining": "Remaining of the current revision"
+      }
+    },
     "WorkloadZone": {
       "nominal": "Nominal",
       "alert": "Alert"

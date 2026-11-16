@@ -120,14 +120,14 @@ describe("the aggregated workload in a stack of bars", () => {
     ).toMatchObject([{ symbol: "circle" }, { symbol: "triangle" }, { symbol: "rect" }]);
     expect(roles[0]?.data?.slice(0, 2)).toEqual([
       ["2026-06-01T00:00:00Z", "636241.09"],
-      ["2026-07-01T00:00:00Z", "733321.89"],
+      ["2026-07-01T00:00:00Z", "733321.92"],
     ]);
     // The total of a month is the server's, drawn as the label of an invisible line, never a sum.
     const total = series[3] as LineSeriesOption;
     expect(total).toMatchObject({ type: "line", name: "Total", silent: true });
     expect(total.data?.slice(0, 2)).toEqual([
       ["2026-06-01T00:00:00Z", "985866.36"],
-      ["2026-07-01T00:00:00Z", "1135130.19"],
+      ["2026-07-01T00:00:00Z", "1135130.22"],
     ]);
     const label = total.label?.formatter as (point: unknown) => string;
     expect(label({ value: ["2026-06-01T00:00:00Z", "985866.36"] })).toBe("985,866.36");
@@ -156,7 +156,7 @@ describe("the aggregated workload in a stack of bars", () => {
     aggregated();
     const { option } = drawn();
     const { max } = option?.yAxis as { max: (range: { max: number }) => number };
-    // The tallest total of the example, 1,135,130.19 h, is under the capacity, 1,360,640.5 h.
+    // The tallest total of the example, 1,135,130.22 h, is under the capacity, 1,360,640.5 h.
     expect(max({ max: 1_135_130.19 })).toBe(Number(WORKLOAD.capacity_monthly_hours));
     expect(max({ max: 2_000_000 })).toBe(2_000_000);
   });

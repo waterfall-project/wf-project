@@ -22,7 +22,14 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
-from wftools import mockcore, mockhistory, mocktext, mockwitnessrisks, mockwrites
+from wftools import (
+    mockcore,
+    mockhistory,
+    mockspending,
+    mocktext,
+    mockwitnessrisks,
+    mockwrites,
+)
 from wftools.mockcurves import Era, cost_curve, earned_value_curves, workload
 from wftools.mockids import universe
 from wftools.mockindicators import (
@@ -237,6 +244,7 @@ def values() -> dict[str, JsonValue]:
         "workload_reference_budget": workload(base, "reference_budget"),
         "workload_marked_remaining": workload(base, "marked_remaining"),
         "workload_org_node": workload(now, "current_remaining", WORKSHOP),
+        **mockspending.values(now, base),
     }
 
 
@@ -739,6 +747,24 @@ def _totals(plan: JsonObject) -> str:
     )
 
 
+def _detail(plan: JsonObject) -> str:
+    """Say the detail of a workload by task: the tasks of each role, and its months (#3096)."""
+    roles = _objs(plan["roles"])
+    counts = ", ".join(
+        f"{_count(len(_objs(role['tasks'])))} pour {_the(role['label'])}"
+        for role in roles
+        if role["tasks"]
+    )
+    fewest = min(roles, key=lambda role: len(_objs(role["months"])))
+    return (
+        f"chaque rôle détaille ses tâches dans l'ordre de leur début, puis du planning — "
+        f"{counts} —, chacune avec son début, sa fin, ses heures et leurs parts par mois, dont la "
+        f"somme est la charge du rôle (WF-DEV-0090) ; un rôle comme une tâche ne porte que les "
+        f"mois où il est chargé, {_the(fewest['label'])} {_count(len(_objs(fewest['months'])))} "
+        f"sur les {_count(len(_objs(plan['monthly_totals'])))} du plan (#3096)"
+    )
+
+
 def _workload_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     now, filtered = _get(found, "workload"), _get(found, "workload_org_node")
     kept = {cast("str", role["resource_role_id"]) for role in _objs(filtered["roles"])}
@@ -756,7 +782,8 @@ def _workload_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             f"Le plan de charge du projet sur le reste à engager de la révision en cours, au "
             f"{_TODAY} : par rôle et par mois, les heures des lignes de main-d'œuvre des tâches "
             f"non terminées, chacune étalée sur les heures ouvrées de sa tâche après la date de "
-            f"calcul — aucun mois passé — : {_loads(now)} ; et {_totals(now)} (WF-DEV-0070)."
+            f"calcul — aucun mois passé — : {_loads(now)} ; {_totals(now)} ; et {_detail(now)} "
+            f"(WF-DEV-0070)."
         ),
         "workload_reference_budget": (
             f"Le même plan de charge sur les montants budgétés de la révision de référence, chaque "
@@ -787,6 +814,7 @@ def examples() -> dict[str, JsonObject]:
         **_project_summaries(found, read_once),
         **_curve_summaries(found, read_once),
         **_workload_summaries(found),
+        **mockspending.summaries(found),
     }
     return {
         f"{name}.json": mocktext.example(summaries[name], value) for name, value in found.items()
