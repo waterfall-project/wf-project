@@ -1,7 +1,190 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The curves of the earned value of a project (``getEarnedValueCurves``).
+"""The curves of the earned value on the current day, served (``getEarnedValueCurves``; US-1690/L2).
 
-Laid by US-1660/L1, the socle of EP-10, so that no two stories create the same file;
-US-1690/L2 writes its tests here (EP-10, "Les tests du back").
+The planned value to the end of the reference, the earned value by month of completion, the actual
+cost by month of document, the gap of the two at the day, the scope and the refusals; then the
+curves of the witness, compared with the example of the contract. The project is the one of
+``curves_support``. Every answer is checked against the contract.
 """
+
+from datetime import timedelta
+from decimal import Decimal
+from typing import TYPE_CHECKING, Any
+from uuid import UUID
+
+import pytest
+from curves_support import (
+    COST_CURVE,
+    EARNED_VALUE_CURVES,
+    TODAY,
+    curve,
+    curve_answer,
+    over_three_months,
+    series,
+)
+from day_indicators_support import Planned, completed, indicators, priced, subproject
+from indicators_support import clock_setter
+from nodes_support import faults, refusal
+from planning_support import DAY
+from projects_support import PROJECTS
+from projects_support import scene as make_scene
+from test_witness_lines_reads import READ_AT
+from test_witness_projects import PRJ_001, example, read
+
+if TYPE_CHECKING:
+    from indicators_support import Clock
+    from projects_support import Scene
+    from realm import TestRealm
+    from sqlalchemy import Engine
+    from support import ContractClient
+
+    from waterfall.platform.database import Database
+
+D = Decimal
+
+
+@pytest.fixture
+def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
+    """Give a platform, its sessions, and the project its manager made."""
+    return make_scene(api, owner, database, realm)
+
+
+@pytest.fixture
+def clock(monkeypatch: pytest.MonkeyPatch) -> Clock:
+    """Give the means to set the day the curves are computed on."""
+    return clock_setter(monkeypatch)
+
+
+@pytest.mark.requirement("WF-IND-0110-A")
+def test_the_planned_value_reaches_the_budget_at_the_end_of_the_reference_and_stays(
+    api: ContractClient, stage: Scene, clock: Clock
+) -> None:
+    # « La courbe de valeur planifiée atteint le budget de référence à la fin de la référence. »
+    # 490, 350 and 160 over three months, 1 000 at the end of January, where the last task ends,
+    # the budget of the indicators; the reference budget of the cost curve is the same series.
+    over_three_months(api, stage, clock)
+    body = curve(api, stage, EARNED_VALUE_CURVES)
+    planned = series(body, "planned_value")
+    assert planned == [
+        ("2026-10-31", "0.00"),
+        ("2026-11-30", "490.00"),
+        ("2026-12-31", "840.00"),
+        ("2027-01-31", "1000.00"),
+    ]
+    assert planned[-1][1] == indicators(api, stage)["reference_budget"]
+    assert planned == series(curve(api, stage, COST_CURVE), "reference_budget")
+    assert (body["payment_delays"], body["steps"], body["cash_out_by_month"]) == (False, [], None)
+    assert body["context"]["is_stored"] is False
+
+
+@pytest.mark.requirement("WF-IND-0110-A")
+def test_a_completed_task_makes_a_step_in_the_earned_value_at_the_month_of_its_completion(
+    api: ContractClient, stage: Scene, clock: Clock
+) -> None:
+    # « Une tâche terminée produit une marche dans la valeur acquise au point du mois de sa date de
+    # terminaison. » The studies, 400, completed on 6 November, the wiring, 600, on 3 December, the
+    # day the 10th: the point of November carries the first and not the second, the date of the day
+    # a point of its own, the series stopping there.
+    found = priced(api, stage, [Planned("Études", "400", None, "30"), Planned("Câblage", "600")])
+    completed(found.tree, "Études", DAY + timedelta(days=4))
+    completed(found.tree, "Câblage", DAY + timedelta(days=31))
+    clock(DAY + timedelta(days=38))
+    body = curve(api, stage, EARNED_VALUE_CURVES)
+    assert series(body, "earned_value") == [
+        ("2026-10-31", "0.00"),
+        ("2026-11-30", "400.00"),
+        ("2026-12-10", "1000.00"),
+    ]
+    assert series(body, "actual_cost") == [
+        ("2026-10-31", "0.00"),
+        ("2026-11-30", "0.00"),
+        ("2026-12-10", "0.00"),
+    ]
+
+
+@pytest.mark.requirement("WF-IND-0110-A")
+def test_at_the_date_of_calculation_the_gap_of_the_two_curves_is_the_cost_variance(
+    api: ContractClient, stage: Scene, clock: Clock
+) -> None:
+    # « À la date de calcul, l'écart vertical entre la courbe de valeur acquise et celle du coût
+    # réel égale la différence des deux grandeurs. » 400 earned, 100 spent: the points of the day
+    # of the two series, and the variance of the indicators.
+    over_three_months(api, stage, clock)
+    body = curve(api, stage, EARNED_VALUE_CURVES)
+    earned, spent = series(body, "earned_value")[-1], series(body, "actual_cost")[-1]
+    assert earned == ("2026-11-13", "400.00")
+    assert spent == ("2026-11-13", "100.00")
+    assert D(earned[1]) - D(spent[1]) == D(indicators(api, stage)["cost_variance"])
+
+
+@pytest.mark.requirement("WF-IND-0110-A")
+def test_the_curves_of_a_scope_count_its_lines_only_and_a_scope_without_any_has_none(
+    api: ContractClient, stage: Scene, clock: Clock
+) -> None:
+    # « `scope` restreint chaque série aux lignes et aux coûts de la maille » : the lines are
+    # borne by a subproject, the cost by the project alone.
+    named = subproject(api, stage, "SP-1", "Poste de commande")
+    empty = subproject(api, stage, "SP-2", "Essais")
+    over_three_months(api, stage, clock, subproject_id=named)
+    body = curve(api, stage, EARNED_VALUE_CURVES, f"?scope={named}")
+    assert series(body, "planned_value")[-1] == ("2027-01-31", "1000.00")
+    assert series(body, "earned_value")[-1] == ("2026-11-13", "400.00")
+    assert series(body, "actual_cost")[-1] == ("2026-11-13", "0.00")
+    alone = curve(api, stage, EARNED_VALUE_CURVES, "?scope=unassigned")
+    assert series(alone, "planned_value") == []
+    assert series(alone, "earned_value") == [("2026-10-31", "0.00"), ("2026-11-13", "0.00")]
+    assert series(alone, "actual_cost")[-1] == ("2026-11-13", "100.00")
+    nothing = curve(api, stage, EARNED_VALUE_CURVES, f"?scope={empty}")
+    assert [each["points"] for each in nothing["series"]] == [[], [], []]
+    assert nothing["context"]["scope"] == empty
+
+
+@pytest.mark.requirement("WF-IND-0110-A")
+def test_the_refusals_are_those_of_the_indicators(
+    api: ContractClient, stage: Scene, clock: Clock
+) -> None:
+    # 409 before In progress with the state named, then 422 on a revision named with a date and on
+    # an unknown scope, at once; 404 for a revision the project does not have.
+    assert refusal(curve_answer(api, stage, EARNED_VALUE_CURVES)) == (
+        409,
+        "STATE_FORBIDS_OPERATION",
+        {"state": "created", "state_enum": "ProjectState"},
+    )
+    found = over_three_months(api, stage, clock)
+    revision_id = found.tree.revision["revision_id"]
+    both = f"?revision_id={revision_id}&as_of={TODAY.isoformat()}&scope=SP-1"
+    assert faults(curve_answer(api, stage, EARNED_VALUE_CURVES, both)) == [
+        ("/query/scope", "UNKNOWN_SUBPROJECT", {}),
+        ("/query/revision_id", "VALIDATION_FAILED", {}),
+    ]
+    unknown = curve_answer(api, stage, EARNED_VALUE_CURVES, f"?revision_id={UUID(int=1)}")
+    assert unknown.status_code == 404, unknown.text
+
+
+def points_of(body: dict[str, Any], name: str) -> dict[str, D]:
+    """Give the points of a series by day."""
+    return {day: D(amount) for day, amount in series(body, name)}
+
+
+@pytest.mark.requirement("WF-IND-0110-A")
+def test_the_curves_of_the_witness_are_the_example_but_for_the_reference(
+    api: ContractClient, witness: Database, realm: TestRealm, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # « À la date de calcul, l'écart vertical entre la courbe de valeur acquise et celle du coût
+    # réel égale la différence des deux grandeurs. » The witness read on 3 June 2026: the earned
+    # value, by step at the month of each completion, and the actual cost are the example's, point
+    # for point; the planned value, measured to the offer 100, the reference until the amendment 1
+    # (EP-08), has the days of the example's and only grows. The gap of the two curves at the day
+    # is the example's, 1 493 354.19 less 1 412 970.20.
+    monkeypatch.setattr("waterfall.api.indicator_curves.utc_now", lambda: READ_AT)
+    body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/indicators/{EARNED_VALUE_CURVES}")
+    expected = example("earned_value_curves")
+    for name in ("earned_value", "actual_cost"):
+        assert series(body, name) == series(expected, name)
+    planned, wanted = points_of(body, "planned_value"), points_of(expected, "planned_value")
+    assert list(planned) == list(wanted)
+    assert list(planned.values()) == sorted(planned.values())
+    assert D(series(body, "earned_value")[-1][1]) - D(series(body, "actual_cost")[-1][1]) == D(
+        "80383.99"
+    )

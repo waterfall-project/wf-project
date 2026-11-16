@@ -564,6 +564,14 @@ CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
     ("getProjectIndicators", "query", "scope"): (
         "declared nothing, contract either=(enum={'project', 'unassigned'} | nothing)"
     ),
+    # The same scope, read by the two curves, which refuse as ``getProjectIndicators`` does
+    # (``getCostCurve``, ``getEarnedValueCurves``, US-1690/L2).
+    ("getCostCurve", "query", "scope"): (
+        "declared nothing, contract either=(enum={'project', 'unassigned'} | nothing)"
+    ),
+    ("getEarnedValueCurves", "query", "scope"): (
+        "declared nothing, contract either=(enum={'project', 'unassigned'} | nothing)"
+    ),
     # The subproject asked of the actual costs: ``unassigned`` or an identifier, read as text and
     # judged by the route, whose refusal the contract names in 422, on the parameter
     # (``UNKNOWN_SUBPROJECT``, ``listActualCosts``, US-1620/L1).
