@@ -2499,8 +2499,9 @@
     },
     "roleForm": {
       "create": "Nouveau rôle de ressource",
-      "createHint": "Le code, unique, le libellé, le nœud, une catégorie de main-d’œuvre, le calendrier et la capacité — heures par mois et effectif — sont requis. Le nœud ne changera plus : un rôle se recrée sous un autre nœud.",
-      "modifyHint": "Le code, unique, le libellé, une catégorie de main-d’œuvre, le calendrier et la capacité sont requis. Le rôle reste sous « {node} » : il se recrée sous un autre nœud plutôt que de s’y déplacer."
+      "createHint": "Le code, unique, le libellé, le nœud, une catégorie de main-d’œuvre, le calendrier et l’effectif sont requis ; les heures par mois se calculent. Le nœud ne changera plus : un rôle se recrée sous un autre nœud.",
+      "hoursNote": "Calculées : effectif × heures hebdomadaires du calendrier × 52 ÷ 12. Elles ne se saisissent pas.",
+      "modifyHint": "Le code, unique, le libellé, une catégorie de main-d’œuvre, le calendrier et l’effectif sont requis. Le rôle reste sous « {node} » : il se recrée sous un autre nœud plutôt que de s’y déplacer."
     },
     "calendarForm": {
       "create": "Nouveau calendrier",

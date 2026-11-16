@@ -2499,8 +2499,9 @@
     },
     "roleForm": {
       "create": "New resource role",
-      "createHint": "The code, unique, the label, the node, a labour category, the calendar and the capacity — hours a month and headcount — are required. The node will no longer change: a role is recreated under another node.",
-      "modifyHint": "The code, unique, the label, a labour category, the calendar and the capacity are required. The role stays under “{node}”: it is recreated under another node rather than moved there."
+      "createHint": "The code, unique, the label, the node, a labour category, the calendar and the headcount are required; the hours a month are calculated. The node will no longer change: a role is recreated under another node.",
+      "hoursNote": "Calculated: headcount × weekly hours of the calendar × 52 ÷ 12. They cannot be typed.",
+      "modifyHint": "The code, unique, the label, a labour category, the calendar and the headcount are required. The role stays under “{node}”: it is recreated under another node rather than moved there."
     },
     "calendarForm": {
       "create": "New calendar",
