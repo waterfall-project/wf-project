@@ -24,6 +24,7 @@ from waterfall.api.evaluation import RequiresProject
 from waterfall.core.costs.interface import PROJECT, UNASSIGNED, CostScope
 from waterfall.core.indicators.interface import IndicatorsReading, project_indicators
 from waterfall.platform.database import utc_now
+from waterfall.platform.identifiers import read_identifier
 
 router = APIRouter(tags=["indicators"])
 
@@ -38,12 +39,7 @@ def scope_of(text: str) -> CostScope:
         return PROJECT
     if text == UNASSIGNED:
         return UNASSIGNED
-    try:
-        found = UUID(text)
-    except ValueError:
-        return NO_SUBPROJECT
-    # ``format: uuid`` is the hyphenated form; ``UUID`` also reads braces, ``urn:uuid:``, no hyphen.
-    return found if str(found) == text.lower() else NO_SUBPROJECT
+    return read_identifier(text) or NO_SUBPROJECT
 
 
 @router.get(

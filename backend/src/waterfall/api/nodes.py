@@ -23,7 +23,6 @@ import re
 from dataclasses import replace
 from datetime import date
 from decimal import Decimal
-from enum import StrEnum
 from typing import TYPE_CHECKING, Annotated, Any, cast
 from uuid import UUID
 
@@ -36,6 +35,7 @@ from waterfall.api.contract.base import Text
 from waterfall.api.contract.models import (
     ComputedValueDependencies,
     ComputedValueField,
+    ErrorCode,
     EstimateLineFacet,
     EstimateLineUpdate,
     EstimateLineWrite,
@@ -84,6 +84,7 @@ from waterfall.core.planning.interface import (
     resolve_row_number,
     update_task_facet,
 )
+from waterfall.core.projects.interface import subproject_labels
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import (
@@ -92,9 +93,12 @@ from waterfall.platform.errors import (
     ForbiddenError,
     UnprocessableError,
 )
+from waterfall.platform.identifiers import read_identifier
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from sqlalchemy.orm import Session
 
 router = APIRouter(tags=["revisions"])
 
@@ -142,12 +146,6 @@ FACETS = {"task": TaskFacet, "estimate_line": EstimateLineFacet}
 ALWAYS = ("node_id", "row_number", "level", "lock_version")
 
 
-class Unassigned(StrEnum):
-    """What the filter of the subproject names besides a subproject: none (WF-IND-0020)."""
-
-    unassigned = UNASSIGNED
-
-
 class NodeQuery(BaseModel):
     """The parameters of ``listNodes`` the service reads typed; the lists and bounds are text."""
 
@@ -168,7 +166,7 @@ class NodeQuery(BaseModel):
     is_from_risk: bool | None = None
     origin_risk_ids: str | None = None
     uses_inactive_object: bool | None = None
-    subproject_id: Unassigned | UUID | None = None
+    subproject_id: str | None = None
     cost_type_id: UUID | None = None
     cost_category_id: UUID | None = None
     resource_role_id: UUID | None = None
@@ -217,8 +215,27 @@ def _known(name: str) -> bool:
     return name in Node.model_fields
 
 
+def _subproject_asked(
+    session: Session, project_id: UUID, asked: str | None
+) -> tuple[UUID | None, list[FieldError]]:
+    """Read the filter of the subproject strictly, as the indicators do; its fault, the parameter.
+
+    ``unassigned`` or the hyphenated identifier of a subproject of the project; any other text, and
+    a subproject the project does not have, is ``UNKNOWN_SUBPROJECT`` (WF-IND-0020).
+    """
+    if asked is None or asked == UNASSIGNED:
+        return None, []
+    found = read_identifier(asked)
+    if found is None or not subproject_labels(session, project_id, [found]):
+        return None, [FieldError("/query/subproject_id", ErrorCode.UNKNOWN_SUBPROJECT)]
+    return found, []
+
+
 def node_reading(
-    request: Request, query: Annotated[NodeQuery, Query()]
+    request: Request,
+    query: Annotated[NodeQuery, Query()],
+    project_id: UUID,
+    session: Transaction,
 ) -> tuple[NodeFilters, frozenset[str] | None]:
     """Read what ``listNodes`` asks: its filters, and the properties it names (``fields``).
 
@@ -245,6 +262,8 @@ def node_reading(
         for column in columns:
             bounds[column], wrong = _pair(raw, column, form)
             faults += wrong
+    subproject, wrong = _subproject_asked(session, project_id, query.subproject_id)
+    faults += wrong
     refuse_query(faults)
     fields = None if query.fields is None else frozenset(query.fields.split(","))
     if fields is not None and not all(_known(name) for name in fields):
@@ -273,7 +292,7 @@ def node_reading(
         finish_overdue=query.finish_overdue,
         is_from_risk=query.is_from_risk,
         origin_risk_ids=risks,
-        lines=_line_filters(query, bounds),
+        lines=_line_filters(query, bounds, subproject),
         sort=None if query.sort_by is None else LineSort(query.sort_by.value, _descending(query)),
     )
     return filters, fields
@@ -284,12 +303,13 @@ def _descending(query: NodeQuery) -> bool:
     return query.sort_order is not None and query.sort_order.value == "desc"
 
 
-def _line_filters(query: NodeQuery, bounds: dict[str, tuple[Any, Any]]) -> LineFilters | None:
+def _line_filters(
+    query: NodeQuery, bounds: dict[str, tuple[Any, Any]], subproject: UUID | None
+) -> LineFilters | None:
     """Give what a reading asks of the lines, none when it asks nothing of them."""
-    subproject = query.subproject_id
     asked = LineFilters(
-        subproject_id=subproject if isinstance(subproject, UUID) else None,
-        unassigned=query.subproject_id is Unassigned.unassigned,
+        subproject_id=subproject,
+        unassigned=query.subproject_id == UNASSIGNED,
         cost_type_id=query.cost_type_id,
         cost_category_id=query.cost_category_id,
         resource_role_id=query.resource_role_id,
