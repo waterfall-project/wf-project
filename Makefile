@@ -163,7 +163,7 @@ SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_OPE
 	WATERFALL_POSTGRES_PORT WATERFALL_REDIS_PORT WATERFALL_API_PORT WATERFALL_KEYCLOAK_PORT \
 	WATERFALL_MAILPIT_PORT WATERFALL_PROXY_PORT
 SLOT_PATHS := E2E_API_PORT E2E_FRONT_PORT
-$(call slot-export,service-up service-install service-witness service-purge keycloak-authority service-logs service-down \
+$(call slot-export,service-up service-install service-witness service-purge keycloak-authority service-logs service-down service-api-processes \
 	test-keycloak e2e-service,$(SLOT_SERVICE))
 $(call slot-export,e2e-down,WATERFALL_SERVICE_PROJECT)
 $(call slot-export,build-keycloak,WATERFALL_KEYCLOAK_IMAGE)
@@ -761,7 +761,9 @@ $(if $(or $(filter e2e-service,$(MAKECMDGOALS)),$(and $(filter full,$(TIER)),$(f
 # The workers the paths against the service take here, written in the log of the chain beside the
 # processors of its runner (service.yml, US-2290): four processors give three workers, beside the
 # four processes of the API.
-.PHONY: e2e-service-workers
+.PHONY: e2e-service-workers service-api-processes
+service-api-processes: ## Print the number of processes of the API the service platform is given (WATERFALL_API_PROCESSES, four by default in compose.service.yaml; needs the secrets of service-up)
+	@$(COMPOSE_SERVICE) config --format json | jq -r '.services.api.environment.WATERFALL_API_PROCESSES'
 e2e-service-workers: ## Print the number of workers make e2e-service gives Playwright here (E2E_SERVICE_WORKERS, or E2E_WORKERS given)
 	@echo $(or $(E2E_WORKERS_GIVEN),$(E2E_SERVICE_WORKERS))
 e2e-service: override export E2E_WORKERS = $(or $(E2E_WORKERS_GIVEN),$(E2E_SERVICE_WORKERS))
