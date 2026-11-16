@@ -22,8 +22,8 @@ from indicators_support import indicator_row
 from project_rows import AT, insert_revision
 from project_rows import projects_with_partitions as with_partitions
 from sqlalchemy import Engine, event, insert, text, update
-from sqlalchemy.orm import Session
 from sqlalchemy.exc import DBAPIError, IntegrityError
+from sqlalchemy.orm import Session
 
 from waterfall.core.indicators.interface import IndicatorKind, stored_document
 from waterfall.core.indicators.tables import KINDS, RevisionIndicator
@@ -200,7 +200,8 @@ def test_a_stored_document_is_read_in_the_partition_of_its_project_alone(
     written(owner, row(parents), marking(parents, AT))
     seen: list[tuple[str, dict[str, object]]] = []
 
-    def capture(_: object, __: object, statement: str, parameters: Any, *args: object) -> None:
+    def capture(*call: Any) -> None:
+        _, _, statement, parameters = call[:4]
         if "FROM revision_indicator" in statement:
             seen.append((statement, dict(parameters)))
 
@@ -215,6 +216,7 @@ def test_a_stored_document_is_read_in_the_partition_of_its_project_alone(
     statement, parameters = seen[0]
     with Session(owner) as session:
         plan = session.connection().exec_driver_sql(f"EXPLAIN {statement}", parameters).all()
-    probed = {name for (line,) in plan for name in re.findall(r"revision_indicator_p_[0-9a-f]{32}\b", line)}
+    named = re.compile(r"revision_indicator_p_[0-9a-f]{32}\b")
+    probed = {name for (line,) in plan for name in named.findall(line)}
     held = f"revision_indicator_p_{parents.project_id.hex}"
     assert probed == {held}
