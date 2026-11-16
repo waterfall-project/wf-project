@@ -79,7 +79,11 @@ from waterfall.core.indicators.interface.reading import (
     IndicatorsReading as IndicatorsReading,
 )
 
-# ``stored_documents`` (US-1660/L1; US-1670/L1): a document a marked revision kept.
+# ``stored_documents`` (US-1660/L1; US-1670/L1; US-1690/L3): a document a marked revision kept,
+# and the marked revision a reading of a marking reads.
+from waterfall.core.indicators.interface.stored_documents import (
+    kept_revision as kept_revision,
+)
 from waterfall.core.indicators.interface.stored_documents import (
     stored_document as stored_document,
 )

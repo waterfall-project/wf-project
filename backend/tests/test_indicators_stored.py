@@ -20,6 +20,7 @@ from uuid import UUID
 import pytest
 from actual_costs_import_support import declare, extraction, line, opening
 from costs_support import load_import
+from curves_support import COST_CURVE, EARNED_VALUE_CURVES, curve, curve_answer, series
 from day_indicators_support import (
     Planned,
     completed,
@@ -32,17 +33,19 @@ from fastapi.testclient import TestClient
 from imports_trial import apply, import_worker, read, run
 from indicators_support import clock_setter
 from jsonschema_path import SchemaPath
+from nodes_support import refusal
 from openapi_core.validation.schemas import oas31_schema_validators_factory
 from planning_support import DAY
 from projects_support import Scene
 from projects_support import scene as make_scene
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 from support import CONTRACT, ContractClient, walk
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.costs.interface import PROJECT, UNASSIGNED
+from waterfall.core.costs.tables import CostLine
 from waterfall.core.indicators.interface import stored_document
 from waterfall.core.indicators.tables import RevisionIndicator
 from waterfall.core.revisions.interface import mark_revision
@@ -80,7 +83,12 @@ MODELS = {
     "estimate": "EstimateIndicators",
     "remaining": "RemainingIndicators",
     "project": "ProjectIndicators",
+    "cost_curve": "CurveSeries",
+    "cost_curve_payment_delays": "CurveSeries",
+    "earned_value_curves": "CurveSeries",
 }
+CURVES = ("cost_curve", "cost_curve_payment_delays", "earned_value_curves")
+FORBIDDEN: tuple[int, str, dict[str, Any]] = (409, "STATE_FORBIDS_OPERATION", {})
 
 
 @pytest.fixture
@@ -201,6 +209,7 @@ def test_a_marking_keeps_the_estimate_the_remaining_and_the_project_of_each_scop
         *(("estimate", scope) for scope in scopes),
         ("remaining", PROJECT),
         *(("project", scope) for scope in scopes),
+        *((name, scope) for name in CURVES for scope in scopes),
     }
     with stage.database.transaction() as session:
         marked_at = session.scalar(select(Revision.marked_at).where(Revision.id == revision_id))
@@ -323,3 +332,105 @@ def test_the_indicators_kept_are_unchanged_by_an_import_applied_after_the_markin
     )
     assert kept(stage.database, revision_id) == before
     assert indicators(api, stage)["actual_cost"] == "950.00"
+
+
+def read_curves(api: ContractClient, stage: Scene, query: str) -> dict[str, dict[str, Any]]:
+    """Read the three kinds of curve of the project of the stage, the query said."""
+    separator = "&" if "?" in query else "?"
+    return {
+        "cost_curve": curve(api, stage, COST_CURVE, query),
+        "cost_curve_payment_delays": curve(
+            api, stage, COST_CURVE, f"{query}{separator}payment_delays=true"
+        ),
+        "earned_value_curves": curve(api, stage, EARNED_VALUE_CURVES, query),
+    }
+
+
+@pytest.mark.requirement("WF-DAT-0040-A")
+@pytest.mark.requirement("WF-IND-0100-A")
+@pytest.mark.requirement("WF-IND-0110-A")
+def test_a_marked_revision_gives_the_curves_its_marking_kept_stored_at_its_instant(
+    api: ContractClient, stage: Scene, clock: Clock, project: Priced, lot: str
+) -> None:
+    # « Les courbes d'une révision marquée sont rendues telles que le marquage les a conservées »,
+    # on each scope, the three kinds, by the revision named and by a date, `is_stored` true, the
+    # context that of the marking; the two variants of the cost curve are kept.
+    revision_id = project.tree.revision["revision_id"]
+    load_import(stage, UUID(stage.project["project_id"]), [dated("FA-1", None, "500.00", DAY)])
+    at = marked_now(stage, clock, project.tree.revision)
+    rows = kept(stage.database, revision_id)
+    for scope in (PROJECT, UNASSIGNED, lot):
+        by_name = read_curves(api, stage, f"?revision_id={revision_id}&scope={scope}")
+        for name, body in by_name.items():
+            assert body == rows[name, scope][0]
+            assert body["context"]["is_stored"] is True
+            assert body["context"]["computed_at"] == zulu(at)
+        assert read_curves(api, stage, f"?as_of={at.date().isoformat()}&scope={scope}") == by_name
+    whole = read_curves(api, stage, f"?revision_id={revision_id}")
+    assert whole["cost_curve"]["payment_delays"] is False
+    assert whole["cost_curve_payment_delays"]["payment_delays"] is True
+    assert whole["cost_curve_payment_delays"]["cash_out_by_month"]
+    assert series(whole["cost_curve"], "actual_cost")[-1][1] == "500.00"
+    assert series(whole["earned_value_curves"], "earned_value")[-1][1] == "400.00"
+
+
+@pytest.mark.requirement("WF-DAT-0040-A")
+@pytest.mark.requirement("WF-IND-0010-A")
+def test_the_kept_actual_cost_curve_is_the_same_after_an_exclusion_and_after_an_import(
+    api: ContractClient, stage: Scene, worker: Worker, clock: Clock, project: Priced
+) -> None:
+    # « La courbe de coût réel conservée est identique avant et après l'exclusion d'une ligne connue
+    # au marquage, et avant et après un import postérieur » : the curves read are those of the
+    # marking, a line excluded, a line updated and a line added since changing nothing, while the
+    # day reads them.
+    revision_id = project.tree.revision["revision_id"]
+    imported(
+        api,
+        stage,
+        worker,
+        [
+            line(element=ELEMENT, number="FA-1", on="2026-04-02", amount=500),
+            line(element=ELEMENT, number="FA-2", on="2026-04-03", amount=250),
+        ],
+    )
+    marked_now(stage, clock, project.tree.revision)
+    query = f"?revision_id={revision_id}"
+    before = read_curves(api, stage, query)
+    assert series(before["cost_curve"], "actual_cost")[-1][1] == "750.00"
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(CostLine)
+            .where(CostLine.document_number == "FA-2")
+            .values(is_in_tracked_scope=False, excluded_reason="Hors contrat")
+        )
+    assert read_curves(api, stage, query) == before
+    imported(
+        api,
+        stage,
+        worker,
+        [
+            line(element=ELEMENT, number="FA-1", on="2026-04-02", amount=700),
+            line(element=ELEMENT, number="FA-3", on="2026-04-04", amount=90),
+        ],
+    )
+    assert read_curves(api, stage, query) == before
+    assert series(curve(api, stage, COST_CURVE), "actual_cost")[-1][1] != "750.00"
+
+
+@pytest.mark.requirement("WF-DAT-0040-A")
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_a_revision_marked_before_in_progress_or_a_date_before_any_marking_is_refused(
+    api: ContractClient, stage: Scene, clock: Clock, project: Priced
+) -> None:
+    # The 409 `STATE_FORBIDS_OPERATION`, without a state, when no document `project` was kept: the
+    # reference, marked in pricing, keeps the estimate alone; a date before the marking of the
+    # review has no revision that kept the indicators.
+    reference = project.review.reference["revision_id"]
+    at = marked_now(stage, clock, project.tree.revision)
+    for name in (COST_CURVE, EARNED_VALUE_CURVES):
+        named = curve_answer(api, stage, name, f"?revision_id={reference}")
+        assert refusal(named) == FORBIDDEN
+        early = curve_answer(api, stage, name, f"?as_of={(at.date() - 2 * ONE_DAY).isoformat()}")
+        assert refusal(early) == FORBIDDEN
+    kept_day = curve_answer(api, stage, COST_CURVE, f"?as_of={at.date().isoformat()}")
+    assert kept_day.status_code == 200
