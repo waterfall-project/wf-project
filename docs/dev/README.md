@@ -2555,7 +2555,12 @@ anything, like the one that reaches a hidden column. The « Tree » menu of the 
 unfolds all, or folds down to a level. A search or a filter that keeps a folded row unfolds its
 ancestors, once for that search. The folded state is kept in the session storage of the tab
 (`sessionStorage`), per grid and per revision, without sending anything to the server: the server
-renders the tree unfolded, which the browser folds again once hydrated.
+renders the tree unfolded, which the browser folds again once hydrated. An address of the planning
+that names a task (`task`, its `node_id`, `planning-target.ts`) — where a task of the detail of the
+workload leads (US-2040) — unfolds, once hydrated, the rows above it from the folds the session
+keeps, and sets the active cell and the focus on it, once for the grid mounted: a sort or a reading
+anew of the same address aims at nothing more. A parameter of the screen, like `structure` or
+`depth`, never sent to the API; a task the reading does not hold aims at nothing.
 
 ### The commands
 
@@ -5495,7 +5500,9 @@ the guard and the entry above:
   `navigation.spec.ts`; the service loads no provision and no risk, and serves at zero what depends
   on them.
 - **EP-10** — the indicators that the banner filters (`BEFORE_THE_INDICATORS`) and those of the
-  project.
+  project; the link of a task of the detail of the workload to its row in the planning grid
+  (`workload.spec.ts`, untagged), which the service does not detail before US-2040/L2 (#3512): the
+  grid of the detail, its roles alone, is already played on both sides.
 - **EP-11** — the opening, from `/`, of the portfolio of `navigation.spec.ts`.
 - **EP-13** — the volumes: the project of 5,999 nodes and its marks (`NO_VOLUME_IN_SERVICE` of
   `revisions.spec.ts` and of `remaining.spec.ts`, the opening and the scroll of the grid, its windows

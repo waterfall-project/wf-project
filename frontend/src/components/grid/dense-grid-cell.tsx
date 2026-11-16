@@ -26,7 +26,7 @@ function TreeLabel<Row extends RowData, Sort extends string, Totals>({
 }: {
   readonly config: GridConfig<Row, Sort, Totals>;
   readonly row: Row;
-  readonly text: string;
+  readonly text: ReactNode;
 }) {
   const tree = config.tree;
   if (tree === undefined) {
@@ -50,8 +50,8 @@ function TreeLabel<Row extends RowData, Sort extends string, Totals>({
 }
 
 /**
- * The content of a cell: the number of the row, the label and its tree, what its column renders,
- * or its value.
+ * The content of a cell: the number of the row, the label and its tree — what the first column
+ * renders, or its value —, what another column renders, or its value.
  */
 export function cellContent<Row extends RowData, Sort extends string, Totals>(
   config: GridConfig<Row, Sort, Totals>,
@@ -63,9 +63,10 @@ export function cellContent<Row extends RowData, Sort extends string, Totals>(
   if (column === undefined) {
     return config.rowNumber?.(row);
   }
-  if (column.render !== undefined) {
-    return column.render(row);
-  }
-  const text = formatCell(column.format, column.value(row), locale, currency);
+  const text =
+    column.render === undefined
+      ? formatCell(column.format, column.value(row), locale, currency)
+      : column.render(row);
+  // The first column carries the tree, what it renders — a link to the row elsewhere — included.
   return column === config.columns[0] ? <TreeLabel config={config} row={row} text={text} /> : text;
 }

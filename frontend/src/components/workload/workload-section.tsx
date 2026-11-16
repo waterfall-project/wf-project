@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 
+import { withoutTasks } from "./detail-rows";
 import { type WorkloadPlan, WorkloadChart } from "./workload-chart";
 
 /** The basis of a workload, as the contract names it. */
@@ -268,7 +269,7 @@ function ComputedWorkload({
       {workload.roles.every((role) => role.months.length === 0) ? (
         <Said>{node === undefined ? t("workload.none") : t("workload.noneInNode", { node })}</Said>
       ) : (
-        <WorkloadChart workload={workload} provenance={provenance} />
+        <WorkloadChart workload={withoutTasks(workload)} provenance={provenance} />
       )}
     </>
   );

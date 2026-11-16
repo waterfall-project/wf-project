@@ -109,9 +109,23 @@ export interface GridShape {
   readonly known: readonly string[];
 }
 
-/** The shape of a grid, from its columns. */
+/** The most columns the contract lets a grid record as known (`known_columns`, `maxItems`). */
+export const KNOWN_BOUND = 64;
+
+/**
+ * The shape of a grid, from its columns. A grid of more columns than the contract records — one
+ * for each month of a plan of fifteen years (US-2040) — records first those it hides by default,
+ * the only ones the list decides on (`initialSettings`), then the others in their order, up to the
+ * bound: a column it does not hide is shown whether it is known or not.
+ */
 export function gridShape(columns: readonly SettledColumn[]): GridShape {
-  return { ended: endedColumns(columns), known: columns.map((column) => column.key) };
+  const keys = (hidden: boolean) =>
+    columns.filter((column) => (column.hidden === true) === hidden).map((column) => column.key);
+  const known =
+    columns.length <= KNOWN_BOUND
+      ? columns.map((column) => column.key)
+      : [...keys(true), ...keys(false)].slice(0, KNOWN_BOUND);
+  return { ended: endedColumns(columns), known };
 }
 
 /** The number of rows per page the account keeps for a grid; none, the default of the contract. */
