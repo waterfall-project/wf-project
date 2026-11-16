@@ -44,8 +44,9 @@ from waterfall.core.estimate.interface import IndicatorsAsked, estimate_indicato
 from waterfall.core.indicators.computing import Basis, day_documents
 from waterfall.core.indicators.curving import (
     cost_curve_document,
+    curves_of_scope,
     earned_value_curves_document,
-    read_curves,
+    read_curve_sources,
 )
 from waterfall.core.indicators.interface.estimate_documents import (
     estimate_document,
@@ -109,9 +110,10 @@ def _as_kept(document: Document, act: Act) -> Document:
 def _curves(session: Session, basis: Basis, act: Act, scopes: list[CostScope]) -> list[Kept]:
     """Compute the three curves of each scope, on the day of the marking and the costs known now."""
     day = current_day(act.at)
+    sources = read_curve_sources(session, basis)
     kept: list[Kept] = []
     for scope in scopes:
-        reading = read_curves(session, basis, day, scope)
+        reading = curves_of_scope(session, sources, day, scope)
         context = Context(basis.revision_id, MARKED, act.at, scope, is_stored=True)
         kept += [
             Kept("cost_curve", scope, cost_curve_document(reading, context, payment_delays=False)),

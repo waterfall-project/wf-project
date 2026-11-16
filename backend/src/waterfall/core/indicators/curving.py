@@ -3,7 +3,8 @@
 """The curves of a scope of a project at a day, from one read (EP-10, "Les courbes").
 
 The tasks, the lines of the revision computed R and of the reference Ref, the remaining to commit
-of R and the tracked lines of cost of the scope are read once (``read_curves``); the series are
+of R are read once for all the scopes (``read_curve_sources``), the tracked lines of cost of each
+scope after (``curves_of_scope``); the series are
 then drawn from them without the database (``cost_curve_document``,
 ``earned_value_curves_document``), at the pace of the month (WF-IND-0100, WF-IND-0110):
 
@@ -45,6 +46,7 @@ from waterfall.core.indicators.shaping import context_document, money
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
     from datetime import date
+    from uuid import UUID
 
     from sqlalchemy.orm import Session
 
@@ -77,8 +79,23 @@ class CurveReading:
         return bool(self.reference or self.lines or self.costs)
 
 
-def read_curves(session: Session, basis: Basis, day: date, scope: CostScope) -> CurveReading:
-    """Read what the curves of a scope are drawn from, at a day, on the revisions of a basis."""
+@dataclass(frozen=True, slots=True)
+class CurveSources:
+    """What the curves of every scope of a basis are drawn from, read once.
+
+    The lines of Ref and of R, the remaining to commit of each line of R, the day of completion
+    of the tasks completed in R: what does not depend on the scope.
+    """
+
+    basis: Basis
+    reference: tuple[IndicatorLine, ...]
+    lines: tuple[IndicatorLine, ...]
+    remaining: Mapping[UUID, Decimal]
+    completed: Mapping[UUID, date]
+
+
+def read_curve_sources(session: Session, basis: Basis) -> CurveSources:
+    """Read, once for all the scopes, the lines, the remaining and the completions of a basis."""
     tasks, lines, reference = read_lines(session, basis)
     completed = {
         task.lineage_id: task.completed_on
@@ -86,24 +103,39 @@ def read_curves(session: Session, basis: Basis, day: date, scope: CostScope) -> 
         if task.progress == COMPLETED and task.completed_on is not None
     }
     remaining = remaining_of_revision(session, basis.project_id, basis.revision_id).by_line
-    budgeted = tuple(line for line in reference if in_scope(scope, line.subproject_id))
+    return CurveSources(basis, tuple(reference), tuple(lines), remaining, completed)
+
+
+def curves_of_scope(
+    session: Session, sources: CurveSources, day: date, scope: CostScope
+) -> CurveReading:
+    """Give what the curves of a scope are drawn from at a day: the sources, narrowed to it.
+
+    Only the tracked lines of cost of the scope are read here.
+    """
+    budgeted = tuple(line for line in sources.reference if in_scope(scope, line.subproject_id))
     earned = [
         (done, line.budgeted_amount)
         for line in budgeted
         if line.task_origin_risk_id is None
-        and (done := completed.get(line.task_lineage_id)) is not None
+        and (done := sources.completed.get(line.task_lineage_id)) is not None
     ]
     return CurveReading(
         day,
         budgeted,
         tuple(
-            (line, remaining.get(line.node_id, Decimal(0)))
-            for line in lines
+            (line, sources.remaining.get(line.node_id, Decimal(0)))
+            for line in sources.lines
             if in_scope(scope, line.subproject_id)
         ),
         earned,
-        actual_cost_dates(session, basis.project_id, day, scope),
+        actual_cost_dates(session, sources.basis.project_id, day, scope),
     )
+
+
+def read_curves(session: Session, basis: Basis, day: date, scope: CostScope) -> CurveReading:
+    """Read what the curves of a scope are drawn from, at a day, on the revisions of a basis."""
+    return curves_of_scope(session, read_curve_sources(session, basis), day, scope)
 
 
 def _budget(reading: CurveReading, *, delayed: bool) -> tuple[dict[Month, Decimal], list[Point]]:
