@@ -39,3 +39,5 @@ deploy/keycloak/extension/target/
 deploy/compose/.authority/
 # Ce qu'un agent écrit dans son worktree, le journal de `make check` (US-1100)
 .waterfall/
+# Les réglages de l'éditeur, propres à chaque poste
+.vscode/

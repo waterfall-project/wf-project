@@ -67,7 +67,7 @@ import { functionHref, leafOf } from "@/navigation/functions";
 import { screenMetadata } from "../../../../../title";
 import { gridAddress, provenanceOf, readGridScreen } from "../grid-screen";
 import type { RevisionParams } from "../page";
-import { WorkCard } from "../work-card";
+import { GridCard } from "@/components/shell/grid-card";
 
 /** Title the tab with the function, and with the project. */
 export async function generateMetadata({
@@ -255,7 +255,7 @@ export default async function PlanningPage({
           offer={findOffer(screen.reading.revision?.available_commands ?? [], "merge_structure")}
           revision={revision}
         />
-        <WorkCard fill>
+        <GridCard fill>
           <PlanningWithGantt
             key={screen.structure.structure_id}
             reading={screen.reading}
@@ -291,7 +291,7 @@ export default async function PlanningPage({
               ),
             }}
           />
-        </WorkCard>
+        </GridCard>
       </Screen>
     </PendingAddress>
   );

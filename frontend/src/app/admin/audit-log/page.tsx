@@ -63,8 +63,8 @@ import { refusedPeriod } from "@/components/grid/period";
 import { CONTRACT_ADDRESS, type GridQuery, readGridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
+import { GridCard } from "@/components/shell/grid-card";
 import { PageHeader, Screen } from "@/components/shell/page-header";
-import { Card, CardContent } from "@/components/ui/card";
 import { type PageSearchParams, pageSearch } from "@/navigation/context";
 import { problemMessage } from "@/i18n/problem";
 import { OFFSET_PARAMETER, offsetOf } from "@/navigation/pages";
@@ -92,21 +92,6 @@ function AuditHeader() {
       icon={FUNCTION_ICONS.audit_log}
       density={FUNCTION_DENSITY.audit_log}
     />
-  );
-}
-
-/**
- * The card of the journal, bare of any title of section — the title of the screen says it —, which
- * fills what the screen leaves it: its content shrinks to it, the grid down to its floor, the pages
- * under it (`Screen fill`), never a height computed by hand.
- */
-function JournalCard({ children }: { readonly children: ReactNode }) {
-  return (
-    <Card className="min-h-0 flex-1 gap-0 py-3">
-      <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 px-3">
-        {children}
-      </CardContent>
-    </Card>
   );
 }
 
@@ -318,7 +303,7 @@ export default async function AuditLogPage({
       {/* The filters, the grid and the pages compose the changes they make to the address. */}
       <PendingAddress>
         <AuditHeader />
-        <JournalCard>
+        <GridCard fill>
           {"refused" in read ? (
             <>
               {panel}
@@ -336,7 +321,7 @@ export default async function AuditLogPage({
               panel={panel}
             />
           )}
-        </JournalCard>
+        </GridCard>
       </PendingAddress>
     </Screen>
   );

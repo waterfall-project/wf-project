@@ -74,7 +74,7 @@ par mois et les totaux par nature et par nœud d'organisation, par un second enr
 | `WF-IHM-0140-A` | Aide en ligne | fin — amorcée en EP-15, poursuivie en EP-16 | — |
 | `WF-INTF-0150-A` | Liste fermée des échanges externes | entière | — |
 | `WF-REF-0070-A` | Arbre d'organisation | fin — amorcée en EP-05 | — |
-| `WF-REF-0100-A` | Capacité d'un rôle | fin — amorcée en EP-05 | — |
+| `WF-REF-0100-A` | Capacité d'un rôle | fin — amorcée en EP-05, EP-10 | — |
 | `WF-CYC-0130-A` | Datation des transitions | fin — amorcée en EP-04 | — |
 
 ## Opérations du contrat

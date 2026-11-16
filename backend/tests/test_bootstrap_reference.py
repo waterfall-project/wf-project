@@ -216,6 +216,7 @@ def test_a_time_zone_unknown_stops_the_bootstrap_before_anything(
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "WATERFALL_TIME_ZONE: " in captured.err
+    assert value not in captured.err
 
 
 @pytest.mark.requirement("WF-EXP-0020-A")

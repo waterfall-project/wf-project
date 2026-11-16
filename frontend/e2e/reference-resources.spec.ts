@@ -12,7 +12,7 @@
  * dates): each is tagged `@serial`, so that the project `shared-serial` plays them alone, after the
  * others, and no worker reads the installation as one of them restores it (US-1330, US-1890).
  */
-import { expect, type Locator } from "@playwright/test";
+import { expect, type Locator, type Request } from "@playwright/test";
 
 import { sortUntilAddress, WORKING } from "./hydration";
 import { inService, test } from "./mode";
@@ -377,16 +377,17 @@ test("shows the deactivated roles, calendars and nodes by the filter of the stat
     }).toPass({ timeout: WORKING });
   };
   /**
-   * A command of a row, pressed again until React answers it: the row then offers the opposite. The
-   * click is bounded: the command waits, `aria-disabled`, while its write answers (#2260).
+   * A command of a row, pressed until its action leaves and never after, a command occupied
+   * (`aria-busy`, `aria-disabled`) not pressed at all (`pressOnce`, #3396): the row then offers the
+   * opposite, awaited within `WORKING`.
    */
-  const press = async (pressed: Locator, answered: Locator) => {
-    await expect(async () => {
-      if (!(await answered.isVisible())) {
-        await pressed.click({ timeout: 1_000 });
-      }
-      await expect(answered).toBeVisible({ timeout: 1_000 });
-    }).toPass({ timeout: WORKING });
+  const press = async (
+    pressed: Locator,
+    answered: Locator,
+    asked: (request: Request) => boolean,
+  ) => {
+    await pressOnce(page, pressed, asked);
+    await expect(answered).toBeVisible({ timeout: WORKING });
   };
 
   await page.goto("/reference/resources");
@@ -438,8 +439,13 @@ test("shows the deactivated roles, calendars and nodes by the filter of the stat
       await press(
         command("Réactiver", calendars, calendarLabel),
         command("Désactiver", calendars, calendarLabel),
+        isReactivation,
       );
-      await press(command("Réactiver", tree, nodeLabel), command("Désactiver", tree, nodeLabel));
+      await press(
+        command("Réactiver", tree, nodeLabel),
+        command("Désactiver", tree, nodeLabel),
+        isReactivation,
+      );
       await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
       await page.goto("/reference/resources");
       await openForm();
@@ -459,7 +465,11 @@ test("shows the deactivated roles, calendars and nodes by the filter of the stat
         [calendars, calendarLabel],
       ] as const) {
         if (await command("Désactiver", grid, label).isVisible()) {
-          await press(command("Désactiver", grid, label), command("Réactiver", grid, label));
+          await press(
+            command("Désactiver", grid, label),
+            command("Réactiver", grid, label),
+            isDeactivation,
+          );
         }
       }
     }

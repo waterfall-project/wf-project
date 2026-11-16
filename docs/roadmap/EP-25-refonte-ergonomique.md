@@ -1,7 +1,7 @@
 ---
 id: EP-25
 titre: Lire et saisir dans des écrans aérés, sobres et cohérents
-statut: en cours
+statut: livré
 depend_de: EP-24
 famille: front, back
 issue: 3195
@@ -715,7 +715,7 @@ de l'écran de référence, **afin de** y retrouver les commandes à la même pl
 
 ## US-2110 — Les écrans de paramètres applicatifs en cartes : coûts, ressources, risques, indicateurs, correspondance des coûts réels
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que ces écrans lisent et écrivent déjà
 - **issue** : #3229
@@ -746,7 +746,7 @@ de référence, **afin de** régler le référentiel sans chercher une commande 
 
 ## US-2120 — L'écran « Installation » : le nom de l'entreprise, modifiable, et ce que l'amorçage a fixé
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-EXP-0020-A`, `WF-ADM-0100-A`
 - **opérations** : `getInstallation`, `getReferenceSettings`, `updateReferenceSettings`,
   `listPermissions`, `getMe`
@@ -857,7 +857,7 @@ passant du référentiel à un projet.
   cadrage) ;
 - propre à l'US : paramètres de projets — une carte « Projet » pour les attributs, « Modifier le
   projet » à droite de son titre ; le lotissement en carte, ses commandes sur une ligne à partir de
-  1024 points, repliées en dessous, sa table à la largeur de la carte (#3418) ;
+  1280 points, repliées en dessous, sa table à la largeur de la carte (#3418) ;
 - propre à l'US : cycle de vie, imports et exports, plan de charge — une carte par section ; les
   filtres du plan de charge dans sa carte ;
 - propre à l'US : mon compte, déjà conforme, prend les couleurs et les formes ; les écrans hors
@@ -1145,7 +1145,7 @@ le contrat dit sans fuseau (`docs/api/DECISIONS.md`).
 
 ## US-2310 — Les composants communs et la dette de tests : ce que les lots d'écran ont laissé à trancher
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0080-A`, `WF-IHM-0090-A`, `WF-IHM-0100-A`
 - **opérations** : aucune en propre — celles que le suivi des tâches lit déjà
   (`getBackgroundTask`, `listBackgroundTasks`)
@@ -1181,8 +1181,9 @@ même façon sur chaque écran, **afin de** ne pas relancer un traitement qui co
   écriture tentée est refusée en le nommant. » : non touché ; d'US-0660/L2 (#1336), comme le dit
   US-0170 ;
 - `WF-IHM-0100-A` — « À 150 % d'agrandissement, aucune commande ne devient inatteignable. » : les
-  commandes du lotissement tiennent sur une ligne à partir de 1024 points sans déborder de leur
-  carte, mesurées à 1024 et à 1100 points comme à 1366, et se replient en dessous (#3418) ;
+  commandes du lotissement tiennent sur une ligne à partir de 1280 points sans déborder de leur
+  carte, et se replient en dessous, mesurées à 1024 et à 1100 points comme à 1366 : sur une ligne,
+  elles débordaient de leur carte sous 1280 points (#3418) ;
 - écart : `WF-IHM-0100-A` — « Chaque écran se parcourt entièrement au clavier et le focus reste
   visible. » : non touché ; tenu écran par écran par US-2100 à US-2150 ;
 - écart : `WF-IHM-0100-A` — « Un contrôle automatisé de contraste ne relève aucun écart au niveau

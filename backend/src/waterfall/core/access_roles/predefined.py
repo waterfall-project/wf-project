@@ -5,7 +5,8 @@
 Their permissions are those the example ``access_roles`` of the contract delivers: the project
 manager holds the permissions of WF-INTF-0010, the distinct ones of WF-ADM-0100 included but
 "restore the platform" and "read all the projects"; the manager those of WF-INTF-0020; the
-administrator those of WF-INTF-0030, the reading of the journal of audit included. Their labels are
+administrator those of WF-INTF-0030, the reading of the journal of audit included, and the two of
+the installation (FBS-1.6), whose name of the company it corrects (EP-25, US-2120). Their labels are
 in the default language of the installation, and modifiable afterwards as any label
 (WF-EXP-0020). The account of the bootstrap holds the administrator.
 
@@ -43,6 +44,8 @@ ADMINISTRATOR = (
     "backups.read",
     "backups.write",
     "audit_log.read",
+    "installation.read",
+    "installation.write",
     "platform_restore",
 )
 PROJECT_MANAGER = (
@@ -114,6 +117,8 @@ CONSULTATION: dict[str, bool] = {
     "backups.read": True,
     "backups.write": False,
     "audit_log.read": True,
+    "installation.read": True,
+    "installation.write": False,
     "portfolio_projects.read": True,
     "portfolio_workload.read": True,
     "portfolio_performance.read": True,

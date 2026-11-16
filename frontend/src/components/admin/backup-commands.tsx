@@ -65,7 +65,13 @@ import { useListReading } from "@/components/reference/list-reading";
 import { useListReport } from "@/components/reference/reactivation";
 import { SectionCard, type PrincipalVariant } from "@/components/shell/section-card";
 import type { ResultRefusal } from "@/components/tasks/result-refusal";
-import { afterReveal, useTaskRunning, useTrackTask } from "@/components/tasks/task-tracker";
+import {
+  afterReveal,
+  useRunningTask,
+  useTaskRunning,
+  useTrackTask,
+} from "@/components/tasks/task-tracker";
+import { INSTALLATION, taskAim } from "@/components/tasks/tracking";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -165,6 +171,9 @@ export function useShownBackups(backups: readonly Backup[]): readonly Backup[] {
   return useContext(ListCommands)?.shown ?? backups;
 }
 
+/** What a backup aims at: the installation, by which its command finds it again (#3404). */
+const BACKUP_AIM = taskAim("backup", INSTALLATION);
+
 /**
  * The command that starts a backup now, the principal one of the card of the list, drawn at the
  * variant the card gives it — filled, it triggers (`SectionCard`): the task goes to the tracker
@@ -182,9 +191,11 @@ export function StartBackupButton({ variant }: { readonly variant: PrincipalVari
   const [busy, setBusy] = useState(false);
   // A write of the list lost once sent: the list is read anew, and this waits until it is back (US-2240).
   const reading = useListReading();
-  // The task of the last backup asked: the command waits while it runs (WF-IHM-0080, #3279).
+  // The task of the last backup asked — else, mounted anew, the backup that runs (#3404): the command
+  // waits while it runs (WF-IHM-0080, #3279).
   const [started, setStarted] = useState<string>();
-  const running = useTaskRunning(started);
+  const found = useRunningTask(BACKUP_AIM);
+  const running = useTaskRunning(started ?? found);
   const waiting = busy || running || reading;
   return (
     <Button
@@ -201,7 +212,7 @@ export function StartBackupButton({ variant }: { readonly variant: PrincipalVari
         void held(startBackup()).then((outcome) => {
           setBusy(false);
           if (outcome.kind === "done") {
-            track(outcome.data, { command: startBackup });
+            track(outcome.data, { command: startBackup, aim: BACKUP_AIM });
             setStarted(outcome.data.task_id);
             // The tracker notes the task handed over: the history has it once.
             commands?.say(t("started"), { noted: false });

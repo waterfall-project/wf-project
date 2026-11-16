@@ -2604,6 +2604,7 @@
       "required": "(exigée)",
       "optional": "(facultative)",
       "noLabel": "Aucun intitulé.",
+      "readColumns": "Colonnes lues",
       "kept": "Colonnes conservées",
       "keptHint": "Les colonnes de l’extraction que Waterfall conserve à titre d’information, restituées à la consultation des lignes importées. Une colonne lue ne se déclare pas aussi conservée.",
       "noKept": "Aucune colonne conservée.",
@@ -2995,12 +2996,21 @@
     "applicationSettings": "Paramètres applicatifs",
     "projects": "Projets"
   },
+  "installation": {
+    "title": "Installation",
+    "name": "Nom de l’entreprise",
+    "currency": "Devise",
+    "defaultLanguage": "Langue par défaut",
+    "timeZone": "Fuseau horaire",
+    "fixed": "La devise, la langue par défaut et le fuseau horaire sont fixés à l’installation : aucun écran ne les modifie."
+  },
   "functions": {
     "users": "Gestion des utilisateurs",
     "accessRoles": "Gestion des rôles d’habilitation",
     "systemStatus": "Surveillance de l’état du système",
     "backups": "Sauvegarde et restauration",
     "auditLog": "Journal d’audit",
+    "installation": "Installation",
     "portfolioProjects": "Portefeuille de projets",
     "portfolioWorkload": "Plan de charge agrégé",
     "portfolioPerformance": "Performance du portefeuille",
@@ -3195,6 +3205,10 @@
     },
     "audit_log": {
       "read": "Consulter le journal d’audit"
+    },
+    "installation": {
+      "read": "Consulter l’installation",
+      "write": "Modifier l’installation"
     },
     "portfolio_projects": {
       "read": "Consulter le portefeuille de projets"

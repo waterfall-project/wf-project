@@ -162,10 +162,10 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Actual costs, remaining to commit and cost import | livré | EP-07 |
 | [EP-23](EP-23-dette-constats-ep02-ep03.md) | Debt of the findings of EP-02 and EP-03 | livré | EP-02, EP-03, EP-06 |
 | [EP-24](EP-24-consolidation-apres-v0-3-0.md) | Consolidation after v0.3.0 | livré | EP-09, EP-23 |
-| [EP-25](EP-25-refonte-ergonomique.md) | Ergonomic redesign | en cours | EP-24 |
+| [EP-25](EP-25-refonte-ergonomique.md) | Ergonomic redesign | livré | EP-24 |
 | [EP-26](EP-26-lecture-et-performance-des-grilles.md) | Reading and performance of the grids | en cours | EP-25 |
-| [EP-27](EP-27-comparaison-dans-les-grilles.md) | Comparison in the grids | à planifier | EP-26 |
-| [EP-10](EP-10-indicateurs.md) | Project indicators | en cours | EP-09 |
+| [EP-27](EP-27-comparaison-dans-les-grilles.md) | Comparison in the grids | en cours | EP-26 |
+| [EP-10](EP-10-indicateurs.md) | Project indicators | en cours | EP-25, EP-26 |
 | [EP-08](EP-08-avenants-et-risques.md) | Amendments, risks and provisions | à planifier | EP-10, EP-27 |
 | [EP-11](EP-11-portefeuille.md) | Portfolio | à planifier | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | File exchanges (FLX-01 to FLX-06) | abandonné : each round trip is validated in its functional block | — |
@@ -395,7 +395,11 @@ the previous one as soon as the pivot lot its framing names is merged (decision 
 US-1380/L1 (#2328) for `epic/EP-07`, US-1490/L1 (#2370) for `epic/EP-09`, US-1580/L1 (#2398) for `epic/EP-10`, US-1660/L1 (#2437) for
 `epic/EP-08`. Third: `epic/EP-26` created from `epic/EP-25` as soon as the issues of EP-26 are
 opened, its back lots and its measuring tools touching no file of the redesign (decision of
-2026-11-14).
+2026-11-14). Fourth: `epic/EP-27` created from `epic/EP-26` as soon as US-2270/L2 (#3322) is
+merged, the comparison on the kept readings, on which its own relies (decision of 2026-11-15). Since
+the reframing of EP-10 of 2026-11-15, `epic/EP-10` no longer follows the series: EP-09 delivered, it
+is created from `main` once EP-25 is delivered, without waiting for EP-26, on which it also depends:
+only US-1680 and US-2420 wait for EP-26 in `main`; `epic/EP-08` keeps its pivot lot.
 
 The chain runs on every pull request, towards an epic's branch as towards `main`, and
 none is merged if it fails.

@@ -22,11 +22,12 @@ import { FiguresList } from "@/components/figures-card";
 import { CELL, ListTable } from "@/components/projects/project-tables";
 import { PortfolioRiskMatrix } from "@/components/risks/risk-bubble-chart";
 import { OccurredCost } from "@/components/risks/risk-coverage";
+import { GridCard } from "@/components/shell/grid-card";
 import { Signal } from "@/components/signal/signal";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatDecimal, formatMonth, formatPlanningDate, formatShare } from "@/i18n/format";
 
-import { CardRow, ChartCard, Figure, ViewSection } from "./portfolio-value";
+import { CardRow, Figure, ViewSection } from "./portfolio-value";
 import { PortfolioWorkloadChart } from "./workload-chart";
 
 type Schemas = components["schemas"];
@@ -269,9 +270,9 @@ export function PortfolioRisksView({ risks }: { readonly risks: Schemas["Portfol
           ))}
         </ListTable>
       </ViewSection>
-      <ChartCard>
+      <GridCard>
         <PortfolioRiskMatrix matrix={risks.matrix} scope={risks.scope} />
-      </ChartCard>
+      </GridCard>
     </>
   );
 }
@@ -294,9 +295,9 @@ export function WorkloadView({ workload }: { readonly workload: Schemas["Portfol
   }
   return (
     <>
-      <ChartCard>
+      <GridCard>
         <PortfolioWorkloadChart workload={workload} />
-      </ChartCard>
+      </GridCard>
       <ViewSection title={t("title")}>
         <div className="overflow-x-auto">
           <ListTable

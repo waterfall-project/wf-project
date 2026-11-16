@@ -114,7 +114,8 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (9) :
 ## Préalables
 
 `epic/EP-08` se tire d'`epic/EP-10` dès la fusion de son lot pivot, **US-1660/L1 #2437** — le socle
-d'EP-10, qui pose `revision_indicator`, la chaîne des migrations arrêtée à `0028`, le module
+d'EP-10, qui pose `revision_indicator` et sa migration (EP-10, recadré le 2026-11-15, n'en fixe plus
+le numéro et en ajoute une seconde ; EP-08 chaîne la sienne sur la dernière d'EP-10), le module
 `core/indicators` avec son interface déclarée et la signature du registre `register_indicators` avec
 l'`Act` —, et non de `main` à la livraison d'EP-10 (décision de l'auteur du 2026-11-07, pour toute la
 série EP-06 → EP-07 → EP-09 → EP-10 → EP-08 ; l'exception du README, « Branches ») : elle reprend
