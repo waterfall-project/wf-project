@@ -20,11 +20,11 @@ from waterfall.core.estimate.interface import (
     Month,
     Placement,
     PlannedLine,
-    lines_planned_value,
     parts_of_cumulated,
     rounded_parts,
     summed_parts,
 )
+from waterfall.core.estimate.spreading import planned_value
 from waterfall.core.planning.interface import WorkInstant, weekly_calendar
 
 EIGHT = Decimal(8)
@@ -94,6 +94,23 @@ def test_on_a_remaining_the_line_falls_after_the_date_of_calculation() -> None:
 
 
 @pytest.mark.requirement("WF-DEV-0080-A")
+def test_the_parts_cumulate_to_the_planned_value_through_a_december_and_a_new_year() -> None:
+    # 100.01 from Monday 16 November 2026 to Friday 8 January 2027: the end of December, the 31st,
+    # is a month end like any other, and the year turns without a part lost.
+    task = Placement(
+        EIGHT_HOURS, WorkInstant(date(2026, 11, 16)), WorkInstant(date(2027, 1, 8), EIGHT)
+    )
+    parts = rounded_parts(task, Decimal("100.01"), MONEY)
+    assert list(parts) == [Month(2026, 11), Month(2026, 12), Month(2027, 1)]
+    line = [PlannedLine(Decimal("100.01"), task)]
+    cumulated = Decimal(0)
+    for month, part in parts.items():
+        cumulated += part
+        assert planned_value(line, month_end(month)) == cumulated, month
+    assert month_end(Month(2026, 12)) == date(2026, 12, 31)
+
+
+@pytest.mark.requirement("WF-DEV-0080-A")
 def test_the_parts_of_an_amount_cumulate_to_its_planned_value_at_the_end_of_each_month() -> None:
     # The cumulated is rounded once from its exact value, as the planned value of the line is
     # (#3566). 0.05 from Monday 16 February to Friday 8 May 2026: 80, 176, 176 and 48 hours of 480.
@@ -109,13 +126,7 @@ def test_the_parts_of_an_amount_cumulate_to_its_planned_value_at_the_end_of_each
     for month in (FEBRUARY, MARCH, APRIL, Month(2026, 5)):
         cumulated += parts.get(month, Decimal(0))
         last = month_end(month)
-        assert lines_planned_value(line, last) == cumulated, month
-
-
-@pytest.mark.requirement("WF-DEV-0090-A")
-def test_the_last_day_of_a_month_is_found_in_december_too() -> None:
-    assert month_end(Month(2026, 12)) == date(2026, 12, 31)
-    assert month_end(Month(2026, 2)) == date(2026, 2, 28)
+        assert planned_value(line, last) == cumulated, month
 
 
 @pytest.mark.requirement("WF-DEV-0090-A")
