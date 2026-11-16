@@ -13,6 +13,7 @@ from uuid import UUID
 from waterfall.core.costs.interface import PROJECT, UNASSIGNED, CostScope
 from waterfall.core.indicators.interface import kept_any, stored_document
 from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
+from waterfall.platform.identifiers import read_identifier
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -31,12 +32,7 @@ def scope_of(text: str) -> CostScope:
         return PROJECT
     if text == UNASSIGNED:
         return UNASSIGNED
-    try:
-        found = UUID(text)
-    except ValueError:
-        return NO_SUBPROJECT
-    # ``format: uuid`` is the hyphenated form; ``UUID`` also reads braces, ``urn:uuid:``, no hyphen.
-    return found if str(found) == text.lower() else NO_SUBPROJECT
+    return read_identifier(text) or NO_SUBPROJECT
 
 
 def unknown_scope() -> UnprocessableError:

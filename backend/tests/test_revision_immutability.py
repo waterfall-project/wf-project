@@ -506,7 +506,8 @@ def test_the_indicators_a_marking_kept_are_never_written_again(
     # à une révision marquée, quel que soit le client qui la tente. » : a document the marking of a
     # review kept is neither changed, deleted nor joined by another, its owner refused, nor
     # truncated with its table or its partition. The documents are those the indicators keep
-    # (US-1670/L1); a curve, which none keeps before US-1690/L3, is refused as another would be.
+    # (US-1670/L1, US-1690/L3); another, of a kind and a scope kept already, is refused as any
+    # would be.
     project = under_way(api, stage, clock_setter(monkeypatch))
     revision = project.tree.revision
     at = marked(stage, revision, "Revue de novembre")
@@ -514,6 +515,12 @@ def test_the_indicators_a_marking_kept_are_never_written_again(
     revision_id = UUID(revision["revision_id"])
     before = documents_of(owner, revision_id)
     assert [kept[:3] for kept in before] == [
+        ("cost_curve", "project", at),
+        ("cost_curve", "unassigned", at),
+        ("cost_curve_payment_delays", "project", at),
+        ("cost_curve_payment_delays", "unassigned", at),
+        ("earned_value_curves", "project", at),
+        ("earned_value_curves", "unassigned", at),
         ("estimate", "project", at),
         ("estimate", "unassigned", at),
         ("project", "project", at),

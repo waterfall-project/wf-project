@@ -17,9 +17,12 @@ from sqlalchemy import select
 
 from waterfall.core.costs.interface import PROJECT
 from waterfall.core.indicators.tables import RevisionIndicator
-from waterfall.core.revisions.interface import revision_project
+from waterfall.core.projects.interface import current_day
+from waterfall.core.revisions.interface import marked_revisions_at, revision_project
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 
 if TYPE_CHECKING:
+    from datetime import date
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -75,7 +78,29 @@ def revisions_keeping_project(session: Session, project_id: UUID) -> set[UUID]:
             select(RevisionIndicator.revision_id).where(
                 RevisionIndicator.project_id == project_id,
                 RevisionIndicator.kind == "project",
-                RevisionIndicator.scope == PROJECT,
+                RevisionIndicator.scope == str(PROJECT),
             )
         )
     )
+
+
+def kept_revision(
+    session: Session, project_id: UUID, revision_id: UUID | None, as_of: date | None
+) -> UUID:
+    """Give the marked revision a reading of a marking reads: the one named, or the one of a date.
+
+    The one named is read as it is; ``as_of`` names the last revision marked on or before that day
+    — the day of the time zone of the installation — among those that kept the indicators of the
+    project, the 409 ``STATE_FORBIDS_OPERATION``, without a state, when none did (EP-10, "Le calcul
+    des indicateurs").
+    """
+    if revision_id is not None:
+        return revision_id
+    marked = marked_revisions_at(session, project_id)
+    keeping = revisions_keeping_project(session, project_id)
+    for found in sorted(marked, key=lambda each: (marked[each], each), reverse=True):
+        if as_of is not None and current_day(marked[found]) > as_of:
+            continue
+        if found in keeping:
+            return found
+    raise ConflictError(STATE_FORBIDS_OPERATION)

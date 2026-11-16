@@ -399,7 +399,9 @@ def test_a_delay_at_the_end_of_a_month_drops_the_null_part_and_adds_no_month() -
     # The date of calculation is the 31 March, the task goes on to 30 April (22 working days, 100
     # each of 2 200). The share starts on 1 April: a delay of 30 days puts the end of April at
     # 30 March, before it, so April holds a null part, dropped, and May holds the whole; a delay
-    # of one day puts 21 days in April (to the 29th) and the last one in May, and no month beyond.
+    # of one day puts 21 days in April (to the 29th) and the last one in May, and no month beyond;
+    # without a delay the whole stays in April (#3574).
     as_of = date(2026, 3, 31)
     assert shifted(line("2200", 30), as_of=as_of) == {MAY: Decimal(2200)}
     assert shifted(line("2200", 1), as_of=as_of) == {APRIL: Decimal(2100), MAY: Decimal(100)}
+    assert shifted(line("2200", 0), as_of=as_of) == {APRIL: Decimal(2200)}

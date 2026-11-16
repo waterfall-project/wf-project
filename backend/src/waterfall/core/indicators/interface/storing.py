@@ -19,14 +19,16 @@ conservation au marquage"):
   computed in one pass on the day of the marking in the time zone of the installation, on the
   reference of the project and the actual cost known then (WF-IND-0010): a line of cost dated
   after that day counts nought, and a line imported after the marking never enters. A project
-  before In progress keeps none (an offer in pricing keeps its estimate alone).
+  before In progress keeps none (an offer in pricing keeps its estimate alone);
+- the three curves — ``cost_curve``, ``cost_curve_payment_delays``, ``earned_value_curves`` —, of
+  the project In progress, on each scope too, drawn on the same day and the same lines of cost
+  known then (WF-IND-0100, WF-IND-0110; US-1690/L3).
 
 Each document is the answer of the contract of its kind for its scope, its context the revision
 ``marked``, ``computed_at`` the instant of the marking (``act.at``), ``is_stored`` true, and the
 zone of each index null, classified at each reading on the thresholds of that day (WF-REF-0130).
 The rows bear the instant of the marking and its requester, and are written at once, while the
-revision is still current: the triggers of the table refuse any row after (WF-DAT-0020). The three
-curves are added by US-1690/L3.
+revision is still current: the triggers of the table refuse any row after (WF-DAT-0020).
 
 Nothing is caught: a computation that raises fails the marking, nothing being written
 (``compute_indicators``, #2180).
@@ -40,6 +42,12 @@ from waterfall.core.costs.interface import PROJECT, UNASSIGNED
 from waterfall.core.estimate import interface as estimate
 from waterfall.core.estimate.interface import IndicatorsAsked, estimate_indicators
 from waterfall.core.indicators.computing import Basis, day_documents
+from waterfall.core.indicators.curving import (
+    cost_curve_document,
+    curves_of_scope,
+    earned_value_curves_document,
+    read_curve_sources,
+)
 from waterfall.core.indicators.interface.estimate_documents import (
     estimate_document,
     remaining_document,
@@ -50,6 +58,7 @@ from waterfall.core.projects.interface import (
     SubprojectFilters,
     SubprojectSort,
     Viewer,
+    current_day,
     list_subprojects,
     project_facts,
 )
@@ -98,6 +107,26 @@ def _as_kept(document: Document, act: Act) -> Document:
     return {**document, "context": context}
 
 
+def _curves(session: Session, basis: Basis, act: Act, scopes: list[CostScope]) -> list[Kept]:
+    """Compute the three curves of each scope, on the day of the marking and the costs known now."""
+    day = current_day(act.at)
+    sources = read_curve_sources(session, basis)
+    kept: list[Kept] = []
+    for scope in scopes:
+        reading = curves_of_scope(session, sources, day, scope)
+        context = Context(basis.revision_id, MARKED, act.at, scope, is_stored=True)
+        kept += [
+            Kept("cost_curve", scope, cost_curve_document(reading, context, payment_delays=False)),
+            Kept(
+                "cost_curve_payment_delays",
+                scope,
+                cost_curve_document(reading, context, payment_delays=True),
+            ),
+            Kept("earned_value_curves", scope, earned_value_curves_document(reading, context)),
+        ]
+    return kept
+
+
 def _documents(session: Session, project_id: UUID, revision_id: UUID, act: Act) -> list[Kept]:
     """Compute the documents a revision being marked keeps, each kind for its scopes."""
     facts = project_facts(session, project_id)
@@ -115,6 +144,7 @@ def _documents(session: Session, project_id: UUID, revision_id: UUID, act: Act) 
         context = Context(revision_id, MARKED, act.at, PROJECT, is_stored=True)
         documents = day_documents(session, basis, context, scopes)
         kept.extend(Kept("project", scope, documents[scope]) for scope in scopes)
+        kept.extend(_curves(session, basis, act, scopes))
     return kept
 
 

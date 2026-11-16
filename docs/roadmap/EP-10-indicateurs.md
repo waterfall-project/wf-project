@@ -214,6 +214,15 @@ suivi :
 - #2893, #3056 et #3060 — US-2430 ; #2907 — clos entre-temps ;
 - #2498 — US-1710, qui ne retient que les inscriptions des jalons.
 
+Décisions de l'auteur du 2026-11-16, sur deux constats des lots en cours (ils ajoutent deux lots,
+vingt-sept en tout) :
+
+- #3564 — la courbe de coûts adopte les parts arrondies communes de `docs/api/DECISIONS.md`, de
+  sorte qu'elle et la projection de dépenses ne diffèrent plus d'un centime par mois : US-1690/L4,
+  sur la fonction d'US-2040/L2 ;
+- #3567 — les coûts réels (`core/costs/reading.py`) et les nœuds (`api/nodes.py`) lisent le filtre
+  de sous-projet strictement, comme le contrat : US-2430/L2, hors du chemin critique.
+
 ## Préalables
 
 EP-25 livré : `epic/EP-10` se tire alors de `main`, sans attendre EP-26 (décision de l'auteur du
@@ -669,7 +678,15 @@ Ajoutée au recadrage du 2026-11-15 (US-2040, US-2050).
   d'une révision sur les mois de leur tâche par `spreading`, comme le plan de charge : une
   fonction commune rend les parts arrondies de chaque ligne, que le plan de charge, son détail et
   la projection somment chacun à sa maille. Le plan de charge existant passe par elle : ses totaux
-  peuvent bouger d'un centième, et ses exemples sont réengendrés.
+  peuvent bouger d'un centième, et ses exemples sont réengendrés. **La courbe de coûts cumulés passe
+  elle aussi par cette fonction** (US-1690/L4, décision de l'auteur du 2026-11-16, #3564) : sa série
+  lisait l'étalement sans arrondir (`series/shares.py` coupe à dix décimales), et ses décaissements
+  différaient de la projection de deux centimes sur le témoin (juin 2026). Écarté : documenter
+  l'écart au contrat, qui laisse deux lectures d'un même montant ; la conception d'US-2050 dit déjà
+  que la projection est la lecture par mois de la courbe. Le lot suit US-1690/L3, pour que les
+  courbes conservées au marquage ne soient écrites qu'une fois, et US-2040/L2, qui écrit la
+  fonction ; il réengendre les exemples `cost_curve_*.json`. Les provisions, que la courbe garde et
+  que la projection exclut, restent l'écart de 500 000 du témoin : le contrat de la courbe le dit.
 - **Le détail** : chaque rôle de `WorkloadPlan` gagne `tasks`, dans l'ordre du début puis du
   planning ; chaque tâche rend son nœud, son numéro de ligne, son libellé, son début, sa fin, le
   total de ses heures et `months`. Les lignes d'un même rôle sous une même tâche sont sommées. Sur
@@ -796,6 +813,18 @@ livrés ; les tableaux sont retirés au recadrage du 2026-11-15, et aucun lot d'
 un lot d'un autre EPIC. Deux règles en restent : les catalogues `messages/*.json` reçoivent des
 clés de plusieurs lots, chacun n'y écrivant que les siennes ; `platform/settings.py` (le réglage du
 cache) et `platform/cache.py` sont écrits par US-1720.
+
+### Le filtre de sous-projet, lu strictement partout
+
+Décision de l'auteur du 2026-11-16 (#3567). `getProjectIndicators` lit `scope` en forme à tirets
+seulement, comme `SubprojectFilter` du contrat (`format: uuid`) ; `listActualCosts`
+(`core/costs/reading.py`, `UUID(asked)`) et `listNodes` (`api/nodes.py`, `Unassigned | UUID` lu par
+pydantic) acceptaient aussi les accolades, `urn:uuid:` et la forme sans tirets : le même identifiant
+était refusé par l'une et accepté par les autres. US-2430/L2 aligne les deux routes sur le contrat :
+toute autre forme que celle à tirets, ou un sous-projet inconnu, est refusée par `UNKNOWN_SUBPROJECT`,
+le code que `listActualCosts` et les indicateurs rendent déjà ; `listNodes` le rend à la place du
+422 de validation de pydantic. Le contrat ne change pas. Écarté : documenter l'écart, qui laisse une
+route plus permissive que ce qu'elle publie.
 
 ### Ce que le cadrage laisse à EP-08
 
@@ -1264,6 +1293,12 @@ la conservation (US-1670). Le pas du mois et les points de la date de calcul sui
 `docs/api/DECISIONS.md`, « Les courbes au pas du mois, conservées au marquage » (G-01, M-02) et
 « Les décaissements… » (M-06).
 
+- propre à l'US : la courbe de coûts passe, comme la projection de dépenses et le plan de charge,
+  par les parts arrondies communes de `core/estimate` (US-2040/L2) : à chaque mois, ses
+  décaissements sans les provisions et la projection de dépenses (`getProjectSpending`) ne diffèrent
+  pas d'un centime (décision de l'auteur du 2026-11-16, #3564) ; ce critère est celui du lot
+  US-1690/L4.
+
 **Hors périmètre.** Les marches d'avenant et les lignes de provision dans les décaissements
 (EP-08) ; la courbe en S du portefeuille (EP-11) ; l'écran (US-1730).
 
@@ -1644,8 +1679,8 @@ prévoir la dépense des mois qui viennent, main-d'œuvre et débours totalisés
   conservée au marquage (décision de l'auteur du 2026-11-14, #3182) ;
 - propre à l'US : la page a son aide en ligne, dans les deux langues.
 
-**Notes de réalisation.** La courbe de coûts cumulés (US-1690) étale le reste de chaque ligne de la
-même façon : la projection en est la lecture par mois et par nature, non cumulée, et n'en reprend
+**Notes de réalisation.** La courbe de coûts cumulés (US-1690, par son lot L4) étale le reste de
+chaque ligne de la même façon : la projection en est la lecture par mois et par nature, non cumulée, et n'en reprend
 ni les coûts réels ni les mois passés sur la base du reste à engager.
 
 **Hors périmètre.** Les provisions, absentes de l'écran ; une commande passée et non facturée, que
@@ -1718,7 +1753,7 @@ de mesures, **afin de** savoir s'ils tiennent leurs objectifs avant de publier l
 
 - **statut** : fini
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par EP-07 et EP-09
-- **opérations** : `getProjectIndicators`
+- **opérations** : `getProjectIndicators` ; `listActualCosts`, `listNodes` (le filtre `subproject_id`, US-2430/L2)
 - **issue** : #3509
 
 **En tant que** développeur, **je veux** que les constats rattachés à cet EPIC soient corrigés,
@@ -1730,6 +1765,11 @@ de mesures, **afin de** savoir s'ils tiennent leurs objectifs avant de publier l
   de test du harnais d'exemples en reçoit un, dont le 4,04 % de WF-DEV-0050 (#2893) ;
 - propre à l'US : le jumeau de l'ajout d'une tâche au reste à engager (`remaining.spec.ts`) lit,
   contre le service, le budget de référence et la valeur planifiée avant et après l'ajout, et les
-  constate inchangés (#3056) ; son assertion tautologique sur la référence est retirée (#3060).
+  constate inchangés (#3056) ; son assertion tautologique sur la référence est retirée (#3060) ;
+- propre à l'US : `listActualCosts` et `listNodes` lisent le filtre de sous-projet strictement,
+  comme `getProjectIndicators` et comme le contrat (`SubprojectFilter`, `format: uuid`) : un
+  identifiant à accolades, `urn:uuid:` ou sans tirets est refusé, `UNKNOWN_SUBPROJECT`, sur chacune
+  des trois routes (décision de l'auteur du 2026-11-16, #3567) ; ce critère est celui du lot
+  US-2430/L2.
 
 **Hors périmètre.** #2498, que porte US-1710 ; #3096, que porte US-2040.

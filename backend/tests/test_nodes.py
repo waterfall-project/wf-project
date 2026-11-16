@@ -842,3 +842,32 @@ def test_a_row_number_resolves_to_its_node_whatever_the_filters_and_none_beyond(
     }
     assert refusal(resolved(3)) == (404, "NOT_FOUND", {})
     assert faults(resolved(0))[0][0] == "/path/row_number"
+
+
+@pytest.mark.requirement("WF-IND-0020-A")
+def test_the_filter_of_the_subproject_is_read_as_the_hyphenated_identifier_only(
+    api: ContractClient, stage: Scene, tree: Tree
+) -> None:
+    # US-2430/L2: ``format: uuid`` (``SubprojectFilter``), as ``getProjectIndicators`` reads its
+    # scope: the hyphenated identifier is read, ``unassigned`` too; braces, ``urn:uuid:``, no
+    # hyphen, and a subproject the project does not have, are ``UNKNOWN_SUBPROJECT`` on
+    # ``/query/subproject_id``, and not the 422 of the validation.
+    made = api.post(
+        f"{PROJECTS}/{stage.project['project_id']}/subprojects",
+        headers=stage.manager.headers,
+        json={"code": "SP-1", "label": "Câblage"},
+    )
+    assert made.status_code == 201, made.text
+    key = made.json()["subproject_id"]
+    assert tree.read(f"?subproject_id={key.upper()}").status_code == 200
+    assert tree.read("?subproject_id=unassigned").status_code == 200
+    # ``enum: [unassigned]``: lower case alone.
+    assert faults(tree.read("?subproject_id=UNASSIGNED"))[0][:2] == (
+        "/query/subproject_id",
+        "UNKNOWN_SUBPROJECT",
+    )
+    unknown: list[tuple[str, str, dict[str, Any]]] = [
+        ("/query/subproject_id", "UNKNOWN_SUBPROJECT", {})
+    ]
+    for text in (key.replace("-", ""), "{" + key + "}", "urn:uuid:" + key, str(uuid4())):
+        assert faults(tree.read(f"?subproject_id={text}")) == unknown, text

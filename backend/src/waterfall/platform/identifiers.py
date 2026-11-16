@@ -16,3 +16,16 @@ import uuid_utils
 def new_id() -> UUID:
     """Draw a new identifier."""
     return UUID(bytes=uuid_utils.uuid7().bytes)
+
+
+def read_identifier(text: str) -> UUID | None:
+    """Read an identifier as the contract writes it (``format: uuid``); none for any other form.
+
+    The hyphenated form, in either case. ``UUID`` also reads braces, ``urn:uuid:`` and no hyphen at
+    all: those are no identifier of the contract, and name nothing.
+    """
+    try:
+        found = UUID(text)
+    except ValueError:
+        return None
+    return found if str(found) == text.lower() else None
