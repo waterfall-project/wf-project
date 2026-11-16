@@ -16,8 +16,10 @@ named with its cause where the test stands:
 
 - the reference is the offer 100 until the merge of the amendment 1 (EP-08): the reference budget
   falls short by the step of the amendment, the planned value by at most as much, the ratios and
-  the projections that depend on them, and the budgets of the subprojects, which the offer does not
-  declare, with the indices measured to them;
+  the projections that depend on them — each recomputed exactly, by its formula, on the fields of
+  the witness — the deltas of the estimate, measured to the offer's estimate where the example's is
+  to the 101's, and the budgets of the subprojects, which the offer does not declare, with the
+  earned value of each mesh and the indices measured to them;
 - the provisions of the identified risks and the lines the occurrence of a risk merged are EP-08's:
   the remaining, the projection of the project manager and what depends on them fall short by them;
 - the contexts, ``is_stored``, the actual cost, the earned value, the dates of the milestones and
@@ -28,7 +30,7 @@ the offer refused, the points of the time/time diagram, the documents of the 101
 """
 
 import json
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
@@ -82,6 +84,10 @@ THE_DAY = "2026-06-03"
 REFERENCE = "measured to the offer 100, the reference until the amendment 1 (EP-08)"
 PROVISIONS = "the provisions and the lines of the occurrence of a risk (EP-08)"
 BOTH = "the reference and the provisions (EP-08)"
+# What the criterion does not list: the 101 read at its marking, 1 February, against an example of
+# the day, 3 June, which holds the work since. Each such path is pinned to the 101's own estimate
+# and indicators instead, by an equality, in the test that names it.
+SINCE = "the day against the marking, pinned to the estimate and the indicators of the 101"
 
 # The fields of the indicators of the day that differ from the example, each with its cause.
 DAY_APART = {
@@ -105,17 +111,21 @@ MARKED_APART = {
     "/projections/project_manager": PROVISIONS,
     "/projections/variance_project_manager": BOTH,
 }
-# The points of the indices on the day, which the reference and its subproject budgets change.
+# The points of the indices on the day. The actual cost of each mesh is the example's; the earned
+# value of a mesh, spread over the meshes by the budgets of the subprojects, which the offer 100
+# does not declare, is what differs (``test_the_index_history_is_...``): the cost index and the
+# planned value follow from it, then the schedule index and the zones.
 INDEX_POINT_APART = {
     "/scopes[]/points[]/cost_index/value/value": "the earned value of a mesh, from its budgets",
-    "/scopes[]/points[]/cost_index/zone": "the zone of that index",
+    "/scopes[]/points[]/cost_index/zone": "the zone of that index, by its value",
     "/scopes[]/points[]/schedule_index/value/is_computable": "no planned value in a subproject",
     "/scopes[]/points[]/schedule_index/value/reason": "no planned value in a subproject",
     "/scopes[]/points[]/schedule_index/value/value": "the planned value, from the reference",
-    "/scopes[]/points[]/schedule_index/zone": "the zone of that index",
+    "/scopes[]/points[]/schedule_index/zone": "the zone of that index, by its value",
 }
 # What the estimate of the 101 kept differs in from the example: the provision, the lines of the
-# occurrence and the reference its deltas are measured to.
+# occurrence and the reference its deltas are measured to: the offer 100's estimate, where the
+# example, read on the 102, measures to the 101 as marked.
 ESTIMATE_APART = {
     "/by_cost_type[len]": PROVISIONS,
     "/by_cost_type[]/amount/value": PROVISIONS,
@@ -129,29 +139,33 @@ ESTIMATE_APART = {
     "/provisions_identified": PROVISIONS,
     "/total/value": PROVISIONS,
 }
-# What the remaining of the 101 kept differs in from the example of the day: the same causes and
-# the work since the marking, 1 February against 3 June — the pieces imported, the tasks completed
-# which no longer owe their remaining — which no example of the marking reads (compared to the
-# kept indicators of the project, ``test_the_remaining_of_the_101_...``).
+# What the remaining of the 101 kept differs in from the example of the day. The provision, the
+# reserve and the lines of the occurrence are EP-08's; the budgets of the subprojects, and the
+# margins and the deltas measured to them, are the offer's, the reference. The amounts of the
+# marking, 1 February, against those of the day, 3 June, which holds the work since, are not in the
+# criterion's list: the 101 spent nothing, so they are pinned to its own estimate and indicators
+# (``test_the_remaining_of_the_101_...``).
 REMAINING_APART = {
-    "/total",
-    "/by_cost_type[len]",
-    "/by_cost_type[]/amount",
-    "/by_cost_type[]/share/value",
-    "/by_subproject[]/actual_cost",
-    "/by_subproject[]/budget",
-    "/by_subproject[]/is_over_budget",
-    "/by_subproject[]/remaining",
-    "/by_subproject[]/variance",
-    "/by_subproject[]/zone",
-    "/coverage/coverage_variance",
-    "/coverage/occurred_cost",
-    "/coverage/occurred_reestimated",
-    "/coverage/remaining_provisions",
-    "/coverage/reserve",
-    "/delta_to_previous_revision",
-    "/delta_to_reference",
+    "/total": SINCE,
+    "/by_cost_type[len]": PROVISIONS,
+    "/by_cost_type[]/amount": SINCE,
+    "/by_cost_type[]/share/value": SINCE,
+    "/by_subproject[]/actual_cost": SINCE,
+    "/by_subproject[]/budget": REFERENCE,
+    "/by_subproject[]/is_over_budget": REFERENCE,
+    "/by_subproject[]/remaining": SINCE,
+    "/by_subproject[]/variance": REFERENCE,
+    "/by_subproject[]/zone": REFERENCE,
+    "/coverage/coverage_variance": PROVISIONS,
+    "/coverage/occurred_cost": PROVISIONS,
+    "/coverage/occurred_reestimated": PROVISIONS,
+    "/coverage/remaining_provisions": PROVISIONS,
+    "/coverage/reserve": PROVISIONS,
+    "/delta_to_previous_revision": REFERENCE,
+    "/delta_to_reference": REFERENCE,
 }
+CENT = D("0.01")
+RATIO_STEP = D("0.0001")
 
 
 def step() -> Decimal:
@@ -159,6 +173,16 @@ def step() -> Decimal:
     steps = example("cost_curve")["steps"]
     assert [each["cause"] for each in steps] == ["amendment"]
     return D(steps[0]["amount"])
+
+
+def cents(amount: Decimal) -> Decimal:
+    """Round an amount to the cent, half away from zero, as the service does (WF-DAT-0100)."""
+    return amount.quantize(CENT, rounding=ROUND_HALF_UP)
+
+
+def four_places(ratio: Decimal) -> Decimal:
+    """Round a ratio or an index to four decimals, half to even, as the service does."""
+    return ratio.quantize(RATIO_STEP, rounding=ROUND_HALF_EVEN)
 
 
 def provisions_of_the_day() -> Decimal:
@@ -170,6 +194,56 @@ def provisions_of_the_day() -> Decimal:
 def provisions_marked() -> Decimal:
     """Give what the remaining kept by the marking of the 101 lacks of the example: the reserve."""
     return D(example("remaining_indicators")["coverage"]["reserve"])
+
+
+def same_origin(ours: dict[str, Decimal], theirs: dict[str, Decimal]) -> None:
+    """Require the points of a series to be the example's, but for the zero points before them.
+
+    The example draws the origin of the series where the amendment 1 steps the budget, the end of
+    January; the witness, measured to the offer 100, starts where its first point is.
+    """
+    assert {day: ours[day] for day in ours} == {day: theirs[day] for day in ours}
+    missing = {day: amount for day, amount in theirs.items() if day not in ours}
+    assert set(missing.values()) <= {D(0)}
+    assert all(day < min(ours) for day in missing)
+
+
+def measured(ours: dict[str, Decimal], theirs: dict[str, Decimal]) -> dict[str, Decimal]:
+    """Require a series measured to the offer to fall short of the example's by the step at most.
+
+    From nothing at the origin, to the step at the end of the reference; the missing days are the
+    zero points of the step of the amendment, which the offer lacks. Give the gap, by day.
+    """
+    gaps = {day: theirs[day] - ours[day] for day in sorted(ours)}
+    assert all(0 <= each <= step() for each in gaps.values())
+    assert gaps[max(gaps)] == step()
+    assert list(gaps.values()) == sorted(gaps.values())
+    missing = {day: amount for day, amount in theirs.items() if day not in ours}
+    assert set(missing.values()) <= {D(0)}
+    assert all(day < min(ours) for day in missing)
+    return gaps
+
+
+def gaps_of_the_projection(ours: dict[str, Decimal], theirs: dict[str, Decimal]) -> dict[str, Any]:
+    """Give what the example's projection holds beyond the reading's, by day: the provisions."""
+    assert ours.keys() == theirs.keys()
+    return {day: theirs[day] - ours[day] for day in ours}
+
+
+def zulu(instant: datetime) -> str:
+    """Write an instant as the examples do."""
+    return instant.isoformat().replace("+00:00", "Z")
+
+
+def documents_of(value: object) -> list[dict[str, Any]]:
+    """Give the dictionaries of a value, at any depth."""
+    if isinstance(value, dict):
+        mapped = cast("dict[str, object]", value)
+        return [mapped, *(each for part in mapped.values() for each in documents_of(part))]
+    if isinstance(value, list):
+        listed = cast("list[object]", value)
+        return [each for part in listed for each in documents_of(part)]
+    return []
 
 
 @pytest.fixture
@@ -246,7 +320,6 @@ def test_the_witness_loaded_keeps_the_indicators_of_its_marked_revisions(witness
     assert kinds_of(witness, REVISION_101) == {"estimate", "remaining", "project", *CURVES}
 
 
-@QUA
 def test_the_witness_has_one_extending_the_loader_s_and_it_names_the_indicators() -> None:
     # The convention is the loader's (#3552): the interface of the indicators, imported there,
     # fills ``register_indicators`` for every marking the witness makes, none in ``revisions``.
@@ -273,11 +346,6 @@ def test_the_101_keeps_its_documents_for_the_project_each_subproject_and_out_of_
     assert {row.document["context"]["is_stored"] for row in found} == {True}
 
 
-def zulu(instant: datetime) -> str:
-    """Write an instant as the examples do."""
-    return instant.isoformat().replace("+00:00", "Z")
-
-
 @QUA
 def test_the_indicators_of_the_day_are_the_example_but_for_the_reference_and_the_provisions(
     api: ContractClient, witness: Database, realm: TestRealm, the_day: None
@@ -302,19 +370,32 @@ def test_the_indicators_of_the_day_are_the_example_but_for_the_reference_and_the
         manager, budget = D(each["projections"]["project_manager"]), D(each["reference_budget"])
         assert D(each["projections"]["variance_project_manager"]) == manager - budget
         assert manager == D(each["actual_cost"]) + D(each["remaining"])
-    # The planned value falls short by the part of the step the offer would have planned by then.
-    planned = D(expected["planned_value"]) - D(body["planned_value"])
-    assert 0 < planned <= step()
     assert D(body["schedule_variance"]) == D(body["earned_value"]) - D(body["planned_value"])
-    # The ratios that depend on them move by a thousandth at most.
-    for ratio in (
-        ("financial_progress", "value"),
-        ("schedule_index", "value", "value"),
-    ):
-        ours, theirs = body, expected
-        for key in ratio:
-            ours, theirs = ours[key], theirs[key]
-        assert abs(D(ours) - D(theirs)) <= D("0.001")
+    # The planned value falls short by the part of the step the offer would have planned by then:
+    # between the gaps of the series of the planned value at the month ends around the day, the
+    # series, cumulated, never falling back (the curve has no point on the day itself).
+    curves, wanted = (
+        read(api, witness, realm, f"{INDICATORS}/earned-value-curves"),
+        example("earned_value_curves"),
+    )
+    gaps = measured(series_of(curves, "planned_value"), series_of(wanted, "planned_value"))
+    before = max(day for day in gaps if day <= THE_DAY)
+    after = min(day for day in gaps if day > THE_DAY)
+    assert gaps[before] <= D(expected["planned_value"]) - D(body["planned_value"]) <= gaps[after]
+    # The indicators that depend on the reference are its own formulas on the fields of the witness:
+    # exact, to the rounding of the service (WF-IND-0040, WF-IND-0050, WF-IND-0060).
+    spent, gained = D(body["actual_cost"]), D(body["earned_value"])
+    fixed, left = D(body["reference_budget"]), D(body["remaining"])
+    planned = D(body["planned_value"])
+    at_rate = fixed * spent / gained
+    projections = body["projections"]
+    assert D(projections["at_observed_rate"]["value"]) == cents(at_rate)
+    assert D(projections["variance_at_observed_rate"]) == cents(at_rate - fixed)
+    assert D(projections["at_budget"]) == cents(spent + fixed - gained)
+    assert D(projections["variance_at_budget"]) == cents(spent - gained)
+    assert D(body["financial_progress"]["value"]) == four_places(spent / (spent + left))
+    assert D(body["schedule_index"]["value"]["value"]) == four_places(gained / planned)
+    assert D(body["cost_index"]["value"]["value"]) == four_places(gained / spent)
 
 
 @QUA
@@ -380,6 +461,48 @@ def test_the_index_history_is_the_example_but_for_the_last_point_the_reference_m
     assert deviations(kept_points, [each["points"][:1] for each in expected["scopes"]]) == set()
     for key in ("context", "thresholds"):
         assert body[key] == expected[key]
+    # What differs on the day is the earned value of a mesh, from its budgets: the actual cost of
+    # each mesh is the example's, by the remaining of its day (« maille » by « maille »), the cost
+    # index being the earned value over it.
+    spent = {
+        each["key"]: D(each["actual_cost"])
+        for each in example("remaining_indicators")["by_subproject"]
+    }
+    assert spent == {
+        COMMAND_POST: D("2400.00"),
+        TESTING: D("831352.97"),
+        UNASSIGNED: D("579217.23"),
+    }
+    scopes = {mesh: read(api, witness, realm, f"{INDICATORS}?scope={mesh}") for mesh in MESHES}
+    earned_by_the_example = D(0)
+    for found, wanted in zip(body["scopes"], expected["scopes"], strict=True):
+        mesh, scope = found["scope"], scopes[found["scope"]]
+        if mesh == "project":
+            continue
+        day, theirs = found["points"][-1], wanted["points"][-1]
+        assert D(scope["actual_cost"]) == spent[mesh], mesh
+        assert D(scope["cost_index"]["value"]["value"]) == four_places(
+            D(scope["earned_value"]) / spent[mesh]
+        )
+        # The example's earned value, by its index: within the rounding of four decimals.
+        implied = D(theirs["cost_index"]["value"]["value"]) * spent[mesh]
+        earned_by_the_example += implied
+        if D(scope["earned_value"]) != 0:
+            assert abs(implied - D(scope["earned_value"])) > D("0.00005") * spent[mesh], mesh
+        # The offer declares no budget for a subproject, so it plans and earns nothing there; out
+        # of any subproject, the whole project: the earned and planned values of the project.
+        reference = D(scope["reference_budget"])
+        assert (reference == 0) == (mesh != UNASSIGNED)
+        for field in ("earned_value", "planned_value"):
+            assert D(scope[field]) == (D(scopes["project"][field]) if reference else 0), mesh
+        # A zone follows its index: where the example's value is the reading's, its zone is.
+        for axis in ("cost_index", "schedule_index"):
+            if day[axis]["value"] == theirs[axis]["value"]:
+                assert day[axis]["zone"] == theirs[axis]["zone"], (mesh, axis)
+    # The earned value of the project is the example's, and spread over its meshes by the example.
+    tolerance = D("0.00005") * sum(spent.values())
+    assert abs(earned_by_the_example - D(scopes["project"]["earned_value"])) <= tolerance
+    assert scopes["project"]["earned_value"] == example("project_indicators")["earned_value"]
 
 
 @QUA
@@ -444,39 +567,6 @@ def test_the_time_time_diagram_is_the_example_its_points_those_of_the_revisions_
     assert pending["completed_on"] is None
     assert pending["points"][-1]["marked_at"] == body["context"]["computed_at"]
     assert pending["points"][-1]["forecast_date"] == pending["points"][0]["forecast_date"]
-
-
-def same_origin(ours: dict[str, Decimal], theirs: dict[str, Decimal]) -> None:
-    """Require the points of a series to be the example's, but for the zero points before them.
-
-    The example draws the origin of the series where the amendment 1 steps the budget, the end of
-    January; the witness, measured to the offer 100, starts where its first point is.
-    """
-    assert {day: ours[day] for day in ours} == {day: theirs[day] for day in ours}
-    missing = {day: amount for day, amount in theirs.items() if day not in ours}
-    assert set(missing.values()) <= {D(0)}
-    assert all(day < min(ours) for day in missing)
-
-
-def measured(ours: dict[str, Decimal], theirs: dict[str, Decimal]) -> None:
-    """Require a series measured to the offer to fall short of the example's by the step at most.
-
-    From nothing at the origin, to the step at the end of the reference; the missing days are the
-    zero points of the step of the amendment, which the offer lacks.
-    """
-    gaps = [theirs[day] - ours[day] for day in sorted(ours)]
-    assert all(0 <= each <= step() for each in gaps)
-    assert gaps[-1] == step()
-    assert gaps == sorted(gaps)
-    missing = {day: amount for day, amount in theirs.items() if day not in ours}
-    assert set(missing.values()) <= {D(0)}
-    assert all(day < min(ours) for day in missing)
-
-
-def gaps_of_the_projection(ours: dict[str, Decimal], theirs: dict[str, Decimal]) -> dict[str, Any]:
-    """Give what the example's projection holds beyond the reading's, by day: the provisions."""
-    assert ours.keys() == theirs.keys()
-    return {day: theirs[day] - ours[day] for day in ours}
 
 
 @QUA
@@ -579,7 +669,18 @@ def test_the_earned_value_curves_are_the_example_but_for_the_planned_value_of_th
         assert series_of(body, name) == series_of(expected, name)
     planned, theirs = series_of(body, "planned_value"), series_of(expected, "planned_value")
     assert planned.keys() == theirs.keys()
-    measured(planned, theirs)
+    gaps = measured(planned, theirs)
+    # The planned value is the reference budget cumulated, in both: the holes of the one are the
+    # holes of the other, day by day, so the step is spread as the cost curve spreads it.
+    curve, curve_of_the_example = (
+        read(api, witness, realm, f"{INDICATORS}/cost-curve"),
+        example("cost_curve"),
+    )
+    assert planned == series_of(curve, "reference_budget")
+    same_origin(theirs, series_of(curve_of_the_example, "reference_budget"))
+    assert gaps == measured(
+        series_of(curve, "reference_budget"), series_of(curve_of_the_example, "reference_budget")
+    )
 
 
 @QUA
@@ -690,19 +791,34 @@ def test_the_estimate_of_the_101_is_the_example_but_for_the_provision_the_risks_
     # The subprojects: the provision and the lines of the occurrence weigh on "out of any
     # subproject"; the work packages: on the one that bears them.
     assert [
-        D(theirs_["amount"]["value"]) - D(each["amount"]["value"])
-        for each, theirs_ in zip(body["by_subproject"], expected["by_subproject"], strict=True)
+        D(in_example["amount"]["value"]) - D(each["amount"]["value"])
+        for each, in_example in zip(body["by_subproject"], expected["by_subproject"], strict=True)
     ] == [0, 0, provision + occurred]
     held = [
-        (theirs_["key"], D(theirs_["amount"]["value"]) - D(each["amount"]["value"]))
-        for each, theirs_ in zip(body["by_work_package"], expected["by_work_package"], strict=True)
+        (in_example["key"], D(in_example["amount"]["value"]) - D(each["amount"]["value"]))
+        for each, in_example in zip(
+            body["by_work_package"], expected["by_work_package"], strict=True
+        )
     ]
     assert [each for each in held if each[1]] == [
         (expected["by_work_package"][0]["key"], provision + occurred)
     ]
     for dimension in ("by_cost_type", "by_subproject"):
         assert sum(D(each["amount"]["value"]) for each in body[dimension]) == ours
-    # Measured to the offer 100, the reference, which is also the revision marked before.
+    # The reserve is the provision, the occurrence and the variance of the coverage, the three
+    # of the remaining of the example; the 101 as marked is the 101's estimate and that reserve.
+    coverage = example("remaining_indicators")["coverage"]
+    assert provisions_marked() == (
+        D(coverage["remaining_provisions"])
+        + D(coverage["occurred_reestimated"])
+        + D(coverage["coverage_variance"])
+    )
+    as_marked = D(marked["remaining"])
+    assert as_marked == ours + provisions_marked()
+    # The deltas of the witness are measured to the offer 100, the reference and the revision
+    # marked before; those of the example, read on the 102, to the 101 as marked, and its total
+    # holds the provision and the occurrence: the example's delta is its total less the 101 as
+    # marked, the variance of the coverage, nought of the witness.
     with witness.transaction() as session:
         offer = sum(
             (facet.reestimated_amount for _, facet in line_rows(session, REVISION_100).values()),
@@ -710,6 +826,16 @@ def test_the_estimate_of_the_101_is_the_example_but_for_the_provision_the_risks_
         )
     assert D(body["delta_to_reference"]["value"]) == ours - offer
     assert body["delta_to_previous_revision"] == body["delta_to_reference"]
+    for delta in ("delta_to_reference", "delta_to_previous_revision"):
+        assert theirs - D(expected[delta]["value"]) == as_marked, delta
+        assert D(expected[delta]["value"]) == -D(coverage["coverage_variance"]), delta
+        # What the delta of the witness lacks of the example's, to the cent: the provision and the
+        # occurrence of the total, and the reference, the offer's estimate over the 101's as marked,
+        # not the step of the amendment (2 830.95) the reference budget falls short by.
+        gap = D(expected[delta]["value"]) - D(body[delta]["value"])
+        assert gap == provision + occurred + (offer - as_marked)
+        assert offer - as_marked == D("1013056.56")
+        assert gap == D("1513256.56")
 
 
 @QUA
@@ -724,7 +850,9 @@ def test_the_remaining_of_the_101_is_the_kept_indicators_of_the_project_less_the
     expected = example("remaining_indicators")
     marked = example("project_indicators_marked")
     assert body["context"] == marked["context"]
-    assert deviations(without(body, {"context"}), without(expected, {"context"})) == REMAINING_APART
+    assert deviations(without(body, {"context"}), without(expected, {"context"})) == set(
+        REMAINING_APART
+    )
     total = D(body["total"])
     assert total == D(marked["remaining"]) - provisions_marked()
     kept_project = read(api, witness, realm, f"{INDICATORS}?{KEPT}")
@@ -739,6 +867,17 @@ def test_the_remaining_of_the_101_is_the_kept_indicators_of_the_project_less_the
         (each["key"], each.get("label")) for each in expected["by_subproject"]
     ]
     assert {each["actual_cost"] for each in body["by_subproject"]} == {marked["actual_cost"]}
+    # Nothing was spent: what remains is the estimate of the 101, by nature and by subproject, and
+    # each share its nature's part of the total.
+    estimate = read(api, witness, realm, f"{BASE}/estimate-indicators?{KEPT}")
+    assert {each["key"]: each["amount"] for each in body["by_cost_type"]} == {
+        each["key"]: each["amount"]["value"] for each in estimate["by_cost_type"]
+    }
+    assert {each["key"]: each["remaining"] for each in body["by_subproject"]} == {
+        each["key"]: each["amount"]["value"] for each in estimate["by_subproject"]
+    }
+    for each in body["by_cost_type"]:
+        assert D(each["share"]["value"]) == four_places(D(each["amount"]) / total)
     assert sum(D(each["amount"]) for each in body["by_cost_type"]) == total
     assert sum(D(each["remaining"]) for each in body["by_subproject"]) == total
     assert set(body["coverage"].values()) == {"0.00"}
@@ -778,17 +917,6 @@ def test_two_platforms_loaded_with_the_witness_keep_the_same_documents_for_the_1
     assert len(first) == 21
     assert {json.loads(row[4])["context"]["is_stored"] for row in first} == {True}
     assert kinds_of(witness, REVISION_101) == {"estimate", "remaining", "project", *CURVES}
-
-
-def documents_of(value: object) -> list[dict[str, Any]]:
-    """Give the dictionaries of a value, at any depth."""
-    if isinstance(value, dict):
-        mapped = cast("dict[str, object]", value)
-        return [mapped, *(each for part in mapped.values() for each in documents_of(part))]
-    if isinstance(value, list):
-        listed = cast("list[object]", value)
-        return [each for part in listed for each in documents_of(part)]
-    return []
 
 
 @QUA
