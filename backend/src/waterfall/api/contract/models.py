@@ -5196,7 +5196,7 @@ class Role(ContractModel):
     tasks: Annotated[
         list[WorkloadTask],
         Field(
-            description="The detail of the role by task (WF-DEV-0090): each task that bears a labour line of the role, on the basis, by the spreading and under the filter of the plan — on a basis of remaining to commit, a completed task is absent —, in the order of its start (`start`, its date then its hours), then of the plan (`row_number`; the author's decision of 2026-11-14, #3181). Empty for a role that no line loads. Computed when read, on the revision read (`context.revision_id`): on `marked_remaining`, on what its marking froze, never stored by it (#3181)."
+            description="The detail of the role by task (WF-DEV-0090): each task that bears a labour line of the role, on the basis, by the spreading and under the filter of the plan — on a basis of remaining to commit, a completed task is absent —, in the order of its start (`start`, its date then its hours), then of the plan (`row_number`; the author's decision of 2026-11-14, #3181). Empty for a role with no labour line. Computed when read, on the revision read (`context.revision_id`): on `marked_remaining`, on what its marking froze, never stored by it (#3181)."
         ),
     ]
 

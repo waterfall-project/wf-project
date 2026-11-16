@@ -200,7 +200,7 @@ Le contrat cite **192 des 218 exigences** de la spécification.
 | GET | `/projects/{project_id}/estimate-indicators` | Estimate indicators | WF-DEV-0010, WF-DEV-0060, WF-IND-0010, WF-IND-0020, WF-PLA-0170 |
 | GET | `/projects/{project_id}/estimate-indicators/missing-rates` | Hourly rates missing for the computation | WF-CYC-0120, WF-DEV-0010, WF-REV-0060 |
 | GET | `/projects/{project_id}/workload` | Project workload | WF-DEV-0070, WF-DEV-0090 |
-| GET | `/projects/{project_id}/spending` | Project spending projection | WF-DEV-0040, WF-DEV-0100, WF-IND-0020, WF-IND-0100, WF-RAE-0010 |
+| GET | `/projects/{project_id}/spending` | Project spending projection | WF-DEV-0020, WF-DEV-0040, WF-DEV-0100, WF-IND-0020, WF-IND-0100, WF-RAE-0010 |
 | GET | `/projects/{project_id}/remaining-indicators` | Remaining-to-commit indicators | WF-IND-0020, WF-RAE-0020 |
 | GET | `/projects/{project_id}/remaining-indicators/startable-tasks` | Kanban tasks, by state | WF-IHM-0090, WF-PLA-0040, WF-RAE-0030 |
 | GET | `/projects/{project_id}/indicators` | Earned value indicators | WF-DAT-0040, WF-IND-0010, WF-IND-0080 |

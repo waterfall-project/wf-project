@@ -8,6 +8,7 @@ the months they load (#3096), the tasks are in the order of their start, then of
 """
 
 import json
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 from typing import Any
@@ -143,3 +144,29 @@ def test_the_parts_of_a_line_sum_to_its_total_the_remainder_on_its_last_month() 
         Instant(date(2026, 6, 3), Decimal(8)),
     )
     assert mockcurves.parts(once) == {}
+
+
+def test_a_task_whose_lines_carry_no_hour_is_listed_without_a_month() -> None:
+    witness = mockindicators.today()
+    line = next(line for line in witness.lines if witness.facet(line)["resource_role_id"])
+    # The same line with no hour: its task stays in the detail, with nothing to spread.
+    idle = replace(line, hours=Decimal(0))
+    [(task, months)] = mockcurves.tasks_of(witness, [idle], "reference_budget")
+    assert task["hours"] == "0"
+    assert task["months"] == []
+    assert months == {}
+
+
+def test_the_parts_of_a_line_are_never_negative_and_sum_to_its_total() -> None:
+    # 0.011 over two months and a day: the exact parts, 0.00526, 0.00564 and 0.00010, round to
+    # 0.01, 0.01 and 0.00 — the remainder carried on the last month would be -0.01.
+    flow = Flow(
+        Decimal("0.011"),
+        WEEK,
+        Instant(date(2026, 6, 1), Decimal(0)),
+        Instant(date(2026, 8, 3), Decimal(8)),
+    )
+    found = mockcurves.parts(flow)
+    assert found == {"2026-06": Decimal("0.01")}
+    assert all(part > 0 for part in found.values())
+    assert sum(found.values(), Decimal(0)) == Decimal("0.011").quantize(Decimal("0.01"))

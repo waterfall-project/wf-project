@@ -9,7 +9,7 @@ no month before the calculation and the total of the remaining without its provi
 
 import json
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -77,6 +77,26 @@ def test_the_natures_come_in_the_order_of_their_code_without_the_provisions(
     for nature in projections[name]["cost_types"]:
         codes = [category["cost_category_id"] for category in nature["categories"]]
         assert codes in ([universe(401), universe(403)], [universe(402), universe(405)])
+
+
+def test_the_categories_come_in_the_order_of_their_code_not_of_their_identifier(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    witness = mockindicators.today()
+    read = mockspending.spending(witness, "current_remaining")
+    held = [
+        category["cost_category_id"]
+        for nature in cast("list[Node]", read["cost_types"])
+        for category in nature["categories"]
+    ]
+    assert len(held) > 2
+    # Codes that run against the identifiers: the last identifier has the first code.
+    ranks = {category: -rank for rank, category in enumerate(sorted(held))}
+    monkeypatch.setattr(mockspending, "_ranks", lambda: ranks)
+    again = mockspending.spending(witness, "current_remaining")
+    for nature in cast("list[Node]", again["cost_types"]):
+        found = [category["cost_category_id"] for category in nature["categories"]]
+        assert found == sorted(found, reverse=True)
 
 
 def test_on_the_remaining_the_total_is_the_remaining_without_provisions_from_today(

@@ -542,7 +542,7 @@ WorkloadPlan:
               the role, on the basis, by the spreading and under the filter of the plan — on a
               basis of remaining to commit, a completed task is absent —, in the order of its start
               (`start`, its date then its hours), then of the plan (`row_number`; the author's
-              decision of 2026-11-14, #3181). Empty for a role that no line loads. Computed when
+              decision of 2026-11-14, #3181). Empty for a role with no labour line. Computed when
               read, on the revision read (`context.revision_id`): on `marked_remaining`, on what
               its marking froze, never stored by it (#3181).
             items: { $ref: '#/WorkloadTask' }
@@ -588,8 +588,10 @@ SpendingProjection:
   description: >-
     The spending projection of the project, by cost type and by month (WF-DEV-0100): the amount of
     each labour and non-labour line, the provision lines excluded, spread over the duration of its
-    task in proportion to the hours worked (WF-DEV-0040); on a basis of remaining to commit, its
-    remaining to commit over the part of its task after the calculation date
+    task in proportion to the hours worked (WF-DEV-0040). The amount spread is, inflation
+    included, at the consumption year of the line (WF-DEV-0020), its budgeted amount on the
+    reference budget and, on a basis of remaining to commit, its remaining to commit
+    (WF-RAE-0010), nothing for a line of a task completed; the latter over the part of its task after the calculation date
     (`context.computed_at`, the marking date for a marked revision), carried to the month of that
     date when the finish of the task has passed (WF-IND-0100). Each part of a line rounded to the
     cent, the remainder of the roundings carried on the last month of the line, so that its parts

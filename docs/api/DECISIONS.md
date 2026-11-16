@@ -11929,9 +11929,12 @@ dépenses ») :
   description de `getProjectWorkload` et celles des `months` le disent ; l'exemple `workload` le
   montre, le monteur câbleur chargé sur 8 des 39 mois du plan. Écarté : tous les mois de l'horizon, à
   zéro.
-- **Les parts d'une ligne s'arrondissent de façon que leur somme soit son total** : chaque part au
-  centième d'heure, ou au centime (`Money`), le reliquat des arrondis porté au dernier mois de la
-  ligne ; tout total — d'un mois, d'une tâche, d'un rôle, d'une catégorie, d'une nature, de la
+- **Les parts d'une ligne s'arrondissent de façon que leur somme soit son total** : chaque part est
+  la différence de deux arrondis — au centième d'heure, ou au centime (`Money` ; la moitié
+  s'éloigne de zéro pour un montant) — du cumul de la ligne à la fin de son mois et à la fin du mois
+  d'avant, le cumul du dernier mois étant la ligne entière : une part n'est jamais négative, et la
+  somme des parts est le total de la ligne arrondi (règle que le service d'US-2040/L2 écrit à
+  l'identique) ; tout total — d'un mois, d'une tâche, d'un rôle, d'une catégorie, d'une nature, de la
   projection — est la somme de parts déjà arrondies, ce qui tient au centième les égalités des Vérif
   de WF-DEV-0090 et de WF-DEV-0100. Le plan de charge existant passe par là : ses mois bougent d'un
   centième, et ses exemples, réengendrés, avec eux le plan de charge agrégé du portefeuille, qui
@@ -11948,7 +11951,11 @@ dépenses ») :
   montant (`SpendingCostType`), chacune avec son total, ses mois et ses catégories
   (`SpendingCategory`), dans l'ordre du référentiel — celui de `listCostTypes` et de
   `listCostCategories` sans tri, le code, puis l'identifiant —, jamais la nature des provisions,
-  dont les lignes n'entrent pas. Les montants sont les montants enregistrés des lignes, comme ceux de
+  dont les lignes n'entrent pas. Cet ordre, par code, diffère de celui de
+  `EstimateIndicators.by_cost_type` et de `RemainingIndicators.by_cost_type`, rangés par
+  identifiant : les natures de la projection suivent le référentiel que l'écran affiche, ces
+  ventilations sont celles d'indicateurs déjà publiés, qu'on ne reclasse pas. L'écran n'attribue
+  donc pas une couleur de nature par rang, mais par identifiant de nature. Les montants sont les montants enregistrés des lignes, comme ceux de
   la courbe de coûts cumulés : une `Money`, sans enveloppe `Computable`. Le front n'y somme rien
   (WF-ARC-0020). Écartés : les natures et les catégories sans montant, à zéro ; le total de la
   projection laissé au front.

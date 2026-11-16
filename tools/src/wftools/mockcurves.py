@@ -398,24 +398,27 @@ def parts(
 ) -> dict[str, Decimal]:
     """Return the parts of a line in the months it loads, rounded so that they sum to its total.
 
-    Each month what the flow spends in it, rounded to the quantum — the hundredth of an hour, or
-    the cent, a half away from nought, for an amount (``Money``) —, the remainder of the roundings
-    carried on its last month: the sum of the parts is the total of the line, and every total —
-    of a month, a task, a role, a category, a nature — is a sum of parts already rounded, which
-    holds the equalities of the Vérif of WF-DEV-0090 and WF-DEV-0100 to the hundredth (EP-10,
-    « Les parts d'une ligne s'arrondissent de façon que leur somme soit son total »). A month the
-    rounding leaves at nought is not one the line loads (#3096).
+    Each month what the flow has spent by its end, cumulated and rounded to the quantum — the
+    hundredth of an hour, or the cent, a half away from nought, for an amount (``Money``) —,
+    less what the months before it already hold: a part is the difference of two roundings of a
+    cumulative amount that never falls, so it is never negative, and the last cumulative being the
+    whole line, the sum of the parts is the total of the line, rounded. Every total — of a month,
+    a task, a role, a category, a nature — is a sum of parts already rounded, which holds the
+    equalities of the Vérif of WF-DEV-0090 and WF-DEV-0100 to the hundredth (EP-10, « Les parts
+    d'une ligne s'arrondissent de façon que leur somme soit son total »). A month the rounding
+    leaves at nought is not one the line loads (#3096).
     """
     found: dict[str, Decimal] = {}
+    ends = month_ends(flow.first, flow.last)
     before = Decimal(0)
-    for end in month_ends(flow.first, flow.last):
-        done = flow.by(end)
-        found[end.strftime("%Y-%m")] = (done - before).quantize(quantum, rounding=rounding)
+    for end in ends:
+        # The last month closes on the whole line, whatever the flow says at its end.
+        cumulated = flow.amount if end == ends[-1] else flow.by(end)
+        done = cumulated.quantize(quantum, rounding=rounding)
+        if part := done - before:
+            found[end.strftime("%Y-%m")] = part
         before = done
-    last = max(found)
-    total = flow.amount.quantize(quantum, rounding=rounding)
-    found[last] = total - sum((part for month, part in found.items() if month != last), Decimal(0))
-    return {month: part for month, part in found.items() if part}
+    return found
 
 
 def summed(each: Iterable[dict[str, Decimal]]) -> dict[str, Decimal]:
@@ -488,11 +491,8 @@ def tasks_of(
     by_task: dict[int, list[dict[str, Decimal]]] = {}
     for line in lines:
         by_task.setdefault(cast("int", line.parent), []).append(_hours_of(reading, line, basis))
-    found = [
-        (_task(reading, number, months), months)
-        for number, each in by_task.items()
-        for months in (summed(each),)
-    ]
+    summed_by_task = {number: summed(each) for number, each in by_task.items()}
+    found = [(_task(reading, number, months), months) for number, months in summed_by_task.items()]
     return sorted(found, key=lambda pair: _started(pair[0]))
 
 

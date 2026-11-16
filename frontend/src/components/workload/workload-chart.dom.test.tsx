@@ -280,7 +280,7 @@ describe("the workload of a project", () => {
       "Ingénieur électricienJune 20261,465.75658,654Nominal",
       "Ingénieur électricienJuly 20262,622.41658,654Nominal",
     ]);
-    expect(listed).toContain("Technicien de mise en serviceDecember 20261,183.33485,324Nominal");
+    expect(listed).toContain("Technicien de mise en serviceDecember 20261,183.32485,324Nominal");
     expect(listed.slice(-2)).toEqual([
       "Monteur câbleurMarch 2028560.98216,662.5Nominal",
       "Monteur câbleurApril 20289.14216,662.5Nominal",
