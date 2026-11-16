@@ -1601,7 +1601,7 @@ marquées de plus et les trois cents projets (EP-13) ; le portefeuille (EP-11).
 
 ## US-2040 — Le détail du plan de charge par rôle et par tâche
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-DEV-0090-A`
 - **opérations** : `getProjectWorkload`
 - **issue** : #3506
