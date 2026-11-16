@@ -28,7 +28,10 @@ its kind declares them (``INERT_TASK_FIELDS``, ``FacetHooks.inert``) — takes t
 (``Write.count``, US-2250, #3169): no engine replayed, no tree read again, the instant of the
 structure's dates left as it is (the contract dates ``scheduled_at`` by the last write that
 redated the structure), its counter advanced, on which the front leans every write. It gives back
-what the whole path would, the nodes written and their ancestors read from the tree it holds.
+what the whole path would, the nodes written and their ancestors read from the tree it holds. That
+tree is read as rows, the nodes it writes alone as objects of the session, when the write knows
+before its lock that it takes the short path (``Write.inert``, US-2250/L2, #3540): an entry of a
+cell, of a line or of the inscriptions of a task.
 
 A writer whose token carries no session of sign-in (``sid``) has no stack: its write is made, and
 no entry kept (#2472).
@@ -48,7 +51,12 @@ from waterfall.core.planning.interface.facets import (
 )
 from waterfall.core.planning.rescheduling import Blamed, Holding, replayed
 from waterfall.core.planning.snapshotting import taken
-from waterfall.core.planning.tree import read_links, read_tree
+from waterfall.core.planning.tree import (
+    read_inert,
+    read_link_rows,
+    read_links,
+    read_tree,
+)
 from waterfall.core.planning.views import NodeView, Reading, ScheduleView
 from waterfall.core.projects.interface import (
     NO_BACKGROUND_TASK_RUNNING,
@@ -71,7 +79,7 @@ from waterfall.platform.errors import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Generator
+    from collections.abc import Collection, Generator, Sequence
     from decimal import Decimal
     from uuid import UUID
 
@@ -80,8 +88,14 @@ if TYPE_CHECKING:
     from waterfall.core.history.interface import UndoneKind
     from waterfall.core.planning.interface.facets import Amounts
     from waterfall.core.planning.scheduling import Origin
-    from waterfall.core.planning.tables import TaskLink
-    from waterfall.core.planning.tree import Tree
+    from waterfall.core.planning.tables import Node, Task
+    from waterfall.core.planning.tree import (
+        InertTree,
+        LinkColumns,
+        NodeColumns,
+        TaskColumns,
+        Tree,
+    )
     from waterfall.core.revisions.interface import StructureFacts
     from waterfall.platform.audit import Act
 
@@ -196,22 +210,50 @@ def _recorded(
 class Write:
     """A write of the tree under the lock of its structure, the tree read under that lock."""
 
-    def __init__(self, session: Session, place: Place, writer: Writer, frame: Recording) -> None:
+    def __init__(
+        self,
+        session: Session,
+        place: Place,
+        writer: Writer,
+        frame: Recording,
+        inert: Collection[UUID] = (),
+    ) -> None:
         """Lock the structure, then read it, its tree and its links under the lock.
 
         The links in conflict are taken before the write, so that the replay that follows judges
         what moved against them, whatever links the write deletes (``kept``); the links themselves
-        are what the short path reads the nodes it gives back with (``count``).
+        are what the short path reads the nodes it gives back with (``count``). A write whose
+        columns are all inert names the nodes it writes (``inert``): its structure and its links
+        are read as rows, those nodes alone as objects of the session (``read_inert``, #3540).
         """
         self.session = session
         self.place = place
         self.writer = writer
         self.frame = frame
         self.facts = facts_of(session, place, lock=True)
-        self.tree = read_tree(session, place.project_id, place.structure_id)
+        project_id, structure_id = place.project_id, place.structure_id
+        self._tree: Tree | None = None
+        self.inert: InertTree | None = None
+        self.links: Sequence[LinkColumns]
+        if inert:
+            self.inert = read_inert(session, project_id, structure_id, inert)
+            self.links = read_link_rows(session, project_id, structure_id)
+        else:
+            self._tree = read_tree(session, project_id, structure_id)
+            self.links = read_links(session, project_id, structure_id)
         self.touched: set[UUID] = set()
-        self.links: list[TaskLink] = read_links(session, place.project_id, place.structure_id)
         self.conflicts = conflicts_of(self.links)
+
+    @property
+    def tree(self) -> Tree:
+        """Give the tree of the structure as objects of the session, read under the lock.
+
+        Read with the structure but for a write whose columns are all inert, which holds it as rows
+        (``inert``), and reads it only if it takes the whole path after all (``redate``).
+        """
+        if self._tree is None:
+            self._tree = read_tree(self.session, self.place.project_id, self.place.structure_id)
+        return self._tree
 
     def name(self, node_ids: tuple[UUID, ...]) -> None:
         """Name the nodes of the entry when the write knows them only once its rows are judged."""
@@ -253,21 +295,30 @@ class Write:
                 raise
             fields = tuple(FieldError(pointer, refused.code) for pointer in entered)
             raise RepricedBeyondColumnError(refused.code, refused.params, fields) from None
-        self.tree = redated.reading.tree
+        self._tree = redated.reading.tree
         return redated
 
-    def count(self) -> Redated:
+    def count(self) -> Redated[NodeColumns, TaskColumns] | Redated:
         """Count a write that can move no date nor change an amount; give the structure it leaves.
 
         The short path (US-2250): the engine is not replayed and the tree not read again; the
         instant of the structure's dates stays, its counter advances (``structure_counted``). The
-        nodes it touched (``before``) and their ancestors are read from the tree it holds, on the
-        calendars of their tasks alone, as the whole path reads them: no task moved, no node priced
-        again.
+        nodes it touched (``before``) and their ancestors are read from the tree it holds — as rows
+        but the nodes it wrote, for a write that named them inert (``inert``) —, on the calendars of
+        their tasks alone, as the whole path reads them: no task moved, no node priced again.
         """
-        session, place, tree = self.session, self.place, self.tree
+        session, place = self.session, self.place
         session.flush()
         counter = structure_counted(session, place.project_id, place.structure_id)
+        if self.inert is None:
+            return self._counted(self.tree, counter)
+        return self._counted(self.inert.tree, counter)
+
+    def _counted[N: NodeColumns, T: TaskColumns](
+        self, tree: Tree[N, T], counter: int
+    ) -> Redated[N, T]:
+        """Give the structure a write counted leaves, read from the tree it holds."""
+        session, place = self.session, self.place
         shown = {each for node_id in self.touched for each in (node_id, *tree.ancestors(node_id))}
         calendars = calendars_of(session, place.project_id, shown & tree.tasks.keys())
         structure = (place.project_id, self.facts.scheduled_at, self.facts.is_main)
@@ -302,13 +353,14 @@ def redated_structure(
 
 
 @dataclass(frozen=True, slots=True)
-class Redated:
+class Redated[N: NodeColumns = Node, T: TaskColumns = Task]:
     """A structure written and redated: its reading, the tasks moved, its counter, what it priced.
 
-    ``reinflated`` the nodes of the other kinds whose amounts or year their hooks changed.
+    ``reinflated`` the nodes of the other kinds whose amounts or year their hooks changed. Its
+    reading is of objects of the session, or of rows but the nodes written (``Write.count``).
     """
 
-    reading: Reading
+    reading: Reading[N, T]
     moved: frozenset[UUID]
     counter: int
     reinflated: frozenset[UUID] = frozenset()
@@ -322,7 +374,7 @@ class Redated:
         are the nodes of the other kinds priced again without being written, and the leaves that
         bear them, but the written and the ancestors; the totals those of the whole structure.
         """
-        tree: Tree = self.reading.tree
+        tree = self.reading.tree
         written = set(node_ids)
         left = {each for each in former if each in tree.nodes and each not in written}
         rescheduled = {
@@ -378,17 +430,22 @@ def hold_before_lock(session: Session) -> None:
 
 @contextmanager
 def writing(
-    session: Session, place: Place, writer: Writer, change: tuple[UndoneKind, tuple[UUID, ...]]
+    session: Session,
+    place: Place,
+    writer: Writer,
+    change: tuple[UndoneKind, tuple[UUID, ...]],
+    inert: Collection[UUID] = (),
 ) -> Generator[Write]:
     """Frame a write of the tree: judged, recorded, under the lock of its structure.
 
     The structure named is read first (404), the revision judged under its lock (409), the entry
     of the history opened, then the structure locked and its tree read; what the facets hold
     before the structure is taken first (``FacetHooks.before_lock``, #2615). The block hands the
-    snapshots (``Write.before``, ``Write.after``); a block that raises keeps nothing.
+    snapshots (``Write.before``, ``Write.after``); a block that raises keeps nothing. ``inert``
+    the nodes a write whose columns are all inert writes, the others read as rows (``Write``).
     """
     hold_before_lock(session)
     facts_of(session, place, lock=False)
     judge_revision(session, place.project_id, place.revision_id, writer.running)
     with _recorded(session, place, writer, change) as frame:
-        yield Write(session, place, writer, frame)
+        yield Write(session, place, writer, frame, inert)

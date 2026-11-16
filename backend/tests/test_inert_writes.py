@@ -13,15 +13,18 @@ of PRJ-001 (#3169):
 - the inert ones, and they alone, take the short path: the engine not replayed, the instant of the
   structure's dates left as it is, its counter advanced; their answer is the one the whole path
   gives, and their entry of the history is undone as any;
-- every write, short or whole, reads the tree once — one that creates, deletes or moves nodes, a
+- every write of the whole path reads the tree once — one that creates, deletes or moves nodes, a
   write of the structure itself, an undoing and a redoing included: the replay is handed the tree
   read under the lock, brought to what the write made of it (``reshaped``), and gives back what it
   gave reading the tree a second time, the structure as stored the same, the nodes it read again
-  only those a statement wrote past their objects;
+  only those a statement wrote past their objects; the short path reads none as objects of the
+  session, its structure read as rows but the nodes it writes (``read_inert``, US-2250/L2, #3540);
 - what ``reshaped`` rests on holds on every write: a statement that writes a node advances its
   counter, and no statement writes a facet task, which only the objects of the session write.
 """
 
+import re
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from datetime import timedelta
 from decimal import Decimal
@@ -30,7 +33,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
-from sqlalchemy import event, select
+from sqlalchemy import Engine, event, select
 from sqlalchemy.orm import Session
 from test_witness_projects import PRJ_001, REVISION_102
 from test_witness_tasks import structure_of
@@ -87,7 +90,7 @@ from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator, Iterable
     from datetime import datetime
     from types import ModuleType
 
@@ -361,6 +364,42 @@ class Statement:
     flushed: bool
 
 
+@contextmanager
+def listened() -> Generator[list[Statement]]:
+    """Keep every statement sent to the base meanwhile, by any engine and any session.
+
+    Those of a route and of the worker too, which open their own: the guard of ``reshaped`` holds
+    on the paste, the import of an estimate and the skeleton as on the writes here (#3563).
+    The flush flag is one for all the sessions: a statement sent by a session while another
+    flushes, in the same thread of the test or not, would be told flushed. The writes here open
+    one session at a time, and a route or a worker that runs alone.
+    """
+    sent: list[Statement] = []
+    flushing = [False]
+
+    def flush_starts(*_: object) -> None:
+        flushing[0] = True
+
+    def flush_ends(*_: object) -> None:
+        flushing[0] = False
+
+    def executing(_conn: object, _cursor: object, statement: str, *_: object) -> None:
+        sent.append(Statement(statement, flushing[0]))
+
+    listeners = (
+        (Engine, "before_cursor_execute", executing),
+        (Session, "before_flush", flush_starts),
+        (Session, "after_flush", flush_ends),
+    )
+    for target, name, listener in listeners:
+        event.listen(target, name, listener)
+    try:
+        yield sent
+    finally:
+        for target, name, listener in listeners:
+            event.remove(target, name, listener)
+
+
 @dataclass(frozen=True, slots=True)
 class Done:
     """What a write gave back, the structure after it, what it read and ran, and what it stored.
@@ -453,32 +492,14 @@ def write_counted(
     for module in (node_writes, line_writes):
         monkeypatch.setattr(module, "new_id", lambda: next(made))
     place = read.place
-    sent: list[Statement] = []
-    flushing = [False]
-
-    def flush_starts(*_: object) -> None:
-        flushing[0] = True
-
-    def flush_ends(*_: object) -> None:
-        flushing[0] = False
-
-    def executing(_conn: object, _cursor: object, statement: str, *_: object) -> None:
-        sent.append(Statement(statement, flushing[0]))
-
-    event.listen(witness.engine, "before_cursor_execute", executing)
-    try:
-        with Session(witness.engine) as session:
-            event.listen(session, "before_flush", flush_starts)
-            event.listen(session, "after_flush", flush_ends)
-            try:
-                held = writer or Writer(Act(None, read.listed.scheduled_at), None)
-                written = write(session, read, held)
-                facts = structure_facts(session, place.project_id, place.structure_id, lock=False)
-                stored_rows = stored(session, place)
-            finally:
-                session.rollback()
-    finally:
-        event.remove(witness.engine, "before_cursor_execute", executing)
+    with listened() as sent, Session(witness.engine) as session:
+        try:
+            held = writer or Writer(Act(None, read.listed.scheduled_at), None)
+            written = write(session, read, held)
+            facts = structure_facts(session, place.project_id, place.structure_id, lock=False)
+            stored_rows = stored(session, place)
+        finally:
+            session.rollback()
     done = Done(
         written,
         facts.scheduled_at,
@@ -535,8 +556,9 @@ def test_a_column_entered_on_the_witness_takes_the_short_path_only_when_inert(
 ) -> None:
     write, moves = COLUMNS[field]
     read, done = write_counted(witness, monkeypatch, write)
-    # Every write reads the tree once (#3169): under the lock, never again for the replay.
-    assert done.trees_read == 1
+    # Every write of the whole path reads the tree once (#3169): under the lock, never again for
+    # the replay; the short path none as objects, its structure as rows (US-2250/L2, #3540).
+    assert done.trees_read == (0 if field in INERT else 1)
     assert done.lock_version == done.written.structure_lock_version
     if field in INERT:
         # Neither a task redated nor an amount moved; no engine, the instant of the dates kept.
@@ -908,7 +930,9 @@ def test_the_whole_path_reads_the_tree_once_and_gives_back_what_it_did_reading_i
     assert once.reread == REREAD.get(name, lambda _: 0)(read)
 
 
-# The statements of every write, short or whole, as the base received them.
+# The statements of every write, short or whole, as the base received them. The paste, the
+# application of an import of an estimate and the skeleton are held where their tests write them,
+# through the routes and the worker (``listened``, #3563).
 EVERY = {
     **{field: write for field, (write, _) in COLUMNS.items()},
     **{k: w for k, (w, _) in WHOLE.items()},
@@ -919,19 +943,25 @@ def _set_of(statement: str) -> str:
     return statement.split(" WHERE", maxsplit=1)[0]
 
 
-def unkept(statements: tuple[Statement, ...]) -> list[str]:
+# The counter of a node advanced by a statement, not only named in its ``SET`` (#3563); SQLAlchemy
+# writes the sum between parentheses.
+_ADVANCED = re.compile(r"lock_version\s*=\s*\(?\s*node\.lock_version\s*\+")
+
+
+def unkept(statements: Iterable[Statement]) -> list[str]:
     """Give the statements that break what ``reshaped`` rests on.
 
     A statement of an instruction that writes a node without advancing its counter, and one that
     writes a facet task. The flush of the objects of the session is left out: a node it writes is
-    one whose object holds the counter, which ``reshaped`` compares with the row.
+    one whose object holds the counter, which ``reshaped`` compares with the row. The ``UPDATE``
+    alone: a node an ``INSERT`` creates or a ``DELETE`` takes is told by its row (``reshaped``).
     """
     return [
         each.text
         for each in statements
         if not each.flushed
         and each.text.startswith(("UPDATE node ", "UPDATE task "))
-        and not (each.text.startswith("UPDATE node ") and "lock_version" in _set_of(each.text))
+        and not (each.text.startswith("UPDATE node ") and _ADVANCED.search(_set_of(each.text)))
     ]
 
 
@@ -953,6 +983,11 @@ def test_the_statements_that_break_what_reshaped_rests_on_are_told() -> None:
     assert unkept((Statement(advancing, flushed=False),)) == []
     forgetting = "UPDATE node SET rank=node.rank + %(rank_1)s WHERE node.id IN (1)"
     assert unkept((Statement(forgetting, flushed=False),)) == [forgetting]
+    # As SQLAlchemy writes it; named, not advanced, the counter set to itself is told (#3563).
+    rendered = "UPDATE node SET lock_version=(node.lock_version + %(lv_1)s::INTEGER) WHERE true"
+    assert unkept((Statement(rendered, flushed=False),)) == []
+    naming = "UPDATE node SET lock_version=node.lock_version WHERE node.id IN (1)"
+    assert unkept((Statement(naming, flushed=False),)) == [naming]
     flushed = "UPDATE node SET rank=%(rank)s::INTEGER WHERE node.id = %(node_id)s::UUID"
     assert unkept((Statement(flushed, flushed=True),)) == []
     by_objects = "UPDATE task SET label=%(label)s WHERE task.node_id = %(task_node_id)s"

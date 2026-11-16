@@ -37,7 +37,7 @@ from nodes_support import (
 from planning_support import DAY, node_row
 from projects_support import scene as make_scene
 from sqlalchemy import insert, inspect, update
-from test_inert_writes import trees_read
+from test_inert_writes import listened, trees_read, unkept
 
 from waterfall.core.planning.attachments import Attached
 from waterfall.core.planning.entries import Facet
@@ -636,8 +636,12 @@ def test_a_paste_that_creates_is_undone_by_deleting_its_tasks_and_redone_by_crea
     task = tree.made("Étude", who=who)
     plan = planned(tree, task, "label", [["Étude 2"], ["Plan", "", "", "2"], ["Recette"]], who)
     read = trees_read(monkeypatch)
-    body = applied(tree, plan, who)
+    with listened() as sent:
+        body = applied(tree, plan, who)
     assert read.count == 1
+    # What the replay rests on holds on the paste (``reshaped``, US-2250/L2, #3563).
+    assert any(each.text.startswith("INSERT INTO node ") for each in sent)
+    assert unkept(sent) == []
     made = [each["node_id"] for each in body["nodes"][1:]]
     assert len(made) == 2
 

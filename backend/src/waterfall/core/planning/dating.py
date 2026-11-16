@@ -51,7 +51,7 @@ if TYPE_CHECKING:
         ScheduledTask,
     )
     from waterfall.core.planning.tables import Task, TaskLink
-    from waterfall.core.planning.tree import TaskColumns, Tree
+    from waterfall.core.planning.tree import LinkColumns, TaskColumns, Tree
 
 AUTOMATIC = "automatic"
 MANUAL = "manual"
@@ -158,8 +158,8 @@ def dated(replay: Replay, origin: Origin = None) -> Schedule:
         raise UnprocessableError(LINK_FORBIDDEN) from None
 
 
-def conflicts_of(links: Iterable[TaskLink]) -> frozenset[tuple[UUID, UUID]]:
-    """Give the links in conflict among these, each by its two tasks, predecessor first."""
+def conflicts_of(links: Iterable[LinkColumns]) -> frozenset[tuple[UUID, UUID]]:
+    """Give the links in conflict among these, objects or rows, each by its two tasks."""
     return frozenset((link.predecessor_id, link.successor_id) for link in links if link.in_conflict)
 
 

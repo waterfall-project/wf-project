@@ -38,10 +38,11 @@ REMAINING_WRITE = "remaining.write"
 ENTRIES = (PLANNING_WRITE, ESTIMATE_WRITE, REMAINING_WRITE)
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from waterfall.core.planning.interface.nodes import InstantSent, TaskEntry
     from waterfall.core.planning.scheduling import Calendar, UnitConstants
-    from waterfall.core.planning.tables import Task
-    from waterfall.core.planning.tree import Tree
+    from waterfall.core.planning.tree import NodeColumns, TaskColumns, Tree
 
 VALUE_REQUIRED = "VALUE_REQUIRED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
@@ -162,17 +163,22 @@ def finish_after(
 
 
 def _finish_within(
-    task: Task, start: WorkInstant, duration: Duration, calendar: Calendar, constants: UnitConstants
+    task: tuple[UUID, str],
+    start: WorkInstant,
+    duration: Duration,
+    calendar: Calendar,
+    constants: UnitConstants,
 ) -> WorkInstant:
     """Give the finish a duration entered leads to, or refuse a task that leaves the calendar.
 
-    A duration so long that its finish is no date is beyond the horizon (WF-PLA-0150): refused
-    naming the task (422 ``PROJECT_HORIZON_EXCEEDED``), as the engine does for an automatic one.
+    ``task`` its node and its label. A duration so long that its finish is no date is beyond the
+    horizon (WF-PLA-0150): refused naming the task (422 ``PROJECT_HORIZON_EXCEEDED``), as the engine
+    does for an automatic one.
     """
     try:
         return finish_after(start, duration, calendar, constants)
     except (ValueError, ArithmeticError) as error:
-        raise horizon_exceeded(task.node_id, task.label) from error
+        raise horizon_exceeded(*task) from error
 
 
 def days_between(
@@ -218,12 +224,14 @@ def judged_creation(entry: TaskEntry, calendar: Calendar, constants: UnitConstan
     return Facet(mode, duration, start, finish)
 
 
-def _derived(tree: Tree, task: Task, sent: frozenset[str]) -> list[FieldError]:
+def _derived[N: NodeColumns, T: TaskColumns](
+    tree: Tree[N, T], node_id: UUID, sent: frozenset[str]
+) -> list[FieldError]:
     """Refuse what a summary derives: its mode and its duration, its dates (WF-PLA-0040).
 
     A date sent names the direct subordinates it is drawn from (``SUMMARY_TASK_DERIVED``).
     """
-    subordinates = [str(each) for each in tree.subtasks(task.node_id)]
+    subordinates = [str(each) for each in tree.subtasks(node_id)]
     faults = [
         FieldError(f"/{name}", COMPUTED_VALUE)
         for name in ("scheduling_mode", "duration")
@@ -258,16 +266,19 @@ def _ends(
     return ends, faults
 
 
-def judged_change(
-    tree: Tree, task: Task, entry: TaskEntry, calendar: Calendar, constants: UnitConstants
+def judged_change[N: NodeColumns, T: TaskColumns](
+    tree: Tree[N, T], node_id: UUID, entry: TaskEntry, calendar: Calendar, constants: UnitConstants
 ) -> Facet:
-    """Judge what a modification sends of the time of a task; give what it leaves of it."""
-    node_id, sent = task.node_id, entry.sent
+    """Judge what a modification sends of the time of a task; give what it leaves of it.
+
+    On a tree of objects of the session, or of rows (``read_inert``).
+    """
+    task, sent = tree.tasks[node_id], entry.sent
     start = WorkInstant(task.start_date, task.start_hours)
     finish = WorkInstant(task.finish_date, task.finish_hours)
     current = Facet(task.scheduling_mode, duration_of(task), start, finish)
     if tree.is_summary(node_id):
-        _refuse(_derived(tree, task, sent))
+        _refuse(_derived(tree, node_id, sent))
         return current
     faults: list[FieldError] = []
     if "scheduling_mode" in sent and entry.scheduling_mode is None:
@@ -288,6 +299,6 @@ def judged_change(
         _refuse(_ordered(start, finish, "/finish"))
         return Facet(MANUAL, days_between(start, finish, calendar, constants), start, finish)
     if "duration" in sent:
-        finish = _finish_within(task, start, duration, calendar, constants)
+        finish = _finish_within((node_id, task.label), start, duration, calendar, constants)
         return Facet(MANUAL, duration, start, finish)
     return Facet(MANUAL, duration, start, finish)

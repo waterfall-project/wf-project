@@ -559,7 +559,7 @@ dépassement est documenté (US-2300) et devient une issue à trancher.
 
 ## US-2250 — Une saisie qui ne déplace rien ne rejoue pas le moteur, et une écriture ne lit l'arbre qu'une fois
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre — le gain se lit dans le rapport de WF-QUA-0060 (US-2300)
 - **opérations** : `updateTaskFacet`, `updateEstimateLine`, `setLineRemaining`, `setTaskProgress`,
   `setNodeTracking`, `setPredecessors`
@@ -579,7 +579,7 @@ entière de la structure, **afin de** saisir plusieurs cellules de suite sans at
   prennent le chemin court ;
 - propre à l'US : le chemin court ne relit pas l'arbre entier et ne rejoue pas le moteur ; le
   compteur de la structure avance toujours, la réponse et l'historique annulable ne changent pas ;
-- propre à l'US : les autres écritures lisent l'arbre une seule fois ;
+- propre à l'US : les autres écritures lisent l'arbre une seule fois ; une saisie inerte n'en lit aucun en objets (`read_inert`, US-2250/L2) ;
 - propre à l'US : le gain est dit par la mesure d'US-2210 — un libellé, une durée qui redate —,
   avant et après, au-delà de la dispersion.
 
@@ -592,8 +592,11 @@ court) ; la ligne, son libellé, son délai de paiement et son sous-projet (`Fac
 autres restent dans le chemin entier : le mode, la durée et les dates (le moteur), l'avancement
 (l'état d'une tâche est une entrée du rejeu, qui en dérive celui de ses récapitulatives et réévalue
 ses lignes dessus), les prédécesseurs, la catégorie, le rôle (le calendrier de la tâche), la
-quantité, les heures et le déboursé (le prix). Le chemin court relit le nœud écrit et ses ancêtres
-de l'arbre déjà lu, sur les calendriers de leurs seules tâches. Toute écriture qui passe par `Write`
+quantité, les heures et le déboursé (le prix). Le chemin court (`Write.count`) donne la structure qu'il laisse sur
+les calendriers des seules tâches du nœud écrit et de ses ancêtres, sans rejouer le moteur. Une saisie inerte
+ne lit aucun arbre en objets de session : `read_inert` (`tree.py`) lit la structure et ses liens en
+lignes, et le seul nœud écrit, avec sa tâche, en objets (#3540) ; le test d'US-2250 dit
+`trees_read == (0 if field in INERT else 1)`. Toute autre écriture qui passe par `Write`
 — création, suppression, déplacement, collage, écriture de la structure, ébauche, application d'un
 import de devis — et l'annulation comme le rétablissement lisent l'arbre une fois, sous le verrou :
 le rejeu reçoit cet arbre (`Holding.tree`) et le met à jour de l'écriture (`reshaped`) — la place et
@@ -618,9 +621,20 @@ le libellé ; pour la durée, l'écart est accepté par décision de l'auteur du
 lecture revient au rapport de WF-QUA-0060 (US-2300), à cinquante utilisateurs. Une séance du soir,
 sur un poste plus chargé, est écartée comme non comparable : une durée qui redate y a coûté 870 ms
 (158). Les mesures d'états que le code a quittés (l'arbre gardé sur la parole de l'appelant,
-`kept_places`) ne sont plus citées : elles ne disent rien de l'état livré. Ce qui reste d'un libellé
-est surtout la lecture de l'arbre en objets de session, deux tiers du chemin court ; cette lecture,
-celle de `Write.__init__`, est la suite confiée à US-2250/L2 (#3578). Une durée coûte,
+`kept_places`) ne sont plus citées : elles ne disent rien de l'état livré. Ce qui restait d'un libellé était la lecture de l'arbre en objets de session, deux tiers du chemin
+court : `read_inert` (US-2250/L2, #3540) la retire. Mesure du 2026-11-16 (`make measure-core
+ONLY=write RUNS=15`, médianes, dispersion entre parenthèses, quatre séances alternées, deux avant et
+deux après) : un libellé, avant 140 ms (86) et 140 ms (85), après 92 ms (71) et 92 ms (78), soit 48
+ms, 34 %, le même d'une séance à l'autre ; une durée qui redate, avant 774 ms (143) et 770 ms (110),
+après 770 ms (129) et 776 ms (115), inchangée. Le gain du libellé, reproduit, reste sous la
+dispersion (71 à 85 ms), trop large pour départager un gain de cette taille : il est accepté par
+décision de l'auteur du 2026-11-16 (option 1 de #3578), et sa lecture revient au rapport de
+WF-QUA-0060 (US-2300). La structure entière est encore lue, en lignes, car la réponse en dépend
+(rangs du plan, sommes et états des ancêtres, totaux) : le profil après le lot, environ 87 ms, en
+donne un tiers à cette lecture, un tiers à la réponse sur la structure entière et environ 10 % aux
+liens. Lire seulement le nœud et ses ancêtres demanderait de calculer autrement la réponse : conception
+écartée. Le retrait d'un élément du découpage avance le compteur de chaque nœud dont il écrit la
+tâche (#3562), et le garde de `reshaped` exige un compteur avancé (#3563). Une durée coûte,
 d'après ces passages et sans profil, la lecture entière d'une structure (environ 205 ms : 838 ms
 pour 4,07 fois la lecture) plus le moteur et la réévaluation des lignes des 957 tâches redatées, que
 l'US ne touche pas : la lecture de l'arbre qu'elle économise ne pèse qu'une petite part des 800 ms.
