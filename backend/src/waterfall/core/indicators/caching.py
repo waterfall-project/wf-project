@@ -7,14 +7,14 @@ read at each reading by the interfaces of the modules (EP-10, "Le cache"): the s
 revision, the reference and the counter of the project; the revision computed and its reference;
 the counter and the instant of the dates of its main structure; the number of its nodes, of its
 tasks, of its links and of its lines, and the last instant one was written; the number of the
-imports of the actual costs of the project and the last, the number of its lines of cost and the
-last one written; its subprojects; the day, in the time zone of the installation. A write any
-entry depends on changes the key — an entry, a marking, an abandonment, a designation, an import,
-a subproject created, the next day —: an entry is never served for a key that is no longer the
-project's, and no write calls the cache. The exclusion of a line of cost is not of them: it
-advances no counter, and changes the key only by the last instant a line of cost was written,
-which a write that started earlier and commits later can leave where it was (open, #3629). A
-change of the thresholds escapes it: the zones are classified at each reading.
+imports of the actual costs of the project and the last, the number of its lines of cost, the
+last one written and the sum of their counters; its subprojects; the day, in the time zone of the
+installation. A write any entry depends on changes the key — an entry, a marking, an abandonment,
+a designation, an import, an exclusion or a reinstatement of a line of cost, a subproject created,
+the next day —: an entry is never served for a key that is no longer the project's, and no write
+calls the cache. The counter of a line of cost advances under the lock of the project at each of
+its writes, so that two exclusions that overlap each change the sum (#3629). A change of the
+thresholds escapes it: the zones are classified at each reading.
 
 The entry is one document by project and by key: for each scope — the project, each subproject,
 the lines of the project alone —, the indicators and the three curves, computed in one pass, the
@@ -100,7 +100,9 @@ def day_key(session: Session, basis: Basis, context: Context, subprojects: Seque
     # tree, a line and its remaining to commit included, advances the counter of its structure
     # under its lock (``structure_rescheduled``) — the main one is the only structure until EP-08 —;
     # an import adds its entry; a change of state, a marking, an abandonment, a designation
-    # advance the counter of the project. An exclusion or a reinstatement advances none.
+    # advance the counter of the project; an exclusion, a reinstatement or an imputation advances
+    # the counter of the lines of cost, whose sum the key reads (``costs_stamp``); a line an import
+    # finds unchanged leaves its counter, and the number of the imports moves the key.
     parts: list[tuple[str, tuple[object, ...]]] = [
         ("form", (FORM,)),
         ("project", (facts.state, facts.current_revision_id, facts.reference_revision_id)),
@@ -112,7 +114,10 @@ def day_key(session: Session, basis: Basis, context: Context, subprojects: Seque
         ),
         ("content", (content.nodes, content.tasks, content.links, content.updated_at)),
         ("lines", (lines.count, lines.updated_at)),
-        ("costs", (costs.imports, costs.imported_at, costs.lines, costs.updated_at)),
+        (
+            "costs",
+            (costs.imports, costs.imported_at, costs.lines, costs.updated_at, costs.versions),
+        ),
         ("subprojects", (len(subprojects), *sorted(str(each) for each in subprojects))),
         ("day", (current_day(context.computed_at),)),
     ]
@@ -181,8 +186,8 @@ def cached_scopes(
 
     Served by the entry when it is kept; otherwise every scope of the project is computed, the
     entry written, and the scopes asked taken from it; when Redis does not answer, the scopes asked
-    alone are computed. A scope the entry lacks — a subproject
-    created between the reading of the key and the refusal of the scope — is computed alone.
+    alone are computed. A scope the entry lacks — a subproject created between the reading of the
+    key and the refusal of the scope — is computed alone.
     """
     subprojects = subproject_ids(session, basis.project_id)
     key = day_key(session, basis, context, subprojects)

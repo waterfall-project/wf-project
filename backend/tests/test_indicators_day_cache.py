@@ -10,11 +10,13 @@ changes with every write the indicators of the day depend on, and with the day; 
 never read in the cache. The project is the one of ``test_indicators_marked_read``.
 """
 
+import inspect
 import json
 import time
+from annotationlib import Format
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any, Protocol, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, cast
 from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID
 
@@ -477,9 +479,11 @@ def test_a_reading_with_a_redis_out_of_reach_computes_the_scope_asked_alone(
     computed: list[int] = []
     day_entry = caching.day_entry
 
-    def counting(*args: Any) -> Any:
-        computed.append(len(args[3]))
-        return day_entry(*args)
+    scopes_of = inspect.signature(day_entry, annotation_format=Format.FORWARDREF)
+
+    def counting(*args: Any, **named: Any) -> Any:
+        computed.append(len(scopes_of.bind(*args, **named).arguments["scopes"]))
+        return day_entry(*args, **named)
 
     monkeypatch.setattr(caching, "day_entry", counting)
     closed = TaskQueue.connect(CLOSED_PORT, timeout=WORKER_TIMEOUT)
@@ -579,8 +583,20 @@ def test_every_write_the_indicators_of_the_day_depend_on_changes_the_key(
     changed()
 
 
-def instants(stage: Scene) -> tuple[object, ...]:
-    """Give the counts and the last instants of the stamps of the project of the stage."""
+class Instants(NamedTuple):
+    """The counts and the last instants of the stamps of a project, the imports apart."""
+
+    content: tuple[object, ...]
+    lines: tuple[object, ...]
+    costs: tuple[object, ...]
+    imports: int
+
+
+def instants(stage: Scene) -> Instants:
+    """Give the counts and the last instants of the stamps of the project of the stage.
+
+    The number of the imports comes last, apart: it is the one an import changes.
+    """
     project_id = UUID(stage.project["project_id"])
     with stage.database.transaction() as session:
         reading = day_reading(session, project_id, IndicatorsReading(PROJECT, MORNING))
@@ -589,10 +605,11 @@ def instants(stage: Scene) -> tuple[object, ...]:
         content = revision_content_stamp(session, project_id, revision_id)
         lines = lines_stamp(session, project_id, revision_id)
         costs = costs_stamp(session, project_id)
-        return (
+        return Instants(
             (content.nodes, content.tasks, content.links, content.updated_at),
             (lines.count, lines.updated_at),
-            (costs.imported_at, costs.lines, costs.updated_at),
+            (costs.imported_at, costs.lines, costs.updated_at, costs.versions),
+            costs.imports,
         )
 
 
@@ -621,8 +638,89 @@ def test_a_write_that_started_before_the_last_one_committed_still_changes_the_ke
     after_state = key_of(stage)
     assert after_state not in {read_between, after_line}
     load_import(stage, project_id, [], at=AT - timedelta(days=1))
-    assert instants(stage) == held
+    after_import = instants(stage)
+    assert after_import[:3] == held[:3]
+    assert after_import.imports == held.imports + 1
     assert key_of(stage) not in {read_between, after_line, after_state}
+
+
+def line_id(api: ContractClient, stage: Scene, number: str) -> str:
+    """Give the identifier of the line of cost of a document of the project of the stage."""
+    (line,) = [
+        each
+        for each in read(api, stage, "actual-costs")["items"]
+        if each["document_number"] == number
+    ]
+    return str(line["cost_line_id"])
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+@pytest.mark.usefixtures("clock", "project")
+def test_two_exclusions_of_one_project_each_change_the_key_whatever_their_instants(
+    api: ContractClient, stage: Scene, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Propre à l'US (#3629) : l'exclusion d'une ligne de coût avance le compteur de la ligne sous le
+    # verrou du projet, que la clé lit. Deux exclusions commencées avant la dernière écriture
+    # validée portent un instant plus ancien que le maximum, qui ne bouge pas : seul le compteur
+    # change la clé, à chacune, et à la réintégration. « Concurrent » s'émule par une écriture dont
+    # l'instant est plus ancien que le dernier `updated_at` validé (le verrou du projet sérialise
+    # les transactions : deux écritures ne se chevauchent jamais). Après chacune, la lecture, dont
+    # l'entrée est déjà dans Redis avant l'exclusion, rend les coûts recalculés, non l'entrée
+    # précédente.
+    project_id = UUID(stage.project["project_id"])
+    # FA-3 stays tracked, at the last instant: the maximum is its, whatever the exclusions write.
+    lines = [
+        dated("FA-1", None, "10.00", DAY),
+        dated("FA-2", None, "20.00", DAY),
+        dated("FA-3", None, "30.00", DAY),
+    ]
+    load_import(stage, project_id, lines, at=MORNING)
+    seen = [key_of(stage)]
+    held = instants(stage)
+    costs = [indicators(api, stage)["actual_cost"]]
+    monkeypatch.setattr("waterfall.api.actual_costs.utc_now", lambda: MORNING - timedelta(hours=1))
+    for number in ("FA-1", "FA-2"):
+        exclude(api, stage, number)
+        # The entry of the key before the exclusion is in Redis: it is not the one served.
+        costs.append(indicators(api, stage)["actual_cost"])
+        assert costs[-1] != costs[-2]
+        key = key_of(stage)
+        assert key not in seen
+        seen.append(key)
+        # Neither the counts nor the last instant moved: the counter alone did.
+        now = instants(stage)
+        assert now[:2] == held[:2]
+        assert now.costs[:3] == held.costs[:3]
+        assert now.costs[3] == cast("int", held.costs[3]) + len(seen) - 1
+    path = f"{project_path(stage)}/actual-costs/{line_id(api, stage, 'FA-1')}/tracked-scope"
+    answer = api.put(path, headers=stage.manager.headers, json={"is_in_tracked_scope": True})
+    assert answer.status_code == 200, answer.text
+    assert key_of(stage) not in seen
+    assert indicators(api, stage)["actual_cost"] not in costs[1:]
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+@pytest.mark.usefixtures("project")
+def test_the_write_of_a_held_line_and_an_imputation_advance_its_counter_a_new_line_starts_at_zero(
+    api: ContractClient, stage: Scene
+) -> None:
+    # Propre à l'US (#3629) : une ligne neuve commence à 0 ; chaque écriture d'une ligne que
+    # l'import détient déjà, puis l'imputation à un sous-projet créé, avancent son compteur.
+    project_id = UUID(stage.project["project_id"])
+
+    def versions() -> int:
+        with stage.database.transaction() as session:
+            return costs_stamp(session, project_id).versions
+
+    before = versions()
+    load_import(stage, project_id, [dated("LC-1", None, "10.00", DAY)], at=MORNING)
+    assert versions() == before
+    load_import(stage, project_id, [dated("LC-1", None, "11.00", DAY)], at=MORNING)
+    assert versions() == before + 1
+    load_import(stage, project_id, [dated("LC-3", "10077", "5.00", DAY)], at=MORNING)
+    assert versions() == before + 1
+    subproject(api, stage, "10077", "Lot 10077")
+    assert versions() == before + 2
 
 
 @pytest.mark.requirement("WF-DAT-0130-A")

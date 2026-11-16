@@ -57,5 +57,10 @@ def impute_waiting_lines(
             CostLine.subproject_code == code,
             CostLine.subproject_id.is_(None),
         )
-        .values(subproject_id=subproject_id, updated_at=act.at, updated_by=act.author)
+        .values(
+            subproject_id=subproject_id,
+            updated_at=act.at,
+            updated_by=act.author,
+            lock_version=CostLine.lock_version + 1,
+        )
     )

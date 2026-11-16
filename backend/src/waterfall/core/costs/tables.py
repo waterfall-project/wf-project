@@ -94,8 +94,9 @@ class CostLine(Base):
     Its subproject is the one its code names in its project, null for a line without a subproject
     part or with a code no subproject bears, which keeps its code (WF-CRE-0020). An excluded line
     may say why; a tracked one never does (WF-CRE-0030). Its columns kept are texts by their name.
-    An import inserts or updates it on its document and item, an exclusion updates it: no counter,
-    its audit alone.
+    An import inserts or updates it on its document and item, an exclusion updates it, and so does
+    an imputation to a subproject created: each advances its counter under the lock of the project,
+    which the key of the cache of the indicators reads (#3629).
     """
 
     __tablename__ = "cost_line"
@@ -152,3 +153,7 @@ class CostLine(Base):
     updated_by: Mapped[UUID | None] = mapped_column(
         ForeignKey("user_account.id", ondelete="RESTRICT")
     )
+    # Advanced by every write of a value the indicators read, under the lock of its project: the key
+    # of the cache of the indicators reads the sum of it (#3629). A line an import finds unchanged
+    # only names that import: its counter stays, the key moves by the number of the imports.
+    lock_version: Mapped[int] = mapped_column(Integer, server_default="0")

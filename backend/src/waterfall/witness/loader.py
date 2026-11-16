@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.exchanges import interface as exchanges_interface
 from waterfall.core.history import interface as history_interface
+from waterfall.core.indicators import interface as indicators_interface
 from waterfall.core.planning import interface as planning_interface
 from waterfall.witness import (
     actual_cost_mapping,
@@ -53,8 +54,14 @@ if TYPE_CHECKING:
 type Slice = Callable[[Session, Witness], bool]
 
 # The modules that fill the registries of the others at the import of their interface (#2180):
-# imported here, so that no revision the witness opens or marks lacks their part.
-EXTENDING = (exchanges_interface, history_interface, planning_interface)
+# imported here, so that no revision the witness opens or marks lacks their part: the indicators
+# keep their documents at each marking (EP-10, "Le chargeur du témoin"; #3552).
+EXTENDING = (
+    exchanges_interface,
+    history_interface,
+    indicators_interface,
+    planning_interface,
+)
 
 # The settings and the units name nothing; a category names its nature, a rate its category, a
 # node its parent, a role its node, its category and its calendar; the mapping comes last of the
