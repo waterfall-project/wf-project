@@ -76,12 +76,12 @@ def test_the_forecast_adds_up_to_the_remaining_to_commit_to_the_cent(
     clock(DAY + timedelta(days=11))
     remaining = indicators(api, stage)["remaining"]
     assert remaining == "1877.85"
-    rows = months(curve(api, stage, COST_CURVE, DELAYED))
+    body = curve(api, stage, COST_CURVE, DELAYED)
+    rows = months(body)
     assert sum((D(forecast) for _, _, forecast in rows), D(0)) == D(remaining)
     assert all(D(forecast) == D(forecast).quantize(D("0.01")) for _, _, forecast in rows)
-    plain = curve(api, stage, COST_CURVE, DELAYED)
-    assert series(plain, "project_manager_projection")[-1][1] == "1877.85"
-    assert sum((D(forecast) for _, _, forecast in months(plain)), D(0)) == D("1877.85")
+    assert series(body, "project_manager_projection")[-1][1] == "1877.85"
+    assert sum((D(forecast) for _, _, forecast in rows), D(0)) == D("1877.85")
 
 
 @pytest.mark.requirement("WF-IND-0100-A")
