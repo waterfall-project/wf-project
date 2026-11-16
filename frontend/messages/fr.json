@@ -1852,7 +1852,7 @@
         "help": "Calendrier du rôle, qui donne ses heures travaillées de chaque jour."
       },
       "monthlyHours": {
-        "help": "Heures disponibles par mois, seules comparées au plan de charge."
+        "help": "Heures disponibles par mois, calculées de l’effectif et du calendrier, seules comparées au plan de charge."
       },
       "headcount": {
         "help": "Effectif auquel correspondent les heures par mois."
@@ -2500,7 +2500,7 @@
     "roleForm": {
       "create": "Nouveau rôle de ressource",
       "createHint": "Le code, unique, le libellé, le nœud, une catégorie de main-d’œuvre, le calendrier et l’effectif sont requis ; les heures par mois se calculent. Le nœud ne changera plus : un rôle se recrée sous un autre nœud.",
-      "hoursNote": "Calculées : effectif × heures hebdomadaires du calendrier × 52 ÷ 12. Elles ne se saisissent pas.",
+      "hoursNote": "Calculées : effectif × heures hebdomadaires du calendrier × 52 ÷ 12, arrondi au centième. Elles ne se saisissent pas ; la valeur affichée est celle enregistrée, recalculée à l’enregistrement.",
       "modifyHint": "Le code, unique, le libellé, une catégorie de main-d’œuvre, le calendrier et l’effectif sont requis. Le rôle reste sous « {node} » : il se recrée sous un autre nœud plutôt que de s’y déplacer."
     },
     "calendarForm": {

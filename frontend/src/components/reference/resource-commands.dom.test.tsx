@@ -837,7 +837,7 @@ describe("the resource roles", () => {
     );
   });
 
-  it("modifies a role but its node, which its form names, from the version read, its capacity shown in the language of the reader", async () => {
+  it("modifies a role but its node, which its form names, from the version read, its capacity shown in the language of the reader [WF-IHM-0030-A]", async () => {
     const client = serve();
     render(roleList());
     const technician = roles.items.find((role) => role.label === "Technicien de mise en service");
@@ -855,7 +855,7 @@ describe("the resource roles", () => {
     expect(hours).toHaveValue("485333,33");
     expect(hours).toHaveAttribute("readonly");
     expect(hours).toHaveAccessibleDescription(
-      "Calculées\u00a0: effectif × heures hebdomadaires du calendrier × 52 ÷ 12. Elles ne se saisissent pas.",
+      "Calculées\u00a0: effectif × heures hebdomadaires du calendrier × 52 ÷ 12, arrondi au centième. Elles ne se saisissent pas ; la valeur affichée est celle enregistrée, recalculée à l’enregistrement.",
     );
     expect(within(form).getByRole("combobox", { name: "Calendrier" })).toHaveValue(
       technician?.calendar_id,

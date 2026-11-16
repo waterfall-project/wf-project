@@ -153,6 +153,7 @@ test("creates a role in its form, moves a node under an active one, and designat
     .getByRole("combobox", { name: "Calendrier" })
     .selectOption({ label: "Semaine standard" });
   // The hours per month are calculated: the form types the headcount alone (WF-IHM-0030-A).
+  await expect(form.getByRole("textbox", { name: "Effectif" })).toBeVisible();
   await expect(form.getByRole("textbox", { name: "Heures par mois" })).toHaveCount(0);
   await form.getByRole("textbox", { name: "Effectif" }).fill("3");
   const nodeForm = page.getByRole("dialog", { name: "Modifier «\u00a0Atelier de câblage\u00a0»" });

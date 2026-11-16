@@ -32,7 +32,12 @@
  * become client references in the server bundle.
  */
 import type { components, operations } from "@/api/generated/schema";
-import { type GridColumn, type GridConfig, sortColumns } from "@/components/grid/columns";
+import {
+  type ComputedCells,
+  type GridColumn,
+  type GridConfig,
+  sortColumns,
+} from "@/components/grid/columns";
 import { prefixedAddress } from "@/components/grid/query";
 
 import { keptState } from "./address";
@@ -179,6 +184,17 @@ export function orgNodeGrid(editable = false): GridConfig<OrgNode, never, null> 
 }
 
 /**
+ * The hours a month of a role, which the server computes from its headcount and its calendar
+ * (WF-IHM-0030-A): the header carries the Σ of a computed column. No cell is shaded or refuses an
+ * entry — the grid is read only, and the contract names no field of a capacity to ask about.
+ */
+const COMPUTED_HOURS: ComputedCells<ResourceRole> = {
+  whole: true,
+  in: () => false,
+  field: () => undefined,
+};
+
+/**
  * The resource roles: each by its label and its code, unique (WF-REF-0090, EP-14/L42r), with its
  * node, its category and its calendar — named as the server resolves them, active or not
  * (WF-REF-0150) —, its capacity in hours a month and the headcount it stands for (WF-REF-0100), and
@@ -248,6 +264,7 @@ export function resourceRoleGrid(
         help: "resourceRoles.monthlyHours",
         format: "decimal",
         width: 120,
+        computed: COMPUTED_HOURS,
         contract: "monthly_hours",
         value: (role) => role.capacity.monthly_hours,
       },

@@ -319,6 +319,7 @@ test(
       await choose(roleForm.getByRole("combobox", { name: "Catégorie de coût" }), "MO-001");
       await choose(roleForm.getByRole("combobox", { name: "Calendrier" }), calendar);
       // The hours per month are calculated: the headcount alone is typed (WF-IHM-0030-A).
+      await expect(roleForm.getByRole("textbox", { name: "Effectif" })).toBeVisible();
       await expect(roleForm.getByRole("textbox", { name: "Heures par mois" })).toHaveCount(0);
       await roleForm.getByRole("textbox", { name: "Effectif" }).fill("3");
       made.push("role");
