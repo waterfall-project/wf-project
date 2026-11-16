@@ -2,21 +2,24 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The copy of a revision of PRJ-001 sends a handful of statements, not one by row (#3526).
 
-US-2240/L2 brought the copy of the last marked revision to an ``INSERT ... SELECT`` by table.
-Nothing kept it so; this test counts the statements of the copy alone and bounds them widely, so
-that a copy with a statement for each row of the thousand tasks and five thousand lines fails it.
+US-2240/L2 brought the copy of the last marked revision to an ``INSERT ... SELECT`` by table, and
+US-2240/L6 the pricing again of its lines, when the revision opened changes year, to a statement
+by set (#3535). Nothing kept it so; this test counts the statements of the copy alone, within the
+year of the source and a year later, and bounds them widely, so that a copy with a statement for
+each row of the tasks and lines of PRJ-001 fails it.
 
 What the guard covers is bounded: it counts statements, not rows. A grouped ORM insertion
 (``add_all``, insertmanyvalues) could stay under the bound; the guard is against one statement by
-row. It guards the copy within the same year only: a revision that changes year reprices its
-lines one by one, a finding opened apart (#3535).
+row.
 """
 
+import re
 from collections import Counter
 from typing import TYPE_CHECKING, Any
 
+import pytest
 from sqlalchemy import event, func, select
-from test_revision_copy_witness import SAME_YEAR
+from test_revision_copy_witness import NEXT_YEAR, SAME_YEAR
 from test_witness_projects import PRJ_001, REVISION_101, REVISION_102
 
 from waterfall.core.estimate.tables import EstimateLine
@@ -38,23 +41,35 @@ from waterfall.platform.audit import Act
 from waterfall.platform.logs import logging_context
 
 if TYPE_CHECKING:
-    import pytest
+    from datetime import datetime
 
     from waterfall.platform.database import Database
 
 # The statements the copy may send, whatever the volume (#3526). They depend on the number of
 # tables the copy visits, an ``INSERT ... SELECT`` and its few reads by table, never on the rows
-# of PRJ-001. 200 leaves a wide margin for tables added by later epics, and stays far from a copy
-# by row.
+# of PRJ-001, nor on its year: a revision opened a year later prices its lines again by a statement
+# for the set (#3535), not one by line. 200 leaves a wide margin for tables added by later epics,
+# and stays far from a copy by row.
 COPY_STATEMENTS_BOUND = 200
 # The volume of the source the bound is read against: a thinner witness would let a copy by row
 # pass under 200 (PRJ-001: some 1 000 tasks, 5 000 lines).
 TASKS_FLOOR = 900
 LINES_FLOOR = 4_500
+# What the message of a failure groups the statements by: their verb, and the table they write or
+# read first, that follows ``INTO``, ``UPDATE`` or ``FROM`` (#3538).
+TABLE = re.compile(r"\b(?:INTO|UPDATE|FROM)\s+(\w+)")
 
 
+def _grouped(statement: str) -> str:
+    """Name a statement by its verb and the first table it writes or reads."""
+    table = TABLE.search(statement)
+    verb = statement.split(maxsplit=1)[0] if statement.strip() else ""
+    return verb if table is None else f"{verb} {table.group(1)}"
+
+
+@pytest.mark.parametrize("at", [SAME_YEAR, NEXT_YEAR], ids=["same_year", "next_year"])
 def test_the_copy_of_a_revision_sends_fewer_statements_than_its_bound(
-    witness: Database, monkeypatch: pytest.MonkeyPatch
+    witness: Database, monkeypatch: pytest.MonkeyPatch, at: datetime
 ) -> None:
     # A criterion of the story's own, which reprises no Vérif: it cites no requirement.
     sent: list[str] = []
@@ -79,7 +94,7 @@ def test_the_copy_of_a_revision_sends_fewer_statements_than_its_bound(
         manager = list_contributors(session, PRJ_001, filters, ContributorSort()).items[0].user_id
         viewer = Viewer(manager, ())
         current = read_revision(session, PRJ_001, REVISION_102, viewer)
-        act = Act(manager, SAME_YEAR)
+        act = Act(manager, at)
         abandon_revision(
             session, PRJ_001, RevisionToAbandon(REVISION_102, current.lock_version), act, viewer
         )
@@ -103,5 +118,5 @@ def test_the_copy_of_a_revision_sends_fewer_statements_than_its_bound(
         assert lines >= LINES_FLOOR, lines
         create_revision(session, PRJ_001, act, viewer)
 
-    beginnings = Counter(" ".join(each.split()[:3]) for each in sent).most_common(5)
-    assert 0 < len(sent) < COPY_STATEMENTS_BOUND, (len(sent), beginnings)
+    grouped = Counter(_grouped(each) for each in sent).most_common(5)
+    assert 0 < len(sent) < COPY_STATEMENTS_BOUND, (len(sent), grouped)
