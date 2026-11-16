@@ -223,6 +223,23 @@ vingt-sept en tout) :
 - #3567 — les coûts réels (`core/costs/reading.py`) et les nœuds (`api/nodes.py`) lisent le filtre
   de sous-projet strictement, comme le contrat : US-2430/L2, hors du chemin critique.
 
+Décisions de l'auteur du 2026-11-16, sur quinze constats des lots en cours (ils ajoutent trois lots,
+trente et un en tout au compte du tableau de suivi) :
+
+- #3597, #3604 et #3589 — le contrat change en **un seul lot**, US-2430/L3 : le 422 de `listNodes` et
+  de `compareRevisions` nomme `UNKNOWN_SUBPROJECT` ; la lecture conservée d'une maille créée après
+  le marquage rend le 409 `STATE_FORBIDS_OPERATION` sans `params.state`, que la conception et le
+  contrat disent et qu'un test prouve ; les préférences d'une grille portent jusqu'à 256 réglages
+  par liste. #3619 s'y range : les tests de ce lot sont ceux que ses aides partagées desservent ;
+- #3622, #3610 et #3632 — aucun lot restant ne touche leurs fichiers : le lot US-2430/L4 les
+  regroupe ;
+- #3629 — un `lock_version` sur `cost_line`, que `costs_stamp` somme, par une migration : US-1720/L3,
+  le lot du back qui écrit encore `core/indicators/caching.py`, et que #3631 rejoint ; la clé devra,
+  en EP-08, lire le compteur de toutes les structures ;
+- #3575 — le critère d'US-1670 est corrigé : `remaining` ne se conserve que sur la maille
+  `project` ;
+- #3615 et #3627 — US-2050/L2 ; #3639 — US-1740/L2, avec #3638 ; #3628 — la mesure d'US-2420.
+
 ## Préalables
 
 EP-25 livré : `epic/EP-10` se tire alors de `main`, sans attendre EP-26 (décision de l'auteur du
@@ -275,7 +292,9 @@ module du noyau qui calcule, conserve au marquage et cache au jour courant ; il 
 Tableau 10, les routes de ses cinq opérations nouvelles, un crochet dans `core/planning` pour
 l'avancement physique, un module de cache sur Redis, et il branche sur le service l'écran des
 indicateurs. Il ne modifie pas le contrat de ses cinq opérations d'indicateurs, figé en 1.0.0 : un
-manque devient une « Interface contract issue » que l'auteur tranche. Ce qui suit fixe ce que
+manque devient une « Interface contract issue » que l'auteur tranche ; trois, tranchées le
+2026-11-16 (#3597, #3604, #3589), le changent en un seul lot, US-2430/L3 (« Le contrat que
+US-2430/L3 change »). Ce qui suit fixe ce que
 chaque lot devrait sinon décider seul.
 
 La conception est du 2026-11-07, écrite pour un EPIC livré pendant EP-06, EP-07 et EP-09. Elle a
@@ -443,6 +462,12 @@ rien à emporter.
   heures calculées.
 - **La nature `project` n'existe que pour une révision marquée à l'état En cours** : c'est ce que
   l'évolution des indices, le temps/temps et le 409 de l'offre lisent.
+- **Une migration pour le compteur des lignes de coût** (US-1720/L3, #3629) : `cost_line` gagne
+  `lock_version`, entier non nul à zéro par défaut — la table n'est pas partitionnée, les droits du
+  rôle du service (`SELECT, INSERT, UPDATE`) sont ceux de la table —, chaînée sur la dernière
+  migration d'`epic/EP-10` à son tirage (`0031` à ce jour ; celle de la capacité, US-2410/L2, peut
+  s'y ajouter avant : le lot chaîne sur la dernière qu'il trouve) ; sa descente retire la colonne. Aucune migration de données : le compteur ne sert
+  que par ses variations.
 - Les tests : `test_migrations.py` (schéma, droits, partition d'un projet créé ; la liste des
   tables partitionnées par projet qu'affirme le test d'US-1560/L3 d'EP-07 reçoit
   `revision_indicator`), `test_database_constraints.py` (une contrainte, un test),
@@ -480,8 +505,8 @@ rien à emporter.
     de ses nœuds, tâches et liaisons ; `physical_progress.py`, `register_physical_progress`, le
     crochet (« Les points d'extension ») ;
   - `core/costs/interface/indicator_costs.py` (après US-1610/L2 #2404 et US-1610/L3 #2405) :
-    `costs_stamp(project_id)`, le dernier `imported_at` de `cost_import` et le dernier
-    `updated_at` de `cost_line` ; `actual_costs_until` et `actual_cost_by_subproject` (EP-09)
+    `costs_stamp(project_id)`, le nombre et le dernier `imported_at` de `cost_import`, le nombre et
+    la somme des `lock_version` de `cost_line` (US-1720/L3), avec le dernier `updated_at` ; `actual_costs_until` et `actual_cost_by_subproject` (EP-09)
     servent tels quels ;
   - `core/revisions` et `core/projects` servent par leurs lectures existantes : `found_revision`,
     `current_revision`, `list_revisions`, `read_revision` (`marked_at`, `is_reference`, le statut) ;
@@ -515,7 +540,14 @@ importe l'interface (US-1670/L1).
   celles qui ont un document `project`, sinon le même 409 (constat « contrat ») ; les deux ensemble
   → 422 sur `/query/revision_id` ; un projet antérieur à En cours → 409 avec `params.state` et
   `params.state_enum`, avant toute autre lecture. `scope` : `project`, `unassigned`, ou un identifiant
-  parmi `subprojects_present` du projet, sinon 422 `UNKNOWN_SUBPROJECT` sur `/query/scope`.
+  parmi `subprojects_present` du projet, sinon 422 `UNKNOWN_SUBPROJECT` sur `/query/scope`. **Une
+  lecture conservée d'une maille que la révision n'a pas** — un sous-projet créé après le marquage,
+  présent aujourd'hui dans `subprojects_present`, donc sans 422 — est refusée par le même 409
+  `STATE_FORBIDS_OPERATION` sans `params.state` : la révision a un document `project`, mais pas
+  celui de cette maille ; `getProjectIndicators`, `getCostCurve` et `getEarnedValueCurves` le
+  rendent (décision de l'auteur du 2026-11-16, #3604). Écartés : un 422 `UNKNOWN_SUBPROJECT`, qui
+  dit au client que le sous-projet n'existe pas quand il existe, et des séries vides, qui
+  répondent par un zéro à ce qui n'a jamais été calculé.
 - **La date de calcul** D : le jour courant du fuseau de l'installation (`current_day`, recadrage
   du 2026-11-15) pour le calcul du jour (`computed_at`
   l'instant), le jour de `marked_at` pour le marquage ; la révision de référence Ref est celle du
@@ -654,6 +686,20 @@ Réécrite au recadrage du 2026-11-15 : EP-26 a refait la lecture d'une structur
   imputées bougent `costs_stamp`), le passage d'un jour. L'empreinte coûte six lectures indexées ;
   la seule écriture qui lui échappe est un changement de seuil, que la zone classée à la lecture
   n'a pas besoin de voir.
+- **Le compteur des lignes de coût** (US-1720/L3, décision de l'auteur du 2026-11-16, #3629) :
+  `updated_at` vaut l'instant du début de la requête, non celui de sa validation : deux écritures
+  concurrentes d'un même projet peuvent laisser son maximum inchangé. Les écritures de l'arbre
+  avancent le compteur de leur structure sous verrou, et l'import est couvert par le nombre des
+  `cost_import` ; l'exclusion et la réintégration d'une ligne (`setActualCostTrackedScope`)
+  n'avançaient rien. `cost_line` porte donc `lock_version`, avancé par chaque écriture d'une ligne —
+  l'application d'un import, l'exclusion et la réintégration, l'imputation à un sous-projet créé —,
+  sous le verrou du projet ; `costs_stamp` en rend la somme avec le nombre des lignes, et la clé
+  les lit. Écartés : avancer le compteur du projet à l'exclusion, qui ferait refuser par 412 une
+  édition du projet en cours ; dater `updated_at` par `clock_timestamp()` sous le verrou, qui change
+  une convention du noyau ; accepter l'écart borné par la durée de validité, qui contredit « une
+  entrée n'est jamais servie pour une clé qui n'est plus celle du projet ». **Pour EP-08** : la clé
+  lit le compteur de la seule structure principale de la révision ; quand EP-08 donne aux autres
+  structures leur compteur, elle lira celui de toutes.
 - **L'entrée** : un seul document JSON par projet et par jour — les `ProjectIndicators` et les trois
   `CurveSeries` de chaque maille, zones nulles —, écrit après un calcul complet avec la durée de
   validité ; `getProjectIndicators`, `getCostCurve`, `getEarnedValueCurves` au jour courant et le
@@ -773,7 +819,8 @@ conservés ; un désaccord hors de la liste se tranche par la spécification, pa
 
 ### Le harnais
 
-US-1730 étiquette `@shared` `indicators.spec.ts` et lève la part des indicateurs de `context.spec.ts`
+US-1730 étiquette `@shared` `indicators.spec.ts` (US-1740/L2 y reprend ensuite les quatre
+retouches de #3639) et lève la part des indicateurs de `context.spec.ts`
 (`BEFORE_THE_DATA`, après US-1470 #2326 d'EP-06 et US-1560/L2 #2383 d'EP-07) ; US-1740 garde par
 `inService` les chiffres de `review.spec.ts`, qui sont ceux de la référence 101, et écrit l'entrée du
 guide qu'EP-08 lève ; les parcours qui marquent le font sur un projet que la course crée (#2193). La
@@ -821,8 +868,32 @@ pydantic) acceptaient aussi les accolades, `urn:uuid:` et la forme sans tirets :
 était refusé par l'une et accepté par les autres. US-2430/L2 aligne les deux routes sur le contrat :
 toute autre forme que celle à tirets, ou un sous-projet inconnu, est refusée par `UNKNOWN_SUBPROJECT`,
 le code que `listActualCosts` et les indicateurs rendent déjà ; `listNodes` le rend à la place du
-422 de validation de pydantic. Le contrat ne change pas. Écarté : documenter l'écart, qui laisse une
-route plus permissive que ce qu'elle publie.
+422 de validation de pydantic. Le contrat ne change pas dans ce lot. Écarté : documenter l'écart,
+qui laisse une route plus permissive que ce qu'elle publie.
+
+### Le contrat que US-2430/L3 change
+
+Décisions de l'auteur du 2026-11-16, en un lot de contrat, avant tout code qui les consomme ; le
+reste du contrat d'EP-10 ne change pas. Chacune avec l'option écartée :
+
+- **Le 422 de `listNodes` et de `compareRevisions` nomme `UNKNOWN_SUBPROJECT`** sur
+  `/query/subproject_id` (#3597) : sa phrase et un exemple, dans `docs/api/paths/revisions.yaml` et
+  la description de `SubprojectFilter` (`docs/api/components/parameters.yaml`) ; l'exemple s'engendre
+  de la même façon que celui de `listActualCosts` quand l'outil le permet. Écarté : laisser le
+  contrat tel quel, la route rendant alors un code qu'il ne publie pas et que le client engendré
+  ignore.
+- **Le 409 de la maille créée après le marquage** (#3604), dit dans la phrase du 409 de
+  `getProjectIndicators`, de `getCostCurve` et de `getEarnedValueCurves` (`paths/analysis.yaml`) et
+  dans `docs/api/DECISIONS.md` ; un test par route le prouve (« Le calcul des indicateurs »).
+- **Les préférences d'une grille portent 256 réglages par liste** (#3589) : `maxItems` de
+  `known_columns` et de `hidden_columns` et `maxProperties` de `column_widths` passent de 64 à 256
+  (`components/schemas/access.yaml`) ; le client du front et les modèles du back sont réengendrés,
+  `KNOWN_BOUND` de `frontend/src/components/grid/settings.ts` suit, et les tests des préférences
+  (`test_users_personal.py`, `settings.test.ts`) bougent avec la borne. La grille du détail du plan
+  de charge compte une colonne par mois, près de cent quatre-vingt-cinq pour quinze ans. Écarté :
+  garder 64 et laisser un réglage retomber à son défaut à la visite suivante, sans refus.
+
+Le lot réengendre le client (`make generate-client`) et l'inventaire du contrat.
 
 ### Ce que le cadrage laisse à EP-08
 
@@ -837,7 +908,8 @@ du jour (US-1660/L3), la conservation et la lecture conservée (US-1670/L1, L2) 
 date), les lignes de provision dans la projection et les décaissements, l'exclusion des tâches de
 survenance de la valeur acquise (`origin_risk_id`, déjà prévue dans la sélection des lignes), la
 couverture des risques dans le document `remaining`, et leurs propres compteurs dans l'empreinte du
-cache (les structures des risques, les risques eux-mêmes).
+cache (les structures des risques, les risques eux-mêmes) : la clé ne lit aujourd'hui que le
+compteur de la structure principale, et devra lire celui de toutes (« Le cache », #3629).
 
 ### L'ordre de construction
 
@@ -861,6 +933,11 @@ l'avancement physique (US-1680) et la mesure (US-2420), qui attendent EP-26 dans
    la projection de dépenses (US-2050), l'écran des ressources (US-2410).
 6. **Le témoin comparé** (US-1740), le jumeau du reste à engager (US-2430), **la mesure**
    (US-2420), puis **la vérification d'ensemble** (US-1740), seule.
+
+Ajoutés le 2026-11-16, hors du chemin critique sauf US-1720/L3, que la mesure attend : **le
+contrat** (US-2430/L3) avant ses mineurs (US-2430/L4) ; **le compteur des lignes de coût**
+(US-1720/L3), sur la clé du cache, avant **la mesure** (US-2420), qui lit l'entrée telle qu'elle
+sera livrée ; la vérification d'ensemble (US-1740/L2) attend tous les lots.
 
 ---
 
@@ -1111,9 +1188,10 @@ restent ce qu'elles étaient le jour où je les ai tenues.
   (`IndexValue.zone`), et `updateReferenceSettings` la change sans toucher la valeur ;
 - propre à l'US : `revision_indicator` conserve, par révision marquée, un document par nature et
   par maille — les indicateurs de devis (`EstimateIndicators`, toute révision marquée), les
-  indicateurs de reste à engager (`RemainingIndicators`, toute révision marquée), les indicateurs
-  projet (`ProjectIndicators`, à partir de l'état En cours), les courbes par US-1690 —, pour le
-  projet, chaque sous-projet et « hors sous-projet », avec l'instant du calcul, celui du marquage
+  indicateurs de reste à engager (`RemainingIndicators`, toute révision marquée, sur la seule maille
+  `project`, son document portant le solde de chaque sous-projet et de « hors sous-projet »), les
+  indicateurs projet (`ProjectIndicators`, à partir de l'état En cours), les courbes par US-1690 —,
+  pour le projet, chaque sous-projet et « hors sous-projet », avec l'instant du calcul, celui du marquage
   (`marked_at`) ; une révision marquée ne conserve rien d'autre (WF-DAT-0020 : le déclencheur
   d'immuabilité refuse toute écriture ensuite) ;
 - propre à l'US : `getProjectIndicators` avec le `revision_id` d'une révision marquée rend le
@@ -1426,7 +1504,7 @@ l'inscription elle-même (EP-06).
 - **exigences** : `WF-DAT-0130-A`
 - **opérations** : `getProjectIndicators`, `getCostCurve`, `getEarnedValueCurves`,
   `getIndexHistory` (le dernier point) ; `updateEstimateLine`, `setActualCostTrackedScope`,
-  `abandonRevision` pour ce qu'ils invalident
+  `abandonRevision` pour ce qu'ils invalident ; `applyImport` (US-1720/L3)
 - **issue** : 2434
 
 **En tant qu'** exploitant, **je veux** que les indicateurs au jour courant d'un projet soient tenus
@@ -1470,7 +1548,14 @@ reste juste et que le service ne recalcule pas ce que rien n'a changé.
   erreur de Redis — connexion, délai, réponse — à la lecture comme à l'écriture d'une entrée est
   journalisée une fois et le calcul rendu ; aucune lecture d'une révision marquée ne passe par le
   cache ; un test contre Redis (guide, « Un test contre Redis ») éprouve l'entrée servie, la clé
-  changée et l'indisponibilité.
+  changée et l'indisponibilité ;
+- propre à l'US : toute écriture d'une ligne de coût — l'application d'un import, l'exclusion ou la
+  réintégration (`setActualCostTrackedScope`), l'imputation à un sous-projet créé — avance le
+  `lock_version` de la ligne, sous le verrou du projet, et la clé lit leur somme avec le nombre des
+  lignes (`costs_stamp`) : deux exclusions concurrentes d'un même projet changent chacune la clé,
+  même quand leurs `updated_at`, qui datent le début de leur requête, laissent le maximum où il
+  était, et une entrée n'est jamais servie pour une clé qui n'est plus celle du projet (décision de
+  l'auteur du 2026-11-16, #3629) ; ce critère est celui du lot US-1720/L3.
 
 **Notes de réalisation.** La clé versionnée est la décision de l'auteur du 2026-11-07 au cadrage,
 contre l'invalidation explicite dans chaque écriture d'EP-06, d'EP-07 et d'EP-09 (conception, « Ce
@@ -1583,7 +1668,19 @@ service, **afin que** les tests déjà écrits prouvent le service sur le plus g
   guide qu'EP-07 et EP-09 ont marquées « levées par EP-10 » (les indicateurs, la part des
   indicateurs de `BEFORE_THE_DATA`) sont levées, le guide disant ce que le marquage rejoué conserve
   et ce qu'EP-08, EP-11 et EP-13 y ajoutent ; le statut de cette US est passé `fini` dans le
-  fichier — chaque autre US l'est par le lot qui la termine.
+  fichier — chaque autre US l'est par le lot qui la termine ;
+- propre à l'US : les parcours de l'écran des indicateurs reprennent quatre retouches
+  (`frontend/e2e/indicators.spec.ts`, `indicator-answers.ts` ; décision de l'auteur du 2026-11-16,
+  #3639) : la locale est la constante `LOCALE` du helper, exportée, et non `"fr"` écrit en dur ;
+  les libellés passent par `catalogue`, aucun n'est littéral ; `expectCurvePoints` exige
+  `toHaveCount(0)` sur le tableau des décaissements quand `cashOut` est faux et que l'API n'en rend
+  aucun, avec une contre-preuve ; le parcours des trois mailles s'intitule comme ce qu'il éprouve,
+  les deux courbes comprises ;
+- propre à l'US : les options d'export d'une courbe passées à ECharts portent le titre et le sous-titre
+  que l'image dessine — le nom du projet, la révision, la date de calcul (`exportTitle`,
+  `exportSubtitle`, `components/chart/chart.tsx`) —, éprouvées par un test unitaire, sans dépendance
+  de test nouvelle : l'image, non le nom du fichier, porte projet, révision et date (WF-IHM-0130,
+  décision de l'auteur du 2026-11-16, #3638) ; ces deux critères sont ceux du lot US-1740/L2.
 
 **Notes de réalisation.** EP-10 ne charge aucune tranche : la conservation est un effet du
 marquage, que le chargeur rejoue par la transaction du worker (`load_marking`) ; les indicateurs
@@ -1675,7 +1772,18 @@ prévoir la dépense des mois qui viennent, main-d'œuvre et débours totalisés
   (WF-IHM-0130), et ses séries suivent la présentation des graphiques d'EP-25 (US-2160) ;
 - propre à l'US : pour une révision marquée, la projection est calculée à la lecture, non
   conservée au marquage (décision de l'auteur du 2026-11-14, #3182) ;
-- propre à l'US : la page a son aide en ligne, dans les deux langues.
+- propre à l'US : la page a son aide en ligne, dans les deux langues ;
+- propre à l'US : le plan de charge, la projection de dépenses et la courbe de coûts répartissent le
+  jour de calcul de la même façon : la coupure du reste à engager de chacun est lue sur le témoin,
+  et si le plan de charge (`core/estimate/workloading.py`) coupe au début de ce jour quand la courbe
+  (`series/shares.py`) et le faux back (`mockworkload.py`) coupent à sa fin, il est aligné sur la
+  fin du jour, ses exemples réengendrés (décision de l'auteur du 2026-11-16, #3615) ; ce critère
+  est celui du lot US-2050/L2 ;
+- propre à l'US : les exemples de refus de la projection — `spending_no_reference`,
+  `spending_revision_refused` et `spending_subproject_unknown` — sont engendrés par `mockrefusals`
+  à partir du témoin, avec leur test et leur déclaration dans `tools/paths.toml`, comme
+  `spending_rate_missing` et `estimate_line_rate_missing` (décision de l'auteur du 2026-11-16,
+  #3627) ; ce critère est celui du lot US-2050/L2.
 
 **Notes de réalisation.** La courbe de coûts cumulés (US-1690, par son lot L4) étale le reste de
 chaque ligne de la même façon : la projection en est la lecture par mois et par nature, non cumulée, et n'en reprend
@@ -1743,7 +1851,13 @@ de mesures, **afin de** savoir s'ils tiennent leurs objectifs avant de publier l
 - propre à l'US : le rapport de mesures de la version les porte, à la place de la mention
   « EP-10 » sans durée (US-2300 d'EP-26) ; `make check-measures` passe ;
 - propre à l'US : un objectif dépassé est documenté dans le rapport et devient une issue à
-  trancher, sans lot engagé d'avance.
+  trancher, sans lot engagé d'avance ;
+- propre à l'US : la mesure des indicateurs de la révision en cours dit aussi, à froid et à chaud, ce
+  que coûte l'entrée du cache — un seul document par projet et par jour, qui porte toutes les
+  mailles (« Le cache ») — : sa taille, le temps d'une lecture d'une seule maille contre le
+  document entier, extrapolés linéairement dans le rapport au nombre de sous-projets, sans jeu plus
+  gros ; si l'objectif d'une seconde n'est pas tenu, l'entrée devient une par maille, et la clé du
+  cache le dit (décision de l'auteur du 2026-11-16, #3628).
 
 **Hors périmètre.** Rendre un objectif bloquant ; les vues de portefeuille (EP-11).
 
@@ -1751,7 +1865,8 @@ de mesures, **afin de** savoir s'ils tiennent leurs objectifs avant de publier l
 
 - **statut** : à faire
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par EP-07 et EP-09
-- **opérations** : `getProjectIndicators` ; `listActualCosts`, `listNodes` (le filtre `subproject_id`, US-2430/L2)
+- **opérations** : `getProjectIndicators` ; `listActualCosts`, `listNodes` (le filtre `subproject_id`, US-2430/L2) ;
+  `compareRevisions`, `getCostCurve`, `getEarnedValueCurves`, `updateMyPreferences` (le contrat, US-2430/L3)
 - **issue** : #3509
 
 **En tant que** développeur, **je veux** que les constats rattachés à cet EPIC soient corrigés,
@@ -1768,6 +1883,34 @@ de mesures, **afin de** savoir s'ils tiennent leurs objectifs avant de publier l
   comme `getProjectIndicators` et comme le contrat (`SubprojectFilter`, `format: uuid`) : un
   identifiant à accolades, `urn:uuid:` ou sans tirets est refusé, `UNKNOWN_SUBPROJECT`, sur chacune
   des trois routes (décision de l'auteur du 2026-11-16, #3567) ; ce critère est celui du lot
-  US-2430/L2.
+  US-2430/L2 ;
+- propre à l'US : le 422 de `listNodes` et de `compareRevisions` nomme `UNKNOWN_SUBPROJECT` sur
+  `/query/subproject_id`, avec un exemple, comme `listActualCosts` (`SubprojectFilter`,
+  `docs/api/components/parameters.yaml`, et `docs/api/paths/revisions.yaml`) : le contrat publie le
+  code que les deux routes rendent depuis US-2430/L2, et le client engendré le connaît (décision de
+  l'auteur du 2026-11-16, #3597) ;
+- propre à l'US : une lecture conservée d'une maille créée après le marquage — `revision_id` ou
+  `as_of` désignant une révision marquée, `scope` un sous-projet créé depuis, présent dans
+  `subprojects_present` — est refusée par 409 `STATE_FORBIDS_OPERATION` sans `params.state`, comme
+  une révision sans document `project` : la conception et le contrat de `getProjectIndicators`, de
+  `getCostCurve` et de `getEarnedValueCurves` le disent, et un test le prouve sur chacune des trois
+  (décision de l'auteur du 2026-11-16, #3604) ;
+- propre à l'US : le contrat borne à 256 réglages, au lieu de 64, chaque liste des préférences d'une
+  grille — `known_columns` et `hidden_columns` (`maxItems`), `column_widths` (`maxProperties`) —, et
+  `KNOWN_BOUND` de `frontend/src/components/grid/settings.ts` le suit : la grille du détail du plan
+  de charge, d'une colonne par mois et de près de cent quatre-vingt-cinq pour un plan de quinze ans,
+  garde chacun de ses réglages d'une visite à l'autre (décision de l'auteur du 2026-11-16, #3589) ;
+- propre à l'US : les tests des lectures d'indicateurs ne s'importent plus leurs aides d'un autre
+  module de test — `thresholds` de `test_project_indicators.py` pour `test_index_history.py`,
+  `test_cost_curve.py` et `test_cash_out.py` — : elles vivent dans un module `*_support` des tests,
+  `indicators_support.py` ou celui de leur famille (#3619) ; ces quatre critères sont ceux du lot
+  US-2430/L3, qui écrit dans ces mêmes fichiers le test du deuxième ;
+- propre à l'US : `shaping.py` écrit le format décimal des indices par `plain_decimal`, importé de
+  l'interface de `core/cost_settings`, et non par une copie (`_ratio`) que rien ne garde en accord
+  avec lui (#3622) ; le temps/temps éprouve un marquage à minuit UTC pile du jour de la
+  terminaison, où `marked_at >= completed_on` se distingue de `>` (#3610) ; dans `test_spending.py`,
+  `unrate` ne retire que ce qu'il retire — avant le marquage — et le cas `nothing_left` ne se
+  paramètre que sur `current_remaining`, avec sa précondition (#3632) ; ces trois critères sont
+  ceux du lot US-2430/L4 (décisions de l'auteur du 2026-11-16).
 
 **Hors périmètre.** #2498, que porte US-1710 ; #3096, que porte US-2040.
