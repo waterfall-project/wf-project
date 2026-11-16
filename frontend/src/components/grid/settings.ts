@@ -114,7 +114,7 @@ export interface GridShape {
  * (`known_columns`, `maxItems`), those hidden (`hidden_columns`, `maxItems`) and those whose width
  * is set (`column_widths`, `maxProperties`).
  */
-export const KNOWN_BOUND = 64;
+export const KNOWN_BOUND = 256;
 
 /**
  * The shape of a grid, from its columns. A grid of more columns than the contract records — one

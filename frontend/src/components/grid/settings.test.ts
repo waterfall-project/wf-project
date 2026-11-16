@@ -26,7 +26,13 @@ import { MAX_WIDTH, MIN_WIDTH, WIDEST } from "./columns";
 import { ESTIMATE_GRID } from "./estimate";
 import { PLANNING_GRID } from "./planning";
 import { REMAINING_GRID } from "./remaining";
-import { gridShape, initialSettings, keptPageSize, recordedPreferences } from "./settings";
+import {
+  gridShape,
+  initialSettings,
+  keptPageSize,
+  KNOWN_BOUND,
+  recordedPreferences,
+} from "./settings";
 
 describe("the settings a grid starts from", () => {
   it("are the columns the grid hides, and no width, without preferences", () => {
@@ -194,9 +200,9 @@ const FIFTEEN_YEARS = Array.from({ length: 180 }, (_, at) => {
   return `${year.toString()}-${(1 + (at % 12)).toString().padStart(2, "0")}`;
 });
 
-// aucune exigence : propre à l'US (US-0650, `known_columns` borné par le contrat à 64 clés de 64
-// caractères ; une grille de plus de colonnes, le détail du plan de charge d'US-2040, garde d'abord
-// celles qu'elle masque par défaut).
+// WF-IHM-0060-A : les préférences d'une grille tiennent aux bornes du contrat (US-0650, US-2430 :
+// `known_columns`, `hidden_columns` et `column_widths` bornés à 256 réglages, clés de 64 caractères ;
+// une grille de plus de colonnes garde d'abord celles qu'elle masque par défaut).
 describe("the columns a grid records as known", () => {
   it("records every column of a grid within the bound, in its order", () => {
     expect(gridShape(PLANNING_GRID.columns).known).toEqual(
@@ -206,22 +212,26 @@ describe("the columns a grid records as known", () => {
 
   it("records first the columns hidden by default of a grid beyond the bound, then the others up to it", () => {
     const columns = [
-      ...Array.from({ length: 70 }, (_, at) => ({ key: `shown_${at.toString()}` })),
+      ...Array.from({ length: KNOWN_BOUND + 6 }, (_, at) => ({ key: `shown_${at.toString()}` })),
       { key: "hidden", hidden: true },
     ];
     const { known } = gridShape(columns);
-    expect(known).toHaveLength(64);
+    expect(known).toHaveLength(KNOWN_BOUND);
     expect(known[0]).toBe("hidden");
     expect(known[1]).toBe("shown_0");
   });
 
-  // aucune exigence : propre à l'US (US-2040, `hidden_columns` et `column_widths` bornés par le
-  // contrat à 64 ; le détail du plan de charge a une colonne par mois, 185 en tout).
+  // WF-IHM-0060-A : `hidden_columns` et `column_widths` sont bornés par le contrat à 256, comme
+  // `known_columns` ; `KNOWN_BOUND` suit cette borne (US-2430, #3589).
+  it("holds the bound of the grid to the 256 settings the contract allows", () => {
+    expect(KNOWN_BOUND).toBe(256);
+  });
+
   it("records at most the bound of the contract of hidden columns and widths, the first set", () => {
-    const columns = Array.from({ length: 185 }, (_, at) => ({ key: `c_${at.toString()}` }));
+    const columns = Array.from({ length: 300 }, (_, at) => ({ key: `c_${at.toString()}` }));
     const settings = {
-      visibility: Object.fromEntries(columns.slice(5, 125).map((c) => [c.key, false])),
-      sizing: Object.fromEntries(columns.slice(0, 100).map((c) => [c.key, 120])),
+      visibility: Object.fromEntries(columns.slice(5, 285).map((c) => [c.key, false])),
+      sizing: Object.fromEntries(columns.slice(0, 280).map((c) => [c.key, 120])),
     };
     const recorded = recordedPreferences(
       undefined,
@@ -231,17 +241,17 @@ describe("the columns a grid records as known", () => {
       undefined,
       gridShape(columns),
     );
-    expect(recorded.known_columns).toHaveLength(64);
-    expect(recorded.hidden_columns).toEqual(columns.slice(5, 69).map((c) => c.key));
+    expect(recorded.known_columns).toHaveLength(KNOWN_BOUND);
+    expect(recorded.hidden_columns).toEqual(columns.slice(5, 5 + KNOWN_BOUND).map((c) => c.key));
     expect(Object.keys(recorded.column_widths ?? {})).toEqual(
-      columns.slice(0, 64).map((c) => c.key),
+      columns.slice(0, KNOWN_BOUND).map((c) => c.key),
     );
     // What the user finds on the next visit: the settings beyond the bound are gone, the others kept.
     const back = initialSettings(recorded, columns);
-    expect(Object.keys(back.visibility)).toHaveLength(64);
-    expect(back.visibility.c_124).toBeUndefined();
-    expect(Object.keys(back.sizing)).toHaveLength(64);
-    expect(back.sizing.c_99).toBeUndefined();
+    expect(Object.keys(back.visibility)).toHaveLength(KNOWN_BOUND);
+    expect(back.visibility.c_261).toBeUndefined();
+    expect(Object.keys(back.sizing)).toHaveLength(KNOWN_BOUND);
+    expect(back.sizing.c_256).toBeUndefined();
     expect(back.sizing.c_0).toBe(120);
   });
 
@@ -283,7 +293,7 @@ describe("the columns a grid records as known", () => {
 
   it.each(Object.entries(grids))("of the grid %s fit the bounds of the contract", (_, grid) => {
     const { known } = gridShape(grid.columns);
-    expect(known.length).toBeLessThanOrEqual(64);
+    expect(known.length).toBeLessThanOrEqual(KNOWN_BOUND);
     expect(known.filter((key) => key.length > 64)).toEqual([]);
     expect(new Set(known).size).toBe(known.length);
   });
