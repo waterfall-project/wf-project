@@ -481,9 +481,25 @@ def test_the_filter_of_the_subproject_is_read_as_the_hyphenated_identifier_only(
 ) -> None:
     # US-2430/L2: ``format: uuid`` (``SubprojectFilter``), as ``getProjectIndicators`` reads its
     # scope: the hyphenated identifier is read; braces, ``urn:uuid:`` and no hyphen name no
-    # subproject, ``UNKNOWN_SUBPROJECT`` on ``/query/subproject_id``.
+    # subproject, ``UNKNOWN_SUBPROJECT`` on ``/query/subproject_id``, nor does a subproject the
+    # project does not have; the hyphenated form is read in either case.
     key = made(api, stage, "SP-1", "Câblage")["subproject_id"]
     assert read(api, stage, subproject_id=key)["items"] == []
-    for text in (key.replace("-", ""), "{" + key + "}", "urn:uuid:" + key):
+    assert read(api, stage, subproject_id=key.upper())["items"] == []
+    other = api.post(PROJECTS, headers=stage.manager.headers, json={"label": "Autre projet"})
+    assert other.status_code == 201, other.text
+    elsewhere = api.post(
+        f"{PROJECTS}/{other.json()['project_id']}/subprojects",
+        headers=stage.manager.headers,
+        json={"code": "SP-AUT", "label": "Ailleurs"},
+    ).json()["subproject_id"]
+    for text in (
+        key.replace("-", ""),
+        "{" + key + "}",
+        "urn:uuid:" + key,
+        str(uuid4()),
+        elsewhere,
+        "UNASSIGNED",
+    ):
         answer = api.get(path(stage), headers=stage.manager.headers, params={"subproject_id": text})
         assert faults(answer) == [("/query/subproject_id", "UNKNOWN_SUBPROJECT", {})], text

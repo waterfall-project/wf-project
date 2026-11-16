@@ -35,6 +35,7 @@ from waterfall.api.contract.base import Text
 from waterfall.api.contract.models import (
     ComputedValueDependencies,
     ComputedValueField,
+    ErrorCode,
     EstimateLineFacet,
     EstimateLineUpdate,
     EstimateLineWrite,
@@ -112,7 +113,6 @@ FIELD_NOT_ACCEPTED = "FIELD_NOT_ACCEPTED"
 DAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 CENT = Decimal("0.01")
 UNASSIGNED = "unassigned"
-UNKNOWN_SUBPROJECT = "UNKNOWN_SUBPROJECT"
 # The forms of a bound of the query: a decimal, an amount, a whole number, a date (README). Their
 # digits are 0 to 9, as the patterns of the contract say them: another digit malforms the bound.
 DECIMAL = re.compile(r"-?[0-9]+(\.[0-9]+)?")
@@ -227,7 +227,7 @@ def _subproject_asked(
         return None, []
     found = read_identifier(asked)
     if found is None or not subproject_labels(session, project_id, [found]):
-        return None, [FieldError("/query/subproject_id", UNKNOWN_SUBPROJECT)]
+        return None, [FieldError("/query/subproject_id", ErrorCode.UNKNOWN_SUBPROJECT)]
     return found, []
 
 

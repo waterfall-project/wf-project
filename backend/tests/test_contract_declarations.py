@@ -579,8 +579,10 @@ CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
         "declared nothing, contract either=(enum={'unassigned'} | nothing)"
     ),
     # The subproject asked of the nodes, as that of the actual costs: read as text and judged by the
-    # route, strictly, whose refusal the contract names in 422, on the parameter
-    # (``UNKNOWN_SUBPROJECT``, ``listNodes``, ``compareRevisions``, US-2430/L2).
+    # route, strictly, on the parameter (``UNKNOWN_SUBPROJECT``), as EP-10 designs it, « Le filtre
+    # de sous-projet, lu strictement partout » (``listNodes``, ``compareRevisions``, US-2430/L2).
+    # The contract does not yet name that refusal in the 422 of these two routes
+    # (``docs/api/paths/revisions.yaml``): #3597, to be settled.
     ("listNodes", "query", "subproject_id"): (
         "declared nothing, contract either=(enum={'unassigned'} | nothing)"
     ),

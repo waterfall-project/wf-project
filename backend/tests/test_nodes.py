@@ -861,6 +861,11 @@ def test_the_filter_of_the_subproject_is_read_as_the_hyphenated_identifier_only(
     key = made.json()["subproject_id"]
     assert tree.read(f"?subproject_id={key.upper()}").status_code == 200
     assert tree.read("?subproject_id=unassigned").status_code == 200
+    # ``enum: [unassigned]``: lower case alone.
+    assert faults(tree.read("?subproject_id=UNASSIGNED"))[0][:2] == (
+        "/query/subproject_id",
+        "UNKNOWN_SUBPROJECT",
+    )
     unknown: list[tuple[str, str, dict[str, Any]]] = [
         ("/query/subproject_id", "UNKNOWN_SUBPROJECT", {})
     ]
