@@ -61,6 +61,11 @@ DATA = {
     "WorkloadTask.label": "a label",
     # The label of a milestone the diagram of the time/time tracking draws.
     "MilestoneTracking.milestones.label": "a label",
+    # What the evolution of the indices names: the scope of a curve, a subproject by its label, and
+    # the version name a person gave to a marked revision.
+    "IndexHistoryScope.scope": "a scope",
+    "IndexHistoryScope.label": "a label",
+    "IndexHistoryPoint.version_name": "a name",
     "WorkloadPlan.org_node_label": "a label",
     "CalculationContext.scope": "a scope",
     # The label a person gave an element of the work breakdown, and that of the task that bears it.

@@ -572,6 +572,10 @@ CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
     ("getEarnedValueCurves", "query", "scope"): (
         "declared nothing, contract either=(enum={'project', 'unassigned'} | nothing)"
     ),
+    # The same scope, read by the evolution of the indices (``getIndexHistory``, US-1700).
+    ("getIndexHistory", "query", "scope"): (
+        "declared nothing, contract either=(enum={'project', 'unassigned'} | nothing)"
+    ),
     # The subproject asked of the actual costs: ``unassigned`` or an identifier, read as text and
     # judged by the route, whose refusal the contract names in 422, on the parameter
     # (``UNKNOWN_SUBPROJECT``, ``listActualCosts``, US-1620/L1).

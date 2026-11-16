@@ -214,10 +214,16 @@ from waterfall.core.cost_settings.interface.reference_settings import (
     install_reference_settings as install_reference_settings,
 )
 from waterfall.core.cost_settings.interface.reference_settings import (
+    plain_decimal as plain_decimal,
+)
+from waterfall.core.cost_settings.interface.reference_settings import (
     read_reference_settings as read_reference_settings,
 )
 from waterfall.core.cost_settings.interface.reference_settings import (
     reference_settings_installed as reference_settings_installed,
+)
+from waterfall.core.cost_settings.interface.reference_settings import (
+    thresholds_document as thresholds_document,
 )
 from waterfall.core.cost_settings.interface.reference_settings import (
     write_reference_settings as write_reference_settings,

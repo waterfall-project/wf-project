@@ -2,11 +2,34 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The evolution of the indices of a project (WF-IND-0130).
 
-``getIndexHistory`` (US-1700), under ``project_indicators.read``.
-
-Registered by the application, empty until US-1700 serves it (US-1660/L1).
+``getIndexHistory`` (US-1700), under ``project_indicators.read``: every scope, or the one asked
+for by ``scope``, read as ``getProjectIndicators`` reads it. The instant of the computation is read
+here, once.
 """
 
-from fastapi import APIRouter
+from typing import Annotated, Any
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Query
+
+from waterfall.api.authentication import Transaction
+from waterfall.api.evaluation import RequiresProject
+from waterfall.api.project_indicators import READ, scope_of
+from waterfall.core.indicators.interface import index_history
+from waterfall.platform.database import utc_now
 
 router = APIRouter(tags=["indicators"])
+
+
+@router.get(
+    "/projects/{project_id}/indicators/index-history",
+    operation_id="getIndexHistory",
+    dependencies=[Depends(RequiresProject(READ))],
+    response_model=None,
+)
+def get_index_history(
+    project_id: UUID, session: Transaction, scope: Annotated[str | None, Query()] = None
+) -> dict[str, Any]:
+    """Give the evolution of the cost index and of the schedule index, by scope."""
+    asked = None if scope is None else scope_of(scope)
+    return index_history(session, project_id, asked, utc_now())
