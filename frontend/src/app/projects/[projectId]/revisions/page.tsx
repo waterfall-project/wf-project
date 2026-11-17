@@ -7,16 +7,13 @@
  * marked ones, as `compareRevisions` gives it — « Écarts seulement » retaining the differences
  * alone, said in the banner (US-0700) —, read whole and reduced by `fields` to what the grid of the
  * comparison shows (US-0500, #1201) — the history read whole, whatever the server pages
- * (`readEveryPage`, #303), so that the comparison offers every marked revision —; and, of the
- * revision the address carries, its cost structures and — for the current revision, the one a rate
- * update would apply to — the rate update the API proposes. The ergonomics gathers the leaves of
- * the function on one screen.
+ * (`listProjectRevisions`, #303), so that the comparison offers every marked revision. The
+ * ergonomics gathers the leaves of the function on one screen.
  *
- * The service serves the history, the revision, its structures, its opening and its abandonment
- * (`listRevisions`, `getRevision`, `listCostStructures`, `createRevision`, `abandonRevision`,
- * US-0960), its marking (`markRevision`, US-0970), the rate update (`getRateUpdateProposal`,
- * US-1500) and the comparison (`compareRevisions`, US-1530): the screen shows no note of the
- * mock-up, and reads the proposal as any other read, the tolerance of its 404 lifted (#2173).
+ * The service serves the history, the revision, its opening and its abandonment (`listRevisions`,
+ * `getRevision`, `createRevision`, `abandonRevision`, US-0960), its marking (`markRevision`,
+ * US-0970) and the comparison (`compareRevisions`, US-1530): the screen shows no note of the
+ * mock-up.
  *
  * The opening of the current revision is the principal command of the card of the history, filled
  * (US-2130); the commands of the revision it reads in stay at the right of the title of the screen.
@@ -31,7 +28,6 @@
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 
-import { readEveryPage } from "@/api/every-page";
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { RevisionCommands } from "@/components/commands/object-commands";
@@ -55,6 +51,7 @@ import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../../title";
 import {
+  listProjectRevisions,
   type ProjectParams,
   type ProjectPageProps,
   projectAddress,
@@ -109,9 +106,8 @@ export default async function RevisionsPage(props: ProjectPageProps) {
   const project = { project_id: address.projectId };
   const [read, revisions, comparison, preferences, shown] = await Promise.all([
     readProjectScreen(address),
-    readEveryPage("listRevisions", (page) =>
-      client.GET("/projects/{project_id}/revisions", { params: { path: project, query: page } }),
-    ),
+    // The same read as the banner's, once per request.
+    listProjectRevisions(address.projectId),
     compared === undefined
       ? undefined
       : readOrFail("compareRevisions", () =>

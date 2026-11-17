@@ -960,6 +960,8 @@
     "differences": "Differences: {values}",
     "computedOn": "Revision of the calculation",
     "structure": "Structure",
+    "chooseRevision": "Change the revision, “{revision}” read",
+    "referenceOption": "{name} (reference)",
     "chooseStructure": "Change the structure, “{structure}” read",
     "mergedStructure": "{label} (merged)",
     "unnamedRevision": "unnamed",

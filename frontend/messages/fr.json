@@ -960,6 +960,8 @@
     "differences": "Écarts : {values}",
     "computedOn": "Révision du calcul",
     "structure": "Structure",
+    "chooseRevision": "Changer de révision, « {revision} » lue",
+    "referenceOption": "{name} (référence)",
     "chooseStructure": "Changer de structure, « {structure} » lue",
     "mergedStructure": "{label} (fusionnée)",
     "unnamedRevision": "sans nom",

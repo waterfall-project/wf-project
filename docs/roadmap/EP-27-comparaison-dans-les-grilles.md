@@ -431,7 +431,7 @@ US-2340 et US-2350.
 
 ## US-2330 — La révision lue et la base d'une comparaison se choisissent dans le bandeau, et la base suit du planning au devis et au reste à engager
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0020-A`, `WF-IHM-0010-A`
 - **opérations** : `listRevisions`, `getRevision`, `compareRevisions`
 - **issue** : #3485
@@ -716,7 +716,7 @@ mesures, **afin de** savoir si la comparaison tient ses deux secondes avant de p
 
 ## US-2400 — Les constats reçus sont soldés
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par EP-06 et EP-07
 - **opérations** : `applyRateUpdate`, `moveNodes`, `applyPaste`, `updateCalendar`,
   `setDurationUnits`
