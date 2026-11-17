@@ -28,6 +28,8 @@ class Options(NamedTuple):
     """The options whose argument is a line of shell."""
     abbreviates: bool = True
     """GNU ``getopt_long`` takes a unique prefix of a long option; Go's ``pflag`` does not."""
+    versions: bool = False
+    """The command it runs is that of a package, whose version it may pin: ``kill-port@1``."""
 
     def skip(self, words: list[str], index: int) -> int:
         """Return the index of the word that follows the options and operands from ``index``."""
@@ -172,6 +174,7 @@ _NPM_EXEC = Options(
     _names("cache", "call", "package", "prefix", "registry", "userconfig", "workspace"),
     _HELP | _names("include-workspace-root", "no", "quiet", "workspaces", "yes"),
     scripts=frozenset({"-c", "--call"}),
+    versions=True,
 )
 PREFIXES["npx"] = _NPM_EXEC
 # `pnpm dlx` and `pnpm exec`: `-c` is a flag there, which runs the command by a shell.
@@ -179,6 +182,7 @@ _PNPM_EXEC = Options(
     "",
     _names("allow-build", "package", "report-summary", "resume-from"),
     _HELP | _names("no-reporter-hide-prefix", "parallel", "recursive", "shell-mode", "silent"),
+    versions=True,
 )
 # `uv run` (clap, which takes no abbreviation): the options that take the next word.
 _UV = _names("allow-insecure-host", "cache-dir", "color", "config-file", "directory", "project")

@@ -106,10 +106,19 @@ def test_the_text_no_shell_reads_as_its_script_passes(command: str) -> None:
         "pnpm exec kill-port 3000",
         "/usr/local/bin/kill-port 3000",
         "npx kill-port 3000 'open",
+        "npx kill-port@latest 3000",
+        "npx -y kill-port@2.0.1 3000",
+        "npx --yes @scope/kill-port@1 3000",
+        "pnpm dlx kill-port@latest 3000",
+        "npm exec kill-port@1 3000",
+        "npm exec -- kill-port@1 3000",
     ],
 )
 def test_kill_port_is_refused_alone_and_behind_npx_or_pnpm_dlx(command: str) -> None:
-    """PLC-07: `kill-port` stops whatever holds a port, alone or run by `npx` or `pnpm dlx`."""
+    """PLC-07: `kill-port` stops whatever holds a port, alone or run by `npx` or `pnpm dlx`.
+
+    Its version pinned too, the usual form of `npx`.
+    """
     said = guard.refusal(command)
     assert said is not None
     assert "kill-port" in said
@@ -200,6 +209,8 @@ def test_the_merge_queue_created_by_python_is_refused_under_uv_run_or_not(comman
         "gmake check",
         "gmake merge-queue-check EPIC=EP-28",
         "npx playwright test",
+        "npx playwright@1.50 test",
+        "npx @playwright/test@1.50 --version",
         "npm exec -- prettier --check .",
         "pnpm dlx prettier --check .",
         "pnpm install --frozen-lockfile",

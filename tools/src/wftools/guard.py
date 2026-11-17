@@ -463,10 +463,15 @@ def _simple(words: list[str], depth: int, context: _Context) -> tuple[str | None
     piped, moved = context.piped, context.moved
     # Where the command runs: a prefix may change it, for the command alone.
     here = moved
+    # Whether the command word names a package, whose version it may pin: `npx kill-port@1`.
+    package = False
     index = 0
     while index < len(words):
         word = words[index]
         name = word.rsplit("/", 1)[-1]
+        if package:
+            # `@scope/kill-port@1` names `kill-port`, its version stripped.
+            name = name.partition("@")[0] or name
         if _ASSIGNMENT.match(word) or word in _KEYWORDS:
             index += 1
             continue
@@ -496,6 +501,7 @@ def _simple(words: list[str], depth: int, context: _Context) -> tuple[str | None
             return (None if check is None else check(command)), moved
         # What `xargs` runs takes its arguments from the pipe: they are never literal.
         piped = piped or name == "xargs"
+        package = package or prefix.versions
         options, index = prefix.parse(words, index + 1)
         operands = words[index : index + prefix.operands]
         index += prefix.operands
