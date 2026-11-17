@@ -8,7 +8,10 @@ The hook of ``.claude/settings.json`` and the ``SLOTS`` of the Makefile run
 command pass (#3711). The hook is run here as Claude Code runs it, by an older ``python3``: the
 oldest interpreter present on the workstation, when there is one — the test may then skip —, and
 always by the interpreter of the tests made to say it is 3.13, which only the version check of the
-launcher reads. A tool of the repository: the tests cite the criteria of US-2450.
+launcher reads. The hook, as the settings write it, refuses too what the launcher cannot see: no
+``python3``, one that cannot read the launcher, a process killed. A tool of the repository: the
+tests that hold a criterion of US-2450 cite it; the others keep what the launcher must not break,
+a decision of the guard and the name of a tool.
 """
 
 import ast
@@ -80,14 +83,18 @@ def hook() -> str:
 
 def run_hook(command: str, python: Path) -> subprocess.CompletedProcess[str]:
     """Run the hook as Claude Code does, the ``python3`` of the directory ``python`` first."""
+    return run_hook_on(command, f"{python}{os.pathsep}{os.environ.get('PATH', '')}")
+
+
+def run_hook_on(command: str, path: str) -> subprocess.CompletedProcess[str]:
+    """Run the hook as Claude Code does, by a shell, under the ``PATH`` ``path``."""
     event = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
     environment = {k: v for k, v in os.environ.items() if k not in {"PYTHONPATH", "VIRTUAL_ENV"}}
-    environment |= {
-        "CLAUDE_PROJECT_DIR": str(REPOSITORY),
-        "PATH": f"{python}{os.pathsep}{os.environ.get('PATH', '')}",
-    }
+    environment |= {"CLAUDE_PROJECT_DIR": str(REPOSITORY), "PATH": path}
+    bash = shutil.which("bash")
+    assert bash is not None
     return subprocess.run(
-        ["bash", "-c", hook()],
+        [bash, "-c", hook()],
         input=event,
         env=environment,
         capture_output=True,
@@ -96,8 +103,9 @@ def run_hook(command: str, python: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
+@pytest.mark.story("US-2450")
 def test_the_hook_and_the_makefile_run_the_launcher() -> None:
-    assert hook() == 'python3 "$CLAUDE_PROJECT_DIR/tools/src/wftools/launch.py" guard'
+    assert hook() == 'python3 "$CLAUDE_PROJECT_DIR/tools/src/wftools/launch.py" guard || exit 2'
     makefile = (REPOSITORY / "Makefile").read_text(encoding="utf-8")
     assert "\nSLOTS = python3 $(CURDIR)/tools/src/wftools/launch.py slots\n" in makefile
 
@@ -110,6 +118,28 @@ def test_under_an_older_python_the_hook_refuses_every_command(command: str, tmp_
     assert ran.returncode == 2, ran.stderr
     assert UNUSABLE in ran.stderr
     assert "python3 is 3.13.0" in ran.stderr
+
+
+@pytest.mark.story("US-2450")
+@pytest.mark.parametrize(
+    "python3",
+    [
+        None,
+        "#!/bin/sh\necho 'SyntaxError: invalid syntax' >&2\nexit 1\n",
+        "#!/bin/sh\nkill -KILL $$\n",
+    ],
+    ids=["no python3", "a python3 that cannot read the launcher", "a python3 killed"],
+)
+def test_the_hook_refuses_when_the_launcher_does_not_run_to_a_decision(
+    python3: str | None, tmp_path: Path
+) -> None:
+    """The shell of the hook turns any code but 0 into 2: 127, 1 and 137 refuse the command."""
+    if python3 is not None:
+        script = tmp_path / "python3"
+        script.write_text(python3, encoding="utf-8")
+        script.chmod(0o755)
+    ran = run_hook_on("ls", str(tmp_path))
+    assert ran.returncode == 2, ran.stderr
 
 
 @pytest.mark.story("US-2450")
@@ -190,6 +220,34 @@ def test_a_guard_that_gives_no_decision_refuses_the_command(
     ran = launch_beside(tmp_path, guard, "ls")
     assert ran.returncode == 2
     assert said in ran.stderr
+
+
+# The interpreter of the tests runs the launcher of the repository, the guard of the repository
+# beside it, after it made shlex.split raise: refusal raises deep in its judgement, as a defect of
+# the guard would.
+RAISING_SPLIT = (
+    "import runpy, shlex, sys\n"
+    "def split(*arguments, **options):\n"
+    "    raise RecursionError('too deep')\n"
+    "shlex.split = split\n"
+    "del sys.argv[0]\n"
+    "runpy.run_path(sys.argv[0], run_name='__main__')\n"
+)
+
+
+@pytest.mark.story("US-2450")
+@pytest.mark.parametrize("command", ["ls", "pkill -f make"])
+def test_the_guard_of_the_repository_that_raises_refuses_the_command(command: str) -> None:
+    event = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
+    ran = subprocess.run(
+        [sys.executable, "-c", RAISING_SPLIT, str(LAUNCH), "guard"],
+        input=event,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert ran.returncode == 2, ran.stderr
+    assert "failed while judging the command (RecursionError: too deep)" in ran.stderr
 
 
 @pytest.mark.parametrize(("command", "code"), [("ls", 0), ("pkill -f make", 2)])

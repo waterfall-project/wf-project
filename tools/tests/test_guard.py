@@ -27,7 +27,7 @@ from wftools import REPOSITORY, guard
 
 GUARD = REPOSITORY / "tools" / "src" / "wftools" / "guard.py"
 SETTINGS = REPOSITORY / ".claude" / "settings.json"
-HOOK = 'python3 "$CLAUDE_PROJECT_DIR/tools/src/wftools/launch.py" guard'
+HOOK = 'python3 "$CLAUDE_PROJECT_DIR/tools/src/wftools/launch.py" guard || exit 2'
 
 
 def refused(command: str) -> bool:

@@ -17,7 +17,7 @@ import pytest
 from wftools import REPOSITORY
 
 SETTINGS = REPOSITORY / ".claude" / "settings.json"
-GUARD_HOOK = 'python3 "$CLAUDE_PROJECT_DIR/tools/src/wftools/launch.py" guard'
+GUARD_HOOK = 'python3 "$CLAUDE_PROJECT_DIR/tools/src/wftools/launch.py" guard || exit 2'
 ENQUEUE = (
     "gh api graphql -f query='mutation($id:ID!){enqueuePullRequest(input:{pullRequestId:$id})"
     "{mergeQueueEntry{state}}}' -f id=PR_kwDOAbc123"

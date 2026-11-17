@@ -15,7 +15,10 @@ version of the interpreter, then runs the tool named, as ``python3 <tool>.py`` w
 
 The guard fails closed: under a Python older than 3.14, or when it raises while it judges a
 command — or ends by any code but 0 or 2 —, the command is refused by the code 2, the reason on
-the error output. The slots say the version they expect and end by the code 2.
+the error output. What happens before this file runs, or past it, it cannot see: no ``python3``
+on the ``PATH``, one too old to read this very file, an error of ``main`` itself, a process
+killed. The hook covers them by its shell, ``launch.py guard || exit 2``: 0 stays 0, any other
+code becomes the refusal. The slots say the version they expect and end by the code 2.
 """
 
 import runpy
@@ -85,6 +88,8 @@ def main() -> int:
     sys.argv = [path, *sys.argv[2:]]
     if tool == "guard":
         return _guard(path)
+    # slots.py ends by sys.exit, whose SystemExit passes through main with its code: the return
+    # below is never reached, it only gives main the int its signature promises.
     runpy.run_path(path, run_name="__main__")
     return 0
 

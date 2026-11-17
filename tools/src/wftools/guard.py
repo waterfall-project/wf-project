@@ -3,11 +3,11 @@
 """Refuse a command of an agent that would stop what another agent started (US-1080, US-1310).
 
 The ``PreToolUse`` hook of ``.claude/settings.json`` runs it before every command of the ``Bash``
-tool, through the launcher: ``python3 "$CLAUDE_PROJECT_DIR/tools/src/wftools/launch.py" guard``.
-It reads the JSON of the hook on its input and refuses by the code 2, the reason on its error
-output; otherwise it says nothing and returns 0. Claude Code lets a command pass on any other code:
-the launcher turns a failure of the guard, or a Python older than 3.14, into a refusal (US-2450); a
-JSON the guard cannot read lets the command pass.
+tool, through the launcher: ``python3 "$CLAUDE_PROJECT_DIR/tools/src/wftools/launch.py" guard ||
+exit 2``. It reads the JSON of the hook on its input and refuses by the code 2, the reason on its
+error output; otherwise it says nothing and returns 0. Claude Code lets a command pass on any other
+code: the launcher, and the hook past it, turn a failure of the guard, or a Python older than 3.14,
+into a refusal (US-2450); a JSON the guard cannot read lets the command pass.
 
 It depends on the standard library alone and imports no other module of ``wftools``: a fresh
 worktree runs it before its environment is synchronised.
