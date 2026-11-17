@@ -113,7 +113,7 @@ import { useKeptPageSize } from "./kept-size";
 import { type CellStates, gridBusy, held, sharedName, Spacer } from "./dense-grid-parts";
 import { useGridPaste } from "./paste";
 import { PasteAppliedNotice, PasteDialog, UnshownNotice } from "./paste-dialog";
-import { TotalsRow } from "./totals-row";
+import { type ComparedTotals, TotalsRow } from "./totals-row";
 import { PendingAddress, usePendingAddress } from "./pending-address";
 import { endPinnedWidth, pinnedWidth, pinningOf, useFrameRoom } from "./pinning";
 import { useRootFontSize, useRowWindow } from "./row-window";
@@ -188,6 +188,11 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
   readonly totals: Totals;
   /** What the totals row says before its figures: what the totals shown count. */
   readonly totalsCaption: (totals: Totals) => string;
+  /**
+   * The totals of the base and their difference to those of the answer, when the grid reads a
+   * comparison (WF-IHM-0160): the totals row says the three, as the server gives them.
+   */
+  readonly comparison?: { readonly base: Totals; readonly delta: Totals } | undefined;
   /** What the address asked of the server. */
   readonly query: GridQuery<Sort>;
   /** The settings of the grid the session read, if any. */
@@ -285,12 +290,28 @@ function useComparedReread(comparing: boolean | undefined): (() => void) | undef
     : undefined;
 }
 
+/**
+ * The totals of the base and their difference, as the totals row says them: none out of a
+ * comparison, and none once a write answered the totals — those the base and the difference were
+ * read with are no longer the totals shown, and the page read anew, which takes the place of the
+ * totals written (`askedAnew`, `reread`), brings the three together; until it does, the row says
+ * the figures of the answer alone.
+ */
+function comparedTotals<Totals>(
+  comparison: { readonly base: Totals; readonly delta: Totals } | undefined,
+  written: Totals | undefined,
+  caption: (totals: Totals) => string,
+): ComparedTotals<Totals> | undefined {
+  return comparison === undefined || written !== undefined ? undefined : { ...comparison, caption };
+}
+
 /** Render a dense grid, the address last asked shared. */
 function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   config: given,
   rows,
   totals,
   totalsCaption,
+  comparison,
   query,
   preferences,
   dependencies,
@@ -901,6 +922,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
             config={config}
             totals={shownTotals}
             caption={totalsCaption(shownTotals)}
+            compared={comparedTotals(comparison, writes.totals, totalsCaption)}
             index={bodyRows + 2}
             locale={locale}
           />

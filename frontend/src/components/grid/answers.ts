@@ -369,11 +369,14 @@ function forget<Row, Totals>(answers: Answers<Row, Totals>): void {
  * before did, the server having said nothing newer of it: a write answered before the reading
  * caught up, or the fake back, which keeps nothing. A part that judges by its own counter stays while
  * it changes the row read anew. A row the reading anew no longer holds is let go. A later answer
- * still prevails over an earlier one for the same row, as when they were taken. A reading anew once
- * the reading was asked anew after the writes answered (`askedAnew`) answers every demand awaited,
- * and catches up with every answer taken before the latest was asked, whatever the counters say — a
- * summary recalculated keeps its version, and would keep out the marks of a comparison its answer
- * does not carry.
+ * still prevails over an earlier one for the same row, as when they were taken.
+ *
+ * The first reading anew answers every demand awaited (`asked`): it takes the place of every answer
+ * taken before the latest demand, whatever the counters say — a summary recalculated keeps its
+ * version, and would keep out the marks of a comparison its answer does not carry. When the
+ * `router.refresh` of a demand never comes back, the threshold stays laid: the first reading to
+ * arrive, a sort with no relation to the writes included, then answers everything that precedes the
+ * demand.
  */
 export function reread<Row, Totals>(
   answers: Answers<Row, Totals>,

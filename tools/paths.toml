@@ -486,6 +486,7 @@ paths = [
     "fixtures/api/comparison_current.json",
     "fixtures/api/comparison_differences.json",
     "fixtures/api/comparison_moved.json",
+    "fixtures/api/comparison_planning.json",
     "fixtures/api/comparison_identical.json",
     "fixtures/api/revision_marked_merge_offered.json",
     "fixtures/api/revision_marked.json",

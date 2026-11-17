@@ -14,10 +14,11 @@ base and their delta (``base_totals``, ``totals_delta``). Split from ``mockhisto
 under the thousand lines (``wftools.sources``).
 """
 
+from dataclasses import replace
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
-from wftools import mockcore, mockdiff, mocktext
+from wftools import mockcore, mockdiff, mocktext, mockwitness
 from wftools.mockdating import Amounts
 from wftools.mockhistory import (
     CURRENT,
@@ -48,7 +49,9 @@ from wftools.mockwitness import (
     N,
     by_identifier,
     fixture,
+    rewritten,
 )
+from wftools.mockwitnessrisks import reference
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -358,6 +361,83 @@ def comparison_current() -> JsonObject:
     )
 
 
+PLANNING_DELAY_DAYS = 2
+"""The days the design file is lengthened by in the variant of the planning."""
+PLANNING_EXTRA_HOURS = Decimal(10)
+"""The hours the labour line of the wiring is raised by in that variant."""
+
+
+def _planned(task: mockwitness.Task) -> mockwitness.Task:
+    """Return a task of the reference as the variant of the planning reads it, if it changes.
+
+    The design file lasts two more days, the wiring of the cabinets bears ten more hours on its
+    labour line and no longer bears its provision, which the risk dismissed took away.
+    """
+    if task.number == N.DESIGN_FILE:
+        return replace(task, days=task.days + PLANNING_DELAY_DAYS)
+    if task.number == N.WIRING:
+        return replace(
+            task,
+            lines=tuple(
+                replace(line, hours=cast("Decimal", line.hours) + PLANNING_EXTRA_HOURS)
+                if line.number == N.LABOUR
+                else line
+                for line in task.lines
+                if line.number != N.PROVISION
+            ),
+        )
+    return task
+
+
+def comparison_planning() -> JsonObject:
+    """Return the variant where a task finishes later than its base says (EP-27, #3778).
+
+    The core alone, the reference as marked for base and, for the revision read, the same
+    reference, read the same day, where three things changed: the design file lasts two more
+    days, so that its finish is shifted from its base's (``base.task.finish``,
+    ``deltas.task.finish``), the labour line of
+    the wiring bears ten more hours, which changes its amounts and those of its task and summary,
+    and the line of provision of the wiring is no longer there, removed and rendered at its place.
+    The installation on site, every node of it, and the nodes of the studies and of the control
+    station this leaves alone are unchanged: whole branches, summary included, without a
+    difference, for the screen to fold them.
+    """
+    base = mockcore.core(reference(CORE), AMENDMENT_MERGED.on)
+    later = mockcore.core(rewritten(reference(CORE), _planned), AMENDMENT_MERGED.on)
+    compared = comparison(base, later, REFERENCE, CURRENT)
+    nodes = cast("list[JsonObject]", compared["items"])
+    _, removed, _, _ = mockdiff.grouped(nodes)
+    modified = [node for node in nodes if node["difference"] == mockdiff.MODIFIED]
+    unchanged = [node for node in nodes if node["difference"] == mockdiff.UNCHANGED]
+    [delayed] = [node for node in nodes if "dates" in cast("list[str]", node["changes"])]
+    summaries = [
+        node
+        for node in unchanged
+        if node["kind"] == mockcore.TASK and cast("JsonObject", node["task"])["is_summary"]
+    ]
+    said = ", ".join(cast("list[str]", delayed["changes"]))
+    finish_delta = cast("JsonObject", cast("JsonObject", delayed["deltas"])["task"])["finish"]
+    return mocktext.example(
+        f"Variante contrefactuelle : la révision en cours, comparée à la révision de référence "
+        f"marquée le {_day(AMENDMENT_MERGED.on)}, sur le cœur du témoin seul — "
+        f"{mocktext.count(len(nodes))} nœuds dans l'ordre du plan —, comme si le dossier de "
+        f"conception durait {PLANNING_DELAY_DAYS} jours de plus : « {_label(delayed)} » finit "
+        f"plus tard que sa base ne le dit (`changes` : {said} ; "
+        f"`base.task.finish`, `deltas.task.finish`), son écart de fin de "
+        f"{finish_delta} jours ; la ligne de "
+        f"provision du câblage n'y est plus, {_quoted(removed)} rendue à sa place, en lecture "
+        f"seule, sans base ; la ligne de raccordement des borniers porte {PLANNING_EXTRA_HOURS} "
+        f"heures de plus, donc un montant modifié, de même que ceux de sa tâche et de sa "
+        f"récapitulative ; les ancêtres des nœuds modifiés le sont aussi, {len(modified)} nœuds "
+        f"modifiés en tout, {_quoted(modified)}"
+        f". {mocktext.count(len(unchanged))} nœuds inchangés, sans base ni écart, dont "
+        f"la récapitulative {_quoted(summaries)}, sa branche entière sans écart ; la lecture se "
+        f"fait le jour de la base, si bien que nul avancement n'en diffère "
+        f"(WF-REV-0080, WF-IHM-0160, C-361, EP-27).",
+        compared,
+    )
+
+
 VOLUME_FIELDS = ("kind", "task.label", "estimate_line.label")
 """What the screen of the comparison shows of a node besides its mark: its kind and its label."""
 
@@ -477,6 +557,7 @@ def examples() -> dict[str, JsonObject]:
         "comparison_current.json": comparison_current(),
         "comparison_differences.json": comparison_differences(rows),
         "comparison_moved.json": comparison_moved(rows),
+        "comparison_planning.json": comparison_planning(),
         "comparison_identical.json": mocktext.example(
             "Variante contrefactuelle : l'offre v1.0 comparée à elle-même, son cœur lu seul, "
             "comme si la structure ne portait que lui — les études, le lot « Poste de commande » "

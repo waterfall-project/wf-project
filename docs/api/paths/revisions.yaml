@@ -637,6 +637,7 @@
               identical: { $ref: ../../../fixtures/api/comparison_identical.json }
               differences: { $ref: ../../../fixtures/api/comparison_differences.json }
               moved: { $ref: ../../../fixtures/api/comparison_moved.json }
+              planning: { $ref: ../../../fixtures/api/comparison_planning.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404':
         description: >-

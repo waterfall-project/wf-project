@@ -262,8 +262,23 @@
     "computed": "Computed",
     "compared": {
       "base": "Base:",
+      "delta": "Difference:",
+      "totalsBase": "Base: {caption}",
+      "totalsDelta": "Difference: {caption}",
       "empty": "no value",
-      "days": "{days} d"
+      "days": "{days} d",
+      "amountDeltas": {
+        "command": "Amount deviations",
+        "title": "Amount deviations to the base",
+        "description": "The budgeted and re-estimated amounts of the revision read minus those of the base, by cost type and by sub-project, on the lines the grid retains.",
+        "empty": "No amount deviation.",
+        "dimension": "Axis",
+        "key": "Item",
+        "budgeted": "Budgeted deviation",
+        "reestimated": "Re-estimated deviation",
+        "unnamed": "Unnamed",
+        "close": "Close"
+      }
     },
     "entry": {
       "none": "None",

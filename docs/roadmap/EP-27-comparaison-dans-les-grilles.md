@@ -553,7 +553,7 @@ chronologies, qui ne portent pas la base.
 
 ## US-2350 — La ligne de totaux porte le total de la révision lue, celui de la base et leur écart, et les écarts par nature de coût et par sous-projet s'ouvrent depuis le devis et le reste à engager
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0160-A`
 - **opérations** : `compareRevisions`
 - **issue** : #3488
