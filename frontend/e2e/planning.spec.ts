@@ -109,6 +109,27 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   }
 });
 
+test("shows the physical progress of a summary as a percentage the service computes, never an input, and none for a task @shared [WF-PLA-0130-A] [WF-IND-0060-A]", async ({
+  page,
+}) => {
+  // « Études » is a summary whose tasks are all completed: 100 % on the witness of the service as
+  // on the first example of the contract. A task under it bears none, its cell stays empty.
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  const at = await columnsOf(grid, { progress: "Calculé Avancement physique" });
+  const summary = grid
+    .getByRole("row", { name: /Tâche récapitulative Études Automatique/ })
+    .and(grid.locator("[aria-expanded]"));
+  const cell = summary.getByRole("gridcell").nth(at.progress);
+  await expect(cell).toContainText(/100\s*%/);
+  // Computed, never entered: no field opens in the cell, whatever the gesture.
+  await cell.dblclick();
+  await expect(cell.getByRole("textbox")).toHaveCount(0);
+  await expect(cell).toContainText(/100\s*%/);
+  const leaf = grid.getByRole("row", { name: /^\d+ .*Dossier de conception/ });
+  await expect(leaf.getByRole("gridcell").nth(at.progress)).not.toContainText(/\d/);
+});
+
 /** The number a row bears in the first cell of the grid, as the grid shows it. */
 async function numberOf(grid: Locator, name: RegExp): Promise<string> {
   return numberOfRow(grid.getByRole("row", { name }));
