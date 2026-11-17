@@ -1,10 +1,10 @@
 ---
 id: EP-11
 titre: Voir l'ensemble des projets : valeur, charge, performance, risques, courbe en S, santé
-statut: prêt
+statut: en cours
 depend_de: EP-08
 famille: front, back
-issue:
+issue: 3856
 ---
 
 # EP-11 — Portefeuille
@@ -421,7 +421,7 @@ leurs requêtes dans le noyau. Le rapport dit que le témoin ne porte pas trois 
 - **opérations** : `getPortfolioProjects`, `getPortfolioValue`, `getPortfolioWorkload`,
   `getPortfolioPerformance`, `getPortfolioCostStructure`, `getPortfolioRisks`,
   `getPortfolioCostCurve`, `getPortfolioPilotHealth`, `listProjectStateTransitions`, `updateProject`
-- **issue** :
+- **issue** : #3857
 
 **En tant que** manager, **je veux** que toute vue du portefeuille se calcule sur le périmètre et à
 la date que je choisis, par les mêmes règles de somme et de pondération, sans rien y saisir, **afin
@@ -518,7 +518,7 @@ toutes.
   `getPortfolioValue`, `getPortfolioWorkload`, `getPortfolioPerformance`,
   `getPortfolioCostStructure`, `getPortfolioRisks`, `getPortfolioCostCurve`,
   `getPortfolioPilotHealth` (avec `as_of`)
-- **issue** :
+- **issue** : #3860
 
 **En tant que** manager, **je veux** que chaque révision marquée garde ce que le portefeuille lira
 d'elle, **afin de** retrouver le portefeuille d'une date passée à coût constant, sans que rien ne
@@ -579,7 +579,7 @@ ne s'étend pas au portefeuille.
 - **statut** : à faire
 - **exigences** : `WF-PTF-0040-A`, `WF-PTF-0050-A`
 - **opérations** : `getPortfolioProjects`, `getPortfolioValue`
-- **issue** :
+- **issue** : #3858
 
 **En tant que** manager, **je veux** la liste des projets du périmètre, triée et filtrée par le
 serveur sur chacune de ses colonnes, et ce que le portefeuille vaut — le carnet, le pipeline, le
@@ -636,7 +636,7 @@ portefeuille disent si le projet s'ouvre » (#389). Le filtre par colonne suit l
 - **statut** : à faire
 - **exigences** : `WF-PTF-0060-A`, `WF-REF-0100-A`, `WF-REF-0070-A`
 - **opérations** : `getPortfolioWorkload`, `updateOrgNode`, `getMe`, `updateMyPreferences`
-- **issue** :
+- **issue** : #3861
 
 **En tant que** manager, **je veux** la charge de tous les projets par rôle et par mois, en regard
 de la capacité de chaque rôle, **afin de** savoir où embaucher, sous-traiter ou arbitrer.
@@ -699,7 +699,7 @@ l'écran et son export (US-2760).
 - **statut** : à faire
 - **exigences** : `WF-PTF-0070-A`
 - **opérations** : `getPortfolioPerformance`, `getReferenceSettings`
-- **issue** :
+- **issue** : #3862
 
 **En tant que** manager, **je veux** les indices de coût et de délai de l'ensemble des projets en
 cours, leurs projections, la répartition des projets par zone et l'évolution par trimestre, **afin
@@ -747,7 +747,7 @@ couverture, offres » (G-03, G-08, G-14, M-16). Les ratios et les projections so
 - **statut** : à faire
 - **exigences** : `WF-PTF-0080-A`
 - **opérations** : `getPortfolioCostStructure`
-- **issue** :
+- **issue** : #3863
 
 **En tant que** manager, **je veux** la part de main-d'œuvre, de matière, de sous-traitance et de
 provisions de ce qui a été budgété et de ce qui reste à engager, **afin de** savoir de quoi dépend
@@ -792,7 +792,7 @@ de référence agrégé sans nature « Provision »), M-07 (la contribution d'un
 - **statut** : à faire
 - **exigences** : `WF-PTF-0090-A`
 - **opérations** : `getPortfolioRisks`
-- **issue** :
+- **issue** : #3865
 
 **En tant que** manager, **je veux** voir ensemble les risques de tous les projets — ce qu'ils
 provisionnent, les plus lourds, la matrice, la couverture —, **afin d'** en discuter au niveau de
@@ -835,7 +835,7 @@ réserve et la couverture.
 - **statut** : à faire
 - **exigences** : `WF-PTF-0100-A`
 - **opérations** : `getPortfolioCostCurve`
-- **issue** :
+- **issue** : #3864
 
 **En tant que** manager, **je veux** la somme, mois par mois, des courbes de coûts cumulés des
 projets, et sur demande leurs décaissements, **afin de** piloter la tenue du budget et la trésorerie
@@ -877,7 +877,7 @@ décaissements sont ceux de `series/` d'EP-10.
 - **statut** : à faire
 - **exigences** : `WF-PTF-0110-A`, `WF-REF-0180-A`
 - **opérations** : `getPortfolioPilotHealth`, `getReferenceSettings`, `updateReferenceSettings`
-- **issue** :
+- **issue** : #3866
 
 **En tant que** manager, **je veux** savoir quels projets en cours n'ont pas fait leur revue, n'ont
 pas réexaminé leurs risques, n'ont pas importé leurs coûts ou ont un jalon suivi en retard, **afin
@@ -923,7 +923,7 @@ conservé (US-2680).
 - **opérations** : `getPortfolioProjects`, `getPortfolioValue`, `getPortfolioWorkload`,
   `getPortfolioPerformance`, `getPortfolioCostStructure`, `getPortfolioRisks`,
   `getPortfolioCostCurve`, `getPortfolioPilotHealth`, `getMe`, `updateMyPreferences`
-- **issue** :
+- **issue** : #3867
 
 **En tant que** manager, **je veux** les sept écrans du portefeuille sur les données du service,
 avec leurs filtres, leurs exports et leur aide, **afin de** m'en servir comme la maquette me les a
@@ -979,7 +979,7 @@ filtres de la liste, et ce que le service rend autrement que le faux back. Le cl
 - **exigences** : `WF-QUA-0040-A`, `WF-INTF-0020-A`
 - **opérations** : les huit opérations du portefeuille ; `getReferenceSettings`,
   `updateReferenceSettings`, `listProjects`, `getProject`
-- **issue** :
+- **issue** : #3869
 
 **En tant que** manager, **je veux** un jeu de données où le portefeuille a de quoi sommer, et y
 mener mon parcours de bout en bout, **afin de** constater mes usages sur le service et de rejouer
@@ -1030,7 +1030,7 @@ du paramétrage (`reference-*.spec.ts`).
 - **statut** : à faire
 - **exigences** : `WF-QUA-0020-A`, `WF-ARC-0010-A`, `WF-INTF-0150-A`
 - **opérations** : aucune en propre
-- **issue** :
+- **issue** : #3859
 
 **En tant que** développeur, **je veux** que la chaîne refuse un exemple chiffré sans test, un
 calcul écrit deux fois et un échange hors du tableau des flux, **afin qu'** une réécriture ne défasse
@@ -1087,7 +1087,7 @@ noyau ; la traçabilité des exigences par les tests (WF-QUA-0010, EP-13).
 - **opérations** : `getPortfolioProjects`, `getPortfolioValue`, `getPortfolioWorkload`,
   `getPortfolioPerformance`, `getPortfolioCostStructure`, `getPortfolioRisks`,
   `getPortfolioCostCurve`, `getPortfolioPilotHealth`
-- **issue** :
+- **issue** : #3868
 
 **En tant qu'** exploitant, **je veux** les durées des vues du portefeuille dans le rapport de
 mesures, **afin de** savoir si elles tiennent leur objectif avant de publier la version.
