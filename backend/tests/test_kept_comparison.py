@@ -22,7 +22,7 @@ import pytest
 from projects_support import PROJECTS, READING, person
 from sqlalchemy import update
 from test_kept_readings import FORGED, kept_row, place_of, read
-from test_reading_bodies import COMPARED_DIGESTS, ESTIMATE_FIELDS
+from test_reading_bodies import COMPARED_DIGESTS, ESTIMATE_FIELDS, gains_digest
 from test_witness_projects import PRJ_001, REVISION_100, REVISION_101, REVISION_102
 
 from waterfall.api.comparison import comparison_body, kept_comparison
@@ -105,7 +105,7 @@ def test_a_comparison_reads_what_is_kept_and_a_filtered_one_reads_the_rows(
         "&difference=modified&reestimated_amount_min=1000&sort_by=base_amount&sort_order=desc"
     )
     body = read(api, headers, COMPARISON + filtered)
-    assert hashlib.sha256(body).hexdigest() == COMPARED_DIGESTS["comparison filtered and sorted"]
+    assert gains_digest(body) == COMPARED_DIGESTS["comparison filtered and sorted"]
 
 
 @pytest.mark.requirement("WF-REV-0080-A")

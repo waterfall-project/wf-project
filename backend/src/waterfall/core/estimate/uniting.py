@@ -19,10 +19,12 @@ removed or modified, or moved from under it, the content of a summary task chang
 (``NodeChange``, #1751): a task by its dates, its duration, its state or its parent, a line by its
 amounts, its delay of payment, its subproject, its category or its parent, and any other value by
 ``other``. A modified node gives the values its base carried of what differs (``base``), a node
-they name — its parent, a predecessor, the bearing task of a line — named by its node in the union;
-one modified by its content alone gives none. What is not compared, because it changes from one
-revision to the other without anything of the node changing, is listed once, here
-(``NOT_COMPARED``, ``FACET_NOT_COMPARED``), and the contract says it (``ComparedNodeBase``).
+they name — its parent, a predecessor, the bearing task of a line — named by its node in the union,
+and the difference of each date, duration and amount among them (``deltas``, ``subtracting``, at
+the constants of the units of the installation); one modified by its content alone gives none.
+What is not compared, because it changes from one revision to the other without anything of the
+node changing, is listed once, here (``NOT_COMPARED``, ``FACET_NOT_COMPARED``), and the contract
+says it (``ComparedNodeBase``).
 
 The union reads of each node what it unites and marks by (``UnitedNode``), not the node: its
 identifiers and its place, as the views of a reading of the rows or the nodes of a document give
@@ -37,10 +39,14 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, NamedTuple
 
+from waterfall.core.estimate.subtracting import deltas_of
+
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping, Sequence
     from decimal import Decimal
     from uuid import UUID
+
+    from waterfall.core.planning.interface import UnitConstants
 
 TASK = "task"
 LINE = "estimate_line"
@@ -123,12 +129,17 @@ def changes_of(kind: str, differing: Sequence[str]) -> tuple[str, ...]:
 
 
 class LineAmounts(NamedTuple):
-    """What a line counts in the differences of amounts: its keys, its two amounts."""
+    """What a line counts in the differences of amounts and in the totals: its keys, its figures.
+
+    ``hours`` none counted as nought, as the totals of a reading count them (``NodeTotals``).
+    """
 
     cost_category_id: UUID
     subproject_id: UUID | None
     budgeted: Decimal
     reestimated: Decimal
+    hours: Decimal
+    base: Decimal
 
 
 class UnitedNode[K](NamedTuple):
@@ -158,7 +169,9 @@ class PlacedNode[K](NamedTuple):
     what the base carried of the values that differ, by their name in the node (``parent_id``,
     ``predecessors``, ``task.finish``), written as the node writes them, a node they name by its
     node in the union and its number there: of a node modified present on both sides, empty when
-    it is modified by its content alone; none for any other.
+    it is modified by its content alone; none for any other. ``deltas`` the difference of each date,
+    duration and amount of ``base``, the revision read less the base, written likewise; empty or
+    none as ``base`` is.
     """
 
     node_id: K
@@ -171,6 +184,7 @@ class PlacedNode[K](NamedTuple):
     difference: str
     changes: tuple[str, ...]
     base: dict[str, Any] | None
+    deltas: dict[str, Any] | None
 
 
 @dataclass(slots=True)
@@ -181,7 +195,8 @@ class Union[K]:
     number, its level and its place in the union; ``base`` the node of the same lineage in the base
     structure, the removed node itself for a removed one; ``removed`` the removed nodes, by their
     identifier in the base structure; ``renamed`` the predecessors of each node that has some;
-    ``base_values`` what the base carried of what differs of each modified node of both sides.
+    ``base_values`` what the base carried of what differs of each modified node of both sides, and
+    ``deltas`` the differences among them.
     """
 
     nodes: dict[K, UnitedNode[K]] = field(default_factory=dict[K, UnitedNode[K]])
@@ -197,6 +212,7 @@ class Union[K]:
         default_factory=dict[K, tuple[tuple[K, int] | None, ...]]
     )
     base_values: dict[K, dict[str, Any]] = field(default_factory=dict[K, dict[str, Any]])
+    deltas: dict[K, dict[str, Any]] = field(default_factory=dict[K, dict[str, Any]])
 
     def ancestors(self, node_id: K) -> Iterator[K]:
         """Give the ancestors of a node of the union, its parent first."""
@@ -229,6 +245,7 @@ class Union[K]:
             self.difference[node_id],
             self.changes[node_id],
             self.base_values.get(node_id),
+            self.deltas.get(node_id),
         )
 
 
@@ -427,10 +444,16 @@ def _renamed_predecessors[K](union: Union[K], matching: _Matching[K]) -> None:
         union.renamed[node_id] = tuple(named)
 
 
-def _mark[K](union: Union[K], matching: _Matching[K], removed: list[UnitedNode[K]]) -> None:
+def _mark[K](
+    union: Union[K],
+    matching: _Matching[K],
+    removed: list[UnitedNode[K]],
+    constants: UnitConstants,
+) -> None:
     """Mark each node, then the tasks whose content changes: modified, their changes unchanged.
 
-    Each node modified present on both sides is given what its base carried of what differs.
+    Each node modified present on both sides is given what its base carried of what differs, and
+    the differences among them.
     """
     differing: dict[K, list[str]] = {}
     for node_id, node in matching.compared.items():
@@ -462,13 +485,21 @@ def _mark[K](union: Union[K], matching: _Matching[K], removed: list[UnitedNode[K
             union.difference[node_id] = MODIFIED
     for node_id, names in differing.items():
         if union.difference[node_id] == MODIFIED:
-            union.base_values[node_id] = matching.base_values(
-                union.base[node_id], names, union.numbers
+            base = union.base[node_id]
+            union.base_values[node_id] = matching.base_values(base, names, union.numbers)
+            union.deltas[node_id] = deltas_of(
+                names, base.values, union.nodes[node_id].values, constants
             )
 
 
-def unite[K](base: Sequence[UnitedNode[K]], compared: Sequence[UnitedNode[K]]) -> Union[K]:
-    """Unite two structures read whole, each in the order of its plan, and mark each node."""
+def unite[K](
+    base: Sequence[UnitedNode[K]], compared: Sequence[UnitedNode[K]], constants: UnitConstants
+) -> Union[K]:
+    """Unite two structures read whole, each in the order of its plan, and mark each node.
+
+    ``constants`` those of the units of the installation, which the difference of two durations
+    of different units is counted by.
+    """
     matching = _Matching(base, compared)
     removed = [each for each in base if each.lineage_id not in matching.compared_of]
     union = Union[K](removed=frozenset(each.node_id for each in removed))
@@ -479,5 +510,5 @@ def unite[K](base: Sequence[UnitedNode[K]], compared: Sequence[UnitedNode[K]]) -
         union.parent[node.node_id] = matching.united_parent(node.parent_id)
     _numbered(union, _place_removed(matching, base, union, removed))
     _renamed_predecessors(union, matching)
-    _mark(union, matching, removed)
+    _mark(union, matching, removed, constants)
     return union

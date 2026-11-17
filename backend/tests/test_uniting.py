@@ -10,14 +10,18 @@ facet names, compared by its lineage, a predecessor by its lineage, its type and
 is not compared.
 """
 
+from decimal import Decimal
 from typing import Any
 
 import pytest
 
 from waterfall.core.estimate.interface import PlacedNode, UnitedNode
 from waterfall.core.estimate.uniting import changes_of, unite
+from waterfall.core.planning.interface import UnitConstants
 
 REQUIREMENT = "WF-REV-0080-A"
+# The constants of the units by default: eight hours a day, forty a week, twenty days a month.
+CONSTANTS = UnitConstants(Decimal(8), Decimal(40), Decimal(20))
 
 
 def line(node_id: str, lineage: str, parent: str, **facet: Any) -> UnitedNode[str]:
@@ -93,7 +97,7 @@ def placed(
     base: list[UnitedNode[str]], compared: list[UnitedNode[str]]
 ) -> dict[str, PlacedNode[str]]:
     """Unite two structures; give each node of the union as it is returned, by its lineage."""
-    union = unite(base, compared)
+    union = unite(base, compared, CONSTANTS)
     return {union.nodes[each].lineage_id: union.placed(each) for each in union.order}
 
 
