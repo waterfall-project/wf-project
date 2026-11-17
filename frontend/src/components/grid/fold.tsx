@@ -336,6 +336,11 @@ export interface GridFold<Row> {
   ) => readonly Row[];
   /** Fold the tree otherwise — the rows without difference as they are, unsaid —, and keep it. */
   readonly set: (collapsed: ReadonlySet<string>, differences?: DifferenceFold) => void;
+  /**
+   * Keep rows the grid wrote among those shown while the rows without difference are folded away:
+   * a row written that a reading anew marks unchanged stays under the cursor, as a run unfolded.
+   */
+  readonly keepShown: (keys: readonly string[]) => void;
 }
 
 /** The key of what a reading is narrowed by: its entries said, in the order of their names. */
@@ -418,6 +423,16 @@ export function useGridFold<Row>({
         collapsed: next,
         revealed: narrowing,
         differences: by ?? foldState(storageKey).differences,
+      });
+    },
+    keepShown: (keys) => {
+      const now = foldState(storageKey);
+      if (!now.differences.on || keys.every((key) => now.differences.opened.has(key))) {
+        return;
+      }
+      keep(storageKey, {
+        ...now,
+        differences: { on: true, opened: new Set([...now.differences.opened, ...keys]) },
       });
     },
   };
@@ -561,6 +576,18 @@ export const FOLD_KEYS: Readonly<Record<FoldReach, string | undefined>> = {
   row: "Alt+- Alt+Plus",
   none: undefined,
 };
+
+/** The keys that unfold, as `aria-keyshortcuts` names them, as far as they reach. */
+export function unfoldKeys(reach: FoldReach): string[] {
+  return (FOLD_KEYS[reach] ?? "").split(" ").filter((key) => key !== "" && key !== "Alt+-");
+}
+
+/** The folding a key asks for, in the layout of the keyboard the browser told, if it did. */
+export function foldShortcutHere(
+  event: Parameters<typeof foldShortcut>[0],
+): FoldCommand | undefined {
+  return foldShortcut(event, layout);
+}
 
 /** What folds the tree of a grid: its fold, its active cell, the element that scrolls it. */
 export interface FoldCommandsOptions<Row> {

@@ -45,8 +45,8 @@ import {
   NOT_FOLDED,
   openedWith,
 } from "./difference-fold";
-import { foldShortcut, type GridFold, rowAfterFold } from "./fold";
-import { type CellPosition, type Cursor, HEADER_ROW, positionOf } from "./grid-keyboard";
+import { foldShortcutHere, type GridFold, rowAfterFold, unfoldKeys, useFoldReach } from "./fold";
+import { type CellPosition, type Cursor, HEADER_ROW, moved, positionOf } from "./grid-keyboard";
 
 /** The attribute that names the run of the cell that stands for it. */
 const RUN_ATTRIBUTE = "data-run";
@@ -75,6 +75,9 @@ export interface RunCommandsOptions<Row> {
   readonly rows: readonly Row[];
   readonly rowKey: (row: Row) => string;
   readonly cursor: Cursor;
+  /** The columns shown, and the rows a screenful holds: Home, End and the pages go by them. */
+  readonly columns: readonly string[];
+  readonly page: () => number;
   readonly scroller: RefObject<HTMLElement | null>;
   /** Bring a place into view. */
   readonly scrollToSlot: (slot: number) => void;
@@ -108,6 +111,18 @@ function inRun(target: EventTarget): boolean {
   return target instanceof Element && target.closest(`td[${RUN_ATTRIBUTE}]`) !== null;
 }
 
+/** Where Home, End or a page moves from a cell; none for any other key, the arrows included. */
+function reached(
+  event: KeyboardEvent<HTMLElement>,
+  from: CellPosition,
+  bounds: { readonly rows: number; readonly columns: readonly string[]; readonly page: number },
+): CellPosition | undefined {
+  if (event.altKey || event.key.startsWith("Arrow")) {
+    return undefined;
+  }
+  return moved(event.key, event.ctrlKey || event.metaKey, from, bounds);
+}
+
 /**
  * Reach the runs of a grid from its cells, unfold them, and fold the rows without difference away or
  * back: the active cell stays on its row — or goes to the row above it that stays —, by its index
@@ -119,6 +134,8 @@ export function useRunCommands<Row>({
   rows,
   rowKey,
   cursor,
+  columns,
+  page,
   scroller,
   scrollToSlot,
   focusAt,
@@ -203,7 +220,7 @@ export function useRunCommands<Row>({
       return true;
     },
     onRunKey: (event, run, before) => {
-      const command = foldShortcut(event, undefined);
+      const command = foldShortcutHere(event);
       const column = cursor.active.column;
       if (
         event.key === "Enter" ||
@@ -211,12 +228,22 @@ export function useRunCommands<Row>({
         (command !== undefined && command !== "collapse")
       ) {
         open(run);
-      } else if (event.key === "ArrowDown" && !modified(event) && before < count) {
-        moveTo({ row: before, column });
+      } else if (event.key === "ArrowDown" && !modified(event)) {
+        // Past the last run the arrow moves nothing, and the page does not scroll.
+        if (before < count) {
+          moveTo({ row: before, column });
+        }
       } else if (event.key === "ArrowUp" && !modified(event)) {
         moveTo({ row: before > 0 ? before - 1 : HEADER_ROW, column });
       } else {
-        return;
+        // Home, End and the pages, from the row before the run — the first, for a run before it —:
+        // the keys a run takes for none of its own stay inert, and so do the typed characters.
+        const from = { row: Math.max(0, Math.min(before - 1, count - 1)), column };
+        const target = reached(event, from, { rows: count, columns, page: page() });
+        if (target === undefined) {
+          return;
+        }
+        moveTo(target);
       }
       event.preventDefault();
     },
@@ -246,13 +273,14 @@ export function FoldedRunRow({
   readonly commands: RunCommands;
 }) {
   const t = useTranslations("grid.differenceFold");
+  const keys = ["Enter", "Space", ...unfoldKeys(useFoldReach())].join(" ");
   return (
     <TableRow aria-rowindex={index + 2} className={`${BODY_ROW} h-7`}>
       <TableCell
         colSpan={span}
         tabIndex={-1}
         data-run={run.key}
-        aria-keyshortcuts="Enter Space Alt+Plus"
+        aria-keyshortcuts={keys}
         onKeyDown={(event) => {
           commands.onRunKey(event, run, before);
         }}

@@ -2568,7 +2568,10 @@ of the answer: no command, entry, selection or paste reaches it. The arrows stop
 rows around it, the active cell remaining the only tab stop; Enter, Space or Alt and plus unfold
 it, as does a click on its button, and its first row becomes the active cell. A run unfolded stays
 so while the folding is on, readings anew included; a row a write makes differ comes back at the
-reading anew. The totals are the answer's. On a differential, « Écarts seulement » remains the
+reading anew, and a row the grid writes stays shown, even read back unchanged, while the folding
+is on: the focus does not leave it. Home, End and the pages, from a marker row, start from the
+neighbouring row; its other keys stay inert. The totals are the answer's. Limit of the Gantt
+(#3785, to be settled): a vertical link is cut over the height of a marker row. On a differential, « Écarts seulement » remains the
 server's filter (`difference`, US-0700).
 
 ### The commands

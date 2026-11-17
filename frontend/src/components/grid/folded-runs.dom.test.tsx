@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,6 +14,7 @@ import { ESTIMATE_FIELDS } from "./estimate";
 import { EstimateGrid } from "./estimate-grid";
 import { FOLD_STORAGE_PREFIX } from "./fold";
 import { type NodeList, type NodeRows, projectNodes } from "./nodes";
+import type { FoldReach } from "./fold";
 import { PLANNING_FIELDS, PLANNING_KINDS, type PlanningNode } from "./planning";
 import { PlanningGrid } from "./planning-grid";
 import type { GridQuery } from "./query";
@@ -46,13 +47,18 @@ const planning = example("nodes_planning") as NodeList;
 const SUMMARY = "Études";
 const DESIGN = "Dossier de conception";
 const REVIEW = "Revue de conception";
+const TASK =
+  "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task";
 const UNCHANGED = ["Études de détail", "Pupitres opérateurs", REVIEW, "Réception des études"];
 
 /** The planning compared, each task marked as `marks` says, unchanged when it does not. */
-function compared(marks: Readonly<Record<string, "modified" | "added">>): NodeRows<PlanningNode> {
+function compared(
+  marks: Readonly<Record<string, "modified" | "added">>,
+  from: NodeList = planning,
+): NodeRows<PlanningNode> {
   const list: NodeList = {
-    ...planning,
-    items: planning.items.map((node) => {
+    ...from,
+    items: from.items.map((node) => {
       const difference = marks[node.task?.label ?? ""] ?? "unchanged";
       return {
         ...node,
@@ -172,7 +178,7 @@ describe("« Écarts seulement » on a grid that reads a comparison", () => {
     const run = document.activeElement;
     expect(run).toHaveAttribute("data-run");
     expect(run?.textContent).toBe("4 lignes sans écart repliées");
-    expect(run).toHaveAttribute("aria-keyshortcuts", "Enter Space Alt+Plus");
+    expect(run).toHaveAttribute("aria-keyshortcuts", "Enter Space Alt+Plus Alt+*");
     // Down to the row after it, up again to it, up to the row before it.
     await userEvent.keyboard("{ArrowDown}");
     expect(document.activeElement).toBe(labelOf(DESIGN));
@@ -259,7 +265,7 @@ describe("« Écarts seulement » on a grid that reads a comparison", () => {
     expect(screen.queryByRole("button", { name: /repliées?$/ })).toBeNull();
   });
 
-  it("is not offered on a grid that reads no comparison, which shows every row", () => {
+  it("is not offered on a grid that reads no comparison, which shows every row [WF-IHM-0170-A]", () => {
     window.sessionStorage.setItem(
       `${FOLD_STORAGE_PREFIX}planning:${STRUCTURE.revision_id}`,
       '{"collapsed":[],"revealed":"","differences":{"on":true,"opened":[]}}',
@@ -324,4 +330,168 @@ describe("« Écarts seulement » on a grid that reads a comparison", () => {
       expect(labels()).toContain("Assistance aux essais de câblage");
     },
   );
+});
+
+describe("the row of a run, its keys and its places", () => {
+  /** Focus the run of the grid folded in the middle, from the row before it. */
+  async function focusRun() {
+    render(planningGrid(compared(MARKED)));
+    await userEvent.click(differencesOnly());
+    labelOf(SUMMARY).focus();
+    await userEvent.keyboard("{ArrowDown}");
+    expect(document.activeElement).toHaveAttribute("data-run");
+  }
+
+  /** The row index of the cell that holds the focus. */
+  function focusedRow(): string | undefined {
+    return (document.activeElement as HTMLElement | null)?.dataset.row;
+  }
+
+  it("keeps a row written shown while the folding is on, read back unchanged, the focus and the active cell on it [WF-IHM-0170-A]", async () => {
+    const wiring = "Câblage des armoires";
+    const renamed = "Câblage et repérage des armoires";
+    const nested = example("nodes_nested") as NodeList;
+    server.client = fakeClient({ [TASK]: "task_renamed" });
+    const { rerender } = render(planningGrid(compared({ [wiring]: "modified" }, nested)));
+    await userEvent.click(differencesOnly());
+    expect(labels()).toContain(wiring);
+    labelOf(wiring).focus();
+    await userEvent.keyboard(`${renamed}{Enter}`);
+    expect(await screen.findByText(renamed)).toBeInTheDocument();
+    // Read anew, the row renamed — the version after the write — now marked unchanged.
+    rerender(
+      planningGrid({
+        ...compared({}, nested),
+        items: compared({}, nested).items.map((node) =>
+          node.task?.label === wiring
+            ? { ...node, lock_version: 3, task: { ...node.task, label: renamed } }
+            : node,
+        ),
+      }),
+    );
+    expect(labels()).toEqual([renamed]);
+    expect(labelOf(renamed)).toHaveAttribute("tabindex", "0");
+    expect(labelOf(renamed)).toHaveFocus();
+  });
+
+  it.each<[FoldReach, string]>([
+    ["all", "Enter Space Alt+Plus Alt+*"],
+    ["row", "Enter Space Alt+Plus"],
+    ["none", "Enter Space"],
+  ])("names the keys that unfold as far as they reach: %s [WF-IHM-0170-A]", async (reach, keys) => {
+    const mac = reach !== "all";
+    if (mac) {
+      Object.defineProperty(navigator, "userAgent", {
+        value:
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15",
+        configurable: true,
+      });
+    }
+    if (reach === "row") {
+      Object.defineProperty(navigator, "keyboard", {
+        value: { getLayoutMap: () => Promise.resolve(new Map()) },
+        configurable: true,
+      });
+    }
+    try {
+      await focusRun();
+      expect(document.activeElement).toHaveAttribute("aria-keyshortcuts", keys);
+    } finally {
+      Reflect.deleteProperty(navigator, "userAgent");
+      Reflect.deleteProperty(navigator, "keyboard");
+    }
+  });
+
+  it.each([
+    ["Home", "{Home}", "0"],
+    ["End", "{End}", "0"],
+    ["Page Up", "{PageUp}", "0"],
+    ["Page Down", "{PageDown}", "1"],
+    ["Ctrl and Home", "{Control>}{Home}{/Control}", "0"],
+    ["Ctrl and End", "{Control>}{End}{/Control}", "1"],
+  ])(
+    "leaves %s to the grid, from the row next to the run [WF-IHM-0170-A]",
+    async (_, keys, row) => {
+      await focusRun();
+      await userEvent.keyboard(keys);
+      expect(document.activeElement).not.toHaveAttribute("data-run");
+      expect(focusedRow()).toBe(row);
+    },
+  );
+
+  it("takes the down arrow of the last run without scrolling the page [WF-IHM-0170-A]", async () => {
+    render(planningGrid(compared({ [SUMMARY]: "modified", [UNCHANGED[0] ?? ""]: "added" })));
+    await userEvent.click(differencesOnly());
+    labelOf(UNCHANGED[0] ?? "").focus();
+    await userEvent.keyboard("{ArrowDown}");
+    const run = document.activeElement as HTMLElement;
+    expect(run).toHaveAttribute("data-run");
+    const event = createEvent.keyDown(run, { key: "ArrowDown" });
+    fireEvent(run, event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(run);
+  });
+
+  it("folds a comparison without difference to one run, reached from the header and unfolded [WF-IHM-0170-A]", async () => {
+    const list = example("comparison_identical") as NodeList;
+    render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <EstimateGrid
+          filters={{}}
+          reference={estimateReference()}
+          editable
+          tasksEditable
+          nodes={projectNodes(list, ESTIMATE_FIELDS) as NodeRows<never>}
+          structure={STRUCTURE}
+          structureVersion={1}
+          query={NO_QUERY}
+          preferences={undefined}
+          comparing
+        />
+      </NextIntlClientProvider>,
+    );
+    await userEvent.click(differencesOnly());
+    expect(labels()).toEqual([]);
+    expect(screen.getAllByRole("button", { name: /sans écart repliées$/ })).toHaveLength(1);
+    const header = document.querySelector<HTMLElement>("th[data-column]");
+    await act(async () => {
+      header?.focus();
+      await Promise.resolve();
+    });
+    await userEvent.keyboard("{ArrowDown}");
+    expect(document.activeElement).toHaveAttribute("data-run");
+    await userEvent.keyboard("{Enter}");
+    expect(labels().length).toBeGreaterThan(0);
+    expect(document.activeElement).toHaveAttribute("data-row", "0");
+  });
+
+  it("refuses a block pasted from the last row before a run, which it would span, asking nothing [WF-IHM-0170-A]", async () => {
+    render(planningGrid(compared(MARKED)));
+    await userEvent.click(differencesOnly());
+    labelOf(SUMMARY).focus();
+    await userEvent.paste("a\nb");
+    expect(await screen.findByRole("alert")).toHaveTextContent("lignes pliées");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(calls()).toBe(0);
+  });
+
+  it("counts, in a selection that spans a run, the rows shown alone [WF-IHM-0170-A]", async () => {
+    render(planningGrid(compared(MARKED)));
+    await userEvent.click(differencesOnly());
+    const handle = (label: string): HTMLElement => {
+      const found = document.querySelector<HTMLElement>(
+        `td[data-row="${labelOf(label).dataset.row ?? ""}"][data-column="row_number"]`,
+      );
+      if (found === null) {
+        throw new Error(`no handle for ${label}`);
+      }
+      return found;
+    };
+    fireEvent.click(handle(SUMMARY));
+    fireEvent.click(handle(DESIGN), { shiftKey: true });
+    expect(screen.getByText("2 lignes sélectionnées")).toBeVisible();
+    const selected = [...document.querySelectorAll("tr[aria-selected='true']")];
+    expect(selected).toHaveLength(2);
+    expect(selected.map((row) => row.textContent.includes("repliées"))).toEqual([false, false]);
+  });
 });

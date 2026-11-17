@@ -2576,7 +2576,11 @@ la réponse : aucune commande, saisie, sélection ni collage ne l'atteint. Les f
 entre les lignes qui l'entourent, la cellule active restant le seul arrêt de tabulation ; Entrée,
 Espace ou Alt et plus la déplient, comme le clic sur son bouton, et sa première ligne devient la
 cellule active. Une suite dépliée le reste tant que le repli est actif, relectures comprises ; une
-ligne qu'une écriture fait différer reparaît à la relecture. Les totaux sont ceux de la réponse.
+ligne qu'une écriture fait différer reparaît à la relecture, et une ligne que la grille écrit reste
+montrée, même relue inchangée, tant que le repli est actif : le focus ne la quitte pas. Home, End
+et les pages, d'une ligne de marque, partent de la ligne voisine ; les autres touches y restent
+inertes. Les totaux sont ceux de la réponse. Limite du Gantt (#3785, à trancher) : un lien vertical
+est coupé sur la hauteur d'une ligne de marque.
 Sur un différentiel, « Écarts seulement » reste le filtre du serveur (`difference`, US-0700).
 
 ### Les commandes

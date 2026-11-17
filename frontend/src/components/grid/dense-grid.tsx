@@ -427,6 +427,19 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     difference: comparedDifference(config),
   });
   const shownRows = fold.shown;
+  // A row the grid writes stays shown while the rows without difference are folded away, even once
+  // read back unchanged (WF-IHM-0170): the focus and the active cell stay on it.
+  const keptWrites: typeof writes = {
+    ...writes,
+    write: (write) => {
+      fold.keepShown([config.rowKey(write.row)]);
+      writes.write(write);
+    },
+    applied: (written) => {
+      fold.keepShown(written.rows.map(config.rowKey));
+      writes.applied(written);
+    },
+  };
   // The rows shown and the runs of rows without difference folded away between them (US-2360).
   const runSlots = useRunSlots(fold);
   const { slots, slotOf } = runSlots;
@@ -490,7 +503,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       const top = edge + placeOf(index) * rowHeight - (element?.scrollTop ?? 0);
       return top + rowHeight > edge && top < (element?.offsetHeight ?? 0) - edge;
     },
-    writes,
+    writes: keptWrites,
     reading: readingCells,
     locale,
     currency,
@@ -499,7 +512,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     config,
     rows: shownRows,
     columns: shownColumns,
-    writes,
+    writes: keptWrites,
     scroller,
     answered: writes.rows,
     narrowed: isNarrowed(narrowing),
@@ -513,6 +526,9 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     rows: writes.rows,
     rowKey: config.rowKey,
     cursor,
+    columns: shownColumns,
+    page: () =>
+      Math.max(1, Math.floor(((scroller.current?.offsetHeight ?? 0) - 2 * edge) / rowHeight)),
     scroller,
     scrollToSlot: scrollToIndex,
     focusAt: keyboard.focusAt,
@@ -552,7 +568,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     (index) => model[index]?.original,
     selection.acted,
     (written) => {
-      writes.applied({ ...written, totals: undefined });
+      keptWrites.applied({ ...written, totals: undefined });
     },
   );
   const cells: CellStates<Row, Sort, Totals> = {
