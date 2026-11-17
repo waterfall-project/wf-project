@@ -27,8 +27,8 @@ named with its cause where the test stands:
 
 ``SINCE`` names what the 101 read at its marking, 1 February, differs in from the example of the
 day, 3 June, which holds the work since: each such path is pinned to the 101's own estimate and
-indicators by an equality. The causes of ``REMAINING_APART`` document only: the tests compare its
-paths, never its causes.
+indicators by an equality, in the test that names it. The causes of the ``*_APART`` tables
+document only: the tests compare their paths, never their causes.
 
 The invariants the witness proves: the sums of the meshes, the projection of the project manager,
 the offer refused, the points of the time/time diagram, the documents of the 101 on two platforms.
@@ -82,10 +82,8 @@ THE_DAY = "2026-06-03"
 REFERENCE = "measured to the offer 100, the reference until the amendment 1 (EP-08)"
 PROVISIONS = "the provisions and the lines of the occurrence of a risk (EP-08)"
 BOTH = "the reference and the provisions (EP-08)"
-# What the criterion does not list: the 101 read at its marking, 1 February, against an example of
-# the day, 3 June, which holds the work since. Each such path is pinned to the 101's own estimate
-# and indicators instead, by an equality, in the test that names it.
-SINCE = "the day against the marking, pinned to the estimate and the indicators of the 101"
+# What the criterion does not list: see the header of the module.
+SINCE = "the day against the marking, pinned to the 101's own estimate and indicators"
 
 # The fields of the indicators of the day that differ from the example, each with its cause.
 DAY_APART = {
@@ -139,10 +137,9 @@ ESTIMATE_APART = {
 }
 # What the remaining of the 101 kept differs in from the example of the day. The provision, the
 # reserve and the lines of the occurrence are EP-08's; the budgets of the subprojects, and the
-# margins and the deltas measured to them, are the offer's, the reference. The amounts of the
-# marking, 1 February, against those of the day, 3 June, which holds the work since, are not in the
-# criterion's list: the 101 spent nothing, so they are pinned to its own estimate and indicators
-# (``test_the_remaining_of_the_101_...``).
+# margins and the deltas measured to them, are the offer's, the reference. The amounts of
+# the marking against those of the day (``SINCE``) are pinned to the 101's own estimate and
+# indicators (``test_the_remaining_of_the_101_...``).
 REMAINING_APART = {
     "/total": SINCE,
     "/by_cost_type[len]": PROVISIONS,
@@ -856,7 +853,7 @@ def test_the_deltas_of_the_example_estimate_are_its_total_less_the_101_as_marked
 
 
 @QUA
-def test_the_deltas_of_the_estimate_lack_of_the_example_s_the_provision_and_the_reference(
+def test_the_gap_to_the_example_is_the_provision_the_occurrence_and_the_reference(
     api: ContractClient, witness: Database, realm: TestRealm
 ) -> None:
     # What the delta of the witness lacks of the example's, to the cent: the provision and the
