@@ -167,8 +167,52 @@ def test_the_current_revision_is_compared_with_the_reference_it_was_opened_from(
     assert "La révision en cours du témoin" in str(example["summary"])
 
 
+def test_the_planning_variant_carries_a_shifted_finish_a_removed_line_and_branches_unchanged() -> (
+    None
+):
+    # EP-27, #3778: a task whose finish is later than its base's (`base.task.finish`,
+    # `deltas.task.finish`), a line removed without base, an amount modified, and whole branches
+    # without difference, a summary included, for the screen to fold.
+    example = mockcomparisons.examples()["comparison_planning.json"]
+    assert str(example["summary"]).startswith("Variante contrefactuelle")
+    value = cast("Node", example["value"])
+    items = {node["node_id"]: node for node in cast("list[Node]", value["items"])}
+    delayed = items[universe(N.DESIGN_FILE)]
+    assert delayed["difference"] == mockdiff.MODIFIED
+    assert {"dates", "duration"} <= set(delayed["changes"])
+    assert delayed["deltas"]["task"]["finish"] == mockcomparisons.PLANNING_DELAY_DAYS
+    assert "finish" in delayed["base"]["task"]
+    removed = items[universe(N.PROVISION)]
+    assert (removed["difference"], removed["base"], removed["deltas"]) == ("removed", None, None)
+    amount = items[universe(N.LABOUR)]
+    assert amount["difference"] == mockdiff.MODIFIED
+    assert Decimal(amount["deltas"]["estimate_line"]["budgeted_amount"]) > 0
+    branch = [
+        items[universe(number)]
+        for number in (
+            N.INSTALLATION,
+            N.MOUNTING,
+            N.WIRING_ON_SITE,
+            N.TESTS_LINE,
+            N.COMMISSIONING,
+            N.COMMISSIONING_LINE,
+            N.REFERENCE_PROVISION_753,
+        )
+    ]
+    assert {(node["difference"], node["base"], node["deltas"]) for node in branch} == {
+        ("unchanged", None, None)
+    }
+    assert branch[0]["task"]["is_summary"] is True
+
+
 @pytest.mark.parametrize(
-    "name", ["comparison.json", "comparison_current.json", "comparison_moved.json"]
+    "name",
+    [
+        "comparison.json",
+        "comparison_current.json",
+        "comparison_moved.json",
+        "comparison_planning.json",
+    ],
 )
 def test_the_totals_of_the_base_and_their_delta_answer_the_totals(name: str) -> None:
     # `totals_delta` is `totals` less `base_totals`, field by field (WF-IHM-0160), and the delta
