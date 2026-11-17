@@ -3263,19 +3263,27 @@ revision, opened again (`createRevision`, outside the measure) before each pass 
 each read at its background task (`getBackgroundTask`), from its submission to its end. The marking
 comes last: it freezes the revision the load writes, whose entries are refused from then on. The
 report (`frontend/e2e/measure/version.ts`) has the form `make check-measures` confronts, with
-`taken_at` and `conditions` besides, the volumes read at the preparation (tasks, estimate lines) and the summary of the load among them (gestures, readings and entries refused, duration, gestures expected);
-opening a grid gathers the four openings of the journey, filtering, sorting or searching the three
+`taken_at` and `conditions` besides, the volumes read at the preparation (tasks, estimate lines) and
+the summary of the load among them (gestures, readings and entries refused, duration, gestures
+expected); opening a grid gathers the four openings of the journey, filtering, sorting or searching the three
 gestures on the estimate, recomputing the duration entered (the label recomputes nothing); the
 median and the worst duration are those of every measure, the dispersion the standard deviation (n -
 1) of the medians of the passes. It is written in `MEASURE_VERSION_REPORT`
 (`frontend/.e2e/measures/<version>.json`, the version of `frontend/package.json` unless
 `MEASURE_VERSION`), never by itself under `docs/measures/`, where the lot of the version versions
 it, with the `note` of its overruns. The measure fails on no duration: only on an account it cannot
-make, volumes below those of §4.6.2 (a thousand tasks, five estimate lines a task on average, less the witness's rounding: 4.9 at least), a step the
-browser does not reach the end of, a background task that fails, or a load that did not run as asked
+make, volumes below those of §4.6.2 (a thousand tasks, five estimate lines a task on average, less the
+witness's rounding: 4.9 at least), a step the browser does not reach the end of, a background task that fails, or a load that did not run as asked
 (`load-check.ts`): without a summary, a user refused for want of a token, more than one percent of
-readings or entries refused — the entries the marking refuses (`409`), the only ones expected,
-apart —, fewer than half the gestures the pauses promise (users × duration ÷ 10 s). The passes of
+readings or entries refused (one refusal isolated per category is tolerated if it is named in the
+report, read in the k6 log before the stop; a refusal the summary counts and the log does not name,
+occurring during the stop, is not tolerated) — the gestures the marking refuses, apart: the `409`
+`STATE_FORBIDS_OPERATION`, the only one expected, not any `409` — an entry on the marked
+revision, the reading of the workload on the current revision of a project that has none left —,
+counted on their own (`reads_frozen`, `writes_frozen`) and only after the first marking asked,
+within the share of the load during which the revision stood frozen, to ten percent: more of
+them than that fail the load, a load frozen for its whole duration accepting them all; and fewer
+than half the gestures the pauses promise (users × duration ÷ 10 s). The passes of
 the import are not at a constant volume: the second imports its eighteen thousand lines beside the
 eighteen thousand of the first, the third beside thirty-six thousand, as a project that receives
 costs would, and the report says so. The container of the load stops at the end of the measure,
@@ -4835,9 +4843,22 @@ which the server of Next was answering the browser — document, component tree,
 prefetch asked before the step and that it waits for — or the API was answering Next, less the
 API's; the browser, the rest. The weight of the answer is what Next sent the browser for the step.
 The time of Next and the weight keep the same requests: not the prefetches the step starts itself
-for the screens to come, which it does not wait for — their time is the browser's, at work
-meanwhile. A limit: the requests of the API such a prefetch makes stay in the part of the API, the
-log tying a request to an account and a moment, not to the request of Next that made it. The
+for another screen, which it does not wait for — their time is the browser's, at work
+meanwhile; the one it starts for the screen it ends on — same path and same query (filter, sort, search) —,
+when the router asks it anew, it waits for, and it counts; a prefetch of the same path under
+another query serves a step to come, and does not. The part of the API counts the requests of the account only while a request of Next
+the step waits for is under way: the requests of such a prefetch outside it count for none. A
+limit: those made within it stay, the log tying a request to an account and a moment, not to the
+request of Next that made it. The browser never calls the API itself (its components go through
+server actions): such a request, outside Next, would fall in the browser's part. A weight of 0
+beside an API that answered is not a download that never was: a step under load waits for a
+request the router cut short (a prefetch a navigation takes over, which Playwright reports as
+failed) or whose sizes never came, and its bytes are unknown. Such a request is marked
+`weighed: false`, the step counts it (`unweighed`), the weight of its sample stays out of the
+statistic — its times stay —, and the log of the run says how many samples were left out. The report of the step carries that number (`unweighed`)
+and gives `bytes` as `null` when no sample has a weight: neither a 0 read as a download that never
+was, nor silence. A step
+served from the router's cache, without a request, has no API time either. The
 journey is played by one,
 four and eight users at once (`MEASURE_USERS`, which always names `1`: only a user alone fails the measure), an account each, each in its own browser context,
 and the duration of `getMe` is recorded meanwhile, in the log of the API and by a client that asks

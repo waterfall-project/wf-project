@@ -16,7 +16,7 @@
     "Taken on a workstation shared with other deliverers, whose light work went on during the three runs: the spread of the passes shows it, and a duration of a few hundred milliseconds is read within it.",
     "The memory is that of the processes of the API read in the container once the run ended: rss_mb the resident set, peak_mb its peak since the start, after eight users reading the whole project together five times. The run at two processes was not read: its memory was not taken, and was not replayed. The number of connections open during the runs was not recorded either: the hold of the connections rests on max_connections = 15 x processes + 200.",
     "The planning opening and the estimate gain from each doubling. planning.label and planning.duration do not: at eight users planning.label goes from 2159 ms at two processes to 3560 ms at four, and at four users planning.duration is slower at two processes than at one (2469 ms against 1772 ms), both within the spread of the passes.",
-    "reference.json, the reference of the reports of the versions, was taken at one process of the API, the only number then: the reports of the versions (US-2300) are compared to a reference at one process, whatever the default of the service platform, which is four."
+    "reference.json, the reference of the reports of the versions, was taken at one process of the API, the only number then — it is its journey of make measure that is at one process (its own passes of read all, by processes, run at one, two and four, and are not what the versions are compared to): the reports of the versions (US-2300) are compared to a reference at one process, whatever the default of the service platform, which is four."
   ],
   "runs": [
     {

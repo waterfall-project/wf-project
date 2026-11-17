@@ -45,5 +45,52 @@
  */
 export const WORKING = 15_000;
 
-/** How long the worker is given to mark a revision: a task taken from the queue, one transaction. */
+/**
+ * How long the worker is given to mark a revision: a task taken from the queue, one transaction.
+ *
+ * Measured on 2026-11-16 by `make measure-version MEASURE_VERSION=0.4.0` (US-2300, fifty users of
+ * load, three passes), each pass read from the submission of the task to its end
+ * (`getBackgroundTask`): a median of 0.101 s and a worst of 0.240 s (`mark-revision` of
+ * `docs/measures/0.4.0.json`). The minute covers them with a wide margin, 250 times the worst:
+ * it is the room a task waiting in the queue is given to be taken by the worker, not a duration
+ * of the marking itself.
+ */
 export const MARKING = 60_000;
+
+/*
+ * The budgets of the paths themselves, below: what a whole test is given, or a wait that is not the
+ * showing of a screen of PRJ-001 (`WORKING`). None is a measure; a path that overruns one is first
+ * a read to correct, as the header says, and none of them has been measured on its own.
+ */
+
+/**
+ * How long Tab alone is given to reach the one stop of a grid, in milliseconds
+ * (`keyboard.spec.ts`, `entry.spec.ts`): each press is a round trip to the browser, through the
+ * shell and the bar of the grid (beside `test.slow`). Twice `WORKING`.
+ */
+export const TABBING = 30_000;
+
+/**
+ * How long a path that opens the planning of a thousand tasks is given, whole, in milliseconds:
+ * `opening.spec.ts` opens each grid of it several times and counts what it sends, and
+ * `departure.spec.ts` slows the processor four times (US-0800) to leave it for another screen. Each
+ * opening is bounded by its own wait, this is the sum of those a path makes; twelve times `WORKING`.
+ */
+export const OPENING_PATH = 180_000;
+
+/**
+ * How long the reset of the grids of an account is given, whole, in milliseconds
+ * (`service/grid-reset.spec.ts`): the administrator of the installation signed in, an account
+ * created and signed in at the identity provider, three tokens, two writes and two reads of its
+ * preferences. No screen of grid, none of the thousand tasks: six times `WORKING`, for the sign-ins
+ * of a runner under load.
+ */
+export const ACCOUNT_RESET = 90_000;
+
+/**
+ * How long a path of fifty entries each undone, then redone, is given, whole, in milliseconds
+ * (`undo.spec.ts`, the planning and the estimate): a screen of grid under load takes its `WORKING`
+ * bound for each of them, a hundred waits in all. It is a budget under the sum of those bounds
+ * (twenty-five minutes), which only a path where every wait overran would reach.
+ */
+export const FIFTY_ENTRIES_UNDONE = 20 * 60_000;

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Locator, type Page } from "@playwright/test";
 
-import { WORKING } from "./bounds";
+import { TABBING, WORKING } from "./bounds";
 import { columnsOf } from "./columns";
 import { idle, seedEstimate } from "./estimate-seed";
 import { openHydrated } from "./hydration";
@@ -110,7 +110,7 @@ async function tabIntoGrid<K extends string>(
         await page.keyboard.press("Tab");
         return active.evaluate((element) => element === document.activeElement);
       },
-      { intervals: [0], timeout: 30_000 },
+      { intervals: [0], timeout: TABBING },
     )
     .toBe(true);
   const at = await columnsOf(grid, screen.columns);

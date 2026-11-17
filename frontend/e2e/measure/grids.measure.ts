@@ -176,12 +176,15 @@ interface Member {
 /** A line of the log of the run: a step at a level, its medians. */
 function logged(level: LevelReport): void {
   for (const [step, report] of Object.entries(level.steps)) {
-    const kib = Math.round(report.bytes.median / 1024).toString();
+    const kib =
+      report.bytes === null
+        ? "weight unknown"
+        : `${String(Math.round(report.bytes.median / 1024))} KiB`;
     console.log(
       `${String(level.users)} user(s), ${step}: usable ${String(report.usable_ms.median)} ms` +
         ` (worst ${String(report.usable_ms.worst)}, spread ${String(report.usable_ms.spread ?? "none")});` +
         ` API ${String(report.api_ms.median)}, Next ${String(report.next_ms.median)},` +
-        ` browser ${String(report.browser_ms.median)}; ${kib} KiB;` +
+        ` browser ${String(report.browser_ms.median)}; ${kib};` +
         ` ${String(report.incomplete)} incomplete`,
     );
   }
@@ -262,11 +265,14 @@ test("measures the journey of the grids against the service, at one, four and ei
         await Promise.all(playing.map(({ player: one }) => one.drained()));
         const answered = apiAnswered(from, to, offset);
         playing.forEach(({ person, player: one }, index) => {
-          for (const { step, span } of timed[index] ?? []) {
+          for (const { step, span, destination } of timed[index] ?? []) {
             samples.push({
               step,
               pass,
-              parts: span === undefined ? undefined : partsOf(span, one.front, answered, person.id),
+              parts:
+                span === undefined
+                  ? undefined
+                  : partsOf(span, one.front, answered, person.id, destination),
             });
           }
         });
@@ -283,6 +289,17 @@ test("measures the journey of the grids against the service, at one, four and ei
         get_me: getMeReport(getMe),
       };
       logged(level);
+      for (const step of STEPS) {
+        const unknown = samples.filter(
+          (sample) => sample.step === step && (sample.parts?.unweighed ?? 0) > 0,
+        ).length;
+        if (unknown > 0) {
+          console.log(
+            `${String(count)} user(s), ${step}: ${String(unknown)} sample(s) waited for a request` +
+              ` whose bytes are unknown (cut by the router): left out of the weight`,
+          );
+        }
+      }
       levels.push(level);
     }
     const measured: MeasureReport = {

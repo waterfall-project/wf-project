@@ -11,19 +11,22 @@
  * the tasks they write, gives the users of the load their tokens and signs the user of the browser
  * in. Then k6 plays the load (`bench/load.ts`, `load-users.ts`), and under it the browser plays the
  * journey of the grids (`steps.ts`) and opens the workload of the project (`workload.ts`): one pass
- * unmeasured, as `make measure` plays one, then `E2E_MEASURE_PASSES`, each from the default settings
- * of the grids of its account. Under the same load, the background tasks: the export of the
- * planning, the import of eighteen thousand lines of actual costs, the marking of the revision,
- * `E2E_MEASURE_TASK_PASSES` times each, read at their tasks (`background.ts`); the marking last, which
- * freezes the revision the load writes — its entries are then refused, and its readings go on. The
- * load is stopped, its summary read, and the report written where `make measure-version` says.
+ * unmeasured, as `make measure` plays one, then `E2E_MEASURE_PASSES`, each from the default
+ * settings of the grids of its account. Under the same load, the background tasks: the export of
+ * the planning, the import of eighteen thousand lines of actual costs, the marking of the
+ * revision, `E2E_MEASURE_TASK_PASSES` times each, read at their tasks (`background.ts`); the
+ * marking last, which freezes the revision the load writes — its entries are then refused, and its
+ * readings go on. The load is stopped, its summary read, and the report written where `make
+ * measure-version` says.
  *
  * The measure fails on no duration: an operation past its objective is the report's to document,
  * once versioned (US-2300/L3). Only a measure that did not happen fails it: an account it cannot
  * make, a step of the journey the browser does not reach the end of — the browser is the only user
  * that measures —, a background task that fails, data below the volumes of §4.6.2, or a load that
- * did not run as asked (`load-check.ts`: no summary, readings refused, too few gestures). Not a path: it plays alone, in its project `measure-version`
- * (`playwright.config.ts`), which no goal of the chain plays.
+ * did not run as asked (`load-check.ts`: no summary, readings refused, too few gestures, entries
+ * refused as frozen before any marking or beyond the share of the load the revision stood
+ * frozen). Not a path: it plays alone, in its project `measure-version` (`playwright.config.ts`),
+ * which no goal of the chain plays.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
@@ -34,7 +37,13 @@ import { frontToken, type LocalPerson, resetGridPreferences } from "../service/r
 import { settle } from "../usable";
 import { administratorReady, contributorsOf, measureUsers } from "./accounts";
 import { type Caller, caller, exportPlanning, importCosts, markRevision } from "./background";
-import { gesturesExpected, type LoadSummary, loadFailures, type Volumes } from "./load-check";
+import {
+  gesturesExpected,
+  type LoadSummary,
+  loadFailures,
+  type Refusal,
+  type Volumes,
+} from "./load-check";
 import { placeAndTasks, prepareLoad, startLoad, stopLoad } from "./load-users";
 import type { Interval } from "./report";
 import {
@@ -61,9 +70,9 @@ function whole(variable: string, own: number): number {
 }
 
 /**
- * The users of the load, beside the browser: the fifty users active of §4.6.2. Another number is for
- * a trial of the measure (the guide, "Commandes"): a report of a version is taken at fifty, and
- * says its `users` in its conditions.
+ * The users of the load, beside the browser: the fifty users active of §4.6.2. Another number is
+ * for a trial of the measure (the guide, "Commandes"): a report of a version is taken at fifty,
+ * and says its `users` in its conditions.
  */
 const USERS = whole("E2E_LOAD_USERS", 50);
 /** The measured passes of the operations of a screen, and of the background tasks. */
@@ -180,13 +189,24 @@ async function screens(
   return { samples, unreached };
 }
 
-/** The background tasks, each in its passes: the export, the import, the marking last. */
-async function backgroundTasks({ api }: Measurer, version: string): Promise<Measured[]> {
-  return [
-    ...(await passes("export-planning", () => exportPlanning(api, PROJECT, REVISION))),
-    ...(await passes("import-costs", (pass) => importCosts(api, PROJECT, pass))),
-    ...(await passes("mark-revision", (pass) => markRevision(api, PROJECT, version, pass))),
-  ];
+/**
+ * The background tasks, each in its passes: the export, the import, the marking last; and when the
+ * first marking was asked, which froze the revision for the entries of the load (none if it never
+ * did): the back refuses them from the submission of the task (409 `no_background_task_running`),
+ * then once the revision is marked.
+ */
+async function backgroundTasks(
+  { api }: Measurer,
+  version: string,
+): Promise<{ tasks: Measured[]; frozenAt: number | undefined }> {
+  let frozenAt: number | undefined;
+  const exported = await passes("export-planning", () => exportPlanning(api, PROJECT, REVISION));
+  const imported = await passes("import-costs", (pass) => importCosts(api, PROJECT, pass));
+  const marked = await passes("mark-revision", async (pass) => {
+    frozenAt ??= Date.now();
+    return markRevision(api, PROJECT, version, pass);
+  });
+  return { tasks: [...exported, ...imported, ...marked], frozenAt };
 }
 
 /** Write the report, and its lines in the log of the run. */
@@ -223,25 +243,35 @@ test("measures each operation of table 15 the service serves under the load of f
   try {
     const { measurer, users, volumes } = await prepared(browser, calls, origin);
     let summary: LoadSummary | undefined;
+    let refusals: readonly Refusal[] = [];
     let measured: Awaited<ReturnType<typeof screens>>;
     let tasks: Measured[];
+    let frozenAt: number | undefined;
     const started = Date.now();
+    let stopped = started;
     let durationSeconds = 0;
     try {
       startLoad();
       measured = await screens(browser, calls, measurer);
-      tasks = await backgroundTasks(measurer, version);
-      durationSeconds = (Date.now() - started) / 1000;
+      ({ tasks, frozenAt } = await backgroundTasks(measurer, version));
+      stopped = Date.now();
+      durationSeconds = (stopped - started) / 1000;
     } finally {
-      summary = stopLoad();
+      ({ summary, refusals } = stopLoad());
     }
     console.log(`The load: ${JSON.stringify(summary)}, ${durationSeconds.toFixed(0)} s`);
     if (measured.unreached.size > 0) {
       const steps = [...measured.unreached].join(", ");
       throw new Error(`The journey no longer works: the browser did not reach the end of ${steps}`);
     }
-    // The marking, last of the background tasks, has frozen the revision by now.
-    const failures = loadFailures(summary, { users, duration_s: durationSeconds, marked: true });
+    // The marking, last of the background tasks, froze the revision
+    // from the asking of its first pass.
+    const frozenSeconds = frozenAt === undefined ? 0 : (stopped - frozenAt) / 1000;
+    const failures = loadFailures(
+      summary,
+      { users, duration_s: durationSeconds, frozen_s: frozenSeconds },
+      refusals,
+    );
     if (summary === undefined || failures.length > 0) {
       throw new Error(`The load did not run as asked: ${failures.join("; ")}`);
     }
@@ -257,6 +287,7 @@ test("measures each operation of table 15 the service serves under the load of f
         ...summary,
         duration_s: Math.round(durationSeconds),
         gestures_expected: Math.round(gesturesExpected(users, durationSeconds)),
+        refusals,
       },
     };
     written(

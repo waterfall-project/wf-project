@@ -261,14 +261,14 @@ alors demander une nouvelle restauration, qui reprend ce que la première avait 
 ## Les processus de l'API
 
 L'API sert ses requêtes sur `WATERFALL_API_PROCESSES` processus (US-2230) : un par défaut pour la
-production ; quatre par défaut sur la plateforme de service — celle de `make e2e-service`, de
-`make measure` et de la chaîne —, où `WATERFALL_API_PROCESSES=1` revient à un processus ; et
+production ; quatre par défaut sur la plateforme de service — celle de `make e2e-service`,
+de `make measure` et de la chaîne —, où `WATERFALL_API_PROCESSES=1` revient à un processus ; et
 `production.env.example` en conseille quatre ; un réglage de `.env`, qui prend effet au prochain
-`up`. Ce `up` recrée aussi PostgreSQL, dont `max_connections` ne change pas à chaud : il
-interrompt brièvement tout le service. Chaque processus construit son application, ouvre ses
-propres services — la base, Keycloak, Redis, le stockage — et les ferme quand il s'arrête ; aucun
-ne garde d'un utilisateur ce qu'un autre ignorerait (WF-ARC-0080) : une requête
-est servie de même par n'importe lequel.
+`up`. Ce `up` recrée aussi PostgreSQL, dont `max_connections` ne change pas à chaud : il interrompt
+brièvement tout le service. Chaque processus construit son application, ouvre ses propres services —
+la base, Keycloak, Redis, le stockage — et les ferme quand il s'arrête ; aucun ne garde d'un
+utilisateur ce qu'un autre ignorerait (WF-ARC-0080) : une requête est servie de même par n'importe
+lequel.
 
 Chaque processus garde une réserve de quinze connexions à PostgreSQL, cinq ouvertes et dix de plus
 quand elles sont toutes prises. Le serveur porte les deux bases, celle de Waterfall et celle de
@@ -300,17 +300,18 @@ ses cœurs.
 
 Le nombre se règle sur les cœurs, tant que la mémoire et les connexions tiennent. La mesure de
 `docs/measures/processes.json` (`make measure` à un, quatre et huit utilisateurs, à un, deux et
-quatre processus, sur un poste de 32 cœurs) dit pourquoi quatre : à huit utilisateurs qui lisent
-le même projet, l'ouverture du planning passe de 4,2 s à 2,9 s puis 1,7 s, le devis de 11,2 s à
-5,7 s puis 3,1 s, et `getMe` de 374 ms à 130 ms puis 39 ms : chaque doublement gagne encore pour
+quatre processus, sur un poste de 32 cœurs) dit pourquoi quatre : à huit utilisateurs qui lisent le
+même projet, l'ouverture du planning passe de 4,2 s à 2,9 s puis 1,7 s, le devis de 11,2 s à 5,7 s
+puis 3,1 s, et `getMe` de 374 ms à 130 ms puis 39 ms : chaque doublement gagne encore pour
 l'ouverture du planning et le devis, non pour tout. À huit utilisateurs, `planning.label` passe de
 2,16 s (deux processus) à 3,56 s (quatre) ; à quatre, `planning.duration` est plus lent à deux
-processus qu'à un (2,47 s contre 1,77 s) — dans la dispersion des passes, versionnée avec la
-mesure. Un processus tient, après huit lectures entières du projet, de 0,6 à 0,7 Go (1,2 Go quand
-un seul les porte toutes) : quatre processus, 2,4 Go ; la mémoire à deux n'a pas été relevée. Le
-nombre de connexions ouvertes pendant la mesure ne l'a pas été non plus : la tenue repose sur
-`max_connections` = 15 × processus + 200. La référence `reference.json` des rapports de version a
-été prise à un processus, et ces rapports se comparent à elle. Au-delà de quatre, rien n'a été
+processus qu'à un (2,47 s contre 1,77 s) — dans la dispersion des passes, versionnée avec la mesure.
+Un processus tient, après huit lectures entières du projet, de 0,6 à 0,7 Go (1,2 Go quand un seul
+les porte toutes) : quatre processus, 2,4 Go ; la mémoire à deux n'a pas été relevée. Le nombre de
+connexions ouvertes pendant la mesure ne l'a pas été non plus : la tenue repose sur
+`max_connections` = 15 × processus + 200. Le parcours de `make measure` de la référence
+`reference.json` des rapports de version a été pris à un processus, et ces rapports se comparent à
+lui. Au-delà de quatre, rien n'a été
 mesuré : un poste qui a plus de cœurs et de mémoire monte le nombre d'un cran à la fois, et en
 rejoue la mesure.
 

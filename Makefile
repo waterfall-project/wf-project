@@ -165,6 +165,10 @@ SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_OPE
 SLOT_PATHS := E2E_API_PORT E2E_FRONT_PORT
 $(call slot-export,service-up service-install service-witness service-purge keycloak-authority service-logs service-down service-api-processes \
 	test-keycloak e2e-service,$(SLOT_SERVICE))
+# e2e-down is not tolerant of a worktree without a slot, on purpose: its first command, stop-servers,
+# already stops on "run make slot" (US-1300), because without a slot there are no ports to look at and
+# no load container (named after the slot's project) to stop — nothing was started by this worktree.
+# Being tolerant for the container alone would hide the same refusal one command later (#3429).
 $(call slot-export,e2e-down,WATERFALL_SERVICE_PROJECT)
 $(call slot-export,build-keycloak,WATERFALL_KEYCLOAK_IMAGE)
 $(call slot-export,test-services test-services-down,WATERFALL_TEST_PROJECT \
