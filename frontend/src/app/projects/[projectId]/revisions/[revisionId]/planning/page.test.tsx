@@ -491,6 +491,21 @@ describe("« Écarts seulement » on the grid of the planning [WF-REV-0100-A] [W
     expect(chips(page)).toContain("Differences: Added and Modified");
   });
 
+  it("folds the grid of a comparison, the address read the same: nothing asked of the server, no filter said in the banner [WF-IHM-0170-A]", async () => {
+    // « Écarts seulement » d'une comparaison est le repli de la grille, non un filtre : la pastille
+    // du bandeau disparaît, et l'adresse ne change pas la lecture.
+    const reference = "01926f3a-7c00-7000-8000-000000000101";
+    const COMPARISON = "GET /projects/{project_id}/revisions/comparison";
+    server.answers = { ...server.answers, [COMPARISON]: "comparison_current" };
+    const page = await planning({ base_revision_id: reference, difference: ALL });
+    const [read] = callsOf(COMPARISON);
+    expect(read?.query.get("from_revision_id")).toBe(reference);
+    expect(read?.query.has("difference")).toBe(false);
+    expect(BUTTON.exec(page)?.[1]).toBe("false");
+    expect(page).not.toContain("Active filters");
+    expect(grid.given.at(-1)?.comparing).toBe(true);
+  });
+
   it("neither offers, nor sends, nor says it on the main structure and on the own estimate of a risk", async () => {
     for (const search of [{ difference: ALL }, { structure: RISK, difference: ALL }]) {
       server.clients = [];
