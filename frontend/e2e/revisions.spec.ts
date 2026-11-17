@@ -5,7 +5,7 @@
  * tagged `@shared`, against the service, which serves the history, the revision and its commands
  * (US-0960). The screen holds the history and the commands of the revision read, no comparison
  * (US-2370): « Comparer à la révision lue » leads a marked revision of the history to the grid
- * chosen, that revision as its base. The comparison itself is played on the grids (US-2380).
+ * chosen, that revision as its base. The comparison itself is played on the grids, below (US-2380).
  *
  * The fake back serves the first example of each operation: the history of three revisions —
  * the reference, the draft, the offer v1.0 —, the draft read whatever the address names, its
@@ -13,11 +13,14 @@
  * holds the same three revisions, its 100 and 101 marked by the loader as the worker marks
  * (US-0970).
  */
-import { expect } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
-import { WORKING } from "./bounds";
+import { MARKING, WORKING } from "./bounds";
+import { columnsOf } from "./columns";
 import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
+import { seedPlanning } from "./planning-seed";
+import { rowAt, scrollToFoot } from "./scroll";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -58,17 +61,9 @@ test("the history of the revisions of a project, each attribute of a revision in
   ).toBeVisible();
 });
 
-// In quarantine against the service (decision of the author of 2026-11-14), the path having read
-// the comparison of the whole of PRJ-001 (#3168, #3172, #3192): it keeps its quarantine, and plays
-// against the fake back what the screen holds now, the history and the commands. The comparison is
-// played on the grids (US-2380).
-const QUARANTINED_3192 =
-  "in quarantine against the service until EP-27 moves the comparison to the grids (#3192)";
-
 test("the revisions of a project, the history and the commands, no list of structures nor of rates @shared [WF-ARC-0020-A]", async ({
   page,
 }) => {
-  test.skip(inService, QUARANTINED_3192);
   await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const main = page.getByRole("main");
   await expect(main.getByRole("heading", { level: 1 })).toHaveText("Gestion des révisions");
@@ -87,7 +82,7 @@ test("the revisions of a project, the history and the commands, no list of struc
   const rates = main.getByRole("button", { name: "Appliquer la mise à jour des taux" });
   await expect(rates).toBeVisible();
   if ((await rates.getAttribute("aria-disabled")) === "true") {
-    await expect(rates).toHaveAccessibleDescription(/Condition non remplie/);
+    await expect(rates).toHaveAccessibleDescription(/Conditions? non remplies?/);
   } else {
     await rates.click();
     const dialog = page.getByRole("dialog", { name: "Appliquer la mise à jour des taux" });
@@ -121,4 +116,226 @@ test("« Comparer à la révision lue » leads a marked revision of the history 
   await expect(page).toHaveURL(
     new RegExp(`/projects/${PROJECT}/revisions/${REVISION}/planning\\?.*base_revision_id=${FROM}`),
   );
+});
+
+// The comparison, played on the grids of the current revision of PRJ-001 (US-2380), which the three
+// of them read with the reference for base (US-2320 to US-2360). The fake back serves the first
+// example of `compareRevisions` whatever the address names (`comparison`, the offer against the
+// reference, over the installation on site, every node of it in difference): the marks, the values
+// of the base and the totals are read on it, and nothing is folded. The service compares the
+// revision under way to its reference, on all of PRJ-001: its nodes in difference are marked, the
+// branches without difference fold, and the witness is never written (#2193): the writing of a
+// finish is played on a project of the run, below.
+const BASE = `/projects/${PROJECT}/revisions/${REVISION}`;
+const REFERENCE_PARAMETER = "base_revision_id=[0-9a-f-]{36}";
+
+/** The banner of the reading context. */
+function banner(page: Page): Locator {
+  return page.getByRole("region", { name: "Contexte de lecture" });
+}
+
+/**
+ * Reach a cell of a grid by the arrows of the keyboard alone, from the cell of another: each press
+ * moves the focus one cell to the right, until it is on the cell.
+ */
+async function reachByKeyboard(page: Page, from: Locator, to: Locator): Promise<void> {
+  await from.click();
+  await expect(async () => {
+    if (!(await to.evaluate((cell) => cell === document.activeElement))) {
+      await page.keyboard.press("ArrowRight");
+    }
+    await expect(to).toBeFocused({ timeout: 500 });
+  }).toPass({ timeout: WORKING });
+}
+
+test("the comparison of the current revision of PRJ-001 to its reference, from the estimate to the planning and the remaining to commit, the cell marked and the value of its base read at the keyboard, the branches without difference folded, the comparison lifted @shared [WF-IHM-0010-A] [WF-IHM-0020-A] [WF-IHM-0150-A] [WF-IHM-0160-A] [WF-IHM-0170-A]", async ({
+  page,
+}) => {
+  // Three grids of PRJ-001 read in turn, each given the bound of a screen of grid.
+  test.slow();
+  await openHydrated(page, `${BASE}/estimate`);
+  const comparedTo = banner(page)
+    .getByRole("definition")
+    .filter({ hasText: /^Comparée à / });
+  await expect(comparedTo).toHaveCount(0);
+
+  // From the estimate of the revision under way, the reference is chosen for base, without leaving
+  // the screen, which names it.
+  await banner(page).getByRole("button", { name: "Choisir une base de comparaison" }).click();
+  // The reference of the project is the one of the bases that says so: « Référence » itself against
+  // the fake back, the offer v1.0 designated in the witness of the service.
+  const reference = page.getByRole("menuitemradio", { name: /\(référence\)$/ });
+  const named = (await reference.innerText()).replace(/\s*\(référence\)$/, "");
+  await reference.click();
+  await expect(page).toHaveURL(new RegExp(`${BASE}/estimate\\?${REFERENCE_PARAMETER}$`), {
+    timeout: WORKING,
+  });
+  const compared = new URL(page.url()).search;
+  await expect(comparedTo).toContainText(named);
+  const estimate = page.getByRole("treegrid", { name: "Grille de devis" });
+  await expect(estimate).toBeVisible({ timeout: WORKING });
+
+  // A row marked, and the value its base held in the cell that differs, read at the keyboard: the
+  // focus on the cell says it, as the pointer does.
+  const marked = estimate.getByRole("row").filter({ hasText: "Modifié" }).first();
+  await expect(marked).toBeVisible({ timeout: WORKING });
+  const at = await columnsOf(estimate, { label: "Libellé" });
+  const differing = marked.getByRole("gridcell").filter({ hasText: "Δ" }).first();
+  await expect(differing).toContainText(/Base\s*:/);
+  await reachByKeyboard(page, marked.getByRole("gridcell").nth(at.label), differing);
+  // The cell says the value of its base to a reader of the screen at once. The scroll that brought
+  // the cell into view closes the tooltip that has just opened (Radix closes it on any scroll of
+  // the cell's ancestors, #3901): it opens again when the cell is reached again, the arrows left
+  // and right.
+  await expect(differing).toContainText(/Base\s*:/);
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("ArrowRight");
+  await expect(differing).toBeFocused();
+  await expect(page.getByRole("tooltip")).toContainText(/^Base\s*:/);
+  await page.keyboard.press("Escape");
+
+  // The totals say the total read, that of the base and their difference; the differences of the
+  // amounts open from the estimate.
+  await expect(estimate.getByText(/^Total — /)).toHaveCount(1);
+  await expect(estimate.getByText(/^Base : Total — /)).toHaveCount(1);
+  await expect(estimate.getByText(/^Écart : Total — /)).toHaveCount(1);
+  await page.getByRole("button", { name: "Écarts de montants" }).click();
+  const dialog = page.getByRole("dialog", { name: "Écarts de montants à la base" });
+  await expect(dialog.getByRole("table", { name: "Écarts de montants à la base" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+
+  // The planning, then the remaining to commit, with the same base: the banner names it, the
+  // address carries it.
+  const functions = page.getByRole("navigation", { name: "Fonctions" });
+  await functions.getByRole("link", { name: "Planification", exact: true }).click();
+  await expect(page).toHaveURL(`${BASE}/planning${compared}`, { timeout: WORKING });
+  const planning = page.getByRole("treegrid", { name: "Grille de planning" });
+  await expect(planning).toBeVisible({ timeout: WORKING });
+  await expect(comparedTo).toContainText(named);
+
+  // The branches without difference fold, each run said in its place with its number of rows, and
+  // unfold. Every node of the example of the fake back is in difference: none folds there; the
+  // planning of PRJ-001 holds many that the base leaves as they are.
+  const only = page.getByRole("button", { name: "Écarts seulement" });
+  await only.click();
+  await expect(only).toHaveAttribute("aria-pressed", "true");
+  const runs = planning.getByRole("button", { name: /sans écart repliées?$/ });
+  if (inService) {
+    // The grid renders the rows in view: the runs are those of the foot, where the plan ends.
+    await scrollToFoot(planning);
+    const run = runs.last();
+    await expect(run).toBeVisible({ timeout: WORKING });
+    // Said collapsed, it unfolds its rows at the click: the run is no more, among those in view.
+    await expect(run).toHaveAttribute("aria-expanded", "false");
+    const folded = await runs.count();
+    await run.click();
+    await expect(runs).toHaveCount(folded - 1, { timeout: WORKING });
+  } else {
+    await expect(runs).toHaveCount(0);
+  }
+  await only.click();
+  await expect(only).toHaveAttribute("aria-pressed", "false");
+
+  await functions.getByRole("link", { name: "Estimation du reste à engager", exact: true }).click();
+  await expect(page).toHaveURL(`${BASE}/remaining${compared}`, { timeout: WORKING });
+  const remaining = page.getByRole("treegrid", { name: "Grille de reste à engager" });
+  await expect(remaining).toBeVisible({ timeout: WORKING });
+  await expect(comparedTo).toContainText(named);
+  await expect(page.getByRole("button", { name: "Écarts de montants" })).toBeVisible();
+
+  // The comparison lifted: the base leaves the address and the banner offers the choice again.
+  await banner(page)
+    .getByRole("link", { name: `Lever la comparaison avec «\u00a0${named}\u00a0»` })
+    .click();
+  await expect(page).toHaveURL(`${BASE}/remaining`, { timeout: WORKING });
+  await expect(comparedTo).toHaveCount(0);
+  await expect(
+    banner(page).getByRole("button", { name: "Choisir une base de comparaison" }),
+  ).toBeVisible();
+});
+
+// The writing of a finish needs a service that remembers it, and a project the account of the run
+// writes: PRJ-001 is never written by a path (#2193), so the path makes its own, as the cycle of the
+// revisions does (`revision-cycle.spec.ts`) — its six tasks, its revision marked by the worker, a
+// current revision opened, which is the grid compared to the revision marked.
+const SERVICE_ONLY =
+  "the fake back keeps nothing of what is written, and answers each write by its first example";
+
+test("a finish pushed from the planning is read modified, with the date of the base, brought back, and read modified no more @shared [WF-IHM-0150-A] [WF-REV-0080-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  test.skip(!inService, SERVICE_ONLY);
+  test.slow();
+  const seeded = await seedPlanning(page, browser, request, manager, "Fin repoussée");
+  const main = page.getByRole("main");
+
+  // The revision marked by the worker, then a current revision opened, a copy of it.
+  await openHydrated(page, `${seeded.own.path}/revisions?revision_id=${seeded.ids.revision}`);
+  const commands = main.getByRole("region", { name: "Commandes" });
+  await commands.getByRole("button", { name: "Marquer la révision" }).click();
+  const marking = commands.getByRole("form");
+  await marking.getByRole("textbox", { name: "Nom de version" }).fill("v1.0");
+  await marking.getByRole("button", { name: "Marquer", exact: true }).click();
+  await expect(commands.getByRole("form")).toHaveCount(0);
+  await page.getByRole("button", { name: /^Tâches et messages\s: 1 tâche suivie/ }).click();
+  const task = page
+    .getByRole("dialog", { name: "Tâches et messages" })
+    .getByRole("region", { name: "Tâches de fond" })
+    .getByRole("listitem")
+    .filter({ hasText: "Marquage d’une révision « v1.0 »" });
+  await expect(task.getByText("Réussie")).toBeVisible({ timeout: MARKING });
+  await task.getByRole("button", { name: "Recharger l’écran" }).click();
+  const opened = page.url();
+  await main
+    .getByRole("region", { name: "Historique des révisions" })
+    .getByRole("button", { name: "Ouvrir une révision en cours" })
+    .click();
+  await expect(page).not.toHaveURL(opened, { timeout: WORKING });
+  const current = new URL(page.url()).searchParams.get("revision_id");
+  expect(current, "the revision opened is named by the address").not.toBeNull();
+
+  // Its planning, compared to the revision marked: nothing differs yet.
+  await openHydrated(
+    page,
+    `${seeded.own.path}/revisions/${current ?? ""}/planning?base_revision_id=${seeded.ids.revision}`,
+  );
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  const at = await columnsOf(grid, { label: "Libellé", duration: "Durée", finish: "Fin" });
+  // The row of the second task of the plan, by its place in the answer: its name changes as it is marked.
+  const row = rowAt(grid, 2);
+  const finish = row.getByRole("gridcell").nth(at.finish);
+  await expect(finish).toBeVisible({ timeout: WORKING });
+  await expect(row).not.toContainText("Modifié");
+  await expect(finish).not.toContainText("Δ");
+  const settled = () => expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
+  const date = /\d{2}\/\d{2}\/\d{4}/;
+  const before = date.exec(await finish.innerText())?.[0] ?? "";
+  expect(before, "the finish is a date").not.toBe("");
+
+  /** Write the duration of the task, which moves its finish: `updateTaskFacet`. */
+  const lasting = async (duration: string): Promise<void> => {
+    await row.getByRole("gridcell").nth(at.duration).click();
+    await page.keyboard.press("F2");
+    await grid.getByRole("textbox", { name: "Durée" }).fill(duration);
+    await page.keyboard.press("Enter");
+    await settled();
+  };
+
+  // The finish pushed two days: the task is read modified, its finish marked, the date of the base
+  // given — as the grid reads its comparison anew once the write answered.
+  await lasting("7 j");
+  await expect(row).toContainText("Modifié", { timeout: WORKING });
+  await expect(finish).toContainText("Δ");
+  await expect(finish).toContainText(`Base : ${before}`);
+  await expect(finish).not.toContainText(new RegExp(`^${before}`));
+
+  // The finish brought back: the task is read modified no more.
+  await lasting("5 j");
+  await expect(row).not.toContainText("Modifié", { timeout: WORKING });
+  await expect(finish).not.toContainText("Δ");
+  await expect(finish).toContainText(before);
 });
