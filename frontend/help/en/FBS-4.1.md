@@ -10,10 +10,9 @@ From top to bottom:
 
 - the **Report** of the import the address names, when there is one;
 - the **Revision history**: for each one, its version, its state, its date of marking, its description, the link that opens it, and the mark of the reference;
-- the **Designation of the reference**, on the marked revisions;
-- the **Comparison of two revisions** marked;
-- the **Cost structures** of the revision read — the main structure, the differentials of amendment, the own estimates of the risks — with their state;
-- for the current revision, the **Proposed rate update**, when the reference data has changed since it was costed.
+- the **Comparison of two revisions** marked.
+
+The cost structures of the revision read are chosen in the banner of the grids, not on this screen.
 
 ## Its commands
 
@@ -28,9 +27,9 @@ Each section is a card. At the top of the screen, the commands of the revision r
 In the sections:
 
 - **Open**, in the history, opens the revision: the screens of the project then read it.
-- **Designate as reference**, on a marked revision, once confirmed: it sets the reference budget and the planned value; the project that bears its project code passes to the state In progress. Unavailable on a revision that bears no task or no estimate line, and when the reference is no longer corrected — the project has received an actual cost, or a revision has been marked since the last designation.
+- **Designate as reference**, a command of each marked revision of the history, once confirmed: it sets the reference budget and the planned value; the project that bears its project code passes to the state In progress. Unavailable on a revision that bears no task or no estimate line, and when the reference is no longer corrected — the project has received an actual cost, or a revision has been marked since the last designation.
 - **Compare**, between two marked revisions chosen by **From the revision** and **To the revision**: the grid of the nodes compared marks each task and each line added (**+**), removed (**-**) or modified (**M**), and the amount deviations follow. Two marked revisions are needed.
-- **Apply the rate update**, for the categories retained, once confirmed: the rates of the current revision are replaced by the rates proposed, and its amounts costed again. A proposal, never imposed; offered where the revision is entered in the estimate.
+- **Apply the rate update**, a command of the current revision at the right of the title: it opens the proposal, category by category, in a window; for the categories retained, once confirmed, the rates of the current revision are replaced by the rates proposed, and its amounts costed again. A proposal, never imposed; offered where the revision is entered in the estimate.
 
 ## Its columns and computed values
 

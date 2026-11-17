@@ -125,7 +125,7 @@ test("the history of the revisions of a project, each attribute of a revision in
 const QUARANTINED_3192 =
   "in quarantine against the service until EP-27 moves the comparison to the grids (#3192)";
 
-test("the revisions of a project, their comparison as the API renders it, its structures and the rates proposed @shared [WF-ARC-0020-A]", async ({
+test("the revisions of a project, their comparison as the API renders it, the history and no list of structures nor of rates @shared [WF-ARC-0020-A]", async ({
   page,
   browser,
   manager,
@@ -151,12 +151,29 @@ test("the revisions of a project, their comparison as the API renders it, its st
   const commands = main.getByRole("region", { name: "Commandes" });
   await expect(commands.getByRole("button", { name: "Marquer la révision" })).toBeVisible();
 
-  // The structures of the revision, and no rate update: the current revision, opened in 2026 as
-  // the reference it copies, has none to propose (WF-REV-0060).
-  await expect(main.getByRole("table", { name: "Structures de coûts" })).toContainText(
-    "Structure principale",
-  );
-  await expect(main).toContainText("aucune mise à jour des taux n’est proposée");
+  // The rate update is a command of the revision: pressed available, it opens its dialog, which
+  // reads the proposal then (never at the render); unavailable, it names its conditions (the
+  // description is the hydrated tooltip's).
+  const rates = main.getByRole("button", { name: "Appliquer la mise à jour des taux" });
+  await expect(rates).toBeVisible();
+  if ((await rates.getAttribute("aria-disabled")) === "true") {
+    await expect(rates).toHaveAccessibleDescription(/Condition non remplie/);
+  } else {
+    await rates.click();
+    const dialog = page.getByRole("dialog", { name: "Appliquer la mise à jour des taux" });
+    await expect(
+      dialog
+        .getByRole("table", { name: "Mise à jour des taux proposée" })
+        .or(dialog.getByText(/aucune mise à jour des taux n’est proposée/)),
+    ).toBeVisible({ timeout: WORKING });
+    await dialog.getByRole("button", { name: "Annuler" }).click();
+    await expect(dialog).toBeHidden();
+  }
+
+  // The screen holds the history and the commands: neither the structures of the revision nor the
+  // rate update it proposes are listed (US-2370); the banner offers the structures, the command of
+  // the revision the rate update.
+  await expect(main.getByRole("table", { name: "Structures de coûts" })).toHaveCount(0);
   await expect(main.getByRole("table", { name: "Mise à jour des taux proposée" })).toHaveCount(0);
 
   // The comparison asked of the server: what it answers is shown, nothing paired by the front.

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The screen of the revisions, rendered in a document (US-2130): a screen of consultation in the
- * airy column, a card per section it has — the history, the comparison, the structures, the rate
- * update —, « Ouvrir une révision en cours » the one filled command, the principal one of the card
+ * airy column, a card per section it has — the history, the comparison, until US-2370/L2 takes it
+ * out —, « Ouvrir une révision en cours » the one filled command, the principal one of the card
  * of the history; the structure of the screen is as it was (decision of the author of 2026-11-14,
  * EP-27 recasts it), the commands of the revision at the right of the title, outlined. The rule of
  * the commands is that of `expectCommandRule`.
@@ -45,8 +45,6 @@ beforeEach(() => {
     "GET /projects/{project_id}": "project_without_current_revision",
     "GET /projects/{project_id}/revisions": "revisions",
     "GET /projects/{project_id}/revisions/{revision_id}": "revision",
-    "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
-    "GET /projects/{project_id}/revisions/{revision_id}/rate-update": "rate_update",
     "GET /projects/{project_id}/revisions/comparison": "comparison",
   };
 });
@@ -68,11 +66,7 @@ describe("the screen of the revisions, rendered", () => {
   it("sets each section in a card, « Ouvrir une révision en cours » filled in the card of the history, the one filled command of the screen [WF-IHM-0090-A]", async () => {
     const { container } = await renderRevisions();
     expect(screen.getByRole("main")).toHaveClass(...SCREEN.airy.split(" "));
-    for (const title of [
-      "Historique des révisions",
-      "Désignation de la référence",
-      "Comparaison de deux révisions",
-    ]) {
+    for (const title of ["Historique des révisions", "Comparaison de deux révisions"]) {
       expect(screen.getByRole("region", { name: title })).toHaveAttribute(
         "data-slot",
         "section-card",
@@ -89,7 +83,7 @@ describe("the screen of the revisions, rendered", () => {
     expectCommandRule(container);
   });
 
-  it("keeps the commands of the revision it reads in at the right of the title, outlined, and the structures and the rate update in their cards [WF-IHM-0090-A]", async () => {
+  it("keeps the commands of the revision it reads in at the right of the title, outlined, the rate update among them, and no card of the structures nor of the rate update [WF-IHM-0090-A]", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}": "project",
@@ -101,14 +95,18 @@ describe("the screen of the revisions, rendered", () => {
     expect(
       within(header as HTMLElement).getByRole("button", { name: "Marquer la révision" }),
     ).toHaveClass(...buttonVariants({ variant: "outline", size: "sm" }).split(" "));
-    for (const title of ["Structures de coûts", "Mise à jour des taux proposée"]) {
-      expect(screen.getByRole("region", { name: title })).toHaveAttribute(
-        "data-slot",
-        "section-card",
-      );
+    expect(
+      within(header as HTMLElement).getByRole("button", {
+        name: "Appliquer la mise à jour des taux",
+      }),
+    ).toHaveClass(...buttonVariants({ variant: "outline", size: "sm" }).split(" "));
+    for (const title of [
+      "Structures de coûts",
+      "Mise à jour des taux proposée",
+      "Désignation de la référence",
+    ]) {
+      expect(screen.queryByRole("region", { name: title })).toBeNull();
     }
-    const update = screen.getByRole("region", { name: "Mise à jour des taux proposée" });
-    expect(within(update).getByRole("button", { name: /Appliquer/ })).toBeInTheDocument();
     expectCommandRule(container);
   });
 

@@ -2087,11 +2087,10 @@
     "rateUpdate": {
       "label": "Appliquer la mise à jour des taux",
       "statement": "Les taux de la révision en cours sont remplacés par les taux proposés, pour les catégories retenues ; les montants de ses lignes et de ses totaux sont rechiffrés. Une révision marquée garde les taux qu’elle a calculés.",
-      "categories": "Catégories mises à jour",
-      "change": "{category} : {previous} → {proposed}",
       "noneRetained": "Retenez au moins une catégorie.",
       "submit": "Confirmer la mise à jour",
-      "done": "{count, plural, one {Les taux d’# catégorie sont mis à jour.} other {Les taux de # catégories sont mis à jour.}}"
+      "done": "{count, plural, one {Les taux d’# catégorie sont mis à jour.} other {Les taux de # catégories sont mis à jour.}}",
+      "reading": "Lecture de la proposition…"
     }
   },
   "projectList": {
@@ -2296,10 +2295,8 @@
       "reference": "Référence",
       "notMarked": "Non marquée",
       "open": "Ouvrir",
-      "openRevision": "Ouvrir la révision « {name} »"
-    },
-    "designation": {
-      "title": "Désignation de la référence"
+      "openRevision": "Ouvrir la révision « {name} »",
+      "commands": "Commandes"
     },
     "comparison": {
       "title": "Comparaison de deux révisions",
@@ -2315,14 +2312,6 @@
       "reestimatedDelta": "Écart réestimé",
       "unnamed": "Sans nom"
     },
-    "structures": {
-      "title": "Structures de coûts",
-      "none": "Cette révision n’a aucune structure de coûts.",
-      "kind": "Nature",
-      "label": "Libellé",
-      "state": "État",
-      "merged": "Fusionnée"
-    },
     "rateUpdate": {
       "title": "Mise à jour des taux proposée",
       "year": "Taux de l’année {year}",
@@ -2331,7 +2320,8 @@
       "category": "Catégorie",
       "previous": "Taux précédent",
       "proposed": "Taux proposé",
-      "source": "Origine"
+      "source": "Origine",
+      "retained": "Retenue"
     }
   },
   "exitProject": {

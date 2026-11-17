@@ -621,7 +621,7 @@ applique (`difference`, US-0700) — EP-08, qui sert les différentiels.
 
 ## US-2370 — L'écran « Révisions » : l'historique et ses commandes seuls
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par EP-04, EP-07
   et EP-08
 - **opérations** : `listRevisions`, `getRevision`, `createRevision`, `abandonRevision`,
