@@ -225,6 +225,18 @@
       "description": "Description",
       "physicalProgress": "Physical progress",
       "gantt": "Gantt",
+      "deltaStartDate": "Start difference",
+      "deltaFinishDate": "Finish difference",
+      "deltaStartedOn": "Started-on difference",
+      "deltaCompletedOn": "Completed-on difference",
+      "deltaDuration": "Duration difference",
+      "deltaTotalFloat": "Float difference",
+      "deltaUnitDisbursement": "Unit disbursement difference",
+      "deltaBudgetedAmount": "Budgeted amount difference",
+      "deltaReferenceAmount": "Reference amount difference",
+      "deltaReestimatedAmount": "Re-estimated amount difference",
+      "deltaPreviousUnitDisbursement": "Previous unit disbursement difference",
+      "deltaPreviousReestimatedAmount": "Previous re-estimated difference",
       "updatedAt": "Last modified",
       "createdAt": "Created",
       "createdBy": "Created by",
@@ -248,6 +260,11 @@
       "passwordLink": "Setup link"
     },
     "computed": "Computed",
+    "compared": {
+      "base": "Base:",
+      "empty": "no value",
+      "days": "{days} d"
+    },
     "entry": {
       "none": "None",
       "codedChoice": "{code} — {label}",

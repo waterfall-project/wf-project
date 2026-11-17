@@ -316,6 +316,7 @@ export default async function RemainingPage({
             subprojects={subprojects}
             query={screen.query}
             preferences={screen.preferences}
+            comparing={screen.base?.chosen !== undefined}
             treeFilters={<TreeFilters breakdown={screen.breakdown} />}
           />
         </GridCard>

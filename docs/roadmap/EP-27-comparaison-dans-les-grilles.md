@@ -497,7 +497,7 @@ conséquence acceptée, que le Vérif ne dit pas (même décision).
 
 ## US-2340 — Les grilles de planning, de devis et de reste à engager marquent les écarts à la base, ligne par ligne et cellule par cellule, et la saisie y reste ouverte
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0150-A`
 - **opérations** : `compareRevisions`, `listNodes`, `updateTaskFacet`, `updateEstimateLine`,
   `setLineRemaining`, `setTaskProgress`, `setPredecessors`, `setNodeTracking`, `createNode`,
