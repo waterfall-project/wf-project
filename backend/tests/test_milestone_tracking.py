@@ -10,12 +10,12 @@ revision, and the refusals. The helpers are in ``milestone_tracking_support``; e
 checked against the contract by the client of the tests.
 """
 
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
-from indicators_support import clock_setter
+from indicators_support import clock_setter, marked
 from milestone_tracking_support import (
     DELIVERY,
     JULY_31,
@@ -171,6 +171,31 @@ def test_a_review_marked_the_eve_of_the_completion_gives_a_point_and_the_day_its
     project.clock(done)
     project.progress(STUDIES, "completed", done)
     review_at(project, done, JUNE_30, "v2")
+    found = milestone(project.diagram(done + timedelta(days=3)), STUDIES)
+    assert points(found) == [
+        (at_nine(eve), "2027-06-30"),
+        (f"{done.isoformat()}T00:00:00Z", done.isoformat()),
+    ]
+
+
+@pytest.mark.requirement("WF-IND-0090-A")
+def test_a_review_marked_at_midnight_sharp_of_the_completion_gives_no_point(
+    project: Project, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # « Un jalon terminé n’a plus de point après sa terminaison » : the boundary is the completion
+    # at midnight, universal time, and it belongs to the completion. A marking at 00:00:00 of the
+    # very day is not before it: it is not drawn, only the completion on the diagonal ends the
+    # line, which tells ``marked_at >= completed_on`` from ``marked_at > completed_on``.
+    eve = START
+    done = eve + timedelta(days=1)
+    review_at(project, eve, JUNE_30, "v1")
+    project.clock(done)
+    project.progress(STUDIES, "completed", done)
+    project.date(STUDIES, JUNE_30)
+    midnight = datetime(done.year, done.month, done.day, tzinfo=UTC)
+    monkeypatch.setattr("indicators_support.now", lambda: midnight)
+    # The instant of the marking is asserted: were the patch not applied, it would be nine o’clock.
+    assert marked(project.stage, project.tree.revision, "v2") == midnight
     found = milestone(project.diagram(done + timedelta(days=3)), STUDIES)
     assert points(found) == [
         (at_nine(eve), "2027-06-30"),

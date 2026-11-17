@@ -13,6 +13,7 @@ from datetime import UTC
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
+from waterfall.core.cost_settings.interface import plain_decimal
 from waterfall.core.indicator_settings.interface import index_zone
 
 if TYPE_CHECKING:
@@ -44,10 +45,6 @@ def money(amount: Decimal) -> str:
     return format(amount, "f")
 
 
-def _ratio(ratio: Decimal) -> str:
-    return format(ratio.normalize(), "f")
-
-
 def instant(at: datetime) -> str:
     """Give an instant as the contract writes it, in universal time."""
     return at.astimezone(UTC).isoformat().replace("+00:00", "Z")
@@ -55,7 +52,7 @@ def instant(at: datetime) -> str:
 
 def _computable(figure: Computable, *, in_cents: bool = False) -> dict[str, Any]:
     value = figure.value
-    shown = None if value is None else (money(value) if in_cents else _ratio(value))
+    shown = None if value is None else (money(value) if in_cents else plain_decimal(value))
     return {"is_computable": value is not None, "value": shown, "reason": figure.reason}
 
 
