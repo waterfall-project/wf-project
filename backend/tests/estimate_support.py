@@ -277,11 +277,13 @@ LAST_INSTANT = datetime(YEAR, 12, 31, 23, 59, 59, 999999, tzinfo=UTC)
 
 
 def monday_in(year: int) -> date:
-    """Give a Monday of the autumn of a year: that of the tests of the planning, moved whole weeks.
+    """Give a Monday of a year: that of the tests of the planning, moved whole weeks.
 
-    ``planning_support.DAY`` is where a tree starts its planning, in 2026; a task that must be
-    consumed in ``YEAR`` or two years later is placed on the Monday ``monday_in`` gives, working
-    whatever the year, where a date written in the test would fall on a day off.
+    ``planning_support.DAY`` is where a tree starts its planning: Monday 2 November 2026. Moved by
+    52 weeks a year, the date drifts a day or so earlier in the calendar each year, which does not
+    matter: it is a Monday, a working day, in the year asked. A task that must be consumed in
+    ``YEAR`` or two years later is placed on the Monday ``monday_in`` gives, working whatever the
+    year, where a date written in the test would fall on a day off.
     """
     return DAY + timedelta(weeks=52 * (year - DAY.year))
 
@@ -298,7 +300,9 @@ def task_in(year: int) -> dict[str, Any]:
 
 # The modules whose reading of the clock gives a year or a day that a test compares to ``YEAR``:
 # the year of a revision (the service, and the import that opens one), the day a structure starts
-# on or a review is dated, the day the plans and the indicators are read at.
+# on or a review is dated, the day the plans and the indicators are read at. ``api.lifecycle`` and
+# ``api.subprojects`` read the clock only to date what they write (``Act``): no revision is opened
+# through them, and none of their reads is a year or a day a test compares (#3739).
 CLOCKED = (
     "waterfall.api.revisions",
     "waterfall.api.nodes",
@@ -320,12 +324,13 @@ def pin_year(monkeypatch: pytest.MonkeyPatch) -> None:
     the service or by the import that opens it; the rates of ``costing`` are for ``YEAR``, read
     once. The clock of each module of ``CLOCKED`` still runs, but stops at ``LAST_INSTANT``, the
     last instant of ``YEAR``: an instant after midnight, when the run has crossed it, falls on
-    that one. A module whose clock is already set, by another fixture or by the test, keeps it,
-    and ``pin_year`` leaves it without a word: call it first when both are wanted.
+    that one. It runs before every test (the fixture ``pinned_year`` of ``conftest.py``), so that a
+    test or a fixture that sets a clock of its own sets it over this one; a clock already set when
+    it runs would be pinned over, or left, and fails the test instead.
     """
     for module in CLOCKED:
-        if import_module(module).utc_now is utc_now:
-            monkeypatch.setattr(f"{module}.utc_now", lambda: min(utc_now(), LAST_INSTANT))
+        assert import_module(module).utc_now is utc_now, f"the clock of {module} is already set"
+        monkeypatch.setattr(f"{module}.utc_now", lambda: min(utc_now(), LAST_INSTANT))
 
 
 @dataclass(frozen=True)

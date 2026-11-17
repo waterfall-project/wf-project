@@ -50,10 +50,9 @@ def site(
     owner: Engine,
     database: Database,
     realm: TestRealm,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> Site:
     """Give a platform, a project its manager made, its revision opened, and a role to load."""
-    return make_site(api, owner, database, realm, monkeypatch)
+    return make_site(api, owner, database, realm)
 
 
 @pytest.fixture

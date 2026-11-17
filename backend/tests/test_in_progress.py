@@ -11,7 +11,7 @@ project to In progress at the second fact. A participant writes a line and marks
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from estimate_support import Costing, Lines, costing, pin_year
+from estimate_support import Costing, Lines, costing
 from nodes_support import Tree, mark, opened
 from projects_support import PROJECTS, Person, Scene
 from projects_support import scene as make_scene
@@ -32,10 +32,8 @@ def stage(
     owner: Engine,
     database: Database,
     realm: TestRealm,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> Scene:
     """Give a platform, its sessions, and the project its manager made, without a code."""
-    pin_year(monkeypatch)
     return make_scene(api, owner, database, realm)
 
 

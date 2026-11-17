@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
-from estimate_support import Costing, Lines, costing, give_a_line, pin_year
+from estimate_support import Costing, Lines, costing, give_a_line
 from history_support import link
 from nodes_support import Tree, put_risk, refusal
 from planning_support import DAY
@@ -71,10 +71,8 @@ def stage(
     owner: Engine,
     database: Database,
     realm: TestRealm,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> Scene:
     """Give a platform, its sessions, and the project its manager made."""
-    pin_year(monkeypatch)
     return make_scene(api, owner, database, realm)
 
 

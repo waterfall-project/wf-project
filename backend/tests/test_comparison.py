@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
 import pytest
-from estimate_support import YEAR, Costing, Lines, costing, pin_year, task_in
+from estimate_support import YEAR, Costing, Lines, costing, task_in
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from nodes_support import Tree, opened, refusal, set_progress
@@ -68,10 +68,8 @@ def stage(
     owner: Engine,
     database: Database,
     realm: TestRealm,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> Scene:
     """Give a platform, its sessions, and the project its manager made."""
-    pin_year(monkeypatch)
     return make_scene(api, owner, database, realm)
 
 

@@ -17,7 +17,7 @@ from uuid import UUID
 import pytest
 from costs_support import cost, load_import
 from estimate_import_support import entry_of, project_of
-from estimate_support import LAST_INSTANT, YEAR, Costing, Lines, add_role, costing, pin_year
+from estimate_support import LAST_INSTANT, YEAR, Costing, Lines, add_role, costing
 from fastapi.testclient import TestClient
 from imports_trial import apply, import_worker, refusal, run, stored
 from nodes_support import Tree, entries, put_facts, set_progress
@@ -103,10 +103,8 @@ def stage(
     owner: Engine,
     database: Database,
     realm: TestRealm,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> Scene:
     """Give a platform, its sessions, and the project its manager made."""
-    pin_year(monkeypatch)
     return make_scene(api, owner, database, realm)
 
 

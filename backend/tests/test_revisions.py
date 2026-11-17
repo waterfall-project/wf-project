@@ -61,10 +61,8 @@ def stage(
     owner: Engine,
     database: Database,
     realm: TestRealm,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> Scene:
     """Give a platform whose reference is complete, its sessions, and a project its manager made."""
-    pin_year(monkeypatch)
     return make_scene(api, owner, database, realm)
 
 
@@ -864,3 +862,14 @@ def test_a_withdrawal_withdraws_its_registration_once() -> None:
     assert registry.entries() == ("tasks",)
     again()
     assert registry.entries() == ()
+
+
+def test_a_clock_already_set_when_the_year_is_pinned_is_refused_not_pinned_over(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # ``pinned_year`` has pinned the clocks before this test ran: pinning them again, as a fixture
+    # called in the wrong order would, says so, where it once left the clock without a word.
+    with pytest.raises(
+        AssertionError, match=r"the clock of waterfall\.api\.revisions is already set"
+    ):
+        pin_year(monkeypatch)
