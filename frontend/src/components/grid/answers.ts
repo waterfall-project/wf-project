@@ -19,7 +19,10 @@
  * `refresh` after a write elsewhere on the screen — keeps what was answered of a row while it is
  * newer than the row read anew, by the counter of the object written where the grid can tell
  * (`GridConfig.fresher`, `RowPart.versioned`); where it cannot, while the reading anew reads the row
- * as the one before did, the server having said nothing newer of it.
+ * as the one before did, the server having said nothing newer of it. A reading asked once the writes
+ * answered — a grid compared to a base reads its comparison anew (`askedAnew`) — is newer than every
+ * answer taken before it was asked, whatever their counters say: it takes their place, the marks it
+ * carries with it, and only the answers given since stay laid over it.
  *
  * Pure, and neither server nor client: the cells written keep one of these by address, and change
  * it in their callbacks alone — a render lays a copy over a reading anew (`copyAnswers`).
@@ -57,6 +60,11 @@ export interface Answers<Row, Totals> {
   latest: number;
   /** The rows of the reading by their key, made at the first answer that needs it. */
   index: ReadonlyMap<string, Row> | undefined;
+  /**
+   * For each reading asked anew once the writes answered and not read yet, in the order asked, the
+   * place of the latest answer taken when it was asked: the reading takes the place of those.
+   */
+  readonly asked: number[];
 }
 
 /** No answer yet in a reading, and its totals. */
@@ -73,7 +81,16 @@ export function answersOf<Row, Totals>(
     totals: undefined,
     latest: Number.NEGATIVE_INFINITY,
     index: undefined,
+    asked: [],
   };
+}
+
+/**
+ * Note that the reading is asked anew once the writes answered: the next reading anew takes the
+ * place of every answer taken so far (`reread`).
+ */
+export function askedAnew<Row, Totals>(answers: Answers<Row, Totals>): void {
+  answers.asked.push(answers.latest);
 }
 
 /** Whether an answer at a place comes after what was answered before, if anything was. */
@@ -241,6 +258,7 @@ export function copyAnswers<Row, Totals>(answers: Answers<Row, Totals>): Answers
     rows: new Map(answers.rows),
     writtenBy: new Map(answers.writtenBy),
     parts: new Map(answers.parts),
+    asked: [...answers.asked],
   };
 }
 
@@ -249,14 +267,20 @@ export function copyAnswers<Row, Totals>(answers: Answers<Row, Totals>): Answers
  * wrote: `false` once one of them reads anew at least as new — the reading caught up with it —,
  * `true` while one is newer by its counter, `undefined` when the counters say nothing.
  */
-type Verdicts = ReadonlyMap<number, boolean | undefined>;
+interface Verdicts {
+  readonly get: (order: number) => boolean | undefined;
+}
 
-/** Judge each answer by the rows it wrote against those read anew. */
+/**
+ * Judge each answer by the rows it wrote against those read anew; an answer no later than the place
+ * a reading asked anew took (`outdated`) is caught up with, whatever its rows.
+ */
 function verdictsOf<Row, Totals>(
   answers: Answers<Row, Totals>,
   now: ReadonlyMap<string, Row>,
   rowKey: (row: Row) => string,
   fresher: Fresher<Row> | undefined,
+  outdated: number,
 ): Verdicts {
   const verdicts = new Map<number, boolean | undefined>();
   for (const [order, rows] of answers.writtenBy) {
@@ -266,7 +290,9 @@ function verdictsOf<Row, Totals>(
     });
     verdicts.set(order, said.includes(false) ? false : said.includes(true) ? true : undefined);
   }
-  return verdicts;
+  return {
+    get: (order) => (order <= outdated ? false : verdicts.get(order)),
+  };
 }
 
 /**
@@ -294,7 +320,7 @@ function rereadRow<Row, Totals>(
     answers.rows.delete(key);
   }
   const kept = parts.filter((part) =>
-    part.versioned
+    part.versioned && verdicts.get(part.order) !== false
       ? part.value(read) !== read
       : (verdicts.get(part.order) ?? (whole === undefined ? unchanged : keepWhole)),
   );
@@ -335,7 +361,10 @@ function forget<Row, Totals>(answers: Answers<Row, Totals>): void {
  * before did, the server having said nothing newer of it: a write answered before the reading
  * caught up, or the fake back, which keeps nothing. A part that judges by its own counter stays while
  * it changes the row read anew. A row the reading anew no longer holds is let go. A later answer
- * still prevails over an earlier one for the same row, as when they were taken.
+ * still prevails over an earlier one for the same row, as when they were taken. The reading asked
+ * anew once the writes answered (`askedAnew`), the first awaited, catches up with every answer taken
+ * before it was asked, whatever the counters say — a summary recalculated keeps its version, and
+ * would keep out the marks of a comparison its answer does not carry.
  */
 export function reread<Row, Totals>(
   answers: Answers<Row, Totals>,
@@ -348,7 +377,9 @@ export function reread<Row, Totals>(
     return;
   }
   const now = new Map(reading.map((row) => [rowKey(row), row]));
-  const judge = { rowKey, fresher, verdicts: verdictsOf(answers, now, rowKey, fresher) };
+  // The first reading asked anew once the writes answered, if one is awaited, is this one.
+  const outdated = answers.asked.shift() ?? Number.NEGATIVE_INFINITY;
+  const judge = { rowKey, fresher, verdicts: verdictsOf(answers, now, rowKey, fresher, outdated) };
   for (const key of new Set([...answers.rows.keys(), ...answers.parts.keys()])) {
     rereadRow(answers, key, now.get(key), judge);
   }

@@ -494,7 +494,10 @@ describe("the row of a run, its keys and its places", () => {
       ),
     };
     rerender(grid(shown(false, reading)));
-    expect(labels()).toEqual([...summaries, ...written]);
+    // The comparison read anew once the paste answered takes the place of what it answered
+    // (US-2340): the summaries above, unchanged, fold away, as above a row renamed; the rows
+    // written stay in view.
+    expect(labels()).toEqual(written);
   });
 
   it.each<[FoldReach, string]>([

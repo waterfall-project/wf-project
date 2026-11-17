@@ -19,8 +19,9 @@
  * A grid that compares — the planning, the estimate, the remaining to commit — reads the comparison of
  * its revision to the base its address names (`base_revision_id`, `compareRevisions`) in place of its
  * structure, when it reads the main one, with the same filters, the same sort, the same search and the
- * same fields: its rows bear the mark of a differential (US-2330); on another structure, it reads its
- * structure, compared to nothing. A base that is no marked revision of the project is refused by the
+ * same fields: its rows bear the mark of a differential (US-2330) — and, for the remaining to commit,
+ * every node in difference its progress filter leaves out besides (`include_differences`, US-2340);
+ * on another structure, it reads its structure, compared to nothing. A base that is no marked revision of the project is refused by the
  * API, and said as any refusal of a read: a revision of another project is not found, a revision under
  * way is an unexpected answer (`readOrFail`), never a grid half read.
  */
@@ -142,6 +143,13 @@ export interface GridReading<N extends NodeField, T extends TaskField, L extends
    * started unless the address asks more (WF-RAE-0040) —; every task when none is given.
    */
   readonly progress?: NonNullable<NodeFilters["progress"]>;
+  /**
+   * Whether a comparison read for the grid retains besides, under `progress`, every node in
+   * difference that it leaves out (`include_differences`) — the remaining to commit, where a line in
+   * difference of a task not started is shown unasked (WF-IHM-0150) —; not, when none is given, nor
+   * out of a comparison.
+   */
+  readonly exposesDifferences?: boolean;
   /**
    * What the server is to select of the tasks for a view that is not a grid — the summaries down
    * to a level for the task tree, the tasks of a timeline (#463) —, the view selecting nothing.
@@ -317,6 +325,7 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
     narrowed,
     chooses = false,
     byDifference = false,
+    exposesDifferences = false,
   }: GridReading<N, T, L>,
   breakdown: BreakdownFilter | undefined,
   requested: Promise<OriginFilter | undefined>,
@@ -368,6 +377,7 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
               from_revision_id: base,
               to_revision_id: revision.revisionId,
               ...asks(filters),
+              ...(exposesDifferences ? { include_differences: true } : {}),
             },
           },
         });

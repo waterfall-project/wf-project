@@ -45,7 +45,7 @@
 "use client";
 
 import type { RowData } from "@tanstack/react-table";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import {
   Fragment,
@@ -271,6 +271,20 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>(
   );
 }
 
+/**
+ * How a grid reads its screen anew once its writes answered (`CellRules.reread`): compared to a
+ * base, whose marks no write answers (US-2340), by `router.refresh`; out of a comparison, never —
+ * the answers alone, as EP-02 has it.
+ */
+function useComparedReread(comparing: boolean | undefined): (() => void) | undefined {
+  const router = useRouter();
+  return comparing === true
+    ? () => {
+        router.refresh();
+      }
+    : undefined;
+}
+
 /** Render a dense grid, the address last asked shared. */
 function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   config: given,
@@ -426,7 +440,12 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   const address = `${pathname}?${useSearchParams().toString()}`;
   // Each write a cell or a paste sends is one the commands of the screen wait for (#1224).
   const writing = writingOf(commands);
-  const writes = useCellWrites<Row, Totals>({ address, rows, totals }, config, writing);
+  const reread = useComparedReread(config.comparing);
+  const writes = useCellWrites<Row, Totals>(
+    { address, rows, totals },
+    { rowKey: config.rowKey, retotal: config.retotal, fresher: config.fresher, reread },
+    writing,
+  );
   // A write of a cell lost once sent: the grid is read anew, and takes no entry until it is back
   // (US-2240). The settings written are read anew too, which no entry waits for.
   const readingCells = useReadAnew(writes.outcome);

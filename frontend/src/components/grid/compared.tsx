@@ -20,7 +20,7 @@ import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
 import { useCurrency } from "@/currency/context";
-import { formatDecimal, formatShare } from "@/i18n/format";
+import { formatDecimal, formatPlanningDate, formatShare } from "@/i18n/format";
 
 import {
   formatCell,
@@ -34,56 +34,77 @@ import { PredecessorLinks } from "./planning-cells";
 
 /** A duration, in the unit of its entry (WF-PLA-0160). */
 type Duration = components["schemas"]["Duration"];
+type WorkInstant = components["schemas"]["WorkInstant"];
+type Computable = components["schemas"]["Computable"];
+type SchedulingMode = components["schemas"]["SchedulingMode"];
+type TaskProgress = components["schemas"]["TaskProgress"];
+type Predecessor = components["schemas"]["Predecessor"];
 
 /**
- * The facets of the base of a node and of its differences, as the contract gives them: the fields a
- * column names are keys of these types, so that a field renamed in the contract is a failure of the
- * type — never a cell left without its mark, unsaid.
+ * The facets of the base of a node and of its differences, as the contract gives them
+ * (`ComparedNodeRead.base`, `deltas`): a column reads its field by a key of these types, and its
+ * value by the type the contract gives it, down to the access — a field renamed or retyped in the
+ * contract is a failure of the type, never a cell left without its mark, unsaid (#3781).
  */
 type TaskBase = components["schemas"]["ComparedTaskFacet"];
 type LineBase = components["schemas"]["ComparedEstimateLineFacet"];
 type TaskDeltas = components["schemas"]["TaskDeltas"];
 type LineDeltas = components["schemas"]["EstimateLineDeltas"];
 
-/** How the base of a cell is shown, from what the contract gives of the field. */
-type Shown = "plain" | "instant" | "duration" | "mode" | "progress" | "share" | "predecessors";
+/** The fields of a facet whose value, when it has one, is of a type. */
+export type FieldsOf<Facet, Value> = {
+  [Key in keyof Facet]-?: NonNullable<Facet[Key]> extends Value ? Key : never;
+}[keyof Facet];
 
-/** The field of a node a column shows, in the base of a task and of a line, and how it is shown. */
-interface BaseField {
-  readonly task?: keyof TaskBase;
-  readonly line?: keyof LineBase;
-  readonly shown?: Shown;
-}
+/** A value shown by the format of its column: a text, a decimal, an amount, a date. */
+type Plain = string | number;
+
+/**
+ * The field of a node a column shows, in the base of a task and of a line, and how it is shown: the
+ * field a key whose value has the type its showing reads.
+ */
+type BaseField =
+  | {
+      readonly shown: "plain";
+      readonly task?: FieldsOf<TaskBase, Plain>;
+      readonly line?: FieldsOf<LineBase, Plain>;
+    }
+  | { readonly shown: "instant"; readonly task: FieldsOf<TaskBase, WorkInstant> }
+  | { readonly shown: "duration"; readonly task: FieldsOf<TaskBase, Duration> }
+  | { readonly shown: "share"; readonly task: FieldsOf<TaskBase, Computable> }
+  | { readonly shown: "mode"; readonly task: FieldsOf<TaskBase, SchedulingMode> }
+  | { readonly shown: "progress"; readonly task: FieldsOf<TaskBase, TaskProgress> }
+  | { readonly shown: "predecessors" };
 
 /** The fields that a column of the grids shows, by the key of the column. */
 const BASE_FIELDS: Readonly<Record<string, BaseField>> = {
-  label: { task: "label", line: "label" },
-  description: { task: "description" },
-  scheduling_mode: { task: "scheduling_mode", shown: "mode" },
-  duration: { task: "duration", shown: "duration" },
-  start: { task: "start", shown: "instant" },
-  finish: { task: "finish", shown: "instant" },
-  progress: { task: "progress", shown: "progress" },
-  physical_progress: { task: "physical_progress", shown: "share" },
-  total_float: { task: "total_float", shown: "duration" },
-  started_on: { task: "started_on" },
-  completed_on: { task: "completed_on" },
+  label: { shown: "plain", task: "label", line: "label" },
+  description: { shown: "plain", task: "description" },
+  scheduling_mode: { shown: "mode", task: "scheduling_mode" },
+  duration: { shown: "duration", task: "duration" },
+  start: { shown: "instant", task: "start" },
+  finish: { shown: "instant", task: "finish" },
+  progress: { shown: "progress", task: "progress" },
+  physical_progress: { shown: "share", task: "physical_progress" },
+  total_float: { shown: "duration", task: "total_float" },
+  started_on: { shown: "plain", task: "started_on" },
+  completed_on: { shown: "plain", task: "completed_on" },
   predecessors: { shown: "predecessors" },
-  work_breakdown: { task: "work_breakdown_label" },
-  cost_category: { line: "cost_category_label" },
-  resource_role: { line: "resource_role_label" },
-  quantity: { line: "quantity" },
-  hours: { line: "hours" },
-  unit_disbursement: { line: "unit_disbursement" },
-  subproject: { line: "subproject_label" },
-  payment_delay_days: { line: "payment_delay_days" },
-  base_amount: { task: "base_amount", line: "base_amount" },
-  budgeted_amount: { task: "budgeted_amount", line: "budgeted_amount" },
-  reestimated_amount: { task: "reestimated_amount", line: "reestimated_amount" },
-  previous_quantity: { line: "previous_quantity" },
-  previous_hours: { line: "previous_hours" },
-  previous_unit_disbursement: { line: "previous_unit_disbursement" },
-  previous_reestimated_amount: { line: "previous_reestimated_amount" },
+  work_breakdown: { shown: "plain", task: "work_breakdown_label" },
+  cost_category: { shown: "plain", line: "cost_category_label" },
+  resource_role: { shown: "plain", line: "resource_role_label" },
+  quantity: { shown: "plain", line: "quantity" },
+  hours: { shown: "plain", line: "hours" },
+  unit_disbursement: { shown: "plain", line: "unit_disbursement" },
+  subproject: { shown: "plain", line: "subproject_label" },
+  payment_delay_days: { shown: "plain", line: "payment_delay_days" },
+  base_amount: { shown: "plain", task: "base_amount", line: "base_amount" },
+  budgeted_amount: { shown: "plain", task: "budgeted_amount", line: "budgeted_amount" },
+  reestimated_amount: { shown: "plain", task: "reestimated_amount", line: "reestimated_amount" },
+  previous_quantity: { shown: "plain", line: "previous_quantity" },
+  previous_hours: { shown: "plain", line: "previous_hours" },
+  previous_unit_disbursement: { shown: "plain", line: "previous_unit_disbursement" },
+  previous_reestimated_amount: { shown: "plain", line: "previous_reestimated_amount" },
 };
 
 /** What a difference is: a number of calendar days, a duration, an amount. */
@@ -115,79 +136,127 @@ const DELTAS: readonly Delta[] = [
   { field: "previous_reestimated_amount", label: "deltaPreviousReestimatedAmount", kind: "money" },
 ];
 
-/** The value of a field of an object that is read by its name alone. */
-type Fields = Readonly<Record<string, unknown>>;
-
-/** Whether a value is an object, which a guard may read the fields of. */
-function isObject(value: unknown): value is Fields {
-  return typeof value === "object" && value !== null;
-}
-
 /** Whether a value is a duration: a quantity in a unit. */
 function isDuration(value: unknown): value is Duration {
-  return isObject(value) && typeof value.value === "string" && typeof value.unit === "string";
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const { value: quantity, unit } = value as Partial<Record<keyof Duration, unknown>>;
+  return typeof quantity === "string" && typeof unit === "string";
 }
 
-/** Whether a value is a figure that may not be computable. */
-function isComputable(value: unknown): value is components["schemas"]["Computable"] {
-  return isObject(value) && typeof value.is_computable === "boolean";
+/**
+ * What the base of a node carried of a field, typed as the contract types it, and how it is shown;
+ * `empty` for a base that held no value of it — never for one it holds malformed, which its showing
+ * fails on rather than say nothing (#3781).
+ */
+type BaseHeld =
+  | { readonly shown: "empty" }
+  | { readonly shown: "plain"; readonly value: Plain }
+  | { readonly shown: "instant"; readonly value: WorkInstant }
+  | { readonly shown: "duration"; readonly value: Duration }
+  | { readonly shown: "share"; readonly value: Computable }
+  | { readonly shown: "mode"; readonly value: SchedulingMode }
+  | { readonly shown: "progress"; readonly value: TaskProgress }
+  | { readonly shown: "predecessors"; readonly value: readonly Predecessor[] };
+
+/** What a base held of a field, if it holds the field: its value, as the contract types it. */
+function carried<Facet extends object, Key extends keyof Facet>(
+  facet: Facet | undefined,
+  field: Key | undefined,
+): { readonly value: Facet[Key] } | undefined {
+  return facet === undefined || field === undefined || !Object.hasOwn(facet, field)
+    ? undefined
+    : { value: facet[field] };
 }
 
-/** The base of a date, of a duration or of a share. */
-function BaseMeasure({ shown, value }: { readonly shown: Shown; readonly value: unknown }) {
-  const t = useTranslations();
-  const locale = useLocale();
-  if (shown === "instant") {
-    return isObject(value) && typeof value.date === "string"
-      ? formatCell("date", value.date, locale)
-      : t("grid.compared.empty");
+/** A base that held no value of a field. */
+const EMPTY: BaseHeld = { shown: "empty" };
+
+/** What a base held of a field it holds, empty when it held no value. */
+function filled<Value>(
+  held: { readonly value: Value | null | undefined } | undefined,
+  shown: (value: Value) => BaseHeld,
+): BaseHeld | undefined {
+  if (held === undefined) {
+    return undefined;
   }
-  if (shown === "duration" && isDuration(value)) {
-    return t("planningGrid.duration", {
-      value: formatDecimal(value.value, locale),
-      unit: t(`enums.DurationUnit.${value.unit}`),
-    });
-  }
-  if (shown === "duration") {
-    return t("grid.compared.empty");
-  }
-  return isComputable(value) && value.is_computable && value.value !== null
-    ? formatShare(value.value, locale, (key, values) => t(`share.${key}`, values))
-    : t("indicator.notComputable");
+  const { value } = held;
+  return value === null || value === undefined || value === "" ? EMPTY : shown(value);
 }
 
-/** The value the base of a cell carried, as the cell would have shown it. */
-function BaseValue({
-  shown,
-  format,
-  value,
-}: {
-  readonly shown: Shown;
-  readonly format: CellFormat;
-  readonly value: unknown;
-}) {
+/**
+ * What the base of a node held of the field of a column; none when it does not hold the field: the
+ * cell does not differ.
+ */
+function heldOf(spec: BaseField, row: GridNode): BaseHeld | undefined {
+  const { base } = row;
+  if (base === null || base === undefined) {
+    return undefined;
+  }
+  const task = row.kind === "task" ? base.task : undefined;
+  const line = row.kind === "task" ? undefined : base.estimate_line;
+  switch (spec.shown) {
+    case "predecessors":
+      return filled(carried(base, "predecessors"), (value) => ({ shown: spec.shown, value }));
+    case "plain":
+      return filled(carried(task, spec.task) ?? carried(line, spec.line), (value) => ({
+        shown: spec.shown,
+        value,
+      }));
+    case "instant":
+      return filled(carried(task, spec.task), (value) => ({ shown: spec.shown, value }));
+    case "duration":
+      return filled(carried(task, spec.task), (value) => ({ shown: spec.shown, value }));
+    case "share":
+      return filled(carried(task, spec.task), (value) => ({ shown: spec.shown, value }));
+    case "mode":
+      return filled(carried(task, spec.task), (value) => ({ shown: spec.shown, value }));
+    case "progress":
+      return filled(carried(task, spec.task), (value) => ({ shown: spec.shown, value }));
+  }
+}
+
+/**
+ * The value the base of a cell carried, as the cell would have shown it. A value is read as the
+ * contract types it: one malformed fails here — a date that is no date, a decimal that is none —,
+ * never shown as a base that held nothing (#3781).
+ */
+function BaseValue({ held, format }: { readonly held: BaseHeld; readonly format: CellFormat }) {
   const t = useTranslations();
   const locale = useLocale();
   const currency = useCurrency();
-  if (value === null || value === undefined || value === "") {
-    return t("grid.compared.empty");
-  }
-  switch (shown) {
+  switch (held.shown) {
+    case "empty":
+      return t("grid.compared.empty");
     case "instant":
+      return formatPlanningDate(held.value.date, locale, "short");
     case "duration":
+      return t("planningGrid.duration", {
+        value: formatDecimal(held.value.value, locale),
+        unit: t(`enums.DurationUnit.${held.value.unit}`),
+      });
     case "share":
-      return <BaseMeasure shown={shown} value={value} />;
+      return held.value.is_computable
+        ? formatShare(computedShare(held.value), locale, (key, values) => t(`share.${key}`, values))
+        : t("indicator.notComputable");
     case "mode":
-      return t(`enums.SchedulingMode.${value as components["schemas"]["SchedulingMode"]}`);
+      return t(`enums.SchedulingMode.${held.value}`);
     case "progress":
-      return t(`enums.TaskProgress.${value as components["schemas"]["TaskProgress"]}`);
+      return t(`enums.TaskProgress.${held.value}`);
     case "predecessors":
-      return Array.isArray(value) ? <PredecessorLinks links={value} /> : t("grid.compared.empty");
+      return <PredecessorLinks links={held.value} />;
     case "plain":
-      return typeof value === "string" || typeof value === "number"
-        ? formatCell(format, String(value), locale, currency)
-        : t("grid.compared.empty");
+      return formatCell(format, String(held.value), locale, currency);
   }
+}
+
+/** The value of a share the server says computable, which the contract then gives. */
+function computedShare({ value }: Computable): string {
+  if (value === null) {
+    throw new RangeError("A share said computable carries no value");
+  }
+  return value;
 }
 
 /**
@@ -195,23 +264,9 @@ function BaseValue({
  * the base does not hold the field: the cell does not differ.
  */
 function baseOf(spec: BaseField, format: CellFormat): (row: GridNode) => ReactNode {
-  const shown = spec.shown ?? "plain";
   return function baseOfRow(row) {
-    const { base } = row;
-    if (base === null || base === undefined) {
-      return undefined;
-    }
-    if (shown === "predecessors") {
-      return Object.hasOwn(base, "predecessors") ? (
-        <BaseValue shown={shown} format={format} value={base.predecessors} />
-      ) : undefined;
-    }
-    const facet: Fields | undefined = row.kind === "task" ? base.task : base.estimate_line;
-    const field = row.kind === "task" ? spec.task : spec.line;
-    if (facet === undefined || field === undefined || !Object.hasOwn(facet, field)) {
-      return undefined;
-    }
-    return <BaseValue shown={shown} format={format} value={facet[field]} />;
+    const held = heldOf(spec, row);
+    return held === undefined ? undefined : <BaseValue held={held} format={format} />;
   };
 }
 

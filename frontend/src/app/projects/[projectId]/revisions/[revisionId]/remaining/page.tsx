@@ -9,7 +9,9 @@
  * structure of the revision, its tasks and their lines, asked and handed the fields it shows alone
  * (`grid-screen.ts`), the lines of the tasks started alone unless the address asks the tasks not
  * started too (`progress`), which a link of its head offers, and filtered by a lot or a post of the
- * work breakdown read whole, above it, as the estimate's (WF-RAE-0040). The grid is entered from
+ * work breakdown read whole, above it, as the estimate's (WF-RAE-0040). Compared to a base, it shows
+ * besides every line in difference, whatever its task, unasked (`include_differences`,
+ * WF-IHM-0150). The grid is entered from
  * the keyboard, its tasks and its lines created and deleted, and places undo and redo, when the
  * structure lists `edit_remaining` available to the caller (US-0140, WF-RAE-0040): before the
  * project is in progress it lists it unavailable, and the grid is read only. The categories and
@@ -266,6 +268,7 @@ export default async function RemainingPage({
     sortable: REMAINING_SORT_COLUMNS,
     fields: REMAINING_FIELDS,
     progress: [...progress],
+    exposesDifferences: true,
     byBreakdown: true,
   }).then(async (read) => {
     const entered = read.commands.has("edit_remaining");

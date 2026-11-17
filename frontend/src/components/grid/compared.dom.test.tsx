@@ -3,14 +3,17 @@
 import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { ApiClient } from "@/api/client";
+import type { components } from "@/api/generated/schema";
 import { example, fakeClient } from "@/test/fixtures";
 import { allShown, keysOf, PREFERENCES } from "@/test/grid-preferences";
 import { estimateReference } from "@/test/reference";
 
+import { comparedGrid, type FieldsOf } from "./compared";
 import { PLANNING_GRID } from "./planning";
 import { REMAINING_GRID } from "./remaining";
 import { ESTIMATE_FIELDS } from "./estimate";
@@ -432,5 +435,48 @@ describe("the grid of the remaining to commit on a comparison", () => {
     expect(cells.every((cell) => cell.getAttribute("aria-readonly") === "true")).toBe(true);
     // The previous remaining to commit the base had none of: said, not left blank.
     expect(screen.getAllByText(/Base : aucune valeur/).length).toBeGreaterThan(0);
+  });
+});
+
+describe("the base of a cell, read as the contract types it (#3781)", () => {
+  type TaskBase = components["schemas"]["ComparedTaskFacet"];
+  type Instant = components["schemas"]["WorkInstant"];
+  type Duration = components["schemas"]["Duration"];
+  const finish = comparedGrid(PLANNING_GRID, true).columns.find(
+    (column) => column.key === "finish",
+  );
+  const design = projectNodes(compared, PLANNING_FIELDS, PLANNING_KINDS).items.find(
+    (node) => node.task?.label === DESIGN,
+  ) as PlanningNode;
+
+  /** The base of the finish of the design file, as its cell says it, the base given. */
+  function finishBase(base: unknown): string {
+    // A base the contract would not give is the point of the test: it is cast, not invented whole.
+    const row = { ...design, base } as PlanningNode;
+    return renderToStaticMarkup(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        {finish?.base?.(row)}
+      </NextIntlClientProvider>,
+    );
+  }
+
+  it("reads the date of the base as the contract types it, and a base that held none as none", () => {
+    expect(finishBase(PUSHED.base)).toBe("17/04/2026");
+    expect(finishBase({ task: { finish: null } })).toBe("aucune valeur");
+    // A base that does not hold the field: the cell does not differ.
+    expect(finishBase({ task: { start: null } })).toBe("");
+  });
+
+  it("fails on a base malformed rather than say it held nothing", () => {
+    // The finish of the base given as a bare date, the shape of `started_on`, not a work instant.
+    expect(() => finishBase({ task: { finish: "2026-04-17" } })).toThrow(RangeError);
+    expect(() => finishBase({ task: { finish: { hours: "8" } } })).toThrow(RangeError);
+  });
+
+  it("names the fields a showing reads by the types of the contract", () => {
+    // A field renamed or retyped in the contract leaves these, and the configuration of the base
+    // of the columns fails to compile.
+    expectTypeOf<FieldsOf<TaskBase, Instant>>().toEqualTypeOf<"start" | "finish">();
+    expectTypeOf<FieldsOf<TaskBase, Duration>>().toEqualTypeOf<"duration" | "total_float">();
   });
 });
