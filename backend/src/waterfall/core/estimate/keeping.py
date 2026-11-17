@@ -37,7 +37,13 @@ from waterfall.core.cost_settings.interface import category_labels
 from waterfall.core.estimate.costing import held_rates, reference_rates
 from waterfall.core.estimate.pricing import CENT, inflation_factor
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
-from waterfall.core.planning.interface import Holding, lines_of_revision, reschedule, structures_of
+from waterfall.core.planning.interface import (
+    Holding,
+    lines_of_revision,
+    refused_at,
+    reschedule,
+    structures_of,
+)
 from waterfall.core.projects.interface import project_facts
 from waterfall.core.revisions.interface import (
     RatesToUpdate,
@@ -65,6 +71,8 @@ PROJECTED = "projected"
 REFERENCE_RATE = "reference_rate"
 INFLATED_PREVIOUS = "inflated_previous"
 UNKNOWN_COST_CATEGORY = "UNKNOWN_COST_CATEGORY"
+# The field of ``applyRateUpdate`` that names the categories accepted.
+CATEGORIES = "/cost_category_ids"
 # The precision a projection is computed at, before its rounding to the cent.
 PRECISION = 60
 
@@ -311,7 +319,7 @@ def _faults(sent: tuple[UUID, ...], proposal: RateProposal) -> list[FieldError]:
     faults: list[FieldError] = []
     seen: set[UUID] = set()
     for rank, category in enumerate(sent):
-        pointer = f"/cost_category_ids/{rank}"
+        pointer = f"{CATEGORIES}/{rank}"
         if category not in shown:
             faults.append(FieldError(pointer, UNKNOWN_COST_CATEGORY))
         elif category in seen:
@@ -327,7 +335,9 @@ def apply_update(session: Session, project_id: UUID, update: RateUpdate, act: Ac
     Framed by the revision (``update_rates``): 404, 412, 409 first; then a category the proposal
     does not present is refused (422), nothing written; the contract asks one at least. A category
     accepted whose rate proposed is the rate projected (``inflated_previous``) is left as it is:
-    projected, and proposed still (#2619).
+    projected, and proposed still (#2619). A line priced again past the digits of its amounts is
+    refused at the categories accepted, which carry the change (422, ``/cost_category_ids``,
+    #3401), nothing written.
     """
 
     def write(rating: RevisionRating) -> None:
@@ -345,7 +355,8 @@ def apply_update(session: Session, project_id: UUID, update: RateUpdate, act: Ac
             if category in proposed:
                 row.amount, row.origin = proposed[category], REFERENCE
         session.flush()
-        reprice_revision(session, (project_id, rating.revision_id), act.at, frozenset(proposed))
+        with refused_at((CATEGORIES,)):
+            reprice_revision(session, (project_id, rating.revision_id), act.at, frozenset(proposed))
 
     update_rates(
         session, project_id, RatesToUpdate(update.revision_id, update.lock_version), act, write
