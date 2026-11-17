@@ -12053,6 +12053,32 @@ navigation, et ses commandes par leurs permissions. Le refus d'un compte qui ne 
 permissions ne change pas. Réalisé par US-2320/L2 et L3. Écartée : `compareRevisions` seul
 ouvert, qui laissait le Vérif de WF-REV-0080 non constaté sur l'écran.
 
+### Les révisions lues par qui consulte une grille, l'image figée par qui consulte les révisions (US-2320/L2, #3493)
+
+WF-REV-0080-A veut qu'« un utilisateur qui consulte le planning sans consulter les révisions y
+active une comparaison » : le bandeau d'une grille lit l'historique, la révision ouverte et ses
+structures pour ouvrir la grille et choisir sa base, trois lectures que seule `revisions.read`
+ouvrait. Conception d'EP-27 (« Les gardes ») : **`listRevisions`, `getRevision` et
+`listCostStructures` demandent `revisions.read`, ou l'une de `planning.read`, `estimate.read`,
+`remaining.read`** ; qui n'en porte aucune est refusé comme avant, par le 404 de `revisions.read`,
+et la qualité sur le projet se juge comme avant. Les écritures et les commandes d'une révision ne
+changent pas : `createRevision`, `markRevision` et `abandonRevision` demandent toujours
+`revisions.read` d'abord, puis leur permission, et la fonction « Gestion des révisions » reste
+gardée par `revisions.read` dans la navigation. `available_commands` suit les permissions de son
+lecteur comme avant : un lecteur d'une grille seule n'y trouve que les exports que sa permission
+garde (`export_planning` et `export_task_tree_image` pour `planning.read`, `export_estimate`,
+`export_remaining`), que `requestExport` juge sans `revisions.read`. Décision de l'auteur du
+2026-11-17 (option 1 de #3493) : **l'image figée d'une révision marquée (`Revision.snapshot`) n'est
+rendue par `getRevision` qu'à qui porte `revisions.read`** ; un lecteur d'une grille seule lit la
+révision marquée sans elle. Elle porte les taux horaires, les rôles, les calendriers et les
+catégories de coût, leur code comptable compris, que `cost_settings.read` et ses pareilles gardent
+ailleurs : ce chemin ne les ouvre pas, et la grille n'en a pas besoin pour s'ouvrir ni choisir sa
+base. Aucune forme ne change : `snapshot` n'est pas exigé, et son omission vaut ici comme pour la
+révision en cours. Les gardes de `compareRevisions` (l'une des trois permissions des grilles, au
+lieu de `estimate.read`) viennent avec US-2320/L3. `info.version` reste `1.0.0`. Écartée : l'image
+figée à tout lecteur d'une grille (option 2), qui ouvrait les taux à un compte sans
+`cost_settings.read`.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

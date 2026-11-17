@@ -7,18 +7,21 @@ with the quality on its project each asks for besides (``ON_PROJECT``, declared 
 """
 
 CONSULT = "revisions.read"
+# One at least of which a reading of the revisions asks for: theirs, or that of one of the three
+# grids, which read them in their banner (US-2320).
+READERS = (CONSULT, "planning.read", "estimate.read", "remaining.read")
 
 # The permissions each operation asks for, in the order they are evaluated: the history, a
-# revision and its structures are read by the holder of the permission to consult the revisions,
-# a revision is opened by the holder of the permission to manage them, and marked or abandoned by
-# the holder of the permission of that action, a structuring action (WF-ADM-0100).
+# revision and its structures are read by the holder of the permission to consult the revisions or
+# one of the grids, a revision is opened by the holder of the permission to manage them, and marked
+# or abandoned by the holder of the permission of that action, a structuring action (WF-ADM-0100).
 ASKED: dict[str, tuple[str, ...]] = {
-    "listRevisions": (CONSULT,),
+    "listRevisions": READERS,
     "createRevision": (CONSULT, "revisions.write"),
-    "getRevision": (CONSULT,),
+    "getRevision": READERS,
     "abandonRevision": (CONSULT, "revision_abandon"),
     "markRevision": (CONSULT, "revision_mark"),
-    "listCostStructures": (CONSULT,),
+    "listCostStructures": READERS,
 }
 # The quality on its project each operation that names one asks for, evaluated by
 # ``RequiresProject``: ``consultation`` — its contributor, or holding ``all_projects_read`` —,
