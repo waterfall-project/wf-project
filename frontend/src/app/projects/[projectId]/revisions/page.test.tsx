@@ -621,6 +621,16 @@ describe("the address of the screen of the revisions", () => {
     });
   });
 
+  it("fails as any read does when the API answers an error for the history, which the banner shares", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions": { problem: { code: "INTERNAL_ERROR", status: 500 } },
+    };
+    await expect(RevisionsPage(at({ revision_id: DRAFT }))).rejects.toBeInstanceOf(
+      UnexpectedAnswer,
+    );
+  });
+
   it("is not found at an address that names no project, before the API is asked", async () => {
     const page = RevisionsPage({
       params: Promise.resolve({ projectId: "a.b" }),

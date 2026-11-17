@@ -7,7 +7,7 @@
  * marked ones, as `compareRevisions` gives it — « Écarts seulement » retaining the differences
  * alone, said in the banner (US-0700) —, read whole and reduced by `fields` to what the grid of the
  * comparison shows (US-0500, #1201) — the history read whole, whatever the server pages
- * (`readEveryPage`, #303), so that the comparison offers every marked revision —; and, of the
+ * (`listProjectRevisions`, #303), so that the comparison offers every marked revision —; and, of the
  * revision the address carries, its cost structures and — for the current revision, the one a rate
  * update would apply to — the rate update the API proposes. The ergonomics gathers the leaves of
  * the function on one screen.
@@ -31,7 +31,6 @@
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 
-import { readEveryPage } from "@/api/every-page";
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { findOffer } from "@/components/commands/offer";
@@ -61,6 +60,7 @@ import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../../title";
 import {
+  listProjectRevisions,
   type ProjectParams,
   type ProjectPageProps,
   projectAddress,
@@ -128,9 +128,8 @@ export default async function RevisionsPage(props: ProjectPageProps) {
   const { revisionId } = address.context;
   const [read, revisions, structures, comparison, preferences, shown] = await Promise.all([
     readProjectScreen(address),
-    readEveryPage("listRevisions", (page) =>
-      client.GET("/projects/{project_id}/revisions", { params: { path: project, query: page } }),
-    ),
+    // The same read as the banner's, once per request.
+    listProjectRevisions(address.projectId),
     revisionId === undefined
       ? undefined
       : readOrFail("listCostStructures", () =>
