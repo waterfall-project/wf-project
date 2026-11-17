@@ -3847,6 +3847,23 @@ so that two tools cannot diverge on what a requirement says. It compares the tex
 normalisation — apostrophes and typographic spaces made plain —, and splits a Vérif into sentences.
 The example of §1.3.1, `WF-EXA-0010-A`, is not a requirement of the product: the tools exclude it.
 
+The guard of the agents' commands (`tools/src/wftools/guard.py`, with `guardgit.py` and
+`guardoptions.py`, run by the `PreToolUse` hook of `.claude/settings.json`) refuses the forms that
+[`agents.md`](agents.md) states, « Un agent n'arrête que ce qu'il a lancé ». It reads the text of
+the command, not what the shell computes from it. Its known limits, which it does not code
+(US-2450):
+
+- a computed target: `rm -rf $(git rev-parse --git-dir)`, `find "$GIT" | xargs rm`, or a list
+  written to a file then read back, `find .git … > list; xargs rm < list`;
+- the script of `xargs sh -c`, whose arguments come from the pipe;
+- after a `cd .git`, it keeps the locks alone: `cd .git && rm -rf *` passes;
+- the destructive writes other than `rm`, `mv`, `truncate` and `find`: `shred`,
+  `rsync --delete`, `cp /dev/null .git/index`, `: > .git/index`, `ln -sf x .git`;
+- an event it cannot read — unreadable JSON, empty input, no `command` — exits with code 0, and
+  the command passes unjudged; the hook has no `timeout`;
+- `gh api graphql` is allowed more widely than the merge queue alone: a recorded decision,
+  upheld on 2026-11-16 ([`agents.md`](agents.md), « La mise en file »).
+
 _Check_: `make test-tools`.
 
 ## The roadmap and the requirements

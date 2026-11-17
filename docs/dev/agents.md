@@ -100,8 +100,9 @@ l'accorde. Un test des outils (`tools/tests/test_permissions.py`) l'éprouve.
   c'est une consigne d'`epic-deliverer` et des règles communes. De même `Bash(git push:*)` et
   `Bash(cd:*)` sont larges : ce sont les règles des agents qui interdisent de pousser sur `main`
   ou sur une branche `epic/*` et de forcer une poussée. Le garde (`guard.py`) ne vise que
-  l'arrêt de processus (`kill`, `pkill`, `killall`), `docker`, les fichiers `.lock` et `.git`, et
-  `make merge-queue` : il ne voit ni `gh pr merge` ni `git push`.
+  l'arrêt de processus (`kill`, `pkill`, `killall`, `kill-port`), `docker`, les fichiers `.lock` et
+  `.git`, et `make merge-queue` : il ne voit ni `gh pr merge` ni `git push`, et la largeur de
+  `gh api graphql` est l'une de ses limites connues (guide, « Outils du dépôt »).
 - **Une règle propre à un poste** (un chemin de `/tmp`, par exemple) reste dans
   `.claude/settings.local.json`, que git ignore ; elle ne va pas dans `.claude/settings.json`.
 
@@ -171,7 +172,7 @@ l'accorde. Un test des outils (`tools/tests/test_permissions.py`) l'éprouve.
 - **Un agent n'arrête que ce qu'il a lancé** (US-1080), par son PID ou par un nom propre à
   son lot ; jamais par motif. Ni `pkill`, ni `killall`, ni un `kill` dont une cible n'est pas
   un PID écrit en chiffres — `kill $(pgrep make)`, `kill $pid`, un nom —, lancé par `xargs`,
-  ou qui vise `-1` ou `0` ; ni `docker rm`, `docker stop`, `docker kill`, `docker rmi` ou
+  ou qui vise `-1` ou `0`, ni `kill-port` ; ni `docker rm`, `docker stop`, `docker kill`, `docker rmi` ou
   `docker volume rm` d'une cible calculée — substitution, variable, joker —, d'un tube ou d'un
   filtre, quand une cible littérale passe (US-1310) ; ni `docker … prune` ; ni
   `docker compose … down` hors du Makefile. `pkill -f "^make check"` a pu interrompre ainsi, le 2026-11-03, le
@@ -182,20 +183,29 @@ l'accorde. Un test des outils (`tools/tests/test_permissions.py`) l'éprouve.
   `rename` — : une commande `git` le tient, peut-être dans un autre worktree, et la
   commande se relance. Le hook `PreToolUse` de `.claude/settings.json` tient la règle : avant
   chaque commande de l'outil `Bash`, `tools/src/wftools/guard.py` refuse ces formes où
-  qu'elles se trouvent dans la ligne — derrière `sudo`, `env`, `su -c`, `flock`, `watch` ou
-  `busybox`, après un `cd` dans `.git`, ou un `cd` vers un chemin calculé, qu'il tient pour
-  `.git` —, et dit quoi faire à la place ; une commande `make` passe, sauf la cible `merge-queue`
+  qu'elles se trouvent dans la ligne — derrière `sudo`, `env`, `su -c`, `flock`, `watch`,
+  `busybox`, `uv run`, `npx` ou `pnpm dlx`, après un `cd` dans `.git`, ou un `cd` vers un chemin
+  calculé, qu'il tient pour `.git`, dans le corps d'un here-document remis à `bash`, `sh` ou `zsh`,
+  ou dans le texte qu'un `echo` ou un `printf` envoie à l'un d'eux par un tube —, et dit quoi faire
+  à la place ; une commande `make` (ou `gmake`) passe, sauf la cible `merge-queue`
   (`make merge-queue EPIC=EP-nn`, qui crée le jeu de règles de la file avec le jeton de
-  l'utilisateur : une personne la lance), que le garde refuse ; `make merge-queue-check` passe.
+  l'utilisateur : une personne la lance), que le garde refuse, comme
+  `python -m wftools.mergequeue create` ; `make merge-queue-check` passe.
   Il refuse aussi `find … | xargs rm` (ou `unlink`, `mv`, `rename`) quand une commande plus haut
   dans le même tube nomme `.git` ou un `.lock` ; `rm`, `mv` ou `truncate` d'un opérande qui est
   `.git`, passe par `.git/`, s'ouvre par `.git` suivi d'un joker ou forme un motif qui désigne
-  `.git` (`.g*`, `.{git,x}`), valeur d'une option comprise ; et `find` qui nomme `.git`
+  `.git` (`.g*`, `.{git,x}`, et toute classe POSIX ou suite de lettres entre accolades), valeur
+  d'une option comprise ; et `find` qui nomme `.git`
   et supprime ce qu'il trouve (`-name .git -exec rm`, `-delete`) ; `command -v <nom>` ne lance
   rien et passe. Le hook le lance par `tools/src/wftools/launch.py guard || exit 2`, et le garde
   échoue fermé (US-2450) : sous un `python3` antérieur à 3.14, ou s'il lève en jugeant, toute
   commande est refusée, avec la raison ; sans `python3`, ou quand le lanceur lui-même ne va pas au
-  bout, le `|| exit 2` du hook refuse aussi.
+  bout, le `|| exit 2` du hook refuse aussi. Il lit le texte de la commande, non ce que le shell en
+  calcule : ses limites connues — une cible calculée (`rm -rf $(git rev-parse --git-dir)`,
+  `find "$GIT" | xargs rm`, une liste relue d'un fichier), `xargs sh -c`, un `rm` sans verrou
+  après un `cd .git`, `shred`, `rsync --delete` et les autres écritures hors `rm` et `mv`, un
+  événement illisible qui laisse passer la commande — sont dans le guide, « Outils du dépôt » ;
+  elles ne sont pas une permission.
 - **Avant de rendre la main**, un agent qui a modifié le dépôt lance
   `make check BASE=origin/epic/EP-nn`, qui éprouve ce que la modification touche, fichiers
   non commités compris. Il peut demander un créneau : depuis US-1100, dans un worktree lié qui

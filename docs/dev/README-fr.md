@@ -3879,6 +3879,22 @@ normalisation — apostrophes et espaces typographiques rendus simples —, et d
 phrases. L'exemple du §1.3.1, `WF-EXA-0010-A`, n'est pas une exigence du produit : les outils
 l'excluent.
 
+Le garde des commandes des agents (`tools/src/wftools/guard.py`, avec `guardgit.py` et
+`guardoptions.py`, lancé par le hook `PreToolUse` de `.claude/settings.json`) refuse les formes
+que dit [`agents.md`](agents.md), « Un agent n'arrête que ce qu'il a lancé ». Il lit le texte de
+la commande, non ce que le shell en calcule. Ses limites connues, qu'il ne code pas (US-2450) :
+
+- une cible calculée : `rm -rf $(git rev-parse --git-dir)`, `find "$GIT" | xargs rm`, ou une liste
+  écrite dans un fichier puis relue, `find .git … > liste; xargs rm < liste` ;
+- le script de `xargs sh -c`, dont les arguments viennent du tube ;
+- après un `cd .git`, il ne garde que les verrous : `cd .git && rm -rf *` passe ;
+- les écritures destructrices autres que `rm`, `mv`, `truncate` et `find` : `shred`,
+  `rsync --delete`, `cp /dev/null .git/index`, `: > .git/index`, `ln -sf x .git` ;
+- un événement qu'il ne sait pas lire — JSON illisible, entrée vide, sans `command` — sort en
+  code 0, et la commande passe sans être jugée ; le hook n'a pas de `timeout` ;
+- `gh api graphql` est permis plus largement que la seule mise en file : décision consignée, et
+  maintenue le 2026-11-16 ([`agents.md`](agents.md), « La mise en file »).
+
 _Contrôle_ : `make test-tools`.
 
 ## La roadmap et les exigences
