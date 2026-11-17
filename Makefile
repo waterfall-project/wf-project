@@ -116,8 +116,10 @@ WORKERS ?=
 # (a free slot among N lock files of XDG_RUNTIME_DIR, the first the one of before N existed),
 # keeps the slot until the run ends and sets WATERFALL_PROCESSORS, the share of the processors of
 # one run. A run of one file (TESTS) does not wait; on a runner of the chain, alone, a slot is
-# always free. `env` keeps the variables set before the command a command of their own.
-SLOTS = python3 $(CURDIR)/tools/src/wftools/slots.py
+# always free. `env` keeps the variables set before the command a command of their own. It runs
+# by tools/src/wftools/launch.py, which says the version it expects under a python3 older than the
+# one of the tools, instead of their SyntaxError (US-2450).
+SLOTS = python3 $(CURDIR)/tools/src/wftools/launch.py slots
 heavy = $(if $(TESTS),,$(SLOTS) run --heavy -- env)
 # A ceiling of memory on the tests of the tools (2026-11-12: a test whose fake never ended its pages
 # filled the 122 GB of the workstation twice, and the kernel killed the whole session of the pilot
@@ -143,7 +145,17 @@ TESTING_FRONT = $(testing) redis -- env
 # (#3029): WATERFALL_PROCESSORS_READING tells E2E_SERVICE_PROCESSORS not to read it meanwhile. The
 # rule from now on: an exported variable that reads the share goes through E2E_SERVICE_PROCESSORS
 # (or tests the flag), and tools/tests/test_e2eworkers.py keeps it under 4.4.
-WATERFALL_PROCESSORS ?= $(eval WATERFALL_PROCESSORS_READING = 1)$(eval WATERFALL_PROCESSORS_SHARE := $(shell $(if $(filter-out undefined,$(origin WATERFALL_SLOTS)),WATERFALL_SLOTS='$(subst ','\'',$(WATERFALL_SLOTS))') $(SLOTS) processors 2>/dev/null))$(eval WATERFALL_PROCESSORS_READING =)$(or $(WATERFALL_PROCESSORS_SHARE),$(error WATERFALL_SLOTS must be an integer from 1 to 9, not '$(WATERFALL_SLOTS)'))
+# The share is the one word of digits the tool prints on its standard output, when it ends by 0: a
+# warning on its error output does not spoil it. Without a share, make relays what the tool said on
+# its error output instead: the setting it refuses, or why it did not run (US-2450). The tool runs
+# once: its standard output goes to s, its error output to e by the descriptor 3, and the share to
+# make by the descriptor 5. The words of the tool are not read again as make: the $(shell) is
+# escaped ($$) in the eval, which assigns its output as it is, so that a `$` or a `#` it says (in
+# the path of python3, say) stays a letter.
+SLOTS_PROCESSORS = $(if $(filter-out undefined,$(origin WATERFALL_SLOTS)),WATERFALL_SLOTS='$(subst ','\'',$(WATERFALL_SLOTS))') $(SLOTS) processors
+SHARE_OR_REASON = { e=$$( { s=$$($(SLOTS_PROCESSORS) 2>&3 3>&-) && [ -n "$$s" ] && [ -z "$$(printf %s "$$s" | tr -d 0-9)" ] && printf '%s\n' "$$s" >&5; } 3>&1 ) || printf '%s\n' "$$e"; } 5>&1
+nondigits = $(subst 0,,$(subst 1,,$(subst 2,,$(subst 3,,$(subst 4,,$(subst 5,,$(subst 6,,$(subst 7,,$(subst 8,,$(subst 9,,$(1)))))))))))
+WATERFALL_PROCESSORS ?= $(eval WATERFALL_PROCESSORS_READING = 1)$(eval WATERFALL_PROCESSORS_SHARE := $$(shell $$(SHARE_OR_REASON)))$(eval WATERFALL_PROCESSORS_READING =)$(if $(and $(filter 1,$(words $(WATERFALL_PROCESSORS_SHARE))),$(if $(call nondigits,$(WATERFALL_PROCESSORS_SHARE)),,share)),$(WATERFALL_PROCESSORS_SHARE),$(error no share of the processors from the tool of the slots: $(or $(WATERFALL_PROCESSORS_SHARE),it said nothing)))
 
 # The slot of the worktree (US-1100): its ports, its projects of Compose and the tags of its images,
 # so that two worktrees play the paths, try Keycloak or run the service platform side by side. The
@@ -808,7 +820,7 @@ check-tools: ## Report which prerequisites are missing
 	@if [ ! -f $(TOOLS)/.python-version ]; then echo "  missing  $(TOOLS)/.python-version"; else \
 		v=$$(cut -d. -f1,2 $(TOOLS)/.python-version); \
 		python3 --version 2>/dev/null | grep -q "^Python $$(echo "$$v" | sed 's/\./\\./g')\." \
-		|| echo "  warning  python3 is not $$v, the version of $(TOOLS)/.python-version: the guard and the slots would run by another"; \
+		|| echo "  warning  python3 is not $$v, the version of $(TOOLS)/.python-version: the guard would refuse every command and the slots would not run"; \
 	fi
 	@command -v pandoc >/dev/null && pandoc --version | head -1 | grep -q " 3.13$$" \
 		|| echo "  warning  pandoc is not 3.13: the projection would differ from the chain's"

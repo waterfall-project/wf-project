@@ -3,9 +3,10 @@
 """Admit N heavy runs at a time; give each worktree of a lot a slot of its own (US-1090, US-1100).
 
 The Makefile runs every heavy run — the whole tests of a side, their coverage, the production
-build of the front, the end-to-end paths — behind ``python3 tools/src/wftools/slots.py run
---heavy -- <command>``. It depends on the standard library alone and imports no other module of
-``wftools``: the ``back`` job of the chain has not the environment of the tools.
+build of the front, the end-to-end paths — behind ``python3 tools/src/wftools/launch.py slots run
+--heavy -- <command>``, the launcher saying the version it expects under an older Python (US-2450).
+It depends on the standard library alone and imports no other module of ``wftools``: the
+``back`` job of the chain has not the environment of the tools.
 
 ``WATERFALL_SLOTS`` (1 by default, an integer from 1 to 9) says how many heavy runs pass at once,
 whatever the repository or the worktree. Each slot is a lock file of ``$XDG_RUNTIME_DIR`` (``/tmp``

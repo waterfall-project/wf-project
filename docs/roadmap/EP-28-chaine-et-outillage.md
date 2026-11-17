@@ -468,7 +468,7 @@ WF-QUA-0010-A.
 
 ## US-2450 — Le garde refuse quand il ne peut pas juger, et voit les formes écrites en clair
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3682

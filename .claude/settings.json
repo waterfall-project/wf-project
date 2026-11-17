@@ -33,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/tools/src/wftools/guard.py\""
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/tools/src/wftools/launch.py\" guard || exit 2"
           }
         ]
       }

@@ -289,18 +289,18 @@ def test_make_waits_for_a_slot_unless_a_single_file_is_selected(
 ) -> None:
     """US-1090: a heavy run waits for a slot, and a run of one file (TESTS) does not (#1892)."""
     heavy = (
-        "slots.py run --heavy --services"
+        "launch.py slots run --heavy --services"
         if target in SERVICES_TARGETS
-        else "slots.py run --heavy --"
+        else "launch.py slots run --heavy --"
     )
     assert heavy in plan(tmp_path, target).stdout
     if HEAVY_TARGETS[target]:
         one_file = plan(tmp_path, target, "TESTS=tests/test_guard.py").stdout
         if target in SERVICES_TARGETS:
-            assert "slots.py run --services" in one_file, "no wait, but the services of the tests"
+            assert "launch.py slots run --services" in one_file, "no wait, but the services"
             assert "--heavy" not in one_file
         else:
-            assert "slots.py run" not in one_file
+            assert "launch.py slots run" not in one_file
         assert one_file.rstrip().endswith("tests/test_guard.py")
 
 
