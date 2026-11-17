@@ -271,9 +271,12 @@ test("the comparison of the whole structure, 5 999 nodes, shows its grid with it
   await expect(nodes.getByRole("row", { name: /Études de détail/ })).toBeVisible({
     timeout: WORKING,
   });
-  await expect(nodes.getByRole("row", { name: /Études$/ }).first()).toContainText("Modifié", {
-    timeout: WORKING,
-  });
+  await expect(nodes.getByRole("row", { name: /Études Autre valeur$/ }).first()).toContainText(
+    "Modifié",
+    {
+      timeout: WORKING,
+    },
+  );
   // The whole structure is the grid's, the rows drawn being those in view.
   await expect(nodes).toHaveAttribute("aria-rowcount", (VOLUME_NODES + 2).toString());
   const elapsed = Date.now() - started;

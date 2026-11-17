@@ -3648,7 +3648,8 @@
       "payment_delay_days": "Délai de paiement",
       "parent": "Rattachement",
       "subproject": "Sous-projet",
-      "cost_category": "Catégorie de coût"
+      "cost_category": "Catégorie de coût",
+      "other": "Autre valeur"
     },
     "NodeDifference": {
       "added": "Ajouté",

@@ -466,6 +466,17 @@ LACKING = {
 }
 
 
+def changes_the_service_reads(item: dict[str, Any]) -> list[str]:
+    """Give the changes of a node of a comparison example but `other`, which the service lacks.
+
+    The examples judge a node on every value it carries since US-2320/L1 (#3492, EP-27), and say
+    `other` for a value WF-REV-0080 does not name; the service does not yet, and the comparison
+    that does — US-2320/L3, #3494 — withdraws this function, comparing `changes` as they are. The
+    mark of the node (`difference`) is compared as it is: `other` alone never makes it differ here.
+    """
+    return [each for each in item["changes"] if each != "other"]
+
+
 def label_of(item: dict[str, Any]) -> tuple[str, str]:
     """Give the kind and the label of a node of a comparison."""
     held: dict[str, Any] = item.get("task") or item.get("estimate_line") or {}
@@ -496,8 +507,9 @@ def test_the_comparison_of_two_revisions_is_the_example_but_for_the_provisions_a
     assert list(got) == [key for key in wanted if key in got]
     for key, item in got.items():
         theirs = wanted[key]
-        for field in ("kind", "difference", "changes", "level"):
+        for field in ("kind", "difference", "level"):
             assert item[field] == theirs[field], (label_of(item), field)
+        assert item["changes"] == changes_the_service_reads(theirs), label_of(item)
         if item["kind"] == "estimate_line":
             ours = {each: item["estimate_line"][each] for each in FIGURES}
             assert (
@@ -544,7 +556,9 @@ def test_the_comparison_of_the_whole_structure_marks_the_nodes_of_the_example_bu
             (
                 *label_of(item),
                 item["difference"],
-                tuple(each for each in item["changes"] if each != "budgeted_amount"),
+                tuple(
+                    each for each in changes_the_service_reads(item) if each != "budgeted_amount"
+                ),
             )
             for item in items
         )

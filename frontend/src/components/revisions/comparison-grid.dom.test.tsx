@@ -95,13 +95,14 @@ describe("the grid of the comparison of two revisions", () => {
     expect(MOVED.items[moved]).toMatchObject({
       kind: "task",
       difference: "modified",
-      changes: ["parent"],
+      changes: ["parent", "other"],
       parent_id: "01926f3a-7c00-7000-8000-000000000561",
     });
     render(grid(MOVED));
     expect(cell(moved, "label")).toHaveTextContent("Mise en service");
     expect(cell(moved, "diff_mark")).toHaveTextContent("MModifié");
     expect(cell(moved, "changes")).toHaveTextContent("Rattachement");
+    expect(cell(moved, "changes")).toHaveTextContent("Autre valeur");
   });
 
   it("leaves the mark of an unchanged node empty and its row untinted [WF-REV-0080-A]", () => {
@@ -111,18 +112,27 @@ describe("the grid of the comparison of two revisions", () => {
     expect(cell(unchanged, "diff_mark")).toBeEmptyDOMElement();
     const row = cell(unchanged, "diff_mark").closest("tr");
     expect(row?.className).not.toMatch(/bg-diff-/);
+    // A node that keeps its own values names no change.
+    expect(VOLUME.items[unchanged]?.changes).toEqual([]);
+    expect(cell(unchanged, "changes").textContent).toBe("");
   });
 
-  it("names what changes of a node as the server names it, nothing for a node that keeps its own values [WF-REV-0080-A]", () => {
+  it("names what changes of a node as the server names it, nothing for an added node [WF-REV-0080-A]", () => {
     render(grid(COMPARISON));
     const wired = indexOfLabel(COMPARISON, "Câblage sur site");
     // The line changed sub-project between the two revisions: it is modified on that ground too (E-01).
-    expect(COMPARISON.items[wired]?.changes).toEqual(["reestimated_amount", "subproject"]);
+    expect(COMPARISON.items[wired]?.changes).toEqual(["reestimated_amount", "subproject", "other"]);
     expect(cell(wired, "changes")).toHaveTextContent("Montant réestimé");
     expect(cell(wired, "changes")).toHaveTextContent("Sous-projet");
+    expect(cell(wired, "changes")).toHaveTextContent("Autre valeur");
+    // Another value of the node, which `base` names, is told by its own label of the catalogue.
     expect(cell(indexOfLabel(COMPARISON, "Installation sur site"), "changes")).toHaveTextContent(
-      "",
+      "Autre valeur",
     );
+    // A node added or removed has no values of its own to compare: nothing is named for it.
+    const added = COMPARISON.items.findIndex((node) => node.difference === "added");
+    expect(COMPARISON.items[added]?.changes).toEqual([]);
+    expect(cell(added, "changes").textContent).toBe("");
   });
 
   it("wraps the changes of a node that bears all six, none cut off", () => {

@@ -358,7 +358,7 @@ Prises par l'auteur le 2026-11-15, au cadrage, sauf mention.
 
 ## US-2320 — Une révision, en cours ou marquée, se compare à une base marquée, et la comparaison rend la valeur de la base
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-REV-0080-A`
 - **opérations** : `compareRevisions`, `getRevision`, `listCostStructures`, `listRevisions`
 - **issue** : #3483
