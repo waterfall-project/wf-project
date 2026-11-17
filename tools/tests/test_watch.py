@@ -68,7 +68,8 @@ def test_dependabot_follows_the_image_of_the_paths() -> None:
 def test_every_directory_dependabot_follows_exists() -> None:
     for update in configuration():
         for directory in directories(update["package-ecosystem"]):
-            matched = list(REPOSITORY.glob(directory.lstrip("/")))
+            pattern = directory.strip("/")
+            matched = list(REPOSITORY.glob(pattern)) if pattern else [REPOSITORY]
             assert matched, f"{update['package-ecosystem']}: {directory} matches nothing"
 
 
