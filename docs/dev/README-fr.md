@@ -5555,8 +5555,10 @@ lot, et seules les révisions qu'un outil engendre seul seraient déclarées dan
 
 _Contrôles_ : `make test-back` (`tests/test_migrations.py` : une seule tête, une migration
 appliquée ne se rejoue pas, la descente est le miroir de la montée, le schéma — contraintes de
-vérification et défauts compris — est celui des tables du code, quatre instances ensemble),
-contre PostgreSQL (voir « Tests ») ; la compatibilité
+vérification et défauts compris — est celui des tables du code, quatre instances ensemble ;
+`tests/test_migrations_as_owner.py` : toutes s'appliquent en tant que le propriétaire `NOSUPERUSER`
+que fait le script de la production, `deploy/compose/waterfall-database.sql`, et une migration qui
+exige le superutilisateur y échoue, #958), contre PostgreSQL (voir « Tests ») ; la compatibilité
 avec le code voisin, la revue.
 
 ## Agents

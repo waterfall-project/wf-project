@@ -5440,8 +5440,10 @@ lot, and only the revisions a tool generates on its own would be declared in
 
 _Checks_: `make test-back` (`tests/test_migrations.py`: a single head, a migration
 already applied is not replayed, the downgrade is the mirror of the upgrade, the schema — check
-constraints and defaults included — is that of the tables of the code, four instances together),
-against PostgreSQL (see « Tests »); the compatibility
+constraints and defaults included — is that of the tables of the code, four instances together;
+`tests/test_migrations_as_owner.py`: all apply as the `NOSUPERUSER` owner that the script of the
+production, `deploy/compose/waterfall-database.sql`, makes, and a migration that needs the
+superuser fails there, #958), against PostgreSQL (see « Tests »); the compatibility
 with the neighbouring code, the review.
 
 ## Agents
