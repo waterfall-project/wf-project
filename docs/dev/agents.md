@@ -189,7 +189,9 @@ l'accorde. Un test des outils (`tools/tests/test_permissions.py`) l'éprouve.
   l'utilisateur : une personne la lance), que le garde refuse ; `make merge-queue-check` passe.
   Il refuse aussi `find … | xargs rm` (ou `unlink`, `mv`, `rename`) quand une commande plus haut
   dans le tube nomme `.git` ou un `.lock`, et `rm -r` de `.git` ; `command -v <nom>` ne lance
-  rien et passe.
+  rien et passe. Le hook le lance par `tools/src/wftools/launch.py guard`, et le garde échoue
+  fermé (US-2450) : sous un `python3` antérieur à 3.14, ou s'il lève en jugeant, toute commande
+  est refusée, avec la raison.
 - **Avant de rendre la main**, un agent qui a modifié le dépôt lance
   `make check BASE=origin/epic/EP-nn`, qui éprouve ce que la modification touche, fichiers
   non commités compris. Il peut demander un créneau : depuis US-1100, dans un worktree lié qui

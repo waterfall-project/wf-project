@@ -7,12 +7,18 @@
 an error show what a refusal came too late to stop. The environment gives
 neither WATERFALL_PROCESSORS nor E2E_WORKERS, the case of a developer who just types
 `make e2e-service`.
+
+The share comes from the tool of the slots, run by the ``python3`` of the workstation: under
+another one than the tools', `make -n test-back` says the tool did not run and why (US-2450).
 """
 
 import os
 import subprocess
 import sys
 from typing import TYPE_CHECKING
+
+import pytest
+from test_launch import older_python, oldest_interpreter
 
 from wftools import REPOSITORY, slots
 
@@ -105,3 +111,60 @@ def test_a_workers_given_by_the_environment_wins(tmp_path: Path) -> None:
         check=False,
     )
     assert workers(done) == "5"
+
+
+def plan_back(tmp_path: Path, python: Path) -> subprocess.CompletedProcess[str]:
+    """Return `make -n test-back`, the ``python3`` of the directory ``python`` first on the PATH."""
+    path = f"{python}{os.pathsep}{os.environ.get('PATH', '')}"
+    return subprocess.run(
+        ["make", "-n", "--no-print-directory", "test-back"],
+        cwd=REPOSITORY,
+        env=bare(tmp_path) | {"PATH": path},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def says_the_tool_did_not_run(done: subprocess.CompletedProcess[str]) -> None:
+    """Check the plan stops on the reason of the tool of the slots, not on a setting."""
+    assert done.returncode != 0
+    assert "the tool of the slots did not run, it needs Python 3.14" in done.stderr
+    assert "must be an integer from 1 to 9" not in done.stderr
+    assert "uv run" not in done.stdout
+
+
+@pytest.mark.story("US-2450")
+def test_under_another_python_the_plan_of_the_back_says_why_the_slots_did_not_run(
+    tmp_path: Path,
+) -> None:
+    says_the_tool_did_not_run(plan_back(tmp_path, older_python(tmp_path)))
+
+
+@pytest.mark.story("US-2450")
+@pytest.mark.unexecuted("skipped when the workstation has no Python older than 3.14")
+def test_under_the_oldest_python_the_plan_of_the_back_says_why_the_slots_did_not_run(
+    tmp_path: Path,
+) -> None:
+    oldest = oldest_interpreter()
+    if oldest is None:
+        pytest.skip("no Python older than 3.14 on the workstation")
+    directory = tmp_path / "oldest"
+    directory.mkdir()
+    (directory / "python3").symlink_to(oldest)
+    says_the_tool_did_not_run(plan_back(tmp_path, directory))
+
+
+def test_a_slot_count_the_tool_refuses_is_named_by_the_plan(tmp_path: Path) -> None:
+    """The tool ran and refused the setting: make relays its words, not that it did not run."""
+    done = subprocess.run(
+        ["make", "-n", "--no-print-directory", "test-back", "WATERFALL_SLOTS=x"],
+        cwd=REPOSITORY,
+        env=bare(tmp_path),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert done.returncode != 0
+    assert "WATERFALL_SLOTS must be an integer from 1 to 9, not 'x'" in done.stderr
+    assert "did not run" not in done.stderr

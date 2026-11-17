@@ -3293,7 +3293,10 @@ les parcours de bout en bout —, tous dépôts et worktrees confondus. Cette va
 l'environnement, celle du profil de l'utilisateur, est un entier de 1 à 9 ; absente, elle vaut 1 ;
 toute autre valeur est refusée, en le disant. L'admission est
 `tools/src/wftools/slots.py run --heavy -- <commande>` (bibliothèque standard seule, lancée par
-`python3` sans `uv`), que le Makefile place devant chaque exécution lourde : elle prend le premier
+`python3` sans `uv`, au travers de `tools/src/wftools/launch.py slots` : sous un `python3` antérieur
+à 3.14, le lanceur dit que l'outil n'a pas tourné et quelle version il attend, et le Makefile relaie
+ce message au lieu de refuser `WATERFALL_SLOTS`, US-2450), que le Makefile place devant chaque
+exécution lourde : elle prend le premier
 de N fichiers de verrou de `$XDG_RUNTIME_DIR` (`/tmp` à défaut) — `waterfall-heavy.lock`, puis
 `waterfall-heavy.2.lock` à `waterfall-heavy.<N>.lock` —, dit une fois que tous sont pris et réessaie
 chaque seconde, garde le verrou jusqu'à la fin de la commande, sans le transmettre à ses enfants (un

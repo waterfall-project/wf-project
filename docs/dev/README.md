@@ -3279,7 +3279,10 @@ coverage of the back and the front, `make test-tools`, the production build of t
 end-to-end paths —, whatever the repository or the worktree. This environment variable, set in the
 profile of the user, is an integer from 1 to 9; absent, it is 1; any other value is refused, and
 said. The admission is `tools/src/wftools/slots.py run --heavy -- <command>` (standard library
-alone, run by `python3` without `uv`), which the Makefile puts before every heavy run: it takes the
+alone, run by `python3` without `uv`, through `tools/src/wftools/launch.py slots`: under a `python3`
+older than 3.14, the launcher says that the tool did not run and which version it expects, and the
+Makefile relays that message instead of refusing `WATERFALL_SLOTS`, US-2450), which the Makefile
+puts before every heavy run: it takes the
 first of N lock files of `$XDG_RUNTIME_DIR` (`/tmp` by default) — `waterfall-heavy.lock`, then
 `waterfall-heavy.2.lock` to `waterfall-heavy.<N>.lock` —, says once that all are taken and tries
 again every second, holds the lock until the command ends without passing it to its children (a
