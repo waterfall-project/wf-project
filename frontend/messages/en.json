@@ -1986,11 +1986,6 @@
       "passthrough": {
         "help": "Column of the extraction the mapping declares kept, given back as it is: it enters no calculation."
       }
-    },
-    "comparison": {
-      "changes": {
-        "help": "What changes of the node itself from one revision to the other, as the server names it: the dates, the duration, the progress or the parent of a task; the budgeted and re-estimated amounts, the payment delay or the parent of a line. Empty for a node added, removed or unchanged, and for a task modified by its content alone — a line or a subordinate that changes."
-      }
     }
   },
   "help": {
@@ -2322,21 +2317,9 @@
       "notMarked": "Not marked",
       "open": "Open",
       "openRevision": "Open the revision “{name}”",
+      "compare": "Compare to the revision read",
+      "compareRevision": "Compare to the revision read: “{name}”",
       "commands": "Commands"
-    },
-    "comparison": {
-      "title": "Comparison of two revisions",
-      "needsTwo": "A comparison takes two marked revisions.",
-      "from": "From the revision",
-      "to": "To the revision",
-      "compare": "Compare",
-      "deltas": "Amount deviations",
-      "noDeltas": "No amount deviation.",
-      "dimension": "Axis",
-      "key": "Item",
-      "budgetedDelta": "Budgeted deviation",
-      "reestimatedDelta": "Re-estimated deviation",
-      "unnamed": "Unnamed"
     },
     "rateUpdate": {
       "title": "Proposed rate update",

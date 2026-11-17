@@ -3,8 +3,7 @@
 /*
  * The screen of the revisions of a project (`/projects/{id}/revisions`), against the fake back and,
  * tagged `@shared`, against the service, which serves the history, the revision and its structures
- * (US-0960); the « Écarts seulement » path plays against it too, the service serving the
- * comparison and the rate update proposal (US-1530). The comparison reads, against the service,
+ * (US-0960). The comparison, which the screen no longer shows (US-2370), reads, against the service,
  * the whole structure of PRJ-001 from its revision 100 to its revision 101 — 5 966 nodes there, not
  * the 5 999 of the volume, which stays with the fake back until EP-13 (#2696) —, of which the grid
  * draws the rows in view (virtualised: as many as the window shows, `ROWS_IN_VIEW`) and
@@ -19,8 +18,6 @@
  * the witness, of which PRJ-001 holds the same three revisions, its 100 and 101 marked by the loader
  * as the worker marks (US-0970).
  */
-import { readFileSync } from "node:fs";
-
 import { type Browser, expect } from "@playwright/test";
 
 import { WORKING } from "./bounds";
@@ -236,124 +233,18 @@ test("the revisions of a project, their comparison as the API renders it, the hi
   ).toHaveCount(1);
 });
 
-// The project of the volume exists in the fake back only, until the volumes of EP-13 give the
-// witness its own (#2696): the path is skipped against the service.
-const NO_VOLUME_IN_SERVICE =
-  "the volume project exists in the fake back only until the volumes of EP-13 (#2696)";
-
-// The comparison of the volume: the project 300 is served the offer compared to the reference over
-// the whole structure of the witness, 5 999 nodes read unfiltered, with `fields` reduced to what the
-// screen shows (`comparison_volume`, #1201). The bound of 15 seconds of the criterion of US-0500 is
-// proven on it: the grid is up with its marks, from the address opened, under `WORKING`.
-const VOLUME_PROJECT = "01926f3a-7c00-7000-8000-000300000300";
-// The nodes of the example of the volume, the header and the totals besides making the rows.
-const VOLUME_NODES = (
-  JSON.parse(
-    readFileSync(
-      `${import.meta.dirname}/../../fixtures/api/volume/comparison_volume.json`,
-      "utf-8",
-    ),
-  ) as { value: { items: unknown[] } }
-).value.items.length;
-
-test("the comparison of the whole structure, 5 999 nodes, shows its grid with its marks under the bound of a screen of grid @shared [WF-REV-0080-A]", async ({
+test("« Comparer à la révision lue » leads a marked revision of the history to the grid chosen, that revision as its base (US-2370) [WF-IHM-0010-A]", async ({
   page,
 }) => {
-  test.skip(inService, NO_VOLUME_IN_SERVICE);
-  test.slow();
-  const started = Date.now();
-  await openHydrated(
-    page,
-    `/projects/${VOLUME_PROJECT}/revisions?from_revision_id=${FROM}&to_revision_id=${TO}`,
-  );
-  const nodes = page.getByRole("main").getByRole("grid", { name: "Nœuds comparés" });
-  // The first rows of the plan, each with the mark the server gives it.
-  await expect(nodes.getByRole("row", { name: /Études de détail/ })).toBeVisible({
-    timeout: WORKING,
-  });
-  await expect(nodes.getByRole("row", { name: /Études Autre valeur$/ }).first()).toContainText(
-    "Modifié",
-    {
-      timeout: WORKING,
-    },
-  );
-  // The whole structure is the grid's, the rows drawn being those in view.
-  await expect(nodes).toHaveAttribute("aria-rowcount", (VOLUME_NODES + 2).toString());
-  const elapsed = Date.now() - started;
-  test.info().annotations.push({ type: "duration", description: `${elapsed.toString()} ms` });
-  expect(elapsed).toBeLessThan(WORKING);
-});
-
-test("retains the differences alone in the comparison: pressed, in the address and the banner, kept through the choice of the pair @shared [WF-REV-0080-A]", async ({
-  page,
-  browser,
-  manager,
-}) => {
-  // Against the service the comparison spans the whole structure of PRJ-001 (some 6,000 nodes),
-  // which the path reads five times, one after the other — the screen four times, the API once —:
-  // 15 s at the least on a workstation at rest, 2.2 s for each at the API, and 45 s under six
-  // workers (#2942), more than the thirty seconds of a test.
-  test.slow();
-  const steps = new ScreenSteps(page, "the differences alone");
-  // The fake back serves the same comparison whatever the address names: what the server retains is
-  // proven on `comparison_differences` by the test of the page (`revisions/page.test.tsx`).
-  await openHydrated(
-    page,
-    `/projects/${PROJECT}/revisions?revision_id=${REVISION}&from_revision_id=${FROM}&to_revision_id=${TO}`,
-  );
+  await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const main = page.getByRole("main");
-  const only = main.getByRole("button", { name: "Écarts seulement" });
-  await expect(only).toHaveAttribute("aria-pressed", "false");
-  await steps.timed("differences alone", async () => {
-    await only.click();
-    await expect(page).toHaveURL(/difference=added%2Cremoved%2Cmodified/, { timeout: WORKING });
-  });
-  await expect(only).toHaveAttribute("aria-pressed", "true");
-  const filters = page.getByRole("list", { name: "Filtres actifs" });
-  await expect(filters).toContainText("Écarts seulement");
-  const nodes = main.getByRole("grid", { name: "Nœuds comparés" });
-  await expect(nodes).toBeVisible();
-  // Against the service the filter is the server's, the screen asking it of the API: the grid
-  // counts the nodes the server retains — its two header rows besides, as in the volume path —,
-  // exactly those of the whole comparison that are not unchanged, which has some. The whole is read
-  // of the API once: what it retains is that count, the screen filtering nothing. (The fake back
-  // serves the same window whatever the address names.) The absence of « Inchangé » on the screen is
-  // read on the rows drawn alone, the grid being virtualised: the count of its rows says the rest.
-  if (inService) {
-    const whole = await steps.timed("the API", () => comparisonServed(browser, manager));
-    const differences = whole.items.filter(({ difference }) => difference !== "unchanged");
-    expect(differences.length).toBeGreaterThan(0);
-    expect(differences.length).toBeLessThan(whole.items.length);
-    await expect(nodes).toHaveAttribute("aria-rowcount", (differences.length + 2).toString());
-    await expect(nodes.getByRole("row").filter({ hasText: "Inchangé" })).toHaveCount(0);
-  }
-  // The choice of the pair carries the filter on: the address the form leads to — another than the
-  // one shown, which writes its parameters in another order — keeps it. It is waited for before the
-  // filter is lifted: lifted before, the comparison it asks would be read beside the one of the form,
-  // still under way, which Next gives up without the server stopping it — the lift took 15 s so,
-  // twice the time of one comparison under load (#2911, #2942).
-  const chosen = page.url();
-  await steps.timed("the pair", async () => {
-    await main.getByRole("button", { name: "Comparer" }).click();
-    // The form writes revision_id, difference, from, to — the button of the filter, revision_id,
-    // from, to, difference: only the form's order tells its address from the one shown.
-    const expected = new URLSearchParams(new URL(chosen).search);
-    const revision = expected.get("revision_id");
-    const query = new URLSearchParams();
-    if (revision !== null) query.set("revision_id", revision);
-    query.set("difference", "added,removed,modified");
-    query.set("from_revision_id", FROM);
-    query.set("to_revision_id", TO);
-    const search = `?${query.toString()}`;
-    await expect(
-      page,
-      `the address of the form of the pair, ${search} (its parameters in the form's order), is awaited`,
-    ).toHaveURL((url) => url.href !== chosen && url.search === search, { timeout: WORKING });
-  });
-  await expect(only).toHaveAttribute("aria-pressed", "true");
-  await steps.timed("the filter lifted", async () => {
-    await filters.getByRole("link", { name: /Lever le filtre/ }).click();
-    await expect(page).not.toHaveURL(/difference=/, { timeout: WORKING });
-  });
-  await expect(only).toHaveAttribute("aria-pressed", "false");
+  // The screen holds the history alone: no section of comparison.
+  await expect(main.getByRole("region", { name: "Comparaison de deux révisions" })).toHaveCount(0);
+  await main
+    .getByRole("button", { name: "Comparer à la révision lue\u00a0: «\u00a0Offre v1.0\u00a0»" })
+    .click();
+  await page.getByRole("menuitem", { name: "Planification" }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/projects/${PROJECT}/revisions/${REVISION}/planning\\?.*base_revision_id=${FROM}`),
+  );
 });

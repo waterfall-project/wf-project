@@ -10,7 +10,10 @@
  * estimate as they were (WF-REV-0070). Each marked revision that lists `designate_reference` offers
  * the designation of the reference as a command of its row (WF-REV-0040, US-2370): available, or
  * unavailable and naming in its tooltip the conditions it lacks — the refusal of a correction no
- * longer permitted, of a revision without task or line of estimate (WF-CYC-0030).
+ * longer permitted, of a revision without task or line of estimate (WF-CYC-0030). Each marked
+ * revision but the one read offers « Comparer à la révision lue » (US-2370): a menu of the grids of
+ * the planning, of the estimate and of the remaining to commit the user may read, which leads to the
+ * one chosen, the revision of the row as its base.
  */
 import { ArrowUpRight, GitBranch, Star } from "lucide-react";
 import Link from "next/link";
@@ -26,6 +29,16 @@ import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatPercent } from "@/i18n/format";
 import { contextQuery, type ProjectContext } from "@/navigation/context";
+import {
+  functionHref,
+  functionOf,
+  type NavigationFunction,
+  readableGroups,
+} from "@/navigation/functions";
+
+import { type ComparisonGrid, CompareCommand } from "./compare-command";
+
+type PermissionCode = components["schemas"]["PermissionCode"];
 
 /** What names a revision: its version name, and its status when it has none. */
 export type NamedRevision = Pick<
@@ -68,6 +81,8 @@ export interface RevisionHistoryProps {
   readonly context: ProjectContext;
   /** The counter of the project as the page read it, which the designation of the reference carries. */
   readonly projectLockVersion: number;
+  /** The permissions of the session, which the grids « Comparer à la révision lue » offers follow. */
+  readonly permissions: readonly PermissionCode[];
   /**
    * The opening of the current revision, as the project lists it, which the card offers as its
    * principal command; none, and the card offers none (the caller may not exercise it).
@@ -100,15 +115,40 @@ function revisionLinks(context: ProjectContext, revisionId: string) {
   };
 }
 
+/** The grids that compare, in the order of the FBS: the planning, the estimate, the remaining. */
+const COMPARING = ["planning", "estimate", "remaining"] as const;
+
+/**
+ * The grids a session may read that compare, each at the address of the revision read with a
+ * revision as its base (US-2330); none when no revision is read, which no grid can be opened in.
+ */
+function comparisonGrids(
+  context: ProjectContext,
+  base: string,
+  permissions: readonly PermissionCode[],
+  name: (label: NavigationFunction["label"]) => string,
+): ComparisonGrid[] {
+  const readable = new Set(
+    readableGroups(permissions).flatMap((group) => group.functions.map((fn) => fn.permission)),
+  );
+  return COMPARING.filter((permission) => readable.has(permission)).flatMap((permission) => {
+    const fn = functionOf(permission);
+    const href = functionHref(fn, { ...context, base });
+    return href === undefined ? [] : [{ key: permission, label: name(fn.label), href }];
+  });
+}
+
 /** A row of the history. */
 function HistoryRow({
   revision,
   context,
   projectLockVersion,
+  permissions,
 }: {
   readonly revision: HistoryRevision;
   readonly context: ProjectContext;
   readonly projectLockVersion: number;
+  readonly permissions: readonly PermissionCode[];
 }) {
   const t = useTranslations("revisionScreen.history");
   const status = useTranslations("enums.RevisionStatus");
@@ -117,6 +157,12 @@ function HistoryRow({
   const links = revisionLinks(context, revision.revision_id);
   const current = revision.revision_id === context.revisionId;
   const designation = findOffer(revision.available_commands, "designate_reference");
+  const global = useTranslations();
+  // A marked revision other than the one read, which a grid the user may read can be compared to.
+  const grids =
+    revision.status === "marked" && !current
+      ? comparisonGrids(context, revision.revision_id, permissions, (label) => global(label))
+      : [];
   return (
     <TableRow>
       <TableCell className={CELL}>
@@ -163,6 +209,13 @@ function HistoryRow({
         </Link>
       </TableCell>
       <TableCell className={`${CELL} whitespace-normal`}>
+        {grids.length === 0 ? null : (
+          <CompareCommand
+            label={t("compare")}
+            name={t("compareRevision", { name })}
+            grids={grids}
+          />
+        )}
         {revision.status === "marked" && designation !== undefined ? (
           <DesignateCommand
             offer={designation}
@@ -185,6 +238,7 @@ export function RevisionHistory({
   revisions,
   context,
   projectLockVersion,
+  permissions,
   creation,
 }: RevisionHistoryProps) {
   const t = useTranslations("revisionScreen.history");
@@ -230,6 +284,7 @@ export function RevisionHistory({
             revision={revision}
             context={context}
             projectLockVersion={projectLockVersion}
+            permissions={permissions}
           />
         ))}
       </ListTable>

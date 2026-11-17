@@ -92,6 +92,7 @@ function opening(project = "project") {
       revisions={[]}
       context={CONTEXT}
       projectLockVersion={LOCK}
+      permissions={[]}
       creation={revisionCreation(example(project) as Project)}
     />
   );
@@ -335,7 +336,14 @@ describe("the abandon of the current revision", () => {
 
 /** The history of an example, each marked revision offering the designation as a command of its row. */
 function designations(revisions: HistoryRevision[]) {
-  return <RevisionHistory revisions={revisions} context={CONTEXT} projectLockVersion={LOCK} />;
+  return (
+    <RevisionHistory
+      revisions={revisions}
+      context={CONTEXT}
+      projectLockVersion={LOCK}
+      permissions={[]}
+    />
+  );
 }
 
 /** The row of the history that bears a revision, by its version name. */
