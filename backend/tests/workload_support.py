@@ -12,7 +12,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from estimate_support import Costing, Lines, add_role, costing
+from estimate_support import Costing, Lines, add_role, costing, pin_year
 from nodes_support import Tree, mark, opened
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
@@ -106,8 +106,15 @@ class Site:
             return planned_value(session, project, asked, at)
 
 
-def make_site(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Site:
+def make_site(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Site:
     """Give a platform, a project its manager made, its revision opened, and a role to load."""
+    pin_year(monkeypatch)
     stage = make_scene(api, owner, database, realm)
     tree = Tree(api, stage, opened(api, stage))
     worker = add_role(database, "WRK", WORKED_DAYS)

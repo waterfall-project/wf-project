@@ -23,7 +23,16 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
-from estimate_support import YEAR, Bearer, Costing, LineReference, Lines, add_role, costing
+from estimate_support import (
+    YEAR,
+    Bearer,
+    Costing,
+    LineReference,
+    Lines,
+    add_role,
+    costing,
+    pin_year,
+)
 from estimate_support import insert_line as insert_line_row
 from nodes_support import Tree, mark, opened, refusal
 from projects_support import PROJECTS, Scene, person
@@ -81,8 +90,15 @@ class Offer:
 
 
 @pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
+def stage(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Scene:
     """Give a platform, its sessions, and the project its manager made."""
+    pin_year(monkeypatch)
     return make_scene(api, owner, database, realm)
 
 
@@ -255,7 +271,7 @@ def test_the_workload_of_a_marked_revision_keeps_the_calendar_the_capacity_and_t
     # Closes #2627: the plan of workload on ``marked_remaining`` reads the images of the marking,
     # not the reference as it stands: the calendar of the role (the hours of its months), its
     # capacity and its label (the roles keep the order of the reference as it stands).
-    site: Site = make_site(api, owner, database, realm)
+    site: Site = make_site(api, owner, database, realm, monkeypatch)
     clock: Clock = day_setter(monkeypatch)
     clock(date(2026, 10, 15))
     site.labour(site.task("Câblage", NOV_DEC), "352")

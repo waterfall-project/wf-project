@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
-from estimate_support import Costing, Lines, costing
+from estimate_support import Costing, Lines, costing, pin_year
 from nodes_support import Tree, mark, opened
 from project_rows import STAMP
 from projects_support import PROJECTS, Scene
@@ -37,8 +37,15 @@ CONTRIBUTOR = "contributor"
 
 
 @pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
+def stage(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Scene:
     """Give a platform, its sessions, and the project its manager made."""
+    pin_year(monkeypatch)
     return make_scene(api, owner, database, realm)
 
 

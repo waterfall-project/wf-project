@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import pytest
-from estimate_support import Lines, add_role, costing
+from estimate_support import Lines, add_role, costing, pin_year
 from nodes_support import (
     CHANGE,
     CONSULT,
@@ -47,8 +47,15 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
+def stage(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Scene:
     """Give a platform, its sessions, and the project its manager made."""
+    pin_year(monkeypatch)
     return make_scene(api, owner, database, realm)
 
 

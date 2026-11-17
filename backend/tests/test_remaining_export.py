@@ -17,7 +17,7 @@ from uuid import UUID
 
 import pytest
 from costs_support import cost, load_import
-from estimate_support import Costing, Lines, costing, give_a_line
+from estimate_support import Costing, Lines, costing, give_a_line, pin_year
 from fastapi.testclient import TestClient
 from imports_trial import AT_ONCE, read
 from nodes_support import set_progress
@@ -30,15 +30,14 @@ from remaining_support import Review, in_progress, line_named, task_named
 from sqlalchemy import insert, select, update
 from support import ContractClient
 from test_remaining_import import (
-    NEXT,
     OUTSIDE,
-    YEAR,
     Rows,
     analysed,
     applied,
     inflating,
     labour,
     material,
+    new_year_days,
     report,
     row_of,
     workbook,
@@ -98,8 +97,15 @@ def api(contract: OpenAPI, export_services: Services) -> ContractClient:
 
 
 @pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
+def stage(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Scene:
     """Give a platform, its sessions, and the project its manager made."""
+    pin_year(monkeypatch)
     return make_scene(api, owner, database, realm)
 
 
@@ -381,9 +387,10 @@ def test_the_coefficient_of_a_task_over_two_years_is_the_one_the_import_converts
 ) -> None:
     # « Tâches » gives the coefficient of the inflation of a task as the mean of the coefficients of
     # its years weighted by their shares (#2848), not that of the year it consumes most in, so that
-    # the formula of the workbook gives the amount the application does: a task from 28 December
-    # to 8 January works four days of ten in the first year, six in the second, at 3 %, 1.018.
-    inflating(stage, scene.tree, date(YEAR, 12, 28), date(NEXT, 1, 8), days=10)
+    # the formula of the workbook gives the amount the application does: a task from the fourth
+    # last working day of the year to the sixth of the next works four days of ten in the first
+    # year, six in the second, at 3 %, 1.018.
+    inflating(stage, scene.tree, *new_year_days(), days=10)
     content = exported(api, stage, worker, scene.tree.revision["revision_id"])
     coefficients = {
         str(row[0]): row[3]

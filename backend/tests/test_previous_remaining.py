@@ -15,7 +15,7 @@ from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
-from estimate_support import Costing, Lines, costing
+from estimate_support import Costing, Lines, costing, pin_year
 from nodes_support import Tree, opened
 from projects_support import Scene
 from projects_support import scene as make_scene
@@ -41,8 +41,15 @@ PREVIOUS = (
 
 
 @pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
+def stage(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Scene:
     """Give a platform, its sessions, and the project its manager made."""
+    pin_year(monkeypatch)
     return make_scene(api, owner, database, realm)
 
 
