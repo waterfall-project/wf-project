@@ -399,7 +399,9 @@ opened, its back lots and its measuring tools touching no file of the redesign (
 merged, the comparison on the kept readings, on which its own relies (decision of 2026-11-15). Since
 the reframing of EP-10 of 2026-11-15, `epic/EP-10` no longer follows the series: EP-09 delivered, it
 is created from `main` once EP-25 is delivered, without waiting for EP-26, on which it also depends:
-only US-1680 and US-2420 wait for EP-26 in `main`; `epic/EP-08` keeps its pivot lot.
+only US-1680 and US-2420 wait for EP-26 in `main`. `epic/EP-08` does not keep its pivot lot: since
+EP-08 also depends on EP-27, whose branch is a distinct one, it is created from `main` once EP-10 and
+EP-27 are delivered, as the rule says (decision of 2026-11-17, at the framing of EP-08).
 
 The chain runs on every pull request, towards an epic's branch as towards `main`, and
 none is merged if it fails.
