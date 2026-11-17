@@ -142,9 +142,23 @@ test.fail("is expected to fail [WF-QUA-0030-A]", async () => {});
 
 @pytest.mark.parametrize("call", ["it.parallel", "test.sometimes", "describe.sometimes"])
 def test_a_call_of_a_form_not_known_fails_naming_the_file_and_the_line(call: str) -> None:
-    source = f'\n\n{call}("x [WF-QUA-0010-A]", () => {{}});\n'
+    import_ = 'import { it, test, describe } from "vitest";'
+    source = f'{import_}\n\n{call}("x [WF-QUA-0010-A]", () => {{}});\n'
     with pytest.raises(titles.UnreadableError, match=r"frontend/src/a\.test\.ts:3: "):
         coverage.typescript_citations("frontend/src/a.test.ts", source, "front")
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "const it = list.values();\nit.next();\n",
+        "function f(test: Test) {\n  test.sometimes(1);\n}\nconst describe = { parallel: 1 };\n",
+        "import { expect } from 'vitest';\nconst it = list.values();\nit.next();\n",
+    ],
+)
+def test_a_variable_named_like_a_test_function_is_not_a_call_not_known(source: str) -> None:
+    # #3753: only a file that imports the name owns a call of the runner it does not know.
+    assert cited(source) == []
 
 
 def test_the_calls_the_front_uses_that_declare_nothing_are_not_read() -> None:

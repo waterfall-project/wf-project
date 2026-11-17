@@ -20,7 +20,9 @@ the test, or the group, decides as it runs, as is ``it.skipIf(condition)(…)`` 
 A call on ``it``, ``test`` or ``describe`` that this module knows neither as a declaration nor as
 something that declares nothing (``test.use``, ``test.step``…) is not skipped over:
 the reading fails (``UnreadableError``), naming the file and the line, so that a form of
-declaration it does not read is never lost without a word.
+declaration it does not read is never lost without a word. It fails only in a file that imports
+``it``, ``test`` or ``describe`` (Vitest, Playwright, the fixtures of the front): elsewhere the name
+is a variable, which only the file knows the members of.
 """
 
 import re
@@ -332,6 +334,22 @@ def _ends_template(token: Token) -> bool:
     return token.kind == "string" and token.text.endswith("`")
 
 
+def _imports_heads(found: list[Token]) -> bool:
+    """Tell whether the file imports ``it``, ``test`` or ``describe``, the names it declares by.
+
+    A file that does not — ``const it = list.values()`` — owns a variable of that name, whose
+    members are none of the test runner's to know.
+    """
+    for index, token in enumerate(found):
+        if token.kind == "name" and token.text == "import":
+            for clause in found[index + 1 :]:
+                if clause.kind == "string" or clause.text == ";":
+                    break
+                if clause.kind == "name" and clause.text in _HEADS:
+                    return True
+    return False
+
+
 def _declaration(
     found: list[Token], pairs: dict[int, int], index: int, source: str, path: str
 ) -> Title | None:
@@ -377,11 +395,17 @@ def declarations(source: str, *, jsx: bool, path: str = "") -> list[tuple[Title,
     """
     found = tokens(source, jsx=jsx)
     pairs = _closing(found)
-    titles = [
-        title
-        for index in range(len(found))
-        if (title := _declaration(found, pairs, index, source, path))
-    ]
+    imported = _imports_heads(found)
+
+    def read(index: int) -> Title | None:
+        try:
+            return _declaration(found, pairs, index, source, path)
+        except UnreadableError:
+            if imported:
+                raise
+            return None
+
+    titles = [title for index in range(len(found)) if (title := read(index))]
     groups = [title for title in titles if title.group]
 
     def held(title: Title) -> bool:

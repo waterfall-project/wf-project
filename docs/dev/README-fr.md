@@ -4024,6 +4024,25 @@ indice de révision compris (WF-QUA-0010).
 Un test cite l'exigence dont il éprouve le Vérif, pas celle dont il parle. Un test qui ne
 couvre aucune exigence — un outil, un détail de réalisation — n'en cite aucune.
 
+**Un critère propre à une US** — qu'aucune exigence ne porte, parce que le Vérif de l'exigence
+voisine n'est pas ce que le test éprouve — se cite par l'US : `[US-2160]` dans le titre d'un test
+TypeScript, `@pytest.mark.story("US-2160")` en Python (marque déclarée dans `backend/pyproject.toml`
+et `tools/pyproject.toml`). Le relevé range ces citations à part, « Critères propres aux US », hors
+du compte des exigences, et échoue sur une US qu'aucun fichier de `docs/roadmap` ne porte, comme sur
+un identifiant d'exigence inconnu.
+
+**Un test non exécuté** ne couvre rien, et le relevé le sait sans lancer les tests, à ce que le test
+déclare : en TypeScript, un `.skip`, `.fixme` ou `.todo`, ou un appel sous un `describe.skip` ou un
+`describe.fixme` ; en Python, la marque `@pytest.mark.unexecuted("<raison>")`, sur le test, sa classe
+(`pytestmark` compris) ou son module, qu'un test qui peut se sauter — faute du XSD MSPDI, d'un
+service — porte, et qu'un crochet des `conftest.py` rend obligatoire : un test qui se saute sans la
+porter échoue. Le relevé liste ses citations sous leur exigence, « non exécuté », sans les compter :
+une exigence que seuls des tests non exécutés citent est non couverte, et `make requirements-release`
+la nomme. Un saut décidé dans le corps d'un test (`test.skip(condition, …)`) n'est pas vu : le test
+compte comme exécuté. Une citation dans un commentaire n'est pas une citation : seuls les titres des
+`it(` et `test(` sont lus, et une forme d'appel que le relevé ne connaît pas le fait échouer en
+nommant le fichier et la ligne.
+
 _Contrôles_ : `make requirements` lit les citations dans les fichiers de test, sans les lancer, et
 publie le relevé — chaque exigence F0 avec les tests qui la couvrent et leur famille, celle que
 `tools/paths.toml` déclare pour leur chemin dans sa table `[tests]` : bout en bout contre le service

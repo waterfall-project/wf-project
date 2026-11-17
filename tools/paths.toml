@@ -117,6 +117,7 @@ paths = [
     "tools/src/wftools/codecoverage.py",
     # The plugin that fails a test which skips undeclared, loaded by tests/conftest.py (US-2440).
     "tools/src/wftools/unexecuted.py",
+    "tools/src/wftools/marks.py",
 ]
 target = "check-back"
 
@@ -171,6 +172,7 @@ paths = [
     "tools/src/wftools/codecoverage.py",
     # The plugin that fails a test which skips undeclared, which both conftest.py load (US-2440).
     "tools/src/wftools/unexecuted.py",
+    "tools/src/wftools/marks.py",
     "tools/tests/conftest.py",
 ]
 target = "check-keycloak"
