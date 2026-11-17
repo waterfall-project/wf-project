@@ -45,14 +45,18 @@ test("each screen of the data of a project names the project and the revision sh
   // leads to, compiled first (`e2e/compile.ts`).
   await compile(page.request, `${IN_REVISION}/risks`, `${IN_REVISION}/planning`);
   await page.goto(`${IN_REVISION}/remaining`);
-  // Last, the choice of a base, a button alone while the grid compares nothing (US-2330).
-  await expect(banner(page).getByRole("definition")).toHaveText([
+  // The definition of the button of the base is empty: the facts are the definitions with a text.
+  await expect(banner(page).getByRole("definition").filter({ hasText: /\S/ })).toHaveText([
     "Modernisation du poste de commande",
     "Révision en cours",
     "En cours d’élaboration",
     "Copie de « Référence »",
-    "",
   ]);
+  // The choice of a base, a button alone while the grid compares nothing, named for a screen reader
+  // (US-2330).
+  await expect(
+    banner(page).getByRole("button", { name: "Choisir une base de comparaison" }),
+  ).toBeVisible();
 
   // From one function of the revision to the next, the banner names the same context.
   await page
@@ -283,20 +287,44 @@ test("a comparison active on the planning is still active on the estimate, then 
   });
 });
 
-test("the two choices of the banner, the revision read and the base, open their menus at the keyboard, the focus in each, and pass axe's rules for WCAG A and AA (#3759) [WF-IHM-0020-A]", async ({
-  page,
-}) => {
-  // Les deux choix se font au clavier comme au pointeur, et la révision lue comme la base se disent
-  // à un lecteur d'écran (US-2330). The banner is outside `main`: the harness of the screens plays
-  // its triggers on the screen of reference alone, which names no revision (`opened.ts`).
-  const address = `${IN_REVISION}/planning?${COMPARED}`;
-  await openHydrated(page, address);
-  for (const name of ["Changer de révision, «\u00a0Révision en cours\u00a0» lue", CHANGE_BASE]) {
-    const at = banner(page).getByRole("button", { name });
-    await expect(at).toHaveAttribute("aria-haspopup", "menu");
-    const opener: Opener = { opens: "menu", said: `the menu « ${name} »`, at, shell: true };
-    await checkOpened(page, opener, "1366 points", async () => {
-      await openHydrated(page, address);
-    });
-  }
-});
+// The windows and the modes of the harness of the screens (`accessibility.spec.ts`): 1366 points and
+// 911, what a zoom of 150 % leaves of it, in light and in dark mode.
+const WINDOWS = [
+  { width: 1366, height: 768 },
+  { width: 911, height: 512 },
+] as const;
+
+for (const mode of ["light", "dark"] as const) {
+  test.describe(`in ${mode} mode`, () => {
+    test.use({ colorScheme: mode });
+    testChoices();
+  });
+}
+
+function testChoices(): void {
+  test(`the two choices of the banner, the revision read and the base, open their menus at the keyboard, the focus in each, and pass axe's rules for WCAG A and AA at 1366 and at 911 points (#3759) [WF-IHM-0020-A]`, async ({
+    page,
+  }) => {
+    // Les deux choix se font au clavier comme au pointeur, et la révision lue comme la base se disent
+    // à un lecteur d'écran (US-2330). The banner is outside `main`: the harness of the screens plays
+    // its triggers on the screen of reference alone, which names no revision (`opened.ts`).
+    const address = `${IN_REVISION}/planning?${COMPARED}`;
+    for (const size of WINDOWS) {
+      const width = `${String(size.width)} points`;
+      const reopen = async (): Promise<void> => {
+        await page.setViewportSize(size);
+        await openHydrated(page, address);
+      };
+      await reopen();
+      for (const name of [
+        "Changer de révision, «\u00a0Révision en cours\u00a0» lue",
+        CHANGE_BASE,
+      ]) {
+        const at = banner(page).getByRole("button", { name });
+        await expect(at).toHaveAttribute("aria-haspopup", "menu");
+        const opener: Opener = { opens: "menu", said: `the menu « ${name} »`, at, shell: true };
+        await checkOpened(page, opener, width, reopen);
+      }
+    }
+  });
+}

@@ -4,7 +4,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
 import { BASE_PARAMETER } from "@/navigation/context";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type Problem,
+} from "@/test/fixtures";
 
 import { gridAddress, mainStructure, readGridScreen } from "./grid-screen";
 
@@ -148,7 +154,8 @@ describe("a grid compared to the base its address names", () => {
   });
 
   it("offers no base on a grid that compares nothing, and compares nothing there", async () => {
-    // L'arborescence des tâches, le Kanban et les chronologies ne portent pas la base (US-2340).
+    // La base est portée par l'adresse, et par les liens entre ces trois grilles seulement ; les
+    // autres écrans ne la portent pas, et une grille ouverte sans elle ne compare rien (US-2330).
     const grid = await read("task-tree", { [BASE_PARAMETER]: REFERENCE });
     expect(grid.base).toBeUndefined();
     expect(callsOf(COMPARISON)).toHaveLength(0);
@@ -159,7 +166,9 @@ describe("a grid compared to the base its address names", () => {
     // l'écran comme tout refus de lecture, sans grille à moitié lue (US-2330).
     server.answers = {
       ...server.answers,
-      [COMPARISON]: { problem: { code: "STATE_FORBIDS_OPERATION", status: 409 } },
+      [COMPARISON]: {
+        problem: example("comparison_revision_draft") as Problem & { status: 409 },
+      },
     };
     await expect(read("planning", { [BASE_PARAMETER]: CURRENT })).rejects.toMatchObject({
       name: "UnexpectedAnswer",
@@ -174,7 +183,7 @@ describe("a grid compared to the base its address names", () => {
       [COMPARISON]: { problem: { code: "NOT_FOUND", status: 404 } },
     };
     await expect(read("estimate", { [BASE_PARAMETER]: AMENDMENT })).rejects.toMatchObject({
-      digest: expect.stringContaining("404") as unknown,
+      digest: "NEXT_HTTP_ERROR_FALLBACK;404",
     });
   });
 });
