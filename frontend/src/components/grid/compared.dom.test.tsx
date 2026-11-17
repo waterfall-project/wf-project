@@ -474,14 +474,21 @@ describe("the base of a cell, read as the contract types it (#3781)", () => {
   });
 
   it.each([
-    ["instant", "finish", "2026-04-17"],
-    ["duration", "duration", { unit: "days" }],
-    ["duration", "duration", { value: "3", unit: "fortnights" }],
-    ["share", "physical_progress", {}],
-    ["mode", "scheduling_mode", "sometimes"],
-    ["progress", "progress", "nearly"],
-    ["plain", "started_on", { date: "2026-04-17" }],
-  ])("fails on a %s base malformed in %s: %j [WF-IHM-0150-A]", (_shown, key, value) => {
+    ["a date without its time", "instant", "finish", "2026-04-17"],
+    ["a duration without its quantity", "duration", "duration", { unit: "days" }],
+    [
+      "a duration in a unit the catalogue lacks",
+      "duration",
+      "duration",
+      { value: "3", unit: "fortnights" },
+    ],
+    ["a share without `is_computable`", "share", "physical_progress", {}],
+    ["a mode the catalogue lacks", "mode", "scheduling_mode", "sometimes"],
+    ["a mode that is a key of the prototype", "mode", "scheduling_mode", "constructor"],
+    ["a mode that is the prototype itself", "mode", "scheduling_mode", "__proto__"],
+    ["a progress the catalogue lacks", "progress", "progress", "nearly"],
+    ["a text that is an object", "plain", "started_on", { date: "2026-04-17" }],
+  ])("fails on %s, as the %s base of %s [WF-IHM-0150-A]", (_reason, _shown, key, value) => {
     const column = comparedGrid(PLANNING_GRID, true).columns.find((one) => one.key === key);
     const row = { ...design, base: { task: { [key]: value } } } as PlanningNode;
     expect(() =>
@@ -510,6 +517,60 @@ describe("the base of a cell, read as the contract types it (#3781)", () => {
         </NextIntlClientProvider>,
       ),
     ).toThrow(RangeError);
+  });
+
+  describe("the difference of a cell (#3795)", () => {
+    const deltaFinish = comparedGrid(PLANNING_GRID, true).columns.find(
+      (column) => column.key === "delta_finish",
+    );
+    const deltaDuration = comparedGrid(PLANNING_GRID, true).columns.find(
+      (column) => column.key === "delta_duration",
+    );
+
+    /** The difference of a task of the grid, as its cell says it, the differences given. */
+    function said(column: typeof deltaFinish, deltas: unknown): string {
+      const row = { ...design, deltas } as PlanningNode;
+      return renderToStaticMarkup(
+        <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+          {column?.render?.(row)}
+        </NextIntlClientProvider>,
+      );
+    }
+
+    it("reads the difference as the contract types it, and a difference left out as none [WF-IHM-0150-A]", () => {
+      expect(said(deltaFinish, PUSHED.deltas)).toBe("+5 j");
+      expect(said(deltaDuration, { task: { duration: { value: "2", unit: "d" } } })).toContain(
+        "+2",
+      );
+      // Left out, null, or of no task: the cell does not differ.
+      expect(said(deltaFinish, { task: {} })).toBe("");
+      expect(said(deltaFinish, { task: { finish: null } })).toBe("");
+      expect(said(deltaFinish, null)).toBe("");
+    });
+
+    it.each([
+      ["days that are a text", deltaFinish, { task: { finish: "5" } }],
+      ["days that are an object", deltaFinish, { task: { finish: { days: 5 } } }],
+      ["a duration without its quantity", deltaDuration, { task: { duration: { unit: "d" } } }],
+      ["a duration that is a number", deltaDuration, { task: { duration: 2 } }],
+      [
+        "a duration in a unit the catalogue lacks",
+        deltaDuration,
+        { task: { duration: { value: "2", unit: "fortnights" } } },
+      ],
+      [
+        "a duration in a unit that is a key of the prototype",
+        deltaDuration,
+        {
+          task: { duration: { value: "2", unit: "constructor" } },
+        },
+      ],
+    ])(
+      "fails on %s rather than say there is no difference [WF-IHM-0150-A]",
+      (_reason, column, deltas) => {
+        expect(() => said(column, deltas)).toThrow(RangeError);
+      },
+    );
   });
 
   it("names the fields a showing reads by the types of the contract", () => {
