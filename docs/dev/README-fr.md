@@ -3292,9 +3292,11 @@ saisie écrit le libellé de sa tâche, ou une durée qui la redate, au compteur
 écran (session, projet, navigation) ne sont pas rejouées. k6 parle à l'API et renouvelle chaque
 jeton par son jeton de rafraîchissement, une minute avant son expiration, sur le canal arrière de
 Keycloak, dans le réseau de la plateforme. Sous cette charge, le navigateur joue le parcours des
-grilles de `make measure` (`steps.ts`) puis ouvre le plan de charge par la navigation
-(`workload.ts`, utilisable quand sa section est hydratée et que son graphique est dessiné, le haut
-dans la fenêtre), un passage non mesuré puis `MEASURE_PASSES` (cinq) ; puis, `MEASURE_TASK_PASSES`
+grilles de `make measure` (`steps.ts`) puis ouvre par la navigation le plan de
+charge, la projection de dépenses et les indicateurs de la révision en cours (`project-screens.ts`,
+chaque écran utilisable quand ses sections sont là, ses graphiques hydratés et dessinés, le haut de
+la première dans la fenêtre ; le plan de charge et la projection sont les échantillons d'une seule
+opération du tableau 15, `workload-or-projection`, ce que sa `note` dit), un passage non mesuré puis `MEASURE_PASSES` (cinq) ; puis, `MEASURE_TASK_PASSES`
 fois (trois), l'export du planning, l'analyse et l'application d'un import de dix-huit mille lignes
 de coût réel, aux pièces propres à chaque passage, et le marquage de la révision en cours, rouverte
 (`createRevision`, hors de la mesure) avant chaque passage après le premier, chacun lu à sa tâche de
@@ -3327,7 +3329,14 @@ réservé aux essais — `make measure-version exclusive= E2E_LOAD_USERS=3 MEASU
 MEASURE_TASK_PASSES=2` —, et un rapport de version se prend à cinquante : le rapport consigne
 `users`. Mêmes secrets que `make
 service-up`, et le navigateur de `make e2e-browsers` ; le projet Playwright `measure-version`, que
-pose `E2E_PART=measure-version`, n'est joué par aucune cible de la chaîne.
+pose `E2E_PART=measure-version`, n'est joué par aucune cible de la chaîne. L'entrée du cache des indicateurs ne se mesure pas ici :
+`make measure-core ONLY=indicators JSON=frontend/.e2e/measure-core-indicators.json` la mesure à part,
+sur son propre témoin, et `make measure-version` en lit le JSON (`MEASURE_CACHE`, sa valeur par défaut
+est ce fichier, que la cible exporte en `E2E_MEASURE_CACHE`) pour porter l'objet `cache` sur
+l'opération `indicators` ; les deux repartent d'un témoin neuf et prennent le poste seules, elles se
+suivent et ne s'imbriquent pas, et la seconde refuse de partir sans le fichier de la première. Un
+objectif dépassé — la médiane d'une opération, ou une maille lue à froid — s'écrit dans la `note` de
+l'opération du rapport, sans que la mesure échoue ; une issue à trancher s'ensuit (US-2420).
 
 `make tracking ISSUE=<n>` change une ligne du tableau de suivi du corps de l'issue de l'EPIC, par
 `gh`, et ne touche à rien d'autre : `LOT=<identifiant>` (`US-1080` pour une US d'un seul lot,

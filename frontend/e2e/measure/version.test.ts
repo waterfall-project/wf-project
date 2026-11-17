@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 
 import { momentOf } from "./report";
 import {
+  type Cache,
+  cacheOf,
   type Conditions,
   type Measured,
   OPERATION_OF_STEP,
@@ -24,6 +26,50 @@ const CONDITIONS: Conditions = {
   load: { gestures: 600, reads_refused: 0, unauthorised: 0, duration_s: 600 },
 };
 
+/** The cost of the entry of the cache of the indicators, one scope read cold under the objective. */
+const CACHE: Cache = {
+  subprojects: 2,
+  scopes: 4,
+  cell_bytes: 15000,
+  all_bytes: 48000,
+  cold_cell_s: 0.4,
+  hot_cell_s: 0.02,
+  cold_all_s: 1.1,
+  hot_all_s: 0.05,
+  extrapolation: [
+    {
+      subprojects: 100,
+      cell_bytes: 15000,
+      cold_cell_s: 0.4,
+      hot_cell_s: 0.02,
+      all_bytes: 1100000,
+      cold_all_s: 15,
+      hot_all_s: 0.4,
+    },
+  ],
+};
+
+/** The JSON of `make measure-core ONLY=indicators`, as far as the report reads it. */
+const CORE = {
+  measures: [
+    { name: "indicators cache, one scope, cold", facts: { entry_bytes: 1 }, rows: [] },
+    {
+      name: "indicators cache",
+      facts: {
+        subprojects: 2,
+        scopes: 4,
+        cell_bytes: 15000,
+        all_bytes: 48000,
+        cold_cell_s: 0.4,
+        hot_cell_s: 0.02,
+        cold_all_s: 1.1,
+        hot_all_s: 0.05,
+      },
+      rows: [CACHE.extrapolation[0]],
+    },
+  ],
+};
+
 /** A duration of an operation in a pass. */
 function measured(operation: string, pass: number, seconds: number): Measured {
   return { operation, pass, seconds };
@@ -36,7 +82,13 @@ const SAMPLES: readonly Measured[] = TABLE.filter((line) => line.unserved === un
 
 describe("versionReport", () => {
   it("names every operation of table 15 once, in its order, with its objective [WF-QUA-0060-A]", () => {
-    const report = versionReport("0.4.0", new Date("2026-11-20T10:00:00Z"), CONDITIONS, SAMPLES);
+    const report = versionReport(
+      "0.4.0",
+      new Date("2026-11-20T10:00:00Z"),
+      CONDITIONS,
+      SAMPLES,
+      CACHE,
+    );
     expect(report.operations.map(({ id }) => id)).toEqual([
       "open-grid",
       "recompute-after-entry",
@@ -68,7 +120,7 @@ describe("versionReport", () => {
       measured("open-grid", 2, 0.7),
       ...SAMPLES.filter(({ operation }) => operation !== "open-grid"),
     ];
-    const report = versionReport("0.4.0", new Date(), CONDITIONS, samples);
+    const report = versionReport("0.4.0", new Date(), CONDITIONS, samples, CACHE);
     const [open] = report.operations;
     // Medians by pass: 0.9, 1.2 and 0.7; of every sample, 0.9.
     expect(open).toEqual({
@@ -81,27 +133,63 @@ describe("versionReport", () => {
   });
 
   it("names an operation the service does not serve with its epic, and no duration [WF-QUA-0060-A]", () => {
-    const report = versionReport("0.4.0", new Date(), CONDITIONS, SAMPLES);
+    const report = versionReport("0.4.0", new Date(), CONDITIONS, SAMPLES, CACHE);
     const unserved = report.operations.filter((operation) => "unserved" in operation);
     expect(unserved).toEqual([
-      { id: "indicators", objective_s: 1, unserved: "EP-10" },
       { id: "portfolio-view", objective_s: 2, unserved: "EP-11" },
       { id: "open-compared-grid", objective_s: 2, unserved: "EP-27" },
       { id: "recompute-compared", objective_s: 2, unserved: "EP-27" },
     ]);
   });
 
+  it("carries the cost of the cache on the indicators, which the service serves, and on no other [WF-QUA-0060-A]", () => {
+    const report = versionReport("0.4.0", new Date(), CONDITIONS, SAMPLES, CACHE);
+    const carrying = report.operations.filter((operation) => "cache" in operation);
+    expect(carrying.map(({ id }) => id)).toEqual(["indicators"]);
+    expect(carrying[0]).toMatchObject({ cache: CACHE, median_s: 1.5, worst_s: 2 });
+  });
+
+  it("documents in a note an objective exceeded, and says nothing of one held [WF-QUA-0060-A]", () => {
+    const report = versionReport("0.4.0", new Date(), CONDITIONS, SAMPLES, CACHE);
+    const notes = Object.fromEntries(
+      report.operations.map((operation) => [
+        operation.id,
+        "note" in operation ? operation.note : undefined,
+      ]),
+    );
+    // Every served operation of SAMPLES has a median of 1.5 s: over the second of the indicators,
+    // under the 60 s of the marking.
+    expect(notes.indicators).toMatch(/Objective exceeded: 1\.5 s for 1 s at the median/);
+    expect(notes["mark-revision"]).toBeUndefined();
+    expect(notes["workload-or-projection"]).toMatch(/workload.*projection of expenses/);
+  });
+
+  it("documents a scope read cold over the objective, though the median holds [WF-QUA-0060-A]", () => {
+    const quick = TABLE.filter((line) => line.unserved === undefined).flatMap(({ id }) => [
+      measured(id, 0, 0.4),
+      measured(id, 1, 0.6),
+    ]);
+    const report = versionReport("0.4.0", new Date(), CONDITIONS, quick, {
+      ...CACHE,
+      cold_cell_s: 1.13,
+    });
+    const indicators = report.operations.find(({ id }) => id === "indicators");
+    const note = indicators !== undefined && "note" in indicators ? (indicators.note ?? "") : "";
+    expect(note).toMatch(/one scope read cold, 1\.13 s for 1 s/);
+    expect(note).not.toMatch(/at the median/);
+  });
+
   it("refuses an operation measured in a single pass, which has no dispersion to give", () => {
     const short = SAMPLES.filter(
       ({ operation, pass }) => operation !== "mark-revision" || pass === 0,
     );
-    expect(() => versionReport("0.4.0", new Date(), CONDITIONS, short)).toThrow(
+    expect(() => versionReport("0.4.0", new Date(), CONDITIONS, short, CACHE)).toThrow(
       /mark-revision: measured in 1 pass\(es\)/,
     );
   });
 
   it("refuses a version that is not numbered as the reports are named", () => {
-    expect(() => versionReport("v0.4", new Date(), CONDITIONS, SAMPLES)).toThrow(/0\.4\.0/);
+    expect(() => versionReport("v0.4", new Date(), CONDITIONS, SAMPLES, CACHE)).toThrow(/0\.4\.0/);
   });
 });
 
@@ -110,11 +198,41 @@ describe("the steps of the browser", () => {
     const measured = new Set(Object.values(OPERATION_OF_STEP));
     expect([...measured].toSorted()).toEqual([
       "filter-sort-search",
+      "indicators",
       "open-grid",
       "recompute-after-entry",
       "workload-or-projection",
     ]);
     expect(Object.keys(OPERATION_OF_STEP)).not.toContain("planning.label");
+  });
+
+  it("measure the workload and the projection of expenses as one operation, the indicators as another [WF-QUA-0060-A]", () => {
+    expect(OPERATION_OF_STEP).toMatchObject({
+      "workload.from-planning": "workload-or-projection",
+      "spending.from-workload": "workload-or-projection",
+      "indicators.from-spending": "indicators",
+    });
+  });
+});
+
+describe("cacheOf", () => {
+  it("reads the facts and the rows of the measure of the cache in the JSON of the core measure [WF-QUA-0060-A]", () => {
+    expect(cacheOf(CORE)).toEqual(CACHE);
+  });
+
+  it("refuses a JSON without the measure of the cache, or with a figure that is no number", () => {
+    expect(() => cacheOf({ measures: [] })).toThrow(/indicators cache/);
+    expect(() => cacheOf(null)).toThrow(/indicators cache/);
+    const broken = {
+      measures: [
+        {
+          name: "indicators cache",
+          facts: { ...CORE.measures[1]?.facts, cold_cell_s: "1" },
+          rows: [],
+        },
+      ],
+    };
+    expect(() => cacheOf(broken)).toThrow(/cold_cell_s/);
   });
 });
 

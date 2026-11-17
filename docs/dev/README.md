@@ -3276,9 +3276,11 @@ it, at the counter read, taken from the `412` refusal when another entry made it
 the server of Next makes beside them for each screen (session, project, navigation) are not
 replayed. k6 speaks to the API and renews each token by its refresh token, a minute before it
 expires, on the back channel of Keycloak, inside the network of the platform. Under this load, the
-browser plays the journey of the grids of `make measure` (`steps.ts`), then opens the workload by
-the navigation (`workload.ts`, usable once its section is hydrated and its chart drawn, its top
-within the window), one pass unmeasured then `MEASURE_PASSES` (five); then, `MEASURE_TASK_PASSES`
+browser plays the journey of the grids of `make measure` (`steps.ts`), then opens by the
+navigation the workload, the projection of expenses and the indicators of the current revision
+(`project-screens.ts`, each screen usable once its sections are there, its charts hydrated and drawn,
+the top of the first within the window; the workload and the projection are the samples of a single
+operation of table 15, `workload-or-projection`, which its `note` says), one pass unmeasured then `MEASURE_PASSES` (five); then, `MEASURE_TASK_PASSES`
 times (three), the export of the planning, the analysis and the application of an import of eighteen
 thousand lines of actual costs, with documents of each pass's own, and the marking of the current
 revision, opened again (`createRevision`, outside the measure) before each pass after the first,
@@ -3314,7 +3316,14 @@ successful or not; after an interruption, `make e2e-down` or `make service-down`
 E2E_LOAD_USERS=3 MEASURE_PASSES=2 MEASURE_TASK_PASSES=2` —, and a report of a version is taken at
 fifty: the report records `users`. The same secrets as `make service-up`, and the browser of `make
 e2e-browsers`; the Playwright project `measure-version`, which `E2E_PART=measure-version` sets, is
-played by no goal of the chain.
+played by no goal of the chain. The entry of the cache of the indicators is not measured here:
+`make measure-core ONLY=indicators JSON=frontend/.e2e/measure-core-indicators.json` measures it apart, on its
+own witness, and `make measure-version` reads its JSON (`MEASURE_CACHE`, that file by default, which the target
+exports as `E2E_MEASURE_CACHE`) to put the `cache` object on the `indicators` operation; both start from a
+fresh witness and take the workstation alone, so they follow each other and never nest, and the second
+refuses to start without the file of the first. An objective exceeded — the median of an operation, or a scope
+read cold — is written in the `note` of the operation of the report, and the measure does not fail; an issue to
+decide follows (US-2420).
 
 `make tracking ISSUE=<n>` changes one line of the tracking table in the body of the epic's issue,
 through `gh`, and touches nothing else: `LOT=<identifier>` (`US-1080` for a story of one lot,
