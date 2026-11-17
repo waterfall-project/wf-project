@@ -10,14 +10,16 @@
  * (`accounts.ts`) — fifty for the load, one for the browser —, registers them on PRJ-001, chooses
  * the tasks they write, gives the users of the load their tokens and signs the user of the browser
  * in. Then k6 plays the load (`bench/load.ts`, `load-users.ts`), and under it the browser plays the
- * journey of the grids (`steps.ts`) and opens the workload of the project (`workload.ts`): one pass
+ * journey of the grids (`steps.ts`) and opens the workload of the project, the projection of
+ * expenses and the indicators of the current revision (`project-screens.ts`): one pass
  * unmeasured, as `make measure` plays one, then `E2E_MEASURE_PASSES`, each from the default
  * settings of the grids of its account. Under the same load, the background tasks: the export of
  * the planning, the import of eighteen thousand lines of actual costs, the marking of the
  * revision, `E2E_MEASURE_TASK_PASSES` times each, read at their tasks (`background.ts`); the
  * marking last, which freezes the revision the load writes — its entries are then refused, and its
  * readings go on. The load is stopped, its summary read, and the report written where `make
- * measure-version` says.
+ * measure-version` says, with the cost of the entry of the cache of the indicators that `make
+ * measure-core ONLY=indicators` wrote (`E2E_MEASURE_CACHE`).
  *
  * The measure fails on no duration: an operation past its objective is the report's to document,
  * once versioned (US-2300/L3). Only a measure that did not happen fails it: an account it cannot
@@ -36,6 +38,7 @@ import { type APIRequestContext, type Browser, test } from "@playwright/test";
 import { frontToken, type LocalPerson, resetGridPreferences } from "../service/realm";
 import { settle } from "../usable";
 import { administratorReady, contributorsOf, measureUsers } from "./accounts";
+import { cacheRead } from "./cache-read";
 import { type Caller, caller, exportPlanning, importCosts, markRevision } from "./background";
 import {
   gesturesExpected,
@@ -57,7 +60,14 @@ import {
   targets,
 } from "./steps";
 import { type Measured, OPERATION_OF_STEP, type VersionReport, versionReport } from "./version";
-import { WORKLOAD_STEP, workloadFromPlanning } from "./workload";
+import {
+  INDICATORS_STEP,
+  indicatorsFromSpending,
+  SPENDING_STEP,
+  spendingFromWorkload,
+  WORKLOAD_STEP,
+  workloadFromPlanning,
+} from "./project-screens";
 
 /** A whole number of 1 or more the environment names, or its default. */
 function whole(variable: string, own: number): number {
@@ -96,16 +106,20 @@ function renewedToken(browser: Browser, person: LocalPerson): () => Promise<stri
   };
 }
 
-/** The workload opened after the journey, settled after; none when it is not reached. */
-async function workload(player: Player): Promise<Interval | undefined> {
+/** A screen opened after the journey, settled after; none when it is not reached. */
+async function screen(
+  player: Player,
+  step: string,
+  open: (page: Player["page"]) => Promise<Interval>,
+): Promise<{ step: string; span: Interval | undefined }> {
   try {
-    const span = await workloadFromPlanning(player.page);
+    const span = await open(player.page);
     await settle(player.requests, LOADED);
-    return span;
+    return { step, span };
   } catch (error) {
     const [why = ""] = (error instanceof Error ? error.message : String(error)).split("\n");
-    console.log(`${WORKLOAD_STEP}: not reached at ${player.page.url()} (${why})`);
-    return undefined;
+    console.log(`${step}: not reached at ${player.page.url()} (${why})`);
+    return { step, span: undefined };
   }
 }
 
@@ -176,7 +190,12 @@ async function screens(
     console.log(`Screens, pass ${pass < 0 ? "unmeasured" : String(pass + 1)}`);
     await resetGridPreferences(browser, calls, person);
     const timed = await journey(player, target, `v${String(pass)}`);
-    const steps = [...timed, { step: WORKLOAD_STEP, span: await workload(player) }];
+    const steps = [
+      ...timed,
+      await screen(player, WORKLOAD_STEP, workloadFromPlanning),
+      await screen(player, SPENDING_STEP, spendingFromWorkload),
+      await screen(player, INDICATORS_STEP, indicatorsFromSpending),
+    ];
     for (const { step, span } of pass < 0 ? [] : steps) {
       const operation = OPERATION_OF_STEP[step];
       if (span === undefined) {
@@ -238,6 +257,7 @@ test("measures each operation of table 15 the service serves under the load of f
       "E2E_MEASURE_VERSION_REPORT and E2E_MEASURE_VERSION are given by make measure-version: run it",
     );
   }
+  const cache = cacheRead(process.env.E2E_MEASURE_CACHE ?? "");
   const origin = new URL(String(testInfo.project.use.baseURL)).origin;
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   try {
@@ -292,7 +312,7 @@ test("measures each operation of table 15 the service serves under the load of f
     };
     written(
       report,
-      versionReport(version, new Date(), conditions, [...measured.samples, ...tasks]),
+      versionReport(version, new Date(), conditions, [...measured.samples, ...tasks], cache),
     );
   } finally {
     await calls.dispose();

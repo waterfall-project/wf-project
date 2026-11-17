@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The indicators of the current day served from the cache, under a versioned key (US-1720/L2).
 
-Against the Redis of the tests, as the guide asks ("Un test contre Redis"): the entry served for
-the four readings of the day, then left for good by a line re-estimated, a line of cost excluded, a
+Against the Redis of the tests, as the guide asks ("Un test contre Redis"): the entries served for
+the four readings of the day, one by scope (US-2420, #3628), a scope read computed alone, every
+scope left at once by a write; then left for good by a line re-estimated, a line of cost excluded, a
 revision abandoned; the same answers after the base of the test is emptied (``FLUSHDB``); a Redis
 that answers nowhere, which neither a reading nor an entry notices. The key read at each reading
 changes with every write the indicators of the day depend on, and with the day; a marked revision is
@@ -16,9 +17,10 @@ import time
 from annotationlib import Format
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, cast
 from urllib.parse import urlsplit, urlunsplit
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from costs_support import load_import
@@ -56,7 +58,7 @@ from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, WORKER_TIMEOUT, TaskQueue
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
+    from collections.abc import Callable, Iterator, Mapping, Sequence
 
     from day_indicators_support import Priced
     from openapi_core import OpenAPI
@@ -211,6 +213,36 @@ def entry(queue: TaskQueue, stage: Scene) -> dict[str, Any]:
     return json.loads(str(queue.client.get(key)))
 
 
+def scope_of(key: str) -> str:
+    """Give the scope of the key of an entry: what follows the fingerprint."""
+    return key.rsplit(":", 1)[1]
+
+
+def fingerprint_of(key: str) -> str:
+    """Give the fingerprint of the key of an entry, shared by the scopes of a project."""
+    return key.split(":")[-2]
+
+
+def kept_scopes(queue: TaskQueue, stage: Scene) -> dict[str, dict[str, Any]]:
+    """Give the entries of the project of the stage, by their scope, as the cache keeps them."""
+    return {scope_of(key): json.loads(str(queue.client.get(key))) for key in entries(queue, stage)}
+
+
+@pytest.fixture
+def computed(monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    """Give the number of the scopes of each computation of entries, in their order."""
+    counts: list[int] = []
+    day_entry = caching.day_entry
+    scopes_of = inspect.signature(day_entry, annotation_format=Format.FORWARDREF)
+
+    def counting(*args: Any, **named: Any) -> Any:
+        counts.append(len(scopes_of.bind(*args, **named).arguments["scopes"]))
+        return day_entry(*args, **named)
+
+    monkeypatch.setattr(caching, "day_entry", counting)
+    return counts
+
+
 def without_instants(found: Any) -> Any:
     """Give a document without its instants of computation: ``computed_at``, and the point of day.
 
@@ -260,17 +292,20 @@ def remaining_sent(api: ContractClient, project: Priced, amount: str) -> Any:
 def test_an_entry_serves_the_four_readings_of_the_day_until_its_validity_ends(
     api: ContractClient, stage: Scene, queue: TaskQueue, clock: Clock
 ) -> None:
-    # Propre à l'US : une entrée par projet, écrite au premier calcul, sert les quatre lectures du
-    # jour tant que rien de ce dont elles dépendent ne change ; sa durée de validité est le réglage.
-    # Read at nine, read again at noon: the same answers, computed at nine.
+    # Propre à l'US : une entrée par maille (US-2420, #3628), écrite au premier calcul, sert les
+    # quatre lectures du jour tant que rien de ce dont elles dépendent ne change ; sa durée de
+    # validité est le réglage. Read at nine, read again at noon: the same answers, computed at nine;
+    # the evolution of the indices draws the three scopes, hence three entries.
     first = {path: read(api, stage, path) for path in READINGS}
-    (key,) = entries(queue, stage)
-    assert 0 < int(str(queue.client.ttl(key))) <= TTL
+    keys = sorted(entries(queue, stage))
+    assert len(keys) == 3
+    for key in keys:
+        assert 0 < int(str(queue.client.ttl(key))) <= TTL
     clock(NOON)
     again = {path: read(api, stage, path) for path in READINGS}
     assert again == first
     assert {each["context"]["computed_at"] for each in again.values()} == {"2026-11-13T09:00:00Z"}
-    assert entries(queue, stage) == [key]
+    assert sorted(entries(queue, stage)) == keys
 
 
 @pytest.mark.requirement("WF-DAT-0130-A")
@@ -278,10 +313,12 @@ def test_an_entry_serves_the_four_readings_of_the_day_until_its_validity_ends(
 def test_the_entry_holds_the_indicators_and_the_curves_of_every_scope_and_no_zone(
     api: ContractClient, stage: Scene, queue: TaskQueue, lot: str
 ) -> None:
-    # Propre à l'US : l'entrée porte, pour chaque maille, les indicateurs et les deux courbes du
-    # jour, valeurs des indices comprises mais jamais leur zone, classée à la lecture.
+    # Propre à l'US : l'entrée de chaque maille (US-2420, #3628) porte ses indicateurs et ses deux
+    # courbes du jour, valeurs des indices comprises mais jamais leur zone, classée à la lecture.
+    # The evolution of the indices, without a scope, draws every scope.
+    read(api, stage, "indicators/index-history")
     answered = indicators(api, stage)
-    kept = entry(queue, stage)["scopes"]
+    kept = kept_scopes(queue, stage)
     assert set(kept) == {PROJECT, lot, "unassigned"}
     kinds = {"project", "cost_curve", "cost_curve_payment_delays", "earned_value_curves"}
     for scope, documents in kept.items():
@@ -469,23 +506,10 @@ def test_a_redis_out_of_reach_lets_every_reading_and_an_entry_through(
 @pytest.mark.requirement("WF-DAT-0130-A")
 @pytest.mark.usefixtures("clock", "project")
 def test_a_reading_with_a_redis_out_of_reach_computes_the_scope_asked_alone(
-    serve: Serve,
-    stage: Scene,
-    lot: str,
-    monkeypatch: pytest.MonkeyPatch,
+    serve: Serve, stage: Scene, lot: str, computed: list[int]
 ) -> None:
     # Propre à l'US : un Redis en panne n'est pas un manque — l'entrée ne s'écrira pas —, la lecture
     # ne calcule que la maille demandée, non toutes celles du projet et leurs trois courbes.
-    computed: list[int] = []
-    day_entry = caching.day_entry
-
-    scopes_of = inspect.signature(day_entry, annotation_format=Format.FORWARDREF)
-
-    def counting(*args: Any, **named: Any) -> Any:
-        computed.append(len(scopes_of.bind(*args, **named).arguments["scopes"]))
-        return day_entry(*args, **named)
-
-    monkeypatch.setattr(caching, "day_entry", counting)
     closed = TaskQueue.connect(CLOSED_PORT, timeout=WORKER_TIMEOUT)
     unreachable = IndicatorsCache.of(closed, TTL)
     try:
@@ -501,21 +525,143 @@ def test_a_reading_with_a_redis_out_of_reach_computes_the_scope_asked_alone(
 
 @pytest.mark.requirement("WF-DAT-0130-A")
 @pytest.mark.usefixtures("clock", "project")
-@pytest.mark.parametrize("damage", ["scope_without_project", "scope_not_a_document"])
+@pytest.mark.parametrize("damage", ["without_project", "kind_not_a_document", "not_an_object"])
 def test_an_entry_readable_but_incomplete_is_a_miss_computed_and_written_again(
     api: ContractClient, stage: Scene, queue: TaskQueue, damage: str
 ) -> None:
-    # Propre à l'US : une entrée lisible mais mal formée (une maille sans `project`, ou qui n'est
-    # pas un document) se traite comme un manque : 200, valeur recalculée, entrée réécrite.
+    # Propre à l'US : une entrée lisible mais mal formée (une maille sans `project`, une sorte qui
+    # n'est pas un document, ou un document qui n'est pas un objet) se traite comme un manque :
+    # 200, valeur recalculée, entrée réécrite.
     first = indicators(api, stage)
     (key,) = entries(queue, stage)
-    kept = entry(queue, stage)
-    scope = next(iter(kept["scopes"]))
-    kept["scopes"][scope] = {} if damage == "scope_without_project" else "broken"
-    keyed(queue).set(key, json.dumps(kept), ex=TTL)
+    whole = entry(queue, stage)
+    damaged: object = {
+        "without_project": {kind: each for kind, each in whole.items() if kind != "project"},
+        "kind_not_a_document": {**whole, "cost_curve": "broken"},
+        "not_an_object": [whole],
+    }[damage]
+    keyed(queue).set(key, json.dumps(damaged), ex=TTL)
     assert indicators(api, stage) == first
-    assert entry(queue, stage) != kept
-    assert "project" in entry(queue, stage)["scopes"][scope]
+    assert entry(queue, stage) == whole
+
+
+# --- One entry by scope (US-2420, #3628) --------------------------------------------------------
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+@pytest.mark.usefixtures("clock", "project")
+def test_a_scope_read_is_computed_and_written_alone_the_others_left_absent(
+    api: ContractClient, stage: Scene, queue: TaskQueue, lot: str, computed: list[int]
+) -> None:
+    # Propre à l'US (#3628) : l'entrée est une par maille, et la clé le dit ; une lecture à froid
+    # d'une maille ne calcule et n'écrit que cette maille. The evolution of the indices, without a
+    # scope, then computes only the scope still absent.
+    read(api, stage, f"indicators?scope={lot}")
+    assert computed == [1]
+    assert [scope_of(key) for key in entries(queue, stage)] == [lot]
+    read(api, stage, "indicators/cost-curve")
+    assert computed == [1, 1]
+    assert sorted(scope_of(key) for key in entries(queue, stage)) == sorted([PROJECT, lot])
+    read(api, stage, "indicators/earned-value-curves")
+    read(api, stage, f"indicators/cost-curve?scope={lot}&payment_delays=true")
+    assert computed == [1, 1]
+    read(api, stage, "indicators/index-history")
+    assert computed == [1, 1, 1]
+    keys = entries(queue, stage)
+    assert sorted(scope_of(key) for key in keys) == sorted([PROJECT, lot, "unassigned"])
+    assert len({fingerprint_of(key) for key in keys}) == 1
+
+
+@pytest.mark.usefixtures("project")
+def test_the_point_of_the_day_of_each_scope_is_at_the_instant_of_its_own_computation(
+    api: ContractClient, stage: Scene, clock: Clock
+) -> None:
+    # Propre à l'US (#3628) : une entrée par maille, donc un instant par maille. The project is
+    # read at nine; at noon the evolution of the indices without a scope reads the entry of the
+    # project, kept, and computes the others.
+    read(api, stage, "indicators")
+    with stage.database.transaction() as session:
+        (lot,) = (str(each) for each in subproject_ids(session, UUID(stage.project["project_id"])))
+    clock(NOON)
+    scopes = read(api, stage, "indicators/index-history")["scopes"]
+    last = {each["scope"]: datetime.fromisoformat(each["points"][-1]["at"]) for each in scopes}
+    assert set(last) == {PROJECT, lot, "unassigned"}
+    assert last[PROJECT] == MORNING
+    assert last[lot] == last["unassigned"] == NOON
+
+
+class _Recording:
+    """An ``IndicatorsCache`` that keeps nothing, answers every entry absent and records writes."""
+
+    def __init__(self) -> None:
+        self.written: dict[str, str] = {}
+
+    def lookup_many(self, keys: Sequence[str]) -> list[str | None]:
+        return [None for _ in keys]
+
+    def write_many(self, documents: Mapping[str, str]) -> None:
+        self.written.update(documents)
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+def test_a_scope_outside_the_key_is_computed_and_given_but_not_written(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The key covers the project, its unassigned lines and its subprojects as read: a scope the
+    # reading did not see is computed and answered, and no entry is written for it.
+    known, unknown = uuid4(), uuid4()
+
+    def subprojects(_session: object, _project: object) -> list[UUID]:
+        return [known]
+
+    def day(*_args: object) -> str:
+        return "key"
+
+    def entry_of(_session: object, _basis: object, _context: object, scopes: Any) -> dict[str, Any]:
+        return {
+            str(each): {kind: {"scope": str(each)} for kind in caching.KINDS} for each in scopes
+        }
+
+    monkeypatch.setattr(caching, "subproject_ids", subprojects)
+    monkeypatch.setattr(caching, "day_key", day)
+    monkeypatch.setattr(caching, "day_entry", entry_of)
+    recording = _Recording()
+    held = cast("IndicatorsCache", recording)
+    basis = cast("Any", SimpleNamespace(project_id=uuid4()))
+    scopes = (PROJECT, known, unknown)
+    given = caching.cached_scopes(cast("Any", None), basis, cast("Any", None), scopes, held)
+    assert set(given) == {PROJECT, known, unknown}
+    assert given[unknown]["project"] == {"scope": str(unknown)}
+    assert set(recording.written) == {f"key:{PROJECT}", f"key:{known}"}
+    assert json.loads(recording.written[f"key:{known}"])["project"] == {"scope": str(known)}
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+@pytest.mark.usefixtures("clock")
+def test_a_write_leaves_the_entries_of_every_scope_at_once(
+    api: ContractClient, stage: Scene, queue: TaskQueue, project: Priced, computed: list[int]
+) -> None:
+    # Propre à l'US (#3628) : l'empreinte est celle du projet, partagée par ses mailles ; une
+    # écriture la change, et aucune maille n'est plus servie de son entrée d'avant. The wiring,
+    # re-estimated, is in the lot: the project and the lot change, the unassigned lines do not,
+    # and still their entry is computed again.
+    with stage.database.transaction() as session:
+        (lot,) = (str(each) for each in subproject_ids(session, UUID(stage.project["project_id"])))
+    before = {scope: read(api, stage, f"indicators?scope={scope}") for scope in (PROJECT, lot)}
+    read(api, stage, "indicators/index-history")
+    old = set(entries(queue, stage))
+    assert len(old) == 3
+    computed.clear()
+    reestimated(project.tree, "Câblage", "900")
+    read(api, stage, "indicators/index-history")
+    assert computed == [3]
+    new = set(entries(queue, stage)) - old
+    assert sorted(scope_of(key) for key in new) == sorted([PROJECT, lot, "unassigned"])
+    assert {fingerprint_of(key) for key in new}.isdisjoint(fingerprint_of(key) for key in old)
+    after = {scope: read(api, stage, f"indicators?scope={scope}") for scope in (PROJECT, lot)}
+    assert computed == [3]
+    assert (before[PROJECT]["remaining"], after[PROJECT]["remaining"]) == ("600.00", "900.00")
+    assert (before[lot]["remaining"], after[lot]["remaining"]) == ("600.00", "900.00")
 
 
 # --- The key ------------------------------------------------------------------------------------

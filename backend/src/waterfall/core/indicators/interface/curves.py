@@ -6,8 +6,8 @@ The cumulative costs — the reference budget, the actual cost, the projection o
 manager —, with or without the payment delays, which give the cash-out (WF-IND-0100); the planned
 value, the earned value and the actual cost (WF-IND-0110): one point by end of month, the date of
 the computation a point besides. Computed on the current day (US-1690/L2), or read as a marking
-kept them (US-1690/L3). Given the cache of the process, the curves of the day are read in its
-entry for the key of the project (US-1720/L2).
+kept them (US-1690/L3). Given the cache of the process, the curves of the day are read in the entry
+of their scope for the key of the project (US-1720/L2; one entry by scope, US-2420, #3628).
 
 Declared by US-1660/L1, the socle of EP-10; filled by US-1690/L2 for the current day.
 """

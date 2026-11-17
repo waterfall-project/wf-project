@@ -139,7 +139,8 @@ def index_history(
 
     The point of the day is the computation of ``getProjectIndicators``, read in ``cache`` when one
     is given (US-1720/L2): its instant is the ``computed_at`` of that computation, and the
-    ``context`` its.
+    ``context`` that of the scope asked, the project's without one. Each scope has its entry
+    (US-2420, #3628): the point of a scope is at the instant of its own computation.
     """
     # No revision and no date is named: the reading is of the current day, which is never none.
     asked = IndicatorsReading(scope or PROJECT, at)
@@ -161,7 +162,7 @@ def index_history(
                 "points": [
                     *stored[each],
                     _point(
-                        context["computed_at"],
+                        today[each]["context"]["computed_at"],
                         revision_id,
                         None,
                         classified(today[each], thresholds),
