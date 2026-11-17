@@ -153,6 +153,23 @@ import {
  */
 const FULL = "100%";
 
+/** The control of undo and redo, keeping shown the rows `keys` says before it asks the server. */
+function keepingUndo(
+  control: UndoControl | undefined,
+  keys: () => readonly string[],
+  keepShown: (keys: readonly string[]) => void,
+): UndoControl | undefined {
+  return control === undefined
+    ? undefined
+    : {
+        ...control,
+        press: (command) => {
+          keepShown(keys());
+          control.press(command);
+        },
+      };
+}
+
 /** The rows rendered beyond those in view, at each end. */
 const OVERSCAN = 12;
 
@@ -427,8 +444,9 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     difference: comparedDifference(config),
   });
   const shownRows = fold.shown;
-  // A row the grid writes stays shown while the rows without difference are folded away, even once
-  // read back unchanged (WF-IHM-0170): the focus and the active cell stay on it.
+  // A row the grid writes — typed, pasted — stays shown while the rows without difference are folded
+  // away, even once read back unchanged (WF-IHM-0170): the focus and the active cell stay on it. An
+  // undo is no write of the grid: it keeps the row of the active cell (`keptUndo`).
   const keptWrites: typeof writes = {
     ...writes,
     write: (write) => {
@@ -533,7 +551,17 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     scrollToSlot: scrollToIndex,
     focusAt: keyboard.focusAt,
   });
-  const undo = useUndoShortcut(undoable, undoControl);
+  // An undo reads the page anew, and answers no row key: the row of the active cell, which it may
+  // return to its state read unchanged, is kept shown before it is asked (WF-IHM-0170).
+  const keptUndo = keepingUndo(
+    undoControl,
+    () => {
+      const active = model[cursor.active.row]?.original;
+      return active === undefined ? [] : [config.rowKey(active)];
+    },
+    fold.keepShown,
+  );
+  const undo = useUndoShortcut(undoable, keptUndo);
   const foldReach = useFoldReach();
   const folding = useFoldCommands({
     fold,
@@ -627,7 +655,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         search={query.search}
         onSearch={config.searched ? search : undefined}
         undoable={undoable}
-        undo={undoControl}
+        undo={keptUndo}
         outline={folding.outline}
         commands={screenCommands.bar(cursor.active.row)}
         treeFilters={withFoldToggle(treeFilters, runs.toggle)}
@@ -653,7 +681,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       />
       <UndoAnnouncer
         offered={undoable}
-        control={undoControl}
+        control={keptUndo}
         told={undo.told}
         onDismissed={keyboard.refocus}
       />
@@ -716,7 +744,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         aria-rowcount={bodyRows + 2}
         aria-colcount={columns.length}
         aria-multiselectable={selection.multiselectable}
-        aria-busy={gridBusy(pending, screenCommands, undoControl, readingCells)}
+        aria-busy={gridBusy(pending, screenCommands, keptUndo, readingCells)}
         // The grid takes the height its screen leaves it (`Screen`, `fill`), shrinking from that
         // of its rows down to a floor; never taller than the window, so that the rows in view
         // stay a window's worth whatever holds it. The header and the totals stick to its edges,
@@ -777,7 +805,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         </TableHeader>
         <CellMenu
           offered={undoable}
-          control={undoControl}
+          control={keptUndo}
           commands={screenCommands.menu}
           folding={
             folding.menu === undefined

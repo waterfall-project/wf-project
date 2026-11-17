@@ -427,7 +427,13 @@ export function useGridFold<Row>({
     },
     keepShown: (keys) => {
       const now = foldState(storageKey);
-      if (!now.differences.on || keys.every((key) => now.differences.opened.has(key))) {
+      // Nothing unless the folding is on for the reading in hand: a comparison read, and « Écarts
+      // seulement » on — the choice outlives a comparison, which a grid without one never reads.
+      if (
+        differences === undefined ||
+        !now.differences.on ||
+        keys.every((key) => now.differences.opened.has(key))
+      ) {
         return;
       }
       keep(storageKey, {

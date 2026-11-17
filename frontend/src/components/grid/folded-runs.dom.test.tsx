@@ -1,6 +1,14 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, cleanup, createEvent, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 import { expectAccessible } from "@/test/axe";
+import { APPLY, PREVIEW } from "@/test/paste-grid";
 import { estimateReference } from "@/test/reference";
 
 import { ESTIMATE_FIELDS } from "./estimate";
@@ -27,6 +36,8 @@ import { RemainingGrid } from "./remaining-grid";
 const server = vi.hoisted((): { client: FakeClient | undefined } => ({ client: undefined }));
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }));
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+// A change undone reads the page anew from the server action (`history.ts`).
+vi.mock("next/cache", () => ({ refresh: vi.fn() }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
@@ -47,6 +58,7 @@ const planning = example("nodes_planning") as NodeList;
 const SUMMARY = "Études";
 const DESIGN = "Dossier de conception";
 const REVIEW = "Revue de conception";
+const UNDO = "POST /projects/{project_id}/revisions/{revision_id}/undo";
 const TASK =
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task";
 const UNCHANGED = ["Études de détail", "Pupitres opérateurs", REVIEW, "Réception des études"];
@@ -75,7 +87,7 @@ function compared(
 const MARKED = { [SUMMARY]: "modified", [DESIGN]: "modified" } as const;
 
 /** The grid of the planning of the witness, compared or not. */
-function planningGrid(nodes: NodeRows<PlanningNode>, comparing = true) {
+function planningGrid(nodes: NodeRows<PlanningNode>, comparing = true, undoable = false) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <PlanningGrid
@@ -86,6 +98,7 @@ function planningGrid(nodes: NodeRows<PlanningNode>, comparing = true) {
         query={NO_QUERY}
         preferences={undefined}
         editable
+        undoable={undoable}
         comparing={comparing}
       />
     </NextIntlClientProvider>
@@ -372,6 +385,64 @@ describe("the row of a run, its keys and its places", () => {
     expect(labels()).toEqual([renamed]);
     expect(labelOf(renamed)).toHaveAttribute("tabindex", "0");
     expect(labelOf(renamed)).toHaveFocus();
+  });
+
+  /** The planning of the witness read anew, the design file marked as `mark` says, renamed or not. */
+  function readAnew(mark: "modified" | "unchanged", label = DESIGN) {
+    const read = compared(mark === "modified" ? MARKED : { [SUMMARY]: "modified" });
+    return {
+      ...read,
+      items: read.items.map((node) =>
+        node.task?.label === DESIGN
+          ? { ...node, lock_version: 3, task: { ...node.task, label } }
+          : node,
+      ),
+    };
+  }
+
+  it("keeps the row of the active cell shown when an undo, read anew, marks it unchanged: a row written before the folding stays under the cursor [WF-IHM-0170-A]", async () => {
+    server.client = fakeClient({ [UNDO]: "undo_task_renamed" });
+    const { rerender } = render(planningGrid(compared(MARKED), true, true));
+    await userEvent.click(differencesOnly());
+    expect(labels()).toContain(DESIGN);
+    labelOf(DESIGN).focus();
+    await userEvent.keyboard("{Control>}z{/Control}");
+    await vi.waitFor(() => {
+      expect(server.client?.calls.some((call) => call.route === UNDO)).toBe(true);
+    });
+    // Read anew, the design file back to the state the base holds: marked unchanged.
+    rerender(planningGrid(readAnew("unchanged"), true, true));
+    expect(labels()).toContain(DESIGN);
+    expect(labelOf(DESIGN)).toHaveAttribute("tabindex", "0");
+    expect(labelOf(DESIGN)).toHaveFocus();
+  });
+
+  it("keeps the rows of a block pasted shown while the folding is on, read back unchanged [WF-IHM-0170-A]", async () => {
+    const pasted = "Dossier de conception révisé";
+    const written = example("paste_applied") as { readonly nodes: unknown[] };
+    const design = planning.items.find((node) => node.task?.label === DESIGN);
+    const body = JSON.stringify({
+      ...written,
+      nodes: [{ ...design, lock_version: 3, task: { ...design?.task, label: pasted } }],
+      ancestors: [],
+      rejected: [],
+    });
+    server.client = fakeClient({
+      [PREVIEW]: "paste_plan",
+      // The contract cites no answer of a paste that wrote a task: this one is served as the JSON
+      // the example `paste_applied` gives, its node the design file renamed.
+      [APPLY]: { body, type: "application/json", status: 200 } as never,
+    });
+    const { rerender } = render(planningGrid(compared(MARKED)));
+    await userEvent.click(differencesOnly());
+    labelOf(DESIGN).focus();
+    await userEvent.paste(pasted);
+    const dialog = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Appliquer le collage" }));
+    expect(await screen.findByText(pasted)).toBeInTheDocument();
+    rerender(planningGrid(readAnew("unchanged", pasted)));
+    expect(labels()).toContain(pasted);
+    expect(labelOf(pasted)).toHaveAttribute("tabindex", "0");
   });
 
   it.each<[FoldReach, string]>([
