@@ -6,12 +6,16 @@
 open it and to choose the base of a comparison: they accept ``revisions.read``, or one of
 ``planning.read``, ``estimate.read`` and ``remaining.read``. The writes and the commands of a
 revision keep theirs, ``revisions.read`` first: refused by a 404 to a reader of a grid alone, as
-before. Every answer is checked against the contract.
+before. What a marked revision keeps of the reference (``snapshot``) is read by whoever consults the
+revisions alone: its rates, roles, calendars and categories are guarded elsewhere, by
+``cost_settings.read`` and its peers. Every answer is checked against the contract.
 """
 
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from estimate_support import Costing, Lines, costing
+from nodes_support import Tree, mark
 from projects_support import PROJECTS, Person, Scene, contribute, person
 from projects_support import scene as make_scene
 
@@ -23,6 +27,13 @@ if TYPE_CHECKING:
     from waterfall.platform.database import Database
 
 GRIDS = ("planning.read", "estimate.read", "remaining.read")
+# The commands a reader of each grid alone holds on a marked revision: the exports its permission
+# guards, a matter of consultation, which ``requestExport`` judges without ``revisions.read``.
+EXPORTS = {
+    "planning.read": ["export_planning", "export_task_tree_image"],
+    "estimate.read": ["export_estimate"],
+    "remaining.read": ["export_remaining"],
+}
 
 
 @pytest.fixture
@@ -130,3 +141,49 @@ def test_the_writes_and_the_commands_of_a_revision_stay_closed_to_a_reader_of_th
     still = api.get(path, headers=stage.manager.headers)
     assert (still.status_code, still.json()["status"]) == (200, "draft")
     assert still.json()["lock_version"] == revision["lock_version"]
+
+
+def marked(api: ContractClient, stage: Scene) -> dict[str, Any]:
+    """Open a revision with a line of engineering rated this year, and mark it; give it."""
+    costs: Costing = costing(stage.database)
+    revision = opened(api, stage)
+    tree = Tree(api, stage, revision)
+    Lines(tree).made(
+        tree.made("Câblage"), quantity="1", resource_role_id=str(costs.role), hours="10"
+    )
+    mark(stage, revision)
+    return revision
+
+
+@pytest.mark.requirement("WF-REV-0080-A")
+@pytest.mark.parametrize("permission", GRIDS)
+def test_a_reader_of_a_grid_reads_a_marked_revision_without_what_it_keeps_of_the_reference(
+    api: ContractClient, stage: Scene, realm: TestRealm, permission: str
+) -> None:
+    # « Un utilisateur qui consulte le planning sans consulter les révisions y active une
+    # comparaison » : he reads the marked revision his banner opens, without its ``snapshot`` — the
+    # rates, the roles, the calendars and the categories it keeps, which ``cost_settings.read`` and
+    # its peers guard elsewhere —, and holds none of its commands but the exports of his grid.
+    revision = marked(api, stage)
+    reader = contributor(stage, realm, permission)
+    read = api.get(f"{revisions_of(stage)}/{revision['revision_id']}", headers=reader.headers)
+    assert read.status_code == 200, read.text
+    assert (read.json()["status"], read.json()["version_name"]) == ("marked", "v1.0")
+    assert "snapshot" not in read.json()
+    held = [(each["command"], each["is_available"]) for each in read.json()["available_commands"]]
+    assert held == [(command, True) for command in EXPORTS[permission]]
+
+
+@pytest.mark.requirement("WF-REV-0030-A")
+def test_whoever_consults_the_revisions_reads_a_marked_revision_with_what_it_keeps(
+    api: ContractClient, stage: Scene, realm: TestRealm
+) -> None:
+    # The same marked revision, read by a contributor who holds ``revisions.read`` alone: its
+    # ``snapshot`` is served, the rate of engineering it was priced at among it, and no command.
+    revision = marked(api, stage)
+    consultant = contributor(stage, realm, "revisions.read")
+    read = api.get(f"{revisions_of(stage)}/{revision['revision_id']}", headers=consultant.headers)
+    assert read.status_code == 200, read.text
+    kept = read.json()["snapshot"]["employed_reference"]
+    assert [rate["amount"] for rate in kept["hourly_rates"]] == ["65.00"]
+    assert read.json()["available_commands"] == []

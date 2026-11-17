@@ -11,10 +11,13 @@ Each names the project and is judged by ``RequiresProject``: the permission of t
 the revisions and the quality of the caller on the project (WF-ADM-0110, WF-PRJ-0060). The
 history, a revision and its structures are read by whoever consults the revisions, or one of the
 three grids, whose banner reads them to open a grid and choose the base of a comparison
-(``READERS``, US-2320, WF-REV-0080); a revision is opened by a contributor holding the permission
-to manage them, and marked or abandoned by a project manager holding the permission of that
-action, a structuring action of its own (WF-ADM-0100). These keep ``CONSULT`` first: a reader of a
-grid who does not consult the revisions is refused them as before, by a 404.
+(``READERS``, US-2320, WF-REV-0080); what a marked revision keeps of the reference (``snapshot``)
+is read by whoever consults the revisions alone: the rates, the roles, the calendars and the
+categories it keeps are guarded elsewhere by ``cost_settings.read`` and its peers, which a reader of
+a grid need not hold. A revision is opened by a contributor holding the permission to manage them,
+and marked or abandoned by a project manager holding the permission of that action, a structuring
+action of its own (WF-ADM-0100). These keep ``CONSULT`` first: a reader of a grid who does not
+consult the revisions is refused them as before, by a 404.
 """
 
 from collections.abc import Mapping
@@ -323,12 +326,13 @@ def get_revision(
 ) -> Revision:
     """Give a revision of a project, with the commands its reader holds on it (WF-REV-0090).
 
-    A marked revision with what it keeps of the reference (``snapshot``, WF-REV-0030); the current
-    one follows the reference, and has none.
+    A marked revision with what it keeps of the reference (``snapshot``, WF-REV-0030), to whoever
+    consults the revisions: a reader of a grid alone reads it without, the values it keeps being
+    guarded elsewhere (US-2320). The current one follows the reference, and has none.
     """
     view = read_revision(session, project_id, revision_id, viewer_of(actor))
     kept: dict[UUID, dict[str, Any]] = {}
-    if view.status == "marked":
+    if view.status == "marked" and CONSULT in actor.permissions:
         kept[view.revision_id] = snapshot(session, kept_reference(session, project_id, revision_id))
     return described(session, [view], kept)[0]
 
