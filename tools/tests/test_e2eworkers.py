@@ -9,7 +9,8 @@ neither WATERFALL_PROCESSORS nor E2E_WORKERS, the case of a developer who just t
 `make e2e-service`.
 
 The share comes from the tool of the slots, run by the ``python3`` of the workstation: under
-another one than the tools', `make -n test-back` says the tool did not run and why (US-2450).
+another one than the tools', `make -n test-back` says the tool did not run and why (US-2450). A
+warning of the tool does not spoil its share, and what it says instead of one is relayed as it is.
 """
 
 import os
@@ -153,6 +154,36 @@ def test_under_the_oldest_python_the_plan_of_the_back_says_why_the_slots_did_not
     directory.mkdir()
     (directory / "python3").symlink_to(oldest)
     says_the_tool_did_not_run(plan_back(tmp_path, directory))
+
+
+def fake_python(tmp_path: Path, script: str) -> Path:
+    """Return a directory whose ``python3`` is the shell script ``script``, whatever it is asked."""
+    directory = tmp_path / "fake"
+    directory.mkdir()
+    python3 = directory / "python3"
+    python3.write_text(f"#!/bin/sh\n{script}", encoding="utf-8")
+    python3.chmod(0o755)
+    return directory
+
+
+def test_a_warning_of_the_tool_does_not_spoil_its_share(tmp_path: Path) -> None:
+    """The share is read on the standard output alone: a warning on the error output is kept out."""
+    warning = fake_python(tmp_path, "echo 'warning: x' >&2\necho 3\n")
+    done = plan_back(tmp_path, warning)
+    assert done.returncode == 0, done.stderr
+    assert " -n 3 " in done.stdout
+    assert "no share" not in done.stderr
+
+
+@pytest.mark.story("US-2450")
+def test_the_reason_of_the_tool_is_relayed_as_it_is_said(tmp_path: Path) -> None:
+    """Make does not read what the tool said as make: neither ``$(…)`` nor ``#`` is interpreted."""
+    reason = "$(error INJECTED) under $$HOME #1"
+    failing = fake_python(tmp_path, f"echo '{reason}' >&2\nexit 2\n")
+    done = plan_back(tmp_path, failing)
+    assert done.returncode != 0
+    assert f"no share of the processors from the tool of the slots: {reason}." in done.stderr
+    assert "*** INJECTED" not in done.stderr
 
 
 def test_a_slot_count_the_tool_refuses_is_named_by_the_plan(tmp_path: Path) -> None:

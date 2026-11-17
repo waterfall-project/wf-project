@@ -145,10 +145,17 @@ TESTING_FRONT = $(testing) redis -- env
 # (#3029): WATERFALL_PROCESSORS_READING tells E2E_SERVICE_PROCESSORS not to read it meanwhile. The
 # rule from now on: an exported variable that reads the share goes through E2E_SERVICE_PROCESSORS
 # (or tests the flag), and tools/tests/test_e2eworkers.py keeps it under 4.4.
-# The share is the one word of digits the tool prints; anything else is what it said instead, on
-# its error output, which make relays: the setting it refuses, or why it did not run (US-2450).
+# The share is the one word of digits the tool prints on its standard output, when it ends by 0: a
+# warning on its error output does not spoil it. Without a share, make relays what the tool said on
+# its error output instead: the setting it refuses, or why it did not run (US-2450). The tool runs
+# once: its standard output goes to s, its error output to e by the descriptor 3, and the share to
+# make by the descriptor 5. The words of the tool are not read again as make: the $(shell) is
+# escaped ($$) in the eval, which assigns its output as it is, so that a `$` or a `#` it says (in
+# the path of python3, say) stays a letter.
+SLOTS_PROCESSORS = $(if $(filter-out undefined,$(origin WATERFALL_SLOTS)),WATERFALL_SLOTS='$(subst ','\'',$(WATERFALL_SLOTS))') $(SLOTS) processors
+SHARE_OR_REASON = { e=$$( { s=$$($(SLOTS_PROCESSORS) 2>&3 3>&-) && [ -n "$$s" ] && [ -z "$$(printf %s "$$s" | tr -d 0-9)" ] && printf '%s\n' "$$s" >&5; } 3>&1 ) || printf '%s\n' "$$e"; } 5>&1
 nondigits = $(subst 0,,$(subst 1,,$(subst 2,,$(subst 3,,$(subst 4,,$(subst 5,,$(subst 6,,$(subst 7,,$(subst 8,,$(subst 9,,$(1)))))))))))
-WATERFALL_PROCESSORS ?= $(eval WATERFALL_PROCESSORS_READING = 1)$(eval WATERFALL_PROCESSORS_SHARE := $(shell $(if $(filter-out undefined,$(origin WATERFALL_SLOTS)),WATERFALL_SLOTS='$(subst ','\'',$(WATERFALL_SLOTS))') $(SLOTS) processors 2>&1))$(eval WATERFALL_PROCESSORS_READING =)$(if $(and $(filter 1,$(words $(WATERFALL_PROCESSORS_SHARE))),$(if $(call nondigits,$(WATERFALL_PROCESSORS_SHARE)),,share)),$(WATERFALL_PROCESSORS_SHARE),$(error no share of the processors from the tool of the slots: $(or $(WATERFALL_PROCESSORS_SHARE),it said nothing)))
+WATERFALL_PROCESSORS ?= $(eval WATERFALL_PROCESSORS_READING = 1)$(eval WATERFALL_PROCESSORS_SHARE := $$(shell $$(SHARE_OR_REASON)))$(eval WATERFALL_PROCESSORS_READING =)$(if $(and $(filter 1,$(words $(WATERFALL_PROCESSORS_SHARE))),$(if $(call nondigits,$(WATERFALL_PROCESSORS_SHARE)),,share)),$(WATERFALL_PROCESSORS_SHARE),$(error no share of the processors from the tool of the slots: $(or $(WATERFALL_PROCESSORS_SHARE),it said nothing)))
 
 # The slot of the worktree (US-1100): its ports, its projects of Compose and the tags of its images,
 # so that two worktrees play the paths, try Keycloak or run the service platform side by side. The
