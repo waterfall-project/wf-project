@@ -3243,8 +3243,8 @@ that targets it — the same or another, like « epic protection », which targe
 the `gate` check (`required_status_checks`): a queue that merges with no required check merges what
 nothing has tried. It also says the gap between the rule types of the queue's ruleset and those of
 the model (`required_signatures`, which the rulesets of EP-10, EP-26 and EP-27 carry, is in it).
-A ruleset that excludes the branch does not target it. The references of `include` and `exclude` are read as patterns, by `fnmatch`
-with `FNM_PATHNAME`, as GitHub reads them (`refs/heads/epic/*`, `~ALL`): a `*` or a `?` stops at
+A ruleset that excludes the branch does not target it. The references of `include` and `exclude`
+are read as patterns, by `fnmatch` with `FNM_PATHNAME`, as GitHub reads them (`refs/heads/epic/*`, `~ALL`): a `*` or a `?` stops at
 a `/`, so `refs/heads/*` does not target `refs/heads/epic/EP-nn`; only a `**/` that starts a
 segment crosses directories, zero or more (`refs/heads/**/*`), any other `**` is a `*`, and
 `refs/heads/**` does not target the branch either; braces are read as they stand, GitHub not
@@ -3892,11 +3892,11 @@ the stories of the following epics are written. The tool reads only the reposito
 issues is not its business.
 
 It also fails on a `make` command that an agent cites (`.claude/agents/`,
-`docs/dev/agents.md`, `.claude/skills/`, the `pilote` skill among them) and that the Makefile does not have: a renamed target does not let an agent
-call a command that has disappeared.
+`docs/dev/agents.md`, `.claude/skills/`, the `pilote` skill among them) and that the Makefile does
+not have: a renamed target does not let an agent call a command that has disappeared.
 
 _Check_: `make roadmap`, `roadmap` family of the chain, woken also by a
-change of the projection or of the agents.
+change of the projection, of the agents or of a skill.
 
 ## Comments
 

@@ -3256,9 +3256,8 @@ vise — le même ou un autre, comme « epic protection », qui vise `epic/*` �
 `gate` (`required_status_checks`) : une file qui fusionne sans contrôle exigé fusionne ce que rien
 n'a éprouvé. Elle dit aussi l'écart entre les types de règles du jeu de la file et ceux du
 modèle (`required_signatures`, que portent les jeux d'EP-10, d'EP-26 et d'EP-27, y est).
-Un jeu qui exclut la branche ne la vise pas. Les
-références de `include` et d'`exclude` se lisent comme des motifs, par `fnmatch`
-avec `FNM_PATHNAME`, comme GitHub les lit (`refs/heads/epic/*`, `~ALL`) : un `*` ou un `?` s'arrête
+Un jeu qui exclut la branche ne la vise pas. Les références de `include` et d'`exclude` se lisent
+comme des motifs, par `fnmatch` avec `FNM_PATHNAME`, comme GitHub les lit (`refs/heads/epic/*`, `~ALL`) : un `*` ou un `?` s'arrête
 à un `/`, donc `refs/heads/*` ne vise pas `refs/heads/epic/EP-nn` ; seul un `**/` en début de
 segment franchit des répertoires, zéro ou plus (`refs/heads/**/*`), un autre `**` vaut `*`, et
 `refs/heads/**` ne vise pas plus la branche ; les accolades se lisent telles quelles, GitHub
@@ -3925,11 +3924,11 @@ mesure que les US des EPIC suivants s'écrivent. L'outil ne lit que le dépôt :
 issues n'est pas son affaire.
 
 Il échoue aussi sur une commande `make` que cite un agent (`.claude/agents/`,
-`docs/dev/agents.md`, `.claude/skills/`, dont le skill `pilote`) et que le Makefile n'a pas : une cible renommée ne laisse pas un agent
-appeler une commande disparue.
+`docs/dev/agents.md`, `.claude/skills/`, dont le skill `pilote`) et que le Makefile n'a pas : une
+cible renommée ne laisse pas un agent appeler une commande disparue.
 
 _Contrôle_ : `make roadmap`, famille `roadmap` de la chaîne, réveillée aussi par un
-changement de la projection ou des agents.
+changement de la projection, des agents ou d'un skill.
 
 ## Commentaires
 

@@ -346,7 +346,7 @@ def test_check_says_that_no_check_is_required(tmp_path: Path) -> None:
     """US-2470: a queue with no required ``gate`` is refused: « aucun contrôle exigé » (PLC-01)."""
     code, _, error = serving(tmp_path, ruleset(2, gate=False)).run("check", "EP-21")
     assert code == 1
-    assert "aucun contrôle exigé" in error
+    assert "« aucun contrôle exigé »" in error
 
 
 def test_check_takes_the_gate_from_another_active_ruleset(tmp_path: Path) -> None:
@@ -362,7 +362,7 @@ def test_check_ignores_the_gate_of_a_ruleset_that_is_not_active(tmp_path: Path) 
     disabled = ruleset(3, "refs/heads/epic/*", "disabled", queue=False)
     code, _, error = serving(tmp_path, ruleset(2, gate=False), disabled).run("check", "EP-21")
     assert code == 1
-    assert "aucun contrôle exigé" in error
+    assert "« aucun contrôle exigé »" in error
 
 
 def test_the_model_requires_signatures_and_the_gap_is_said(tmp_path: Path) -> None:
@@ -372,4 +372,13 @@ def test_the_model_requires_signatures_and_the_gap_is_said(tmp_path: Path) -> No
     code, out, _ = serving(tmp_path, ruleset(2)).run("check", "EP-21")
     assert code == 0
     assert "differs from the model: lacks pull_request, required_signatures" in out
-    assert "has besides required_status_checks" in out
+    assert "has besides" not in out
+    assert "required_status_checks" not in out.split("differs from the model")[1]
+
+
+def test_check_says_both_the_missing_queue_and_the_missing_gate(tmp_path: Path) -> None:
+    """US-2470: a branch with no merge_queue and no gate has both causes said (PLC-01)."""
+    code, _, error = serving(tmp_path, ruleset(2, queue=False, gate=False)).run("check", "EP-21")
+    assert code == 1
+    assert "no working merge queue" in error
+    assert "« aucun contrôle exigé »" in error

@@ -173,13 +173,21 @@ def requires_gate(ruleset: dict[str, object]) -> bool:
     return False
 
 
-def gap(ruleset: dict[str, object]) -> str:
-    """Return the gap between the rule types of a ruleset and those of the model, empty if none."""
+def model_kinds() -> set[str]:
+    """Return the rule types of the model, read once per run."""
     model = parse_json(MODEL.read_text(encoding="utf-8"), str(MODEL))
     if not isinstance(model, dict):
         refuse(f"{MODEL} is not an object")
-    wanted = {str(kind) for kind in kinds_of(cast("dict[str, object]", model))}
-    held = {str(kind) for kind in kinds_of(ruleset)}
+    return {str(kind) for kind in kinds_of(cast("dict[str, object]", model))}
+
+
+def gap(ruleset: dict[str, object], wanted: set[str]) -> str:
+    """Return the gap between the rule types of a ruleset and the model's, empty if none.
+
+    The model has no ``required_status_checks`` by design (the gate may sit in another ruleset):
+    a queue that carries it is not a gap.
+    """
+    held = {str(kind) for kind in kinds_of(ruleset)} - {"required_status_checks"}
     parts: list[str] = []
     if wanted - held:
         parts.append("lacks " + ", ".join(sorted(wanted - held)))
@@ -220,19 +228,22 @@ def check(epic: str) -> None:
     if not found:
         refuse(f"no ruleset targets {branch}: a person runs `make merge-queue EPIC={epic}`")
     queues = [ruleset for ruleset in found if not problems(ruleset)]
-    if queues:
-        if not any(requires_gate(ruleset) for ruleset in found):
-            refuse(
-                f"aucun contrôle exigé on {branch}: no active ruleset that targets it has "
-                f"required_status_checks with the context {GATE!r}"
-            )
-        print(f"merge-queue: {branch} has an active merge queue, and requires {GATE!r}")
-        for ruleset in queues:
-            if differences := gap(ruleset):
-                print(f"merge-queue: {ruleset.get('name')!r} differs from the model: {differences}")
-        return
-    missing = [f"{ruleset.get('name')}: {text}" for ruleset in found for text in problems(ruleset)]
-    refuse(f"no working merge queue on {branch}: " + "; ".join(missing))
+    causes: list[str] = []
+    if not queues:
+        missing = [f"{one.get('name')}: {text}" for one in found for text in problems(one)]
+        causes.append(f"no working merge queue on {branch}: " + "; ".join(missing))
+    if not any(requires_gate(ruleset) for ruleset in found):
+        causes.append(
+            f"« aucun contrôle exigé » on {branch}: no active ruleset that targets it has "
+            f"required_status_checks with the context {GATE!r}"
+        )
+    if causes:
+        refuse(" ; ".join(causes))
+    print(f"merge-queue: {branch} has an active merge queue, and requires {GATE!r}")
+    wanted = model_kinds()
+    for ruleset in queues:
+        if differences := gap(ruleset, wanted):
+            print(f"merge-queue: {ruleset.get('name')!r} differs from the model: {differences}")
 
 
 def main(arguments: list[str]) -> int:
