@@ -214,7 +214,8 @@ Le relevé reste **lu dans les fichiers de test, sans les lancer** — c'est le 
 à ce qu'il déclare, pas à un rapport d'exécution.
 
 - **TypeScript.** `typescript_citations` ne lit plus tout le fichier : elle cherche les appels
-  `it(`, `test(` et leurs variantes, et lit les citations dans leur titre seul. Un appel
+  `it(`, `test(` et leurs variantes, et lit les citations dans leur titre — ou dans celui du
+  `describe(` qui les englobe, tenue pour exécutée si un test du groupe l'est (#3751). Un appel
   `.skip(`, `.fixme(` ou `.todo(`, ou un appel sous un `describe.skip(` ou `describe.fixme(`, donne
   une citation « non exécuté ». Un saut conditionnel dans le corps d'un test (`test.skip(condition,
   …)`) n'est pas reconnu : le lot recense ceux qui existent, et s'il en trouve un dont le test cite
@@ -432,7 +433,8 @@ couverte que l'exigence qu'un test exécuté vérifie (#975, #3291, PLC-02).
 **Critères d'acceptation.**
 
 - propre à l'US : `typescript_citations` (`tools/src/wftools/coverage.py`) ne lit une citation que
-  dans le titre d'un `it(` ou d'un `test(` ; une citation dans un commentaire ne compte plus — les
+  dans le titre d'un `it(` ou d'un `test(`, ou du `describe(` qui les englobe ; une citation dans un
+  commentaire ne compte plus — les
   huit d'aujourd'hui (dont `frontend/e2e/admin.spec.ts` et `frontend/e2e/service/session.spec.ts`)
   sortent du relevé (PLC-02) ;
 - propre à l'US : une citation dans le titre d'un `test.fixme`, `test.skip`, `it.skip` ou `it.todo`
@@ -449,7 +451,7 @@ couverte que l'exigence qu'un test exécuté vérifie (#975, #3291, PLC-02).
 - propre à l'US : un test qui porte un critère propre à une US cite `[US-nnnn]` dans son titre, ou
   par une marque en Python ; `make requirements` reconnaît la forme, ne la compte pas comme la
   couverture d'une exigence, et refuse une US qu'aucun fichier de `docs/roadmap` ne porte (#3291) ;
-- propre à l'US : les quatre tests de présentation des graphiques d'US-2160
+- propre à l'US : les sept tests de présentation des graphiques d'US-2160
   (`indicators/charts.dom.test.tsx`, `portfolio/portfolio.dom.test.tsx`,
   `risks/risk-bubble-chart.dom.test.tsx`) citent `[US-2160]` et perdent leur mention « not the Vérif
   of WF-IHM-0070-A » ; WF-IHM-0070-A reste couverte par les tests qui portent son Vérif ;
