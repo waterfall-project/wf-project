@@ -35,7 +35,11 @@ contract that carry it (EP-26, US-2300):
 - ``open-grid``: open a grid of a thousand tasks, ``listNodes``;
 - ``recompute-after-entry``: recompute after an entry in a grid, ``updateTaskFacet`` and
   ``updateEstimateLine``;
+- ``open-compared-grid``: open a grid of planning, of estimate or of remaining to commit compared
+  with a marked revision, ``compareRevisions`` (EP-27, US-2390);
 - ``filter-sort-search``: filter, sort or search in such a grid, ``listNodes``;
+- ``recompute-compared``: recompute after an entry in a compared grid, until its marks are read
+  anew, ``updateTaskFacet`` or ``updateEstimateLine`` then ``compareRevisions`` (EP-27, US-2390);
 - ``workload-or-projection``: show the workload or the projection of expenses,
   ``getProjectWorkload`` (the projection of expenses is EP-10);
 - ``mark-revision``: mark a revision of ten thousand objects, ``markRevision``;
@@ -44,9 +48,8 @@ contract that carry it (EP-26, US-2300):
 - ``export-planning``: generate the export of a planning of a thousand tasks, ``requestExport`` and
   ``getBackgroundTask``.
 
-``indicators`` (indicators of the current revision, EP-10), ``portfolio-view`` (EP-11),
-``open-compared-grid`` and ``recompute-compared`` (the compared grid, EP-27) have no operation yet:
-they are unserved.
+``indicators`` (indicators of the current revision, EP-10) and ``portfolio-view`` (EP-11) have no
+operation yet: they are unserved.
 """
 
 import json

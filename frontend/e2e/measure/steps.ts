@@ -4,8 +4,11 @@
  * The journey of the grids the measure plays for each user (US-2210), on PRJ-001: open the grid of
  * the planning by its address; go to that of the estimate, filter it by a lot, sort it, search it;
  * go to that of the remaining to commit, then back to the planning; enter a label, then a duration
- * that redates its task. Each step lasts from its gesture to the grid usable, as `usable.ts`
- * defines it for the measure of the second of §4.6.2:
+ * that redates its task. Then the same grids compared to the reference (EP-27, US-2390): the base
+ * chosen in the banner on the planning, the estimate, the remaining to commit and the planning again
+ * by the navigation, which carries the base, and a duration entered anew in the planning compared.
+ * Each step lasts from its gesture to the grid usable, as `usable.ts` defines it for the measure of
+ * the second of §4.6.2:
  *
  * - a grid opened by its address, from the start of the navigation; by a link of the navigation,
  *   from the click: the first frame at which the new grid is drawn and hydrated, as the script of
@@ -15,7 +18,12 @@
  *   asked — the address of the reading, or the cell written —, and is drawn: the header, the
  *   totals and the first row within the height of the window, whatever the grid has scrolled
  *   sideways, or, for a cell written, that cell within the window. A script started before the
- *   gesture watches the frames for it; a write ends once its server action has answered, too.
+ *   gesture watches the frames for it; a write ends once its server action has answered, too;
+ * - a cell written in a grid compared, once the marks are read anew: the answer of a write carries
+ *   none, and takes them from the rows it wrote until the grid has read its comparison anew
+ *   (`router.refresh`, US-2340) — the step ends at the first frame at which the cell written shows
+ *   its new value and the row written bears the sign of a difference again, on its label, which
+ *   the label entered before has made differ from the base.
  *
  * Between two steps, the page settles outside the measure (`settle`). Every request the browser
  * makes of the server of Next is kept with the bytes of its answer, for the parts of each step
@@ -55,6 +63,11 @@ export const STEPS = [
   "planning.from-remaining",
   "planning.label",
   "planning.duration",
+  "planning.compared",
+  "estimate.compared-from-planning",
+  "remaining.compared-from-estimate",
+  "planning.compared-from-remaining",
+  "planning.compared-duration",
 ] as const;
 
 export type Step = (typeof STEPS)[number];
@@ -125,6 +138,12 @@ interface Expected {
     readonly column: number;
     readonly shows?: string;
     readonly differsFrom?: string;
+    /**
+     * The position of a cell of the same row that bears the sign of a difference to the base
+     * (`BaseMark`): in a grid compared, the marks read anew after the write, which its answer
+     * took away from the row.
+     */
+    readonly marked?: number;
   };
 }
 
@@ -150,6 +169,12 @@ function armUsable({ reached: reachedName, armed, expected }: Watch): void {
   if (tests === undefined) {
     return;
   }
+  // Whether a cell of a row bears the sign of a difference to the base (`base-mark.tsx`, "Δ"),
+  // when one is asked: written here, the script being self-contained.
+  const marked = (row: Element | null, column: number | undefined): boolean =>
+    column === undefined ||
+    (row instanceof HTMLTableRowElement &&
+      (row.cells.item(column)?.textContent ?? "").includes("Δ"));
   const shows = (grid: Element): boolean => {
     if (expected.query !== undefined && !window.location.search.includes(expected.query)) {
       return false;
@@ -171,7 +196,8 @@ function armUsable({ reached: reachedName, armed, expected }: Watch): void {
       grid.querySelector("input, textarea") === null &&
       tests.inWindow(cell) &&
       (wanted.shows === undefined || text.includes(wanted.shows)) &&
-      (wanted.differsFrom === undefined || text !== wanted.differsFrom)
+      (wanted.differsFrom === undefined || text !== wanted.differsFrom) &&
+      marked(row, wanted.marked)
     );
   };
   const frame = () => {
@@ -389,16 +415,47 @@ async function byAddress(page: Page, screen: GridScreen): Promise<Interval> {
   return { start, end: Math.max(drawn, hydrated) };
 }
 
-/** Open the screen of a grid by its link in the navigation: from the click. */
-async function byLink(page: Page, screen: GridScreen): Promise<Interval> {
+/** The parameter of the address that names the base of a comparison (`navigation/context.ts`). */
+const BASE = "base_revision_id";
+
+/** The banner of the reading context, where the base of a comparison is chosen (US-2330). */
+const BANNER = "Contexte de lecture";
+
+/**
+ * Open the screen of a grid by its link in the navigation: from the click. A grid compared keeps
+ * its base from one grid to the next (US-2330): its address must still name it.
+ */
+async function byLink(page: Page, screen: GridScreen, compared = false): Promise<Interval> {
   await forget(page);
   await page
     .getByRole("navigation", { name: "Fonctions" })
     .getByRole("link", { name: screen.link })
     .click();
   const { drawn, hydrated } = await usableAt(page, screen.grid, LOADED);
-  await expect(page).toHaveURL(new RegExp(`/${screen.segment}(\\?|$)`));
+  await expect(page).toHaveURL(
+    new RegExp(`/${screen.segment}${compared ? `\\?(.*&)?${BASE}=` : "(\\?|$)"}`),
+  );
   return { start: await gestureStart(page, CLICKED), end: Math.max(drawn, hydrated) };
+}
+
+/**
+ * Compare the planning to the reference, chosen in the banner: from the click on the reference in
+ * the menu of the base, the menu opened before it, outside the measure, and the grid back at its
+ * first row — a grid changed in place is usable once that row is drawn. The witness reads PRJ-001
+ * at the copy of the reference: the reference is offered first, as the revision it comes from.
+ */
+async function compareToReference(page: Page): Promise<Interval> {
+  const planning = page.getByRole("treegrid", { name: PLANNING.grid });
+  await scrollToPosition(planning, 1);
+  await page
+    .getByRole("region", { name: BANNER })
+    .getByRole("button", { name: "Choisir une base de comparaison" })
+    .click();
+  const reference = page.getByRole("menu").getByRole("menuitemradio", { name: /\(référence\)$/ });
+  await expect(reference).toBeVisible({ timeout: LOADED });
+  return inPlace(page, { grid: PLANNING.grid, query: `${BASE}=` }, CLICKED, () =>
+    reference.click(),
+  );
 }
 
 /**
@@ -527,6 +584,9 @@ export async function journey(player: Player, target: Target, tag: string): Prom
   const { page, requests } = player;
   const planning = page.getByRole("treegrid", { name: PLANNING.grid });
   const estimate = page.getByRole("treegrid", { name: ESTIMATE.grid });
+  // The label the task is given, which makes it differ from the base; the duration entered last.
+  const label = `${target.label} · ${tag}`;
+  let entered = "";
   const plays: readonly (readonly [Step, () => Promise<Interval>])[] = [
     ["planning.by-address", () => byAddress(page, PLANNING)],
     ["estimate.from-planning", () => byLink(page, ESTIMATE)],
@@ -566,7 +626,6 @@ export async function journey(player: Player, target: Target, tag: string): Prom
       async () => {
         const at = await planningColumns(page);
         const row = await scrollToPosition(planning, target.position);
-        const label = `${target.label} · ${tag}`;
         const expected: Expected = {
           grid: PLANNING.grid,
           cell: { row: target.position + 1, column: at.label, shows: label },
@@ -581,12 +640,40 @@ export async function journey(player: Player, target: Target, tag: string): Prom
         const row = await scrollToPosition(planning, target.position);
         const cells = row.getByRole("gridcell");
         const finish = (await cells.nth(at.finish).textContent()) ?? "";
-        const duration = otherDuration((await cells.nth(at.duration).textContent()) ?? "");
+        entered = otherDuration((await cells.nth(at.duration).textContent()) ?? "");
         const expected: Expected = {
           grid: PLANNING.grid,
           cell: { row: target.position + 1, column: at.finish, differsFrom: finish },
         };
-        return write(page, cells.nth(at.duration), duration, expected, "shown");
+        return write(page, cells.nth(at.duration), entered, expected, "shown");
+      },
+    ],
+    ["planning.compared", () => compareToReference(page)],
+    ["estimate.compared-from-planning", () => byLink(page, ESTIMATE, true)],
+    ["remaining.compared-from-estimate", () => byLink(page, REMAINING, true)],
+    ["planning.compared-from-remaining", () => byLink(page, PLANNING, true)],
+    [
+      "planning.compared-duration",
+      async () => {
+        const at = await planningColumns(page);
+        const row = await scrollToPosition(planning, target.position);
+        const cells = row.getByRole("gridcell");
+        // The comparison adds no row to the planning of the witness, which the load and the journey
+        // write without adding nor removing a node: the task is at its position, its label entered.
+        await expect(cells.nth(at.label)).toContainText(label);
+        const finish = (await cells.nth(at.finish).textContent()) ?? "";
+        // A cell marked reads its sign and its base besides its value: the duration is the one
+        // entered by the step before, not the one read.
+        const expected: Expected = {
+          grid: PLANNING.grid,
+          cell: {
+            row: target.position + 1,
+            column: at.finish,
+            differsFrom: finish,
+            marked: at.label,
+          },
+        };
+        return write(page, cells.nth(at.duration), otherDuration(entered), expected, "shown");
       },
     ],
   ];

@@ -686,7 +686,7 @@ contre le service, **afin que** la file de fusion éprouve la comparaison telle 
 
 ## US-2390 — La grille comparée et la saisie dans une grille comparée sont mesurées, et l'option des empreintes est instruite
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre — l'outil de WF-QUA-0060, que clôt US-2300 (EP-26)
 - **opérations** : `compareRevisions`, `updateTaskFacet`, `updateEstimateLine`
 - **issue** : #3491
