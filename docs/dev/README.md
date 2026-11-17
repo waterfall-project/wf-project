@@ -4034,8 +4034,11 @@ class (`pytestmark` included) or its module, which a test that may skip — for 
 of a service — carries, and which a hook of the `conftest.py` files makes compulsory: a test that
 skips without it fails. The report lists its citations under their requirement, « non exécuté »,
 without counting them: a requirement that only tests not run cite is not covered, and
-`make requirements-release` names it. A skip decided in the body of a test (`test.skip(condition,
-…)`) is not seen: the test counts as run. A citation in a comment is no citation: only the titles of
+`make requirements-release` names it. A `test.skip(` or `test.fixme(` with no title, called in the body of a test (in the group,
+failing that), leaves the test executed when its first argument is `inService` or `!inService`,
+and makes it « non exécuté » for any other (`true`, `!inService || manager === undefined`…), as
+does a test that carries both forms; `it.skipIf(` and `it.runIf(` are not seen: the test counts
+as run. A citation in a comment is no citation: only the titles of
 `it(` and `test(` are read, and a form of call that the report does not know makes it fail, naming
 the file and the line.
 

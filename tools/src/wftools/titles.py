@@ -12,10 +12,13 @@ of tests: ``it(``, ``test(``, ``describe(``, ``test.describe(``, with their vari
 
 A test declared ``.skip``, ``.fixme`` or ``.todo``, or held by a group declared ``.skip`` or
 ``.fixme``, does not run. A group runs if one of its tests runs. A call of ``test.skip`` or
-``test.fixme`` whose first argument is no title — ``test.skip(!inService, "…")`` — is a skip that
-the test, or the group, decides as it runs, as is ``it.skipIf(condition)(…)`` or
-``it.runIf(condition)(…)``: only running tells, so the test still counts as run. The same goes for
-``test.fail(condition)``, an annotation of Playwright, which is no test.
+``test.fixme`` whose first argument is no title is a skip that the test, or the group, decides as
+it runs, and it is attached to the test that holds it (to the group, failing a test). Its first
+argument exactly ``inService`` or ``!inService`` is the platform skip of the end-to-end paths,
+which the report reads as run; any other argument (``true``, a compound condition…) makes the test
+not run, and so does a test that carries both forms. ``it.skipIf`` and ``it.runIf`` are not seen:
+the test counts as run, as with ``test.fail(condition)``, an annotation of Playwright, which is no
+test.
 
 A call on ``it``, ``test`` or ``describe`` that this module knows neither as a declaration nor as
 something that declares nothing (``test.use``, ``test.step``…) is not skipped over:
@@ -388,6 +391,32 @@ def _declaration(
     return Title(strings, range(index, pairs[at] + 1), group, bool(_NOT_RUN & set(members)))
 
 
+def _skips_in_body(found: list[Token], pairs: dict[int, int]) -> list[tuple[int, bool]]:
+    """Return each ``test.skip(…)``/``test.fixme(…)`` with no title.
+
+    Each comes with its index and whether it leaves the test run: ``inService`` and ``!inService``
+    do, any other first argument does not.
+    """
+    skips: list[tuple[int, bool]] = []
+    for index, token in enumerate(found):
+        if token.text not in {"it", "test"} or (index and found[index - 1].text == "."):
+            continue
+        at = index + 3
+        if not (
+            at < len(found)
+            and found[index + 1].text == "."
+            and found[index + 2].text in {"skip", "fixme"}
+            and found[at].text == "("
+            and at in pairs
+        ):
+            continue
+        first = _first_argument(found, at, pairs[at])
+        if first and first[0].kind == "string":
+            continue
+        skips.append((index, tuple(t.text for t in first) in {("inService",), ("!", "inService")}))
+    return skips
+
+
 def declarations(source: str, *, jsx: bool, path: str = "") -> list[tuple[Title, bool]]:
     """Return the tests and the groups of a file, each with whether it runs.
 
@@ -415,8 +444,34 @@ def declarations(source: str, *, jsx: bool, path: str = "") -> list[tuple[Title,
             for group in groups
         )
 
+    # A skip decided in a body belongs to the innermost test that holds it, else to the innermost
+    # group; only one that is not the platform skip stops the test, or the tests of the group.
+    stopped: set[int] = set()
+    for index, platform in _skips_in_body(found, pairs):
+        if platform:
+            continue
+        around = [title for title in titles if index in title.span]
+        owner = min(
+            (title for title in around if not title.group),
+            key=lambda title: len(title.span),
+            default=None,
+        ) or min(around, key=lambda title: len(title.span), default=None)
+        if owner is not None:
+            stopped.add(id(owner))
+
+    def group_stops(title: Title) -> bool:
+        return any(
+            id(group) in stopped and group is not title and title.span.start in group.span
+            for group in groups
+        )
+
     tests = {
-        id(title): not title.not_run and not held(title) for title in titles if not title.group
+        id(title): not title.not_run
+        and id(title) not in stopped
+        and not held(title)
+        and not group_stops(title)
+        for title in titles
+        if not title.group
     }
 
     def runs(title: Title) -> bool:

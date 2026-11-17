@@ -4066,8 +4066,11 @@ déclare : en TypeScript, un `.skip`, `.fixme` ou `.todo`, ou un appel sous un `
 service — porte, et qu'un crochet des `conftest.py` rend obligatoire : un test qui se saute sans la
 porter échoue. Le relevé liste ses citations sous leur exigence, « non exécuté », sans les compter :
 une exigence que seuls des tests non exécutés citent est non couverte, et `make requirements-release`
-la nomme. Un saut décidé dans le corps d'un test (`test.skip(condition, …)`) n'est pas vu : le test
-compte comme exécuté. Une citation dans un commentaire n'est pas une citation : seuls les titres des
+la nomme. Un `test.skip(` ou `test.fixme(` sans titre, appelé dans le corps d'un test (dans le groupe, à
+défaut), laisse le test exécuté quand son premier argument est `inService` ou `!inService`, et le
+sort « non exécuté » pour tout autre (`true`, `!inService || manager === undefined`…), comme un test
+qui porte les deux formes ; `it.skipIf(` et `it.runIf(` ne sont pas vus : le test compte comme
+exécuté. Une citation dans un commentaire n'est pas une citation : seuls les titres des
 `it(` et `test(` sont lus, et une forme d'appel que le relevé ne connaît pas le fait échouer en
 nommant le fichier et la ligne.
 

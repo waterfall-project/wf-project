@@ -180,3 +180,86 @@ describe("empty [WF-QUA-0010-A]", () => {
 });
 """
     assert cited(source) == [("WF-QUA-0010-A", "1", False)]
+
+
+def runs(source: str) -> dict[str, bool]:
+    return {r: ok for r, _line, ok in cited(source)}
+
+
+@pytest.mark.story("US-2440")
+@pytest.mark.parametrize(
+    "call",
+    [
+        "test.skip(inService, 'x');",
+        "test.skip(!inService, 'x');",
+        "test.skip( ! inService ,\n    'x',\n  );",
+        "test.skip(\n    inService,\n    SERVICE_ONLY,\n  );",
+    ],
+)
+def test_a_skip_on_the_platform_leaves_the_test_executed(call: str) -> None:
+    source = f'test("a [WF-QUA-0050-A]", async () => {{\n  {call}\n}});\n'
+    assert runs(source) == {"WF-QUA-0050-A": True}
+
+
+@pytest.mark.story("US-2440")
+@pytest.mark.parametrize(
+    "call",
+    [
+        "test.skip(true, SERVICE_ONLY);",
+        "test.skip(!inService || manager === undefined, SERVICE_ONLY);",
+        "test.skip(browserName === 'webkit', 'x');",
+        "test.fixme(cond, 'x');",
+        "test.fixme(\n    !inService || x,\n    'x',\n  );",
+    ],
+)
+def test_any_other_skip_in_the_body_makes_the_test_not_executed(call: str) -> None:
+    source = f'test("a [WF-QUA-0050-A]", async () => {{\n  {call}\n}});\n'
+    assert runs(source) == {"WF-QUA-0050-A": False}
+
+
+@pytest.mark.story("US-2440")
+def test_a_test_with_both_forms_is_not_executed() -> None:
+    source = """\
+test("a [WF-QUA-0050-A]", async () => {
+  test.skip(inService, "x");
+  test.skip(!inService || manager === undefined, "y");
+});
+"""
+    assert runs(source) == {"WF-QUA-0050-A": False}
+
+
+@pytest.mark.story("US-2440")
+def test_a_skip_stops_its_own_test_only() -> None:
+    source = """\
+test("a [WF-QUA-0050-A]", async () => { test.skip(true, "x"); });
+test("b [WF-QUA-0060-A]", async () => {});
+"""
+    assert runs(source) == {"WF-QUA-0050-A": False, "WF-QUA-0060-A": True}
+
+
+@pytest.mark.story("US-2440")
+def test_a_skip_in_a_group_outside_any_test_stops_the_tests_of_the_group() -> None:
+    source = """\
+test.describe("in", () => {
+  test.beforeEach(() => { test.skip(true, "x"); });
+  test("a [WF-QUA-0050-A]", async () => {});
+});
+test.describe("out", () => {
+  test("b [WF-QUA-0060-A]", async () => {});
+});
+"""
+    assert runs(source) == {"WF-QUA-0050-A": False, "WF-QUA-0060-A": True}
+
+
+@pytest.mark.story("US-2440")
+def test_fail_and_the_declaration_of_a_skipped_test_read_as_before() -> None:
+    source = """\
+test("a [WF-QUA-0050-A]", async () => { test.fail(true, "x"); });
+test.skip("b [WF-QUA-0060-A]", async () => {});
+test("c [WF-QUA-0070-A]", async () => { test.skip(inService, "x"); });
+"""
+    assert runs(source) == {
+        "WF-QUA-0050-A": True,
+        "WF-QUA-0060-A": False,
+        "WF-QUA-0070-A": True,
+    }
