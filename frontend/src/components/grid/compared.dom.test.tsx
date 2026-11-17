@@ -44,28 +44,18 @@ const STRUCTURE = {
   structure_id: "01926f3a-7c00-7000-8000-000000000201",
 };
 
-// The planning of the witness: the design file, whose finish the base put five days earlier.
-const planning = example("nodes_planning") as NodeList;
+// The comparison of the planning the contract gives (`comparison_planning`): the design file, whose
+// finish the base put two days earlier (its duration five days against seven), the other tasks as
+// the base held them. The grid reads it as the fake back serves it, nothing posed by hand.
+const compared = example("comparison_planning") as NodeList;
 const DESIGN = "Dossier de conception";
 const CABLING = "Câblage sur site";
-const PUSHED = {
-  base: { task: { finish: { date: "2026-04-17", hours: "8" } } },
-  deltas: { task: { finish: 5 } },
-};
-const compared: NodeList = {
-  ...planning,
-  items: planning.items.map((node) =>
-    node.task?.label === DESIGN
-      ? { ...node, difference: "modified", changes: ["dates"], ...PUSHED }
-      : ({
-          ...node,
-          difference: "unchanged",
-          changes: [],
-          base: null,
-          deltas: null,
-        } as typeof node),
-  ),
-};
+const PUSHED = (() => {
+  const pushed = projectNodes(compared, PLANNING_FIELDS, PLANNING_KINDS).items.find(
+    (node) => node.task?.label === DESIGN,
+  ) as PlanningNode;
+  return { base: pushed.base, deltas: pushed.deltas };
+})();
 
 // A frame that lays out: the rows of the answer are in the window of the rows in view.
 beforeEach(() => {
@@ -154,7 +144,7 @@ describe("the grid of the planning on a comparison", () => {
     const finish = cellOf(DESIGN, "finish");
     // The sign, not the colour alone, and the base for a reader of the screen.
     expect(within(finish).getByText("Δ")).toBeInTheDocument();
-    expect(finish).toHaveTextContent("Base : 17/04/2026");
+    expect(finish).toHaveTextContent("Base : 15/04/2026");
     // The cells that do not differ bear no mark.
     expect(within(cellOf(DESIGN, "start")).queryByText("Δ")).toBeNull();
     // The focus of the keyboard shows the date of the base.
@@ -162,7 +152,7 @@ describe("the grid of the planning on a comparison", () => {
     act(() => {
       finish.focus();
     });
-    expect(await screen.findByRole("tooltip")).toHaveTextContent("Base : 17/04/2026");
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Base : 15/04/2026");
     act(() => {
       finish.blur();
     });
@@ -176,7 +166,7 @@ describe("the grid of the planning on a comparison", () => {
     const finish = cellOf(DESIGN, "finish");
     expect(screen.queryByRole("tooltip")).toBeNull();
     await userEvent.hover(finish);
-    expect(await screen.findByRole("tooltip")).toHaveTextContent("Base : 17/04/2026");
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Base : 15/04/2026");
     await userEvent.unhover(finish);
     await waitFor(() => {
       expect(screen.queryByRole("tooltip")).toBeNull();
@@ -191,7 +181,7 @@ describe("the grid of the planning on a comparison", () => {
     render(planningGrid(true));
     const finish = cellOf(DESIGN, "finish");
     const spoken = finish.querySelector<HTMLElement>(".sr-only");
-    expect(spoken).toHaveTextContent("Base : 17/04/2026");
+    expect(spoken).toHaveTextContent("Base : 15/04/2026");
     expect(spoken).toHaveClass("select-none");
     expect(within(finish).getByText("Δ")).toHaveClass("select-none");
   });
@@ -204,7 +194,7 @@ describe("the grid of the planning on a comparison", () => {
     );
     await userEvent.keyboard("{Escape}");
     expect(screen.getByRole("columnheader", { name: "Écart de la fin" })).toBeInTheDocument();
-    expect(cellOf(DESIGN, "delta_finish")).toHaveTextContent("+5 j");
+    expect(cellOf(DESIGN, "delta_finish")).toHaveTextContent("+2 j");
     expect(cellOf("Études de détail", "delta_finish")).toHaveTextContent("");
   });
 
@@ -438,6 +428,8 @@ describe("the grid of the remaining to commit on a comparison", () => {
   });
 });
 
+// The bases and differences given by hand below are malformed or partial on purpose (#3781, #3795,
+// #3798): the contract cannot carry what it forbids, only the well-formed ones come from the example.
 describe("the base of a cell, read as the contract types it (#3781)", () => {
   type TaskBase = components["schemas"]["ComparedTaskFacet"];
   type Instant = components["schemas"]["WorkInstant"];
@@ -461,7 +453,7 @@ describe("the base of a cell, read as the contract types it (#3781)", () => {
   }
 
   it("reads the date of the base as the contract types it, and a base that held none as none", () => {
-    expect(finishBase(PUSHED.base)).toBe("17/04/2026");
+    expect(finishBase(PUSHED.base)).toBe("15/04/2026");
     expect(finishBase({ task: { finish: null } })).toBe("aucune valeur");
     // A base that does not hold the field: the cell does not differ.
     expect(finishBase({ task: { start: null } })).toBe("");
@@ -538,7 +530,7 @@ describe("the base of a cell, read as the contract types it (#3781)", () => {
     }
 
     it("reads the difference as the contract types it, and a difference left out as none [WF-IHM-0150-A]", () => {
-      expect(said(deltaFinish, PUSHED.deltas)).toBe("+5 j");
+      expect(said(deltaFinish, PUSHED.deltas)).toBe("+2 j");
       expect(said(deltaDuration, { task: { duration: { value: "2", unit: "d" } } })).toContain(
         "+2",
       );

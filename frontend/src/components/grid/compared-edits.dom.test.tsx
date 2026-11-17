@@ -58,9 +58,13 @@ const withTaskRemoved: NodeList = {
 };
 
 /** Serve the fake back, and give it back to read its calls. */
-function serve(): FakeClient {
+function serve(
+  preview:
+    | "paste_plan_amendment_skipping"
+    | "paste_plan_amendment_target_removed" = "paste_plan_amendment_skipping",
+): FakeClient {
   const client = fakeClient({
-    [PREVIEW]: "paste_plan_amendment_skipping",
+    [PREVIEW]: preview,
     [APPLY]: "paste_applied_amendment_skipping",
   });
   server.client = client;
@@ -139,15 +143,18 @@ afterEach(() => {
 });
 
 describe("a block pasted on a comparison", () => {
-  it("asks the plan of a block pasted on the line removed, for the server to refuse it and say why: the dialog opens [WF-IHM-0150-A]", async () => {
-    const client = serve();
+  it("asks the plan of a block pasted on the line removed, and presents the refusal of the server, whole, with its reason [WF-IHM-0150-A]", async () => {
+    const client = serve("paste_plan_amendment_target_removed");
     render(comparedGrid(comparison));
     const block = [["Provision revue"]];
     labelAt(REMOVED).focus();
     await userEvent.paste(copied(block));
-    // The refusal (PASTE_TARGET_REMOVED, whole) is the server's: the contract carries no example of
-    // it for the fake back, which answers its plan of the witness. The grid asks it and presents it.
-    expect(await screen.findByRole("dialog", { name: "Coller depuis un tableur" })).toBeVisible();
+    // The refusal (PASTE_TARGET_REMOVED, whole) is the server's, as the contract exemplifies it: the
+    // grid asks the plan and presents it, the reason and nothing accepted.
+    const dialog = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
+    expect(dialog).toBeVisible();
+    expect(dialog).toHaveTextContent("La cible du collage a disparu entre-temps");
+    expect(dialog).toHaveTextContent("Ligne 1 du bloc");
     expect(bodies(client, PREVIEW)).toEqual([
       { target_node_id: comparison.items[REMOVED]?.node_id, target_column: "label", rows: block },
     ]);
