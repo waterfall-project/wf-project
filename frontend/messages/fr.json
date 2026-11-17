@@ -3170,6 +3170,7 @@
     "cycle": "Boucle de liaisons, dans l’ordre : {tasks}.",
     "link": "Liaison en cause, la récapitulative d’abord : {tasks}.",
     "horizon_task": "Tâche en cause : {task}.",
+    "horizon_task_row": "Tâche en cause : {task}, ligne {row} du bloc collé.",
     "taskName": "« {label} »",
     "unknown_value": "Valeur lue dans le fichier : « {value} ».",
     "ambiguous_label": "Libellé lu : « {label} », porté par les tâches {tasks}.",

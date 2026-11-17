@@ -74,10 +74,13 @@ LINE_OWN = (
 )
 PREVIOUS = ("quantity", "hours", "unit_disbursement", "reestimated_amount")
 # A statement writing the lines, as sent, newlines kept (one ends a ``--`` comment). The comments
-# go first, then an ``UPDATE`` of ``estimate_line`` is sought anywhere in what is left: at the head,
-# behind a ``WITH`` or after a ``;``. A string literal naming one would count too: too wide, not
-# too narrow.
-COMMENT = re.compile(r"/\*.*?\*/ | --[^\n]*", re.VERBOSE | re.DOTALL)
+# go first (``_uncommented``), then an ``UPDATE`` of ``estimate_line`` is sought anywhere in what is
+# left: at the head, behind a ``WITH`` or after a ``;``. A quoted literal or name is kept whole, so
+# that a ``--`` or a ``/*`` in it opens no comment (#3655); one naming such an ``UPDATE`` counts
+# too: too wide, not too narrow. An ``INSERT … ON CONFLICT DO UPDATE`` is an insertion, the copy
+# itself, and a ``FOR UPDATE`` a lock: neither counts.
+QUOTED = re.compile(r"""'(?:[^']|'')*'? | "(?:[^"]|"")*"?""", re.VERBOSE)
+NESTING = re.compile(r"/\* | \*/", re.VERBOSE)
 LINE_UPDATE = re.compile(
     r"""
     \bupdate\s+              # the verb, then its target
@@ -90,9 +93,48 @@ LINE_UPDATE = re.compile(
 )
 
 
+def _comment_end(statement: str, at: int) -> int:
+    """Give where the ``/*`` comment opened at ``at`` ends: its own ``*/``, nested ones counted.
+
+    PostgreSQL nests them (#3656); one never closed runs to the end of the statement, which
+    PostgreSQL refuses, writing nothing.
+    """
+    depth = 0
+    for mark in NESTING.finditer(statement, at):
+        depth += 1 if mark.group() == "/*" else -1
+        if depth == 0:
+            return mark.end()
+    return len(statement)
+
+
+def _uncommented(statement: str) -> str:
+    """Give a statement its comments blanked, its quoted literals and names kept as they are.
+
+    Not read, as SQLAlchemy sends none: the dollar quotes (``$$…$$``) and the backslash escapes of
+    an ``E'…'``, a quote they hide ending the literal early.
+    """
+    kept: list[str] = []
+    at = 0
+    while at < len(statement):
+        if statement.startswith("--", at):
+            end = statement.find("\n", at)
+            at = len(statement) if end < 0 else end
+            kept.append(" ")
+        elif statement.startswith("/*", at):
+            at = _comment_end(statement, at)
+            kept.append(" ")
+        elif (quoted := QUOTED.match(statement, at)) is not None:
+            kept.append(quoted.group())
+            at = quoted.end()
+        else:
+            kept.append(statement[at])
+            at += 1
+    return "".join(kept)
+
+
 def _writes_lines(statement: str) -> bool:
     """Tell whether a statement, comments aside, updates ``estimate_line``."""
-    return LINE_UPDATE.search(COMMENT.sub(" ", statement)) is not None
+    return LINE_UPDATE.search(_uncommented(statement)) is not None
 
 
 @pytest.mark.parametrize(
@@ -112,6 +154,17 @@ def _writes_lines(statement: str) -> bool:
         ("UPDATE other SET estimate_line = 1", False),
         ("SELECT quantity FROM estimate_line", False),
         ("SELECT 1 -- UPDATE estimate_line", False),
+        # #3655: a literal holding a comment's mark opens none, nor does a doubled quote end it.
+        ("SELECT '--'; UPDATE estimate_line SET q=1", True),
+        ("SELECT 'a/*'; UPDATE estimate_line SET q=1 -- */", True),
+        ("SELECT 'it''s --'; UPDATE estimate_line SET q=1", True),
+        ('SELECT 1 AS "a--b"; UPDATE estimate_line SET q=1', True),
+        ("SELECT quantity FROM estimate_line FOR UPDATE", False),
+        ("INSERT INTO estimate_line VALUES (1) ON CONFLICT DO UPDATE SET q=1", False),
+        # #3656: comments nest, and one never closed runs to the end.
+        ("/* a /* b */ UPDATE estimate_line SET q=1 */ SELECT 1", False),
+        ("/* a /* b */ c */ UPDATE estimate_line SET q=1", True),
+        ("SELECT 1 /* UPDATE estimate_line SET q=1", False),
     ],
 )
 def test_the_witness_of_the_copy_detects_every_update_of_the_lines_and_only_them(

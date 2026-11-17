@@ -61,21 +61,31 @@ class Rescheduled:
 
 
 @dataclass(frozen=True, slots=True)
-class Blamed:
-    """What a write names when the engine refuses it: the task it writes, where a loop starts.
+class Named:
+    """A task as the refusal of the horizon names it: its node, null for a task created, its label.
 
-    ``node_id`` and ``label`` name the task beyond the horizon — the node null for a task created
-    —, ``origin`` the task whose predecessors are entered, a loop being named from it. A write of
-    several tasks gives, by task, what each is named (``among``): the task the engine finds beyond
-    the horizon is named as it is there when it is one of them, and as the tree has it otherwise
-    — a task the write moves without writing it —, ``node_id`` and ``label`` then unused.
-    ``among`` none, ``node_id`` and ``label`` name it.
+    ``row`` the row of the block of a paste that writes it, counted from zero as a refusal of the
+    paste counts it (``PasteRejection.row``), so that two tasks created with one label are told
+    apart (#3624); none for any other write.
     """
 
     node_id: UUID | None
     label: str
+    row: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Blamed:
+    """What a write names when the engine refuses it: the task it writes, where a loop starts.
+
+    ``named`` the task beyond the horizon, or, for a write of several tasks, what each is named, by
+    task: the task the engine finds beyond the horizon is named as it is there when it is one of
+    them, and as the tree has it otherwise — a task the write moves without writing it. ``origin``
+    the task whose predecessors are entered, a loop being named from it.
+    """
+
+    named: Named | Mapping[UUID, Named]
     origin: Origin = None
-    among: Mapping[UUID, tuple[UUID | None, str]] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,9 +122,10 @@ def replayed(
     dates' instant moved on to ``at`` and its counter advanced. A tree ``held`` hands is brought to
     what the write made of it (``reshaped``), not read again.
     Beyond fifteen years (WF-PLA-0150), refused (422 ``PROJECT_HORIZON_EXCEEDED``), nothing
-    written: naming the task the write blames — its node, none for a task created, and its label
-    — or, without one, the task that finishes last. A loop of links is named from the origin the
-    write gives (422 ``LINK_CYCLE``), a link across the hierarchy refused (``LINK_FORBIDDEN``).
+    written: naming the task the write blames — its node, none for a task created, its label, and
+    the row of the block of a paste — or, without one, the task that finishes last. A loop of
+    links is named from the origin the write gives (422 ``LINK_CYCLE``), a link across the
+    hierarchy refused (``LINK_FORBIDDEN``).
     """
     held = held or Holding()
     blamed = held.blamed
@@ -132,13 +143,8 @@ def replayed(
     computed = dated(replay, None if blamed is None else blamed.origin)
     beyond = computed.horizon_exceeded_by
     if beyond is not None:
-        if blamed is None:
-            raise horizon_exceeded(beyond, tree.tasks[beyond].label)
-        if blamed.among is None:
-            node_id, label = blamed.node_id, blamed.label
-        else:
-            node_id, label = blamed.among.get(beyond, (beyond, tree.tasks[beyond].label))
-        raise horizon_exceeded(node_id, label)
+        named = _named(blamed, beyond, tree)
+        raise horizon_exceeded(named.node_id, named.label, named.row)
     moved = kept(replay, computed, held.conflicts)
     session.flush()
     counter = structure_rescheduled(session, project_id, structure_id, at)
@@ -152,6 +158,15 @@ def replayed(
     return Rescheduled(
         tree, replay.links, calendars, frozenset(moved), counter, facts.is_main, reinflated
     )
+
+
+def _named(blamed: Blamed | None, beyond: UUID, tree: Tree) -> Named:
+    """Name the task the engine finds beyond the horizon: as the write blames it, or as read."""
+    named = None if blamed is None else blamed.named
+    if isinstance(named, Named):
+        return named
+    found = Named(beyond, tree.tasks[beyond].label)
+    return found if named is None else named.get(beyond, found)
 
 
 def _reinflated(

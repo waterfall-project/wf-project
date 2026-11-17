@@ -97,6 +97,7 @@ from waterfall.core.planning.interface.nodes import (
     write_cell,
     write_creation,
 )
+from waterfall.core.planning.rescheduling import Named
 from waterfall.core.planning.scheduling import Duration
 from waterfall.core.planning.shaping import stamp
 from waterfall.core.planning.tables import DURATION_UNITS, Node
@@ -861,34 +862,29 @@ def _bearer_of(write: Write, row: _Row, outcome: _Outcome) -> UUID | None:
     return None
 
 
-def _blamed(
-    write: Write, judged: list[tuple[_Row, _Outcome]]
-) -> tuple[tuple[UUID | None, str], dict[UUID, tuple[UUID | None, str]]]:
-    """Name the tasks a paste beyond the horizon is refused for: its first row, then each by task.
+def _blamed(write: Write, judged: list[tuple[_Row, _Outcome]]) -> dict[UUID, Named]:
+    """Name, by task, the tasks a paste beyond the horizon is refused for, each by its first row.
 
-    A task is named by its node and its label, the node null for a task created; a row of a line
-    names the task that bears it. The engine finds the task that carries the structure beyond the
-    horizon: the refusal names that one, a task of the paste (#2606) or the one the paste moves
-    that is none of its rows, a successor it pushes (WF-PLA-0150-A). The first row stands only
-    where a write names a task, never where the engine finds one.
+    A task is named by its node, its label and the row of the block that writes it (#3624), the
+    node null for a task created; a row of a line names the task that bears it. The engine finds
+    the task that carries the structure beyond the horizon: the refusal names that one, a task of
+    the paste (#2606), or, as the tree has it, the one the paste moves that is none of its rows, a
+    successor it pushes (WF-PLA-0150-A).
     """
-    every: dict[UUID, tuple[UUID | None, str]] = {}
-    first: tuple[UUID | None, str] | None = None
+    every: dict[UUID, Named] = {}
     for row, outcome in judged:
         bearer = _bearer_of(write, row, outcome)
         if bearer is not None:
-            key, name = bearer, (bearer, write.tree.tasks[bearer].label)
+            key, name = bearer, Named(bearer, write.tree.tasks[bearer].label, row.row)
         elif outcome.creation is not None:
             task = outcome.creation.creation.task
-            key, name = row.node_id, (None, "" if task is None else task.label or "")
+            label = "" if task is None else task.label or ""
+            key, name = row.node_id, Named(None, label, row.row)
         else:
-            key, name = row.node_id, (row.node_id, write.tree.tasks[row.node_id].label)
+            label = write.tree.tasks[row.node_id].label
+            key, name = row.node_id, Named(row.node_id, label, row.row)
         every.setdefault(key, name)
-        first = first or every[key]
-    if first is None:
-        msg = "a paste to write has a row"
-        raise RuntimeError(msg)
-    return first, every
+    return every
 
 
 def apply_paste(
@@ -952,8 +948,7 @@ def apply_paste(
                     if (bearer := _bearer_of(write, each, outcome)) is not None
                 )
             )
-            first, among = _blamed(write, judged)
-            redated = write.redate(first, None, bearers, among=among)
+            redated = write.redate(None, None, bearers, among=_blamed(write, judged))
             write.after(touched)
             result = redated.written(list(node_ids))
     except _NothingToWriteError as nothing:

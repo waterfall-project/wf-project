@@ -684,7 +684,10 @@ pas de calendrier propre, aucune facette n'en nomme sous elle. Un collage de 201
 à la confirmation : 2 046 requêtes avant, 446 après (calendrier 804 → 4, constantes 402 → 2, nœuds
 407 → 7 ; le reste, les 401 insertions), 1,04 s avant, 0,45 s après ; l'aperçu, 0,68 s avant,
 0,15 s après. Le refus d'horizon nomme la tâche que le moteur trouve hors horizon quand c'en est une
-du collage (`Blamed.among`), sinon sa première ligne.
+du collage (`Blamed.among`), sinon sa première ligne. US-2260/L4 : ce refus porte aussi la ligne du
+bloc, comptée depuis zéro (`params.task.row`, #3624, `docs/api/DECISIONS.md`) ; `Blamed` ne garde
+qu'un nom (`Named`) ou un nom par tâche, sans la première ligne, et une tâche qu'aucune ligne ne
+nomme l'est comme l'arbre la porte (#3625).
 
 ## US-2270 — La lecture d'une structure marquée est calculée une fois et gardée
 

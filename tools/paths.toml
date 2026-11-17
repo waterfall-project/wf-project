@@ -470,6 +470,7 @@ paths = [
     "fixtures/api/paste_plan_creating.json",
     "fixtures/api/paste_plan_creating_lines.json",
     "fixtures/api/paste_applied_creating.json",
+    "fixtures/api/paste_apply_horizon_exceeded.json",
     "fixtures/api/undo_task_renamed.json",
     "fixtures/api/redo_task_renamed.json",
     "fixtures/api/undo_task_renamed_one_left.json",
