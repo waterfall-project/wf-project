@@ -12,6 +12,3 @@
  * (#3801).
  */
 export const MEASURE_WINDOW = { width: 1366, height: 768 } as const;
-
-/** The narrowest window the specification guarantees the grids usable in (WF-CMP-0010-A). */
-export const SPECIFIED_WIDTH = 1366;

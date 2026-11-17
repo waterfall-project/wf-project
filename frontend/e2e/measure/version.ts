@@ -181,8 +181,10 @@ export function cacheOf(core: unknown): Cache {
     );
   }
   const sizes = read.extrapolation.map(({ subprojects }) => subprojects);
-  if (sizes.some((size, index) => index > 0 && size < (sizes[index - 1] ?? size))) {
-    throw new Error("the cost of the cache: the rows of extrapolation are sorted by subprojects");
+  if (sizes.some((size, index) => index > 0 && size <= (sizes[index - 1] ?? -Infinity))) {
+    throw new Error(
+      "the cost of the cache: the rows of extrapolation are sorted by subprojects, strictly ascending, one row per size",
+    );
   }
   return read;
 }

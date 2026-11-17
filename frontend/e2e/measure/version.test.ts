@@ -272,6 +272,20 @@ describe("cacheOf", () => {
       ),
     ).toThrow(/sorted by subprojects/);
   });
+
+  it("refuses two rows of extrapolation of the same size [WF-QUA-0060-A]", () => {
+    const row = CACHE.extrapolation[0];
+    expect(() =>
+      cacheOf(
+        coreWith({
+          rows: [
+            { ...row, subprojects: 100 },
+            { ...row, subprojects: 100 },
+          ],
+        }),
+      ),
+    ).toThrow(/strictly ascending, one row per size/);
+  });
 });
 
 /** The JSON of the core measure with some of the facts, or the rows, of the cache changed. */

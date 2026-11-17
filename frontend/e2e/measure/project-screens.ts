@@ -63,6 +63,9 @@ const INDICATORS: Screen = {
   ],
 };
 
+/** The screens, for the tests that read them against the catalogue of the messages. */
+export const SCREENS: readonly Screen[] = [WORKLOAD, SPENDING, INDICATORS];
+
 /** The name of the step of each screen in the log and in the report (`version.ts`). */
 export const WORKLOAD_STEP = WORKLOAD.step;
 export const SPENDING_STEP = SPENDING.step;
