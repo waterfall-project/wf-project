@@ -793,7 +793,7 @@ describe("the charts of the portfolio", () => {
     },
   );
 
-  it("reads the curves of the portfolio across the plot by light dashes, their ordinate without line nor tick (#3097) [US-2160]", () => {
+  it("reads the curves of the portfolio across the plot by light dashes, their ordinate without line nor tick [US-2160]", () => {
     const curves = example("portfolio_cost_curve") as Schemas["PortfolioCostCurve"];
     charts.props = [];
     render(inLanguage(<PortfolioCurveChart curves={curves} scope={curves.scope} />));

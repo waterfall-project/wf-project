@@ -184,7 +184,7 @@ describe("the risk matrix as a bubble chart", () => {
     expect(option?.legend).toBeUndefined();
   });
 
-  it("reads the matrix by light dashes across the plot, its ordinate without line nor tick, and makes the zone under the pointer stand out (#3097) [US-2160]", () => {
+  it("reads the matrix by light dashes across the plot, its ordinate without line nor tick, and makes the zone under the pointer stand out [US-2160]", () => {
     project(IDENTIFIED);
     const { option, bubbles } = drawn();
     expect(option?.yAxis).toMatchObject({
@@ -197,7 +197,7 @@ describe("the risk matrix as a bubble chart", () => {
     }
   });
 
-  it("puts the dashes of the grid on the levels of the ordinate, where its labels are, even when the levels are uneven (#3097) [US-2160]", () => {
+  it("puts the dashes of the grid on the levels of the ordinate, where its labels are, even when the levels are uneven [US-2160]", () => {
     const uneven = ["0", "0.1", "0.4", "0.7"];
     project({
       ...IDENTIFIED,

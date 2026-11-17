@@ -294,7 +294,7 @@ function curves(
   };
 }
 
-// These tests carry the criterion of US-2160 (#3097) on the axes.
+// These tests carry the criteria of US-2160 on the presentation of the charts (axes, symbols of the preference).
 describe("the presentation common to the charts (#3097)", () => {
   const ordinate = {
     axisLine: { show: false },
