@@ -170,7 +170,7 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-11](EP-11-portefeuille.md) | Portfolio | à planifier | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | File exchanges (FLX-01 to FLX-06) | abandonné : each round trip is validated in its functional block | — |
 | [EP-13](EP-13-exploitation.md) | Operations and going to production | à planifier | EP-04 |
-| [EP-28](EP-28-chaine-et-outillage.md) | Chain and development tooling | à planifier | nothing |
+| [EP-28](EP-28-chaine-et-outillage.md) | Chain and development tooling | en cours | nothing |
 
 The distribution of 2026-11-14, at the delivery of EP-24, spread what remains by theme — that of
 the code touched — and no longer by date of deferral: EP-25 keeps only the ergonomic redesign and
