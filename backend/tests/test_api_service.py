@@ -398,7 +398,7 @@ def test_a_composition_of_an_object_and_a_list_is_followed_by_the_shape_of_the_v
 
 
 # The compositions of the contract that the client would refuse, known: the body of a request, which
-# the client never reads, offers the two branches of an object that are not apart (#ISSUE_SONDE).
+# the client never reads, offers the two branches of an object that are not apart (#3746).
 # The list can only empty: the test fails on one that is no longer ambiguous.
 KNOWN_AMBIGUOUS = {
     "docs/api/components/schemas/projects.yaml#/ProjectExit/properties/current_revision",
