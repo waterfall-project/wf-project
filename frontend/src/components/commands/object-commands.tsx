@@ -37,6 +37,8 @@ import { ExitCommands } from "./exit-command";
 import { isExit } from "./exits";
 import { commandIcon, REVISION_COMMAND_ICONS } from "./icons";
 import { MarkCommand } from "./mark-command";
+import { ApplyRateUpdateCommand } from "@/components/revisions/rate-update-command";
+
 import { AbandonCommand, PrepareAmendmentCommand } from "./revision-commands";
 
 type RevisionCommand = components["schemas"]["RevisionCommand"];
@@ -85,8 +87,7 @@ type OfferedElsewhere =
   | `edit_${string}`
   | "generate_skeleton"
   | "merge_structure"
-  | "designate_reference"
-  | "apply_rate_update";
+  | "designate_reference";
 
 /** Whether a command of a revision is an export, which the screen of the exchanges offers. */
 function isExport(command: RevisionCommand): boolean {
@@ -96,16 +97,15 @@ function isExport(command: RevisionCommand): boolean {
 /**
  * Whether a command of a revision is offered by a screen of its own — an entry, by its grid; the
  * skeleton, by the empty grid of the planning; the designation of the reference, by the history of
- * the revisions, on the marked revision it designates; the application of the rates, by the
- * proposal it applies —, which the list of the commands leaves out.
+ * the revisions, on the marked revision it designates —, which the list of the commands leaves out.
+ * The rate update is listed: it stands at the right of the title, as the revision lists it.
  */
 function isOfferedByItsScreen(command: RevisionCommand): boolean {
   return (
     command.startsWith("edit_") ||
     command === "generate_skeleton" ||
     command === "merge_structure" ||
-    command === "designate_reference" ||
-    command === "apply_rate_update"
+    command === "designate_reference"
   );
 }
 
@@ -199,6 +199,19 @@ function RevisionCommandItem({
         offer={offer}
         revision={{ projectId: revision.project_id, revisionId: revision.revision_id, name }}
         names={names}
+      />
+    );
+  }
+  if (offer.command === "apply_rate_update") {
+    return (
+      <ApplyRateUpdateCommand
+        // Keyed by the revision: what it told never outlives its revision.
+        key={revision.revision_id}
+        offer={offer}
+        projectId={revision.project_id}
+        revisionId={revision.revision_id}
+        lockVersion={revision.lock_version}
+        name={name}
       />
     );
   }

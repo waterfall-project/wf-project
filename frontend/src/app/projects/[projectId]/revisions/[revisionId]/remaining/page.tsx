@@ -280,7 +280,9 @@ export default async function RemainingPage({
   const notStarted = progress.includes("not_started");
   const editable = screen.commands.has("edit_remaining");
   return (
-    <>
+    // The banner and the grid compose the changes they make to the address: a revision chosen keeps
+    // the sub-project filtered just before.
+    <PendingAddress>
       <ContextBanner
         reading={screen.reading}
         restricts={RESTRICTS}
@@ -301,24 +303,22 @@ export default async function RemainingPage({
         <Suspense fallback={<RemainingSummaryLoading />}>
           <Streamed content={indicators} />
         </Suspense>
-        <PendingAddress>
-          <GridCard fill>
-            <RemainingGrid
-              nodes={screen.nodes}
-              structure={screen.structure}
-              structureVersion={screen.structureVersion}
-              filters={screen.filters}
-              editable={editable}
-              categories={categories}
-              roles={roles}
-              subprojects={subprojects}
-              query={screen.query}
-              preferences={screen.preferences}
-              treeFilters={<TreeFilters breakdown={screen.breakdown} />}
-            />
-          </GridCard>
-        </PendingAddress>
+        <GridCard fill>
+          <RemainingGrid
+            nodes={screen.nodes}
+            structure={screen.structure}
+            structureVersion={screen.structureVersion}
+            filters={screen.filters}
+            editable={editable}
+            categories={categories}
+            roles={roles}
+            subprojects={subprojects}
+            query={screen.query}
+            preferences={screen.preferences}
+            treeFilters={<TreeFilters breakdown={screen.breakdown} />}
+          />
+        </GridCard>
       </Screen>
-    </>
+    </PendingAddress>
   );
 }

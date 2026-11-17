@@ -3,7 +3,8 @@
 /**
  * The server actions of the revisions of a project — marked (`markRevision`), opened
  * (`createRevision`), abandoned (`abandonRevision`), designated as the reference
- * (`designateReferenceRevision`), their rates updated (`applyRateUpdate`), an amendment prepared
+ * (`designateReferenceRevision`), their rates proposed (`readRateUpdateProposal`) and updated
+ * (`applyRateUpdate`), an amendment prepared
  * (`prepareAmendment`), its merge read (`readMergeReport`) and confirmed (`mergeAmendment`): the browser asks the
  * server of Next, which calls the API (§4.3.1), and gets back the outcome the one decoder makes
  * of its answer (`src/api/problem.ts`). A write answered reads the page anew: the state of the
@@ -112,6 +113,22 @@ export async function designateReferenceRevision(
         body: { revision_id: revisionId, confirmed: true, lock_version: projectLockVersion },
       }),
     ),
+  );
+}
+
+/**
+ * Read the update of the rates the API proposes to the current revision, category by category
+ * (WF-REV-0060): a read, which writes nothing, made when the dialog of the update opens and not
+ * when the screen renders; abandoning at this step is not applying.
+ */
+export async function readRateUpdateProposal(
+  projectId: string,
+  revisionId: string,
+): Promise<Outcome<Schemas["RateUpdateProposal"]>> {
+  return decode(() =>
+    serverClient().GET("/projects/{project_id}/revisions/{revision_id}/rate-update", {
+      params: { path: { project_id: projectId, revision_id: revisionId } },
+    }),
   );
 }
 

@@ -1,17 +1,18 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The drop zone of the file of an import of a planning (FBS-4.3.4, WF-INTF-0040), from the start of a
- * project: a file dragged onto the zone, or chosen from the keyboard by its button, which opens the
- * selector of the browser. The zone is announced — named, and described by the sentence that says what
- * it takes —, and the type of the file is checked before anything is sent: an MS Project file is an XML
- * file, and so is the size, past the largest an import takes (§4.6.2). A file that passes goes the
- * way the form of the screen of the imports and exports sends it (`useOpenImport`): the deposit, the
- * analysis in the tracker of the shell, then the report of the import on the screen, to be applied or
- * abandoned; a refusal is told under the zone (`OutcomeNotice`). The zone says that it is sending,
- * says a file dropped meanwhile is not taken, and takes no other once one is sent — unless the task
- * that analyses it fails, which frees the zone for another file —, nor while the analysis of a file
- * of the project it finds, mounted anew, runs (#3404). The API judges the content.
+ * The drop zone of the file of an import of a planning (FBS-4.3.4, WF-INTF-0040), from the start of
+ * a project: a file dragged onto the zone, or chosen from the keyboard by its button, which opens
+ * the selector of the browser. The zone is announced — named, and described by the sentence that
+ * says what it takes —, and the type of the file is checked before anything is sent: an MS Project
+ * file is an XML file, and so is the size, past the largest an import takes (§4.6.2). A file that
+ * passes goes the way the form of the screen of the imports and exports sends it (`useOpenImport`):
+ * the deposit, the analysis in the tracker of the shell, then the report of the import on the
+ * screen, to be applied or abandoned; a refusal is told under the zone (`OutcomeNotice`). The zone
+ * says that it is sending, says a file dropped meanwhile is not taken, and takes no other once one
+ * is sent — unless the task that analyses it fails, which frees the zone for another file —, nor
+ * while the analysis of a file of the project it finds, mounted anew, runs (#3404). The API judges
+ * the content.
  *
  * The zone is lit while a file is dragged over it, over its children too: the entries and the exits
  * of the drag are counted, as `relatedTarget` of a leave is null in Firefox.
@@ -34,7 +35,9 @@ import { analysisAim, useOpenImport } from "./open-import";
 /** The extension of the file of an MS Project schedule. */
 const EXTENSION = ".xml";
 
-/** What the zone says of the file given: not an XML file, or one past the largest an import takes. */
+/**
+ * What the zone says of the file given: not an XML file, or one past the largest an import takes.
+ */
 type FileProblem = "notXml" | "tooLarge";
 
 /** What the zone says besides: a file dropped while another is being sent. */
@@ -48,7 +51,9 @@ function fileProblem(file: File): FileProblem | undefined {
   return file.size > IMPORT_MAX_BYTES ? "tooLarge" : undefined;
 }
 
-/** The drop zone of the file of the import of a planning, and the address it shows the report at. */
+/**
+ * The drop zone of the file of the import of a planning, and the address it shows the report at.
+ */
 export function FileDrop({
   projectId,
   start,
@@ -63,16 +68,16 @@ export function FileDrop({
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const [problem, setProblem] = useState<DropProblem>();
-  // The file being sent, then the file sent: the zone takes no other until the report is shown. Being
-  // sent from the drop to the answer, and lifted in the very update that tells it — not by a
+  // The file being sent, then the file sent: the zone takes no other until the report is shown.
+  // Being sent from the drop to the answer, and lifted in the very update that tells it — not by a
   // transition, whose end would wait for every other async action of the page (#1484).
   const [sending, setSending] = useState<string>();
   const busy = sending !== undefined;
   const [sent, setSent] = useState<string>();
   // The task that analyses the file sent: its failure frees the zone.
   const [analysis, setAnalysis] = useState<string>();
-  // The button waits while the file is sent and while its analysis runs (WF-IHM-0080, #3279) — mounted
-  // anew, while an analysis of the project runs (#3404).
+  // The button waits while the file is sent and while its analysis runs (WF-IHM-0080, #3279) —
+  // mounted anew, while an analysis of the project runs (#3404).
   const found = useRunningTask(analysisAim(projectId));
   const analysing = useTaskRunning(analysis ?? found);
   // The drags that entered the zone or one of its children and did not leave yet.
@@ -91,7 +96,8 @@ export function FileDrop({
   );
 
   const receive = (file: File | undefined) => {
-    // A file sent, or an analysis of the project found running once mounted anew: no other is taken.
+    // A file sent, or an analysis of the project found running once mounted anew: no other is
+    // taken.
     if (file === undefined || sent !== undefined || analysing) {
       return;
     }
@@ -173,7 +179,8 @@ export function FileDrop({
         variant="outline"
         size="sm"
         {...waitingAttributes(waiting)}
-        // A file sent whose analysis was not handed over: no other is taken, the button marked all the same.
+        // A file sent whose analysis was not handed over: no other is taken, the button marked all
+        // the same.
         {...(sent !== undefined ? { "aria-disabled": true } : {})}
         aria-describedby={problem === undefined ? undefined : `${id}-problem`}
         onClick={() => {

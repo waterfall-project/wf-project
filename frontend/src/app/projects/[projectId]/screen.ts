@@ -17,6 +17,7 @@ import {
   type ProjectReading,
   readProjectContext,
   readRevision,
+  readRevisions,
 } from "@/components/context/reading";
 import {
   type PageSearchParams,
@@ -91,4 +92,13 @@ export async function readCurrentRevision(project: Project): Promise<Revision | 
     throw refusalOf("getRevision", answer.response.status, answer.error);
   }
   return answer.data;
+}
+
+/**
+ * Every revision of a project, for a screen that lists them — the page of the project, the
+ * revisions —: the same read as the banner's, once per request (`readRevisions`), not found when the
+ * API does not find them.
+ */
+export async function listProjectRevisions(projectId: string): Promise<readonly Revision[]> {
+  return (await readRevisions(projectId)) ?? notFound();
 }

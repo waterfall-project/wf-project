@@ -9,10 +9,9 @@ Ouvrir un projet ne passe pas par cet écran : la page du projet mène à sa ré
 De haut en bas :
 
 - l’**Historique des révisions** : pour chacune, sa version, son état, sa date de marquage, sa description, le lien qui l’ouvre, et la marque de la référence ;
-- la **Désignation de la référence**, sur les révisions marquées ;
-- la **Comparaison de deux révisions** marquées ;
-- les **Structures de coûts** de la révision lue — la structure principale, les différentiels d’avenant, les devis propres des risques — avec leur état ;
-- pour la révision en cours, la **Mise à jour des taux proposée**, quand le référentiel a changé depuis qu’elle a été chiffrée.
+- la **Comparaison de deux révisions** marquées.
+
+Les structures de coûts de la révision lue se choisissent dans le bandeau des grilles, non sur cet écran.
 
 ## Ses commandes
 
@@ -27,9 +26,9 @@ Chaque section est une carte. En tête de l’écran, les commandes de la révis
 Dans les sections :
 
 - **Ouvrir**, dans l’historique, ouvre la révision : les écrans du projet la lisent alors.
-- **Désigner comme référence**, sur une révision marquée, après confirmation : elle fixe le budget de référence et la valeur planifiée ; le projet qui porte son code projet passe à l’état En cours. Indisponible sur une révision qui ne porte aucune tâche ou aucune ligne de devis, et quand la référence ne se corrige plus — le projet a reçu un coût réel, ou une révision a été marquée depuis la dernière désignation.
+- **Désigner comme référence**, commande de chaque révision marquée de l’historique, après confirmation : elle fixe le budget de référence et la valeur planifiée ; le projet qui porte son code projet passe à l’état En cours. Indisponible sur une révision qui ne porte aucune tâche ou aucune ligne de devis, et quand la référence ne se corrige plus — le projet a reçu un coût réel, ou une révision a été marquée depuis la dernière désignation.
 - **Comparer**, entre deux révisions marquées choisies par **De la révision** et **À la révision** : la grille des nœuds comparés marque chaque tâche et chaque ligne ajoutée (**+**), retirée (**-**) ou modifiée (**M**), et les écarts de montants suivent. Il faut deux révisions marquées.
-- **Appliquer la mise à jour des taux**, pour les catégories retenues, après confirmation : les taux de la révision en cours sont remplacés par les taux proposés, et ses montants rechiffrés. Une proposition, jamais imposée ; offerte là où la révision se saisit au devis.
+- **Appliquer la mise à jour des taux**, commande de la révision en cours, à droite du titre : elle ouvre la proposition, catégorie par catégorie, dans une fenêtre ; pour les catégories retenues, après confirmation, les taux de la révision en cours sont remplacés par les taux proposés, et ses montants rechiffrés. Une proposition, jamais imposée ; offerte là où la révision se saisit au devis.
 
 ## Ses colonnes et ses valeurs calculées
 

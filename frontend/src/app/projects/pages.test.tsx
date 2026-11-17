@@ -171,6 +171,7 @@ const EXAMPLE_BY_END = {
   "/subprojects": ["GET /projects/{project_id}/subprojects", "subprojects"],
   "/work-breakdown": ["GET /projects/{project_id}/work-breakdown", "work_breakdown"],
   "/risks": ["GET /projects/{project_id}/risks", "risks"],
+  "/revisions": ["GET /projects/{project_id}/revisions", "revisions"],
 } as const satisfies Readonly<Record<string, CitedRead>>;
 const READ_REVISION = [
   "GET /projects/{project_id}/revisions/{revision_id}",
