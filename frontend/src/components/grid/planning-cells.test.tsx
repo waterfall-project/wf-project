@@ -11,7 +11,7 @@ import type { NodeList } from "./nodes";
 import { PhysicalProgressCell } from "./planning-cells";
 
 describe("the physical progress of a summary", () => {
-  it("shows a progress too small to show below the smallest share, never « 0 % » (#626)", () => {
+  it("shows a progress too small to show below the smallest share, never « 0 % » (#626) [WF-PLA-0130-A] [WF-IND-0060-A]", () => {
     // A variant of the first summary of `nodes_planning`: its physical progress, 1, changed to
     // 0.00003 — the rest of the node kept.
     const node = (example("nodes_planning") as NodeList).items.find(
