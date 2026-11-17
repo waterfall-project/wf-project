@@ -1860,7 +1860,7 @@ d'EP-05 le note en écart d'US-0850.
 
 ## US-2420 — Les indicateurs, le plan de charge et la projection de dépenses sont mesurés
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre — l'outil de WF-QUA-0060, que clôt US-2300 (EP-26)
 - **opérations** : `getProjectIndicators`, `getProjectWorkload`, `getProjectSpending`
 - **issue** : #3510
