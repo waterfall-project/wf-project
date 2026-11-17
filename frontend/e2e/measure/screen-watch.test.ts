@@ -4,6 +4,10 @@
 /**
  * The script that watches a screen of the project (`screen-watch.ts`, US-2420), played in a
  * document: a tool of the measure, which covers no requirement of its own and cites none.
+ *
+ * The condition `windowed` (the top of the section or of its chart within the window) is not
+ * covered here: happy-dom lays nothing out, and `getBoundingClientRect` answers a zero box, always
+ * within the window. The measure itself, in a browser, is its test.
  */
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -11,7 +15,12 @@ import { armScreen, type Watched } from "./screen-watch";
 
 const ARMED = "wfTestArmed";
 const ADDRESS = String.raw`\/indicators(\?|$)`;
-const CHART: Watched = { name: "Coûts cumulés", chart: true, windowed: false };
+const CHART: Watched = {
+  name: "Coûts cumulés",
+  chart: true,
+  windowed: false,
+  empty: "^Rien à tracer",
+};
 
 /** Give an element what React gives it when it takes it over. */
 function hydrate(element: Element): void {
@@ -52,7 +61,10 @@ describe("armScreen", () => {
   });
 
   it("takes a section that says it has nothing to draw, hydrated, with no button in it", async () => {
-    page("/indicators", `<section aria-label="Coûts cumulés"><p>Aucune courbe</p></section>`);
+    page(
+      "/indicators",
+      `<section aria-label="Coûts cumulés"><p>Rien à tracer : aucune ligne.</p></section>`,
+    );
     hydrate(document.querySelector("section") as Element);
     arm();
     await frames();
@@ -60,7 +72,10 @@ describe("armScreen", () => {
   });
 
   it("waits for the hydration of the section, in either state", async () => {
-    page("/indicators", `<section aria-label="Coûts cumulés"><p>Aucune courbe</p></section>`);
+    page(
+      "/indicators",
+      `<section aria-label="Coûts cumulés"><p>Rien à tracer : aucune ligne.</p></section>`,
+    );
     arm();
     await frames();
     expect(slot()).toBeNull();
@@ -80,8 +95,26 @@ describe("armScreen", () => {
     expect(slot()).toBeNull();
   });
 
+  it("does not take a section whose chart is not drawn for a paragraph that is not its empty state", async () => {
+    page(
+      "/indicators",
+      `<section aria-label="Coûts cumulés"><p>Une note</p><div role="img"><svg></svg></div></section>`,
+    );
+    hydrate(document.querySelector("section") as Element);
+    arm();
+    await frames();
+    expect(slot()).toBeNull();
+    page("/indicators", `<section aria-label="Coûts cumulés"><p>Une note</p></section>`);
+    hydrate(document.querySelector("section") as Element);
+    await frames();
+    expect(slot()).toBeNull();
+  });
+
   it("does not take a section of the screen before, nor one outside the main", async () => {
-    page("/planning", `<section aria-label="Coûts cumulés"><p>Aucune courbe</p></section>`);
+    page(
+      "/planning",
+      `<section aria-label="Coûts cumulés"><p>Rien à tracer : aucune ligne.</p></section>`,
+    );
     hydrate(document.querySelector("section") as Element);
     arm();
     await frames();
@@ -89,7 +122,7 @@ describe("armScreen", () => {
     page("/indicators", "");
     document.body.insertAdjacentHTML(
       "beforeend",
-      `<section aria-label="Coûts cumulés"><p>Aucune courbe</p></section>`,
+      `<section aria-label="Coûts cumulés"><p>Rien à tracer : aucune ligne.</p></section>`,
     );
     hydrate(document.querySelector("section") as Element);
     await frames();
