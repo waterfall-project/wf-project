@@ -117,6 +117,9 @@ paths = [
     # The files the platform mounts, which the object storage reads (PLC-06).
     "deploy/compose/garage.toml",
     "deploy/compose/storage-buckets.sh",
+    # The script of the production that makes the owner NOSUPERUSER, which
+    # backend/tests/test_migrations_as_owner.py reads to migrate a new base as that owner (#958).
+    "deploy/compose/waterfall-database.sql",
     ".github/workflows/back.yml",
     # The thresholds of the coverage.
     "tools/src/wftools/codecoverage.py",

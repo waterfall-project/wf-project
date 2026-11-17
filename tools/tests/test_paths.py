@@ -248,6 +248,8 @@ def test_a_path_against_the_service_is_a_test_of_its_own_family() -> None:
     [
         # What the checks read besides their own code (PLC-06).
         ("ruff.toml", {"back"}),
+        # The script that makes the owner NOSUPERUSER, which a test of the back migrates by (#958).
+        ("deploy/compose/waterfall-database.sql", {"back"}),
         ("tools/src/wftools/launch.py", {"back", "front", "service", "production"}),
         ("tools/src/wftools/slots.py", {"back", "front", "service", "production"}),
         ("deploy/compose/garage.toml", {"back", "keycloak", "service"}),
